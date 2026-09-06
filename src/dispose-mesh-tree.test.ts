@@ -104,7 +104,16 @@ describe('disposeMeshTree', () => {
 
 describe('disposeMeshTree and textures', () => {
   const texture = (name: string) =>
-    new BABYLON.Texture(null, scene, undefined, undefined, undefined, null, null, name)
+    new BABYLON.Texture(
+      null,
+      scene,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      null,
+      name
+    )
 
   test('takes a texture nothing else refers to', () => {
     const mesh = box('textured')
@@ -131,6 +140,39 @@ describe('disposeMeshTree and textures', () => {
     U.disposeMeshTree(mesh)
     expect(has(going)).toBe(false)
     expect(scene.textures.includes(shared)).toBe(true)
+  })
+
+  test('LEAVES a texture a LIBRARY material refers to, though it is not in scene.materials', () => {
+    /*
+    THE CASE THE FIRST GUARD COULD NOT SEE, measured on /b3d-prop/ with real
+    Kenney GLBs: a library-instantiated model's materials belong to the
+    `AssetContainer`, so they are NOT in `scene.materials` — while its meshes
+    ARE in `scene.meshes`. `scene.removeMaterial` reproduces exactly that.
+
+    A guard written against `scene.materials` therefore finds no user for the
+    shared texture and disposes it while the library model is still drawing it.
+    Silently: the model just goes black. So the texture guard has to ask the
+    MESH list, which is the only list that sees both kinds.
+    */
+    const shared = texture('library-shared-tex')
+    const going = new BABYLON.StandardMaterial('going-lib', scene)
+    going.diffuseTexture = shared
+    const fromContainer = new BABYLON.StandardMaterial('container-mat', scene)
+    fromContainer.diffuseTexture = shared
+    scene.removeMaterial(fromContainer)
+    expect(scene.materials.includes(fromContainer)).toBe(false)
+
+    const mesh = box('going-lib-mesh')
+    mesh.material = going
+    const libMesh = box('library-mesh')
+    libMesh.material = fromContainer
+
+    U.disposeMeshTree(mesh)
+    expect(has(going)).toBe(false)
+    expect(scene.textures.includes(shared)).toBe(true)
+
+    libMesh.dispose()
+    fromContainer.dispose()
   })
 
   test('LEAVES the scene environment texture', () => {
@@ -198,7 +240,12 @@ describe('destroyableAt — resolving a hit by ANCESTRY', () => {
   const attach = (root: import('@babylonjs/core').AbstractMesh, id: string) => {
     const b = new DB.DestroyableBehavior(
       owner,
-      { get mesh() { return root as never }, dispatchEvent: () => true },
+      {
+        get mesh() {
+          return root as never
+        },
+        dispatchEvent: () => true,
+      },
       { idBase: id, capacity: 100 },
       {}
     )
@@ -208,7 +255,11 @@ describe('destroyableAt — resolving a hit by ANCESTRY', () => {
 
   test('a hit on a DESCENDANT resolves to the registered root', () => {
     const root = BABYLON.MeshBuilder.CreateBox('craft', { size: 1 }, scene)
-    const fuselage = BABYLON.MeshBuilder.CreateBox('fuselage', { size: 1 }, scene)
+    const fuselage = BABYLON.MeshBuilder.CreateBox(
+      'fuselage',
+      { size: 1 },
+      scene
+    )
     const wing = BABYLON.MeshBuilder.CreateBox('wing', { size: 1 }, scene)
     fuselage.parent = root
     wing.parent = fuselage // three levels down, as a real model is
