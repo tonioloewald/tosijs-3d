@@ -8,6 +8,31 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.8.1 (unreleased)
 
+### Changed
+
+- **Aircraft guns damage what they pass through, instead of firing an area
+  effect** (#23). Blast damage resolves by distance to a destroyable's
+  registered point — ONE point, at the model's origin — so scaling a fighter 4×
+  puts its wing outside a 1.5 m blast and point-blank fire does nothing, with
+  no error. Direct-hit damage has no length scale in it and is immune to that
+  whole class. `gunMode="blast"` restores the previous behaviour, and
+  `gunFullRadius`/`gunBlastRadius` are attributes now rather than hardcoded.
+- **A disposed mesh now takes its own materials and textures with it.**
+  `mesh.dispose()` leaves them behind, so every scene child that built one
+  leaked it on every teardown — including every RE-PARENT, since a move
+  disconnects the child while the scene deliberately survives. Measured:
+  re-parenting one scene six times took materials 3 → 15 and textures 3 → 21,
+  unbounded, meshes correctly flat. `disposeMeshTree` CHECKS before disposing —
+  a glTF file shares one material across many meshes and a disposed material
+  still answers `isReady()`, so a wrong sharing rule turns siblings black
+  silently. Textures held by the scene environment, a render target or a
+  light's gel are exempt, because nothing references those from a material.
+- **A blast finds every destroyable, not every `<tosi-b3d-destroyable>`.**
+  `detonateWarhead` queried one tag name, so `b3d-loader` models — which attach
+  the same behaviour — were invisible to every explosion in the scene. The
+  registry now lives on `DestroyableBehavior`, so anything attaching one is a
+  target by construction.
+
 ### Fixed
 
 - **`b3d-destroyable` could not place a library piece properly** — three
@@ -82,6 +107,65 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **A manipulator — translate, rotate and scale handles you can grab** (#38),
+  ported from `tosijs-3d-ensemble` where it was shaken out against real
+  authoring, including on a phone. Three files on the usual split:
+  `manipulator.ts` (pure — the five grip readings, snapping, the drag reducer),
+  `manipulator-view.ts` (the Babylon handles, with the two-pass pick and the
+  euler composition folded in so a consumer no longer writes either), and
+  `<tosi-b3d-manipulator>`. The flat pointer is wired; `grab`/`grabNear`/
+  `drag`/`release` take world rays so a controller or a hand drives the same
+  code. Note `move`/`turn` rather than `translate`/`rotate`: `translate` is a
+  real `HTMLElement` property and declaring it gives one word two owners.
+- **`<tosi-b3d-beacon>`** — a clickable hull for anything with a position and
+  no geometry: a lamp, a positional sound, a spawn point (#70). Invisible via
+  `visibility = 0` rather than `isVisible = false`, which is the whole trick —
+  Babylon's default pick test is `isEnabled && isVisible && isPickable`, so the
+  obvious way to hide a hull makes it unpickable, and the failure returns
+  *whatever is behind it* rather than nothing. `beaconOwner(mesh)` is the entire
+  reading-side API.
+- **`angle3d` and `arc3d`** — dial a bearing, dial a firing arc (#71). An angle
+  on a linear track has ends where the quantity does not, so 359° and 1° sit at
+  opposite ends of the slider. `arc.ts` is the pure model, and an arc is a
+  CENTRE and a WIDTH rather than a start and an end — which makes "is this
+  bearing inside" and "does that arc contain this one" one line each, and makes
+  straddling north unrepresentable rather than special-cased. An envelope is
+  drawn, not merely clamped against, so a turret's restricted arc explains the
+  ship instead of silently snapping.
+- **`picker3d`** — choosing one of five hundred (#37). A `table` for the
+  virtualized filterable list, an `inputField` for the query, a `select3d` for
+  the family: two levels without a tree, because a tree needs a pointer to
+  expand and two flat controls work from a D-pad. Filtering is AND across terms
+  over the whole name, so word order cannot matter.
+- **`terrainEditor3d`** — a terrain editor built FROM `sceneSchemas.terrain()`
+  (#66), so a range cannot disagree with the element it edits. Curated, not
+  generated: most of the schema's thirty properties are performance internals,
+  and a panel showing all of them is a settings dump.
+- **`FieldType: 'color'` and a swatch on `inputField`** (#72). Tolerant in,
+  canonical out — `#abc`, `red` and `rgb(255,128,0)` all commit as `#rrggbb`,
+  and a five-digit hex is valid WHILE TYPING and refused at commit rather than
+  silently accepted. The swatch holds the last good colour while the text does
+  not parse, so a half-typed value does not read as a lost one.
+- **One wind for the scene** (#73) — `windSpeed`, `windBearingDeg`, `windGust`
+  on `<tosi-b3d>`, with `wind="scene|own"` on clouds, water and ambient.
+  Clouds, water and leaves each carried their own wind in three spellings and
+  could silently disagree. `wind.ts` is pure: Cartesian inside, degrees at the
+  edge, and that IS the composition rule — a valley funnelling, a lee
+  sheltering and a headland curling are all just contributions that add.
+- **Combat attribution** (#8) — `Cause {by, kind, via, hops}` on `damaged` and
+  `destroyed`, threaded through chain links, `tick` and `deathBlast`, and
+  stored on the `Destroyable` so a reaction a frame later can still ask. `by`
+  is the ORIGINATOR however many hops back, because re-attributing each hop to
+  the thing next to it launders the credit away. Measured on the 48-drum
+  cascade: one hit, 48 kills, all credited, hop counts 1/3/5/7/9/11/6/6.
+- **`b3d-aircraft` can be damaged and locked** (#23) — `destroyable="on"`
+  attaches the same behaviour `b3d-loader` uses, and `blip="on"` mounts a radar
+  blip, without which an enemy cannot be missile-locked and a player reports
+  that "missiles don't work".
+- **A veto is told about the activation** (#36) — `blocks(info)` receives
+  `{actor, source, distance, …}`, so one door can answer differently for an NPC
+  holding the key and a player who is not, and can tell a hand within reach
+  from a ray across the room. A veto that ignores its argument is unaffected.
 - **A configured terrain now draws itself** (#66). `<tosi-b3d-terrain>` built a
   tile pool and filled it only when told, so a terrain with its attributes set
   rendered nothing until someone called `regenerate()` — a silent failure that
