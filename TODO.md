@@ -29,6 +29,24 @@ Round four cleared with GO_WITH_FOLLOWUPS. Remaining index work, none blocking:
       A name only helps if the line says what it does — that was the whole
       argument for the artifact. Most are attributes the source documents
       nowhere; the index is now good enough to show where the DOCS are thin.
+- [ ] **THE THIRD RUNG: `bin/attribute-index.ts` has now blocked two gates in a
+      row, and both blockers were the same shape.** B5 of the pre-tag gate
+      (inherited attributes missing) and B1 of the remediation re-review (a
+      legend table silencing a whole doc) were each a REGEX SCOPE error — a
+      pattern applied to more text than it should have been. Three further
+      point-fixes in between (bound the class body, pair tags by body, restore
+      `/`) were the same. Per `tosijs-coding-practices/practices/review.md`, a
+      repeated blocker in one area is evidence against a DESIGN decision, not
+      against the fixes: the decision here is *parse TypeScript and markdown
+      with regexes*. `stripComments` is already known to be string-blind (it
+      blanks `//` inside string and template literals, and this repo ships GLSL
+      strings). The design answer is a real TS AST for the `initAttributes` side
+      — the re-review reports running exactly that out-of-tree and finding it
+      agrees with the index for every tagged element today, so it is a
+      substitution rather than a rewrite — and a proper table walk for the
+      markdown side, which `tableRows` now half is. Do this before the next
+      component lands, not after the third blocker.
+
 - [ ] **`bin/attribute-index.ts` is a tosijs-wide tool living in one repo's
       `bin/`** with no route out. Other projects in the ecosystem would want it.
       Filed as a note rather than moved.
