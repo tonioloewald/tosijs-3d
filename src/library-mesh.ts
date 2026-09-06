@@ -14,7 +14,18 @@ place cannot reach a policy that was duplicated.
 
 That is not hypothetical here: the panel-sizing formula in this repo was copied
 to three sites, fixed in one, and the two survivors were found by a review
-rather than by anything failing. So this loader lives in exactly one place.
+rather than by anything failing.
+
+⚠️ **And sharing the loader was not sufficient.** `b3d-turret` and
+`b3d-launcher` both called THIS function and still dropped rotation, because
+`transform`'s rotation fields were optional — so the shared implementation was
+correct and two of its four callers were not. A pre-release review found it.
+The fields are required now, which is what actually closes the seam: a shared
+implementation only helps where the type makes the mistake unspellable.
+
+`b3d-aircraft.loadFromLibrary` is still a separate, older loader — no `scale`,
+no bounded wait, no missing-library error — and is tracked in `TODO.md` rather
+than migrated here.
 
 ## What it handles, and why each part exists
 
@@ -41,14 +52,27 @@ export interface LibraryMeshRequest {
   type: string
   /** Model name within that library. */
   meshName: string
-  /** Placement, in the element's own attributes. Rotation is DEGREES. */
+  /**
+   * Placement, in the element's own attributes. Rotation is DEGREES.
+   *
+   * ⚠️ EVERY FIELD IS REQUIRED, and that is the point. They were optional, and
+   * the optionality is the seam #48 re-entered through: `b3d-turret` and
+   * `b3d-launcher` both passed `{x, y, z}` and silently dropped rotation, so
+   * `b3dLauncher({library:'weapons', ry:180})` fired its shells backwards while
+   * the same element WITHOUT `library` aimed correctly.
+   *
+   * `AbstractMesh` syncs rotation only in `render()`, which has already run by
+   * the time an async load assigns the mesh — so nothing downstream recovers
+   * it. Making the fields required means a call site cannot omit them by
+   * accident; it has to say `rx: 0` and mean it.
+   */
   transform: {
-    x?: number
-    y?: number
-    z?: number
-    rx?: number
-    ry?: number
-    rz?: number
+    x: number
+    y: number
+    z: number
+    rx: number
+    ry: number
+    rz: number
   }
   /** The generation this load belongs to; a mismatch discards it. */
   generation: () => number

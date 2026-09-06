@@ -163,7 +163,7 @@ export class InteractiveBehavior {
   get operable(): boolean {
     return (
       this._enabled() &&
-      activationVeto(this.vetoes, { ...this._last, source: 'api' }) == null
+      activationVeto(this.vetoes, this._apiInfo()) == null
     )
   }
 
@@ -175,8 +175,39 @@ export class InteractiveBehavior {
    */
   activate(info?: Partial<InteractionInfo>): boolean {
     if (!this._enabled()) return false
-    // `api` unless the caller says otherwise — `useNearest` says `near`.
-    return this._fire({ source: 'api', ...this._last, ...info })
+    return this._fire(this._apiInfo(info))
+  }
+
+  /*
+  WHAT A NON-POINTER ACTIVATION KNOWS, and — more importantly — what it does
+  NOT.
+
+  Three bugs lived here, all found by the pre-release review:
+
+  1. The spread order was `{source:'api', ...this._last, ...info}`, so `_last`
+     overwrote the default and a bare `activate()` reported `source:'pointer'`
+     after any hover — contradicting the comment beside it.
+  2. `_last.distance` initialises to 0 and is only written by a pointer hover of
+     THIS behaviour's own meshes. So an NPC 50 m away activating a door nobody
+     had ever hovered was told `distance: 0`, and the reach veto this library's
+     own doc sells — `info.distance > 2` — returned FALSE. The door opened. The
+     one scenario the feature exists for was the one it could not decide.
+  3. `operable` and `debugState` used the OPPOSITE spread order from `activate`,
+     so `operable === true` did not imply `activate()` would fire and the debug
+     row could read `ok` for a veto that blocks.
+
+  So: one helper, used by all three, and an unknown distance is `Infinity`
+  rather than 0 — "we do not know that you are near" rather than "you are on
+  top of it". A reach veto then fails CLOSED and the caller has to say what it
+  means, which it can: `activate({distance})`.
+  */
+  private _apiInfo(info?: Partial<InteractionInfo>): InteractionInfo {
+    return {
+      ...this._last,
+      source: 'api',
+      distance: Infinity,
+      ...info,
+    }
   }
 
   /** Tuned state for the console / `hj eval` / a Perf-panel debug source. */
@@ -189,9 +220,7 @@ export class InteractiveBehavior {
       reach: this.config.reach?.() ?? 0,
       vetoes: this.vetoes.map(
         (v) =>
-          `${v.name}:${
-            v.blocks({ ...this._last, source: 'api' }) ? 'blocks' : 'ok'
-          }`
+          `${v.name}:${v.blocks(this._apiInfo()) ? 'blocks' : 'ok'}`
       ),
     }
   }
@@ -314,6 +343,21 @@ export function nearestInteractive(
   scene: BABYLON.Scene,
   from: BABYLON.Vector3
 ): InteractiveBehavior | null {
+  return nearestTo(scene, from)?.it ?? null
+}
+
+/**
+ * The nearest usable thing AND how far away it is.
+ *
+ * The distance is the whole reason this exists beside `nearestInteractive`:
+ * the search computes it to pick a winner, and throwing it away left every
+ * downstream reach veto reading a stale hover distance. `nearestInteractive`
+ * keeps its shape for anyone already calling it.
+ */
+export function nearestTo(
+  scene: BABYLON.Scene,
+  from: BABYLON.Vector3
+): { it: InteractiveBehavior; distance: number } | null {
   let best: InteractiveBehavior | null = null
   let bestDist = Infinity
   for (const it of sceneSet(scene)) {
@@ -324,7 +368,7 @@ export function nearestInteractive(
     best = it
     bestDist = d
   }
-  return best
+  return best == null ? null : { it: best, distance: bestDist }
 }
 
 /**
@@ -339,5 +383,16 @@ export function useNearest(
 ): boolean {
   // `near`, not `api`: this IS reaching for the thing, and a veto that cares
   // about reach must be able to tell that apart from a scripted activation.
-  return nearestInteractive(scene, from)?.activate({ source: 'near' }) ?? false
+  /*
+  PASS THE DISTANCE IT ALREADY MEASURED.
+
+  `nearestInteractive` computes the true distance to pick a winner and used to
+  throw it away, so the reach veto downstream saw a stale `_last.distance` — the
+  fail-open in (2) above, on the one code path most likely to have a reach veto
+  attached.
+  */
+  const found = nearestTo(scene, from)
+  // `near`, not `api`: this IS reaching for the thing, and a veto that cares
+  // about reach must be able to tell that apart from a scripted activation.
+  return found?.it.activate({ source: 'near', distance: found.distance }) ?? false
 }

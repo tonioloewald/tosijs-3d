@@ -975,13 +975,29 @@ export class B3dLauncher extends AbstractMesh {
         owner,
         type: libType,
         meshName: this.meshName,
-        transform: { x: attrs.x, y: attrs.y, z: attrs.z },
+        transform: {
+          x: attrs.x,
+          y: attrs.y,
+          z: attrs.z,
+          rx: attrs.rx,
+          ry: attrs.ry,
+          rz: attrs.rz,
+        },
         generation: () => this.loadGeneration,
         started: ++this.loadGeneration,
         label: 'b3d-launcher',
         onLoaded: (node) => {
           this.mesh?.dispose()
           this.mesh = node as unknown as BABYLON.Mesh
+          /*
+          Rotation had to be forwarded above AND re-synced here — #48's fix,
+          which reached `b3d-prop` and `b3d-destroyable` and not this site.
+          `AbstractMesh` syncs rotation only in `render()`, and that has already
+          run by the time this async callback lands, so without both halves
+          `b3dLauncher({library, ry:180})` fired its shells backwards while the
+          same element without `library` aimed correctly.
+          */
+          this.render()
           this._muzzleNode = findMuzzle(node)
           owner.register({ meshes: node.getChildMeshes() })
         },

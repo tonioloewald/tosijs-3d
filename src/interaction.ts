@@ -159,9 +159,38 @@ export interface ActivationVeto<Info = unknown> {
   blocks: (info: Info) => boolean
 }
 
+/**
+ * What a veto is told when the caller knows nothing about the activation.
+ *
+ * `distance: Infinity` rather than `{}`, and the difference is the whole point.
+ * An empty object gives a reach veto `undefined > 2` — **false**, so the door
+ * opens — which is precisely the fail-open the pre-release review caught. An
+ * unknown distance has to read as "we do not know that you are near", so a
+ * reach veto refuses and the caller has to say what it means.
+ *
+ * Measured against the three veto shapes this library documents:
+ *
+ * ```
+ *                          reach    actor    legacy
+ *   {}                     false    true     true     ← fails open
+ *   {distance: Infinity}   true     true     true
+ * ```
+ */
+export const UNKNOWN_ACTIVATION: { distance: number } = { distance: Infinity }
+
+/**
+ * `info` is OPTIONAL, which is what keeps this from being a source break.
+ *
+ * It was briefly required, and a required second parameter on a
+ * barrel-exported function is a hard TypeScript break for every consumer
+ * calling `activationVeto(vetoes)`. It does not need to be: a veto that ignores
+ * its argument — every veto written before this existed — is unaffected by the
+ * default, and a veto that reads one gets a conservative answer instead of a
+ * permissive one.
+ */
 export function activationVeto<Info>(
   vetoes: Array<ActivationVeto<Info>>,
-  info: Info
+  info: Info = UNKNOWN_ACTIVATION as Info
 ): string | null {
   for (const v of vetoes) {
     if (v.blocks(info)) return v.name

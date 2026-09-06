@@ -47,6 +47,31 @@ describe('parsing — tolerant, and honest when it fails', () => {
       expect(parseColor(bad)).toBe(null)
     }
   })
+
+  test('a PROTOTYPE key returns null instead of throwing', () => {
+    /*
+    `NAMED['constructor']` returns `Object` from the prototype chain, so `??`
+    did not fire and `text.startsWith` threw — `parseColor('constructor')` threw
+    where `parseColor('#zz')` correctly returned null, breaking the fail-closed
+    contract this module's own header states.
+
+    Three shipped call sites, including EVERY KEYSTROKE of a colour
+    `inputField`, and there is no console in a headset. Caught by the
+    pre-release review, which also pointed out that the same diff hardened
+    `svg-icons.ts` against this exact class and wrote a test for it there.
+    */
+    for (const key of [
+      'constructor',
+      '__proto__',
+      'CONSTRUCTOR',
+      'toString',
+      'hasOwnProperty',
+      'valueOf',
+    ]) {
+      expect(() => parseColor(key)).not.toThrow()
+      expect(parseColor(key)).toBe(null)
+    }
+  })
 })
 
 describe('formatting — one canonical shape', () => {

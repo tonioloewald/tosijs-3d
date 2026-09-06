@@ -8,7 +8,7 @@
 
 **Looking for a capability?** Search the **[attribute
 index](https://3d.tosijs.net/attributes.txt)** before assuming it does not
-exist — 622 attributes across 57 elements in one greppable file, generated from
+exist — attribute index in one greppable file, generated from
 source on every build. There is a
 [JSON form](https://3d.tosijs.net/attributes.json) for tools.
 

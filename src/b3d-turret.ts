@@ -247,7 +247,29 @@ export class B3dTurret extends AbstractMesh {
         owner,
         type: libType,
         meshName: this.meshName,
-        transform: { x: attrs.x, y: attrs.y, z: attrs.z },
+        /*
+        ROTATION IS FORWARDED, and what happens to it depends on the model.
+
+        A turret has two frames: the MOUNT, which the author places, and the
+        BARREL, which the aim math owns. When the model carries a `_barrel`
+        child the authored `rx/ry/rz` place the mount and the barrel aims
+        beneath it — which is what you want, and what was silently dropped
+        before (#48 reached `b3d-prop` and `b3d-destroyable` and not this site).
+
+        When the model has NO `_barrel`, the model itself is what aims, so
+        `_update` overwrites its rotation every frame and the authored angle
+        does not survive. That is correct rather than a gap — a turret that
+        tracks cannot also hold a fixed bearing — but it is worth knowing before
+        you conclude `ry` is ignored here.
+        */
+        transform: {
+          x: attrs.x,
+          y: attrs.y,
+          z: attrs.z,
+          rx: attrs.rx,
+          ry: attrs.ry,
+          rz: attrs.rz,
+        },
         generation: () => this.loadGeneration,
         started: ++this.loadGeneration,
         label: 'b3d-turret',

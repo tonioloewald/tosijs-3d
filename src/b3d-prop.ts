@@ -109,14 +109,38 @@ import { loadLibraryMesh } from './library-mesh.js'
 import type { B3d } from './tosi-b3d.js'
 
 /**
- * Libraries this element mounted for `libraryUrl`, keyed by url.
+ * Libraries mounted for `libraryUrl` — PER SCENE, keyed by url within it.
  *
- * SHARED, because the convenience would otherwise cost a download per prop: ten
- * trees from one kit would fetch the kit ten times. One library element per
- * distinct url, and every prop asking for that url uses it.
+ * Shared within a scene, because the convenience would otherwise cost a
+ * download per prop: ten trees from one kit would fetch the kit ten times. One
+ * library element per distinct url per scene, and every prop in that scene
+ * asking for that url uses it.
+ *
+ * ⚠️ IT USED TO BE A MODULE GLOBAL keyed by url alone, and that was wrong in a
+ * way this element's own documentation advertises. `B3d.getLibrary` reads a
+ * PER-INSTANCE map, so on a page with two `<tosi-b3d>` sections sharing a
+ * `library-url` — a scroll narrative of sections, which is exactly the case the
+ * doc sells — scene B was handed scene A's type, never mounted a library into
+ * itself, polled for five seconds and rendered nothing. Worse on an SPA
+ * re-mount: the cached entry pointed at a detached element from a disposed
+ * scene and nothing ever removed it, so the url was poisoned for the life of
+ * the page.
+ *
+ * A `WeakMap` keyed by the owner, so a disposed scene's entry goes with it
+ * rather than having to be swept.
  */
-const mounted = new Map<string, { type: string; el: HTMLElement }>()
+const mounted = new WeakMap<B3d, Map<string, { type: string; el: HTMLElement }>>()
 let urlSeq = 0
+
+/** This scene's url → library-type map, created on first use. */
+function mountedIn(owner: B3d): Map<string, { type: string; el: HTMLElement }> {
+  let perScene = mounted.get(owner)
+  if (perScene == null) {
+    perScene = new Map()
+    mounted.set(owner, perScene)
+  }
+  return perScene
+}
 
 export class B3dProp extends AbstractMesh {
   static preferredTagName = 'tosi-b3d-prop'
@@ -193,8 +217,12 @@ export class B3dProp extends AbstractMesh {
     const url = String(attrs.libraryUrl ?? '')
     if (url === '') return null
 
-    const have = mounted.get(url)
-    if (have != null) return have.type
+    const perScene = mountedIn(owner)
+    const have = perScene.get(url)
+    // Still connected? A library removed from the scene (or a scene torn down
+    // and rebuilt into the same element) leaves an entry pointing at a detached
+    // node, and returning its type would send every prop into the 5s poll.
+    if (have != null && have.el.isConnected) return have.type
     const type = `__prop-${urlSeq++}`
     // Appended to the SCENE, not to this element: a library is scene-scoped,
     // and nesting it here would tie its life to one prop out of however many
@@ -203,7 +231,7 @@ export class B3dProp extends AbstractMesh {
     el.setAttribute('url', url)
     el.setAttribute('type', type)
     owner.appendChild(el)
-    mounted.set(url, { type, el })
+    perScene.set(url, { type, el })
     return type
   }
 
