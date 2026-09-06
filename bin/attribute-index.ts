@@ -141,9 +141,21 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     A row that says anything else is a sentence, not a declaration.
     */
     const leftover = m[1].replace(/`[^`]*`/g, '').trim()
-    // No `/`: it let `| \`worldU\` / \`worldV\` |` — a pair of plain class
-    // fields in a prose table — into the index as attributes.
-    if (!/^[\s,|·-]*$/.test(leftover)) continue
+    /*
+    `/` IS ALLOWED, and removing it was a mistake that cost 29 documented
+    attributes their defaults and prose.
+
+    It was dropped to reject one prose row (`| \`worldU\` / \`worldV\` |`), but
+    `/` is the house style for grouped ATTRIBUTE rows too — `b3d-aircraft`'s
+    whole combat block, `b3d-turret`'s ballistics, `tosi-b3d`'s camera limits —
+    so `armor = 0 — Combat stats` degraded to a bare `armor`. A name with no
+    description is the thing this index exists to stop shipping.
+
+    And it bought nothing: `worldU`/`worldV` are plain class fields on an
+    element, so the "for an element, `initAttributes` is the authority" rule
+    below already excludes them.
+    */
+    if (!/^[\s/,|·-]*$/.test(leftover)) continue
     /*
     PAIR THE DEFAULTS when the row lists one per name.
 
@@ -245,19 +257,41 @@ export function buildIndex(srcDir = 'src'): ElementDoc[] {
     extends?: string
   }
   const byClass = new Map<string, ClassInfo>()
+  /**
+   * Each class in a file, with its body BOUNDED by the next class.
+   *
+   * ⚠️ THE BOUND IS THE WHOLE THING. Slicing from a class keyword to end of file
+   * means a class that declares no `initAttributes` silently absorbs the NEXT
+   * one's — and `b3d-utils.ts` is exactly that shape: `class B3dChild` declares
+   * none and `class AbstractMesh` follows it. Adding the `extends` edge made
+   * that reachable for the first time, so 33 of 54 elements grew phantom
+   * `x/y/z/rx/ry/rz/axes` they do not accept. `<tosi-b3d-fog x="5">` looked
+   * supported and did nothing.
+   *
+   * It also fixes the tag pairing for free: a `preferredTagName` found inside a
+   * bounded body belongs to THAT class, where a positional scan filed
+   * `tosi-b3d-biped` under a helper class that happened to come first.
+   */
+  const classesIn = (code: string) => {
+    const found = [...code.matchAll(/class\s+(\w+)(?:\s+extends\s+(\w+))?[^{]*\{/g)]
+    return found.map((m, i) => ({
+      name: m[1],
+      extends: m[2],
+      body: code.slice(m.index ?? 0, found[i + 1]?.index ?? code.length),
+    }))
+  }
+
   for (const file of files) {
     // COMMENTS STRIPPED FIRST — see `stripComments`. Scanning raw text let a
     // doc-comment code example masquerade as the real declaration.
     const code = stripComments(readFileSync(join(srcDir, file), 'utf8'))
     sources.set(file, code)
-    for (const m of code.matchAll(/class\s+(\w+)(?:\s+extends\s+(\w+))?[^{]*\{/g)) {
-      const body = code.slice(m.index ?? 0)
-      const own = declaredAttributes(body)
-      const at = body.search(/static initAttributes\s*=\s*\{/)
-      byClass.set(m[1], {
-        own,
-        spreads: at < 0 ? [] : spreadBases(body.slice(at)),
-        extends: m[2],
+    for (const c of classesIn(code)) {
+      const at = c.body.search(/static initAttributes\s*=\s*\{/)
+      byClass.set(c.name, {
+        own: declaredAttributes(c.body),
+        spreads: at < 0 ? [] : spreadBases(c.body.slice(at)),
+        extends: c.extends,
       })
     }
   }
@@ -302,15 +336,25 @@ export function buildIndex(srcDir = 'src'): ElementDoc[] {
     light's tag. An agent then writes `<tosi-b3d-point-light gel="...">` and
     gets silence.
     */
-    const elements = [
-      ...code.matchAll(/class\s+(\w+)[\s\S]*?preferredTagName\s*=\s*'([^']+)'/g),
-    ]
-      // Each match runs from a class keyword to the NEXT tag name, so a later
-      // class would otherwise also match from an earlier one's start.
-      .filter((m, i, all) => all.findIndex((o) => o[2] === m[2]) === i)
+    /*
+    A TAG BELONGS TO THE CLASS WHOSE BODY DECLARES IT.
+
+    The previous version matched `class X … preferredTagName` across the whole
+    file, which pairs positionally: `b3d-biped.ts` declares a helper class
+    first, so `tosi-b3d-biped` was filed under `AnimState`, and `b3d-lamp.ts`'s
+    abstract base took the point light's tag. Both happened to come out right
+    only because the unbounded body slice above was ALSO wrong, in the opposite
+    direction — two bugs cancelling.
+    */
+    const elements = classesIn(code)
+      .map((c) => ({
+        className: c.name,
+        tag: /preferredTagName\s*=\s*'([^']+)'/.exec(c.body)?.[1],
+      }))
+      .filter((c): c is { className: string; tag: string } => c.tag != null)
 
     if (elements.length > 0) {
-      for (const [, className, tag] of elements) {
+      for (const { className, tag } of elements) {
         const declared = resolve(className)
         /*
         FOR AN ELEMENT, `initAttributes` IS THE AUTHORITY and a table only

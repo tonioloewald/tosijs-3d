@@ -148,6 +148,63 @@ describe('the index reports what an element actually accepts', () => {
     }
   })
 
+  test('an element does NOT list attributes it never declares', () => {
+    /*
+    THE SHAPE EVERY EARLIER TEST HERE MISSED: they assert PRESENCE and never
+    absence, so a generator that over-reports passes them all.
+
+    It over-reported badly. The class-body scan ran from a class keyword to end
+    of FILE, so `class B3dChild` — which declares no `initAttributes` — absorbed
+    `class AbstractMesh`'s block that follows it in `b3d-utils.ts`. Adding the
+    `extends` edge made that reachable, and 33 of 54 elements grew phantom
+    `x/y/z/rx/ry/rz/axes`. `<tosi-b3d-fog x="5">` read as supported and did
+    nothing.
+
+    `b3d-fog` is the witness: a direct `B3dChild` subclass, so it has no
+    positional attributes at all.
+    */
+    for (const attr of ['x', 'y', 'z', 'rx', 'ry', 'rz', 'axes']) {
+      expect(namesOf('b3d-fog')).not.toContain(attr)
+    }
+    // ...while still reporting what it does declare.
+    expect(namesOf('b3d-fog')).toContain('density')
+  })
+
+  test('a tag belongs to the class that declares it, not the first in the file', () => {
+    /*
+    `b3d-biped.ts` declares a helper class before the element, and `b3d-lamp.ts`
+    an abstract base before the three lamps — so a positional scan filed
+    `tosi-b3d-biped` under the helper. It read correctly only because the
+    unbounded body slice above was ALSO wrong, in the opposite direction.
+    */
+    expect(namesOf('b3d-biped')).toContain('url')
+    expect(namesOf('b3d-biped')).toContain('x')
+  })
+
+  test("a spot lamp's gel is on the SPOT lamp and nowhere else", () => {
+    // The multi-class file, checked in both directions. `gel` is a spot-only
+    // capability; offering it on the point light is a confident wrong answer.
+    const withTag = (tag: string) =>
+      (index.find((e) => e.tag === tag)?.attributes ?? []).map((a) => a.name)
+    expect(withTag('tosi-b3d-spot-light')).toContain('gel')
+    expect(withTag('tosi-b3d-point-light')).not.toContain('gel')
+  })
+
+  test('a grouped row keeps its default and prose for every name in it', () => {
+    /*
+    `| \`capacity\` / \`armor\` / … | \`10\` / \`0\` / … | Combat stats |` is
+    the house style, and briefly disallowing `/` in a row's separator set
+    de-documented 29 real attributes — `armor = 0 — Combat stats` became a bare
+    `armor`. A name with no description is what this artifact exists to stop
+    shipping.
+    */
+    const armor = index
+      .find((e) => e.module === 'b3d-aircraft')
+      ?.attributes.find((a) => a.name === 'armor')
+    expect(armor?.description).toBeTruthy()
+    expect(armor?.default).toBe('0')
+  })
+
   test('an element with SEVERAL classes files each under its own tag', () => {
     // `b3d-lamp.ts` declares three. Taking the first `preferredTagName` filed
     // the spot and area lamps' attributes under the point light's tag, so

@@ -247,10 +247,14 @@
         "description": "`'direct'` damages what the shell passes through; `'blast'` is the old AOE"
       },
       {
-        "name": "gunFullRadius"
+        "name": "gunFullRadius",
+        "default": "0.5",
+        "description": "Only for `gunMode=\"blast\"`"
       },
       {
-        "name": "gunBlastRadius"
+        "name": "gunBlastRadius",
+        "default": "1.5",
+        "description": "Only for `gunMode=\"blast\"`"
       },
       {
         "name": "destroyable",
@@ -258,22 +262,34 @@
         "description": "`'on'` gives the aircraft hit points and a death outcome"
       },
       {
-        "name": "capacity"
+        "name": "capacity",
+        "default": "30",
+        "description": "Combat stats"
       },
       {
-        "name": "armor"
+        "name": "armor",
+        "default": "0",
+        "description": "Combat stats"
       },
       {
-        "name": "regenRate"
+        "name": "regenRate",
+        "default": "0",
+        "description": "Combat stats"
       },
       {
-        "name": "regenDelay"
+        "name": "regenDelay",
+        "default": "0.5",
+        "description": "Combat stats"
       },
       {
-        "name": "explode"
+        "name": "explode",
+        "default": "'on'",
+        "description": "Death outcome"
       },
       {
-        "name": "explodeForce"
+        "name": "explodeForce",
+        "default": "8",
+        "description": "Death outcome"
       },
       {
         "name": "blip",
@@ -281,10 +297,14 @@
         "description": "`'on'` puts it on radar, so a missile can lock it"
       },
       {
-        "name": "blipProfile"
+        "name": "blipProfile",
+        "default": "1",
+        "description": "Radar detectability and side"
       },
       {
-        "name": "faction"
+        "name": "faction",
+        "default": "'neutral'",
+        "description": "Radar detectability and side"
       },
       {
         "name": "missileSpeed",
@@ -335,27 +355,6 @@
     "tag": "tosi-b3d-ambient",
     "summary": "b3d-ambient",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "preset",
         "default": "'motes'",
@@ -665,27 +664,6 @@
     "summary": "b3d-black-hole",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "radius",
         "default": "10",
         "description": "Event horizon radius"
@@ -747,27 +725,6 @@
     "tag": "tosi-b3d-button",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "caption"
       },
       {
@@ -775,6 +732,15 @@
       },
       {
         "name": "fontSize"
+      },
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
       }
     ]
   },
@@ -846,27 +812,6 @@
     "tag": "tosi-b3d-clouds",
     "summary": "b3d-clouds",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "count",
         "default": "36",
@@ -959,27 +904,6 @@
     "summary": "b3d-collisions",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "debug"
       }
     ]
@@ -1025,27 +949,6 @@
     "tag": "tosi-b3d-death",
     "summary": "b3d-death",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "title",
         "default": "'DOWN'",
@@ -1188,27 +1091,6 @@
     "summary": "b3d-fog",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "mode",
         "default": "'linear'",
         "description": "`'linear'`, `'exp'`, or `'exp2'`"
@@ -1245,27 +1127,6 @@
     "tag": "tosi-b3d-galaxy",
     "summary": "b3d-galaxy",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "seed",
         "default": "1234",
@@ -1314,27 +1175,6 @@
     "summary": "b3d-hud",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "url",
         "default": "''",
         "description": "Empty = the built-in code HUD (fully wired); set to a designer SVG to load one"
@@ -1357,27 +1197,6 @@
     "summary": "b3d-input-focus",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "enterDistance",
         "default": "3",
         "description": "Max distance to enter a vehicle"
@@ -1389,27 +1208,6 @@
     "tag": "tosi-b3d-interactive",
     "summary": "b3d-interactive",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "target",
         "default": "''",
@@ -1443,25 +1241,19 @@
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x"
+        "name": "x",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "y"
+        "name": "y",
+        "default": "3",
+        "description": "Position"
       },
       {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
+        "name": "z",
+        "default": "0",
+        "description": "Position"
       },
       {
         "name": "intensity",
@@ -1524,25 +1316,19 @@
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x"
+        "name": "x",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "y"
+        "name": "y",
+        "default": "3",
+        "description": "Position"
       },
       {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
+        "name": "z",
+        "default": "0",
+        "description": "Position"
       },
       {
         "name": "intensity",
@@ -1654,25 +1440,19 @@
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x"
+        "name": "x",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "y"
+        "name": "y",
+        "default": "3",
+        "description": "Position"
       },
       {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
+        "name": "z",
+        "default": "0",
+        "description": "Position"
       },
       {
         "name": "intensity",
@@ -1728,10 +1508,14 @@
         "description": "Resolves against the device budget"
       },
       {
-        "name": "width"
+        "name": "width",
+        "default": "2",
+        "description": "**area** — panel size"
       },
       {
-        "name": "height"
+        "name": "height",
+        "default": "1",
+        "description": "**area** — panel size"
       }
     ]
   },
@@ -1866,27 +1650,6 @@
     "summary": "b3d-library",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "url",
         "default": "''",
         "description": "GLB/glTF file URL"
@@ -1919,18 +1682,6 @@
         "description": "Light direction Z"
       },
       {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "intensity",
         "default": "1",
         "description": "Brightness multiplier"
@@ -1953,27 +1704,6 @@
     "summary": "b3d-loader",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "url",
         "default": "''",
         "description": "URL of the GLB/glTF file"
@@ -1989,22 +1719,34 @@
         "description": "`'on'` gives the model hit points + a death outcome"
       },
       {
-        "name": "capacity"
+        "name": "capacity",
+        "default": "10",
+        "description": "Combat stats (when destroyable)"
       },
       {
-        "name": "armor"
+        "name": "armor",
+        "default": "0",
+        "description": "Combat stats (when destroyable)"
       },
       {
-        "name": "regenRate"
+        "name": "regenRate",
+        "default": "0",
+        "description": "Combat stats (when destroyable)"
       },
       {
-        "name": "regenDelay"
+        "name": "regenDelay",
+        "default": "0.5",
+        "description": "Combat stats (when destroyable)"
       },
       {
-        "name": "explode"
+        "name": "explode",
+        "default": "'off'",
+        "description": "Shatter on death (best for single-mesh models)"
       },
       {
-        "name": "explodeForce"
+        "name": "explodeForce",
+        "default": "6",
+        "description": "Shatter on death (best for single-mesh models)"
       },
       {
         "name": "deathBlast"
@@ -2028,27 +1770,6 @@
     "tag": "tosi-b3d-manipulator",
     "summary": "b3d-manipulator",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "target",
         "default": "''",
@@ -2112,10 +1833,14 @@
         "description": "A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields."
       },
       {
-        "name": "azimuth"
+        "name": "azimuth",
+        "default": "0",
+        "description": "Degrees off the frame's eye: +az right, +el up"
       },
       {
-        "name": "elevation"
+        "name": "elevation",
+        "default": "0",
+        "description": "Degrees off the frame's eye: +az right, +el up"
       },
       {
         "name": "distance",
@@ -2192,18 +1917,6 @@
         "name": "z",
         "default": "0",
         "description": "Emitter Z position"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
       },
       {
         "name": "capacity",
@@ -2328,27 +2041,6 @@
     "summary": "b3d-physics",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "gravityX",
         "default": "0",
         "description": "Gravity X component"
@@ -2378,27 +2070,6 @@
     "tag": "tosi-b3d-planet",
     "summary": "b3d-planet",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "biome"
       },
@@ -2697,6 +2368,16 @@
     "summary": "b3d-radar-blip",
     "attributes": [
       {
+        "name": "profile",
+        "default": "1",
+        "description": "Detectability: `1` = seen at the platform's nominal radar range, `2` = out to 2×, `0.05` = very stealthy; **negative = always detectable** (e.g. waypoints)."
+      },
+      {
+        "name": "faction",
+        "default": "'neutral'",
+        "description": "`friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour."
+      },
+      {
         "name": "x",
         "default": "0",
         "description": "World position when standalone (ignored while following a target's mesh)."
@@ -2710,28 +2391,6 @@
         "name": "z",
         "default": "0",
         "description": "World position when standalone (ignored while following a target's mesh)."
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
-        "name": "profile",
-        "default": "1",
-        "description": "Detectability: `1` = seen at the platform's nominal radar range, `2` = out to 2×, `0.05` = very stealthy; **negative = always detectable** (e.g. waypoints)."
-      },
-      {
-        "name": "faction",
-        "default": "'neutral'",
-        "description": "`friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour."
       }
     ]
   },
@@ -2740,27 +2399,6 @@
     "tag": "tosi-b3d-radar",
     "summary": "b3d-radar",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "range",
         "default": "250",
@@ -2805,27 +2443,6 @@
     "summary": "b3d-reflections",
     "attributes": [
       {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "refreshRate",
         "default": "5",
         "description": "Frames between probe refreshes inside `farDistance`"
@@ -2862,33 +2479,6 @@
     "tag": "tosi-b3d-sun",
     "summary": "b3d-shadows",
     "attributes": [
-      {
-        "name": "x",
-        "default": "0",
-        "description": "Sun direction X (overridden by skybox when present)"
-      },
-      {
-        "name": "y",
-        "default": "-1",
-        "description": "Sun direction Y"
-      },
-      {
-        "name": "z",
-        "default": "-0.5",
-        "description": "Sun direction Z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "shadowMaxZ",
         "default": "100",
@@ -2938,6 +2528,21 @@
         "name": "cascadeBlendPercentage",
         "default": "0.1",
         "description": "Soft blend across cascade seams"
+      },
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Sun direction X (overridden by skybox when present)"
+      },
+      {
+        "name": "y",
+        "default": "-1",
+        "description": "Sun direction Y"
+      },
+      {
+        "name": "z",
+        "default": "-0.5",
+        "description": "Sun direction Z"
       },
       {
         "name": "intensity",
@@ -3057,33 +2662,6 @@
     "summary": "b3d-sound",
     "attributes": [
       {
-        "name": "x",
-        "default": "0",
-        "description": "Position X (spatial mode)"
-      },
-      {
-        "name": "y",
-        "default": "0",
-        "description": "Position Y (spatial mode)"
-      },
-      {
-        "name": "z",
-        "default": "0",
-        "description": "Position Z (spatial mode)"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "url",
         "default": "''",
         "description": "Audio file URL"
@@ -3107,6 +2685,21 @@
         "name": "spatialSound",
         "default": "false",
         "description": "Enable 3D positional audio"
+      },
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Position X (spatial mode)"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Position Y (spatial mode)"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Position Z (spatial mode)"
       },
       {
         "name": "refDistance",
@@ -3146,33 +2739,6 @@
     "summary": "b3d-spawner",
     "attributes": [
       {
-        "name": "x",
-        "default": "0",
-        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
-      },
-      {
-        "name": "y",
-        "default": "0",
-        "description": "Base height for the spawn point (the prefab places its own members)"
-      },
-      {
-        "name": "z",
-        "default": "0",
-        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "prefab",
         "default": "''",
         "description": "Prefab name to spawn (usually an encounter)"
@@ -3203,6 +2769,21 @@
         "description": "`'player'` = a ring around the player (an encounter); `'place'` = exactly at `x`/`y`/`z` (a launchpad)"
       },
       {
+        "name": "x",
+        "default": "0",
+        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Base height for the spawn point (the prefab places its own members)"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
+      },
+      {
         "name": "facingDeg",
         "default": "0",
         "description": "Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation`"
@@ -3224,27 +2805,6 @@
     "tag": "tosi-b3d-star-system",
     "summary": "b3d-star-system",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "galaxySeed",
         "default": "1234",
@@ -3279,14 +2839,7 @@
         "name": "showOrbits",
         "default": "'on'",
         "description": "Show orbital path lines"
-      }
-    ]
-  },
-  {
-    "module": "b3d-star",
-    "tag": "tosi-b3d-star",
-    "summary": "b3d-star",
-    "attributes": [
+      },
       {
         "name": "x"
       },
@@ -3295,19 +2848,14 @@
       },
       {
         "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
+      }
+    ]
+  },
+  {
+    "module": "b3d-star",
+    "tag": "tosi-b3d-star",
+    "summary": "b3d-star",
+    "attributes": [
       {
         "name": "seed",
         "default": "12345",
@@ -3472,27 +3020,6 @@
     "tag": "tosi-b3d-terrain",
     "summary": "b3d-terrain",
     "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
       {
         "name": "biome"
       },
@@ -3662,18 +3189,6 @@
         "description": "Center Z"
       },
       {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
-      },
-      {
         "name": "radius",
         "default": "5",
         "description": "Trigger sphere radius"
@@ -3769,25 +3284,39 @@
         "description": "Fires only when the barrel is within this many degrees of the solution"
       },
       {
-        "name": "gravity"
+        "name": "gravity",
+        "default": "-9.81",
+        "description": "Shell ballistics (see b3d-launcher)"
       },
       {
-        "name": "drag"
+        "name": "drag",
+        "default": "0.01",
+        "description": "Shell ballistics (see b3d-launcher)"
       },
       {
-        "name": "mass"
+        "name": "mass",
+        "default": "1",
+        "description": "Shell ballistics (see b3d-launcher)"
       },
       {
-        "name": "damage"
+        "name": "damage",
+        "default": "20",
+        "description": "Warhead payload (see b3d-warhead)"
       },
       {
-        "name": "fullRadius"
+        "name": "fullRadius",
+        "default": "1",
+        "description": "Warhead payload (see b3d-warhead)"
       },
       {
-        "name": "blastRadius"
+        "name": "blastRadius",
+        "default": "2.5",
+        "description": "Warhead payload (see b3d-warhead)"
       },
       {
-        "name": "los"
+        "name": "los",
+        "default": "'on'",
+        "description": "Warhead payload (see b3d-warhead)"
       },
       {
         "name": "idleColor",
@@ -4349,16 +3878,24 @@
         "description": "Target frame rate"
       },
       {
-        "name": "minElevation"
+        "name": "minElevation",
+        "default": "5",
+        "description": "Default orbit-camera elevation limits (degrees above the horizon)"
       },
       {
-        "name": "maxElevation"
+        "name": "maxElevation",
+        "default": "70",
+        "description": "Default orbit-camera elevation limits (degrees above the horizon)"
       },
       {
-        "name": "minDistance"
+        "name": "minDistance",
+        "default": "2",
+        "description": "Default orbit-camera zoom limits"
       },
       {
-        "name": "maxDistance"
+        "name": "maxDistance",
+        "default": "50",
+        "description": "Default orbit-camera zoom limits"
       },
       {
         "name": "noXr"
@@ -4427,6 +3964,26 @@
         "name": "data-part",
         "default": "VirtualGamepad",
         "description": "Type"
+      },
+      {
+        "name": "left_stick",
+        "default": "leftStickX/Y",
+        "description": "stick"
+      },
+      {
+        "name": "left_stick_travel",
+        "default": "leftStickX/Y",
+        "description": "stick"
+      },
+      {
+        "name": "right_stick",
+        "default": "rightStickX/Y",
+        "description": "stick"
+      },
+      {
+        "name": "right_stick_travel",
+        "default": "rightStickX/Y",
+        "description": "stick"
       },
       {
         "name": "left_bumper",
