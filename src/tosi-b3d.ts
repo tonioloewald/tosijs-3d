@@ -309,6 +309,12 @@ import {
   type PopupSurfaceOptions,
 } from './popup-surface.js'
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js'
+import {
+  NO_WIND,
+  gustAt,
+  windFromPolar,
+  type Wind,
+} from './wind.js'
 import { faceViewer } from './dialog-placement.js'
 import { svgIcons } from './svg-icons.js'
 import { CombatWorld } from './destroyable.js'
@@ -573,6 +579,22 @@ export class B3d extends Component {
      * package instead.
      */
     timeScale: 1,
+    /*
+    ONE WIND FOR THE SCENE — see [[wind]].
+
+    Clouds, water and ambient each carried their own, in three spellings, so an
+    author set it three times and they could silently disagree: clouds streaming
+    north-east over water whose waves ran south.
+
+    `0` means "no scene wind", and a child's own wind attributes still win where
+    they are set — absence is what starts meaning "take the scene's". So this is
+    additive: nothing that worked stops working.
+    */
+    windSpeed: 0,
+    /** Where the wind is GOING, north-up and clockwise. `0` blows toward +Z. */
+    windBearingDeg: 0,
+    /** Gust size as a fraction of `windSpeed`. `0` is dead steady. */
+    windGust: 0,
     /**
      * On resume, enter immersive VR if the device supports it. This is why
      * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
@@ -1391,6 +1413,25 @@ export class B3d extends Component {
    * Reach for `dt` unless you know why not; `realDt` is for the things that
    * must not slow down when the world does.
    */
+  /**
+   * The scene's wind right now, gusts included. See [[wind]].
+   *
+   * Zero speed means "no scene wind", and children fall back to their own
+   * attributes — which is what makes this additive rather than a migration.
+   */
+  get wind(): Wind {
+    const speed = Number((this as any).windSpeed ?? 0) || 0
+    if (speed === 0) return { ...NO_WIND }
+    const base = windFromPolar(
+      speed,
+      Number((this as any).windBearingDeg ?? 0) || 0
+    )
+    const gust = Number((this as any).windGust ?? 0) || 0
+    return gust > 0
+      ? gustAt(base, this.frameInfo().elapsed, { amount: gust })
+      : base
+  }
+
   frameInfo(): FrameInfo {
     return {
       dt: this.frameDelta,

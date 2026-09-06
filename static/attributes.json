@@ -730,6 +730,9 @@
       },
       {
         "name": "windZ"
+      },
+      {
+        "name": "wind"
       }
     ]
   },
@@ -2835,6 +2838,12 @@
       },
       {
         "name": "windDirectionY"
+      },
+      {
+        "name": "Additive"
+      },
+      {
+        "name": "wind"
       }
     ]
   },
@@ -3309,6 +3318,18 @@
       },
       {
         "name": "timeScale"
+      },
+      {
+        "name": "additive"
+      },
+      {
+        "name": "windSpeed"
+      },
+      {
+        "name": "windBearingDeg"
+      },
+      {
+        "name": "windGust"
       },
       {
         "name": "enterXrOnResume"

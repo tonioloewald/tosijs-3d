@@ -508,6 +508,21 @@ export { B3dBeacon, b3dBeacon, beaconOwner } from './b3d-beacon.js'
 
 // Choosing one of many — a select is right for five options and a scroll for 500
 export { picker3d, matchesQuery, groupsOf } from './picker.js'
+
+// One wind for the scene, and provinces that bend it
+export {
+  NO_WIND,
+  addWind,
+  scaleWind,
+  windSpeed,
+  windFromPolar,
+  windToPolar,
+  windAt,
+  provinceInfluence,
+  gustAt,
+  waterWind,
+} from './wind.js'
+export type { Wind, ProvinceWind } from './wind.js'
 export type { Picker, PickerOption, Picker3dOptions } from './picker.js'
 export type {
   AngleField,

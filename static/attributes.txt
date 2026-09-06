@@ -191,6 +191,7 @@ b3d-clouds
   seed  = 1  — Deterministic layout — same seed, same sky
   windX
   windZ
+  wind
 
 ## b3d-collisions — <tosi-b3d-collisions>
 b3d-collisions
@@ -747,6 +748,8 @@ b3d-water
   colorBlendFactor  = 0.1  — How much color tints the water
   windDirectionX
   windDirectionY
+  Additive
+  wind
 
 ## control-input
 control-input
@@ -890,6 +893,10 @@ b3d
   startPaused
   reseatFreeze
   timeScale
+  additive
+  windSpeed
+  windBearingDeg
+  windGust
   enterXrOnResume
   no-xr  = false  — Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)
 

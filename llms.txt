@@ -317,6 +317,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
+- https://3d.tosijs.net/wind/ — wind
+  Babylon — so the composition rule can be tested without a sky.
 - https://3d.tosijs.net/world-sim/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**

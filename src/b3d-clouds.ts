@@ -245,6 +245,19 @@ export class B3dClouds extends B3dChild {
     // fade up. (A future global wind system will drive these; for now they're the local dial.)
     windX: 4,
     windZ: 1.5,
+    /*
+    WHERE THE WIND COMES FROM — the scene, or this element's own `windX`/`windZ`.
+
+    `'scene'` by default, and additive rather than breaking: a scene with no
+    `windSpeed` has no wind to offer, so `windX`/`windZ` still apply exactly as
+    before. Only setting a scene wind changes anything, and that is new.
+
+    It has to be a MODE rather than "absence means inherit", because these
+    default to 4 and 1.5 — so there is no value that means "the author did not
+    say", and inferring one would make `windX="4"` and no `windX` at all mean
+    different things while looking identical.
+    */
+    wind: 'scene' as 'scene' | 'own',
   }
 
   declare count: number
@@ -264,6 +277,23 @@ export class B3dClouds extends B3dChild {
   declare seed: number
   declare windX: number
   declare windZ: number
+  declare wind: string
+
+  /**
+   * The drift this frame: the scene's wind, or this element's own.
+   *
+   * Falls back to `windX`/`windZ` whenever the scene has nothing to offer, so
+   * a scene that never sets `windSpeed` behaves exactly as it did.
+   */
+  private _wind(): { windX: number; windZ: number } {
+    if (this.wind !== 'own') {
+      const scene = this.owner?.wind
+      if (scene != null && (scene.x !== 0 || scene.z !== 0)) {
+        return { windX: scene.x, windZ: scene.z }
+      }
+    }
+    return { windX: this.windX, windZ: this.windZ }
+  }
 
   /**
    * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
@@ -651,7 +681,8 @@ export class B3dClouds extends B3dChild {
     const eye = cam.globalPosition
     const active = this._applyCoverage()
     const dt = sceneDelta(scene)
-    const drifting = this.windX !== 0 || this.windZ !== 0
+    const { windX, windZ } = this._wind()
+    const drifting = windX !== 0 || windZ !== 0
 
     // Recycle: a blob that falls behind wraps to the far side, so an endless cloudscape
     // costs a FIXED number of meshes. No allocation, no growth.
@@ -683,8 +714,8 @@ export class B3dClouds extends B3dChild {
     }
     for (const cl of this._clusters) {
       if (drifting) {
-        cl.x += this.windX * dt
-        cl.z += this.windZ * dt
+        cl.x += windX * dt
+        cl.z += windZ * dt
         this._shadowDirty = true
       }
       const ax = wrapAnchor(cl.x, eye.x)

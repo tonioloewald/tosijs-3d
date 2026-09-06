@@ -79,6 +79,7 @@ import * as BABYLON from '@babylonjs/core'
 import { waterNormalTexture } from './water-normal.js'
 import { WaterMaterial } from '@babylonjs/materials'
 import { AbstractMesh, markCollisionGroup } from './b3d-utils.js'
+import { waterWind } from './wind.js'
 import { band } from './atmosphere.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
@@ -132,6 +133,15 @@ export class B3dWater extends AbstractMesh {
     colorBlendFactor: 0.1,
     windDirectionX: 0.6,
     windDirectionY: 0.8,
+    /*
+    Take the SCENE's wind, or this element's own. See [[wind]] and the same
+    note on `b3d-clouds`: a mode rather than "absence means inherit", because
+    `windForce` defaults to -5 and there is no value meaning "unset".
+
+    Additive: a scene with no `windSpeed` has no wind to offer, so the three
+    `wind*` attributes below still apply exactly as they did.
+    */
+    wind: 'scene' as 'scene' | 'own',
   }
 
   waterMaterial?: WaterMaterial
@@ -145,6 +155,7 @@ export class B3dWater extends AbstractMesh {
   /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
   private _skyWasFogged = new WeakMap<BABYLON.AbstractMesh, boolean>()
   private _followTick?: () => void
+  private _windTick?: () => void
   private _wasUnderwater = false
 
   private waterCallback(additions: SceneAdditions) {
@@ -157,14 +168,40 @@ export class B3dWater extends AbstractMesh {
     }
   }
 
+  /**
+   * Wave wind: the scene's, or this element's own.
+   *
+   * `WaterMaterial` wants a force alongside a roughly UNIT direction, so the
+   * speed cannot be folded into the vector — `waterWind` does that split.
+   */
+  private _wind(): {
+    windForce: number
+    windDirectionX: number
+    windDirectionY: number
+  } {
+    const attrs = this as any
+    if (attrs.wind !== 'own') {
+      const scene = this.owner?.wind
+      if (scene != null && (scene.x !== 0 || scene.z !== 0)) {
+        return waterWind(scene)
+      }
+    }
+    return {
+      windForce: attrs.windForce,
+      windDirectionX: attrs.windDirectionX,
+      windDirectionY: attrs.windDirectionY,
+    }
+  }
+
   private updateWater() {
     if (this.waterMaterial == null || this.owner == null) return
     const attrs = this as any
     this.waterMaterial.backFaceCulling = !attrs.twoSided
-    this.waterMaterial.windForce = attrs.windForce
+    const wind = this._wind()
+    this.waterMaterial.windForce = wind.windForce
     this.waterMaterial.windDirection = new BABYLON.Vector2(
-      attrs.windDirectionX,
-      attrs.windDirectionY
+      wind.windDirectionX,
+      wind.windDirectionY
     )
     this.waterMaterial.waveHeight = attrs.waveHeight
     this.waterMaterial.waveLength = attrs.waveLength
@@ -261,6 +298,36 @@ export class B3dWater extends AbstractMesh {
     // FOLLOW: ride the camera in x/z so the finite plane always surrounds you (an endless sea),
     // while the bump pattern is scrolled back into WORLD space so the ripples stay put instead
     // of sliding along with the mesh. The plane's y stays where the attr puts it (sea level).
+    /*
+    THE SCENE'S WIND CHANGES WITHOUT THIS ELEMENT RENDERING.
+
+    `updateWater` runs on this component's own render, and a write to the
+    SCENE's `windSpeed` does not queue one here — so water kept the wind it had
+    while the clouds turned. (Clouds were fine by luck: they read the wind
+    inside their own per-frame drift.)
+
+    Cheap because it compares first: the material is only touched when the
+    resolved wind actually differs, so a steady scene costs a hypot per frame.
+    */
+    this._windTick = () => {
+      const mat = this.waterMaterial
+      if (mat == null) return
+      const next = this._wind()
+      if (
+        Math.abs(mat.windForce - next.windForce) < 1e-4 &&
+        Math.abs(mat.windDirection.x - next.windDirectionX) < 1e-4 &&
+        Math.abs(mat.windDirection.y - next.windDirectionY) < 1e-4
+      ) {
+        return
+      }
+      mat.windForce = next.windForce
+      mat.windDirection = new BABYLON.Vector2(
+        next.windDirectionX,
+        next.windDirectionY
+      )
+    }
+    scene.registerBeforeRender(this._windTick)
+
     if (attrs.follow) {
       // Run it on beforeRender (authoritative, right before the scene draws) AND re-run it from
       // render() below — because AbstractMesh.render() rewrites the mesh position from the x/z
@@ -450,6 +517,10 @@ export class B3dWater extends AbstractMesh {
     if (this._followTick) {
       this.owner?.scene.unregisterBeforeRender(this._followTick)
       this._followTick = undefined
+    }
+    if (this._windTick) {
+      this.owner?.scene.unregisterBeforeRender(this._windTick)
+      this._windTick = undefined
     }
     if (this._removeFogLayer) {
       this._removeFogLayer() // the scene composites fog; nothing to restore, nothing to snap
