@@ -121,26 +121,32 @@ describe('activationVeto — the composition seam', () => {
 
   test('names the FIRST refuser, so a caller can say why', () => {
     expect(
-      activationVeto([
-        { name: 'powered', blocks: () => false },
-        { name: 'locked', blocks: () => true },
-        { name: 'jammed', blocks: () => true },
-      ], {})
+      activationVeto(
+        [
+          { name: 'powered', blocks: () => false },
+          { name: 'locked', blocks: () => true },
+          { name: 'jammed', blocks: () => true },
+        ],
+        {}
+      )
     ).toBe('locked')
   })
 
   test('a veto is consulted lazily — later ones need not run', () => {
     let asked = 0
-    activationVeto([
-      { name: 'locked', blocks: () => true },
-      {
-        name: 'expensive',
-        blocks: () => {
-          asked++
-          return false
+    activationVeto(
+      [
+        { name: 'locked', blocks: () => true },
+        {
+          name: 'expensive',
+          blocks: () => {
+            asked++
+            return false
+          },
         },
-      },
-    ], {})
+      ],
+      {}
+    )
     expect(asked).toBe(0)
   })
 })
@@ -187,7 +193,8 @@ describe('a veto is TOLD about the activation', () => {
     const vetoes = [
       {
         name: 'out-of-reach',
-        blocks: (info: Who) => info.source !== 'near' && (info.distance ?? 0) > 2,
+        blocks: (info: Who) =>
+          info.source !== 'near' && (info.distance ?? 0) > 2,
       },
     ]
     expect(activationVeto(vetoes, { source: 'near', distance: 0.4 })).toBeNull()

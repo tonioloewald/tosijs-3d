@@ -368,10 +368,7 @@ import {
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js'
 import type { WarheadSpec } from './warhead.js'
 import type { Cause, CombatEvent } from './destroyable.js'
-import {
-  DestroyableBehavior,
-  destroyableAt,
-} from './destroyable-behavior.js'
+import { DestroyableBehavior } from './destroyable-behavior.js'
 import type { B3dRadar } from './b3d-radar.js'
 
 // Small gap kept between the model's belly and the ground.
@@ -1864,7 +1861,10 @@ export class B3dAircraft extends B3dControllable {
     nested, it follows this mesh, which is exactly what the element already
     does. Anything else would be a second implementation of "where is it".
     */
-    if (!isOff(attrs.blip) && this.querySelector('tosi-b3d-radar-blip') == null) {
+    if (
+      !isOff(attrs.blip) &&
+      this.querySelector('tosi-b3d-radar-blip') == null
+    ) {
       const blip = document.createElement('tosi-b3d-radar-blip')
       blip.setAttribute('profile', String(attrs.blipProfile ?? 1))
       blip.setAttribute('faction', String(attrs.faction ?? 'neutral'))
@@ -1872,6 +1872,9 @@ export class B3dAircraft extends B3dControllable {
     }
 
     if (!isOff(attrs.destroyable)) {
+      // The getter below runs as a property of the object literal, so `this`
+      // there is the literal, not the element. Aliasing is the point.
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const host = this
       this._destroyable = new DestroyableBehavior(
         owner,

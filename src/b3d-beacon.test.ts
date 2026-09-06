@@ -99,3 +99,74 @@ describe("an invisible hull's pickability", () => {
     behind.dispose()
   })
 })
+
+describe('and the element actually does it', () => {
+  /*
+  The block above characterises BABYLON; this one characterises US. Without it
+  the file proves a fact about the engine and nothing about `b3d-beacon`, so
+  flipping the hull back to `isVisible = false` left every assertion above
+  green — the exact "tidy-up" the header says it exists to stop.
+  */
+
+  let B: typeof import('./b3d-beacon.js')
+  let owner: any
+
+  beforeAll(async () => {
+    B = await import('./b3d-beacon.js')
+    owner = {
+      scene,
+      register: () => {},
+      addSceneListener: () => {},
+      whenReady: (cb: () => void) => cb(),
+      addDebugSource: () => () => {},
+      addOriginListener: () => {},
+      removeOriginListener: () => {},
+    }
+  })
+
+  /*
+  Attributes are assigned as PROPERTIES, not through the creator's config.
+  tosijs drains an element's attributes on `connectedCallback`, and nothing here
+  is ever in a document — so a value passed to `b3dBeacon({...})` sits in an
+  attribute the element has not read yet and every assertion silently tests the
+  default. (It did: `show: 'on'` read back as `'off'`.)
+  */
+  const beacon = (attrs: Record<string, unknown> = {}) => {
+    const el = B.b3dBeacon({}) as any
+    Object.assign(el, { follow: 'off', ...attrs })
+    el.sceneReady(owner, scene)
+    el.mesh.computeWorldMatrix(true)
+    return el
+  }
+
+  test('the hull it builds is PICKED, with no predicate — the whole feature', () => {
+    const behind = BABYLON.MeshBuilder.CreateBox('behind', { size: 4 }, scene)
+    behind.position.z = 5
+    behind.computeWorldMatrix(true)
+    const el = beacon({ size: 1 })
+    const hit = scene.pickWithRay(straightAt())?.pickedMesh
+    expect(hit).toBe(el.mesh)
+    // ...and it resolves back to the element, which is what a consumer needs.
+    expect(B.beaconOwner(hit)).toBe(el)
+    el.sceneDispose()
+    behind.dispose()
+  })
+
+  test('a HIDDEN beacon is still pickable — hidden is not gone', () => {
+    // `show="off"` is the case that would break first, because "invisible" is
+    // exactly when reaching for `isVisible = false` feels right.
+    const el = beacon({ size: 1, show: 'off' })
+    expect(el.mesh.visibility).toBe(0)
+    expect(el.mesh.isVisible).toBe(true)
+    expect(scene.pickWithRay(straightAt())?.pickedMesh).toBe(el.mesh)
+    el.sceneDispose()
+  })
+
+  test('a SHOWN beacon is faint rather than solid, and still pickable', () => {
+    const el = beacon({ size: 1, show: 'on' })
+    expect(el.mesh.visibility).toBeGreaterThan(0)
+    expect(el.mesh.visibility).toBeLessThan(1)
+    expect(scene.pickWithRay(straightAt())?.pickedMesh).toBe(el.mesh)
+    el.sceneDispose()
+  })
+})

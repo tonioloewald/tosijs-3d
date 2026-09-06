@@ -174,7 +174,7 @@ describe('attribution — who killed this, through what chain', () => {
     ])
   })
 
-  test('THE ORIGINATOR SURVIVES THE HOPS — a cascade is still the player\'s', () => {
+  test("THE ORIGINATOR SURVIVES THE HOPS — a cascade is still the player's", () => {
     /*
     The failure this exists to prevent: re-attributing each hop to the drum
     next door launders the credit away, so a player who set off a spectacular
@@ -247,7 +247,12 @@ describe('attribution — who killed this, through what chain', () => {
     w.applyDamage('A', 50, out)
     for (let i = 0; i < 10; i++) w.tick(0.1, out)
     const b = out.find((e) => e.type === 'destroyed' && e.id === 'B')
-    expect(b?.cause).toEqual({ by: undefined, kind: 'chain', via: 'A', hops: 1 })
+    expect(b?.cause).toEqual({
+      by: undefined,
+      kind: 'chain',
+      via: 'A',
+      hops: 1,
+    })
   })
 
   test('hops stay bounded, because the chain does', () => {

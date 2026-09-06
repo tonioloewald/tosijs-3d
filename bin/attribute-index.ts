@@ -101,7 +101,7 @@ function stripComments(code: string): string {
  * table row exists it wins; anything only in `initAttributes` is still listed,
  * so an undocumented attribute shows up as a gap rather than vanishing.
  */
-function tableRows(doc: string): Map<string, AttributeDoc> {
+export function tableRows(doc: string): Map<string, AttributeDoc> {
   const out = new Map<string, AttributeDoc>()
   /*
   SEVERAL NAMES PER ROW.
@@ -122,16 +122,46 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
 
   Every legitimate table names its columns in plain words — `option`, `widget`,
   `grip`, `grab`, `Field`. A backticked name there is the tell.
+
+  ⚠️ THE REJECTION IS PER-TABLE, and scoping it to the DOCUMENT was a bug that
+  cost three shipped elements their entire documentation.
+
+  It used to find the first header in the doc and, if that one was backticked,
+  abandon the whole file. `b3d-lamp` opens with a capability matrix — `| |
+  shadows | gel (`projectionTexture`) | geometry |` — so its real attribute
+  table twelve headings later was never read, and `<tosi-b3d-point-light>`,
+  `-spot-light` and `-area-light` all shipped bare names with no default and no
+  prose. `grep -c spot static/attributes.txt` went 12 → 3, so `gelSvg` was
+  findable only if you already knew it existed, which is the failure this whole
+  artifact was built to end.
+
+  A doc is many tables. Judge each on its own header.
   */
   const lines = doc.split('\n')
   const isSeparator = (line: string) => /^\|[\s:|-]*\|$/.test(line ?? '')
-  const headerAt = lines.findIndex((l, i) => l.startsWith('|') && isSeparator(lines[i + 1]))
-  if (headerAt >= 0 && /`[^`]+`/.test(lines[headerAt])) return out
+
+  /*
+  Split into TABLE BODIES — the contiguous `|` rows under a header we accept.
+  Everything outside a table is dropped here rather than by the row regex, so a
+  stray pipe in prose can no longer look like a one-row table.
+  */
+  const bodies: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith('|') || !isSeparator(lines[i + 1])) continue
+    const header = lines[i]
+    let end = i + 2
+    while (end < lines.length && lines[end].startsWith('|')) end++
+    // A header cell naming an identifier means the rows below are VALUES of it.
+    if (!/`[^`]+`/.test(header)) bodies.push(lines.slice(i + 2, end).join('\n'))
+    i = end - 1
+  }
 
   const row = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/gm
   let m: RegExpExecArray | null
-  while ((m = row.exec(doc)) != null) {
-    /*
+  for (const body of bodies) {
+    row.lastIndex = 0
+    while ((m = row.exec(body)) != null) {
+      /*
     LOWERCASE-INITIAL ONLY.
 
     Every attribute and option in this library is camelCase starting lower —
@@ -141,11 +171,10 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     `Y`), `galaxy-data`'s `StarData` type. Each was indexed as an attribute, so
     an agent grepping `W` found one and believed it.
     */
-    const names = [...m[1].matchAll(/`([a-z][\w-]*)`/g)].map((n) => n[1])
-    if (names.length === 0) continue
-    // A header row is a label for the column, never a value in it.
-    if (isSeparator(doc.slice(m.index + m[0].length).split('\n')[1])) continue
-    /*
+      const names = [...m[1].matchAll(/`([a-z][\w-]*)`/g)].map((n) => n[1])
+      if (names.length === 0) continue
+      // (The header and its separator are not in `body`, so no skip is needed.)
+      /*
     THE CELL MUST BE NOTHING BUT NAMES.
 
     Accepting several names per row is right — `| \`x\` \`y\` \`z\` |` is how
@@ -159,8 +188,8 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     So: strip the backticked spans and require what remains to be separators.
     A row that says anything else is a sentence, not a declaration.
     */
-    const leftover = m[1].replace(/`[^`]*`/g, '').trim()
-    /*
+      const leftover = m[1].replace(/`[^`]*`/g, '').trim()
+      /*
     `/` IS ALLOWED, and removing it was a mistake that cost 29 documented
     attributes their defaults and prose.
 
@@ -174,8 +203,8 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     element, so the "for an element, `initAttributes` is the authority" rule
     below already excludes them.
     */
-    if (!/^[\s/,|·-]*$/.test(leftover)) continue
-    /*
+      if (!/^[\s/,|·-]*$/.test(leftover)) continue
+      /*
     PAIR THE DEFAULTS when the row lists one per name.
 
     `| \`minWidth\` \`maxWidth\` | \`0\` \`360\` | … |` means 0 and 360
@@ -183,22 +212,24 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     ``0` `360`` as each one's default, which is worse than no default at all
     because it looks like a value.
     */
-    const cell = m[2].trim()
-    // Captured before the closure: TypeScript's narrowing of `m` does not
-    // survive into a callback, and the loop reassigns it.
-    const describe = m[3].trim() || undefined
-    const parts = [...cell.matchAll(/`([^`]*)`/g)].map((d) => d[1])
-    const defaultFor = (i: number) =>
-      (parts.length === names.length ? parts[i] : cell.replace(/^`|`$/g, '')) ||
-      undefined
-    names.forEach((name, i) => {
-      if (out.has(name)) return
-      out.set(name, {
-        name,
-        default: defaultFor(i),
-        description: describe,
+      const cell = m[2].trim()
+      // Captured before the closure: TypeScript's narrowing of `m` does not
+      // survive into a callback, and the loop reassigns it.
+      const describe = m[3].trim() || undefined
+      const parts = [...cell.matchAll(/`([^`]*)`/g)].map((d) => d[1])
+      const defaultFor = (i: number) =>
+        (parts.length === names.length
+          ? parts[i]
+          : cell.replace(/^`|`$/g, '')) || undefined
+      names.forEach((name, i) => {
+        if (out.has(name)) return
+        out.set(name, {
+          name,
+          default: defaultFor(i),
+          description: describe,
+        })
       })
-    })
+    }
   }
   return out
 }
@@ -292,7 +323,9 @@ export function buildIndex(srcDir = 'src'): ElementDoc[] {
    * `tosi-b3d-biped` under a helper class that happened to come first.
    */
   const classesIn = (code: string) => {
-    const found = [...code.matchAll(/class\s+(\w+)(?:\s+extends\s+(\w+))?[^{]*\{/g)]
+    const found = [
+      ...code.matchAll(/class\s+(\w+)(?:\s+extends\s+(\w+))?[^{]*\{/g),
+    ]
     return found.map((m, i) => ({
       name: m[1],
       extends: m[2],
@@ -332,7 +365,10 @@ export function buildIndex(srcDir = 'src'): ElementDoc[] {
     const add = (n: string) => {
       if (!names.includes(n)) names.push(n)
     }
-    for (const base of [...info.spreads, ...(info.extends ? [info.extends] : [])]) {
+    for (const base of [
+      ...info.spreads,
+      ...(info.extends ? [info.extends] : []),
+    ]) {
       for (const n of resolve(base, seen)) add(n)
     }
     for (const n of info.own) add(n)

@@ -183,10 +183,14 @@ const normalise = (o: PickerOption | string): PickerOption =>
  * order matter, and nobody can guess the author's order.
  */
 export function matchesQuery(option: PickerOption, query: string): boolean {
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t !== '')
-  if (terms.length === 0) return true
-  const hay = `${option.group ?? ''} ${option.label ?? ''} ${option.value}`
+  const terms = query
     .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t !== '')
+  if (terms.length === 0) return true
+  const hay = `${option.group ?? ''} ${option.label ?? ''} ${
+    option.value
+  }`.toLowerCase()
   return terms.every((t) => hay.includes(t))
 }
 

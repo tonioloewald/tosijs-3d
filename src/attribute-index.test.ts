@@ -140,7 +140,12 @@ describe('the index reports what an element actually accepts', () => {
     defect, which is the same failure the review named as M7: a test that cannot
     fail is not coverage.
     */
-    for (const module of ['b3d-aircraft', 'b3d-biped', 'b3d-car', 'b3d-controller']) {
+    for (const module of [
+      'b3d-aircraft',
+      'b3d-biped',
+      'b3d-car',
+      'b3d-controller',
+    ]) {
       const names = namesOf(module)
       for (const attr of ['x', 'y', 'z', 'rx', 'ry', 'rz']) {
         expect(names).toContain(attr)
@@ -298,5 +303,66 @@ describe('the index reports what an element actually accepts', () => {
     */
     const shipped = readFileSync('static/attributes.txt', 'utf8')
     expect(shipped.trim()).toBe(asText(buildIndex()).trim())
+  })
+})
+
+describe('a table the doc happens to open with cannot eat the whole page', () => {
+  /*
+  B1 OF THE 0.8.1 REMEDIATION RE-REVIEW.
+
+  `tableRows` rejected a table whose header cell names an IDENTIFIER — right,
+  because `touch-gamepad`'s `| \`data-part\` | … |` maps SVG part names to
+  gamepad fields and its ROWS are values, not attributes. But it applied the
+  rejection to the whole DOCUMENT on the strength of the FIRST table it found.
+
+  `b3d-lamp` opens with a capability matrix — `| | shadows | gel
+  (\`projectionTexture\`) | geometry |` — so its real attribute table twelve
+  headings later was never read, and all three lamp elements shipped their
+  attributes as bare names: no default, no prose. `grep -c spot` went 12 → 3.
+
+  A name with no description is exactly what this artifact exists to stop
+  shipping, so the rejection has to be scoped to the table that earns it.
+  */
+
+  const attr = (tag: string, name: string) =>
+    index.find((e) => e.tag === tag)?.attributes.find((a) => a.name === name)
+
+  test('the lamps keep the prose their own table gives them', () => {
+    for (const tag of [
+      'tosi-b3d-point-light',
+      'tosi-b3d-spot-light',
+      'tosi-b3d-area-light',
+    ]) {
+      const a = attr(tag, 'intensity')
+      expect(a, `${tag} has no intensity`).toBeDefined()
+      expect(a!.description, `${tag} intensity has no prose`).toBeTruthy()
+    }
+  })
+
+  test('the spot-only attributes are findable by what they DO', () => {
+    // The cost of losing them is not abstract: an agent greps `gelSvg`, finds a
+    // bare name, and cannot learn it is spot-only.
+    for (const name of ['gel', 'gelSvg', 'angle']) {
+      const a = attr('tosi-b3d-spot-light', name)
+      expect(a, `spot light has no ${name}`).toBeDefined()
+      expect(a!.description, `${name} has no prose`).toBeTruthy()
+    }
+  })
+
+  test('and the identifier-headed table is STILL rejected', () => {
+    /*
+    The guard's original job, and scoping the rejection must not quietly
+    re-admit it. `touch-gamepad` maps SVG `data-part` values to gamepad fields,
+    so its rows are VALUES: an index offering `left_stick` as an attribute you
+    could write is the confident wrong answer this artifact must never produce.
+
+    Asserted against the parsed NAMES, not the text — `left_stick` legitimately
+    appears inside `tosi-b3d`'s `gamepad` description, and a substring check
+    over the whole file would have called that a failure.
+    */
+    const names = new Set(index.flatMap((e) => e.attributes.map((a) => a.name)))
+    expect(names.has('left_stick')).toBe(false)
+    expect(names.has('right_stick')).toBe(false)
+    expect(names.has('data-part')).toBe(false)
   })
 })

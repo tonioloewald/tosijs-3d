@@ -87,7 +87,8 @@ export const arcStart = (a: Arc): number =>
   normaliseDegrees(a.centre - a.width / 2)
 
 /** Where the arc ends. */
-export const arcEnd = (a: Arc): number => normaliseDegrees(a.centre + a.width / 2)
+export const arcEnd = (a: Arc): number =>
+  normaliseDegrees(a.centre + a.width / 2)
 
 /**
  * Is this bearing inside the arc?

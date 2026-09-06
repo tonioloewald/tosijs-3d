@@ -218,7 +218,10 @@ describe('arc3d', () => {
   test('draws the BLOCKED sector when there is a restriction', () => {
     // The design point: a control that silently snaps teaches nothing about
     // why. With no envelope there is nothing to explain, so nothing is drawn.
-    const restricted = A.arc3d({ value: arcOf(90, 40), envelope: arcOf(90, 120) })
+    const restricted = A.arc3d({
+      value: arcOf(90, 40),
+      envelope: arcOf(90, 120),
+    })
     restricted.layout!(WIDTH)
     const free = A.arc3d({ value: arcOf(90, 40) })
     free.layout!(WIDTH)

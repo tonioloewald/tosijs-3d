@@ -129,7 +129,10 @@ import type { B3d } from './tosi-b3d.js'
  * A `WeakMap` keyed by the owner, so a disposed scene's entry goes with it
  * rather than having to be swept.
  */
-const mounted = new WeakMap<B3d, Map<string, { type: string; el: HTMLElement }>>()
+const mounted = new WeakMap<
+  B3d,
+  Map<string, { type: string; el: HTMLElement }>
+>()
 let urlSeq = 0
 
 /** This scene's url → library-type map, created on first use. */

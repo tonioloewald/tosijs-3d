@@ -2,7 +2,7 @@ import { describe, test, expect } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
-import { buildIndex } from '../bin/attribute-index.js'
+import { buildIndex, tableRows } from '../bin/attribute-index.js'
 
 /*
 A WHOLE-CORPUS INVARIANT, DERIVED BY A DIFFERENT PARSER.
@@ -67,9 +67,7 @@ describe('the attribute index agrees with the compiler', () => {
   const index = buildIndex()
   const byClass = attributesByClass()
   /** Every name declared anywhere in the corpus. */
-  const declaredAnywhere = new Set(
-    [...byClass.values()].flatMap((s) => [...s])
-  )
+  const declaredAnywhere = new Set([...byClass.values()].flatMap((s) => [...s]))
 
   test('the AST finds the corpus at all — a guard on the guard', () => {
     // If this parser silently found nothing, every assertion below would pass
@@ -224,5 +222,68 @@ describe('the attribute index agrees with the compiler', () => {
       const names = element.attributes.map((a) => a.name)
       for (const attr of positional) expect(names).toContain(attr)
     }
+  })
+})
+
+describe('tableRows judges each table, not the document', () => {
+  /*
+  THE CLASS BEHIND B1 OF THE 0.8.1 RE-REVIEW, guarded where it propagates.
+
+  The rejection of an identifier-headed table is correct and has to stay. What
+  was wrong was its SCOPE: it read the first header in the file and threw the
+  rest away, so one legend table at the top of `b3d-lamp` silenced three
+  elements' worth of documentation and nothing failed.
+
+  Asserted here on synthetic docs rather than only through the shipped
+  artifact, because the artifact tells you a lamp lost its prose — it does not
+  tell you which rule did it, and the corpus can be fixed by luck (a doc simply
+  reordering its tables) while the rule stays broken.
+  */
+
+  const LEGEND = [
+    '| `data-part` | field | note |',
+    '| --- | --- | --- |',
+    '| `left_stick` | leftStick | the pad |',
+  ].join('\n')
+
+  const ATTRS = [
+    '| Attribute | Default | Description |',
+    '| --- | --- | --- |',
+    '| `intensity` | `1` | Brightness |',
+    '| `gelSvg` | `-` | spot only |',
+  ].join('\n')
+
+  test('a rejected table does not silence the ones after it', () => {
+    const rows = tableRows(`${LEGEND}\n\nsome prose\n\n${ATTRS}`)
+    expect(rows.get('intensity')?.description).toBe('Brightness')
+    expect(rows.get('gelSvg')?.description).toBe('spot only')
+    // ...and the legend is still refused, which is the rule's actual job.
+    expect(rows.has('left_stick')).toBe(false)
+  })
+
+  test('order does not decide it — a legend LAST is refused too', () => {
+    const rows = tableRows(`${ATTRS}\n\nprose\n\n${LEGEND}`)
+    expect(rows.get('intensity')?.description).toBe('Brightness')
+    expect(rows.has('left_stick')).toBe(false)
+  })
+
+  test('several attribute tables all contribute', () => {
+    // A long component doc splits its attributes by topic; taking only the
+    // first table would drop the rest just as silently.
+    const second = [
+      '| Attribute | Default | Description |',
+      '| --- | --- | --- |',
+      '| `shadows` | `off` | casts |',
+    ].join('\n')
+    const rows = tableRows(`${ATTRS}\n\n### More\n\n${second}`)
+    expect(rows.get('intensity')).toBeDefined()
+    expect(rows.get('shadows')?.description).toBe('casts')
+  })
+
+  test('a stray pipe in prose is not a one-row table', () => {
+    // The bodies are now cut from header+separator pairs, so prose containing a
+    // pipe can no longer be mistaken for a declaration.
+    const rows = tableRows('Pick one: `a` | `b` | `c` — whichever suits.')
+    expect(rows.size).toBe(0)
   })
 })

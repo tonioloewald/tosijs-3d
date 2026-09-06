@@ -112,6 +112,62 @@ describe('a scripted activate() and its reach veto', () => {
     mesh.dispose()
   })
 
+  test('a HOVERED door reports operable — the pointer is about to open it', () => {
+    /*
+    B2 OF THE 0.8.1 RE-REVIEW, and the cost of over-generalising the fix above.
+
+    `operable` and `debugState` were routed through `_apiInfo()` too, so they
+    judged a hovered element at `distance: Infinity` and reported "blocked" at
+    the same instant a press opened it. `operable` is public API documented as
+    "would actually work"; `debugState` is the only debug readout that exists in
+    a headset. Both said the opposite of what the pointer did.
+
+    An ACTIVATION with no distance must still fail closed — that is the bug this
+    one grew out of, and it is asserted below. Inspection is different: the
+    pointer path knows the real distance, so the inspector should use it.
+    */
+    const { behavior, mesh } = makeDoor('hovered-operable')
+    behavior.vetoes.push(REACH_VETO)
+    // What a hover writes: this behaviour's own mesh, 1.2 m away.
+    ;(behavior as any)._state.phase = 'hover'
+    ;(behavior as any)._last = { mesh, point: null, distance: 1.2 }
+
+    expect(behavior.operable).toBe(true)
+    expect(behavior.debugState.vetoes).toEqual(['out-of-reach:ok'])
+    // ...and a bare scripted activate() STILL fails closed, unchanged.
+    expect(behavior.activate()).toBe(false)
+
+    behavior.dispose()
+    mesh.dispose()
+  })
+
+  test('a hovered door OUT of reach still reports blocked', () => {
+    // The inspector uses the real distance, which means it must also report a
+    // genuine refusal — otherwise it has just moved the lie.
+    const { behavior, mesh } = makeDoor('hovered-far')
+    behavior.vetoes.push(REACH_VETO)
+    ;(behavior as any)._state.phase = 'hover'
+    ;(behavior as any)._last = { mesh, point: null, distance: 9 }
+    expect(behavior.operable).toBe(false)
+    expect(behavior.debugState.vetoes).toEqual(['out-of-reach:blocks'])
+    behavior.dispose()
+    mesh.dispose()
+  })
+
+  test('debugState says what it judged with, not just the verdict', () => {
+    // "blocked" with no distance is a readout you cannot act on — especially in
+    // a headset, where it is the only one you have.
+    const { behavior, mesh } = makeDoor('debug-info')
+    ;(behavior as any)._state.phase = 'hover'
+    ;(behavior as any)._last = { mesh, point: null, distance: 1.2 }
+    expect(behavior.debugState.judgedWith).toMatchObject({
+      source: 'pointer',
+      distance: 1.2,
+    })
+    behavior.dispose()
+    mesh.dispose()
+  })
+
   test('a veto that ignores its argument is unaffected', () => {
     let locked = true
     const { behavior, mesh } = makeDoor('legacy')

@@ -33,6 +33,8 @@
     "!dist/iife.js",
     "!dist/iife.js.map",
     "!dist/hydrate",
+    "static/attributes.txt",
+    "static/attributes.json",
     "CHANGELOG.md",
     "Migration.md"
   ],

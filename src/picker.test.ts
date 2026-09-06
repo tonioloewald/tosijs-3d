@@ -78,7 +78,7 @@ describe('matchesQuery', () => {
 
 describe('groupsOf', () => {
   const groupsOf = (o: PickerOption[]) => P.groupsOf(o)
-  test('is first-seen order — the content\'s order, not the alphabet\'s', () => {
+  test("is first-seen order — the content's order, not the alphabet's", () => {
     /*
     A kit lists its families in a deliberate order; sorting them alphabetically
     would scatter a library the author arranged.

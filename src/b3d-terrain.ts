@@ -325,6 +325,8 @@ import {
   tileFieldScratchSize,
   tileFieldSampleCount,
   desiredCellsInto,
+  budgetedReach,
+  MAX_TILES_ACROSS,
   type DesiredCell,
   type QuadtreeConfig,
 } from './terrain-grid.js'
@@ -343,6 +345,10 @@ type PoolTile = {
    * it). Pooled tiles are reused anywhere, so this must be released when the
    * tile is next filled somewhere without a hole — see `generateTileMesh`. */
   masked?: boolean
+  /** Set when the heightfield changed under a tile that is still WANTED and
+   * still DRAWN. It keeps its old geometry on screen until the streamer gets
+   * to it under the frame budget — see `markPoolStale`. */
+  stale?: boolean
 }
 
 // Pack (level, gx, gz) into a single number for Map/Set keys. Floating-origin
@@ -404,15 +410,6 @@ const emptyTileProfile = (): TileProfile => ({
   worstFrameSaturated: false,
   frameTimeCapped: false,
 })
-
-/**
- * Widest the finest LOD may get, in tiles across.
- *
- * 256² = 65,536 tiles is already generous — the reported tab-killer was a
- * million. Not an attribute: it is a survival limit, and a knob for it would
- * just be the same footgun with an extra step.
- */
-const MAX_TILES_ACROSS = 256
 
 export class B3dTerrain extends B3dChild {
   static preferredTagName = 'tosi-b3d-terrain'
@@ -685,6 +682,8 @@ export class B3dTerrain extends B3dChild {
   private _free: PoolTile[] = []
   private _placed: PoolTile[] = []
   private _blanks: DesiredCell[] = []
+  /** Placed, still-wanted tiles whose geometry is out of date (see `stale`). */
+  private _stale: PoolTile[] = []
   // Previous camera XZ (render space) — for the travel-direction interest term.
   private lastCamX = NaN
   private lastCamZ = NaN
@@ -742,10 +741,9 @@ export class B3dTerrain extends B3dChild {
     nothing has changed yet. It passed its tests and drew an empty world, which
     the demo showed and the tests could not.
     */
+    // `regenerate()` takes the baseline key itself, so the first render() does
+    // not immediately rebuild a terrain that was just built.
     this.regenerate()
-    // Baseline AFTER the fill, so the first render() does not immediately
-    // rebuild a terrain that was just built.
-    this._genKey = this._generationKey()
   }
 
   /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
@@ -1060,10 +1058,8 @@ export class B3dTerrain extends B3dChild {
         ? attrs.reach
         : this.coarsestTileSize() * (attrs.splitFactor + 1.5)
     const tile = baseTileSize > 0 ? baseTileSize : 1
-    // Across, not area: the limit people reason about is "how many tiles wide".
-    const across = (2 * asked) / tile
-    if (across <= MAX_TILES_ACROSS) return asked
-    const capped = (MAX_TILES_ACROSS * tile) / 2
+    const { reach: capped, across, clamped } = budgetedReach(asked, tile)
+    if (!clamped) return asked
     if (!this._warnedReach) {
       this._warnedReach = true
       console.warn(
@@ -1263,11 +1259,13 @@ export class B3dTerrain extends B3dChild {
     const free = this._free
     const placed = this._placed
     const blanks = this._blanks
+    const stale = this._stale
     desiredByKey.clear()
     covered.clear()
     free.length = 0
     placed.length = 0
     blanks.length = 0
+    stale.length = 0
 
     for (const c of desired)
       desiredByKey.set(cellKeyNum(c.level, c.gx, c.gz), c)
@@ -1280,6 +1278,8 @@ export class B3dTerrain extends B3dChild {
           t.cell.priority = want.priority // refresh (direction/motion changed)
           covered.add(k)
           placed.push(t)
+          // Still wanted, still drawn — but the heightfield moved under it.
+          if (t.stale) stale.push(t)
           continue
         }
         t.cell = null // no longer desired → free it (hidden until reused)
@@ -1342,9 +1342,31 @@ export class B3dTerrain extends B3dChild {
       budget--
     }
 
+    /*
+    REFRESHING A CHANGED HEIGHTFIELD, under the same budget as filling a blank.
+
+    A blank is a hole; a stale tile is old but coherent ground. So blanks go
+    first — a hole is worse than a wrong hill — and what is left of the budget
+    reworks stale tiles nearest-first. They stay VISIBLE throughout, which is
+    the whole point: clearing the pool instead would make a slider drag blink
+    the world out and stream it back a handful of tiles per frame.
+    */
+    stale.sort((a, b) => b.cell!.priority - a.cell!.priority)
+    for (const tile of stale) {
+      if (budget <= 0) break
+      if (built > 0 && msBudget > 0 && clock() - started >= msBudget) {
+        if (this._prof != null) this._prof.frameTimeCapped = true
+        break
+      }
+      this.generateTileMesh(tile, subs, tile.cell!)
+      built++
+      budget--
+    }
+
     // What we wanted and didn't get to. `busy` reads this: a frame rate measured
     // while the ground is still arriving is a measurement of the LOADING.
-    this._fillBacklog = Math.max(0, blanks.length - built)
+    // Stale tiles count: the ground on screen is not yet the ground you asked for.
+    this._fillBacklog = Math.max(0, blanks.length + stale.length - built)
   }
 
   // --- Height sampling ---
@@ -1359,6 +1381,8 @@ export class B3dTerrain extends B3dChild {
     const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
     const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)
     if (positions == null || normals == null) return
+    // Whatever it was built from before, this tile now holds current geometry.
+    tile.stale = false
 
     // Profiling is OFF by default and costs nothing then: `now()` is a nullary that
     // returns 0 unless `profile` is set. Split at the seams that decide whether this
@@ -1654,8 +1678,28 @@ export class B3dTerrain extends B3dChild {
   private clearPool() {
     for (const tile of this.pool) {
       tile.cell = null
+      tile.stale = false
       tile.mesh.isVisible = false
     }
+  }
+
+  /*
+  THE OTHER WAY TO REBUILD: keep the ground on screen and re-cut it under budget.
+
+  `clearPool` blanks the world and refills it in one unbounded pass, which is
+  right for an explicit `regenerate()` — the caller asked for the new world and
+  will wait a frame for it. It is exactly wrong for an attribute that changed
+  because a slider moved: tosijs queues one render per rAF, so a drag would pay
+  a full pool rebuild EVERY FRAME (~50 ms of noise alone at the high tier,
+  ~6.3 ms at the quest tier inside a 13.9 ms VR frame — and "a dropped frame is
+  nausea, not jank").
+
+  Marking instead of clearing keeps each tile drawing its previous geometry
+  until the streamer reaches it, so the frame cost is the ordinary
+  `fillBudget`/`tileBuildMs` cap and the world morphs rather than blinking.
+  */
+  private markPoolStale() {
+    for (const tile of this.pool) if (tile.cell) tile.stale = true
   }
 
   // Rebuild after a parameter change. A height-only change keeps the same cells
@@ -1727,10 +1771,23 @@ export class B3dTerrain extends B3dChild {
     const key = this._generationKey()
     if (key === this._genKey) return
     this._genKey = key
-    this.regenerate()
+    // BUDGETED, not unbounded: this fires once per rAF while a slider is
+    // dragged. See `markPoolStale` for why that distinction is the whole fix.
+    this._rebuild(false)
   }
 
   regenerate() {
+    /*
+    Adopt the key we are about to satisfy. Without this, the documented "set
+    the attributes, then call regenerate()" paid for TWO full rebuilds: this
+    one, and another from the render tosijs had already queued for those same
+    attribute writes.
+    */
+    this._genKey = this._generationKey()
+    this._rebuild(true)
+  }
+
+  private _rebuild(unbounded: boolean) {
     const attrs = this as any
     if (this.material) this.material.wireframe = attrs.wireframe
     // Re-seed if the seed changed — terrain is fully determined by (seed, params),
@@ -1739,8 +1796,13 @@ export class B3dTerrain extends B3dChild {
       this.noiseSeed = attrs.seed
       this.noise = new PerlinNoise(attrs.seed)
     }
-    this.clearPool()
-    this.update(this.pool.length)
+    if (unbounded) {
+      this.clearPool()
+      this.update(this.pool.length)
+    } else {
+      this.markPoolStale()
+      this.update()
+    }
   }
 }
 

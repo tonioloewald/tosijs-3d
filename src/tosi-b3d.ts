@@ -309,12 +309,7 @@ import {
   type PopupSurfaceOptions,
 } from './popup-surface.js'
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js'
-import {
-  NO_WIND,
-  gustAt,
-  windFromPolar,
-  type Wind,
-} from './wind.js'
+import { NO_WIND, gustAt, windFromPolar, type Wind } from './wind.js'
 import { faceViewer } from './dialog-placement.js'
 import { svgIcons } from './svg-icons.js'
 import { CombatWorld } from './destroyable.js'

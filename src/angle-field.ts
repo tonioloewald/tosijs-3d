@@ -130,7 +130,6 @@ import {
   FULL_CIRCLE,
   arcOf,
   arcComplement,
-  arcContains,
   arcEnd,
   arcStart,
   clampAngleToArc,
@@ -220,12 +219,7 @@ const angleOf = (cx: number, cy: number, x: number, y: number): number =>
  * nothing, which draws an EMPTY dial for the one case that means "no
  * restriction at all". Two half-circles instead.
  */
-function sectorPath(
-  cx: number,
-  cy: number,
-  radius: number,
-  a: Arc
-): string {
+function sectorPath(cx: number, cy: number, radius: number, a: Arc): string {
   if (a.width >= 360) {
     return (
       `M ${cx - radius} ${cy} ` +
@@ -381,7 +375,10 @@ export function angle3d(config: Angle3dOptions = {}): AngleField {
       cy = capH + pad + radius + 10
       if (config.label) {
         base.caption.setAttribute('x', String(pad))
-        base.caption.setAttribute('y', String(Math.round(w3dTheme.fontSize * 0.9)))
+        base.caption.setAttribute(
+          'y',
+          String(Math.round(w3dTheme.fontSize * 0.9))
+        )
       }
       rowHeight = capH + pad * 2 + radius * 2 + 20
       draw()
@@ -479,7 +476,10 @@ export function arc3d(config: Arc3dOptions = {}): ArcField {
       cy = capH + pad + radius + 10
       if (config.label) {
         base.caption.setAttribute('x', String(pad))
-        base.caption.setAttribute('y', String(Math.round(w3dTheme.fontSize * 0.9)))
+        base.caption.setAttribute(
+          'y',
+          String(Math.round(w3dTheme.fontSize * 0.9))
+        )
       }
       rowHeight = capH + pad * 2 + radius * 2 + 20
       draw()

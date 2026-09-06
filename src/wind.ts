@@ -139,7 +139,8 @@ const DEG = Math.PI / 180
  * where the weather goes.
  */
 export function windFromPolar(speed: number, bearingDeg: number): Wind {
-  if (!Number.isFinite(speed) || !Number.isFinite(bearingDeg)) return { ...NO_WIND }
+  if (!Number.isFinite(speed) || !Number.isFinite(bearingDeg))
+    return { ...NO_WIND }
   const t = bearingDeg * DEG
   return { x: Math.sin(t) * speed, z: Math.cos(t) * speed }
 }

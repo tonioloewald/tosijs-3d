@@ -31,7 +31,10 @@ authoring time rather than in someone's review.
  * Built with `new RegExp` from escapes rather than a literal, because a
  * literal would put the very characters this forbids into this file.
  */
+// The rule exists to stop control characters reaching a regex by accident; this
+// one is the check FOR them, which is the one place they belong.
 const FORBIDDEN = new RegExp(
+  // eslint-disable-next-line no-control-regex
   '[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]'
 )
 
@@ -40,8 +43,8 @@ const sourceFiles = (dir: string): string[] =>
     e.isDirectory()
       ? sourceFiles(join(dir, e.name))
       : e.name.endsWith('.ts')
-        ? [join(dir, e.name)]
-        : []
+      ? [join(dir, e.name)]
+      : []
   )
 
 describe('source files stay diffable', () => {

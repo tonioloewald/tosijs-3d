@@ -159,11 +159,18 @@ export class InteractiveBehavior {
     return this._state.phase !== 'idle'
   }
 
-  /** True when nothing refuses an activation — i.e. it would actually work. */
+  /**
+   * True when nothing refuses an activation — i.e. using it would work.
+   *
+   * Judged with what is actually KNOWN: while the pointer is on it, that is
+   * this frame's real hover; otherwise it is the same unknown-distance info a
+   * bare `activate()` would use, so a reach veto reads as blocking. Gate a
+   * "press E" prompt or a highlight on this and it tracks the pointer.
+   */
   get operable(): boolean {
     return (
       this._enabled() &&
-      activationVeto(this.vetoes, this._apiInfo()) == null
+      activationVeto(this.vetoes, this._inspectInfo()) == null
     )
   }
 
@@ -200,6 +207,22 @@ export class InteractiveBehavior {
   rather than 0 — "we do not know that you are near" rather than "you are on
   top of it". A reach veto then fails CLOSED and the caller has to say what it
   means, which it can: `activate({distance})`.
+
+  ⚠️ AND THAT WAS OVER-GENERALISED, which the re-review caught: an ACTIVATION
+  with no distance must fail closed, but the two INSPECTION surfaces are not
+  activations. Routing `operable` and `debugState` through the same helper made
+  them judge a HOVERED element at `distance: Infinity` — so a door reported
+  `operable: false` and `out-of-reach:blocks` at the same instant a pointer
+  press opened it. `operable` is public API ("would actually work") and
+  `debugState` is the only debug readout that exists in a headset; both said the
+  opposite of what the thing did.
+
+  Two helpers, because they answer different questions:
+
+  | | question | unknown distance |
+  | --- | --- | --- |
+  | `_apiInfo` (`activate`) | may this fire? | `Infinity` — refuse |
+  | `_inspectInfo` (`operable`, `debugState`) | would it fire NOW? | ask the hover |
   */
   private _apiInfo(info?: Partial<InteractionInfo>): InteractionInfo {
     return {
@@ -210,6 +233,18 @@ export class InteractiveBehavior {
     }
   }
 
+  /**
+   * What an INSPECTOR judges with — the pointer's own info while hovering.
+   *
+   * `_last` is stale in general, which is why `activate()` may not use it. But
+   * while `hovered` is true it is this frame's hover of this behaviour's own
+   * meshes: exactly the info `_fire` is about to be handed. Reporting anything
+   * else here is reporting on a different event than the one happening.
+   */
+  private _inspectInfo(): InteractionInfo {
+    return this.hovered ? { ...this._last, source: 'pointer' } : this._apiInfo()
+  }
+
   /** Tuned state for the console / `hj eval` / a Perf-panel debug source. */
   get debugState() {
     return {
@@ -218,9 +253,11 @@ export class InteractiveBehavior {
       armed: this._state.armed,
       meshes: this.config.meshes().map((m) => m.name),
       reach: this.config.reach?.() ?? 0,
+      // The info the verdict was reached with. "blocked" alone is a readout you
+      // cannot act on — and in a headset it is the only one you have.
+      judgedWith: this._inspectInfo(),
       vetoes: this.vetoes.map(
-        (v) =>
-          `${v.name}:${v.blocks(this._apiInfo()) ? 'blocks' : 'ok'}`
+        (v) => `${v.name}:${v.blocks(this._inspectInfo()) ? 'blocks' : 'ok'}`
       ),
     }
   }
@@ -394,5 +431,7 @@ export function useNearest(
   const found = nearestTo(scene, from)
   // `near`, not `api`: this IS reaching for the thing, and a veto that cares
   // about reach must be able to tell that apart from a scripted activation.
-  return found?.it.activate({ source: 'near', distance: found.distance }) ?? false
+  return (
+    found?.it.activate({ source: 'near', distance: found.distance }) ?? false
+  )
 }

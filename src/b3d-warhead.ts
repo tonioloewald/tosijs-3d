@@ -133,7 +133,6 @@ import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead.js'
-import type { B3dDestroyable } from './b3d-destroyable.js'
 import { liveDestroyables } from './destroyable-behavior.js'
 import type { Cause } from './destroyable.js'
 

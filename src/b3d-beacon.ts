@@ -246,7 +246,9 @@ export class B3dBeacon extends AbstractMesh {
   }
 
   private _key(): string {
-    return [this.shape, this.size, this.width, this.height, this.depth].join('/')
+    return [this.shape, this.size, this.width, this.height, this.depth].join(
+      '/'
+    )
   }
 
   private _build(scene: BABYLON.Scene): void {

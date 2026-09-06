@@ -1241,46 +1241,72 @@
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x"
+        "name": "x",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "y"
+        "name": "y",
+        "default": "3",
+        "description": "Position"
       },
       {
-        "name": "z"
+        "name": "z",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "intensity"
+        "name": "intensity",
+        "default": "1",
+        "description": "Brightness. With `modulation`, this is the MAXIMUM"
       },
       {
-        "name": "diffuse"
+        "name": "diffuse",
+        "default": "'#ffffff'",
+        "description": "Colour"
       },
       {
-        "name": "specular"
+        "name": "specular",
+        "default": "'#ffffff'",
+        "description": "Specular colour"
       },
       {
-        "name": "range"
+        "name": "range",
+        "default": "10",
+        "description": "Falloff distance (point / spot)"
       },
       {
-        "name": "on"
+        "name": "on",
+        "default": "true",
+        "description": "`false` plays the DECAY region; it does not kill the light"
       },
       {
-        "name": "geometry"
+        "name": "geometry",
+        "default": "'on'",
+        "description": "`'off'` for no fixture"
       },
       {
-        "name": "geometryScale"
+        "name": "geometryScale",
+        "default": "1",
+        "description": "Size multiplier for the default fixture"
       },
       {
-        "name": "url"
+        "name": "url",
+        "default": "—",
+        "description": "GLB fixture, in place of the primitive"
       },
       {
-        "name": "shadows"
+        "name": "shadows",
+        "default": "'off'",
+        "description": "`'on'` for a shadow generator (point / spot only)"
       },
       {
         "name": "timeSource"
       },
       {
-        "name": "shadowTextureSize"
+        "name": "shadowTextureSize",
+        "default": "0",
+        "description": "Resolves against the device budget"
       }
     ]
   },
@@ -1290,64 +1316,102 @@
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x"
+        "name": "x",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "y"
+        "name": "y",
+        "default": "3",
+        "description": "Position"
       },
       {
-        "name": "z"
+        "name": "z",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "intensity"
+        "name": "intensity",
+        "default": "1",
+        "description": "Brightness. With `modulation`, this is the MAXIMUM"
       },
       {
-        "name": "diffuse"
+        "name": "diffuse",
+        "default": "'#ffffff'",
+        "description": "Colour"
       },
       {
-        "name": "specular"
+        "name": "specular",
+        "default": "'#ffffff'",
+        "description": "Specular colour"
       },
       {
-        "name": "range"
+        "name": "range",
+        "default": "10",
+        "description": "Falloff distance (point / spot)"
       },
       {
-        "name": "on"
+        "name": "on",
+        "default": "true",
+        "description": "`false` plays the DECAY region; it does not kill the light"
       },
       {
-        "name": "geometry"
+        "name": "geometry",
+        "default": "'on'",
+        "description": "`'off'` for no fixture"
       },
       {
-        "name": "geometryScale"
+        "name": "geometryScale",
+        "default": "1",
+        "description": "Size multiplier for the default fixture"
       },
       {
-        "name": "url"
+        "name": "url",
+        "default": "—",
+        "description": "GLB fixture, in place of the primitive"
       },
       {
-        "name": "shadows"
+        "name": "shadows",
+        "default": "'off'",
+        "description": "`'on'` for a shadow generator (point / spot only)"
       },
       {
         "name": "timeSource"
       },
       {
-        "name": "shadowTextureSize"
+        "name": "shadowTextureSize",
+        "default": "0",
+        "description": "Resolves against the device budget"
       },
       {
-        "name": "angle"
+        "name": "angle",
+        "default": "60",
+        "description": "**spot** — cone angle in degrees"
       },
       {
-        "name": "exponent"
+        "name": "exponent",
+        "default": "2",
+        "description": "**spot** — falloff sharpness (standard falloff)"
       },
       {
-        "name": "innerAngle"
+        "name": "innerAngle",
+        "default": "0",
+        "description": "**spot** — inner cone in degrees; above `0` gives a true penumbra and switches to glTF falloff"
       },
       {
-        "name": "shape"
+        "name": "shape",
+        "default": "'circle'",
+        "description": "**spot** — cone cross-section: `circle` / `square` / `none`. Projected as a gel, so an explicit `gel` wins"
       },
       {
-        "name": "shapeAspect"
+        "name": "shapeAspect",
+        "default": "1",
+        "description": "**spot** — width/height; `2` is an ellipse or letterbox"
       },
       {
-        "name": "shapeSoftness"
+        "name": "shapeSoftness",
+        "default": "0.25",
+        "description": "**spot** — edge feather, as a fraction of the radius"
       },
       {
         "name": "dirX"
@@ -1359,10 +1423,14 @@
         "name": "dirZ"
       },
       {
-        "name": "gel"
+        "name": "gel",
+        "default": "—",
+        "description": "**spot** — projection texture URL (bitmap or SVG file)"
       },
       {
-        "name": "gelSvg"
+        "name": "gelSvg",
+        "default": "—",
+        "description": "**spot** — inline SVG source or an `SVGElement`"
       }
     ]
   },
@@ -1372,52 +1440,82 @@
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x"
+        "name": "x",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "y"
+        "name": "y",
+        "default": "3",
+        "description": "Position"
       },
       {
-        "name": "z"
+        "name": "z",
+        "default": "0",
+        "description": "Position"
       },
       {
-        "name": "intensity"
+        "name": "intensity",
+        "default": "1",
+        "description": "Brightness. With `modulation`, this is the MAXIMUM"
       },
       {
-        "name": "diffuse"
+        "name": "diffuse",
+        "default": "'#ffffff'",
+        "description": "Colour"
       },
       {
-        "name": "specular"
+        "name": "specular",
+        "default": "'#ffffff'",
+        "description": "Specular colour"
       },
       {
-        "name": "range"
+        "name": "range",
+        "default": "10",
+        "description": "Falloff distance (point / spot)"
       },
       {
-        "name": "on"
+        "name": "on",
+        "default": "true",
+        "description": "`false` plays the DECAY region; it does not kill the light"
       },
       {
-        "name": "geometry"
+        "name": "geometry",
+        "default": "'on'",
+        "description": "`'off'` for no fixture"
       },
       {
-        "name": "geometryScale"
+        "name": "geometryScale",
+        "default": "1",
+        "description": "Size multiplier for the default fixture"
       },
       {
-        "name": "url"
+        "name": "url",
+        "default": "—",
+        "description": "GLB fixture, in place of the primitive"
       },
       {
-        "name": "shadows"
+        "name": "shadows",
+        "default": "'off'",
+        "description": "`'on'` for a shadow generator (point / spot only)"
       },
       {
         "name": "timeSource"
       },
       {
-        "name": "shadowTextureSize"
+        "name": "shadowTextureSize",
+        "default": "0",
+        "description": "Resolves against the device budget"
       },
       {
-        "name": "width"
+        "name": "width",
+        "default": "2",
+        "description": "**area** — panel size"
       },
       {
-        "name": "height"
+        "name": "height",
+        "default": "1",
+        "description": "**area** — panel size"
       }
     ]
   },

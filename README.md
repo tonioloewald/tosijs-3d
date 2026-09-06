@@ -8,9 +8,10 @@
 
 **Looking for a capability?** Search the **[attribute
 index](https://3d.tosijs.net/attributes.txt)** before assuming it does not
-exist — attribute index in one greppable file, generated from
-source on every build. There is a
-[JSON form](https://3d.tosijs.net/attributes.json) for tools.
+exist — one greppable line per attribute, generated from source on every
+build. There is a [JSON form](https://3d.tosijs.net/attributes.json) for
+tools, and both ship **inside the package** — an agent already in a consumer
+project reads `node_modules/tosijs-3d/static/attributes.txt` with no network.
 
 It exists because the recurring adopter failure is not a missing feature, it is
 a feature that ships, is documented, and cannot be found: three issues in one

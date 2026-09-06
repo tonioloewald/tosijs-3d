@@ -109,9 +109,7 @@ describe('provinces', () => {
   })
 
   test('a zero-radius province is inert rather than infinite', () => {
-    expect(
-      provinceInfluence({ ...funnel, radius: 0 }, 0, 0)
-    ).toBe(0)
+    expect(provinceInfluence({ ...funnel, radius: 0 }, 0, 0)).toBe(0)
   })
 
   test('windAt is the base plus everything in range', () => {
