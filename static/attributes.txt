@@ -86,6 +86,7 @@ b3d-ambient
   size  = 0  — Scale the preset's sprite size
   windX  = 0  — World wind (rain slants, dust blows)
   windZ  = 0
+  wind
   disabled  = false  — Stop emitting
   motes  = Dust or plankton hanging in the light — near-weightless, slow drift. The cheapest way to make air (or water) feel like a *substance* rather than a vacuum
   rain  = Fast, stretched, near-vertical. Add `wind` and it slants

@@ -303,6 +303,7 @@ export function ambientSchema(extra: Record<string, unknown> = {}) {
       color: { type: 'string', default: '', format: 'color' },
       windX: num(0, { minimum: -100, maximum: 100 }),
       windZ: num(0, { minimum: -100, maximum: 100 }),
+      wind: choice('scene', ['scene', 'own']),
     },
     extra
   )

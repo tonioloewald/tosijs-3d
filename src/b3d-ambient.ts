@@ -372,6 +372,18 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     size: 0,
     windX: 0,
     windZ: 0,
+    /*
+    Take the SCENE's wind, or this element's own — see [[wind]].
+
+    Unlike `b3d-clouds` and `b3d-water`, whose wind attributes have non-zero
+    defaults, absence IS detectable here: `windX`/`windZ` default to `0`. So
+    "inherit when unset" would have worked without a mode.
+
+    The mode still earns its place, because `'own'` with zero wind is the only
+    way to say "this place is SHELTERED" — a courtyard that stays still while
+    the scene blows. Under an inherit rule that sentence is unsayable.
+    */
+    wind: 'scene' as 'scene' | 'own',
     disabled: false,
   }
 
@@ -387,6 +399,18 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   declare size: number
   declare windX: number
   declare windZ: number
+  declare wind: string
+
+  /** The drift this frame: the scene's wind, or this element's own. */
+  private _wind(): { windX: number; windZ: number } {
+    if (this.wind !== 'own') {
+      const scene = this.owner?.wind
+      if (scene != null && (scene.x !== 0 || scene.z !== 0)) {
+        return { windX: scene.x, windZ: scene.z }
+      }
+    }
+    return { windX: this.windX, windZ: this.windZ }
+  }
   declare disabled: boolean
 
   /** 0…1 — how strongly this is emitting right now (ramps, never switches). */
@@ -688,7 +712,8 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
       const leaves = this._leaves
       if (leaves == null) return
       leaves.setEmitter(eye.x, eye.y, eye.z)
-      leaves.setWind(this.windX, this.windZ)
+      const { windX, windZ } = this._wind()
+      leaves.setWind(windX, windZ)
       const cap = this._budgetCapacity()
       const share = this._granted / Math.max(1, cap)
       const dt = sceneDelta(scene)
@@ -701,8 +726,9 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     this._emitter.copyFrom(eye)
     // Bias the box along the wind, so windblown stuff arrives from upwind instead of
     // materialising all around you.
-    this._emitter.x -= this.windX * 0.5
-    this._emitter.z -= this.windZ * 0.5
+    const blowing = this._wind()
+    this._emitter.x -= blowing.windX * 0.5
+    this._emitter.z -= blowing.windZ * 0.5
 
     // …and toward what the camera is looking at, and where it is going. Velocity
     // is measured from the eye's OWN displacement rather than asked of a vehicle:

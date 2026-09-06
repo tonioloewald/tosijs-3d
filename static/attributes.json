@@ -334,6 +334,9 @@
         "default": "0"
       },
       {
+        "name": "wind"
+      },
+      {
         "name": "disabled",
         "default": "false",
         "description": "Stop emitting"
