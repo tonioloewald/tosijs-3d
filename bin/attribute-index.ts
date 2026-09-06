@@ -111,6 +111,23 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
   row, so the index discarded authored documentation from the very page it
   indexes.
   */
+  /*
+  A TABLE'S HEADER ROW IS NOT AN ATTRIBUTE, and a header cell that names an
+  IDENTIFIER means the rows below are values of it rather than attributes.
+
+  `touch-gamepad` documents `| \`data-part\` | VirtualGamepad | Type |` — a
+  mapping from SVG `data-part` values to gamepad fields. The header itself was
+  ingested (`data-part = VirtualGamepad — Type`), and so were its rows, so the
+  index offered `left_stick` as though it were an attribute you could write.
+
+  Every legitimate table names its columns in plain words — `option`, `widget`,
+  `grip`, `grab`, `Field`. A backticked name there is the tell.
+  */
+  const lines = doc.split('\n')
+  const isSeparator = (line: string) => /^\|[\s:|-]*\|$/.test(line ?? '')
+  const headerAt = lines.findIndex((l, i) => l.startsWith('|') && isSeparator(lines[i + 1]))
+  if (headerAt >= 0 && /`[^`]+`/.test(lines[headerAt])) return out
+
   const row = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/gm
   let m: RegExpExecArray | null
   while ((m = row.exec(doc)) != null) {
@@ -126,6 +143,8 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     */
     const names = [...m[1].matchAll(/`([a-z][\w-]*)`/g)].map((n) => n[1])
     if (names.length === 0) continue
+    // A header row is a label for the column, never a value in it.
+    if (isSeparator(doc.slice(m.index + m[0].length).split('\n')[1])) continue
     /*
     THE CELL MUST BE NOTHING BUT NAMES.
 

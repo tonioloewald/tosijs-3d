@@ -22,9 +22,9 @@ const find = (module: string) => index.find((e) => e.module === module)
 
 describe('coverage', () => {
   test('it indexes the real elements, not a handful', () => {
-    expect(index.length).toBeGreaterThan(40)
+    expect(index.length).toBeGreaterThan(60)
     const total = index.reduce((n, e) => n + e.attributes.length, 0)
-    expect(total).toBeGreaterThan(400)
+    expect(total).toBeGreaterThan(800)
   })
 
   test('the core elements are all present', () => {

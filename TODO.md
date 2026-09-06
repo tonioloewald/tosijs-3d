@@ -23,6 +23,23 @@
 
 ## From the 0.8.1 pre-tag review (`reviews/0.8.1-pre-tag-gate.md`)
 
+Round four cleared with GO_WITH_FOLLOWUPS. Remaining index work, none blocking:
+
+- [ ] **245 of 834 index entries (29%) carry a bare name with no description.**
+      A name only helps if the line says what it does — that was the whole
+      argument for the artifact. Most are attributes the source documents
+      nowhere; the index is now good enough to show where the DOCS are thin.
+- [ ] **`bin/attribute-index.ts` is a tosijs-wide tool living in one repo's
+      `bin/`** with no route out. Other projects in the ecosystem would want it.
+      Filed as a note rather than moved.
+- [ ] **The generator is still regex-over-text**, so shapes it cannot see remain
+      — `class Foo extends someMixin(Base)` resolves `someMixin`, finds nothing
+      and silently reports only Foo's own keys; a spread of a plain object
+      (`...sharedAttrs`) drops those keys. The AST invariants in
+      `attribute-index-invariants.test.ts` would catch the resulting
+      under-report, which is why they exist, but the generator should eventually
+      read the AST too rather than agreeing with one.
+
 Deferred with the release; the blockers were fixed before the tag.
 
 - [ ] **aircraft library loader** — `b3d-aircraft.loadFromLibrary` is a
