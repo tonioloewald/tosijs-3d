@@ -123,6 +123,56 @@ describe('the index reports what an element actually accepts', () => {
   const namesOf = (module: string) =>
     (find(module)?.attributes ?? []).map((a) => a.name)
 
+  test('inheritance is TRANSITIVE — two hops, not one', () => {
+    /*
+    THE GAP THE FIRST REMEDIATION LEFT, AND THE TEST THAT MISSED IT.
+
+    `B3dControllable extends AbstractMesh` and declares no `initAttributes` of
+    its own — it inherits the static through the JS class chain, which works at
+    runtime and left the scanner nothing to record. So every subclass spreading
+    `...B3dControllable.initAttributes` inherited an empty set, and the four
+    elements a scene is most likely to contain shipped with no way to position
+    them.
+
+    The first version of this test sampled `b3d-prop`, `b3d-beacon` and
+    `b3d-destroyable` — all DIRECT `AbstractMesh` subclasses, so the one shape
+    that breaks was the one shape it never tried. It passed green over the
+    defect, which is the same failure the review named as M7: a test that cannot
+    fail is not coverage.
+    */
+    for (const module of ['b3d-aircraft', 'b3d-biped', 'b3d-car', 'b3d-controller']) {
+      const names = namesOf(module)
+      for (const attr of ['x', 'y', 'z', 'rx', 'ry', 'rz']) {
+        expect(names).toContain(attr)
+      }
+    }
+  })
+
+  test('an element with SEVERAL classes files each under its own tag', () => {
+    // `b3d-lamp.ts` declares three. Taking the first `preferredTagName` filed
+    // the spot and area lamps' attributes under the point light's tag, so
+    // `<tosi-b3d-point-light gel="...">` looked supported and did nothing.
+    const tags = index
+      .filter((e) => e.module.startsWith('b3d-lamp'))
+      .map((e) => e.tag)
+    expect(tags).toContain('tosi-b3d-point-light')
+    expect(tags).toContain('tosi-b3d-spot-light')
+    expect(tags).toContain('tosi-b3d-area-light')
+  })
+
+  test('a module with no element still documents its options', () => {
+    /*
+    `picker3d` is new public API in this release, `select3d`'s undiscoverable
+    popup is one of the three case studies this index cites as its own
+    justification, and a first attempt at excluding prose tables dropped both —
+    62 real options removed to clear ~16 phantoms.
+    */
+    expect(namesOf('picker')).toContain('filterAbove')
+    expect(namesOf('picker')).toContain('placeholder')
+    expect(namesOf('widgets3d').length).toBeGreaterThan(5)
+    expect(namesOf('control-input').length).toBeGreaterThan(5)
+  })
+
   test('an AbstractMesh element inherits x/y/z and rx/ry/rz', () => {
     for (const module of ['b3d-prop', 'b3d-beacon', 'b3d-destroyable']) {
       const names = namesOf(module)
@@ -159,6 +209,24 @@ describe('the index reports what an element actually accepts', () => {
         .map((a) => `${e.module}: ${a.name}`)
     )
     expect(suspicious).toEqual([])
+
+    /*
+    And no ELEMENT carries a name it does not declare. A doc page has tables of
+    all sorts — preset VALUES (`motes`, `rain`), plain class fields
+    (`rimCollar`, `worldU`), a perf breakdown, EVENT names (`hover`,
+    `refused`), a JS-only computed accessor (`turnRateDeg`) — and harvesting
+    names from them put 32 non-attributes in the index.
+    */
+    for (const [module, phantom] of [
+      ['b3d-ambient', 'motes'],
+      ['b3d-terrain', 'worldU'],
+      ['b3d-terrain', 'rimCollar'],
+      ['b3d-interactive', 'refused'],
+      ['b3d-launcher', 'turnRateDeg'],
+      ['b3d-controller', 'drive'],
+    ] as const) {
+      expect(namesOf(module)).not.toContain(phantom)
+    }
   })
 
   test('the SHIPPED artifact matches what the generator produces now', () => {

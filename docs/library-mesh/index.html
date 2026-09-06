@@ -63,9 +63,14 @@ rather than by anything failing.</p>
 correct and two of its four callers were not. A pre-release review found it.
 The fields are required now, which is what actually closes the seam: a shared
 implementation only helps where the type makes the mistake unspellable.</p>
-<p><code>b3d-aircraft.loadFromLibrary</code> is still a separate, older loader — no <code>scale</code>,
-no bounded wait, no missing-library error — and is tracked in <code>TODO.md</code> rather
-than migrated here.</p>
+<p><code>b3d-aircraft.loadFromLibrary</code> is still a separate, older loader. It is NOT the
+same bug: an aircraft&#39;s attitude comes from the flight model every frame
+(<code>fly-by-wire</code> writes <code>rotationQuaternion</code> in <code>_update</code>), so authored
+<code>rx</code>/<code>ry</code>/<code>rz</code> could not survive on it whatever the loader did — a flying craft
+is oriented by flight, not by an attribute. What it does still lack is <code>scale</code>,
+a bounded wait and a missing-library error; those are in <code>TODO.md</code> under
+&quot;aircraft library loader&quot;, and its <code>library-changed</code> listener is now removed on
+disposal rather than only on success.</p>
 <h2>What it handles, and why each part exists</h2>
 <ul>
 <li><strong>The library may connect AFTER the element.</strong> Declaration order in a scene is

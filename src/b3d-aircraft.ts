@@ -677,6 +677,8 @@ export class B3dAircraft extends B3dControllable {
   private _reticleMesh: BABYLON.Mesh | null = null
   private meshNode: BABYLON.TransformNode | null = null
   private _destroyable?: DestroyableBehavior
+  /** Stops waiting for a late `library`. See `loadFromLibrary`. */
+  private _stopLibraryWait?: () => void
 
   /** The displacement-tracked world velocity — see `_worldVel`. */
   getWorldVelocity(): BABYLON.Vector3 | null {
@@ -1998,12 +2000,22 @@ export class B3dAircraft extends B3dControllable {
     }
 
     if (!tryLoad()) {
+      /*
+      THE LISTENER HAS TO COME OFF ON DISPOSAL, not only on success.
+
+      It was removed only when the library eventually arrived, so an authoring
+      typo — a `library` naming something that never mounts — left a listener on
+      the scene for the life of the page, holding this element and its closure,
+      with no error to say so. Removing an element mid-load did the same.
+      */
       const handler = () => {
-        if (tryLoad()) {
-          owner.removeEventListener('library-changed', handler)
-        }
+        if (tryLoad()) this._stopLibraryWait?.()
       }
       owner.addEventListener('library-changed', handler)
+      this._stopLibraryWait = () => {
+        owner.removeEventListener('library-changed', handler)
+        this._stopLibraryWait = undefined
+      }
     }
   }
 
@@ -2172,6 +2184,8 @@ export class B3dAircraft extends B3dControllable {
   }
 
   sceneDispose() {
+    // Stop waiting for a library that may never come — see `loadFromLibrary`.
+    this._stopLibraryWait?.()
     this._groundDbgOff?.()
     this._groundDbgOff = null
     if (this.owner?.scene) {

@@ -156,6 +156,8 @@ export declare class B3dAircraft extends B3dControllable {
     private _reticleMesh;
     private meshNode;
     private _destroyable?;
+    /** Stops waiting for a late `library`. See `loadFromLibrary`. */
+    private _stopLibraryWait?;
     /** The displacement-tracked world velocity — see `_worldVel`. */
     getWorldVelocity(): BABYLON.Vector3 | null;
     /**

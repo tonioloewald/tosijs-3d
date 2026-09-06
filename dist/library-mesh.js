@@ -23,9 +23,14 @@ correct and two of its four callers were not. A pre-release review found it.
 The fields are required now, which is what actually closes the seam: a shared
 implementation only helps where the type makes the mistake unspellable.
 
-`b3d-aircraft.loadFromLibrary` is still a separate, older loader — no `scale`,
-no bounded wait, no missing-library error — and is tracked in `TODO.md` rather
-than migrated here.
+`b3d-aircraft.loadFromLibrary` is still a separate, older loader. It is NOT the
+same bug: an aircraft's attitude comes from the flight model every frame
+(`fly-by-wire` writes `rotationQuaternion` in `_update`), so authored
+`rx`/`ry`/`rz` could not survive on it whatever the loader did — a flying craft
+is oriented by flight, not by an attribute. What it does still lack is `scale`,
+a bounded wait and a missing-library error; those are in `TODO.md` under
+"aircraft library loader", and its `library-changed` listener is now removed on
+disposal rather than only on success.
 
 ## What it handles, and why each part exists
 

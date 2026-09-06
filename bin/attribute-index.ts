@@ -114,7 +114,17 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
   const row = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/gm
   let m: RegExpExecArray | null
   while ((m = row.exec(doc)) != null) {
-    const names = [...m[1].matchAll(/`([a-zA-Z][\w-]*)`/g)].map((n) => n[1])
+    /*
+    LOWERCASE-INITIAL ONLY.
+
+    Every attribute and option in this library is camelCase starting lower —
+    verified across all of them — so a capital-initial backticked name in a
+    table is something else wearing the same clothes: `icon-name`'s suffix
+    legend (`W`, `F`, `S`), `touch-gamepad`'s button mapping (`A`, `B`, `X`,
+    `Y`), `galaxy-data`'s `StarData` type. Each was indexed as an attribute, so
+    an agent grepping `W` found one and believed it.
+    */
+    const names = [...m[1].matchAll(/`([a-z][\w-]*)`/g)].map((n) => n[1])
     if (names.length === 0) continue
     /*
     THE CELL MUST BE NOTHING BUT NAMES.
@@ -131,7 +141,9 @@ function tableRows(doc: string): Map<string, AttributeDoc> {
     A row that says anything else is a sentence, not a declaration.
     */
     const leftover = m[1].replace(/`[^`]*`/g, '').trim()
-    if (!/^[\s/,|·-]*$/.test(leftover)) continue
+    // No `/`: it let `| \`worldU\` / \`worldV\` |` — a pair of plain class
+    // fields in a prose table — into the index as attributes.
+    if (!/^[\s,|·-]*$/.test(leftover)) continue
     /*
     PAIR THE DEFAULTS when the row lists one per name.
 
@@ -207,41 +219,70 @@ function declaredAttributes(code: string): string[] {
 
 export function buildIndex(srcDir = 'src'): ElementDoc[] {
   const out: ElementDoc[] = []
-  /*
-  TWO PASSES, because an element inherits from a class in another file.
-
-  The first pass records every `static initAttributes` block by class name; the
-  second resolves `...Base.initAttributes` spreads against it. One pass could
-  only see bases that happen to be declared earlier in the alphabet.
-  */
-  const byClass = new Map<string, string[]>()
   const files = readdirSync(srcDir)
     .sort()
     .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
   const sources = new Map<string, string>()
+
+  /*
+  PASS ONE: every class, its OWN keys, what it SPREADS, and what it EXTENDS.
+
+  All four are needed, and the third gate is the one the first remediation of
+  this bug got wrong. `B3dControllable extends AbstractMesh` and declares NO
+  `initAttributes` of its own — it inherits the static through the JS class
+  chain, which works perfectly at runtime and left the scanner with nothing to
+  record. Every subclass spreading `...B3dControllable.initAttributes` then
+  inherited an empty set, so `b3d-aircraft`, `b3d-biped`, `b3d-car` and
+  `b3d-controller` shipped with no `x/y/z/rx/ry/rz` — 28 attributes, on the
+  four elements a scene is most likely to contain.
+
+  Resolution has to be TRANSITIVE, and a class with no declaration of its own
+  is a link in the chain rather than the end of it.
+  */
+  interface ClassInfo {
+    own: string[]
+    spreads: string[]
+    extends?: string
+  }
+  const byClass = new Map<string, ClassInfo>()
   for (const file of files) {
     // COMMENTS STRIPPED FIRST — see `stripComments`. Scanning raw text let a
     // doc-comment code example masquerade as the real declaration.
     const code = stripComments(readFileSync(join(srcDir, file), 'utf8'))
     sources.set(file, code)
-    for (const m of code.matchAll(/class\s+(\w+)[^{]*\{/g)) {
-      const from = code.indexOf('static initAttributes', m.index ?? 0)
-      if (from < 0) continue
-      byClass.set(m[1], declaredAttributes(code.slice(m.index ?? 0)))
+    for (const m of code.matchAll(/class\s+(\w+)(?:\s+extends\s+(\w+))?[^{]*\{/g)) {
+      const body = code.slice(m.index ?? 0)
+      const own = declaredAttributes(body)
+      const at = body.search(/static initAttributes\s*=\s*\{/)
+      byClass.set(m[1], {
+        own,
+        spreads: at < 0 ? [] : spreadBases(body.slice(at)),
+        extends: m[2],
+      })
     }
   }
 
-  /** An element's own keys plus everything it spreads, bases first. */
-  const resolve = (block: string, own: string[], seen = new Set<string>()) => {
+  /**
+   * Every attribute a class accepts: its bases' first, then its own.
+   *
+   * Follows BOTH edges — an explicit `...Base.initAttributes` spread and a
+   * plain `extends` — because a class can inherit the static without spreading
+   * it. `seen` guards a cycle; bases come first so the printed order reads
+   * base-to-derived, which is how the element is written.
+   */
+  const resolve = (name: string, seen = new Set<string>()): string[] => {
+    if (seen.has(name)) return []
+    seen.add(name)
+    const info = byClass.get(name)
+    if (info == null) return []
     const names: string[] = []
-    for (const base of spreadBases(block)) {
-      if (seen.has(base)) continue
-      seen.add(base)
-      for (const n of byClass.get(base) ?? []) {
-        if (!names.includes(n)) names.push(n)
-      }
+    const add = (n: string) => {
+      if (!names.includes(n)) names.push(n)
     }
-    for (const n of own) if (!names.includes(n)) names.push(n)
+    for (const base of [...info.spreads, ...(info.extends ? [info.extends] : [])]) {
+      for (const n of resolve(base, seen)) add(n)
+    }
+    for (const n of info.own) add(n)
     return names
   }
 
@@ -249,40 +290,65 @@ export function buildIndex(srcDir = 'src'): ElementDoc[] {
     const src = readFileSync(join(srcDir, file), 'utf8')
     const doc = docComment(src)
     const code = sources.get(file)!
-
-    const block = code.slice(code.search(/static initAttributes/))
-    const declared = resolve(block, declaredAttributes(code))
-    const tag = /preferredTagName\s*=\s*'([^']+)'/.exec(code)?.[1]
-    /*
-    ONLY AN ELEMENT HAS ATTRIBUTES.
-
-    A markdown table is not evidence of one. `icon-name` documents its
-    suffix legend as a table (`| \`W\` | stroke-width N |`), `galaxy-data`
-    documents a type, `touch-gamepad` documents a control mapping — and all
-    three were indexed as attributes, so an agent grepping `W` would find one
-    and believe it.
-
-    A module qualifies when it declares `initAttributes` or names a tag.
-    Everything else's tables are prose, however neatly they are formatted.
-    */
-    const isElement = declared.length > 0 || tag != null
-    const documented = doc == null || !isElement ? new Map() : tableRows(doc)
-    if (!isElement) continue
+    const module = file.replace(/\.ts$/, '')
     const summary = doc?.match(/^\s*#\s+(.+)$/m)?.[1]?.trim()
+    const documented = doc == null ? new Map() : tableRows(doc)
 
-    // Declared order first (that is the element's own shape), then any
-    // documented-but-not-declared rows, which are usually inherited.
-    const names = [
-      ...declared,
-      ...[...documented.keys()].filter((n) => !declared.includes(n)),
+    /*
+    ONE ENTRY PER ELEMENT CLASS, not per file.
+
+    `b3d-lamp.ts` declares THREE — point, spot and area — and taking the first
+    `preferredTagName` filed the spot and area lamps' attributes under the point
+    light's tag. An agent then writes `<tosi-b3d-point-light gel="...">` and
+    gets silence.
+    */
+    const elements = [
+      ...code.matchAll(/class\s+(\w+)[\s\S]*?preferredTagName\s*=\s*'([^']+)'/g),
     ]
+      // Each match runs from a class keyword to the NEXT tag name, so a later
+      // class would otherwise also match from an earlier one's start.
+      .filter((m, i, all) => all.findIndex((o) => o[2] === m[2]) === i)
+
+    if (elements.length > 0) {
+      for (const [, className, tag] of elements) {
+        const declared = resolve(className)
+        /*
+        FOR AN ELEMENT, `initAttributes` IS THE AUTHORITY and a table only
+        supplies prose.
+
+        A doc page carries tables of all sorts — preset VALUES, event names, a
+        perf breakdown, a support matrix — and harvesting names from them put 32
+        things in the index that the element does not accept. An agent greps
+        one, writes it, and gets no error and no effect: the confident wrong
+        answer this artifact exists to prevent.
+        */
+        out.push({
+          module: elements.length > 1 ? `${module} (${tag})` : module,
+          tag,
+          summary,
+          attributes: declared.map(
+            (n) => documented.get(n) ?? ({ name: n } as AttributeDoc)
+          ),
+        })
+      }
+      continue
+    }
+
+    /*
+    A MODULE WITH NO ELEMENT still documents an API — `picker3d`'s options,
+    `widgets3d`'s widgets, `control-input`'s fields. Here the TABLE is the
+    only source, so it is the authority.
+
+    Dropping these was the first remediation's other half-mistake: it removed
+    ~16 prose rows and 62 real API options with them, including `picker3d` —
+    new public API in this very release — and `select3d`, whose undiscoverable
+    popup is one of the three case studies the index's own rationale cites.
+    */
+    if (documented.size === 0) continue
     out.push({
-      module: file.replace(/\.ts$/, ''),
-      tag,
+      module,
       summary,
-      attributes: names.map(
-        (n) => documented.get(n) ?? ({ name: n } as AttributeDoc)
-      ),
+      attributes: [...documented.values()],
     })
   }
   return out

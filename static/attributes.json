@@ -1,9 +1,79 @@
 [
   {
+    "module": "angle-field",
+    "summary": "angle-field",
+    "attributes": [
+      {
+        "name": "value",
+        "default": "0` / `arcOf(0, 90)",
+        "description": "degrees, or an `Arc`"
+      },
+      {
+        "name": "label",
+        "default": "—",
+        "description": "drawn above the dial"
+      },
+      {
+        "name": "limits",
+        "default": "full circle",
+        "description": "`angle3d` only — the permitted sector; the handle CATCHES at a stop"
+      },
+      {
+        "name": "envelope",
+        "default": "full circle",
+        "description": "`arc3d` only — the arc may only lie within this"
+      },
+      {
+        "name": "minWidth",
+        "default": "0",
+        "description": "`arc3d` only"
+      },
+      {
+        "name": "maxWidth",
+        "default": "360",
+        "description": "`arc3d` only"
+      },
+      {
+        "name": "size",
+        "default": "0",
+        "description": "ring diameter; `0` fits the row to the panel width"
+      },
+      {
+        "name": "handleChange",
+        "description": "live, every frame the pointer moves"
+      },
+      {
+        "name": "handleCommit",
+        "description": "once per gesture — your undo step"
+      }
+    ]
+  },
+  {
     "module": "b3d-aircraft",
     "tag": "tosi-b3d-aircraft",
     "summary": "b3d-aircraft",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "url",
         "default": "''",
@@ -177,14 +247,10 @@
         "description": "`'direct'` damages what the shell passes through; `'blast'` is the old AOE"
       },
       {
-        "name": "gunFullRadius",
-        "default": "0.5",
-        "description": "Only for `gunMode=\"blast\"`"
+        "name": "gunFullRadius"
       },
       {
-        "name": "gunBlastRadius",
-        "default": "1.5",
-        "description": "Only for `gunMode=\"blast\"`"
+        "name": "gunBlastRadius"
       },
       {
         "name": "destroyable",
@@ -192,34 +258,22 @@
         "description": "`'on'` gives the aircraft hit points and a death outcome"
       },
       {
-        "name": "capacity",
-        "default": "30",
-        "description": "Combat stats"
+        "name": "capacity"
       },
       {
-        "name": "armor",
-        "default": "0",
-        "description": "Combat stats"
+        "name": "armor"
       },
       {
-        "name": "regenRate",
-        "default": "0",
-        "description": "Combat stats"
+        "name": "regenRate"
       },
       {
-        "name": "regenDelay",
-        "default": "0.5",
-        "description": "Combat stats"
+        "name": "regenDelay"
       },
       {
-        "name": "explode",
-        "default": "'on'",
-        "description": "Death outcome"
+        "name": "explode"
       },
       {
-        "name": "explodeForce",
-        "default": "8",
-        "description": "Death outcome"
+        "name": "explodeForce"
       },
       {
         "name": "blip",
@@ -227,14 +281,10 @@
         "description": "`'on'` puts it on radar, so a missile can lock it"
       },
       {
-        "name": "blipProfile",
-        "default": "1",
-        "description": "Radar detectability and side"
+        "name": "blipProfile"
       },
       {
-        "name": "faction",
-        "default": "'neutral'",
-        "description": "Radar detectability and side"
+        "name": "faction"
       },
       {
         "name": "missileSpeed",
@@ -285,6 +335,27 @@
     "tag": "tosi-b3d-ambient",
     "summary": "b3d-ambient",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "preset",
         "default": "'motes'",
@@ -366,18 +437,6 @@
         "name": "disabled",
         "default": "false",
         "description": "Stop emitting"
-      },
-      {
-        "name": "motes",
-        "default": "Dust or plankton hanging in the light — near-weightless, slow drift. The cheapest way to make air (or water) feel like a *substance* rather than a vacuum"
-      },
-      {
-        "name": "rain",
-        "default": "wind"
-      },
-      {
-        "name": "dust",
-        "default": "Blown horizontally — the wind made visible"
       }
     ]
   },
@@ -460,6 +519,27 @@
     "tag": "tosi-b3d-biped",
     "summary": "b3d-biped",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "url",
         "default": "''",
@@ -585,6 +665,27 @@
     "summary": "b3d-black-hole",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "radius",
         "default": "10",
         "description": "Event horizon radius"
@@ -646,15 +747,6 @@
     "tag": "tosi-b3d-button",
     "attributes": [
       {
-        "name": "caption"
-      },
-      {
-        "name": "textColor"
-      },
-      {
-        "name": "fontSize"
-      },
-      {
         "name": "x"
       },
       {
@@ -662,6 +754,27 @@
       },
       {
         "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "caption"
+      },
+      {
+        "name": "textColor"
+      },
+      {
+        "name": "fontSize"
       }
     ]
   },
@@ -670,6 +783,27 @@
     "tag": "tosi-b3d-car",
     "summary": "b3d-car",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "url",
         "default": "''",
@@ -712,6 +846,27 @@
     "tag": "tosi-b3d-clouds",
     "summary": "b3d-clouds",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "count",
         "default": "36",
@@ -804,6 +959,27 @@
     "summary": "b3d-collisions",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "debug"
       }
     ]
@@ -814,17 +990,33 @@
     "summary": "b3d-controller",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "mapping",
         "default": "'biped'",
         "description": "Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'`"
       },
       {
         "name": "player"
-      },
-      {
-        "name": "drive",
-        "default": "—",
-        "description": "`(input: ControlInput, dt: number) => void`, called each frame with the merged input (set in code / via the creator). Named `drive`, not `onInput` — `on*` props become DOM event listeners"
       }
     ]
   },
@@ -833,6 +1025,27 @@
     "tag": "tosi-b3d-death",
     "summary": "b3d-death",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "title",
         "default": "'DOWN'",
@@ -872,10 +1085,6 @@
         "name": "blastRadius",
         "default": "6",
         "description": "Size of the fireball"
-      },
-      {
-        "name": "respawn",
-        "default": "What \"Respawn\" does. Without it, the button isn't offered"
       }
     ]
   },
@@ -979,6 +1188,27 @@
     "summary": "b3d-fog",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "mode",
         "default": "'linear'",
         "description": "`'linear'`, `'exp'`, or `'exp2'`"
@@ -1015,6 +1245,27 @@
     "tag": "tosi-b3d-galaxy",
     "summary": "b3d-galaxy",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "seed",
         "default": "1234",
@@ -1063,6 +1314,27 @@
     "summary": "b3d-hud",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "url",
         "default": "''",
         "description": "Empty = the built-in code HUD (fully wired); set to a designer SVG to load one"
@@ -1085,6 +1357,27 @@
     "summary": "b3d-input-focus",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "enterDistance",
         "default": "3",
         "description": "Max distance to enter a vehicle"
@@ -1096,6 +1389,27 @@
     "tag": "tosi-b3d-interactive",
     "summary": "b3d-interactive",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "target",
         "default": "''",
@@ -1120,48 +1434,115 @@
         "name": "highlight",
         "default": "'#ffcc44'",
         "description": "Hover outline colour; `'none'` for no highlight"
-      },
-      {
-        "name": "hover",
-        "default": "whenHovered",
-        "description": "The pointer arrived (and is in reach)"
-      },
-      {
-        "name": "unhover",
-        "default": "whenUnhovered",
-        "description": "It left, or the thing was disabled under it"
-      },
-      {
-        "name": "activate",
-        "default": "whenActivated",
-        "description": "A press that started AND ended on it, with no veto"
-      },
-      {
-        "name": "refused",
-        "default": "whenRefused",
-        "description": "The same press, but a veto said no"
       }
     ]
   },
   {
-    "module": "b3d-lamp",
+    "module": "b3d-lamp (tosi-b3d-point-light)",
     "tag": "tosi-b3d-point-light",
     "summary": "Lamps",
     "attributes": [
       {
-        "name": "x",
-        "default": "0",
-        "description": "Position"
+        "name": "x"
       },
       {
-        "name": "y",
-        "default": "3",
-        "description": "Position"
+        "name": "y"
       },
       {
-        "name": "z",
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "intensity",
+        "default": "1",
+        "description": "Brightness. With `modulation`, this is the MAXIMUM"
+      },
+      {
+        "name": "diffuse",
+        "default": "'#ffffff'",
+        "description": "Colour"
+      },
+      {
+        "name": "specular",
+        "default": "'#ffffff'",
+        "description": "Specular colour"
+      },
+      {
+        "name": "range",
+        "default": "10",
+        "description": "Falloff distance (point / spot)"
+      },
+      {
+        "name": "on",
+        "default": "true",
+        "description": "`false` plays the DECAY region; it does not kill the light"
+      },
+      {
+        "name": "geometry",
+        "default": "'on'",
+        "description": "`'off'` for no fixture"
+      },
+      {
+        "name": "geometryScale",
+        "default": "1",
+        "description": "Size multiplier for the default fixture"
+      },
+      {
+        "name": "url",
+        "default": "—",
+        "description": "GLB fixture, in place of the primitive"
+      },
+      {
+        "name": "shadows",
+        "default": "'off'",
+        "description": "`'on'` for a shadow generator (point / spot only)"
+      },
+      {
+        "name": "timeSource"
+      },
+      {
+        "name": "shadowTextureSize",
         "default": "0",
-        "description": "Position"
+        "description": "Resolves against the device budget"
+      }
+    ]
+  },
+  {
+    "module": "b3d-lamp (tosi-b3d-spot-light)",
+    "tag": "tosi-b3d-spot-light",
+    "summary": "Lamps",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
       },
       {
         "name": "intensity",
@@ -1217,21 +1598,6 @@
         "description": "Resolves against the device budget"
       },
       {
-        "name": "b3dPointLight",
-        "default": "✅ cube shadow map",
-        "description": "❌ not supported — model the blocker instead (below)"
-      },
-      {
-        "name": "b3dSpotLight",
-        "default": "✅",
-        "description": "✅ **native** — bitmap, SVG, or a generated `shape`"
-      },
-      {
-        "name": "b3dAreaLight",
-        "default": "❌ `RectAreaLight` is not a `ShadowLight",
-        "description": "❌"
-      },
-      {
         "name": "angle",
         "default": "60",
         "description": "**spot** — cone angle in degrees"
@@ -1262,6 +1628,15 @@
         "description": "**spot** — edge feather, as a fraction of the radius"
       },
       {
+        "name": "dirX"
+      },
+      {
+        "name": "dirY"
+      },
+      {
+        "name": "dirZ"
+      },
+      {
         "name": "gel",
         "default": "—",
         "description": "**spot** — projection texture URL (bitmap or SVG file)"
@@ -1270,16 +1645,93 @@
         "name": "gelSvg",
         "default": "—",
         "description": "**spot** — inline SVG source or an `SVGElement`"
+      }
+    ]
+  },
+  {
+    "module": "b3d-lamp (tosi-b3d-area-light)",
+    "tag": "tosi-b3d-area-light",
+    "summary": "Lamps",
+    "attributes": [
+      {
+        "name": "x"
       },
       {
-        "name": "width",
-        "default": "2",
-        "description": "**area** — panel size"
+        "name": "y"
       },
       {
-        "name": "height",
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "intensity",
         "default": "1",
-        "description": "**area** — panel size"
+        "description": "Brightness. With `modulation`, this is the MAXIMUM"
+      },
+      {
+        "name": "diffuse",
+        "default": "'#ffffff'",
+        "description": "Colour"
+      },
+      {
+        "name": "specular",
+        "default": "'#ffffff'",
+        "description": "Specular colour"
+      },
+      {
+        "name": "range",
+        "default": "10",
+        "description": "Falloff distance (point / spot)"
+      },
+      {
+        "name": "on",
+        "default": "true",
+        "description": "`false` plays the DECAY region; it does not kill the light"
+      },
+      {
+        "name": "geometry",
+        "default": "'on'",
+        "description": "`'off'` for no fixture"
+      },
+      {
+        "name": "geometryScale",
+        "default": "1",
+        "description": "Size multiplier for the default fixture"
+      },
+      {
+        "name": "url",
+        "default": "—",
+        "description": "GLB fixture, in place of the primitive"
+      },
+      {
+        "name": "shadows",
+        "default": "'off'",
+        "description": "`'on'` for a shadow generator (point / spot only)"
+      },
+      {
+        "name": "timeSource"
+      },
+      {
+        "name": "shadowTextureSize",
+        "default": "0",
+        "description": "Resolves against the device budget"
+      },
+      {
+        "name": "width"
+      },
+      {
+        "name": "height"
       }
     ]
   },
@@ -1405,11 +1857,6 @@
         "name": "los",
         "default": "'on'",
         "description": "Warhead line-of-sight gating"
-      },
-      {
-        "name": "turnRateDeg",
-        "default": "—",
-        "description": "The same agility in **deg/sec** — a computed view onto `turnRate`: set either, read either, and reading returns exactly what you set. Literal markup (`turn-rate-deg=\"30\"`) needs computed attributes, landing in tosijs 1.8.0"
       }
     ]
   },
@@ -1418,6 +1865,27 @@
     "tag": "tosi-b3d-library",
     "summary": "b3d-library",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "url",
         "default": "''",
@@ -1451,6 +1919,18 @@
         "description": "Light direction Z"
       },
       {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "intensity",
         "default": "1",
         "description": "Brightness multiplier"
@@ -1473,6 +1953,27 @@
     "summary": "b3d-loader",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "url",
         "default": "''",
         "description": "URL of the GLB/glTF file"
@@ -1488,34 +1989,22 @@
         "description": "`'on'` gives the model hit points + a death outcome"
       },
       {
-        "name": "capacity",
-        "default": "10",
-        "description": "Combat stats (when destroyable)"
+        "name": "capacity"
       },
       {
-        "name": "armor",
-        "default": "0",
-        "description": "Combat stats (when destroyable)"
+        "name": "armor"
       },
       {
-        "name": "regenRate",
-        "default": "0",
-        "description": "Combat stats (when destroyable)"
+        "name": "regenRate"
       },
       {
-        "name": "regenDelay",
-        "default": "0.5",
-        "description": "Combat stats (when destroyable)"
+        "name": "regenDelay"
       },
       {
-        "name": "explode",
-        "default": "'off'",
-        "description": "Shatter on death (best for single-mesh models)"
+        "name": "explode"
       },
       {
-        "name": "explodeForce",
-        "default": "6",
-        "description": "Shatter on death (best for single-mesh models)"
+        "name": "explodeForce"
       },
       {
         "name": "deathBlast"
@@ -1539,6 +2028,27 @@
     "tag": "tosi-b3d-manipulator",
     "summary": "b3d-manipulator",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "target",
         "default": "''",
@@ -1602,14 +2112,10 @@
         "description": "A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields."
       },
       {
-        "name": "azimuth",
-        "default": "0",
-        "description": "Degrees off the frame's eye: +az right, +el up"
+        "name": "azimuth"
       },
       {
-        "name": "elevation",
-        "default": "0",
-        "description": "Degrees off the frame's eye: +az right, +el up"
+        "name": "elevation"
       },
       {
         "name": "distance",
@@ -1664,21 +2170,6 @@
       },
       {
         "name": "maxDistance"
-      },
-      {
-        "name": "reveal-start",
-        "default": "50",
-        "description": "Gaze half-angles (deg) where the reveal begins / completes"
-      },
-      {
-        "name": "reveal-full",
-        "default": "25",
-        "description": "Gaze half-angles (deg) where the reveal begins / completes"
-      },
-      {
-        "name": "max-distance",
-        "default": "0",
-        "description": "Hide beyond this distance (m); 0 = no limit"
       }
     ]
   },
@@ -1701,6 +2192,18 @@
         "name": "z",
         "default": "0",
         "description": "Emitter Z position"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
       },
       {
         "name": "capacity",
@@ -1825,6 +2328,27 @@
     "summary": "b3d-physics",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "gravityX",
         "default": "0",
         "description": "Gravity X component"
@@ -1854,6 +2378,27 @@
     "tag": "tosi-b3d-planet",
     "summary": "b3d-planet",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "biome"
       },
@@ -1924,7 +2469,7 @@
     ]
   },
   {
-    "module": "b3d-primitives",
+    "module": "b3d-primitives (tosi-b3d-sphere)",
     "tag": "tosi-b3d-sphere",
     "attributes": [
       {
@@ -1968,6 +2513,108 @@
       },
       {
         "name": "mirror"
+      }
+    ]
+  },
+  {
+    "module": "b3d-primitives (tosi-b3d-box)",
+    "tag": "tosi-b3d-box",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "meshName"
+      },
+      {
+        "name": "size"
+      },
+      {
+        "name": "width"
+      },
+      {
+        "name": "height"
+      },
+      {
+        "name": "depth"
+      },
+      {
+        "name": "color"
+      },
+      {
+        "name": "mirror"
+      },
+      {
+        "name": "glow"
+      },
+      {
+        "name": "glowColor"
+      }
+    ]
+  },
+  {
+    "module": "b3d-primitives (tosi-b3d-ground)",
+    "tag": "tosi-b3d-ground",
+    "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "meshName"
+      },
+      {
+        "name": "size"
+      },
+      {
+        "name": "width"
+      },
+      {
+        "name": "height"
+      },
+      {
+        "name": "color"
+      },
+      {
+        "name": "texture"
+      },
+      {
+        "name": "textureTiles"
       }
     ]
   },
@@ -2050,16 +2697,6 @@
     "summary": "b3d-radar-blip",
     "attributes": [
       {
-        "name": "profile",
-        "default": "1",
-        "description": "Detectability: `1` = seen at the platform's nominal radar range, `2` = out to 2×, `0.05` = very stealthy; **negative = always detectable** (e.g. waypoints)."
-      },
-      {
-        "name": "faction",
-        "default": "'neutral'",
-        "description": "`friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour."
-      },
-      {
         "name": "x",
         "default": "0",
         "description": "World position when standalone (ignored while following a target's mesh)."
@@ -2073,6 +2710,28 @@
         "name": "z",
         "default": "0",
         "description": "World position when standalone (ignored while following a target's mesh)."
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "profile",
+        "default": "1",
+        "description": "Detectability: `1` = seen at the platform's nominal radar range, `2` = out to 2×, `0.05` = very stealthy; **negative = always detectable** (e.g. waypoints)."
+      },
+      {
+        "name": "faction",
+        "default": "'neutral'",
+        "description": "`friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour."
       }
     ]
   },
@@ -2081,6 +2740,27 @@
     "tag": "tosi-b3d-radar",
     "summary": "b3d-radar",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "range",
         "default": "250",
@@ -2125,6 +2805,27 @@
     "summary": "b3d-reflections",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "refreshRate",
         "default": "5",
         "description": "Frames between probe refreshes inside `farDistance`"
@@ -2161,6 +2862,33 @@
     "tag": "tosi-b3d-sun",
     "summary": "b3d-shadows",
     "attributes": [
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Sun direction X (overridden by skybox when present)"
+      },
+      {
+        "name": "y",
+        "default": "-1",
+        "description": "Sun direction Y"
+      },
+      {
+        "name": "z",
+        "default": "-0.5",
+        "description": "Sun direction Z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "shadowMaxZ",
         "default": "100",
@@ -2210,21 +2938,6 @@
         "name": "cascadeBlendPercentage",
         "default": "0.1",
         "description": "Soft blend across cascade seams"
-      },
-      {
-        "name": "x",
-        "default": "0",
-        "description": "Sun direction X (overridden by skybox when present)"
-      },
-      {
-        "name": "y",
-        "default": "-1",
-        "description": "Sun direction Y"
-      },
-      {
-        "name": "z",
-        "default": "-0.5",
-        "description": "Sun direction Z"
       },
       {
         "name": "intensity",
@@ -2344,6 +3057,33 @@
     "summary": "b3d-sound",
     "attributes": [
       {
+        "name": "x",
+        "default": "0",
+        "description": "Position X (spatial mode)"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Position Y (spatial mode)"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Position Z (spatial mode)"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "url",
         "default": "''",
         "description": "Audio file URL"
@@ -2367,21 +3107,6 @@
         "name": "spatialSound",
         "default": "false",
         "description": "Enable 3D positional audio"
-      },
-      {
-        "name": "x",
-        "default": "0",
-        "description": "Position X (spatial mode)"
-      },
-      {
-        "name": "y",
-        "default": "0",
-        "description": "Position Y (spatial mode)"
-      },
-      {
-        "name": "z",
-        "default": "0",
-        "description": "Position Z (spatial mode)"
       },
       {
         "name": "refDistance",
@@ -2421,6 +3146,33 @@
     "summary": "b3d-spawner",
     "attributes": [
       {
+        "name": "x",
+        "default": "0",
+        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Base height for the spawn point (the prefab places its own members)"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "prefab",
         "default": "''",
         "description": "Prefab name to spawn (usually an encounter)"
@@ -2451,21 +3203,6 @@
         "description": "`'player'` = a ring around the player (an encounter); `'place'` = exactly at `x`/`y`/`z` (a launchpad)"
       },
       {
-        "name": "x",
-        "default": "0",
-        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
-      },
-      {
-        "name": "y",
-        "default": "0",
-        "description": "Base height for the spawn point (the prefab places its own members)"
-      },
-      {
-        "name": "z",
-        "default": "0",
-        "description": "Spawn point, when `anchor=\"place\"`. Ignored otherwise"
-      },
-      {
         "name": "facingDeg",
         "default": "0",
         "description": "Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation`"
@@ -2487,6 +3224,27 @@
     "tag": "tosi-b3d-star-system",
     "summary": "b3d-star-system",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "galaxySeed",
         "default": "1234",
@@ -2521,15 +3279,6 @@
         "name": "showOrbits",
         "default": "'on'",
         "description": "Show orbital path lines"
-      },
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
       }
     ]
   },
@@ -2538,6 +3287,27 @@
     "tag": "tosi-b3d-star",
     "summary": "b3d-star",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
       {
         "name": "seed",
         "default": "12345",
@@ -2703,6 +3473,27 @@
     "summary": "b3d-terrain",
     "attributes": [
       {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
         "name": "biome"
       },
       {
@@ -2847,33 +3638,6 @@
         "name": "wireframe",
         "default": "false",
         "description": "Debug: render terrain as wireframe"
-      },
-      {
-        "name": "rimCollar",
-        "default": "12",
-        "description": "Metres the rim of a patch hole folds down into the opening"
-      },
-      {
-        "name": "worldU",
-        "default": "0",
-        "description": "Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both"
-      },
-      {
-        "name": "worldV",
-        "default": "0.25",
-        "description": "Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both"
-      },
-      {
-        "name": "fieldMsPerTile",
-        "default": "Noise + analytic normals. Plain float arithmetic — a worker or wasm *could* take this"
-      },
-      {
-        "name": "uploadMsPerTile",
-        "default": "updateVerticesData"
-      },
-      {
-        "name": "nsPerSample",
-        "default": "heightAt"
       }
     ]
   },
@@ -2896,6 +3660,18 @@
         "name": "z",
         "default": "0",
         "description": "Center Z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
       },
       {
         "name": "radius",
@@ -2993,39 +3769,25 @@
         "description": "Fires only when the barrel is within this many degrees of the solution"
       },
       {
-        "name": "gravity",
-        "default": "-9.81",
-        "description": "Shell ballistics (see b3d-launcher)"
+        "name": "gravity"
       },
       {
-        "name": "drag",
-        "default": "0.01",
-        "description": "Shell ballistics (see b3d-launcher)"
+        "name": "drag"
       },
       {
-        "name": "mass",
-        "default": "1",
-        "description": "Shell ballistics (see b3d-launcher)"
+        "name": "mass"
       },
       {
-        "name": "damage",
-        "default": "20",
-        "description": "Warhead payload (see b3d-warhead)"
+        "name": "damage"
       },
       {
-        "name": "fullRadius",
-        "default": "1",
-        "description": "Warhead payload (see b3d-warhead)"
+        "name": "fullRadius"
       },
       {
-        "name": "blastRadius",
-        "default": "2.5",
-        "description": "Warhead payload (see b3d-warhead)"
+        "name": "blastRadius"
       },
       {
-        "name": "los",
-        "default": "'on'",
-        "description": "Warhead payload (see b3d-warhead)"
+        "name": "los"
       },
       {
         "name": "idleColor",
@@ -3036,33 +3798,6 @@
         "name": "armedColor",
         "default": "'#e04030'",
         "description": "Barrel colour when it can bear (has a solution, in range)"
-      }
-    ]
-  },
-  {
-    "module": "b3d-utils",
-    "summary": "Material Conventions",
-    "attributes": [
-      {
-        "name": "x"
-      },
-      {
-        "name": "y"
-      },
-      {
-        "name": "z"
-      },
-      {
-        "name": "rx"
-      },
-      {
-        "name": "ry"
-      },
-      {
-        "name": "rz"
-      },
-      {
-        "name": "axes"
       }
     ]
   },
@@ -3229,6 +3964,82 @@
     ]
   },
   {
+    "module": "control-input",
+    "summary": "control-input",
+    "attributes": [
+      {
+        "name": "forward",
+        "default": "-1..1",
+        "description": "Forward/backward movement"
+      },
+      {
+        "name": "strafe",
+        "default": "-1..1",
+        "description": "Left/right strafe"
+      },
+      {
+        "name": "lookX",
+        "default": "-1..1",
+        "description": "Camera look — swings the view, springs back on release"
+      },
+      {
+        "name": "lookY",
+        "default": "-1..1",
+        "description": "Camera look — swings the view, springs back on release"
+      },
+      {
+        "name": "turn",
+        "default": "-1..1",
+        "description": "Turning"
+      },
+      {
+        "name": "pitch",
+        "default": "-1..1",
+        "description": "Pitch (aircraft)"
+      },
+      {
+        "name": "throttle",
+        "default": "0..1",
+        "description": "Continuous throttle"
+      },
+      {
+        "name": "jump",
+        "default": "0..1",
+        "description": "Jump"
+      },
+      {
+        "name": "shoot",
+        "default": "0..1",
+        "description": "Fire weapon"
+      },
+      {
+        "name": "sprint",
+        "default": "0..1",
+        "description": "Sprint modifier"
+      },
+      {
+        "name": "interact",
+        "default": "0..1",
+        "description": "Enter vehicle / pick up / use"
+      },
+      {
+        "name": "aim",
+        "default": "0..1",
+        "description": "Aim down sights"
+      },
+      {
+        "name": "cameraZoom",
+        "default": "-1..1",
+        "description": "Camera zoom"
+      },
+      {
+        "name": "sneak",
+        "default": "0\\",
+        "description": "1"
+      }
+    ]
+  },
+  {
     "module": "game-controller",
     "tag": "tosi-game-controller",
     "summary": "game-controller",
@@ -3238,6 +4049,57 @@
       },
       {
         "name": "updateIntervalMs"
+      }
+    ]
+  },
+  {
+    "module": "gamepad-svg",
+    "summary": "gamepad-svg",
+    "attributes": [
+      {
+        "name": "strokeColor",
+        "default": "#000000",
+        "description": "All stroked elements"
+      },
+      {
+        "name": "strokeWidth",
+        "default": "16",
+        "description": "All stroked elements"
+      },
+      {
+        "name": "widgetColor",
+        "default": "#ffffff",
+        "description": "Bumpers, triggers, dpad, sticks, menu, view"
+      },
+      {
+        "name": "controllerColor",
+        "default": "#aaaaaa",
+        "description": "Controller body"
+      },
+      {
+        "name": "stickTravelColor",
+        "default": "#505050",
+        "description": "Stick travel circles"
+      },
+      {
+        "name": "fillA",
+        "default": "#ff1d25",
+        "description": "A button (red)"
+      },
+      {
+        "name": "fillB",
+        "default": "#fcee22",
+        "description": "B button (yellow)"
+      },
+      {
+        "name": "fillX",
+        "default": "#8cc63f",
+        "description": "X button (green)"
+      },
+      {
+        "name": "fillY",
+        "default": "#3ea9f5",
+        "description": "Y button (blue)"
       }
     ]
   },
@@ -3274,21 +4136,6 @@
         "name": "fadedOpacity",
         "default": "0",
         "description": "How faded is faded. `0` is invisible; a low value like `0.15` leaves a hint that the fallback exists"
-      },
-      {
-        "name": "left",
-        "default": "bottom-left",
-        "description": "left stick, d-pad, left bumper/trigger"
-      },
-      {
-        "name": "right",
-        "default": "bottom-right",
-        "description": "A/B/X/Y, right stick, right bumper/trigger"
-      },
-      {
-        "name": "top",
-        "default": "top-center",
-        "description": "view, menu"
       }
     ]
   },
@@ -3305,6 +4152,60 @@
     ]
   },
   {
+    "module": "icon-name",
+    "summary": "icon-name",
+    "attributes": [
+      {
+        "name": "r",
+        "default": "rotate N°",
+        "description": "`chevron90r`"
+      },
+      {
+        "name": "f",
+        "default": "flip (`0f` = H, `1f` = V)",
+        "description": "`chevron0f`"
+      },
+      {
+        "name": "s",
+        "default": "scale N%",
+        "description": "`star75s`"
+      },
+      {
+        "name": "x",
+        "default": "translateX N%",
+        "description": "`plus20x`"
+      },
+      {
+        "name": "y",
+        "default": "translateY N%",
+        "description": "`plus_10y`"
+      },
+      {
+        "name": "o",
+        "default": "opacity N%",
+        "description": "`camera50o`"
+      }
+    ]
+  },
+  {
+    "module": "key-layout",
+    "summary": "key-layout",
+    "attributes": [
+      {
+        "name": "alpha",
+        "default": "shift"
+      },
+      {
+        "name": "symbols",
+        "default": "punctuation and symbols"
+      },
+      {
+        "name": "dial",
+        "default": "a telephone keypad — `*` `0` `#`, `+` for international"
+      }
+    ]
+  },
+  {
     "module": "keyboard-gamepad",
     "tag": "tosi-keyboard-gamepad",
     "summary": "keyboard-gamepad",
@@ -3314,6 +4215,121 @@
       },
       {
         "name": "updateIntervalMs"
+      }
+    ]
+  },
+  {
+    "module": "light-modulation",
+    "summary": "Light programs",
+    "attributes": [
+      {
+        "name": "brightness",
+        "default": "**multiplies** the base intensity — `0` off, `1` as declared",
+        "description": "\"off\" has to be reachable; it is the value you flicker to"
+      },
+      {
+        "name": "range",
+        "default": "**multiplies** the base range",
+        "description": "a range of zero is a light that lights nothing"
+      },
+      {
+        "name": "saturation",
+        "default": "**multiplies** saturation — `0` is white, `saturationScale` sets what `1` means",
+        "description": "saturation has a meaningful zero and reaching it is the point"
+      },
+      {
+        "name": "hue",
+        "default": "**shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg",
+        "description": "hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose"
+      }
+    ]
+  },
+  {
+    "module": "manipulator",
+    "summary": "manipulator",
+    "attributes": [
+      {
+        "name": "translate",
+        "default": "the point on the axis closest to the pointer's ray"
+      },
+      {
+        "name": "rotate",
+        "default": "the angle around the axis where the ray crosses its plane"
+      }
+    ]
+  },
+  {
+    "module": "picker",
+    "summary": "picker",
+    "attributes": [
+      {
+        "name": "options",
+        "description": "`string[]`, or `{value, label?, group?}[]`"
+      },
+      {
+        "name": "value",
+        "default": "''",
+        "description": "the current selection"
+      },
+      {
+        "name": "label",
+        "default": "—",
+        "description": "drawn to the left of the closed control"
+      },
+      {
+        "name": "filter",
+        "default": "'auto'",
+        "description": "`'auto'` shows the query field above `filterAbove` options"
+      },
+      {
+        "name": "filterAbove",
+        "default": "12",
+        "description": "where `'auto'` starts showing it"
+      },
+      {
+        "name": "groups",
+        "default": "'auto'",
+        "description": "`'auto'` shows the group chooser when there is more than one group"
+      },
+      {
+        "name": "placeholder",
+        "default": "'choose…'",
+        "description": "shown when nothing is selected"
+      },
+      {
+        "name": "handleChange",
+        "description": "the chosen value; fires on pick, and the popup closes"
+      }
+    ]
+  },
+  {
+    "module": "slope-profile",
+    "summary": "slope-profile",
+    "attributes": [
+      {
+        "name": "cliffProfile",
+        "default": "flat low shelf → sharp riser → flat top",
+        "description": "sea cliffs (Dover)"
+      },
+      {
+        "name": "beachProfile",
+        "default": "wide gentle low shelf, easing rise",
+        "description": "beaches, coastal plain"
+      },
+      {
+        "name": "rollingProfile",
+        "default": "contrast-compressed midtones",
+        "description": "rolling hills"
+      },
+      {
+        "name": "mesaProfile",
+        "default": "plateauFilter",
+        "description": "mesas, mid-level plateaus"
+      },
+      {
+        "name": "terraceProfile",
+        "default": "steps with sloped risers",
+        "description": "terraced hills"
       }
     ]
   },
@@ -3333,24 +4349,16 @@
         "description": "Target frame rate"
       },
       {
-        "name": "minElevation",
-        "default": "5",
-        "description": "Default orbit-camera elevation limits (degrees above the horizon)"
+        "name": "minElevation"
       },
       {
-        "name": "maxElevation",
-        "default": "70",
-        "description": "Default orbit-camera elevation limits (degrees above the horizon)"
+        "name": "maxElevation"
       },
       {
-        "name": "minDistance",
-        "default": "2",
-        "description": "Default orbit-camera zoom limits"
+        "name": "minDistance"
       },
       {
-        "name": "maxDistance",
-        "default": "50",
-        "description": "Default orbit-camera zoom limits"
+        "name": "maxDistance"
       },
       {
         "name": "noXr"
@@ -3408,11 +4416,140 @@
       },
       {
         "name": "enterXrOnResume"
+      }
+    ]
+  },
+  {
+    "module": "touch-gamepad",
+    "summary": "touch-gamepad",
+    "attributes": [
+      {
+        "name": "data-part",
+        "default": "VirtualGamepad",
+        "description": "Type"
       },
       {
-        "name": "no-xr",
-        "default": "false",
-        "description": "Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)"
+        "name": "left_bumper",
+        "default": "leftBumper",
+        "description": "button"
+      },
+      {
+        "name": "right_bumper",
+        "default": "rightBumper",
+        "description": "button"
+      },
+      {
+        "name": "left_trigger",
+        "default": "leftTrigger",
+        "description": "button"
+      },
+      {
+        "name": "right_trigger",
+        "default": "rightTrigger",
+        "description": "button"
+      }
+    ]
+  },
+  {
+    "module": "widgets3d",
+    "summary": "widgets3d",
+    "attributes": [
+      {
+        "name": "panel3d",
+        "default": "width",
+        "description": "`360`"
+      },
+      {
+        "name": "row3d",
+        "default": "weights",
+        "description": "equal"
+      },
+      {
+        "name": "slider3d",
+        "default": "min` / `max",
+        "description": "`0` / `1`"
+      },
+      {
+        "name": "toggle3d",
+        "default": "label` / `value"
+      },
+      {
+        "name": "select3d",
+        "default": "options"
+      },
+      {
+        "name": "inputField",
+        "default": "type",
+        "description": "`'text'`"
+      },
+      {
+        "name": "list3d",
+        "default": "items` / `onSelect"
+      },
+      {
+        "name": "button3d",
+        "default": "label` / `onClick"
+      },
+      {
+        "name": "menu3d",
+        "default": "items` / `handleSelect"
+      },
+      {
+        "name": "iconBar3d",
+        "default": "items"
+      },
+      {
+        "name": "spinner3d",
+        "default": "label` / `size"
+      },
+      {
+        "name": "progress3d",
+        "default": "label` / `value` / `showValue"
+      }
+    ]
+  },
+  {
+    "module": "xr-frames",
+    "summary": "xr-frames",
+    "attributes": [
+      {
+        "name": "world",
+        "default": "the play space",
+        "description": "a hologram on a table"
+      },
+      {
+        "name": "rig",
+        "default": "the locomotion rig (vehicle)",
+        "description": "a piloting HUD that flies with you"
+      },
+      {
+        "name": "body",
+        "default": "your torso (head x/z + **damped** yaw)",
+        "description": "waist inventory, over-shoulder backpack"
+      },
+      {
+        "name": "neck",
+        "default": "your neck pivot",
+        "description": "UI you can look *past*"
+      },
+      {
+        "name": "face",
+        "default": "your eyes (head-locked)",
+        "description": "a reticle, a vignette, sunglasses"
+      }
+    ]
+  },
+  {
+    "module": "xr-gamepad",
+    "summary": "xr-gamepad",
+    "attributes": [
+      {
+        "name": "leftBumper",
+        "default": "xr-standard-squeeze` (grip)"
+      },
+      {
+        "name": "rightBumper",
+        "default": "xr-standard-squeeze` (grip)"
       }
     ]
   }

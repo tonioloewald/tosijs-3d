@@ -21,6 +21,57 @@
       travelling together. Store Cartesian, author in degrees; the neutral
       contribution is the zero vector, so no bipolar midpoint is needed.
 
+## From the 0.8.1 pre-tag review (`reviews/0.8.1-pre-tag-gate.md`)
+
+Deferred with the release; the blockers were fixed before the tag.
+
+- [ ] **aircraft library loader** — `b3d-aircraft.loadFromLibrary` is a
+      structural twin of `library-mesh.ts` that never got migrated: no `scale`,
+      no bounded wait, and no error when the named library never mounts. (Its
+      `library-changed` listener IS now removed on disposal, and rotation is
+      genuinely not applicable — the flight model owns attitude.) Migrating it
+      would delete a duplicate policy, which is the whole argument for the
+      shared loader.
+- [ ] **Terrain rebuilds unbudgeted on every attribute-change render** (review
+      M6). `render()` calls `regenerate()` inline, which clears the pool and
+      passes `msBudget = 0` — deliberately unbounded — so a slider drag on the
+      `terrainEditor3d` demo is one full rebuild per animation frame, bypassing
+      `fillBudget`/`tileBuildMs`. Measured ~50 ms of noise alone at the high
+      tier and ~6.3 ms at the quest tier inside a 13.9 ms VR frame. Keep the
+      unbounded path for the explicit `regenerate()` API; budget or debounce the
+      render-triggered one.
+- [ ] **Nine test files import no production module** (review M7). Deleting
+      `_applyChaseGeometry` reintroduces #43 with the suite green. Drive
+      `loadLibraryMesh` headlessly with a stub `owner.getLibrary`; export
+      `MAX_TILES_ACROSS` and lift `_generationKey` so they can be asserted
+      rather than restated.
+- [ ] **~45 bare-common-noun exports** were added to the barrel this release
+      (`snap`, `arcOf`, `windAt`, `otherAxes`, `luminance`, …). The standing
+      rule is that a family of ordinary words ships as a namespace (`ui.*`,
+      `carve.*`). Namespacing them is breaking, so it is a 0.9 decision — but
+      the debt is real and grows.
+- [ ] **Floating origin is not applied to the new placeables** — `b3d-prop`,
+      `b3d-beacon` and `b3d-spawner`'s authored anchor all hold world
+      coordinates and call neither `registerWorldRoot` nor `addOriginListener`,
+      so all three drift on a terrain `resetOrigin`.
+- [ ] **`B3dManipulator` uses `handleChange`/`handleCommit`** where the
+      convention for COMPONENTS is `when*`. Free to change now, breaking later.
+- [ ] **`FrameInfo.realDt`/`realElapsed`/`frame` freeze while paused**, which is
+      the one state they exist for. Doc and behaviour disagree; pick one.
+- [ ] **Three copies of the wind resolution rule** — `B3dClouds._wind()` and
+      `B3dAmbient._wind()` are byte-identical and `B3dWater._wind()` repeats the
+      guard. #73's stated purpose was that these could not silently disagree.
+- [ ] **`_applyScale` is duplicated** in `b3d-prop` and `b3d-destroyable`, and
+      their `render()` guards already disagree. `scale` is placement — move it
+      to `AbstractMesh`.
+- [ ] **No bundle-size signal.** This release grew the minified bundle ~10.9%
+      (607,680 → 673,827 B; gzip 197,465 → 216,442). All of it is explained,
+      but the next unjustified 10% will look identical. Record gzip size in the
+      changelog at each release.
+- [ ] **RELEASING.md step 5a (drive every demo flat AND in VR) was not done**
+      for 0.8.1. Four new in-scene UI controls and the whole popup/panel change
+      are XR-facing and were verified flat only.
+
 ## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
 
 The blocker and all four majors were fixed before the tag. These are the
