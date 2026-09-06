@@ -93,9 +93,52 @@ target by construction.</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li><strong><code>b3d-destroyable</code> could not place a library piece properly</strong> — three
+<li><p><strong>A terrain attribute change no longer rebuilds the whole world every frame.</strong>
+tosijs queues one render per animation frame and <code>slider3d</code> writes on every
+pointer move, so an attribute-driven rebuild that cleared the tile pool and
+refilled it unbounded cost a FULL rebuild per frame for as long as you dragged
+— ~50 ms of noise alone at the high tier, ~6.3 ms at the quest tier inside a
+13.9 ms VR frame, before skirts, normals and the vertex uploads. It now marks
+the pool stale and re-cuts under the ordinary <code>fillBudget</code>/<code>tileBuildMs</code> cap,
+so the world morphs instead of blinking out. <code>regenerate()</code> keeps its
+documented unbounded behaviour, and now adopts the generation key so &quot;set the
+attributes, then call <code>regenerate()</code>&quot; stops paying for two rebuilds.</p>
+</li>
+<li><p><strong><code>disposeMeshTree</code> could dispose a texture a library model was still
+drawing.</strong> The material guard asks <code>scene.meshes</code> and was right; the texture
+guard asked <code>scene.materials</code>, which cannot see a library-instantiated model&#39;s
+materials — those belong to the <code>AssetContainer</code> while their meshes are in the
+scene. A texture shared with a hand-made material was disposed under the
+library model, which went black, silently. The in-use set is now derived from
+the meshes that remain.</p>
+</li>
+<li><p><strong>The attribute index lost three elements&#39; documentation to one legend
+table.</strong> The generator rejects a table whose header names an identifier
+(<code>touch-gamepad</code> maps <code>data-part</code> values to gamepad fields — its rows are
+values, not attributes), but applied the rejection to the whole DOCUMENT on
+the strength of the first table it found. <code>b3d-lamp</code> opens with a capability
+matrix, so the point, spot and area lights all shipped bare attribute names
+with no default and no prose. Each table is judged on its own header now.</p>
+</li>
+<li><p><strong><code>operable</code> and <code>debugState</code> contradicted what a pointer press actually
+did.</strong> Both were routed through the same helper as a scripted <code>activate()</code>,
+which reports an unknown distance as <code>Infinity</code> so a reach veto fails closed.
+That is right for an activation and wrong for an inspection: a hovered door
+reported <code>operable: false</code> and <code>out-of-reach:blocks</code> at the moment a press
+opened it. While the pointer is on it they now judge with the real hover, and
+<code>debugState</code> prints the info it judged with — it is the only debug readout
+that exists in a headset.</p>
+</li>
+<li><p><strong>The attribute index ships inside the package.</strong> <code>static/attributes.txt</code> and
+<code>attributes.json</code> are in <code>files</code> now, so an agent already in a consumer
+project reads <code>node_modules/tosijs-3d/static/attributes.txt</code> with no network
+and no proxy. It was published to the doc site only, which is the one place
+the actor it was built for cannot reach.</p>
+</li>
+<li><p><strong><code>b3d-destroyable</code> could not place a library piece properly</strong> — three
 reports from <code>tosijs-3d-ensemble</code> against one function, and one bug family:
-the async load treated its callback as if nothing could change underneath it.<ul>
+the async load treated its callback as if nothing could change underneath it.</p>
+<ul>
 <li><strong>Rotation was dropped</strong> (#48). Only x/y/z reached <code>instantiate</code>. It looks
 like it should not matter, since <code>AbstractMesh.render()</code> syncs <code>rx/ry/rz</code> —
 but that is a COMPONENT render, and it had already run by the time the
@@ -112,24 +155,27 @@ would ever move or free. Guarded with <code>loadGeneration</code>, the mechanism
 <code>b3d-aircraft</code> already used; the retry poll stops on a stale generation too.</li>
 </ul>
 </li>
-<li><strong>Two engines on one canvas are now impossible, and a lost context says so</strong>
+<li><p><strong>Two engines on one canvas are now impossible, and a lost context says so</strong>
 (#56). Building an engine over a live one disposed nothing and failed
 silently — the first context&#39;s shader programs go invalid while every uniform
 still reads back correctly, which is why it presented as four different bugs
 (white meshes, dark sky, empty scene, half-loaded scene). It now disposes the
 old engine and warns. Separately, <code>webglcontextlost</code> is reported to the
-console and the debug ring instead of just rendering wrong.</li>
-<li><strong>The flat scene panel now closes on a background press</strong>, like every other
+console and the debug ring instead of just rendering wrong.</p>
+</li>
+<li><p><strong>The flat scene panel now closes on a background press</strong>, like every other
 transient overlay here. A press inside it, or on the gear, still does not —
-the gear toggles, so closing first would make it look inert.</li>
-<li><strong>A still sky never found a late sun</strong> (#55). <code>updateSky</code> writes
+the gear toggles, so closing first would make it look inert.</p>
+</li>
+<li><p><strong>A still sky never found a late sun</strong> (#55). <code>updateSky</code> writes
 <code>sunPosition</code>, <code>rayleigh</code> and <code>turbidity</code> only when a sun element&#39;s light
 exists, and the frame gate re-ran it only when <code>timeOfDay</code> moved — so
 <code>realtimeScale: 0</code>, which is what a reproducible authored scene wants, ran it
 once and came up dark about four loads in five. The default <code>realtimeScale: 10</code> hid it, because a drifting clock reopens the gate until some pass catches
 the sun. The retry is now gated on the OUTCOME rather than the clock, and
-bounded so a scene with no sun does not retry forever.</li>
-<li><strong>A flat popup could open off-screen with no way back</strong> (#57). The DOM layer
+bounded so a scene with no sun does not retry forever.</p>
+</li>
+<li><p><strong>A flat popup could open off-screen with no way back</strong> (#57). The DOM layer
 set <code>left</code>/<code>top</code> straight from the anchor with no bounds check, so a field in
 a right-hand panel opened a keyboard 112px past the right edge — rightmost
 column of keys unreachable, and unrecoverable, because the move/close chrome
@@ -137,8 +183,9 @@ is drawn by picking and picking exists only in the scene. It now places
 through <code>placePopup</code>, the same pure flip/clamp the in-scene presentation
 uses, <strong>and the holder can be dragged</strong> — which is the better fix, since only
 the person typing knows what the popup is covering. A press that lands on a
-widget still belongs to the widget, or you could never type.</li>
-<li><strong><code>chaseDistance</code> / <code>chaseHeight</code> / <code>chaseMinHeight</code> / <code>hudSize</code> accepted a
+widget still belongs to the widget, or you could never type.</p>
+</li>
+<li><p><strong><code>chaseDistance</code> / <code>chaseHeight</code> / <code>chaseMinHeight</code> / <code>hudSize</code> accepted a
 write and did nothing</strong> (#43). All four were consumed when the rig and HUD
 plane were built and never read again, so a settings slider bound to any of
 them read back correctly and moved nothing — ensemble measured bit-identical
@@ -146,23 +193,28 @@ framing across a 3× change. Worse than an ordinary no-op because
 <code>chasePitchFollow</code> on the same element IS live, so the element looked
 responsive and only some of it was. The chase geometry now comes from one
 path used at build AND every frame; the HUD remounts when its geometry
-changes, instead of latching on a boolean.</li>
-<li><strong><code>select3d</code> looked like a cycler</strong> (#37). It has opened a popup list all
+changes, instead of latching on a boolean.</p>
+</li>
+<li><p><strong><code>select3d</code> looked like a cycler</strong> (#37). It has opened a popup list all
 along — nothing said so, so a consumer counted 23 taps to reach the 24th
 option. It now draws a downward chevron, the whole control opens the list,
 and the arrows are gone. Stepping survives only where a panel gives no host
-and a menu is impossible.</li>
-<li><strong>An icon name colliding with <code>Object.prototype</code> threw</strong> rather than falling
+and a menu is impossible.</p>
+</li>
+<li><p><strong>An icon name colliding with <code>Object.prototype</code> threw</strong> rather than falling
 back — <code>iconGlyph(&#39;constructor&#39;)</code> and friends. 0.8.0 was the first release
 where table DATA becomes an icon name, with no <code>catch</code> in the repaint path.
 Fixed at all three unsafe sites, including <code>registerIcons</code>, where <code>__proto__</code>
-was an assignment that would have corrupted the map rather than failing.</li>
-<li><strong><code>spinner3d</code> leaked into a module-global ticker.</strong> <code>Widget3d</code> gained
+was an assignment that would have corrupted the map rather than failing.</p>
+</li>
+<li><p><strong><code>spinner3d</code> leaked into a module-global ticker.</strong> <code>Widget3d</code> gained
 <code>dispose?()</code>, and <code>B3d</code> releases the widget set it replaces on each repaint.
 Reaping by <code>el.isConnected</code> would have been wrong: an in-scene panel&#39;s SVG is
-never attached, so a visible VR spinner would have been culled.</li>
-<li>Panels size to their content, the in-scene icon bar is pinned, and the theme
-editor no longer follows you between demos (from the 0.8.0 headset pass).</li>
+never attached, so a visible VR spinner would have been culled.</p>
+</li>
+<li><p>Panels size to their content, the in-scene icon bar is pinned, and the theme
+editor no longer follows you between demos (from the 0.8.0 headset pass).</p>
+</li>
 </ul>
 <h3>Added</h3>
 <ul>

@@ -50,6 +50,44 @@ Nothing breaks at compile time. Two behaviours change, and
 
 ### Fixed
 
+- **A terrain attribute change no longer rebuilds the whole world every frame.**
+  tosijs queues one render per animation frame and `slider3d` writes on every
+  pointer move, so an attribute-driven rebuild that cleared the tile pool and
+  refilled it unbounded cost a FULL rebuild per frame for as long as you dragged
+  — ~50 ms of noise alone at the high tier, ~6.3 ms at the quest tier inside a
+  13.9 ms VR frame, before skirts, normals and the vertex uploads. It now marks
+  the pool stale and re-cuts under the ordinary `fillBudget`/`tileBuildMs` cap,
+  so the world morphs instead of blinking out. `regenerate()` keeps its
+  documented unbounded behaviour, and now adopts the generation key so "set the
+  attributes, then call `regenerate()`" stops paying for two rebuilds.
+- **`disposeMeshTree` could dispose a texture a library model was still
+  drawing.** The material guard asks `scene.meshes` and was right; the texture
+  guard asked `scene.materials`, which cannot see a library-instantiated model's
+  materials — those belong to the `AssetContainer` while their meshes are in the
+  scene. A texture shared with a hand-made material was disposed under the
+  library model, which went black, silently. The in-use set is now derived from
+  the meshes that remain.
+- **The attribute index lost three elements' documentation to one legend
+  table.** The generator rejects a table whose header names an identifier
+  (`touch-gamepad` maps `data-part` values to gamepad fields — its rows are
+  values, not attributes), but applied the rejection to the whole DOCUMENT on
+  the strength of the first table it found. `b3d-lamp` opens with a capability
+  matrix, so the point, spot and area lights all shipped bare attribute names
+  with no default and no prose. Each table is judged on its own header now.
+- **`operable` and `debugState` contradicted what a pointer press actually
+  did.** Both were routed through the same helper as a scripted `activate()`,
+  which reports an unknown distance as `Infinity` so a reach veto fails closed.
+  That is right for an activation and wrong for an inspection: a hovered door
+  reported `operable: false` and `out-of-reach:blocks` at the moment a press
+  opened it. While the pointer is on it they now judge with the real hover, and
+  `debugState` prints the info it judged with — it is the only debug readout
+  that exists in a headset.
+- **The attribute index ships inside the package.** `static/attributes.txt` and
+  `attributes.json` are in `files` now, so an agent already in a consumer
+  project reads `node_modules/tosijs-3d/static/attributes.txt` with no network
+  and no proxy. It was published to the doc site only, which is the one place
+  the actor it was built for cannot reach.
+
 - **`b3d-destroyable` could not place a library piece properly** — three
   reports from `tosijs-3d-ensemble` against one function, and one bug family:
   the async load treated its callback as if nothing could change underneath it.
@@ -137,7 +175,7 @@ Nothing breaks at compile time. Two behaviours change, and
   `visibility = 0` rather than `isVisible = false`, which is the whole trick —
   Babylon's default pick test is `isEnabled && isVisible && isPickable`, so the
   obvious way to hide a hull makes it unpickable, and the failure returns
-  *whatever is behind it* rather than nothing. `beaconOwner(mesh)` is the entire
+  _whatever is behind it_ rather than nothing. `beaconOwner(mesh)` is the entire
   reading-side API.
 - **`angle3d` and `arc3d`** — dial a bearing, dial a firing arc (#71). An angle
   on a linear track has ends where the quantity does not, so 359° and 1° sit at
