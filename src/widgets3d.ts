@@ -1273,11 +1273,29 @@ export function iconBar3d(config: {
   const hasCaptions = config.items.some((i) => i.title)
   const CAPTION_H = 12
   const step = BS + ICON_GAP
-  const indexAt = (x: number): number => {
-    const i = Math.floor(x / step)
+  /*
+  IT WRAPS, because it used to run off the edge instead.
+
+  `layout()` ignored the width it was handed and placed every cell at `i * step`
+  on one line. A scene's bar is Exit VR + Re-seat + Perf Stats + one per
+  registered debug source + the gadgets — ten items on the terrain demo, 380px
+  of them inside a 296px panel — so the last few were painted outside the panel
+  and their captions collided on the way out.
+
+  Wrapping rather than scrolling or truncating: these are the controls you reach
+  for once a session, and one that is off-screen is one you cannot press. A
+  second row costs 44px of a panel; a missing Exit VR costs the session.
+  */
+  let perRow = cells.length
+  let rowH = TH.ROW
+  const indexAt = (x: number, y = 0): number => {
+    const col = Math.floor(x / step)
+    const row = Math.max(0, Math.floor(y / rowH))
+    if (col < 0 || col >= perRow) return -1
+    const i = row * perRow + col
     if (i < 0 || i >= cells.length) return -1
     // Reject the ICON_GAP dead-zone between buttons.
-    return x - i * step <= BS ? i : -1
+    return x - col * step <= BS ? i : -1
   }
   let pressed = -1
   const paint = (hover: number) => {
@@ -1290,24 +1308,33 @@ export function iconBar3d(config: {
   }
   return {
     el,
-    layout() {
+    layout(width: number) {
+      // Captions live BELOW the button, so a row has to grow or the next thing
+      // lands on top of them.
+      rowH = hasCaptions ? TH.ROW + CAPTION_H : TH.ROW
+      // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
+      perRow = Math.max(1, Math.floor(((width || 0) + ICON_GAP || step) / step))
       cells.forEach((c, i) => {
-        c.cell.setAttribute('transform', `translate(${i * step} ${by})`)
+        const col = i % perRow
+        const row = Math.floor(i / perRow)
+        c.cell.setAttribute(
+          'transform',
+          `translate(${col * step} ${row * rowH + by})`
+        )
       })
-      // Captions live BELOW the button, so the row has to grow or the next
-      // widget lands on top of them.
-      return hasCaptions ? TH.ROW + CAPTION_H : TH.ROW
+      return Math.ceil(cells.length / perRow) * rowH
     },
-    hitTest(x) {
-      return indexAt(x) >= 0
+    hitTest(x, y) {
+      return indexAt(x, y) >= 0
     },
-    handle(kind, x) {
+    handle(kind, x, y) {
       if (kind === 'leave') {
         pressed = -1
         paint(-1)
         return
       }
-      const i = indexAt(x)
+      // `y` matters now that the bar can wrap onto a second row.
+      const i = indexAt(x, y)
       if (kind === 'down') pressed = i
       // Release BEFORE firing, so a handler that rebuilds the panel does not
       // leave a button stuck looking held.
@@ -2380,6 +2407,28 @@ export function panel3d(
   // texture path double-offsets the clip and crops the top-left of the list.
   const clipWrap = g()
   const content = g({ transform: `translate(${padding}, ${paddingTop})` })
+  /*
+  ⚠️ THE PINNED HEADER LIVES OUTSIDE THE CLIP, and putting it inside cost the
+  headset its Exit VR button.
+
+  The clip rect starts at `paddingTop + headerH` — it has to, or the body is
+  laid out against a taller area than it gets. The header sits ABOVE that, at
+  y 0..headerH, so anything clipped by that rect is clipped away entirely.
+
+  It was appended to `content`, which is correct for keeping it out of the
+  SCROLL transform and wrong for keeping it out of the CLIP. The result was a
+  header that reserved its space (a band of empty panel), routed its presses
+  correctly (the router computes header coords independently), and painted
+  NOTHING — so the buttons were hittable if you guessed where they were, and
+  invisible. Tonio, from the headset: "the standard buttons have now
+  disappeared… the panel has a LOT of black headroom… I can click where I think
+  they should be and stuff happens."
+
+  And it only bites when the panel SCROLLS, because the clip is only applied
+  then — so every small panel in the demos and tests was fine and the terrain
+  editor (1104px of rows in a 508px viewport) was not.
+  */
+  const headerGroup = g({ transform: `translate(${padding}, ${paddingTop})` })
   // The scrolling body sits BELOW the pinned block. `scrollGroup` is what the
   // scroll transform moves, so the offset lives on its parent — otherwise
   // scrolling would drag the body up over the header.
@@ -2396,8 +2445,9 @@ export function panel3d(
   }))
   headerWidgets.forEach((w, i) => {
     w.el.setAttribute('transform', `translate(0, ${headerLayout.offsets[i]})`)
-    // Appended to `content`, NOT `scrollGroup` — that is the whole mechanism.
-    content.appendChild(w.el)
+    // `headerGroup`, which is neither scrolled NOR clipped. Both halves matter:
+    // `scrollGroup` would move it, `content` would clip it.
+    headerGroup.appendChild(w.el)
   })
 
   const rows = widgets.map((w, i) => ({
@@ -3134,5 +3184,7 @@ export function panel3d(
   root.appendChild(bg)
   root.appendChild(clip)
   root.appendChild(clipWrap)
+  // After the body, so the pinned block paints over anything that reaches it.
+  if (headerWidgets.length > 0) root.appendChild(headerGroup)
   return root
 }

@@ -759,3 +759,134 @@ describe('panel3d header — pinned rows', () => {
     expect(bar.got).toEqual([])
   })
 })
+
+describe('a pinned header must be VISIBLE, not merely reserved', () => {
+  /*
+  Found in a headset, on the terrain editor. The Exit VR / Re-seat / Pause bar
+  reserved its band, routed its presses correctly, and painted NOTHING — so the
+  buttons were hittable if you guessed where they were, and invisible.
+
+    Tonio: "the standard buttons have now disappeared… the panel has a LOT of
+    black headroom… I can click where I think they should be and stuff happens."
+
+  The header was appended to `content`, which is inside the clipped wrapper. The
+  clip rect necessarily starts at `paddingTop + headerH` — below the header — so
+  the header was clipped away in full.
+
+  ⚠️ AND ONLY WHEN THE PANEL SCROLLS, because `clip-path` is applied only then.
+  Every small panel in the demos and tests was fine; the one that scrolled was
+  the one nobody could test without a headset. So the scrolling case is the
+  test, and a non-scrolling control sits beside it to prove the difference is
+  the clip and not the header.
+  */
+
+  const bar = () =>
+    w3d.iconBar3d({
+      items: [
+        { icon: 'logOut', title: 'Exit VR', handleClick: () => {} },
+        { icon: 'compass', title: 'Re-seat', handleClick: () => {} },
+      ],
+    })
+
+  const headerIn = (panel: SVGSVGElement) =>
+    panel.querySelector('[data-w3d="iconbar"]')
+
+  test('the header is not inside the clipped group when the panel scrolls', () => {
+    const tall = w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34, header: [bar()] },
+      ...rows(40)
+    )
+    // Precondition: this panel really does scroll, or the test proves nothing.
+    expect(tall.querySelector('g[clip-path]')).toBeTruthy()
+
+    const el = headerIn(tall)
+    expect(el).toBeTruthy()
+    expect(el!.closest('g[clip-path]')).toBeNull()
+  })
+
+  test('...and it still is not, when the panel does not scroll', () => {
+    const short = w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34, header: [bar()] },
+      ...rows(2)
+    )
+    const el = headerIn(short)
+    expect(el).toBeTruthy()
+    expect(el!.closest('g[clip-path]')).toBeNull()
+  })
+
+  test('the header paints ABOVE the clip rect it would have been cut by', () => {
+    /*
+    The geometric statement of the bug, independent of DOM structure: the
+    header's own y band and the body's clip rect must not overlap, or the
+    header is invisible however it is parented.
+    */
+    const tall = w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34, header: [bar()] },
+      ...rows(40)
+    )
+    const clipRect = tall.querySelector('clipPath rect')!
+    const clipTop = Number(clipRect.getAttribute('y'))
+    const group = headerIn(tall)!.parentElement as unknown as SVGGElement
+    const t = /translate\(([-\d.]+),?\s*([-\d.]+)\)/.exec(
+      group.getAttribute('transform') ?? ''
+    )
+    const headerTop = t ? Number(t[2]) : 0
+    expect(headerTop).toBeLessThan(clipTop)
+  })
+})
+
+describe('an icon bar wraps rather than running off the edge', () => {
+  /*
+  `layout()` ignored the width it was handed and placed every cell at `i * step`
+  on one line. A scene's bar is Exit VR + Re-seat + Perf Stats + one per
+  registered debug source + the gadgets: ten items on the terrain demo, 380px of
+  them inside a 296px panel. The overflow painted outside the panel entirely and
+  the captions collided on the way out.
+  */
+  const bar = (n: number) =>
+    w3d.iconBar3d({
+      items: Array.from({ length: n }, (_, i) => ({
+        icon: 'bug',
+        title: `t${i}`,
+        handleClick: () => {},
+      })),
+    })
+
+  test('a bar that fits stays one row', () => {
+    // 58 = one row plus the caption band these items carry.
+    const b = bar(4)
+    expect(b.layout(296)).toBe(58)
+  })
+
+  test('a bar that does not fit grows a second row instead of overflowing', () => {
+    const b = bar(10)
+    const oneRow = bar(4).layout(296)
+    expect(b.layout(296)).toBeGreaterThan(oneRow)
+    // Nothing may be placed beyond the width it was given.
+    const xs = [...b.el.querySelectorAll('[data-w3d-icon]')].map((c) => {
+      const m = /translate\(([-\d.]+)\s/.exec(c.getAttribute('transform') ?? '')
+      return m ? Number(m[1]) : 0
+    })
+    expect(Math.max(...xs) + 32).toBeLessThanOrEqual(296)
+  })
+
+  test('and the second row is HITTABLE — wrapping without routing is worse', () => {
+    // The cells moved but `indexAt` still read x alone, so every second-row
+    // press would have resolved to the item above it.
+    let fired = -1
+    const b = w3d.iconBar3d({
+      items: Array.from({ length: 10 }, (_, i) => ({
+        icon: 'bug',
+        title: `t${i}`,
+        handleClick: () => {
+          fired = i
+        },
+      })),
+    })
+    const h = b.layout(296)
+    const rowH = h / 2
+    b.handle!('down', 4, rowH + 4)
+    b.handle!('up', 4, rowH + 4)
+    expect(fired).toBeGreaterThanOrEqual(7) // first item of the second row
+  })
+})

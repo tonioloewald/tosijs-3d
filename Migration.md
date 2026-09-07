@@ -31,7 +31,11 @@ it by making their world four times larger (#23).
 **If you relied on the old behaviour**, say so explicitly:
 
 ```html
-<tosi-b3d-aircraft gun-mode="blast" gun-blast-radius="1.5" gun-full-radius="0.5">
+<tosi-b3d-aircraft
+  gun-mode="blast"
+  gun-blast-radius="1.5"
+  gun-full-radius="0.5"
+></tosi-b3d-aircraft>
 ```
 
 Both radii are attributes now; they used to be hardcoded. Missiles and bombs are
@@ -44,7 +48,7 @@ A veto that ignores its argument is unaffected, which is every veto written
 before this existed:
 
 ```javascript
-use.vetoes.push({ name: 'locked', blocks: () => !hasKey })   // unchanged
+use.vetoes.push({ name: 'locked', blocks: () => !hasKey }) // unchanged
 ```
 
 Calling `activationVeto(vetoes)` directly still compiles. When you omit the

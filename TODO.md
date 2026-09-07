@@ -788,7 +788,6 @@ by the 0.8.1 third gate; deliberately NOT done at the gate, because rewriting
 the test harness the gate is reading is not a thing to do between a BLOCK and a
 tag.
 
-
 [ ] **Triage 18 stale `UPSTREAM.md` Open rows** (11 found by the 0.7.7 step-5a0
 sweep 2026-09-02; re-swept at the 0.8.1 gate 2026-09-06 and it had grown to 18).
 These reference issues upstream has since CLOSED, so the table currently asserts
