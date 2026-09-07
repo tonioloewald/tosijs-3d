@@ -15,6 +15,7 @@ rather than about pixels.
 */
 
 let T: typeof import('./terrain-editor.js')
+let W: typeof import('./widgets3d.js')
 let S: typeof import('./scene-schemas.js')
 
 beforeAll(async () => {
@@ -30,6 +31,7 @@ beforeAll(async () => {
   }
   T = await import('./terrain-editor.js')
   S = await import('./scene-schemas.js')
+  W = await import('./widgets3d.js')
 })
 
 const kinds = (el: Element) =>
@@ -117,5 +119,71 @@ describe('terrainEditor3d', () => {
     ed.setValue({ seed: 9 })
     expect(ed.value.seed).toBe(9)
     expect(ed.value.grossScale).toBe(0.03) // not clobbered
+  })
+})
+
+describe('a frequency gets a log track, because linear makes it useless', () => {
+  /*
+  From a headset, on the shipped sliders:
+
+    "The sliders are useless around the 0 point because they're still linear.
+     ensemble asked for log scales precisely for this reason and we still have
+     90% of the dial devoted to the white noise side."
+
+  A noise `scale` is a FREQUENCY. On a linear track from 0.005 to 0.3 the whole
+  usable band — roughly 0.005 to 0.05 — is the first 15% of the dial and the
+  remaining 85% is progressively whiter noise. The default sits at 3%, which is
+  why it reads as "useless around zero": every value you actually want is
+  crushed against the left stop.
+
+  The schema has said `x-scale: 'log'` all along. This pins that the editor
+  HONOURS it, which is the half that can silently stop being true — the demos
+  hand-rolled their own sliders and did not, which is how this shipped.
+  */
+
+  const sliderFor = (label: string) => {
+    const ed = T.terrainEditor3d({ value: {}, advanced: true })
+    ed.layout(296)
+    return ed.el.outerHTML.includes(`>${label}<`)
+  }
+
+  test('the editor offers the frequency controls at all', () => {
+    expect(sliderFor('landform scale')).toBe(true)
+    expect(sliderFor('detail scale')).toBe(true)
+  })
+
+  test('a log-hinted schema entry produces a LOG track, not a linear one', () => {
+    /*
+    Measured through the handle position rather than a config read: the value
+    that matters is where the control puts the thing you are dragging.
+    */
+    const at = (scale: 'linear' | 'log', value = 0.015) => {
+      const s = W.slider3d({ label: 'x', value, min: 0.005, max: 0.3, scale })
+      s.layout(296)
+      return Number(s.el.querySelector('circle')?.getAttribute('cx') ?? 0)
+    }
+    // Measured as a FRACTION of the track, so the assertion says what it means
+    // and does not move when padding does.
+    const left = at('linear', 0.005)
+    const right = at('linear', 0.3)
+    const frac = (x: number) => (x - left) / (right - left)
+
+    // The default is crushed against the left stop on a linear track...
+    expect(frac(at('linear'))).toBeLessThan(0.06)
+    // ...and has room on a log one. (0.005→0.3 is 1.78 decades; 0.015 is 0.48
+    // of the way along.)
+    expect(frac(at('log'))).toBeGreaterThan(0.2)
+    expect(frac(at('log'))).toBeLessThan(0.35)
+  })
+
+  test('a quantity that legitimately reaches ZERO stays linear', () => {
+    /*
+    The other half, and why this is not "make everything log": a log track has
+    no zero. `landform height` runs from 0, and 0 means flat — a real value
+    someone picks, not a floor to avoid.
+    */
+    const ed = T.terrainEditor3d({ value: {}, advanced: true })
+    ed.layout(296)
+    expect(ed.el.outerHTML.includes('>landform height<')).toBe(true)
   })
 })

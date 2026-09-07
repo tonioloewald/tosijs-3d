@@ -793,7 +793,13 @@ describe('a pinned header must be VISIBLE, not merely reserved', () => {
 
   test('the header is not inside the clipped group when the panel scrolls', () => {
     const tall = w3d.panel3d(
-      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34, header: [bar()] },
+      {
+        width: 320,
+        height: 'fit',
+        maxHeight: 620,
+        paddingTop: 34,
+        header: [bar()],
+      },
       ...rows(40)
     )
     // Precondition: this panel really does scroll, or the test proves nothing.
@@ -806,7 +812,13 @@ describe('a pinned header must be VISIBLE, not merely reserved', () => {
 
   test('...and it still is not, when the panel does not scroll', () => {
     const short = w3d.panel3d(
-      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34, header: [bar()] },
+      {
+        width: 320,
+        height: 'fit',
+        maxHeight: 620,
+        paddingTop: 34,
+        header: [bar()],
+      },
       ...rows(2)
     )
     const el = headerIn(short)
@@ -821,7 +833,13 @@ describe('a pinned header must be VISIBLE, not merely reserved', () => {
     header is invisible however it is parented.
     */
     const tall = w3d.panel3d(
-      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34, header: [bar()] },
+      {
+        width: 320,
+        height: 'fit',
+        maxHeight: 620,
+        paddingTop: 34,
+        header: [bar()],
+      },
       ...rows(40)
     )
     const clipRect = tall.querySelector('clipPath rect')!
@@ -888,5 +906,140 @@ describe('an icon bar wraps rather than running off the edge', () => {
     b.handle!('down', 4, rowH + 4)
     b.handle!('up', 4, rowH + 4)
     expect(fired).toBeGreaterThanOrEqual(7) // first item of the second row
+  })
+})
+
+describe('a scrolling panel has a rail you can actually grab', () => {
+  /*
+  Scrolling began on EMPTY SPACE, and a panel full of controls has none — so in
+  a headset there was no gesture that scrolled it at all. Every attempt landed
+  on a widget instead.
+
+    "I think we need to add an affordance to the side of scrolling panels that
+     directly scrolls the panel. When I tried to scroll this thing I somehow
+     zeroed every slider with one drag."
+
+  The rail is also the only visible sign that there IS more below: a texture on
+  a plane has no scrollbar, no overflow shadow and no momentum to tell you.
+  */
+
+  const packed = (n: number, onChange?: (i: number, v: number) => void) => {
+    const rows = Array.from({ length: n }, (_, i) =>
+      w3d.slider3d({
+        label: `s${i}`,
+        value: 50,
+        min: 0,
+        max: 100,
+        handleChange: (v: number) => onChange?.(i, v),
+      })
+    )
+    return w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 400, paddingTop: 34 },
+      ...rows
+    ) as SVGSVGElement & {
+      handlePointer: (k: string, x: number, y: number) => void
+    }
+  }
+
+  test('a panel that fits has NO rail — chrome that means nothing', () => {
+    const short = packed(2)
+    expect(short.querySelector('g[clip-path]')).toBeNull()
+    // The rail is the only thing appended AFTER the clipped body group, so its
+    // absence is structural rather than a rect count that other widgets share.
+    const kids = [...short.children].map((c) => c.tagName)
+    expect(kids[kids.length - 1]).toBe('g')
+  })
+
+  test('dragging the rail scrolls, and changes NO value', () => {
+    const touched: number[] = []
+    const p = packed(20, (i) => touched.push(i))
+    // Far right, below the header band: the rail's own column.
+    p.handlePointer('down', 314, 60)
+    for (let y = 60; y < 300; y += 20) p.handlePointer('move', 314, y)
+    p.handlePointer('up', 314, 300)
+    expect(touched).toEqual([])
+  })
+
+  test('and it actually moved the content', () => {
+    const p = packed(20)
+    const body = p.querySelector('g[clip-path] g g g') as SVGGElement
+    const before = body?.getAttribute('transform') ?? ''
+    p.handlePointer('down', 314, 60)
+    p.handlePointer('move', 314, 200)
+    p.handlePointer('up', 314, 200)
+    expect(body?.getAttribute('transform')).not.toBe(before)
+  })
+
+  test('the rail never sits on top of a control', () => {
+    // The body is measured RAIL_W narrower when the rail exists, so a press in
+    // the rail column cannot be a press on a widget that drew under it.
+    const touched: number[] = []
+    const p = packed(20, (i) => touched.push(i))
+    p.handlePointer('down', 314, 120)
+    p.handlePointer('up', 314, 120)
+    expect(touched).toEqual([])
+  })
+})
+
+describe('a slider keeps a usable track however narrow the row', () => {
+  /*
+  The label took a flat 45% and the readout took whatever it needed, so on a
+  narrow panel with `showValue: 'always'` and a unit in the format the track was
+  whatever happened to be left — 53px at 282px wide with a "0.015 1/m" readout,
+  against 229px of label and number.
+
+    "the panel is narrow combined with the way the value is now displayed so
+     that for the top scale slider in VR the slider is TINY and the entire row
+     is occupied by the title and the value."
+
+  A label you can only half-read is a nuisance; a track you cannot aim at is a
+  broken control — and in a headset you are aiming with your arm.
+  */
+
+  const trackOf = (label: string, width: number) => {
+    const s = w3d.slider3d({
+      label,
+      value: 0.015,
+      min: 0.005,
+      max: 0.3,
+      scale: 'log',
+      showValue: 'always',
+      format: (v: number) => `${v.toFixed(3)} 1/m`,
+    })
+    s.layout(width)
+    const t = [...s.el.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('rx') === '3'
+    )
+    return Number(t?.getAttribute('width') ?? 0)
+  }
+
+  test('a long label and a formatted value cannot crush the track', () => {
+    expect(trackOf('landform scale', 282)).toBeGreaterThanOrEqual(90)
+  })
+
+  test('the floor does not become the layout — a roomy row stays roomy', () => {
+    // At 282px BOTH labels hit the floor (the readout alone is most of the
+    // row), which is the honest reading: that width is genuinely tight. Give it
+    // room and the track grows with it rather than staying pinned at 90.
+    expect(trackOf('x', 420)).toBeGreaterThan(120)
+    expect(trackOf('landform scale', 420)).toBeGreaterThan(90)
+  })
+
+  test('a wide row is unchanged — this only bites when it has to', () => {
+    expect(trackOf('landform scale', 600)).toBeGreaterThan(200)
+  })
+
+  test('the label is CLIPPED, so it cannot paint over the track it yielded', () => {
+    const s = w3d.slider3d({
+      label: 'landform scale',
+      value: 0.015,
+      min: 0.005,
+      max: 0.3,
+      showValue: 'always',
+      format: (v: number) => `${v.toFixed(3)} 1/m`,
+    })
+    s.layout(282)
+    const text = s.el.querySelector('text')
+    expect(text?.getAttribute('clip-path')).toMatch(/^url\(#w3d-lbl-/)
   })
 })
