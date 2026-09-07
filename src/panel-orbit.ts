@@ -26,6 +26,23 @@ So the state is two angles and a radius, the radius does not change while you
 drag, and the panel re-aims at the anchor after every move. Nothing needs to
 remember a pose.
 
+## A limit you can feel, not one you hit
+
+A hard stop is the right RESTING behaviour and the wrong LIVE one. The panel
+simply stops following your hand, and in a headset — where the only feedback is
+what you can see — that reads as a dropped drag rather than a limit. Tonio: *"It
+could follow you and rubber band back."*
+
+So a drag past a limit keeps following you and stiffens (`bandOrbit`,
+`rubberBand`), and letting go springs back to the clamp (`clampOrbit`). The two
+together are what make it a band rather than simply a bigger box: the panel may
+PASS a limit, and may never come to REST past one.
+
+`rubberBand` is `max · (1 - e^(-over/max))`, which earns its place over a linear
+scale with a cap three times over — it starts at 1:1 so a small overshoot feels
+like nothing unusual, it stiffens smoothly rather than arriving at a second hard
+stop, and it asymptotes, so pulling harder never takes the panel anywhere new.
+
 ## The clamps exist because you cannot chase what you cannot see
 
 `elevationDeg` stops short of straight up and well short of straight down, and
@@ -83,6 +100,20 @@ export const ORBIT_MIN_ELEVATION = -70
 /** Furthest to either side. Short of your shoulder line. */
 export const ORBIT_MAX_AZIMUTH = 110
 
+/**
+ * How far past a limit a drag may VISIBLY stretch before it springs back.
+ *
+ * A hard stop is the right resting behaviour and the wrong live one: the panel
+ * simply stops following your hand, which reads as a dropped drag rather than a
+ * limit — and in a headset, where the only feedback is what you can see, there
+ * is nothing else to tell you which it was. Tonio: *"It could follow you and
+ * rubber band back."*
+ *
+ * So the band is feedback, not a wider clamp. It never becomes a place the
+ * panel can rest.
+ */
+export const ORBIT_RUBBER_BAND = 18
+
 const DEG = Math.PI / 180
 const clamp = (v: number, lo: number, hi: number) =>
   v < lo ? lo : v > hi ? hi : v
@@ -97,7 +128,11 @@ const clamp = (v: number, lo: number, hi: number) =>
 export function clampOrbit(o: Orbit): Orbit {
   return {
     azimuthDeg: clamp(o.azimuthDeg, -ORBIT_MAX_AZIMUTH, ORBIT_MAX_AZIMUTH),
-    elevationDeg: clamp(o.elevationDeg, ORBIT_MIN_ELEVATION, ORBIT_MAX_ELEVATION),
+    elevationDeg: clamp(
+      o.elevationDeg,
+      ORBIT_MIN_ELEVATION,
+      ORBIT_MAX_ELEVATION
+    ),
     radius: Math.max(0.1, o.radius),
   }
 }
@@ -138,25 +173,61 @@ export function orbitOf(p: OrbitVec3): Orbit {
 }
 
 /**
+ * One axis of the rubber band: how far past a limit an overshoot SHOWS.
+ *
+ * `max · (1 - e^(-over/max))`. Three properties earn it over a linear scale
+ * with a cap: it starts at 1:1 so small overshoots feel like nothing unusual,
+ * it stiffens smoothly rather than hitting a second hard stop, and it asymptotes
+ * — pull as far as you like and the panel never runs away.
+ */
+export function rubberBand(over: number, max = ORBIT_RUBBER_BAND): number {
+  if (!(max > 0) || !Number.isFinite(over)) return 0
+  const sign = over < 0 ? -1 : 1
+  return sign * max * (1 - Math.exp(-Math.abs(over) / max))
+}
+
+/**
+ * A seat for LIVE DRAG feedback: inside the band it is exact, outside it
+ * stretches and stiffens.
+ *
+ * Pair it with `clampOrbit` on release — that is what makes it a band rather
+ * than a bigger box. A panel must never come to rest out here, because out here
+ * is where its own recovery buttons are hard to reach.
+ */
+export function bandOrbit(o: Orbit): Orbit {
+  const soften = (v: number, lo: number, hi: number) =>
+    v > hi ? hi + rubberBand(v - hi) : v < lo ? lo + rubberBand(v - lo) : v
+  return {
+    azimuthDeg: soften(o.azimuthDeg, -ORBIT_MAX_AZIMUTH, ORBIT_MAX_AZIMUTH),
+    elevationDeg: soften(
+      o.elevationDeg,
+      ORBIT_MIN_ELEVATION,
+      ORBIT_MAX_ELEVATION
+    ),
+    radius: Math.max(0.1, o.radius),
+  }
+}
+
+/**
  * Where a pointing direction puts the panel, at the radius it already has.
  *
  * This is the drag: the panel goes where you point, and the radius comes from
  * where it already was rather than from how far away you happened to aim. The
  * direction need not be unit-length; a zero direction leaves the seat alone,
  * because a controller reporting nothing should not fling the panel to a corner.
+ *
+ * ⚠️ RAW — neither clamped nor banded, because only the caller knows which it
+ * wants. `bandOrbit` while the hand is down, `clampOrbit` when it lets go.
  */
-export function orbitFromDirection(
-  dir: OrbitVec3,
-  current: Orbit
-): Orbit {
+export function orbitFromDirection(dir: OrbitVec3, current: Orbit): Orbit {
   const len = Math.hypot(dir.x, dir.y, dir.z)
-  if (!Number.isFinite(len) || len < 1e-9) return clampOrbit(current)
+  if (!Number.isFinite(len) || len < 1e-9) return { ...current }
   const seat = orbitOf(dir)
-  return clampOrbit({
+  return {
     azimuthDeg: seat.azimuthDeg,
     elevationDeg: seat.elevationDeg,
     radius: current.radius,
-  })
+  }
 }
 
 /**

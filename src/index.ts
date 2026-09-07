@@ -594,6 +594,9 @@ bare nouns stay namespaced-by-prefix rather than exported as `centre`/`position`
 */
 export {
   ORBIT_MAX_AZIMUTH,
+  ORBIT_RUBBER_BAND,
+  bandOrbit,
+  rubberBand,
   ORBIT_MAX_ELEVATION,
   ORBIT_MIN_ELEVATION,
   angularHeight,

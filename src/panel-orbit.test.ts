@@ -3,6 +3,9 @@ import {
   ORBIT_MAX_AZIMUTH,
   ORBIT_MAX_ELEVATION,
   ORBIT_MIN_ELEVATION,
+  ORBIT_RUBBER_BAND,
+  rubberBand,
+  bandOrbit,
   clampOrbit,
   orbitClampedBy,
   orbitFromDirection,
@@ -99,13 +102,84 @@ describe('the drag rides the sphere', () => {
     )
   })
 
-  test('a drag never leaves the reachable band', () => {
-    // Straight behind you, which is where an unclamped drag would happily go.
+  test('it reports the RAW seat — the caller decides band or clamp', () => {
+    /*
+    Only the caller knows which it wants: `bandOrbit` while the hand is down so
+    the panel keeps following you, `clampOrbit` when it lets go so it cannot
+    come to rest somewhere its own recovery buttons are hard to reach. Clamping
+    here would have made the first impossible.
+    */
     const behind = orbitFromDirection({ x: 0, y: 0, z: -1 }, seat(0, 0, 2))
-    expect(Math.abs(behind.azimuthDeg)).toBeLessThanOrEqual(ORBIT_MAX_AZIMUTH)
-    // Straight up, where azimuth is undefined and a drag would spin it.
-    const overhead = orbitFromDirection({ x: 0, y: 1, z: 0 }, seat(0, 0, 2))
-    expect(overhead.elevationDeg).toBeLessThanOrEqual(ORBIT_MAX_ELEVATION)
+    expect(Math.abs(behind.azimuthDeg)).toBeGreaterThan(ORBIT_MAX_AZIMUTH)
+    // ...and both dispositions are one call away.
+    expect(Math.abs(clampOrbit(behind).azimuthDeg)).toBe(ORBIT_MAX_AZIMUTH)
+    expect(Math.abs(bandOrbit(behind).azimuthDeg)).toBeGreaterThan(
+      ORBIT_MAX_AZIMUTH
+    )
+  })
+})
+
+describe('the rubber band — resistance, not a wider box', () => {
+  /*
+  A hard stop is the right RESTING behaviour and the wrong LIVE one: the panel
+  simply stops following your hand, which reads as a dropped drag rather than a
+  limit. In a headset the only feedback is what you can see, so there is nothing
+  else to tell you which it was.
+
+    Tonio: "It could follow you and rubber band back."
+  */
+
+  test('inside the band nothing is softened at all', () => {
+    const ok = seat(40, -20, 1.4)
+    expect(bandOrbit(ok)).toEqual(ok)
+  })
+
+  test('it starts 1:1, so a small overshoot feels like nothing unusual', () => {
+    expect(rubberBand(0.5)).toBeCloseTo(0.5, 1)
+  })
+
+  test('it stiffens — twice the pull is less than twice the stretch', () => {
+    expect(rubberBand(20)).toBeLessThan(2 * rubberBand(10))
+  })
+
+  test('and it never runs away, however hard you pull', () => {
+    // Strictly under while there is still stretch left...
+    expect(rubberBand(40)).toBeLessThan(ORBIT_RUBBER_BAND)
+    // ...and asymptotic beyond that (far enough out it rounds to the limit in
+    // floating point, which is the correct answer, not a leak).
+    for (const over of [400, 4000, 1e6]) {
+      expect(rubberBand(over)).toBeLessThanOrEqual(ORBIT_RUBBER_BAND)
+    }
+    expect(rubberBand(1e6)).toBeCloseTo(ORBIT_RUBBER_BAND, 6)
+  })
+
+  test('it is symmetric — the floor stretches like the ceiling', () => {
+    expect(rubberBand(-30)).toBeCloseTo(-rubberBand(30), 9)
+  })
+
+  test('a banded seat is bounded by limit + band, on both axes', () => {
+    const far = bandOrbit(seat(900, -900))
+    expect(far.azimuthDeg).toBeLessThanOrEqual(
+      ORBIT_MAX_AZIMUTH + ORBIT_RUBBER_BAND
+    )
+    expect(far.azimuthDeg).toBeGreaterThan(ORBIT_MAX_AZIMUTH)
+    expect(far.elevationDeg).toBeGreaterThanOrEqual(
+      ORBIT_MIN_ELEVATION - ORBIT_RUBBER_BAND
+    )
+    expect(far.elevationDeg).toBeLessThan(ORBIT_MIN_ELEVATION)
+  })
+
+  test('the band is NOT a resting place — clamp still holds the limit', () => {
+    // The property that makes it a band rather than a bigger box. If these ever
+    // agreed, a panel could be let go behind your shoulder.
+    const stretched = bandOrbit(seat(900, 900))
+    expect(clampOrbit(stretched).azimuthDeg).toBe(ORBIT_MAX_AZIMUTH)
+    expect(clampOrbit(stretched).elevationDeg).toBe(ORBIT_MAX_ELEVATION)
+  })
+
+  test('nonsense stretches nowhere', () => {
+    expect(rubberBand(NaN)).toBe(0)
+    expect(rubberBand(10, 0)).toBe(0)
   })
 })
 
