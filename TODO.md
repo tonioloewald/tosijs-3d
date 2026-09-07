@@ -777,6 +777,18 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Hoist the happy-dom bootstrap into a `bunfig.toml` preload.** The
+global-install block is copy-pasted into 57 test files (`const win = new
+Window()`, the `Object.getOwnPropertyNames` loop, the `?? =` fallbacks). There is
+no `bunfig.toml`, so Bun's one-line `[test] preload` is unused, and a happy-dom
+major — it is pinned `^20.10.6` — or any improvement to the bootstrap is a
+57-file edit. Add `bunfig.toml` with `preload = ["./src/test-setup.ts"]` holding
+it once, then drop the copies opportunistically rather than in one sweep. Found
+by the 0.8.1 third gate; deliberately NOT done at the gate, because rewriting
+the test harness the gate is reading is not a thing to do between a BLOCK and a
+tag.
+
+
 [ ] **Triage 18 stale `UPSTREAM.md` Open rows** (11 found by the 0.7.7 step-5a0
 sweep 2026-09-02; re-swept at the 0.8.1 gate 2026-09-06 and it had grown to 18).
 These reference issues upstream has since CLOSED, so the table currently asserts

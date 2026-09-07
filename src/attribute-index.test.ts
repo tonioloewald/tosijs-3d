@@ -45,6 +45,44 @@ describe('coverage', () => {
   })
 })
 
+describe('documentation coverage only goes UP', () => {
+  /*
+  A RATCHET, because every other assertion here is satisfied by losing prose.
+
+  `undocumented attributes still appear, as a visible gap` asserts the
+  undocumented count is above zero — so silencing a doc makes it MORE true. The
+  0.8.1 gate found exactly that: one legend table at the top of `b3d-lamp` cost
+  three elements their whole attribute table, and nothing failed. It is guarded
+  now by hand-picked lamp witnesses, which is the pattern the invariants file's
+  own header condemns.
+
+  So: a floor over the corpus. Raise the numbers when the docs improve; never
+  lower them to make a build pass, which is the one move that would make this
+  worthless.
+  */
+
+  const all = index.flatMap((e) => e.attributes)
+
+  test('at least 560 attributes carry prose', () => {
+    // 564 at 0.8.1.
+    expect(
+      all.filter((a) => a.description != null).length
+    ).toBeGreaterThanOrEqual(560)
+  })
+
+  test('at least 570 carry a default', () => {
+    // 576 at 0.8.1.
+    expect(all.filter((a) => a.default != null).length).toBeGreaterThanOrEqual(
+      570
+    )
+  })
+
+  test('and the corpus itself has not shrunk', () => {
+    // Without this the ratchets above could be met by an index of 570 entries.
+    expect(all.length).toBeGreaterThanOrEqual(820)
+  })
+})
+
 describe('the searches that were failing', () => {
   test('#44 — one grep for "water" surfaces `submersible`', () => {
     // The exact miss: submersible shipped 2026-08-19 and was documented in the

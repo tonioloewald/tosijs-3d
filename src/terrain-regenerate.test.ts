@@ -279,3 +279,108 @@ describe('regenerate() is still the unbounded one', () => {
     expect(t.builds).toBe(paid)
   })
 })
+
+describe('a retained tile must be the cell it claims to be', () => {
+  /*
+  B1 OF THE THIRD GATE, and the hole in the M6 fix above.
+
+  `cellKeyNum(level, gx, gz)` does NOT include the tile SIZE, so after a
+  `tileSize` or `horizScale` change an old cell key-matches a desired cell that
+  is a different size in a different place. The placed-match branch copied only
+  `priority`, `covered.add(k)` then suppressed the blank that would have filled
+  the true location, and `generateTileMesh` re-cut from the stale cell — so the
+  world came out gapped and at the wrong scale, and the streamer reported zero
+  backlog. It never used to happen because every generation change went through
+  `clearPool()`, which retains nothing.
+
+  Reachable from shipped code with nobody's help: `horizScale` is in
+  `terrainEditor3d`'s always-visible shape group and `tileSize` is in its
+  advanced group, and that editor writes attributes directly.
+
+  The invariant, asserted rather than the symptom: a placed cell's size is its
+  base size doubled per LOD level, and its centre is its grid index times that
+  size. Anything that reshapes the grid in future breaks this too, without
+  anyone remembering to add it to a list.
+  */
+
+  const wrongCells = (t: ReturnType<typeof terrain>) => {
+    const a = t.el
+    const base = a.tileSize * (a.horizScale || 1)
+    return t.pool
+      .filter((p: any) => p.cell != null)
+      .filter((p: any) => {
+        const want = base * 2 ** p.cell.level
+        return (
+          Math.abs(p.cell.tileSize - want) > 1e-6 ||
+          Math.abs(p.cell.cx - (p.cell.gx + 0.5) * want) > 1e-6 ||
+          Math.abs(p.cell.cz - (p.cell.gz + 0.5) * want) > 1e-6
+        )
+      })
+  }
+
+  const settle = (t: ReturnType<typeof terrain>) => {
+    for (let i = 0; i < 400 && t.stale > 0; i++) t.idleFrame()
+  }
+
+  test('the world starts consistent, so the check means something', () => {
+    const t = terrain()
+    expect(wrongCells(t)).toHaveLength(0)
+  })
+
+  test('tileSize — every retained tile is re-cut at the new size and place', () => {
+    const t = terrain()
+    t.set({ tileSize: 40 })
+    t.frame()
+    settle(t)
+    expect(wrongCells(t)).toHaveLength(0)
+  })
+
+  test('horizScale — the same, through the other grid-shaping attribute', () => {
+    const t = terrain({ tileSize: 80, lodLevels: 5 })
+    t.set({ horizScale: 2 })
+    t.frame()
+    settle(t)
+    expect(wrongCells(t)).toHaveLength(0)
+  })
+
+  test('a drag of many small steps settles consistent, not just one jump', () => {
+    // How the slider actually arrives: a change per frame, each retaining
+    // tiles the previous one had not finished re-cutting.
+    const t = terrain()
+    for (let i = 0; i < 12; i++) {
+      t.set({ tileSize: 20 + i * 2 })
+      t.frame()
+    }
+    settle(t)
+    expect(wrongCells(t)).toHaveLength(0)
+  })
+
+  test('the budgeted and unbounded paths agree about what the world is', () => {
+    /*
+    The property that makes `regenerate()` a legitimate alternative rather than
+    a second implementation. They disagreed: `regenerate()` gave 0 wrong cells
+    and the render path gave 74 of 80.
+    */
+    const viaRender = terrain()
+    viaRender.set({ tileSize: 40 })
+    viaRender.frame()
+    settle(viaRender)
+
+    const viaApi = terrain()
+    viaApi.set({ tileSize: 40 })
+    viaApi.el.regenerate()
+
+    expect(wrongCells(viaRender)).toHaveLength(0)
+    expect(wrongCells(viaApi)).toHaveLength(0)
+    expect(viaRender.placed).toBe(viaApi.placed)
+  })
+
+  test('and it does not claim to be finished while it is not', () => {
+    // The part that made it invisible: `stale` went back to 0, so every
+    // "has it settled?" check said yes over a broken world.
+    const t = terrain()
+    t.set({ tileSize: 40 })
+    t.frame()
+    expect(t.stale).toBeGreaterThan(0)
+  })
+})

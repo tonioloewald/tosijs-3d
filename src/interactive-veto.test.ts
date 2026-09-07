@@ -168,6 +168,32 @@ describe('a scripted activate() and its reach veto', () => {
     mesh.dispose()
   })
 
+  test('operableFor answers for the path operable cannot see', () => {
+    /*
+    The other half of the inspection fix. With no pointer on it, `operable`
+    knows no distance and a reach veto blocks — while `useNearest`, which
+    MEASURES the distance, opens that same door. Nothing in the behaviour knows
+    where the actor is standing, so the caller has to say, and `operableFor` is
+    where it says it.
+    */
+    const { behavior, mesh } = makeDoor('operable-for')
+    behavior.vetoes.push(REACH_VETO)
+
+    // Unhovered: still blocked, and deliberately so.
+    expect(behavior.operable).toBe(false)
+
+    // But the walk-up-and-press-E path agrees with itself now.
+    expect(behavior.operableFor({ source: 'near', distance: 1 })).toBe(true)
+    expect(behavior.activate({ source: 'near', distance: 1 })).toBe(true)
+
+    // And a genuine refusal is still a refusal.
+    expect(behavior.operableFor({ distance: 9 })).toBe(false)
+    expect(behavior.activate({ distance: 9 })).toBe(false)
+
+    behavior.dispose()
+    mesh.dispose()
+  })
+
   test('a veto that ignores its argument is unaffected', () => {
     let locked = true
     const { behavior, mesh } = makeDoor('legacy')

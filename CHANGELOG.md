@@ -50,7 +50,15 @@ Nothing breaks at compile time. Two behaviours change, and
 
 ### Fixed
 
-- **A terrain attribute change no longer rebuilds the whole world every frame.**
+- **`operable` contradicted `useNearest` on the same door.** With no pointer on
+  it the getter knows no distance, so a reach veto blocks — while `useNearest`,
+  which measures the distance itself, opens that same door 1 m away. Nothing in
+  the behaviour knows where your actor is standing, so `operableFor(info)` is
+  the question to ask for a "press E" prompt; it runs the same veto pass as
+  `activate()`, so a check and the act cannot disagree.
+
+- **A terrain attribute change no longer rebuilds the whole world every frame,
+  and a retained tile is the cell it claims to be.**
   tosijs queues one render per animation frame and `slider3d` writes on every
   pointer move, so an attribute-driven rebuild that cleared the tile pool and
   refilled it unbounded cost a FULL rebuild per frame for as long as you dragged
@@ -60,6 +68,15 @@ Nothing breaks at compile time. Two behaviours change, and
   so the world morphs instead of blinking out. `regenerate()` keeps its
   documented unbounded behaviour, and now adopts the generation key so "set the
   attributes, then call `regenerate()`" stops paying for two rebuilds.
+
+  Retaining tiles rather than clearing them exposed a second thing: a tile's
+  key is `(level, gx, gz)` and says nothing about SIZE or PLACE, so after a
+  `tileSize`/`horizScale` change an old tile key-matched a desired cell that was
+  a different size somewhere else — and the world came out gapped and
+  wrong-scale while the streamer reported itself finished. A retained tile now
+  adopts the whole desired cell and marks itself stale when its geometry moved,
+  so the two rebuild paths agree about what the world is.
+
 - **`disposeMeshTree` could dispose a texture a library model was still
   drawing.** The material guard asks `scene.meshes` and was right; the texture
   guard asked `scene.materials`, which cannot see a library-instantiated model's
@@ -159,6 +176,14 @@ Nothing breaks at compile time. Two behaviours change, and
   editor no longer follows you between demos (from the 0.8.0 headset pass).
 
 ### Added
+
+- **`budgetedReach(reach, tileSize)` and `MAX_TILES_ACROSS` are exported from
+  `tosijs-3d/terrain-grid`**, so a UI can clamp its own slider against the same
+  limit `<tosi-b3d-terrain>` enforces rather than guessing. `reach` × `tileSize`
+  is the footgun and neither looks dangerous alone: reach 5000 at tileSize 10 is
+  a million finest tiles, which is the slider that killed a tab (#66) and got
+  capped at "400 m" as a guess. Pure, no scene needed. The element's own
+  `_budgetedReach` is now a call to it, so they cannot drift.
 
 - **A manipulator — translate, rotate and scale handles you can grab** (#38),
   ported from `tosijs-3d-ensemble` where it was shaken out against real

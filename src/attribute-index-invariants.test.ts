@@ -63,12 +63,104 @@ function attributesByClass(): Map<string, Set<string>> {
   return out
 }
 
-describe('the attribute index agrees with the compiler', () => {
-  const index = buildIndex()
-  const byClass = attributesByClass()
-  /** Every name declared anywhere in the corpus. */
-  const declaredAnywhere = new Set([...byClass.values()].flatMap((s) => [...s]))
+const index = buildIndex()
+const byClass = attributesByClass()
+/** Every name declared anywhere in the corpus. */
+const declaredAnywhere = new Set([...byClass.values()].flatMap((s) => [...s]))
 
+/*
+ONE COPY OF THE HERITAGE MACHINERY, read by BOTH directions.
+
+It used to live inside the over-report test, so the under-report test built a
+`classForTag` map it never read (`void keys` in the loop body) and fell back to
+asserting three hand-picked elements carry `x/y/z/rx/ry/rz`. Both surviving
+invariants then iterated `element.attributes`, which a SMALLER index can only
+make pass — so the guard hardened after two attribute-index blockers could not
+catch its own class. A scope regression confined to one multi-class file left
+the corpus floors intact, the golden file regenerated against the same broken
+generator, and the suite green.
+
+Directional guards need their opposite. This is the opposite.
+*/
+const heritage = new Map<string, string[]>()
+for (const file of readdirSync(SRC)) {
+  if (!file.endsWith('.ts') || file.endsWith('.test.ts')) continue
+  const path = join(SRC, file)
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true
+  )
+  source.forEachChild((node) => {
+    if (!ts.isClassDeclaration(node) || node.name == null) return
+    const bases: string[] = []
+    for (const clause of node.heritageClauses ?? []) {
+      for (const t of clause.types) bases.push(t.expression.getText())
+    }
+    for (const member of node.members) {
+      if (
+        ts.isPropertyDeclaration(member) &&
+        member.name?.getText() === 'initAttributes' &&
+        member.initializer != null &&
+        ts.isObjectLiteralExpression(member.initializer)
+      ) {
+        for (const prop of member.initializer.properties) {
+          if (!ts.isSpreadAssignment(prop)) continue
+          const m = /(\w+)\.initAttributes/.exec(prop.expression.getText())
+          if (m != null) bases.push(m[1])
+        }
+      }
+    }
+    heritage.set(node.name.text, bases)
+  })
+}
+
+const reachable = (name: string, seen = new Set<string>()): Set<string> => {
+  const out = new Set<string>()
+  if (seen.has(name)) return out
+  seen.add(name)
+  for (const k of byClass.get(name) ?? []) out.add(k)
+  for (const base of heritage.get(name) ?? []) {
+    for (const k of reachable(base, seen)) out.add(k)
+  }
+  return out
+}
+
+// The class an element entry came from, by its tag.
+const classForTag = new Map<string, string>()
+for (const file of readdirSync(SRC)) {
+  if (!file.endsWith('.ts') || file.endsWith('.test.ts')) continue
+  const path = join(SRC, file)
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true
+  )
+  source.forEachChild((node) => {
+    if (!ts.isClassDeclaration(node) || node.name == null) return
+    for (const member of node.members) {
+      if (
+        ts.isPropertyDeclaration(member) &&
+        member.name?.getText() === 'preferredTagName' &&
+        member.initializer != null
+      ) {
+        classForTag.set(
+          member.initializer.getText().replace(/^['"]|['"]$/g, ''),
+          node.name!.text
+        )
+      }
+    }
+  })
+}
+
+/** Every tagged element paired with the class the index entry came from. */
+const taggedElements = index
+  .filter((e) => e.tag != null && classForTag.has(e.tag))
+  .map((e) => ({ element: e, className: classForTag.get(e.tag!)! }))
+
+describe('the attribute index agrees with the compiler', () => {
   test('the AST finds the corpus at all — a guard on the guard', () => {
     // If this parser silently found nothing, every assertion below would pass
     // vacuously, which is the failure mode this whole file exists to end.
@@ -107,79 +199,6 @@ describe('the attribute index agrees with the compiler', () => {
     `AbstractMesh`) but is not reachable from `B3dFog`, which extends
     `B3dChild`.
     */
-    const heritage = new Map<string, string[]>()
-    for (const file of readdirSync(SRC)) {
-      if (!file.endsWith('.ts') || file.endsWith('.test.ts')) continue
-      const path = join(SRC, file)
-      const source = ts.createSourceFile(
-        path,
-        readFileSync(path, 'utf8'),
-        ts.ScriptTarget.Latest,
-        true
-      )
-      source.forEachChild((node) => {
-        if (!ts.isClassDeclaration(node) || node.name == null) return
-        const bases: string[] = []
-        for (const clause of node.heritageClauses ?? []) {
-          for (const t of clause.types) bases.push(t.expression.getText())
-        }
-        for (const member of node.members) {
-          if (
-            ts.isPropertyDeclaration(member) &&
-            member.name?.getText() === 'initAttributes' &&
-            member.initializer != null &&
-            ts.isObjectLiteralExpression(member.initializer)
-          ) {
-            for (const prop of member.initializer.properties) {
-              if (!ts.isSpreadAssignment(prop)) continue
-              const m = /(\w+)\.initAttributes/.exec(prop.expression.getText())
-              if (m != null) bases.push(m[1])
-            }
-          }
-        }
-        heritage.set(node.name.text, bases)
-      })
-    }
-
-    const reachable = (name: string, seen = new Set<string>()): Set<string> => {
-      const out = new Set<string>()
-      if (seen.has(name)) return out
-      seen.add(name)
-      for (const k of byClass.get(name) ?? []) out.add(k)
-      for (const base of heritage.get(name) ?? []) {
-        for (const k of reachable(base, seen)) out.add(k)
-      }
-      return out
-    }
-
-    // The class an element entry came from, by its tag.
-    const classForTag = new Map<string, string>()
-    for (const file of readdirSync(SRC)) {
-      if (!file.endsWith('.ts') || file.endsWith('.test.ts')) continue
-      const path = join(SRC, file)
-      const source = ts.createSourceFile(
-        path,
-        readFileSync(path, 'utf8'),
-        ts.ScriptTarget.Latest,
-        true
-      )
-      source.forEachChild((node) => {
-        if (!ts.isClassDeclaration(node) || node.name == null) return
-        for (const member of node.members) {
-          if (
-            ts.isPropertyDeclaration(member) &&
-            member.name?.getText() === 'preferredTagName' &&
-            member.initializer != null
-          ) {
-            classForTag.set(
-              member.initializer.getText().replace(/^['"]|['"]$/g, ''),
-              node.name!.text
-            )
-          }
-        }
-      })
-    }
-
     const unreachable: string[] = []
     for (const element of index) {
       if (element.tag == null) continue
@@ -196,32 +215,30 @@ describe('the attribute index agrees with the compiler', () => {
   })
 
   test('no element UNDER-reports — it lists everything reachable', () => {
-    // The other direction, which the earlier absence-only tests could not see:
-    // a generator that silently drops a base still satisfies every "does not
-    // contain" assertion. This is what the missing `extends` edge broke.
-    const classForTag = new Map<string, string>()
-    for (const element of index) {
-      if (element.tag == null) continue
-      for (const [cls, keys] of byClass) {
-        void keys
-        if (element.attributes.some((a) => byClass.get(cls)?.has(a.name))) {
-          classForTag.set(element.tag, cls)
-        }
+    /*
+    The other direction, and the one the earlier absence-only tests could not
+    see: a generator that silently drops a base still satisfies every "does not
+    contain" assertion. That is what the missing `extends` edge broke, and what
+    a scope regression in the parser would do next.
+
+    Corpus-wide set equality against the AST, not a witness. Three hand-picked
+    elements carrying `x/y/z/rx/ry/rz` was a floor a 21-attribute regression
+    walked straight under.
+    */
+    const missing: string[] = []
+    for (const { element, className } of taggedElements) {
+      const listed = new Set(element.attributes.map((a) => a.name))
+      for (const name of reachable(className)) {
+        if (!listed.has(name)) missing.push(`${element.tag}: ${name}`)
       }
     }
-    // A cheap, robust floor: every tagged element that spreads a base must list
-    // the positional attributes, and there are more than fifty of them.
-    const positional = ['x', 'y', 'z', 'rx', 'ry', 'rz']
-    const controllables = index.filter((e) =>
-      ['tosi-b3d-aircraft', 'tosi-b3d-biped', 'tosi-b3d-car'].includes(
-        e.tag ?? ''
-      )
-    )
-    expect(controllables.length).toBe(3)
-    for (const element of controllables) {
-      const names = element.attributes.map((a) => a.name)
-      for (const attr of positional) expect(names).toContain(attr)
-    }
+    expect(missing).toEqual([])
+  })
+
+  test('...over the WHOLE corpus, not a handful of witnesses', () => {
+    // The floor that makes the test above mean something: if `classForTag`
+    // stopped resolving, the loop would run over nothing and pass silently.
+    expect(taggedElements.length).toBeGreaterThan(50)
   })
 })
 

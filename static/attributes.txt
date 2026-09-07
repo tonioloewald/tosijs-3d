@@ -822,7 +822,7 @@ b3d-terrain
   poolSize  = auto  — Shared tile budget; the pool renders the top-priority cells (`auto` = device tier)
   fillBudget  = auto  — Max tiles (re)built per frame — a churn backstop (`auto` = device tier)
   splitFactor  = 2  — LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize`
-  reach  = 0  — Terrain radius (0 = auto from the coarsest tile)
+  reach  = 0  — Terrain radius (0 = auto from the coarsest tile). Clamped against `tileSize` — the product is the footgun. Import `budgetedReach` from `tosijs-3d/terrain-grid` to clamp a slider against the same limit
   grossScale  = 0.015  — Gross noise frequency — a RECIPROCAL wavelength, so SMALL numbers make BIG landforms (0.015 ≈ 65m features before `horizScale`)
   detailScale  = 0.09  — Detail noise frequency, same units
   horizScale  = 1  — Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change)
