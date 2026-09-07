@@ -587,6 +587,25 @@ export {
   abruptEdge,
 } from './curve.js'
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js'
+/*
+Spatial-panel placement. `Orbit`/`orbitPosition`/`orbitOf` are the seat, and the
+bare nouns stay namespaced-by-prefix rather than exported as `centre`/`position`
+— see CLAUDE.md on common nouns leaking from the barrel.
+*/
+export {
+  ORBIT_MAX_AZIMUTH,
+  ORBIT_MAX_ELEVATION,
+  ORBIT_MIN_ELEVATION,
+  angularHeight,
+  clampOrbit,
+  orbitCentre,
+  orbitClampedBy,
+  orbitFromDirection,
+  orbitOf,
+  orbitPosition,
+  type Orbit,
+  type OrbitVec3,
+} from './panel-orbit.js'
 // Serialisation contract with tosijs-3d-ensemble (#61): plain JSON, canonical
 // bytes, a validator that never throws, and a schema fragment to dispatch on.
 export {

@@ -2361,6 +2361,14 @@ export function panel3d(
      * divergence UI-DESIGN-NOTES warns about.
      */
     header?: Widget3d[]
+    /**
+     * Draw a grab bar in the top padding strip and report `gripHeight`.
+     *
+     * The panel does not act on it — the HOST does, because what a drag means
+     * depends on where the panel lives (in a headset `tosi-b3d` orbits it
+     * around the rig anchor; a DOM overlay would move it in the page).
+     */
+    grip?: boolean
   },
   ...widgets: Widget3d[]
 ): SVGSVGElement {
@@ -3038,6 +3046,11 @@ export function panel3d(
   // Whether the panel can scroll (content overflows) — so a host knows to route a
   // stick to it rather than to locomotion.
   ;(root as unknown as { scrollable: boolean }).scrollable = scrollable
+  // Where the grab bar is, in viewBox units. `0` when there is no grip, so a
+  // host can test it without knowing whether it asked for one.
+  ;(root as unknown as { gripHeight: number }).gripHeight = config.grip
+    ? paddingTop
+    : 0
   /*
   What the panel contains versus what it can show.
   
@@ -3328,6 +3341,32 @@ export function panel3d(
   root.appendChild(clipWrap)
   // After the body, so the pinned block paints over anything that reaches it.
   if (headerWidgets.length > 0) root.appendChild(headerGroup)
+  /*
+  A GRIP, in the top padding strip that was already reserved.
+
+  `paddingTop` exists so the first row clears the × close button, so the band is
+  there whether or not anything is drawn in it. Drawing a grab bar costs no
+  layout and makes the drag DISCOVERABLE, which a spatial panel badly needs —
+  there is no cursor to change shape and no tooltip to hover.
+
+  The host decides what a drag there means (`tosi-b3d` orbits the panel around
+  its rig anchor); this only says where the handle is, via `gripHeight` on the
+  element.
+  */
+  if (config.grip) {
+    const gw = Math.min(64, innerW * 0.25)
+    root.appendChild(
+      rect({
+        x: (width - gw) / 2,
+        y: Math.max(4, paddingTop / 2 - 2),
+        width: gw,
+        height: 4,
+        rx: 2,
+        fill: TH.MUTED,
+        opacity: 0.55,
+      })
+    )
+  }
   if (scrollable) {
     root.appendChild(railTrack)
     root.appendChild(railThumb)
