@@ -45,6 +45,12 @@ export declare class B3dInteractive extends B3dChild {
     get hovered(): boolean;
     /** True when nothing refuses an activation — i.e. using it would do something. */
     get operable(): boolean;
+    /**
+     * Would an activation carrying this info fire? See
+     * `InteractiveBehavior.operableFor` — this is the question to ask for a
+     * "press E" prompt, because `operable` knows no distance without a pointer.
+     */
+    operableFor(info?: Partial<InteractionInfo>): boolean;
     /** Use it without pointing at it (a key press, an NPC, a test). */
     activate(info?: Partial<InteractionInfo>): boolean;
     /**

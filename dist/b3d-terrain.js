@@ -232,7 +232,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `fillBudget` | `auto` | Max tiles (re)built per frame — a churn backstop (`auto` = device tier) |
 | `tileBuildMs` | `auto` | **Milliseconds of tile building allowed per frame** — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile's cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (`auto` = device tier) |
 | `splitFactor` | `2` | LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize` |
-| `reach` | `0` | Terrain radius (0 = auto from the coarsest tile) |
+| `reach` | `0` | Terrain radius (0 = auto from the coarsest tile). Clamped against `tileSize` — the product is the footgun. Import `budgetedReach` from `tosijs-3d/terrain-grid` to clamp a slider against the same limit |
 | `grossScale` | `0.015` | Gross noise frequency — a RECIPROCAL wavelength, so SMALL numbers make BIG landforms (0.015 ≈ 65m features before `horizScale`) |
 | `detailScale` | `0.09` | Detail noise frequency, same units |
 | `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
@@ -1113,15 +1113,46 @@ export class B3dTerrain extends B3dChild {
                 const k = cellKeyNum(t.cell.level, t.cell.gx, t.cell.gz);
                 const want = desiredByKey.get(k);
                 if (want) {
-                    t.cell.priority = want.priority; // refresh (direction/motion changed)
+                    /*
+                    A KEY MATCH IS NOT AN IDENTITY MATCH.
+          
+                    `cellKeyNum` is (level, gx, gz) — it says nothing about SIZE or
+                    PLACE, and `tileSize`/`horizScale` change both while leaving the key
+                    alone. So a retained tile must ADOPT the desired cell, not just
+                    refresh its priority.
+          
+                    Copying only `priority` (which is what this did) meant the tile kept
+                    its old size and old world position, `covered` then suppressed the
+                    blank that would have filled the true location, and `generateTileMesh`
+                    re-cut from the stale cell — a gapped, wrong-scale world that reported
+                    zero backlog. It was unreachable while every generation change went
+                    through `clearPool()`; retaining tiles is what exposed it.
+          
+                    Adopting the whole cell and deriving `stale` from what actually moved
+                    means any future grid-shaping attribute is handled here, rather than
+                    on a list somebody has to remember to extend.
+                    */
+                    const c = t.cell;
+                    if (c.tileSize !== want.tileSize ||
+                        c.cx !== want.cx ||
+                        c.cz !== want.cz) {
+                        c.tileSize = want.tileSize;
+                        c.cx = want.cx;
+                        c.cz = want.cz;
+                        t.stale = true;
+                    }
+                    c.priority = want.priority; // refresh (direction/motion changed)
                     covered.add(k);
                     placed.push(t);
-                    // Still wanted, still drawn — but the heightfield moved under it.
+                    // Still wanted, still drawn — but its geometry is out of date.
                     if (t.stale)
                         stale.push(t);
                     continue;
                 }
                 t.cell = null; // no longer desired → free it (hidden until reused)
+                // A freed tile is not stale, it is EMPTY. Leaving the flag set leaves a
+                // pool-wide "has it settled?" check unable to ever settle.
+                t.stale = false;
                 t.mesh.isVisible = false;
             }
             free.push(t);
@@ -1193,7 +1224,14 @@ export class B3dTerrain extends B3dChild {
         the world out and stream it back a handful of tiles per frame.
         */
         stale.sort((a, b) => b.cell.priority - a.cell.priority);
+        let refreshed = 0;
         for (const tile of stale) {
+            // Already re-cut this frame: the blanks loop steals from `placed`, which
+            // includes stale tiles, and a steal rebuilds the tile and clears the
+            // flag. Without this it is built TWICE — and stealing only happens when
+            // the pool is under pressure, which is exactly when the budget matters.
+            if (!tile.stale)
+                continue;
             if (budget <= 0)
                 break;
             if (built > 0 && msBudget > 0 && clock() - started >= msBudget) {
@@ -1202,13 +1240,23 @@ export class B3dTerrain extends B3dChild {
                 break;
             }
             this.generateTileMesh(tile, subs, tile.cell);
+            refreshed++;
             built++;
             budget--;
         }
-        // What we wanted and didn't get to. `busy` reads this: a frame rate measured
-        // while the ground is still arriving is a measurement of the LOADING.
-        // Stale tiles count: the ground on screen is not yet the ground you asked for.
-        this._fillBacklog = Math.max(0, blanks.length + stale.length - built);
+        /*
+        What we wanted and didn't get to. `busy` reads this, and a frame rate
+        measured while the ground is still arriving is a measurement of the LOADING.
+    
+        Stale tiles count — the ground on screen is not yet the ground you asked
+        for — but the two shortfalls are counted SEPARATELY. A single
+        `blanks + stale - built` double-counts a tile that was stolen while stale
+        (it appears in both lists and is built once), so the backlog never reached
+        zero and `busy` would have been permanently true.
+        */
+        this._fillBacklog =
+            Math.max(0, blanks.length - (built - refreshed)) +
+                Math.max(0, stale.length - refreshed);
     }
     // --- Height sampling ---
     generateTileMesh(tile, subdivisions, cell) {

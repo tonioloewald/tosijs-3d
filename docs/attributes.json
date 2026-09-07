@@ -3101,7 +3101,7 @@
       {
         "name": "reach",
         "default": "0",
-        "description": "Terrain radius (0 = auto from the coarsest tile)"
+        "description": "Terrain radius (0 = auto from the coarsest tile). Clamped against `tileSize` — the product is the footgun. Import `budgetedReach` from `tosijs-3d/terrain-grid` to clamp a slider against the same limit"
       },
       {
         "name": "grossScale",

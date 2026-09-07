@@ -93,7 +93,15 @@ target by construction.</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li><p><strong>A terrain attribute change no longer rebuilds the whole world every frame.</strong>
+<li><p><strong><code>operable</code> contradicted <code>useNearest</code> on the same door.</strong> With no pointer on
+it the getter knows no distance, so a reach veto blocks — while <code>useNearest</code>,
+which measures the distance itself, opens that same door 1 m away. Nothing in
+the behaviour knows where your actor is standing, so <code>operableFor(info)</code> is
+the question to ask for a &quot;press E&quot; prompt; it runs the same veto pass as
+<code>activate()</code>, so a check and the act cannot disagree.</p>
+</li>
+<li><p><strong>A terrain attribute change no longer rebuilds the whole world every frame,
+and a retained tile is the cell it claims to be.</strong>
 tosijs queues one render per animation frame and <code>slider3d</code> writes on every
 pointer move, so an attribute-driven rebuild that cleared the tile pool and
 refilled it unbounded cost a FULL rebuild per frame for as long as you dragged
@@ -103,6 +111,13 @@ the pool stale and re-cuts under the ordinary <code>fillBudget</code>/<code>tile
 so the world morphs instead of blinking out. <code>regenerate()</code> keeps its
 documented unbounded behaviour, and now adopts the generation key so &quot;set the
 attributes, then call <code>regenerate()</code>&quot; stops paying for two rebuilds.</p>
+<p>Retaining tiles rather than clearing them exposed a second thing: a tile&#39;s
+key is <code>(level, gx, gz)</code> and says nothing about SIZE or PLACE, so after a
+<code>tileSize</code>/<code>horizScale</code> change an old tile key-matched a desired cell that was
+a different size somewhere else — and the world came out gapped and
+wrong-scale while the streamer reported itself finished. A retained tile now
+adopts the whole desired cell and marks itself stale when its geometry moved,
+so the two rebuild paths agree about what the world is.</p>
 </li>
 <li><p><strong><code>disposeMeshTree</code> could dispose a texture a library model was still
 drawing.</strong> The material guard asks <code>scene.meshes</code> and was right; the texture
@@ -218,6 +233,14 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</p>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p><strong><code>budgetedReach(reach, tileSize)</code> and <code>MAX_TILES_ACROSS</code> are exported from
+<code>tosijs-3d/terrain-grid</code></strong>, so a UI can clamp its own slider against the same
+limit <code>&lt;tosi-b3d-terrain&gt;</code> enforces rather than guessing. <code>reach</code> × <code>tileSize</code>
+is the footgun and neither looks dangerous alone: reach 5000 at tileSize 10 is
+a million finest tiles, which is the slider that killed a tab (#66) and got
+capped at &quot;400 m&quot; as a guess. Pure, no scene needed. The element&#39;s own
+<code>_budgetedReach</code> is now a call to it, so they cannot drift.</p>
+</li>
 <li><p><strong>A manipulator — translate, rotate and scale handles you can grab</strong> (#38),
 ported from <code>tosijs-3d-ensemble</code> where it was shaken out against real
 authoring, including on a phone. Three files on the usual split:

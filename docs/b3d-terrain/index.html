@@ -332,7 +332,7 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <tr>
 <td><code>reach</code></td>
 <td><code>0</code></td>
-<td>Terrain radius (0 = auto from the coarsest tile)</td>
+<td>Terrain radius (0 = auto from the coarsest tile). Clamped against <code>tileSize</code> — the product is the footgun. Import <code>budgetedReach</code> from <code>tosijs-3d/terrain-grid</code> to clamp a slider against the same limit</td>
 </tr>
 <tr>
 <td><code>grossScale</code></td>

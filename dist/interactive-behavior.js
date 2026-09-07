@@ -103,11 +103,37 @@ export class InteractiveBehavior {
      * Judged with what is actually KNOWN: while the pointer is on it, that is
      * this frame's real hover; otherwise it is the same unknown-distance info a
      * bare `activate()` would use, so a reach veto reads as blocking. Gate a
-     * "press E" prompt or a highlight on this and it tracks the pointer.
+     * pointer highlight on this and it tracks the pointer.
+     *
+     * ⚠️ **For a "press E" prompt, use `operableFor` instead.** With no pointer
+     * on it this getter knows no distance, so a reach veto blocks — while
+     * `useNearest`, which measures the distance itself, opens the very same door.
+     * That is not a contradiction it can resolve: nothing here knows where your
+     * actor is standing. The caller does, so the caller has to say.
      */
     get operable() {
-        return (this._enabled() &&
-            activationVeto(this.vetoes, this._inspectInfo()) == null);
+        return this.operableFor();
+    }
+    /**
+     * Would an activation carrying THIS info fire?
+     *
+     * The question `operable` cannot answer for a non-pointer path. Give it what
+     * you are about to activate with and it agrees with what happens:
+     *
+     * ```javascript
+     * const near = nearestTo(scene, player.position)
+     * if (near?.it.operableFor({ source: 'near', distance: near.distance })) {
+     *   showPrompt('Press E')
+     * }
+     * ```
+     *
+     * Same veto pass as `activate()`, so a check and the act cannot disagree.
+     */
+    operableFor(info) {
+        if (!this._enabled())
+            return false;
+        const judged = info == null ? this._inspectInfo() : this._apiInfo(info);
+        return activationVeto(this.vetoes, judged) == null;
     }
     /**
      * Use it without pointing at it — a keyboard `interact`, an NPC, a test.
