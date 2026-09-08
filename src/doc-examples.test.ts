@@ -271,3 +271,66 @@ describe('doc snippets import the library symbols they use', () => {
     expect(offenders).toEqual([])
   })
 })
+
+describe('a published MARKDOWN doc has no live fences', () => {
+  /*
+  THE GAP THIS FILE HAD: it scans `src/*.ts` doc comments and nothing else, so
+  the three markdown files in `site.config.ts`'s `docPaths` — README, Migration,
+  CHANGELOG — were unguarded. Tonio found the first block of `Migration.md`
+  running as a live example: *"this is an ongoing issue we need to fix."*
+
+  The doc system executes `.language-html`, `-js`, `-tjs`, `-ts`, `-css` and
+  `-test` (read out of `tosijs-ui/dist`). `html` is the one that surprises,
+  because it is the natural fence for illustrative markup and there is no `preview`
+  element on a reference page for it to mount into.
+
+  These three files are PROSE — a landing page, a migration guide and a version
+  history. None of them wants to run anything, so the rule is simply that none
+  of them may: the safe spellings are `javascript` for JS, `xml` for markup, and
+  `bash`/`json`/`text` for the rest. A live example belongs on a component page,
+  where the doc comment lives beside the code it demonstrates.
+  */
+
+  // Read out of the config rather than restated, so adding a doc to the site
+  // brings it under the guard automatically.
+  const published = (): string[] => {
+    const cfg = readFileSync(
+      new URL('../site.config.ts', import.meta.url).pathname,
+      'utf8'
+    )
+    const m = /docPaths:\s*\[([^\]]*)\]/.exec(cfg)
+    if (m == null) return []
+    return [...m[1].matchAll(/'([^']+\.md)'/g)].map((x) => x[1])
+  }
+
+  const LIVE = ['html', 'js', 'tjs', 'ts', 'css', 'test']
+
+  test('the config still names markdown docs — a guard on the guard', () => {
+    // If `docPaths` were renamed or reshaped this would silently check nothing,
+    // which is the failure mode the whole file exists to end.
+    expect(published().length).toBeGreaterThan(0)
+  })
+
+  test('none of them carries a fence the doc system would execute', () => {
+    const offences: string[] = []
+    for (const file of published()) {
+      const path = new URL(`../${file}`, import.meta.url).pathname
+      let src = ''
+      try {
+        src = readFileSync(path, 'utf8')
+      } catch {
+        continue // listed but absent is `site.config.ts`'s problem, not ours
+      }
+      src.split('\n').forEach((line, i) => {
+        const m = /^```([a-z]+)\s*$/.exec(line)
+        if (m != null && LIVE.includes(m[1])) {
+          offences.push(`${file}:${i + 1} \`\`\`${m[1]}`)
+        }
+      })
+    }
+    expect(
+      offences,
+      'live fence in a prose doc — use `javascript` / `xml` / `bash` instead'
+    ).toEqual([])
+  })
+})

@@ -96,7 +96,9 @@ describe('the drag rides the sphere', () => {
     // A zero direction is a dropped tracking frame, not an instruction to fling
     // the panel at a corner.
     const now = seat(30, 10, 2)
-    expect(orbitFromDirection({ x: 0, y: 0, z: 0 }, now)).toEqual(clampOrbit(now))
+    expect(orbitFromDirection({ x: 0, y: 0, z: 0 }, now)).toEqual(
+      clampOrbit(now)
+    )
     expect(orbitFromDirection({ x: NaN, y: 0, z: 1 }, now)).toEqual(
       clampOrbit(now)
     )

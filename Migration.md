@@ -30,7 +30,14 @@ it by making their world four times larger (#23).
 
 **If you relied on the old behaviour**, say so explicitly:
 
-```html
+<!--
+`xml`, NOT `html` — the doc system RUNS a ```html fence as a live example, and
+this one is illustrative markup in a reference document with no scene to mount
+into. `xml` highlights the same and stays inert. See `doc-examples.test.ts`,
+which now fails on any live-language fence in a published markdown file.
+-->
+
+```xml
 <tosi-b3d-aircraft
   gun-mode="blast"
   gun-blast-radius="1.5"
