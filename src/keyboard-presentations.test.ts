@@ -272,7 +272,7 @@ describe('the × means "put the keyboard away", in every presentation', () => {
   })
 
   const panelWithField = () => {
-    const field = kb.inputField({ label: 'name', value: 'scout' })
+    const field = kb.inputField({ value: 'scout' })
     const panel = w3d.panel3d({ width: 320, height: 400 }, field)
     // Connected, or `showLayer` finds nowhere to mount and degrades to the
     // bounded popup — a different path from the one under test.

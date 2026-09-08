@@ -315,7 +315,7 @@ describe('a published MARKDOWN doc has no live fences', () => {
     const offences: string[] = []
     for (const file of published()) {
       const path = new URL(`../${file}`, import.meta.url).pathname
-      let src = ''
+      let src: string
       try {
         src = readFileSync(path, 'utf8')
       } catch {
