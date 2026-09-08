@@ -347,3 +347,110 @@ describe('the × means "put the keyboard away", in every presentation', () => {
     expect(kb.autoKeyboardEnabled()).toBe(true)
   })
 })
+
+describe('a popup is never cropped by the panel that opened it', () => {
+  /*
+  Reported from a headset on the second `tosi-b3d` demo, whose scene panel holds
+  a `select3d` for the cube's spin:
+
+    "the pop up for speed is tiny… and it's clipped to the panel. We need pop
+     ups to be pop ups and not constrained by the thing that pops them.
+     Otherwise the user experience is terrible."
+
+  `showLayer` degrades to a popup bounded by the panel when it can find nowhere
+  to mount — which is right as a last resort and wrong as the normal case. A
+  panel rasterised onto a plane is NOT in the document, so the DOM auto-install
+  cannot fire, and unless something registers a scene layer every popup it opens
+  takes the cropped path. `panelScene` registered one; the XR settings panel
+  never did.
+
+  The rule under test is general, not about that demo: given a layer, a popup
+  goes to it and is sized by ITS OWN content rather than by the room left in the
+  panel.
+  */
+
+  const seen: Array<{ width?: number; maxHeight?: number }> = []
+  const mounted: Element[] = []
+  afterEach(() => {
+    seen.length = 0
+    for (const el of mounted.splice(0)) el.remove()
+    for (const l of document.querySelectorAll('[data-w3d-dom-layer]'))
+      l.remove()
+    kb.setAutoKeyboard(false)
+  })
+
+  /**
+   * A SHORT panel with one layer. Short is the point: it is the shape that made
+   * the fallback path crop, so if a layer did not override that the assertions
+   * below would measure the crop instead of its absence.
+   *
+   * The field is row 0 because `summon` presses the first row's glyph.
+   */
+  const cramped = () => {
+    const panel: any = w3d.panel3d(
+      { width: 320, height: 120 },
+      kb.inputField({ value: 'x' }),
+      w3d.label3d({ text: 'filler' })
+    )
+    panel.__layerHosts = [
+      (_sheet: SVGSVGElement, c: any) => {
+        seen.push({ width: c.width, maxHeight: c.maxHeight })
+        return { close: () => {} }
+      },
+    ]
+    return panel
+  }
+
+  test('with a layer, the popup is NOT capped by the room below the control', () => {
+    /*
+    `maxHeight` is the crop: the fallback path passes the height left under the
+    field, which on a short panel is the "tiny" the report describes. A real
+    layer is bounded by nothing, so it must pass none.
+    */
+    const panel = cramped()
+    summon(panel)
+    expect(seen).toHaveLength(1)
+    expect(seen[0].maxHeight).toBeUndefined()
+  })
+
+  test('and it asks for its own width, not whatever the panel had left', () => {
+    const panel = cramped()
+    summon(panel)
+    expect(seen[0].width).toBe(360)
+  })
+
+  test('WITHOUT a layer it still degrades rather than failing', () => {
+    // The fallback is a last resort, not a bug — a detached panel has genuinely
+    // nowhere to put a popup, and a cropped menu beats no menu.
+    const panel: any = w3d.panel3d(
+      { width: 320, height: 120 },
+      kb.inputField({ value: 'x' })
+    )
+    panel.__layerHosts = []
+    expect(() => summon(panel)).not.toThrow()
+  })
+
+  test('...and the in-scene panels actually REGISTER one', async () => {
+    /*
+    The wiring, which the assertions above deliberately do not cover: they
+    inject a host and prove what a host BUYS. Whether the XR settings panel
+    installs one needs Babylon and a session, which is the surface no test here
+    reaches — and it is exactly where the bug lived for the whole life of the
+    feature.
+
+    So: read the source. A structural check is weak, and it is much stronger
+    than the nothing that was guarding it.
+    */
+    const { readFileSync } = await import('node:fs')
+    for (const file of ['tosi-b3d.ts', 'b3d-svg-plane.ts']) {
+      const src = readFileSync(
+        new URL(`./${file}`, import.meta.url).pathname,
+        'utf8'
+      )
+      expect(
+        src.includes('attachSceneLayer({'),
+        `${file} opens popups from a panel on a plane and installs no layer`
+      ).toBe(true)
+    }
+  })
+})

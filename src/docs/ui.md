@@ -130,6 +130,7 @@ panel.useDomLayer(flatHost)
 <!-- toc -->
 - [widgets3d](/widgets3d/)
 - [panel-orbit](/panel-orbit/)
+- [panel-layer](/panel-layer/)
 - [box](/box/)
 - [handlerOf](/handler-of/)
 - [keyboard](/keyboard/)

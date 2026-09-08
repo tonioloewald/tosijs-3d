@@ -311,6 +311,7 @@ import {
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js'
 import { NO_WIND, gustAt, windFromPolar, type Wind } from './wind.js'
 import { faceViewer } from './dialog-placement.js'
+import { attachSceneLayer, type PopupOwner } from './panel-layer.js'
 import {
   angularHeight,
   bandOrbit,
@@ -4535,6 +4536,28 @@ export class B3d extends Component {
     // to be pointed at. No billboard (that would re-rotate it every frame). (#1)
     plane.parent = anchorFrame
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE
+
+    /*
+    POPUPS ARE POPUPS, not things cropped by the panel that opened them.
+
+    Without a layer host this panel is not in the DOM (it is rasterised to a
+    texture), so `showLayer` finds nowhere to mount and degrades to a popup
+    bounded by the panel's own viewBox. In a headset that came out as a `spin`
+    menu squeezed into the room left below its row — Tonio: "the pop up for
+    speed is tiny… and it's clipped to the panel. We need pop ups to be pop ups
+    and not constrained by the thing that pops them."
+
+    `panelScene` has had this since the keyboard needed it; the settings panel
+    never did, so every popup opened from it in VR took the cropped path. It is
+    the same call now rather than a second copy of the placement maths.
+    */
+    attachSceneLayer({
+      svg: panelEl,
+      owner: this as unknown as PopupOwner,
+      openerMesh: plane,
+      planeW: PLANE_W,
+      planeH,
+    })
 
     /** Put the panel at a seat — the one place that writes its pose. */
     const seatPanel = (seat: Orbit): void => {
