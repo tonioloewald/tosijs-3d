@@ -204,6 +204,19 @@ export interface PopupSurfaceOptions {
    */
   draggable?: boolean
   /**
+   * Told whenever this popup closes — including from its OWN × glyph.
+   *
+   * A popup shown in two presentations is ONE popup wearing two faces, and only
+   * its opener knows about the other face. Without this, pressing × on the
+   * in-scene one closed that plane and left the flat one up, and the opener
+   * still believed it had a popup open. Tonio, from a headset: "closing the
+   * keyboard using the close button doesn't close it in both contexts… it's
+   * just closing that particular panel, which is kind of weird."
+   *
+   * Fires ONCE — `close()` is idempotent.
+   */
+  handleClosed?: () => void
+  /**
    * Fraction of the panel's height that acts as the TITLE BAR — the only place
    * a drag starts. Default 0.2; `0` makes the whole panel draggable.
    *
@@ -540,6 +553,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     modal = false,
     gripHeight = 0.2,
     chrome = true,
+    handleClosed,
   } = opts
 
   const vb = svg.viewBox?.baseVal
@@ -910,6 +924,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       }
       plane.remove()
       applyModalBlocking(owner)
+      // LAST, and after `closed` is set: a handler that closes its siblings can
+      // reach back here, and must find this one already gone rather than recurse.
+      handleClosed?.()
     },
   }
 

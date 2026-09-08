@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeAll, beforeEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { Window } from 'happy-dom'
 
 /*
@@ -226,5 +233,117 @@ describe('inside a SHADOW ROOT — the ensemble topology', () => {
     // longer near the field it types into.
     const { holder } = inShadow()
     expect(holder!.style.position).toBe('absolute')
+  })
+})
+
+describe('the × means "put the keyboard away", in every presentation', () => {
+  /*
+  Reported from a headset on the kitchen sink, where a panel is shown flat AND
+  on a plane so a popup opens in both:
+
+    "closing the keyboard using the close button doesn't close it in both
+     contexts. So it's not basically toggling off the keyboard. It's just
+     closing that particular panel, which is kind of weird."
+
+    "if I bring up the keyboard in the 3d view, and then I click the close
+     button, it doesn't turn off keyboard mode. So in order to get back in the
+     keyboard, I have to click it off and click it back on again."
+
+  Two symptoms, one cause: a close that started in ONE face never reached the
+  aggregate, so the other face stayed up and the field still believed it had a
+  keyboard open. The glyph paints from the preference, so it also stayed lit
+  over a keyboard that was gone — the "button that lies" its own comment warns
+  about — and the next press flipped the preference to false instead of
+  reopening.
+  */
+
+  /*
+  Tracked and removed, because `liveKeyboard` and the DOM layers are MODULE
+  state: a panel left on the body carries its layer into the next file, and the
+  mounter tests there count `[data-w3d-dom-layer] [data-key]` across the whole
+  document. These passed alone and failed in the suite until this existed.
+  */
+  const mounted: Element[] = []
+  afterEach(() => {
+    for (const el of mounted.splice(0)) el.remove()
+    for (const l of document.querySelectorAll('[data-w3d-dom-layer]'))
+      l.remove()
+    kb.setAutoKeyboard(false)
+  })
+
+  const panelWithField = () => {
+    const field = kb.inputField({ label: 'name', value: 'scout' })
+    const panel = w3d.panel3d({ width: 320, height: 400 }, field)
+    // Connected, or `showLayer` finds nowhere to mount and degrades to the
+    // bounded popup — a different path from the one under test.
+    document.body.appendChild(panel)
+    mounted.push(panel)
+    return {
+      panel: panel as SVGSVGElement & {
+        __layerHosts?: Array<
+          (
+            sheet: SVGSVGElement,
+            config: { handleClosed?: () => void }
+          ) => { close: () => void }
+        >
+        useDomLayer: (c?: HTMLElement) => () => void
+      },
+      field,
+    }
+  }
+
+  test('a host that closes ITSELF closes every other face too', () => {
+    /*
+    The mechanism, driven directly: two faces registered, and one of them shuts
+    itself the way an in-scene × does. Both must go, and the opener must hear.
+
+    Two REAL hosts are registered before opening, which also suppresses the
+    auto-installed DOM layer — `showLayer` only volunteers one when there are
+    none, so this exercises the multi-face path rather than the fallback.
+    */
+    const { panel } = panelWithField()
+    const closed = [0, 0]
+    let selfClose: (() => void) | null = null
+    const host =
+      (i: number) =>
+      (_sheet: SVGSVGElement, c: { handleClosed?: () => void }) => {
+        if (i === 0) selfClose = () => c.handleClosed?.()
+        return { close: () => void closed[i]++ }
+      }
+    ;((panel as any).__layerHosts ??= []).push(host(0), host(1))
+
+    kb.setAutoKeyboard(false)
+    summon(panel)
+    expect(
+      selfClose,
+      'no face mounted — the keyboard never opened'
+    ).toBeTruthy()
+
+    selfClose!()
+    // BOTH faces closed, from a close that started in one of them...
+    expect(closed).toEqual([1, 1])
+    // ...and the opener heard, so the glyph is not left lit over nothing.
+    expect(kb.autoKeyboardEnabled()).toBe(false)
+  })
+
+  test('and it turns keyboard MODE off, so the glyph stops lying', () => {
+    const { panel } = panelWithField()
+    kb.setAutoKeyboard(false)
+    summon(panel) // on
+    expect(kb.autoKeyboardEnabled()).toBe(true)
+    summon(panel) // the same glyph puts it away again
+    expect(kb.autoKeyboardEnabled()).toBe(false)
+  })
+
+  test('ONE press brings it back after a close — not two', () => {
+    // The reported cost: with the preference left on over a closed keyboard,
+    // the first press only flipped the flag.
+    const { panel } = panelWithField()
+    kb.setAutoKeyboard(false)
+    summon(panel)
+    summon(panel)
+    expect(kb.autoKeyboardEnabled()).toBe(false)
+    summon(panel)
+    expect(kb.autoKeyboardEnabled()).toBe(true)
   })
 })

@@ -705,6 +705,15 @@ export type LayerHost = (
     side?: PopupSide
     width?: number
     maxHeight?: number
+    /**
+     * Call this if the host closes the popup ITSELF — its own × glyph, say.
+     *
+     * A layer popup is ONE popup mounted by every presentation, so a close that
+     * starts in one of them has to reach the others. Without it, pressing × on
+     * the in-scene face closed that plane alone and left the flat one up, with
+     * the opener still believing it had a popup open.
+     */
+    handleClosed?: () => void
   }
 ) => { close: () => void }
 
@@ -2742,13 +2751,29 @@ export function panel3d(
       }
       // ONE sheet, mounted by each presentation — see `LayerHost`.
       const sheet = panelPopupSheet(config.width ?? 360, items)
-      const opened = hosts.map((h) => h(sheet, placed))
-      return {
-        close: () => {
-          for (const o of opened) o.close()
-          handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
-        },
+      /*
+      ONE CLOSE, however it starts.
+
+      Every face is told `handleClosed`, so pressing × on the in-scene one shuts
+      the flat one too and the opener hears about it — the popup is one thing
+      wearing two faces, and a close that only reached the face you pressed left
+      the other up and the opener out of step.
+
+      `closing` guards the loop that creates: a host's own close calls back in
+      here, which closes that host again.
+      */
+      let closing = false
+      const opened: Array<{ close: () => void }> = []
+      const closeAll = (): void => {
+        if (closing) return
+        closing = true
+        for (const o of opened) o.close()
+        handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
       }
+      opened.push(
+        ...hosts.map((h) => h(sheet, { ...placed, handleClosed: closeAll }))
+      )
+      return { close: closeAll }
     },
     get hasLayer() {
       const hosts =

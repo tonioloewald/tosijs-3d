@@ -1324,6 +1324,7 @@ export function panelScene(opts: PanelSceneOptions): {
           sheet: SVGSVGElement,
           config: {
             anchor: { x: number; y: number; width: number; height: number }
+            handleClosed?: () => void
           }
         ) => {
           /*
@@ -1364,6 +1365,10 @@ export function panelScene(opts: PanelSceneOptions): {
           // The field's BOTTOM edge, in plane-local world units.
           const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH
           const pop = owner.openPopup!({
+            // Tell the layer when the popup's OWN × closes it, so every other
+            // presentation goes with it and the opener is not left believing it
+            // still has one open. See `LayerHost.handleClosed`.
+            handleClosed: config.handleClosed,
             svg: sheet,
             opener: plane.mesh,
             width: worldW,

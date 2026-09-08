@@ -649,6 +649,16 @@ over — closing the previous one is part of opening yours, not a separate step
 the caller has to remember.
 */
 let liveKeyboard: { close: () => void } | null = null
+/*
+A TAKEOVER IS NOT A DISMISSAL.
+
+Moving from the name field to a number field closes one keyboard and opens
+another, and that close must not read as "put the keyboard away" — the
+preference would go off under a keyboard that is still on screen, darkening
+every field's glyph and stopping the next field auto-opening. Module-level
+because the keyboard being taken over usually belongs to a DIFFERENT field.
+*/
+let keyboardTakeover = false
 
 /*
 HARDWARE KEYS REACH THE FIELD THAT HAS FOCUS, with no wiring.
@@ -1019,7 +1029,12 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       return
     }
     // Take it over rather than adding a second: see `liveKeyboard`.
-    liveKeyboard?.close()
+    keyboardTakeover = true
+    try {
+      liveKeyboard?.close()
+    } finally {
+      keyboardTakeover = false
+    }
     liveKeyboard = null
 
     const kb = keyboard({
@@ -1064,10 +1079,60 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     */
     const roomBelow = host.bounds.height - host.top - H
     if (!host.hasLayer && roomBelow < KB_MIN_HEIGHT) return
-    const opened = host.showLayer(
+    /*
+    `mine` FIRST, and `opened` mutable, because the two refer to each other.
+
+    The close handler below names `mine`, and a host that mounts and closes
+    synchronously would reach it before a `const` declared after this call had
+    been initialised — the temporal-dead-zone trap this repo already carries a
+    scar about (see CLAUDE.md on `whenReady`). Declaring the identity up front
+    and filling in the handle afterwards removes the question entirely.
+    */
+    let opened: { close: () => void } | null = null
+
+    /** Clear OUR records. A takeover and a × both need exactly this. */
+    const forget = (): void => {
+      if (liveKeyboard === mine) liveKeyboard = null
+      /*
+      CLEAR OUR OWN RECORD TOO.
+
+      A takeover closes the previous owner's keyboard, and without this that
+      field still believed it had one — so returning to it did nothing and the
+      layout never changed back. Tonio: "if I go from the name field to a number
+      field the keyboard changes, but it doesn't change back if I return to the
+      text field."
+      */
+      if (kbOpen === mine) kbOpen = null
+    }
+
+    const mine: { close: () => void } = { close: () => opened?.close() }
+
+    opened = host.showLayer(
       {
         anchor: { x: 0, y: 0, width, height: H },
         side: 'below',
+        /*
+        THE × MEANS "PUT THE KEYBOARD AWAY", not "close this panel".
+
+        It arrives here however the close started — the layer tells every
+        presentation and then tells us — so our record is cleared and the shared
+        preference goes off with it.
+
+        Two bugs, one cause. The × closed only the face you pressed, leaving the
+        other presentation up: "closing the keyboard using the close button
+        doesn't close it in both contexts… it's just closing that particular
+        panel, which is kind of weird." And it left the preference on, so the
+        glyph stayed LIT over a keyboard that was gone and pressing it flipped
+        the preference to false rather than reopening — two presses to do one
+        thing: "I have to click it off and click it back on again."
+
+        The glyph SHOWS the preference (see `paintGlyph`), so leaving the two out
+        of step is exactly the "button that lies" its own comment warns about.
+        */
+        handleClose: () => {
+          forget()
+          if (!keyboardTakeover) setAutoKeyboard(false)
+        },
         // FIT THE HOST, don't ask for a nominal 360: a wider keyboard than the
         // panel is simply clipped at the right edge, so the last column of keys
         // — enter, backspace — becomes unreachable. Measured: 360 in a 320 panel
@@ -1077,20 +1142,6 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       },
       kb
     )
-    const mine: { close: () => void } = {
-      close: () => {
-        opened.close()
-        if (liveKeyboard === mine) liveKeyboard = null
-        // CLEAR OUR OWN RECORD TOO.
-        //
-        // A takeover closes the previous owner's keyboard, and without this that
-        // field still believed it had one — so returning to it did nothing and
-        // the layout never changed back. Tonio: "if I go from the name field to
-        // a number field the keyboard changes, but it doesn't change back if I
-        // return to the text field."
-        if (kbOpen === mine) kbOpen = null
-      },
-    }
     kbOpen = mine
     liveKeyboard = mine
   }
