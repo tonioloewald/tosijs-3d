@@ -115,6 +115,7 @@ export type { AngleField, ArcField, Angle3dOptions, Arc3dOptions, } from './angl
 export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve.js';
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
+export { ORBIT_MAX_AZIMUTH, ORBIT_RUBBER_BAND, bandOrbit, rubberBand, ORBIT_MAX_ELEVATION, ORBIT_MIN_ELEVATION, angularHeight, clampOrbit, orbitCentre, orbitClampedBy, orbitFromDirection, orbitOf, orbitPosition, type Orbit, type OrbitVec3, } from './panel-orbit.js';
 export { readCurve, canonicalCurve, validateCurve, curveSchema, CURVE_PRECISION, } from './curve.js';
 export type { SerializedCurve, CurveIssue } from './curve.js';
 export type { CurveKind, CurvePreset } from './curve.js';

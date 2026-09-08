@@ -94,9 +94,9 @@ const scene = b3d(
     // reactive values the regenerate observers below already watch.
     scenePanel: () => [
       label3d({ text: 'Terrain' }),
-      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, step: 0.005 }),
-      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, step: 0.01 }),
-      slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, step: 0.05 }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
+      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
+      slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, scale: 'log2' }),
       slider3d({ label: 'v size', value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
       slider3d({ label: 'v detail', value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
       slider3d({ label: 'seed', value: demo.seed, min: 0, max: 999, step: 1 }),

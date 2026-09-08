@@ -660,5 +660,13 @@ export declare function panel3d(config: {
      * divergence UI-DESIGN-NOTES warns about.
      */
     header?: Widget3d[];
+    /**
+     * Draw a grab bar in the top padding strip and report `gripHeight`.
+     *
+     * The panel does not act on it — the HOST does, because what a drag means
+     * depends on where the panel lives (in a headset `tosi-b3d` orbits it
+     * around the rig anchor; a DOM overlay would move it in the page).
+     */
+    grip?: boolean;
 }, ...widgets: Widget3d[]): SVGSVGElement;
 //# sourceMappingURL=widgets3d.d.ts.map

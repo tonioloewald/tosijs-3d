@@ -138,9 +138,9 @@ const scene = b3d(
     // reactive values the regenerate observers below already watch.
     scenePanel: () =&gt; [
       label3d({ text: &#39;Terrain&#39; }),
-      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.005, max: 0.3, step: 0.005 }),
-      slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.02, max: 1, step: 0.01 }),
-      slider3d({ label: &#39;h size&#39;, value: demo.horizScale, min: 0.25, max: 10, step: 0.05 }),
+      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.005, max: 0.3, scale: &#39;log&#39; }),
+      slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.02, max: 1, scale: &#39;log&#39; }),
+      slider3d({ label: &#39;h size&#39;, value: demo.horizScale, min: 0.25, max: 10, scale: &#39;log2&#39; }),
       slider3d({ label: &#39;v size&#39;, value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
       slider3d({ label: &#39;v detail&#39;, value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
       slider3d({ label: &#39;seed&#39;, value: demo.seed, min: 0, max: 999, step: 1 }),
@@ -611,6 +611,7 @@ document.body.append(b3d({}, terrain))
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
       <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>

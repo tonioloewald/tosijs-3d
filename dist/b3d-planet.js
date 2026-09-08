@@ -49,8 +49,8 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () => [
       label3d({ text: 'Planet' }),
-      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.05, step: 0.001 }),
-      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, step: 0.005 }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.05, scale: 'log' }),
+      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),
       slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),

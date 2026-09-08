@@ -92,7 +92,42 @@ registry now lives on <code>DestroyableBehavior</code>, so anything attaching on
 target by construction.</li>
 </ul>
 <h3>Fixed</h3>
+<p>Five of these came from one headset pass on the terrain editor, which is the
+argument for <code>RELEASING.md</code> step 5a in one paragraph: every one of them was
+invisible to 2300 passing tests, and the first was invisible to a day of
+reading the source.</p>
 <ul>
+<li><p><strong>A pinned panel header was clipped away — invisible, but still hittable.</strong>
+The header was appended inside the clipped body group, whose clip rect
+necessarily starts below it, so it was clipped in full while its band stayed
+reserved and the pointer router kept routing to it. Three symptoms, one cause:
+the Exit VR / Re-seat / Pause buttons vanished, the panel grew a tall empty
+band, and pressing where they <em>should</em> be worked. ⚠️ It only bit a panel that
+SCROLLS, because <code>clip-path</code> is only applied then — so every small panel in
+the demos and tests was fine and the terrain editor was not.</p>
+</li>
+<li><p><strong>An icon bar ran off the edge of its panel.</strong> <code>layout()</code> ignored the width it
+was handed. A scene&#39;s bar is Exit VR + Re-seat + Perf Stats + one per
+registered debug source + the gadgets — ten items, 380px, in a 296px panel. It
+wraps now, and the hit test reads <code>y</code> as well as <code>x</code>.</p>
+</li>
+<li><p><strong>Noise <code>scale</code> sliders are LOGARITHMIC.</strong> They are frequencies: on the old
+linear 0.005–0.3 track the whole usable band was the first 15% and the default
+sat at 3%, so every value you actually want was crushed against the left stop.
+The schema has said <code>x-scale: &#39;log&#39;</code> all along and <code>terrainEditor3d</code> honours
+it — the hand-rolled demo panels did not, which is how it shipped.</p>
+</li>
+<li><p><strong>A scrolling panel has a scroll RAIL.</strong> Scrolling began on empty space, and a
+panel full of controls has none, so in a headset there was no gesture that
+scrolled it at all. The rail is also the only visible sign that there IS more
+below — a texture on a plane has no scrollbar, no overflow shadow and no
+momentum. Rows are measured twice so it never overlaps a control.</p>
+</li>
+<li><p><strong>A slider keeps a usable track however narrow its row.</strong> The label took a
+flat 45% and the readout took whatever it needed, leaving a 53px track at
+282px wide with a unit in the format. The track reserves a minimum now and the
+label yields, clipped so it cannot paint over the control it gave way to.</p>
+</li>
 <li><p><strong><code>operable</code> contradicted <code>useNearest</code> on the same door.</strong> With no pointer on
 it the getter knows no distance, so a reach veto blocks — while <code>useNearest</code>,
 which measures the distance itself, opens that same door 1 m away. Nothing in
@@ -233,6 +268,24 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</p>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p><strong>A spatial panel can be dragged, on the sphere around its rig anchor.</strong> Two
+properties fall out rather than being built: the distance cannot drift (so it
+can never be shoved into your face or out of reach) and the facing comes free.
+<code>panel-orbit</code> is the pure half — no Babylon, no DOM — so the placement rule is
+testable without a headset.</p>
+<p>A drag past a limit <strong>follows you and stiffens</strong>, and letting go springs back:
+a hard stop is the right resting behaviour and the wrong live one, because a
+panel that simply stops following your hand reads as a dropped drag rather
+than a limit. The band and the clamp deliberately disagree — the panel may
+PASS a limit and may never come to REST past one, since out there its own Exit
+VR and Re-seat buttons are hard to reach.</p>
+<p>A seat names an EDGE, not a centre: below the equator it is bottom-relative
+and above it top-relative, so a tall panel&#39;s extra height always grows back
+toward eye level instead of trailing into the floor or pushing past the
+ceiling it was just clamped to. The ceiling is 60°, which is the default seat
+exactly, so the panel can only ever be dragged somewhere more comfortable than
+where it started.</p>
+</li>
 <li><p><strong><code>budgetedReach(reach, tileSize)</code> and <code>MAX_TILES_ACROSS</code> are exported from
 <code>tosijs-3d/terrain-grid</code></strong>, so a UI can clamp its own slider against the same
 limit <code>&lt;tosi-b3d-terrain&gt;</code> enforces rather than guessing. <code>reach</code> × <code>tileSize</code>
@@ -3223,6 +3276,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
       <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>

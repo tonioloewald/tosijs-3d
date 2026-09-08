@@ -950,12 +950,31 @@ export function iconBar3d(config) {
     const hasCaptions = config.items.some((i) => i.title);
     const CAPTION_H = 12;
     const step = BS + ICON_GAP;
-    const indexAt = (x) => {
-        const i = Math.floor(x / step);
+    /*
+    IT WRAPS, because it used to run off the edge instead.
+  
+    `layout()` ignored the width it was handed and placed every cell at `i * step`
+    on one line. A scene's bar is Exit VR + Re-seat + Perf Stats + one per
+    registered debug source + the gadgets — ten items on the terrain demo, 380px
+    of them inside a 296px panel — so the last few were painted outside the panel
+    and their captions collided on the way out.
+  
+    Wrapping rather than scrolling or truncating: these are the controls you reach
+    for once a session, and one that is off-screen is one you cannot press. A
+    second row costs 44px of a panel; a missing Exit VR costs the session.
+    */
+    let perRow = cells.length;
+    let rowH = TH.ROW;
+    const indexAt = (x, y = 0) => {
+        const col = Math.floor(x / step);
+        const row = Math.max(0, Math.floor(y / rowH));
+        if (col < 0 || col >= perRow)
+            return -1;
+        const i = row * perRow + col;
         if (i < 0 || i >= cells.length)
             return -1;
         // Reject the ICON_GAP dead-zone between buttons.
-        return x - i * step <= BS ? i : -1;
+        return x - col * step <= BS ? i : -1;
     };
     let pressed = -1;
     const paint = (hover) => {
@@ -967,24 +986,30 @@ export function iconBar3d(config) {
     };
     return {
         el,
-        layout() {
+        layout(width) {
+            // Captions live BELOW the button, so a row has to grow or the next thing
+            // lands on top of them.
+            rowH = hasCaptions ? TH.ROW + CAPTION_H : TH.ROW;
+            // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
+            perRow = Math.max(1, Math.floor(((width || 0) + ICON_GAP || step) / step));
             cells.forEach((c, i) => {
-                c.cell.setAttribute('transform', `translate(${i * step} ${by})`);
+                const col = i % perRow;
+                const row = Math.floor(i / perRow);
+                c.cell.setAttribute('transform', `translate(${col * step} ${row * rowH + by})`);
             });
-            // Captions live BELOW the button, so the row has to grow or the next
-            // widget lands on top of them.
-            return hasCaptions ? TH.ROW + CAPTION_H : TH.ROW;
+            return Math.ceil(cells.length / perRow) * rowH;
         },
-        hitTest(x) {
-            return indexAt(x) >= 0;
+        hitTest(x, y) {
+            return indexAt(x, y) >= 0;
         },
-        handle(kind, x) {
+        handle(kind, x, y) {
             if (kind === 'leave') {
                 pressed = -1;
                 paint(-1);
                 return;
             }
-            const i = indexAt(x);
+            // `y` matters now that the bar can wrap onto a second row.
+            const i = indexAt(x, y);
             if (kind === 'down')
                 pressed = i;
             // Release BEFORE firing, so a handler that rebuilds the panel does not
@@ -1072,9 +1097,15 @@ export function slider3d(config) {
     const precision = config.precision ?? DEFAULT_SLIDER_PRECISION;
     const bound = boundValue(config.value, handlerOf(config, 'handleChange', 'onChange'));
     const lbl = config.label ? baseText(config.label) : null;
+    // A clip, so a label squeezed by the track's minimum is TRUNCATED rather than
+    // painted over the control it just gave way to.
+    const labelClipId = `w3d-lbl-${clipSeq++}`;
+    const labelClip = rect({ x: 0, y: 0, width: 0, height: TH.ROW });
+    const labelClipPath = clipPath({ id: labelClipId }, labelClip);
     if (lbl) {
         lbl.setAttribute('x', String(TH.PAD_X));
         lbl.setAttribute('y', String(TH.ROW / 2));
+        lbl.setAttribute('clip-path', `url(#${labelClipId})`);
     }
     const trackEl = rect({
         height: 6,
@@ -1148,7 +1179,7 @@ export function slider3d(config) {
         rx: 6,
         fill: 'transparent',
     });
-    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [lbl] : []), trackEl, fillEl, knob, valText, fixedVal), 'cursor:pointer');
+    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [labelClipPath, lbl] : []), trackEl, fillEl, knob, valText, fixedVal), 'cursor:pointer');
     let trackX = 0;
     let trackW = 0;
     const reflect = () => {
@@ -1186,7 +1217,31 @@ export function slider3d(config) {
         el,
         layout(width) {
             rowBg.setAttribute('width', String(width));
-            const labelW = lbl ? Math.min(width * 0.45, 150) : 0;
+            /*
+            THE TRACK GETS ITS MINIMUM FIRST, and the label yields for it.
+      
+            The label took a flat 45% and the readout took whatever it needed, so on a
+            narrow panel with `showValue: 'always'` and a unit in the format the track
+            was whatever happened to be left. Measured in a headset at 282px wide with
+            a "0.015 1/m" readout: a 53px track, against 229px of label and number.
+      
+              Tonio: "the panel is narrow combined with the way the value is now
+              displayed so that for the top scale slider in VR the slider is TINY and
+              the entire row is occupied by the title and the value."
+      
+            A label you can only half-read is a nuisance; a track you cannot aim at is
+            a broken control, and in a headset you are aiming with your arm. So the
+            track is reserved and the label is clipped to what is left — never below a
+            floor of its own, because a label clipped to nothing is not a trade.
+            */
+            const MIN_TRACK = 90;
+            const MIN_LABEL = 56;
+            const avail = width - TH.PAD_X * 2 - 12 - readoutW;
+            let labelW = lbl ? Math.min(width * 0.45, 150) : 0;
+            if (lbl && avail - labelW < MIN_TRACK) {
+                labelW = Math.max(MIN_LABEL, avail - MIN_TRACK);
+            }
+            labelClip.setAttribute('width', String(Math.max(0, labelW - 6)));
             trackX = TH.PAD_X + labelW;
             trackW = width - trackX - TH.PAD_X - 12 - readoutW;
             fixedVal.setAttribute('x', String(width - TH.PAD_X));
@@ -1728,8 +1783,42 @@ export function panel3d(config, ...widgets) {
     const headerLayout = stackLayout(headerHeights, gap);
     // The pinned block costs the body its height, plus one gap to separate them.
     const headerH = headerWidgets.length > 0 ? headerLayout.total + gap : 0;
-    const heights = widgets.map((w) => w.layout(innerW));
-    const { offsets, total } = stackLayout(heights, gap);
+    /*
+    A SCROLL RAIL, because a packed panel has nowhere to start a scroll.
+  
+    Scrolling begins on EMPTY SPACE — and a panel full of sliders has none, so in
+    a headset there was no gesture that scrolled it at all. Every attempt landed
+    on a control instead. Tonio: "I think we need to add an affordance to the side
+    of scrolling panels that directly scrolls the panel. When I tried to scroll
+    this thing I somehow zeroed every slider with one drag."
+  
+    It is also the only visible sign that there IS more below, which a texture on
+    a plane badly needs — there is no scrollbar, no overflow shadow and no
+    momentum to tell you.
+  
+    Measured twice on purpose: whether it scrolls is only known once the rows are
+    laid out, and the rail costs the rows width. So measure full-width, and if it
+    scrolls, measure again with the rail's width taken out. Cheap (layout is
+    arithmetic) and it keeps the rail from ever overlapping a control.
+    */
+    const RAIL_W = 14;
+    const measure = (w) => {
+        const hs = widgets.map((x) => x.layout(w));
+        return { hs, ...stackLayout(hs, gap) };
+    };
+    let bodyW = innerW;
+    let m = measure(bodyW);
+    const provisionalViewport = panelHeight(m.total + headerH, paddingTop, padding, config.height ?? 'fit', config.maxHeight) -
+        paddingTop -
+        padding -
+        headerH;
+    const needsRail = m.total > provisionalViewport;
+    if (needsRail) {
+        bodyW = innerW - RAIL_W;
+        m = measure(bodyW);
+    }
+    const heights = m.hs;
+    const { offsets, total } = m;
     const height = panelHeight(total + headerH, paddingTop, padding, config.height ?? 'fit', config.maxHeight);
     // The SCROLLING viewport excludes the pinned block — otherwise the body is
     // laid out against a taller area than it actually gets, and the last row is
@@ -1766,6 +1855,28 @@ export function panel3d(config, ...widgets) {
     // texture path double-offsets the clip and crops the top-left of the list.
     const clipWrap = g();
     const content = g({ transform: `translate(${padding}, ${paddingTop})` });
+    /*
+    ⚠️ THE PINNED HEADER LIVES OUTSIDE THE CLIP, and putting it inside cost the
+    headset its Exit VR button.
+  
+    The clip rect starts at `paddingTop + headerH` — it has to, or the body is
+    laid out against a taller area than it gets. The header sits ABOVE that, at
+    y 0..headerH, so anything clipped by that rect is clipped away entirely.
+  
+    It was appended to `content`, which is correct for keeping it out of the
+    SCROLL transform and wrong for keeping it out of the CLIP. The result was a
+    header that reserved its space (a band of empty panel), routed its presses
+    correctly (the router computes header coords independently), and painted
+    NOTHING — so the buttons were hittable if you guessed where they were, and
+    invisible. Tonio, from the headset: "the standard buttons have now
+    disappeared… the panel has a LOT of black headroom… I can click where I think
+    they should be and stuff happens."
+  
+    And it only bites when the panel SCROLLS, because the clip is only applied
+    then — so every small panel in the demos and tests was fine and the terrain
+    editor (1104px of rows in a 508px viewport) was not.
+    */
+    const headerGroup = g({ transform: `translate(${padding}, ${paddingTop})` });
     // The scrolling body sits BELOW the pinned block. `scrollGroup` is what the
     // scroll transform moves, so the offset lives on its parent — otherwise
     // scrolling would drag the body up over the header.
@@ -1781,8 +1892,9 @@ export function panel3d(config, ...widgets) {
     }));
     headerWidgets.forEach((w, i) => {
         w.el.setAttribute('transform', `translate(0, ${headerLayout.offsets[i]})`);
-        // Appended to `content`, NOT `scrollGroup` — that is the whole mechanism.
-        content.appendChild(w.el);
+        // `headerGroup`, which is neither scrolled NOR clipped. Both halves matter:
+        // `scrollGroup` would move it, `content` would clip it.
+        headerGroup.appendChild(w.el);
     });
     const rows = widgets.map((w, i) => ({
         w,
@@ -1796,10 +1908,38 @@ export function panel3d(config, ...widgets) {
     const scrollable = total > viewport;
     if (scrollable)
         clipWrap.setAttribute('clip-path', `url(#${clipId})`);
+    // The rail: a track down the right inside edge, and a thumb sized by how much
+    // of the content you can see. Drawn only when there is something to scroll —
+    // a rail on a panel that fits is chrome that means nothing.
+    const railX = width - padding - RAIL_W;
+    const railTop = paddingTop + headerH;
+    const THUMB_W = 6;
+    const thumbH = Math.max(24, Math.round(viewport * Math.min(1, viewport / Math.max(1, total))));
+    const railTrack = rect({
+        x: railX + (RAIL_W - THUMB_W) / 2,
+        y: railTop,
+        width: THUMB_W,
+        height: viewport,
+        rx: THUMB_W / 2,
+        fill: TH.TRACK,
+    });
+    const railThumb = rect({
+        x: railX + (RAIL_W - THUMB_W) / 2,
+        y: railTop,
+        width: THUMB_W,
+        height: thumbH,
+        rx: THUMB_W / 2,
+        fill: TH.MUTED,
+    });
     let scroll = 0;
     const applyScroll = () => {
         scroll = clampScroll(scroll, total, viewport);
         scrollGroup.setAttribute('transform', `translate(0, ${-scroll})`);
+        if (scrollable) {
+            const span = Math.max(1, total - viewport);
+            const travel = viewport - thumbH;
+            railThumb.setAttribute('y', String(railTop + (scroll / span) * travel));
+        }
     };
     // The single pointer authority, in the panel's viewBox coords. Hit-tests by
     // layout + scroll, captures the pressed widget for the whole press, and
@@ -2057,6 +2197,44 @@ export function panel3d(config, ...widgets) {
         const localY = y - paddingTop;
         const inHeader = headerRows.length > 0 && localY < headerH;
         const contentY = inHeader ? localY : localY - headerH + scroll;
+        /*
+        THE RAIL WINS, and it is tested before any row.
+    
+        Its whole purpose is to be a place you can press that is guaranteed NOT to
+        be a control, so a row underneath it must never get the press. Nothing is
+        laid out there — the body is measured `RAIL_W` narrower when the rail
+        exists — but a widget that draws outside its width would otherwise take a
+        scroll gesture and move a value instead.
+        */
+        if (scrollable && x >= railX && !inHeader) {
+            if (kind === 'down') {
+                scrolling = true;
+                scrollFrom = y;
+                // Grab the thumb where you pressed if you pressed ON it; otherwise
+                // centre it there, so a press in the empty track is a page jump rather
+                // than nothing happening.
+                const thumbTop = Number(railThumb.getAttribute('y'));
+                if (y < thumbTop || y > thumbTop + thumbH) {
+                    const travel = Math.max(1, viewport - thumbH);
+                    scroll = ((y - thumbH / 2 - railTop) / travel) * (total - viewport);
+                    applyScroll();
+                }
+                return;
+            }
+            if (kind === 'move' && scrolling) {
+                // Rail travel is SCALED: dragging the thumb its own length must move
+                // the content by a page, not by that many pixels.
+                const travel = Math.max(1, viewport - thumbH);
+                scroll += ((y - scrollFrom) * (total - viewport)) / travel;
+                scrollFrom = y;
+                applyScroll();
+                return;
+            }
+            if (kind === 'up') {
+                scrolling = false;
+                return;
+            }
+        }
         const row = inHeader ? headerRowAt(localX, localY) : rowAt(localX, contentY);
         if (kind === 'down') {
             if (row) {
@@ -2181,6 +2359,9 @@ export function panel3d(config, ...widgets) {
         applyScroll();
     };
     root.scrollable = scrollable;
+    root.gripHeight = config.grip
+        ? paddingTop
+        : 0;
     root.measure = () => panelFit(total, viewport);
     root.openPopup = (config, ...items) => {
         const bounds = config.bounds ?? { width, height };
@@ -2359,6 +2540,38 @@ export function panel3d(config, ...widgets) {
     root.appendChild(bg);
     root.appendChild(clip);
     root.appendChild(clipWrap);
+    // After the body, so the pinned block paints over anything that reaches it.
+    if (headerWidgets.length > 0)
+        root.appendChild(headerGroup);
+    /*
+    A GRIP, in the top padding strip that was already reserved.
+  
+    `paddingTop` exists so the first row clears the × close button, so the band is
+    there whether or not anything is drawn in it. Drawing a grab bar costs no
+    layout and makes the drag DISCOVERABLE, which a spatial panel badly needs —
+    there is no cursor to change shape and no tooltip to hover.
+  
+    The host decides what a drag there means (`tosi-b3d` orbits the panel around
+    its rig anchor); this only says where the handle is, via `gripHeight` on the
+    element.
+    */
+    if (config.grip) {
+        const gw = Math.min(64, innerW * 0.25);
+        root.appendChild(rect({
+            x: (width - gw) / 2,
+            y: Math.max(4, paddingTop / 2 - 2),
+            width: gw,
+            height: 4,
+            rx: 2,
+            fill: TH.MUTED,
+            opacity: 0.55,
+        }));
+    }
+    if (scrollable) {
+        root.appendChild(railTrack);
+        root.appendChild(railThumb);
+        applyScroll(); // seat the thumb at the top
+    }
     return root;
 }
 //# sourceMappingURL=widgets3d.js.map

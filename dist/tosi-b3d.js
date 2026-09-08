@@ -297,6 +297,7 @@ import { openPopup, } from './popup-surface.js';
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js';
 import { NO_WIND, gustAt, windFromPolar } from './wind.js';
 import { faceViewer } from './dialog-placement.js';
+import { angularHeight, bandOrbit, clampOrbit, orbitCentre, orbitFromDirection, orbitPosition, } from './panel-orbit.js';
 import { svgIcons } from './svg-icons.js';
 import { CombatWorld } from './destroyable.js';
 import { b3dGamepad } from './glass-gamepad.js';
@@ -3747,11 +3748,14 @@ export class B3d extends Component {
     `header` keeps the icon bar out of that scroll. It carries Exit VR, and a
     control you need in order to LEAVE must not be the one that scrolls away.
     */
-    _makePanel(rows, header = []) {
+    _makePanel(rows, header = [], grip = false) {
         return panel3d({
             width: 320,
             height: 'fit',
             maxHeight: 620,
+            // Only the in-scene panel is draggable — the flat one is a DOM overlay
+            // the page already positions, and a grab bar there would do nothing.
+            grip,
             // Extra top padding so the first row clears the × close button
             // (top-right) and the panel doesn't read footer-heavy.
             paddingTop: 34,
@@ -4019,7 +4023,7 @@ export class B3d extends Component {
             ],
         });
         const rows = [...this._panelWidgets(true)];
-        const panelEl = this._makePanel(rows, [barRow]);
+        const panelEl = this._makePanel(rows, [barRow], true);
         // LIVE numbers in the headset. The XR panel is built once at entry, so a debug
         // readout would otherwise freeze at whatever it said when you put the headset on —
         // useless for watching a worst-frame spike as you fly. The SvgTexture re-renders
@@ -4041,15 +4045,20 @@ export class B3d extends Component {
         // set where the panel is created). Live NUMBERS don't need any of that — `_startLiveDebug`
         // rewrites the <text> nodes in place, which changes no structure and no closure.
         const vb = panelEl.viewBox.baseVal;
-        // Anchored to the eye frame (origin = your head), 60° up the sight-line.
+        // Anchored to the eye frame (origin = your head), 60° up the sight-line —
+        // and that 60° is also the CEILING a drag may reach, pinned equal to
+        // `ORBIT_MAX_ELEVATION` by a test. The position is derived through
+        // `panel-orbit` rather than written out here, so the seat you start at and
+        // the seats you drag to cannot disagree.
         const PLANE_W = 1.0; // metres wide (height follows the panel's aspect)
         const D = 1.4; // distance (matches the other eye-frame panels)
         const ELEV = (60 * Math.PI) / 180;
-        const ABOVE = D * Math.sin(ELEV); // ≈1.21 up
-        const AHEAD = D * Math.cos(ELEV); // ≈0.70 ahead
+        // Height in metres, kept because the orbit needs to know how tall the panel
+        // LOOKS from the anchor in order to seat it by an edge rather than a centre.
+        const planeH = PLANE_W * (vb.height / vb.width);
         const plane = BABYLON.MeshBuilder.CreatePlane('xr-panel', {
             width: PLANE_W,
-            height: PLANE_W * (vb.height / vb.width),
+            height: planeH,
             sideOrientation: BABYLON.Mesh.DOUBLESIDE,
         }, scene);
         // Pointer-pickable, collision-invisible — this panel hangs in front of your
@@ -4079,6 +4088,77 @@ export class B3d extends Component {
         // to be pointed at. No billboard (that would re-rotate it every frame). (#1)
         plane.parent = anchorFrame;
         plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
+        /** Put the panel at a seat — the one place that writes its pose. */
+        const seatPanel = (seat) => {
+            const centre = orbitCentre(seat, angularHeight(planeH, D));
+            const p = orbitPosition(centre);
+            plane.position.set(p.x, p.y, p.z);
+            const aim = faceViewer(p, { x: 0, y: 0, z: 0 });
+            plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(aim.yaw, aim.pitch, 0);
+        };
+        /** The seat the drag is currently asking for, BEFORE band or clamp. */
+        let wanted = {
+            azimuthDeg: 0,
+            elevationDeg: (ELEV / Math.PI) * 180,
+            radius: D,
+        };
+        const orbitTo = (ray) => {
+            const inv = new BABYLON.Matrix();
+            anchorFrame.getWorldMatrix().invertToRef(inv);
+            const local = BABYLON.Vector3.TransformNormal(ray.direction, inv);
+            wanted = orbitFromDirection({ x: local.x, y: local.y, z: local.z }, 
+            // The RADIUS is the sphere's, not the centre's — `orbitCentre` shifts
+            // the centre off the seat's stated elevation, so reading it back would
+            // shrink the sphere a little on every frame of a drag.
+            { ...wanted, radius: D });
+            // BANDED while the hand is down: past a limit the panel keeps following
+            // you, stiffening, so a limit reads as a limit rather than as a dropped
+            // drag. `releaseOrbit` is the other half.
+            seatPanel(bandOrbit(wanted));
+        };
+        /*
+        SPRING BACK on release, to the CLAMPED seat.
+    
+        This is what makes the stretch a band rather than a bigger box — the panel
+        may pass a limit but must never come to rest past one, because out there its
+        own Exit VR and Re-seat buttons are hard to reach.
+    
+        Eased over a fixed short time rather than a spring with a stiffness: a
+        critically-damped spring is nicer to tune and worse to be inside, since an
+        overshoot on the way back is another moment where the panel is somewhere you
+        did not put it. This just goes there, quickly, and stops.
+        */
+        let springOff = null;
+        const releaseOrbit = () => {
+            springOff?.();
+            const from = { ...bandOrbit(wanted) };
+            const to = clampOrbit(wanted);
+            wanted = to;
+            if (Math.abs(from.azimuthDeg - to.azimuthDeg) < 0.01 &&
+                Math.abs(from.elevationDeg - to.elevationDeg) < 0.01) {
+                seatPanel(to);
+                return;
+            }
+            const SPRING_MS = 180;
+            let t = 0;
+            const obs = scene.onBeforeRenderObservable.add(() => {
+                t += scene.getEngine().getDeltaTime();
+                const k = Math.min(1, t / SPRING_MS);
+                // Ease out: fastest at the start, so it reads as the band letting go.
+                const e = 1 - (1 - k) * (1 - k);
+                seatPanel({
+                    azimuthDeg: from.azimuthDeg + (to.azimuthDeg - from.azimuthDeg) * e,
+                    elevationDeg: from.elevationDeg + (to.elevationDeg - from.elevationDeg) * e,
+                    radius: to.radius,
+                });
+                if (k >= 1)
+                    springOff?.();
+            });
+            springOff = () => {
+                scene.onBeforeRenderObservable.remove(obs);
+                springOff = null;
+            };
+        };
         let placed = false;
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
             if (placed)
@@ -4088,14 +4168,29 @@ export class B3d extends Component {
             // it. `faceViewer` aims the plane's VISIBLE face (local -Z) at your head;
             // this used to aim +Z and cancel the resulting mirror twice over — once on
             // the texture and once on every pick. See dialog-placement.faceViewer.
-            plane.position.set(0, ABOVE, AHEAD);
-            const aim = faceViewer({ x: 0, y: ABOVE, z: AHEAD }, { x: 0, y: 0, z: 0 });
-            plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(aim.yaw, aim.pitch, 0);
+            // Through the ORBIT, so the seat you start at and the seats you drag to
+            // are computed the same way — otherwise the first drag jumps by however
+            // much the two disagreed. `ELEV` is the ceiling, and `panel-orbit` pins
+            // that equal to `ORBIT_MAX_ELEVATION`.
+            seatPanel(wanted);
             plane.visibility = 1;
         });
         const T = BABYLON.PointerEventTypes;
         let vx = 0;
         let vy = 0;
+        let dragging = false;
+        /*
+        SEAT THE PANEL WHERE YOU ARE POINTING, on its own sphere.
+    
+        The ray is world-space and the panel lives in the anchor's space, so the
+        direction is taken into local space first — otherwise the panel orbits the
+        world origin, which is only the same place by accident.
+    
+        A SEAT names the panel's far edge, not its centre (`orbitCentre`): pinning
+        the edge furthest from the equator means a tall panel's extra height always
+        lands somewhere more comfortable rather than trailing into the floor or
+        pushing past the ceiling it was clamped to.
+        */
         // XR pointer diagnostics, shown ON THE PANEL — the only way to debug a panel you
         // can't press. (The panel renders fine and its lines are live, so you can READ it in
         // the headset even when picking is broken.) Off unless something registered.
@@ -4166,6 +4261,36 @@ export class B3d extends Component {
                 vx = uv.x * vb.width;
                 vy = (1 - uv.y) * vb.height;
             }
+            /*
+            THE GRIP GOES TO THE ORBIT, not to the panel.
+      
+            A press in the top strip drags the panel around its rig anchor rather than
+            pressing anything — see `panel-orbit`. It is intercepted HERE rather than
+            inside `panel3d` because the gesture needs the controller RAY, and the
+            panel only ever sees viewBox coordinates.
+      
+            The panel is told 'leave' on the way into a drag, so a row that was hovered
+            when you grabbed does not stay lit for the whole drag.
+            */
+            const gripH = panelEl.gripHeight ?? 0;
+            if (kind === 'down' && uv && gripH > 0 && vy < gripH) {
+                dragging = true;
+                panelEl.handlePointer('leave', 0, 0);
+                return;
+            }
+            if (dragging) {
+                if (kind === 'up') {
+                    dragging = false;
+                    releaseOrbit();
+                    return;
+                }
+                if (kind === 'move') {
+                    const ray = pi.pickInfo?.ray;
+                    if (ray != null)
+                        orbitTo(ray);
+                    return;
+                }
+            }
             // Route every event; the panel manages press-capture and hover itself.
             if (kind === 'move' && !uv)
                 panelEl.handlePointer('leave', 0, 0);
@@ -4179,6 +4304,9 @@ export class B3d extends Component {
             scrollable: !!panelEl.scrollable,
             scrollBy: (dy) => panelEl.scrollBy?.(dy),
             dispose: () => {
+                // A spring mid-flight would keep writing to a disposed plane, once per
+                // frame, forever — the leak class this file already carries scars about.
+                springOff?.();
                 base.sessionManager.onXRFrameObservable.remove(frame);
                 scene.onPointerObservable.remove(obs);
                 offDbg();

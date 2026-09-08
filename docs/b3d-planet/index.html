@@ -90,8 +90,8 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () =&gt; [
       label3d({ text: &#39;Planet&#39; }),
-      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.001, max: 0.05, step: 0.001 }),
-      slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.005, max: 0.1, step: 0.005 }),
+      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.001, max: 0.05, scale: &#39;log&#39; }),
+      slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.005, max: 0.1, scale: &#39;log&#39; }),
       slider3d({ label: &#39;gross amp&#39;, value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: &#39;detail amp&#39;, value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: &#39;rotation&#39;, value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
@@ -357,6 +357,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
       <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>

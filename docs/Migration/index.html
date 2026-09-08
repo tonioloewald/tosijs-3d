@@ -68,7 +68,11 @@ the blast, so point-blank fire does nothing, silently. Direct-hit damage has no
 length scale in it, so it cannot break that way. Reported by an adopter who hit
 it by making their world four times larger (#23).</p>
 <p><strong>If you relied on the old behaviour</strong>, say so explicitly:</p>
-<pre><code class="language-html">&lt;tosi-b3d-aircraft gun-mode=&quot;blast&quot; gun-blast-radius=&quot;1.5&quot; gun-full-radius=&quot;0.5&quot;&gt;
+<pre><code class="language-html">&lt;tosi-b3d-aircraft
+  gun-mode=&quot;blast&quot;
+  gun-blast-radius=&quot;1.5&quot;
+  gun-full-radius=&quot;0.5&quot;
+&gt;&lt;/tosi-b3d-aircraft&gt;
 </code></pre>
 <p>Both radii are attributes now; they used to be hardcoded. Missiles and bombs are
 unchanged — AOE is right for those.</p>
@@ -76,7 +80,7 @@ unchanged — AOE is right for those.</p>
 <p><code>blocks(info)</code> now receives a description of the activation — who, how, how far.
 A veto that ignores its argument is unaffected, which is every veto written
 before this existed:</p>
-<pre><code class="language-javascript">use.vetoes.push({ name: &#39;locked&#39;, blocks: () =&gt; !hasKey })   // unchanged
+<pre><code class="language-javascript">use.vetoes.push({ name: &#39;locked&#39;, blocks: () =&gt; !hasKey }) // unchanged
 </code></pre>
 <p>Calling <code>activationVeto(vetoes)</code> directly still compiles. When you omit the
 info, vetoes are told <code>distance: Infinity</code> — &quot;we do not know that you are near&quot;
@@ -407,6 +411,7 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
       <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>

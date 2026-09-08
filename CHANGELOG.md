@@ -50,6 +50,38 @@ Nothing breaks at compile time. Two behaviours change, and
 
 ### Fixed
 
+Five of these came from one headset pass on the terrain editor, which is the
+argument for `RELEASING.md` step 5a in one paragraph: every one of them was
+invisible to 2300 passing tests, and the first was invisible to a day of
+reading the source.
+
+- **A pinned panel header was clipped away — invisible, but still hittable.**
+  The header was appended inside the clipped body group, whose clip rect
+  necessarily starts below it, so it was clipped in full while its band stayed
+  reserved and the pointer router kept routing to it. Three symptoms, one cause:
+  the Exit VR / Re-seat / Pause buttons vanished, the panel grew a tall empty
+  band, and pressing where they _should_ be worked. ⚠️ It only bit a panel that
+  SCROLLS, because `clip-path` is only applied then — so every small panel in
+  the demos and tests was fine and the terrain editor was not.
+- **An icon bar ran off the edge of its panel.** `layout()` ignored the width it
+  was handed. A scene's bar is Exit VR + Re-seat + Perf Stats + one per
+  registered debug source + the gadgets — ten items, 380px, in a 296px panel. It
+  wraps now, and the hit test reads `y` as well as `x`.
+- **Noise `scale` sliders are LOGARITHMIC.** They are frequencies: on the old
+  linear 0.005–0.3 track the whole usable band was the first 15% and the default
+  sat at 3%, so every value you actually want was crushed against the left stop.
+  The schema has said `x-scale: 'log'` all along and `terrainEditor3d` honours
+  it — the hand-rolled demo panels did not, which is how it shipped.
+- **A scrolling panel has a scroll RAIL.** Scrolling began on empty space, and a
+  panel full of controls has none, so in a headset there was no gesture that
+  scrolled it at all. The rail is also the only visible sign that there IS more
+  below — a texture on a plane has no scrollbar, no overflow shadow and no
+  momentum. Rows are measured twice so it never overlaps a control.
+- **A slider keeps a usable track however narrow its row.** The label took a
+  flat 45% and the readout took whatever it needed, leaving a 53px track at
+  282px wide with a unit in the format. The track reserves a minimum now and the
+  label yields, clipped so it cannot paint over the control it gave way to.
+
 - **`operable` contradicted `useNearest` on the same door.** With no pointer on
   it the getter knows no distance, so a reach veto blocks — while `useNearest`,
   which measures the distance itself, opens that same door 1 m away. Nothing in
@@ -176,6 +208,26 @@ Nothing breaks at compile time. Two behaviours change, and
   editor no longer follows you between demos (from the 0.8.0 headset pass).
 
 ### Added
+
+- **A spatial panel can be dragged, on the sphere around its rig anchor.** Two
+  properties fall out rather than being built: the distance cannot drift (so it
+  can never be shoved into your face or out of reach) and the facing comes free.
+  `panel-orbit` is the pure half — no Babylon, no DOM — so the placement rule is
+  testable without a headset.
+
+  A drag past a limit **follows you and stiffens**, and letting go springs back:
+  a hard stop is the right resting behaviour and the wrong live one, because a
+  panel that simply stops following your hand reads as a dropped drag rather
+  than a limit. The band and the clamp deliberately disagree — the panel may
+  PASS a limit and may never come to REST past one, since out there its own Exit
+  VR and Re-seat buttons are hard to reach.
+
+  A seat names an EDGE, not a centre: below the equator it is bottom-relative
+  and above it top-relative, so a tall panel's extra height always grows back
+  toward eye level instead of trailing into the floor or pushing past the
+  ceiling it was just clamped to. The ceiling is 60°, which is the default seat
+  exactly, so the panel can only ever be dragged somewhere more comfortable than
+  where it started.
 
 - **`budgetedReach(reach, tileSize)` and `MAX_TILES_ACROSS` are exported from
   `tosijs-3d/terrain-grid`**, so a UI can clamp its own slider against the same
