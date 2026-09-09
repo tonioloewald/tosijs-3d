@@ -221,9 +221,34 @@ real page and rebuild the panel through the element's OWN methods
 rather than a reconstruction. The doc system's context is the way to reach the
 library from a page: `document.querySelector('tosi-doc-system').context['tosijs-3d']`.
 
-What genuinely needs the headset is narrow: **feel** (drag resistance, comfort,
-whether a limit reads as a limit), and anything that only exists inside a
-session (the rAF pump, XR input sources, per-session teardown).
+**RENDERING AND LAYOUT ARE SYMMETRIC. INPUT GEOMETRY IS NOT.** That is the whole
+boundary, and it is worth stating precisely rather than as "most things
+transfer" — the two halves fail differently and you can tell which you are
+looking at before you start.
+
+Everything about what is DRAWN crosses all three surfaces (DOM, flat 3D,
+headset), because it is one SVG and one layout: a clipped header, a cropped
+popup, a menu that will not dismiss, a slider whose track got squeezed to
+nothing. Every one of those was reported from a headset in this cycle and every
+one reproduced flat, several in under a minute. Tonio: _"the three surface one
+ui system is so symmetric across surfaces that we can fix bugs found in VR in
+flat 3d or the DOM in most cases."_
+
+What does NOT cross is where the ray comes FROM. Flat, the pointer ray
+originates at the camera — the eye and the hand are the same point. In a headset
+they are 40cm apart, and code that treats a controller direction as if it began
+at your eyes is wrong only there. The panel-drag aim bug was exactly that, and
+it was **unreproducible flat by construction**: the offset it got wrong does not
+exist on a monitor. Anything reading `pickInfo.ray` on a 6DoF device is in this
+category.
+
+Alongside it, the two smaller ones: **feel** (drag resistance, comfort, whether
+a limit reads as a limit) and anything that only exists inside a session (the
+rAF pump, XR input sources, per-session teardown).
+
+So the triage question is not "is this a VR bug" but **"is this about what is
+drawn, or about where the pointer starts?"** The first is a flat bug you happened
+to notice in a headset. The second is the only kind that genuinely needs one.
 
 You cannot spawn Electron on a Quest, so driving the headset's own browser is
 the only way to `eval` against a live immersive session. Every VR finding to
