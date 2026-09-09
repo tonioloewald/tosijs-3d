@@ -89,7 +89,7 @@ describe('attachSceneLayer', () => {
     expect(r.opened[0].handleClosed).toBe(seen)
   })
 
-  test('a popup is drawn at the PANEL\'s scale, not the panel\'s width', () => {
+  test("a popup is drawn at the PANEL's scale, not the panel's width", () => {
     /*
     It took `width * 0.95` whatever it contained — right for a keyboard, which
     is about as wide as a panel, and grotesque for a small select menu, which
@@ -105,7 +105,8 @@ describe('attachSceneLayer', () => {
       r.opened.length = 0
       r.registered[0](
         {
-          getAttribute: (n: string) => (n === 'width' ? String(popWidth) : '180'),
+          getAttribute: (n: string) =>
+            n === 'width' ? String(popWidth) : '180',
           viewBox: { baseVal: {} },
         },
         { anchor: { x: 0, y: 0, width: 320, height: 40 } }
