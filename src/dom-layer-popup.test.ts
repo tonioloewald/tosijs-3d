@@ -241,6 +241,54 @@ describe('a MENU is a popup too, not something the panel crops', () => {
     expect(Number(svg?.getAttribute('height'))).toBeGreaterThan(100)
   })
 
+  test('no empty band above it — a DOM layer draws no chrome', () => {
+    /*
+    The sheet reserved 30px of headroom unconditionally, for the move and close
+    glyphs `popup-surface` draws into the top of an in-scene popup. A DOM layer
+    draws none, so flat that band was an empty strip above every menu. Tonio:
+    "The popup is good but it has a lot of wasted space up top."
+
+    Measured on this exact shape: 180px tall before, 150 after — the whole band.
+
+    It stays reserved when a chrome-drawing host IS mounting, because the sheet
+    is SHARED by every presentation and two sheets would be the divergence this
+    arrangement exists to prevent. Paying it flat so the in-scene one has room
+    for its handles is the right side of that trade; paying it when nothing
+    draws handles is just waste.
+    */
+    openSelect()
+    const svg = document
+      .querySelector('[data-w3d-dom-layer]')
+      ?.querySelector('svg')
+    const h = Number(svg?.getAttribute('height'))
+    // Three 40px rows plus the panel's own padding — and no chrome band.
+    expect(h).toBe(150)
+  })
+
+  test('...but a chrome-drawing host still gets its band', () => {
+    // The other side of the trade, asserted so "reclaim the space" cannot
+    // quietly become "never leave room for the handles".
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    mounted.push(host)
+    const panel: any = w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34 },
+      w3d.select3d({ label: 'spin', value: 'a', options: ['a', 'b', 'c'] })
+    )
+    host.appendChild(panel)
+    let sheet: SVGSVGElement | null = null
+    const scenish = (s: SVGSVGElement) => {
+      sheet = s
+      return { close: () => {} }
+    }
+    ;(scenish as unknown as { drawsChrome: boolean }).drawsChrome = true
+    panel.__layerHosts = [scenish]
+    panel.handlePointer('down', 250, 50)
+    panel.handlePointer('up', 250, 50)
+    expect(sheet).toBeTruthy()
+    expect(Number(sheet!.getAttribute('height'))).toBe(180)
+  })
+
   test('a DETACHED panel still gets a menu — degrading beats failing', () => {
     // The bounded path is a last resort, not a bug: with nowhere to mount, a
     // cropped menu is better than none.

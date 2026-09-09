@@ -728,11 +728,24 @@ export type LayerHost = (
  * that can leave room for it.
  */
 const POPUP_CHROME_BAND = 30
-function panelPopupSheet(width: number, items: Widget3d[]): SVGSVGElement {
-  return panel3d(
-    { width, height: 'fit', paddingTop: POPUP_CHROME_BAND },
-    ...items
-  )
+/**
+ * @param chromeBand headroom for the mounting layer's own move/close glyphs.
+ *   `0` when no mounting host draws any — a DOM layer does not, and reserving
+ *   the band regardless put an empty 30px strip above every flat menu. Tonio:
+ *   "The popup is good but it has a lot of wasted space up top."
+ *
+ *   It is a property of the SHEET, and the sheet is shared by every
+ *   presentation, so a panel shown both flat and on a plane still reserves it —
+ *   the alternative is two sheets, which is the divergence this whole
+ *   arrangement exists to avoid. Paying 30px flat so the in-scene one has room
+ *   for its handles is the right side of that trade.
+ */
+function panelPopupSheet(
+  width: number,
+  items: Widget3d[],
+  chromeBand: number = POPUP_CHROME_BAND
+): SVGSVGElement {
+  return panel3d({ width, height: 'fit', paddingTop: chromeBand }, ...items)
 }
 
 /** What a panel offers the widgets inside it. */
@@ -2791,8 +2804,19 @@ export function panel3d(
           y: config.anchor.y + paddingTop + top - scroll,
         },
       }
-      // ONE sheet, mounted by each presentation — see `LayerHost`.
-      const sheet = panelPopupSheet(config.width ?? 360, items)
+      /*
+      ONE sheet, mounted by each presentation — see `LayerHost`. The chrome band
+      is reserved only if one of THESE hosts actually draws chrome, so a
+      flat-only panel gets no empty strip above its menu.
+      */
+      const drawsChrome = hosts.some(
+        (h) => (h as unknown as { drawsChrome?: boolean }).drawsChrome === true
+      )
+      const sheet = panelPopupSheet(
+        config.width ?? 360,
+        items,
+        drawsChrome ? POPUP_CHROME_BAND : 0
+      )
       /*
       ONE CLOSE, however it starts.
 

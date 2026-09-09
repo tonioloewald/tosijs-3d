@@ -66,8 +66,13 @@ export function attachSceneLayer(opts: {
     return false
   }
   const { planeW: width, planeH, openerMesh } = opts
-  panelEl.addLayerHost(
-    (
+  /*
+  THIS host draws chrome — `popup-surface` puts move and close glyphs into the
+  top of whatever SVG it is handed — so the sheet must keep a band clear for
+  them. A DOM layer draws none and marks nothing, which is what lets a flat-only
+  panel skip the band entirely.
+  */
+  const host = (
       sheet: SVGSVGElement,
       config: {
         anchor: { x: number; y: number; width: number; height: number }
@@ -153,6 +158,7 @@ export function attachSceneLayer(opts: {
       })
       return { close: () => pop.close() }
     }
-  )
+  ;(host as unknown as { drawsChrome?: boolean }).drawsChrome = true
+  panelEl.addLayerHost(host)
   return true
 }
