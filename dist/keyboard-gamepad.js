@@ -38,6 +38,7 @@ Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
 /*{ "parent": "Input" }*/
 import { Component } from 'tosijs';
 import { emptyGamepad } from './virtual-gamepad.js';
+import { isTextEntry } from './text-entry.js';
 function keycode(evt) {
     return evt.code.replace(/Key|Digit/, '');
 }
@@ -145,6 +146,21 @@ export class KeyboardGamepadSource extends Component {
         return false;
     }
     _handleKeyDown = (event) => {
+        /*
+        NOT WHILE SOMEONE IS TYPING.
+    
+        This listens on `window` so you can steer without clicking the canvas first
+        — right for a scene, and wrong for the rest of a page. `a` is a strafe key,
+        so typing "lamp" into a search box lost the character to `preventDefault`
+        AND strafed the demo while it was typed. Tonio, from an iPhone: "I was
+        trying to search nav for lamp and typing didn't work. Are we somehow
+        preventing regular keyboards from working?"
+    
+        Yes, we were. Asking the event where it came from is a property read and
+        cannot go stale, which a "input is focused" flag would.
+        */
+        if (isTextEntry(event))
+            return;
         const code = keycode(event);
         if (this._isMappedKey(code))
             event.preventDefault();
@@ -159,6 +175,8 @@ export class KeyboardGamepadSource extends Component {
         }
     };
     _handleKeyUp = (event) => {
+        // NOT guarded: a key pressed on the canvas and released after focus moved
+        // into a field must still come up, or the entity strafes forever.
         this.pressedKeys.delete(keycode(event));
     };
     _handleWheel = (event) => {

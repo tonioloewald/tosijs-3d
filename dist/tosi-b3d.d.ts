@@ -714,6 +714,11 @@ export declare class B3d extends Component {
     private _liveDebugTimer;
     /** Set while an XR panel exists; rewrites its contents in place so debug numbers stay
      * live in the headset. No-op flat (the flat panel rebuilds on open). */
+    /**
+     * Where the in-XR panel was last dragged to — kept on the ELEMENT so it
+     * survives the dispose-and-re-attach a structural refresh does.
+     */
+    private _xrPanelSeat;
     private _refreshXrPanel;
     /**
      * Write into the **Perf Stats panel** — the only debug readout that exists BOTH as a

@@ -559,8 +559,20 @@ export function resolveDynamic(v, fallback) {
  * that can leave room for it.
  */
 const POPUP_CHROME_BAND = 30;
-function panelPopupSheet(width, items) {
-    return panel3d({ width, height: 'fit', paddingTop: POPUP_CHROME_BAND }, ...items);
+/**
+ * @param chromeBand headroom for the mounting layer's own move/close glyphs.
+ *   `0` when no mounting host draws any — a DOM layer does not, and reserving
+ *   the band regardless put an empty 30px strip above every flat menu. Tonio:
+ *   "The popup is good but it has a lot of wasted space up top."
+ *
+ *   It is a property of the SHEET, and the sheet is shared by every
+ *   presentation, so a panel shown both flat and on a plane still reserves it —
+ *   the alternative is two sheets, which is the divergence this whole
+ *   arrangement exists to avoid. Paying 30px flat so the in-scene one has room
+ *   for its handles is the right side of that trade.
+ */
+function panelPopupSheet(width, items, chromeBand = POPUP_CHROME_BAND) {
+    return panel3d({ width, height: 'fit', paddingTop: chromeBand }, ...items);
 }
 /** What a panel offers the widgets inside it. */
 /**
@@ -1352,10 +1364,31 @@ export function select3d(config) {
     a panel this is a select and nothing else.
     */
     let host = null;
+    /*
+    HOLD THE HANDLE, because `closePopup` only knows about the bounded one.
+  
+    `host.closePopup()` is the panel's single-popup tracking, which the LAYER path
+    knows nothing about — so once a menu opened as a layer, picking an option set
+    the value and left the menu standing. Tonio: "Clicking an option on the popup
+    in the kitchen sink demo doesn't dismiss the popup."
+  
+    Closing the handle you were given works whichever path opened it, which is
+    what `showPopup` returning one is for. `closePopup` stays as the fallback for
+    the case that produced no handle at all.
+    */
+    let openHandle = null;
+    const closeMenu = () => {
+        if (openHandle != null) {
+            openHandle.close();
+            openHandle = null;
+            return;
+        }
+        host?.closePopup();
+    };
     const openMenu = () => {
         if (host == null || opts.length === 0)
             return;
-        host.showPopup({
+        openHandle = host.showPopup({
             // Anchored to the VALUE, not to the whole row: a menu that drops from
             // the far left of a wide row looks unrelated to what it changes.
             anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
@@ -1365,7 +1398,7 @@ export function select3d(config) {
             handleSelect: (_item, i) => {
                 bound.set(opts[i].value);
                 reflect();
-                host?.closePopup();
+                closeMenu();
             },
         }));
     };
@@ -1801,7 +1834,19 @@ export function panel3d(config, ...widgets) {
     scrolls, measure again with the rail's width taken out. Cheap (layout is
     arithmetic) and it keeps the rail from ever overlapping a control.
     */
-    const RAIL_W = 14;
+    /*
+    What the BODY gives up for the rail. The thumb is drawn flush with the panel's
+    own right inset — the same one the top and bottom use — so the only reserved
+    space is the thumb plus a small gap, rather than a wide column with dead space
+    inside it. Tonio: "move it a bit closer to the edge of the panel (same right
+    inset as bottom/top inset). Regain a little real estate and look a little
+    nicer, and it's no harder to point at with the virtual laser pointer."
+  
+    It is in fact EASIER to point at: the hit zone is everything from here to the
+    panel's edge, so it claims the padding beyond the thumb as well — about twice
+    the drawn width, and none of it overlapping a control.
+    */
+    const RAIL_W = 10;
     const measure = (w) => {
         const hs = widgets.map((x) => x.layout(w));
         return { hs, ...stackLayout(hs, gap) };
@@ -1914,9 +1959,11 @@ export function panel3d(config, ...widgets) {
     const railX = width - padding - RAIL_W;
     const railTop = paddingTop + headerH;
     const THUMB_W = 6;
+    // Flush with the right inset, not centred in a column of its own.
+    const thumbX = width - padding - THUMB_W;
     const thumbH = Math.max(24, Math.round(viewport * Math.min(1, viewport / Math.max(1, total))));
     const railTrack = rect({
-        x: railX + (RAIL_W - THUMB_W) / 2,
+        x: thumbX,
         y: railTop,
         width: THUMB_W,
         height: viewport,
@@ -1924,7 +1971,7 @@ export function panel3d(config, ...widgets) {
         fill: TH.TRACK,
     });
     const railThumb = rect({
-        x: railX + (RAIL_W - THUMB_W) / 2,
+        x: thumbX,
         y: railTop,
         width: THUMB_W,
         height: thumbH,
@@ -2011,7 +2058,33 @@ export function panel3d(config, ...widgets) {
     `showPopup` need no "which widget is calling" argument.
     */
     const hostFor = (index) => ({
+        /*
+        A POPUP IS A POPUP — it prefers a LAYER and only falls back to being bounded
+        by the panel when there genuinely is not one.
+    
+        This used to go straight to the bounded path, so every `select3d` menu and
+        every `openMenu3d` was cropped to the room left under its own row. Only the
+        keyboard called `showLayer`, and only because someone knew it existed —
+        which is the failure `showLayer`'s own comment already names: "a feature that
+        only works if you know a second call exists is a feature most people do not
+        have."
+    
+        Measured on the second `tosi-b3d` demo, whose panel holds a `spin` select:
+        zero DOM layers installed and the menu mounted INSIDE the panel's own SVG.
+        Tonio, on both the flat and the VR presentation: "the pop up for speed is
+        tiny… and it's clipped to the panel. We need pop ups to be pop ups and not
+        constrained by the thing that pops them. Otherwise the user experience is
+        terrible."
+    
+        `showLayer` already degrades to `boundedPopup` when there is nowhere to
+        mount, so this is one door with the right default behind it rather than two
+        doors a caller has to choose between. `boundedPopup` stays reachable for the
+        one case that wants it: a popup that must not escape its panel.
+        */
         showPopup(config, ...items) {
+            return this.showLayer(config, ...items);
+        },
+        boundedPopup(config, ...items) {
             const top = offsets[index] ?? 0;
             return baseHost.showPopup({
                 ...config,
@@ -2066,7 +2139,10 @@ export function panel3d(config, ...widgets) {
             if (hosts.length === 0) {
                 // Genuinely nowhere to put it — a detached panel, or one whose parent
                 // has gone. Degrades to a popup bounded by the panel.
-                return hostFor(index).showPopup(config, ...items);
+                //
+                // `boundedPopup`, NOT `showPopup`: that now prefers a layer and would
+                // call straight back into here.
+                return hostFor(index).boundedPopup(config, ...items);
             }
             const top = offsets[index] ?? 0;
             const placed = {
@@ -2077,16 +2153,36 @@ export function panel3d(config, ...widgets) {
                     y: config.anchor.y + paddingTop + top - scroll,
                 },
             };
-            // ONE sheet, mounted by each presentation — see `LayerHost`.
-            const sheet = panelPopupSheet(config.width ?? 360, items);
-            const opened = hosts.map((h) => h(sheet, placed));
-            return {
-                close: () => {
-                    for (const o of opened)
-                        o.close();
-                    handlerOf(config, 'handleClose', 'onClose')?.();
-                },
+            /*
+            ONE sheet, mounted by each presentation — see `LayerHost`. The chrome band
+            is reserved only if one of THESE hosts actually draws chrome, so a
+            flat-only panel gets no empty strip above its menu.
+            */
+            const drawsChrome = hosts.some((h) => h.drawsChrome === true);
+            const sheet = panelPopupSheet(config.width ?? 360, items, drawsChrome ? POPUP_CHROME_BAND : 0);
+            /*
+            ONE CLOSE, however it starts.
+      
+            Every face is told `handleClosed`, so pressing × on the in-scene one shuts
+            the flat one too and the opener hears about it — the popup is one thing
+            wearing two faces, and a close that only reached the face you pressed left
+            the other up and the opener out of step.
+      
+            `closing` guards the loop that creates: a host's own close calls back in
+            here, which closes that host again.
+            */
+            let closing = false;
+            const opened = [];
+            const closeAll = () => {
+                if (closing)
+                    return;
+                closing = true;
+                for (const o of opened)
+                    o.close();
+                handlerOf(config, 'handleClose', 'onClose')?.();
             };
+            opened.push(...hosts.map((h) => h(sheet, { ...placed, handleClosed: closeAll })));
+            return { close: closeAll };
         },
         get hasLayer() {
             const hosts = root.__layerHosts ?? [];
@@ -2556,15 +2652,27 @@ export function panel3d(config, ...widgets) {
     element.
     */
     if (config.grip) {
-        const gw = Math.min(64, innerW * 0.25);
-        root.appendChild(rect({
-            x: (width - gw) / 2,
-            y: Math.max(4, paddingTop / 2 - 2),
-            width: gw,
-            height: 4,
-            rx: 2,
-            fill: TH.MUTED,
-            opacity: 0.55,
+        /*
+        THE MOVE GLYPH, not a lozenge.
+    
+        The first version drew an iPhone-style grab bar, which reads as "drag me"
+        to a phone user and as nothing in particular anywhere else — and this
+        library already has an answer: `popup-surface` marks a draggable panel with
+        `iconGlyph('move')`. Tonio: "The drag affordance looks a bit like an iphone
+        lozenge, but we use the move cursor for panels in other cases."
+    
+        One vocabulary. A person who has learnt what the handle on a torn-off popup
+        looks like should not have to learn a second one for a settings panel.
+    
+        `iconGlyph`, not `svgIcons`: this SVG is rasterised to a texture, where
+        `currentColor` resolves against nothing and paints black.
+        */
+        const size = Math.min(18, paddingTop - 8);
+        root.appendChild(iconGlyph('move', {
+            color: TH.MUTED,
+            size,
+            x: (width - size) / 2,
+            y: Math.max(3, (paddingTop - size) / 2 - 2),
         }));
     }
     if (scrollable) {

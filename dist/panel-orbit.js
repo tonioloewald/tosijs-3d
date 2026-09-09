@@ -142,6 +142,33 @@ export function orbitOf(p) {
     };
 }
 /**
+ * Where a POINTING RAY lands on the sphere — the drag, done properly.
+ *
+ * ⚠️ NOT the ray's direction. The direction belongs to the CONTROLLER and the
+ * sphere is centred on your HEAD, so applying one to the other treats your hand
+ * as if it were at your eyes. The panel then sits where the arithmetic says
+ * rather than where you are pointing, and every wobble of your hand swings it
+ * by the whole offset between the two — which is what "jittery, and doesn't
+ * track the cursor" was.
+ *
+ * The question is "where on my sphere am I pointing", so: take a point along
+ * the ray at the sphere's radius, and ask which way THAT lies from the centre.
+ * Both arguments are in the anchor's own space; the caller does the transform,
+ * and must transform the origin as a POINT and the direction as a VECTOR —
+ * using the same one for both is the same class of error again.
+ */
+export function orbitFromAim(rayOrigin, rayDirection, current) {
+    const len = Math.hypot(rayDirection.x, rayDirection.y, rayDirection.z);
+    if (!Number.isFinite(len) || len < 1e-9)
+        return { ...current };
+    const k = current.radius / len;
+    return orbitFromDirection({
+        x: rayOrigin.x + rayDirection.x * k,
+        y: rayOrigin.y + rayDirection.y * k,
+        z: rayOrigin.z + rayDirection.z * k,
+    }, current);
+}
+/**
  * One axis of the rubber band: how far past a limit an overshoot SHOWS.
  *
  * `max · (1 - e^(-over/max))`. Three properties earn it over a linear scale
@@ -224,9 +251,24 @@ export function angularHeight(height, radius) {
  */
 export function orbitCentre(seat, angularHeightDeg) {
     const half = angularHeightDeg / 2;
-    // `>= 0` and `<= 0` both give `-half`/`+half` → 0 at the equator, so the two
-    // branches meet rather than stepping.
-    const shift = seat.elevationDeg >= 0 ? -half : half;
+    /*
+    BLENDED ACROSS THE HORIZON, not switched at it.
+  
+    A hard `elevation >= 0 ? -half : +half` is fully top-pinned just above the
+    equator and fully bottom-pinned just below, so dragging through eye level
+    moved the panel by its ENTIRE height in one frame. Tonio: "the pinning getting
+    offset when it switches from bottom to top pin at horizon, but that's kind of
+    acceptable." It is not, and it is a one-line fix.
+  
+    Ramping over the panel's own half-height keeps every property the hard switch
+    had — fully pinned by the time you are half a panel from the horizon, so the
+    ceiling and floor cases are unchanged — and adds the one it lacked. At the
+    equator the shift is zero, which is also just right: a panel at eye level
+    should be centred on eye level, not hanging off one edge of it.
+    */
+    const blend = Math.max(1e-6, half);
+    const t = Math.max(-1, Math.min(1, seat.elevationDeg / blend));
+    const shift = -half * t;
     return {
         azimuthDeg: seat.azimuthDeg,
         elevationDeg: seat.elevationDeg + shift,

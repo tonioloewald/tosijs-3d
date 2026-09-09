@@ -68,7 +68,14 @@ the blast, so point-blank fire does nothing, silently. Direct-hit damage has no
 length scale in it, so it cannot break that way. Reported by an adopter who hit
 it by making their world four times larger (#23).</p>
 <p><strong>If you relied on the old behaviour</strong>, say so explicitly:</p>
-<pre><code class="language-html">&lt;tosi-b3d-aircraft
+<!--
+`xml`, NOT `html` — the doc system RUNS a ```html fence as a live example, and
+this one is illustrative markup in a reference document with no scene to mount
+into. `xml` highlights the same and stays inert. See `doc-examples.test.ts`,
+which now fails on any live-language fence in a published markdown file.
+-->
+
+<pre><code class="language-xml">&lt;tosi-b3d-aircraft
   gun-mode=&quot;blast&quot;
   gun-blast-radius=&quot;1.5&quot;
   gun-full-radius=&quot;0.5&quot;
@@ -376,6 +383,7 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
@@ -412,6 +420,7 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
       <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>

@@ -50,6 +50,56 @@ Nothing breaks at compile time. Two behaviours change, and
 
 ### Fixed
 
+A second headset pass found the rest of these. Between the two, every one was
+invisible to a green suite — and the ones on panels were all reproducible flat,
+which is now written down rather than re-learned (CLAUDE.md, "A PANEL IS NOT A
+HEADSET-ONLY SURFACE").
+
+- **We were eating other people's keystrokes.** `KeyboardGamepad` listens on
+  `window` so you can steer without clicking the canvas first, and the on-screen
+  keyboard listens there so an in-scene field types with no DOM focus — the only
+  way that works in a headset. Both then `preventDefault` what they claim, with
+  no notion of where the event came from. `a` is a strafe key, so typing "lamp"
+  into a search box lost the character AND strafed the demo, on any page
+  carrying a scene. `isTextEntry(event)` is the one predicate all three
+  listeners consult. An input you PRESS is not typing — space on a checkbox
+  stays a press — and key RELEASE is deliberately unguarded, or a key pressed on
+  the canvas and released in a field would stay down forever.
+- **A popup is a popup, not something its panel crops.** `select3d`'s menu and
+  `openMenu3d` went to the panel-bounded path, so a menu was squeezed into
+  whatever room was left under its own row. Only the keyboard called
+  `showLayer`, because someone knew it existed. `showPopup` now prefers a layer
+  and keeps the bounded path as its fallback, so the fix reaches every caller;
+  `boundedPopup` remains for a popup that must not escape. **Picking an option
+  dismisses it** — `closePopup()` is the panel's own tracking and knows nothing
+  about layers, so a menu set the value and stayed standing.
+- **An in-scene panel's popups open on their own plane.** A panel rasterised
+  onto a plane is not in the document, so the DOM layer cannot auto-install and
+  every popup took the cropped path. `panelScene` had registered a scene layer
+  since the keyboard needed one; the `<tosi-b3d>` settings panel never did. The
+  placement maths is extracted to `panel-layer` rather than copied — a formula
+  at three sites, fixed at one, is a mistake this repo has already paid for.
+- **A popup is drawn at its panel's scale.** It took `width * 0.95` whatever it
+  contained: right for a keyboard, grotesque for a 160-unit menu at twice the
+  text size of the thing that opened it. One viewBox unit is now the same
+  physical size on a panel and its popup.
+- **A press aimed at a popup reaches the popup.** The XR panel's re-pick ignored
+  what the ray actually hit and forced a pick against itself, so a press on a
+  popup in FRONT of it was routed to the panel behind — close and move never saw
+  a thing. An occluder that is itself UI now wins.
+- **No empty band above a flat popup.** 30px was reserved for the move/close
+  glyphs an in-scene popup draws; a DOM layer draws none. Reserved only when a
+  mounting host actually draws chrome.
+- **The keyboard's × means "put it away".** It closed only the presentation you
+  pressed, leaving the other up and the field still believing it had a keyboard
+  open — and left the mode on, so the glyph stayed lit over nothing and the next
+  press flipped the preference instead of reopening. A takeover is still not a
+  dismissal: swapping layouts between fields must not darken the glyph.
+- **`Migration.md`'s first block ran as a live example.** The doc system executes
+  `html` fences, which is the natural fence for illustrative markup. Now `xml`,
+  and `doc-examples.test.ts` — which scanned only `src/*.ts` — fails on any live
+  fence in a published markdown doc.
+
 Five of these came from one headset pass on the terrain editor, which is the
 argument for `RELEASING.md` step 5a in one paragraph: every one of them was
 invisible to 2300 passing tests, and the first was invisible to a day of
@@ -208,6 +258,19 @@ reading the source.
   editor no longer follows you between demos (from the 0.8.0 headset pass).
 
 ### Added
+
+- **A spatial panel can be dragged, and the drag is aimed at where you POINT.**
+  `orbitFromAim` walks the controller ray to the sphere's radius and asks which
+  way that point lies from the anchor. Using the ray's DIRECTION instead treats
+  your hand as if it were at your eyes: the panel sat where the arithmetic said
+  rather than where you pointed, and hand wobble swung it by the whole
+  head-to-hand offset.
+
+  The seat lives on the element, so a structural refresh — pressing Pause, say —
+  no longer snaps the panel back to its default. A seat names an EDGE and the
+  pin BLENDS across the horizon: a hard switch moved the panel by its entire
+  height in one frame as you dragged through eye level. The grip is
+  `iconGlyph('move')`, the same mark a torn-off popup already uses.
 
 - **A spatial panel can be dragged, on the sphere around its rig anchor.** Two
   properties fall out rather than being built: the distance cannot drift (so it

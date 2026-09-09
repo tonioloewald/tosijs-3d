@@ -431,7 +431,7 @@ function wirePointer(owner) {
     });
 }
 export function openPopup(owner, opts) {
-    const { svg, opener = null, width = 1, resolution = 512, offset = {}, lift = 0.02, draggable = true, modal = false, gripHeight = 0.2, chrome = true, } = opts;
+    const { svg, opener = null, width = 1, resolution = 512, offset = {}, lift = 0.02, draggable = true, modal = false, gripHeight = 0.2, chrome = true, handleClosed, } = opts;
     const vb = svg.viewBox?.baseVal;
     const aspect = vb && vb.width > 0 ? vb.height / vb.width : 1;
     /*
@@ -788,6 +788,9 @@ export function openPopup(owner, opts) {
             }
             plane.remove();
             applyModalBlocking(owner);
+            // LAST, and after `closed` is set: a handler that closes its siblings can
+            // reach back here, and must find this one already gone rather than recurse.
+            handleClosed?.();
         },
     };
     // Newest on top, which is what "it just opened" should mean.

@@ -133,6 +133,15 @@ sheet: SVGSVGElement, config: {
     side?: PopupSide;
     width?: number;
     maxHeight?: number;
+    /**
+     * Call this if the host closes the popup ITSELF — its own × glyph, say.
+     *
+     * A layer popup is ONE popup mounted by every presentation, so a close that
+     * starts in one of them has to reach the others. Without it, pressing × on
+     * the in-scene face closed that plane alone and left the flat one up, with
+     * the opener still believing it had a popup open.
+     */
+    handleClosed?: () => void;
 }) => {
     close: () => void;
 };
@@ -222,6 +231,23 @@ export interface WidgetHost {
      * `panel3d` has nothing above it, so this **falls back to `showPopup`** and the
      * caller must still cope with being refused.
      */
+    /**
+     * A popup that must NOT escape its panel — the fallback `showPopup` uses when
+     * there is no layer, exposed for the rare caller that wants it deliberately.
+     */
+    boundedPopup?: (config: {
+        anchor: {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        };
+        side?: PopupSide;
+        width?: number;
+        maxHeight?: number;
+    }, ...items: Widget3d[]) => {
+        close: () => void;
+    };
     showLayer: (config: {
         anchor: {
             x: number;

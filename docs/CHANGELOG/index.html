@@ -92,6 +92,56 @@ registry now lives on <code>DestroyableBehavior</code>, so anything attaching on
 target by construction.</li>
 </ul>
 <h3>Fixed</h3>
+<p>A second headset pass found the rest of these. Between the two, every one was
+invisible to a green suite — and the ones on panels were all reproducible flat,
+which is now written down rather than re-learned (CLAUDE.md, &quot;A PANEL IS NOT A
+HEADSET-ONLY SURFACE&quot;).</p>
+<ul>
+<li><strong>We were eating other people&#39;s keystrokes.</strong> <code>KeyboardGamepad</code> listens on
+<code>window</code> so you can steer without clicking the canvas first, and the on-screen
+keyboard listens there so an in-scene field types with no DOM focus — the only
+way that works in a headset. Both then <code>preventDefault</code> what they claim, with
+no notion of where the event came from. <code>a</code> is a strafe key, so typing &quot;lamp&quot;
+into a search box lost the character AND strafed the demo, on any page
+carrying a scene. <code>isTextEntry(event)</code> is the one predicate all three
+listeners consult. An input you PRESS is not typing — space on a checkbox
+stays a press — and key RELEASE is deliberately unguarded, or a key pressed on
+the canvas and released in a field would stay down forever.</li>
+<li><strong>A popup is a popup, not something its panel crops.</strong> <code>select3d</code>&#39;s menu and
+<code>openMenu3d</code> went to the panel-bounded path, so a menu was squeezed into
+whatever room was left under its own row. Only the keyboard called
+<code>showLayer</code>, because someone knew it existed. <code>showPopup</code> now prefers a layer
+and keeps the bounded path as its fallback, so the fix reaches every caller;
+<code>boundedPopup</code> remains for a popup that must not escape. <strong>Picking an option
+dismisses it</strong> — <code>closePopup()</code> is the panel&#39;s own tracking and knows nothing
+about layers, so a menu set the value and stayed standing.</li>
+<li><strong>An in-scene panel&#39;s popups open on their own plane.</strong> A panel rasterised
+onto a plane is not in the document, so the DOM layer cannot auto-install and
+every popup took the cropped path. <code>panelScene</code> had registered a scene layer
+since the keyboard needed one; the <code>&lt;tosi-b3d&gt;</code> settings panel never did. The
+placement maths is extracted to <code>panel-layer</code> rather than copied — a formula
+at three sites, fixed at one, is a mistake this repo has already paid for.</li>
+<li><strong>A popup is drawn at its panel&#39;s scale.</strong> It took <code>width * 0.95</code> whatever it
+contained: right for a keyboard, grotesque for a 160-unit menu at twice the
+text size of the thing that opened it. One viewBox unit is now the same
+physical size on a panel and its popup.</li>
+<li><strong>A press aimed at a popup reaches the popup.</strong> The XR panel&#39;s re-pick ignored
+what the ray actually hit and forced a pick against itself, so a press on a
+popup in FRONT of it was routed to the panel behind — close and move never saw
+a thing. An occluder that is itself UI now wins.</li>
+<li><strong>No empty band above a flat popup.</strong> 30px was reserved for the move/close
+glyphs an in-scene popup draws; a DOM layer draws none. Reserved only when a
+mounting host actually draws chrome.</li>
+<li><strong>The keyboard&#39;s × means &quot;put it away&quot;.</strong> It closed only the presentation you
+pressed, leaving the other up and the field still believing it had a keyboard
+open — and left the mode on, so the glyph stayed lit over nothing and the next
+press flipped the preference instead of reopening. A takeover is still not a
+dismissal: swapping layouts between fields must not darken the glyph.</li>
+<li><strong><code>Migration.md</code>&#39;s first block ran as a live example.</strong> The doc system executes
+<code>html</code> fences, which is the natural fence for illustrative markup. Now <code>xml</code>,
+and <code>doc-examples.test.ts</code> — which scanned only <code>src/*.ts</code> — fails on any live
+fence in a published markdown doc.</li>
+</ul>
 <p>Five of these came from one headset pass on the terrain editor, which is the
 argument for <code>RELEASING.md</code> step 5a in one paragraph: every one of them was
 invisible to 2300 passing tests, and the first was invisible to a day of
@@ -268,6 +318,18 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</p>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p><strong>A spatial panel can be dragged, and the drag is aimed at where you POINT.</strong>
+<code>orbitFromAim</code> walks the controller ray to the sphere&#39;s radius and asks which
+way that point lies from the anchor. Using the ray&#39;s DIRECTION instead treats
+your hand as if it were at your eyes: the panel sat where the arithmetic said
+rather than where you pointed, and hand wobble swung it by the whole
+head-to-hand offset.</p>
+<p>The seat lives on the element, so a structural refresh — pressing Pause, say —
+no longer snaps the panel back to its default. A seat names an EDGE and the
+pin BLENDS across the horizon: a hard switch moved the panel by its entire
+height in one frame as you dragged through eye level. The grip is
+<code>iconGlyph(&#39;move&#39;)</code>, the same mark a torn-off popup already uses.</p>
+</li>
 <li><p><strong>A spatial panel can be dragged, on the sphere around its rig anchor.</strong> Two
 properties fall out rather than being built: the distance cannot drift (so it
 can never be shoved into your face or out of reach) and the facing comes free.
@@ -3241,6 +3303,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
@@ -3277,6 +3340,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
       <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>

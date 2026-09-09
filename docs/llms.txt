@@ -247,6 +247,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   What to change when upgrading. Only breaking changes are listed — everything
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
+- https://3d.tosijs.net/panel-layer/ — panel-layer
+  A popup that lives inside its panel's SVG is cropped by it. That is the whole
 - https://3d.tosijs.net/panel-orbit/ — panel-orbit
   DOM — so the placement rule can be tested without a headset.
 - https://3d.tosijs.net/patch-field/ — patch-field
@@ -297,6 +299,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   unit and enum comes from `sceneSchemas.terrain()`, so the control cannot
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
+- https://3d.tosijs.net/text-entry/ — text-entry
+  listens for keys on `window`.
 - https://3d.tosijs.net/theme-editor/ — theme-editor
   consumes, as a grid of controls: colours, metrics with a slider *and* a number
 - https://3d.tosijs.net/ — tosijs-3d

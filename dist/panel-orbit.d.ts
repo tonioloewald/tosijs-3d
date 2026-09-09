@@ -73,6 +73,23 @@ export declare function orbitPosition(o: Orbit): OrbitVec3;
  */
 export declare function orbitOf(p: OrbitVec3): Orbit;
 /**
+ * Where a POINTING RAY lands on the sphere — the drag, done properly.
+ *
+ * ⚠️ NOT the ray's direction. The direction belongs to the CONTROLLER and the
+ * sphere is centred on your HEAD, so applying one to the other treats your hand
+ * as if it were at your eyes. The panel then sits where the arithmetic says
+ * rather than where you are pointing, and every wobble of your hand swings it
+ * by the whole offset between the two — which is what "jittery, and doesn't
+ * track the cursor" was.
+ *
+ * The question is "where on my sphere am I pointing", so: take a point along
+ * the ray at the sphere's radius, and ask which way THAT lies from the centre.
+ * Both arguments are in the anchor's own space; the caller does the transform,
+ * and must transform the origin as a POINT and the direction as a VECTOR —
+ * using the same one for both is the same class of error again.
+ */
+export declare function orbitFromAim(rayOrigin: OrbitVec3, rayDirection: OrbitVec3, current: Orbit): Orbit;
+/**
  * One axis of the rubber band: how far past a limit an overshoot SHOWS.
  *
  * `max · (1 - e^(-over/max))`. Three properties earn it over a linear scale

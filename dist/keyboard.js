@@ -249,6 +249,7 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 */
 /*{ "parent": "UI", "order": 210 }*/
 import { svgElements } from 'tosijs';
+import { isTextEntry } from './text-entry.js';
 import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout.js';
 import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit.js';
 import { measureTextWidth } from './widgets3d-layout.js';
@@ -378,6 +379,10 @@ export function fieldGroup(config) {
             // handlers would double every character.
             groupAttachments += 1;
             const onKey = (evt) => {
+                // Same rule as the global listener: a real input wins. A group attached
+                // to `window` is the common case, and it must not eat a nav search.
+                if (target === globalThis.window && isTextEntry(evt))
+                    return;
                 const e = evt;
                 // Only claim the key if a field consumed it — otherwise Tab still
                 // traverses, Escape still closes, and cmd-R still reloads.
@@ -451,6 +456,16 @@ the caller has to remember.
 */
 let liveKeyboard = null;
 /*
+A TAKEOVER IS NOT A DISMISSAL.
+
+Moving from the name field to a number field closes one keyboard and opens
+another, and that close must not read as "put the keyboard away" — the
+preference would go off under a keyboard that is still on screen, darkening
+every field's glyph and stopping the next field auto-opening. Module-level
+because the keyboard being taken over usually belongs to a DIFFERENT field.
+*/
+let keyboardTakeover = false;
+/*
 HARDWARE KEYS REACH THE FIELD THAT HAS FOCUS, with no wiring.
 
 A bare `inputField` never heard the keyboard: only `fieldGroup.attach()`
@@ -475,6 +490,20 @@ function ensureGlobalKeyListener() {
         return;
     globalKeyListener = (evt) => {
         if (groupAttachments > 0 || activeField == null)
+            return;
+        /*
+        A REAL input wins over an SVG field.
+    
+        This listens on `window` so a focused in-scene field types without any DOM
+        focus — which is the only way it can work in a headset. On a page that also
+        has ordinary inputs (a doc site's nav search, say) that means a keystroke
+        meant for the page would be routed into the SVG field and then
+        `preventDefault`ed out of the box the person was actually typing in.
+    
+        Same fix as `KeyboardGamepad`: ask the event where it came from. See
+        `text-entry`.
+        */
+        if (isTextEntry(evt))
             return;
         const e = evt;
         const intent = keyIntent(e.key, {
@@ -811,7 +840,13 @@ export function inputField(config = {}) {
             return;
         }
         // Take it over rather than adding a second: see `liveKeyboard`.
-        liveKeyboard?.close();
+        keyboardTakeover = true;
+        try {
+            liveKeyboard?.close();
+        }
+        finally {
+            keyboardTakeover = false;
+        }
         liveKeyboard = null;
         const kb = keyboard({
             mode: api.keyboardMode,
@@ -857,9 +892,59 @@ export function inputField(config = {}) {
         const roomBelow = host.bounds.height - host.top - H;
         if (!host.hasLayer && roomBelow < KB_MIN_HEIGHT)
             return;
-        const opened = host.showLayer({
+        /*
+        `mine` FIRST, and `opened` mutable, because the two refer to each other.
+    
+        The close handler below names `mine`, and a host that mounts and closes
+        synchronously would reach it before a `const` declared after this call had
+        been initialised — the temporal-dead-zone trap this repo already carries a
+        scar about (see CLAUDE.md on `whenReady`). Declaring the identity up front
+        and filling in the handle afterwards removes the question entirely.
+        */
+        let opened = null;
+        /** Clear OUR records. A takeover and a × both need exactly this. */
+        const forget = () => {
+            if (liveKeyboard === mine)
+                liveKeyboard = null;
+            /*
+            CLEAR OUR OWN RECORD TOO.
+      
+            A takeover closes the previous owner's keyboard, and without this that
+            field still believed it had one — so returning to it did nothing and the
+            layout never changed back. Tonio: "if I go from the name field to a number
+            field the keyboard changes, but it doesn't change back if I return to the
+            text field."
+            */
+            if (kbOpen === mine)
+                kbOpen = null;
+        };
+        const mine = { close: () => opened?.close() };
+        opened = host.showLayer({
             anchor: { x: 0, y: 0, width, height: H },
             side: 'below',
+            /*
+            THE × MEANS "PUT THE KEYBOARD AWAY", not "close this panel".
+    
+            It arrives here however the close started — the layer tells every
+            presentation and then tells us — so our record is cleared and the shared
+            preference goes off with it.
+    
+            Two bugs, one cause. The × closed only the face you pressed, leaving the
+            other presentation up: "closing the keyboard using the close button
+            doesn't close it in both contexts… it's just closing that particular
+            panel, which is kind of weird." And it left the preference on, so the
+            glyph stayed LIT over a keyboard that was gone and pressing it flipped
+            the preference to false rather than reopening — two presses to do one
+            thing: "I have to click it off and click it back on again."
+    
+            The glyph SHOWS the preference (see `paintGlyph`), so leaving the two out
+            of step is exactly the "button that lies" its own comment warns about.
+            */
+            handleClose: () => {
+                forget();
+                if (!keyboardTakeover)
+                    setAutoKeyboard(false);
+            },
             // FIT THE HOST, don't ask for a nominal 360: a wider keyboard than the
             // panel is simply clipped at the right edge, so the last column of keys
             // — enter, backspace — becomes unreachable. Measured: 360 in a 320 panel
@@ -867,22 +952,6 @@ export function inputField(config = {}) {
             width: host.hasLayer ? 360 : Math.min(360, host.bounds.width),
             maxHeight: host.hasLayer ? undefined : roomBelow,
         }, kb);
-        const mine = {
-            close: () => {
-                opened.close();
-                if (liveKeyboard === mine)
-                    liveKeyboard = null;
-                // CLEAR OUR OWN RECORD TOO.
-                //
-                // A takeover closes the previous owner's keyboard, and without this that
-                // field still believed it had one — so returning to it did nothing and
-                // the layout never changed back. Tonio: "if I go from the name field to
-                // a number field the keyboard changes, but it doesn't change back if I
-                // return to the text field."
-                if (kbOpen === mine)
-                    kbOpen = null;
-            },
-        };
         kbOpen = mine;
         liveKeyboard = mine;
     };
