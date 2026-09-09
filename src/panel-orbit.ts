@@ -295,9 +295,24 @@ export function angularHeight(height: number, radius: number): number {
  */
 export function orbitCentre(seat: Orbit, angularHeightDeg: number): Orbit {
   const half = angularHeightDeg / 2
-  // `>= 0` and `<= 0` both give `-half`/`+half` → 0 at the equator, so the two
-  // branches meet rather than stepping.
-  const shift = seat.elevationDeg >= 0 ? -half : half
+  /*
+  BLENDED ACROSS THE HORIZON, not switched at it.
+
+  A hard `elevation >= 0 ? -half : +half` is fully top-pinned just above the
+  equator and fully bottom-pinned just below, so dragging through eye level
+  moved the panel by its ENTIRE height in one frame. Tonio: "the pinning getting
+  offset when it switches from bottom to top pin at horizon, but that's kind of
+  acceptable." It is not, and it is a one-line fix.
+
+  Ramping over the panel's own half-height keeps every property the hard switch
+  had — fully pinned by the time you are half a panel from the horizon, so the
+  ceiling and floor cases are unchanged — and adds the one it lacked. At the
+  equator the shift is zero, which is also just right: a panel at eye level
+  should be centred on eye level, not hanging off one edge of it.
+  */
+  const blend = Math.max(1e-6, half)
+  const t = Math.max(-1, Math.min(1, seat.elevationDeg / blend))
+  const shift = -half * t
   return {
     azimuthDeg: seat.azimuthDeg,
     elevationDeg: seat.elevationDeg + shift,

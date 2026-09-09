@@ -273,11 +273,35 @@ describe('a seat names the edge, not the middle', () => {
     )
   })
 
-  test('the two halves MEET at the equator — no step to feel', () => {
-    // Dragging through eye level must not jump the panel by its own height.
+  test('dragging THROUGH the horizon does not jump the panel', () => {
+    /*
+    ⚠️ THE TEST THAT PROVED NOTHING. This asserted `< 30` on a 30° panel — where
+    the jump WAS 30, and it passed on a rounding sliver of 29.998. It named the
+    exact property ("must not jump the panel by its own height") and could not
+    detect its violation, which is the failure I have been calling out in other
+    people's tests all week.
+
+    The real assertion is continuity: an arbitrarily small step in the seat
+    produces an arbitrarily small step in the centre.
+    */
     const above = orbitCentre(seat(0, 0.001), 30).elevationDeg
     const below = orbitCentre(seat(0, -0.001), 30).elevationDeg
-    expect(Math.abs(above - below)).toBeLessThan(30)
+    expect(Math.abs(above - below)).toBeLessThan(0.01)
+  })
+
+  test('and it is smooth ACROSS the whole crossing, not just at the seam', () => {
+    // A blend can be continuous at one point and still lurch either side of it.
+    // Walk the band and hold every step to a fraction of the panel's height.
+    let prev = orbitCentre(seat(0, -20), 30).elevationDeg
+    for (let e = -19.5; e <= 20; e += 0.5) {
+      const now = orbitCentre(seat(0, e), 30).elevationDeg
+      expect(Math.abs(now - prev), `step at ${e}°`).toBeLessThan(1)
+      prev = now
+    }
+  })
+
+  test('at eye level it is CENTRED, which is what eye level means', () => {
+    expect(orbitCentre(seat(0, 0), 30).elevationDeg).toBeCloseTo(0, 9)
   })
 
   test('azimuth and radius are untouched — this is the elevation rule only', () => {
