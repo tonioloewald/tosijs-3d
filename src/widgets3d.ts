@@ -2469,7 +2469,19 @@ export function panel3d(
   scrolls, measure again with the rail's width taken out. Cheap (layout is
   arithmetic) and it keeps the rail from ever overlapping a control.
   */
-  const RAIL_W = 14
+  /*
+  What the BODY gives up for the rail. The thumb is drawn flush with the panel's
+  own right inset — the same one the top and bottom use — so the only reserved
+  space is the thumb plus a small gap, rather than a wide column with dead space
+  inside it. Tonio: "move it a bit closer to the edge of the panel (same right
+  inset as bottom/top inset). Regain a little real estate and look a little
+  nicer, and it's no harder to point at with the virtual laser pointer."
+
+  It is in fact EASIER to point at: the hit zone is everything from here to the
+  panel's edge, so it claims the padding beyond the thumb as well — about twice
+  the drawn width, and none of it overlapping a control.
+  */
+  const RAIL_W = 10
   const measure = (w: number) => {
     const hs = widgets.map((x) => x.layout(w))
     return { hs, ...stackLayout(hs, gap) }
@@ -2606,12 +2618,14 @@ export function panel3d(
   const railX = width - padding - RAIL_W
   const railTop = paddingTop + headerH
   const THUMB_W = 6
+  // Flush with the right inset, not centred in a column of its own.
+  const thumbX = width - padding - THUMB_W
   const thumbH = Math.max(
     24,
     Math.round(viewport * Math.min(1, viewport / Math.max(1, total)))
   )
   const railTrack = rect({
-    x: railX + (RAIL_W - THUMB_W) / 2,
+    x: thumbX,
     y: railTop,
     width: THUMB_W,
     height: viewport,
@@ -2619,7 +2633,7 @@ export function panel3d(
     fill: TH.TRACK,
   })
   const railThumb = rect({
-    x: railX + (RAIL_W - THUMB_W) / 2,
+    x: thumbX,
     y: railTop,
     width: THUMB_W,
     height: thumbH,

@@ -970,6 +970,40 @@ describe('a scrolling panel has a rail you can actually grab', () => {
     expect(body?.getAttribute('transform')).not.toBe(before)
   })
 
+  test('the thumb sits at the same inset as the top and bottom', () => {
+    /*
+    It was centred in a 14px column, leaving dead space between it and the
+    panel's edge — visible as a rail floating oddly inboard. Tonio: "move it a
+    bit closer to the edge of the panel (same right inset as bottom/top inset).
+    Regain a little real estate and look a little nicer."
+
+    The panel's padding is its inset on every other side, so that is the number.
+    */
+    const p = packed(20)
+    const rects = [...p.querySelectorAll('rect')]
+    const thumb = rects[rects.length - 1]
+    const x = Number(thumb.getAttribute('x'))
+    const w = Number(thumb.getAttribute('width'))
+    const panelW = 320
+    const padding = 12 // TH.PAD_X, the same inset paddingTop/padding use
+    expect(x + w).toBe(panelW - padding)
+  })
+
+  test('and the hit zone reaches the panel EDGE, so it is easier to point at', () => {
+    /*
+    Moving the thumb outward would shrink the target if the hit zone moved with
+    it. It does not: everything from the reserved column to the panel's edge is
+    rail, including the padding beyond the thumb — which is empty anyway, and
+    which no control can be in.
+    */
+    const touched: number[] = []
+    const p = packed(20, (i) => touched.push(i))
+    // Hard against the right edge, well outside the drawn thumb.
+    p.handlePointer('down', 319, 120)
+    p.handlePointer('up', 319, 120)
+    expect(touched).toEqual([])
+  })
+
   test('the rail never sits on top of a control', () => {
     // The body is measured RAIL_W narrower when the rail exists, so a press in
     // the rail column cannot be a press on a widget that drew under it.
