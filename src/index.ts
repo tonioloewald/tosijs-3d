@@ -601,6 +601,7 @@ export {
   ORBIT_MAX_AZIMUTH,
   ORBIT_RUBBER_BAND,
   bandOrbit,
+  orbitFromAim,
   rubberBand,
   ORBIT_MAX_ELEVATION,
   ORBIT_MIN_ELEVATION,

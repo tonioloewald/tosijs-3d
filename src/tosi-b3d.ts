@@ -322,7 +322,7 @@ import {
   bandOrbit,
   clampOrbit,
   orbitCentre,
-  orbitFromDirection,
+  orbitFromAim,
   orbitPosition,
   type Orbit,
 } from './panel-orbit.js'
@@ -4625,15 +4625,27 @@ export class B3d extends Component {
       translation and a direction does not, and using the wrong one here is
       precisely the error being fixed.
       */
-      const at = ray.origin.add(ray.direction.scale(D))
-      const local = BABYLON.Vector3.TransformCoordinates(at, inv)
-      wanted = orbitFromDirection(
-        { x: local.x, y: local.y, z: local.z },
+      // The ORIGIN as a point and the DIRECTION as a vector — a point carries
+      // the frame's translation and a vector does not, and using one transform
+      // for both is the same class of error `orbitFromAim` exists to prevent.
+      const o = BABYLON.Vector3.TransformCoordinates(ray.origin, inv)
+      const d = BABYLON.Vector3.TransformNormal(ray.direction, inv)
+      wanted = orbitFromAim(
+        { x: o.x, y: o.y, z: o.z },
+        { x: d.x, y: d.y, z: d.z },
         // The RADIUS is the sphere's, not the centre's — `orbitCentre` shifts
         // the centre off the seat's stated elevation, so reading it back would
         // shrink the sphere a little on every frame of a drag.
         { ...wanted, radius: D }
       )
+      /*
+      `wanted` STAYS RAW — not clamped here.
+
+      The band is what shows a limit (`bandOrbit` below) and the clamp is what
+      the release springs back to. Clamping at this point would flatten the raw
+      overshoot the band is computed from, so the panel would simply stop at the
+      limit again and the rubber band would never engage.
+      */
       this._xrPanelSeat = { ...wanted }
       // BANDED while the hand is down: past a limit the panel keeps following
       // you, stiffening, so a limit reads as a limit rather than as a dropped

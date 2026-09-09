@@ -8,6 +8,7 @@ import {
   bandOrbit,
   clampOrbit,
   orbitClampedBy,
+  orbitFromAim,
   orbitFromDirection,
   orbitCentre,
   orbitOf,
@@ -322,5 +323,72 @@ describe('the ceiling and the SEAT are one number', () => {
     const m = /const ELEV = \(([-\d.]+) \* Math\.PI\) \/ 180/.exec(src)
     expect(m, 'ELEV not found — did the seat move or get renamed?').toBeTruthy()
     expect(Number(m![1])).toBe(ORBIT_MAX_ELEVATION)
+  })
+})
+
+describe('orbitFromAim — the drag, from a ray that starts at your HAND', () => {
+  /*
+  The bug this exists to make untestable-by-construction: the first version used
+  the ray's DIRECTION as the seat direction. The direction is the controller's
+  and the sphere is centred on the head, so the panel went where the arithmetic
+  said rather than where the ray pointed, and hand wobble moved it by the whole
+  head-to-hand offset.
+
+    "jittery while dragging and doesn't seem to track the cursor properly (the
+     cursor points towards it not away)."
+  */
+
+  /** A hand below and ahead of the eyes, which is where one actually is. */
+  const HAND = { x: 0.2, y: -0.4, z: 0.1 }
+
+  test('a ray from the ORIGIN behaves exactly like a direction', () => {
+    // The degenerate case, so the difference below is attributable to the
+    // offset rather than to a change in the maths.
+    const now = seat(0, 0, 2)
+    const dir = { x: 1, y: 0, z: 1 }
+    expect(orbitFromAim({ x: 0, y: 0, z: 0 }, dir, now)).toEqual(
+      orbitFromDirection(dir, now)
+    )
+  })
+
+  test('an offset hand aiming straight ahead does NOT put the panel straight ahead', () => {
+    /*
+    The heart of it. Your hand is below your eyes; pointing horizontally forward
+    from there lands BELOW eye level on a sphere centred on your head — which is
+    what you see, and what using the direction alone got wrong.
+    */
+    const now = seat(0, 0, 2)
+    const ahead = { x: 0, y: 0, z: 1 }
+    expect(orbitFromDirection(ahead, now).elevationDeg).toBeCloseTo(0, 9)
+    expect(orbitFromAim(HAND, ahead, now).elevationDeg).toBeLessThan(-5)
+  })
+
+  test('it tracks the ray — pointing further up seats it higher', () => {
+    const now = seat(0, 0, 2)
+    const low = orbitFromAim(HAND, { x: 0, y: 0, z: 1 }, now)
+    const high = orbitFromAim(HAND, { x: 0, y: 0.6, z: 1 }, now)
+    expect(high.elevationDeg).toBeGreaterThan(low.elevationDeg)
+  })
+
+  test('and pointing right seats it right, not left', () => {
+    // "the cursor points towards it not away" — a sign error would show here.
+    const now = seat(0, 0, 2)
+    expect(
+      orbitFromAim(HAND, { x: 1, y: 0, z: 1 }, now).azimuthDeg
+    ).toBeGreaterThan(0)
+  })
+
+  test("the radius is still the sphere's, however far along the ray you aim", () => {
+    const now = seat(0, 0, 2)
+    const near = orbitFromAim(HAND, { x: 0, y: 0, z: 0.01 }, now)
+    const far = orbitFromAim(HAND, { x: 0, y: 0, z: 900 }, now)
+    expect(near.radius).toBeCloseTo(2, 9)
+    expect(far.radius).toBeCloseTo(2, 9)
+  })
+
+  test('a dead ray leaves the seat alone rather than flinging it', () => {
+    const now = seat(30, 10, 2)
+    expect(orbitFromAim(HAND, { x: 0, y: 0, z: 0 }, now)).toEqual(now)
+    expect(orbitFromAim(HAND, { x: NaN, y: 0, z: 1 }, now)).toEqual(now)
   })
 })
