@@ -4,6 +4,7 @@ Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game
 
 <!-- toc -->
 - [b3d-controller](/b3d-controller/)
+- [text-entry](/text-entry/)
 - [b3d-input-focus](/b3d-input-focus/)
 - [game-controller](/game-controller/)
 - [glass-gamepad (b3dGamepad)](/glass-gamepad/)

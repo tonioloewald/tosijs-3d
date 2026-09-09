@@ -250,6 +250,7 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 /*{ "parent": "UI", "order": 210 }*/
 
 import { svgElements } from 'tosijs'
+import { isTextEntry } from './text-entry.js'
 import {
   keyLayout,
   keyRects,
@@ -578,6 +579,9 @@ export function fieldGroup(config: {
       // handlers would double every character.
       groupAttachments += 1
       const onKey = (evt: Event): void => {
+        // Same rule as the global listener: a real input wins. A group attached
+        // to `window` is the common case, and it must not eat a nav search.
+        if (target === globalThis.window && isTextEntry(evt)) return
         const e = evt as KeyboardEvent
         // Only claim the key if a field consumed it — otherwise Tab still
         // traverses, Escape still closes, and cmd-R still reloads.
@@ -685,6 +689,19 @@ function ensureGlobalKeyListener(): void {
   if (globalKeyListener != null || globalThis.window == null) return
   globalKeyListener = (evt: Event): void => {
     if (groupAttachments > 0 || activeField == null) return
+    /*
+    A REAL input wins over an SVG field.
+
+    This listens on `window` so a focused in-scene field types without any DOM
+    focus — which is the only way it can work in a headset. On a page that also
+    has ordinary inputs (a doc site's nav search, say) that means a keystroke
+    meant for the page would be routed into the SVG field and then
+    `preventDefault`ed out of the box the person was actually typing in.
+
+    Same fix as `KeyboardGamepad`: ask the event where it came from. See
+    `text-entry`.
+    */
+    if (isTextEntry(evt)) return
     const e = evt as KeyboardEvent
     const intent = keyIntent(e.key, {
       ctrl: e.ctrlKey,
