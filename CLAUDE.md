@@ -195,8 +195,35 @@ the one that matters here:
 | verifying                 | use                                                         |
 | ------------------------- | ----------------------------------------------------------- |
 | a local flat page         | your own `--private --app` instance                         |
+| **a PANEL, anywhere**     | **your own instance — see below**                           |
 | anything behind a login   | the user's real browser (a private instance has no cookies) |
 | **anything in a HEADSET** | **their headset tab, over the bridge**                      |
+
+⚠️ **A PANEL IS NOT A HEADSET-ONLY SURFACE.** Tonio: _"In general I see no case
+where a panel in 3d doesn't look the same as a panel in VR so I think you can
+debug panels in general without a headset."_ A spatial panel is an SVG on a
+plane in a Babylon scene, and a Babylon scene renders perfectly well flat — so
+build the panel the way the code does, put it on screen, and **look at it**.
+
+This is worth stating because getting it wrong is expensive and does not feel
+wrong at the time. Two panel bugs in one day were reasoned about from source
+for hours, on the assumption they needed a headset, and both were visible in
+about thirty seconds once rendered flat:
+
+- a pinned header appended inside the clipped body group — invisible, its band
+  still reserved, still hit-testable (so it looked like a paint bug in VR)
+- a popup mounted inside its panel's viewBox, cropped to nothing
+
+Two ways in, both cheap. Append the panel's SVG to `document.body` and
+screenshot the element — that answers "is it drawn where I think"; or drive the
+real page and rebuild the panel through the element's OWN methods
+(`b._makePanel(b._panelWidgets(true), [bar])`) so you are looking at what ships
+rather than a reconstruction. The doc system's context is the way to reach the
+library from a page: `document.querySelector('tosi-doc-system').context['tosijs-3d']`.
+
+What genuinely needs the headset is narrow: **feel** (drag resistance, comfort,
+whether a limit reads as a limit), and anything that only exists inside a
+session (the rAF pump, XR input sources, per-session teardown).
 
 You cannot spawn Electron on a Quest, so driving the headset's own browser is
 the only way to `eval` against a live immersive session. Every VR finding to

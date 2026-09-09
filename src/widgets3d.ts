@@ -833,6 +833,19 @@ export interface WidgetHost {
    * `panel3d` has nothing above it, so this **falls back to `showPopup`** and the
    * caller must still cope with being refused.
    */
+  /**
+   * A popup that must NOT escape its panel — the fallback `showPopup` uses when
+   * there is no layer, exposed for the rare caller that wants it deliberately.
+   */
+  boundedPopup?: (
+    config: {
+      anchor: { x: number; y: number; width: number; height: number }
+      side?: PopupSide
+      width?: number
+      maxHeight?: number
+    },
+    ...items: Widget3d[]
+  ) => { close: () => void }
   showLayer: (
     config: {
       anchor: { x: number; y: number; width: number; height: number }
@@ -2676,7 +2689,33 @@ export function panel3d(
   `showPopup` need no "which widget is calling" argument.
   */
   const hostFor = (index: number): WidgetHost => ({
+    /*
+    A POPUP IS A POPUP — it prefers a LAYER and only falls back to being bounded
+    by the panel when there genuinely is not one.
+
+    This used to go straight to the bounded path, so every `select3d` menu and
+    every `openMenu3d` was cropped to the room left under its own row. Only the
+    keyboard called `showLayer`, and only because someone knew it existed —
+    which is the failure `showLayer`'s own comment already names: "a feature that
+    only works if you know a second call exists is a feature most people do not
+    have."
+
+    Measured on the second `tosi-b3d` demo, whose panel holds a `spin` select:
+    zero DOM layers installed and the menu mounted INSIDE the panel's own SVG.
+    Tonio, on both the flat and the VR presentation: "the pop up for speed is
+    tiny… and it's clipped to the panel. We need pop ups to be pop ups and not
+    constrained by the thing that pops them. Otherwise the user experience is
+    terrible."
+
+    `showLayer` already degrades to `boundedPopup` when there is nowhere to
+    mount, so this is one door with the right default behind it rather than two
+    doors a caller has to choose between. `boundedPopup` stays reachable for the
+    one case that wants it: a popup that must not escape its panel.
+    */
     showPopup(config, ...items) {
+      return this.showLayer!(config, ...items)
+    },
+    boundedPopup(config, ...items) {
       const top = offsets[index] ?? 0
       return baseHost.showPopup(
         {
@@ -2738,7 +2777,10 @@ export function panel3d(
       if (hosts.length === 0) {
         // Genuinely nowhere to put it — a detached panel, or one whose parent
         // has gone. Degrades to a popup bounded by the panel.
-        return hostFor(index).showPopup(config, ...items)
+        //
+        // `boundedPopup`, NOT `showPopup`: that now prefers a layer and would
+        // call straight back into here.
+        return hostFor(index).boundedPopup!(config, ...items)
       }
       const top = offsets[index] ?? 0
       const placed = {

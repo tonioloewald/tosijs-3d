@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 import { Window } from 'happy-dom'
 
 /*
@@ -166,5 +166,91 @@ describe('the DOM layer mounter', () => {
     const { handle } = mount()
     handle.close()
     expect(document.querySelectorAll('[data-w3d-dom-layer]')).toHaveLength(0)
+  })
+})
+
+describe('a MENU is a popup too, not something the panel crops', () => {
+  let w3d: typeof import('./widgets3d.js')
+  const mounted: Element[] = []
+  beforeAll(async () => {
+    w3d = await import('./widgets3d.js')
+  })
+  // Module state and stray layers leak into later files otherwise — the same
+  // class of leak the keyboard tests hit.
+  afterEach(() => {
+    for (const el of mounted.splice(0)) el.remove()
+    for (const l of document.querySelectorAll('[data-w3d-dom-layer]'))
+      l.remove()
+  })
+
+  /*
+  The keyboard got the layer treatment because someone knew `showLayer` existed.
+  Every other popup — `select3d`'s menu, `openMenu3d` — went to `showPopup`,
+  which was the panel-bounded path: cropped to whatever room was left under its
+  own row, on a control that is usually near the bottom of a settings panel.
+
+  Measured on the second `tosi-b3d` demo, whose panel holds a `spin` select:
+  zero DOM layers installed, and the menu mounted INSIDE the panel's own SVG.
+
+    "the pop up for speed is tiny… and it's clipped to the panel. We need pop
+     ups to be pop ups and not constrained by the thing that pops them.
+     Otherwise the user experience is terrible."
+
+  ⚠️ Reported from a headset, and true FLAT as well — which is the part I got
+  wrong twice. A panel renders the same either way, so this is reproducible here
+  with no scene at all.
+
+  `showPopup` now prefers a layer and keeps the bounded path as its fallback, so
+  the fix reaches every caller rather than the ones that knew the second method.
+  */
+
+  const openSelect = () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    mounted.push(host)
+    const panel: any = w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34 },
+      w3d.select3d({
+        label: 'spin',
+        value: 'medium',
+        options: ['slow', 'medium', 'fast'],
+      })
+    )
+    host.appendChild(panel)
+    panel.handlePointer('down', 250, 50)
+    panel.handlePointer('up', 250, 50)
+    return { host, panel }
+  }
+
+  test('the menu opens in a LAYER, not inside the panel', () => {
+    const { panel } = openSelect()
+    expect(document.querySelectorAll('[data-w3d-dom-layer]').length).toBe(1)
+    // A panel nested inside the panel's own SVG is the cropped fallback.
+    expect(
+      panel.querySelector('[data-w3d="panel"] [data-w3d="panel"]')
+    ).toBeNull()
+  })
+
+  test('and it is sized by its own content, not the room left below', () => {
+    // The "tiny" in the report: the fallback caps height at whatever is under
+    // the control, which on a settings panel is often almost nothing.
+    openSelect()
+    const svg = document
+      .querySelector('[data-w3d-dom-layer]')
+      ?.querySelector('svg')
+    expect(Number(svg?.getAttribute('height'))).toBeGreaterThan(100)
+  })
+
+  test('a DETACHED panel still gets a menu — degrading beats failing', () => {
+    // The bounded path is a last resort, not a bug: with nowhere to mount, a
+    // cropped menu is better than none.
+    const panel: any = w3d.panel3d(
+      { width: 320, height: 400 },
+      w3d.select3d({ label: 'spin', value: 'a', options: ['a', 'b'] })
+    )
+    expect(() => {
+      panel.handlePointer('down', 250, 50)
+      panel.handlePointer('up', 250, 50)
+    }).not.toThrow()
   })
 })
