@@ -308,7 +308,12 @@ import {
   type PopupSurface,
   type PopupSurfaceOptions,
 } from './popup-surface.js'
-import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js'
+import {
+  cameraIsAttached,
+  isNoCollide,
+  isOff,
+  markUiMesh,
+} from './b3d-utils.js'
 import { NO_WIND, gustAt, windFromPolar, type Wind } from './wind.js'
 import { faceViewer } from './dialog-placement.js'
 import { attachSceneLayer, type PopupOwner } from './panel-layer.js'
@@ -2196,6 +2201,12 @@ export class B3d extends Component {
   private _liveDebugTimer: ReturnType<typeof setInterval> | null = null
   /** Set while an XR panel exists; rewrites its contents in place so debug numbers stay
    * live in the headset. No-op flat (the flat panel rebuilds on open). */
+  /**
+   * Where the in-XR panel was last dragged to — kept on the ELEMENT so it
+   * survives the dispose-and-re-attach a structural refresh does.
+   */
+  private _xrPanelSeat: Orbit | null = null
+
   private _refreshXrPanel: () => void = noopRefresh
 
   /**
@@ -4573,16 +4584,49 @@ export class B3d extends Component {
     }
 
     /** The seat the drag is currently asking for, BEFORE band or clamp. */
-    let wanted: Orbit = {
+    /*
+    THE SEAT SURVIVES A REBUILD, so pressing Pause does not move the panel.
+
+    A gadget press rebuilds the panel (dispose + re-attach — structural changes
+    have to, see `_refreshXrPanel`), and this used to be re-initialised to the
+    default each time. So the panel you had just dragged somewhere comfortable
+    jumped back to 60° up the moment you used it. Tonio: "If I hit the pause in
+    the in-vr panel (after dragging it to a new location) it snaps back to
+    default position (pause works, but I didn't want the panel to move away)."
+
+    It lives on the ELEMENT, not in this closure, because the closure is exactly
+    what a rebuild throws away.
+    */
+    this._xrPanelSeat ??= {
       azimuthDeg: 0,
       elevationDeg: (ELEV / Math.PI) * 180,
       radius: D,
     }
+    let wanted: Orbit = { ...this._xrPanelSeat }
 
     const orbitTo = (ray: BABYLON.Ray): void => {
       const inv = new BABYLON.Matrix()
       anchorFrame.getWorldMatrix().invertToRef(inv)
-      const local = BABYLON.Vector3.TransformNormal(ray.direction, inv)
+      /*
+      AIM AT A POINT ON THE RAY, not along its DIRECTION.
+
+      The direction is the controller's, and the sphere is centred on your HEAD.
+      Applying one to the other treats the controller as if it were at your eyes
+      — so the panel sat where the maths said rather than where you pointed, and
+      every wobble of your hand swung it by the whole offset between the two.
+      Tonio: "jittery while dragging and doesn't seem to track the cursor
+      properly (the cursor points towards it not away)."
+
+      Taking a point `D` along the ray and asking which way THAT lies from the
+      anchor is the actual question — "where on my sphere am I pointing" — and
+      it is stable, because head and hand move together rather than differencing.
+
+      `TransformCoordinates`, not `TransformNormal`: a point carries the frame's
+      translation and a direction does not, and using the wrong one here is
+      precisely the error being fixed.
+      */
+      const at = ray.origin.add(ray.direction.scale(D))
+      const local = BABYLON.Vector3.TransformCoordinates(at, inv)
       wanted = orbitFromDirection(
         { x: local.x, y: local.y, z: local.z },
         // The RADIUS is the sphere's, not the centre's — `orbitCentre` shifts
@@ -4590,6 +4634,7 @@ export class B3d extends Component {
         // shrink the sphere a little on every frame of a drag.
         { ...wanted, radius: D }
       )
+      this._xrPanelSeat = { ...wanted }
       // BANDED while the hand is down: past a limit the panel keeps following
       // you, stiffening, so a limit reads as a limit rather than as a dropped
       // drag. `releaseOrbit` is the other half.
@@ -4614,6 +4659,7 @@ export class B3d extends Component {
       const from = { ...bandOrbit(wanted) }
       const to = clampOrbit(wanted)
       wanted = to
+      this._xrPanelSeat = { ...to }
       if (
         Math.abs(from.azimuthDeg - to.azimuthDeg) < 0.01 &&
         Math.abs(from.elevationDeg - to.elevationDeg) < 0.01
@@ -4727,9 +4773,25 @@ export class B3d extends Component {
         pick?.hit && pick.pickedMesh === plane
           ? pick.getTextureCoordinates()
           : null
-      // The panel may be occluded (e.g. the aircraft cockpit hull blocks the
-      // controller ray) — re-pick against ONLY the panel so it's still pointable.
-      if (!uv && pick?.ray) {
+      /*
+      The panel may be occluded (e.g. the aircraft cockpit hull blocks the
+      controller ray) — re-pick against ONLY the panel so it is still pointable.
+
+      ⚠️ BUT NOT PAST ANOTHER PANEL. The re-pick ignored what the ray actually
+      hit, so once this panel opened a popup on its own plane — in FRONT of it,
+      which is the whole point of a layer — every press aimed at that popup was
+      re-picked onto the panel behind and routed there. The popup's own close
+      and move glyphs never saw a thing, and it could not be dismissed. That is
+      a regression I introduced by routing menus through the scene layer, and
+      the guard is: an occluder that is itself UI wins, because it is something
+      the person is deliberately pointing at.
+      */
+      const blockedByUi =
+        pick?.hit === true &&
+        pick.pickedMesh != null &&
+        pick.pickedMesh !== plane &&
+        isNoCollide(pick.pickedMesh)
+      if (!uv && !blockedByUi && pick?.ray) {
         const p2 = scene.pickWithRay(pick.ray, (m) => m === plane)
         if (p2?.hit) uv = p2.getTextureCoordinates()
         if (kind) dbg.repick = p2?.hit ? 'HIT' : 'miss'

@@ -73,13 +73,13 @@ export function attachSceneLayer(opts: {
   panel skip the band entirely.
   */
   const host = (
-      sheet: SVGSVGElement,
-      config: {
-        anchor: { x: number; y: number; width: number; height: number }
-        handleClosed?: () => void
-      }
-    ) => {
-      /*
+    sheet: SVGSVGElement,
+    config: {
+      anchor: { x: number; y: number; width: number; height: number }
+      handleClosed?: () => void
+    }
+  ) => {
+    /*
       Place it against the panel's EDGE, from measured sizes.
 
       The first version used a guessed fraction of the panel height
@@ -91,12 +91,30 @@ export function attachSceneLayer(opts: {
       aspect at the width we give it, and the offset is half of each plus a
       gap. Nothing to tune, and it cannot drift when a panel changes shape.
       */
-      const popW = Number(sheet.getAttribute('width')) || 360
-      const popH = Number(sheet.getAttribute('height')) || 200
-      const worldW = width * 0.95
-      const worldH = worldW * (popH / popW)
+    // Hoisted above its first use — the panel's viewBox is read by BOTH the
+    // scale below and the anchor projection further down.
+    const vb = opts.svg.viewBox?.baseVal
+    const popW = Number(sheet.getAttribute('width')) || 360
+    const popH = Number(sheet.getAttribute('height')) || 200
+    /*
+      ONE viewBox UNIT IS THE SAME SIZE ON THE PANEL AND ON ITS POPUP.
 
-      /*
+      This was `width * 0.95` — the popup took nearly the panel's whole width
+      whatever it contained. Right for a keyboard, which is about as wide as a
+      panel; grotesque for a 163-unit select menu, which came out drawn at twice
+      the text size of the thing that opened it. Tonio: "The popup in VR is a
+      completely different scale."
+
+      Deriving it from the panel's own scale means a menu looks like part of the
+      same UI, and a keyboard still comes out full width because it genuinely is
+      that wide. Capped at 95%, so a sheet wider than its panel is contained
+      rather than dwarfing it.
+      */
+    const panelVbW = vb && vb.width > 0 ? vb.width : popW
+    const worldW = Math.min(width * 0.95, width * (popW / panelVbW))
+    const worldH = worldW * (popH / popW)
+
+    /*
       PROJECT THE ANCHOR into the plane's own space.
 
       This ignored `config.anchor` entirely and pinned the popup to the panel's
@@ -110,22 +128,21 @@ export function attachSceneLayer(opts: {
       coordinate maps linearly: x centred, y flipped because SVG y grows down
       and world y grows up.
       */
-      const vb = opts.svg.viewBox?.baseVal
-      // Only the vertical mapping is needed: the popup is centred in x.
-      const panelH = vb && vb.height > 0 ? vb.height : popH
-      const a = config.anchor
-      // The field's BOTTOM edge, in plane-local world units.
-      const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH
-      const pop = owner.openPopup!({
-        // Tell the layer when the popup's OWN × closes it, so every other
-        // presentation goes with it and the opener is not left believing it
-        // still has one open. See `LayerHost.handleClosed`.
-        handleClosed: config.handleClosed,
-        svg: sheet,
-        opener: openerMesh,
-        width: worldW,
-        offset: {
-          /*
+    // Only the vertical mapping is needed: the popup is centred in x.
+    const panelH = vb && vb.height > 0 ? vb.height : popH
+    const a = config.anchor
+    // The field's BOTTOM edge, in plane-local world units.
+    const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH
+    const pop = owner.openPopup!({
+      // Tell the layer when the popup's OWN × closes it, so every other
+      // presentation goes with it and the opener is not left believing it
+      // still has one open. See `LayerHost.handleClosed`.
+      handleClosed: config.handleClosed,
+      svg: sheet,
+      opener: openerMesh,
+      width: worldW,
+      offset: {
+        /*
           Aligned to the panel's BOTTOM EDGE, overlapping upward — not pushed
           out below it.
 
@@ -135,7 +152,7 @@ export function attachSceneLayer(opts: {
           its keyboard below the app either; it lays it OVER the bottom of it,
           which is what the z-separation is for.
           */
-          /*
+        /*
           Hang it from the field. NO CLAMP.
 
           This was clamped to the panel's own extent, which pushed the keyboard
@@ -150,14 +167,14 @@ export function attachSceneLayer(opts: {
           hanging below the panel costs nothing — which is the whole reason
           the scene layer exists rather than reusing the panel overlay.
           */
-          y: anchorBottomY - worldH / 2,
-          // NEARER the viewer — the z-separation is the point, not a nicety:
-          // coplanar panels re-sort as you orbit.
-          z: -0.08,
-        },
-      })
-      return { close: () => pop.close() }
-    }
+        y: anchorBottomY - worldH / 2,
+        // NEARER the viewer — the z-separation is the point, not a nicety:
+        // coplanar panels re-sort as you orbit.
+        z: -0.08,
+      },
+    })
+    return { close: () => pop.close() }
+  }
   ;(host as unknown as { drawsChrome?: boolean }).drawsChrome = true
   panelEl.addLayerHost(host)
   return true

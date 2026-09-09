@@ -1852,9 +1852,32 @@ export function select3d(config: {
   */
   let host: WidgetHost | null = null
 
+  /*
+  HOLD THE HANDLE, because `closePopup` only knows about the bounded one.
+
+  `host.closePopup()` is the panel's single-popup tracking, which the LAYER path
+  knows nothing about — so once a menu opened as a layer, picking an option set
+  the value and left the menu standing. Tonio: "Clicking an option on the popup
+  in the kitchen sink demo doesn't dismiss the popup."
+
+  Closing the handle you were given works whichever path opened it, which is
+  what `showPopup` returning one is for. `closePopup` stays as the fallback for
+  the case that produced no handle at all.
+  */
+  let openHandle: { close: () => void } | null = null
+
+  const closeMenu = (): void => {
+    if (openHandle != null) {
+      openHandle.close()
+      openHandle = null
+      return
+    }
+    host?.closePopup()
+  }
+
   const openMenu = (): void => {
     if (host == null || opts.length === 0) return
-    host.showPopup(
+    openHandle = host.showPopup(
       {
         // Anchored to the VALUE, not to the whole row: a menu that drops from
         // the far left of a wide row looks unrelated to what it changes.
@@ -1866,7 +1889,7 @@ export function select3d(config: {
         handleSelect: (_item, i) => {
           bound.set(opts[i].value)
           reflect()
-          host?.closePopup()
+          closeMenu()
         },
       })
     )
@@ -3445,16 +3468,28 @@ export function panel3d(
   element.
   */
   if (config.grip) {
-    const gw = Math.min(64, innerW * 0.25)
+    /*
+    THE MOVE GLYPH, not a lozenge.
+
+    The first version drew an iPhone-style grab bar, which reads as "drag me"
+    to a phone user and as nothing in particular anywhere else — and this
+    library already has an answer: `popup-surface` marks a draggable panel with
+    `iconGlyph('move')`. Tonio: "The drag affordance looks a bit like an iphone
+    lozenge, but we use the move cursor for panels in other cases."
+
+    One vocabulary. A person who has learnt what the handle on a torn-off popup
+    looks like should not have to learn a second one for a settings panel.
+
+    `iconGlyph`, not `svgIcons`: this SVG is rasterised to a texture, where
+    `currentColor` resolves against nothing and paints black.
+    */
+    const size = Math.min(18, paddingTop - 8)
     root.appendChild(
-      rect({
-        x: (width - gw) / 2,
-        y: Math.max(4, paddingTop / 2 - 2),
-        width: gw,
-        height: 4,
-        rx: 2,
-        fill: TH.MUTED,
-        opacity: 0.55,
+      iconGlyph('move', {
+        color: TH.MUTED,
+        size,
+        x: (width - size) / 2,
+        y: Math.max(3, (paddingTop - size) / 2 - 2),
       })
     )
   }

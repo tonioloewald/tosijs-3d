@@ -89,6 +89,36 @@ describe('attachSceneLayer', () => {
     expect(r.opened[0].handleClosed).toBe(seen)
   })
 
+  test('a popup is drawn at the PANEL\'s scale, not the panel\'s width', () => {
+    /*
+    It took `width * 0.95` whatever it contained — right for a keyboard, which
+    is about as wide as a panel, and grotesque for a small select menu, which
+    came out at twice the text size of the thing that opened it. Tonio: "The
+    popup in VR is a completely different scale."
+
+    The rule is that one viewBox unit is the same physical size on the panel and
+    on its popup, so a menu reads as part of the same UI.
+    */
+    const r = rig() // panel viewBox is 320 wide, plane is 1 world unit
+    attach(r)
+    const open = (popWidth: number) => {
+      r.opened.length = 0
+      r.registered[0](
+        {
+          getAttribute: (n: string) => (n === 'width' ? String(popWidth) : '180'),
+          viewBox: { baseVal: {} },
+        },
+        { anchor: { x: 0, y: 0, width: 320, height: 40 } }
+      )
+      return r.opened[0].width as number
+    }
+    // A 160-unit menu on a 320-unit panel is half the panel's width.
+    expect(open(160)).toBeCloseTo(0.5, 6)
+    // A 360-unit keyboard is WIDER than the panel, so it is capped rather than
+    // allowed to dwarf what opened it.
+    expect(open(360)).toBeCloseTo(0.95, 6)
+  })
+
   test('is a NO-OP, not a throw, when it cannot attach', () => {
     // So a caller can wire it unconditionally — which is the point of returning
     // a boolean rather than making every call site test the preconditions.

@@ -289,6 +289,29 @@ describe('a MENU is a popup too, not something the panel crops', () => {
     expect(Number(sheet!.getAttribute('height'))).toBe(180)
   })
 
+  test('picking an option DISMISSES the menu', () => {
+    /*
+    `host.closePopup()` is the panel's single-popup tracking, which the LAYER
+    path knows nothing about — so once a menu opened as a layer, picking an
+    option set the value and left the menu standing. Tonio: "Clicking an option
+    on the popup in the kitchen sink demo doesn't dismiss the popup."
+
+    Closing the HANDLE `showPopup` returned works whichever path opened it,
+    which is what returning one is for.
+    */
+    const { panel } = openSelect()
+    expect(document.querySelectorAll('[data-w3d-dom-layer]').length).toBe(1)
+    const layer: any = document.querySelector('[data-w3d-dom-layer]')
+    // Press the first row of the menu.
+    layer.querySelector('svg').handlePointer('down', 40, 44)
+    layer.querySelector('svg').handlePointer('up', 40, 44)
+    expect(
+      document.querySelectorAll('[data-w3d-dom-layer]').length,
+      'the menu stayed open after a pick'
+    ).toBe(0)
+    void panel
+  })
+
   test('a DETACHED panel still gets a menu — degrading beats failing', () => {
     // The bounded path is a last resort, not a bug: with nowhere to mount, a
     // cropped menu is better than none.
