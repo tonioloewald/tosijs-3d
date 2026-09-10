@@ -2,6 +2,7 @@
 
 <!-- toc -->
 - [bone-mask](/bone-mask/)
+- [animation-layers](/animation-layers/)
 - [b3d-aircraft](/b3d-aircraft/)
 - [b3d-biped](/b3d-biped/)
 - [b3d-car](/b3d-car/)

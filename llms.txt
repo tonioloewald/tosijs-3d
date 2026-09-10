@@ -32,6 +32,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The one ambient effect that is **not a sprite**.
 - https://3d.tosijs.net/angle-field/ — angle-field
   rings, because the quantity is a circle and a slider track is not. The model is
+- https://3d.tosijs.net/animation-layers/ — animation-layers
+  walk-and-aim: legs keep the locomotion, arms and head take the aim, and the
 - https://3d.tosijs.net/arc/ — arc
   direction; an arc is a direction *and* a width. No DOM, no Babylon — so the part
 - https://3d.tosijs.net/asset-url/ — asset-url

@@ -609,6 +609,13 @@ export {
   type MaskMode,
 } from './bone-mask.js'
 export {
+  boneHierarchy,
+  layerGroups,
+  layerOnUpperBody,
+  type AnimationTier,
+  type LayeredAnimation,
+} from './animation-layers.js'
+export {
   B3dCrowd,
   b3dCrowd,
   VatPlugin,
