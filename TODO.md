@@ -777,6 +777,37 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **A province should accept a HEIGHT FIELD — a bitmap or an SVG — as input.**
+Today a province is described by curves and a footprint
+(`province-climate.ts`, `footprint-field.ts`, `curve.ts`), which is right for
+things with a shape you can state — a crater rim, a lake's falloff — and wrong
+for anything you would rather draw. Handing it an image is how you author a
+coastline, an island chain, or a landmass someone traced.
+
+Two input forms, and the second is the more interesting:
+
+- **Bitmap** — the conventional heightmap. Greyscale to elevation, sampled
+  bilinearly, with the province's own falloff still applied at the rim so it
+  composes with everything else rather than replacing the terrain wholesale.
+- **SVG** — which this library is already unusually well set up for.
+  `SvgTexture` rasterises SVG for in-scene use, so the same route serves a
+  height field: draw the island as a filled path with a blurred edge and the
+  blur IS the falloff. It is also editable, diffable and tiny, where a PNG is
+  none of those.
+
+Fits the existing architecture rather than bolting on: a province already
+composes by SUMMING signed contributions over normalised distance
+(`province-climate.ts`), so a sampled image is just another contributor —
+`landform.ts` already does the analogous thing for authored shapes forced
+through the terrain noise. The work is the sampler and the coordinate mapping,
+not the composition.
+
+Worth deciding early: whether the image is in province-local space (so a
+province can be moved and rotated) or world space (so a hand-drawn map lines up
+with the world). Local is almost certainly right and is the answer that makes
+the province a reusable object rather than a one-off.
+
+
 [ ] **Crowd / vertex-animation: where the thread stopped (2026-09-10).** Paused
 deliberately, not abandoned — recorded so it can be resumed without re-deriving.
 
