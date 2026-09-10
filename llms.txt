@@ -136,6 +136,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **pure biome-classification model** under the procedural terrain shader
 - https://3d.tosijs.net/biome-plugin/ — biome-plugin
   The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
+- https://3d.tosijs.net/bone-mask/ — bone-mask
+  hierarchy is names and parents, so none of this needs a skeleton, a renderer or
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
 - https://3d.tosijs.net/buoyancy/ — buoyancy

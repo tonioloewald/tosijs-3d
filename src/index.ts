@@ -592,6 +592,22 @@ export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js'
 scene, and `a` is a strafe key.
 */
 export { isTextEntry } from './text-entry.js'
+/*
+Bone masking for layered animation — walk and aim at once. Pure: a hierarchy is
+names and parents.
+*/
+export {
+  UPPER_BODY_ROOTS,
+  boneMask,
+  complementMask,
+  descendantDepths,
+  findBone,
+  maskIsEmpty,
+  type BoneMask,
+  type BoneMaskOptions,
+  type BoneNode,
+  type MaskMode,
+} from './bone-mask.js'
 export {
   B3dCrowd,
   b3dCrowd,

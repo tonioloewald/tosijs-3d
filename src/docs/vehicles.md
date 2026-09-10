@@ -1,6 +1,7 @@
 # Vehicles
 
 <!-- toc -->
+- [bone-mask](/bone-mask/)
 - [b3d-aircraft](/b3d-aircraft/)
 - [b3d-biped](/b3d-biped/)
 - [b3d-car](/b3d-car/)
