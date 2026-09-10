@@ -592,6 +592,14 @@ export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js'
 scene, and `a` is a strafe key.
 */
 export { isTextEntry } from './text-entry.js'
+export {
+  B3dCrowd,
+  b3dCrowd,
+  VatPlugin,
+  buildBenchFigure,
+  writeVatTextures,
+  type VatBake,
+} from './b3d-crowd.js'
 /*
 Vertex-animation substrate — the crowd/fauna primitive. Pure layout and phase
 maths; the Babylon half is `b3d-crowd`.

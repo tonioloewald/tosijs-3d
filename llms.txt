@@ -60,6 +60,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
 - https://3d.tosijs.net/b3d-controller/ — b3d-controller
   The **casual way to read the standard controller.** Drop a `<tosi-b3d-controller>` into
+- https://3d.tosijs.net/b3d-crowd/ — b3d-crowd
+  vertex shader, and thin instances so the CPU does nothing per figure per frame.
 - https://3d.tosijs.net/b3d-death/ — b3d-death
   to the wreck, you go on "flying" a corpse, and the game is stuck. (`b3d-aircraft` used to
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
@@ -311,6 +313,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/utilities/ — Utilities
 - https://3d.tosijs.net/vehicles/ — Vehicles
+- https://3d.tosijs.net/vertex-animation/ — vertex-animation
+  Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
