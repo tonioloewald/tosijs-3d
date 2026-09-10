@@ -593,6 +593,24 @@ scene, and `a` is a strafe key.
 */
 export { isTextEntry } from './text-entry.js'
 /*
+Vertex-animation substrate — the crowd/fauna primitive. Pure layout and phase
+maths; the Babylon half is `b3d-crowd`.
+*/
+export {
+  framePair,
+  framesForClip,
+  phaseAt,
+  socketLayout,
+  socketTexel,
+  vatBytes,
+  vatLayout,
+  vatTexel,
+  type FramePair,
+  type SocketLayout,
+  type VatClip,
+  type VatLayout,
+} from './vertex-animation.js'
+/*
 Spatial-panel placement. `Orbit`/`orbitPosition`/`orbitOf` are the seat, and the
 bare nouns stay namespaced-by-prefix rather than exported as `centre`/`position`
 — see CLAUDE.md on common nouns leaking from the barrel.
