@@ -12,6 +12,14 @@ LOGARITHMIC and goes to 200,000 on purpose: the first version stopped at 4000
 and the answer came back "flat, 18ms at any number", which is what you measure
 when the load never bends anything and vsync is doing the talking.
 
+⚠️ **No GPU timer in Safari.** WebKit has never shipped
+`EXT_disjoint_timer_query` — it is a timing-attack surface — so the GPU line
+reads `—` there and no amount of asking will change it. Chrome gives it to you.
+Where it is missing the only reading available is the wall clock, which means
+the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
+you that you fitted and nothing else. That is often enough (200,000 figures at
+33ms is a real measurement) and it is worth knowing the floor is blind.
+
 ⚠️ **`wall` is not a cost.** It is the gap between frames, and with vsync on it
 reads ~16.7ms however little work you do. A flat 18ms means "we never missed a
 frame" — excellent news, and no information about the crowd. `GPU` is the
@@ -126,6 +134,14 @@ test('the crowd builds, and its shader COMPILES', async () => {
   // token either, which is the same joke the original report made about itself.)
   await until('the VAT shader never compiled', () => mesh.material.isReady(mesh))
   expect(mesh.material.isReady(mesh)).toBe(true)
+
+  // HAND THE CONTEXT BACK. This scene is the page's SECOND WebGL context, and
+  // Safari caps contexts far more tightly than Chrome — a test that keeps one
+  // for the life of the page leaves a black rectangle under the words "does it
+  // actually work?", which answers them wrongly. Removing the element disposes
+  // the engine (see tosi-b3d's teardown), so the check costs a context for a
+  // few seconds rather than for the session.
+  scene.remove()
 })
 ```
 
@@ -640,9 +656,10 @@ export class B3dCrowd extends B3dChild {
         `meshEval ${sceneInstr.activeMeshesEvaluationTimeCounter.current.toFixed(
           2
         )}ms`,
-        this._skinnedBuilt > 0
-          ? `SKINNED baseline ${this._skinnedBuilt} × ${this._skinnedVerts} verts`
-          : `skinned baseline off`,
+        this._skinnedWant > 0
+          ? `SKINNED ${this._skinnedRoots.length}/${this._skinnedWant} × ${this._skinnedVerts} verts`
+          : 'skinned baseline off',
+        this._skinnedNote,
         `bake ${(bake.bytes / 1024 / 1024).toFixed(2)}MB  ${
           bake.layout.frameCount
         } frames  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
@@ -695,13 +712,13 @@ export class B3dCrowd extends B3dChild {
       if (owner.paused !== true) this._t += sceneDelta(scene)
       if (this._plugin != null) this._plugin.time = this._t
       const wantSkinned = Math.max(0, Math.round(this.skinned))
-      if (this._skinnedBuilt !== wantSkinned) {
-        this._skinnedBuilt = wantSkinned // claim it before the await, or the
-        // observable fires again next frame and spawns a second batch.
+      if (this._skinnedWant !== wantSkinned) {
         void this._buildSkinned(scene, wantSkinned)
         this._worstGpu = 0
+        this._worstMs = 0
         this._frames = 0
       }
+      this._pumpSkinned()
       if (this._built !== Math.round(this.count)) {
         this._rebuild()
         // A change of count is a new measurement.
@@ -722,6 +739,10 @@ export class B3dCrowd extends B3dChild {
   private _skinnedRoots: BABYLON.TransformNode[] = []
   private _skinnedBuilt = -1
   private _skinnedVerts = 0
+  private _skinnedWant = 0
+  private _skinnedNote = ''
+  private _container: BABYLON.AssetContainer | null = null
+  private _skinnedPrng = new MersenneTwister(7)
 
   /**
    * Spawn N SKINNED clones — the baseline the whole question turns on.
@@ -735,58 +756,81 @@ export class B3dCrowd extends B3dChild {
    * rather than of parsing a GLB N times.
    */
   private async _buildSkinned(scene: BABYLON.Scene, n: number): Promise<void> {
-    for (const r of this._skinnedRoots) r.dispose(false, true)
-    this._skinnedRoots = []
-    this._skinnedBuilt = n
-    if (n <= 0) return
-    /*
-    AN ASSET CONTAINER, INSTANTIATED N TIMES — not `clone()` on the loaded root.
+    this._skinnedWant = n
+    if (n < this._skinnedRoots.length) {
+      for (const r of this._skinnedRoots.splice(n)) r.dispose(false, true)
+    }
+    if (n === 0) {
+      this._skinnedNote = ''
+      return
+    }
+    if (this._container == null) {
+      /*
+      SURFACE THE FAILURE. The first version did `void this._buildSkinned(...)`
+      and swallowed everything — so a load that 404s or a GLB that will not
+      parse produced a slider that silently did nothing, which is exactly what
+      it looked like from outside. A bench must say when it cannot measure.
+      */
+      try {
+        const slash = this.skinnedUrl.lastIndexOf('/')
+        this._container = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+          this.skinnedUrl.slice(0, slash + 1),
+          this.skinnedUrl.slice(slash + 1),
+          scene
+        )
+        this._skinnedVerts =
+          this._container.meshes
+            .find((m) => m.getTotalVertices() > 0)
+            ?.getTotalVertices() ?? 0
+        if (this._skinnedVerts === 0) {
+          this._skinnedNote = `loaded ${this.skinnedUrl} but it has no geometry`
+        }
+      } catch (e) {
+        this._skinnedNote = `FAILED to load ${this.skinnedUrl}: ${String(e).slice(0, 60)}`
+        this._container = null
+      }
+    }
+  }
 
-    The first version imported the mesh and cloned `res.meshes[0]`, which for a
-    GLB is `__root__`: a TransformNode whose clone shares the ORIGINAL skeleton
-    and animation groups. So every "clone" animated off one rig, which measures
-    the cost of drawing N meshes and NOT the cost of animating N of them — the
-    exact thing the baseline exists to price. It also looked wrong, because they
-    all moved as one. Tonio: "the top demo the figures look the same (not
-    skinned)".
-
-    `instantiateModelsToScene` clones the skeleton and the animation groups per
-    instance, which is what `b3d-biped` really costs and therefore what this has
-    to reproduce to be a fair comparison.
-    */
-    const slash = this.skinnedUrl.lastIndexOf('/')
-    const container = await BABYLON.SceneLoader.LoadAssetContainerAsync(
-      this.skinnedUrl.slice(0, slash + 1),
-      this.skinnedUrl.slice(slash + 1),
-      scene
-    )
-    this._skinnedVerts =
-      container.meshes
-        .find((m) => m.getTotalVertices() > 0)
-        ?.getTotalVertices() ?? 0
-    const prng = new MersenneTwister(7)
-    const rnd = () => prng.random()
-    for (let i = 0; i < n; i++) {
+  /**
+   * Spawn a FEW skinned rigs per frame, never a batch.
+   *
+   * Instantiating one clones a skeleton and its animation groups, and doing
+   * three hundred of them in a loop blocks the main thread for seconds — Tonio:
+   * "dragging it to 320 hung everything". That hang is itself a finding about
+   * the skinned path and it is also an unusable bench, so the work is spread
+   * and the readout says how far it has got.
+   */
+  private _pumpSkinned(): void {
+    const container = this._container
+    if (container == null) return
+    const want = this._skinnedWant
+    let budget = 4
+    while (this._skinnedRoots.length < want && budget-- > 0) {
+      const i = this._skinnedRoots.length
       const inst = container.instantiateModelsToScene(
         (name) => `${name}-${i}`,
         false
       )
       const root = inst.rootNodes[0] as BABYLON.TransformNode | undefined
-      if (root == null) continue
+      if (root == null) break
+      const rnd = () => this._skinnedPrng.random()
       root.position.set(
         (rnd() - 0.5) * this.spread,
         0,
         (rnd() - 0.5) * this.spread
       )
       root.rotation.y = rnd() * Math.PI * 2
+      // Human scale — omnidude is 0.88m, half a person, and half-size figures
+      // scattered over 150 metres read as "nothing happened".
+      root.scaling.setAll(2)
       this._skinnedRoots.push(root)
-      // Each on its OWN group, at its own offset — or they march in lockstep,
-      // which is both wrong to look at and the wrong thing to measure.
       for (const g of inst.animationGroups) {
         g.play(true)
         g.goToFrame(g.from + (g.to - g.from) * rnd())
       }
     }
+    this._skinnedBuilt = this._skinnedRoots.length
   }
 
   /**
@@ -850,6 +894,8 @@ export class B3dCrowd extends B3dChild {
     this._offDebug = null
     for (const r of this._skinnedRoots) r.dispose(false, true)
     this._skinnedRoots = []
+    this._container?.dispose()
+    this._container = null
     this._instr?.dispose()
     this._sceneInstr?.dispose()
     this._instr = undefined
