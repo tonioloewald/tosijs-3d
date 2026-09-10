@@ -30,15 +30,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="doc-system.css?v=0.8.1" data-tosi-doc-system />
   <title>tosijs-3d</title>
-  <meta name="description" content="Looking for a capability? Search the attribute index before assuming it does not exist — one greppable line per attribute, generated from source on every" />
+  <meta name="description" content="Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB for…" />
   <link rel="canonical" href="https://3d.tosijs.net/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="tosijs-3d" />
-  <meta property="og:description" content="Looking for a capability? Search the attribute index before assuming it does not exist — one greppable line per attribute, generated from source on every" />
+  <meta property="og:description" content="Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB for…" />
   <meta property="og:url" content="https://3d.tosijs.net/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"tosijs-3d","description":"Looking for a capability? Search the attribute index before assuming it does not exist — one greppable line per attribute, generated from source on every","url":"https://3d.tosijs.net/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"tosijs-3d","description":"Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB for…","url":"https://3d.tosijs.net/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
@@ -51,12 +51,45 @@
   <img style="width: 280px; height: 280px;" alt="tosijs-3d logo" src="https://3d.tosijs.net/favicon.svg">
 </div>
 
-<p><strong>Looking for a capability?</strong> Search the <strong><a href="https://3d.tosijs.net/attributes.txt">attribute
-index</a></strong> before assuming it does not
-exist — one greppable line per attribute, generated from source on every
-build. There is a <a href="https://3d.tosijs.net/attributes.json">JSON form</a> for
-tools, and both ship <strong>inside the package</strong> — an agent already in a consumer
-project reads <code>node_modules/tosijs-3d/static/attributes.txt</code> with no network.</p>
+<p><strong>tosijs-3d is a library for building 3D web apps</strong> — and standalone apps, if
+that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB
+for models and the usual bitmap formats for textures — but it also leans on
+<strong>SVG</strong>, for textures and for the entire user interface.</p>
+<p>Free and open source, and light for what it is (Babylon is not small; this
+adds little to it). Scenes are composed from <strong>web components</strong>, so a world is
+markup you can read:</p>
+<pre><code class="language-javascript">b3d(
+  b3dSun({ shadowCascading: true }),
+  b3dSkybox({ timeOfDay: 6 }),
+  b3dLoader({ url: &#39;./scene.glb&#39; }),
+  b3dWater({ y: -0.2 })
+)
+</code></pre>
+<p>See the <a href="tosi-b3d/">b3d</a> page for that running, and every page here carries a
+live demo you can edit in place.</p>
+<h2>Four things you may not have seen in a 3D library</h2>
+<p><strong>Flat 3D and VR are the same app.</strong> You can enter and leave an immersive
+session without the simulation resetting — the scene, the physics and your
+place in the world all survive the transition, because nothing is torn down to
+make it.</p>
+<p><strong>One user interface, in three places.</strong> The SVG-powered widget set renders
+identically as a DOM overlay, on a plane inside a 3D scene, and in VR. Not three
+implementations that drift — one, with three presentations, where any divergence
+is treated as a bug.</p>
+<p><strong>One control system, every input.</strong> Keyboard and mouse, gamepads, VR
+controllers and touch all arrive as the same <code>ControlInput</code>. You write the
+behaviour once; supporting a new device is a new provider, not a rewrite.</p>
+<p><strong>The simulation is testable without a GPU.</strong> The flight model, the combat
+maths, the world state and the layout engine are deliberately Babylon-free,
+deterministic, and unit-tested — so the interesting logic can be exercised in
+milliseconds rather than in a browser.</p>
+<h2>Finding things</h2>
+<p><strong>Search the <a href="https://3d.tosijs.net/attributes.txt">attribute index</a></strong> before
+assuming a capability does not exist — one greppable line per attribute,
+generated from source on every build. There is a <a href="https://3d.tosijs.net/attributes.json">JSON
+form</a> for tools, and both ship <strong>inside
+the package</strong>, so an agent already in a consumer project reads
+<code>node_modules/tosijs-3d/static/attributes.txt</code> with no network.</p>
 <p>It exists because the recurring adopter failure is not a missing feature, it is
 a feature that ships, is documented, and cannot be found: three issues in one
 week turned out to be capability that was already there. One <code>grep water</code> finds
@@ -64,8 +97,6 @@ week turned out to be capability that was already there. One <code>grep water</c
 <p><strong>Upgrading?</strong> See <a href="./Migration.md">Migration.md</a> for the breaking changes and
 what to do about them, and <a href="./CHANGELOG.md">CHANGELOG.md</a> for the full detail.
 Both ship inside the package, so they work from <code>node_modules</code> too.</p>
-<p>Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
-See the <a href="tosi-b3d/">b3d</a> page for a live interactive demo.</p>
 <pre><code class="language-javascript">import {
   b3d,
   b3dSun,
@@ -233,6 +264,8 @@ bun start
     <li><details><summary><a class="doc-link" href="performance/">Performance</a></summary>
     <ul>
       <li><a class="doc-link" href="b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="vertex-animation/">vertex-animation</a></li>
+      <li><a class="doc-link" href="b3d-crowd/">b3d-crowd</a></li>
       <li><a class="doc-link" href="ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="b3d-quality/">b3d-quality</a></li>
       <li><a class="doc-link" href="perf-probe/">perf-probe</a></li>

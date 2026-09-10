@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <title>b3d-crowd — tosijs-3d</title>
+  <meta name="description" content="Many animated figures, one draw call. The Babylon half of [[vertex-animation]] — a baker, a material plugin that replays the bake in the vertex shader, and…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-crowd/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-crowd — tosijs-3d" />
+  <meta property="og:description" content="Many animated figures, one draw call. The Babylon half of [[vertex-animation]] — a baker, a material plugin that replays the bake in the vertex shader, and…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-crowd/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-crowd","description":"Many animated figures, one draw call. The Babylon half of [[vertex-animation]] — a baker, a material plugin that replays the bake in the vertex shader, and…","url":"https://3d.tosijs.net/b3d-crowd/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>b3d-crowd</h1>
+<p><strong>Many animated figures, one draw call.</strong> The Babylon half of
+<a href="/vertex-animation/" class="wikilink">vertex-animation</a> — a baker, a material plugin that replays the bake in the
+vertex shader, and thin instances so the CPU does nothing per figure per frame.</p>
+<h2>Demo — the bench</h2>
+<p>Drag <code>figures</code> up and watch <strong>GPU worst</strong>, not the wall clock. The slider is
+LOGARITHMIC and goes to 200,000 on purpose: the first version stopped at 4000
+and the answer came back &quot;flat, 18ms at any number&quot;, which is what you measure
+when the load never bends anything and vsync is doing the talking.</p>
+<p>⚠️ <strong>No GPU timer in Safari.</strong> WebKit has never shipped
+<code>EXT_disjoint_timer_query</code> — it is a timing-attack surface — so the GPU line
+reads <code>—</code> there and no amount of asking will change it. Chrome gives it to you.
+Where it is missing the only reading available is the wall clock, which means
+the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
+you that you fitted and nothing else. That is often enough (200,000 figures at
+33ms is a real measurement) and it is worth knowing the floor is blind.</p>
+<p>⚠️ <strong><code>wall</code> is not a cost.</strong> It is the gap between frames, and with vsync on it
+reads ~16.7ms however little work you do. A flat 18ms means &quot;we never missed a
+frame&quot; — excellent news, and no information about the crowd. <code>GPU</code> is the
+number: <code>EXT_disjoint_timer_query</code> asking the hardware how long it actually
+took. Where the extension is missing it says so rather than reporting zero.</p>
+<p>The reading is in the <strong>Perf Stats panel</strong> under <strong>Crowd</strong> — figures, draw
+calls, this frame, the worst since you last moved the slider, and the budget it
+is being judged against. <code>reset worst</code> is a button because in a headset there is
+no console to clear, and because the worst you care about is the worst since the
+last thing you changed.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dCrowd, slider3d, label3d, toggle3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
+import { tosi } from &#39;tosijs&#39;
+
+// BOUND, not literal. The panel is REBUILT whenever it reopens — maximising the
+// demo does it — and a control whose `value` is a literal comes back holding
+// that literal, so everything you had set is silently lost. Tonio: &quot;the
+// settings for the panel aren&#39;t properly bound so on refresh the current values
+// get lost.&quot;
+//
+// A tosijs leaf passed as `value` is a boxed proxy the control reads and writes
+// through, so the panel can be rebuilt any number of times and still show the
+// truth. It is also what keeps the flat and in-VR panels agreeing, since both
+// bind the same leaf.
+//
+// (Line comments. A block comment in a fence closes the enclosing doc comment —
+// the third time this file has taught me that.)
+const demo = tosi({ crowdBench: { figures: 2000, interp: true, skinned: 0 } })
+const s = demo.crowdBench
+
+let crowd = null
+let scene = null
+
+const panel = () =&gt; [
+  label3d({ text: &#39;Crowd bench&#39; }),
+  slider3d({
+    label: &#39;figures&#39;, value: s.figures, min: 1, max: 200000, scale: &#39;log&#39;, showValue: &#39;always&#39;,
+    handleChange: (v) =&gt; { if (crowd) crowd.count = Math.round(v) },
+  }),
+  toggle3d({
+    label: &#39;interpolate frames&#39;, value: s.interp,
+    handleChange: (v) =&gt; { if (crowd) crowd.interpolate = v ? &#39;on&#39; : &#39;off&#39; },
+  }),
+  slider3d({
+    label: &#39;skinned baseline&#39;, value: s.skinned, min: 0, max: 400, step: 1, showValue: &#39;always&#39;,
+    handleChange: (v) =&gt; { if (crowd) crowd.skinned = Math.round(v) },
+  }),
+  label3d({ text: &#39;Perf Stats → Crowd for the numbers&#39;, muted: true }),
+]
+
+crowd = b3dCrowd({ count: 2000, spread: 150, bakeFps: 10 })
+
+scene = b3d(
+  {
+    style: &#39;width:100%;height:100%&#39;,
+    scenePanelOpen: true,
+    scenePanel: panel,
+    sceneCreated(el) {
+      orbitCam(el, { alpha: -1.1, beta: 1.22, radius: 110, target: [0, 2, 0] })
+    },
+  },
+  b3dSun({}),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dLight({ intensity: 0.45 }),
+  crowd
+)
+
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+<h2>Does it actually work?</h2>
+<p>The shader is the part that fails silently: a VAT that will not compile leaves a
+black canvas, which looks exactly like a camera pointing the wrong way. So the
+page checks itself.</p>
+<pre><code class="language-test">import { b3d, b3dLight, b3dCrowd } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
+
+test(&#39;the crowd builds, and its shader COMPILES&#39;, async () =&gt; {
+  const crowd = b3dCrowd({ count: 32, spread: 6, bakeFps: 8 })
+  const scene = b3d(
+    {
+      style: &#39;width:320px;height:200px&#39;,
+      // A camera, or this is a black box in the docs even when it passes — and
+      // a black box beside the words &quot;does it actually work?&quot; answers itself
+      // wrongly.
+      sceneCreated: (el) =&gt; orbitCam(el, { alpha: -1.2, beta: 1.15, radius: 14, target: [0, 1, 0] }),
+    },
+    b3dLight({ intensity: 0.9 }),
+    crowd
+  )
+  preview.append(scene)
+
+  // The scene mounts on its own schedule; poll rather than guess a delay.
+  const until = async (why, fn) =&gt; {
+    for (let i = 0; i &lt; 200; i++) {
+      if (fn()) return
+      await new Promise((r) =&gt; setTimeout(r, 50))
+    }
+    throw new Error(why)
+  }
+
+  await until(&#39;scene never came up&#39;, () =&gt; scene.scene != null)
+  let mesh = null
+  await until(&#39;no crowd mesh&#39;, () =&gt; {
+    mesh = scene.scene.meshes.find((m) =&gt; m.name === &#39;crowd-figure&#39;)
+    return mesh != null
+  })
+
+  // One draw call for all of them — the whole claim.
+  expect(mesh.thinInstanceCount).toBe(32)
+
+  // `isReady` is the assertion that matters. A material whose vertex shader
+  // failed to compile never becomes ready, and nothing else here would notice —
+  // the canvas simply stays black, which is indistinguishable from a camera
+  // pointing at nothing.
+  //
+  // (LINE comments, not a block one: a close-comment token inside a fence ends
+  // the enclosing doc comment, and every line after it becomes TypeScript. That
+  // is tosijs-ui#142&#39;s third trap — and note this warning cannot SPELL the
+  // token either, which is the same joke the original report made about itself.)
+  await until(&#39;the VAT shader never compiled&#39;, () =&gt; mesh.material.isReady(mesh))
+  expect(mesh.material.isReady(mesh)).toBe(true)
+
+  // HAND THE CONTEXT BACK. This scene is the page&#39;s SECOND WebGL context, and
+  // Safari caps contexts far more tightly than Chrome — a test that keeps one
+  // for the life of the page leaves a black rectangle under the words &quot;does it
+  // actually work?&quot;, which answers them wrongly. Removing the element disposes
+  // the engine (see tosi-b3d&#39;s teardown), so the check costs a context for a
+  // few seconds rather than for the session.
+  scene.remove()
+})
+</code></pre>
+<h2>Where it sits: the third rung of the ambient ladder</h2>
+<p>Three tiers of &quot;many things&quot;, and they are not competitors:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>what it draws</th>
+<th>cost</th>
+<th>for</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="/b3d-ambient/" class="wikilink">b3d-ambient</a></td>
+<td>camera-facing billboards — motes, rain, bubbles</td>
+<td>almost nothing</td>
+<td>dressing you look past</td>
+</tr>
+<tr>
+<td><a href="/ambient-leaves/" class="wikilink">ambient-leaves</a></td>
+<td>tumbling two-sided quads, a <code>SolidParticleSystem</code></td>
+<td>small</td>
+<td>things needing a 3-D attitude</td>
+</tr>
+<tr>
+<td><strong>this</strong></td>
+<td>animated MESHES, one draw call</td>
+<td>a texture and two fetches</td>
+<td>things that must be ALIVE</td>
+</tr>
+</tbody></table>
+<p>A bird is not a billboard: it flaps, it banks, and its silhouette changes. That
+is the gap this fills — and <code>b3d-ambient</code>&#39;s existing budget allocator is the
+right thing to route it through, because it already knows how to switch an
+effect OFF rather than thin it, which is the correct answer when a flock will
+not fit.</p>
+<h2>The target, and what it means that we cleared it</h2>
+<p>The game this was built to answer for is a virtual miniatures battle. Tonio&#39;s
+original ran on an Amiga 500 — 7MHz, 320×200, 16 colours, about 10fps — where a
+unit of regulars was 15 figures and one of irregulars 7, and an army was three
+to nine units laid out three wide. So:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>largest army</td>
+<td>9 units × 15 = <strong>135 figures</strong></td>
+</tr>
+<tr>
+<td>a whole battle</td>
+<td><strong>~270</strong></td>
+</tr>
+<tr>
+<td>measured here</td>
+<td><strong>200,000 at 33ms</strong></td>
+</tr>
+<tr>
+<td>headroom</td>
+<td><strong>~740×</strong></td>
+</tr>
+</tbody></table>
+<p>That is not &quot;we can do it&quot;. That is the constraint having moved somewhere else
+entirely, which is the outcome worth acting on rather than celebrating.</p>
+<p><strong>So figure COUNT should stop shaping the design.</strong> The Amiga&#39;s answer to 270
+figures was two or three animation states and 4-bit sprites; ours does not have
+to be, and the budget freed should go where this project&#39;s north star says it
+goes — <em>agents and reactions, not vertices</em> (<code>AI-DESIGN.md</code>). At 270 figures
+every one of them can afford a real sensorium, its own equipment via
+<a href="/vertex-animation/" class="wikilink">sockets</a>, and a bake rate high enough that clip blending is
+not a luxury reserved for wildlife.</p>
+<p><strong>And it reopens a question the bench was built to close.</strong> If 270 is this far
+inside the envelope, the honest next question is whether the vertex-animated
+path is needed <em>for this game at all</em> — a skinned <code>b3d-biped</code> may handle 270
+perfectly well, in which case VAT is the tool for background fauna and for
+scenes an order of magnitude larger, not for the battle. That is exactly what
+the skinned baseline below is for, and it is now the only number this bench
+still owes.</p>
+<h2>⚠️ Rendering is not the expensive part, and this bench only measures rendering</h2>
+<p>Tonio: <em>&quot;I imagine things like collision detection and so on could vastly
+outweigh the animation costs.&quot;</em> Almost certainly, and it is worth being explicit
+that <strong>this bench cannot see any of it</strong>. One draw call is a claim about the
+GPU; collision, steering and AI are CPU work per figure per frame, and that is
+the cost that does not get instanced away. A result of 200,000 at 33ms says the
+drawing is free. It says nothing about the thinking.</p>
+<h3>The original game already had the answer</h3>
+<p><em>&quot;In the original game the figures were walking on a virtual game board and
+basically offset within a square, so basically collision detection was just were
+you trying to enter an occupied square.&quot;</em></p>
+<p>That is not a concession to a 7MHz 68000 — it is the right design, and it should
+be copied rather than out-grown:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>grid occupancy</th>
+<th>continuous collision</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>cost of a move</td>
+<td><strong>O(1)</strong> — is that cell taken?</td>
+<td>broadphase + narrowphase against neighbours</td>
+</tr>
+<tr>
+<td>cost at N figures</td>
+<td><strong>O(N)</strong></td>
+<td>O(N·k), and k grows with density</td>
+</tr>
+<tr>
+<td>formations</td>
+<td>fall out — a rank IS a row of cells</td>
+<td>emergent, and fight the solver</td>
+</tr>
+<tr>
+<td>&quot;can I stand there?&quot;</td>
+<td>a lookup</td>
+<td>a query with a tolerance you tune forever</td>
+</tr>
+</tbody></table>
+<p>A figure being <em>offset within</em> its square is what buys the look back: the
+occupancy is discrete and the pose is continuous, so it reads as a crowd rather
+than as a chessboard. That separation is the whole trick, and it is worth
+writing down before anyone reaches for a physics engine.</p>
+<p><code>world-topology.ts</code> already carries the coordinate-free half of this idea
+(places, portals, containment), and <code>terrain-grid.ts</code> the tile maths. A battle
+grid is closer to those than it is to <code>b3d-collisions</code>.</p>
+<h2>The baseline is the point of comparison</h2>
+<p><code>skinned</code> spawns N clones of a real rigged GLB, each with its own skeleton and
+<code>AnimationGroup</code> — which is what a <code>b3d-biped</code> does and what the vertex-animated
+path deliberately does not. Tonio: <em>&quot;the old omnidude mesh had a modest vertex
+count. That might let you test a skinned mesh without much effort.&quot;</em></p>
+<p>Run the two side by side at the same count and the RATIO is the answer to
+whether &quot;actors and crowd&quot; is a real boundary or an unnecessary one. Its slider
+stops at 400 rather than 200,000, which is itself part of the finding.</p>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>count</code></td>
+<td><code>200</code></td>
+<td>How many figures. One draw call whatever it is</td>
+</tr>
+<tr>
+<td><code>spread</code></td>
+<td><code>60</code></td>
+<td>Metres across the field they scatter over</td>
+</tr>
+<tr>
+<td><code>bakeFps</code></td>
+<td><code>10</code></td>
+<td>Frames baked per second of clip — the memory knob</td>
+</tr>
+<tr>
+<td><code>interpolate</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;off&#39;</code> snaps to the nearest frame: cheaper, jerkier</td>
+</tr>
+<tr>
+<td><code>skinned</code></td>
+<td><code>0</code></td>
+<td>How many SKINNED clones to spawn alongside, as the baseline</td>
+</tr>
+<tr>
+<td><code>skinnedUrl</code></td>
+<td><code>&#39;/omnidude.glb&#39;</code></td>
+<td>The GLB the baseline clones</td>
+</tr>
+</tbody></table>
+<h2>Why a plugin and not a ShaderMaterial</h2>
+<p>A bench that skips lighting measures the wrong thing. <code>MaterialPluginBase</code>
+injects into the STANDARD material, so these figures are lit, fogged and shadowed
+exactly like everything else and the number means something. Same route
+<a href="/biome-plugin/" class="wikilink">biome-plugin</a> takes, for the same reason.</p>
+<h2>What the shader does per vertex</h2>
+<p>Two texture fetches and a <code>mix</code>. Everything else — which clip, how far through
+it, how fast — arrives as a per-instance attribute, and <code>phase</code> is derived from
+a single <code>vatTime</code> uniform rather than written per figure per frame. That is the
+whole trick: <strong>the CPU touches nothing once the crowd is built.</strong></p>
+<h2>The bench is deliberately synthetic</h2>
+<p>The figure is generated, not loaded, and its animation is a procedural walk.
+That is on purpose: the question is what the RENDERING architecture costs at N,
+and loading real assets would fold an asset pipeline into a measurement that is
+not about one. Baking from a real skinned GLB is the next step, and the layout
+it bakes into is already fixed and tested.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      <li><a class="doc-link current" href="../b3d-crowd/" aria-current="page">b3d-crowd</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+</body>
+</html>

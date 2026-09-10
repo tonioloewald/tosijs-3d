@@ -116,6 +116,8 @@ export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconB
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve.js';
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
 export { isTextEntry } from './text-entry.js';
+export { B3dCrowd, b3dCrowd, VatPlugin, buildBenchFigure, writeVatTextures, type VatBake, } from './b3d-crowd.js';
+export { framePair, framesForClip, phaseAt, socketLayout, socketTexel, vatBytes, vatLayout, vatTexel, type FramePair, type SocketLayout, type VatClip, type VatLayout, } from './vertex-animation.js';
 export { ORBIT_MAX_AZIMUTH, ORBIT_RUBBER_BAND, bandOrbit, orbitFromAim, rubberBand, ORBIT_MAX_ELEVATION, ORBIT_MIN_ELEVATION, angularHeight, clampOrbit, orbitCentre, orbitClampedBy, orbitFromDirection, orbitOf, orbitPosition, type Orbit, type OrbitVec3, } from './panel-orbit.js';
 export { readCurve, canonicalCurve, validateCurve, curveSchema, CURVE_PRECISION, } from './curve.js';
 export type { SerializedCurve, CurveIssue } from './curve.js';

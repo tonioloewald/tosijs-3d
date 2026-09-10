@@ -252,6 +252,16 @@ b3d-controller
   mapping  = 'biped'  — Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'`
   player
 
+## b3d-crowd — <tosi-b3d-crowd>
+b3d-crowd
+
+  count  = 200  — How many figures. One draw call whatever it is
+  spread  = 60  — Metres across the field they scatter over
+  bakeFps  = 10  — Frames baked per second of clip — the memory knob
+  interpolate  = 'on'  — `'off'` snaps to the nearest frame: cheaper, jerkier
+  skinned  = 0  — How many SKINNED clones to spawn alongside, as the baseline
+  skinnedUrl  = '/omnidude.glb'  — The GLB the baseline clones
+
 ## b3d-death — <tosi-b3d-death>
 b3d-death
 

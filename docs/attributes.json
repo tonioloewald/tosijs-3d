@@ -945,6 +945,43 @@
     ]
   },
   {
+    "module": "b3d-crowd",
+    "tag": "tosi-b3d-crowd",
+    "summary": "b3d-crowd",
+    "attributes": [
+      {
+        "name": "count",
+        "default": "200",
+        "description": "How many figures. One draw call whatever it is"
+      },
+      {
+        "name": "spread",
+        "default": "60",
+        "description": "Metres across the field they scatter over"
+      },
+      {
+        "name": "bakeFps",
+        "default": "10",
+        "description": "Frames baked per second of clip — the memory knob"
+      },
+      {
+        "name": "interpolate",
+        "default": "'on'",
+        "description": "`'off'` snaps to the nearest frame: cheaper, jerkier"
+      },
+      {
+        "name": "skinned",
+        "default": "0",
+        "description": "How many SKINNED clones to spawn alongside, as the baseline"
+      },
+      {
+        "name": "skinnedUrl",
+        "default": "'/omnidude.glb'",
+        "description": "The GLB the baseline clones"
+      }
+    ]
+  },
+  {
     "module": "b3d-death",
     "tag": "tosi-b3d-death",
     "summary": "b3d-death",

@@ -6,12 +6,56 @@
   <img style="width: 280px; height: 280px;" alt="tosijs-3d logo" src="https://3d.tosijs.net/favicon.svg">
 </div>
 
-**Looking for a capability?** Search the **[attribute
-index](https://3d.tosijs.net/attributes.txt)** before assuming it does not
-exist — one greppable line per attribute, generated from source on every
-build. There is a [JSON form](https://3d.tosijs.net/attributes.json) for
-tools, and both ship **inside the package** — an agent already in a consumer
-project reads `node_modules/tosijs-3d/static/attributes.txt` with no network.
+**tosijs-3d is a library for building 3D web apps** — and standalone apps, if
+that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB
+for models and the usual bitmap formats for textures — but it also leans on
+**SVG**, for textures and for the entire user interface.
+
+Free and open source, and light for what it is (Babylon is not small; this
+adds little to it). Scenes are composed from **web components**, so a world is
+markup you can read:
+
+```javascript
+b3d(
+  b3dSun({ shadowCascading: true }),
+  b3dSkybox({ timeOfDay: 6 }),
+  b3dLoader({ url: './scene.glb' }),
+  b3dWater({ y: -0.2 })
+)
+```
+
+See the [b3d](?tosi-b3d.ts) page for that running, and every page here carries a
+live demo you can edit in place.
+
+## Four things you may not have seen in a 3D library
+
+**Flat 3D and VR are the same app.** You can enter and leave an immersive
+session without the simulation resetting — the scene, the physics and your
+place in the world all survive the transition, because nothing is torn down to
+make it.
+
+**One user interface, in three places.** The SVG-powered widget set renders
+identically as a DOM overlay, on a plane inside a 3D scene, and in VR. Not three
+implementations that drift — one, with three presentations, where any divergence
+is treated as a bug.
+
+**One control system, every input.** Keyboard and mouse, gamepads, VR
+controllers and touch all arrive as the same `ControlInput`. You write the
+behaviour once; supporting a new device is a new provider, not a rewrite.
+
+**The simulation is testable without a GPU.** The flight model, the combat
+maths, the world state and the layout engine are deliberately Babylon-free,
+deterministic, and unit-tested — so the interesting logic can be exercised in
+milliseconds rather than in a browser.
+
+## Finding things
+
+**Search the [attribute index](https://3d.tosijs.net/attributes.txt)** before
+assuming a capability does not exist — one greppable line per attribute,
+generated from source on every build. There is a [JSON
+form](https://3d.tosijs.net/attributes.json) for tools, and both ship **inside
+the package**, so an agent already in a consumer project reads
+`node_modules/tosijs-3d/static/attributes.txt` with no network.
 
 It exists because the recurring adopter failure is not a missing feature, it is
 a feature that ships, is documented, and cannot be found: three issues in one
@@ -21,9 +65,6 @@ week turned out to be capability that was already there. One `grep water` finds
 **Upgrading?** See [Migration.md](./Migration.md) for the breaking changes and
 what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
 Both ship inside the package, so they work from `node_modules` too.
-
-Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
-See the [b3d](?tosi-b3d.ts) page for a live interactive demo.
 
 ```javascript
 import {
