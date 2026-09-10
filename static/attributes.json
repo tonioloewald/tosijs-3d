@@ -968,6 +968,16 @@
         "name": "interpolate",
         "default": "'on'",
         "description": "`'off'` snaps to the nearest frame: cheaper, jerkier"
+      },
+      {
+        "name": "skinned",
+        "default": "0",
+        "description": "How many SKINNED clones to spawn alongside, as the baseline"
+      },
+      {
+        "name": "skinnedUrl",
+        "default": "'/omnidude.glb'",
+        "description": "The GLB the baseline clones"
       }
     ]
   },

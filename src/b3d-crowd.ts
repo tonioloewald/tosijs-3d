@@ -7,8 +7,16 @@ vertex shader, and thin instances so the CPU does nothing per figure per frame.
 
 ## Demo — the bench
 
-Drag `figures` up and watch **worst frame**, not average: a dropped frame is
-nausea, and an average hides the one that matters. `PERF-DESIGN.md`'s rule.
+Drag `figures` up and watch **GPU worst**, not the wall clock. The slider is
+LOGARITHMIC and goes to 200,000 on purpose: the first version stopped at 4000
+and the answer came back "flat, 18ms at any number", which is what you measure
+when the load never bends anything and vsync is doing the talking.
+
+⚠️ **`wall` is not a cost.** It is the gap between frames, and with vsync on it
+reads ~16.7ms however little work you do. A flat 18ms means "we never missed a
+frame" — excellent news, and no information about the crowd. `GPU` is the
+number: `EXT_disjoint_timer_query` asking the hardware how long it actually
+took. Where the extension is missing it says so rather than reporting zero.
 
 The reading is in the **Perf Stats panel** under **Crowd** — figures, draw
 calls, this frame, the worst since you last moved the slider, and the budget it
@@ -26,17 +34,21 @@ let scene = null
 const panel = () => [
   label3d({ text: 'Crowd bench' }),
   slider3d({
-    label: 'figures', value: 200, min: 1, max: 4000, step: 1, showValue: 'always',
+    label: 'figures', value: 2000, min: 1, max: 200000, scale: 'log', showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.count = Math.round(v) },
   }),
   toggle3d({
     label: 'interpolate frames', value: true,
     handleChange: (v) => { if (crowd) crowd.interpolate = v ? 'on' : 'off' },
   }),
+  slider3d({
+    label: 'skinned baseline', value: 0, min: 0, max: 400, step: 1, showValue: 'always',
+    handleChange: (v) => { if (crowd) crowd.skinned = Math.round(v) },
+  }),
   label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
 ]
 
-crowd = b3dCrowd({ count: 200, spread: 60, bakeFps: 10 })
+crowd = b3dCrowd({ count: 2000, spread: 400, bakeFps: 10 })
 
 scene = b3d(
   {
@@ -44,7 +56,7 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.1, beta: 1.15, radius: 70, target: [0, 2, 0] })
+      orbitCam(el, { alpha: -1.1, beta: 1.15, radius: 260, target: [0, 2, 0] })
     },
   },
   b3dSun({}),
@@ -106,6 +118,17 @@ test('the crowd builds, and its shader COMPILES', async () => {
 })
 ```
 
+## The baseline is the point of comparison
+
+`skinned` spawns N clones of a real rigged GLB, each with its own skeleton and
+`AnimationGroup` — which is what a `b3d-biped` does and what the vertex-animated
+path deliberately does not. Tonio: *"the old omnidude mesh had a modest vertex
+count. That might let you test a skinned mesh without much effort."*
+
+Run the two side by side at the same count and the RATIO is the answer to
+whether "actors and crowd" is a real boundary or an unnecessary one. Its slider
+stops at 400 rather than 200,000, which is itself part of the finding.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -114,6 +137,8 @@ test('the crowd builds, and its shader COMPILES', async () => {
 | `spread` | `60` | Metres across the field they scatter over |
 | `bakeFps` | `10` | Frames baked per second of clip — the memory knob |
 | `interpolate` | `'on'` | `'off'` snaps to the nearest frame: cheaper, jerkier |
+| `skinned` | `0` | How many SKINNED clones to spawn alongside, as the baseline |
+| `skinnedUrl` | `'/omnidude.glb'` | The GLB the baseline clones |
 
 ## Why a plugin and not a ShaderMaterial
 
@@ -485,12 +510,24 @@ export class B3dCrowd extends B3dChild {
     bakeFps: 10,
     /** `'off'` snaps to the nearest frame. */
     interpolate: 'on',
+    /**
+     * How many SKINNED clones to spawn alongside, as the baseline.
+     *
+     * The comparison that decides the architecture: a real skinned GLB with its
+     * own skeleton and `AnimationGroup` per instance, against the same count of
+     * vertex-animated figures. `0` is off.
+     */
+    skinned: 0,
+    /** The GLB the baseline clones. Modest vertex count on purpose. */
+    skinnedUrl: '/omnidude.glb',
   }
 
   declare count: number
   declare spread: number
   declare bakeFps: number
   declare interpolate: string
+  declare skinned: number
+  declare skinnedUrl: string
 
   private _mesh?: BABYLON.Mesh
   private _bake?: VatBake
@@ -511,6 +548,23 @@ export class B3dCrowd extends B3dChild {
   private _worstMs = 0
   private _lastMs = 0
   private _frames = 0
+  /*
+  WALL TIME IS NOT COST, and the first version of this bench measured wall time.
+
+  Tonio, at four thousand figures: "Performance is flat… 18ms is worst at any
+  number of figures." Which is exactly right and was the wrong instrument:
+  `getDeltaTime` is the gap BETWEEN frames, and with vsync on that is ~16.7ms
+  however little work you do. A flat 18ms says "we never missed a frame", which
+  is very good news and says nothing whatever about what the crowd costs.
+
+  `EngineInstrumentation.gpuFrameTimeCounter` asks the GPU how long it actually
+  took, via `EXT_disjoint_timer_query`. Where the extension is missing the
+  reading says so rather than reporting zero — a bench that quietly reports 0ms
+  is worse than one that admits it cannot see.
+  */
+  private _instr?: BABYLON.EngineInstrumentation
+  private _sceneInstr?: BABYLON.SceneInstrumentation
+  private _worstGpu = 0
 
   /** What the bake costs on the GPU, for the readout. */
   get bakeBytes(): number {
@@ -540,15 +594,43 @@ export class B3dCrowd extends B3dChild {
     this._rebuild()
     owner.register({ meshes: [mesh] })
 
+    const instr = new BABYLON.EngineInstrumentation(scene.getEngine())
+    instr.captureGPUFrameTime = true
+    this._instr = instr
+    const sceneInstr = new BABYLON.SceneInstrumentation(scene)
+    sceneInstr.captureActiveMeshesEvaluationTime = true
+    this._sceneInstr = sceneInstr
+
+    const gpuMs = (): number =>
+      // Nanoseconds, and `-1` while the query has not resolved yet.
+      instr.gpuFrameTimeCounter.current > 0
+        ? instr.gpuFrameTimeCounter.current / 1e6
+        : -1
+
     this._offDebug = owner.addDebugSource({
       name: 'Crowd',
       // `mesh`, because the whole claim is that a crowd IS one mesh.
       icon: 'mesh',
       lines: () => [
-        `figures ${this._built}   draws 1   verts/fig ${bake.layout.vertexCount}`,
-        `frame ${this._lastMs.toFixed(1)}ms   WORST ${this._worstMs.toFixed(
+        `figures ${this._built}   draws 1   verts ${(
+          (this._built * bake.layout.vertexCount) /
+          1000
+        ).toFixed(0)}k`,
+        // GPU time is the COST. Wall time only tells you whether it fitted.
+        this._worstGpu > 0
+          ? `GPU ${
+              gpuMs() < 0 ? '—' : gpuMs().toFixed(2)
+            }ms   WORST ${this._worstGpu.toFixed(2)}ms`
+          : `GPU — (no timer query on this device)`,
+        `wall ${this._lastMs.toFixed(1)}ms  worst ${this._worstMs.toFixed(
           1
+        )}ms  ${this._worstMs < 18 ? '(vsync — not a cost)' : ''}`,
+        `meshEval ${sceneInstr.activeMeshesEvaluationTimeCounter.current.toFixed(
+          2
         )}ms`,
+        this._skinnedBuilt > 0
+          ? `SKINNED baseline ${this._skinnedBuilt} × ${this._skinnedVerts} verts`
+          : `skinned baseline off`,
         `bake ${(bake.bytes / 1024 / 1024).toFixed(2)}MB  ${
           bake.layout.frameCount
         } frames  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
@@ -561,6 +643,7 @@ export class B3dCrowd extends B3dChild {
           label: 'reset worst',
           handleClick: () => {
             this._worstMs = 0
+            this._worstGpu = 0
             this._frames = 0
           },
         },
@@ -591,14 +674,27 @@ export class B3dCrowd extends B3dChild {
       STEADY state.
       */
       if (++this._frames > 10 && ms > this._worstMs) this._worstMs = ms
+      if (this._frames > 10) {
+        const g = instr.gpuFrameTimeCounter.current / 1e6
+        if (g > this._worstGpu) this._worstGpu = g
+      }
       // PAUSE STOPS THEM. It did not, because this clock never consulted it —
       // and a pause that leaves four thousand figures marching is not a pause.
       if (owner.paused !== true) this._t += sceneDelta(scene)
       if (this._plugin != null) this._plugin.time = this._t
+      const wantSkinned = Math.max(0, Math.round(this.skinned))
+      if (this._skinnedBuilt !== wantSkinned) {
+        this._skinnedBuilt = wantSkinned // claim it before the await, or the
+        // observable fires again next frame and spawns a second batch.
+        void this._buildSkinned(scene, wantSkinned)
+        this._worstGpu = 0
+        this._frames = 0
+      }
       if (this._built !== Math.round(this.count)) {
         this._rebuild()
         // A change of count is a new measurement.
         this._worstMs = 0
+        this._worstGpu = 0
         this._frames = 0
       }
       if (this._plugin != null) {
@@ -609,6 +705,64 @@ export class B3dCrowd extends B3dChild {
         }
       }
     })
+  }
+
+  private _skinnedRoots: BABYLON.TransformNode[] = []
+  private _skinnedBuilt = -1
+  private _skinnedVerts = 0
+
+  /**
+   * Spawn N SKINNED clones — the baseline the whole question turns on.
+   *
+   * Each carries its own skeleton and `AnimationGroup`, which is what a
+   * `b3d-biped` does and what the vertex-animated path deliberately does not.
+   * The comparison is the point: if the ratio is small, "actors and crowd" is
+   * an unnecessary boundary; if it is large, it is a real one.
+   *
+   * Loaded once and CLONED, so the measurement is of drawing and animating them
+   * rather than of parsing a GLB N times.
+   */
+  private async _buildSkinned(scene: BABYLON.Scene, n: number): Promise<void> {
+    for (const r of this._skinnedRoots) r.dispose(false, true)
+    this._skinnedRoots = []
+    this._skinnedBuilt = n
+    if (n <= 0) return
+    const res = await BABYLON.SceneLoader.ImportMeshAsync(
+      '',
+      '',
+      this.skinnedUrl,
+      scene
+    )
+    const source = res.meshes.find((m) => m.getTotalVertices() > 0)
+    this._skinnedVerts = source?.getTotalVertices() ?? 0
+    const root = res.meshes[0]
+    // The original is the first of the N, not an extra hidden one.
+    let seed = 7
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff
+      return seed / 0x7fffffff
+    }
+    const place = (node: BABYLON.TransformNode) => {
+      node.position.set(
+        (rnd() - 0.5) * this.spread,
+        0,
+        (rnd() - 0.5) * this.spread
+      )
+      node.rotation.y = rnd() * Math.PI * 2
+      this._skinnedRoots.push(node)
+    }
+    place(root as BABYLON.TransformNode)
+    for (let i = 1; i < n; i++) {
+      const c = (root as BABYLON.Mesh).clone(`skinned-${i}`)
+      if (c != null) place(c)
+    }
+    // Every clone animating on its own group — the per-instance cost being
+    // measured. Started at a random offset so they are not in lockstep, exactly
+    // as the vertex-animated ones are not.
+    for (const g of res.animationGroups) {
+      g.play(true)
+      g.goToFrame(g.from + (g.to - g.from) * rnd())
+    }
   }
 
   /**
@@ -661,6 +815,12 @@ export class B3dCrowd extends B3dChild {
     this._obs = null
     this._offDebug?.()
     this._offDebug = null
+    for (const r of this._skinnedRoots) r.dispose(false, true)
+    this._skinnedRoots = []
+    this._instr?.dispose()
+    this._sceneInstr?.dispose()
+    this._instr = undefined
+    this._sceneInstr = undefined
     this._bake?.position.dispose()
     this._bake?.normal.dispose()
     this._mesh?.material?.dispose()
