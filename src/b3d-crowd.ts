@@ -145,6 +145,22 @@ test('the crowd builds, and its shader COMPILES', async () => {
 })
 ```
 
+## Where it sits: the third rung of the ambient ladder
+
+Three tiers of "many things", and they are not competitors:
+
+| | what it draws | cost | for |
+| --- | --- | --- | --- |
+| [[b3d-ambient]] | camera-facing billboards — motes, rain, bubbles | almost nothing | dressing you look past |
+| [[ambient-leaves]] | tumbling two-sided quads, a `SolidParticleSystem` | small | things needing a 3-D attitude |
+| **this** | animated MESHES, one draw call | a texture and two fetches | things that must be ALIVE |
+
+A bird is not a billboard: it flaps, it banks, and its silhouette changes. That
+is the gap this fills — and `b3d-ambient`'s existing budget allocator is the
+right thing to route it through, because it already knows how to switch an
+effect OFF rather than thin it, which is the correct answer when a flock will
+not fit.
+
 ## The target, and what it means that we cleared it
 
 The game this was built to answer for is a virtual miniatures battle. Tonio's
@@ -819,7 +835,9 @@ export class B3dCrowd extends B3dChild {
           this._skinnedNote = `loaded ${this.skinnedUrl} but it has no geometry`
         }
       } catch (e) {
-        this._skinnedNote = `FAILED to load ${this.skinnedUrl}: ${String(e).slice(0, 60)}`
+        this._skinnedNote = `FAILED to load ${this.skinnedUrl}: ${String(
+          e
+        ).slice(0, 60)}`
         this._container = null
       }
     }

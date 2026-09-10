@@ -777,6 +777,36 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Flocks, swarms and fauna on the vertex-animation substrate.** The crowd
+bench settled the army question with three orders of magnitude to spare (200,000
+figures at 33ms against a ~270-figure battle), so the infrastructure's real home
+is background life: birds that flap and bank, insect swarms, shoals, herds,
+carnivorous plants. Tonio: _"we have a fallback to handle things like flocks of
+birds flying around in the background, or swarms of insects etc. It's very nice
+to have, and we should definitely keep the infrastructure we built."_
+
+It is the third rung of a ladder that already exists — `b3d-ambient` does
+camera-facing billboards, `ambient-leaves` does tumbling quads on a
+`SolidParticleSystem`, and this does animated MESHES. A bird is not a billboard:
+it flaps, banks, and its silhouette changes.
+
+What it needs before it is a feature rather than a bench:
+- **Bake from a real skinned GLB**, not a procedural walk. The layout is fixed
+  and tested; the missing piece is CPU-skinning a mesh per frame and writing it
+  out (`Mesh.applySkeleton` is the cheap route).
+- **Route it through `b3d-ambient`'s budget allocator**, which already switches
+  an effect OFF rather than thinning it — the right answer when a flock will not
+  fit the device.
+- **Motion**, which the bench does not have at all: the figures animate in place
+  and never move. A flock wants steering (boids, or a path), and that is CPU
+  work per instance, which is exactly the cost this substrate was chosen to
+  avoid. Worth deciding deliberately whether steering goes in a shader, in a
+  worker, or simply stays cheap because a flock is fifty birds and not fifty
+  thousand.
+- **Clip blending** (the four-sample version) if a bird's glide→flap transition
+  needs it. Frame interpolation is already in.
+
+
 [ ] **Perf Stats and debug sources want to be TEAR-OFFS, not rows in the
 settings panel.** Tonio, 2026-09-10, during the crowd bench: _"We should make
 the perf and debug and similar things into popup / tear offs."_

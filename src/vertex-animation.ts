@@ -5,9 +5,15 @@
 Babylon, no GPU — so the layout and the phase maths can be tested without a
 renderer.
 
-The substrate for things there are MANY of: an army, a flock of birds, a field
-of fauna, a bed of carnivorous plants. Not a cheaper biped — a different
-primitive. A skinned `b3d-biped` carries a skeleton, an `AnimationGroup`, a
+The substrate for things there are MANY of — and, now the numbers are in, mostly
+NOT for armies. A whole miniatures battle is ~270 figures against 200,000
+measured at 33ms, so the place this earns its keep is **flocks of birds, swarms
+of insects, shoals, herds, a field of fauna, a bed of carnivorous plants**.
+Tonio: *"we have a fallback to handle things like flocks of birds flying around
+in the background, or swarms of insects etc. It's very nice to have, and we
+should definitely keep the infrastructure we built."*
+
+Not a cheaper biped — a different primitive. A skinned `b3d-biped` carries a skeleton, an `AnimationGroup`, a
 collision ellipsoid, a camera rig and two thousand lines of per-instance
 JavaScript. At two hundred of them the question is not which part is slow.
 
