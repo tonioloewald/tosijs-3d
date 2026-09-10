@@ -777,6 +777,55 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Two optimisations from the original miniatures game, both still correct.**
+Tonio, from memory of the Amiga version — recorded because they are design
+decisions rather than era-specific tricks, and both compose with the
+vertex-animation substrate.
+
+**1. A projectile is `(launch, landing, t)`, not an integration.** Every arrow
+was a launch position, a landing position, and `t` in 0..1; its position is that
+far along the arc. No velocity, no gravity step, no per-frame collision query.
+
+The consequence worth naming is not performance, it is that **the outcome is
+decided at launch**. Whether the arrow hits is a roll when it is loosed, and the
+flight is presentation. That is exactly right for a miniatures game and exactly
+wrong for the aircraft, where `ballistics.ts` integrates because prediction MUST
+equal simulation for a bomb sight to be honest. So this is a second, legitimate
+model rather than a replacement:
+
+| | integrated (`ballistics.ts`) | parameterised (this) |
+| --- | --- | --- |
+| state per shot | position + velocity | `from`, `to`, `t0` |
+| per frame | a step, and a swept collision test | one lerp + an arc height |
+| outcome | emerges | decided at launch |
+| right for | a bomb sight, a guided round | a volley of 200 arrows |
+| determinism | needs care | free |
+
+And it instances: `from`/`to`/`t0` is per-instance data that never changes
+during flight, which is the same shape as the crowd's `vatState`. A volley is
+one draw call and no CPU work, by the same argument.
+
+**2. Occupancy is per SQUARE; pose is a fixed offset WITHIN it.** Each figure
+sat on a virtual 4×4 grid inside its own square — sixteen discrete offsets — so
+placement was a lookup, not arithmetic, while collision stayed a question about
+squares.
+
+The modern payoff is larger than it was then. A figure's whole state becomes
+four small integers (`cellX`, `cellZ`, `offsetIndex`, `facing`), from which the
+matrix is DERIVED — so the per-instance buffer changes only when a figure
+changes cell or offset, not every frame. That is the difference between writing
+N matrices per frame and writing none.
+
+It also explains why it looks like a crowd rather than a chessboard: occupancy
+discrete, pose continuous-ENOUGH. Sixteen offsets is plenty of apparent
+disorder.
+
+Nearest existing relatives: `terrain-grid.ts` for the tile maths,
+`world-topology.ts` for the coordinate-free occupancy ideas, `formations.ts` for
+placement — which currently computes continuous positions and would want a
+cell-and-offset variant.
+
+
 [ ] **Flocks, swarms and fauna on the vertex-animation substrate.** The crowd
 bench settled the army question with three orders of magnitude to spare (200,000
 figures at 33ms against a ~270-figure battle), so the infrastructure's real home
