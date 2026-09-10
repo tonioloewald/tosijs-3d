@@ -48,7 +48,7 @@ const panel = () => [
   label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
 ]
 
-crowd = b3dCrowd({ count: 2000, spread: 400, bakeFps: 10 })
+crowd = b3dCrowd({ count: 2000, spread: 150, bakeFps: 10 })
 
 scene = b3d(
   {
@@ -56,7 +56,7 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.1, beta: 1.15, radius: 260, target: [0, 2, 0] })
+      orbitCam(el, { alpha: -1.1, beta: 1.22, radius: 110, target: [0, 2, 0] })
     },
   },
   b3dSun({}),
@@ -79,10 +79,21 @@ page checks itself.
 
 ```test
 import { b3d, b3dLight, b3dCrowd } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 test('the crowd builds, and its shader COMPILES', async () => {
-  const crowd = b3dCrowd({ count: 32, spread: 10, bakeFps: 8 })
-  const scene = b3d({ style: 'width:300px;height:200px' }, b3dLight({}), crowd)
+  const crowd = b3dCrowd({ count: 32, spread: 6, bakeFps: 8 })
+  const scene = b3d(
+    {
+      style: 'width:320px;height:200px',
+      // A camera, or this is a black box in the docs even when it passes — and
+      // a black box beside the words "does it actually work?" answers itself
+      // wrongly.
+      sceneCreated: (el) => orbitCam(el, { alpha: -1.2, beta: 1.15, radius: 14, target: [0, 1, 0] }),
+    },
+    b3dLight({ intensity: 0.9 }),
+    crowd
+  )
   preview.append(scene)
 
   // The scene mounts on its own schedule; poll rather than guess a delay.
@@ -166,6 +177,7 @@ it bakes into is already fixed and tested.
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'
+import { MersenneTwister } from './mersenne-twister.js'
 import type { B3d } from './tosi-b3d.js'
 import {
   framesForClip,
@@ -727,41 +739,53 @@ export class B3dCrowd extends B3dChild {
     this._skinnedRoots = []
     this._skinnedBuilt = n
     if (n <= 0) return
-    const res = await BABYLON.SceneLoader.ImportMeshAsync(
-      '',
-      '',
-      this.skinnedUrl,
+    /*
+    AN ASSET CONTAINER, INSTANTIATED N TIMES — not `clone()` on the loaded root.
+
+    The first version imported the mesh and cloned `res.meshes[0]`, which for a
+    GLB is `__root__`: a TransformNode whose clone shares the ORIGINAL skeleton
+    and animation groups. So every "clone" animated off one rig, which measures
+    the cost of drawing N meshes and NOT the cost of animating N of them — the
+    exact thing the baseline exists to price. It also looked wrong, because they
+    all moved as one. Tonio: "the top demo the figures look the same (not
+    skinned)".
+
+    `instantiateModelsToScene` clones the skeleton and the animation groups per
+    instance, which is what `b3d-biped` really costs and therefore what this has
+    to reproduce to be a fair comparison.
+    */
+    const slash = this.skinnedUrl.lastIndexOf('/')
+    const container = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+      this.skinnedUrl.slice(0, slash + 1),
+      this.skinnedUrl.slice(slash + 1),
       scene
     )
-    const source = res.meshes.find((m) => m.getTotalVertices() > 0)
-    this._skinnedVerts = source?.getTotalVertices() ?? 0
-    const root = res.meshes[0]
-    // The original is the first of the N, not an extra hidden one.
-    let seed = 7
-    const rnd = () => {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff
-      return seed / 0x7fffffff
-    }
-    const place = (node: BABYLON.TransformNode) => {
-      node.position.set(
+    this._skinnedVerts =
+      container.meshes
+        .find((m) => m.getTotalVertices() > 0)
+        ?.getTotalVertices() ?? 0
+    const prng = new MersenneTwister(7)
+    const rnd = () => prng.random()
+    for (let i = 0; i < n; i++) {
+      const inst = container.instantiateModelsToScene(
+        (name) => `${name}-${i}`,
+        false
+      )
+      const root = inst.rootNodes[0] as BABYLON.TransformNode | undefined
+      if (root == null) continue
+      root.position.set(
         (rnd() - 0.5) * this.spread,
         0,
         (rnd() - 0.5) * this.spread
       )
-      node.rotation.y = rnd() * Math.PI * 2
-      this._skinnedRoots.push(node)
-    }
-    place(root as BABYLON.TransformNode)
-    for (let i = 1; i < n; i++) {
-      const c = (root as BABYLON.Mesh).clone(`skinned-${i}`)
-      if (c != null) place(c)
-    }
-    // Every clone animating on its own group — the per-instance cost being
-    // measured. Started at a random offset so they are not in lockstep, exactly
-    // as the vertex-animated ones are not.
-    for (const g of res.animationGroups) {
-      g.play(true)
-      g.goToFrame(g.from + (g.to - g.from) * rnd())
+      root.rotation.y = rnd() * Math.PI * 2
+      this._skinnedRoots.push(root)
+      // Each on its OWN group, at its own offset — or they march in lockstep,
+      // which is both wrong to look at and the wrong thing to measure.
+      for (const g of inst.animationGroups) {
+        g.play(true)
+        g.goToFrame(g.from + (g.to - g.from) * rnd())
+      }
     }
   }
 
@@ -784,11 +808,20 @@ export class B3dCrowd extends B3dChild {
     const m = BABYLON.Matrix.Identity()
     // A deterministic scatter — the same crowd every run, so two measurements
     // are of the same picture.
-    let seed = 1
-    const rnd = () => {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff
-      return seed / 0x7fffffff
-    }
+    /*
+    A REAL PRNG, because the hand-rolled LCG here was broken above ~20k.
+
+    `seed * 1103515245` is a DOUBLE multiply: past 2^53 the low bits are simply
+    gone, so masking them back out with `& 0x7fffffff` reads noise that repeats.
+    The visible symptom is figures landing on top of each other — Tonio: "About
+    20,000 or so it doesn't seem to get more crowded", which is exactly what a
+    degenerate sequence looks like from outside.
+
+    `MersenneTwister` is already in this repo, is seeded, and does not have that
+    failure. Reaching for it costs an import.
+    */
+    const prng = new MersenneTwister(1)
+    const rnd = () => prng.random()
     const side = this.spread
     for (let i = 0; i < n; i++) {
       const x = (rnd() - 0.5) * side
