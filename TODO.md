@@ -777,6 +777,33 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Perf Stats and debug sources want to be TEAR-OFFS, not rows in the
+settings panel.** Tonio, 2026-09-10, during the crowd bench: _"We should make
+the perf and debug and similar things into popup / tear offs."_
+
+Today every debug source competes for panel space with the author's own
+controls, and the workaround is already in the code: CLAUDE.md notes that debug
+rows render FIRST because "a diagnostic below the fold is a diagnostic you can't
+read". That is scarcity being managed rather than removed. Watching the crowd
+bench makes it concrete — you want the figure count and the worst frame VISIBLE
+while you drag the slider that changes them, and right now the readout and the
+slider are fighting over the same 620px.
+
+What makes it newly cheap is that a popup is a real surface now: `popup-surface`
+already opens one as its own plane, owned by its opener or **torn off into world
+space**, with move and close chrome. So a Perf readout could be parked beside
+the thing it is measuring — which in a headset is exactly what you want while
+flying, or while watching four thousand figures walk.
+
+Shape, roughly: `addDebugSource` grows a "tear off" action; the source renders
+into a `panelPopupSheet` instead of into the panel body; the panel keeps the
+icon-bar toggle so it is still reachable. The seam is that a torn-off surface
+outlives the panel that opened it, so it needs its own disposal — `whenDisposed`
+is the existing hook.
+
+Not urgent. It is comfort, not correctness, and the readouts work.
+
+
 [ ] **Hoist the happy-dom bootstrap into a `bunfig.toml` preload.** The
 global-install block is copy-pasted into 57 test files (`const win = new
 Window()`, the `Object.getOwnPropertyNames` loop, the `?? =` fallbacks). There is
