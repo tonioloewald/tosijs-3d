@@ -35,6 +35,23 @@ last thing you changed.
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
+import { tosi } from 'tosijs'
+
+// BOUND, not literal. The panel is REBUILT whenever it reopens — maximising the
+// demo does it — and a control whose `value` is a literal comes back holding
+// that literal, so everything you had set is silently lost. Tonio: "the
+// settings for the panel aren't properly bound so on refresh the current values
+// get lost."
+//
+// A tosijs leaf passed as `value` is a boxed proxy the control reads and writes
+// through, so the panel can be rebuilt any number of times and still show the
+// truth. It is also what keeps the flat and in-VR panels agreeing, since both
+// bind the same leaf.
+//
+// (Line comments. A block comment in a fence closes the enclosing doc comment —
+// the third time this file has taught me that.)
+const demo = tosi({ crowdBench: { figures: 2000, interp: true, skinned: 0 } })
+const s = demo.crowdBench
 
 let crowd = null
 let scene = null
@@ -42,15 +59,15 @@ let scene = null
 const panel = () => [
   label3d({ text: 'Crowd bench' }),
   slider3d({
-    label: 'figures', value: 2000, min: 1, max: 200000, scale: 'log', showValue: 'always',
+    label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.count = Math.round(v) },
   }),
   toggle3d({
-    label: 'interpolate frames', value: true,
+    label: 'interpolate frames', value: s.interp,
     handleChange: (v) => { if (crowd) crowd.interpolate = v ? 'on' : 'off' },
   }),
   slider3d({
-    label: 'skinned baseline', value: 0, min: 0, max: 400, step: 1, showValue: 'always',
+    label: 'skinned baseline', value: s.skinned, min: 0, max: 400, step: 1, showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.skinned = Math.round(v) },
   }),
   label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
@@ -193,6 +210,40 @@ perfectly well, in which case VAT is the tool for background fauna and for
 scenes an order of magnitude larger, not for the battle. That is exactly what
 the skinned baseline below is for, and it is now the only number this bench
 still owes.
+
+## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
+
+Tonio: *"I imagine things like collision detection and so on could vastly
+outweigh the animation costs."* Almost certainly, and it is worth being explicit
+that **this bench cannot see any of it**. One draw call is a claim about the
+GPU; collision, steering and AI are CPU work per figure per frame, and that is
+the cost that does not get instanced away. A result of 200,000 at 33ms says the
+drawing is free. It says nothing about the thinking.
+
+### The original game already had the answer
+
+*"In the original game the figures were walking on a virtual game board and
+basically offset within a square, so basically collision detection was just were
+you trying to enter an occupied square."*
+
+That is not a concession to a 7MHz 68000 — it is the right design, and it should
+be copied rather than out-grown:
+
+| | grid occupancy | continuous collision |
+| --- | --- | --- |
+| cost of a move | **O(1)** — is that cell taken? | broadphase + narrowphase against neighbours |
+| cost at N figures | **O(N)** | O(N·k), and k grows with density |
+| formations | fall out — a rank IS a row of cells | emergent, and fight the solver |
+| "can I stand there?" | a lookup | a query with a tolerance you tune forever |
+
+A figure being *offset within* its square is what buys the look back: the
+occupancy is discrete and the pose is continuous, so it reads as a crowd rather
+than as a chessboard. That separation is the whole trick, and it is worth
+writing down before anyone reaches for a physics engine.
+
+`world-topology.ts` already carries the coordinate-free half of this idea
+(places, portals, containment), and `terrain-grid.ts` the tile maths. A battle
+grid is closer to those than it is to `b3d-collisions`.
 
 ## The baseline is the point of comparison
 
