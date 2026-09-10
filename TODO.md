@@ -777,6 +777,40 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Crowd / vertex-animation: where the thread stopped (2026-09-10).** Paused
+deliberately, not abandoned — recorded so it can be resumed without re-deriving.
+
+**Settled.** A whole miniatures battle is ~270 figures; the substrate drew
+200,000 at 33ms in Safari on a work laptop. The army question is closed with
+three orders of magnitude to spare, and the substrate's real home is background
+life — flocks, swarms, shoals, fauna. `vertex-animation.ts` (pure, 30 tests) and
+`b3d-crowd.ts` (baker, material plugin, thin instances, self-checking demo) are
+built and shipped.
+
+**The one number still owed:** the SKINNED baseline at equal count. The slider is
+wired and spawns incrementally, but nobody has read it against the VAT path yet.
+That ratio decides whether "actors and crowd" is a real boundary or an
+unnecessary one — and given 270 is so far inside the envelope, a skinned
+`b3d-biped` may simply handle the battle, which would make VAT a fauna tool
+rather than an army one.
+
+**Known gaps, in the order they would matter:**
+- **Motion.** The figures animate in place and never move. Steering is CPU work
+  per instance, which is what this substrate was chosen to avoid — decide
+  deliberately (shader? worker? or simply cheap, because a flock is fifty birds).
+- **Bake from a real skinned GLB** rather than a procedural walk.
+  `Mesh.applySkeleton` is the cheap route; the layout is fixed and tested.
+- **Route through `b3d-ambient`'s budget allocator**, which already switches an
+  effect off rather than thinning it.
+- **Clip blending** (four samples) if a glide→flap transition needs it. Frame
+  interpolation is already in and is what makes a low bake rate viable.
+
+**Instrument caveat worth keeping:** with no `EXT_disjoint_timer_query` (Safari
+never shipped it) the bench can only see cost ONCE YOU ARE OVER BUDGET. Under
+~16.7ms the wall clock says you fitted and nothing else. Chrome gives the GPU
+line.
+
+
 [ ] **Two optimisations from the original miniatures game, both still correct.**
 Tonio, from memory of the Amiga version — recorded because they are design
 decisions rather than era-specific tricks, and both compose with the

@@ -50,7 +50,12 @@ import { tosi } from 'tosijs'
 //
 // (Line comments. A block comment in a fence closes the enclosing doc comment —
 // the third time this file has taught me that.)
-const demo = tosi({ crowdBench: { figures: 2000, interp: true, skinned: 0 } })
+// ONE number, used by both. The bound default and the element's `count` are the
+// same fact, and writing it twice is how the panel came up saying 2000 over a
+// crowd of 200 — a control that lies about the thing it controls, and no way to
+// tell except by counting figures.
+const FIGURES = 400
+const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0 } })
 const s = demo.crowdBench
 
 let crowd = null
@@ -73,7 +78,7 @@ const panel = () => [
   label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
 ]
 
-crowd = b3dCrowd({ count: 2000, spread: 150, bakeFps: 10 })
+crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
 
 scene = b3d(
   {
@@ -81,7 +86,7 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.1, beta: 1.22, radius: 110, target: [0, 2, 0] })
+      orbitCam(el, { alpha: -1.1, beta: 1.12, radius: 85, target: [0, 2, 0] })
     },
   },
   b3dSun({}),
@@ -101,6 +106,12 @@ preview.append(scene)
 The shader is the part that fails silently: a VAT that will not compile leaves a
 black canvas, which looks exactly like a camera pointing the wrong way. So the
 page checks itself.
+
+⚠️ **The block below goes EMPTY on purpose**, and that is the check passing. It
+builds a crowd, waits for the material to become ready, and then removes its
+scene — because it is the page's second WebGL context and Safari counts those
+much more tightly than Chrome. An empty box here means the assertion ran; look
+at the test badge, not at the box.
 
 ```test
 import { b3d, b3dLight, b3dCrowd } from 'tosijs-3d'
