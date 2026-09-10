@@ -145,6 +145,39 @@ test('the crowd builds, and its shader COMPILES', async () => {
 })
 ```
 
+## The target, and what it means that we cleared it
+
+The game this was built to answer for is a virtual miniatures battle. Tonio's
+original ran on an Amiga 500 — 7MHz, 320×200, 16 colours, about 10fps — where a
+unit of regulars was 15 figures and one of irregulars 7, and an army was three
+to nine units laid out three wide. So:
+
+| | |
+| --- | --- |
+| largest army | 9 units × 15 = **135 figures** |
+| a whole battle | **~270** |
+| measured here | **200,000 at 33ms** |
+| headroom | **~740×** |
+
+That is not "we can do it". That is the constraint having moved somewhere else
+entirely, which is the outcome worth acting on rather than celebrating.
+
+**So figure COUNT should stop shaping the design.** The Amiga's answer to 270
+figures was two or three animation states and 4-bit sprites; ours does not have
+to be, and the budget freed should go where this project's north star says it
+goes — *agents and reactions, not vertices* (`AI-DESIGN.md`). At 270 figures
+every one of them can afford a real sensorium, its own equipment via
+[[vertex-animation|sockets]], and a bake rate high enough that clip blending is
+not a luxury reserved for wildlife.
+
+**And it reopens a question the bench was built to close.** If 270 is this far
+inside the envelope, the honest next question is whether the vertex-animated
+path is needed *for this game at all* — a skinned `b3d-biped` may handle 270
+perfectly well, in which case VAT is the tool for background fauna and for
+scenes an order of magnitude larger, not for the battle. That is exactly what
+the skinned baseline below is for, and it is now the only number this bench
+still owes.
+
 ## The baseline is the point of comparison
 
 `skinned` spawns N clones of a real rigged GLB, each with its own skeleton and
