@@ -10,6 +10,12 @@ vertex shader, and thin instances so the CPU does nothing per figure per frame.
 Drag `figures` up and watch **worst frame**, not average: a dropped frame is
 nausea, and an average hides the one that matters. `PERF-DESIGN.md`'s rule.
 
+The reading is in the **Perf Stats panel** under **Crowd** — figures, draw
+calls, this frame, the worst since you last moved the slider, and the budget it
+is being judged against. `reset worst` is a button because in a headset there is
+no console to clear, and because the worst you care about is the worst since the
+last thing you changed.
+
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -27,7 +33,7 @@ const panel = () => [
     label: 'interpolate frames', value: true,
     handleChange: (v) => { if (crowd) crowd.interpolate = v ? 'on' : 'off' },
   }),
-  label3d({ text: 'watch WORST FRAME in Perf Stats', muted: true }),
+  label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
 ]
 
 crowd = b3dCrowd({ count: 200, spread: 60, bakeFps: 10 })
@@ -38,7 +44,6 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      el.setProfiling?.(true)
       orbitCam(el, { alpha: -1.1, beta: 1.15, radius: 70, target: [0, 2, 0] })
     },
   },
@@ -135,7 +140,7 @@ it bakes into is already fixed and tested.
 /*{ "parent": "Performance", "order": 119 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild } from './b3d-utils.js'
+import { B3dChild, sceneDelta } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import {
   framesForClip,
@@ -493,6 +498,19 @@ export class B3dCrowd extends B3dChild {
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   private _built = -1
   private _t = 0
+  private _offDebug: (() => void) | null = null
+  /*
+  THE INSTRUMENT. A bench without one is a demo.
+
+  Worst frame since the last reset, not an average: an average of sixty good
+  frames and one 40ms frame looks fine and is nausea. `PERF-DESIGN.md`'s rule,
+  and the reason the reset is a BUTTON — you want the worst since you moved the
+  slider, not the worst since the page loaded, and in a headset there is no
+  console to clear.
+  */
+  private _worstMs = 0
+  private _lastMs = 0
+  private _frames = 0
 
   /** What the bake costs on the GPU, for the readout. */
   get bakeBytes(): number {
@@ -522,10 +540,67 @@ export class B3dCrowd extends B3dChild {
     this._rebuild()
     owner.register({ meshes: [mesh] })
 
+    this._offDebug = owner.addDebugSource({
+      name: 'Crowd',
+      // `mesh`, because the whole claim is that a crowd IS one mesh.
+      icon: 'mesh',
+      lines: () => [
+        `figures ${this._built}   draws 1   verts/fig ${bake.layout.vertexCount}`,
+        `frame ${this._lastMs.toFixed(1)}ms   WORST ${this._worstMs.toFixed(
+          1
+        )}ms`,
+        `bake ${(bake.bytes / 1024 / 1024).toFixed(2)}MB  ${
+          bake.layout.frameCount
+        } frames  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
+        // 13.9ms is a Quest frame; 16.7 is 60Hz flat. Naming the budget beside
+        // the number is what makes it a measurement rather than a readout.
+        `budget 13.9ms (VR) / 16.7ms (flat)`,
+      ],
+      actions: [
+        {
+          label: 'reset worst',
+          handleClick: () => {
+            this._worstMs = 0
+            this._frames = 0
+          },
+        },
+      ],
+    })
+
     this._obs = scene.onBeforeRenderObservable.add(() => {
-      this._t += scene.getEngine().getDeltaTime() / 1000
+      /*
+      TWO CLOCKS, and they are not the same one.
+
+      The METRIC wants the engine's whole-frame time — that IS the frame, and
+      the worst one is the question. The ANIMATION wants `sceneDelta`, because a
+      scene observer can run more than once per engine frame (the render loop,
+      and again per active camera) and the engine's delta is the whole frame
+      EACH time. Using it to advance a clock runs everything at 2× or 4× and
+      fails silently: the motion is smooth, just wrong, and it scales with how
+      many cameras a scene happens to have.
+
+      That is CLAUDE.md's own warning and it cost fourteen call sites in 0.7.0.
+      I walked straight into it here.
+      */
+      const ms = scene.getEngine().getDeltaTime()
+      this._lastMs = ms
+      /*
+      SKIP THE FIRST FEW. A rebuild, a shader compile and the first upload all
+      land in one frame, and reporting that as the worst says the crowd is
+      expensive when what was expensive was building it. The bench is about the
+      STEADY state.
+      */
+      if (++this._frames > 10 && ms > this._worstMs) this._worstMs = ms
+      // PAUSE STOPS THEM. It did not, because this clock never consulted it —
+      // and a pause that leaves four thousand figures marching is not a pause.
+      if (owner.paused !== true) this._t += sceneDelta(scene)
       if (this._plugin != null) this._plugin.time = this._t
-      if (this._built !== Math.round(this.count)) this._rebuild()
+      if (this._built !== Math.round(this.count)) {
+        this._rebuild()
+        // A change of count is a new measurement.
+        this._worstMs = 0
+        this._frames = 0
+      }
       if (this._plugin != null) {
         const want = this.interpolate !== 'off'
         if (this._plugin.interpolate !== want) {
@@ -584,6 +659,8 @@ export class B3dCrowd extends B3dChild {
       scene.onBeforeRenderObservable.remove(this._obs)
     }
     this._obs = null
+    this._offDebug?.()
+    this._offDebug = null
     this._bake?.position.dispose()
     this._bake?.normal.dispose()
     this._mesh?.material?.dispose()
