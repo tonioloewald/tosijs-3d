@@ -1,10 +1,22 @@
-# Miniatures battle — design
+# Miniatures battle — RECOVERED NOTES
 
-> Recovered from Tonio's memory of the original Amiga 500 version (7MHz,
-> 320×200, 16 colours, ~10fps), which he describes as *"a beautiful design and
-> an early victim of creeping elegance / featuritis"*. That last clause is the
-> most important sentence in this document and has a section of its own at the
-> end.
+> ⚠️ **This is not the design document, and must not be treated as one.** Tonio:
+> *"when / if we rebuild this thing it will be its own project. I'll write a
+> comprehensive design document before we build in earnest."* The game is a
+> CONSUMER of this framework, not part of it, and its design is his to write.
+>
+> What this is: detail recovered in conversation from the original Amiga 500
+> version (7MHz, 320×200, 16 colours, ~10fps), written down before it evaporates
+> — the kind of thing that is expensive to re-derive and impossible to
+> re-remember. Raw material for that document, nothing more.
+>
+> **What tosijs-3d should act on is the last section**, which extracts the
+> framework capabilities these mechanics imply. Those belong here. The rules of
+> the game do not.
+>
+> He also describes the original as *"a beautiful design and an early victim of
+> creeping elegance / featuritis"*, which has a section of its own at the end
+> because it is the most useful sentence in these notes.
 
 The measured constraint is gone: a whole battle is ~270 figures against 200,000
 drawn at 33ms (see [`b3d-crowd`](src/b3d-crowd.ts)). So none of what follows is
@@ -124,3 +136,29 @@ weight. The original died of it once. Some guards, stated now while it is easy:
 - **The 1980s constraints were doing design work.** Being unable to afford a
   feature is not the same as choosing not to have it, but the result is often
   identical and the constraint was more disciplined than we will be.
+
+---
+
+## What tosijs-3d actually owes this — the framework-facing half
+
+Separated deliberately: everything above is the GAME's design and belongs in the
+game's own project. What follows is the list of framework capabilities those
+mechanics imply, which is this repo's business and can be built without knowing
+a single rule of the game.
+
+| capability | state | nearest existing |
+| --- | --- | --- |
+| **Instanced animated figures** — many, one draw call | built ([`b3d-crowd`](src/b3d-crowd.ts), [`vertex-animation`](src/vertex-animation.ts)) | — |
+| **Parameterised projectile** — `(from, to, t)`, outcome decided at launch, instanceable | not built; pure and small | `ballistics.ts` (the integrated sibling) |
+| **Cell occupancy + sub-cell pose** — O(1) "is it taken", pose from a small offset table | not built; pure | `terrain-grid.ts`, `world-topology.ts` |
+| **Formation as CELLS rather than positions** | partial | `formations.ts` computes continuous positions today |
+| **Arrive-and-re-form as a visible transition** | not built | `AI-DESIGN.md`'s watchable-behaviour rule |
+| **A destroyable that carries a ROLE**, so its death changes what a group can do | close | `destroyable-behavior.ts` + `Cause {by, kind, via, hops}` |
+
+Every row is useful to something other than a miniatures game: a parameterised
+arc is right for any thrown or fired thing whose hit is decided by a roll, cell
+occupancy is right for any tile-based world, and a role-carrying destroyable is
+how "the radio operator died" becomes a sentence a simulation can produce.
+
+That is the test for whether any of it belongs here: **would a second, unrelated
+game want it?** If not, it goes in the game's project.
