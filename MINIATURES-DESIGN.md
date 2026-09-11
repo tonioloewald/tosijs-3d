@@ -19,9 +19,10 @@
 > because it is the most useful sentence in these notes.
 
 The measured constraint is gone: a whole battle is ~270 figures against 200,000
-drawn at 33ms (see [`b3d-crowd`](src/b3d-crowd.ts)) — and that ceiling is really
-about VERTICES, not figures. The same budget is 20,000 figures at a real rig's
-1,380 vertices, which is still seventy battles at once. So none of what follows is
+drawn at 60ms in a lit, shadowed scene — or 20,000 figures carrying a REAL rig's
+1,380 vertices at 33ms, which is still seventy battles at once (see
+[`b3d-crowd`](src/b3d-crowd.ts), which also explains why those two are not the
+same budget). So none of what follows is
 a performance decision. It is all here because it produced **feel**, which is
 the thing that does not get easier with faster hardware.
 

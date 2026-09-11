@@ -58,11 +58,12 @@ const FIGURES = 400
 // The clips a real rig gets baked with. Six that are different SHAPES, not six
 // different speeds — see the note on legibility at distance.
 const OMNI_CLIPS = 'walk,run,wave,dance,jump,salute'
-const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, omni: false } })
+const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, omni: false, shadows: true } })
 const s = demo.crowdBench
 
 let crowd = null
 let scene = null
+let sun = null
 
 const panel = () => [
   label3d({ text: 'Crowd bench' }),
@@ -84,6 +85,15 @@ const panel = () => [
       crowd.url = v ? '/omnidude.glb' : ''
     },
   }),
+  // SHADOWS ARE A SECOND DRAWING OF EVERY FIGURE (one pass per cascade), so
+  // they belong on the bench as a switch rather than as a constant. Off is
+  // `activeDistance: 0` — the sun drops every caster beyond that distance, and
+  // re-adds them when it grows again. It re-evaluates once a second, so give
+  // it a moment before reading the number.
+  toggle3d({
+    label: 'shadows', value: s.shadows,
+    handleChange: (v) => { s.shadows = v; if (sun) sun.activeDistance = v ? 140 : 0 },
+  }),
   toggle3d({
     label: 'interpolate frames', value: s.interp,
     handleChange: (v) => { if (crowd) crowd.interpolate = v ? 'on' : 'off' },
@@ -98,6 +108,12 @@ const panel = () => [
 ]
 
 crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
+// Held so the `shadows` toggle can reach it. Assigned as a statement rather
+// than inline in the scene, which is the shape the rest of this demo uses.
+sun = b3dSun({
+  shadowMaxZ: 200, activeDistance: 140,
+  shadowTextureSize: 2048, shadowDarkness: 0.25,
+})
 
 scene = b3d(
   {
@@ -112,16 +128,13 @@ scene = b3d(
     },
   },
   // A GROUND AND A REAL SUN, because a crowd against a skybox has no scale and
-  // no contact with anything. The checker is a ruler — it is how you see that
-  // the field is 80m across — and the shadows are what put the figures ON it
-  // rather than in front of it. `_nocast` on the ground: it receives, and a
-  // ground plane casting into its own shadow map is just acne.
-  // `activeDistance` defaults to 30m, which is a character-scale scene — here
-  // it would shadow the middle of the field and nothing else.
-  b3dSun({
-    shadowMaxZ: 200, activeDistance: 140,
-    shadowTextureSize: 2048, shadowDarkness: 0.25,
-  }),
+  // no contact with anything: the mottle is what tells you the field is 80m
+  // across, and the shadows are what put the figures ON it rather than in front
+  // of it. (`activeDistance` is 140 rather than the 30m default, which is a
+  // character-scale number and would shadow the middle of the field only. And
+  // `_nocast` on the ground: it receives, and a ground plane casting into its
+  // own shadow map is just acne.)
+  sun,
   b3dSkybox({ timeOfDay: 9 }),
   // `groundColor` matters more here than intensity: Babylon's default is BLACK,
   // so every vertical surface — which is most of a standing figure — gets
@@ -255,8 +268,9 @@ to nine units laid out three wide. So:
 | --- | --- |
 | largest army | 9 units × 15 = **135 figures** |
 | a whole battle | **~270** |
-| measured here | **200,000 at 33ms** |
-| headroom | **~740×** |
+| measured here | **200,000 blocky figures**, 60ms with shadows |
+| or | **20,000 baked omnidudes** at 33ms |
+| headroom | **~740×** on count, ~74× on a real rig |
 
 That is not "we can do it". That is the constraint having moved somewhere else
 entirely, which is the outcome worth acting on rather than celebrating.
@@ -273,8 +287,8 @@ not a luxury reserved for wildlife.
 
 | | figures | |
 | --- | --- | --- |
-| vertex-animated | **200,000** | at 33ms (blocky, ~144 verts) |
-| vertex-animated | **20,000** | at ease (omnidude, 1,380 verts) |
+| vertex-animated | **200,000** | blocky, 60ms with shadows (33ms without) |
+| vertex-animated | **20,000** | omnidude, 33ms with shadows |
 | skinned rigs | **~50** | before it gets brutal |
 
 About **4000×**, measured by Tonio in Safari on a work laptop. I had speculated
@@ -291,31 +305,51 @@ no camera rig and no state machine. A real `b3d-biped` is 2342 lines of
 per-instance update on top of that, so the number of actual bipeds is smaller
 than fifty, and by an amount nobody has measured.
 
-## The budget is VERTICES, not figures
+## What the ceiling actually is — and how I moved it without noticing
 
-The 200,000 above is the blocky bench figure, which is about 144 vertices. Bake
-a real rig and the same slider means something quite different — Tonio, on the
-omnidude bake: *"200k omnidudes are a bit of a strain … 600+ms per frame but 20k
-omnidudes are not a problem."*
+The headline used to be "200,000 at 33ms". That number is real and it no longer
+describes this demo, because **I changed the scene it was measured in**: adding a
+ground and a shadow-casting sun (so you could see the figures in context) put
+every figure through the shadow map as well, once per cascade. Same slider, same
+crowd, different question. A bench's SCENE is part of its measurement, and I
+edited it without re-baselining — which is how a number outlives the thing it
+described.
 
-Line those up and the rule falls out:
+Tonio's readings on the current scene, with shadows:
 
-| figure | verts each | figures | verts/frame | |
+| figure | verts each | figures | verts/frame | frame |
 | --- | --- | --- | --- | --- |
-| blocks | ~144 | 200,000 | ~29M | 33ms |
-| omnidude | 1,380 | 20,000 | ~28M | fine |
-| omnidude | 1,380 | 200,000 | ~276M | 600ms+ |
+| blocks | ~144 | 200,000 | ~29M | **60ms** |
+| omnidude | 1,380 | 20,000 | ~28M | **33ms** |
+| omnidude | 1,380 | 200,000 | ~276M | **600ms+** |
 
-The two comfortable rows are the SAME number of vertices, and the slow row is
-ten times that for ten times the cost. So this is vertex-throughput bound and
-very nearly linear — roughly a million vertices per millisecond on that laptop —
-and "how many figures fit" is not a question with an answer until you say how
-big one is.
+(For contrast: blocks at 200,000 was 33ms **before** the ground and sun went in.)
 
-Which is why the panel reports **verts**, not just count: that is the number
-with a budget attached. And it is the argument for [[vertex-animation]]'s claim
-that **the bake IS the LOD** — a decimated re-bake against the same clip table
-moves you up that table directly, where nothing about the drawing path can.
+Read them together and the tidy story I had written — *cost is vertices* — is
+only half right. Rows one and two are the same number of vertices and differ by
+**2×**, so something other than vertex count is being paid, and the third row is
+10× the vertices for 10× the time, so vertex count is clearly being paid too.
+
+Two candidates for the gap, and Tonio named the area: *"these are figures with
+shadow casting etc. added so we are torturing fill rates and buffers."*
+
+- **Overdraw.** `spread` is fixed at 80m, so raising the count does not enlarge
+  the field, it packs it. 200,000 figures on that ground is shoulder to
+  shoulder; every pixel is covered many times over, in the shadow map as well as
+  on screen. 20,000 is a crowd you can see between.
+- **Tiny triangles.** A GPU shades in 2×2 quads, so a triangle smaller than a
+  couple of pixels wastes most of the quad. 200,000 blocky figures at that
+  distance are largely sub-pixel; 20,000 omnidudes are not.
+
+Both scale with **how many separate small things** are on screen, which is
+exactly the axis that differs between rows one and two.
+
+So the honest budget has two terms — total vertices, and how finely divided they
+are — and the practical advice is unchanged: the **`verts` line in the panel is
+the one with a budget attached**, and the `shadows` toggle is there so the extra
+passes can be measured rather than assumed. It also sharpens
+[[vertex-animation]]'s "the bake IS the LOD": decimating a distant figure buys
+you on both terms at once.
 
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
