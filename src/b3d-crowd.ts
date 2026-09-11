@@ -1069,20 +1069,30 @@ export async function bakeGlbFigure(
   normals.set(posed[0].n)
   let vOffset = 0
   let uvOffset = 0
-  const mirrored = sources[0].computeWorldMatrix(true).determinant() < 0
+  /*
+  THE WINDING IS LEFT ALONE, and working out why took a side-by-side render.
+
+  Two flips are in play and they cancel. Babylon's glTF loader puts the
+  handedness mirror on `__root__` as `scaling.z = -1`, then relies on the
+  renderer flipping side orientation for a negative-determinant world matrix;
+  it ALSO gives the material `ClockWiseSideOrientation`, where a
+  `StandardMaterial` defaults to counter-clockwise. Baking resolves the
+  transform — the crowd mesh's matrix is the identity — so the renderer's flip
+  goes away, and the material swap supplies exactly one flip in its place.
+
+  Reversing the indices as well is a third flip, which is a net inversion: the
+  figure renders INSIDE OUT. Not subtly, either — it draws its far surface, so
+  a figure facing you shows you the back of its own head. Tonio: "the omnidude
+  mesh is flipped inside out". It survived two headless checks because at crowd
+  distance an inverted humanoid still has a humanoid silhouette; it took one
+  frame of the baked figure beside a normally-skinned clone, both at identity
+  rotation, for it to be unmissable.
+  */
   for (const m of sources) {
     const mu = m.getVerticesData(BABYLON.VertexBuffer.UVKind)
     if (mu != null) uvs.set(mu, uvOffset)
     const mi = m.getIndices() ?? []
-    // A mirrored root flips the winding with it; without this the whole crowd
-    // is inside-out and reads as a lighting bug.
-    for (let i = 0; i < mi.length; i += 3) {
-      indices.push(
-        vOffset + mi[i],
-        vOffset + mi[i + (mirrored ? 2 : 1)],
-        vOffset + mi[i + (mirrored ? 1 : 2)]
-      )
-    }
+    for (let i = 0; i < mi.length; i++) indices.push(vOffset + mi[i])
     vOffset += m.getTotalVertices()
     uvOffset += m.getTotalVertices() * 2
   }
@@ -1265,7 +1275,13 @@ export class B3dCrowd extends B3dChild {
           : `GPU — (no timer query on this device)`,
         `wall ${this._lastMs.toFixed(1)}ms  worst ${this._worstMs.toFixed(
           1
-        )}ms  ${this._worstMs < 18 ? '(vsync — not a cost)' : ''}`,
+        )}ms  ${
+          this.owner?.paused === true
+            ? '(PAUSED — not recording)'
+            : this._worstMs < 18
+            ? '(vsync — not a cost)'
+            : ''
+        }`,
         `meshEval ${sceneInstr.activeMeshesEvaluationTimeCounter.current.toFixed(
           2
         )}ms`,
@@ -1323,22 +1339,42 @@ export class B3dCrowd extends B3dChild {
       That is CLAUDE.md's own warning and it cost fourteen call sites in 0.7.0.
       I walked straight into it here.
       */
+      const stopped = owner.paused === true || owner.frozen === true
       const ms = scene.getEngine().getDeltaTime()
-      this._lastMs = ms
       /*
-      SKIP THE FIRST FEW. A rebuild, a shader compile and the first upload all
-      land in one frame, and reporting that as the worst says the crowd is
-      expensive when what was expensive was building it. The bench is about the
-      STEADY state.
+      A PAUSED FRAME IS NOT A MEASUREMENT. Tonio: "pausing kills your timer stat
+      accuracy."
+
+      A paused scene still renders — that is the point, the panel has to be
+      there — but it renders a crowd that is not animating, into a frame whose
+      wall clock is measuring how long the user sat looking at it. Both numbers
+      are then about the pause rather than about the crowd, and the worst frame,
+      which is the one thing this bench exists to report, gets set by the act of
+      reading it.
+
+      So paused frames record NOTHING and re-arm the warm-up, which also throws
+      away the catch-up frame on the way back. `_frames = 0` is doing two jobs
+      and both are wanted.
       */
-      if (++this._frames > 10 && ms > this._worstMs) this._worstMs = ms
-      if (this._frames > 10) {
-        const g = instr.gpuFrameTimeCounter.current / 1e6
-        if (g > this._worstGpu) this._worstGpu = g
+      if (stopped) {
+        this._frames = 0
+      } else {
+        this._lastMs = ms
+        /*
+        SKIP THE FIRST FEW. A rebuild, a shader compile and the first upload all
+        land in one frame, and reporting that as the worst says the crowd is
+        expensive when what was expensive was building it. The bench is about
+        the STEADY state.
+        */
+        if (++this._frames > 10 && ms > this._worstMs) this._worstMs = ms
+        if (this._frames > 10) {
+          const g = instr.gpuFrameTimeCounter.current / 1e6
+          if (g > this._worstGpu) this._worstGpu = g
+        }
       }
       // PAUSE STOPS THEM. It did not, because this clock never consulted it —
       // and a pause that leaves four thousand figures marching is not a pause.
-      if (owner.paused !== true) this._t += sceneDelta(scene)
+      if (!stopped) this._t += sceneDelta(scene)
       if (this._plugin != null) this._plugin.time = this._t
       // A change of source figure is a re-bake, and it is async — so it is
       // guarded rather than queued: the LAST url asked for wins, and one in
