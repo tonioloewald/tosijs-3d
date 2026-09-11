@@ -808,6 +808,24 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **Measure the crowd in a HEADSET and on a Raspberry Pi.** 2026-09-11,
+Tonio: *"I really need to test with goggles when I have the chance (also the
+raspberry pi)."* Everything so far is one laptop, possibly on a 30Hz display,
+which makes the wall-clock readings quantised and the whole set — his words —
+"rubbery, but we have some nice bounds here".
+
+Those two devices are the ones that would turn bounds into a budget. A headset
+is the tightest frame we ship against (13.9ms, and the scene is drawn twice,
+once per eye) AND has no `EXT_disjoint_timer_query`-free excuse for guessing:
+the Perf Stats panel is the only readout that exists in there, which is why the
+crowd rows live in it. A Pi is the bottom of the hardware range, and the number
+that says whether the ambient/crowd tiering needs a rung below "low".
+
+What to record for each: figures at the point the worst frame stops sitting on
+the vsync floor, with and without the `shadows` toggle, for BOTH figures (blocky
+~144 verts, baked omnidude 1,380). That is six numbers and it settles the
+substrate's envelope.
+
 [ ] **`select3d` in a scene panel may not open its popup.** 2026-09-11: the
 crowd demo's figure picker was a `select3d`, and Tonio reported "when I pick
 omnidude, nothing happens". Driving the flat gear panel headlessly with

@@ -325,6 +325,24 @@ Tonio's readings on the current scene, with shadows:
 
 (For contrast: blocks at 200,000 was 33ms **before** the ground and sun went in.)
 
+⚠️ **Read those as BOUNDS, not as costs.** They were taken on a laptop that may
+have been driving a 30Hz display, where the floor is 33.3ms — so "20,000
+omnidudes at 33ms" may well mean the crowd was FREE and the wall clock was
+reporting the monitor. Likewise 60ms is two swap intervals: one missed frame,
+not sixty milliseconds of work. Tonio: *"I think these figures are always going
+to be rubbery unless we do proper benchmarking but we have some nice bounds
+here."* That is the right reading of them.
+
+The panel now measures the floor rather than assuming one — the fastest frame it
+has seen IS the swap interval — and reports the worst as a MULTIPLE of it, so a
+quantised reading is legible as quantised. `reset worst` clears the floor too,
+because a display can change under you.
+
+The readings that will actually settle the budget are a **headset** and a
+**Raspberry Pi**: the first has the tightest frame budget we ship against (13.9ms,
+twice, one per eye) and the second is the floor of the hardware range. Both are
+in `TODO.md`.
+
 Read them together and the tidy story I had written — *cost is vertices* — is
 only half right. Rows one and two are the same number of vertices and differ by
 **2×**, so something other than vertex count is being paid, and the third row is
@@ -1276,6 +1294,22 @@ export class B3dCrowd extends B3dChild {
   private _lastMs = 0
   private _frames = 0
   /*
+  THE DISPLAY'S OWN FLOOR, measured rather than assumed.
+
+  The readout used to call anything under 18ms "vsync — not a cost", which bakes
+  in a 60Hz monitor. Tonio: "We may also be dealing with a 30fps monitor btw so
+  these figures aren't ultra comparable to the ones from previous days." On a
+  30Hz display the floor is 33.3ms — so a 33ms reading means the crowd was FREE
+  where the old rule called it a cost, and 60ms is two intervals, i.e. one
+  missed frame rather than "60ms of work".
+
+  The cheapest honest instrument is the fastest frame actually seen: nothing
+  renders faster than the swap interval, so the minimum IS the floor. It needs
+  no API, and it survives a browser capping the rate for its own reasons — a
+  battery saver, a background tab, an external display.
+  */
+  private _floorMs = Infinity
+  /*
   WALL TIME IS NOT COST, and the first version of this bench measured wall time.
 
   Tonio, at four thousand figures: "Performance is flat… 18ms is worst at any
@@ -1292,6 +1326,26 @@ export class B3dCrowd extends B3dChild {
   private _instr?: BABYLON.EngineInstrumentation
   private _sceneInstr?: BABYLON.SceneInstrumentation
   private _worstGpu = 0
+
+  /**
+   * What the wall clock is entitled to claim, given the display it is on.
+   *
+   * Three genuinely different cases: paused (recording nothing), sitting ON the
+   * floor (we fitted, and that is ALL the wall clock knows), and above it (we
+   * missed frames — the one case where the number is a cost). The old version
+   * compared against a hard-wired 18ms, which is a 60Hz assumption wearing a
+   * measurement's clothes.
+   */
+  private _wallVerdict(): string {
+    if (this.owner?.paused === true) return '(PAUSED — not recording)'
+    if (!Number.isFinite(this._floorMs)) return ''
+    // 1.2× rather than 1.0: the floor is a minimum over noisy samples, so an
+    // exact match is not something a real reading offers.
+    if (this._worstMs <= this._floorMs * 1.2) return '(at vsync — not a cost)'
+    return `(${(this._worstMs / this._floorMs).toFixed(
+      1
+    )}× vsync — MISSING FRAMES)`
+  }
 
   /** What the bake costs on the GPU, for the readout. */
   get bakeBytes(): number {
@@ -1336,13 +1390,20 @@ export class B3dCrowd extends B3dChild {
           : `GPU — (no timer query on this device)`,
         `wall ${this._lastMs.toFixed(1)}ms  worst ${this._worstMs.toFixed(
           1
-        )}ms  ${
-          this.owner?.paused === true
-            ? '(PAUSED — not recording)'
-            : this._worstMs < 18
-            ? '(vsync — not a cost)'
-            : ''
-        }`,
+        )}ms  ${this._wallVerdict()}`,
+        /*
+        THE FLOOR, AND THE WORST AS A MULTIPLE OF IT. "60ms" on a 30Hz panel is
+        not sixty milliseconds of work — it is two swap intervals, so one frame
+        was missed. Saying `1.8×` puts the reading in the only unit the wall
+        clock actually has.
+        */
+        Number.isFinite(this._floorMs)
+          ? `vsync floor ${this._floorMs.toFixed(1)}ms (≈${Math.round(
+              1000 / this._floorMs
+            )}Hz)   worst = ${(this._worstMs / this._floorMs).toFixed(
+              1
+            )}× floor`
+          : 'vsync floor — (measuring)',
         `meshEval ${sceneInstr.activeMeshesEvaluationTimeCounter.current.toFixed(
           2
         )}ms`,
@@ -1361,9 +1422,10 @@ export class B3dCrowd extends B3dChild {
         )
           .map((c) => c.name)
           .join('/')})  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
-        // 13.9ms is a Quest frame; 16.7 is 60Hz flat. Naming the budget beside
-        // the number is what makes it a measurement rather than a readout.
-        `budget 13.9ms (VR) / 16.7ms (flat)`,
+        // 13.9ms is a Quest frame. Flat, the budget is whatever the display
+        // gives you, which is the line above rather than a constant — naming a
+        // budget beside the number is what makes it a measurement.
+        `budget 13.9ms (VR) / one vsync interval (flat)`,
         // The silent failure, made loud. A vertex shader that will not compile
         // never becomes ready, and the canvas simply stays black — which is
         // indistinguishable from a camera pointing the wrong way.
@@ -1379,6 +1441,10 @@ export class B3dCrowd extends B3dChild {
           handleClick: () => {
             this._worstMs = 0
             this._worstGpu = 0
+            // The floor goes too: a display can change under you (an external
+            // monitor, a battery saver dropping to 30Hz), and a floor carried
+            // over from before the change makes every later reading a lie.
+            this._floorMs = Infinity
             this._frames = 0
           },
         },
@@ -1429,6 +1495,7 @@ export class B3dCrowd extends B3dChild {
         */
         if (++this._frames > 10 && ms > this._worstMs) this._worstMs = ms
         if (this._frames > 10) {
+          if (ms > 0 && ms < this._floorMs) this._floorMs = ms
           const g = instr.gpuFrameTimeCounter.current / 1e6
           if (g > this._worstGpu) this._worstGpu = g
         }
