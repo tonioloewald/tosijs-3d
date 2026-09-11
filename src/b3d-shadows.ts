@@ -224,6 +224,25 @@ export class B3dSun extends B3dChild {
       this.light.intensity = this.baseIntensity * dimFactor
     }
 
+    /*
+    DROP THE DEAD FIRST. A caster that has been disposed is still in these
+    lists — nothing tells the sun — and it stays in the generator's render
+    list, where it is drawn into the shadow map every frame forever. A scene
+    that spawns and despawns (a crowd slider, a spawner, anything pooled) leaks
+    a shadow caster per corpse, and the symptom is a shadow map that gets
+    slower with time rather than an error.
+    */
+    for (let i = this.shadowCasters.length - 1; i >= 0; i--) {
+      const mesh = this.shadowCasters[i]
+      if (!mesh.isDisposed()) continue
+      this.shadowCasters.splice(i, 1)
+      const active = this.activeShadowCasters.indexOf(mesh)
+      if (active > -1) {
+        this.activeShadowCasters.splice(active, 1)
+        this.shadowGenerator!.removeShadowCaster(mesh)
+      }
+    }
+
     const activeDistance = (this as any).activeDistance as number
     for (const mesh of this.shadowCasters) {
       const distance = mesh.getAbsolutePosition().subtract(target).length()

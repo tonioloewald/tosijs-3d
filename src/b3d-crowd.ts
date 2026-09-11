@@ -33,7 +33,7 @@ no console to clear, and because the worst you care about is the worst since the
 last thing you changed.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
@@ -89,9 +89,24 @@ scene = b3d(
       orbitCam(el, { alpha: -1.1, beta: 1.12, radius: 85, target: [0, 2, 0] })
     },
   },
-  b3dSun({}),
-  b3dSkybox({ timeOfDay: 10 }),
-  b3dLight({ intensity: 0.45 }),
+  // A GROUND AND A REAL SUN, because a crowd against a skybox has no scale and
+  // no contact with anything. The checker is a ruler — it is how you see that
+  // the field is 80m across — and the shadows are what put the figures ON it
+  // rather than in front of it. `_nocast` on the ground: it receives, and a
+  // ground plane casting into its own shadow map is just acne.
+  // `activeDistance` defaults to 30m, which is a character-scale scene — here
+  // it would shadow the middle of the field and nothing else.
+  b3dSun({
+    shadowMaxZ: 200, activeDistance: 140,
+    shadowTextureSize: 2048, shadowDarkness: 0.25,
+  }),
+  b3dSkybox({ timeOfDay: 9 }),
+  b3dLight({ intensity: 0.35 }),
+  b3dGround({
+    meshName: 'ground_nocast',
+    width: 160, height: 160,
+    color: '#8a9070', texture: 'noise', textureTiles: 9,
+  }),
   crowd
 )
 
@@ -125,14 +140,28 @@ cyclesPerSecond)` — so no two figures need share anything:
 | | |
 | --- | --- |
 | **where in the clip** | a random phase offset; without it a crowd marches in lockstep, which reads as a bug even though every figure is correct |
-| **how fast** | its own rate, scaled by the clip's duration so a 2s idle and a 1s walk both play as baked |
-| **which clip** | `start` picks one out of the shared bake — the field is ~3/4 walking, ~1/4 standing |
+| **how fast** | its own rate, scaled by the clip's duration so a 0.7s wave and a 1s walk both play as baked |
+| **which clip** | `start` picks one of FOUR out of the shared bake — walk, wave, dance, jump |
 
-The mixture is weighted rather than even on purpose: mostly-walking-with-some-
-standing reads as one crowd going somewhere, where fifty-fifty reads as two
-crowds. And the idle's amplitude is a tenth of the walk's, because an idle that
-sways is just a slow walk and at a distance the two collapse back into one
-animation.
+The clips are chosen to be told apart **at a hundred metres**, which is the only
+test that matters here and rules out most of what reads as variety close up. An
+idle fails it: a figure shifting its weight and a figure walking slowly are the
+same silhouette from far enough away, so a quarter of the field was doing
+something nobody could see. What survives the distance is gross limb position —
+legs striding, one arm above the head, both arms up, a body leaving the ground.
+
+Getting there needed a second rotation AXIS. A swing about X is a stride, and
+anything built only from it is a walk at some speed; raising an arm is a
+rotation about Z, and without it the wave, the dance and the jumping jack all
+collapse back into the walk. The vertical bob costs one addition per baked
+vertex and carries furthest of all, because a silhouette that changes HEIGHT is
+visible when the limbs inside it are a pixel wide.
+
+Walk stays the plurality (`CLIP_MIX`) because a crowd is going somewhere; the
+other three split the rest evenly, none of them being a default. And the
+durations differ on purpose — identical ones would have every clip turn over
+together, and four animations sharing one heartbeat look more synchronised than
+one animation does.
 
 None of it costs anything. The clips share one texture, so switching is a change
 of two numbers rather than of material, and the CPU still touches nothing once
@@ -509,29 +538,121 @@ function figureParts(): Array<{
 }
 
 /**
- * Swing a limb about its top, so a leg pivots at the hip and not its middle.
+ * The four clips, which are chosen to be told apart at a HUNDRED METRES.
  *
- * Two clips, because a field where every figure does the same thing reads as a
- * screensaver however well the phases are staggered. Legs moving versus legs
- * still is the difference you can see at a distance, which is the only kind
- * that counts in a crowd.
+ * That is the only test that matters for a crowd, and it rules out most of what
+ * would read as variety up close. An idle fails it — a figure shifting its
+ * weight and a figure walking slowly are the same silhouette from far enough
+ * away, so a quarter of the field was doing something nobody could see. What
+ * survives the distance is gross limb position: legs striding, an arm above the
+ * head, both arms up, a body leaving the ground.
  */
-function limbSwing(clip: 'walk' | 'idle', limb: number, phase: number): number {
-  if (limb === 0) return 0
+export type CrowdClip = 'walk' | 'wave' | 'dance' | 'jump'
+
+/** A limb's angle about each axis: `x` swings it fore/aft, `z` lifts it out. */
+interface LimbPose {
+  x: number
+  z: number
+}
+
+const STILL: LimbPose = { x: 0, z: 0 }
+
+/**
+ * Pose one limb, for one clip, at one phase.
+ *
+ * Two axes rather than one, and that is what the extra clips needed: a swing
+ * about X is a stride, and every animation built only from it is a walk at some
+ * speed. Raising an arm — a wave, a dance, a jumping jack — is a rotation about
+ * Z, and without it the three of them collapse back into the walk.
+ *
+ * Limb 1 is the LEFT arm (−x) and 2 the right, 3 the left leg and 4 the right,
+ * so a positive `z` lifts an odd limb inward and an even one out. The signs
+ * below are not arbitrary.
+ */
+function limbPose(clip: CrowdClip, limb: number, phase: number): LimbPose {
+  if (limb === 0) return STILL
   const t = phase * Math.PI * 2
-  if (clip === 'idle') {
-    // A shift of weight, not a stride: arms barely move, legs not at all. The
-    // amplitude is a tenth of the walk's on purpose — an idle that swings is
-    // just a slow walk, and at a distance the two become one animation again.
-    if (limb === 1) return Math.sin(t) * 0.06
-    if (limb === 2) return -Math.sin(t) * 0.06
-    return 0
+  switch (clip) {
+    case 'wave': {
+      // One arm ABOVE the head, flapping; the rest of the figure still. The
+      // asymmetry is the whole read — there is no other clip where one side
+      // does something the other does not.
+      if (limb === 2) return { x: 0, z: 2.3 + Math.sin(t) * 0.45 }
+      if (limb === 1) return { x: 0, z: -0.12 }
+      return STILL
+    }
+    case 'dance': {
+      // Both arms up and swaying, legs on the OFFBEAT (twice the rate), so the
+      // silhouette is wide at the top and busy at the bottom.
+      if (limb === 1)
+        return { x: Math.sin(t) * 0.3, z: -(1.8 + Math.sin(t) * 0.5) }
+      if (limb === 2)
+        return { x: -Math.sin(t) * 0.3, z: 1.8 - Math.sin(t) * 0.5 }
+      if (limb === 3) return { x: Math.sin(t * 2) * 0.35, z: -0.12 }
+      return { x: -Math.sin(t * 2) * 0.35, z: 0.12 }
+    }
+    case 'jump': {
+      // A jumping jack: one sweep out and back per cycle, arms and legs
+      // together. `s` runs 0 → 1 → 0, which is the star shape at its middle.
+      const s = (1 - Math.cos(t)) / 2
+      if (limb === 1) return { x: 0, z: -(0.1 + s * 2.5) }
+      if (limb === 2) return { x: 0, z: 0.1 + s * 2.5 }
+      if (limb === 3) return { x: 0, z: -s * 0.4 }
+      return { x: 0, z: s * 0.4 }
+    }
+    default: {
+      // Walk: arms oppose legs and left opposes right, which is the whole of
+      // why it reads as walking rather than as limbs moving.
+      if (limb === 1) return { x: Math.sin(t) * 0.5, z: 0 }
+      if (limb === 2) return { x: -Math.sin(t) * 0.5, z: 0 }
+      if (limb === 3) return { x: -Math.sin(t) * 0.7, z: 0 }
+      return { x: Math.sin(t) * 0.7, z: 0 }
+    }
   }
-  // Arms oppose legs, and left opposes right — which is what reads as walking.
-  if (limb === 1) return Math.sin(t) * 0.5
-  if (limb === 2) return -Math.sin(t) * 0.5
-  if (limb === 3) return -Math.sin(t) * 0.7
-  return Math.sin(t) * 0.7
+}
+
+/**
+ * How far the whole figure leaves the ground.
+ *
+ * Cheaper than it looks — it is one addition to every baked vertex, no extra
+ * frames and no extra texture — and it carries further than any limb, because
+ * a silhouette that changes HEIGHT is visible when the limbs inside it are one
+ * pixel wide.
+ */
+function bodyBob(clip: CrowdClip, phase: number): number {
+  const t = phase * Math.PI * 2
+  if (clip === 'jump') return ((1 - Math.cos(t)) / 2) * 0.35
+  if (clip === 'dance') return ((1 - Math.cos(t * 2)) / 2) * 0.12
+  if (clip === 'walk') return ((1 - Math.cos(t * 2)) / 2) * 0.04
+  return 0
+}
+
+/**
+ * How much of the field does each clip, as relative weights.
+ *
+ * Walking stays the plurality because a crowd is going somewhere; the other
+ * three are even, since none of them is the "default" a figure falls back to.
+ * Lives next to the clips rather than at the call site so adding a clip is one
+ * edit — a mixture that has to be updated in two places is a mixture that
+ * silently stops summing.
+ */
+const CLIP_MIX: Record<string, number> = {
+  walk: 4,
+  wave: 2,
+  dance: 2,
+  jump: 2,
+}
+
+/** Pick a clip for one figure, weighted by `CLIP_MIX`. `r` is in `[0, 1)`. */
+function pickClip(clips: readonly VatClip[], r: number): VatClip {
+  let total = 0
+  for (const c of clips) total += CLIP_MIX[c.name] ?? 1
+  let cut = r * total
+  for (const c of clips) {
+    cut -= CLIP_MIX[c.name] ?? 1
+    if (cut < 0) return c
+  }
+  return clips[clips.length - 1]
 }
 
 /**
@@ -587,46 +708,70 @@ export function buildBenchFigure(
   call. `vertex-animation`'s layout was built for this; it just had nothing to
   hold until now.
 
-  The idle runs at half the walk's rate because it is a longer, slower cycle —
-  and `framesForClip` is what turns that into the right number of frames rather
-  than a guess.
+  Durations differ deliberately. Identical ones would have every clip's phase
+  turn over together, and a field of four animations sharing one heartbeat is
+  more obviously synchronised than a field of one — `framesForClip` turns each
+  duration into the right number of frames, so the cost of the difference is a
+  few texels.
   */
-  const walkFrames = framesForClip(1, bakeFps)
-  const idleFrames = framesForClip(2, bakeFps)
-  const clips: VatClip[] = [
-    { name: 'walk', start: 0, frames: walkFrames, duration: 1, loop: true },
-    {
-      name: 'idle',
-      start: walkFrames,
-      frames: idleFrames,
-      duration: 2,
-      loop: true,
-    },
+  const spec: Array<{ name: CrowdClip; duration: number }> = [
+    { name: 'walk', duration: 1 },
+    { name: 'wave', duration: 0.7 },
+    { name: 'dance', duration: 0.8 },
+    { name: 'jump', duration: 0.9 },
   ]
-  const layout = vatLayout(vertexCount, walkFrames + idleFrames)
+  const clips: VatClip[] = []
+  let frameCount = 0
+  for (const { name, duration } of spec) {
+    const frames = framesForClip(duration, bakeFps)
+    clips.push({ name, start: frameCount, frames, duration, loop: true })
+    frameCount += frames
+  }
+  // Which clip owns each frame of the bake, so the writer below is a lookup
+  // rather than a chain of comparisons that has to be edited per clip.
+  const clipOfFrame: VatClip[] = []
+  for (const c of clips) for (let i = 0; i < c.frames; i++) clipOfFrame.push(c)
+  const layout = vatLayout(vertexCount, frameCount)
 
   const { position, normal } = writeVatTextures(scene, layout, (v, f) => {
-    // Which clip this frame belongs to, and how far through it.
-    const which = f < walkFrames ? clips[0] : clips[1]
+    const which = clipOfFrame[f] ?? clips[0]
+    const name = which.name as CrowdClip
     const phase = (f - which.start) / which.frames
     const limb = limbOf[v]
-    const a = limbSwing(which.name as 'walk' | 'idle', limb, phase)
-    const px = positions[v * 3]
-    const py = positions[v * 3 + 1]
-    const pz = positions[v * 3 + 2]
-    const nx = normals[v * 3]
-    const ny = normals[v * 3 + 1]
-    const nz = normals[v * 3 + 2]
-    if (a === 0) return { p: [px, py, pz], n: [nx, ny, nz] }
-    // Rotate about X at the limb's pivot height — a hip, not a waist.
+    const pose = limbPose(name, limb, phase)
+    const lift = bodyBob(name, phase)
+    let px = positions[v * 3]
+    let py = positions[v * 3 + 1]
+    let pz = positions[v * 3 + 2]
+    let nx = normals[v * 3]
+    let ny = normals[v * 3 + 1]
+    let nz = normals[v * 3 + 2]
+    // Both rotations happen about the limb's PIVOT — a hip or a shoulder, not
+    // the middle of the box. X first (the stride), then Z (the lift), so a
+    // raised arm swings in the plane it was raised into.
     const pivot = pivotOf(limb)
-    const dy = py - pivot
-    const c = Math.cos(a)
-    const s = Math.sin(a)
-    return {
-      p: [px, pivot + dy * c - pz * s, dy * s + pz * c],
-      n: [nx, ny * c - nz * s, ny * s + nz * c],
+    if (pose.x !== 0) {
+      const c = Math.cos(pose.x)
+      const s2 = Math.sin(pose.x)
+      const dy = py - pivot
+      py = pivot + dy * c - pz * s2
+      pz = dy * s2 + pz * c
+      const my = ny
+      ny = my * c - nz * s2
+      nz = my * s2 + nz * c
     }
+    if (pose.z !== 0) {
+      const c = Math.cos(pose.z)
+      const s2 = Math.sin(pose.z)
+      const dy = py - pivot
+      const dx = px
+      px = dx * c - dy * s2
+      py = pivot + dx * s2 + dy * c
+      const mx = nx
+      nx = mx * c - ny * s2
+      ny = mx * s2 + ny * c
+    }
+    return { p: [px, py + lift, pz], n: [nx, ny, nz] }
   })
 
   const bake: VatBake = {
@@ -737,6 +882,15 @@ export class B3dCrowd extends B3dChild {
     plugin.interpolate = this.interpolate !== 'off'
     plugin.isEnabled = true
     this._plugin = plugin
+    /*
+    THE SHADOW HAS TO KNOW ABOUT THE BAKE TOO. A shadow map is rendered with a
+    different (depth-only) shader, which knows nothing about a material plugin —
+    so by default a crowd of dancers casts a crowd of bind-pose mannequins, and
+    a figure mid-jump casts a shadow standing where it took off. A
+    `ShadowDepthWrapper` builds the depth pass FROM this material, plugin
+    included, so the shadow is the pose.
+    */
+    mat.shadowDepthWrapper = new BABYLON.ShadowDepthWrapper(mat, scene)
     mesh.material = mat
     mesh.isVisible = true
     // The bake already holds world-space-ish positions for the figure, and a
@@ -962,6 +1116,18 @@ export class B3dCrowd extends B3dChild {
       // scattered over 150 metres read as "nothing happened".
       root.scaling.setAll(2)
       this._skinnedRoots.push(root)
+      /*
+      REGISTER THEM, or the baseline is not the same scene as the crowd. The sun
+      learns about casters through `owner.register`, and an instantiated clone
+      goes through none of the loaders that would normally do it — so the
+      skinned figures stood in the crowd's shadows casting none of their own,
+      which reads as a bug in the rig rather than as a missing subscription.
+      Disposed clones are pruned by the sun itself (see `b3d-shadows`), so the
+      slider can go back down without leaking casters into the shadow map.
+      */
+      this.owner?.register({
+        meshes: root.getChildMeshes().filter((m) => m.getTotalVertices() > 0),
+      })
       for (const g of inst.animationGroups) {
         g.play(true)
         g.goToFrame(g.from + (g.to - g.from) * rnd())
@@ -1013,20 +1179,21 @@ export class B3dCrowd extends B3dChild {
       A CLIP PER FIGURE, not per crowd. The bake holds several and `start` picks
       one, so a field can be a mixture at no cost — the material never changes.
 
-      Weighted rather than even: mostly walking with some standing reads as a
-      crowd going somewhere, where fifty-fifty reads as two crowds.
+      Weighted rather than even (see `CLIP_MIX`): walking stays the plurality
+      because a crowd is going somewhere, and the other three split the rest.
       */
-      const clip = bake.clips[rnd() < 0.75 ? 0 : 1] ?? bake.clips[0]
+      const clip = pickClip(bake.clips, rnd())
       state[i * 4] = clip.start
       state[i * 4 + 1] = clip.frames
       // A phase OFFSET per figure, or two hundred soldiers march in lockstep —
       // which reads as a bug even though every one of them is correct.
       state[i * 4 + 2] = rnd()
       /*
-      And its own RATE. Scaled by the clip's duration so a two-second idle and a
-      one-second walk both play at their intended speed: `phase` is normalised,
-      so cycles-per-second has to carry the difference or the idle runs twice as
-      fast as it was baked.
+      And its own RATE. Scaled by the clip's duration so a 0.7s wave and a 1s
+      walk both play at the speed they were baked at: `phase` is normalised, so
+      cycles-per-second has to carry the difference or the shorter clip runs
+      fast — which would look like a bug in the wave rather than an error in
+      the units.
       */
       state[i * 4 + 3] =
         (0.7 + rnd() * 0.6) / (clip.duration > 0 ? clip.duration : 1)
