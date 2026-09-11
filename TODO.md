@@ -836,8 +836,12 @@ these games asks.
 - **Motion.** The figures animate in place and never move. Steering is CPU work
   per instance, which is what this substrate was chosen to avoid — decide
   deliberately (shader? worker? or simply cheap, because a flock is fifty birds).
-- **Bake from a real skinned GLB** rather than a procedural walk.
-  `Mesh.applySkeleton` is the cheap route; the layout is fixed and tested.
+- ~~**Bake from a real skinned GLB**~~ — DONE 2026-09-11 (`bakeGlbFigure`, and
+  `b3dCrowd`'s `url`/`clips`/`figureScale`). `Mesh.applySkeleton` was indeed the
+  cheap route. Two things that cost time and are written down in the module: a
+  GLB's meshes must be CONCATENATED (omnidude is a head and a body, and two
+  meshes is two draw calls for the whole crowd), and the glTF root's handedness
+  mirror means the baked winding has to be reversed or the crowd is inside-out.
 - **Route through `b3d-ambient`'s budget allocator**, which already switches an
   effect off rather than thinning it.
 - **Clip blending** (four samples) if a glide→flap transition needs it. Frame
@@ -912,9 +916,10 @@ camera-facing billboards, `ambient-leaves` does tumbling quads on a
 it flaps, banks, and its silhouette changes.
 
 What it needs before it is a feature rather than a bench:
-- **Bake from a real skinned GLB**, not a procedural walk. The layout is fixed
-  and tested; the missing piece is CPU-skinning a mesh per frame and writing it
-  out (`Mesh.applySkeleton` is the cheap route).
+- ~~**Bake from a real skinned GLB**~~ — DONE 2026-09-11, see `bakeGlbFigure`.
+  What remains for FAUNA specifically is a bird: the path is proven on a biped,
+  and the open question is whether a flap reads at the bake rates a crowd uses
+  (a wing is a faster-moving thing than a leg).
 - **Route it through `b3d-ambient`'s budget allocator**, which already switches
   an effect OFF rather than thinning it — the right answer when a flock will not
   fit the device.
