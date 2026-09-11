@@ -261,6 +261,9 @@ b3d-crowd
   interpolate  = 'on'  — `'off'` snaps to the nearest frame: cheaper, jerkier
   skinned  = 0  — How many SKINNED clones to spawn alongside, as the baseline
   skinnedUrl  = '/omnidude.glb'  — The GLB the baseline clones
+  url  = a rigged GLB to bake from; empty = the synthetic figure
+  clips  = ''  — Which of its clips to bake, comma-separated. Empty = all
+  figureScale  = 1  — Scale applied to the baked figure (omnidude is 0.88m)
 
 ## b3d-death — <tosi-b3d-death>
 b3d-death
@@ -462,6 +465,7 @@ b3d-light
   intensity  = 1  — Brightness multiplier
   diffuse  = '#ffffff'  — Diffuse color (hex)
   specular  = '#808080'  — Specular color (hex)
+  groundColor  = '#000000'  — Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour
 
 ## b3d-loader — <tosi-b3d-loader>
 b3d-loader

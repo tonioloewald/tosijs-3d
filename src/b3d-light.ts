@@ -53,6 +53,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `intensity` | `1` | Brightness multiplier |
 | `diffuse` | `'#ffffff'` | Diffuse color (hex) |
 | `specular` | `'#808080'` | Specular color (hex) |
+| `groundColor` | `'#000000'` | Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour |
 */
 /*{ "parent": "Environment" }*/
 
@@ -70,6 +71,15 @@ export class B3dLight extends B3dChild {
     intensity: 1,
     diffuse: '#ffffff',
     specular: '#808080',
+    /*
+    WHAT COMES UP FROM THE GROUND — Babylon's default is BLACK, and that is
+    why an ambient-lit scene has vertical faces that read as unlit however far
+    you push `intensity`. A hemispheric light is cosine-weighted about its own
+    direction, so a wall gets almost nothing from the sky half and everything
+    it does get comes from this. A dim, desaturated version of the ground's
+    colour is the honest value; pure black is a scene lit from a hole.
+    */
+    groundColor: '#000000',
   }
 
   owner: B3d | null = null
@@ -102,6 +112,7 @@ export class B3dLight extends B3dChild {
       this.light.intensity = attrs.intensity
       this.light.diffuse = BABYLON.Color3.FromHexString(attrs.diffuse)
       this.light.specular = BABYLON.Color3.FromHexString(attrs.specular)
+      this.light.groundColor = BABYLON.Color3.FromHexString(attrs.groundColor)
     }
   }
 }

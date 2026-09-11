@@ -978,6 +978,20 @@
         "name": "skinnedUrl",
         "default": "'/omnidude.glb'",
         "description": "The GLB the baseline clones"
+      },
+      {
+        "name": "url",
+        "default": "a rigged GLB to bake from; empty = the synthetic figure"
+      },
+      {
+        "name": "clips",
+        "default": "''",
+        "description": "Which of its clips to bake, comma-separated. Empty = all"
+      },
+      {
+        "name": "figureScale",
+        "default": "1",
+        "description": "Scale applied to the baked figure (omnidude is 0.88m)"
       }
     ]
   },
@@ -1732,6 +1746,11 @@
         "name": "specular",
         "default": "'#808080'",
         "description": "Specular color (hex)"
+      },
+      {
+        "name": "groundColor",
+        "default": "'#000000'",
+        "description": "Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour"
       }
     ]
   },

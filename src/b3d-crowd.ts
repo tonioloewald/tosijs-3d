@@ -33,7 +33,7 @@ no console to clear, and because the worst you care about is the worst since the
 last thing you changed.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, select3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
@@ -55,7 +55,10 @@ import { tosi } from 'tosijs'
 // crowd of 200 — a control that lies about the thing it controls, and no way to
 // tell except by counting figures.
 const FIGURES = 400
-const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0 } })
+// The clips a real rig gets baked with. Six that are different SHAPES, not six
+// different speeds — see the note on legibility at distance.
+const OMNI_CLIPS = 'walk,run,wave,dance,jump,salute'
+const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, figure: 'blocks' } })
 const s = demo.crowdBench
 
 let crowd = null
@@ -67,6 +70,17 @@ const panel = () => [
     label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.count = Math.round(v) },
   }),
+  select3d({
+    label: 'figure', value: s.figure, options: ['blocks', 'omnidude'],
+    handleChange: (v) => {
+      s.figure = v
+      if (!crowd) return
+      // omnidude is 0.88m — half a person. See CLAUDE.md on scale.
+      crowd.figureScale = v === 'omnidude' ? 2 : 1
+      crowd.clips = v === 'omnidude' ? OMNI_CLIPS : ''
+      crowd.url = v === 'omnidude' ? '/omnidude.glb' : ''
+    },
+  }),
   toggle3d({
     label: 'interpolate frames', value: s.interp,
     handleChange: (v) => { if (crowd) crowd.interpolate = v ? 'on' : 'off' },
@@ -76,6 +90,7 @@ const panel = () => [
     handleChange: (v) => { if (crowd) crowd.skinned = Math.round(v) },
   }),
   label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
+  label3d({ text: 'omnidude = the SAME rig a biped uses, baked', muted: true }),
 ]
 
 crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
@@ -86,7 +101,10 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.1, beta: 1.12, radius: 85, target: [0, 2, 0] })
+      // Sun BEHIND the viewer. The first version had the camera looking into it,
+      // and a crowd lit from the far side is a crowd of silhouettes — which
+      // read as black figures rather than as a lighting choice.
+      orbitCam(el, { alpha: 0.62, beta: 1.12, radius: 85, target: [0, 2, 0] })
     },
   },
   // A GROUND AND A REAL SUN, because a crowd against a skybox has no scale and
@@ -101,7 +119,10 @@ scene = b3d(
     shadowTextureSize: 2048, shadowDarkness: 0.25,
   }),
   b3dSkybox({ timeOfDay: 9 }),
-  b3dLight({ intensity: 0.35 }),
+  // `groundColor` matters more here than intensity: Babylon's default is BLACK,
+  // so every vertical surface — which is most of a standing figure — gets
+  // nothing from the ambient light however far you push it.
+  b3dLight({ intensity: 0.6, groundColor: '#59604a' }),
   b3dGround({
     meshName: 'ground_nocast',
     width: 160, height: 160,
@@ -166,6 +187,42 @@ one animation does.
 None of it costs anything. The clips share one texture, so switching is a change
 of two numbers rather than of material, and the CPU still touches nothing once
 the crowd is built.
+
+## A real rig, baked
+
+Tonio: *"Can we do an intermediate version where we use vertex animation to
+animate the omnidude mesh, or is that impractical?"* Entirely practical — set
+`url` and the crowd bakes that GLB instead of the blocky bench figure. The
+demo's **figure** control switches between them live.
+
+It is the rung that was missing. The blocky figure proves the mechanism and
+`b3d-biped` is the fully-articulated top end; this is the SAME character a biped
+would animate, drawn by the crowd path with no skeleton at all.
+
+The trick is that Babylon will CPU-skin for you. `applySkeleton` writes the
+posed vertices into the mesh's own buffers, so a bake is: put the animation at a
+frame, ask the skeleton for its matrices, apply, read the positions back. Six of
+omnidude's sixteen clips is about 6MB — and after the bake there is no skeleton,
+no `AnimationGroup` and no per-figure CPU work left, which is the whole point.
+
+| | |
+| --- | --- |
+| `url` | a rigged GLB to bake from; empty = the synthetic figure |
+| `clips` | which of its clips, comma-separated; empty = all of them |
+| `figureScale` | omnidude is 0.88m, so the demo bakes it at `2` |
+
+Two details that are not obvious. The head and body are separate meshes sharing
+one material, and they are concatenated into ONE mesh — two would be two draw
+calls for the entire crowd, which would undo the only claim this module makes.
+And every glTF root carries a handedness mirror, so the baked winding is
+reversed to match; without that the crowd is inside-out and reads as a lighting
+bug rather than as geometry.
+
+What you give up is the seam: a baked figure cannot retarget, cannot blend to a
+clip that was not baked, and has no bones to hang a sword from ([[vertex-animation]]'s
+`SocketLayout` is the answer to the last one). Promoting a figure to a named
+character means crossing back to a skinned rig, and that crossing wants
+designing rather than discovering.
 
 ## Where it sits: the third rung of the ambient ladder
 
@@ -282,6 +339,9 @@ stops at 400 rather than 200,000, which is itself part of the finding.
 | `spread` | `60` | Metres across the field they scatter over |
 | `bakeFps` | `10` | Frames baked per second of clip — the memory knob |
 | `interpolate` | `'on'` | `'off'` snaps to the nearest frame: cheaper, jerkier |
+| `url` | `''` | A rigged GLB to BAKE from. Empty = the synthetic bench figure |
+| `clips` | `''` | Which of its clips to bake, comma-separated. Empty = all |
+| `figureScale` | `1` | Scale applied to the baked figure (omnidude is 0.88m) |
 | `skinned` | `0` | How many SKINNED clones to spawn alongside, as the baseline |
 | `skinnedUrl` | `'/omnidude.glb'` | The GLB the baseline clones |
 
@@ -638,6 +698,7 @@ function bodyBob(clip: CrowdClip, phase: number): number {
  */
 const CLIP_MIX: Record<string, number> = {
   walk: 4,
+  run: 3,
   wave: 2,
   dance: 2,
   jump: 2,
@@ -791,6 +852,214 @@ export function buildBenchFigure(
 }
 
 /**
+ * Bake a REAL rigged GLB into a VAT — the intermediate rung.
+ *
+ * Tonio: *"Can we do an intermediate version where we use vertex animation to
+ * animate the omnidude mesh, or is that impractical?"* It is entirely
+ * practical, and it is the rung that matters: the blocky bench figure proves
+ * the mechanism, a `b3d-biped` is the fully-articulated top end, and this is
+ * the same character as the biped, drawn by the crowd path.
+ *
+ * The trick is that Babylon will CPU-skin a mesh for you. `applySkeleton`
+ * writes the posed vertices into the mesh's own buffers, so a bake is: put the
+ * animation at a frame, ask the skeleton to compute its matrices, apply it,
+ * read the positions back. Sixteen clips of omnidude is a few megabytes, and
+ * after it is baked there is no skeleton, no animation group and no per-figure
+ * CPU work left — which is the entire point.
+ *
+ * What it costs is the seam. A baked figure cannot be retargeted, cannot blend
+ * to a clip that was not baked, and has no bones to hang a sword from (see
+ * `vertex-animation`'s `SocketLayout` for the answer to that one). Promoting a
+ * figure to a named character means crossing back to a skinned rig, and that
+ * crossing should be designed rather than discovered.
+ */
+export async function bakeGlbFigure(
+  scene: BABYLON.Scene,
+  url: string,
+  options: { clips?: readonly string[]; bakeFps?: number; scale?: number } = {}
+): Promise<{
+  mesh: BABYLON.Mesh
+  bake: VatBake
+  container: BABYLON.AssetContainer
+}> {
+  const bakeFps = options.bakeFps ?? 10
+  const scale = options.scale ?? 1
+  const slash = url.lastIndexOf('/')
+  const container = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+    url.slice(0, slash + 1),
+    url.slice(slash + 1),
+    scene
+  )
+  container.addAllToScene()
+  const sources = container.meshes.filter(
+    (m) => m.skeleton != null && m.getTotalVertices() > 0
+  ) as BABYLON.Mesh[]
+  const skeleton = sources[0]?.skeleton
+  if (skeleton == null) {
+    container.dispose()
+    throw new Error(`b3d-crowd: ${url} has no skinned mesh to bake`)
+  }
+
+  /*
+  WHICH CLIPS, IN THE ORDER ASKED FOR. A name that is not in the file is
+  SKIPPED, not defaulted — a bake silently missing the clip you asked for looks
+  exactly like a bake that worked, because the other clips still play.
+  */
+  const wanted = options.clips ?? []
+  const groups =
+    wanted.length > 0
+      ? (wanted
+          .map((n) => container.animationGroups.find((g) => g.name === n))
+          .filter((g) => g != null) as BABYLON.AnimationGroup[])
+      : container.animationGroups
+  if (groups.length === 0) {
+    container.dispose()
+    throw new Error(`b3d-crowd: ${url} has none of the clips asked for`)
+  }
+
+  const vertexCount = sources.reduce((n, m) => n + m.getTotalVertices(), 0)
+  const clips: VatClip[] = []
+  let frameCount = 0
+  for (const g of groups) {
+    // An AnimationGroup's range is in FRAMES at the animation's own rate, which
+    // glTF writes as 60 — the seconds are what `framesForClip` needs.
+    const fps = g.targetedAnimations[0]?.animation.framePerSecond || 60
+    const duration = Math.max(0.1, (g.to - g.from) / fps)
+    const frames = framesForClip(duration, bakeFps)
+    clips.push({
+      name: g.name,
+      start: frameCount,
+      frames,
+      duration,
+      loop: true,
+    })
+    frameCount += frames
+  }
+
+  // Posed vertices, one entry per baked frame. A few megabytes for the whole
+  // bake — read once by `writeVatTextures` and then dropped.
+  const posed: Array<{ p: Float32Array; n: Float32Array }> = []
+  const tmp = new BABYLON.Vector3()
+  for (let ci = 0; ci < groups.length; ci++) {
+    const g = groups[ci]
+    const clip = clips[ci]
+    g.play(true)
+    g.pause()
+    for (let f = 0; f < clip.frames; f++) {
+      g.goToFrame(g.from + ((g.to - g.from) * f) / clip.frames)
+      skeleton.prepare()
+      const p = new Float32Array(vertexCount * 3)
+      const n = new Float32Array(vertexCount * 3)
+      let o = 0
+      for (const m of sources) {
+        const world = m.computeWorldMatrix(true)
+        // Normals do NOT transform by the world matrix — under the handedness
+        // mirror every glTF root carries, that would point them backwards.
+        const normalMatrix = BABYLON.Matrix.Transpose(
+          BABYLON.Matrix.Invert(world)
+        )
+        m.applySkeleton(skeleton)
+        const mp = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+        const mn = m.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+        for (let v = 0; v < mp.length; v += 3) {
+          BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
+            mp[v],
+            mp[v + 1],
+            mp[v + 2],
+            world,
+            tmp
+          )
+          p[o + v] = tmp.x * scale
+          p[o + v + 1] = tmp.y * scale
+          p[o + v + 2] = tmp.z * scale
+          BABYLON.Vector3.TransformNormalFromFloatsToRef(
+            mn[v],
+            mn[v + 1],
+            mn[v + 2],
+            normalMatrix,
+            tmp
+          )
+          tmp.normalize()
+          n[o + v] = tmp.x
+          n[o + v + 1] = tmp.y
+          n[o + v + 2] = tmp.z
+        }
+        o += mp.length
+      }
+      posed.push({ p, n })
+    }
+    g.stop()
+  }
+
+  /*
+  ONE MESH OUT OF SEVERAL. omnidude is a head and a body sharing one material,
+  and two meshes would be two draw calls for the whole crowd — which would
+  undo the only claim this module makes. They are concatenated in the same
+  order the bake walks them, so vertex `i` of the merged mesh is vertex `i` of
+  the texture by construction rather than by agreement.
+  */
+  const positions = new Float32Array(vertexCount * 3)
+  const normals = new Float32Array(vertexCount * 3)
+  const uvs = new Float32Array(vertexCount * 2)
+  const indices: number[] = []
+  positions.set(posed[0].p)
+  normals.set(posed[0].n)
+  let vOffset = 0
+  let uvOffset = 0
+  const mirrored = sources[0].computeWorldMatrix(true).determinant() < 0
+  for (const m of sources) {
+    const mu = m.getVerticesData(BABYLON.VertexBuffer.UVKind)
+    if (mu != null) uvs.set(mu, uvOffset)
+    const mi = m.getIndices() ?? []
+    // A mirrored root flips the winding with it; without this the whole crowd
+    // is inside-out and reads as a lighting bug.
+    for (let i = 0; i < mi.length; i += 3) {
+      indices.push(
+        vOffset + mi[i],
+        vOffset + mi[i + (mirrored ? 2 : 1)],
+        vOffset + mi[i + (mirrored ? 1 : 2)]
+      )
+    }
+    vOffset += m.getTotalVertices()
+    uvOffset += m.getTotalVertices() * 2
+  }
+
+  const mesh = new BABYLON.Mesh('crowd-figure', scene)
+  const data = new BABYLON.VertexData()
+  data.positions = positions as unknown as number[]
+  data.normals = normals as unknown as number[]
+  data.uvs = uvs as unknown as number[]
+  data.indices = indices
+  data.applyToMesh(mesh)
+  mesh.isVisible = false
+
+  const layout = vatLayout(vertexCount, frameCount)
+  const { position, normal } = writeVatTextures(scene, layout, (v, f) => {
+    const frame = posed[Math.min(posed.length - 1, f)]
+    const i = v * 3
+    return {
+      p: [frame.p[i], frame.p[i + 1], frame.p[i + 2]],
+      n: [frame.n[i], frame.n[i + 1], frame.n[i + 2]],
+    }
+  })
+
+  const index = new Float32Array(vertexCount)
+  for (let v = 0; v < vertexCount; v++) index[v] = v
+  mesh.setVerticesData('vatIndex', index, false, 1)
+
+  // The source rig has done its job. Disabled rather than disposed, because the
+  // MATERIAL and its texture are what the crowd is about to wear.
+  for (const g of container.animationGroups) g.stop()
+  for (const root of container.rootNodes) root.setEnabled(false)
+
+  return {
+    mesh,
+    bake: { layout, clips, position, normal, bytes: vatBytes(layout) },
+    container,
+  }
+}
+
+/**
  * `<tosi-b3d-crowd>` — N vertex-animated figures in one draw call.
  *
  * The bench for "can we manage an army of 200 bipeds". Change `count` and watch
@@ -818,6 +1087,24 @@ export class B3dCrowd extends B3dChild {
     skinned: 0,
     /** The GLB the baseline clones. Modest vertex count on purpose. */
     skinnedUrl: '/omnidude.glb',
+    /**
+     * A rigged GLB to BAKE from, instead of the synthetic bench figure.
+     *
+     * The intermediate rung: the same character a `b3d-biped` would animate
+     * with a skeleton, drawn by the crowd path with none. Empty = the blocky
+     * figure, which is the honest default for a bench (it has no download and
+     * no licence attached to the number it produces).
+     */
+    url: '',
+    /**
+     * Which of the GLB's clips to bake, comma-separated. Empty = all of them.
+     *
+     * Worth naming rather than taking everything: memory is linear in frames,
+     * and a rig usually carries clips a crowd has no use for.
+     */
+    clips: '',
+    /** Scale applied to the baked figure. omnidude is 0.88m — half a person. */
+    figureScale: 1,
   }
 
   declare count: number
@@ -826,10 +1113,18 @@ export class B3dCrowd extends B3dChild {
   declare interpolate: string
   declare skinned: number
   declare skinnedUrl: string
+  declare url: string
+  declare clips: string
+  declare figureScale: number
 
   private _mesh?: BABYLON.Mesh
   private _bake?: VatBake
   private _plugin?: VatPlugin
+  /** Which `url` the live figure was baked from — `''` is the bench figure. */
+  private _figureUrl = ''
+  private _baking = false
+  private _bakeNote = ''
+  private _bakeContainer: BABYLON.AssetContainer | null = null
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   private _built = -1
   private _t = 0
@@ -870,36 +1165,12 @@ export class B3dCrowd extends B3dChild {
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
+    // The bench figure first, ALWAYS. A baked GLB is a network round trip, and
+    // a crowd element that shows nothing until it arrives looks broken for as
+    // long as the download takes.
     const { mesh, bake } = buildBenchFigure(scene, this.bakeFps)
-    this._mesh = mesh
-    this._bake = bake
-
-    const mat = new BABYLON.StandardMaterial('crowd', scene)
-    mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
-    mat.diffuseColor = new BABYLON.Color3(0.62, 0.6, 0.55)
-    const plugin = new VatPlugin(mat)
-    plugin.bake = bake
-    plugin.interpolate = this.interpolate !== 'off'
-    plugin.isEnabled = true
-    this._plugin = plugin
-    /*
-    THE SHADOW HAS TO KNOW ABOUT THE BAKE TOO. A shadow map is rendered with a
-    different (depth-only) shader, which knows nothing about a material plugin —
-    so by default a crowd of dancers casts a crowd of bind-pose mannequins, and
-    a figure mid-jump casts a shadow standing where it took off. A
-    `ShadowDepthWrapper` builds the depth pass FROM this material, plugin
-    included, so the shadow is the pose.
-    */
-    mat.shadowDepthWrapper = new BABYLON.ShadowDepthWrapper(mat, scene)
-    mesh.material = mat
-    mesh.isVisible = true
-    // The bake already holds world-space-ish positions for the figure, and a
-    // thin instance supplies the rest. Bounds must be set by hand or Babylon
-    // culls the whole crowd against the ONE figure's box.
-    mesh.alwaysSelectAsActiveMesh = true
-
-    this._rebuild()
-    owner.register({ meshes: [mesh] })
+    this._useFigure(owner, scene, mesh, bake)
+    if (this.url !== '') void this._bakeFrom(owner, scene, this.url)
 
     const instr = new BABYLON.EngineInstrumentation(scene.getEngine())
     instr.captureGPUFrameTime = true
@@ -920,7 +1191,7 @@ export class B3dCrowd extends B3dChild {
       icon: 'mesh',
       lines: () => [
         `figures ${this._built}   draws 1   verts ${(
-          (this._built * bake.layout.vertexCount) /
+          (this._built * (this._bake?.layout.vertexCount ?? 0)) /
           1000
         ).toFixed(0)}k`,
         // GPU time is the COST. Wall time only tells you whether it fitted.
@@ -939,9 +1210,15 @@ export class B3dCrowd extends B3dChild {
           ? `SKINNED ${this._skinnedRoots.length}/${this._skinnedWant} × ${this._skinnedVerts} verts`
           : 'skinned baseline off',
         this._skinnedNote,
-        `bake ${(bake.bytes / 1024 / 1024).toFixed(2)}MB  ${
-          bake.layout.frameCount
-        } frames  ${bake.clips.length} clips (${bake.clips
+        `figure ${
+          this._figureUrl === '' ? 'blocks (synthetic)' : this._figureUrl
+        }${this._baking ? ' — baking…' : ''}`,
+        this._bakeNote,
+        `bake ${((this._bake?.bytes ?? 0) / 1024 / 1024).toFixed(2)}MB  ${
+          this._bake?.layout.frameCount ?? 0
+        } frames  ${this._bake?.clips.length ?? 0} clips (${(
+          this._bake?.clips ?? []
+        )
           .map((c) => c.name)
           .join('/')})  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
         // 13.9ms is a Quest frame; 16.7 is 60Hz flat. Naming the budget beside
@@ -1000,6 +1277,12 @@ export class B3dCrowd extends B3dChild {
       // and a pause that leaves four thousand figures marching is not a pause.
       if (owner.paused !== true) this._t += sceneDelta(scene)
       if (this._plugin != null) this._plugin.time = this._t
+      // A change of source figure is a re-bake, and it is async — so it is
+      // guarded rather than queued: the LAST url asked for wins, and one in
+      // flight is never cancelled halfway through writing a texture.
+      if (!this._baking && this.url !== this._figureUrl) {
+        void this._bakeFrom(owner, scene, this.url)
+      }
       const wantSkinned = Math.max(0, Math.round(this.skinned))
       if (this._skinnedWant !== wantSkinned) {
         void this._buildSkinned(scene, wantSkinned)
@@ -1031,6 +1314,132 @@ export class B3dCrowd extends B3dChild {
   private _skinnedWant = 0
   private _skinnedNote = ''
   private _container: BABYLON.AssetContainer | null = null
+  /**
+   * Adopt a figure — mesh plus bake — as the thing the crowd draws.
+   *
+   * One path for both sources, because the difference between a synthetic
+   * figure and a baked GLB is entirely upstream of here: by this point each is
+   * a mesh, a texture pair and a clip table, and everything below (the plugin,
+   * the shadow wrapper, the thin instances) is identical. Two paths would have
+   * meant the GLB figure quietly missing whichever of them was added later.
+   */
+  private _useFigure(
+    owner: B3d,
+    scene: BABYLON.Scene,
+    mesh: BABYLON.Mesh,
+    bake: VatBake,
+    source?: BABYLON.Material | null
+  ): void {
+    const old = this._mesh
+    const oldMat = old?.material
+    const oldBake = this._bake
+    this._mesh = mesh
+    this._bake = bake
+
+    const mat = new BABYLON.StandardMaterial('crowd', scene)
+    mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+    mat.diffuseColor = new BABYLON.Color3(0.62, 0.6, 0.55)
+    /*
+    THE SOURCE'S TEXTURE ON A STANDARD MATERIAL, not the source material
+    itself. glTF gives you PBR, and a crowd is the one place its cost is
+    multiplied by everything — two hundred thousand figures is not where you
+    spend an energy-conserving BRDF. The albedo map carries the character;
+    the shading model does not have to.
+    */
+    const albedo =
+      (source as BABYLON.PBRMaterial | undefined)?.albedoTexture ??
+      (source as BABYLON.StandardMaterial | undefined)?.diffuseTexture
+    if (albedo != null) {
+      mat.diffuseTexture = albedo
+      mat.diffuseColor = BABYLON.Color3.White()
+    }
+    const plugin = new VatPlugin(mat)
+    plugin.bake = bake
+    plugin.interpolate = this.interpolate !== 'off'
+    plugin.isEnabled = true
+    this._plugin = plugin
+    /*
+    THE SHADOW HAS TO KNOW ABOUT THE BAKE TOO. A shadow map is rendered with a
+    different (depth-only) shader, which knows nothing about a material plugin —
+    so by default a crowd of dancers casts a crowd of bind-pose mannequins, and
+    a figure mid-jump casts a shadow standing where it took off. A
+    `ShadowDepthWrapper` builds the depth pass FROM this material, plugin
+    included, so the shadow is the pose.
+    */
+    mat.shadowDepthWrapper = new BABYLON.ShadowDepthWrapper(mat, scene)
+    mesh.material = mat
+    mesh.isVisible = true
+    // The bake already holds world-space-ish positions for the figure, and a
+    // thin instance supplies the rest. Bounds must be set by hand or Babylon
+    // culls the whole crowd against the ONE figure's box.
+    mesh.alwaysSelectAsActiveMesh = true
+
+    this._built = -1
+    this._rebuild()
+    owner.register({ meshes: [mesh] })
+
+    if (old != null && old !== mesh) {
+      old.dispose()
+      // NOT the textures: an albedo map belongs to the asset container, which
+      // outlives this material and may be handed to the next one.
+      oldMat?.dispose()
+      oldBake?.position.dispose()
+      oldBake?.normal.dispose()
+    }
+  }
+
+  /**
+   * Re-bake from a different source, without the crowd disappearing meanwhile.
+   *
+   * Failure is REPORTED rather than thrown away — a bake that 404s or a GLB
+   * with no skin leaves the previous figure on screen, which is correct and is
+   * also indistinguishable from "the new one looks the same" unless the panel
+   * says so.
+   */
+  private async _bakeFrom(
+    owner: B3d,
+    scene: BABYLON.Scene,
+    url: string
+  ): Promise<void> {
+    this._baking = true
+    this._figureUrl = url
+    this._bakeNote = ''
+    try {
+      if (url === '') {
+        const { mesh, bake } = buildBenchFigure(scene, this.bakeFps)
+        this._useFigure(owner, scene, mesh, bake)
+      } else {
+        const names = this.clips
+          .split(',')
+          .map((n) => n.trim())
+          .filter((n) => n !== '')
+        const { mesh, bake, container } = await bakeGlbFigure(scene, url, {
+          clips: names,
+          bakeFps: this.bakeFps,
+          scale: this.figureScale,
+        })
+        // The scene can go away while a GLB is in flight — a doc page being
+        // scrolled past is enough — and building into a disposed scene is a
+        // crash rather than a wasted download.
+        if (scene.isDisposed) {
+          container.dispose()
+          return
+        }
+        const previous = this._bakeContainer
+        this._bakeContainer = container
+        this._useFigure(owner, scene, mesh, bake, container.materials[0])
+        previous?.dispose()
+      }
+    } catch (e) {
+      this._bakeNote = `BAKE FAILED ${url}: ${String(e).slice(0, 70)}`
+    } finally {
+      this._baking = false
+      this._worstGpu = 0
+      this._worstMs = 0
+      this._frames = 0
+    }
+  }
+
   private _skinnedPrng = new MersenneTwister(7)
 
   /**
@@ -1214,6 +1623,8 @@ export class B3dCrowd extends B3dChild {
     this._skinnedRoots = []
     this._container?.dispose()
     this._container = null
+    this._bakeContainer?.dispose()
+    this._bakeContainer = null
     this._instr?.dispose()
     this._sceneInstr?.dispose()
     this._instr = undefined

@@ -317,6 +317,10 @@ export function hemisphericLightSchema(extra: Record<string, unknown> = {}) {
       intensity: num(1, { minimum: 0, maximum: 4 }),
       diffuse: color('#ffffff'),
       specular: color('#808080'),
+      // Bounce from below. Black is Babylon's default and is why an
+      // ambient-only scene has vertical faces that stay dark however high
+      // `intensity` goes — a dim, desaturated ground colour is the fix.
+      groundColor: color('#000000'),
       x: num(0, { minimum: -1, maximum: 1 }),
       y: num(1, { minimum: -1, maximum: 1 }),
       z: num(0, { minimum: -1, maximum: 1 }),
