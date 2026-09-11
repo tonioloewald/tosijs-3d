@@ -214,13 +214,26 @@ every one of them can afford a real sensorium, its own equipment via
 [[vertex-animation|sockets]], and a bake rate high enough that clip blending is
 not a luxury reserved for wildlife.
 
-**And it reopens a question the bench was built to close.** If 270 is this far
-inside the envelope, the honest next question is whether the vertex-animated
-path is needed *for this game at all* — a skinned `b3d-biped` may handle 270
-perfectly well, in which case VAT is the tool for background fauna and for
-scenes an order of magnitude larger, not for the battle. That is exactly what
-the skinned baseline below is for, and it is now the only number this bench
-still owes.
+**And the skinned baseline has now been read, which settles it the other way.**
+
+| | figures | |
+| --- | --- | --- |
+| vertex-animated | **200,000** | at 33ms |
+| skinned rigs | **~50** | before it gets brutal |
+
+About **4000×**, measured by Tonio in Safari on a work laptop. I had speculated
+the opposite — that 270 was so far inside the envelope a skinned `b3d-biped`
+would simply handle the battle, making this substrate a fauna tool. It will not:
+270 is five times past where the skinned path stops being comfortable.
+
+So **"actors and crowd" is a real boundary**, and the vertex-animated path is
+needed for the battle after all, not merely for birds.
+
+⚠️ And ~50 is the FLOOR, not the ceiling of the problem. The baseline spawns
+bare rigs — mesh, skeleton, `AnimationGroup` — with no controller, no collision,
+no camera rig and no state machine. A real `b3d-biped` is 2342 lines of
+per-instance update on top of that, so the number of actual bipeds is smaller
+than fifty, and by an amount nobody has measured.
 
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 

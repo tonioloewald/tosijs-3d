@@ -818,12 +818,19 @@ life — flocks, swarms, shoals, fauna. `vertex-animation.ts` (pure, 30 tests) a
 `b3d-crowd.ts` (baker, material plugin, thin instances, self-checking demo) are
 built and shipped.
 
-**The one number still owed:** the SKINNED baseline at equal count. The slider is
-wired and spawns incrementally, but nobody has read it against the VAT path yet.
-That ratio decides whether "actors and crowd" is a real boundary or an
-unnecessary one — and given 270 is so far inside the envelope, a skinned
-`b3d-biped` may simply handle the battle, which would make VAT a fauna tool
-rather than an army one.
+**The baseline has been read, and it settles the architecture.** ~50 skinned rigs
+before it gets brutal, against 200,000 vertex-animated — about 4000×, measured
+by Tonio in Safari on a work laptop. So "actors and crowd" IS a real boundary
+and the substrate is needed for the battle, not only for fauna. (I had
+speculated the opposite; 270 figures is five times past where the skinned path
+stops being comfortable.)
+
+⚠️ ~50 is the FLOOR. Those are bare rigs — mesh, skeleton, `AnimationGroup` —
+with no controller, collision, camera rig or state machine. A real `b3d-biped`
+adds 2342 lines of per-instance update, so the count for actual bipeds is lower
+by an unmeasured amount. **Worth measuring**, because it is the number that says
+how many NAMED characters a scene can hold, which is a question every one of
+these games asks.
 
 **Known gaps, in the order they would matter:**
 - **Motion.** The figures animate in place and never move. Steering is CPU work
