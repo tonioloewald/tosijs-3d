@@ -117,6 +117,27 @@ and an empty rectangle under the words "does it actually work?" answers them
 wrongly no matter what the paragraph beside it says. Tonio reported it blank
 three times, which is the signal that documentation was not the fix.
 
+## Every figure is independent
+
+`vatState` is per-instance — `(clipStart, clipFrames, phaseOffset,
+cyclesPerSecond)` — so no two figures need share anything:
+
+| | |
+| --- | --- |
+| **where in the clip** | a random phase offset; without it a crowd marches in lockstep, which reads as a bug even though every figure is correct |
+| **how fast** | its own rate, scaled by the clip's duration so a 2s idle and a 1s walk both play as baked |
+| **which clip** | `start` picks one out of the shared bake — the field is ~3/4 walking, ~1/4 standing |
+
+The mixture is weighted rather than even on purpose: mostly-walking-with-some-
+standing reads as one crowd going somewhere, where fifty-fifty reads as two
+crowds. And the idle's amplitude is a tenth of the walk's, because an idle that
+sways is just a slow walk and at a distance the two collapse back into one
+animation.
+
+None of it costs anything. The clips share one texture, so switching is a change
+of two numbers rather than of material, and the CPU still touches nothing once
+the crowd is built.
+
 ## Where it sits: the third rung of the ambient ladder
 
 Three tiers of "many things", and they are not competitors:
@@ -487,10 +508,25 @@ function figureParts(): Array<{
   ]
 }
 
-/** Swing a limb about its top, so a leg pivots at the hip and not its middle. */
-function limbSwing(limb: number, phase: number): number {
+/**
+ * Swing a limb about its top, so a leg pivots at the hip and not its middle.
+ *
+ * Two clips, because a field where every figure does the same thing reads as a
+ * screensaver however well the phases are staggered. Legs moving versus legs
+ * still is the difference you can see at a distance, which is the only kind
+ * that counts in a crowd.
+ */
+function limbSwing(clip: 'walk' | 'idle', limb: number, phase: number): number {
   if (limb === 0) return 0
   const t = phase * Math.PI * 2
+  if (clip === 'idle') {
+    // A shift of weight, not a stride: arms barely move, legs not at all. The
+    // amplitude is a tenth of the walk's on purpose — an idle that swings is
+    // just a slow walk, and at a distance the two become one animation again.
+    if (limb === 1) return Math.sin(t) * 0.06
+    if (limb === 2) return -Math.sin(t) * 0.06
+    return 0
+  }
   // Arms oppose legs, and left opposes right — which is what reads as walking.
   if (limb === 1) return Math.sin(t) * 0.5
   if (limb === 2) return -Math.sin(t) * 0.5
@@ -544,16 +580,37 @@ export function buildBenchFigure(
   const pivotOf = (limb: number): number =>
     limb === 1 || limb === 2 ? 1.5 : limb >= 3 ? 0.8 : 0
 
+  /*
+  SEVERAL CLIPS, ONE TEXTURE. `start` offsets each into the shared bake, so
+  switching clip is a change of two per-instance numbers rather than a change of
+  material — which is what keeps N figures doing different things at one draw
+  call. `vertex-animation`'s layout was built for this; it just had nothing to
+  hold until now.
+
+  The idle runs at half the walk's rate because it is a longer, slower cycle —
+  and `framesForClip` is what turns that into the right number of frames rather
+  than a guess.
+  */
   const walkFrames = framesForClip(1, bakeFps)
+  const idleFrames = framesForClip(2, bakeFps)
   const clips: VatClip[] = [
     { name: 'walk', start: 0, frames: walkFrames, duration: 1, loop: true },
+    {
+      name: 'idle',
+      start: walkFrames,
+      frames: idleFrames,
+      duration: 2,
+      loop: true,
+    },
   ]
-  const layout = vatLayout(vertexCount, walkFrames)
+  const layout = vatLayout(vertexCount, walkFrames + idleFrames)
 
   const { position, normal } = writeVatTextures(scene, layout, (v, f) => {
-    const phase = f / walkFrames
+    // Which clip this frame belongs to, and how far through it.
+    const which = f < walkFrames ? clips[0] : clips[1]
+    const phase = (f - which.start) / which.frames
     const limb = limbOf[v]
-    const a = limbSwing(limb, phase)
+    const a = limbSwing(which.name as 'walk' | 'idle', limb, phase)
     const px = positions[v * 3]
     const py = positions[v * 3 + 1]
     const pz = positions[v * 3 + 2]
@@ -730,7 +787,9 @@ export class B3dCrowd extends B3dChild {
         this._skinnedNote,
         `bake ${(bake.bytes / 1024 / 1024).toFixed(2)}MB  ${
           bake.layout.frameCount
-        } frames  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
+        } frames  ${bake.clips.length} clips (${bake.clips
+          .map((c) => c.name)
+          .join('/')})  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
         // 13.9ms is a Quest frame; 16.7 is 60Hz flat. Naming the budget beside
         // the number is what makes it a measurement rather than a readout.
         `budget 13.9ms (VR) / 16.7ms (flat)`,
@@ -924,7 +983,6 @@ export class B3dCrowd extends B3dChild {
     const n = Math.max(1, Math.round(this.count))
     this._built = n
 
-    const clip = bake.clips[0]
     const matrices = new Float32Array(n * 16)
     const state = new Float32Array(n * 4)
     const m = BABYLON.Matrix.Identity()
@@ -951,12 +1009,27 @@ export class B3dCrowd extends B3dChild {
       BABYLON.Matrix.RotationYToRef(rnd() * Math.PI * 2, m)
       m.setTranslationFromFloats(x, 0, z)
       m.copyToArray(matrices, i * 16)
+      /*
+      A CLIP PER FIGURE, not per crowd. The bake holds several and `start` picks
+      one, so a field can be a mixture at no cost — the material never changes.
+
+      Weighted rather than even: mostly walking with some standing reads as a
+      crowd going somewhere, where fifty-fifty reads as two crowds.
+      */
+      const clip = bake.clips[rnd() < 0.75 ? 0 : 1] ?? bake.clips[0]
       state[i * 4] = clip.start
       state[i * 4 + 1] = clip.frames
       // A phase OFFSET per figure, or two hundred soldiers march in lockstep —
       // which reads as a bug even though every one of them is correct.
       state[i * 4 + 2] = rnd()
-      state[i * 4 + 3] = 0.7 + rnd() * 0.6 // cycles per second
+      /*
+      And its own RATE. Scaled by the clip's duration so a two-second idle and a
+      one-second walk both play at their intended speed: `phase` is normalised,
+      so cycles-per-second has to carry the difference or the idle runs twice as
+      fast as it was baked.
+      */
+      state[i * 4 + 3] =
+        (0.7 + rnd() * 0.6) / (clip.duration > 0 ? clip.duration : 1)
     }
     mesh.thinInstanceSetBuffer('matrix', matrices, 16, true)
     mesh.thinInstanceSetBuffer('vatState', state, 4, true)
