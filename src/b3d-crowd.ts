@@ -273,7 +273,8 @@ not a luxury reserved for wildlife.
 
 | | figures | |
 | --- | --- | --- |
-| vertex-animated | **200,000** | at 33ms |
+| vertex-animated | **200,000** | at 33ms (blocky, ~144 verts) |
+| vertex-animated | **20,000** | at ease (omnidude, 1,380 verts) |
 | skinned rigs | **~50** | before it gets brutal |
 
 About **4000×**, measured by Tonio in Safari on a work laptop. I had speculated
@@ -289,6 +290,32 @@ bare rigs — mesh, skeleton, `AnimationGroup` — with no controller, no collis
 no camera rig and no state machine. A real `b3d-biped` is 2342 lines of
 per-instance update on top of that, so the number of actual bipeds is smaller
 than fifty, and by an amount nobody has measured.
+
+## The budget is VERTICES, not figures
+
+The 200,000 above is the blocky bench figure, which is about 144 vertices. Bake
+a real rig and the same slider means something quite different — Tonio, on the
+omnidude bake: *"200k omnidudes are a bit of a strain … 600+ms per frame but 20k
+omnidudes are not a problem."*
+
+Line those up and the rule falls out:
+
+| figure | verts each | figures | verts/frame | |
+| --- | --- | --- | --- | --- |
+| blocks | ~144 | 200,000 | ~29M | 33ms |
+| omnidude | 1,380 | 20,000 | ~28M | fine |
+| omnidude | 1,380 | 200,000 | ~276M | 600ms+ |
+
+The two comfortable rows are the SAME number of vertices, and the slow row is
+ten times that for ten times the cost. So this is vertex-throughput bound and
+very nearly linear — roughly a million vertices per millisecond on that laptop —
+and "how many figures fit" is not a question with an answer until you say how
+big one is.
+
+Which is why the panel reports **verts**, not just count: that is the number
+with a budget attached. And it is the argument for [[vertex-animation]]'s claim
+that **the bake IS the LOD** — a decimated re-bake against the same clip table
+moves you up that table directly, where nothing about the drawing path can.
 
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 

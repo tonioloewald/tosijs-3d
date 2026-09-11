@@ -827,7 +827,10 @@ the overlay path.
 deliberately, not abandoned — recorded so it can be resumed without re-deriving.
 
 **Settled.** A whole miniatures battle is ~270 figures; the substrate drew
-200,000 at 33ms in Safari on a work laptop. The army question is closed with
+200,000 at 33ms in Safari on a work laptop — blocky figures at ~144 verts. A
+baked omnidude is 1,380, and the same machine does 20,000 of those comfortably
+and 200,000 at 600ms: the budget is ~29M vertices a frame, and figure count is
+only a proxy for it. The army question is closed with
 three orders of magnitude to spare, and the substrate's real home is background
 life — flocks, swarms, shoals, fauna. `vertex-animation.ts` (pure, 30 tests) and
 `b3d-crowd.ts` (baker, material plugin, thin instances, self-checking demo) are
