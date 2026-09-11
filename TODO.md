@@ -808,23 +808,30 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
-[ ] **Decimated re-bake — the crowd's LOD.** `vertex-animation` says "the bake
-IS the LOD" and nothing implements it. The lever matters: 3,000 baked omnidudes
-in a headset is ~16.6M verts a frame (two eyes plus two shadow cascades) against
-a 13.9ms budget, and the same 3,000 at ~350 verts each is a quarter of that. It
-is the difference between a battle fitting in a Quest and not.
+[ ] **A soldier mesh authored for the crowd** (~200–400 verts), not a decimated
+hero. 2026-09-11, Tonio, sizing a battle for a headset: *"I think we don't use
+anything as complex as omnidude at all."* That is the answer to the whole LOD
+question and it costs nothing to act on: omnidude is a player character (face,
+fingers, a silhouette for two metres), a soldier is looked at from forty, and
+the blocky bench figure at ~144 verts already reads as a person at that range.
+3,000 figures at ~300 verts is ~3.6M verts a frame with both eyes and two
+cascades — inside a headset frame rather than four times outside it.
 
-The catch, and why this is a project rather than an afternoon: Babylon's
-simplifier works on a static mesh, and a bake needs to CPU-skin the decimated
-mesh per frame — so the decimation has to carry bone indices and weights
-through, or the figure has to be decimated and re-rigged offline (which is where
-`static-assets`' conversion pipeline already lives, and is probably the right
-home). Either way the clip table and the texture layout are unchanged, which is
-the part that makes it worth doing at all.
+Detail goes to the SOCKETS instead (`vertex-animation`'s `SocketLayout`):
+helmet, spear, shield, banner as instanced kit sampling the same frame. Unit
+identity at battle distance is equipment and colour, not topology.
 
-Cheaper sibling worth doing first: **don't cast the crowd into the shadow
-cascades** — a blob decal per figure (`shadow-decal`) is one quad and the same
-picture at battle distance, and it removes half the passes on its own.
+[ ] **Blob shadows for the crowd, not cascades.** Independent of the above and
+cheaper: a `shadow-decal` quad per figure is the same picture at that distance
+and removes the per-cascade pass — half the drawing, for almost nothing. Do this
+one first.
+
+[ ] **Decimated re-bake** — demoted 2026-09-11 from "the single biggest lever"
+to "nice", by the decision above. Still wanted for content nobody authored for
+us, and for the far end of a large field; still carries the catch that Babylon's
+simplifier works on static meshes while a bake CPU-skins per frame, so the
+decimation must carry bone weights through, or happen offline where the
+`static-assets` conversion pipeline already lives.
 
 [ ] **Measure the crowd in a HEADSET and on a Raspberry Pi.** 2026-09-11,
 Tonio: *"I really need to test with goggles when I have the chance (also the

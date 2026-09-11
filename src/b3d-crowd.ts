@@ -379,30 +379,48 @@ Worth doing the arithmetic rather than guessing, because the answer is "yes,
 but not at full fat" and the *but* is the actionable half.
 
 A headset draws the scene **twice**, once per eye, and a shadow-casting crowd is
-drawn again per cascade. So 3,000 baked omnidudes is
+drawn again per cascade. So it depends entirely on what a figure costs:
 
-    3,000 × 1,380 verts = 4.1M per pass
-    × (2 eyes + 2 cascades) ≈ 16.6M verts per frame, in 13.9ms
+| figure | verts | 3,000 of them, both eyes + 2 cascades |
+| --- | --- | --- |
+| baked omnidude | 1,380 | ~16.6M verts/frame — **no** |
+| a soldier authored for this | ~300 | ~3.6M — yes |
+| the blocky bench figure | ~144 | ~1.7M — easily |
 
-against a laptop that did ~28M in *at most* 33ms. A Quest GPU is some fraction
-of that laptop, and the budget is less than half the time — so full-fat figures
-with cascaded shadows is the version that does not fit, by something like 4×.
+…against a laptop that did ~28M in *at most* 33ms, where a headset has some
+fraction of that GPU and less than half the time. So the question is not whether
+3,000 figures fit. It is how many vertices a soldier gets.
 
-Two levers, and both are already implied by this design:
+…and the answer to that is not a technique, it is a decision. Tonio: *"I think
+we don't use anything as complex as omnidude at all."*
 
-- **Decimate and re-bake.** A soldier at battle distance does not need 1,380
-  vertices; at ~350 the same 3,000 figures are 1.05M per pass. This is
-  [[vertex-animation]]'s "the bake IS the LOD", and it is the single biggest
-  lever available — it is also not free to build, because decimating a SKINNED
-  mesh has to preserve bone weights to re-bake from. Filed.
-- **Don't cast the crowd into a cascade.** A blob decal per figure (see
-  [[shadow-decal]]) is a quad, and at battle distance it is the same picture.
-  That alone removes half the passes.
+Which settles it, and settles it cheaply. omnidude is a PLAYER character — a
+face, fingers, a silhouette meant to be looked at from two metres. A soldier in
+a formation is looked at from forty, and the bench's own blocky figure (~144
+verts) already reads as a person at that range. Author the figure for the job
+and 3,000 of them is ~0.4M verts per pass, ~1.7M a frame with both eyes and two
+cascades — comfortably inside a headset frame rather than four times outside it.
 
-So: 3,000 figures in a headset looks reachable, and reaching it is a content
-decision (how many vertices is a soldier) rather than an engine one. Which is
-the comfortable kind of problem to have, and the number to check first when a
-headset is finally in front of the bench.
+So the omnidude path is not the plan for a battle; it is the **A/B**, and a
+useful one. It answers "what does a real rig cost" in one toggle, which is how
+you know a simple figure is worth authoring rather than assuming it.
+
+Two consequences worth keeping:
+
+- **Decimation stops being load-bearing.** [[vertex-animation]]'s "the bake IS
+  the LOD" is still true and still worth having for content you did not author
+  (and for the far end of a big field), but it moves from *required* to *nice*.
+  Authoring a 300-vertex soldier beats decimating a 1,380-vertex hero, and it
+  gives a better-looking result because a human chose which detail to keep.
+- **Detail moves to the SOCKETS.** A low-poly body plus instanced kit — helmet,
+  spear, shield, banner ([[vertex-animation]]'s `SocketLayout`) — is how a unit
+  becomes recognisable without the body getting heavier. Variety at the level
+  that reads at forty metres is equipment and colour, not topology.
+
+And **don't cast the crowd into a shadow cascade** either way: a blob decal per
+figure ([[shadow-decal]]) is one quad, and at battle distance it is the same
+picture. That removes half the passes for almost nothing, whatever the figure
+costs.
 
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
