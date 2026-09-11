@@ -808,6 +808,21 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **`select3d` in a scene panel may not open its popup.** 2026-09-11: the
+crowd demo's figure picker was a `select3d`, and Tonio reported "when I pick
+omnidude, nothing happens". Driving the flat gear panel headlessly with
+synthetic pointer events at the select's own coordinates produced NO popup
+anywhere in the document — but synthetic `PointerEvent`s are a weak instrument
+here (`setPointerCapture` on a fabricated pointer id throws, and the panel
+captures on `down`), so this is suggestive, not proven. The demo now uses a
+`toggle3d`, which needs no popup.
+
+Worth resolving because a select that silently does nothing is the same class
+of bug as the dead `onChange` callbacks: the control is THERE, it looks
+operable, and nothing says no. Check with a real pointer first — and if it
+reproduces, check `menu3d`/`openMenu3d` from a scene panel too, since they share
+the overlay path.
+
 [ ] **Crowd / vertex-animation: where the thread stopped (2026-09-10).** Paused
 deliberately, not abandoned — recorded so it can be resumed without re-deriving.
 

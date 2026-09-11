@@ -33,7 +33,7 @@ no console to clear, and because the worst you care about is the worst since the
 last thing you changed.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, select3d, label3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
@@ -58,7 +58,7 @@ const FIGURES = 400
 // The clips a real rig gets baked with. Six that are different SHAPES, not six
 // different speeds — see the note on legibility at distance.
 const OMNI_CLIPS = 'walk,run,wave,dance,jump,salute'
-const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, figure: 'blocks' } })
+const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, omni: false } })
 const s = demo.crowdBench
 
 let crowd = null
@@ -70,15 +70,18 @@ const panel = () => [
     label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.count = Math.round(v) },
   }),
-  select3d({
-    label: 'figure', value: s.figure, options: ['blocks', 'omnidude'],
+  // A TOGGLE, not a select. A select needs a popup, and a popup is a second
+  // gesture that can fail on its own — which is what it did: "when I pick
+  // omnidude, nothing happens". Two states want one click anyway.
+  toggle3d({
+    label: 'omnidude mesh', value: s.omni,
     handleChange: (v) => {
-      s.figure = v
+      s.omni = v
       if (!crowd) return
       // omnidude is 0.88m — half a person. See CLAUDE.md on scale.
-      crowd.figureScale = v === 'omnidude' ? 2 : 1
-      crowd.clips = v === 'omnidude' ? OMNI_CLIPS : ''
-      crowd.url = v === 'omnidude' ? '/omnidude.glb' : ''
+      crowd.figureScale = v ? 2 : 1
+      crowd.clips = v ? OMNI_CLIPS : ''
+      crowd.url = v ? '/omnidude.glb' : ''
     },
   }),
   toggle3d({
@@ -91,6 +94,7 @@ const panel = () => [
   }),
   label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
   label3d({ text: 'omnidude = the SAME rig a biped uses, baked', muted: true }),
+  label3d({ text: 'Perf Stats → Crowd says which figure is live', muted: true }),
 ]
 
 crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
@@ -637,8 +641,8 @@ function limbPose(clip: CrowdClip, limb: number, phase: number): LimbPose {
       // One arm ABOVE the head, flapping; the rest of the figure still. The
       // asymmetry is the whole read — there is no other clip where one side
       // does something the other does not.
-      if (limb === 2) return { x: 0, z: 2.3 + Math.sin(t) * 0.45 }
-      if (limb === 1) return { x: 0, z: -0.12 }
+      if (limb === 2) return { x: 0, z: 2.5 + Math.sin(t) * 0.4 }
+      if (limb === 1) return { x: 0, z: -0.1 }
       return STILL
     }
     case 'dance': {
@@ -657,8 +661,8 @@ function limbPose(clip: CrowdClip, limb: number, phase: number): LimbPose {
       const s = (1 - Math.cos(t)) / 2
       if (limb === 1) return { x: 0, z: -(0.1 + s * 2.5) }
       if (limb === 2) return { x: 0, z: 0.1 + s * 2.5 }
-      if (limb === 3) return { x: 0, z: -s * 0.4 }
-      return { x: 0, z: s * 0.4 }
+      if (limb === 3) return { x: 0, z: -s * 0.55 }
+      return { x: 0, z: s * 0.55 }
     }
     default: {
       // Walk: arms oppose legs and left opposes right, which is the whole of
@@ -759,8 +763,34 @@ export function buildBenchFigure(
   for (let v = 0; v < vertexCount; v++) {
     limbOf[v] = parts[Math.min(parts.length - 1, Math.floor(v / 24))].limb
   }
-  const pivotOf = (limb: number): number =>
-    limb === 1 || limb === 2 ? 1.5 : limb >= 3 ? 0.8 : 0
+  /*
+  A LIMB PIVOTS AT ITS JOINT, AND A JOINT IS A POINT — not a height.
+
+  The first version returned only a Y, which is harmless for the stride (a
+  rotation about X through any point on the body's centre line moves the limb
+  the same way) and wrong for everything else. Raising an arm is a rotation
+  about Z, and about the CENTRE LINE it swings the arm across the chest and out
+  the other side instead of lifting it from the shoulder. Tonio: "some of the
+  baked animations on the block guy are very messed up (hilariously so in some
+  cases). Mostly arms out of whack." Hilarious is the right word — at 132° the
+  waving arm ended up where the other arm should be.
+  */
+  /*
+  The arm pivots at its INNER TOP CORNER (0.27), not its own centre line
+  (0.36). The torso's edge is at 0.25, so pivoting at the arm's middle swings
+  it out of the socket and leaves a finger of daylight at the shoulder — the
+  difference between an arm being raised and an arm coming off.
+  */
+  const pivotOf = (limb: number): { x: number; y: number } =>
+    limb === 1
+      ? { x: -0.27, y: 1.5 }
+      : limb === 2
+      ? { x: 0.27, y: 1.5 }
+      : limb === 3
+      ? { x: -0.15, y: 0.8 }
+      : limb === 4
+      ? { x: 0.15, y: 0.8 }
+      : { x: 0, y: 0 }
 
   /*
   SEVERAL CLIPS, ONE TEXTURE. `start` offsets each into the shared bake, so
@@ -814,8 +844,8 @@ export function buildBenchFigure(
     if (pose.x !== 0) {
       const c = Math.cos(pose.x)
       const s2 = Math.sin(pose.x)
-      const dy = py - pivot
-      py = pivot + dy * c - pz * s2
+      const dy = py - pivot.y
+      py = pivot.y + dy * c - pz * s2
       pz = dy * s2 + pz * c
       const my = ny
       ny = my * c - nz * s2
@@ -824,10 +854,10 @@ export function buildBenchFigure(
     if (pose.z !== 0) {
       const c = Math.cos(pose.z)
       const s2 = Math.sin(pose.z)
-      const dy = py - pivot
-      const dx = px
-      px = dx * c - dy * s2
-      py = pivot + dx * s2 + dy * c
+      const dx = px - pivot.x
+      const dy = py - pivot.y
+      px = pivot.x + dx * c - dy * s2
+      py = pivot.y + dx * s2 + dy * c
       const mx = nx
       nx = mx * c - ny * s2
       ny = mx * s2 + ny * c

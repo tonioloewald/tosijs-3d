@@ -1073,6 +1073,44 @@ export class B3d extends Component {
     if (!on) this.lastRender = Date.now()
   }
 
+  /**
+   * Stop BABYLON'S OWN clocks too, not just ours.
+   *
+   * Publishing `b3dFrameDelta = 0` pauses everything that simulates on
+   * `sceneDelta` — which is every component in this library. It does nothing
+   * whatever to the engine's own time: `AnimationGroup`s keep playing and the
+   * physics engine keeps stepping. So a paused scene held its projectiles and
+   * its water still while every character carried on walking, every door kept
+   * opening and anything with a rigid body kept falling. Tonio: "There are a
+   * LOT of examples where pause doesn't seem to pause anything."
+   *
+   * That is most of what a demo actually shows moving, which is why the pause
+   * read as doing nothing rather than as doing half.
+   *
+   * The previous values are REMEMBERED rather than assumed: a scene may have
+   * turned either of these off for its own reasons, and resuming must not hand
+   * it back something it never had. Only transitions write, so an app that
+   * disables animations mid-pause keeps its own choice on resume.
+   */
+  private _engineTimeStopped = false
+  private _animationsWere = true
+  private _physicsWere = true
+  private _stopEngineTime(stopped: boolean): void {
+    if (stopped === this._engineTimeStopped) return
+    const scene = this.scene
+    if (scene == null) return
+    this._engineTimeStopped = stopped
+    if (stopped) {
+      this._animationsWere = scene.animationsEnabled
+      this._physicsWere = scene.physicsEnabled
+      scene.animationsEnabled = false
+      scene.physicsEnabled = false
+    } else {
+      scene.animationsEnabled = this._animationsWere
+      scene.physicsEnabled = this._physicsWere
+    }
+  }
+
   pause(reason: 'user' | 'hidden' | 'xr' | 'start' | string = 'user'): void {
     if (this._paused) return
     this._paused = true
@@ -1752,6 +1790,9 @@ export class B3d extends Component {
       Measured at 66 m of travel over a 3-second pause (#30).
       */
       this.lastRender = Date.now()
+      // Babylon's own clocks as well — see `_stopEngineTime`. Ours is the
+      // smaller half of a pause.
+      this._stopEngineTime(true)
       if (this.scene != null) {
         if (this.scene.metadata == null) this.scene.metadata = {}
         this.scene.metadata.b3dFrameDelta = 0
@@ -1820,6 +1861,7 @@ export class B3d extends Component {
         slow — a spinner, a UI tween, a countdown in real seconds.
         */
         const scale = Math.max(0, Number((this as any).timeScale ?? 1) || 0)
+        this._stopEngineTime(false)
         this.frameDelta = realDt * scale
         this._realDelta = realDt
         this._simElapsed += this.frameDelta
