@@ -478,6 +478,32 @@ Three notes for when this is built rather than imagined:
   the body's vertex budget. It is the one piece of this that is designed and not
   yet built.
 
+## Which path a thing takes is decided by UNIT SIZE
+
+The roster sorts itself once you ask how many of a thing stand together. Tonio:
+*"a dragon unit will likely be ONE figure or maybe three."*
+
+| unit | figures | path |
+| --- | --- | --- |
+| light / heavy infantry | 15 | baked crowd |
+| light / heavy mounted | 7–15 | baked crowd (horse and rider as one bake) |
+| **dragon** | **1–3** | **skinned rig** |
+
+At one to three there is nothing to amortise, and everything a named entity
+wants comes back: real clip blending (which the glide→flap seam actually needs),
+bones to parent a rider or a breath effect to, per-instance damage state, a
+skeleton for a hit probe. Baking one dragon would buy a draw call nobody was
+short of and give up all of it.
+
+So the two paths are not a ladder with the crowd at the top — they are a
+**threshold**, and unit size is the test. Hundreds of a thing: bake it, and
+accept that it cannot be inspected closely. One of a thing: rig it, and spend
+the budget the crowd just saved you on making it worth looking at.
+
+The seam between them is the piece to design rather than discover: a figure
+promoted out of a crowd (a champion stepping forward) or demoted into one has to
+cross it, and nothing does that today.
+
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
 Tonio: *"I imagine things like collision detection and so on could vastly
