@@ -104,74 +104,18 @@ preview.append(scene)
 ## Does it actually work?
 
 The shader is the part that fails silently: a VAT that will not compile leaves a
-black canvas, which looks exactly like a camera pointing the wrong way. So the
-page checks itself.
+black canvas, which looks exactly like a camera pointing the wrong way.
 
-⚠️ **The block below goes EMPTY on purpose**, and that is the check passing. It
-builds a crowd, waits for the material to become ready, and then removes its
-scene — because it is the page's second WebGL context and Safari counts those
-much more tightly than Chrome. An empty box here means the assertion ran; look
-at the test badge, not at the box.
+So the demo above reports it. **Perf Stats → Crowd** carries a `shader` line —
+`READY` once the material has compiled, `compiling…` before it, and it never
+leaves the second state if the vertex shader is broken.
 
-```test
-import { b3d, b3dLight, b3dCrowd } from 'tosijs-3d'
-import { orbitCam } from 'tosijs-3d/demo-utils'
-
-test('the crowd builds, and its shader COMPILES', async () => {
-  const crowd = b3dCrowd({ count: 32, spread: 6, bakeFps: 8 })
-  const scene = b3d(
-    {
-      style: 'width:320px;height:200px',
-      // A camera, or this is a black box in the docs even when it passes — and
-      // a black box beside the words "does it actually work?" answers itself
-      // wrongly.
-      sceneCreated: (el) => orbitCam(el, { alpha: -1.2, beta: 1.15, radius: 14, target: [0, 1, 0] }),
-    },
-    b3dLight({ intensity: 0.9 }),
-    crowd
-  )
-  preview.append(scene)
-
-  // The scene mounts on its own schedule; poll rather than guess a delay.
-  const until = async (why, fn) => {
-    for (let i = 0; i < 200; i++) {
-      if (fn()) return
-      await new Promise((r) => setTimeout(r, 50))
-    }
-    throw new Error(why)
-  }
-
-  await until('scene never came up', () => scene.scene != null)
-  let mesh = null
-  await until('no crowd mesh', () => {
-    mesh = scene.scene.meshes.find((m) => m.name === 'crowd-figure')
-    return mesh != null
-  })
-
-  // One draw call for all of them — the whole claim.
-  expect(mesh.thinInstanceCount).toBe(32)
-
-  // `isReady` is the assertion that matters. A material whose vertex shader
-  // failed to compile never becomes ready, and nothing else here would notice —
-  // the canvas simply stays black, which is indistinguishable from a camera
-  // pointing at nothing.
-  //
-  // (LINE comments, not a block one: a close-comment token inside a fence ends
-  // the enclosing doc comment, and every line after it becomes TypeScript. That
-  // is tosijs-ui#142's third trap — and note this warning cannot SPELL the
-  // token either, which is the same joke the original report made about itself.)
-  await until('the VAT shader never compiled', () => mesh.material.isReady(mesh))
-  expect(mesh.material.isReady(mesh)).toBe(true)
-
-  // HAND THE CONTEXT BACK. This scene is the page's SECOND WebGL context, and
-  // Safari caps contexts far more tightly than Chrome — a test that keeps one
-  // for the life of the page leaves a black rectangle under the words "does it
-  // actually work?", which answers them wrongly. Removing the element disposes
-  // the engine (see tosi-b3d's teardown), so the check costs a context for a
-  // few seconds rather than for the session.
-  scene.remove()
-})
-```
+That is where the check lives now. It used to be a `test` fence with a scene of
+its own, which was a mistake three times over: the block rendered EMPTY whatever
+it did, it cost the page a second WebGL context (Safari counts those tightly),
+and an empty rectangle under the words "does it actually work?" answers them
+wrongly no matter what the paragraph beside it says. Tonio reported it blank
+three times, which is the signal that documentation was not the fix.
 
 ## Where it sits: the third rung of the ambient ladder
 
@@ -790,6 +734,14 @@ export class B3dCrowd extends B3dChild {
         // 13.9ms is a Quest frame; 16.7 is 60Hz flat. Naming the budget beside
         // the number is what makes it a measurement rather than a readout.
         `budget 13.9ms (VR) / 16.7ms (flat)`,
+        // The silent failure, made loud. A vertex shader that will not compile
+        // never becomes ready, and the canvas simply stays black — which is
+        // indistinguishable from a camera pointing the wrong way.
+        `shader ${
+          this._mesh?.material?.isReady(this._mesh) === true
+            ? 'READY'
+            : 'compiling…'
+        }`,
       ],
       actions: [
         {
