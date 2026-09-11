@@ -446,10 +446,28 @@ the arithmetic turns nasty only at hero vertex counts with long clips (a
 
 Three notes for when this is built rather than imagined:
 
-- **The winged creature is the one that needs a high bake rate.** A flap is fast
-  where a stride is not, and a wing that strobes is much more noticeable than a
-  leg that does. That is what frame interpolation is for — bake the bird at 30,
-  the infantry at 10, and the crowd pays nothing for the bird's smoothness.
+- **Bake rate follows how far the silhouette moves between frames ON SCREEN** —
+  which is not the same as how fast the animation is, and I had it wrong first
+  time. I wrote "the winged creature needs a high bake rate, a flap is fast";
+  Tonio: *"the winged creature is probably more like a dragon and has a slow
+  majestic flap."* A slow flap covers its arc over more time, so it needs FEWER
+  frames per second of clip, not more.
+
+  What makes a dragon unforgiving is the other term: it fills the view. The same
+  angular error between frames is a handful of pixels on a distant soldier and a
+  hand's width on a wing overhead. So the rule is angular change × apparent
+  size, and the two big cases pull in opposite directions — a fast flap far away
+  (a flock of birds) and a slow flap up close (this) can want the same rate for
+  entirely different reasons.
+
+  A slow flap also spends most of its cycle nearly still, gliding. That is where
+  a low rate is free, and it moves the real problem from frame rate to **clip
+  blending**: the pop when glide becomes flap is what you would notice, and it
+  is the one thing in `vertex-animation` still unbuilt.
+
+  And a dragon is a HANDFUL, not a crowd — so it can afford whatever it wants,
+  including not being baked at all. At three of them a skinned rig is fine
+  (~50 is the measured ceiling); at fifty wyverns this substrate wins again.
 - **Mounted is one figure, not two.** Horse and rider bake as a single mesh with
   a single clip table, because they move together and a seam between them is a
   second thing to synchronise for no gain. A rider who dismounts is a *different

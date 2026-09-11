@@ -824,12 +824,23 @@ nothing writes or reads them yet. It matters because unit identity at battle
 distance is equipment and colour — so this is what keeps identity OFF the body's
 vertex budget.
 
-Also from that list, for whoever builds it: the winged creature wants a HIGH
-bake rate (a flap is fast where a stride is not, and a strobing wing is far more
-noticeable than a strobing leg — bake the bird at 30 and the infantry at 10,
-which frame interpolation makes free for everyone else), and mounted is ONE
-figure rather than two, because horse and rider move together and a seam between
-them is a second thing to synchronise for no gain.
+Also from that list, for whoever builds it. Bake rate follows **angular change
+between frames × apparent size**, not animation speed — I first wrote "the
+winged creature needs a high rate, a flap is fast" and Tonio corrected it: *"the
+winged creature is probably more like a dragon and has a slow majestic flap."* A
+slow flap needs FEWER frames per second of clip; what makes a dragon unforgiving
+is that it fills the view, where the same angular error is a hand's width rather
+than a few pixels. A flock of distant birds and one close dragon can want the
+same rate for opposite reasons.
+
+A dragon also glides — most of the cycle is nearly still — so the real problem
+for it is not frame rate but **clip blending** (the glide→flap pop), which is the
+one thing in `vertex-animation` still unbuilt. And it is a handful rather than a
+crowd, so it could reasonably be a skinned rig instead; at fifty wyverns this
+substrate wins again.
+
+Mounted is ONE figure rather than two: horse and rider move together, and a seam
+between them is a second thing to synchronise for no gain.
 
 [ ] **A soldier mesh authored for the crowd** (~200–400 verts), not a decimated
 hero. 2026-09-11, Tonio, sizing a battle for a headset: *"I think we don't use
