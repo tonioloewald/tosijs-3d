@@ -808,6 +808,46 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **RPG / biped deep dive — the agreed order, and where it stopped.**
+Requested 2026-09-09: inventory (display + manage), pick up / drop, NPC
+conversation (text tree, animation hints, optional audio), NPC behaviours
+(wander, talk to each other, follow, lead), shooting, melee, climbing, taking
+cover in sneak mode, object interaction; plus how many bipeds a scene can hold,
+and equipping / customising them. Tonio: *"So, not much ;)"*
+
+**Filed here because it was living only in a conversation**, which has been
+compacted once already. The four-step order below was agreed at the time; the
+feature list above is the backlog it serves.
+
+1. ✅ **Bone masking — the animation half of walk-and-aim.** `bone-mask.ts`
+   (pure: weights per bone, ramped along the chain, 18 tests) and
+   `animation-layers.ts` (the Babylon half: one `AnimationGroup` per weight
+   tier, since Babylon has no per-bone weight and no additive layer, 11 tests
+   against the real rig, demo with the falloff exposed). Done 2026-09-09.
+2. ⬜ **`aim.ts`** — generalise `swim-aim.ts`'s clamp / integrate / ease to TWO
+   axes, serving both the player's look and an NPC's lead. It is the input to
+   the mask: something has to decide where the upper body is pointing.
+3. ⬜ **Affordance queries** — "is this geometry cover, and from where?" The
+   design is already written (`MOBILITY-DESIGN.md` → "What it needs that we do
+   not have"): an affordance found in the WORLD rather than declared on a tagged
+   object, composed on `b3d-interactive`'s veto seam, and expect hysteresis from
+   the start (the `isSwimming` flicker is the precedent).
+4. ⬜ **Wire shooting**, then **cover-shooting**. The pieces exist —
+   `b3d-launcher`, `ballistics`, `guidance`, and melee is spec'd in
+   `COMBAT-DESIGN.md` — what is missing is a biped holding them.
+
+**Not started, and each wants its own entry when it comes up:** inventory and
+pick-up/drop; conversation (spec'd in full in `CONVERSATION-DESIGN.md`, built
+nowhere); NPC behaviours beyond the wander demo (`AI-DESIGN.md` → NPC controller
+🟡); equip / customise and a character customizer.
+
+**And one measurement that is still owed:** how many real `b3d-biped`s a scene
+holds. ~50 is the floor from the crowd bench, but those were bare rigs — mesh,
+skeleton, `AnimationGroup` — with no controller, collision, camera rig or state
+machine. A biped is 2342 lines of per-instance update on top, so the true number
+is lower by an unmeasured amount, and it is the number that says how many NAMED
+characters a scene can hold.
+
 [ ] **Sockets — the one designed-but-unbuilt piece of the crowd.** 2026-09-11,
 Tonio on what a battlefield needs: *"a winged creature, heavy mounted, light
 mounted, heavy infantry, light infantry and some accessories like helmets,
