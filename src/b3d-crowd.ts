@@ -940,6 +940,22 @@ export async function bakeGlbFigure(
   // bake — read once by `writeVatTextures` and then dropped.
   const posed: Array<{ p: Float32Array; n: Float32Array }> = []
   const tmp = new BABYLON.Vector3()
+  /*
+  A REFLECTION REVERSES ORIENTATION, and every glTF root carries one (Babylon
+  puts the handedness flip on `__root__` as a negative scale). Mirroring the
+  positions turns the triangle's winding the wrong way round, so it is reversed
+  when the merged mesh is built below. Normally Babylon does that for you — it
+  flips side orientation when a world matrix has a negative determinant — but a
+  bake RESOLVES the transform, so the crowd mesh has an identity matrix and
+  there is nothing left for it to flip.
+
+  The normals are NOT negated, though it is the obvious next thought and I
+  tried it: `getNormalsData` returns them in the mesh's own space and the
+  inverse-transpose carries them through the mirror correctly. Negating as well
+  lights the whole figure from inside — measurably darker, and it was only
+  obvious side by side with a normally-skinned clone.
+  */
+
   for (let ci = 0; ci < groups.length; ci++) {
     const g = groups[ci]
     const clip = clips[ci]
@@ -947,7 +963,18 @@ export async function bakeGlbFigure(
     g.pause()
     for (let f = 0; f < clip.frames; f++) {
       g.goToFrame(g.from + ((g.to - g.from) * f) / clip.frames)
-      skeleton.prepare()
+      /*
+      `true` IS THE WHOLE BAKE. Without it `prepare` returns immediately —
+      it early-outs when it has already run for the current RENDER id, and a
+      bake loop is entirely inside one render. So every frame gets the pose of
+      frame zero, the texture is N copies of one pose, and the crowd renders
+      perfectly and stands perfectly still. Tonio: "the omnidude is frozen".
+
+      That is the failure mode to remember here: nothing throws, nothing warns,
+      the shader is correct and the bake is the right size. It is only wrong
+      when you LOOK at it.
+      */
+      skeleton.prepare(true)
       const p = new Float32Array(vertexCount * 3)
       const n = new Float32Array(vertexCount * 3)
       let o = 0
@@ -958,9 +985,15 @@ export async function bakeGlbFigure(
         const normalMatrix = BABYLON.Matrix.Transpose(
           BABYLON.Matrix.Invert(world)
         )
-        m.applySkeleton(skeleton)
-        const mp = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
-        const mn = m.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+        /*
+        `getPositionData(applySkeleton, applyMorph)` rather than
+        `applySkeleton`: it CPU-skins into a copy and hands it back, where the
+        older call bakes into the mesh's own buffers — which both destroys the
+        bind pose the next frame has to skin from and carries a once-per-frame
+        guard of its own.
+        */
+        const mp = m.getPositionData(true, true)!
+        const mn = m.getNormalsData(true, true)!
         for (let v = 0; v < mp.length; v += 3) {
           BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
             mp[v],
