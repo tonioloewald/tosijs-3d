@@ -616,6 +616,25 @@ export {
   type LayeredAnimation,
 } from './animation-layers.js'
 export {
+  DEFAULT_AIM_LIMITS,
+  aimAuthority,
+  aimDirection,
+  aimPoseWeights,
+  aimToward,
+  aimWobble,
+  bodyCatchUp,
+  clampAim2,
+  relaxAim,
+  stepAim,
+  wrapDeg,
+  type Aim,
+  type AimLimits,
+  type AimPoseWeights,
+  type AimStep,
+  type AimVec,
+  type BodyCatchUp,
+} from './aim.js'
+export {
   B3dCrowd,
   b3dCrowd,
   VatPlugin,

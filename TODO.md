@@ -824,9 +824,14 @@ feature list above is the backlog it serves.
    `animation-layers.ts` (the Babylon half: one `AnimationGroup` per weight
    tier, since Babylon has no per-bone weight and no additive layer, 11 tests
    against the real rig, demo with the falloff exposed). Done 2026-09-09.
-2. ⬜ **`aim.ts`** — generalise `swim-aim.ts`'s clamp / integrate / ease to TWO
-   axes, serving both the player's look and an NPC's lead. It is the input to
-   the mask: something has to decide where the upper body is pointing.
+2. ✅ **`aim.ts`** — done 2026-09-11. Two axes, yaw held RELATIVE to the body
+   (which is the number the mask wants), a rate limit rather than an ease
+   (`slewDeg` is the skill dial — a slow slew visibly trails the target, which
+   is a miss a player can watch), `bodyCatchUp` for the shoulders-lead-feet-
+   follow rule, `aimPoseWeights` for the three-clip blend Babylon can actually
+   play, and `aimWobble` for a shooter who cannot hold still. 48 tests, and a
+   demo showing the model on its own — no character, so the rule is visible
+   rather than an animation of it.
 3. ⬜ **Affordance queries** — "is this geometry cover, and from where?" The
    design is already written (`MOBILITY-DESIGN.md` → "What it needs that we do
    not have"): an affordance found in the WORLD rather than declared on a tagged

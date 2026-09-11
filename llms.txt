@@ -26,6 +26,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 
 ## Pages
 
+- https://3d.tosijs.net/aim/ — aim
+  degrees and plain `{x, y, z}`, no Babylon — so the whole of walk-and-aim can be
 - https://3d.tosijs.net/ambient-budget/ — ambient-budget
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
