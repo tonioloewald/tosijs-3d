@@ -808,6 +808,29 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **Sockets — the one designed-but-unbuilt piece of the crowd.** 2026-09-11,
+Tonio on what a battlefield needs: *"a winged creature, heavy mounted, light
+mounted, heavy infantry, light infantry and some accessories like helmets,
+shields, weapons."* Everything in that list except the accessories is just
+another bake — draw calls scale with TYPES, not figures, so five kinds is five
+calls whatever the counts, and a 300-vertex soldier with eight clips is under a
+megabyte of texture.
+
+Accessories are the exception, and `vertex-animation`'s `SocketLayout` is the
+design: a small second texture holding a handful of transforms per frame, so a
+helmet is its own thin-instanced mesh sampling the same frame and phase as the
+figure wearing it. Types are declared (`socketLayout`, `socketTexel`) and
+nothing writes or reads them yet. It matters because unit identity at battle
+distance is equipment and colour — so this is what keeps identity OFF the body's
+vertex budget.
+
+Also from that list, for whoever builds it: the winged creature wants a HIGH
+bake rate (a flap is fast where a stride is not, and a strobing wing is far more
+noticeable than a strobing leg — bake the bird at 30 and the infantry at 10,
+which frame interpolation makes free for everyone else), and mounted is ONE
+figure rather than two, because horse and rider move together and a seam between
+them is a second thing to synchronise for no gain.
+
 [ ] **A soldier mesh authored for the crowd** (~200–400 verts), not a decimated
 hero. 2026-09-11, Tonio, sizing a battle for a headset: *"I think we don't use
 anything as complex as omnidude at all."* That is the answer to the whole LOD

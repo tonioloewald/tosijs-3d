@@ -422,6 +422,44 @@ figure ([[shadow-decal]]) is one quad, and at battle distance it is the same
 picture. That removes half the passes for almost nothing, whatever the figure
 costs.
 
+## The roster, and why it is cheap
+
+The content this actually needs is not one figure, it is a cast. Tonio: *"what we
+will need is more figures and more animations. Assuming we have a winged
+creature, heavy mounted, light mounted, heavy infantry, light infantry and some
+accessories like helmets, shields, weapons."*
+
+That lands well, and specifically it lands on the axis this substrate is cheap
+on. **Draw calls scale with TYPES, not with figures**: one `b3dCrowd` per kind
+is five draw calls for an entire battlefield, whatever the counts. A thousand
+light infantry and eight hundred heavy are two calls, not eighteen hundred.
+
+The memory is not the problem either. A 300-vertex soldier with eight clips
+baked at 10fps is around 80 frames:
+
+    300 × 80 × 4 channels × 2 bytes × 2 textures ≈ 0.8MB
+
+So five types is a handful of megabytes, and doubling the clip count doubles a
+number nobody will notice. `vatBytes` is there to check rather than trust —
+the arithmetic turns nasty only at hero vertex counts with long clips (a
+16.9-second dance at 1,380 verts is most of the omnidude bake on its own).
+
+Three notes for when this is built rather than imagined:
+
+- **The winged creature is the one that needs a high bake rate.** A flap is fast
+  where a stride is not, and a wing that strobes is much more noticeable than a
+  leg that does. That is what frame interpolation is for — bake the bird at 30,
+  the infantry at 10, and the crowd pays nothing for the bird's smoothness.
+- **Mounted is one figure, not two.** Horse and rider bake as a single mesh with
+  a single clip table, because they move together and a seam between them is a
+  second thing to synchronise for no gain. A rider who dismounts is a *different
+  figure*, which is the same seam as promoting one to a named character.
+- **Accessories are [[vertex-animation|sockets]]**, not geometry: helmet, shield
+  and weapon ride as their own instanced meshes sampling the same frame. That is
+  what keeps unit identity — the thing you actually read at forty metres — off
+  the body's vertex budget. It is the one piece of this that is designed and not
+  yet built.
+
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
 Tonio: *"I imagine things like collision detection and so on could vastly
