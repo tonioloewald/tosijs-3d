@@ -808,6 +808,24 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **Decimated re-bake — the crowd's LOD.** `vertex-animation` says "the bake
+IS the LOD" and nothing implements it. The lever matters: 3,000 baked omnidudes
+in a headset is ~16.6M verts a frame (two eyes plus two shadow cascades) against
+a 13.9ms budget, and the same 3,000 at ~350 verts each is a quarter of that. It
+is the difference between a battle fitting in a Quest and not.
+
+The catch, and why this is a project rather than an afternoon: Babylon's
+simplifier works on a static mesh, and a bake needs to CPU-skin the decimated
+mesh per frame — so the decimation has to carry bone indices and weights
+through, or the figure has to be decimated and re-rigged offline (which is where
+`static-assets`' conversion pipeline already lives, and is probably the right
+home). Either way the clip table and the texture layout are unchanged, which is
+the part that makes it worth doing at all.
+
+Cheaper sibling worth doing first: **don't cast the crowd into the shadow
+cascades** — a blob decal per figure (`shadow-decal`) is one quad and the same
+picture at battle distance, and it removes half the passes on its own.
+
 [ ] **Measure the crowd in a HEADSET and on a Raspberry Pi.** 2026-09-11,
 Tonio: *"I really need to test with goggles when I have the chance (also the
 raspberry pi)."* Everything so far is one laptop, possibly on a 30Hz display,

@@ -369,6 +369,41 @@ passes can be measured rather than assumed. It also sharpens
 [[vertex-animation]]'s "the bake IS the LOD": decimating a distant figure buys
 you on both terms at once.
 
+## Would a big battle fit in a headset?
+
+Tonio, sizing the ceiling: *"I could easily imagine wanting to quadruple the
+maximum figures but that's probably the absolute limit and we're still at
+what — 3000 figures. My guess is that's doable on the quest."*
+
+Worth doing the arithmetic rather than guessing, because the answer is "yes,
+but not at full fat" and the *but* is the actionable half.
+
+A headset draws the scene **twice**, once per eye, and a shadow-casting crowd is
+drawn again per cascade. So 3,000 baked omnidudes is
+
+    3,000 × 1,380 verts = 4.1M per pass
+    × (2 eyes + 2 cascades) ≈ 16.6M verts per frame, in 13.9ms
+
+against a laptop that did ~28M in *at most* 33ms. A Quest GPU is some fraction
+of that laptop, and the budget is less than half the time — so full-fat figures
+with cascaded shadows is the version that does not fit, by something like 4×.
+
+Two levers, and both are already implied by this design:
+
+- **Decimate and re-bake.** A soldier at battle distance does not need 1,380
+  vertices; at ~350 the same 3,000 figures are 1.05M per pass. This is
+  [[vertex-animation]]'s "the bake IS the LOD", and it is the single biggest
+  lever available — it is also not free to build, because decimating a SKINNED
+  mesh has to preserve bone weights to re-bake from. Filed.
+- **Don't cast the crowd into a cascade.** A blob decal per figure (see
+  [[shadow-decal]]) is a quad, and at battle distance it is the same picture.
+  That alone removes half the passes.
+
+So: 3,000 figures in a headset looks reachable, and reaching it is a content
+decision (how many vertices is a soldier) rather than an engine one. Which is
+the comfortable kind of problem to have, and the number to check first when a
+headset is finally in front of the bench.
+
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
 Tonio: *"I imagine things like collision detection and so on could vastly
