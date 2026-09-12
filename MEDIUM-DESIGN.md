@@ -149,6 +149,33 @@ deep am I" are invisible until they meet at a line across the middle of the
 screen; then they are a seam. §7 already sequences optics-on-`Medium` first for
 tidiness reasons — this is the reason with teeth.
 
+### The shipped answer is to AVOID THE STATE, and that is not a cop-out
+
+Tonio, on how Manta did it at the limit of an iPhone 3G: *"flipping the camera
+from decidedly above water to decidedly below so the problem never arose. I was
+basically planning to keep with that."*
+
+That is the right default and should stay the default. A boundary you never
+dwell at needs no boundary rendering, it costs nothing, it cannot go wrong on a
+weak device, and it ages perfectly — which is more than can be said for a
+post-process. Making a bad state unreachable beats rendering it well.
+
+**It has exactly one hard limit, and it is XR.** The trick requires the camera to
+be YOURS TO MOVE. In a headset it is not: the player's head crosses the
+waterline at whatever pace their neck chooses, and snapping their viewpoint to
+"decidedly below" is not a transition, it is a teleport applied to someone's
+eyes. So in VR the state is not avoidable, and a frame that is uniformly one
+medium while half your face is underwater reads as a bug rather than as a
+simplification.
+
+Which sets the trigger for this section precisely: **§6a is not wanted until we
+care about swimming in a headset**, and it is unavoidable the moment we do. Flat
+and third-person can use the Manta flip forever.
+
+(Third person is the case worth watching, incidentally — a follow camera at a
+swimmer's shoulder CAN sit at the waterline while the character bobs, which is a
+place to dwell that Manta's first-person framing never had.)
+
 ### The honest costs
 
 - It is a **post-process**, or a scene rendered twice against opposed clip
@@ -172,10 +199,13 @@ tidiness reasons — this is the reason with teeth.
 3. **Shafts** (§4) — the biggest visual payoff; wants a budget knob from day one.
 4. **Transitions** (§6) — needs the crossing speed plumbed through, which is a one-line
    addition to `crossing`'s result.
-5. **The boundary in frame** (§6a) — last, because it is a post-process and it
-   depends on every derivation above agreeing. It is also the one that proves
-   they do: three answers to "where is the surface" meet at a line across the
-   middle of the screen, and a seam there cannot be argued away.
+5. **The boundary in frame** (§6a) — last, and only when swimming in a HEADSET
+   matters. Flat and third-person keep the Manta flip (camera goes from
+   decidedly above to decidedly below, so the state never arises), which is the
+   better engineering answer wherever the camera is ours to move. It is also
+   the item that proves the rest: three answers to "where is the surface" meet
+   at a line across the middle of the screen, and a seam there cannot be argued
+   away.
 
 ## 8. What would falsify this
 
