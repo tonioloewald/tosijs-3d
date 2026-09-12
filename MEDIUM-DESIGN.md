@@ -106,6 +106,63 @@ and how hard_; the game decides whether that is a splash, a plasma sheath or not
 the whiteout throws, the medium change still happens. That failure has already been made
 once here, when charring a wreck threw and left the player welded to it.
 
+## 6a. ⚠️ The boundary IN THE FRAME — we smooth in time, never in space
+
+Tonio, 2026-09-12: *"One thing we don't handle at all yet is the medium boundary
+visible in camera. I note that some games actually handle this quite well now
+which is impressive."*
+
+Correct, and the reason is worth stating exactly, because everything above looks
+like it should already cover it and does not.
+
+**What we do today is a TEMPORAL ramp.** `b3d-water`'s fog weight rises over a
+band around the waterline, so crossing reads as entering the water rather than
+teleporting into it — that was the "thunk" fix, and it works. But at every
+instant the frame is uniformly ONE medium: the whole screen is a bit foggier,
+then foggier still. The camera is treated as a point that is either in or out.
+
+**What a camera at the waterline actually shows is a SPATIAL split.** Murk below
+a line, air above it, and the line is not straight — waves bend it and camera
+roll tilts it. No amount of smoothing in time produces that, because it is not a
+transition, it is a permanent state you can sit in and look around from.
+
+### Why it is the hardest item here, and the most diagnostic
+
+Per-pixel medium means the fog cannot come from `scene.fogDensity` — that is one
+value for the frame. It has to be evaluated per fragment against the medium's
+geometry: for each pixel, does the ray from the camera start in water or in air,
+and how far does it travel in each. That is `depthIn` and `submergence`, which
+`medium.ts` already answers on the CPU, re-expressed in GLSL.
+
+Three things then have to agree about where the surface is, to within a pixel,
+at the one place where disagreement is unmissable:
+
+- the **fog compositor** (`atmosphere.ts`) deciding the colour of each half
+- the **underside** shader — Snell's window, filed as adopter #15 — because at a
+  grazing angle from below the surface is a mirror, and that mirror is the top
+  half of the frame you are looking along
+- the **boundary itself**: the meniscus, the wobbling lens of water that clings
+  to a lens or an eye, which is what sells it in the games that do this well
+
+Which makes this the case that PROVES §3. Three hand-rolled derivations of "how
+deep am I" are invisible until they meet at a line across the middle of the
+screen; then they are a seam. §7 already sequences optics-on-`Medium` first for
+tidiness reasons — this is the reason with teeth.
+
+### The honest costs
+
+- It is a **post-process**, or a scene rendered twice against opposed clip
+  planes and composited. Neither is free, and a full-screen pass with a depth
+  read is exactly what a Quest frame cannot spare. This is a spend-it-where-it-
+  counts feature: it is the money shot for a swimming or diving game and a
+  waste in a flight sim.
+- The split must survive **roll**, not just pitch, or it looks fine until
+  someone tilts their head — which in a headset is immediately.
+- And it interacts with the **spear crossing the surface** case: a projectile
+  fired out of the water is the one moment where the physics boundary and the
+  optical boundary are both on screen at once, and any disagreement between them
+  is framed by the thing flying through it.
+
 ## 7. Sequencing
 
 1. **Optics on `Medium`** + one `fogLayerFor` derivation — consolidates three hand-rolled
@@ -115,6 +172,10 @@ once here, when charring a wreck threw and left the player welded to it.
 3. **Shafts** (§4) — the biggest visual payoff; wants a budget knob from day one.
 4. **Transitions** (§6) — needs the crossing speed plumbed through, which is a one-line
    addition to `crossing`'s result.
+5. **The boundary in frame** (§6a) — last, because it is a post-process and it
+   depends on every derivation above agreeing. It is also the one that proves
+   they do: three answers to "where is the surface" meet at a line across the
+   middle of the screen, and a seam there cannot be argued away.
 
 ## 8. What would falsify this
 
