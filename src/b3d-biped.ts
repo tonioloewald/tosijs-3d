@@ -128,6 +128,16 @@ import {
   aimTarget,
   surfaceAimLimit,
 } from './swim-aim.js'
+import {
+  DEFAULT_AIM_LIMITS,
+  aimDirection as aimToDirection,
+  bodyCatchUp,
+  relaxAim,
+  stepAim,
+  wrapDeg,
+  type Aim,
+  type AimLimits,
+} from './aim.js'
 import type { B3d } from './tosi-b3d.js'
 import { xrControllers } from './gamepad.js'
 import type { GameController } from './game-controller.js'
@@ -316,6 +326,24 @@ export class B3dBiped extends B3dControllable {
     eyeHeight: 1.6,
     /** Degrees per second the right stick swings the view. */
     lookRate: 120,
+    /**
+     * `'on'` gives the character an AIM that is separate from its facing.
+     *
+     * Off (the default), the right stick turns the body and the two are the
+     * same thing — which is the right feel for a character who is simply
+     * walking around, and is what every existing demo expects. On, the stick
+     * moves the aim, the shoulders lead and the feet follow (see [[aim]]), and
+     * `aimDirection` becomes the thing a weapon fires along.
+     *
+     * A mode rather than always-on because it is a real change of feel, not an
+     * improvement: a twist that the body only partly follows is exactly wrong
+     * for someone crossing a room and exactly right for someone holding a gun.
+     */
+    aiming: 'off' as 'on' | 'off',
+    /** Twist held with the feet planted, degrees. See [[aim]]'s two thresholds. */
+    aimFreeYaw: 45,
+    /** The spine's limit. Past this the body is dragged round. */
+    aimMaxYaw: 90,
     /** How far up/down the look can go, degrees. */
     maxLookPitch: 70,
     /**
@@ -518,6 +546,85 @@ export class B3dBiped extends B3dControllable {
    * right stick turns the BODY now, so the camera has no yaw of its own.
    */
   private _lookPitch = 0
+  /**
+   * Where the upper body is pointing, RELATIVE to the facing — see [[aim]].
+   *
+   * Only meaningful while `aiming` is on. It is relative on purpose: it is the
+   * number a bone mask wants, and it bounds itself.
+   */
+  private _aim: Aim = { yawDeg: 0, pitchDeg: 0 }
+
+  /**
+   * Is the character holding something it points?
+   *
+   * A getter rather than a stored flag, so it cannot drift from the attribute
+   * that decides it — and so that a nested weapon can eventually force it on
+   * without a second source of truth.
+   *
+   * ⚠️ Note for anyone editing this class: tosijs `Component` carries an index
+   * signature, so `this._isAming` would have TYPE-CHECKED and silently read
+   * `undefined`. `bun run typecheck` will not save you from a misspelt private
+   * member here. (Found the hard way, thirty seconds after writing the code
+   * above that uses it.)
+   */
+  private get _isAiming(): boolean {
+    return !isOff((this as any).aiming)
+  }
+
+  /**
+   * The transform everything here is relative to.
+   *
+   * The same one the update loop drives — `entries.rootNodes[0]` — rather than
+   * `this.mesh`, which for a loaded GLB is a child and carries the model's own
+   * baked orientation. Two different answers to "which way is he facing" is how
+   * a weapon ends up firing out of somebody's hip.
+   */
+  private _rootNode(): BABYLON.TransformNode | null {
+    return (
+      (this.entries?.rootNodes?.[0] as BABYLON.TransformNode | undefined) ??
+      (this.mesh as BABYLON.TransformNode | undefined) ??
+      null
+    )
+  }
+
+  /** Where the upper body points, RELATIVE to the facing. Degrees; see [[aim]]. */
+  get aim(): Aim {
+    return { ...this._aim }
+  }
+
+  /**
+   * The world direction the character is aiming — what a weapon fires along.
+   *
+   * Derived from the facing plus the twist rather than from any mesh's
+   * orientation, so it is correct before a weapon exists and cannot disagree
+   * with one that does.
+   */
+  get aimDirection(): BABYLON.Vector3 {
+    const node = this._rootNode()
+    const facing =
+      node != null
+        ? (Math.atan2(node.forward.x, node.forward.z) * 180) / Math.PI
+        : 0
+    const d = aimToDirection(wrapDeg(facing), this._aim)
+    return new BABYLON.Vector3(d.x, d.y, d.z)
+  }
+
+  /**
+   * Where a shot leaves from — shoulder height, on the aim side of the body.
+   *
+   * Not the character's origin (that is between the feet, and a round fired
+   * from there starts inside the floor) and not the camera (which is metres
+   * behind in third person, so its line and the character's differ by enough to
+   * clear cover the character is behind).
+   */
+  get aimOrigin(): BABYLON.Vector3 {
+    const node = this._rootNode()
+    const base =
+      node != null ? node.absolutePosition.clone() : BABYLON.Vector3.Zero()
+    const dir = this.aimDirection
+    base.y += (this as any).height != null ? (this as any).height * 0.8 : 1.45
+    return base.add(dir.scale(0.35))
+  }
   private _sneaking = false
   /** Held the jump button while grounded: winding up, not yet launched. */
   private _jumpWasDown = false
@@ -1255,10 +1362,68 @@ export class B3dBiped extends B3dControllable {
           _rightScratch.scaleInPlace(strafe * walk * attrs.strafeSpeed * dt)
         )
       }
-      node.rotate(
-        BABYLON.Vector3.Up(),
-        rotation * dt * attrs.turnSpeed * DEG_TO_RAD
-      )
+      /*
+      AIMING SPLITS THE STICK FROM THE FEET.
+
+      Without a weapon the right stick turns the BODY and the two are one thing
+      — the comment on `_lookPitch` says as much: "there is no `_lookYaw`". With
+      one, the stick has to move the AIM instead, or the character cannot look
+      at something without walking sideways relative to it, and the whole point
+      of a layered upper body evaporates.
+
+      So the same input reaches `node.rotate` either directly (not aiming) or
+      through [[aim]]'s catch-up (aiming), and the character's facing is driven
+      by exactly one path in both cases.
+      */
+      let bodyTurnDeg = rotation * dt * attrs.turnSpeed
+      if (this._isAiming) {
+        /*
+        THE FREE BAND CLOSES WHEN YOU WALK, and that is what makes this read as
+        aiming rather than as a broken neck.
+
+        Standing, a held twist is a POSE: you are looking 45° off your facing
+        with your feet planted, which is what a person does and what the band
+        is for. Start walking and it becomes a limp — the feet should go where
+        you are pointing. Measured before this existed: with the stick centred
+        the character stood permanently twisted 45° and never unwound, because
+        `yawFree` is a stable fixed point by design.
+
+        Narrowing the band while moving also gives strafing-shooter movement
+        for free: the body comes round to the aim, and since movement is
+        body-relative, walking forward walks where you are looking.
+        */
+        const moving =
+          Math.abs(input.forward ?? 0) + Math.abs(input.strafe ?? 0) > 0.1
+        const limits: AimLimits = {
+          ...DEFAULT_AIM_LIMITS,
+          yawFree: attrs.aimFreeYaw * (moving ? 0.2 : 1),
+          yawMax: attrs.aimMaxYaw,
+          pitchUp: attrs.maxLookPitch,
+          pitchDown: attrs.maxLookPitch,
+        }
+        // `_lookPitch` is positive UP and an aim pitch is positive DOWN. The
+        // conversion lives here, once, rather than at every reader.
+        const want: Aim = {
+          yawDeg: this._aim.yawDeg + rotation * dt * attrs.turnSpeed,
+          pitchDeg: -this._lookPitch,
+        }
+        this._aim = stepAim(this._aim, want, dt, {
+          slewDeg: attrs.turnSpeed * 3,
+          limits,
+        })
+        const caught = bodyCatchUp(
+          this._aim.yawDeg,
+          dt,
+          attrs.turnSpeed,
+          limits
+        )
+        this._aim = { ...this._aim, yawDeg: caught.yawDeg }
+        bodyTurnDeg = caught.bodyTurnDeg
+      } else if (this._aim.yawDeg !== 0 || this._aim.pitchDeg !== 0) {
+        // Lowering the weapon unwinds the twist rather than snapping it.
+        this._aim = relaxAim(this._aim, dt, attrs.turnSpeed)
+      }
+      node.rotate(BABYLON.Vector3.Up(), bodyTurnDeg * DEG_TO_RAD)
 
       /*
       STAND ON THE GROUND — a SNAP, not a dead band.

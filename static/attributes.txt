@@ -159,6 +159,9 @@ b3d-biped
   groundY
   eyeHeight
   lookRate
+  aiming
+  aimFreeYaw
+  aimMaxYaw
   maxLookPitch
   invertLookY
   cameraMinHeight

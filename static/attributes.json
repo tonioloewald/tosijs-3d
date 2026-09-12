@@ -627,6 +627,15 @@
         "name": "lookRate"
       },
       {
+        "name": "aiming"
+      },
+      {
+        "name": "aimFreeYaw"
+      },
+      {
+        "name": "aimMaxYaw"
+      },
+      {
         "name": "maxLookPitch"
       },
       {
