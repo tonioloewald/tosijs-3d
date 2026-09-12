@@ -238,6 +238,7 @@ import {
   aimTarget,
   surfaceAimLimit,
 } from './swim-aim.js'
+import { fitChase, type Band, type ChaseFit } from './camera-fit.js'
 import {
   DEFAULT_AIM_LIMITS,
   aimDirection as aimToDirection,
@@ -742,6 +743,83 @@ export class B3dBiped extends B3dControllable {
       (this.mesh as BABYLON.TransformNode | undefined) ??
       null
     )
+  }
+
+  /** Chase-camera state carried between frames — see [[camera-fit]]. */
+  private _camFit: ChaseFit = { distance: 5, height: 2, firstPerson: false }
+  /** WE forced first person, so we may hand the view back when it clears. */
+  private _camForcedFpv = false
+  private _camRay = new BABYLON.Ray(
+    BABYLON.Vector3.Zero(),
+    BABYLON.Vector3.Forward(),
+    1
+  )
+
+  /**
+   * How far the camera may sit behind, before something is in the way.
+   *
+   * One ray, from the subject's shoulder toward where the camera WANTS to be —
+   * not from the camera, which is the version that cannot tell "the wall is
+   * between us" from "the camera is already inside the wall".
+   *
+   * Returns `Infinity` for a clear view, which is what `fitChase` reads as
+   * "sit where you were asked to".
+   */
+  private _cameraObstruction(
+    node: BABYLON.TransformNode,
+    radius: number,
+    height: number
+  ): number {
+    const scene = this.owner?.scene
+    if (scene == null) return Infinity
+    const origin = node.absolutePosition.clone()
+    origin.y += Math.max(0.2, height * 0.5)
+    const back = node.forward.scale(-radius)
+    const target = origin.add(back)
+    target.y = node.absolutePosition.y + height
+    const to = target.subtract(origin)
+    const len = to.length()
+    if (!(len > 0.01)) return Infinity
+    this._camRay.origin.copyFrom(origin)
+    this._camRay.direction.copyFrom(to.scaleInPlace(1 / len))
+    this._camRay.length = len
+    /*
+    EXCLUDE OURSELF, or the character's own shoulder is the obstruction and the
+    camera lives permanently inside its own head. `isDescendantOf` covers the
+    whole loaded rig without anyone having to enumerate its meshes.
+    */
+    const root = this.entries?.rootNodes?.[0]
+    const hit = scene.pickWithRay(
+      this._camRay,
+      (m) =>
+        m.isPickable !== false &&
+        m.isEnabled() &&
+        m.getTotalVertices() > 0 &&
+        !(root != null && m.isDescendantOf(root))
+    )
+    return hit?.hit === true ? hit.distance : Infinity
+  }
+
+  /**
+   * The medium boundary the camera should not sit in, if there is one.
+   *
+   * `MEDIUM-DESIGN` §6a: a frame is uniformly one medium, so a camera straddling
+   * the waterline shows air fog over an underwater world. Until there is a
+   * per-pixel answer, the fix is Manta's — be decidedly one side or the other —
+   * and expressed as a band it is just another camera constraint.
+   *
+   * The band is widened past the medium's own transition, because sitting just
+   * outside a fog ramp still looks wrong; you want to be clearly under.
+   */
+  private _cameraBand(): Band | null {
+    const media = this.owner?.media
+    if (media == null || media.length === 0) return null
+    for (const m of media) {
+      if (m.kind !== 'plane') continue
+      const half = Math.max(0.35, (m.band ?? 0.4) * 1.5)
+      return { low: m.y - half, high: m.y + half }
+    }
+    return null
   }
 
   /** Where the upper body points, RELATIVE to the facing. Degrees; see [[aim]]. */
@@ -1321,6 +1399,8 @@ export class B3dBiped extends B3dControllable {
     // Camera toggle on the view button (edge-detected).
     const viewPressed = input.view > 0.5
     if (viewPressed && !this.viewWasPressed) {
+      // Their choice from here: stop second-guessing it when the wall clears.
+      this._camForcedFpv = false
       this.setCameraView(this.cameraView === 'chase' ? 'fpv' : 'chase')
     }
     this.viewWasPressed = viewPressed
@@ -1436,7 +1516,7 @@ export class B3dBiped extends B3dControllable {
       )
     )
     if (this.camera instanceof BABYLON.FollowCamera) {
-      this.camera.radius = lerp(
+      const desiredRadius = lerp(
         attrs.cameraMinFollowDistance,
         attrs.cameraMaxFollowDistance,
         Math.max(0, Math.min(1, this._camZoom))
@@ -1452,23 +1532,65 @@ export class B3dBiped extends B3dControllable {
       this.camera.rotationOffset = 180
       // Pitch as height: +look is up, which means the camera drops BELOW the
       // subject to look up at it, so the offset runs the other way.
-      /*
-      KEEP THE CAMERA ABOVE GROUND.
-
-      Pitch drives HEIGHT on a FollowCamera, so looking up walks the camera
-      downward — and past a certain angle it goes underground and the world
-      vanishes. A floor is the cheap, always-correct half of the fix; the
-      thorough version raycasts from the subject to the camera and pulls in, the
-      way the world-dialog depth guard does, which also handles walls rather
-      than just terrain.
-      */
-      this.camera.heightOffset = Math.max(
-        attrs.cameraMinHeight,
+      const desiredHeight =
         attrs.cameraHeightOffset +
-          Math.tan((-this._lookPitch * Math.PI) / 180) *
-            this.camera.radius *
-            0.5
+        Math.tan((-this._lookPitch * Math.PI) / 180) * desiredRadius * 0.5
+      const camNode = this._rootNode()
+
+      /*
+      PUT THE CAMERA SOMEWHERE IT IS ALLOWED TO BE.
+
+      The comment this replaces already knew the answer: "a floor is the cheap,
+      always-correct half of the fix; the thorough version raycasts from the
+      subject to the camera and pulls in… which also handles walls rather than
+      just terrain." This is that, plus the two things it did not anticipate —
+      a first-person fallback when there is nowhere to stand, and the medium
+      band, which is the same correction wearing different clothes.
+
+      One ray per frame. The rules are in [[camera-fit]], which is pure, so what
+      is here is the measurement and the application.
+      */
+      // No rig yet (the GLB is still loading) means nothing to measure from, so
+      // the camera keeps what it was asked for rather than being corrected
+      // against a subject that is not there.
+      const fit = fitChase(
+        { distance: desiredRadius, height: desiredHeight },
+        this._camFit,
+        {
+          hit:
+            camNode != null
+              ? this._cameraObstruction(camNode, desiredRadius, desiredHeight)
+              : Infinity,
+          dt,
+          subjectY: camNode?.absolutePosition.y ?? 0,
+          band: this._cameraBand(),
+        },
+        {
+          min: attrs.cameraMinFollowDistance * 0.35,
+          minHeight: attrs.cameraMinHeight,
+        }
       )
+      this._camFit = fit
+      this.camera.radius = fit.distance
+      this.camera.heightOffset = fit.height
+
+      /*
+      NOWHERE SAFE: GO FIRST PERSON. Tonio's call, and what every third-person
+      camera that works does — the alternatives are a camera inside a wall
+      showing the inside of the world, or one jammed against a shoulder blade.
+
+      `_camForcedFpv` remembers that WE did it, so clearing the obstruction
+      returns the player to the view they chose rather than to a default; and a
+      manual toggle while forced drops the flag, because after that the choice
+      is theirs again.
+      */
+      if (fit.firstPerson && this.cameraView === 'chase') {
+        this._camForcedFpv = true
+        this.setCameraView('fpv')
+      } else if (!fit.firstPerson && this._camForcedFpv) {
+        this._camForcedFpv = false
+        this.setCameraView('chase')
+      }
     }
 
     // XR camera zoom from right stick

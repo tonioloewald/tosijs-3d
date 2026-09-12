@@ -615,6 +615,17 @@ export {
   type AnimationTier,
   type LayeredAnimation,
 } from './animation-layers.js'
+export {
+  clearOfBand,
+  easeDistance,
+  fitChase,
+  fitDistance,
+  forceFirstPerson,
+  type Band,
+  type ChaseFit,
+  type EaseOptions,
+  type FitOptions,
+} from './camera-fit.js'
 export { playground, type PlaygroundOptions } from './playground.js'
 export {
   SurroundingsProbe,

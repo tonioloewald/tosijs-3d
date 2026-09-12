@@ -808,6 +808,13 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **Verify the camera's MEDIUM BAND correction in a real scene.** `camera-fit`'s
+`clearOfBand` is unit-tested and wired into `b3d-biped` (it reads `owner.media`,
+so `b3d-water` publishes what it needs), but nothing has ever exercised it on
+screen — the playground has no water, which is the same gap as the entry above.
+The wall correction and the first-person fallback WERE verified live; this one
+rests on tests alone, and that distinction is worth keeping until it does not.
+
 [ ] **Playground: a pond, and therefore a terrain floor.** `playground()` has no
 water, and the reason is structural rather than an omission: `b3dGround` is ONE
 FLAT PLANE, so a water surface below it is hidden and one above it is a puddle
