@@ -2249,6 +2249,9 @@
       },
       {
         "name": "mirror"
+      },
+      {
+        "name": "solid"
       }
     ]
   },
@@ -2303,6 +2306,9 @@
       },
       {
         "name": "glowColor"
+      },
+      {
+        "name": "solid"
       }
     ]
   },

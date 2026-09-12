@@ -615,6 +615,7 @@ export {
   type AnimationTier,
   type LayeredAnimation,
 } from './animation-layers.js'
+export { playground, type PlaygroundOptions } from './playground.js'
 export {
   SurroundingsProbe,
   makeProbeScratch,

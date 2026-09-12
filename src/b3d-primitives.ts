@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh } from './b3d-utils.js'
+import { AbstractMesh, isOff } from './b3d-utils.js'
 import { PerlinNoise } from './perlin-noise.js'
 import type { B3d } from './tosi-b3d.js'
 
@@ -143,6 +143,15 @@ export class B3dSphere extends AbstractMesh {
     glow: 0,
     glowColor: '',
     mirror: false,
+    /**
+     * `'on'` makes it SOLID — a character walks into it instead of through it.
+     *
+     * Off by default because most primitives in most scenes are scenery, and a
+     * decorative box that silently starts blocking a doorway is a worse
+     * surprise than one you have to ask to be solid. A `b3dGround` is always
+     * solid; it is the one primitive nobody wants to fall through.
+     */
+    solid: 'off' as 'on' | 'off',
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -158,6 +167,9 @@ export class B3dSphere extends AbstractMesh {
       scene
     )
     this.mesh.material = primitiveMaterial(meshName, scene, attrs)
+    // A character's grounding probe and `moveWithCollisions` only see meshes
+    // with this set, so `solid` is the whole of what makes a wall a wall.
+    this.mesh.checkCollisions = !isOff(attrs.solid)
     owner.register({ meshes: [this.mesh] })
   }
 }
@@ -186,6 +198,15 @@ export class B3dBox extends AbstractMesh {
      */
     glow: 0,
     glowColor: '',
+    /**
+     * `'on'` makes it SOLID — a character walks into it instead of through it.
+     *
+     * Off by default because most primitives in most scenes are scenery, and a
+     * decorative box that silently starts blocking a doorway is a worse
+     * surprise than one you have to ask to be solid. A `b3dGround` is always
+     * solid; it is the one primitive nobody wants to fall through.
+     */
+    solid: 'off' as 'on' | 'off',
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -203,6 +224,9 @@ export class B3dBox extends AbstractMesh {
       scene
     )
     this.mesh.material = primitiveMaterial(meshName, scene, attrs)
+    // A character's grounding probe and `moveWithCollisions` only see meshes
+    // with this set, so `solid` is the whole of what makes a wall a wall.
+    this.mesh.checkCollisions = !isOff(attrs.solid)
     owner.register({ meshes: [this.mesh] })
   }
 }

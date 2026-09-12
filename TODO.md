@@ -808,6 +808,19 @@ with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
 
+[ ] **Playground: a pond, and therefore a terrain floor.** `playground()` has no
+water, and the reason is structural rather than an omission: `b3dGround` is ONE
+FLAT PLANE, so a water surface below it is hidden and one above it is a puddle
+on the lawn. A pond needs a floor that can dip — `b3dTerrain` with a landform,
+and `impactCrater` shapes exactly that bowl.
+
+Worth doing because `isSwimming` carries hysteresis specifically for a gently
+shelving beach (it enters at 0.5 submerged and holds to 0.35, after a ramp into
+water made the character flicker), and there is currently nowhere in the repo to
+walk into water slowly enough to exercise it. A pond in the playground is that
+place, and it would also put terrain under the arena, which the mantle and cover
+work would both rather be standing on than a plane.
+
 [ ] **RPG / biped deep dive — the agreed order, and where it stopped.**
 Requested 2026-09-09: inventory (display + manage), pick up / drop, NPC
 conversation (text tree, animation hints, optional audio), NPC behaviours
