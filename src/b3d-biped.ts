@@ -57,6 +57,116 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## Demo — aiming and shooting
+
+**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+the cans off the wall. The white marker is where he is FACING; the orange one is
+where he is AIMING, and they are different things — which is the whole point of
+`aiming="on"`.
+
+Watch the feet. Standing, the shoulders hold a twist of up to `aimFreeYaw` and
+the legs stay planted, because that is a pose a person holds. Start walking and
+the band narrows, so the body comes round to the aim — which also means walking
+forward walks where you are looking, the strafing-shooter feel, out of one
+number rather than a movement mode.
+
+The launcher is simply NESTED. It fires along the character's aim rather than
+along its own mesh, because a gun parented to a hand inherits whatever the
+animation is doing with that hand.
+
+```js
+import { b3d, b3dBiped, b3dLauncher, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, inputFocus, sceneDelta, label3d, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const demo = tosi({ shootDemo: { free: 45, rate: 6 } })
+const s = demo.shootDemo
+
+// Nested, so `x`/`y`/`z` are where it rides ON HIM — hip height, right side.
+const gun = b3dLauncher({
+  x: 0.28, y: 1.25, z: 0.15,
+  muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
+  ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
+})
+
+// Assigned as a statement, not inline in the scene — the shape the rest of
+// these demos use, and one the doc transpiler is known to be happy with.
+const hero = b3dBiped(
+  { url: '/omnidude.glb', player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45 },
+  gun
+)
+
+const cans = []
+for (let i = 0; i < 7; i++) {
+  cans.push(b3dDestroyable({
+    x: -4.5 + i * 1.5, y: 1.6, z: -9,
+    size: 0.45, color: '#cc5533',
+  }))
+}
+
+preview.append(
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      gamepad: 'biped',
+      scenePanel: () => [
+        label3d({ text: 'Aim & shoot' }),
+        slider3d({
+          label: 'free twist', value: s.free, min: 0, max: 90, step: 5, showValue: 'always',
+          handleChange: (v) => { s.free = Math.round(v); hero.aimFreeYaw = Math.round(v) },
+        }),
+        slider3d({
+          label: 'fire rate', value: s.rate, min: 1, max: 12, step: 1, showValue: 'always',
+          handleChange: (v) => { gun.fireRate = Math.round(v) },
+        }),
+        label3d({ text: 'WASD move · mouse aim · F shoot', muted: true }),
+      ],
+      sceneCreated(el, BABYLON) {
+        // No camera of our own: a `player` biped brings a follow camera, and a
+        // second one is not merely redundant — an extra active camera makes
+        // every scene observer run again, which is the 2x-time bug in person.
+
+        // Two markers, because the claim is that facing and aim are DIFFERENT.
+        const bar = (name, color) => {
+          const m = BABYLON.MeshBuilder.CreateBox(name, { width: 0.09, height: 0.09, depth: 2.4 }, el.scene)
+          const mat = new BABYLON.StandardMaterial(name + '-m', el.scene)
+          mat.diffuseColor = BABYLON.Color3.FromHexString(color)
+          mat.emissiveColor = BABYLON.Color3.FromHexString(color).scale(0.4)
+          m.material = mat
+          m.isPickable = false
+          return m
+        }
+        const facingBar = bar('facing', '#ffffff')
+        const aimBar = bar('aim', '#ff9944')
+
+        el.scene.onBeforeRenderObservable.add(() => {
+          sceneDelta(el.scene)
+          if (!hero || !hero.entries || !hero.entries.rootNodes[0]) return
+          const root = hero.entries.rootNodes[0]
+          const p = root.absolutePosition
+          const f = root.forward
+          facingBar.position.set(p.x + f.x * 1.4, 1.0, p.z + f.z * 1.4)
+          facingBar.rotation.set(0, Math.atan2(f.x, f.z), 0)
+          const d = hero.aimDirection
+          const o = hero.aimOrigin
+          aimBar.position.set(o.x + d.x * 1.2, o.y + d.y * 1.2, o.z + d.z * 1.2)
+          aimBar.rotation.set(Math.asin(-d.y), Math.atan2(d.x, d.z), 0)
+        })
+      },
+    },
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dSun({ shadowMaxZ: 60, activeDistance: 40 }),
+    b3dLight({ intensity: 0.5, groundColor: '#4b5348' }),
+    b3dGround({ meshName: 'ground_nocast', width: 40, height: 40, color: '#7f8a6c', texture: 'noise', textureTiles: 6 }),
+    ...cans,
+    inputFocus(hero)
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -338,6 +448,10 @@ export class B3dBiped extends B3dControllable {
      * A mode rather than always-on because it is a real change of feel, not an
      * improvement: a twist that the body only partly follows is exactly wrong
      * for someone crossing a room and exactly right for someone holding a gun.
+     *
+     * **Nesting a weapon turns it on regardless**, which is the same statement
+     * from the other end: a character holding a gun is aiming, and requiring
+     * the attribute as well would let the two disagree.
      */
     aiming: 'off' as 'on' | 'off',
     /** Twist held with the feet planted, degrees. See [[aim]]'s two thresholds. */
@@ -568,7 +682,50 @@ export class B3dBiped extends B3dControllable {
    * above that uses it.)
    */
   private get _isAiming(): boolean {
-    return !isOff((this as any).aiming)
+    return !isOff((this as any).aiming) || this._weapons().length > 0
+  }
+
+  /*
+  WHAT THIS CHARACTER IS CARRYING.
+
+  Duck-typed — anything nested with a `fire` method — rather than matched on a
+  tag name, which is the same rule `findB3dOwner` uses and for the same reason:
+  a consumer may have registered the element under a name of its own.
+
+  Cached with a short life, because this runs while the trigger is held and
+  `querySelectorAll('*')` every frame is how a character controller starts
+  showing up in a profile. Half a second means a weapon picked up at runtime
+  works without anyone having to remember to tell us.
+  */
+  private _weaponCache: Array<{ fire: (...args: any[]) => unknown }> = []
+  private _weaponCacheAge = Infinity
+  private _weapons(): Array<{ fire: (...args: any[]) => unknown }> {
+    if (this._weaponCacheAge < 0.5) return this._weaponCache
+    this._weaponCacheAge = 0
+    this._weaponCache = [...this.querySelectorAll('*')].filter(
+      (el) => typeof (el as any).fire === 'function'
+    ) as unknown as Array<{ fire: (...args: any[]) => unknown }>
+    return this._weaponCache
+  }
+
+  /**
+   * Fire everything this character is holding, along its AIM.
+   *
+   * Called while the trigger is held rather than on the press: a launcher
+   * governs its own fire rate, so this gives single shots and full auto from
+   * one line, with the weapon deciding which it is.
+   *
+   * The direction is the character's, not the weapon mesh's. A gun parented to
+   * a hand inherits whatever the animation is doing with that hand, and rounds
+   * that follow a reload flourish across the room are the single most
+   * recognisable symptom of firing along the wrong transform.
+   */
+  private _fireWeapons(): void {
+    const weapons = this._weapons()
+    if (weapons.length === 0) return
+    const dir = this.aimDirection
+    const origin = this.aimOrigin
+    for (const w of weapons) w.fire(dir, origin)
   }
 
   /**
@@ -1424,6 +1581,9 @@ export class B3dBiped extends B3dControllable {
         this._aim = relaxAim(this._aim, dt, attrs.turnSpeed)
       }
       node.rotate(BABYLON.Vector3.Up(), bodyTurnDeg * DEG_TO_RAD)
+
+      this._weaponCacheAge += dt
+      if ((input.shoot ?? 0) > 0.5) this._fireWeapons()
 
       /*
       STAND ON THE GROUND — a SNAP, not a dead band.

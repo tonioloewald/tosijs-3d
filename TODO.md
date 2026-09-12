@@ -843,9 +843,18 @@ feature list above is the backlog it serves.
    veto needs a caller to veto, and nothing consults these queries yet — the
    biped wiring is step 4. Worth doing when there is a second opinion to
    collect (a scripted no-cover zone, a destructible wall that stops counting).
-4. ⬜ **Wire shooting**, then **cover-shooting**. The pieces exist —
-   `b3d-launcher`, `ballistics`, `guidance`, and melee is spec'd in
-   `COMBAT-DESIGN.md` — what is missing is a biped holding them.
+4. 🟡 **Wire shooting**, then **cover-shooting.** Shooting is DONE 2026-09-12:
+   `aiming="on"` splits the stick from the feet, a nested launcher rides its
+   holder and fires along the character's aim, and the demo drops cans off a
+   wall. Cover-shooting is what remains — `muzzleClearance` exists and nothing
+   consults it, so a character behind a wall still fires into it. That wants a
+   `SurroundingsProbe` on the biped, which is also the thing that would let
+   `b3d-interactive`'s veto seam finally have a caller.
+
+   **Then the payoff demo, agreed with Tonio:** a POV horde. "Let's do something
+   like that as a demo once we have shooting, guns, and so on working." It is
+   the most legible test a shooting system can have, and it forces the promotion
+   seam (see the entry above).
 
 **Not started, and each wants its own entry when it comes up:** inventory and
 pick-up/drop; conversation (spec'd in full in `CONVERSATION-DESIGN.md`, built

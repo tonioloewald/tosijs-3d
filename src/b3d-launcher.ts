@@ -227,7 +227,13 @@ that assumes one orients its effect off nothing.
 import * as BABYLON from '@babylonjs/core'
 import { loadLibraryMesh } from './library-mesh.js'
 import { findMuzzle } from './model-transform.js'
-import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
+import {
+  AbstractMesh,
+  isOff,
+  sceneDelta,
+  collidable,
+  semanticParent,
+} from './b3d-utils.js'
 import type { B3d, RadarFaction } from './tosi-b3d.js'
 
 /** A guided missile always cruises at least this much FASTER than the platform that
@@ -954,6 +960,9 @@ export class B3dLauncher extends AbstractMesh {
 
     this._tick = scene.onBeforeRenderObservable.add(() => {
       const dt = sceneDelta(scene)
+      // Cheap: it returns immediately once parented, and a holder that loads a
+      // GLB asynchronously has no node to ride until it does.
+      this._rideHolder()
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
     })
@@ -1003,6 +1012,34 @@ export class B3dLauncher extends AbstractMesh {
         },
       })
     }
+  }
+
+  /**
+   * A NESTED launcher rides its holder.
+   *
+   * Without this, `b3dBiped({...}, b3dLauncher({...}))` reads as "this character
+   * is carrying a gun" and renders as a crate lying at the world origin — the
+   * mesh is placed in world space, and nothing ever told it about the thing it
+   * is nested in. The FIRING was already right (a biped fires along its own
+   * aim), which made the gap worse rather than better: correct behaviour
+   * attached to scenery.
+   *
+   * So `x`/`y`/`z` become a LOCAL offset when nested, which is what they
+   * obviously mean once there is something to be local to — a hip, a hardpoint,
+   * a turret ring.
+   *
+   * `semanticParent` rather than `parentElement`, because tosijs mounts light
+   * DOM children inside a `<tosi-slot>` and the raw parent is that wrapper.
+   */
+  private _rideHolder(): void {
+    if (this.mesh == null || this.mesh.parent != null) return
+    const holder = semanticParent(this) as unknown as {
+      entries?: { rootNodes?: BABYLON.TransformNode[] }
+      mesh?: BABYLON.TransformNode
+    } | null
+    const node = holder?.entries?.rootNodes?.[0] ?? holder?.mesh
+    if (node == null || (node as unknown) === this.mesh) return
+    this.mesh.parent = node
   }
 
   /** World-space muzzle point (barrel tip, in front of the launcher). */

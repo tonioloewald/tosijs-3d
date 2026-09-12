@@ -750,11 +750,38 @@ export const myThing = MyThing.elementCreator()
 export class B3dChild extends Component {
   owner: B3d | null = null
 
+  /**
+   * The scene this child has actually attached to, or `null`.
+   *
+   * It exists because `sceneReady` was being called MORE THAN ONCE without an
+   * intervening `sceneDispose`, and everything a child sets up there — render
+   * observers, above all — was quietly accumulating.
+   *
+   * How: `whenReady` QUEUES when the scene is not up yet, and a child can be
+   * connected, disconnected and reconnected before that happens (the doc system
+   * does exactly this while mounting a live example, and "moving any ancestor
+   * does it to every descendant"). Each connect queues another callback; the
+   * disconnect in between disposes nothing, because nothing had been set up
+   * yet. Then the scene comes up and every queued callback fires.
+   *
+   * The symptom is not a crash. It is TIME RUNNING FAST — two observers each
+   * subtracting `dt` from the same cooldown, so a launcher with `fireRate: 6`
+   * fires eleven times a second. Measured at 2.09× on a doc page, and the
+   * launcher was blameless: the duplicates were invisible to it because it only
+   * keeps a handle on the LAST observer it added.
+   */
+  private _attachedScene: BABYLON.Scene | null = null
+
   connectedCallback() {
     super.connectedCallback()
     const owner = findB3dOwner(this)
     if (owner != null) {
       owner.whenReady(() => {
+        // A queued callback can outlive the connection that queued it.
+        if (!this.isConnected) return
+        // ...and several can be queued before the scene exists.
+        if (this._attachedScene === owner.scene) return
+        this._attachedScene = owner.scene
         this.owner = owner
         this.sceneReady(owner, owner.scene)
       })
@@ -762,7 +789,14 @@ export class B3dChild extends Component {
   }
 
   disconnectedCallback() {
-    this.sceneDispose()
+    // Only tear down what was actually set up. A disconnect before the scene
+    // came up has nothing to dispose, and calling `sceneDispose` anyway is how
+    // a subclass ends up guarding every field against a teardown that precedes
+    // its own construction.
+    if (this._attachedScene != null) {
+      this._attachedScene = null
+      this.sceneDispose()
+    }
     super.disconnectedCallback()
   }
 
