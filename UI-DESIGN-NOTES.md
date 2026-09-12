@@ -984,3 +984,64 @@ conventional and defensible — a menu should be gone before you act on what is
 behind it. The lesson is not "never act on press", it is that **a press-handler
 and a release-handler must agree about whose gesture it was.** Ours did not, and
 the symptom was a control that would not turn off.
+
+## SVG components cannot be custom elements — measured, not assumed
+
+2026-09-12. Tonio, thinking about shipping the SVG UI as reusable parts:
+*"should we have an SvgComponent base class, say, that basically lets us ship
+Svg custom-elements that just work, including something like tosi-slot (I don't
+think the shadow DOM is even a tiny bit useful for svg components)."*
+
+The instinct is right and the platform is harsher than the instinct. Measured in
+Chrome, four probes:
+
+| | |
+| --- | --- |
+| custom tag created in the SVG namespace | **never upgraded** — `constructor` is plain `SVGElement`, no lifecycle, ever |
+| HTML custom element appended inside `<svg>` | upgrades (`connectedCallback` runs), but it is XHTML-namespaced and **does not render** |
+| `attachShadow` on an SVG element | **`NotSupportedError`** |
+| `attachShadow` on that HTML element inside the svg | allowed — and still does not render |
+
+So shadow DOM is not merely useless here, it is unavailable; and the custom
+element route is closed from both ends. Custom element upgrade is HTML-namespace
+only, and anything in the HTML namespace inside an `<svg>` is an invisible node.
+**There is no arrangement in which `class SvgThing extends HTMLElement` draws
+inside an SVG.**
+
+### What that leaves, and why we are most of the way there already
+
+Everything the question wants — named, reusable, composable, slot-like parts —
+is achievable; it just cannot be spelled with `customElements.define`. It is a
+component system over SVG DOM, and `widgets3d` / `box` / `surface` are already
+an informal one:
+
+| a component system needs | what we have |
+| --- | --- |
+| instantiation | factories: `slider3d(...)` → `{ el, layout, hitTest, handle }` |
+| composition / slots | `widget-box.ts` — literally "the seam letting `widgets3d` controls live inside a `box`/`surface`" |
+| a host / mount lifecycle | `setHost(host)`, but only some widgets implement it |
+| layout | `flow-layout.ts`, `widgets3d-layout.ts` |
+| events | `handlePointer(kind, x, y)` — coordinate-based, which is why it works on a texture in VR |
+| **identity / a registry** | ✗ nothing. No name → constructor map |
+| **serialisation** | ✗ nothing. A panel exists only as the code that built it |
+
+The last two are the gap, and they are exactly the two an EDITOR needs. Which is
+the same shape [`tosijs-3d-ensemble`](https://github.com/tonioloewald/tosijs-3d-ensemble)
+arrived at for scenes: a domain-free format, a registry of features, an
+instantiator, and an editor over the top. Ensemble's format layer is
+deliberately domain-free and has a test pinning it (`domain-free.test.ts` builds
+a botanic garden with no combat in it), so "a UI vocabulary registered into the
+same format machinery" is a question worth asking rather than an obvious no.
+
+### The position
+
+- **Do not** write `SvgComponent extends HTMLElement`. It cannot work, and the
+  way it fails — an element that upgrades, runs its lifecycle, and draws nothing
+  — is the kind of failure that takes a day to believe.
+- The DOM-overlay case (a panel in a page, not on a texture) is the one case
+  where a custom element is legal, because there the `<svg>` is the component's
+  own child rather than its parent. `b3d-svg-plane` already does this. That is a
+  WRAPPER, not an SVG component.
+- The reusable-parts problem is a registry plus a serialisation format over the
+  factories we have — and if that format exists, an editor that emits interfaces
+  follows from it, rather than the other way round.
