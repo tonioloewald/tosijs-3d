@@ -859,6 +859,45 @@ machine. A biped is 2342 lines of per-instance update on top, so the true number
 is lower by an unmeasured amount, and it is the number that says how many NAMED
 characters a scene can hold.
 
+[ ] **The near/far PROMOTION SEAM — now wanted by two game concepts.** Filed
+2026-09-12, when Tonio floated "a truly insane POV zombie survival game" on top
+of the crowd work. It is the second concept to demand the same missing piece,
+which is the signal worth acting on: a miniatures battle looks at the crowd from
+altitude and never needs a figure close up, but a POV horde puts one at arm's
+length every few seconds.
+
+The seam has been named twice already (`vertex-animation`: "a figure promoted to
+a named character has to cross from here to a skinned rig — that seam should be
+designed, not discovered"; `b3d-crowd`: the same, from the unit-size threshold).
+Nothing crosses it today.
+
+What a POV horde specifically needs from it, and why it is tractable: only a
+handful are ever CLOSE — call it five to fifteen — which sits comfortably inside
+the ~50 bare-rig ceiling. So promotion is by DISTANCE, the population promoted
+is small and bounded, and the demotion is the same trick backwards. The hard
+part is continuity: a figure must not visibly change animation, pose or phase as
+it crosses. Both paths derive pose from a normalised phase, which is the thing
+that makes matching possible at all.
+
+Two other framework capabilities that concept implies, both reusable and neither
+built:
+
+- **Horde steering that is O(1) per agent.** `surroundings` costs ~0.7ms per
+  character per second, which is right for a handful of smart NPCs and absurd
+  for two thousand shamblers (1.4 seconds of CPU per second). A horde wants ONE
+  shared flow field toward the target plus the miniatures design's grid
+  occupancy for mutual collision — per-agent cost becomes a lookup. Cover
+  discovery is for the player and the few thinkers, not for the crowd.
+- **Crowd AUDIO.** Two thousand positional sources is not a thing. It wants an
+  aggregate voice — a bed whose density and direction follow the crowd — plus a
+  few individual sources promoted for whoever is nearest, which is the same
+  promotion idea in another medium.
+
+And one thing that falls out FREE and is worth knowing: a VAT figure's damage
+states are CLIPS. "Shot in the leg, now it limps" is a change of two numbers per
+instance with no material change and no skeleton — the crowd path is better at
+per-instance state changes than the skinned path is.
+
 [ ] **Sockets — the one designed-but-unbuilt piece of the crowd.** 2026-09-11,
 Tonio on what a battlefield needs: *"a winged creature, heavy mounted, light
 mounted, heavy infantry, light infantry and some accessories like helmets,
