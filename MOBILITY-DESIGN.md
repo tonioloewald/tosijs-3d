@@ -184,6 +184,87 @@ inventing its own private idea of the world's shape.
 `COLLISION-DESIGN.md`'s rule already points here: a probe takes a POSE SOURCE,
 never a position. A shared read is the same argument one level up.
 
+## Firing from cover, and the ladder it falls down
+
+Tonio, 2026-09-12: *"Depending on the availability of suitable animations, an AI
+behind cover might automatically stand up to aim and fire or step out to aim and
+fire if it lacks animations to specifically cope with the action."* And
+immediately after: *"Actually not just an AI, a player biped."*
+
+That second sentence is the one that makes this a design rather than an AI
+behaviour, and it is this document's own north star pointed at a trigger. The
+player presses fire while crouched behind a wall; **the character does whatever
+it is capable of**, and what it is capable of is a fact about its animation set.
+Nobody enters a cover-firing mode, nobody is stuck in one, and the same ladder
+serves the player and an NPC because it is about the rig, not about who is
+driving.
+
+It is the intent model from "The bifurcation" applied to a weapon: *steer it and
+it solves the terrain* becomes *press fire and it solves the cover.*
+
+### What the library actually has — measured, not assumed
+
+Quaternius' Universal Animation Library, both megafiles, 254 clips:
+
+| | |
+| --- | --- |
+| standing aim sets | `Pistol_Aim_Down` / `_Neutral` / `_Up`, and the same for `Bow_` |
+| firing | `Pistol_Shoot`, `Pistol_Reload`, `Bow_Shoot`, `Bow_RapidShoot_Loop` |
+| crouch locomotion | `Crouch_Enter`/`Exit`/`Idle_Loop`, plus fwd/bwd/left/right **and the four diagonals** |
+| taking hits | `Hit_Chest`/`Head`/`Stomach`/`Shoulder_L`/`_R`, `Hit_Knockback`, `Death01`/`02` |
+| melee & thrown | `Melee_Combo`/`Hook`/`Knee`/`Uppercut` (+ recoveries), `Punch_Jab`/`Cross`, `Kick`, `OverhandThrow` |
+| **crouch-fire, lean, peek** | **none. Not one clip.** |
+
+So the gap Tonio guessed at is exactly the gap that exists, and the shape of the
+ladder is decided by it rather than invented.
+
+Two pieces of luck worth naming. The aim sets are **three poses — down, neutral,
+up** — which is precisely the shape [`aimPoseWeights`](src/aim.ts) returns, built
+a day earlier from the reasoning that Babylon has no additive layer and a blend
+is therefore weights. And the crouch locomotion includes **diagonals**, which is
+what a sideways shuffle out of cover needs.
+
+### The ladder
+
+Each rung needs strictly less from the animation set than the one above, and
+every rung is a real tactic rather than a degradation to apologise for.
+
+1. **Fire from cover, authored.** A `Crouch_Pistol_Aim` clip. Nobody has one.
+2. **Fire from cover, MASKED** — `Pistol_Aim_*` on the upper body over
+   `Crouch_Idle_Loop` on the legs, via [`bone-mask`](src/bone-mask.ts) and
+   [`animation-layers`](src/animation-layers.ts). This is available right now,
+   and it is the whole reason those two modules exist: the missing clip is
+   manufactured from two that are present. Expect it to be *approximately*
+   right rather than perfect — the pistol aim was authored over a standing
+   torso, so a steep downward aim over a crouch is the case to look at first.
+3. **Stand to fire.** `Crouch_Exit` → aim → `Pistol_Shoot` → `Crouch_Enter`.
+   Always available, needs no masking, and it **costs you something**: standing
+   is exposure, which `shelterFrom` will report the moment it happens. A
+   character who has to stand to shoot is playing a different game from one who
+   does not, and that is interesting rather than broken.
+4. **Step out to fire.** [`peekSide`](src/surroundings.ts) already says which
+   way the cover ends; `Crouch_Right_Loop` / `Crouch_Left_Loop` shuffle that
+   way, fire, shuffle back. Needs nothing the library lacks.
+5. **No shot.** `muzzleClearance` says the wall is in the way and nothing above
+   is available: hold fire. A character that does not fire into its own cover
+   is better than one that does.
+
+### What this implies structurally
+
+**The capability set below stops being a wish.** "A capability set per character
+— can it vault, mantle, climb, wall-run — so 'if sufficiently capable' is data
+rather than a branch" is listed as missing, and this is the same idea arriving
+from the animation side: what a character can do is **derived from the clips its
+rig carries**, once, at load. Then "can he fire from cover?" is a lookup, the
+ladder is a fallback chain over that set, and a rig with better animations gets
+better tactics without a line of code changing.
+
+It also means **the choice is not the player's to make and not a menu**. Pressing
+fire is the intent; picking the rung is the character's. The player's only tell
+is what happens — and "he stood up because he had to" is a thing you can learn
+about a character, which is the behavioural richness this project keeps saying it
+wants instead of vertices.
+
 ## What it needs that we do not have
 
 - **Affordance queries.** "Is this geometry cover, from where?" is the same
