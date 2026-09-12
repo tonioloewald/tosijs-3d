@@ -295,6 +295,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **UI surface** — a root that holds a content [[box]] plus a top **overlay
 - https://3d.tosijs.net/surroundings/ — surroundings
   from it.** Pure — distances and degrees, no Babylon, no rays — so cover can be
+- https://3d.tosijs.net/surroundings-probe/ — surroundings-probe
+  The pure module answers questions about a measurement; this takes the
 - https://3d.tosijs.net/svg-icons/ — svg-icons
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture

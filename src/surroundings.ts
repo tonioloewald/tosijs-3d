@@ -45,7 +45,7 @@ between reads.
 
 ```js
 import { b3d, b3dSkybox, b3dController, sceneDelta, label3d, slider3d } from 'tosijs-3d'
-import { makeSurroundings, setSample, shelterFrom, exposure, inShelter, stanceFor, peekSide, muzzleClearance, DEFAULT_HEIGHTS } from 'tosijs-3d'
+import { makeSurroundings, SurroundingsProbe, shelterFrom, exposure, inShelter, stanceFor, peekSide, muzzleClearance, DEFAULT_HEIGHTS } from 'tosijs-3d'
 import { demoSun, orbitCam, patternGround } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
@@ -118,29 +118,26 @@ const scene = b3d(
       hero.material = hm
       el.register?.({ meshes: [hero] })
 
+      // ONE probe, throttled to 10Hz, reusing its buffers. `SurroundingsProbe`
+      // gathers the nearby meshes once per read instead of asking the whole
+      // scene 84 times — see the cost table in `surroundings-probe`.
       const surr = makeSurroundings({ bearingCount: 12, heights: DEFAULT_HEIGHTS })
+      const probe = new SurroundingsProbe(surr, 10)
       const solidOnly = (m) => m !== hero && m !== threat && m.name !== 'ground' && m.isVisible
-      let since = 0
+      const foot = new BABYLON.Vector3(0, 0, 0)
 
       el.scene.onBeforeRenderObservable.add(() => {
         const dt = sceneDelta(el.scene)
-        since += dt
-        // 10Hz, not every frame — 84 casts is a budget, not a freebie.
-        if (since < 0.1) return
-        since = 0
         const range = Number(s.range)
-        const foot = hero.position.clone()
-        foot.y -= 0.9
-
-        for (let b = 0; b < surr.bearings.length; b++) {
-          const rad = (surr.bearings[b] * Math.PI) / 180
-          const dir = new BABYLON.Vector3(Math.sin(rad), 0, Math.cos(rad))
-          for (let h = 0; h < surr.heights.length; h++) {
-            const from = foot.add(new BABYLON.Vector3(0, surr.heights[h], 0))
-            const hit = el.scene.pickWithRay(new BABYLON.Ray(from, dir, range + 0.05), solidOnly)
-            setSample(surr, surr.bearings[b], h, hit && hit.hit ? hit.distance : Infinity)
-          }
-        }
+        // THE FEET, and the feet do not move when he crouches. Deriving them
+        // from `position` (a capsule CENTRE, which drops on a crouch) shifts
+        // the whole height ladder down with it, so the wall measures taller
+        // than it is and the character talks himself out of the cover he is
+        // standing behind — while crouching, which lowers it again.
+        foot.set(hero.position.x, 0, hero.position.z)
+        // `false` means "nothing new to look at" — so the derivation is skipped
+        // too, rather than recomputing identical answers sixty times a second.
+        if (!probe.update(el.scene, foot, dt, { maxRange: range, filter: solidOnly })) return
 
         const threatDeg = (Math.atan2(threat.position.x - hero.position.x,
                                       threat.position.z - hero.position.z) * 180) / Math.PI
@@ -159,7 +156,8 @@ const scene = b3d(
           : new BABYLON.Color3(0.9, 0.6, 0.2)
         // Crouch when the cover demands it — derived, like everything else here.
         hero.scaling.y = stance === 'crouched' ? 0.62 : 1
-        hero.position.y = stance === 'crouched' ? 0.56 : 0.9
+        // Keep the FEET on the floor whatever the stance does.
+        hero.position.y = 0.9 * hero.scaling.y
 
         if (readout) {
           readout.textContent =

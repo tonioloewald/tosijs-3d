@@ -616,6 +616,13 @@ export {
   type LayeredAnimation,
 } from './animation-layers.js'
 export {
+  SurroundingsProbe,
+  makeProbeScratch,
+  readSurroundings,
+  type ProbeScratch,
+  type ReadOptions,
+} from './surroundings-probe.js'
+export {
   DEFAULT_HEIGHTS,
   bearingIndex,
   exposure,
