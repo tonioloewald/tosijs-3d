@@ -832,11 +832,17 @@ feature list above is the backlog it serves.
    play, and `aimWobble` for a shooter who cannot hold still. 48 tests, and a
    demo showing the model on its own — no character, so the rule is visible
    rather than an animation of it.
-3. ⬜ **Affordance queries** — "is this geometry cover, and from where?" The
-   design is already written (`MOBILITY-DESIGN.md` → "What it needs that we do
-   not have"): an affordance found in the WORLD rather than declared on a tagged
-   object, composed on `b3d-interactive`'s veto seam, and expect hysteresis from
-   the start (the `isSwimming` flicker is the precedent).
+3. ✅ **Affordance queries** — done 2026-09-12 as `surroundings.ts`: the SHARED
+   environmental read `MOBILITY-DESIGN.md` asked for (a ring of bearings × a
+   ladder of heights) plus the cover relations derived from it — `shelterFrom`,
+   `stanceFor`, `exposure`, `inShelter` (hysteresis, budgeted from the start as
+   instructed), `peekSide`, `muzzleClearance` and `shuffleToward`. 44 tests and
+   a driveable demo that fills the read from real rays at 10Hz.
+
+   NOT done, and deliberately: composition on `b3d-interactive`'s veto seam. A
+   veto needs a caller to veto, and nothing consults these queries yet — the
+   biped wiring is step 4. Worth doing when there is a second opinion to
+   collect (a scripted no-cover zone, a destructible wall that stops counting).
 4. ⬜ **Wire shooting**, then **cover-shooting**. The pieces exist —
    `b3d-launcher`, `ballistics`, `guidance`, and melee is spec'd in
    `COMBAT-DESIGN.md` — what is missing is a biped holding them.

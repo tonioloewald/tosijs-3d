@@ -616,6 +616,26 @@ export {
   type LayeredAnimation,
 } from './animation-layers.js'
 export {
+  DEFAULT_HEIGHTS,
+  bearingIndex,
+  exposure,
+  inShelter,
+  makeSurroundings,
+  muzzleClearance,
+  peekSide,
+  sampleAt,
+  setSample,
+  shelterFrom,
+  shuffleToward,
+  stanceFor,
+  type PeekSide,
+  type Shelter,
+  type ShelterOptions,
+  type Stature,
+  type Surroundings,
+  type SurroundingsSpec,
+} from './surroundings.js'
+export {
   DEFAULT_AIM_LIMITS,
   aimAuthority,
   aimDirection,
