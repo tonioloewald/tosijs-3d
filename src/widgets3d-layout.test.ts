@@ -11,6 +11,8 @@ import {
   valueToFraction,
   wrapByMeasure,
   wrapText,
+  ellipsize,
+  measureTextWidth,
 } from './widgets3d-layout.js'
 
 // A synthetic measurer: every character is 1 unit wide. Lets the pure wrapping
@@ -230,5 +232,69 @@ describe('alignOffset', () => {
   test('a child taller than its row is never pushed off the top', () => {
     expect(alignOffset(20, 40)).toBe(0)
     expect(alignOffset(20, 40, 'bottom')).toBe(0)
+  })
+})
+
+describe('ellipsize', () => {
+  const font = { size: 14, family: 'sans-serif', weight: 400 }
+  const wide = (s: string) => measureTextWidth(s, font)
+
+  test('a string that fits is returned untouched', () => {
+    expect(ellipsize('gain', 500, font)).toBe('gain')
+  })
+
+  test('a string that does not fit ends in an ellipsis', () => {
+    const out = ellipsize('an extremely long caption indeed', 60, font)
+    expect(out.endsWith('…')).toBe(true)
+    expect(out.length).toBeLessThan('an extremely long caption indeed'.length)
+  })
+
+  test('the result actually FITS — which is the whole job', () => {
+    // A truncation that still overflows is worse than none: it has spent a
+    // character on the ellipsis and bought nothing.
+    for (const w of [30, 45, 60, 90, 140]) {
+      expect(
+        wide(ellipsize('supercalifragilistic expialidocious', w, font))
+      ).toBeLessThanOrEqual(w + 0.001)
+    }
+  })
+
+  test('it keeps as much as it can — one more character would not fit', () => {
+    const w = 70
+    const out = ellipsize('abcdefghijklmnopqrstuvwxyz', w, font)
+    const kept = out.slice(0, -1)
+    expect(wide(kept + 'z' + '…')).toBeGreaterThan(w)
+  })
+
+  test('it is driven by the MEASURER, whatever that measurer knows', () => {
+    /*
+    Not "proportional fonts truncate differently" — that was the first version
+    of this test and it failed, because headless `measureTextWidth` has no
+    canvas and estimates: `illiiilliiilliii` and `WWWWWWWWWWWWWWWW` come back
+    identical. The estimate is the measurer's business, not this function's.
+
+    What IS this function's business is using whatever it is told, which is what
+    makes it exact in a browser and honest everywhere else.
+    */
+    const long = 'abcdefghijklmnopqrstuvwxyz'
+    const narrow = ellipsize(long, 40, font)
+    const roomy = ellipsize(long, 120, font)
+    expect(roomy.length).toBeGreaterThan(narrow.length)
+  })
+
+  test('no room even for the ellipsis gives nothing, not a stray dot', () => {
+    expect(ellipsize('anything', 1, font)).toBe('')
+    expect(ellipsize('anything', 0, font)).toBe('')
+    expect(ellipsize('anything', -5, font)).toBe('')
+  })
+
+  test('an empty string stays empty', () => {
+    expect(ellipsize('', 100, font)).toBe('')
+  })
+
+  test('a trailing space before the ellipsis is dropped', () => {
+    // "foo …" reads as a gap; "foo…" reads as a truncation.
+    const out = ellipsize('foo bar baz qux', wide('foo ') + wide('…'), font)
+    expect(out).not.toMatch(/ …$/)
   })
 })

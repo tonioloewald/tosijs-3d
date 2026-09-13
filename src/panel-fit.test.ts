@@ -1063,9 +1063,19 @@ describe('a slider keeps a usable track however narrow the row', () => {
     expect(trackOf('landform scale', 600)).toBeGreaterThan(200)
   })
 
-  test('the label is CLIPPED, so it cannot paint over the track it yielded', () => {
+  test('the label is ELLIPSIZED rather than clipped', () => {
+    /*
+    This replaces a test that asserted a `clip-path`, which was the right guard
+    for the old single-row layout: the label yielded width to the track and had
+    to be prevented from painting over it.
+
+    Stacking retired the whole negotiation — the track has its own row — so what
+    needs guarding now is the other half of the same problem: a caption too long
+    for the panel must SAY it was cut. A clip ends mid-stroke and reads as a
+    name; an ellipsis reads as a name that continues.
+    */
     const s = w3d.slider3d({
-      label: 'landform scale',
+      label: 'an extremely long caption that will not fit in this panel',
       value: 0.015,
       min: 0.005,
       max: 0.3,
@@ -1074,6 +1084,30 @@ describe('a slider keeps a usable track however narrow the row', () => {
     })
     s.layout(282)
     const text = s.el.querySelector('text')
-    expect(text?.getAttribute('clip-path')).toMatch(/^url\(#w3d-lbl-/)
+    expect(text?.textContent ?? '').toMatch(/…$/)
+    expect((text?.textContent ?? '').length).toBeLessThan(56)
+  })
+
+  test('a caption that FITS is left alone', () => {
+    const s = w3d.slider3d({ label: 'gain', value: 1, min: 0, max: 2 })
+    s.layout(400)
+    const text = s.el.querySelector('text')
+    expect(text?.textContent).toBe('gain')
+  })
+
+  test('the track now gets essentially the whole row', () => {
+    // The point of the change, and the number the old layout could not reach:
+    // at the measured headset width of 282 the track was 53px, then 90 once it
+    // was given a floor. On its own row it is the panel.
+    expect(trackOf('landform scale', 282)).toBeGreaterThan(230)
+  })
+
+  test('a slider is TALLER than a plain row, and says so', () => {
+    // `layout` returns the height the stack uses. Two rows must be reported or
+    // the next widget is drawn on top of the track.
+    const s = w3d.slider3d({ label: 'gain', value: 1, min: 0, max: 2 })
+    const h = s.layout(300)
+    expect(h).toBeGreaterThan(28)
+    expect(h).toBeLessThan(64)
   })
 })

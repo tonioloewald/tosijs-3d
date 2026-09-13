@@ -446,6 +446,7 @@ import {
   DEFAULT_SLIDER_PRECISION,
   type SliderScale,
   type FontSpec,
+  ellipsize,
   measureTextWidth,
 } from './widgets3d-layout.js'
 import { handlerOf, resetHandlerWarnings } from './handler-of.js'
@@ -1057,7 +1058,26 @@ export function label3d(config: {
   const h = config.compact ? TH.LINE_H : TH.ROW
   t.setAttribute('x', String(TH.PAD_X))
   t.setAttribute('y', String(h / 2))
-  return { el: g({ 'data-w3d': 'label' }, t), layout: () => h }
+  return {
+    el: g({ 'data-w3d': 'label' }, t),
+    /*
+    A CAPTION TRUNCATES; PROSE WRAPS. This one is a single line by definition —
+    `text3d`/`textBlock3d` exist for anything that should flow — so a caption
+    too long for the panel used to simply run off the right-hand edge and under
+    the scroll rail, which is how the panel's own title read in a 282px VR
+    panel.
+
+    `layout` was already handed the width and threw it away.
+    */
+    layout(width) {
+      t.textContent = ellipsize(
+        config.text,
+        width - TH.PAD_X * 2,
+        config.bold ? TH.BOLD_FONT : TH.TEXT_FONT
+      )
+      return h
+    },
+  }
 }
 
 /**
@@ -1554,32 +1574,54 @@ export function slider3d(config: {
     config.value,
     handlerOf<(v: number) => void>(config, 'handleChange', 'onChange')
   )
+  const labelText = config.label ?? ''
   const lbl = config.label ? baseText(config.label) : null
   // A clip, so a label squeezed by the track's minimum is TRUNCATED rather than
   // painted over the control it just gave way to.
   const labelClipId = `w3d-lbl-${clipSeq++}`
   const labelClip = rect({ x: 0, y: 0, width: 0, height: TH.ROW })
   const labelClipPath = clipPath({ id: labelClipId }, labelClip)
+  /*
+  TWO ROWS: the caption above, the track across the FULL WIDTH below.
+
+  It used to be one row — label, track, value — and the track got whatever was
+  left, which on a narrow panel was not much. `MIN_TRACK` bought it a floor at
+  the label's expense, but that is rationing rather than a fix: the row is only
+  ever as wide as the panel, and three things wanted it.
+
+  Tonio: "the slider is the full width and the displayed number is above it.
+  The narrow width of the slider makes it harder to use." Stacking gives the
+  track the whole width, which matters most exactly where the old layout hurt
+  most — a headset, where you aim with your arm and the panel is 282px across.
+
+  The caption is a notch smaller than body text, so two rows cost less than one
+  and a half. A slider is now taller than a toggle, and it should be: it is the
+  control that needs the most aim.
+  */
+  const CAP_Y = Math.round(TH.FONT * 1.05)
+  const TRACK_Y = CAP_Y + Math.round(TH.FONT * 0.85)
+  const SLIDER_H = TRACK_Y + Math.round(TH.FONT * 0.8)
+  const capFont: FontSpec = { ...TH.TEXT_FONT, size: TH.FONT * 0.86 }
   if (lbl) {
     lbl.setAttribute('x', String(TH.PAD_X))
-    lbl.setAttribute('y', String(TH.ROW / 2))
-    lbl.setAttribute('clip-path', `url(#${labelClipId})`)
+    lbl.setAttribute('y', String(CAP_Y))
+    lbl.setAttribute('font-size', String(capFont.size))
   }
   const trackEl = rect({
     height: 6,
     rx: 3,
     ry: 3,
     fill: TH.TRACK,
-    y: TH.ROW / 2 - 3,
+    y: TRACK_Y - 3,
   })
   const fillEl = rect({
     height: 6,
     rx: 3,
     ry: 3,
     fill: TH.ACCENT,
-    y: TH.ROW / 2 - 3,
+    y: TRACK_Y - 3,
   })
-  const knob = circle({ cy: TH.ROW / 2, r: 10, fill: '#fff' })
+  const knob = circle({ cy: TRACK_Y, r: 10, fill: '#fff' })
   // Exact-value readout: shown (in place of the track) while you point at or drag
   // the slider, so the precise number is legible even at low XR texture res. The
   // label stays visible beside it. Decimals follow the step.
@@ -1605,9 +1647,9 @@ export function slider3d(config: {
     config.format ??
     (scale === 'log' ? logFormat : (v: number) => v.toFixed(decimals))
   const valText = baseText('', TH.ACCENT)
-  valText.setAttribute('text-anchor', 'start')
-  valText.setAttribute('x', String(TH.PAD_X))
-  valText.setAttribute('y', String(TH.ROW / 2))
+  valText.setAttribute('text-anchor', 'end')
+  valText.setAttribute('y', String(CAP_Y))
+  valText.setAttribute('font-size', String(capFont.size))
   valText.setAttribute('font-weight', '600')
   valText.setAttribute('display', 'none')
   /*
@@ -1620,7 +1662,8 @@ export function slider3d(config: {
   */
   const fixedVal = baseText('', TH.ACCENT)
   fixedVal.setAttribute('text-anchor', 'end')
-  fixedVal.setAttribute('y', String(TH.ROW / 2))
+  fixedVal.setAttribute('y', String(CAP_Y))
+  fixedVal.setAttribute('font-size', String(capFont.size))
   fixedVal.setAttribute('font-weight', '600')
   if (showValue !== 'always') fixedVal.setAttribute('display', 'none')
   /*
@@ -1677,9 +1720,14 @@ export function slider3d(config: {
   }
   // Peek shows the exact value in place of the LABEL — the track and knob stay
   // visible, so you can still see and drag the slider while reading the number.
+  /*
+  Peek appears BESIDE the label now rather than in place of it. Replacing it was
+  a concession to a single row — there was nowhere else for a number to go — and
+  a label that vanishes the moment you touch the control is exactly the wrong
+  time to lose the name of the thing you are adjusting.
+  */
   const peek = (on: boolean) => {
     if (showValue !== 'peek') return
-    if (lbl) lbl.setAttribute('display', on ? 'none' : 'inline')
     valText.setAttribute('display', on ? 'inline' : 'none')
   }
   // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
@@ -1695,42 +1743,50 @@ export function slider3d(config: {
     el,
     layout(width) {
       rowBg.setAttribute('width', String(width))
+      rowBg.setAttribute('height', String(SLIDER_H - 4))
       /*
-      THE TRACK GETS ITS MINIMUM FIRST, and the label yields for it.
+      THE TRACK TAKES THE WHOLE WIDTH, because it is on its own row now and
+      nothing competes with it.
 
-      The label took a flat 45% and the readout took whatever it needed, so on a
-      narrow panel with `showValue: 'always'` and a unit in the format the track
-      was whatever happened to be left. Measured in a headset at 282px wide with
-      a "0.015 1/m" readout: a 53px track, against 229px of label and number.
-
-        Tonio: "the panel is narrow combined with the way the value is now
-        displayed so that for the top scale slider in VR the slider is TINY and
-        the entire row is occupied by the title and the value."
-
-      A label you can only half-read is a nuisance; a track you cannot aim at is
-      a broken control, and in a headset you are aiming with your arm. So the
-      track is reserved and the label is clipped to what is left — never below a
-      floor of its own, because a label clipped to nothing is not a trade.
+      What this replaces was a negotiation — `MIN_TRACK` reserved 90px and the
+      label was clipped to whatever remained — and the negotiation only existed
+      because three things shared one row. Stacking removes the argument rather
+      than arbitrating it.
       */
-      const MIN_TRACK = 90
-      const MIN_LABEL = 56
-      const avail = width - TH.PAD_X * 2 - 12 - readoutW
-      let labelW = lbl ? Math.min(width * 0.45, 150) : 0
-      if (lbl && avail - labelW < MIN_TRACK) {
-        labelW = Math.max(MIN_LABEL, avail - MIN_TRACK)
-      }
-      labelClip.setAttribute('width', String(Math.max(0, labelW - 6)))
-      trackX = TH.PAD_X + labelW
-      trackW = width - trackX - TH.PAD_X - 12 - readoutW
-      fixedVal.setAttribute('x', String(width - TH.PAD_X))
+      trackX = TH.PAD_X + 10
+      trackW = Math.max(20, width - trackX - TH.PAD_X - 10)
       trackEl.setAttribute('x', String(trackX))
       trackEl.setAttribute('width', String(trackW))
+      fixedVal.setAttribute('x', String(width - TH.PAD_X))
+      valText.setAttribute('x', String(width - TH.PAD_X))
+      /*
+      ELLIPSIS, NOT A CLIP. Tonio: "Can we make captions check the width of the
+      string and truncate to ellipsis?" A clipped label ends mid-stroke and says
+      nothing about having been cut — `cameraHeightOffset` becomes
+      `cameraHeigh` with the h sliced down the middle, and nothing tells you it
+      was not named that. An ellipsis is a claim that the name goes on, for the
+      cost of one character.
+
+      The caption yields to the readout, which is the same ranking the old
+      single-row version settled on — a number you cannot read is a broken
+      control, a name you can half-read is a nuisance — applied to text rather
+      than to a track.
+      */
+      if (lbl) {
+        const room = width - TH.PAD_X * 2 - readoutW - (readoutW > 0 ? 8 : 0)
+        lbl.textContent = ellipsize(labelText, room, capFont)
+      }
       reflect()
-      return TH.ROW
+      return SLIDER_H
     },
-    // Only the track is interactive; the label area is scroll surface.
+    /*
+    The whole width is the track now, so the whole width is interactive. The old
+    test excluded the label area, which on a stacked layout is a different row —
+    and a slider that ignores presses at its own left-hand end is precisely the
+    bug the single-row layout made unavoidable.
+    */
     hitTest(x) {
-      return x >= trackX - 10 && x <= trackX + trackW + 10
+      return x >= trackX - 14 && x <= trackX + trackW + 14
     },
     handle(kind, x) {
       if (kind === 'leave') {
