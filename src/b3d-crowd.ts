@@ -513,57 +513,67 @@ The seam between them is the piece to design rather than discover: a figure
 promoted out of a crowd (a champion stepping forward) or demoted into one has to
 cross it, and nothing does that today.
 
-## Crossing the seam: promotion, and the zombie horde it buys
+## Crossing the seam: the MECHANISM, and whose job the rest is
 
 Tonio: *"demonstrate being able to switch a crowd mesh for a skinned mesh
 seamlessly... 10,000 shambling zombies in the distance but when they get close
 they swap to skinned meshes that can attack and die."*
 
-That is the seam above, with a use case attached, and it is the thing that makes
-the two paths one system instead of two. It is also closer than it sounds,
-because the crowd already knows everything the swap needs.
+That is the seam above with a use case attached, and it is what makes the two
+paths one system instead of two.
 
-**The pose handoff is already solved, by accident.** A figure's `vatState` is
-`(clipStart, clipFrames, phaseOffset, cyclesPerSecond)` — which is to say the
-crowd can state, exactly, which clip a given figure is playing and how far
-through it is. Promotion is therefore: read that phase, start the skinned rig's
-`AnimationGroup` on the same clip at the same normalised time, and hide the
-instance. No blend, no cross-fade, no snap — the two are in the same pose at the
-same instant because the number that says so is right there. The hard part of a
-LOD swap is usually reconstructing that state; here it was never lost.
+**The pose handoff is already solved, by accident, and it is the only part we
+should own.** A figure's `vatState` is `(clipStart, clipFrames, phaseOffset,
+cyclesPerSecond)` — which is to say the crowd can state exactly which clip a
+given figure is playing and how far through it is. So the swap is: read that
+phase, start the skinned rig's `AnimationGroup` on the same clip at the same
+normalised time, hide the instance. No blend, no cross-fade, no snap, because
+the two are in the same pose at the same instant. The hard part of a LOD swap is
+usually reconstructing that state; here it was never lost.
 
-**Promote by BUDGET, never by radius.** ~50 skinned rigs is the measured ceiling
-(above), so a distance threshold is the wrong control: walk into a dense part of
-the crowd and a fixed radius promotes two hundred figures and the frame dies —
-the cost would depend on how the player moves rather than on what was budgeted.
-Promote the N nearest instead, so the bill is fixed and the *radius* is what
-varies. Same argument `ambient-budget` already makes for motes: compete for one
-pool, and switch things off rather than thinning them.
+That conversion — instance index to `{clip, t}` — is the piece that is
+impossible from outside the crowd and trivial from inside. It is the whole of
+what belongs here.
 
-With hysteresis at the boundary, for the reason `isSwimming` and `inShelter`
-have it — the figure that sits exactly at the budget edge will otherwise promote
-and demote every frame, which is the most expensive possible thing to do with it.
+**WHEN to swap is the consumer's call, and deliberately not ours.** Tonio: *"I
+think we'd leave the rules for switching to skinned models to the consumer since
+it will be more likely decided on specifics."* Which is right, and the three
+obvious cases disagree with each other enough to prove it: a horde game promotes
+whatever can reach you, a battle promotes the unit you selected regardless of
+distance, and a parade promotes whoever the camera is following. Any rule shipped
+here would be wrong for two of those, and worse, would be wrong *invisibly* —
+policy baked into a substrate is the kind of thing adopters work around rather
+than replace.
 
-**Demotion is the asymmetric half, and death is why.** Going up in fidelity is
-free to look at: the VAT bake samples at `bakeFps` (10 in the bench), so a
-promoted figure moves from 10fps sampled animation to real skinning, and nobody
-ever notices an improvement. Going back down can pop, so demote at a distance
-where 10fps reads as smooth anyway.
+So the surface to build is a handle, not a system: *give me the pose of figure
+N*, *hide figure N*, *put it back*. A consumer will probably want a budget
+rather than a radius, hysteresis at whatever boundary they pick, and a rule for
+what happens to a figure that dies while promoted — but those are their
+decisions to get right for their game, and this module has no opinion worth
+imposing.
 
-The real trap is state the crowd cannot represent. A zombie that dies while
-skinned must not walk back into the horde when it demotes — so either demotion
-is REFUSED for a figure in a terminal state (it stays skinned, or becomes static
-wreckage via `prefab`), or the bake carries a corpse clip and a dead figure
-demotes into it. The second is cheaper and scales; the first is simpler and is
-probably right for the handful of bodies near the player. Both are fine; picking
-neither is what produces resurrecting zombies.
+**The demo is the deliverable, and it has to show two things.** Tonio: *"have a
+crowd where they are swapped here and there and do something the crowd mesh
+members can't do (and we could change their textures as a debug feature)."*
+
+- That the swap is **invisible** — a handful of figures promoted here and there
+  in a moving crowd, with nothing to see at the moment it happens.
+- That the promoted ones can then **do something the crowd cannot**: turn to
+  look at you, take a hit and fall, be interacted with.
+
+And the debug toggle is the part that makes it a demo at all, because those two
+goals fight. A swap done properly looks like nothing happening, so a viewer
+cannot tell it from a crowd that never swapped anyone — which means the demo
+needs a way to *reveal* it on demand. Tinting the promoted figures does that:
+turn it on and the mechanism is visible, turn it off and the claim is that you
+cannot spot them. The usual instinct is to hide a LOD transition; here the
+ability to un-hide it is the feature.
 
 **What it is worth.** Ten thousand figures of menace for one draw call, and a
-dozen of them — the ones you can actually reach — with collision, damage, a
+handful of them — the ones you can actually reach — with collision, damage, a
 sensorium and a death. That is the north star's own argument (*agents and
-reactions, not vertices*) with the vertex bill finally itemised: the crowd is
-scenery until it is close enough to matter, and the budget goes to the ones that
-do.
+reactions, not vertices*) with the vertex bill itemised: the crowd is scenery
+until it is close enough to matter, and the budget goes to the ones that are.
 
 ## A stadium, which needs almost none of the above
 

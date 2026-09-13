@@ -4896,27 +4896,33 @@ would NOT scale here and isn't the tool; needed capabilities:
 
 This is arguably the ideal north-star showcase: spend nothing on vertices, everything on agents.
 
-## Crowd ↔ skinned promotion, and the demos it unlocks (Tonio, 2026-09-13)
+## Crowd ↔ skinned swap, and the demos it unlocks — IDEAS (Tonio, 2026-09-13)
 
-Design written up in `b3d-crowd.ts` → "Crossing the seam" and "A stadium". Both came
-from Tonio while testing; neither is started.
+Design in `b3d-crowd.ts` → "Crossing the seam" and "A stadium". Not started, and not
+queued — Tonio: *"That and the stadium are TODO / ideas."*
 
-- [ ] **Promote/demote between the crowd and a skinned rig.** *"10,000 shambling zombies in
-      the distance but when they get close they swap to skinned meshes that can attack and
-      die."* The pose handoff is already solved — `vatState` carries `(clipStart, clipFrames,
-      phaseOffset, cyclesPerSecond)`, so the skinned `AnimationGroup` can start on the same
-      clip at the same normalised time and the swap has nothing to blend. What has to be
-      designed is the POLICY: promote the N nearest (a budget, ~50 measured; never a radius,
-      or a dense crowd decides the frame time), hysteresis at the boundary, and a rule for
-      terminal state so a zombie that dies while skinned does not walk back into the horde
-      when it demotes (corpse clip in the bake, or refuse demotion and hand it to `prefab`).
-- [ ] **POV zombie horde demo**, which is what the above is for and was already wanted
-      (see the shooting thread). Gated on promotion, not on shooting.
+- [ ] **The swap MECHANISM only — policy stays with the consumer.** *"I think we'd leave the
+      rules for switching to skinned models to the consumer since it will be more likely
+      decided on specifics."* What belongs here is the one thing only the crowd can do:
+      convert an instance index into `{clip, t}` from its `vatState`, so a skinned
+      `AnimationGroup` can start on the same clip at the same normalised time and the swap
+      has nothing to blend. Plus hide/restore for that instance. NOT a promotion budget, not
+      a radius, not hysteresis, not a death rule — a horde game, a battle and a parade want
+      different answers, and a policy baked into the substrate gets worked around rather
+      than replaced.
+- [ ] **The swap demo**, which is the actual deliverable. A crowd with figures swapped here
+      and there, showing (a) that you cannot see it happen and (b) that the swapped ones can
+      then do what the crowd cannot — turn to look at you, take a hit and fall. **With a
+      debug toggle that tints the promoted figures**, because those two goals fight: a swap
+      done right looks like nothing happening, so the demo needs a way to reveal it on
+      demand or it demonstrates nothing. The usual instinct is to hide a LOD transition;
+      here being able to un-hide it is the feature.
+- [ ] **POV zombie horde demo** — the use case the above is for, wanted since the shooting
+      thread. Downstream of the swap demo, not of shooting.
 - [ ] **Animated stadium demo.** *"We could animate the entire crowd in a superbowl game."*
-      Needs NO promotion, no AI and no collision — a spectator is scenery that moves. Seats
-      are a generated bowl, the clip set is four seated clips, and a Mexican wave is
-      `phaseOffset` as a function of seat bearing, which is one multiply in a buffer the
-      crowd already fills. ~70,000 figures is the real-world number and sits between the two
-      this bench has measured, so the rendering answer is known — the demo would be about
-      the AUTHORING, which nobody has tried. Cheapest of the three by a wide margin, and the
-      best showcase per hour.
+      Needs NO swap, no AI and no collision — a spectator is scenery that moves. Seats are a
+      generated bowl, the clip set is four seated clips, and a Mexican wave is `phaseOffset`
+      as a function of seat bearing: one multiply in a buffer the crowd already fills.
+      ~70,000 figures is the real-world number and sits between the two this bench has
+      measured, so the rendering answer is already known — the demo would be about the
+      AUTHORING, which nobody has tried. Cheapest of the four and the best showcase per hour.
