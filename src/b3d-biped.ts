@@ -387,6 +387,10 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     A rig without them degrades rather than breaks: `setAnimationState` skips a
     state whose clip the loaded GLB does not carry, so a character simply aims
     with his locomotion pose, which is what every character did until now.
+
+    `UAL1_core.glb` on the CDN carries all six as of 2026-09-13 — they cost
+    1.28 MB of its 6.28, the biggest single line in that subset, which is worth
+    knowing before anyone trims it.
     */
     { name: 'aimIdle', animation: 'Pistol_Idle_Loop', loop: true },
     { name: 'aimUp', animation: 'Pistol_Aim_Up', loop: true },
