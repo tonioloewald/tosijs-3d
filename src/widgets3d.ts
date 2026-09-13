@@ -452,6 +452,7 @@ import {
 import { handlerOf, resetHandlerWarnings } from './handler-of.js'
 import { w3dTheme } from './w3d-theme.js'
 import { iconGlyph } from './svg-icons.js'
+import { chromeLayout } from './popup-chrome.js'
 
 const { svg, g, rect, text, circle, clipPath } = svgElements
 
@@ -715,6 +716,17 @@ export type LayerHost = (
      * the opener still believing it had a popup open.
      */
     handleClosed?: () => void
+    /**
+     * Headroom reserved in the sheet for move/close glyphs, in viewBox units.
+     *
+     * `0` means the caller asked for NO chrome, and a host must then draw none:
+     * the band and the glyphs are one decision, and a host that draws without a
+     * reservation puts them on the content ("the move affordance overlaps the
+     * 'q'"), while a reservation nobody draws into is the empty strip above
+     * every flat menu ("a lot of wasted space up top"). Both complaints are on
+     * record; this is the single number that settles them together.
+     */
+    chromeBand?: number
   }
 ) => { close: () => void }
 
@@ -866,6 +878,18 @@ export interface WidgetHost {
       side?: PopupSide
       width?: number
       maxHeight?: number
+      /**
+       * Give it a title band with move and close glyphs.
+       *
+       * For a popup you might want to KEEP — a readout, a panel of extra
+       * information. A menu wants none: it is transient, you pick from it and
+       * it goes, and a title bar on a dropdown is both odd and 30px of waste.
+       *
+       * The in-scene presentation draws handles regardless (the plane always
+       * has them), so this decides the flat one and whether the sheet reserves
+       * room at all.
+       */
+      chrome?: boolean
       /** Called when it goes away, however it went. */
       handleClose?: () => void
       /** @deprecated use `handleClose` — removed in 0.9. */
@@ -2959,14 +2983,25 @@ export function panel3d(
       is reserved only if one of THESE hosts actually draws chrome, so a
       flat-only panel gets no empty strip above its menu.
       */
-      const drawsChrome = hosts.some(
+      /*
+      CHROME IS A PROPERTY OF THE POPUP, not of the host.
+
+      It used to be "does any mounting host draw glyphs", which is right for the
+      in-scene face — `popup-surface` always draws them, so the band must exist
+      or they land on the content — and wrong for a MENU, which wants neither a
+      title bar nor a way to be dragged. Reserving it regardless is what put an
+      empty strip above every flat dropdown.
+
+      So: a host that always draws (the plane) still forces the band, and
+      otherwise the CALLER says. `panel.popup` asks for chrome; a select does
+      not.
+      */
+      const alwaysDraws = hosts.some(
         (h) => (h as unknown as { drawsChrome?: boolean }).drawsChrome === true
       )
-      const sheet = panelPopupSheet(
-        config.width ?? 360,
-        items,
-        drawsChrome ? POPUP_CHROME_BAND : 0
-      )
+      const chromeBand =
+        alwaysDraws || config.chrome === true ? POPUP_CHROME_BAND : 0
+      const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand)
       /*
       ONE CLOSE, however it starts.
 
@@ -2987,7 +3022,13 @@ export function panel3d(
         handlerOf<() => void>(config, 'handleClose', 'onClose')?.()
       }
       opened.push(
-        ...hosts.map((h) => h(sheet, { ...placed, handleClosed: closeAll }))
+        // `chromeBand` travels with the popup: the sheet reserved it, so every
+        // host has to agree about whether it exists. Computing it twice is how
+        // glyphs end up drawn over content in one presentation and floating in
+        // an empty strip in the other.
+        ...hosts.map((h) =>
+          h(sheet, { ...placed, handleClosed: closeAll, chromeBand })
+        )
       )
       return { close: closeAll }
     },
@@ -3304,11 +3345,17 @@ export function panel3d(
     const host = hostFor(0)
     let handle: { close: () => void } | null = null
     const close = () => handle?.close()
+    /*
+    NO CLOSE BUTTON ROW. The mounting layer draws the chrome — a move glyph and
+    a × in the popup's own title band, in BOTH presentations now — so a
+    full-width button was a second way to do the same thing, and the less
+    conventional one. Tonio: "The popups should just have the usual move and
+    drag affordances rather than a giant close button and being stuck in place."
+    */
     const rows: Widget3d[] = []
     if (config.title != null)
       rows.push(label3d({ text: config.title, bold: true }))
     rows.push(...items)
-    rows.push(button3d({ label: 'Close', handleClick: close }))
     handle = host.showLayer(
       {
         // Anchored to the panel's top edge rather than to a widget, because
@@ -3316,6 +3363,9 @@ export function panel3d(
         anchor: { x: 0, y: 0, width: config.width ?? width, height: 0 },
         side: 'below',
         width: config.width,
+        // A thing you might keep open while you use the panel behind it, so it
+        // gets a title band you can drag it by and a × to dismiss it.
+        chrome: true,
         /*
         CAPPED, so it SCROLLS rather than overflowing.
 
@@ -3489,9 +3539,15 @@ export function panel3d(
         display: 'none',
       },
     })
-    return (
-      root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
-    ).addLayerHost((sheet, config) => {
+    /*
+    DECLARE THE CHROME, or the sheet leaves no room for it.
+
+    `panelPopupSheet` reserves its top band only when some mounting host says it
+    draws handles — the note on `chromeBand` is explicit that an unreserved band
+    puts the glyphs on the content ("the move affordance overlaps the 'q'").
+    This host draws them now, so it says so.
+    */
+    const domLayerHost: LayerHost = (sheet, config) => {
       const rect = root.getBoundingClientRect()
       /*
       A ZERO SCALE IS A ZERO-SIZE KEYBOARD, so never take one.
@@ -3521,6 +3577,38 @@ export function panel3d(
       holder.style.height = `${h * scale}px`
       sheet.setAttribute('width', String(w * scale))
       sheet.setAttribute('height', String(h * scale))
+      /*
+      CHROME ON THE FLAT LAYER TOO — move and close, and a popup you can drag.
+
+      This host used to draw none: the in-scene popup got handles from
+      `popup-surface` and the DOM one got nothing, so flat a popup was stuck
+      where it opened and its only exit was whatever button the caller had
+      thought to include. Tonio: "The popups should just have the usual move and
+      drag affordances rather than a giant close button and being stuck in
+      place."
+
+      Same geometry as the plane's, from `chromeLayout`, so the two
+      presentations put the handles in the same place and a person who has
+      learnt one has learnt the other.
+      */
+      const band = config.chromeBand ?? 0
+      const chrome = chromeLayout(w, h, band / Math.max(1, h))
+      let closeGlyph: Element | null = null
+      if (band > 0 && chrome.barHeight > 0) {
+        const mk = (name: string, at: { x: number; y: number; size: number }) =>
+          iconGlyph(name, {
+            color: TH.MUTED,
+            size: at.size,
+            x: at.x,
+            y: at.y,
+          })
+        // The move glyph is PURELY an affordance — the drag below already
+        // works anywhere that is not a widget. It is here because an
+        // undiscoverable gesture is not a feature.
+        if (chrome.move != null) sheet.appendChild(mk('move', chrome.move))
+        closeGlyph = mk('close', chrome.close)
+        sheet.appendChild(closeGlyph)
+      }
       holder.appendChild(sheet)
       // Beside the panel — see the note above on shadow hosts.
       const parent = container ?? (root.parentNode as ParentNode | null)
@@ -3618,14 +3706,51 @@ export function panel3d(
       const onUp = () => {
         dragFrom = null
       }
+      /*
+      THE × CLOSES, and it has to be wired BEFORE the drag handler sees the
+      press — otherwise pressing close drags the popup by its own close button,
+      which is the most annoying possible outcome.
+
+      A generous target rather than the glyph's own box: `chromeLayout` computes
+      `closeHitX` separately for exactly this reason — a shrunken × on a
+      controller ray is a miss waiting to happen, and a mouse deserves the same
+      courtesy at the corner of a small popup.
+      */
+      if (closeGlyph != null) {
+        const hit = document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          'rect'
+        )
+        hit.setAttribute('x', String(chrome.closeHitX))
+        hit.setAttribute('y', '0')
+        hit.setAttribute('width', String(Math.max(0, w - chrome.closeHitX)))
+        hit.setAttribute('height', String(chrome.barHeight))
+        hit.setAttribute('fill', 'transparent')
+        hit.style.cursor = 'pointer'
+        hit.addEventListener('pointerdown', (e) => {
+          e.stopPropagation()
+          config.handleClosed?.()
+          holder.remove()
+        })
+        sheet.appendChild(hit)
+      }
       holder.style.touchAction = 'none'
+      holder.style.cursor = 'move'
       holder.addEventListener('pointerdown', onDown)
       holder.addEventListener('pointermove', onMove)
       holder.addEventListener('pointerup', onUp)
       holder.addEventListener('pointercancel', onUp)
 
       return { close: () => holder.remove() }
-    })
+    }
+    /*
+    NOT `drawsChrome`. That flag means "always draws, so always reserve", which
+    is the PLANE's situation. This host draws when it is given a band and
+    nothing when it is not, which is what lets a flat menu stay bandless.
+    */
+    return (
+      root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
+    ).addLayerHost(domLayerHost)
   }
   ;(
     root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
