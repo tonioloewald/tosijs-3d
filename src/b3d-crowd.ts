@@ -68,7 +68,12 @@ let sun = null
 const panel = () => [
   label3d({ text: 'Crowd bench' }),
   slider3d({
-    label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', showValue: 'always',
+    // `snap: 1` — whole figures. `step` on a log scale is in DECADES, so it
+    // cannot say "integers"; `snap` quantises the value after the scale has
+    // been applied, which is exactly the question being asked. Without it the
+    // readout offered 2.5 figures, and the element rounded behind its back.
+    label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', snap: 1,
+    showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.count = Math.round(v) },
   }),
   // A TOGGLE, not a select. A select needs a popup, and a popup is a second
