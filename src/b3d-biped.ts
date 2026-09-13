@@ -251,6 +251,7 @@ import { fitChase, type Band, type ChaseFit } from './camera-fit.js'
 import {
   DEFAULT_AIM_LIMITS,
   aimDirection as aimToDirection,
+  aimPoseWeights,
   bodyCatchUp,
   relaxAim,
   stepAim,
@@ -265,6 +266,10 @@ import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { CompositeInputProvider } from './control-input.js'
 import { bipedMapping, type VirtualGamepad } from './virtual-gamepad.js'
+import {
+  layerOnUpperBody,
+  type LayeredAnimation,
+} from './animation-layers.js'
 import {
   predictPath,
   type BallisticParams,
@@ -368,6 +373,27 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'pilot', animation: 'Driving_Loop', loop: true },
     { name: 'pickup', animation: 'Interact', loop: false },
     { name: 'look', animation: 'Idle_Loop', loop: true },
+    /*
+    THE GUNPLAY SET, and the three aim poses are not arbitrary — they are
+    exactly the shape [[aim]]'s `aimPoseWeights` was written against: up, level,
+    down, blended by pitch. That function has been exported and tested and had
+    no caller since it was written; these are what it was waiting for.
+
+    Named for the ROLE, not the weapon, so a rifle or bow set drops in by
+    overriding four entries rather than by teaching the biped a second
+    vocabulary. UAL2 ships `Bow_Aim_Up/Neutral/Down` + `Bow_Shoot` in precisely
+    this shape.
+
+    A rig without them degrades rather than breaks: `setAnimationState` skips a
+    state whose clip the loaded GLB does not carry, so a character simply aims
+    with his locomotion pose, which is what every character did until now.
+    */
+    { name: 'aimIdle', animation: 'Pistol_Idle_Loop', loop: true },
+    { name: 'aimUp', animation: 'Pistol_Aim_Up', loop: true },
+    { name: 'aimLevel', animation: 'Pistol_Aim_Neutral', loop: true },
+    { name: 'aimDown', animation: 'Pistol_Aim_Down', loop: true },
+    { name: 'shoot', animation: 'Pistol_Shoot', loop: false },
+    { name: 'reload', animation: 'Pistol_Reload', loop: false },
   ]
   const byName = new Map<string, AnimStateSpec>()
   for (const spec of [...base, ...extra]) {
@@ -949,7 +975,15 @@ export class B3dBiped extends B3dControllable {
     if (weapons.length === 0) return
     const dir = this.aimDirection
     const origin = this.aimOrigin
-    for (const w of weapons) w.fire(dir, origin)
+    let fired = false
+    for (const w of weapons) fired = w.fire(dir, origin) !== false || fired
+    /*
+    Only on a shot that ACTUALLY happened. `fire` returns false on cooldown or
+    an empty magazine, and re-triggering the recoil pose on every frame of a
+    held trigger would animate a weapon that is not firing — which looks exactly
+    like a jammed one.
+    */
+    if (fired) this._shootFor = 0.18
   }
 
   /**
@@ -1511,7 +1545,95 @@ export class B3dBiped extends B3dControllable {
     return true
   }
 
+  /**
+   * The gun-ready version of a state, when there is one and the gun is up.
+   *
+   * Only `idle` has a full-body substitute — `Pistol_Idle_Loop` is a whole
+   * stance, not a torso pose, and a character standing still with a weapon
+   * stands DIFFERENTLY rather than standing normally with his arms edited. The
+   * moving states keep their locomotion and take the aim pose as an upper-body
+   * layer instead, because a walk cycle is still a walk cycle.
+   */
+  private _gunplayState(name: string): string {
+    if (!this.gunplay) return name
+    if (name !== 'idle') return name
+    return this._hasClip('Pistol_Idle_Loop') ? 'aimIdle' : name
+  }
+
+  private _hasClip(clip: string): boolean {
+    const groups = this.entries?.animationGroups ?? []
+    return groups.some((g) => g.name.replace(/^Clone of /, '') === clip)
+  }
+
+  /**
+   * THE AIM POSE, layered on the upper body over whatever the legs are doing.
+   *
+   * [[aim]]'s `aimPoseWeights` picks it: three poses — up, level, down — chosen
+   * by pitch, which is the shape the UAL pistol and bow sets both ship in. The
+   * function has been exported and tested since the aim work landed and had no
+   * caller; this is it.
+   *
+   * The dominant pose rather than a three-way blend, because `layerGroups`
+   * splits ONE layer against one base and a true blend would mean three sets of
+   * tiers rebuilt whenever the pitch moved. With a slew-limited aim the pose
+   * changes rarely, and the tier rebuild is the expensive part — so the cheap
+   * thing and the good-looking thing agree here.
+   */
+  private _aimLayer: LayeredAnimation | null = null
+  private _aimLayerKey = ''
+
+  private _updateAimLayer(): void {
+    const skeleton = this.entries?.skeletons?.[0]
+    const scene = this.owner?.scene
+    if (skeleton == null || scene == null) return
+
+    let layerClip = ''
+    if (this._shootFor > 0) {
+      layerClip = 'Pistol_Shoot'
+    } else if (this.gunplay) {
+      const w = aimPoseWeights(this._aim.pitchDeg)
+      layerClip =
+        w.up > w.level && w.up > w.down
+          ? 'Pistol_Aim_Up'
+          : w.down > w.level
+          ? 'Pistol_Aim_Down'
+          : 'Pistol_Aim_Neutral'
+    }
+    const baseGroup = this.animationGroup
+    const baseClip = baseGroup?.name.replace(/^Clone of /, '') ?? ''
+    // The gun-ready idle IS the pose; layering one over it fights itself.
+    if (layerClip !== 'Pistol_Shoot' && baseClip === 'Pistol_Idle_Loop') {
+      layerClip = ''
+    }
+    const key = layerClip === '' ? '' : `${baseClip}|${layerClip}`
+    if (key === this._aimLayerKey) return
+    this._aimLayerKey = key
+    this._aimLayer?.stop()
+    this._aimLayer?.dispose()
+    this._aimLayer = null
+    if (layerClip === '' || baseGroup == null) {
+      // Back to plain locomotion — restart it, because the tiers were playing
+      // in its place and it was left stopped.
+      if (baseGroup != null && !baseGroup.isPlaying) {
+        baseGroup.start(this.animationState?.loop ?? true)
+      }
+      return
+    }
+    const groups = this.entries?.animationGroups ?? []
+    const layerGroup = groups.find(
+      (g) => g.name.replace(/^Clone of /, '') === layerClip
+    )
+    if (layerGroup == null) return
+    baseGroup.stop()
+    this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup)
+    this._aimLayer?.play(layerClip !== 'Pistol_Shoot')
+  }
+
+  /** Seconds left of the one-shot fire pose. */
+  private _shootFor = 0
+
   setAnimationState(name: string, speed = 1) {
+    name = this._gunplayState(name)
     if (name == null) {
       throw new Error('setAnimationState failed, no animation name specified.')
     }
@@ -1946,6 +2068,8 @@ export class B3dBiped extends B3dControllable {
       // After the shot, so the ring sits where THIS frame's aim points rather
       // than lagging it by one.
       if (this.owner != null) this._updateReticle(this.owner.scene)
+      this._shootFor = Math.max(0, this._shootFor - dt)
+      this._updateAimLayer()
 
       /*
       STAND ON THE GROUND — a SNAP, not a dead band.
@@ -2972,6 +3096,11 @@ export class B3dBiped extends B3dControllable {
   sceneDispose() {
     this._reticle?.dispose()
     this._reticle = null
+    // The layer owns AnimationGroups it built; the source clips are the GLB's
+    // and are not ours to dispose.
+    this._aimLayer?.dispose()
+    this._aimLayer = null
+    this._aimLayerKey = ''
     if (this.fpvCamera) {
       this.fpvCamera.parent = null
       this.fpvCamera.dispose()

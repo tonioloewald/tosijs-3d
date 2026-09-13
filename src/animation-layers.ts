@@ -198,7 +198,25 @@ function tiersFor(
 ): AnimationTier[] {
   const byTier = new Map<number, BABYLON.TargetedAnimation[]>()
   for (const ta of source.targetedAnimations) {
-    const name = (ta.target as { name?: string } | null)?.name ?? ''
+    /*
+    STRIP `Clone of `, or the mask matches nothing.
+
+    Babylon prefixes the nodes of a cloned asset — and `b3d-loader` clones every
+    instantiated rig — so a bone the skeleton calls `spine_02` is the target
+    `Clone of spine_02`. The mask is built from the SKELETON's names, so every
+    lookup missed: the layer got zero tiers, the base kept weight 1 on
+    everything, and the result was the locomotion clip playing untouched. No
+    error, no warning, just a layer that quietly did nothing.
+
+    It failed this way for every cloned rig since this was written, which went
+    unnoticed because nothing called it until the pistol aim poses did.
+    `setAnimationState` already strips the same prefix off GROUP names; this is
+    the same prefix one level down.
+    */
+    const name = ((ta.target as { name?: string } | null)?.name ?? '').replace(
+      /^Clone of /,
+      ''
+    )
     const w = tierKey(weightOf(name))
     if (w <= 0) continue
     const list = byTier.get(w)
