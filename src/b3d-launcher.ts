@@ -222,6 +222,55 @@ that assumes one orients its effect off nothing.
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
+
+## Authoring a weapon mesh
+
+Four rules, and the first one is the one that is easy to get wrong.
+
+**THE ORIGIN IS THE GRIP** — the point the hand closes around, not the centre of
+the mesh and not the back of it. Everything else is measured from there: today it
+is what `x`/`y`/`z` place, and once hand sockets land it is the point that gets
+pinned to the bone. An origin at the mesh centre means every consumer has to
+discover the same correction offset by eye, and they will each get a different
+one.
+
+**BARREL DOWN LOCAL −Y, UP LOCAL +Z, IN BLENDER.** The same frame every other
+model in this project is authored in (see CLAUDE.md → "Model authoring & the
+canonical frame"): Blender's own default front. The exporter turns that into
+glTF +Z-forward / +Y-up, which is what `muzzle()` and `forward()` read —
+`mesh.getDirection(Axis.Z)`. Do not "apply all transforms" to fix an orientation
+in a scene file; fix the model's LOCAL frame in edit mode.
+
+**ONE UNIT IS ONE METRE.** A pistol is about 0.22 long, a carbine 0.75, a rifle
+0.9–1.1. The character is 1.83, so a weapon authored at the wrong scale reads
+instantly and wrongly as the character being the wrong size.
+
+**ADD A `_muzzle` NODE** at the tip of the barrel, pointing the way the round
+leaves. It is an empty; only its position is read. Without one, `muzzle()` guesses
+0.55 along local +Z, which is right for the placeholder box and about 2.5× too
+far for a pistol — so rounds appear out of thin air a foot in front of the gun.
+A turret's rotating part is `_barrel`, which is a separate question: the barrel
+is what swings, the muzzle is where the round appears, and on a simple gun the
+muzzle node alone is enough.
+
+### The handedness flip is not your problem
+
+Babylon puts `scaling.z = -1` on a glTF's `__root__`, so everything under it is
+mirrored — and that includes the character, his skeleton and anything parented
+into his hierarchy. It is uniform, so it cancels: verified against the rig's own
+asymmetric bones, where `hand_r` lands at −X with the body facing −Z, which is
+anatomically correct. Author it the ordinary way and it will not come in
+mirrored. (Worth stating because a mesh that IS mirrored looks like an authoring
+mistake, and the instinct is to flip it in Blender — which is what would actually
+break it.)
+
+### Getting it in
+
+There is no `url` on this element yet — a model arrives through `library`, which
+means the weapon lives in a GLB the `b3d-library` element loads, with `.model`
+on the node that should be exported (`pistol.model` lists and instantiates as
+`pistol`). Behaviour suffixes compose with it, so `pistol_muzzle.model` is legal
+and does both.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
