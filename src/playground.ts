@@ -65,7 +65,14 @@ const hero = b3dBiped(
 )
 
 preview.append(
-  b3d({ style: 'width:100%;height:100%', gamepad: 'biped' },
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      // The glass pad shows only what this demo USES — and these are control
+      // names, not a mapping name: `gamepad: 'biped'` named nothing, parsed to
+      // nothing, and drew nothing. Move, aim, shoot, jump, sneak, sprint.
+      gamepad: 'left_stick,right_stick,B,right_bumper,left_bumper,right_trigger',
+    },
     ...playground(),
     inputFocus(hero)
   )

@@ -107,7 +107,7 @@ preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
-      gamepad: 'biped',
+      gamepad: 'left_stick,right_stick,B',
       scenePanel: () => [
         label3d({ text: 'Aim & shoot' }),
         slider3d({

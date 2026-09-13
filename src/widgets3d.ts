@@ -3734,12 +3734,26 @@ export function panel3d(
         })
         sheet.appendChild(hit)
       }
+      /*
+      CAPTURE PHASE, or the drag never starts.
+
+      The sheet IS a `panel3d` root, and panel3d's own `pointerdown` listener
+      calls `stopPropagation()` — deliberately, so a press on a panel does not
+      reach the scene behind it. The consequence is that a bubble-phase listener
+      on the HOLDER never hears anything: every press inside the popup was
+      swallowed by the popup's own panel. Tonio: "It can't be dragged."
+
+      Capture runs on the way DOWN, before the sheet sees the event, so the drag
+      decision is made first — and `onDown` still bows out when the press landed
+      on a widget, which is what keeps a slider inside a popup draggable as a
+      slider rather than as the popup.
+      */
       holder.style.touchAction = 'none'
       holder.style.cursor = 'move'
-      holder.addEventListener('pointerdown', onDown)
-      holder.addEventListener('pointermove', onMove)
-      holder.addEventListener('pointerup', onUp)
-      holder.addEventListener('pointercancel', onUp)
+      holder.addEventListener('pointerdown', onDown, true)
+      holder.addEventListener('pointermove', onMove, true)
+      holder.addEventListener('pointerup', onUp, true)
+      holder.addEventListener('pointercancel', onUp, true)
 
       return { close: () => holder.remove() }
     }

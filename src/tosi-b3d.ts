@@ -2670,6 +2670,8 @@ export class B3d extends Component {
 
   /** Popups currently open, by tool id — see `_syncDebugPopups`. */
   private _debugPopups = new Map<string, { close: () => void }>()
+  /** The live rows each open popup registered, so closing can retire them. */
+  private _popupLive = new Map<string, LiveDebugRow[]>()
 
   /**
    * The live flat panel's SVG, if the panel is open.
@@ -2713,6 +2715,15 @@ export class B3d extends Component {
         if (this._debugOpen.has(id)) continue
         handle.close()
         this._debugPopups.delete(id)
+        // Its live text blocks go with it, or the ticker keeps rewriting rows
+        // that are no longer on screen and the list grows with every reopen.
+        const gone = this._popupLive.get(id)
+        if (gone != null) {
+          this._liveDebug.flat = this._liveDebug.flat.filter(
+            (r) => !gone.includes(r)
+          )
+          this._popupLive.delete(id)
+        }
       }
     }
     const panel = this._livePanelEl()
@@ -2733,6 +2744,7 @@ export class B3d extends Component {
       on and then watch frozen zeros".
       */
       this._liveDebug.flat = [...this._liveDebug.flat, ...bucket]
+      this._popupLive.set(t.id, bucket)
       this._startLiveDebug()
       this._debugPopups.set(
         t.id,
