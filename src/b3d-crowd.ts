@@ -87,9 +87,11 @@ const panel = () => [
     label: 'skinned baseline', value: s.skinned, min: 0, max: 400, step: 1, showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.skinned = Math.round(v) },
   }),
-  label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
-  label3d({ text: 'omnidude = the SAME rig a biped uses, baked', muted: true }),
-  label3d({ text: 'Perf Stats → Crowd says which figure is live', muted: true }),
+  // NO INSTRUCTION ROWS. Three muted labels used to sit here pointing at Perf
+  // Stats and explaining what omnidude is — two of them saying the same thing,
+  // and all three saying what the prose above already says. A panel is for the
+  // controls; the page is for the explanation. Tonio: "they're not really
+  // needed, I think."
 ]
 
 crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
