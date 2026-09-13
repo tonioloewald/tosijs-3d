@@ -1236,6 +1236,14 @@ export function iconBar3d(config: {
     icon: string
     title?: string
     active?: boolean
+    /**
+     * Nothing to report — drawn faint.
+     *
+     * Distinct from `active` (which is a SELECTION) and from disabled (which
+     * this deliberately is not): a dimmed icon is still pressable, because
+     * "confirm there are no errors" is a thing people do.
+     */
+    dim?: boolean
     /** Fired on release, on the thing pressed. */
     handleClick?: () => void
     /** @deprecated use `handleClick` — removed in 0.9. */
@@ -1282,10 +1290,22 @@ export function iconBar3d(config: {
       rx: 1,
       fill: item.active ? TH.ACCENT : 'transparent',
     })
+    /*
+    DIM IS A COLOUR, not an opacity.
+
+    This SVG is rasterised to a texture where a group opacity composites against
+    whatever is behind it in the same pass — which for an icon sitting on its
+    own button chrome reads as a smudge rather than as faintness. Muting the
+    glyph's colour says the same thing and survives the raster.
+    */
     const glyph = iconGlyph(item.icon, {
       // Baked at creation (texture-safe), so a SELECTED icon takes the active
       // label colour here rather than being repainted later.
-      color: item.active ? w3dTheme.buttonActiveText : TH.TEXT,
+      color: item.active
+        ? w3dTheme.buttonActiveText
+        : item.dim
+        ? TH.MUTED
+        : TH.TEXT,
       size: ICON,
       x: (BS - ICON) / 2,
       y: (BS - ICON) / 2,

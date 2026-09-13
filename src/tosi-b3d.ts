@@ -402,6 +402,19 @@ export type DebugPanelSource = {
   /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
    * name — see [[svg-icons]]). Defaults to `'bug'`. */
   icon?: string
+  /**
+   * Has this source nothing to report right now?
+   *
+   * Its icon is DIMMED when true, so the bar says "nothing here" without being
+   * pressed. Tonio: "The errors popup should be dimmed unless it has errors to
+   * report." A diagnostic you must open to discover is empty costs something
+   * every time you check it — and in a headset, where that bar is the only
+   * console there is, you check constantly.
+   *
+   * Absent means "always lit", which is right for a readout that is always
+   * saying something: the crowd's figure count, the perf stats.
+   */
+  quiet?: () => boolean
 }
 
 /**
@@ -2744,13 +2757,40 @@ export class B3d extends Component {
     }
   }
 
-  private _debugTools(): Array<{ id: string; name: string; icon: string }> {
-    const tools: Array<{ id: string; name: string; icon: string }> = []
+  private _debugTools(): Array<{
+    id: string
+    name: string
+    icon: string
+    quiet: boolean
+  }> {
+    type Tool = { id: string; name: string; icon: string; quiet: boolean }
+    const tools: Tool[] = []
     if (perfDebugEnabled() || this.stats) {
-      tools.push({ id: '__perf', name: 'Perf Stats', icon: 'barChart2' })
+      tools.push({
+        id: '__perf',
+        name: 'Perf Stats',
+        icon: 'barChart2',
+        quiet: false,
+      })
     }
     for (const src of this._debugSources) {
-      tools.push({ id: src.name, name: src.name, icon: src.icon ?? 'bug' })
+      /*
+      A source that THROWS while deciding whether it is quiet is not quiet:
+      something is wrong and the icon should say so rather than going dark. Same
+      reasoning as `_sourceRows`, which renders the throw as its content.
+      */
+      let quiet: boolean
+      try {
+        quiet = src.quiet?.() ?? false
+      } catch {
+        quiet = false
+      }
+      tools.push({
+        id: src.name,
+        name: src.name,
+        icon: src.icon ?? 'bug',
+        quiet,
+      })
     }
     return tools
   }
@@ -2881,6 +2921,8 @@ export class B3d extends Component {
     icon: string
     title: string
     active: boolean
+    /** Nothing to report — rendered dimmed in both presentations. */
+    dim?: boolean
     handleClick: () => void
   }> {
     return [
@@ -2888,6 +2930,8 @@ export class B3d extends Component {
         icon: t.icon,
         title: t.name,
         active: this._debugOpen.has(t.id),
+        // Nothing to report → dimmed, so the bar answers before you press it.
+        dim: t.quiet,
         handleClick: () => {
           if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
           else this._debugOpen.add(t.id)
@@ -3167,6 +3211,7 @@ export class B3d extends Component {
       this._errorCaptureOff = this._installErrorCapture()
       this.addDebugSource({
         name: 'errors',
+        quiet: () => this._errors.length === 0,
         lines: () => {
           if (this._errors.length === 0) return ['none']
           const last = this._errors[this._errors.length - 1]
@@ -4479,13 +4524,18 @@ export class B3d extends Component {
       title: string,
       icon: Element | string,
       onClick: () => void,
-      active = false
+      active = false,
+      dim = false
     ): HTMLButtonElement => {
       const b = button(
         {
           class: active ? 'scene-panel-btn active' : 'scene-panel-btn',
           type: 'button',
           title,
+          // Dimmed, not DISABLED: an empty error log is still worth opening to
+          // confirm it is empty, and a button you cannot press cannot tell you
+          // that.
+          style: dim ? { opacity: '0.45' } : {},
         },
         icon
       ) as HTMLButtonElement
@@ -4501,7 +4551,8 @@ export class B3d extends Component {
         (svgIcons as Record<string, () => Element>)[it.icon]?.() ??
           svgIcons.bug(),
         it.handleClick,
-        it.active
+        it.active,
+        it.dim
       )
     )
     buttons.push(
