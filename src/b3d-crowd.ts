@@ -378,14 +378,59 @@ passes can be measured rather than assumed. It also sharpens
 [[vertex-animation]]'s "the bake IS the LOD": decimating a distant figure buys
 you on both terms at once.
 
+## MEASURED ON A QUEST 3
+
+The section below was arithmetic. This is the reading, taken by Tonio on the
+device, and it is worth putting first because two of the three numbers are worse
+than the laptop would have led you to expect and one of them is much worse.
+
+| | Quest 3 | laptop, for comparison |
+| --- | --- | --- |
+| baked omnidude, **in VR** | **750** — fine | 20,000 @ 33ms |
+| figures, flat in the headset's browser | frames start limiting at **~1,000** | 200,000 @ 60ms |
+| **skinned** `b3d-biped` rigs | **"nasty at maybe 20"** | ~50 |
+
+Three things follow, and the first two change plans rather than merely
+confirming them.
+
+**THE SKINNED CEILING IS ~20, NOT ~50.** That is the number that matters most,
+because it is the one the rest of the framework leans on. Half the desktop
+figure, and it arrives with everything else a character needs still to be paid
+for — controller, collision, AI, audio — none of which the bare baseline spawns.
+So "a handful of real actors, and everything else is crowd" is not a stylistic
+preference on this hardware; it is the budget. Anything that promotes crowd
+members to skinned rigs (see "Crossing the seam") is budgeting against 20, and
+should probably aim at half that.
+
+**THE CROWD CEILING IS ~750–1,000, NOT 3,000.** The arithmetic below concluded
+3,000 low-poly figures would fit comfortably. Measured, the omnidude path runs
+out at 750 in VR — and since omnidude is ~1,380 verts against a ~300-vertex
+soldier, the ~4.6× saving that section is built on would put an authored figure
+in the right neighbourhood of 3,000. So the reasoning survives; what it did NOT
+allow for is how little headroom there is to be wrong in. The conclusion below —
+author the figure for the job, do not decimate a hero — is now load-bearing
+rather than an optimisation.
+
+**750 IN VR AGAINST ~1,000 FLAT ON THE SAME DEVICE** is the interesting one: a
+quarter, not a half, for drawing everything twice. Whatever the extra cost is,
+it is not simply "two eyes" — which is a hint that the per-frame overhead
+(cull, submit, the compositor's own slice) matters more here than the vertex
+count, and therefore that fewer, fatter draw calls are the right direction.
+Exactly what this substrate does.
+
+⚠️ These are eyeball readings of where it "starts to limit", not instrumented
+frame times — the GPU timer is the thing to get onto the device next. Treat them
+as the right order of magnitude and the right RATIOS, which is what they are
+being used for.
+
 ## Would a big battle fit in a headset?
 
 Tonio, sizing the ceiling: *"I could easily imagine wanting to quadruple the
 maximum figures but that's probably the absolute limit and we're still at
 what — 3000 figures. My guess is that's doable on the quest."*
 
-Worth doing the arithmetic rather than guessing, because the answer is "yes,
-but not at full fat" and the *but* is the actionable half.
+Worth doing the arithmetic rather than guessing — though see the measurements
+above, which arrived after this was written and tightened it considerably.
 
 A headset draws the scene **twice**, once per eye, and a shadow-casting crowd is
 drawn again per cascade. So it depends entirely on what a figure costs:

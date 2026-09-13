@@ -2692,7 +2692,13 @@ export class B3d extends Component {
    * is the same class of bug as the orphaned observers in `B3dChild`. Asking
    * the host each time cannot go stale.
    */
+  /** The in-scene panel, while a session is running. See `_attachXrPanel`. */
+  private _xrPanelEl: { popup?: PanelPopup } | null = null
+
   private _livePanelEl(): { popup?: PanelPopup } | null {
+    // In a session the in-scene panel IS the panel — the flat overlay is not
+    // visible, so a popup opened against it would be opened into nothing.
+    if (this.xrActive && this._xrPanelEl != null) return this._xrPanelEl
     const host = this.parts?.scenePanelHost as HTMLElement | undefined
     if (host == null || host.hasAttribute('hidden')) return null
     /*
@@ -3581,6 +3587,15 @@ export class B3d extends Component {
     let panel = this._attachXrPanel(base, frames.eye)
     this._refreshXrPanel = () => {
       panel.dispose()
+      /*
+      AND THE POPUPS GO WITH IT. This presentation really does destroy them —
+      the plane is disposed and rebuilt — where the flat one preserves its
+      holders across a rebuild. So the handles are dropped rather than closed
+      (closing a disposed layer is a no-op at best), and `_syncDebugPopups`
+      re-opens whatever `_debugOpen` still asks for against the new panel.
+      */
+      for (const id of [...this._debugPopups.keys()]) this._retirePopup(id)
+      this._xrPanelEl = null
       panel = this._attachXrPanel(base, frames.eye)
     }
 
@@ -4332,6 +4347,7 @@ export class B3d extends Component {
         resetSpace?.removeEventListener('reset', rearmYaw)
         this._recenterXr = noop
         this._refreshXrPanel = noopRefresh
+        this._xrPanelEl = null
         panel.dispose()
         for (const p of bodyPanels) p.dispose()
         frames.dispose()
@@ -4707,6 +4723,20 @@ export class B3d extends Component {
       scrollable?: boolean
       gripHeight?: number
     }
+    /*
+    THE PANEL A POPUP SHOULD OPEN ON, while a session is running.
+
+    `_livePanelEl` only ever looked at the FLAT overlay's host, which is not
+    visible in a headset — so `_syncDebugPopups` found no panel, returned early,
+    and opened nothing, while `_debugOpen` kept the tool's id and lit its icon.
+    Tonio, from a Quest 3: "In VR the popup panels don't appear. There's a flash
+    and nothing. The indicator suggests it thinks the popup is open." It did
+    think so; there was simply nowhere for it to put one.
+
+    (The flash was the repaint underneath: toggling the icon rebuilds this panel,
+    which in XR means dispose and re-attach.)
+    */
+    this._xrPanelEl = panelEl as unknown as { popup?: PanelPopup }
     // LIVE numbers in the headset. The XR panel is built once at entry, so a debug
     // readout would otherwise freeze at whatever it said when you put the headset on —
     // useless for watching a worst-frame spike as you fly. The SvgTexture re-renders

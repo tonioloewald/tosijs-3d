@@ -4936,3 +4936,18 @@ queued — Tonio: *"That and the stadium are TODO / ideas."*
       but a fixed offset is the ceiling of that approach: it cannot follow the hand, so it
       cannot follow a reload, a climb or a crouch. What it wants is the socket work already
       listed above plus one rifle asset. Until then the demos are honest placeholders.
+
+## From the first Quest 3 session (Tonio, 2026-09-13)
+
+Numbers recorded in `b3d-crowd.ts` → "MEASURED ON A QUEST 3". Open items:
+
+- [ ] **Get the GPU timer onto the device.** The headset readings are eyeball judgements of
+      where it "starts to limit", not instrumented frame times. `EXT_disjoint_timer_query`
+      is what the bench already uses flat; confirming it exists in the Quest browser (and in
+      a session) would turn three anecdotes into a curve.
+- [ ] **Re-budget against ~20 skinned rigs, not ~50.** Half the desktop figure, and it is
+      before a controller, collision, AI or audio. Anything that promotes crowd members to
+      skinned actors is budgeting against 20 and should aim lower.
+- [ ] **Explain 750 in VR vs ~1,000 flat on the same device.** A quarter, not a half, for
+      drawing twice — so the per-frame overhead (cull, submit, compositor) likely dominates
+      the vertex count, which would make draw-call count the thing to chase.
