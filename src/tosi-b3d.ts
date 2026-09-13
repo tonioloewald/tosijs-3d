@@ -313,6 +313,7 @@ import {
   isNoCollide,
   isOff,
   markUiMesh,
+  replaceKeepingLayers,
 } from './b3d-utils.js'
 import { NO_WIND, gustAt, windFromPolar, type Wind } from './wind.js'
 import { faceViewer } from './dialog-placement.js'
@@ -2441,6 +2442,16 @@ export class B3d extends Component {
   private _repaintPanels(): void {
     this.refreshScenePanel()
     this._refreshXrPanel()
+    /*
+    AND RECONCILE THE POPUPS, here rather than at the call sites.
+
+    Every caller that changes `_debugOpen` needs this, and the one that did it
+    explicitly was the icon bar — so an action button inside a popup repainted,
+    the popup was not reconciled, and the set and the screen disagreed: the
+    popup was gone while `_debugOpen` still held its id, which is why bringing
+    it back took two clicks (the first one only turned the flag off again).
+    */
+    this._syncDebugPopups()
   }
 
   addDebugSource(source: DebugPanelSource): () => void {
@@ -2703,28 +2714,16 @@ export class B3d extends Component {
    * and the popup cannot drift apart — including when a popup is dismissed from
    * outside, which clears the flag on its way out.
    *
-   * `afterRebuild` matters: a repaint replaces the panel's SVG, and the popup
-   * layers go with it. The handles left behind point at detached DOM, so they
-   * are dropped rather than closed — calling `close` on a dead layer is a
-   * no-op at best and an exception at worst.
+   * There used to be an `afterRebuild` flag that dropped every handle on the
+   * floor, because a repaint replaced the panel's SVG and took the popup layers
+   * with it. It does not any more — `_openScenePanel` re-appends the holders —
+   * so this is now purely a reconciliation and can run after any repaint.
    */
-  private _syncDebugPopups(afterRebuild = false): void {
-    if (afterRebuild) this._debugPopups.clear()
-    else {
-      for (const [id, handle] of [...this._debugPopups]) {
-        if (this._debugOpen.has(id)) continue
-        handle.close()
-        this._debugPopups.delete(id)
-        // Its live text blocks go with it, or the ticker keeps rewriting rows
-        // that are no longer on screen and the list grows with every reopen.
-        const gone = this._popupLive.get(id)
-        if (gone != null) {
-          this._liveDebug.flat = this._liveDebug.flat.filter(
-            (r) => !gone.includes(r)
-          )
-          this._popupLive.delete(id)
-        }
-      }
+  private _syncDebugPopups(): void {
+    for (const [id, handle] of [...this._debugPopups]) {
+      if (this._debugOpen.has(id)) continue
+      handle.close()
+      this._retirePopup(id)
     }
     const panel = this._livePanelEl()
     if (panel?.popup == null) return
@@ -2759,7 +2758,7 @@ export class B3d extends Component {
             handleClose: () => {
               // Dismissed from outside: clear the flag so the icon un-lights.
               this._debugOpen.delete(t.id)
-              this._debugPopups.delete(t.id)
+              this._retirePopup(t.id)
               this._repaintPanels()
             },
           },
@@ -2767,6 +2766,21 @@ export class B3d extends Component {
         )
       )
     }
+  }
+
+  /**
+   * Forget a popup: its handle, and the live rows it registered.
+   *
+   * The rows matter — without this the ticker keeps rewriting text nodes that
+   * are no longer on screen, and the list grows by a block every time the popup
+   * is reopened.
+   */
+  private _retirePopup(id: string): void {
+    this._debugPopups.delete(id)
+    const gone = this._popupLive.get(id)
+    if (gone == null) return
+    this._liveDebug.flat = this._liveDebug.flat.filter((r) => !gone.includes(r))
+    this._popupLive.delete(id)
   }
 
   private _debugTools(): Array<{
@@ -2947,8 +2961,9 @@ export class B3d extends Component {
         handleClick: () => {
           if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
           else this._debugOpen.add(t.id)
+          // No hand re-sync: `_repaintPanels` reconciles, and doing it here
+          // as well is what let the two paths drift.
           this._repaintPanels()
-          this._syncDebugPopups(true)
         },
       })),
       // Gadgets last: diagnostics are the bar's main job, and a toggle moving
@@ -4576,7 +4591,20 @@ export class B3d extends Component {
         () => this._closeScenePanel()
       )
     )
-    host.replaceChildren(
+    /*
+    KEEP THE POPUPS. They are SIBLINGS of the panel, not children of it — which
+    is the whole point of a DOM layer, since a popup inside the panel's `<svg>`
+    is cropped by its viewBox — so a plain `replaceChildren` deletes every open
+    popup along with the panel it is rebuilding.
+
+    That is what "clicking reset worst closed the panel" was: every action
+    button repaints, every repaint rebuilt this host, and the popup the button
+    was IN went with it. Re-appending the holders keeps everything about them
+    that a rebuild has no business touching — where they were dragged to, how
+    far they were scrolled, and the live rows already ticking inside them.
+    */
+    replaceKeepingLayers(
+      host,
       div({ class: 'scene-panel-head' }, ...buttons),
       this._makePanel(this._panelWidgets())
     )
@@ -4587,9 +4615,11 @@ export class B3d extends Component {
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
     // Debug tools collapse again on next open — kept out of the way by default.
     this._debugOpen.clear()
-    // …and their popups go with the panel that opened them.
-    for (const h of this._debugPopups.values()) h.close()
-    this._debugPopups.clear()
+    // …and their popups go with the panel that opened them, live rows included.
+    for (const [id, h] of [...this._debugPopups]) {
+      h.close()
+      this._retirePopup(id)
+    }
   }
 
   /** Rebuild the flat scene panel from the current rows, if it's open.

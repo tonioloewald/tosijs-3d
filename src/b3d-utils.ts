@@ -34,6 +34,32 @@ export function semanticParent(el: HTMLElement): HTMLElement | null {
   return node
 }
 
+/**
+ * Rebuild a container's children WITHOUT destroying the popup layers in it.
+ *
+ * A `widgets3d` popup mounts as a SIBLING of the panel it belongs to — that is
+ * what a DOM layer is for, since a popup inside the panel's `<svg>` is cropped
+ * by its viewBox — so it is a child of whatever holds the panel. Which makes a
+ * plain `replaceChildren` on that container a popup killer, and an invisible
+ * one: the popup does not error, it simply stops existing.
+ *
+ * That is what "clicking reset worst closed the panel" was. Every action button
+ * in a debug panel repaints, every repaint rebuilt the host, and the popup the
+ * button was IN went with it. Re-appending the holders keeps everything a
+ * rebuild has no business touching: where the popup was dragged to, how far it
+ * was scrolled, and the live rows already ticking inside it.
+ *
+ * Named and tested rather than inlined because it went wrong twice — the second
+ * time as a commit message describing a fix the diff did not contain.
+ */
+export function replaceKeepingLayers(
+  host: Element,
+  ...children: Array<Node | string>
+): void {
+  const keep = [...host.querySelectorAll(':scope > [data-w3d-dom-layer]')]
+  host.replaceChildren(...children, ...keep)
+}
+
 export function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[] {
   return meshes.filter(
     (mesh) => (mesh as BABYLON.Mesh).geometry != null

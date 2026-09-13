@@ -12,26 +12,6 @@ LOGARITHMIC and goes to 200,000 on purpose: the first version stopped at 4000
 and the answer came back "flat, 18ms at any number", which is what you measure
 when the load never bends anything and vsync is doing the talking.
 
-⚠️ **No GPU timer in Safari.** WebKit has never shipped
-`EXT_disjoint_timer_query` — it is a timing-attack surface — so the GPU line
-reads `—` there and no amount of asking will change it. Chrome gives it to you.
-Where it is missing the only reading available is the wall clock, which means
-the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
-you that you fitted and nothing else. That is often enough (200,000 figures at
-33ms is a real measurement) and it is worth knowing the floor is blind.
-
-⚠️ **`wall` is not a cost.** It is the gap between frames, and with vsync on it
-reads ~16.7ms however little work you do. A flat 18ms means "we never missed a
-frame" — excellent news, and no information about the crowd. `GPU` is the
-number: `EXT_disjoint_timer_query` asking the hardware how long it actually
-took. Where the extension is missing it says so rather than reporting zero.
-
-The reading is in the **Perf Stats panel** under **Crowd** — figures, draw
-calls, this frame, the worst since you last moved the slider, and the budget it
-is being judged against. `reset worst` is a button because in a headset there is
-no console to clear, and because the worst you care about is the worst since the
-last thing you changed.
-
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
@@ -158,6 +138,28 @@ preview.append(scene)
 ```css
 .preview { height: 100%; }
 ```
+
+### Reading it
+
+The reading is in the **Perf Stats panel** under **Crowd** — figures, draw
+calls, this frame, the worst since you last moved the slider, and the budget it
+is being judged against. `reset worst` is a button because in a headset there is
+no console to clear, and because the worst you care about is the worst since the
+last thing you changed.
+
+⚠️ **`wall` is not a cost.** It is the gap between frames, and with vsync on it
+reads ~16.7ms however little work you do. A flat 18ms means "we never missed a
+frame" — excellent news, and no information about the crowd. `GPU` is the
+number: `EXT_disjoint_timer_query` asking the hardware how long it actually
+took. Where the extension is missing it says so rather than reporting zero.
+
+⚠️ **No GPU timer in Safari.** WebKit has never shipped
+`EXT_disjoint_timer_query` — it is a timing-attack surface — so the GPU line
+reads `—` there and no amount of asking will change it. Chrome gives it to you.
+Where it is missing the only reading available is the wall clock, which means
+the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
+you that you fitted and nothing else. That is often enough (200,000 figures at
+33ms is a real measurement) and it is worth knowing the floor is blind.
 
 ## Does it actually work?
 
