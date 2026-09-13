@@ -1045,3 +1045,57 @@ same format machinery" is a question worth asking rather than an obvious no.
 - The reusable-parts problem is a registry plus a serialisation format over the
   factories we have — and if that format exists, an editor that emits interfaces
   follows from it, rather than the other way round.
+
+## Extra information goes in a POPUP, never in more rows
+
+2026-09-13. Tonio, on the panel's debug toggles: *"Having one of these info
+panels push out the panel layout is a bad experience."* And, on why it had ended
+up that way: *"It should be super easy to make popups so that it's the low
+friction way of presenting additional information."*
+
+The second sentence is the diagnosis. Nothing about the old design was a
+decision — `showLayer` had existed for months, it takes widgets directly, it is
+unbounded and it behaves identically flat and in a headset. But it was reachable
+only from INSIDE a widget and it wanted an anchor, while adding rows was a
+one-liner. **Friction picked the design.** So the fix is not "use popups more",
+it is `panel.popup({ title }, ...widgets)` — one call, with a Close button and a
+height cap supplied, because otherwise every caller writes the same two lines
+and one of them forgets.
+
+### The rule
+
+> **A control belongs in the panel. Information about what the control did
+> belongs in a popup.**
+
+A panel that changes height when you press something moves every other control
+you were about to use — and if the thing you are inspecting is performance, it
+moves the thing you are measuring while you measure it.
+
+### The sweep, and what it found
+
+Swept `widgets3d` for the signature — a `layout()` whose height depends on
+state:
+
+| | |
+| --- | --- |
+| debug tools | **was the case.** Now popups |
+| `keyboard` | already `showLayer`, and the original reason it exists |
+| `select3d`, `menu3d` | already popups |
+| `textBlock3d` | height follows its line COUNT, which is real — but it now lives inside a popup, so it reflows that and nothing else |
+| everything else | fixed height, or derived from content that does not toggle |
+
+So there was exactly one offender, which is worth recording precisely: the value
+of this change is mostly in the RULE and in the one-call API, not in a pile of
+conversions. The next info panel is the one it saves.
+
+### What a popup still owes you
+
+- **A way out that is always reachable.** The first version put Close at the
+  bottom of an uncapped popup, which ran off the page and took the exit with it.
+  `maxHeight` defaults to the panel's height so a long readout scrolls.
+- **Not to lie about being open.** Drive the popup from the same state the
+  button's lit appearance reads, or a dismissal from outside leaves an icon
+  claiming something is open. `_syncDebugPopups` opens and closes against
+  `_debugOpen` for exactly this reason.
+- **To die with its opener.** A repaint replaces the panel's SVG and the layer
+  goes with it; handles held across that point at detached DOM.
