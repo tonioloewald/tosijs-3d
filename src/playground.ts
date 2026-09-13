@@ -53,8 +53,13 @@ railing with the wall beside it.
 ```js
 import { assetUrl, b3d, b3dBiped, b3dLauncher, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 
+// NEGATIVE x is his RIGHT. Facing -Z with +Y up, a character's right hand is at
+// -X — so +0.28 hung the gun off his left shoulder, which is exactly how it
+// read: "is the gun a big rectangular block stuck to my left shoulder?"
+// (It is still the launcher's placeholder box. A real weapon wants a hand
+// socket rather than a fixed offset — see TODO.)
 const gun = b3dLauncher({
-  x: 0.28, y: 1.25, z: 0.15,
+  x: -0.28, y: 1.25, z: 0.15,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
@@ -86,7 +91,11 @@ preview.append(
       // The glass pad shows only what this demo USES — and these are control
       // names, not a mapping name: `gamepad: 'biped'` named nothing, parsed to
       // nothing, and drew nothing. Move, aim, shoot, jump, sneak, sprint.
-      gamepad: 'left_stick,right_stick,B,right_bumper,left_bumper,right_trigger',
+      // `Y` is the CAMERA TOGGLE, and leaving it off meant first person existed
+      // and could not be reached: `bipedMapping` reads `view` as
+      // `max(pad.view, pad.buttonY)`, and the pad showed neither.
+      gamepad:
+        'left_stick,right_stick,B,Y,right_bumper,left_bumper,right_trigger',
     },
     ...playground(),
     inputFocus(hero)

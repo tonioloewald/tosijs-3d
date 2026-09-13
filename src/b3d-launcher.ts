@@ -1042,6 +1042,47 @@ export class B3dLauncher extends AbstractMesh {
     this.mesh.parent = node
   }
 
+  /**
+   * The node the launcher RIDES ON, if it is mounted on something.
+   *
+   * Cached, because it is asked for on every shot and the answer only changes
+   * when the launcher is re-parented — which `_rideHolder` does once.
+   */
+  private _mountRoot(): BABYLON.TransformNode | null {
+    if (this._mount !== undefined) return this._mount
+    const holder = semanticParent(this) as unknown as {
+      entries?: { rootNodes?: BABYLON.TransformNode[] }
+      mesh?: BABYLON.TransformNode
+    } | null
+    this._mount = holder?.entries?.rootNodes?.[0] ?? holder?.mesh ?? null
+    return this._mount
+  }
+  private _mount: BABYLON.TransformNode | null | undefined = undefined
+
+  /**
+   * Geometry a round must not detonate on: our own barrel, and WHOEVER IS
+   * HOLDING US.
+   *
+   * The barrel alone was not enough, and the way it failed is worth recording
+   * because it does not look like a collision bug. A biped fires from
+   * `aimOrigin`, which is 0.35m in front of the body — and the body's collision
+   * ellipsoid has a radius of 0.75. So every round spawned INSIDE the shooter,
+   * hit him on its first swept step, and detonated. Tonio: "I don't seem to be
+   * able to aim, just cause explosions in front of me." Nothing was wrong with
+   * the aiming; the round never got out of the man.
+   *
+   * Moving the muzzle further forward would be the wrong fix — it would make
+   * the number bigger until a wider character or a crouch broke it again, and
+   * it would put the muzzle through a wall the shooter is standing against.
+   * Whoever holds the gun is not a target for it, at any distance.
+   */
+  private _selfHit(m: BABYLON.AbstractMesh): boolean {
+    if (m === this.mesh) return true
+    const root = this._mountRoot()
+    if (root == null) return false
+    return (m as unknown as BABYLON.TransformNode) === root || m.isDescendantOf(root)
+  }
+
   /** World-space muzzle point (barrel tip, in front of the launcher). */
   muzzle(): BABYLON.Vector3 {
     // A rigged `_muzzle` node IS the answer — no offset guessing, and it
@@ -1084,7 +1125,8 @@ export class B3dLauncher extends AbstractMesh {
       color: this.projColor,
       maxLifetime: this.maxLifetime,
       useLos: !isOff(this.los),
-      ignore: (m) => m === this.mesh, // never detonate on our own barrel
+      // Our own barrel AND whoever is holding us — see `_selfHit`.
+      ignore: (m) => this._selfHit(m),
     })
     return true
   }
@@ -1109,6 +1151,7 @@ export class B3dLauncher extends AbstractMesh {
       radius: this.projRadius,
       maxLifetime: this.maxLifetime + 4, // missiles loiter a bit longer
       useLos: !isOff(this.los),
+      ignore: (m) => this._selfHit(m),
     })
     return true
   }

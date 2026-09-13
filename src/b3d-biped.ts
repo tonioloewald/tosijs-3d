@@ -81,9 +81,11 @@ import { tosi } from 'tosijs'
 const demo = tosi({ shootDemo: { free: 45, rate: 6 } })
 const s = demo.shootDemo
 
-// Nested, so `x`/`y`/`z` are where it rides ON HIM — hip height, right side.
+// Nested, so `x`/`y`/`z` are where it rides ON HIM. NEGATIVE x is his right:
+// facing -Z with +Y up, a character's right hand is at -X, and the positive
+// value hung it off his left shoulder.
 const gun = b3dLauncher({
-  x: 0.28, y: 1.25, z: 0.15,
+  x: -0.28, y: 1.25, z: 0.15,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
@@ -114,7 +116,7 @@ preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
-      gamepad: 'left_stick,right_stick,B',
+      gamepad: 'left_stick,right_stick,B,Y', // Y toggles first person
       scenePanel: () => [
         label3d({ text: 'Aim & shoot' }),
         slider3d({
