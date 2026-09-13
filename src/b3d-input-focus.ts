@@ -42,7 +42,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { B3dControllable } from './b3d-controllable.js'
-import type { GameController } from './game-controller.js'
+import { gameController, type GameController } from './game-controller.js'
 import {
   MappedInputProvider,
   bipedMapping,
@@ -72,13 +72,32 @@ export class B3dInputFocus extends B3dChild {
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
     this.owner = owner
 
-    // Find the GameController child
-    const gcEl = this.querySelector('tosi-game-controller')
-    if (gcEl) {
-      this.gameController = gcEl as unknown as GameController
-      this.inputMappedProvider =
-        this.gameController.getInputProvider(bipedMapping)
+    /*
+    A GameController, WHETHER OR NOT ANYONE SUPPLIED ONE.
+
+    Without a provider `focusEntity` is never called, the player entity never
+    gets an `inputProvider`, and nothing responds to anything — no keyboard, no
+    hardware pad, and no glass pad, because the glass pad is a SOURCE added to
+    this provider rather than an input path of its own. The element looked
+    entirely correct: the biped was found, `player` was true, the pad was
+    mounted and drawn, and `focusedEntity` was quietly null.
+
+    That is what "it doesn't seem to be wired up at all" was, and it had already
+    shipped in two demos written as `inputFocus(hero)`, which is the obvious
+    spelling and the one a reader will copy. There is no configuration where an
+    input manager with no input source is what someone meant, so the default is
+    to build one rather than to do nothing.
+    */
+    let gcEl = this.querySelector('tosi-game-controller')
+    if (gcEl == null) {
+      gcEl = gameController()
+      // Appended to the element itself, not through a slot: this is plumbing
+      // the author did not ask for and should not have to see among their
+      // children. Same shape as `b3d`'s own `_setupGamepad`.
+      this.append(gcEl)
     }
+    this.gameController = gcEl as unknown as GameController
+    this.inputMappedProvider = this.gameController.getInputProvider(bipedMapping)
 
     // Defer discovery to ensure all children have completed sceneReady
     // (inputFocus is notified before its children in document order)
