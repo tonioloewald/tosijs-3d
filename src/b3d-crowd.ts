@@ -513,6 +513,86 @@ The seam between them is the piece to design rather than discover: a figure
 promoted out of a crowd (a champion stepping forward) or demoted into one has to
 cross it, and nothing does that today.
 
+## Crossing the seam: promotion, and the zombie horde it buys
+
+Tonio: *"demonstrate being able to switch a crowd mesh for a skinned mesh
+seamlessly... 10,000 shambling zombies in the distance but when they get close
+they swap to skinned meshes that can attack and die."*
+
+That is the seam above, with a use case attached, and it is the thing that makes
+the two paths one system instead of two. It is also closer than it sounds,
+because the crowd already knows everything the swap needs.
+
+**The pose handoff is already solved, by accident.** A figure's `vatState` is
+`(clipStart, clipFrames, phaseOffset, cyclesPerSecond)` — which is to say the
+crowd can state, exactly, which clip a given figure is playing and how far
+through it is. Promotion is therefore: read that phase, start the skinned rig's
+`AnimationGroup` on the same clip at the same normalised time, and hide the
+instance. No blend, no cross-fade, no snap — the two are in the same pose at the
+same instant because the number that says so is right there. The hard part of a
+LOD swap is usually reconstructing that state; here it was never lost.
+
+**Promote by BUDGET, never by radius.** ~50 skinned rigs is the measured ceiling
+(above), so a distance threshold is the wrong control: walk into a dense part of
+the crowd and a fixed radius promotes two hundred figures and the frame dies —
+the cost would depend on how the player moves rather than on what was budgeted.
+Promote the N nearest instead, so the bill is fixed and the *radius* is what
+varies. Same argument `ambient-budget` already makes for motes: compete for one
+pool, and switch things off rather than thinning them.
+
+With hysteresis at the boundary, for the reason `isSwimming` and `inShelter`
+have it — the figure that sits exactly at the budget edge will otherwise promote
+and demote every frame, which is the most expensive possible thing to do with it.
+
+**Demotion is the asymmetric half, and death is why.** Going up in fidelity is
+free to look at: the VAT bake samples at `bakeFps` (10 in the bench), so a
+promoted figure moves from 10fps sampled animation to real skinning, and nobody
+ever notices an improvement. Going back down can pop, so demote at a distance
+where 10fps reads as smooth anyway.
+
+The real trap is state the crowd cannot represent. A zombie that dies while
+skinned must not walk back into the horde when it demotes — so either demotion
+is REFUSED for a figure in a terminal state (it stays skinned, or becomes static
+wreckage via `prefab`), or the bake carries a corpse clip and a dead figure
+demotes into it. The second is cheaper and scales; the first is simpler and is
+probably right for the handful of bodies near the player. Both are fine; picking
+neither is what produces resurrecting zombies.
+
+**What it is worth.** Ten thousand figures of menace for one draw call, and a
+dozen of them — the ones you can actually reach — with collision, damage, a
+sensorium and a death. That is the north star's own argument (*agents and
+reactions, not vertices*) with the vertex bill finally itemised: the crowd is
+scenery until it is close enough to matter, and the budget goes to the ones that
+do.
+
+## A stadium, which needs almost none of the above
+
+Tonio: *"we could animate the entire crowd in a superbowl game — an animated
+stadium would be a cool demo."*
+
+Worth calling out separately, because a stadium crowd is a genuinely different
+SHAPE from a battle and it is the easier of the two by a wide margin:
+
+- **Nobody is promoted.** There is no seam to cross, no collision, no AI, no
+  death — a spectator is scenery that moves, which is exactly what this
+  substrate is. So it exercises the crowd at full size with none of the
+  machinery above.
+- **Placement is a lattice, not a scatter.** Seats are a generated bowl — tier,
+  row, seat — so the instance buffer is a loop rather than a distribution, and
+  every figure's position carries its bearing around the bowl for free.
+- **The clip set is small and seated.** Sit, clap, stand-and-cheer, wave. Four,
+  maybe five, and all of them short.
+- **And the interesting behaviour is CORRELATED, which is the part that is free.**
+  A Mexican wave is `phaseOffset` as a function of seat bearing. That is one
+  multiply in the buffer the crowd already fills — a stadium wave needs no new
+  capability at all. A section reacting to a play is the same trick on clip
+  choice instead of phase.
+
+It is also the one crowd whose real-world number is not a guess: about **70,000**
+people, which sits comfortably between the two figures this bench has measured.
+The rendering answer is already known, in other words — what the demo would show
+is the *authoring*, which is the part nobody has tried.
+
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
 Tonio: *"I imagine things like collision detection and so on could vastly

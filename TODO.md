@@ -4895,3 +4895,28 @@ would NOT scale here and isn't the tool; needed capabilities:
   activation — the behavioural richness the whole framework is pointed at (AI-DESIGN.md).
 
 This is arguably the ideal north-star showcase: spend nothing on vertices, everything on agents.
+
+## Crowd ↔ skinned promotion, and the demos it unlocks (Tonio, 2026-09-13)
+
+Design written up in `b3d-crowd.ts` → "Crossing the seam" and "A stadium". Both came
+from Tonio while testing; neither is started.
+
+- [ ] **Promote/demote between the crowd and a skinned rig.** *"10,000 shambling zombies in
+      the distance but when they get close they swap to skinned meshes that can attack and
+      die."* The pose handoff is already solved — `vatState` carries `(clipStart, clipFrames,
+      phaseOffset, cyclesPerSecond)`, so the skinned `AnimationGroup` can start on the same
+      clip at the same normalised time and the swap has nothing to blend. What has to be
+      designed is the POLICY: promote the N nearest (a budget, ~50 measured; never a radius,
+      or a dense crowd decides the frame time), hysteresis at the boundary, and a rule for
+      terminal state so a zombie that dies while skinned does not walk back into the horde
+      when it demotes (corpse clip in the bake, or refuse demotion and hand it to `prefab`).
+- [ ] **POV zombie horde demo**, which is what the above is for and was already wanted
+      (see the shooting thread). Gated on promotion, not on shooting.
+- [ ] **Animated stadium demo.** *"We could animate the entire crowd in a superbowl game."*
+      Needs NO promotion, no AI and no collision — a spectator is scenery that moves. Seats
+      are a generated bowl, the clip set is four seated clips, and a Mexican wave is
+      `phaseOffset` as a function of seat bearing, which is one multiply in a buffer the
+      crowd already fills. ~70,000 figures is the real-world number and sits between the two
+      this bench has measured, so the rendering answer is known — the demo would be about
+      the AUTHORING, which nobody has tried. Cheapest of the three by a wide margin, and the
+      best showcase per hour.
