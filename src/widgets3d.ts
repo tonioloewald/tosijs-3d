@@ -1181,6 +1181,13 @@ export function button3d(config: {
       btnWidth = width
       bg.setAttribute('width', String(width))
       lbl.setAttribute('x', String(width / 2))
+      // Centred text overflows BOTH ends, so it escapes the button on the left
+      // as well — the one case where a caption spills outside its own control.
+      lbl.textContent = ellipsize(
+        config.label,
+        width - TH.PAD_X * 2,
+        TH.TEXT_FONT
+      )
       return TH.ROW
     },
     handle(kind) {
@@ -1463,6 +1470,13 @@ export function toggle3d(config: {
       rowBg.setAttribute('width', String(width))
       trackX = width - trackW - TH.PAD_X
       track.setAttribute('x', String(trackX))
+      // Up to the switch, not to the panel edge: an untruncated label ran
+      // straight under it and out the other side.
+      lbl.textContent = ellipsize(
+        config.label ?? '',
+        trackX - TH.PAD_X - 8,
+        TH.TEXT_FONT
+      )
       reflect()
       return TH.ROW
     },
@@ -1965,6 +1979,15 @@ export function select3d(config: {
       const caretX = width - TH.PAD_X - CARET
       caret.setAttribute('transform', `translate(${caretX} ${TH.ROW / 2 - 7})`)
       val.setAttribute('x', String(caretX - 8))
+      // The value cluster wins the right-hand side, so the caption takes what
+      // is left of the row rather than printing through it.
+      if (lbl) {
+        lbl.textContent = ellipsize(
+          config.label ?? '',
+          clusterX - TH.PAD_X - 8,
+          TH.TEXT_FONT
+        )
+      }
       reflect()
       return TH.ROW
     },
@@ -2173,10 +2196,17 @@ export function spinner3d(
       ring.setAttribute('cx', String(cx))
       ring.setAttribute('cy', String(cy))
       if (lbl) {
-        lbl.setAttribute('x', String(TH.PAD_X + size + 8))
+        const x = TH.PAD_X + size + 8
+        lbl.setAttribute('x', String(x))
         lbl.setAttribute('y', String(cy))
+        // `void width` was here: the width was received and deliberately
+        // dropped, so a long "loading…" line ran off the panel.
+        lbl.textContent = ellipsize(
+          config.label ?? '',
+          width - x - TH.PAD_X,
+          TH.TEXT_FONT
+        )
       }
-      void width
       return TH.ROW
     },
     // Not interactive: a spinner reports, it does not respond. Returning false
@@ -2246,6 +2276,13 @@ export function progress3d(
       if (lbl) {
         lbl.setAttribute('x', String(TH.PAD_X))
         lbl.setAttribute('y', String(TH.ROW / 2))
+        // It already yields width to the bar; now it says so rather than
+        // printing across it.
+        lbl.textContent = ellipsize(
+          config.label ?? '',
+          labelW - 8,
+          TH.TEXT_FONT
+        )
       }
       if (pct) {
         pct.setAttribute('x', String(trackX + trackW + 8))
