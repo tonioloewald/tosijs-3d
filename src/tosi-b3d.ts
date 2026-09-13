@@ -484,6 +484,12 @@ const noopRefresh = () => {}
 type FogContributor = () => FogLayer | null
 
 /** One debug source's live <text> nodes, so the panel can update without rebuilding. */
+/** What `panel3d` hangs on its root for one-call popups — see widgets3d. */
+type PanelPopup = (
+  config: { title?: string; width?: number; handleClose?: () => void },
+  ...items: Widget3d[]
+) => { close: () => void }
+
 type LiveDebugRow = {
   /** Push the source's current lines into its text block (re-wraps at the last width). */
   update: (lines: string[]) => void
@@ -2649,6 +2655,95 @@ export class B3d extends Component {
     return out
   }
 
+  /** Popups currently open, by tool id — see `_syncDebugPopups`. */
+  private _debugPopups = new Map<string, { close: () => void }>()
+
+  /**
+   * The live flat panel's SVG, if the panel is open.
+   *
+   * Not held on a field, because the panel is REBUILT on every structural
+   * change — a stored reference would be a handle to a detached element, which
+   * is the same class of bug as the orphaned observers in `B3dChild`. Asking
+   * the host each time cannot go stale.
+   */
+  private _livePanelEl(): { popup?: PanelPopup } | null {
+    const host = this.parts?.scenePanelHost as HTMLElement | undefined
+    if (host == null || host.hasAttribute('hidden')) return null
+    /*
+    `:scope > svg`, not `svg`. The panel host also contains the header BUTTONS,
+    each of which is an svg icon, so a plain descendant query returns the first
+    icon — an element with no `popup` on it and a 24-unit viewBox, which is
+    exactly what it looked like: a panel that reported being 24 tall and
+    silently refused to open anything.
+    */
+    return host.querySelector(':scope > svg') as unknown as {
+      popup?: PanelPopup
+    } | null
+  }
+
+  /**
+   * Open and close debug popups so they match `_debugOpen`.
+   *
+   * Driven from the SET rather than from the click, so the icon's active state
+   * and the popup cannot drift apart — including when a popup is dismissed from
+   * outside, which clears the flag on its way out.
+   *
+   * `afterRebuild` matters: a repaint replaces the panel's SVG, and the popup
+   * layers go with it. The handles left behind point at detached DOM, so they
+   * are dropped rather than closed — calling `close` on a dead layer is a
+   * no-op at best and an exception at worst.
+   */
+  private _syncDebugPopups(afterRebuild = false): void {
+    if (afterRebuild) this._debugPopups.clear()
+    else {
+      for (const [id, handle] of [...this._debugPopups]) {
+        if (this._debugOpen.has(id)) continue
+        handle.close()
+        this._debugPopups.delete(id)
+      }
+    }
+    const panel = this._livePanelEl()
+    if (panel?.popup == null) return
+    for (const t of this._debugTools()) {
+      if (!this._debugOpen.has(t.id) || this._debugPopups.has(t.id)) continue
+      const bucket: LiveDebugRow[] = []
+      let rows: Widget3d[] = []
+      if (t.id === '__perf') rows = this._perfReadoutRows()
+      else {
+        const src = this._debugSources.find((x) => x.name === t.id)
+        if (src) rows = this._sourceRows(src, bucket)
+      }
+      /*
+      REGISTER THE LIVE BUCKET or the readout freezes the moment it opens —
+      which is the failure the inline version's own comment already named: "a
+      readout that only refreshes on reopen is useless — you'd switch a profiler
+      on and then watch frozen zeros".
+      */
+      this._liveDebug.flat = [...this._liveDebug.flat, ...bucket]
+      this._startLiveDebug()
+      this._debugPopups.set(
+        t.id,
+        panel.popup(
+          {
+            /*
+            NO TITLE HERE. Both row builders already emit their own heading —
+            `_sourceRows` opens with the source's name and `_perfReadoutRows`
+            with its own labels — so passing one produced "Crowd" twice, one
+            above the other, which is what it looked like.
+            */
+            handleClose: () => {
+              // Dismissed from outside: clear the flag so the icon un-lights.
+              this._debugOpen.delete(t.id)
+              this._debugPopups.delete(t.id)
+              this._repaintPanels()
+            },
+          },
+          ...rows
+        )
+      )
+    }
+  }
+
   private _debugTools(): Array<{ id: string; name: string; icon: string }> {
     const tools: Array<{ id: string; name: string; icon: string }> = []
     if (perfDebugEnabled() || this.stats) {
@@ -2797,6 +2892,7 @@ export class B3d extends Component {
           if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
           else this._debugOpen.add(t.id)
           this._repaintPanels()
+          this._syncDebugPopups(true)
         },
       })),
       // Gadgets last: diagnostics are the bar's main job, and a toggle moving
@@ -2849,7 +2945,6 @@ export class B3d extends Component {
     const key = xr ? 'xr' : 'flat'
     this._disposeWidgets(key)
     const rows = this.scenePanel(this)
-    const tools = this._debugTools()
     const items = this._barItems()
     if (items.length === 0) {
       // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
@@ -2857,28 +2952,26 @@ export class B3d extends Component {
       this._builtWidgets[key] = rows
       return rows
     }
-    // NEITHER presentation gets its bar from here any more: flat renders the
-    // items as header buttons, XR builds an iconBar3d that also carries Exit VR
-    // and Re-seat. This returns the readouts and the author's rows only, so
-    // there is exactly one place each bar is assembled.
-    const out: Widget3d[] = []
-    // Live text blocks for the OPEN sources are collected here and rewritten in place by
-    // `_startLiveDebug` (a readout that only refreshes on reopen is useless — you'd switch
-    // a profiler on and then watch frozen zeros). Collapsed tools contribute nothing.
-    const bucket: LiveDebugRow[] = []
-    for (const t of tools) {
-      if (!this._debugOpen.has(t.id)) continue
-      if (t.id === '__perf') out.push(...this._perfReadoutRows())
-      else {
-        const src = this._debugSources.find((s) => s.name === t.id)
-        if (src) out.push(...this._sourceRows(src, bucket))
-      }
-    }
-    this._liveDebug[key] = bucket
-    this._startLiveDebug()
-    const all = [...out, ...rows]
-    this._builtWidgets[key] = all
-    return all
+    /*
+    THE PANEL CARRIES THE AUTHOR'S ROWS AND NOTHING ELSE.
+
+    Neither presentation gets its bar from here — flat renders the items as
+    header buttons, XR builds an `iconBar3d` that also carries Exit VR and
+    Re-seat — and as of now neither gets the DEBUG READOUTS from here either.
+
+    DEBUG TOOLS ARE POPUPS, not rows.
+
+    They used to be spliced in above the author's controls, so switching a
+    diagnostic on shoved the whole panel down and changed its height — and the
+    thing you were measuring moved while you measured it. Tonio: "Having one of
+    these info panels push out the panel layout is a bad experience."
+
+    The state still lives in `_debugOpen`; what changed is where the rows are
+    rendered. `_syncDebugPopups` opens and closes them against that set, so the
+    icon bar's active state and the popup cannot disagree.
+    */
+    this._builtWidgets[key] = rows
+    return rows
   }
 
   // window.requestAnimationFrame stops firing during an immersive XR session (the
@@ -4431,6 +4524,9 @@ export class B3d extends Component {
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
     // Debug tools collapse again on next open — kept out of the way by default.
     this._debugOpen.clear()
+    // …and their popups go with the panel that opened them.
+    for (const h of this._debugPopups.values()) h.close()
+    this._debugPopups.clear()
   }
 
   /** Rebuild the flat scene panel from the current rows, if it's open.

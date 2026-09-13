@@ -3250,6 +3250,69 @@ export function panel3d(
     )
   }
 
+  /*
+  A POPUP IN ONE CALL, because the friction was the whole problem.
+
+  Everything needed already existed — `hostFor(i).showLayer` opens widgets in a
+  real layer above the panel, unbounded, identically flat and in a headset — but
+  it was reachable only from INSIDE a widget, and it wanted an anchor. So the
+  cheap way to show a bit of extra information stayed "add some rows", and rows
+  push the panel around.
+
+  Tonio: *"It should be super easy to make popups so that it's the low friction
+  way of presenting additional information."* And the reason it matters:
+  *"Having one of these info panels push out the panel layout is a bad
+  experience."*
+
+  So: `panel.popup({ title }, ...widgets)`. A title row and a Close button are
+  supplied, because a popup without a way out is a trap and every caller would
+  otherwise write the same two lines.
+  */
+  ;(
+    root as unknown as {
+      popup: (
+        config: {
+          title?: string
+          width?: number
+          maxHeight?: number
+          handleClose?: () => void
+        },
+        ...items: Widget3d[]
+      ) => { close: () => void }
+    }
+  ).popup = (config, ...items) => {
+    const host = hostFor(0)
+    let handle: { close: () => void } | null = null
+    const close = () => handle?.close()
+    const rows: Widget3d[] = []
+    if (config.title != null)
+      rows.push(label3d({ text: config.title, bold: true }))
+    rows.push(...items)
+    rows.push(button3d({ label: 'Close', handleClick: close }))
+    handle = host.showLayer(
+      {
+        // Anchored to the panel's top edge rather than to a widget, because
+        // nothing here is a widget: this is the PANEL showing something.
+        anchor: { x: 0, y: 0, width: config.width ?? width, height: 0 },
+        side: 'below',
+        width: config.width,
+        /*
+        CAPPED, so it SCROLLS rather than overflowing.
+
+        Uncapped, a debug readout came out 572 units tall in a 360-unit demo
+        and ran off the bottom of the page — taking its own Close button with
+        it. A popup whose only exit is below the fold is a trap, and the fact
+        that an outside press also dismisses it is not something a first-time
+        user knows.
+        */
+        maxHeight: config.maxHeight ?? host.bounds.height,
+        handleClose: config.handleClose,
+      },
+      ...rows
+    )
+    return { close }
+  }
+
   // Exposed so an in-scene/VR host can feed picks (UV → viewBox coords) without
   // any DOM events — the whole point of staying coordinate-based.
   ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer =
