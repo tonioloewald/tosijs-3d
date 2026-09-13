@@ -326,7 +326,15 @@ export interface InputMappingDescriptor {
 
 // --- Built-in mapping presets ---
 
-export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
+/**
+ * @param gunplay Weapon raised. The right trigger changes job across this line
+ * and nothing else does — see the block comment below.
+ */
+export function bipedMapping(
+  pad: VirtualGamepad,
+  _dt: number,
+  gunplay = false
+): ControlInput {
   const input = emptyInput()
   /*
   GTA V LAYOUT: the left stick MOVES, the right stick TURNS.
@@ -342,11 +350,41 @@ export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   input.forward = pad.leftStickY
   input.strafe = pad.leftStickX
   input.turn = pad.rightStickX
-  // Right trigger, not left bumper: movement is the LEFT stick, so a left-hand
-  // sprint modifier fights the left thumb. Right trigger frees that up.
-  input.sprint = pad.rightTrigger
   input.interact = pad.buttonX
-  input.shoot = pad.buttonB
+  /*
+  THE RIGHT TRIGGER CHANGES JOB WITH THE WEAPON, and nothing else does.
+
+  Tonio: *"Why not right trigger to shoot? I should be able to toggle between
+  walking and gunplay mode, and be aiming when I am in gunplay."* Right on both
+  counts, and the mode is what makes the mapping possible rather than a fight
+  over one button.
+
+  The trigger used to sprint permanently, with a real argument behind it:
+  movement is the left stick, so a left-hand sprint modifier fights the left
+  thumb. That argument still holds — which is why sprint stays on the right
+  trigger for the half of the game where you are not shooting. GTA V's own
+  resolution, and the reason it needs no displaced control: you cannot sprint
+  while aiming a weapon anyway, so the two never want the trigger at once.
+
+  Weapon raised: right trigger FIRES, left trigger aims down the sights, and
+  sprint is unavailable. Weapon down: right trigger sprints and the gun does
+  nothing. `buttonB` stays a fire alias so a pad without usable triggers — and
+  the glass pad, where a trigger is a poor touch target — can still shoot.
+  */
+  if (gunplay) {
+    input.shoot = Math.max(pad.rightTrigger, pad.buttonB)
+    input.aim = pad.leftTrigger
+  } else {
+    input.sprint = pad.rightTrigger
+  }
+  /*
+  RAISE AND LOWER on A, which is the one face button the biped left unused.
+
+  It does not jump — that was Tonio's call and it is why the button was free —
+  so the key everyone presses expecting something now does something, and the
+  thing it does is the mode this whole mapping turns on.
+  */
+  input.weapon = pad.buttonA
   /*
   Right stick Y is PITCH — the camera's, and while swimming the body's. There is
   no separate camera yaw, because X turns the body and the camera follows it, so
@@ -387,9 +425,13 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     rightStickX: 'turn',
     rightBumper: 'jump',
     leftBumper: 'sneak',
-    rightTrigger: 'sprint',
+    // The trigger's label is mode-dependent and a descriptor is not, so it
+    // names both rather than picking the half that happens to be true now.
+    rightTrigger: 'sprint / fire',
+    leftTrigger: 'aim',
+    buttonA: 'weapon',
     buttonX: 'interact',
-    buttonB: 'shoot',
+    buttonB: 'fire',
     rightStickY: 'pitch',
     dpadUp: 'zoom',
   },

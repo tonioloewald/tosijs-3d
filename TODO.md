@@ -4926,3 +4926,13 @@ queued — Tonio: *"That and the stadium are TODO / ideas."*
       ~70,000 figures is the real-world number and sits between the two this bench has
       measured, so the rendering answer is already known — the demo would be about the
       AUTHORING, which nobody has tried. Cheapest of the four and the best showcase per hour.
+
+## A weapon that looks like a weapon (Tonio, 2026-09-13)
+
+- [ ] **Hand sockets, and a weapon model to hang off one.** The biped's gun is still
+      `b3d-launcher`'s placeholder box, parented to the ROOT at a fixed offset — Tonio:
+      *"is the gun a big rectangular block stuck to my left shoulder?"* The side and the
+      z-offset are fixed, so it now sits in front of his right hip instead of through it,
+      but a fixed offset is the ceiling of that approach: it cannot follow the hand, so it
+      cannot follow a reload, a climb or a crouch. What it wants is the socket work already
+      listed above plus one rifle asset. Until then the demos are honest placeholders.

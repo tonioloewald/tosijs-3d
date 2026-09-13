@@ -3628,6 +3628,11 @@
         "description": "Aim down sights"
       },
       {
+        "name": "weapon",
+        "default": "0..1",
+        "description": "Raise/lower the weapon — edge-detected by consumers, so it TOGGLES"
+      },
+      {
         "name": "cameraZoom",
         "default": "-1..1",
         "description": "Camera zoom"

@@ -32,6 +32,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 | `sprint` | 0..1 | Sprint modifier |
 | `interact` | 0..1 | Enter vehicle / pick up / use |
 | `aim` | 0..1 | Aim down sights |
+| `weapon` | 0..1 | Raise/lower the weapon — edge-detected by consumers, so it TOGGLES |
 | `cameraZoom` | -1..1 | Camera zoom |
 | `sneak` | 0\|1 | Sneak toggle |
 
@@ -69,6 +70,15 @@ export interface ControlInput {
   sprint: number // 0..1
   interact: number // 0..1 (enter vehicle / pick up / use)
   aim: number // 0..1
+  /**
+   * Raise or lower the weapon — a TOGGLE, edge-detected by whoever consumes it.
+   *
+   * Separate from `aim` because they are different questions: `aim` is "look
+   * down the sights right now" and is held, `weapon` is "am I carrying this
+   * thing ready or not" and persists. A character who has put the gun away is
+   * not aiming, but a character who is not aiming may still be armed.
+   */
+  weapon: number // 0..1
   cameraZoom: number // -1..1 (negative = zoom in, positive = zoom out)
   sneak: number // 0|1
   view: number // 0..1 (cycle camera/view — edge-detected by consumers)
@@ -96,6 +106,7 @@ export function emptyInput(): ControlInput {
     sprint: 0,
     interact: 0,
     aim: 0,
+    weapon: 0,
     cameraZoom: 0,
     sneak: 0,
     view: 0,
@@ -147,6 +158,7 @@ export class CompositeInputProvider implements InputProvider {
       result.sprint = Math.max(result.sprint, input.sprint)
       result.interact = Math.max(result.interact, input.interact)
       result.aim = Math.max(result.aim, input.aim)
+      result.weapon = Math.max(result.weapon, input.weapon)
       result.sneak = Math.max(result.sneak, input.sneak)
       result.view = Math.max(result.view, input.view)
       result.cameraPeek = maxAbs(result.cameraPeek, input.cameraPeek)

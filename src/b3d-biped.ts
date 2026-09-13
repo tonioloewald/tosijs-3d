@@ -85,7 +85,7 @@ const s = demo.shootDemo
 // facing -Z with +Y up, a character's right hand is at -X, and the positive
 // value hung it off his left shoulder.
 const gun = b3dLauncher({
-  x: -0.28, y: 1.25, z: 0.15,
+  x: -0.28, y: 1.15, z: 0.5,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
@@ -226,7 +226,7 @@ document.body.append(
 /*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { XRStuff, collidable, isOff } from './b3d-utils.js'
+import { XRStuff, collidable, isOff, markUiMesh } from './b3d-utils.js'
 import {
   canMantle,
   mantleClip,
@@ -264,6 +264,12 @@ import type { GameController } from './game-controller.js'
 import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { CompositeInputProvider } from './control-input.js'
+import { bipedMapping, type VirtualGamepad } from './virtual-gamepad.js'
+import {
+  predictPath,
+  type BallisticParams,
+  type Vec3,
+} from './ballistics.js'
 import { XRInputProvider } from './xr-input-provider.js'
 
 const DEG_TO_RAD = Math.PI / 180
@@ -691,8 +697,61 @@ export class B3dBiped extends B3dControllable {
    * member here. (Found the hard way, thirty seconds after writing the code
    * above that uses it.)
    */
+  /**
+   * Weapon RAISED — the gunplay half of the two modes.
+   *
+   * Tonio: *"I should be able to toggle between walking and gunplay mode, and
+   * be aiming when I am in gunplay."* So this is one flag with two jobs: it is
+   * what the aim solver keys off, and it is what tells `bipedMapping` whether
+   * the right trigger fires or sprints.
+   *
+   * Toggled, not held — `input.weapon` is edge-detected — so you can walk
+   * around with the gun up without holding a button down, which is the thing a
+   * hold-to-aim scheme cannot do.
+   */
+  gunplay = false
+  private weaponWasPressed = false
+
+  /**
+   * Put the weapon up or down.
+   *
+   * Public because an AI, a cutscene or a pickup all want to do it, and because
+   * a mode a consumer cannot set is a mode they have to fight.
+   */
+  setGunplay(on: boolean): void {
+    this.gunplay = on
+  }
+
+  /**
+   * OUR mapping, so the right trigger can mean two things.
+   *
+   * A closure over `this` rather than a mode passed at wiring time, because
+   * `focusEntity` calls `setMapping` ONCE — a mapping captured then would hold
+   * whichever mode was current at focus and never change. Reading `this.gunplay`
+   * inside the closure means the trigger's meaning follows the weapon.
+   *
+   * A FIELD, not an accessor: the base class declares `inputMapping` as a
+   * property, and TypeScript will not let a subclass override one with a getter
+   * (TS2611). An arrow field binds `this` and reads the mode live, which is all
+   * the getter was for.
+   */
+  inputMapping = (pad: VirtualGamepad, dt: number): ControlInput =>
+    bipedMapping(pad, dt, this.gunplay)
+
+  /**
+   * Aiming right now.
+   *
+   * Gunplay is the answer when the character has a weapon up. `aiming: 'on'`
+   * still forces it for a rig that should always track — a turret operator, a
+   * demo about the aim solver itself — so the attribute became an OVERRIDE
+   * rather than the whole story.
+   *
+   * It used to also return true merely because the character was carrying
+   * something with a `fire` method, which made "armed" and "aiming" the same
+   * fact and left no way to walk with the gun down.
+   */
   private get _isAiming(): boolean {
-    return !isOff((this as any).aiming) || this._weapons().length > 0
+    return this.gunplay || !isOff((this as any).aiming)
   }
 
   /*
@@ -717,6 +776,161 @@ export class B3dBiped extends B3dControllable {
     ) as unknown as Array<{ fire: (...args: any[]) => unknown }>
     return this._weaponCache
   }
+
+  /**
+   * WHERE THE ROUND WILL ACTUALLY LAND — a marker in the world, not a dot on
+   * the screen.
+   *
+   * Tonio: *"I don't seem to be able to aim."* The aiming was working; there
+   * was simply no way to see it. Everything he fired hit the nearest cover and
+   * that was all the feedback there was.
+   *
+   * A world-space marker rather than a screen-centre crosshair, for three
+   * reasons that all point the same way. In third person the camera is not the
+   * gun, so a centre dot is a lie about where the round goes. With drop, it is
+   * a lie even in first person — the point of using `predictPath` is that the
+   * marker sinks as the range grows, which is the whole reason a lobbed weapon
+   * is interesting to aim. And a screen-space overlay does not exist in a
+   * headset, where a thing in the world is exactly what you want.
+   *
+   * Prediction IS simulation here: the same `predictPath` the bomb sight uses,
+   * fed the same `ballisticParams` from the same weapon. A sight that
+   * approximates its own projectile is a sight that lies at the ranges you care
+   * about.
+   */
+  private _reticle: BABYLON.Mesh | null = null
+  private _reticleScratch: { pos: Vec3; vel: Vec3 } = {
+    pos: { x: 0, y: 0, z: 0 },
+    vel: { x: 0, y: 0, z: 0 },
+  }
+
+  private _updateReticle(scene: BABYLON.Scene): void {
+    const show = this.gunplay && this.player
+    if (!show) {
+      if (this._reticle != null) this._reticle.setEnabled(false)
+      return
+    }
+    const weapon = this._weapons()[0] as unknown as {
+      ballisticParams?: BallisticParams
+      muzzleSpeed?: number
+    }
+    if (weapon?.ballisticParams == null) {
+      if (this._reticle != null) this._reticle.setEnabled(false)
+      return
+    }
+    if (this._reticle == null) {
+      /*
+      A TORUS, deliberately: a ring reads as a sight at any distance because
+      you see THROUGH it, where a disc occludes the thing you are aiming at —
+      which is the one thing a sight must never do.
+      */
+      this._reticle = BABYLON.MeshBuilder.CreateTorus(
+        'aim-reticle',
+        { diameter: 0.34, thickness: 0.045, tessellation: 20 },
+        scene
+      )
+      const mat = new BABYLON.StandardMaterial('aim-reticle-mat', scene)
+      mat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.35)
+      mat.disableLighting = true
+      // Drawn over whatever it lands on. A sight occluded by the wall it is
+      // sitting on is a sight you cannot use against cover, which is most of
+      // what this arena is made of.
+      mat.zOffset = -8
+      this._reticle.material = mat
+      this._reticle.isPickable = false
+      this._reticle.doNotSyncBoundingInfo = true
+      markUiMesh(this._reticle)
+    }
+
+    const origin = this.aimOrigin
+    const dir = this.aimDirection
+    const speed = weapon.muzzleSpeed ?? 40
+    const st = this._reticleScratch
+    st.pos.x = origin.x
+    st.pos.y = origin.y
+    st.pos.z = origin.z
+    st.vel.x = dir.x * speed
+    st.vel.y = dir.y * speed
+    st.vel.z = dir.z * speed
+
+    /*
+    The hit test is a RAY PER STEP, not a point-in-solid test, because at 45 m/s
+    and a 40ms step the round covers nearly two metres between samples and would
+    tunnel straight through any wall thinner than that — which is every wall in
+    the playground.
+    */
+    const node = this._rootNode()
+    let prev = { ...st.pos }
+    const { impact, points } = predictPath(st, weapon.ballisticParams, {
+      dt: 1 / 25,
+      maxSteps: 40,
+      hitTest: (pos) => {
+        const dx = pos.x - prev.x
+        const dy = pos.y - prev.y
+        const dz = pos.z - prev.z
+        const len = Math.hypot(dx, dy, dz)
+        prev = { ...pos }
+        if (len <= 0) return false
+        this._aimRay.origin.set(prev.x - dx, prev.y - dy, prev.z - dz)
+        this._aimRay.direction.set(dx / len, dy / len, dz / len)
+        this._aimRay.length = len
+        const hit = scene.pickWithRay(
+          this._aimRay,
+          collidable((m) => m === node || m.isDescendantOf(node!))
+        )
+        if (hit?.hit && hit.pickedPoint != null) {
+          this._aimHit.copyFrom(hit.pickedPoint)
+          this._aimNormal.copyFrom(
+            hit.getNormal(true) ?? BABYLON.Vector3.Up()
+          )
+          return true
+        }
+        return false
+      },
+    })
+
+    this._reticle.setEnabled(true)
+    if (impact != null) {
+      // Lifted off the surface, and LYING ON IT — a ring standing upright in a
+      // wall is half buried, and the half you can see is the half that tells
+      // you nothing.
+      this._reticle.position.copyFrom(this._aimHit).addInPlace(
+        this._aimNormal.scale(0.02)
+      )
+      const up = BABYLON.Vector3.Up()
+      const axis = BABYLON.Vector3.Cross(up, this._aimNormal)
+      const angle = Math.acos(
+        Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(up, this._aimNormal)))
+      )
+      this._reticle.rotationQuaternion =
+        axis.lengthSquared() > 1e-8
+          ? BABYLON.Quaternion.RotationAxis(axis.normalize(), angle)
+          : BABYLON.Quaternion.Identity()
+    } else {
+      /*
+      Nothing in range: park it at the END OF THE ARC, facing the shooter, so it
+      still says which way the gun is pointing.
+
+      `points[points.length - 1]`, NOT `st`. `predictPath` copies the state it is
+      given and integrates the copy — it does not mutate the caller's — so
+      reading `st` back gives the muzzle, and the ring sat 0.3m in front of the
+      character's chest looking like the aim was broken rather than the readback.
+      */
+      const end = points[points.length - 1] ?? st.pos
+      this._reticle.position.set(end.x, end.y, end.z)
+      this._reticle.rotationQuaternion = BABYLON.Quaternion.RotationAxis(
+        BABYLON.Vector3.Cross(BABYLON.Vector3.Up(), dir).normalize(),
+        Math.PI / 2
+      )
+    }
+  }
+  private _aimRay = new BABYLON.Ray(
+    BABYLON.Vector3.Zero(),
+    BABYLON.Vector3.Forward(),
+    1
+  )
+  private _aimHit = BABYLON.Vector3.Zero()
+  private _aimNormal = BABYLON.Vector3.Up()
 
   /**
    * Fire everything this character is holding, along its AIM.
@@ -1405,6 +1619,17 @@ export class B3dBiped extends B3dControllable {
       return
     }
 
+    /*
+    WEAPON UP / DOWN (edge-detected), and it must be read BEFORE `shoot`, or
+    the frame you raise the gun is a frame the trigger already means "fire" to
+    the mapping and "sprint" to us.
+    */
+    const weaponPressed = (input.weapon ?? 0) > 0.5
+    if (weaponPressed && !this.weaponWasPressed) {
+      this.setGunplay(!this.gunplay)
+    }
+    this.weaponWasPressed = weaponPressed
+
     // Camera toggle on the view button (edge-detected).
     const viewPressed = input.view > 0.5
     if (viewPressed && !this.viewWasPressed) {
@@ -1714,7 +1939,13 @@ export class B3dBiped extends B3dControllable {
       node.rotate(BABYLON.Vector3.Up(), bodyTurnDeg * DEG_TO_RAD)
 
       this._weaponCacheAge += dt
-      if ((input.shoot ?? 0) > 0.5) this._fireWeapons()
+      // Only with the weapon up. The mapping already withholds `shoot` when it
+      // is down, but an XR controller or an AI feeds this directly and a
+      // holstered character who fires anyway is worse than one who cannot.
+      if (this.gunplay && (input.shoot ?? 0) > 0.5) this._fireWeapons()
+      // After the shot, so the ring sits where THIS frame's aim points rather
+      // than lagging it by one.
+      if (this.owner != null) this._updateReticle(this.owner.scene)
 
       /*
       STAND ON THE GROUND — a SNAP, not a dead band.
@@ -2739,6 +2970,8 @@ export class B3dBiped extends B3dControllable {
   }
 
   sceneDispose() {
+    this._reticle?.dispose()
+    this._reticle = null
     if (this.fpvCamera) {
       this.fpvCamera.parent = null
       this.fpvCamera.dispose()

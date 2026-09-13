@@ -41,25 +41,44 @@ you"* as one line of JSON, this is what that JSON will describe.
 
 ## Demo — the whole thing, with a biped in it
 
-**WASD** to move, **mouse** to aim, **F** to shoot, **right shift** to jump,
-**left shift** to sneak, **R** to sprint. (Checked against `biped-mapping`
-rather than remembered — `A`/space deliberately does not jump, because the face
-buttons are reserved for actions.)
+**Two modes, and `space` is the switch.** With the weapon down you are walking:
+**R** sprints. Press **space** and the gun comes up — now **R** fires, **Q**
+aims down the sights, and a ring shows where the round will actually land,
+sinking as the range grows because it is the real ballistic arc rather than a
+dot in the middle of the screen. You cannot sprint with the gun up, which is why
+the trigger is free to do both jobs.
+
+**WASD** moves, **arrow keys** look, **right shift** jumps, **left shift**
+sneaks, **E** interacts, **Y** switches between third and first person.
+(Read off `keyboard-gamepad` and `bipedMapping` rather than remembered — space
+deliberately does not jump, which is what left it free to be the mode.)
 
 Things to try: climb the crates onto the catwalk; shoot from behind the low wall
-and notice you have to stand to clear it; walk the cover line and compare the
-railing with the wall beside it.
+and watch the ring disappear behind it until you stand; walk the cover line and
+compare the railing with the wall beside it.
 
 ```js
 import { assetUrl, b3d, b3dBiped, b3dLauncher, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 
-// NEGATIVE x is his RIGHT. Facing -Z with +Y up, a character's right hand is at
-// -X — so +0.28 hung the gun off his left shoulder, which is exactly how it
-// read: "is the gun a big rectangular block stuck to my left shoulder?"
-// (It is still the launcher's placeholder box. A real weapon wants a hand
-// socket rather than a fixed offset — see TODO.)
+// WHERE IT RIDES ON HIM, and all three numbers were wrong.
+//
+// NEGATIVE x is his right: facing -Z with +Y up, a character's right hand is
+// at -X, so the positive value hung it off his LEFT shoulder — "is the gun a
+// big rectangular block stuck to my left shoulder?"
+//
+// And z: 0.15 was worse than it looks. The placeholder is 0.9 long, so it
+// straddled him — 0.6 ahead and 0.3 THROUGH his hip and out the back — which
+// is most of what made it read as a slab rather than as something held. At 0.5
+// the whole length is in front of him.
+//
+// It is still the launcher's placeholder box. A weapon that reads as a weapon
+// needs a model on a hand socket rather than an offset from the root; that work
+// is already on the list, and this is the best a fixed offset can do.
+//
+// (Line comments, not a block. A block comment inside a fence closes the
+// enclosing /*# doc comment — b3d-crowd.ts has learned this three times.)
 const gun = b3dLauncher({
-  x: -0.28, y: 1.25, z: 0.15,
+  x: -0.28, y: 1.15, z: 0.5,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
@@ -79,7 +98,14 @@ const hero = b3dBiped(
   {
     url: assetUrl('quaternius/UAL1_core.glb'),
     animationStates: ualAnimationStates(),
-    player: true, cameraType: 'follow', aiming: 'on',
+    // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
+    // (0, -12.3) literally touching your muzzle line, so every shot from the
+    // start hit it — which is precisely what "just cause explosions in front of
+    // me" was. From here the cover line is 22m ahead with the low wall to the
+    // left and the railing to the right, which is the comparison the arena is
+    // built around, and there is room to see a round travel.
+    x: -4, z: 10,
+    player: true, cameraType: 'follow',
   },
   gun
 )
@@ -91,11 +117,11 @@ preview.append(
       // The glass pad shows only what this demo USES — and these are control
       // names, not a mapping name: `gamepad: 'biped'` named nothing, parsed to
       // nothing, and drew nothing. Move, aim, shoot, jump, sneak, sprint.
-      // `Y` is the CAMERA TOGGLE, and leaving it off meant first person existed
-      // and could not be reached: `bipedMapping` reads `view` as
-      // `max(pad.view, pad.buttonY)`, and the pad showed neither.
+      // Everything this demo uses, and nothing else. `A` raises and lowers the
+      // weapon, `Y` switches first/third person — leaving either off meant a
+      // feature that existed, was wired, and could not be reached.
       gamepad:
-        'left_stick,right_stick,B,Y,right_bumper,left_bumper,right_trigger',
+        'left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
     },
     ...playground(),
     inputFocus(hero)

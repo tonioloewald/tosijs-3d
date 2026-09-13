@@ -957,6 +957,7 @@ control-input
   sprint  = 0..1  — Sprint modifier
   interact  = 0..1  — Enter vehicle / pick up / use
   aim  = 0..1  — Aim down sights
+  weapon  = 0..1  — Raise/lower the weapon — edge-detected by consumers, so it TOGGLES
   cameraZoom  = -1..1  — Camera zoom
   sneak  = 0\  — 1
 
