@@ -75,7 +75,7 @@ along its own mesh, because a gun parented to a hand inherits whatever the
 animation is doing with that hand.
 
 ```js
-import { b3d, b3dBiped, b3dLauncher, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, inputFocus, sceneDelta, label3d, slider3d } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, inputFocus, sceneDelta, label3d, slider3d, ualAnimationStates } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ shootDemo: { free: 45, rate: 6 } })
@@ -90,8 +90,15 @@ const gun = b3dLauncher({
 
 // Assigned as a statement, not inline in the scene — the shape the rest of
 // these demos use, and one the doc transpiler is known to be happy with.
+// The UAL rig, because aiming is the demo: at 1.83m the gun sits at 1.25 where
+// it was placed, and `aimFreeYaw` is a real shoulder angle rather than an angle
+// on a figure half the intended size.
 const hero = b3dBiped(
-  { url: '/omnidude.glb', player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45 },
+  {
+    url: assetUrl('quaternius/UAL1_core.glb'),
+    animationStates: ualAnimationStates(),
+    player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
+  },
   gun
 )
 

@@ -51,7 +51,7 @@ and notice you have to stand to clear it; walk the cover line and compare the
 railing with the wall beside it.
 
 ```js
-import { b3d, b3dBiped, b3dLauncher, inputFocus, playground } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 
 const gun = b3dLauncher({
   x: 0.28, y: 1.25, z: 0.15,
@@ -59,8 +59,23 @@ const gun = b3dLauncher({
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
 
+// A QUATERNIUS UAL RIG, not omnidude, and the arena is the reason rather than
+// the animation count. Every height in here is authored against a 1.8m person:
+// the low wall is 1.1 so that crouching hides you and standing does not, and
+// the crates are 0.4 / 0.9 / 1.6 to sit either side of what `mantle` will
+// attempt. omnidude measures 0.88m — the 1.1m "crouch cover" is taller than he
+// is, and the 0.9m "mantle" crate is over his head — so the playground could
+// not demonstrate the one thing it was built to demonstrate.
+//
+// The wider clip set is the bonus: `Jog_Bwd_Loop` and the `Crouch_*` clips
+// retire two fakes (backwards was the walk cycle reversed, sneak had no crouch
+// to hold). See CLAUDE.md → "Scale: a person is 1.8 m".
 const hero = b3dBiped(
-  { url: '/omnidude.glb', player: true, cameraType: 'follow', aiming: 'on' },
+  {
+    url: assetUrl('quaternius/UAL1_core.glb'),
+    animationStates: ualAnimationStates(),
+    player: true, cameraType: 'follow', aiming: 'on',
+  },
   gun
 )
 
