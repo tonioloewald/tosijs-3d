@@ -305,7 +305,7 @@ and does both.
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import { loadLibraryMesh } from './library-mesh.js'
-import { findMuzzle } from './model-transform.js'
+import { findMuzzle, findSuffixed } from './model-transform.js'
 import {
   AbstractMesh,
   isOff,
@@ -898,6 +898,31 @@ export class B3dLauncher extends AbstractMesh {
     /** Instantiate `meshName` from this LIBRARY instead of the placeholder box.
      * `_muzzle` on the model says where rounds leave (#34). */
     library: '',
+    /*
+    WHERE THE HAND HOLDS IT — `'auto'`, `'off'`, or an explicit `'x,y,z'`.
+
+    `x`/`y`/`z` place the model's ORIGIN, and a weapon's origin is wherever its
+    author put it. Kenney's weapon pack uses bottom-centre, which is the right
+    origin for one lying on a table and the wrong one for one in a fist: mount a
+    pistol by its origin and it floats beside the hand rather than in it.
+
+    `'auto'` derives the grip from the geometry — the centroid of the mesh's
+    lowest third, which lands inside the handle on every weapon in that pack —
+    and offsets the model so the GRIP goes where `x`/`y`/`z` say. So the numbers
+    a caller writes are the point they want the hand to be, which is the
+    question they were actually asking.
+
+    Kept consumer-side deliberately, rather than baked into the published
+    library, while the heuristic is still being tuned — it is a guess about
+    shape, and the shoulder-carried weapons (rocket launchers) are exactly where
+    a guess about "the bottom third" should be expected to fail. Tonio: "Let's
+    keep the fix consumer side for the time being in case it needs tweaking."
+
+    `'off'` mounts by the origin, which is what you want when the model was
+    authored with its origin already at the grip — the convention this project
+    asks for in new content.
+    */
+    grip: 'auto',
     muzzleSpeed: 30,
     fireRate: 5, // shots per second
     ammo: 40, // magazine capacity
@@ -919,6 +944,7 @@ export class B3dLauncher extends AbstractMesh {
 
   declare meshName: string
   declare library: string
+  declare grip: string
   declare muzzleSpeed: number
   declare fireRate: number
   declare ammo: number
@@ -1084,6 +1110,83 @@ export class B3dLauncher extends AbstractMesh {
     // (moved to `_loadLibraryModel`, run from the tick below.)
   }
 
+  /**
+   * Shift the model so its GRIP lands on `x`/`y`/`z`, not its origin.
+   *
+   * Runs once, after the model loads, because it needs the geometry. A `_grip`
+   * node wins if the model carries one — the same deal `_muzzle` gets, and the
+   * thing this heuristic exists to substitute for.
+   */
+  private _applyGrip(attrs: any): void {
+    const spec = String(this.grip ?? 'auto')
+    if (spec === 'off' || this.mesh == null) return
+    let g: BABYLON.Vector3 | null = null
+    const node = findSuffixed(this.mesh, ['_grip'])
+    if (node != null) {
+      g = BABYLON.Vector3.TransformCoordinates(
+        node.getAbsolutePosition(),
+        BABYLON.Matrix.Invert(this.mesh.getWorldMatrix())
+      )
+    } else if (spec !== 'auto') {
+      const n = spec.split(',').map(Number)
+      if (n.length === 3 && n.every((v) => Number.isFinite(v))) {
+        g = new BABYLON.Vector3(n[0], n[1], n[2])
+      }
+    } else {
+      g = this._deriveGrip()
+    }
+    if (g == null) return
+    this.mesh.position.set(attrs.x - g.x, attrs.y - g.y, attrs.z - g.z)
+  }
+
+  /**
+   * The grip, guessed from the shape: the centroid of the lowest third.
+   *
+   * Measured against Kenney's pack, where it lands inside the handle on every
+   * one-handed weapon — pistol (0, 0.011, -0.105), uzi (0, 0.045, -0.039),
+   * shotgun (0, 0.023, -0.106). It is a guess about shape and it will be wrong
+   * for anything not held near its lowest point, a shoulder-carried launcher
+   * being the obvious case. `_grip` or an explicit offset is the answer there.
+   *
+   * Everything is converted into the LAUNCHER MESH's own local frame rather
+   * than read in world space, because a weapon held by a character hangs under
+   * a `__root__` carrying the glTF handedness mirror — so a world-space
+   * measurement comes back with its z sign flipped relative to the offsets we
+   * are about to write.
+   */
+  private _deriveGrip(): BABYLON.Vector3 | null {
+    const root = this.mesh
+    if (root == null) return null
+    const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix())
+    const pts: BABYLON.Vector3[] = []
+    let lo = Infinity
+    let hi = -Infinity
+    for (const m of root.getChildMeshes()) {
+      const data = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+      if (data == null) continue
+      const toRoot = m.computeWorldMatrix(true).multiply(toLocal)
+      for (let i = 0; i < data.length; i += 3) {
+        const v = BABYLON.Vector3.TransformCoordinates(
+          new BABYLON.Vector3(data[i], data[i + 1], data[i + 2]),
+          toRoot
+        )
+        pts.push(v)
+        if (v.y < lo) lo = v.y
+        if (v.y > hi) hi = v.y
+      }
+    }
+    if (pts.length === 0 || !(hi > lo)) return null
+    const cut = lo + (hi - lo) / 3
+    let n = 0
+    const acc = BABYLON.Vector3.Zero()
+    for (const v of pts) {
+      if (v.y > cut) continue
+      acc.addInPlace(v)
+      n++
+    }
+    return n > 0 ? acc.scaleInPlace(1 / n) : null
+  }
+
   /** Load the library model, once, after the attribute drain has finished. */
   private _libLoaded = false
   private _loadLibraryModel(owner: B3d): void {
@@ -1119,6 +1222,7 @@ export class B3dLauncher extends AbstractMesh {
           */
           this.render()
           this._muzzleNode = findMuzzle(node)
+          this._applyGrip(attrs)
           owner.register({ meshes: node.getChildMeshes() })
         },
       })

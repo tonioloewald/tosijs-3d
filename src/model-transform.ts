@@ -180,7 +180,14 @@ export function findMuzzle(
 
 /** Shared matcher — mirrors `conventionName`, inlined so this module stays
  * dependency-free for headless tests (see `findCenterOfGravity`). */
-function findSuffixed(
+/**
+ * The first descendant whose convention name ends in one of `suffixes`.
+ *
+ * Exported because the suffix vocabulary is open: `_muzzle` and `_barrel` have
+ * wrappers here, and `_grip` is read by `b3d-launcher` for the same reason —
+ * a named node beats a heuristic about shape.
+ */
+export function findSuffixed(
   root: BABYLON.TransformNode,
   suffixes: string[]
 ): BABYLON.TransformNode | null {

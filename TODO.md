@@ -4951,3 +4951,24 @@ Numbers recorded in `b3d-crowd.ts` → "MEASURED ON A QUEST 3". Open items:
 - [ ] **Explain 750 in VR vs ~1,000 flat on the same device.** A quarter, not a half, for
       drawing twice — so the per-frame overhead (cull, submit, compositor) likely dominates
       the vertex count, which would make draw-call count the thing to chase.
+
+## Ranged animation gap, and a zombie set nobody has noticed (2026-09-14)
+
+Inventoried both UAL megafiles by listing every clip, not by grepping for likely names.
+
+- [ ] **There are NO rifle animations.** The complete ranged set across UAL1+UAL2 is
+      `Pistol_*` (6, one-handed), `Bow_*` (6, two-handed) and `Spell_*` (8). So Kenney's
+      shotgun / sniper / machinegun / rocketlauncher meshes have no animation that holds
+      them correctly — a two-handed weapon fired with `Pistol_Shoot` reads as badly as a
+      box on a shoulder did. Demos stay on pistols (and arguably the uzi, which is
+      plausibly one-handed) until a rifle set is sourced. `Bow_Aim_*` is two-handed and
+      the wrong two-handed: the rear hand is at the face drawing a string.
+- [ ] **UAL2 ships a complete ZOMBIE set — 20 clips.** `Zombie_Spawn`, `Zombie_Idle_Loop`,
+      `Zombie_Walk_*` and `Zombie_Run_*` (8 directions each), `Zombie_Bite`,
+      `Zombie_Scratch`. That is the entire animation requirement for the POV horde demo,
+      already paid for, sitting in a file we already ship a subset of. It also pairs
+      exactly with the crowd→skinned swap: shamblers baked into a VAT crowd, and the few
+      that reach you promoted to rigs that can bite.
+- [ ] Also unused and worth knowing about: `Death01/02`, `Hit_Chest/Head/Stomach/Shoulder_L/R`
+      (directional hit reactions — combat feedback with no work), `Sword_*`, `Melee_*`,
+      `Crawl_*`, `Climb_*` (a full climb set beyond the three mantle clips).

@@ -435,6 +435,7 @@ b3d-launcher
   axes
   meshName
   library
+  grip
   muzzleSpeed  = 30  — Launch speed (units/sec) along the fire direction
   fireRate  = 5  — Max shots per second (cadence gate)
   ammo  = 40  — Magazine capacity (a `Resource`)

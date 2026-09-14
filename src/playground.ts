@@ -83,18 +83,21 @@ const weapons = b3dLibrary({
   type: 'weapons',
 })
 
-// WHERE IT SITS IS DERIVED, not eyeballed. Kenney authors these as PROPS, so
-// the origin is bottom-centre — right for one lying on a table, wrong for one
-// held in a hand. The grip is the centroid of the mesh's lowest third, which
-// for `pistol` measures (0, 0.011, -0.105); the right hand in the
-// `Pistol_Idle_Loop` stance is at (-0.188, 1.403, 0.399). Position the origin
-// so those two coincide and the gun lands in the hand:
-//   mesh = hand - grip = (-0.188, 1.392, 0.504)
-// It is still a fixed offset, so it is correct for the ready stance and
-// approximate everywhere else — that is what a hand socket fixes.
+// x/y/z IS THE HAND, not the model's origin. `grip: 'auto'` (the default) finds
+// the handle and offsets the model so the grip lands here — Kenney authors these
+// as props with a bottom-centre origin, which is right for one lying on a table
+// and wrong for one in a fist.
+//
+// This is `hand_r` in the Pistol_Idle_Loop stance, read off the rig. It is still
+// ONE offset, so it is right in the ready stance and approximate elsewhere —
+// that is what a hand socket fixes.
+//
+// A PISTOL, and that is a constraint rather than a preference: the UAL set has
+// Pistol_* and Bow_* and nothing else ranged, so a shotgun or sniper would be
+// fired with one-handed animations. See `ualAnimationStates`.
 const gun = b3dLauncher({
   library: 'weapons', meshName: 'pistol',
-  x: -0.188, y: 1.392, z: 0.504,
+  x: -0.188, y: 1.403, z: 0.399,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
