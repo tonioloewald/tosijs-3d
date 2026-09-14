@@ -58,7 +58,7 @@ and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 
 // WHERE IT RIDES ON HIM, and all three numbers were wrong.
 //
@@ -77,8 +77,24 @@ import { assetUrl, b3d, b3dBiped, b3dLauncher, inputFocus, playground, ualAnimat
 //
 // (Line comments, not a block. A block comment inside a fence closes the
 // enclosing /*# doc comment — b3d-crowd.ts has learned this three times.)
+// A REAL PISTOL, from Kenney's weapon pack — 37 of them are already on the CDN.
+const weapons = b3dLibrary({
+  url: assetUrl('kenney/libraries/weapon-pack.glb'),
+  type: 'weapons',
+})
+
+// WHERE IT SITS IS DERIVED, not eyeballed. Kenney authors these as PROPS, so
+// the origin is bottom-centre — right for one lying on a table, wrong for one
+// held in a hand. The grip is the centroid of the mesh's lowest third, which
+// for `pistol` measures (0, 0.011, -0.105); the right hand in the
+// `Pistol_Idle_Loop` stance is at (-0.188, 1.403, 0.399). Position the origin
+// so those two coincide and the gun lands in the hand:
+//   mesh = hand - grip = (-0.188, 1.392, 0.504)
+// It is still a fixed offset, so it is correct for the ready stance and
+// approximate everywhere else — that is what a hand socket fixes.
 const gun = b3dLauncher({
-  x: -0.28, y: 1.15, z: 0.5,
+  library: 'weapons', meshName: 'pistol',
+  x: -0.188, y: 1.392, z: 0.504,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
@@ -123,6 +139,7 @@ preview.append(
       gamepad:
         'left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
     },
+    weapons,
     ...playground(),
     inputFocus(hero)
   )

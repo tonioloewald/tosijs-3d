@@ -264,6 +264,36 @@ mirrored. (Worth stating because a mesh that IS mirrored looks like an authoring
 mistake, and the instinct is to flip it in Blender — which is what would actually
 break it.)
 
+### Kenney's weapon pack — 37 of them, already on the CDN
+
+`kenney/libraries/weapon-pack.glb` — pistols, uzis, shotguns, snipers,
+machineguns, rocket launchers, knives, grenades and matching ammo props. Built
+and published already; `b3dLibrary({url: assetUrl('kenney/libraries/weapon-pack.glb'),
+type: 'weapons'})` then `b3dLauncher({library: 'weapons', meshName: 'pistol'})`.
+
+Measured rather than assumed, because it matters that they agree with the rules
+above in two of three respects and not the third:
+
+| | Kenney | the rule above |
+| --- | --- | --- |
+| scale | real — pistol 0.29 long, sniper 1.04 | ✅ 1 unit = 1m |
+| barrel | local **+Z**, up **+Y** | ✅ same |
+| **origin** | **bottom-centre** | ❌ should be the grip |
+
+The origin is a PROP origin — right for a weapon lying on a table, wrong for one
+held in a hand — which is not a criticism of a pack authored for top-down
+shooters. It just has to be corrected somewhere, and the correction is
+derivable rather than per-weapon guesswork: **the grip is the centroid of the
+mesh's lowest third.** Measured that way, `pistol` grips at `(0, 0.011, -0.105)`,
+`uzi` at `(0, 0.045, -0.039)`, `shotgun` at `(0, 0.023, -0.106)`, `sniper` at
+`(0.005, 0.052, -0.238)` — each plausibly inside the handle.
+
+Mount it by making the grip and the hand coincide: `position = hand - grip`. The
+playground does exactly that, and shows its arithmetic.
+
+None of them carry a `_muzzle` node, which is what pushed `muzzle()` to measure
+the model instead of assuming 0.55.
+
 ### Getting it in
 
 There is no `url` on this element yet — a model arrives through `library`, which
@@ -1012,6 +1042,9 @@ export class B3dLauncher extends AbstractMesh {
       // Cheap: it returns immediately once parented, and a holder that loads a
       // GLB asynchronously has no node to ride until it does.
       this._rideHolder()
+      // First frame: the attribute drain is over, so `library`/`meshName` are
+      // finally true. See the note above `_loadLibraryModel`.
+      this._loadLibraryModel(owner)
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
     })
@@ -1024,9 +1057,38 @@ export class B3dLauncher extends AbstractMesh {
     round appears, and on a multi-barrel mount or anything with a recoiling
     breech they are different nodes. On a simple gun only `_barrel` need exist.
 
-    Absent, `muzzle()` falls back to its existing 0.55 along local +Z, which is
-    right for the placeholder and a reasonable guess for a model nobody rigged.
+    Absent, `muzzle()` measures the model's own bounding box instead.
+
+    ⚠️ DEFERRED BY A TICK, and that is not tidiness — it is the difference
+    between loading `pistol` and loading nothing.
+
+    `elementCreator` does NOT assign these as properties when the element is
+    built: measured, a fresh `b3dLauncher({library:'weapons', meshName:'pistol'})`
+    reports `meshName: 'launcher'` and `library: ''` until it connects. They land
+    during the connect drain — and `sceneReady` runs inside that drain, so it can
+    see one of them and not the other. It did exactly that: `library` read
+    `'weapons'` while `meshName` was still the default, and the load asked the
+    weapon pack for a model called "launcher".
+
+    `b3d-launcher: could not instantiate "launcher" from library "weapons"` is a
+    good error and it still cost a diagnosis, because everything downstream was
+    correct — the library had 37 names, `pistol` was one of them, and by the time
+    anyone inspected the element `meshName` read `'pistol'`. The values are only
+    wrong DURING setup.
+
+    So the load runs from the render observer instead, on the first frame, by
+    which point the drain has finished and both reads are true. It is a one-shot:
+    `_libLoaded` latches so a missing model is not re-requested sixty times a
+    second.
     */
+    // (moved to `_loadLibraryModel`, run from the tick below.)
+  }
+
+  /** Load the library model, once, after the attribute drain has finished. */
+  private _libLoaded = false
+  private _loadLibraryModel(owner: B3d): void {
+    if (this._libLoaded) return
+    const attrs = this as any
     const libType = String((this as any).library ?? '')
     if (libType !== '') {
       this._stopLoad = loadLibraryMesh({
@@ -1061,6 +1123,7 @@ export class B3dLauncher extends AbstractMesh {
         },
       })
     }
+    this._libLoaded = true
   }
 
   /**
@@ -1144,7 +1207,51 @@ export class B3dLauncher extends AbstractMesh {
       return new BABYLON.Vector3(a.x, a.y, a.z)
     }
     const fwd = this.mesh.getDirection(BABYLON.Axis.Z).normalize()
-    return this.mesh.absolutePosition.add(fwd.scale(0.55))
+    /*
+    MEASURE THE MODEL rather than assume 0.55.
+
+    0.55 is the placeholder box's own barrel length and was right for exactly
+    that. Kenney's pistol is 0.29 long from a bottom-centre origin, so its
+    barrel tip is 0.147 ahead — and a fixed 0.55 put the muzzle nearly 40cm
+    past the end of the gun, which is a round appearing out of thin air well in
+    front of the shooter's hand.
+
+    The front of the mesh's own bounding box is the honest answer for a model
+    nobody rigged. A `_muzzle` node still beats it and still wins above: a
+    bounding box does not know about a barrel that is not the longest thing on
+    the weapon (a scope, a stock, an underslung launcher).
+    */
+    let reach = 0.55
+    try {
+      /*
+      PROJECT THE CORNERS ONTO `fwd`, rather than reading a local max.
+
+      `getHierarchyBoundingVectors` returns a WORLD axis-aligned box, and a
+      weapon held by a character hangs under that character's `__root__`, which
+      carries the glTF handedness mirror (`scaling.z = -1`). So the barrel tip
+      is at the box's world MIN z, not its max, and inverse-transforming `max`
+      gave a negative local z that silently failed the test and fell back to
+      0.55 — the placeholder's length, on a pistol.
+
+      Projecting every corner onto the direction rounds actually leave in has no
+      opinion about handedness, rotation, or which corner is which.
+      */
+      const bb = this.mesh.getHierarchyBoundingVectors()
+      const o = this.mesh.absolutePosition
+      let far = 0
+      for (const x of [bb.min.x, bb.max.x]) {
+        for (const y of [bb.min.y, bb.max.y]) {
+          for (const z of [bb.min.z, bb.max.z]) {
+            const d = (x - o.x) * fwd.x + (y - o.y) * fwd.y + (z - o.z) * fwd.z
+            if (d > far) far = d
+          }
+        }
+      }
+      if (far > 0.01) reach = far
+    } catch {
+      /* no geometry yet — the placeholder's own length is the right guess */
+    }
+    return this.mesh.absolutePosition.add(fwd.scale(reach))
   }
 
   /** The launcher's current forward (its default fire direction). */
