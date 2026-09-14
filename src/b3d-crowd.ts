@@ -2060,6 +2060,293 @@ export class B3dCrowd extends B3dChild {
   }
 
   /**
+   * Load the rig the crowd's own figures were baked from, as a skinned asset.
+   *
+   * ⚠️ IT MUST BE `url`, THE FILE THE BAKE CAME FROM — not `skinnedUrl`.
+   *
+   * The two are different assets and only one of them has the right clips. I
+   * reached for `skinnedUrl` first, because the skinned BASELINE already loads
+   * it and reusing that container looked like the tidy move. It is not: the
+   * baseline exists to answer "what does a real rig cost", so its file is
+   * whatever you want to measure, while the bake's clip names come from `url`.
+   *
+   * Caught by overlaying a promoted rig on the instance it replaced instead of
+   * hiding it. A default crowd is SYNTHETIC BLOCK figures whose clips are
+   * generated in code, so the spawned omnidude stood in the same spot in a
+   * completely different pose — two figures, two animations, visibly nothing to
+   * do with each other. Numerically everything agreed: the clip resolved, the
+   * phase was right, the position matched to three decimals. The claim that
+   * pose transfers is only true when both sides came from one file, and there
+   * is no way to check that from the numbers.
+   *
+   * So a SYNTHETIC crowd cannot be promoted at all, and says so rather than
+   * promoting something that merely stands in the right place. Resolves `false`
+   * when there is no rig to load or the load failed; the note is on the debug
+   * panel either way.
+   */
+  async loadRig(): Promise<boolean> {
+    const scene = this.owner?.scene
+    if (scene == null) return false
+    /*
+    ITS OWN CONTAINER, not the baseline's. Sharing `_container` would let
+    whichever loaded first decide which file the other one got — the same bug
+    as above, arriving from the other direction and just as invisible.
+    */
+    if (this._rigContainer != null) return true
+    const url = this.url
+    if (url === '') {
+      this._skinnedNote =
+        'no rig to promote to — this crowd is synthetic (set `url`)'
+      return false
+    }
+    try {
+      const slash = url.lastIndexOf('/')
+      this._rigContainer = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+        url.slice(0, slash + 1),
+        url.slice(slash + 1),
+        scene
+      )
+      return true
+    } catch (e) {
+      this._skinnedNote = `rig load failed: ${(e as Error).message}`
+      return false
+    }
+  }
+  private _rigContainer: BABYLON.AssetContainer | null = null
+
+  /**
+   * Figure `i`, as a SKINNED RIG standing exactly where it was, mid-stride.
+   *
+   * The convenience half of the swap, and the reason it belongs here rather
+   * than in every consumer: matching the pose needs `poseOf`, matching the
+   * place needs `transformOf`, and matching the CLIP needs the rig to be the
+   * file the bake came from. All three live here. A consumer doing it by hand
+   * gets the first two right and discovers the third when their zombie plays
+   * the wrong animation.
+   *
+   * Hides the instance as it goes, so there is never a frame with both.
+   * `dispose()` on the returned handle puts the figure back in the crowd.
+   *
+   * Still not a policy: WHICH figure, and when, is the caller's entire
+   * business. This only makes the swap itself cheap to get right.
+   */
+  spawnPosed(i: number): {
+    root: BABYLON.TransformNode
+    group: BABYLON.AnimationGroup | null
+    dispose: () => void
+  } | null {
+    const container = this._rigContainer
+    const at = this.transformOf(i)
+    const pose = this.poseOf(i)
+    if (container == null || at == null || pose == null) return null
+    const inst = container.instantiateModelsToScene(
+      (name) => `${name}-swap${i}`,
+      false
+    )
+    const root = inst.rootNodes[0] as BABYLON.TransformNode | undefined
+    if (root == null) return null
+    root.position.set(at.x, at.y, at.z)
+    root.rotation.y = at.yaw
+    root.scaling.setAll(this.figureScale)
+    /*
+    START IT WHERE THE INSTANCE ALREADY IS, which is the whole trick.
+
+    `from`/`to` are FRAMES, so the phase — a 0..1 fraction of the clip — has to
+    be converted into this group's own frame range. Starting at `from` instead
+    would be a visible snap on every promotion, and the kind that reads as the
+    swap being broken rather than as one line of arithmetic being missing.
+    */
+    const group =
+      inst.animationGroups.find(
+        (g) => g.name.replace(/^Clone of /, '').split('-swap')[0] === pose.clip
+      ) ?? null
+    if (group != null) {
+      const at0 = group.from + (group.to - group.from) * pose.t
+      /*
+      AND AT ITS OWN SPEED, which is the half that is easy to miss.
+
+      Every figure gets a randomised rate at build time — `0.7 + rnd * 0.6`
+      cycles per second, scaled by clip duration — precisely so a crowd does not
+      march in lockstep. Start the clone at speed 1 and it plays the clip at the
+      speed it was AUTHORED at, so the two agree for exactly one frame and then
+      drift apart in front of you.
+
+      `rate` is cycles per second and the clip's own natural rate is
+      `1 / duration`, so the ratio between them is `rate * duration`.
+
+      Found by overlaying the rig on the instance rather than hiding it: the
+      pose matched at the instant of the swap and separated visibly a second
+      later, which is the one failure a still screenshot at the moment of
+      promotion would have called a success.
+      */
+      const clip = this._bake?.clips.find((c) => c.name === pose.clip)
+      const speed = clip != null && clip.duration > 0 ? pose.rate * clip.duration : 1
+      group.start(true, speed, at0, group.to)
+      group.goToFrame(at0)
+    }
+    this.setFigureHidden(i, true)
+    this.owner?.register({ meshes: root.getChildMeshes() })
+    return {
+      root,
+      group,
+      dispose: () => {
+        for (const g of inst.animationGroups) g.dispose()
+        root.dispose(false, true)
+        this.setFigureHidden(i, false)
+      },
+    }
+  }
+
+  /** Per-instance buffers, kept so the swap API can read and edit them. */
+  private _matrices: Float32Array | null = null
+  private _state: Float32Array | null = null
+  /** Figures currently taken out of the crowd → the matrix they had. */
+  private _hidden = new Map<number, Float32Array>()
+
+  /** How many figures are in the crowd right now. Indices are `0..count-1`. */
+  get figureCount(): number {
+    return this._built > 0 ? this._built : 0
+  }
+
+  /**
+   * WHICH CLIP FIGURE `i` IS PLAYING, AND HOW FAR THROUGH — the whole point.
+   *
+   * This is the half of a crowd→skinned swap that only the crowd can answer,
+   * and the half that normally makes such a swap look terrible. A LOD
+   * transition usually founders on reconstructing pose: you know where the
+   * thing is, not what it was doing. Here it was never lost — `vatState` is
+   * literally `(clipStart, clipFrames, phaseOffset, cyclesPerSecond)`, so the
+   * clip and the phase are a lookup and a `fract`.
+   *
+   * Start a skinned `AnimationGroup` on `clip` at `t` (a 0..1 fraction of the
+   * clip) and the two are in the same pose at the same instant. Nothing to
+   * blend, nothing to cross-fade, no snap.
+   *
+   * WHEN to swap is deliberately not here — see the note on `setFigureHidden`.
+   */
+  poseOf(i: number): { clip: string; t: number; rate: number } | null {
+    const st = this._state
+    const bake = this._bake
+    if (st == null || bake == null || i < 0 || i >= this.figureCount) return null
+    const start = st[i * 4]
+    const clip = bake.clips.find((c) => c.start === start) ?? bake.clips[0]
+    if (clip == null) return null
+    const phase = st[i * 4 + 2]
+    const rate = st[i * 4 + 3]
+    // The same expression the vertex shader runs, so the answer is the pose on
+    // screen rather than a plausible reconstruction of it.
+    const t = (phase + this._t * rate) % 1
+    return { clip: clip.name, t: t < 0 ? t + 1 : t, rate }
+  }
+
+  /**
+   * Where figure `i` is standing, and which way it faces.
+   *
+   * Read out of the instance matrix rather than recomputed from the seed: the
+   * buffer is the truth, and a consumer that places a rig from a recomputed
+   * position gets a figure that is almost in the right place, which is worse
+   * than obviously wrong.
+   */
+  transformOf(i: number): { x: number; y: number; z: number; yaw: number } | null {
+    const m = this._matrices
+    if (m == null || i < 0 || i >= this.figureCount) return null
+    const o = i * 16
+    // Column-major: translation is [12,13,14]; yaw from the forward basis.
+    return {
+      x: m[o + 12],
+      y: m[o + 13],
+      z: m[o + 14],
+      yaw: Math.atan2(m[o + 8], m[o + 10]),
+    }
+  }
+
+  /**
+   * Take a figure out of the crowd, or put it back.
+   *
+   * The other half of the swap, and everything it does NOT do is deliberate.
+   * There is no promotion budget here, no radius, no hysteresis and no rule
+   * about what happens to a figure that dies while promoted — those depend on
+   * the game. A horde promotes whatever can reach you, a battle promotes the
+   * unit you selected regardless of distance, a parade promotes whoever the
+   * camera is following; any rule shipped here would be wrong for two of the
+   * three, and wrong invisibly. Tonio: *"leave the rules for switching to
+   * skinned models to the consumer since it will be more likely decided on
+   * specifics."*
+   *
+   * Hiding collapses the instance's matrix to zero scale, which is a
+   * zero-area triangle and therefore nothing rasterised. The original matrix is
+   * kept so `false` restores it exactly.
+   *
+   * ⚠️ IT REWRITES THE MATRIX BUFFER, so the cost is proportional to the WHOLE
+   * crowd, not to the one figure: 64 bytes × count per call. At the sizes this
+   * is for — promote a handful out of a few thousand — that is tens of
+   * kilobytes and fine. It would not be fine on the 200,000-figure bench, and
+   * the cheaper fix if that ever matters is a per-instance visibility
+   * attribute, so a hide writes one float instead of sixteen.
+   */
+  setFigureHidden(i: number, hidden: boolean): void {
+    const m = this._matrices
+    const mesh = this._mesh
+    if (m == null || mesh == null || i < 0 || i >= this.figureCount) return
+    const was = this._hidden.get(i)
+    if (hidden) {
+      if (was != null) return
+      this._hidden.set(i, m.slice(i * 16, i * 16 + 16))
+      for (let k = 0; k < 16; k++) m[i * 16 + k] = 0
+    } else {
+      if (was == null) return
+      m.set(was, i * 16)
+      this._hidden.delete(i)
+    }
+    mesh.thinInstanceBufferUpdated('matrix')
+  }
+
+  /** Is figure `i` currently taken out? */
+  isFigureHidden(i: number): boolean {
+    return this._hidden.has(i)
+  }
+
+  /**
+   * The figures nearest a point, nearest first.
+   *
+   * A QUERY, not a policy — it answers "who is close", not "who should be
+   * promoted". It is here because the alternative is a consumer looping every
+   * figure and calling `transformOf` on each, which is the O(n) mistake this
+   * substrate exists to avoid: reading the buffer directly costs a subtract
+   * and a compare per figure with no allocation.
+   *
+   * `maxDistance` is the real economy — it rejects on squared distance before
+   * anything else happens, so a horde of ten thousand costs ten thousand cheap
+   * rejections rather than ten thousand sorts.
+   */
+  nearestFigures(
+    point: { x: number; y: number; z: number },
+    options: { count?: number; maxDistance?: number; includeHidden?: boolean } = {}
+  ): number[] {
+    const m = this._matrices
+    const n = this.figureCount
+    if (m == null || n === 0) return []
+    const want = Math.max(0, Math.round(options.count ?? 8))
+    if (want === 0) return []
+    const far = options.maxDistance ?? Infinity
+    const far2 = Number.isFinite(far) ? far * far : Infinity
+    const keepHidden = options.includeHidden === true
+    const found: Array<{ i: number; d: number }> = []
+    for (let i = 0; i < n; i++) {
+      if (!keepHidden && this._hidden.has(i)) continue
+      const o = i * 16
+      const dx = m[o + 12] - point.x
+      const dy = m[o + 13] - point.y
+      const dz = m[o + 14] - point.z
+      const d = dx * dx + dy * dy + dz * dz
+      if (d > far2) continue
+      found.push({ i, d })
+    }
+    found.sort((a, b) => a.d - b.d)
+    return found.slice(0, want).map((f) => f.i)
+  }
+
+  /**
    * Lay the crowd out and hand the GPU its per-instance state.
    *
    * Called only when the COUNT changes — never per frame. That is the whole
@@ -2074,6 +2361,12 @@ export class B3dCrowd extends B3dChild {
 
     const matrices = new Float32Array(n * 16)
     const state = new Float32Array(n * 4)
+    // Kept, because the swap API reads them — see `poseOf`. A rebuild discards
+    // whatever was hidden: the figures are new ones, and a hidden index from
+    // the old layout would name a different body.
+    this._matrices = matrices
+    this._state = state
+    this._hidden.clear()
     const m = BABYLON.Matrix.Identity()
     // A deterministic scatter — the same crowd every run, so two measurements
     // are of the same picture.
@@ -2137,6 +2430,8 @@ export class B3dCrowd extends B3dChild {
     this._skinnedRoots = []
     this._container?.dispose()
     this._container = null
+    this._rigContainer?.dispose()
+    this._rigContainer = null
     this._bakeContainer?.dispose()
     this._bakeContainer = null
     this._instr?.dispose()

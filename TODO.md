@@ -4901,7 +4901,15 @@ This is arguably the ideal north-star showcase: spend nothing on vertices, every
 Design in `b3d-crowd.ts` → "Crossing the seam" and "A stadium". Not started, and not
 queued — Tonio: *"That and the stadium are TODO / ideas."*
 
-- [ ] **The swap MECHANISM only — policy stays with the consumer.** *"I think we'd leave the
+- [x] **The swap MECHANISM only — policy stays with the consumer.** Shipped 2026-09-14:
+      `poseOf` / `transformOf` / `setFigureHidden` / `isFigureHidden` / `nearestFigures`,
+      plus `loadRig` + `spawnPosed` for the common case where the promoted rig is the file
+      the bake came from. No budget, no radius, no hysteresis, no death rule — as agreed.
+- [ ] **Cheaper hiding, if it ever matters.** `setFigureHidden` rewrites the whole matrix
+      buffer (64 bytes × count). Fine for promoting a handful out of a few thousand; not
+      fine on the 200k bench. A per-instance visibility attribute would make a hide one
+      float instead of sixteen — needs a line in the VAT plugin's vertex shader.
+- [ ] ~~**The swap MECHANISM only — policy stays with the consumer.**~~ *"I think we'd leave the
       rules for switching to skinned models to the consumer since it will be more likely
       decided on specifics."* What belongs here is the one thing only the crowd can do:
       convert an instance index into `{clip, t}` from its `vatState`, so a skinned
