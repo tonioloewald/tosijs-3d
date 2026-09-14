@@ -266,6 +266,14 @@ right thing to route it through, because it already knows how to switch an
 effect OFF rather than thin it, which is the correct answer when a flock will
 not fit.
 
+**Fish are the same argument underwater, and the easiest case this substrate
+has.** Nobody inspects a fish: it is looked at from ten metres through water, so
+it wants ~100 vertices and two clips where a player character wants 1,380 and a
+dozen. The medium supplies the LOD — underwater fog already fades the far end on
+a curve that is physically motivated rather than a tuned cull distance — and a
+school fills a VOLUME, so a few hundred read as far more than the same number
+scattered on a field. Filed rather than built (see TODO).
+
 ## The target, and what it means that we cleared it
 
 The game this was built to answer for is a virtual miniatures battle. Tonio's

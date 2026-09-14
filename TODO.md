@@ -4972,3 +4972,52 @@ Inventoried both UAL megafiles by listing every clip, not by grepping for likely
 - [ ] Also unused and worth knowing about: `Death01/02`, `Hit_Chest/Head/Stomach/Shoulder_L/R`
       (directional hit reactions — combat feedback with no work), `Sword_*`, `Melee_*`,
       `Crawl_*`, `Climb_*` (a full climb set beyond the three mantle clips).
+
+## Fauna on the crowd substrate — fish first. NOT A PRIORITY (Tonio, 2026-09-14)
+
+Filed, deliberately not queued: *"It's not a priority right now."* Recorded because the
+reasoning is cheap now and expensive to reconstruct.
+
+`b3d-crowd`'s ladder already names this rung — "things that must be ALIVE" — and gives a
+bird as the example. Nothing has been built on it. Fish are the easiest case it has:
+
+- **~100 verts and two clips** (swim loop, dart) against a player character's 1,380 and a
+  dozen, because nobody inspects a fish from ten metres through water. The crowd's best
+  case rather than its worst.
+- **The medium is the LOD.** Underwater fog already fades the far end on a physically
+  motivated curve, so there is no cull distance to tune and no pop to hide.
+- **A school fills a VOLUME**, so a few hundred read as far more than a few hundred
+  scattered on a plane. More apparent density per instance.
+- **Opaque bodies behind ONE transparent surface.** That is the whole difference from a
+  grass field, where every blade adds a blending layer. The crowd's measured economics
+  transfer here; they do not transfer to foliage.
+- **Schooling is boids** — a few hundred agents is nothing on the CPU, and per-instance
+  `phaseOffset` already desynchronises tail beats for free, so they will not swim in
+  lockstep without anyone writing code for it.
+
+Sketch: a `b3dSchool` element — mesh + clips + a bounded volume + a boids step — routed
+through `ambient-budget` like every other ambient effect, so it switches OFF rather than
+thinning when it does not fit.
+
+**The demo it unlocks is the speargun**, which Tonio sketched earlier: fish give it
+something to shoot at, and *"firing a speargun out of water would be an interesting test
+case for medium layers"*. Fish + speargun + the Manta waterline camera flip exercises three
+unbuilt things at once, and is a much smaller build than the zombie horde.
+
+## Opaque terrain scatter — measure before believing (2026-09-14)
+
+- [ ] **Bench opaque scatter on terrain tiles, the way the crowd bench did.** Tonio: the
+      crowd result "suggests we can build out a lot of terrain detail without breaking the
+      bank" — right, and a static prop is strictly cheaper than a shambler (no VAT sample,
+      no per-vertex animation). But the crowd bench measures OPAQUE geometry in ONE PLACE,
+      so the number transfers to rocks, debris, stumps and wreckage, and says nothing about
+      grass: alpha-tested foliage breaks early-Z on a tiled renderer and is a fill-rate
+      problem, not a vertex one. Measure the knee on the Quest before quoting a figure.
+- [ ] ⚠️ **This spends headroom the north star banked deliberately** ("we banked ~27× on
+      terrain and deliberately did NOT spend it on detail"). The distinction that keeps it
+      coherent: detail that DOES something is not what that warning is about. A boulder you
+      crouch behind is an affordance; a decorative pebble raises the fidelity promise and
+      delivers nothing. And it is unusually cheap for us because **cover is discovered, not
+      authored** — `surroundings.ts` rays do not care whether a thing is level geometry or
+      scatter, so instanced rocks become tactical terrain for free. Scatter density becomes
+      a gameplay dial rather than a decoration dial. Build that version or none.
