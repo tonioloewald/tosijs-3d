@@ -96,7 +96,15 @@ const weapons = b3dLibrary({
 // fired with one-handed animations. See `ualAnimationStates`.
 const gun = b3dLauncher({
   library: 'weapons', meshName: 'pistol',
-  x: -0.188, y: 1.403, z: 0.399,
+  // IN HIS HAND — `socket` parents the weapon to the hand BONE, so it follows
+  // the animation instead of hanging off the character's root at a fixed
+  // offset. That is what "it kind of drifts relative to the hand" was: no
+  // constant offset can track a moving hand.
+  //
+  // With a socket, x/y/z are relative to the JOINT, and `grip: 'auto'` puts the
+  // weapon's handle exactly there — so the numbers are all zero and there is
+  // nothing left to hand-tune.
+  socket: 'right-hand',
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })

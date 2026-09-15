@@ -598,6 +598,7 @@ names and parents.
 */
 export {
   UPPER_BODY_ROOTS,
+  BONE_SOCKETS,
   boneMask,
   complementMask,
   descendantDepths,

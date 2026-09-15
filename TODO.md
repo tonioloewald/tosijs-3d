@@ -4937,7 +4937,11 @@ queued — Tonio: *"That and the stadium are TODO / ideas."*
 
 ## A weapon that looks like a weapon (Tonio, 2026-09-13)
 
-- [ ] **Hand sockets, and a weapon model to hang off one.** The biped's gun is still
+- [x] **Hand sockets** — shipped 2026-09-15: `socket` on `b3d-launcher`, `BONE_SOCKETS` in
+      `bone-mask`, resolving across Quaternius / Kenney / Mixamo naming. Still open: a
+      socket on the OTHER attachables (helmets on `head`, packs on `spine`), and the same
+      idea for `b3d-prop`.
+- [ ] ~~**Hand sockets, and a weapon model to hang off one.**~~ The biped's gun is still
       `b3d-launcher`'s placeholder box, parented to the ROOT at a fixed offset — Tonio:
       *"is the gun a big rectangular block stuck to my left shoulder?"* The side and the
       z-offset are fixed, so it now sits in front of his right hip instead of through it,

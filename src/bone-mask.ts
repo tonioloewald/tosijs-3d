@@ -195,6 +195,42 @@ export function findBone(
   return null
 }
 
+/**
+ * SOCKETS — the joints a consumer actually wants to hang something off.
+ *
+ * Named for the PLACE, not for any one rig's spelling, because every rig
+ * spells them differently and a consumer should not have to know which one they
+ * loaded: Quaternius says `hand_r`, Kenney's character kit says `RightHand`,
+ * Mixamo says `mixamorig:RightHand`, and a hand-built armature says whatever
+ * the artist typed. `findBone` already resolves a candidate list against a
+ * skeleton and returns `null` rather than guessing, so this is just the list.
+ *
+ * Ordered most-specific-first within each socket, and deliberately NOT clever:
+ * a fuzzy match that finds `hand_r_IK` or a twist bone would attach a weapon to
+ * something that moves almost right, which is worse than not finding it.
+ */
+export const BONE_SOCKETS: Record<string, readonly string[]> = {
+  'right-hand': [
+    'hand_r',
+    'RightHand',
+    'Hand_R',
+    'hand.R',
+    'mixamorig:RightHand',
+    'Bip01_R_Hand',
+  ],
+  'left-hand': [
+    'hand_l',
+    'LeftHand',
+    'Hand_L',
+    'hand.L',
+    'mixamorig:LeftHand',
+    'Bip01_L_Hand',
+  ],
+  head: ['head', 'Head', 'mixamorig:Head', 'Bip01_Head'],
+  spine: ['spine_03', 'spine_02', 'Spine2', 'Spine1', 'chest', 'mixamorig:Spine2'],
+  hips: ['pelvis', 'hips', 'Hips', 'mixamorig:Hips'],
+}
+
 /** Spellings of "the bone an upper-body layer takes over from", most specific first. */
 export const UPPER_BODY_ROOTS: readonly string[] = [
   'spine_02',

@@ -306,6 +306,7 @@ and does both.
 import * as BABYLON from '@babylonjs/core'
 import { loadLibraryMesh } from './library-mesh.js'
 import { findMuzzle, findSuffixed } from './model-transform.js'
+import { BONE_SOCKETS, findBone } from './bone-mask.js'
 import {
   AbstractMesh,
   isOff,
@@ -923,6 +924,27 @@ export class B3dLauncher extends AbstractMesh {
     asks for in new content.
     */
     grip: 'auto',
+    /*
+    THE JOINT IT RIDES ON — `'right-hand'`, `'left-hand'`, `'head'`, `'spine'`,
+    `'hips'`, or `''` for the holder's root as before.
+    
+    A weapon parented to a character's ROOT does not move with the hand that is
+    supposed to be holding it: the animation swings the arm and the gun stays
+    where the offset put it. Tonio: "the gun is floating off to the right of the
+    characters hand and probably pinned to the wrong parent (it kind of drifts
+    relative to the hand)." Exactly right, and no offset can fix it — the offset
+    is constant and the hand is not.
+
+    Attaching to the bone makes the weapon follow the hand for free, which also
+    retires the offsets: with a socket, `x`/`y`/`z` are relative to the JOINT and
+    usually want to be zero or nearly so.
+
+    Rigs spell their joints differently, so the name here is the PLACE and
+    `BONE_SOCKETS` holds the spellings. An unknown socket, or a rig with no such
+    bone, falls back to the root and says so once — silently doing nothing would
+    look exactly like this bug.
+    */
+    socket: '',
     muzzleSpeed: 30,
     fireRate: 5, // shots per second
     ammo: 40, // magazine capacity
@@ -945,6 +967,7 @@ export class B3dLauncher extends AbstractMesh {
   declare meshName: string
   declare library: string
   declare grip: string
+  declare socket: string
   declare muzzleSpeed: number
   declare fireRate: number
   declare ammo: number
@@ -1250,12 +1273,95 @@ export class B3dLauncher extends AbstractMesh {
   private _rideHolder(): void {
     if (this.mesh == null || this.mesh.parent != null) return
     const holder = semanticParent(this) as unknown as {
-      entries?: { rootNodes?: BABYLON.TransformNode[] }
+      entries?: {
+        rootNodes?: BABYLON.TransformNode[]
+        skeletons?: BABYLON.Skeleton[]
+      }
       mesh?: BABYLON.TransformNode
     } | null
     const node = holder?.entries?.rootNodes?.[0] ?? holder?.mesh
     if (node == null || (node as unknown) === this.mesh) return
-    this.mesh.parent = node
+    const socketNode = this._socketNode(holder, node)
+    this._socketed = socketNode != null
+    this.mesh.parent = socketNode ?? node
+  }
+
+  /**
+   * The joint named by `socket`, as something to parent to.
+   *
+   * Babylon gives a glTF skeleton's bones LINKED TRANSFORM NODES — real nodes
+   * in the scene graph that the animation drives — so parenting to one is
+   * ordinary parenting and needs no `attachToBone` bookkeeping. A rig without
+   * them (a non-glTF import) has no node to hang off, and that is a fallback
+   * rather than a failure.
+   */
+  private _socketNode(
+    holder: {
+      entries?: { skeletons?: BABYLON.Skeleton[] }
+    } | null,
+    root: BABYLON.TransformNode
+  ): BABYLON.TransformNode | null {
+    const want = String(this.socket ?? '')
+    if (want === '') return null
+    const candidates = BONE_SOCKETS[want]
+    if (candidates == null) {
+      this._warnSocket(`b3d-launcher: unknown socket "${want}"`)
+      return null
+    }
+    const skeleton = holder?.entries?.skeletons?.[0]
+    if (skeleton == null) {
+      this._warnSocket(`b3d-launcher: socket "${want}" — holder has no skeleton`)
+      return null
+    }
+    /*
+    `findBone` wants `BoneNode`s — name plus PARENT NAME — because it is the
+    pure model and knows nothing about Babylon. A Babylon `Bone`'s `parent` is
+    another Bone, so the two disagree on one field and the shapes have to be
+    bridged here rather than by widening the pure type.
+    */
+    const nodes = skeleton.bones.map((b) => ({
+      name: b.name,
+      parent: b.getParent()?.name ?? null,
+    }))
+    const name = findBone(nodes, candidates)
+    if (name == null) {
+      this._warnSocket(
+        `b3d-launcher: socket "${want}" — no matching bone (tried ${candidates.join(', ')})`
+      )
+      return null
+    }
+    const bone = skeleton.bones.find((b) => b.name === name)
+    const node = bone?.getTransformNode?.() ?? null
+    if (node == null) {
+      this._warnSocket(
+        `b3d-launcher: bone "${name}" has no transform node to parent to`
+      )
+      return null
+    }
+    // The root's scaling (and its handedness mirror) is already in the bone's
+    // own world matrix, so parenting to the joint must not re-apply it.
+    void root
+    return node
+  }
+
+  /**
+   * Riding a BONE rather than the holder's root.
+   *
+   * Read by the biped, which must not then rotate the weapon to the aim: the
+   * hand already carries it, and applying both gives you the hand's rotation
+   * times the aim's.
+   */
+  get socketed(): boolean {
+    return this._socketed
+  }
+  private _socketed = false
+
+  /** Once per message — this runs from the render loop. */
+  private _warnedSockets = new Set<string>()
+  private _warnSocket(message: string): void {
+    if (this._warnedSockets.has(message)) return
+    this._warnedSockets.add(message)
+    console.warn(`${message} — riding the holder's root instead`)
   }
 
   /**

@@ -830,6 +830,16 @@ export class B3dBiped extends B3dControllable {
    */
   private _aimWeapons(): void {
     for (const w of this._weapons()) {
+      /*
+      A SOCKETED WEAPON IS ALREADY AIMED — by the hand holding it.
+
+      Rotating it here as well would compose the hand's rotation with the aim's
+      and give neither. The cost is that the barrel then only approximates the
+      shot, because the aim poses are three blended stances rather than IK —
+      which is what every game does, and why the reticle rather than the barrel
+      is what tells you where the round goes.
+      */
+      if (w.socketed === true) continue
       const m = w.mesh as unknown as {
         rotation?: BABYLON.Vector3
         rotationQuaternion?: BABYLON.Quaternion | null
@@ -892,11 +902,13 @@ export class B3dBiped extends B3dControllable {
   private _weaponCache: Array<{
     fire: (...args: any[]) => unknown
     mesh?: { setEnabled: (on: boolean) => void }
+    socketed?: boolean
   }> = []
   private _weaponCacheAge = Infinity
   private _weapons(): Array<{
     fire: (...args: any[]) => unknown
     mesh?: { setEnabled: (on: boolean) => void }
+    socketed?: boolean
   }> {
     if (this._weaponCacheAge < 0.5) return this._weaponCache
     this._weaponCacheAge = 0
