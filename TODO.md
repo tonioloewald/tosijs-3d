@@ -5029,3 +5029,23 @@ unbuilt things at once, and is a much smaller build than the zombie horde.
       authored** — `surroundings.ts` rays do not care whether a thing is level geometry or
       scatter, so instanced rocks become tactical terrain for free. Scatter density becomes
       a gameplay dial rather than a decoration dial. Build that version or none.
+
+## Shot flight modes (Tonio, 2026-09-15)
+
+Spec in `COMBAT-DESIGN.md` → "How the shot travels". The first three are one axis, not
+three weapons, so this is a `flight` attribute on `b3d-launcher`.
+
+- [ ] **`bolt` — the LOOK only.** The physics already works: `ballisticStep` with
+      `gravity: 0, drag: 0` is constant velocity, so `b3dLauncher({gravity:0, drag:0,
+      muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
+      draw as a stretched emissive segment rather than a sphere. Smallest of the three;
+      do it first.
+- [ ] **`hitscan`.** The genuine new code path: one ray at fire time, resolved in that
+      frame, no projectile mesh, no per-frame step. Keep the HIT and the TRACER decoupled —
+      damage lands instantly (which is what makes it feel fair) while a tracer may still be
+      drawn arriving late.
+- [ ] **Flamethrower** — still shelved, but the shape is written down now: a sustained
+      cone, damage over time via `resource.ts`'s drain, hit test is range + angle (the same
+      question `b3d-radar` and `surroundings.ts` already answer), fuel is a Resource
+      draining, and it is the first weapon the MEDIUM should veto — underwater it does
+      nothing, in wind it drifts. A good forcing case for medium layers.

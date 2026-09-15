@@ -487,9 +487,74 @@ The turret supports both (agreed earlier). A key **directed** mode for the MVP:
 
 ---
 
-## Flame thrower ⏸️ SHELVED
+## How the shot travels — ONE axis, four points on it 🟡
 
-Deferred for now. (Likely a cone/particle sustained-damage weapon later.)
+Tonio: *"we should also model three kinds of gun behavior — project the shot and
+just hit immediately with visual impact (realistic), visible thing flying
+straight out (star wars blaster bolts), and our launches (ballistic / guided
+shots). And maybe flamethrowers."*
+
+The useful thing about that list is that the first three are **not three
+weapons.** They are one question — *how long does the round take to arrive, and
+does anything bend it* — and the existing pure models already span it. That
+makes this a `flight` attribute on `b3d-launcher`, not three elements, which is
+this document's composition-of-simple-atoms rule doing its job.
+
+| `flight` | travel | bent by | drawn as | status |
+| --- | --- | --- | --- | --- |
+| `hitscan` | none | — | impact, plus an optional tracer | new |
+| `bolt` | fast, constant | nothing | a stretched glow | **physics already works** |
+| `ballistic` | slow | gravity + drag | a body | ✅ shipped |
+| `guided` | slow | steering | a body + trail | ✅ shipped |
+
+**A bolt is already expressible and nobody noticed.** `ballisticStep` with
+`gravity: 0, drag: 0` IS constant velocity — so `b3dLauncher({gravity: 0,
+drag: 0, muzzleSpeed: 120})` fires blaster bolts today, and what is actually
+missing is the LOOK: a bolt is a stretched emissive segment, not a sphere. So
+that row is a rendering job, not a physics one, which is a much smaller task
+than it sounds and should be done first for that reason.
+
+**Hitscan is the limit case, and it is the one that genuinely differs.** As speed
+→ ∞ the integration disappears: one ray at the moment of firing, a hit
+resolved in that frame, no projectile mesh and no per-frame step. The design
+point worth writing down is that **the hit and the tracer are decoupled**. Damage
+lands instantly because that is what makes a hitscan weapon feel fair; a tracer
+may still be drawn flying, arriving after the thing it represents already hit.
+Every shooter does this and it looks wrong only when you know.
+
+One corroboration that the model is right: the biped's aim reticle ray-marches
+the predicted arc, and each of these collapses it correctly without a special
+case — hitscan is ONE ray (cheapest and exact), a bolt is a straight line, a
+ballistic round is the arc already implemented. A model where the sight and the
+shot stay the same code in all four cases is a model that is carved at the joint.
+
+## Flame thrower ⏸️ SHELVED — but the shape is now clear
+
+Still deferred. Recording what it actually is, since it comes up every time and
+is the one item on the list above that is NOT a point on that axis.
+
+A flamethrower is not a projectile weapon with a short range. It is a
+**sustained volume**:
+
+- **The damage is over time, in a region** — not an impact event. A target takes
+  damage for as long as it is in the cone, which is `resource.ts`'s drain shape
+  rather than `warhead.ts`'s.
+- **The test is cheap and already written twice.** "Is this thing within range
+  and inside my cone" is a distance and an angle — the same question
+  `b3d-radar`'s detection cone asks and the same bearing/range math
+  `surroundings.ts` uses. No rays, no swept collision.
+- **The fuel is a `Resource` with a continuous drain**, which that module already
+  does (`regenRate`/`regenDelay` run both directions). A flamethrower is the
+  first weapon where `smart` means nothing and *sustain* means everything.
+- **The cone widens and weakens with range**, so falloff is a property of the
+  shape rather than a separate damage curve.
+- **It is the first weapon the MEDIUM should veto.** Underwater it does nothing,
+  which `MEDIUM-DESIGN` gives us the hook for, and in wind it should drift —
+  `wind.ts` is already there. That makes it a good forcing case for medium
+  layers rather than merely a weapon we lack.
+
+Which is to say the pieces exist and it is an assembly job; it stays shelved
+because nothing needs it yet, not because it is hard.
 
 ---
 
