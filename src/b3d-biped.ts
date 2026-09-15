@@ -501,7 +501,22 @@ export class B3dBiped extends B3dControllable {
      */
     aiming: 'off' as 'on' | 'off',
     /** Twist held with the feet planted, degrees. See [[aim]]'s two thresholds. */
-    aimFreeYaw: 45,
+    /*
+    ZERO, so the aim and the body cannot disagree.
+
+    It was 45 — the aim could sit forty-five degrees off the body before
+    `bodyCatchUp` turned anything. Combined with a weapon bolted to the body,
+    that gave THREE different directions at once, which is exactly how it was
+    reported: "shots aren't going in the direction I'm facing, the character is
+    facing, or the gun is facing." All three were true.
+
+    Tonio's model is the fix: *"if you're not in first person view then aim is
+    basically where you're pointing, possibly offset by the right stick."* The
+    offset is the flourish, not the mechanism — so the body follows the aim
+    immediately by default, and a project that wants a lazier torso can set this
+    back up.
+    */
+    aimFreeYaw: 0,
     /** The spine's limit. Past this the body is dragged round. */
     aimMaxYaw: 90,
     /** How far up/down the look can go, degrees. */
@@ -790,6 +805,44 @@ export class B3dBiped extends B3dControllable {
    */
   private _showWeapons(visible: boolean): void {
     for (const w of this._weapons()) w.mesh?.setEnabled(visible)
+  }
+
+  /**
+   * POINT THE WEAPON WHERE THE SHOT GOES.
+   *
+   * A nested launcher is parented to the character's root at a fixed offset, so
+   * it pointed wherever the BODY pointed and took no notice of the aim. Aim up
+   * and the round left along the aim while the barrel stayed level — the gun
+   * visibly disagreeing with its own shot, which is the least forgivable thing
+   * a weapon can do.
+   *
+   * Rotation only, not position: the weapon does not orbit the shoulder, it
+   * pivots roughly where it is held. At the small offsets a held weapon uses
+   * that is indistinguishable from correct and it costs nothing.
+   *
+   * ⚠️ The pitch sign is NOT negated, which is the opposite of what the
+   * first-person camera needs and was wrong on the first attempt. The weapon
+   * hangs under the character's `__root__`, which carries the glTF handedness
+   * mirror, so a local X rotation there reads the other way round from one on a
+   * camera in world space. Measured rather than reasoned: with the aim at
+   * y = +0.94 the negated version pointed the barrel at y = -0.94 — same
+   * magnitude, opposite sign, which is the signature of exactly this.
+   */
+  private _aimWeapons(): void {
+    for (const w of this._weapons()) {
+      const m = w.mesh as unknown as {
+        rotation?: BABYLON.Vector3
+        rotationQuaternion?: BABYLON.Quaternion | null
+      } | undefined
+      if (m?.rotation == null) continue
+      // A quaternion would win over euler angles if one were set — clear it.
+      if (m.rotationQuaternion != null) m.rotationQuaternion = null
+      m.rotation.set(
+        this._aim.pitchDeg * DEG_TO_RAD,
+        this._aim.yawDeg * DEG_TO_RAD,
+        0
+      )
+    }
   }
 
   /**
@@ -1809,6 +1862,7 @@ export class B3dBiped extends B3dControllable {
     someone toggled twice.
     */
     this._showWeapons(this.gunplay)
+    if (this.gunplay) this._aimWeapons()
 
     // Camera toggle on the view button (edge-detected).
     const viewPressed = input.view > 0.5

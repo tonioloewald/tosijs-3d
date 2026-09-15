@@ -41,17 +41,16 @@ you"* as one line of JSON, this is what that JSON will describe.
 
 ## Demo — the whole thing, with a biped in it
 
-**Two modes, and `space` is the switch.** With the weapon down you are walking:
-**R** sprints. Press **space** and the gun comes up — now **R** fires, **Q**
+**Two modes, and the right bumper is the switch.** With the weapon down you are walking:
+**R** sprints. Press **right bumper** and the gun comes up — now **R** fires, **Q**
 aims down the sights, and a ring shows where the round will actually land,
 sinking as the range grows because it is the real ballistic arc rather than a
 dot in the middle of the screen. You cannot sprint with the gun up, which is why
 the trigger is free to do both jobs.
 
-**WASD** moves, **arrow keys** look, **right shift** jumps, **left shift**
-sneaks, **E** interacts, **Y** switches between third and first person.
-(Read off `keyboard-gamepad` and `bipedMapping` rather than remembered — space
-deliberately does not jump, which is what left it free to be the mode.)
+**WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
+**E** interacts, **Y** switches between third and first person. (Read off
+`game-controller` and `bipedMapping` rather than remembered.)
 
 Things to try: climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
@@ -141,11 +140,8 @@ preview.append(
       // feature that existed, was wired, and could not be reached.
       gamepad:
         'left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
-      // START ARMED, so the demo shows what it is about without anyone having
-      // to read first. Weapon down is the more common state in play, but a
-      // holstered character standing in an empty field demonstrates nothing —
-      // Tonio, loading it cold: "I don't see any aim behavior."
-      sceneCreated() { hero.setGunplay(true) },
+      // NOT armed on load any more — "the character is aiming all the time".
+      // Right bumper (or the on-screen RB) raises and lowers the weapon.
     },
     weapons,
     ...playground(),

@@ -384,7 +384,7 @@ export function bipedMapping(
   so the key everyone presses expecting something now does something, and the
   thing it does is the mode this whole mapping turns on.
   */
-  input.weapon = pad.buttonA
+  // (weapon is set with jump below — one place, so they cannot drift apart)
   /*
   Right stick Y is PITCH — the camera's, and while swimming the body's. There is
   no separate camera yaw, because X turns the body and the camera follows it, so
@@ -410,7 +410,23 @@ export function bipedMapping(
   changes meaning per vehicle is a vocabulary you have to relearn. A convention
   borrowed from other games is worth less than consistency within this one.
   */
-  input.jump = pad.rightBumper
+  /*
+  RIGHT BUMPER RAISES AND LOWERS THE WEAPON; A JUMPS.
+
+  Tonio: *"having right bumper toggle weapon ready mode is probably the best
+  option (and not a bad option in general ... a lot of games use the button we're
+  using for view toggle to toggle weapon ready mode)."*
+
+  ⚠️ This moves JUMP onto `buttonA`, which reverses an earlier call recorded
+  right here — that the face buttons are reserved for actions, so that a control
+  vocabulary does not change meaning per vehicle. That reasoning still stands for
+  the aircraft. It is being overruled for the biped because a shoulder button is
+  where every third-person shooter puts weapon-ready, A-to-jump is the single
+  most universal convention there is, and a mode you toggle constantly deserves
+  the better button. Easily reverted if it plays worse than it reads.
+  */
+  input.weapon = pad.rightBumper
+  input.jump = pad.buttonA
   input.sneak = pad.leftBumper
   // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
   input.view = Math.max(pad.view, pad.buttonY)
@@ -423,13 +439,13 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
     leftStickY: 'move',
     leftStickX: 'strafe',
     rightStickX: 'turn',
-    rightBumper: 'jump',
+    rightBumper: 'weapon',
+    buttonA: 'jump',
     leftBumper: 'sneak',
     // The trigger's label is mode-dependent and a descriptor is not, so it
     // names both rather than picking the half that happens to be true now.
     rightTrigger: 'sprint / fire',
     leftTrigger: 'aim',
-    buttonA: 'weapon',
     buttonX: 'interact',
     buttonB: 'fire',
     rightStickY: 'pitch',

@@ -163,7 +163,14 @@ export class GameController extends Component implements GamepadSource {
      *
      * `'lock'` is the right default for a real game and is one attribute away.
      */
-    mouseLook: 'drag' as 'drag' | 'lock' | 'off',
+    /*
+    OFF while the rest of the aiming chain is being sorted out. Tonio: "We might
+    want to toggle off mouse look until we have everything else working" — which
+    is right, because it is one more thing moving the view while we are trying
+    to find out why the view and the shot disagree. `'drag'` is the intended
+    default once they agree.
+    */
+    mouseLook: 'off' as 'drag' | 'lock' | 'off',
     /** Degrees of view per 100px of mouse movement, roughly. */
     mouseSensitivity: 1,
   }

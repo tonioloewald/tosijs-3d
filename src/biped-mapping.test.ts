@@ -90,15 +90,38 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
     expect(bipedMapping(pad({ leftBumper: 1 }), 1 / 60).sneak).toBe(1)
   })
 
-  test('right bumper is jump', () => {
-    expect(bipedMapping(pad({ rightBumper: 1 }), 1 / 60).jump).toBe(1)
+  /*
+  RIGHT BUMPER RAISES THE WEAPON, AND A JUMPS — a reversal, recorded as one.
+
+  These two tests used to assert the opposite, and the reasoning they carried
+  was good: the face buttons are primary and secondary fire on the aircraft, and
+  a control vocabulary that changes meaning per vehicle is one you have to
+  relearn. That still holds for the aircraft.
+
+  It was overruled for the biped, by Tonio, after playing it: "having right
+  bumper toggle weapon ready mode is probably the best option (and not a bad
+  option in general ... a lot of games use the button we're using for view
+  toggle to toggle weapon ready mode)." A shoulder button is where every
+  third-person shooter puts weapon-ready, a mode toggled constantly deserves the
+  better button, and A-to-jump is the most universal convention there is.
+
+  Kept as tests rather than deleted, because the next person to find A jumping
+  will wonder whether it was deliberate.
+  */
+  test('right bumper raises and lowers the weapon', () => {
+    expect(bipedMapping(pad({ rightBumper: 1 }), 1 / 60).weapon).toBe(1)
   })
 
-  test('A does NOT jump — the face buttons are reserved for actions', () => {
-    // They are primary/secondary fire on the aircraft, and a control vocabulary
-    // that changes meaning per vehicle is one you have to relearn. Consistency
-    // within this project beats a convention borrowed from other games.
-    expect(bipedMapping(pad({ buttonA: 1 }), 1 / 60).jump).toBe(0)
+  test('A jumps now, and does NOT also toggle the weapon', () => {
+    const input = bipedMapping(pad({ buttonA: 1 }), 1 / 60)
+    expect(input.jump).toBe(1)
+    // The trap while moving these: leaving `weapon` reading buttonA as well, so
+    // one press both jumped and holstered.
+    expect(input.weapon).toBe(0)
+  })
+
+  test('the right bumper does not also jump', () => {
+    expect(bipedMapping(pad({ rightBumper: 1 }), 1 / 60).jump).toBe(0)
   })
 
   test('the d-pad no longer sneaks', () => {
