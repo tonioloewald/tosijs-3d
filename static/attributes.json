@@ -3657,6 +3657,12 @@
       },
       {
         "name": "updateIntervalMs"
+      },
+      {
+        "name": "mouseLook"
+      },
+      {
+        "name": "mouseSensitivity"
       }
     ]
   },

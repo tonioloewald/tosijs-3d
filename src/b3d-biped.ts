@@ -721,6 +721,12 @@ export class B3dBiped extends B3dControllable {
    * right stick turns the BODY now, so the camera has no yaw of its own.
    */
   private _lookPitch = 0
+  /** Aim-down-sights, 0..1, eased. See the note where it is driven. */
+  private _ads = 0
+  /** Sights up right now — the aim layer and the camera both read it. */
+  get aimingDownSights(): boolean {
+    return this._ads > 0.5
+  }
   /**
    * Where the upper body is pointing, RELATIVE to the facing — see [[aim]].
    *
@@ -1827,7 +1833,26 @@ export class B3dBiped extends B3dControllable {
       this.fpvCamera.parent = null
       if (eye != null) this.fpvCamera.position.copyFrom(eye)
       const f = this.mesh.forward
-      this.fpvCamera.rotation.set(0, Math.atan2(f.x, f.z), 0)
+      /*
+      AND IT PITCHES. It used to be yaw only — `rotation.set(0, yaw, 0)` — so in
+      first person you could not look up or down AT ALL, which is a strange
+      thing to discover about a first-person view and stranger still on a page
+      about shooting.
+
+      Tonio's rule: *"If you're in first person, aim is your right stick / mouse
+      look."* So the camera takes the same `_lookPitch` the aim does, and the two
+      are the same direction by construction rather than by agreement. Babylon's
+      `rotation.x` is positive DOWN and `_lookPitch` is positive UP, which is the
+      one sign to get right.
+
+      Roll stays zero deliberately: the head bob is in the eye POSITION, and
+      rolling the view with it is how you make people ill.
+      */
+      this.fpvCamera.rotation.set(
+        -this._lookPitch * DEG_TO_RAD,
+        Math.atan2(f.x, f.z),
+        0
+      )
     }
 
     /*
@@ -1916,19 +1941,57 @@ export class B3dBiped extends B3dControllable {
     // change sense when you get your feet wet. (Tried land-only; Tonio's call
     // is that consistency wins, and the head-underwater problem was elsewhere.)
     const lookYSign = isOff(attrs.invertLookY) ? 1 : -1
+    /*
+    AIM DOWN SIGHTS — what `input.aim` (left trigger, or Q) actually does.
+
+    It arrived in the mapping correctly and nothing consumed it, so pressing it
+    did nothing at all. Tonio: "I can't aim with q."
+
+    Three things, and they are the three things ADS mechanically IS, rather than
+    a pose: the view narrows, the camera comes in over the shoulder, and the
+    look SLOWS DOWN. The last one is the one people feel without naming — a
+    precision aim that swings at walking-around speed is not a precision aim,
+    and halving the rate is worth more than the zoom.
+
+    Held, not toggled — the opposite of the weapon mode above, and deliberately:
+    a mode you hold is one you leave by relaxing, which is what you want for
+    something you do for a second and a half at a time.
+
+    Eased rather than snapped, because a hard cut to a narrow FOV is a flinch.
+    */
+    const adsWant = this.gunplay && (input.aim ?? 0) > 0.3 ? 1 : 0
+    this._ads += (adsWant - this._ads) * Math.min(1, dt * 8)
     this._lookPitch = Math.max(
       -attrs.maxLookPitch,
       Math.min(
         attrs.maxLookPitch,
-        this._lookPitch + (input.lookY ?? 0) * lookYSign * attrs.lookRate * dt
+        this._lookPitch +
+          (input.lookY ?? 0) *
+            lookYSign *
+            attrs.lookRate *
+            // Slower with the sights up — the half of ADS you feel most.
+            (1 - 0.5 * this._ads) *
+            dt
       )
     )
+    {
+      const cam = this.cameraView === 'fpv' ? this.fpvCamera : this.camera
+      if (cam != null) {
+        // A narrower view, eased. 0.8 rad ≈ 46° is the Babylon default; 0.55
+        // ≈ 31° is a modest scope rather than a sniper's.
+        cam.fov = 0.8 - 0.25 * this._ads
+      }
+    }
     if (this.camera instanceof BABYLON.FollowCamera) {
-      const desiredRadius = lerp(
-        attrs.cameraMinFollowDistance,
-        attrs.cameraMaxFollowDistance,
-        Math.max(0, Math.min(1, this._camZoom))
-      )
+      const desiredRadius =
+        lerp(
+          attrs.cameraMinFollowDistance,
+          attrs.cameraMaxFollowDistance,
+          Math.max(0, Math.min(1, this._camZoom))
+        ) *
+        // Over the shoulder with the sights up. Multiplied rather than set, so
+        // it composes with the player's own zoom instead of overriding it.
+        (1 - 0.45 * this._ads)
       this._camZoom = Math.max(
         0,
         Math.min(1, this._camZoom + (input.cameraZoom ?? 0) * dt)
@@ -2090,22 +2153,53 @@ export class B3dBiped extends B3dControllable {
         }
         // `_lookPitch` is positive UP and an aim pitch is positive DOWN. The
         // conversion lives here, once, rather than at every reader.
+        /*
+        FIRST PERSON HAS NO AIM OFFSET — the body turns instead.
+
+        Tonio: *"If you're not in first person view then aim is basically where
+        you're pointing, possibly offset by the right stick. If you're in first
+        person, aim is your right stick / mouse look."*
+
+        Third person keeps the offset, and that is what makes it feel like a
+        third-person shooter: the stick swings the aim, the body comes round
+        after it. In first person the camera IS the eye, so an aim sitting 20°
+        off to one side would point the weapon somewhere you are not looking —
+        the crosshair would be centred and the shot would not be. So the offset
+        goes to zero and `bodyCatchUp` turns the whole character, which is the
+        same thing every first-person game does.
+        */
+        const firstPerson = this.cameraView === 'fpv'
         const want: Aim = {
-          yawDeg: this._aim.yawDeg + rotation * dt * attrs.turnSpeed,
+          yawDeg: firstPerson
+            ? 0
+            : this._aim.yawDeg + rotation * dt * attrs.turnSpeed,
           pitchDeg: -this._lookPitch,
         }
         this._aim = stepAim(this._aim, want, dt, {
           slewDeg: attrs.turnSpeed * 3,
           limits,
         })
-        const caught = bodyCatchUp(
-          this._aim.yawDeg,
-          dt,
-          attrs.turnSpeed,
-          limits
-        )
-        this._aim = { ...this._aim, yawDeg: caught.yawDeg }
-        bodyTurnDeg = caught.bodyTurnDeg
+        if (firstPerson) {
+          /*
+          THE STICK TURNS THE BODY, directly.
+
+          With the aim offset pinned to zero there is nothing for `bodyCatchUp`
+          to catch up to — it would return a turn of zero and the character
+          could not turn at all, which is a worse bug than the one pinning the
+          offset fixes. In first person the look IS the facing, so the turn
+          input goes straight to the body and the aim stays dead ahead of it.
+          */
+          bodyTurnDeg = rotation * dt * attrs.turnSpeed
+        } else {
+          const caught = bodyCatchUp(
+            this._aim.yawDeg,
+            dt,
+            attrs.turnSpeed,
+            limits
+          )
+          this._aim = { ...this._aim, yawDeg: caught.yawDeg }
+          bodyTurnDeg = caught.bodyTurnDeg
+        }
       } else if (this._aim.yawDeg !== 0 || this._aim.pitchDeg !== 0) {
         // Lowering the weapon unwinds the twist rather than snapping it.
         this._aim = relaxAim(this._aim, dt, attrs.turnSpeed)

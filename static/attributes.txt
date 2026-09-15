@@ -967,6 +967,8 @@ game-controller
 
   wheelSensitivity
   updateIntervalMs
+  mouseLook
+  mouseSensitivity
 
 ## gamepad-svg
 gamepad-svg
