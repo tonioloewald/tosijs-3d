@@ -516,7 +516,22 @@ export class B3dBiped extends B3dControllable {
      * is false, so a default-true boolean can never turn on (and tosijs now
      * throws on one) — see CLAUDE.md.
      */
-    invertLookY: 'on' as 'on' | 'off',
+    /*
+    NOT INVERTED, which is a changed default and the direct cause of a bug
+    report: "when I fire it just fires into my feet".
+
+    It used to default `'on'`, so pushing the stick up lowered the view — the
+    AIRCRAFT convention, where you pull back to climb, and the right one for a
+    thing you fly. A character is not a thing you fly. Aim follows the view, so
+    inverted look means pushing up aims DOWN, and a player lining up a shot
+    puts it in the dirt in front of them. Measured before the change: stick up
+    gave pitch +70° and an aim direction of y = -0.94.
+
+    The land/water consistency note below still stands — it is about the control
+    not changing sense when you get your feet wet, which it still does not. That
+    was never an argument for which sense it starts in.
+    */
+    invertLookY: 'off' as 'on' | 'off',
     /**
      * Never let the follow camera drop below this above the character's feet.
      * Pitch drives the camera's HEIGHT, so looking up walks it downward — and
