@@ -141,6 +141,11 @@ preview.append(
       // feature that existed, was wired, and could not be reached.
       gamepad:
         'left_stick,right_stick,A,B,X,Y,right_bumper,left_bumper,left_trigger,right_trigger',
+      // START ARMED, so the demo shows what it is about without anyone having
+      // to read first. Weapon down is the more common state in play, but a
+      // holstered character standing in an empty field demonstrates nothing —
+      // Tonio, loading it cold: "I don't see any aim behavior."
+      sceneCreated() { hero.setGunplay(true) },
     },
     weapons,
     ...playground(),

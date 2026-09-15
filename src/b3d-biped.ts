@@ -750,6 +750,25 @@ export class B3dBiped extends B3dControllable {
    */
   setGunplay(on: boolean): void {
     this.gunplay = on
+    this._showWeapons(on)
+  }
+
+  /**
+   * A LOWERED WEAPON IS NOT A VISIBLE WEAPON.
+   *
+   * Without a hip socket there is nowhere to holster it TO, and a gun mounted
+   * at the offset that puts it in the hands of the ready stance stays exactly
+   * there when the hands go down — hanging at chest height in front of a
+   * character who is plainly not holding it. Tonio: "The gun is just floating
+   * in the air."
+   *
+   * Hiding it is the honest answer for now and not a fudge: a holstered weapon
+   * you cannot see is a weapon on your back, which is where it would be. What
+   * it costs is the thing a socket buys — seeing it swing at the hip as you
+   * walk — and that is already on the list.
+   */
+  private _showWeapons(visible: boolean): void {
+    for (const w of this._weapons()) w.mesh?.setEnabled(visible)
   }
 
   /**
@@ -796,9 +815,15 @@ export class B3dBiped extends B3dControllable {
   showing up in a profile. Half a second means a weapon picked up at runtime
   works without anyone having to remember to tell us.
   */
-  private _weaponCache: Array<{ fire: (...args: any[]) => unknown }> = []
+  private _weaponCache: Array<{
+    fire: (...args: any[]) => unknown
+    mesh?: { setEnabled: (on: boolean) => void }
+  }> = []
   private _weaponCacheAge = Infinity
-  private _weapons(): Array<{ fire: (...args: any[]) => unknown }> {
+  private _weapons(): Array<{
+    fire: (...args: any[]) => unknown
+    mesh?: { setEnabled: (on: boolean) => void }
+  }> {
     if (this._weaponCacheAge < 0.5) return this._weaponCache
     this._weaponCacheAge = 0
     this._weaponCache = [...this.querySelectorAll('*')].filter(
@@ -1755,6 +1780,14 @@ export class B3dBiped extends B3dControllable {
       this.setGunplay(!this.gunplay)
     }
     this.weaponWasPressed = weaponPressed
+    /*
+    RE-ASSERT IT, because a weapon arrives LATE. `b3d-launcher` loads its model
+    a frame or more after the biped starts running, and `_weapons()` caches for
+    half a second on top — so a weapon that did not exist when the mode was last
+    set would come up visible on a holstered character and stay that way until
+    someone toggled twice.
+    */
+    this._showWeapons(this.gunplay)
 
     // Camera toggle on the view button (edge-detected).
     const viewPressed = input.view > 0.5
