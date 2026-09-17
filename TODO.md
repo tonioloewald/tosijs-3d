@@ -5071,7 +5071,13 @@ carried a position and no orientation.
         each get a different one. `findSuffixed` already reads these; the work is agreeing
         the names and honouring orientation, not new machinery.
 
-- [ ] **A placement tool — dial a weapon into a given biped's hand and emit the numbers.**
+- [x] **A placement tool** — shipped 2026-09-17 as the `weapon-fit` demo page: weapon
+      picker, position and rotation rows, live in the character's hands, `copy snippet`.
+      It earned itself immediately by finding a real bug (`_applyGrip` applied the grip
+      offset in the parent's frame while measuring it in the mesh's, so any rotated weapon
+      was displaced) and by solving the pistol's rotation, which is `-105,-15,-165` and not
+      the quarter-turn everyone including me assumed.
+- [ ] ~~**A placement tool — dial a weapon into a given biped's hand and emit the numbers.**~~
       Tonio: "we could use a tool for fine-tuning the placement of weapons in a given
       biped's hands." Cheapest of the three and the one that pays immediately: today those
       offsets are found by eye, in a console, one weapon at a time. It is the same shape as
@@ -5088,10 +5094,19 @@ carried a position and no orientation.
         the naming problem for other reasons — `ualAnimationStates` reconciles CLIP names,
         `findBone`/`BONE_SOCKETS` reconcile BONE names. The third axis is the rest pose.
         It multiplies the UAL library across any humanoid we can get.
-      - **Heat-binding** (computing skin weights from scratch) is a volumetric diffusion
-        solve, quality-sensitive, and decades-refined in Blender. Doing it in JS at runtime
-        would be slow AND worse. It belongs in the `static-assets` Blender pipeline, which
-        already runs Blender headlessly for conversion — a build step, not an engine
-        feature.
-      - So the engine gets retargeting; the pipeline gets binding; and the editor above is
-        where a human fixes what neither got right.
+      - **Heat-binding** — ⚠️ I ARGUED THIS WAS TOO HARD FOR THE BROWSER AND I WAS WRONG.
+        The claim was that it is a quality-sensitive volumetric solve, decades-refined in
+        Blender, and would be both slow and worse in JS. Tonio: *"I thought blender just
+        implemented the algorithm in the original paper and it worked almost perfectly.
+        Cheetah 3d added heat binding after I mentioned the paper to the developer in
+        something like a day. It works great."* And: *"mixamo does it in the browser."*
+        Which settles it — a shipping product doing exactly this, in this environment, is
+        better evidence than my estimate of the difficulty.
+        The paper is Baran & Popović, *Automatic Rigging and Animation of 3D Characters*
+        (SIGGRAPH 2007, the Pinocchio system); the binding half is bone-heat diffusion,
+        a sparse linear solve over the mesh's vertices. At game-mesh sizes that is a
+        normal amount of arithmetic, not a research problem. Read the paper before
+        estimating again.
+      - So BOTH halves can live in the browser, which makes the whole thing one tool:
+        import a humanoid, place joints, bind, retarget the UAL clips onto it. The
+        Blender pipeline stays useful for batch work, not because the browser cannot.

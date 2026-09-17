@@ -1159,7 +1159,27 @@ export class B3dLauncher extends AbstractMesh {
       g = this._deriveGrip()
     }
     if (g == null) return
-    this.mesh.position.set(attrs.x - g.x, attrs.y - g.y, attrs.z - g.z)
+    /*
+    ROTATE THE GRIP BEFORE SUBTRACTING IT.
+
+    `g` is measured in the MESH's own frame, and `position` is in the PARENT's.
+    Those are the same frame only while the weapon is unrotated — and a
+    hand-socketed weapon is almost never unrotated, because the rig's hand frame
+    does not match the weapon's. With `rx: -90` the offset was applied a quarter
+    turn out, so the grip landed near the wrist instead of in the palm and the
+    whole weapon hung below the hand.
+
+    Found by building the fitting tool and looking at the result, which is the
+    argument for the tool: the numbers all looked right, and the picture did not.
+    */
+    const rot = BABYLON.Quaternion.FromEulerAngles(
+      (attrs.rx * Math.PI) / 180,
+      (attrs.ry * Math.PI) / 180,
+      (attrs.rz * Math.PI) / 180
+    )
+    const spun = BABYLON.Vector3.Zero()
+    g.rotateByQuaternionToRef(rot, spun)
+    this.mesh.position.set(attrs.x - spun.x, attrs.y - spun.y, attrs.z - spun.z)
   }
 
   /**
@@ -1208,6 +1228,29 @@ export class B3dLauncher extends AbstractMesh {
       n++
     }
     return n > 0 ? acc.scaleInPlace(1 / n) : null
+  }
+
+  /**
+   * Swap to a different model from the same library, at runtime.
+   *
+   * The load is a one-shot latch (see `_loadLibraryModel`), which is right for
+   * the normal case and wrong for a fitting tool that switches weapons while you
+   * watch. This releases the latch and drops the current mesh so the next frame
+   * loads whatever `meshName` now says.
+   *
+   * The proxy children go with it — `addSolidProxy` parents them to the mesh, so
+   * disposing the hierarchy takes them too, and forgetting that would leave an
+   * invisible collider hanging in the air where the old weapon was.
+   */
+  reloadModel(): void {
+    this._libLoaded = false
+    this._socketed = false
+    this._mount = undefined
+    this._muzzleNode = null
+    this._stopLoad?.()
+    this._stopLoad = null
+    this.mesh?.dispose(false, true)
+    this.mesh = undefined as unknown as BABYLON.Mesh
   }
 
   /** Load the library model, once, after the attribute drain has finished. */

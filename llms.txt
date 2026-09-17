@@ -337,6 +337,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 - https://3d.tosijs.net/water-normal/ — water-normal
   field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
+- https://3d.tosijs.net/weapon-fit/ — Weapon Fit
+  weapon library, and a panel of coordinates wired to the thing you are looking
 - https://3d.tosijs.net/widgets3d-layout/ — Widget layout maths
   Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 - https://3d.tosijs.net/widget-box/ — widget-box
