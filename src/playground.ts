@@ -331,9 +331,33 @@ export function playground(options: PlaygroundOptions = {}) {
   rail moves with it, because a rail that stays where the deck was is a rail in
   mid-air.
   */
+  /*
+  ⚠️ THE RAILING REACHES THE DECK, and that is not decoration.
+
+  It was a single bar floating 0.6m above the walkway, and you could walk
+  straight through it — Tonio: "I was able to walk through the handrail on the
+  catwalk." Measured: a collider whose BOTTOM sits above the character's feet
+  does not stop him, whatever its thickness. The identical 0.2m-thick box
+  spanning 2.6→4.0 (standing ON the deck) stops him dead at the face plus the
+  ellipsoid radius; the same box floating at 3.2→3.4 is walked through.
+
+  I chased thickness first and was wrong: 0.2m through, 1.0m "stopped" — and the
+  1.0m case had simply started already overlapping and been pushed out. Once the
+  start was clear, every thickness passed through. The variable that actually
+  mattered was whether the thing touched the floor.
+
+  So: a parapet from the deck up to hand height, with the rail on top of it. That
+  is how a real catwalk is built, it collides because it is continuous from the
+  walking surface, and the rail above it stays purely visual.
+
+  One side only, deliberately — the south edge is still open, because the doc
+  above promises "something to fall off" and a fully fenced catwalk is a
+  corridor.
+  */
   parts.push(
     wall('catwalk-deck', 18, 17, 12, 0.4, 3.5, METAL, 2.4),
-    wall('catwalk-rail', 18, 15.4, 12, 0.2, 0.2, METAL, 3.3)
+    wall('catwalk-parapet', 18, 15.45, 12, 0.7, 0.16, METAL, 2.95),
+    wall('catwalk-rail', 18, 15.45, 12, 0.12, 0.3, METAL, 3.36)
   )
 
   /*
