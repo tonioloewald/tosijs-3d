@@ -109,7 +109,7 @@ export class B3dSun extends B3dChild {
      * the trade this parameter makes, and the reason it is exposed rather than
      * simply raised.
      */
-    shadowNormalBias: 0.05,
+    shadowNormalBias: 0.02,
     /** Depth-direction bias. Babylon's CSM default; normalBias is the one to
      * reach for first, because depth bias peter-pans much sooner. */
     shadowBias: 0.00005,
