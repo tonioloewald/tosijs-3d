@@ -1672,7 +1672,35 @@ export class B3dBiped extends B3dControllable {
   private _gunplayState(name: string): string {
     if (!this.gunplay) return name
     if (name !== 'idle') return name
-    return this._hasClip('Pistol_Idle_Loop') ? 'aimIdle' : name
+    if (this._hasClip('Pistol_Idle_Loop')) return 'aimIdle'
+    /*
+    SAY SO, ONCE, rather than quietly standing there.
+
+    A rig without the gunplay clips degrades to its ordinary locomotion, which
+    is the right behaviour and an awful diagnosis: the weapon appears in the
+    hand, the aim works, the reticle moves, and the character simply does not
+    change pose. Tonio hit exactly this and the cause was not the code at all —
+    a browser holding a CACHED copy of `UAL1_core.glb` from before the clips
+    were added to it. The CDN serves `immutable, max-age=31536000`, so an old
+    copy is kept for a year and nothing about the page looks stale.
+
+    "Weird it's working in electron but not chrome" is the signature, and it is
+    worth recognising: a private Electron instance has no cache, so it fetched
+    the new asset and the ordinary browser did not.
+    */
+    this._warnOnce(
+      `b3d-biped: weapon raised, but ${this.url || 'this rig'} has no ` +
+        `Pistol_Idle_Loop — the character will aim in its walking pose. ` +
+        `If the rig should have it, the asset is probably cached (hard-reload).`
+    )
+    return name
+  }
+
+  private _warned = new Set<string>()
+  private _warnOnce(message: string): void {
+    if (this._warned.has(message)) return
+    this._warned.add(message)
+    console.warn(message)
   }
 
   private _hasClip(clip: string): boolean {
@@ -2067,11 +2095,33 @@ export class B3dBiped extends B3dControllable {
       // the character is not — which is the failure mode an orbiting
       // third-person camera has and a GTA-style one does not.
       this.camera.rotationOffset = 180
-      // Pitch as height: +look is up, which means the camera drops BELOW the
-      // subject to look up at it, so the offset runs the other way.
-      const desiredHeight =
-        attrs.cameraHeightOffset +
+      /*
+      Pitch as height: +look is up, which means the camera drops BELOW the
+      subject to look up at it, so the offset runs the other way.
+
+      ⚠️ CLAMPED, or looking up buries the camera and you get thrown into first
+      person. `tan` runs away near the limit — at the 70° the look allows, this
+      asks for the camera roughly 1.4 radii UNDERGROUND. The obstruction ray then
+      hits the floor, `forceFirstPerson` correctly concludes there is nowhere to
+      stand, and you are in first person staring at the sky with no idea why.
+      Tonio: "if you arrow key into 'first person' view you end up staring at the
+      sky."
+
+      Measured before the clamp: chase at pitch 20, FORCED to fpv by pitch 43,
+      and stuck there at 70. The first-person fallback was doing its job on a
+      request that should never have been made.
+
+      So the request is bounded instead. `minHeight` keeps the camera above the
+      subject's feet, which is all that is needed to keep the ray out of the
+      ground, and looking further up simply stops lowering the camera rather than
+      changing the view mode underneath you.
+      */
+      const pitchDrop =
         Math.tan((-this._lookPitch * Math.PI) / 180) * desiredRadius * 0.5
+      const desiredHeight = Math.max(
+        attrs.cameraMinHeight,
+        attrs.cameraHeightOffset + pitchDrop
+      )
       const camNode = this._rootNode()
 
       /*
