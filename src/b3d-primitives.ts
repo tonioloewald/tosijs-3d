@@ -150,6 +150,28 @@ export class B3dSphere extends AbstractMesh {
      * decorative box that silently starts blocking a doorway is a worse
      * surprise than one you have to ask to be solid. A `b3dGround` is always
      * solid; it is the one primitive nobody wants to fall through.
+     *
+     * WARNING: A SOLID THING THAT DOES NOT REACH THE FLOOR WILL NOT STOP A
+     * CHARACTER. `solid` sets `checkCollisions`, and Babylon's character
+     * collision is an ellipsoid swept along the move — a collider floating
+     * ABOVE the character's feet is walked straight through, whatever its
+     * thickness and however high it sits.
+     *
+     * Measured, because it is not obvious and it cost an afternoon: the
+     * playground's catwalk handrail was a bar spanning y 3.2 to 3.4 over a deck
+     * at 2.6, and you walked through it and off the edge. The IDENTICAL
+     * 0.2m-thick box spanning 2.6 to 4.0 — same thickness, same place, but
+     * touching the walking surface — stops a character dead at the face plus
+     * the ellipsoid radius.
+     *
+     * (Thickness is a red herring, and I chased it first. 0.2m passed through
+     * and 1.0m appeared to stop — but that case had started already overlapping
+     * and been pushed out, which is a collision RESPONSE, not a collision. From
+     * a clear start every thickness passed through.)
+     *
+     * So railings need a parapet, a kick-plate or posts, and a fence needs its
+     * pickets to reach the ground. Model it the way a real one is built and it
+     * collides for the same reason the real one does.
      */
     solid: 'off' as 'on' | 'off',
   }
@@ -205,6 +227,28 @@ export class B3dBox extends AbstractMesh {
      * decorative box that silently starts blocking a doorway is a worse
      * surprise than one you have to ask to be solid. A `b3dGround` is always
      * solid; it is the one primitive nobody wants to fall through.
+     *
+     * WARNING: A SOLID THING THAT DOES NOT REACH THE FLOOR WILL NOT STOP A
+     * CHARACTER. `solid` sets `checkCollisions`, and Babylon's character
+     * collision is an ellipsoid swept along the move — a collider floating
+     * ABOVE the character's feet is walked straight through, whatever its
+     * thickness and however high it sits.
+     *
+     * Measured, because it is not obvious and it cost an afternoon: the
+     * playground's catwalk handrail was a bar spanning y 3.2 to 3.4 over a deck
+     * at 2.6, and you walked through it and off the edge. The IDENTICAL
+     * 0.2m-thick box spanning 2.6 to 4.0 — same thickness, same place, but
+     * touching the walking surface — stops a character dead at the face plus
+     * the ellipsoid radius.
+     *
+     * (Thickness is a red herring, and I chased it first. 0.2m passed through
+     * and 1.0m appeared to stop — but that case had started already overlapping
+     * and been pushed out, which is a collision RESPONSE, not a collision. From
+     * a clear start every thickness passed through.)
+     *
+     * So railings need a parapet, a kick-plate or posts, and a fence needs its
+     * pickets to reach the ground. Model it the way a real one is built and it
+     * collides for the same reason the real one does.
      */
     solid: 'off' as 'on' | 'off',
   }
