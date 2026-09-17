@@ -305,16 +305,35 @@ export function playground(options: PlaygroundOptions = {}) {
     // …and one stack that gets you onto the catwalk, if you take them in order.
     wall('crate-stair-a', 6, 14, 2, 0.5, 2, CRATE),
     wall('crate-stair-b', 8.5, 15.5, 2, 1.1, 2, CRATE),
-    wall('crate-stair-c', 11, 17, 2, 1.7, 2, CRATE)
+    // 2.0, not 1.7 — see the catwalk note below. Makes the last rise 0.6 like
+    // the three before it, instead of a 0.9 lunge at the top of a staircase.
+    wall('crate-stair-c', 11, 17, 2, 2.0, 2, CRATE)
   )
 
   /*
   THE CATWALK — a firing position with a drop off the end, which makes it a
   decision rather than a platform.
   */
+  /*
+  ⚠️ THE DECK STARTS AT x = 12, WHICH IS WHERE THE STAIRCASE ENDS.
+
+  It used to be centred at 16 with a width of 12, so it spanned x 10→22 — and
+  `crate-stair-c` spans 10→12. The top crate was ENTIRELY UNDERNEATH THE
+  CATWALK. Standing on it put a 1.83m character's head inside the deck, with
+  0.5m of headroom, and the mantle probe found a ledge at head height.
+
+  Tonio: "the final step onto the catwalk was a bit odd. The character
+  transitioned into wall climb for a second." It was doing its best with a
+  character wedged into a ceiling.
+
+  Centred at 18 now, so the deck runs 12→24 and its west face meets the crate's
+  east face exactly: you step up 0.6m onto the edge with nothing overhead. The
+  rail moves with it, because a rail that stays where the deck was is a rail in
+  mid-air.
+  */
   parts.push(
-    wall('catwalk-deck', 16, 17, 12, 0.4, 3.5, METAL, 2.4),
-    wall('catwalk-rail', 16, 15.4, 12, 0.2, 0.2, METAL, 3.3)
+    wall('catwalk-deck', 18, 17, 12, 0.4, 3.5, METAL, 2.4),
+    wall('catwalk-rail', 18, 15.4, 12, 0.2, 0.2, METAL, 3.3)
   )
 
   /*
