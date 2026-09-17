@@ -332,32 +332,28 @@ export function playground(options: PlaygroundOptions = {}) {
   mid-air.
   */
   /*
-  ⚠️ THE RAILING REACHES THE DECK, and that is not decoration.
+  A REAL RAILING — a thin top rail with an open gap under it.
 
-  It was a single bar floating 0.6m above the walkway, and you could walk
-  straight through it — Tonio: "I was able to walk through the handrail on the
-  catwalk." Measured: a collider whose BOTTOM sits above the character's feet
-  does not stop him, whatever its thickness. The identical 0.2m-thick box
-  spanning 2.6→4.0 (standing ON the deck) stops him dead at the face plus the
-  ellipsoid radius; the same box floating at 3.2→3.4 is walked through.
+  You could walk straight through the old one — Tonio: "I was able to walk
+  through the handrail on the catwalk." The cause turned out to be general
+  rather than anything about this rail (Babylon's swept ellipsoid misses a
+  collider much under half a metre tall), so it is fixed in `b3d-primitives`
+  with an invisible collision proxy rather than worked around here.
 
-  I chased thickness first and was wrong: 0.2m through, 1.0m "stopped" — and the
-  1.0m case had simply started already overlapping and been pushed out. Once the
-  start was clear, every thickness passed through. The variable that actually
-  mattered was whether the thing touched the floor.
+  Which means this can stay a RAILING: a thin bar with air beneath it, that
+  stops you walking off the edge and still lets a shot pass underneath. A solid
+  parapet would have fixed the walking and been wrong about the shooting —
+  Tonio again: "you should be able to shoot through the gap."
 
-  So: a parapet from the deck up to hand height, with the rail on top of it. That
-  is how a real catwalk is built, it collides because it is continuous from the
-  walking surface, and the rail above it stays purely visual.
-
-  One side only, deliberately — the south edge is still open, because the doc
-  above promises "something to fall off" and a fully fenced catwalk is a
-  corridor.
+  One side only, deliberately: the south edge is open, because the doc above
+  promises "something to fall off" and a fully fenced catwalk is a corridor.
   */
   parts.push(
     wall('catwalk-deck', 18, 17, 12, 0.4, 3.5, METAL, 2.4),
-    wall('catwalk-parapet', 18, 15.45, 12, 0.7, 0.16, METAL, 2.95),
-    wall('catwalk-rail', 18, 15.45, 12, 0.12, 0.3, METAL, 3.36)
+    wall('catwalk-rail', 18, 15.45, 12, 0.14, 0.14, METAL, 3.35),
+    wall('catwalk-post-a', 12.6, 15.45, 0.14, 0.75, 0.14, METAL, 2.98),
+    wall('catwalk-post-b', 18, 15.45, 0.14, 0.75, 0.14, METAL, 2.98),
+    wall('catwalk-post-c', 23.4, 15.45, 0.14, 0.75, 0.14, METAL, 2.98)
   )
 
   /*

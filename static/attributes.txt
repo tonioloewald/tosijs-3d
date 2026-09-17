@@ -598,6 +598,7 @@ b3d-planet
   glowColor
   mirror
   solid
+  solidProxy
 
 ## b3d-primitives (tosi-b3d-box) — <tosi-b3d-box>
 
@@ -618,6 +619,7 @@ b3d-planet
   glow
   glowColor
   solid
+  solidProxy
 
 ## b3d-primitives (tosi-b3d-ground) — <tosi-b3d-ground>
 

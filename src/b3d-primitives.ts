@@ -3,6 +3,58 @@ import { AbstractMesh, isOff } from './b3d-utils.js'
 import { PerlinNoise } from './perlin-noise.js'
 import type { B3d } from './tosi-b3d.js'
 
+/**
+ * The shortest collider Babylon's swept ellipsoid reliably notices.
+ *
+ * Measured against the biped's own ellipsoid (radii 0.3/0.75/0.3, offset 1.1)
+ * by walking it into boxes through the real input path: 0.2 and 0.4 tall are
+ * walked through, 0.6 and 0.8 stop it at the face plus the ellipsoid radius.
+ * 0.6 with a little margin.
+ */
+const MIN_SOLID_HEIGHT = 0.7
+
+/**
+ * Give a short solid mesh an invisible box to collide with.
+ *
+ * Returns the proxy, or `null` when the mesh is already tall enough to be
+ * noticed on its own. See the long note on `solid`.
+ */
+function addSolidProxy(
+  mesh: BABYLON.Mesh,
+  scene: BABYLON.Scene
+): BABYLON.Mesh | null {
+  const box = mesh.getBoundingInfo().boundingBox
+  const size = box.maximum.subtract(box.minimum)
+  if (size.y >= MIN_SOLID_HEIGHT) return null
+  const proxy = BABYLON.MeshBuilder.CreateBox(
+    `${mesh.name}-collider`,
+    {
+      width: Math.max(0.02, size.x),
+      height: MIN_SOLID_HEIGHT,
+      depth: Math.max(0.02, size.z),
+    },
+    scene
+  )
+  // Centred on the real thing, in ITS space, so it follows any transform.
+  const centre = box.minimum.add(box.maximum).scale(0.5)
+  proxy.parent = mesh
+  proxy.position.copyFrom(centre)
+  proxy.rotationQuaternion = null
+  proxy.rotation.set(0, 0, 0)
+  proxy.checkCollisions = true
+  proxy.isVisible = false
+  /*
+  NOT PICKABLE, which is the whole point — see `solid`. Projectiles, the ground
+  probe and the cover queries all raycast against pickable meshes, so keeping it
+  out of that set is what lets a handrail stop a body and still let a shot
+  through the gap beneath it.
+  */
+  proxy.isPickable = false
+  proxy.doNotSyncBoundingInfo = true
+  return proxy
+}
+
+
 /** A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via uScale/vScale. */
 function makeCheckerTexture(
   name: string,
@@ -151,29 +203,31 @@ export class B3dSphere extends AbstractMesh {
      * surprise than one you have to ask to be solid. A `b3dGround` is always
      * solid; it is the one primitive nobody wants to fall through.
      *
-     * WARNING: A SOLID THING THAT DOES NOT REACH THE FLOOR WILL NOT STOP A
-     * CHARACTER. `solid` sets `checkCollisions`, and Babylon's character
-     * collision is an ellipsoid swept along the move — a collider floating
-     * ABOVE the character's feet is walked straight through, whatever its
-     * thickness and however high it sits.
+     * A SHORT SOLID GETS AN INVISIBLE COLLISION PROXY, automatically.
      *
-     * Measured, because it is not obvious and it cost an afternoon: the
-     * playground's catwalk handrail was a bar spanning y 3.2 to 3.4 over a deck
-     * at 2.6, and you walked through it and off the edge. The IDENTICAL
-     * 0.2m-thick box spanning 2.6 to 4.0 — same thickness, same place, but
-     * touching the walking surface — stops a character dead at the face plus
-     * the ellipsoid radius.
+     * Babylon's character collision sweeps an ellipsoid, and it misses a
+     * collider much under half a metre tall: measured against the biped, a bar
+     * 0.2m or 0.4m tall is walked straight through, 0.6m and up stops it dead.
+     * Height is the variable — a bar floating well clear of the floor stops a
+     * character perfectly well if it is tall enough, and a bar resting ON the
+     * floor does not if it is not.
      *
-     * (Thickness is a red herring, and I chased it first. 0.2m passed through
-     * and 1.0m appeared to stop — but that case had started already overlapping
-     * and been pushed out, which is a collision RESPONSE, not a collision. From
-     * a clear start every thickness passed through.)
+     * So anything solid and shorter than `MIN_SOLID_HEIGHT` gets a hidden box
+     * of that height, centred on it, doing the colliding.
      *
-     * So railings need a parapet, a kick-plate or posts, and a fence needs its
-     * pickets to reach the ground. Model it the way a real one is built and it
-     * collides for the same reason the real one does.
+     * ⚠️ THE PROXY IS NOT PICKABLE, and that is the point rather than an
+     * implementation detail. Character collision reads `checkCollisions`;
+     * projectiles, the ground probe and every cover query raycast against
+     * PICKABLE meshes. Keeping the proxy out of the second set means a handrail
+     * stops you walking off a catwalk and you can still shoot through the gap
+     * under it — which is what a handrail does, and what a solid block faking it
+     * would get wrong. Tonio: "you should be able to shoot through the gap."
+     *
+     * Set `solidProxy: 'off'` to decline it and collide with the real geometry.
      */
     solid: 'off' as 'on' | 'off',
+    /** Decline the automatic collision proxy described on `solid`. */
+    solidProxy: 'on' as 'on' | 'off',
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -192,6 +246,9 @@ export class B3dSphere extends AbstractMesh {
     // A character's grounding probe and `moveWithCollisions` only see meshes
     // with this set, so `solid` is the whole of what makes a wall a wall.
     this.mesh.checkCollisions = !isOff(attrs.solid)
+    if (!isOff(attrs.solid) && !isOff(attrs.solidProxy)) {
+      addSolidProxy(this.mesh as BABYLON.Mesh, scene)
+    }
     owner.register({ meshes: [this.mesh] })
   }
 }
@@ -228,29 +285,31 @@ export class B3dBox extends AbstractMesh {
      * surprise than one you have to ask to be solid. A `b3dGround` is always
      * solid; it is the one primitive nobody wants to fall through.
      *
-     * WARNING: A SOLID THING THAT DOES NOT REACH THE FLOOR WILL NOT STOP A
-     * CHARACTER. `solid` sets `checkCollisions`, and Babylon's character
-     * collision is an ellipsoid swept along the move — a collider floating
-     * ABOVE the character's feet is walked straight through, whatever its
-     * thickness and however high it sits.
+     * A SHORT SOLID GETS AN INVISIBLE COLLISION PROXY, automatically.
      *
-     * Measured, because it is not obvious and it cost an afternoon: the
-     * playground's catwalk handrail was a bar spanning y 3.2 to 3.4 over a deck
-     * at 2.6, and you walked through it and off the edge. The IDENTICAL
-     * 0.2m-thick box spanning 2.6 to 4.0 — same thickness, same place, but
-     * touching the walking surface — stops a character dead at the face plus
-     * the ellipsoid radius.
+     * Babylon's character collision sweeps an ellipsoid, and it misses a
+     * collider much under half a metre tall: measured against the biped, a bar
+     * 0.2m or 0.4m tall is walked straight through, 0.6m and up stops it dead.
+     * Height is the variable — a bar floating well clear of the floor stops a
+     * character perfectly well if it is tall enough, and a bar resting ON the
+     * floor does not if it is not.
      *
-     * (Thickness is a red herring, and I chased it first. 0.2m passed through
-     * and 1.0m appeared to stop — but that case had started already overlapping
-     * and been pushed out, which is a collision RESPONSE, not a collision. From
-     * a clear start every thickness passed through.)
+     * So anything solid and shorter than `MIN_SOLID_HEIGHT` gets a hidden box
+     * of that height, centred on it, doing the colliding.
      *
-     * So railings need a parapet, a kick-plate or posts, and a fence needs its
-     * pickets to reach the ground. Model it the way a real one is built and it
-     * collides for the same reason the real one does.
+     * ⚠️ THE PROXY IS NOT PICKABLE, and that is the point rather than an
+     * implementation detail. Character collision reads `checkCollisions`;
+     * projectiles, the ground probe and every cover query raycast against
+     * PICKABLE meshes. Keeping the proxy out of the second set means a handrail
+     * stops you walking off a catwalk and you can still shoot through the gap
+     * under it — which is what a handrail does, and what a solid block faking it
+     * would get wrong. Tonio: "you should be able to shoot through the gap."
+     *
+     * Set `solidProxy: 'off'` to decline it and collide with the real geometry.
      */
     solid: 'off' as 'on' | 'off',
+    /** Decline the automatic collision proxy described on `solid`. */
+    solidProxy: 'on' as 'on' | 'off',
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -271,6 +330,9 @@ export class B3dBox extends AbstractMesh {
     // A character's grounding probe and `moveWithCollisions` only see meshes
     // with this set, so `solid` is the whole of what makes a wall a wall.
     this.mesh.checkCollisions = !isOff(attrs.solid)
+    if (!isOff(attrs.solid) && !isOff(attrs.solidProxy)) {
+      addSolidProxy(this.mesh as BABYLON.Mesh, scene)
+    }
     owner.register({ meshes: [this.mesh] })
   }
 }
