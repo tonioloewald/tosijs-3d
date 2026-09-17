@@ -177,7 +177,7 @@ export function sunSchema(extra: Record<string, unknown> = {}) {
       stabilizeCascades: choice('on', ['on', 'off']),
       lambda: num(0.8, { minimum: 0, maximum: 1 }),
       cascadeBlendPercentage: num(0.1, { minimum: 0, maximum: 1 }),
-      shadowNormalBias: num(0.05, { minimum: 0, maximum: 0.5 }),
+      shadowNormalBias: num(0.02, { minimum: 0, maximum: 0.5 }),
       shadowBias: num(0.00005, { minimum: 0, maximum: 0.01 }),
       updateIntervalMs: num(1000, { minimum: 0, maximum: 10000, ...MS }),
     },
