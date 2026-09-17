@@ -1,7 +1,6 @@
 # Utilities
 
 <!-- toc -->
-- [playground](/playground/)
 - [manipulator](/manipulator/)
 - [manipulator-view](/manipulator-view/)
 - [arc](/arc/)

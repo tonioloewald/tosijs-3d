@@ -1,43 +1,9 @@
 /*#
-# playground
+# Biped Playground
 
 **A place to run around and murder things in.** One call returns a whole
-arena — ground, light, cover, crates, a catwalk and something to shoot —
-as ordinary scene children, so it composes into any demo rather than being one.
-
-```javascript
-b3d(
-  { style: 'width:100%;height:100%' }, // your own scene options
-  ...playground(),
-  inputFocus(hero)
-)
-```
-
-Tonio asked for it while the cover and shooting work was landing, and that is
-what it is for: every piece in here exists to exercise something the biped can
-do, and the arrangement is a test you walk around in rather than one you read.
-
-## What each part is there to prove
-
-| | exercises |
-| --- | --- |
-| the **low wall** (1.1m) | crouch cover — `stanceFor` says crouch, and crouched you are fully hidden |
-| the **pillars** | cover you can lean past on either side — `peekSide` returns `both` |
-| the **bunker** (an L) | cover from a threat the wall does not face, which is why `shelterFrom` searches an arc |
-| the **railing** | cover that ISN'T. Same height, same distance, gap underneath. The one everybody's first implementation gets wrong |
-| the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
-| the **catwalk** | verticality, a firing position, and something to fall off |
-| the **targets** | something to murder |
-
-## Everything is an ELEMENT, deliberately
-
-No `sceneCreated` hook, no `el.make` calls, no imperative build step — the
-playground is a list of scene children, which means a caller can splice it,
-override a piece, or take half of it. It also means the whole arena is already
-in the shape a data format would want, which is the direction
-[`tosijs-3d-ensemble`](https://github.com/tonioloewald/tosijs-3d-ensemble) is
-going: when a demo can say *"the standard arena, plus the thing I am showing
-you"* as one line of JSON, this is what that JSON will describe.
+arena — ground, light, cover, crates, a catwalk and something to shoot — as
+ordinary scene children, so it composes into any demo rather than being one.
 
 ## Demo — the whole thing, with a biped in it
 
@@ -160,8 +126,47 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+## Using it
+
+It is a list of scene children, so it spreads into a scene of your own:
+
+```javascript
+b3d(
+  { style: 'width:100%;height:100%' }, // your own scene options
+  ...playground(),
+  inputFocus(hero)
+)
+```
+
+Tonio asked for it while the cover and shooting work was landing, and that is
+what it is for: every piece in here exists to exercise something the biped can
+do, and the arrangement is a test you walk around in rather than one you read.
+
+## What each part is there to prove
+
+| | exercises |
+| --- | --- |
+| the **low wall** (1.1m) | crouch cover — `stanceFor` says crouch, and crouched you are fully hidden |
+| the **pillars** | cover you can lean past on either side — `peekSide` returns `both` |
+| the **bunker** (an L) | cover from a threat the wall does not face, which is why `shelterFrom` searches an arc |
+| the **railing** | cover that ISN'T. Same height, same distance, gap underneath. The one everybody's first implementation gets wrong |
+| the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
+| the **catwalk** | verticality, a firing position, and something to fall off |
+| the **targets** | something to murder |
+
+## Everything is an ELEMENT, deliberately
+
+No `sceneCreated` hook, no `el.make` calls, no imperative build step — the
+playground is a list of scene children, which means a caller can splice it,
+override a piece, or take half of it. It also means the whole arena is already
+in the shape a data format would want, which is the direction
+[`tosijs-3d-ensemble`](https://github.com/tonioloewald/tosijs-3d-ensemble) is
+going: when a demo can say *"the standard arena, plus the thing I am showing
+you"* as one line of JSON, this is what that JSON will describe.
+
 */
-/*{ "parent": "Utilities", "order": 30 }*/
+/*{ "parent": "Demos", "order": 10 }*/
 
 import { b3dBox } from './b3d-primitives.js'
 import { b3dGround } from './b3d-primitives.js'

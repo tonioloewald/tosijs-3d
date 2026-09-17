@@ -140,6 +140,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **pure biome-classification model** under the procedural terrain shader
 - https://3d.tosijs.net/biome-plugin/ — biome-plugin
   The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
+- https://3d.tosijs.net/playground/ — Biped Playground
+  arena — ground, light, cover, crates, a catwalk and something to shoot — as
 - https://3d.tosijs.net/bone-mask/ — bone-mask
   hierarchy is names and parents, so none of this needs a skeleton, a renderer or
 - https://3d.tosijs.net/box/ — box
@@ -173,6 +175,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
+- https://3d.tosijs.net/demos/ — Demos
+  Whole scenes you can walk around in, rather than one component at a time.
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
@@ -268,8 +272,6 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/performance/ — Performance
 - https://3d.tosijs.net/picker/ — picker
   scroll for five hundred; this is the other end. It composes controls that
-- https://3d.tosijs.net/playground/ — playground
-  arena — ground, light, cover, crates, a catwalk and something to shoot —
 - https://3d.tosijs.net/popup-chrome/ — popup-chrome
   Pure, in viewBox units — the one place both answers come from.
 - https://3d.tosijs.net/popup-surface/ — popup-surface
