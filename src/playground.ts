@@ -351,10 +351,26 @@ export function playground(options: PlaygroundOptions = {}) {
   parts.push(
     wall('catwalk-deck', 18, 17, 12, 0.4, 3.5, METAL, 2.4),
     wall('catwalk-rail', 18, 15.45, 12, 0.14, 0.14, METAL, 3.35),
-    wall('catwalk-post-a', 12.6, 15.45, 0.14, 0.75, 0.14, METAL, 2.98),
-    wall('catwalk-post-b', 18, 15.45, 0.14, 0.75, 0.14, METAL, 2.98),
-    wall('catwalk-post-c', 23.4, 15.45, 0.14, 0.75, 0.14, METAL, 2.98)
+    wall('catwalk-midrail', 18, 15.45, 12, 0.1, 0.1, METAL, 2.98)
   )
+  /*
+  STANCHIONS EVERY TWO METRES, because that is what a railing has.
+
+  The first version had three posts 5.4m apart, which is a fence rather than a
+  handrail — Tonio: "a real railing would have some supports so they would be
+  collidable." Right, and at a realistic spacing they carry a good deal of the
+  collision themselves: a 0.75m post clears the 0.7m the swept ellipsoid needs,
+  so each one blocks on its own geometry with no proxy involved.
+
+  The top rail's proxy still earns its place — it is what makes the SPAN between
+  stanchions solid, which is exactly what the real rail does and what a gap
+  between posts would otherwise not.
+  */
+  for (let i = 0; i <= 6; i++) {
+    parts.push(
+      wall(`catwalk-post-${i}`, 12.3 + i * 1.9, 15.45, 0.12, 0.75, 0.12, METAL, 2.98)
+    )
+  }
 
   /*
   NO POND, and the reason is worth recording rather than quietly omitting.
