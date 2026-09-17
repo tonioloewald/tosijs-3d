@@ -78,7 +78,10 @@ describe('aimToward', () => {
   })
 
   test('clamps to the limits — straight up is not reachable', () => {
-    expect(aimToward(0, { x: 0, y: 1, z: 0 }).pitchDeg).toBeCloseTo(-L.pitchUp, 6)
+    expect(aimToward(0, { x: 0, y: 1, z: 0 }).pitchDeg).toBeCloseTo(
+      -L.pitchUp,
+      6
+    )
     // Directly behind is 180 of twist, which no spine offers.
     expect(Math.abs(aimToward(0, { x: 0, y: 0, z: -1 }).yawDeg)).toBeCloseTo(
       L.yawMax,
@@ -91,7 +94,12 @@ describe('aimDirection', () => {
   // A body that can do anything, so the round trip tests the MATHS rather than
   // the clamp. With real limits an unreachable direction cannot come back, and
   // that is the point of the limits — see the test below.
-  const free: AimLimits = { yawFree: 180, yawMax: 180, pitchUp: 90, pitchDown: 90 }
+  const free: AimLimits = {
+    yawFree: 180,
+    yawMax: 180,
+    pitchUp: 90,
+    pitchDown: 90,
+  }
 
   test('round-trips with aimToward, for an aim the body can hold', () => {
     for (const bodyYaw of [0, 37, -120, 179]) {
@@ -181,7 +189,9 @@ describe('stepAim', () => {
       slow = stepAim(slow, target, 0.05, { slewDeg: 40 })
     }
     const want = 60
-    expect(Math.abs(want - fast.yawDeg)).toBeLessThan(Math.abs(want - slow.yawDeg))
+    expect(Math.abs(want - fast.yawDeg)).toBeLessThan(
+      Math.abs(want - slow.yawDeg)
+    )
     expect(Math.abs(want - slow.yawDeg)).toBeGreaterThan(10)
   })
 
@@ -192,7 +202,9 @@ describe('stepAim', () => {
   })
 
   test('never steps past the body limits', () => {
-    const a = stepAim(level, { yawDeg: 180, pitchDeg: 180 }, 10, { slewDeg: 1000 })
+    const a = stepAim(level, { yawDeg: 180, pitchDeg: 180 }, 10, {
+      slewDeg: 1000,
+    })
     expect(Math.abs(a.yawDeg)).toBeLessThanOrEqual(L.yawMax)
     expect(a.pitchDeg).toBeLessThanOrEqual(L.pitchDown)
   })
@@ -318,7 +330,10 @@ describe('aimAuthority', () => {
   test('up and down are measured against their own limits', () => {
     const limits: AimLimits = { ...L, pitchUp: 20, pitchDown: 80 }
     expect(aimAuthority({ yawDeg: 0, pitchDeg: -20 }, limits)).toBeCloseTo(1, 6)
-    expect(aimAuthority({ yawDeg: 0, pitchDeg: 20 }, limits)).toBeCloseTo(0.25, 6)
+    expect(aimAuthority({ yawDeg: 0, pitchDeg: 20 }, limits)).toBeCloseTo(
+      0.25,
+      6
+    )
   })
 })
 

@@ -1310,7 +1310,9 @@ export class B3dLauncher extends AbstractMesh {
     }
     const skeleton = holder?.entries?.skeletons?.[0]
     if (skeleton == null) {
-      this._warnSocket(`b3d-launcher: socket "${want}" — holder has no skeleton`)
+      this._warnSocket(
+        `b3d-launcher: socket "${want}" — holder has no skeleton`
+      )
       return null
     }
     /*
@@ -1326,7 +1328,9 @@ export class B3dLauncher extends AbstractMesh {
     const name = findBone(nodes, candidates)
     if (name == null) {
       this._warnSocket(
-        `b3d-launcher: socket "${want}" — no matching bone (tried ${candidates.join(', ')})`
+        `b3d-launcher: socket "${want}" — no matching bone (tried ${candidates.join(
+          ', '
+        )})`
       )
       return null
     }
@@ -1402,7 +1406,9 @@ export class B3dLauncher extends AbstractMesh {
     if (m === this.mesh) return true
     const root = this._mountRoot()
     if (root == null) return false
-    return (m as unknown as BABYLON.TransformNode) === root || m.isDescendantOf(root)
+    return (
+      (m as unknown as BABYLON.TransformNode) === root || m.isDescendantOf(root)
+    )
   }
 
   /** World-space muzzle point (barrel tip, in front of the launcher). */

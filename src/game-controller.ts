@@ -347,7 +347,10 @@ export class GameController extends Component implements GamepadSource {
     if (this.mouseLook === 'drag') {
       this._dragging = true
       this._lookAt = 0
-    } else if (this.mouseLook === 'lock' && document.pointerLockElement == null) {
+    } else if (
+      this.mouseLook === 'lock' &&
+      document.pointerLockElement == null
+    ) {
       void canvas.requestPointerLock?.()
     }
   }

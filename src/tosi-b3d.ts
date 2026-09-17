@@ -34,7 +34,7 @@ const scene = '/test-3.glb'
 //
 // Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
-const person = assetUrl('quaternius/UAL1_core.glb')
+const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
 const formatTime = (v) => {
   const h = Math.floor(v)

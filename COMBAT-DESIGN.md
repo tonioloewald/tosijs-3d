@@ -489,23 +489,23 @@ The turret supports both (agreed earlier). A key **directed** mode for the MVP:
 
 ## How the shot travels — ONE axis, four points on it 🟡
 
-Tonio: *"we should also model three kinds of gun behavior — project the shot and
+Tonio: _"we should also model three kinds of gun behavior — project the shot and
 just hit immediately with visual impact (realistic), visible thing flying
 straight out (star wars blaster bolts), and our launches (ballistic / guided
-shots). And maybe flamethrowers."*
+shots). And maybe flamethrowers."_
 
 The useful thing about that list is that the first three are **not three
-weapons.** They are one question — *how long does the round take to arrive, and
-does anything bend it* — and the existing pure models already span it. That
+weapons.** They are one question — _how long does the round take to arrive, and
+does anything bend it_ — and the existing pure models already span it. That
 makes this a `flight` attribute on `b3d-launcher`, not three elements, which is
 this document's composition-of-simple-atoms rule doing its job.
 
-| `flight` | travel | bent by | drawn as | status |
-| --- | --- | --- | --- | --- |
-| `hitscan` | none | — | impact, plus an optional tracer | new |
-| `bolt` | fast, constant | nothing | a stretched glow | **physics already works** |
-| `ballistic` | slow | gravity + drag | a body | ✅ shipped |
-| `guided` | slow | steering | a body + trail | ✅ shipped |
+| `flight`    | travel         | bent by        | drawn as                        | status                    |
+| ----------- | -------------- | -------------- | ------------------------------- | ------------------------- |
+| `hitscan`   | none           | —              | impact, plus an optional tracer | new                       |
+| `bolt`      | fast, constant | nothing        | a stretched glow                | **physics already works** |
+| `ballistic` | slow           | gravity + drag | a body                          | ✅ shipped                |
+| `guided`    | slow           | steering       | a body + trail                  | ✅ shipped                |
 
 **A bolt is already expressible and nobody noticed.** `ballisticStep` with
 `gravity: 0, drag: 0` IS constant velocity — so `b3dLauncher({gravity: 0,
@@ -545,7 +545,7 @@ A flamethrower is not a projectile weapon with a short range. It is a
   `surroundings.ts` uses. No rays, no swept collision.
 - **The fuel is a `Resource` with a continuous drain**, which that module already
   does (`regenRate`/`regenDelay` run both directions). A flamethrower is the
-  first weapon where `smart` means nothing and *sustain* means everything.
+  first weapon where `smart` means nothing and _sustain_ means everything.
 - **The cone widens and weakens with range**, so falloff is a property of the
   shape rather than a separate damage curve.
 - **It is the first weapon the MEDIUM should veto.** Underwater it does nothing,

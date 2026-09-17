@@ -2180,7 +2180,8 @@ export class B3dCrowd extends B3dChild {
       promotion would have called a success.
       */
       const clip = this._bake?.clips.find((c) => c.name === pose.clip)
-      const speed = clip != null && clip.duration > 0 ? pose.rate * clip.duration : 1
+      const speed =
+        clip != null && clip.duration > 0 ? pose.rate * clip.duration : 1
       group.start(true, speed, at0, group.to)
       group.goToFrame(at0)
     }
@@ -2227,7 +2228,8 @@ export class B3dCrowd extends B3dChild {
   poseOf(i: number): { clip: string; t: number; rate: number } | null {
     const st = this._state
     const bake = this._bake
-    if (st == null || bake == null || i < 0 || i >= this.figureCount) return null
+    if (st == null || bake == null || i < 0 || i >= this.figureCount)
+      return null
     const start = st[i * 4]
     const clip = bake.clips.find((c) => c.start === start) ?? bake.clips[0]
     if (clip == null) return null
@@ -2247,7 +2249,9 @@ export class B3dCrowd extends B3dChild {
    * position gets a figure that is almost in the right place, which is worse
    * than obviously wrong.
    */
-  transformOf(i: number): { x: number; y: number; z: number; yaw: number } | null {
+  transformOf(
+    i: number
+  ): { x: number; y: number; z: number; yaw: number } | null {
     const m = this._matrices
     if (m == null || i < 0 || i >= this.figureCount) return null
     const o = i * 16
@@ -2321,7 +2325,11 @@ export class B3dCrowd extends B3dChild {
    */
   nearestFigures(
     point: { x: number; y: number; z: number },
-    options: { count?: number; maxDistance?: number; includeHidden?: boolean } = {}
+    options: {
+      count?: number
+      maxDistance?: number
+      includeHidden?: boolean
+    } = {}
   ): number[] {
     const m = this._matrices
     const n = this.figureCount

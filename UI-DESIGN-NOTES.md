@@ -988,19 +988,19 @@ the symptom was a control that would not turn off.
 ## SVG components cannot be custom elements — measured, not assumed
 
 2026-09-12. Tonio, thinking about shipping the SVG UI as reusable parts:
-*"should we have an SvgComponent base class, say, that basically lets us ship
+_"should we have an SvgComponent base class, say, that basically lets us ship
 Svg custom-elements that just work, including something like tosi-slot (I don't
-think the shadow DOM is even a tiny bit useful for svg components)."*
+think the shadow DOM is even a tiny bit useful for svg components)."_
 
 The instinct is right and the platform is harsher than the instinct. Measured in
 Chrome, four probes:
 
-| | |
-| --- | --- |
-| custom tag created in the SVG namespace | **never upgraded** — `constructor` is plain `SVGElement`, no lifecycle, ever |
-| HTML custom element appended inside `<svg>` | upgrades (`connectedCallback` runs), but it is XHTML-namespaced and **does not render** |
-| `attachShadow` on an SVG element | **`NotSupportedError`** |
-| `attachShadow` on that HTML element inside the svg | allowed — and still does not render |
+|                                                    |                                                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| custom tag created in the SVG namespace            | **never upgraded** — `constructor` is plain `SVGElement`, no lifecycle, ever            |
+| HTML custom element appended inside `<svg>`        | upgrades (`connectedCallback` runs), but it is XHTML-namespaced and **does not render** |
+| `attachShadow` on an SVG element                   | **`NotSupportedError`**                                                                 |
+| `attachShadow` on that HTML element inside the svg | allowed — and still does not render                                                     |
 
 So shadow DOM is not merely useless here, it is unavailable; and the custom
 element route is closed from both ends. Custom element upgrade is HTML-namespace
@@ -1015,15 +1015,15 @@ is achievable; it just cannot be spelled with `customElements.define`. It is a
 component system over SVG DOM, and `widgets3d` / `box` / `surface` are already
 an informal one:
 
-| a component system needs | what we have |
-| --- | --- |
-| instantiation | factories: `slider3d(...)` → `{ el, layout, hitTest, handle }` |
-| composition / slots | `widget-box.ts` — literally "the seam letting `widgets3d` controls live inside a `box`/`surface`" |
-| a host / mount lifecycle | `setHost(host)`, but only some widgets implement it |
-| layout | `flow-layout.ts`, `widgets3d-layout.ts` |
-| events | `handlePointer(kind, x, y)` — coordinate-based, which is why it works on a texture in VR |
-| **identity / a registry** | ✗ nothing. No name → constructor map |
-| **serialisation** | ✗ nothing. A panel exists only as the code that built it |
+| a component system needs  | what we have                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| instantiation             | factories: `slider3d(...)` → `{ el, layout, hitTest, handle }`                                    |
+| composition / slots       | `widget-box.ts` — literally "the seam letting `widgets3d` controls live inside a `box`/`surface`" |
+| a host / mount lifecycle  | `setHost(host)`, but only some widgets implement it                                               |
+| layout                    | `flow-layout.ts`, `widgets3d-layout.ts`                                                           |
+| events                    | `handlePointer(kind, x, y)` — coordinate-based, which is why it works on a texture in VR          |
+| **identity / a registry** | ✗ nothing. No name → constructor map                                                              |
+| **serialisation**         | ✗ nothing. A panel exists only as the code that built it                                          |
 
 The last two are the gap, and they are exactly the two an EDITOR needs. Which is
 the same shape [`tosijs-3d-ensemble`](https://github.com/tonioloewald/tosijs-3d-ensemble)
@@ -1048,10 +1048,10 @@ same format machinery" is a question worth asking rather than an obvious no.
 
 ## Extra information goes in a POPUP, never in more rows
 
-2026-09-13. Tonio, on the panel's debug toggles: *"Having one of these info
-panels push out the panel layout is a bad experience."* And, on why it had ended
-up that way: *"It should be super easy to make popups so that it's the low
-friction way of presenting additional information."*
+2026-09-13. Tonio, on the panel's debug toggles: _"Having one of these info
+panels push out the panel layout is a bad experience."_ And, on why it had ended
+up that way: _"It should be super easy to make popups so that it's the low
+friction way of presenting additional information."_
 
 The second sentence is the diagnosis. Nothing about the old design was a
 decision — `showLayer` had existed for months, it takes widgets directly, it is
@@ -1076,13 +1076,13 @@ moves the thing you are measuring while you measure it.
 Swept `widgets3d` for the signature — a `layout()` whose height depends on
 state:
 
-| | |
-| --- | --- |
-| debug tools | **was the case.** Now popups |
-| `keyboard` | already `showLayer`, and the original reason it exists |
-| `select3d`, `menu3d` | already popups |
-| `textBlock3d` | height follows its line COUNT, which is real — but it now lives inside a popup, so it reflows that and nothing else |
-| everything else | fixed height, or derived from content that does not toggle |
+|                      |                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| debug tools          | **was the case.** Now popups                                                                                        |
+| `keyboard`           | already `showLayer`, and the original reason it exists                                                              |
+| `select3d`, `menu3d` | already popups                                                                                                      |
+| `textBlock3d`        | height follows its line COUNT, which is real — but it now lives inside a popup, so it reflows that and nothing else |
+| everything else      | fixed height, or derived from content that does not toggle                                                          |
 
 So there was exactly one offender, which is worth recording precisely: the value
 of this change is mostly in the RULE and in the one-call API, not in a pile of

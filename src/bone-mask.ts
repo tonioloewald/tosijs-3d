@@ -227,7 +227,14 @@ export const BONE_SOCKETS: Record<string, readonly string[]> = {
     'Bip01_L_Hand',
   ],
   head: ['head', 'Head', 'mixamorig:Head', 'Bip01_Head'],
-  spine: ['spine_03', 'spine_02', 'Spine2', 'Spine1', 'chest', 'mixamorig:Spine2'],
+  spine: [
+    'spine_03',
+    'spine_02',
+    'Spine2',
+    'Spine1',
+    'chest',
+    'mixamorig:Spine2',
+  ],
   hips: ['pelvis', 'hips', 'Hips', 'mixamorig:Hips'],
 }
 

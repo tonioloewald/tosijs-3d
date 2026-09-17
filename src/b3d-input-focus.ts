@@ -97,7 +97,8 @@ export class B3dInputFocus extends B3dChild {
       this.append(gcEl)
     }
     this.gameController = gcEl as unknown as GameController
-    this.inputMappedProvider = this.gameController.getInputProvider(bipedMapping)
+    this.inputMappedProvider =
+      this.gameController.getInputProvider(bipedMapping)
 
     // Defer discovery to ensure all children have completed sceneReady
     // (inputFocus is notified before its children in document order)

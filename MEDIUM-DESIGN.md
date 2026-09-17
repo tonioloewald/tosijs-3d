@@ -108,9 +108,9 @@ once here, when charring a wreck threw and left the player welded to it.
 
 ## 6a. ⚠️ The boundary IN THE FRAME — we smooth in time, never in space
 
-Tonio, 2026-09-12: *"One thing we don't handle at all yet is the medium boundary
+Tonio, 2026-09-12: _"One thing we don't handle at all yet is the medium boundary
 visible in camera. I note that some games actually handle this quite well now
-which is impressive."*
+which is impressive."_
 
 Correct, and the reason is worth stating exactly, because everything above looks
 like it should already cover it and does not.
@@ -151,9 +151,9 @@ tidiness reasons — this is the reason with teeth.
 
 ### The shipped answer is to AVOID THE STATE, and that is not a cop-out
 
-Tonio, on how Manta did it at the limit of an iPhone 3G: *"flipping the camera
+Tonio, on how Manta did it at the limit of an iPhone 3G: _"flipping the camera
 from decidedly above water to decidedly below so the problem never arose. I was
-basically planning to keep with that."*
+basically planning to keep with that."_
 
 That is the right default and should stay the default. A boundary you never
 dwell at needs no boundary rendering, it costs nothing, it cannot go wrong on a

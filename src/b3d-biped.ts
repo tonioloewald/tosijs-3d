@@ -97,7 +97,7 @@ const gun = b3dLauncher({
 // on a figure half the intended size.
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb'),
+    url: assetUrl('quaternius/UAL1_core.glb', 2),
     animationStates: ualAnimationStates(),
     player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
   },
@@ -266,15 +266,8 @@ import { B3dControllable } from './b3d-controllable.js'
 import type { ControlInput } from './control-input.js'
 import { CompositeInputProvider } from './control-input.js'
 import { bipedMapping, type VirtualGamepad } from './virtual-gamepad.js'
-import {
-  layerOnUpperBody,
-  type LayeredAnimation,
-} from './animation-layers.js'
-import {
-  predictPath,
-  type BallisticParams,
-  type Vec3,
-} from './ballistics.js'
+import { layerOnUpperBody, type LayeredAnimation } from './animation-layers.js'
+import { predictPath, type BallisticParams, type Vec3 } from './ballistics.js'
 import { XRInputProvider } from './xr-input-provider.js'
 
 const DEG_TO_RAD = Math.PI / 180
@@ -321,7 +314,7 @@ export class AnimState {
  *
  * ```js
  * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb'),
+ *   url: assetUrl('quaternius/UAL1_core.glb', 2),
  *   animationStates: ualAnimationStates(),
  * })
  * ```
@@ -840,10 +833,12 @@ export class B3dBiped extends B3dControllable {
       is what tells you where the round goes.
       */
       if (w.socketed === true) continue
-      const m = w.mesh as unknown as {
-        rotation?: BABYLON.Vector3
-        rotationQuaternion?: BABYLON.Quaternion | null
-      } | undefined
+      const m = w.mesh as unknown as
+        | {
+            rotation?: BABYLON.Vector3
+            rotationQuaternion?: BABYLON.Quaternion | null
+          }
+        | undefined
       if (m?.rotation == null) continue
       // A quaternion would win over euler angles if one were set — clear it.
       if (m.rotationQuaternion != null) m.rotationQuaternion = null
@@ -1021,9 +1016,7 @@ export class B3dBiped extends B3dControllable {
         )
         if (hit?.hit && hit.pickedPoint != null) {
           this._aimHit.copyFrom(hit.pickedPoint)
-          this._aimNormal.copyFrom(
-            hit.getNormal(true) ?? BABYLON.Vector3.Up()
-          )
+          this._aimNormal.copyFrom(hit.getNormal(true) ?? BABYLON.Vector3.Up())
           return true
         }
         return false
@@ -1035,9 +1028,9 @@ export class B3dBiped extends B3dControllable {
       // Lifted off the surface, and LYING ON IT — a ring standing upright in a
       // wall is half buried, and the half you can see is the half that tells
       // you nothing.
-      this._reticle.position.copyFrom(this._aimHit).addInPlace(
-        this._aimNormal.scale(0.02)
-      )
+      this._reticle.position
+        .copyFrom(this._aimHit)
+        .addInPlace(this._aimNormal.scale(0.02))
       const up = BABYLON.Vector3.Up()
       const axis = BABYLON.Vector3.Cross(up, this._aimNormal)
       const angle = Math.acos(

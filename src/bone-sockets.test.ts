@@ -18,21 +18,41 @@ const bones = (...names: string[]): BoneNode[] =>
   names.map((name) => ({ name, parent: null }))
 
 /** The three rigs this project actually meets. */
-const QUATERNIUS = bones('root', 'pelvis', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'hand_l', 'hand_r')
+const QUATERNIUS = bones(
+  'root',
+  'pelvis',
+  'spine_01',
+  'spine_02',
+  'spine_03',
+  'neck_01',
+  'Head',
+  'hand_l',
+  'hand_r'
+)
 const KENNEY = bones('Root', 'Hips', 'Spine', 'Head', 'LeftHand', 'RightHand')
-const MIXAMO = bones('mixamorig:Hips', 'mixamorig:Spine2', 'mixamorig:Head', 'mixamorig:RightHand', 'mixamorig:LeftHand')
+const MIXAMO = bones(
+  'mixamorig:Hips',
+  'mixamorig:Spine2',
+  'mixamorig:Head',
+  'mixamorig:RightHand',
+  'mixamorig:LeftHand'
+)
 
 describe('BONE_SOCKETS resolves across rigs', () => {
   test('right hand, all three', () => {
     expect(findBone(QUATERNIUS, BONE_SOCKETS['right-hand'])).toBe('hand_r')
     expect(findBone(KENNEY, BONE_SOCKETS['right-hand'])).toBe('RightHand')
-    expect(findBone(MIXAMO, BONE_SOCKETS['right-hand'])).toBe('mixamorig:RightHand')
+    expect(findBone(MIXAMO, BONE_SOCKETS['right-hand'])).toBe(
+      'mixamorig:RightHand'
+    )
   })
 
   test('left hand, all three', () => {
     expect(findBone(QUATERNIUS, BONE_SOCKETS['left-hand'])).toBe('hand_l')
     expect(findBone(KENNEY, BONE_SOCKETS['left-hand'])).toBe('LeftHand')
-    expect(findBone(MIXAMO, BONE_SOCKETS['left-hand'])).toBe('mixamorig:LeftHand')
+    expect(findBone(MIXAMO, BONE_SOCKETS['left-hand'])).toBe(
+      'mixamorig:LeftHand'
+    )
   })
 
   test('left and right never resolve to each other', () => {

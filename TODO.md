@@ -807,7 +807,6 @@ province can be moved and rotated) or world space (so a hand-drawn map lines up
 with the world). Local is almost certainly right and is the answer that makes
 the province a reusable object rather than a one-off.
 
-
 [ ] **Verify the camera's MEDIUM BAND correction in a real scene.** `camera-fit`'s
 `clearOfBand` is unit-tested and wired into `b3d-biped` (it reads `owner.media`,
 so `b3d-water` publishes what it needs), but nothing has ever exercised it on
@@ -833,7 +832,7 @@ Requested 2026-09-09: inventory (display + manage), pick up / drop, NPC
 conversation (text tree, animation hints, optional audio), NPC behaviours
 (wander, talk to each other, follow, lead), shooting, melee, climbing, taking
 cover in sneak mode, object interaction; plus how many bipeds a scene can hold,
-and equipping / customising them. Tonio: *"So, not much ;)"*
+and equipping / customising them. Tonio: _"So, not much ;)"_
 
 **Filed here because it was living only in a conversation**, which has been
 compacted once already. The four-step order below was agreed at the time; the
@@ -863,6 +862,7 @@ feature list above is the backlog it serves.
    veto needs a caller to veto, and nothing consults these queries yet — the
    biped wiring is step 4. Worth doing when there is a second opinion to
    collect (a scripted no-cover zone, a destructible wall that stops counting).
+
 4. 🟡 **Wire shooting**, then **cover-shooting.** Shooting is DONE 2026-09-12:
    `aiming="on"` splits the stick from the feet, a nested launcher rides its
    holder and fires along the character's aim, and the demo drops cans off a
@@ -928,9 +928,9 @@ instance with no material change and no skeleton — the crowd path is better at
 per-instance state changes than the skinned path is.
 
 [ ] **Sockets — the one designed-but-unbuilt piece of the crowd.** 2026-09-11,
-Tonio on what a battlefield needs: *"a winged creature, heavy mounted, light
+Tonio on what a battlefield needs: _"a winged creature, heavy mounted, light
 mounted, heavy infantry, light infantry and some accessories like helmets,
-shields, weapons."* Everything in that list except the accessories is just
+shields, weapons."_ Everything in that list except the accessories is just
 another bake — draw calls scale with TYPES, not figures, so five kinds is five
 calls whatever the counts, and a 300-vertex soldier with eight clips is under a
 megabyte of texture.
@@ -945,8 +945,8 @@ vertex budget.
 
 Also from that list, for whoever builds it. Bake rate follows **angular change
 between frames × apparent size**, not animation speed — I first wrote "the
-winged creature needs a high rate, a flap is fast" and Tonio corrected it: *"the
-winged creature is probably more like a dragon and has a slow majestic flap."* A
+winged creature needs a high rate, a flap is fast" and Tonio corrected it: _"the
+winged creature is probably more like a dragon and has a slow majestic flap."_ A
 slow flap needs FEWER frames per second of clip; what makes a dragon unforgiving
 is that it fills the view, where the same angular error is a hand's width rather
 than a few pixels. A flock of distant birds and one close dragon can want the
@@ -962,8 +962,8 @@ Mounted is ONE figure rather than two: horse and rider move together, and a seam
 between them is a second thing to synchronise for no gain.
 
 [ ] **A soldier mesh authored for the crowd** (~200–400 verts), not a decimated
-hero. 2026-09-11, Tonio, sizing a battle for a headset: *"I think we don't use
-anything as complex as omnidude at all."* That is the answer to the whole LOD
+hero. 2026-09-11, Tonio, sizing a battle for a headset: _"I think we don't use
+anything as complex as omnidude at all."_ That is the answer to the whole LOD
 question and it costs nothing to act on: omnidude is a player character (face,
 fingers, a silhouette for two metres), a soldier is looked at from forty, and
 the blocky bench figure at ~144 verts already reads as a person at that range.
@@ -987,8 +987,8 @@ decimation must carry bone weights through, or happen offline where the
 `static-assets` conversion pipeline already lives.
 
 [ ] **Measure the crowd in a HEADSET and on a Raspberry Pi.** 2026-09-11,
-Tonio: *"I really need to test with goggles when I have the chance (also the
-raspberry pi)."* Everything so far is one laptop, possibly on a 30Hz display,
+Tonio: _"I really need to test with goggles when I have the chance (also the
+raspberry pi)."_ Everything so far is one laptop, possibly on a 30Hz display,
 which makes the wall-clock readings quantised and the whole set — his words —
 "rubbery, but we have some nice bounds here".
 
@@ -1051,6 +1051,7 @@ how many NAMED characters a scene can hold, which is a question every one of
 these games asks.
 
 **Known gaps, in the order they would matter:**
+
 - **Motion.** The figures animate in place and never move. Steering is CPU work
   per instance, which is what this substrate was chosen to avoid — decide
   deliberately (shader? worker? or simply cheap, because a flock is fifty birds).
@@ -1070,7 +1071,6 @@ never shipped it) the bench can only see cost ONCE YOU ARE OVER BUDGET. Under
 ~16.7ms the wall clock says you fitted and nothing else. Chrome gives the GPU
 line.
 
-
 [ ] **Two optimisations from the original miniatures game, both still correct.**
 Tonio, from memory of the Amiga version — recorded because they are design
 decisions rather than era-specific tricks, and both compose with the
@@ -1087,13 +1087,13 @@ wrong for the aircraft, where `ballistics.ts` integrates because prediction MUST
 equal simulation for a bomb sight to be honest. So this is a second, legitimate
 model rather than a replacement:
 
-| | integrated (`ballistics.ts`) | parameterised (this) |
-| --- | --- | --- |
-| state per shot | position + velocity | `from`, `to`, `t0` |
-| per frame | a step, and a swept collision test | one lerp + an arc height |
-| outcome | emerges | decided at launch |
-| right for | a bomb sight, a guided round | a volley of 200 arrows |
-| determinism | needs care | free |
+|                | integrated (`ballistics.ts`)       | parameterised (this)     |
+| -------------- | ---------------------------------- | ------------------------ |
+| state per shot | position + velocity                | `from`, `to`, `t0`       |
+| per frame      | a step, and a swept collision test | one lerp + an arc height |
+| outcome        | emerges                            | decided at launch        |
+| right for      | a bomb sight, a guided round       | a volley of 200 arrows   |
+| determinism    | needs care                         | free                     |
 
 And it instances: `from`/`to`/`t0` is per-instance data that never changes
 during flight, which is the same shape as the crowd's `vatState`. A volley is
@@ -1119,7 +1119,6 @@ Nearest existing relatives: `terrain-grid.ts` for the tile maths,
 placement — which currently computes continuous positions and would want a
 cell-and-offset variant.
 
-
 [ ] **Flocks, swarms and fauna on the vertex-animation substrate.** The crowd
 bench settled the army question with three orders of magnitude to spare (200,000
 figures at 33ms against a ~270-figure battle), so the infrastructure's real home
@@ -1134,6 +1133,7 @@ camera-facing billboards, `ambient-leaves` does tumbling quads on a
 it flaps, banks, and its silhouette changes.
 
 What it needs before it is a feature rather than a bench:
+
 - ~~**Bake from a real skinned GLB**~~ — DONE 2026-09-11, see `bakeGlbFigure`.
   What remains for FAUNA specifically is a bird: the path is proven on a biped,
   and the open question is whether a flap reads at the bake rates a crowd uses
@@ -1149,7 +1149,6 @@ What it needs before it is a feature rather than a bench:
   thousand.
 - **Clip blending** (the four-sample version) if a bird's glide→flap transition
   needs it. Frame interpolation is already in.
-
 
 [ ] **Perf Stats and debug sources want to be TEAR-OFFS, not rows in the
 settings panel.** Tonio, 2026-09-10, during the crowd bench: _"We should make
@@ -1176,7 +1175,6 @@ outlives the panel that opened it, so it needs its own disposal — `whenDispose
 is the existing hook.
 
 Not urgent. It is comfort, not correctness, and the readouts work.
-
 
 [ ] **Hoist the happy-dom bootstrap into a `bunfig.toml` preload.** The
 global-install block is copy-pasted into 57 test files (`const win = new
@@ -4899,7 +4897,7 @@ This is arguably the ideal north-star showcase: spend nothing on vertices, every
 ## Crowd ↔ skinned swap, and the demos it unlocks — IDEAS (Tonio, 2026-09-13)
 
 Design in `b3d-crowd.ts` → "Crossing the seam" and "A stadium". Not started, and not
-queued — Tonio: *"That and the stadium are TODO / ideas."*
+queued — Tonio: _"That and the stadium are TODO / ideas."_
 
 - [x] **The swap MECHANISM only — policy stays with the consumer.** Shipped 2026-09-14:
       `poseOf` / `transformOf` / `setFigureHidden` / `isFigureHidden` / `nearestFigures`,
@@ -4909,9 +4907,9 @@ queued — Tonio: *"That and the stadium are TODO / ideas."*
       buffer (64 bytes × count). Fine for promoting a handful out of a few thousand; not
       fine on the 200k bench. A per-instance visibility attribute would make a hide one
       float instead of sixteen — needs a line in the VAT plugin's vertex shader.
-- [ ] ~~**The swap MECHANISM only — policy stays with the consumer.**~~ *"I think we'd leave the
+- [ ] ~~**The swap MECHANISM only — policy stays with the consumer.**~~ _"I think we'd leave the
       rules for switching to skinned models to the consumer since it will be more likely
-      decided on specifics."* What belongs here is the one thing only the crowd can do:
+      decided on specifics."_ What belongs here is the one thing only the crowd can do:
       convert an instance index into `{clip, t}` from its `vatState`, so a skinned
       `AnimationGroup` can start on the same clip at the same normalised time and the swap
       has nothing to blend. Plus hide/restore for that instance. NOT a promotion budget, not
@@ -4927,7 +4925,7 @@ queued — Tonio: *"That and the stadium are TODO / ideas."*
       here being able to un-hide it is the feature.
 - [ ] **POV zombie horde demo** — the use case the above is for, wanted since the shooting
       thread. Downstream of the swap demo, not of shooting.
-- [ ] **Animated stadium demo.** *"We could animate the entire crowd in a superbowl game."*
+- [ ] **Animated stadium demo.** _"We could animate the entire crowd in a superbowl game."_
       Needs NO swap, no AI and no collision — a spectator is scenery that moves. Seats are a
       generated bowl, the clip set is four seated clips, and a Mexican wave is `phaseOffset`
       as a function of seat bearing: one multiply in a buffer the crowd already fills.
@@ -4943,7 +4941,7 @@ queued — Tonio: *"That and the stadium are TODO / ideas."*
       idea for `b3d-prop`.
 - [ ] ~~**Hand sockets, and a weapon model to hang off one.**~~ The biped's gun is still
       `b3d-launcher`'s placeholder box, parented to the ROOT at a fixed offset — Tonio:
-      *"is the gun a big rectangular block stuck to my left shoulder?"* The side and the
+      _"is the gun a big rectangular block stuck to my left shoulder?"_ The side and the
       z-offset are fixed, so it now sits in front of his right hip instead of through it,
       but a fixed offset is the ceiling of that approach: it cannot follow the hand, so it
       cannot follow a reload, a climb or a crouch. What it wants is the socket work already
@@ -4987,7 +4985,7 @@ Inventoried both UAL megafiles by listing every clip, not by grepping for likely
 
 ## Fauna on the crowd substrate — fish first. NOT A PRIORITY (Tonio, 2026-09-14)
 
-Filed, deliberately not queued: *"It's not a priority right now."* Recorded because the
+Filed, deliberately not queued: _"It's not a priority right now."_ Recorded because the
 reasoning is cheap now and expensive to reconstruct.
 
 `b3d-crowd`'s ladder already names this rung — "things that must be ALIVE" — and gives a
@@ -5012,8 +5010,8 @@ through `ambient-budget` like every other ambient effect, so it switches OFF rat
 thinning when it does not fit.
 
 **The demo it unlocks is the speargun**, which Tonio sketched earlier: fish give it
-something to shoot at, and *"firing a speargun out of water would be an interesting test
-case for medium layers"*. Fish + speargun + the Manta waterline camera flip exercises three
+something to shoot at, and _"firing a speargun out of water would be an interesting test
+case for medium layers"_. Fish + speargun + the Manta waterline camera flip exercises three
 unbuilt things at once, and is a much smaller build than the zombie horde.
 
 ## Opaque terrain scatter — measure before believing (2026-09-14)
@@ -5041,7 +5039,7 @@ three weapons, so this is a `flight` attribute on `b3d-launcher`.
 
 - [ ] **`bolt` — the LOOK only.** The physics already works: `ballisticStep` with
       `gravity: 0, drag: 0` is constant velocity, so `b3dLauncher({gravity:0, drag:0,
-      muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
+    muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
       draw as a stretched emissive segment rather than a sphere. Smallest of the three;
       do it first.
 - [ ] **`hitscan`.** The genuine new code path: one ray at fire time, resolved in that

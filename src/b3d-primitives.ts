@@ -54,7 +54,6 @@ function addSolidProxy(
   return proxy
 }
 
-
 /** A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via uScale/vScale. */
 function makeCheckerTexture(
   name: string,

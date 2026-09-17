@@ -1,8 +1,8 @@
 # Miniatures battle — RECOVERED NOTES
 
 > ⚠️ **This is not the design document, and must not be treated as one.** Tonio:
-> *"when / if we rebuild this thing it will be its own project. I'll write a
-> comprehensive design document before we build in earnest."* The game is a
+> _"when / if we rebuild this thing it will be its own project. I'll write a
+> comprehensive design document before we build in earnest."_ The game is a
 > CONSUMER of this framework, not part of it, and its design is his to write.
 >
 > What this is: detail recovered in conversation from the original Amiga 500
@@ -14,8 +14,8 @@
 > framework capabilities these mechanics imply. Those belong here. The rules of
 > the game do not.
 >
-> He also describes the original as *"a beautiful design and an early victim of
-> creeping elegance / featuritis"*, which has a section of its own at the end
+> He also describes the original as _"a beautiful design and an early victim of
+> creeping elegance / featuritis"_, which has a section of its own at the end
 > because it is the most useful sentence in these notes.
 
 The measured constraint is gone: a whole battle is ~270 figures against 200,000
@@ -28,13 +28,13 @@ the thing that does not get easier with faster hardware.
 
 ## The scale
 
-| | |
-| --- | --- |
-| regular unit | 15 figures |
-| irregular unit | 7 figures |
-| army | 3–9 units, laid out three wide, as deep as forces allow |
-| largest army | 9 × 15 = **135** |
-| a battle | **~270** |
+|                |                                                         |
+| -------------- | ------------------------------------------------------- |
+| regular unit   | 15 figures                                              |
+| irregular unit | 7 figures                                               |
+| army           | 3–9 units, laid out three wide, as deep as forces allow |
+| largest army   | 9 × 15 = **135**                                        |
+| a battle       | **~270**                                                |
 
 ## Four mechanics, and why each one works
 
@@ -72,13 +72,13 @@ is right for a miniatures game and wrong for the aircraft, where
 `ballistics.ts` integrates precisely because prediction must equal simulation
 for a bomb sight to be honest. Two legitimate models:
 
-| | integrated (`ballistics.ts`) | parameterised (this) |
-| --- | --- | --- |
-| state per shot | position + velocity | `from`, `to`, `t0` |
-| per frame | a step + a swept collision test | one lerp + an arc height |
-| outcome | emerges | decided at launch |
-| right for | a bomb sight, a guided round | a volley of 200 arrows |
-| determinism | needs care | free |
+|                | integrated (`ballistics.ts`)    | parameterised (this)     |
+| -------------- | ------------------------------- | ------------------------ |
+| state per shot | position + velocity             | `from`, `to`, `t0`       |
+| per frame      | a step + a swept collision test | one lerp + an arc height |
+| outcome        | emerges                         | decided at launch        |
+| right for      | a bomb sight, a guided round    | a volley of 200 arrows   |
+| determinism    | needs care                      | free                     |
 
 And it instances: `from`/`to`/`t0` never change during flight, the same shape as
 the crowd's `vatState`, so a volley is one draw call and no CPU work.
@@ -95,8 +95,8 @@ mid-move is a real advantage that no rule grants you; it falls out of the
 simulation being honest about the intermediate state.
 
 The general principle, which is this project's north star stated another way:
-*the interesting behaviour is in the TRANSITION, and the temptation is always to
-skip it.* A unit that teleports into formation is cheaper, tidier, and dead.
+_the interesting behaviour is in the TRANSITION, and the temptation is always to
+skip it._ A unit that teleports into formation is cheaper, tidier, and dead.
 
 ### 4. You give orders by picking the FLAG BEARER
 
@@ -117,7 +117,7 @@ command" a sentence the sim can produce.
 
 ## The warning, which is the real inheritance
 
-> *"a beautiful design and an early victim of creeping elegance / featuritis"*
+> _"a beautiful design and an early victim of creeping elegance / featuritis"_
 
 The four mechanics above are small and they INTERACT. Grid occupancy makes
 re-forming legible; re-forming makes transit vulnerable; the flag bearer makes
@@ -149,14 +149,14 @@ game's own project. What follows is the list of framework capabilities those
 mechanics imply, which is this repo's business and can be built without knowing
 a single rule of the game.
 
-| capability | state | nearest existing |
-| --- | --- | --- |
-| **Instanced animated figures** — many, one draw call | built ([`b3d-crowd`](src/b3d-crowd.ts), [`vertex-animation`](src/vertex-animation.ts)) | — |
-| **Parameterised projectile** — `(from, to, t)`, outcome decided at launch, instanceable | not built; pure and small | `ballistics.ts` (the integrated sibling) |
-| **Cell occupancy + sub-cell pose** — O(1) "is it taken", pose from a small offset table | not built; pure | `terrain-grid.ts`, `world-topology.ts` |
-| **Formation as CELLS rather than positions** | partial | `formations.ts` computes continuous positions today |
-| **Arrive-and-re-form as a visible transition** | not built | `AI-DESIGN.md`'s watchable-behaviour rule |
-| **A destroyable that carries a ROLE**, so its death changes what a group can do | close | `destroyable-behavior.ts` + `Cause {by, kind, via, hops}` |
+| capability                                                                              | state                                                                                  | nearest existing                                          |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **Instanced animated figures** — many, one draw call                                    | built ([`b3d-crowd`](src/b3d-crowd.ts), [`vertex-animation`](src/vertex-animation.ts)) | —                                                         |
+| **Parameterised projectile** — `(from, to, t)`, outcome decided at launch, instanceable | not built; pure and small                                                              | `ballistics.ts` (the integrated sibling)                  |
+| **Cell occupancy + sub-cell pose** — O(1) "is it taken", pose from a small offset table | not built; pure                                                                        | `terrain-grid.ts`, `world-topology.ts`                    |
+| **Formation as CELLS rather than positions**                                            | partial                                                                                | `formations.ts` computes continuous positions today       |
+| **Arrive-and-re-form as a visible transition**                                          | not built                                                                              | `AI-DESIGN.md`'s watchable-behaviour rule                 |
+| **A destroyable that carries a ROLE**, so its death changes what a group can do         | close                                                                                  | `destroyable-behavior.ts` + `Cause {by, kind, via, hops}` |
 
 Every row is useful to something other than a miniatures game: a parameterised
 arc is right for any thrown or fired thing whose hit is decided by a roll, cell

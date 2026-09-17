@@ -186,10 +186,10 @@ never a position. A shared read is the same argument one level up.
 
 ## Firing from cover, and the ladder it falls down
 
-Tonio, 2026-09-12: *"Depending on the availability of suitable animations, an AI
+Tonio, 2026-09-12: _"Depending on the availability of suitable animations, an AI
 behind cover might automatically stand up to aim and fire or step out to aim and
-fire if it lacks animations to specifically cope with the action."* And
-immediately after: *"Actually not just an AI, a player biped."*
+fire if it lacks animations to specifically cope with the action."_ And
+immediately after: _"Actually not just an AI, a player biped."_
 
 That second sentence is the one that makes this a design rather than an AI
 behaviour, and it is this document's own north star pointed at a trigger. The
@@ -199,21 +199,21 @@ Nobody enters a cover-firing mode, nobody is stuck in one, and the same ladder
 serves the player and an NPC because it is about the rig, not about who is
 driving.
 
-It is the intent model from "The bifurcation" applied to a weapon: *steer it and
-it solves the terrain* becomes *press fire and it solves the cover.*
+It is the intent model from "The bifurcation" applied to a weapon: _steer it and
+it solves the terrain_ becomes _press fire and it solves the cover._
 
 ### What the library actually has — measured, not assumed
 
 Quaternius' Universal Animation Library, both megafiles, 254 clips:
 
-| | |
-| --- | --- |
-| standing aim sets | `Pistol_Aim_Down` / `_Neutral` / `_Up`, and the same for `Bow_` |
-| firing | `Pistol_Shoot`, `Pistol_Reload`, `Bow_Shoot`, `Bow_RapidShoot_Loop` |
-| crouch locomotion | `Crouch_Enter`/`Exit`/`Idle_Loop`, plus fwd/bwd/left/right **and the four diagonals** |
-| taking hits | `Hit_Chest`/`Head`/`Stomach`/`Shoulder_L`/`_R`, `Hit_Knockback`, `Death01`/`02` |
-| melee & thrown | `Melee_Combo`/`Hook`/`Knee`/`Uppercut` (+ recoveries), `Punch_Jab`/`Cross`, `Kick`, `OverhandThrow` |
-| **crouch-fire, lean, peek** | **none. Not one clip.** |
+|                             |                                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| standing aim sets           | `Pistol_Aim_Down` / `_Neutral` / `_Up`, and the same for `Bow_`                                     |
+| firing                      | `Pistol_Shoot`, `Pistol_Reload`, `Bow_Shoot`, `Bow_RapidShoot_Loop`                                 |
+| crouch locomotion           | `Crouch_Enter`/`Exit`/`Idle_Loop`, plus fwd/bwd/left/right **and the four diagonals**               |
+| taking hits                 | `Hit_Chest`/`Head`/`Stomach`/`Shoulder_L`/`_R`, `Hit_Knockback`, `Death01`/`02`                     |
+| melee & thrown              | `Melee_Combo`/`Hook`/`Knee`/`Uppercut` (+ recoveries), `Punch_Jab`/`Cross`, `Kick`, `OverhandThrow` |
+| **crouch-fire, lean, peek** | **none. Not one clip.**                                                                             |
 
 So the gap Tonio guessed at is exactly the gap that exists, and the shape of the
 ladder is decided by it rather than invented.
@@ -234,7 +234,7 @@ every rung is a real tactic rather than a degradation to apologise for.
    `Crouch_Idle_Loop` on the legs, via [`bone-mask`](src/bone-mask.ts) and
    [`animation-layers`](src/animation-layers.ts). This is available right now,
    and it is the whole reason those two modules exist: the missing clip is
-   manufactured from two that are present. Expect it to be *approximately*
+   manufactured from two that are present. Expect it to be _approximately_
    right rather than perfect — the pistol aim was authored over a standing
    torso, so a steep downward aim over a crouch is the case to look at first.
 3. **Stand to fire.** `Crouch_Exit` → aim → `Pistol_Shoot` → `Crouch_Enter`.

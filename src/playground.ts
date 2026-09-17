@@ -5,23 +5,6 @@
 arena — ground, light, cover, crates, a catwalk and something to shoot — as
 ordinary scene children, so it composes into any demo rather than being one.
 
-## Demo — the whole thing, with a biped in it
-
-**Two modes, and the right bumper is the switch.** With the weapon down you are walking:
-**R** sprints. Press **right bumper** and the gun comes up — now **R** fires, **Q**
-aims down the sights, and a ring shows where the round will actually land,
-sinking as the range grows because it is the real ballistic arc rather than a
-dot in the middle of the screen. You cannot sprint with the gun up, which is why
-the trigger is free to do both jobs.
-
-**WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
-**E** interacts, **Y** switches between third and first person. (Read off
-`game-controller` and `bipedMapping` rather than remembered.)
-
-Things to try: climb the crates onto the catwalk; shoot from behind the low wall
-and watch the ring disappear behind it until you stand; walk the cover line and
-compare the railing with the wall beside it.
-
 ```js
 import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
 
@@ -88,7 +71,7 @@ const gun = b3dLauncher({
 // to hold). See CLAUDE.md → "Scale: a person is 1.8 m".
 const hero = b3dBiped(
   {
-    url: assetUrl('quaternius/UAL1_core.glb'),
+    url: assetUrl('quaternius/UAL1_core.glb', 2),
     animationStates: ualAnimationStates(),
     // WHERE THE ARENA IS IN FRONT OF YOU. Spawning at the origin put `pillar-b`
     // (0, -12.3) literally touching your muzzle line, so every shot from the
@@ -126,6 +109,21 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+**Two modes, and the right bumper is the switch.** With the weapon down you are walking:
+**R** sprints. Press **right bumper** and the gun comes up — now **R** fires, **Q**
+aims down the sights, and a ring shows where the round will actually land,
+sinking as the range grows because it is the real ballistic arc rather than a
+dot in the middle of the screen. You cannot sprint with the gun up, which is why
+the trigger is free to do both jobs.
+
+**WASD** moves, **arrow keys** look, **space** jumps, **left shift** sneaks,
+**E** interacts, **Y** switches between third and first person. (Read off
+`game-controller` and `bipedMapping` rather than remembered.)
+
+Things to try: climb the crates onto the catwalk; shoot from behind the low wall
+and watch the ring disappear behind it until you stand; walk the cover line and
+compare the railing with the wall beside it.
 
 ## Using it
 
@@ -373,7 +371,16 @@ export function playground(options: PlaygroundOptions = {}) {
   */
   for (let i = 0; i <= 6; i++) {
     parts.push(
-      wall(`catwalk-post-${i}`, 12.3 + i * 1.9, 15.45, 0.12, 0.75, 0.12, METAL, 2.98)
+      wall(
+        `catwalk-post-${i}`,
+        12.3 + i * 1.9,
+        15.45,
+        0.12,
+        0.75,
+        0.12,
+        METAL,
+        2.98
+      )
     )
   }
 
