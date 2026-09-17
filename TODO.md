@@ -5051,3 +5051,47 @@ three weapons, so this is a `flight` attribute on `b3d-launcher`.
       question `b3d-radar` and `surroundings.ts` already answer), fuel is a Resource
       draining, and it is the first weapon the MEDIUM should veto — underwater it does
       nothing, in wind it drifts. A good forcing case for medium layers.
+
+## Equipment attachment points, and the tooling around them (Tonio, 2026-09-17)
+
+Three asks in one conversation, and they are one subject: **where things attach to other
+things, and who decides.** Prompted by a pistol that pointed at the sky because a socket
+carried a position and no orientation.
+
+- [ ] **A marker vocabulary on equipment, not just `_muzzle`.** Tonio: "we're going to need
+      to mark guns up with a hand position and muzzle position at minimum... so we can have
+      muzzle flashes etc. also maybe an ejector position and a mag position. Swords will
+      need haft positions and hit positions, maybe guard positions if we implement proper
+      physics based parrying."
+      - guns: `_grip` (**position AND orientation** — the orientation is the half that was
+        missing and the half that cannot be guessed), `_muzzle` (exists), `_eject`, `_mag`
+      - blades: `_haft`, `_edge` (the part that cuts — a segment, not a point), `_guard`
+      - The rule that makes this worth doing: a marker is the MODEL's business. Every
+        alternative puts a per-rig wrist offset in every consumer's scene, and they will
+        each get a different one. `findSuffixed` already reads these; the work is agreeing
+        the names and honouring orientation, not new machinery.
+
+- [ ] **A placement tool — dial a weapon into a given biped's hand and emit the numbers.**
+      Tonio: "we could use a tool for fine-tuning the placement of weapons in a given
+      biped's hands." Cheapest of the three and the one that pays immediately: today those
+      offsets are found by eye, in a console, one weapon at a time. It is the same shape as
+      `theme-editor` and `light-editor`, which already exist — a panel that works flat and
+      in VR, live-editing a handful of numbers. Output should be an authored `_grip` where
+      the asset can be rewritten, and `{socket, x, y, z, rx, ry, rz}` where it cannot.
+
+- [ ] **Retargeting: YES. Auto-skinning: not in the engine.** Tonio asked about "importing a
+      humanoid mesh, position some joints, then heat-bind an adjusted skeleton onto our
+      chosen rig". Splitting that in two is the whole answer, because the halves have very
+      different costs:
+      - **Retargeting** (drive mesh B with rig A's clips) is tractable and high value: it is
+        bone-name mapping plus rest-pose deltas, and we have already built both halves of
+        the naming problem for other reasons — `ualAnimationStates` reconciles CLIP names,
+        `findBone`/`BONE_SOCKETS` reconcile BONE names. The third axis is the rest pose.
+        It multiplies the UAL library across any humanoid we can get.
+      - **Heat-binding** (computing skin weights from scratch) is a volumetric diffusion
+        solve, quality-sensitive, and decades-refined in Blender. Doing it in JS at runtime
+        would be slow AND worse. It belongs in the `static-assets` Blender pipeline, which
+        already runs Blender headlessly for conversion — a build step, not an engine
+        feature.
+      - So the engine gets retargeting; the pipeline gets binding; and the editor above is
+        where a human fixes what neither got right.
