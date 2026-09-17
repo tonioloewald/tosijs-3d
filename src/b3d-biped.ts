@@ -824,13 +824,24 @@ export class B3dBiped extends B3dControllable {
   private _aimWeapons(): void {
     for (const w of this._weapons()) {
       /*
-      A SOCKETED WEAPON IS ALREADY AIMED — by the hand holding it.
+      A SOCKETED WEAPON IS ORIENTED BY `rx`/`ry`/`rz` ON THE LAUNCHER, not here.
 
-      Rotating it here as well would compose the hand's rotation with the aim's
-      and give neither. The cost is that the barrel then only approximates the
-      shot, because the aim poses are three blended stances rather than IK —
-      which is what every game does, and why the reticle rather than the barrel
-      is what tells you where the round goes.
+      Not because the hand aims it — it does not. Measured on this rig, the hand
+      bone's +Y is the body's forward and its +Z is UP, so a weapon built
+      barrel-along-+Z points at the sky. Invisible in third person; unmissable
+      down the sights. Tonio: "you can now see the gun is mis-positioned."
+
+      But this is the wrong place to fix it. `b3dLauncher` extends
+      `AbstractMesh`, which writes `rotationQuaternion` from those attributes
+      EVERY FRAME, so anything written here is stamped over on the next one. I
+      tried twice before checking — once composing a world quaternion, once via
+      direction transforms to dodge the handedness mirror — and both were
+      correct arithmetic into a value with a shorter life than a frame.
+
+      So the correction lives on the element (`rx: -90` for this rig) where it
+      survives, and the real answer is an authored `_grip` node carrying the
+      orientation, which makes it the model's business rather than every
+      consumer's. See `b3d-launcher` → "Authoring a weapon mesh".
       */
       if (w.socketed === true) continue
       const m = w.mesh as unknown as
@@ -3151,7 +3162,22 @@ export class B3dBiped extends B3dControllable {
    * camera) — while still casting its shadow. */
   setCameraView(view: 'chase' | 'fpv') {
     this.cameraView = view
-    this.setBodyHidden(view === 'fpv')
+    /*
+    THE BODY STAYS VISIBLE IN FIRST PERSON — "true first person".
+
+    It used to be hidden outright, on the reasoning that it would be in your
+    face and could run ahead of the camera. The consequence is that you see
+    NOTHING of yourself: no arm, no weapon, no legs when you look down. Tonio:
+    "In first person view you can't see yourself (your arm or gun). Not sure if
+    there's a neat fix for that (don't want the gun floating in the air)."
+
+    Showing only the weapon would be that floating gun, and this rig is a SINGLE
+    skinned mesh, so there is no head submesh to hide either. What makes it work
+    instead is that the eye camera already sits 0.15 forward of the head bone
+    with a 0.06 near plane: the skull is behind the near plane and clips away by
+    itself, while the arms, the weapon and the legs are all in front of it.
+    */
+    this.setBodyHidden(false)
     if (this.owner?.xrActive) return // the XR rig handles the viewpoint in VR
     const cam = view === 'fpv' ? this.fpvCamera : this.camera
     if (cam != null && this.owner != null) {

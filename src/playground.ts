@@ -54,6 +54,10 @@ const gun = b3dLauncher({
   // weapon's handle exactly there — so the numbers are all zero and there is
   // nothing left to hand-tune.
   socket: 'right-hand',
+  // The hand bone's +Y is the body's forward and its +Z is up on this rig, so a
+  // weapon built barrel-along-+Z needs a quarter turn to point where he does.
+  // Explicit rather than guessed: a `_grip` node in the model would carry it.
+  rx: -90,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })
