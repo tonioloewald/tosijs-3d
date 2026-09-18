@@ -1094,6 +1094,9 @@ export class B3dLauncher extends AbstractMesh {
       // First frame: the attribute drain is over, so `library`/`meshName` are
       // finally true. See the note above `_loadLibraryModel`.
       this._loadLibraryModel(owner)
+      // Keep the GRIP on `x`/`y`/`z`, not the model's origin — the render sync
+      // would otherwise undo it. Cheap: a cached vector and a rotate.
+      if (this._gripOffset != null) this._applyGrip(this as any)
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
     })
@@ -1140,25 +1143,42 @@ export class B3dLauncher extends AbstractMesh {
    * node wins if the model carries one — the same deal `_muzzle` gets, and the
    * thing this heuristic exists to substitute for.
    */
+  /** The grip offset, measured once — see `_applyGrip`. */
+  private _gripOffset: BABYLON.Vector3 | null = null
+
   private _applyGrip(attrs: any): void {
     const spec = String(this.grip ?? 'auto')
     if (spec === 'off' || this.mesh == null) return
-    let g: BABYLON.Vector3 | null = null
-    const node = findSuffixed(this.mesh, ['_grip'])
+    let g: BABYLON.Vector3 | null = this._gripOffset
+    const node = g != null ? null : findSuffixed(this.mesh, ['_grip'])
     if (node != null) {
       g = BABYLON.Vector3.TransformCoordinates(
         node.getAbsolutePosition(),
         BABYLON.Matrix.Invert(this.mesh.getWorldMatrix())
       )
-    } else if (spec !== 'auto') {
+    } else if (g == null && spec !== 'auto') {
       const n = spec.split(',').map(Number)
       if (n.length === 3 && n.every((v) => Number.isFinite(v))) {
         g = new BABYLON.Vector3(n[0], n[1], n[2])
       }
-    } else {
+    } else if (g == null) {
       g = this._deriveGrip()
     }
     if (g == null) return
+    /*
+    CACHED, because this now runs EVERY FRAME rather than once at load.
+
+    It has to: `x`/`y`/`z` are supposed to mean "put the GRIP here", and
+    `AbstractMesh.render()` rewrites `mesh.position` from those attributes on
+    every render — so a one-shot offset survives exactly until anything else
+    touches the transform. Dragging the manipulator was the thing that touched
+    it, and the weapon slid by the length of its own grip on the first drag.
+
+    Re-deriving the offset each frame would mean walking every vertex sixty
+    times a second; measuring it once and rotating the cached vector is a
+    quaternion multiply.
+    */
+    this._gripOffset = g
     /*
     ROTATE THE GRIP BEFORE SUBTRACTING IT.
 
