@@ -5208,3 +5208,35 @@ it belongs with the weapon-set pass that is already parked for the same reason.
       mantle path moving the root while the eye tracks the head bone, so the body leads the
       camera through the transition. Separate from the head problem, though a head submesh
       would hide the worst of it.
+
+## The barrel and the shot disagree while walking (Tonio, 2026-09-18)
+
+*"When you're in aim mode and just walking around your gun points off to the left and yet
+you shoot straight. We somehow need to compute the direction we shoot based on the pose
+and/or tweak the pose to shoot in the direction we really want to shoot."*
+
+**Of the two, tweak the WEAPON.** Firing along the barrel would make the gun honest and the
+aim useless: the reticle would wander with the walk cycle and you could not hold a point.
+A crosshair is a promise that the round goes there, so the barrel is what has to move.
+
+- [ ] **Point a socketed weapon along the aim.** Attempted 2026-09-18 and reverted — two
+      conventions wrong, measured, so the next attempt can skip them:
+      - Write through `rx`/`ry`/`rz` on the launcher, NOT the mesh. `AbstractMesh.render()`
+        rebuilds `rotationQuaternion` from those every frame. (This part is right and was
+        confirmed; it is the rest that failed.)
+      - `FromLookDirectionLH(dir, up).toEulerAngles()` with the aim transformed into the
+        parent's space: barrel ends up **149.3°** off, constant.
+      - The same with `FromLookDirectionRH`: **77.7°** off, constant.
+      - Constant error at both means a systematic convention mismatch, not a maths slip.
+        The remaining suspect is EULER ORDER — `render()` rebuilds via
+        `RotationYawPitchRoll(ry, rx, rz)`, and `toEulerAngles()` may not be its inverse in
+        a chain carrying the glTF handedness mirror.
+      - Do NOT decompose the parent's world matrix to get its rotation: negative
+        determinant, meaningless quaternion. Transforming the DIRECTIONS is right.
+      - If a third convention guess fails, stop guessing and close the loop numerically:
+        measure the barrel, measure the error against the aim, and drive `rx/ry/rz` with
+        feedback. Slower to converge, immune to every convention question, and this file
+        now contains four wrong convention guesses from one day.
+
+Until then the weapon follows the hand, which looks natural and aims wrong, and the reticle
+remains the truth about where the round goes.
