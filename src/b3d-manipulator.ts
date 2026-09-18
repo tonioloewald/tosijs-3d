@@ -343,9 +343,29 @@ export class B3dManipulator extends B3dChild {
     view.setVisible(on)
     if (!on) return
 
-    const p = node.getAbsolutePosition()
+    /*
+    THE WIDGET HOLDS STILL WHILE YOU DRAG IT.
+
+    It used to re-read the target's world position every frame, which is right
+    for an object sitting still and wrong for one that is ALIVE: a weapon
+    parented to a hand bone inherits the idle animation, so the handles drifted
+    and breathed under the cursor mid-drag. Tonio: "the way the manipulator
+    moves around as I drag it is a bit odd (it doesn't affect the drag)."
+
+    It did not affect the drag — the solve is against pointer rays and the
+    target's own transform, not against where the handles are drawn — so this is
+    purely about it feeling stable in the hand. Freezing the anchor for the
+    duration of a grab is what every DCC gizmo does, and for the same reason.
+    */
+    const p =
+      this._drag != null && this._anchor != null
+        ? this._anchor
+        : node.getAbsolutePosition()
+    if (this._drag == null) {
+      this._anchor = p.clone()
+      view.setOrientation(this._rotationOf(node))
+    }
     view.moveTo({ x: p.x, y: p.y, z: p.z })
-    view.setOrientation(this._rotationOf(node))
 
     const camera = scene.activeCamera
     if (camera != null) {
@@ -520,6 +540,9 @@ export class B3dManipulator extends B3dChild {
     )
     return true
   }
+
+  /** Where the handles were when the grab started — see `_track`. */
+  private _anchor: BABYLON.Vector3 | null = null
 
   /** Is a drag in progress? */
   get dragging(): boolean {

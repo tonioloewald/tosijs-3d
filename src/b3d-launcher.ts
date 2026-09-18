@@ -945,6 +945,20 @@ export class B3dLauncher extends AbstractMesh {
     look exactly like this bug.
     */
     socket: '',
+    /**
+     * Uniform scale for the loaded model.
+     *
+     * Weapon packs are authored at their own idea of real scale and a character
+     * rig at its own, and the two rarely agree TO THE EYE even when both are
+     * nominally correct — Kenney's pistol is a chunky 0.29m, which reads large
+     * in a 1.83m hand. Tonio, fitting one: "I'd also want to scale the weapon
+     * down somewhat."
+     *
+     * Applied to the mesh's `scaling`, which `AbstractMesh.render()` does NOT
+     * overwrite — the one part of a transform it leaves alone — so unlike
+     * `x`/`y`/`z` it survives without being re-applied every frame.
+     */
+    modelScale: 1,
     muzzleSpeed: 30,
     fireRate: 5, // shots per second
     ammo: 40, // magazine capacity
@@ -968,6 +982,7 @@ export class B3dLauncher extends AbstractMesh {
   declare library: string
   declare grip: string
   declare socket: string
+  declare modelScale: number
   declare muzzleSpeed: number
   declare fireRate: number
   declare ammo: number
@@ -1097,6 +1112,10 @@ export class B3dLauncher extends AbstractMesh {
       // Keep the GRIP on `x`/`y`/`z`, not the model's origin — the render sync
       // would otherwise undo it. Cheap: a cached vector and a rotate.
       if (this._gripOffset != null) this._applyGrip(this as any)
+      const ms = Number(this.modelScale)
+      if (this.mesh != null && Number.isFinite(ms) && ms > 0) {
+        this.mesh.scaling.setAll(ms)
+      }
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
     })

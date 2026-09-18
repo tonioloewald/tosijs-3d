@@ -6,7 +6,7 @@ weapon library, and a panel of coordinates wired to the thing you are looking
 at — so placement is something you SEE rather than something you compute.
 
 ```js
-import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, b3dManipulator, b3dGround, b3dLight, b3dSkybox, b3dSun, inputFocus, ualAnimationStates, euler3d, vector3d, select3d, label3d, button3d, toggle3d } from 'tosijs-3d'
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, b3dManipulator, b3dGround, b3dLight, b3dSkybox, b3dSun, inputFocus, ualAnimationStates, euler3d, vector3d, select3d, label3d, button3d, toggle3d, slider3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 
 const weapons = b3dLibrary({
@@ -38,11 +38,12 @@ hero.append(gun)
 //
 // It still survives a panel rebuild, because `panel()` reads `fit` when it runs
 // and `fit` outlives the panel.
-const fit = { name: 'pistol', x: 0, y: 0, z: 0, rx: -105, ry: -15, rz: -165 }
+const fit = { name: 'pistol', x: 0, y: 0, z: 0, rx: -105, ry: -15, rz: -165, scale: 1 }
 
 const apply = () => {
   gun.x = fit.x; gun.y = fit.y; gun.z = fit.z
   gun.rx = fit.rx; gun.ry = fit.ry; gun.rz = fit.rz
+  gun.modelScale = fit.scale
 }
 
 const n = (v) => Math.round(v * 1000) / 1000
@@ -50,7 +51,8 @@ const snippet = () =>
   `b3dLauncher({\n  library: 'weapons', meshName: '${fit.name}',\n` +
   `  socket: 'right-hand',\n` +
   `  x: ${n(fit.x)}, y: ${n(fit.y)}, z: ${n(fit.z)},\n` +
-  `  rx: ${n(fit.rx)}, ry: ${n(fit.ry)}, rz: ${n(fit.rz)},\n})`
+  `  rx: ${n(fit.rx)}, ry: ${n(fit.ry)}, rz: ${n(fit.rz)},\n` +
+  `  modelScale: ${n(fit.scale)},\n})`
 
 // DRAG IT, do not type it. Tonio: "fine tuning the gun's position by typing is
 // horrible :)" — quite. The manipulator targets the LAUNCHER ELEMENT rather than
@@ -63,9 +65,19 @@ const gizmo = b3dManipulator({
   move: 'on',
   turn: 'on',
   size: 0.09,
-  handleChange: (t) => {
-    if (t.position) { fit.x = t.position.x; fit.y = t.position.y; fit.z = t.position.z }
-    if (t.rotation) { fit.rx = t.rotation.x; fit.ry = t.rotation.y; fit.rz = t.rotation.z }
+  // READ THE ELEMENT BACK, do not read the transform.
+  //
+  // The transform the gizmo hands you is in WORLD space and names its angles
+  // `rx/ry/rz`, not `x/y/z`. Taking position from it put world coordinates in a
+  // snippet whose numbers are meant to be local, and taking rotation from the
+  // wrong keys produced `rx: NaN, ry: NaN, rz: NaN` — which Tonio pasted back,
+  // because the position half looked plausible enough to trust.
+  //
+  // The element has already been written by the time this fires, and it holds
+  // exactly the numbers the snippet needs. Ask it.
+  handleChange: () => {
+    fit.x = gun.x; fit.y = gun.y; fit.z = gun.z
+    fit.rx = gun.rx; fit.ry = gun.ry; fit.rz = gun.rz
   },
   handleCommit: () => { scene && scene.refreshScenePanel && scene.refreshScenePanel() },
 })
@@ -86,6 +98,10 @@ const panel = () => [
   euler3d({
     value: { x: fit.rx, y: fit.ry, z: fit.rz }, step: 5, scrub: 0.5,
     handleChange: (v) => { fit.rx = v.x; fit.ry = v.y; fit.rz = v.z; apply() },
+  }),
+  slider3d({
+    label: 'scale', value: fit.scale, min: 0.4, max: 1.6, step: 0.01, showValue: 'always',
+    handleChange: (v) => { fit.scale = v; apply() },
   }),
   toggle3d({
     label: 'rotate (off = move)', value: gizmo.turn === 'on' && gizmo.move === 'off',

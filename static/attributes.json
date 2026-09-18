@@ -1624,6 +1624,9 @@
         "name": "socket"
       },
       {
+        "name": "modelScale"
+      },
+      {
         "name": "muzzleSpeed",
         "default": "30",
         "description": "Launch speed (units/sec) along the fire direction"
