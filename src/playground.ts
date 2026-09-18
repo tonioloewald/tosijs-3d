@@ -54,11 +54,11 @@ const gun = b3dLauncher({
   // weapon's handle exactly there — so the numbers are all zero and there is
   // nothing left to hand-tune.
   socket: 'right-hand',
-  // SOLVED, not guessed — by the fitting tool on the next page, searching for
-  // the rotation whose barrel lies along the body's forward and whose sights
-  // point up. A quarter turn is the intuition and it is not enough: the hand is
-  // also cocked and rolled in the ready stance.
+  // DIALLED IN WITH THE GIZMO, not computed. See the note below on why these
+  // are not multiples of 90.
+  x: -0.04, y: 0.049, z: -0.067,
   rx: -105, ry: -15, rz: -165,
+  modelScale: 0.8,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })

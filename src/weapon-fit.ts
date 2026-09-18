@@ -17,7 +17,9 @@ const weapons = b3dLibrary({
 const gun = b3dLauncher({
   library: 'weapons', meshName: 'pistol',
   socket: 'right-hand',
+  x: -0.04, y: 0.049, z: -0.067,
   rx: -105, ry: -15, rz: -165,
+  modelScale: 0.8,
   muzzleSpeed: 45, fireRate: 6, ammo: 999, reloadRate: 40,
 })
 
@@ -38,7 +40,7 @@ hero.append(gun)
 //
 // It still survives a panel rebuild, because `panel()` reads `fit` when it runs
 // and `fit` outlives the panel.
-const fit = { name: 'pistol', x: 0, y: 0, z: 0, rx: -105, ry: -15, rz: -165, scale: 1 }
+const fit = { name: 'pistol', x: -0.04, y: 0.049, z: -0.067, rx: -105, ry: -15, rz: -165, scale: 0.8 }
 
 const apply = () => {
   gun.x = fit.x; gun.y = fit.y; gun.z = fit.z
@@ -154,6 +156,26 @@ preview.append(scene)
 ```css
 .preview { height: 100%; }
 ```
+
+## Why the numbers are not multiples of 90
+
+They look like they should be. Both conventions ARE axis-aligned — a weapon is
+authored barrel-along-+Z, and this rig's hand bone measures as an identity
+rotation against its parent (`bindX [1,0,0]`, `bindY [0,1,-0.02]`,
+`bindZ [0,0.02,1]`). So a quarter turn ought to do it.
+
+It does not, and the reason is which frame the correction is actually against.
+The weapon hangs on the hand, and the hand's orientation is the whole arm chain
+composed — shoulder, elbow, wrist, each with its own bind rotation and its own
+pose on top. None of those are round, so their product is not either. The clean
+candidates were tried: `-90, 0, 180` aligns the barrel and the sights to the
+hand's own axes by dot product, and puts the pistol through the wrist on screen.
+
+Which is an argument for `_grip` rather than a quirk to live with. A `_grip`
+node is authored IN THE WEAPON, so the offset it declares is measured in the
+weapon's own frame — and the correction collapses to identity no matter what the
+arm is doing. The round numbers are available; they are just not available from
+this end.
 
 ## Why this exists
 
