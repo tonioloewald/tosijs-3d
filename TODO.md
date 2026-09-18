@@ -5240,3 +5240,23 @@ A crosshair is a promise that the round goes there, so the barrel is what has to
 
 Until then the weapon follows the hand, which looks natural and aims wrong, and the reticle
 remains the truth about where the round goes.
+
+## Climbability model (Tonio, 2026-09-18)
+
+Full design in `MOBILITY-DESIGN.md` → "Climbability: ONE ANGLE AXIS, three regimes".
+Not started.
+
+- [ ] **`climbability.ts`** — pure, Babylon-free, tested, like `mantle` and `buoyancy`.
+      `climbLimit(surface, actor, conditions) -> degrees` (additive terms, capped) and
+      `canClimb(inclination, limit)` with hysteresis. The limit and the comparison stay
+      separate so an AI can ask "could I" without committing and a UI can say why not.
+- [ ] **A surface-material registry**, which is the input the model needs and which four
+      other things want anyway: footstep sounds, impact decals, particle colour, ricochet
+      vs bury. Describes the SURFACE ("rough rock", "wet glass"), never the affordance —
+      that distinction is what keeps this inside the "never painted on it" rule.
+- [ ] **Grabbables are a second verb**, not a very-climbable material: ladders, rope, chain
+      link have no angle limit and allow overhangs. `Climb_Up/Down/Left/Right_Loop` exist
+      in UAL for exactly this and are not in the published subset (parked content pass).
+- [ ] Needs the surface NORMAL at the contact point, which `_readLedge`'s rays already
+      return via `hit.getNormal(true)` — so the measurement is nearly free where the climb
+      decision would be made.

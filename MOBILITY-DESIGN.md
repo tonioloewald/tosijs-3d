@@ -265,6 +265,92 @@ is what happens — and "he stood up because he had to" is a thing you can learn
 about a character, which is the behavioural richness this project keeps saying it
 wants instead of vertices.
 
+## Climbability: ONE ANGLE AXIS, three regimes
+
+Tonio's model, and it is the thing that makes "derived from geometry" real for
+climbing rather than aspirational:
+
+> *"Material and inclination. So by default if a surface is less than 75 degrees
+> you can climb it, but if it's specifically a rough material that can increase
+> to 85 degrees, and then you can get climbing skills and gear that make these
+> angles even higher (eventually allowing a really skilled and equipped climber
+> to handle mild overhangs). Weather conditions and a surface being wet change
+> the equation, as does encumbrance. Some materials might be especially
+> climbable (rope ladders, chain link defences)."*
+
+### Why this is the right shape
+
+**It is the SAME axis walking is already on.** A surface's inclination decides
+everything: shallow you walk up it, steeper you climb it, steeper still you
+cannot. Three regimes on one measured number, with the boundaries moving per
+actor rather than the regimes changing. That is exactly the `isSwimming` shape —
+derived, continuous, never a mode you enter.
+
+**And it is ORTHOGONAL to mantle, which is the height axis.** `mantle` asks "is
+there a lip I can pull over", a question about heights and clearances.
+Climbability asks "can I stay on this face", a question about angle and grip.
+A tall cliff with a lip needs both answers and they do not substitute: today's
+scramble up the playground tower is a stack of mantles precisely because the
+angle question does not exist yet.
+
+### The shape it wants
+
+A pure module, Babylon-free and tested, like `mantle` and `buoyancy` — the same
+reason: the decision is where the bugs live and it should not need a scene.
+
+```
+climbLimit(surface, actor, conditions) -> degrees
+```
+
+Degrees ADDITIVE and capped, because that is what a designer can tune and a UI
+can explain ("you need another 10°"):
+
+| term | from | rough magnitude |
+| --- | --- | --- |
+| base | — | 75° |
+| material | the surface | +10° rough rock, −15° wet glass |
+| skill | the actor | 0…+15° |
+| gear | the actor | 0…+15° |
+| encumbrance | the actor | −0…20° |
+| weather / wetness | conditions | −0…15° |
+
+Past 90° is a mild overhang and should stay expensive — reachable only by a
+skilled, equipped, unencumbered climber in good conditions, which is exactly
+Tonio's ceiling and falls out of the arithmetic rather than needing a special
+case.
+
+**The comparison is separate from the limit.** `climbLimit` returns a number and
+`canClimb(inclination, limit)` decides — so an AI can ask *could I* without
+committing, a UI can show why not, and the limit is inspectable in a debug
+panel. And the comparison carries hysteresis, for the reason `isSwimming` and
+`inShelter` do: a face that flickers at the boundary is worse than one that is
+simply too steep.
+
+### Material is a SURFACE PROPERTY, not an affordance flag
+
+This is the distinction that keeps it inside the north star above. `_climbable`
+paints the ANSWER on the geometry; "this is rough rock" describes the SURFACE and
+lets the answer be computed — differently for a child, a soldier and a soldier
+carrying a body. One is a shortcut around the model, the other is input to it.
+
+It also pays for itself elsewhere the moment it exists: the same registry drives
+footstep sounds, impact decals, particle colour, and whether a round ricochets
+or buries. A material table is a thing this project wants for four reasons; the
+climb is just the one that asked first.
+
+### ⚠️ Rope ladders are a DIFFERENT VERB
+
+Tonio listed them alongside rough rock, and they do not belong on this axis. A
+slope is something you resist sliding down; a ladder, chain-link fence or rope
+is something you GRAB — no angle limit, overhangs included, and a different
+animation set (`Climb_Up/Down/Left/Right_Loop`, which UAL has). Expressing both
+as "a very climbable material" produces a model that can express neither: you
+would need a material with an angle bonus of +40° to get a vertical ladder, and
+that same number would make a wall climbable at 65° when it should not be.
+
+So: two verbs, one shared question ("what is under my hands"). Surfaces get an
+angle limit; grabbables get a yes.
+
 ## What it needs that we do not have
 
 - **Affordance queries.** "Is this geometry cover, from where?" is the same
