@@ -5124,6 +5124,25 @@ carried a position and no orientation.
       The fix that works in every stance rather than one: drive the head bone to look
       along `aimDirection` after the layer resolves, the way most games do. `findBone` and
       `BONE_SOCKETS.head` already resolve the joint across rigs.
-      ⚠️ Don't guess the head bone's forward axis — on this rig the HAND's forward is +Y,
-      not +Z, and the head's convention was not obvious from its axes when measured.
-      Verify against the rig before applying a rotation.
+      ⚠️ ATTEMPTED 2026-09-18 AND REVERTED. Four approaches, none of which moved the head
+      by a single degree, so the next attempt should start from these measurements rather
+      than repeat them:
+      - Writing `rotationQuaternion` on the head bone's LINKED TRANSFORM NODE does not
+        survive a frame. Measured directly: stamp identity onto it, read it back one frame
+        later, and the animated value is there unchanged to four decimals.
+      - Moving the write from `onBeforeRenderObservable` (the update loop) to
+        `onAfterAnimationsObservable` changed nothing — still 116.76° off, to two decimals,
+        which is the same number and therefore no effect at all.
+      - This skeleton has `useTextureToStoreBoneMatrices: true`, so the matrices the shader
+        reads are baked in `skeleton.prepare()`. That is the likely reason node writes are
+        ignored, and the thing to investigate first.
+      - The untried candidate is Babylon's own bone-posing API — `bone.setRotationQuaternion(q,
+        Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
+        anything clever.
+      - Axis calibration DID work (it picks the local axis whose world direction best matches
+        the body's forward, and chose +Z here), so that part is worth keeping. But calibrate
+        from a REST pose: it ran mid-crouch and scored an axis that was 116° from the aim.
+      The general lesson, which cost three separate attempts across one day: before writing a
+      transform, ask what else writes it and when. `AbstractMesh.render()` stamps a weapon's
+      rotation and position; an AnimationGroup stamps a bone. Correct arithmetic into a value
+      with a shorter life than a frame produces no error and no effect.
