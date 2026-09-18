@@ -5146,3 +5146,33 @@ carried a position and no orientation.
       transform, ask what else writes it and when. `AbstractMesh.render()` stamps a weapon's
       rotation and position; an AnimationGroup stamps a bone. Correct arithmetic into a value
       with a shorter life than a frame produces no error and no effect.
+
+## ⏸️ WEAPONS ARE PARKED (Tonio, 2026-09-18)
+
+*"Let's set more weapons aside until we have a consistently scaled and oriented set of
+weapons and ideally more animations. The meshes I have lying around."*
+
+So the blocker is CONTENT, not engine work, and the engine side is in a good place to
+stop: `socket` + `grip: 'auto'` + `modelScale` + the `weapon-fit` tool are enough to fit
+anything, and one pistol is fitted and working.
+
+**What "consistently scaled and oriented" means, concretely** — the spec is already
+written in `b3d-launcher` → "Authoring a weapon mesh", and the short version is:
+
+- 1 unit = 1 metre, against a 1.83m character
+- barrel down local −Y, up local +Z, in Blender
+- **a `_grip` node carrying position AND orientation** — this is the one that makes a set
+  consistent rather than 37 separate fitting sessions, and it is the half Kenney's pack
+  lacks. With it, the per-weapon offsets collapse to zero and the rotation stops being a
+  number nobody can predict (see "Why the numbers are not multiples of 90").
+- `_muzzle` at the barrel tip; later `_eject`, `_mag`
+- grips modelled NARROWER than life, because game fingers do not close (see the note on
+  `b3d-launcher`)
+
+**Do not add more weapons to the demos before that exists.** Each one currently costs a
+hand-fitting session whose numbers are valid for exactly one rig and one stance.
+
+**Not blocked by this**, and better places to spend the time: the head look-at (an
+animation problem, notes above), the crowd↔skinned swap demo, the stadium, and the
+`Sword_*`/`Shield_*` animation sets — which are the deepest in the library and have
+meshes already published, if a chunkier art style is acceptable.
