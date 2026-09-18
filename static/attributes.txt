@@ -314,6 +314,19 @@ b3d-destroyable
   blastRadius
   blastDelay
 
+## b3d-elevator
+b3d-elevator
+
+  mode  = 'cycle'  — `'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()`
+  travel  = 3  — Metres between the bottom stop and the top
+  stops  = 2  — How many stops, evenly spaced. `2` is bottom and top
+  speed  = 1.2  — Metres per second
+  pause  = 1.5  — Seconds held at each stop
+  width  = 2  — Platform size
+  depth  = 2  — Platform size
+  thickness  = 0.2  — Platform thickness — it gets a collision proxy like any thin solid
+  color  = '#8a8f98'
+
 ## b3d-fog — <tosi-b3d-fog>
 b3d-fog
 

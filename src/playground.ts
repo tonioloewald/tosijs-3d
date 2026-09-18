@@ -172,6 +172,8 @@ you"* as one line of JSON, this is what that JSON will describe.
 /*{ "parent": "Demos", "order": 10 }*/
 
 import { b3dBox } from './b3d-primitives.js'
+import { b3dElevator } from './b3d-elevator.js'
+import { b3dInteractive } from './b3d-interactive.js'
 import { b3dGround } from './b3d-primitives.js'
 import { b3dDestroyable } from './b3d-destroyable.js'
 import { b3dLight } from './b3d-light.js'
@@ -388,6 +390,98 @@ export function playground(options: PlaygroundOptions = {}) {
       )
     )
   }
+
+  /*
+  THE TOWER — a tall block with a way up each side.
+
+  West face: a scramble. STAGGERED LEDGES rather than a marked climbing surface,
+  and that is a design decision rather than a shortcut. MOBILITY-DESIGN is
+  explicit that a `_climbable` suffix would be a bug ("the next person adds
+  `_cover` and `_climbable` and reinvents Mass Effect") — climbing should be
+  DISCOVERED from the geometry, the way cover is. `mantle` already measures a
+  ledge and picks a clip by its height, so a face built from real ledges is
+  climbable without the engine being told anything.
+
+  Offsetting them left and right is what makes it a scramble instead of a
+  ladder: you have to move sideways along the face between pulls, which is the
+  "bit of sideways climbing" the arena wanted and which falls out of the
+  geometry rather than needing a climbing MODE.
+
+  (A true climbing mode — hanging on a wall, `Climb_Up/Down/Left/Right_Loop` —
+  needs those clips, which are in UAL and not in the published subset. That is
+  the content pass currently parked.)
+  */
+  const towerX = -26
+  const towerZ = 20
+  parts.push(
+    wall('tower', towerX, towerZ, 6, 6, 6, DARK_STONE),
+    // Rungs up the west face, alternating north and south of centre.
+    ...[0.55, 1.35, 2.15, 2.95, 3.75, 4.55, 5.35].map((h, i) =>
+      wall(
+        `tower-hold-${i}`,
+        towerX - 3.2,
+        towerZ + (i % 2 === 0 ? -1.1 : 1.1),
+        0.9,
+        0.25,
+        1.1,
+        METAL,
+        h
+      )
+    )
+  )
+
+  /*
+  AND THREE LIFTS on the east face, which is the point of putting them together:
+  they differ only in what ASKS them to move, so standing between them is the
+  cheapest way to feel the difference.
+  */
+  const liftX = towerX + 4.2
+  parts.push(
+    b3dElevator({
+      meshName: 'lift-cycle',
+      x: liftX, y: 0.1, z: towerZ - 2.4,
+      travel: 5.6, stops: 3, speed: 1.1, pause: 1.6,
+      mode: 'cycle', color: '#6f7a86',
+    }),
+    b3dElevator({
+      meshName: 'lift-pressure',
+      x: liftX, y: 0.1, z: towerZ,
+      travel: 5.6, stops: 2, speed: 1.3, pause: 0.6,
+      mode: 'pressure', color: '#7d8a6f',
+    }),
+    b3dElevator({
+      meshName: 'lift-switch',
+      x: liftX, y: 0.1, z: towerZ + 2.4,
+      travel: 5.6, stops: 2, speed: 1.6, pause: 0.8,
+      mode: 'switch', color: '#8a6f7a',
+    })
+  )
+
+  /*
+  THE SWITCH that calls the third lift — a post with a head you press.
+
+  `b3d-interactive` is the "touch a mesh" substrate, and the rule it enforces is
+  worth the post existing: a press must START and END on the thing, within
+  `reach`. So you walk up to it and press it, rather than shooting it from
+  across the arena or brushing it on the way past.
+  */
+  const switchPost = wall('lift-switch-post', liftX + 1.9, towerZ + 2.4, 0.18, 1.1, 0.18, METAL)
+  const switchHead = wall('lift-switch-head', liftX + 1.9, towerZ + 2.4, 0.42, 0.42, 0.2, '#d8b24a', 1.15)
+  parts.push(
+    switchPost,
+    switchHead,
+    b3dInteractive({
+      target: 'lift-switch-head',
+      reach: 2.5,
+      highlight: '#ffdd66',
+      whenActivated: () => {
+        const lift = document.querySelector(
+          'tosi-b3d-elevator[mesh-name="lift-switch"]'
+        ) as unknown as { call?: () => void } | null
+        lift?.call?.()
+      },
+    })
+  )
 
   /*
   NO POND, and the reason is worth recording rather than quietly omitting.

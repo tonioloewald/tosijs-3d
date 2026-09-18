@@ -1149,6 +1149,56 @@
     ]
   },
   {
+    "module": "b3d-elevator",
+    "summary": "b3d-elevator",
+    "attributes": [
+      {
+        "name": "mode",
+        "default": "'cycle'",
+        "description": "`'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()`"
+      },
+      {
+        "name": "travel",
+        "default": "3",
+        "description": "Metres between the bottom stop and the top"
+      },
+      {
+        "name": "stops",
+        "default": "2",
+        "description": "How many stops, evenly spaced. `2` is bottom and top"
+      },
+      {
+        "name": "speed",
+        "default": "1.2",
+        "description": "Metres per second"
+      },
+      {
+        "name": "pause",
+        "default": "1.5",
+        "description": "Seconds held at each stop"
+      },
+      {
+        "name": "width",
+        "default": "2",
+        "description": "Platform size"
+      },
+      {
+        "name": "depth",
+        "default": "2",
+        "description": "Platform size"
+      },
+      {
+        "name": "thickness",
+        "default": "0.2",
+        "description": "Platform thickness — it gets a collision proxy like any thin solid"
+      },
+      {
+        "name": "color",
+        "default": "'#8a8f98'"
+      }
+    ]
+  },
+  {
     "module": "b3d-fog",
     "tag": "tosi-b3d-fog",
     "summary": "b3d-fog",

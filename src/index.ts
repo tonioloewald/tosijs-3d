@@ -505,6 +505,7 @@ export {
 export type { Arc, ArcGrip, ArcLimits } from './arc.js'
 export { angle3d, arc3d } from './angle-field.js'
 export { B3dBeacon, b3dBeacon, beaconOwner } from './b3d-beacon.js'
+export { B3dElevator, b3dElevator } from './b3d-elevator.js'
 
 // Choosing one of many — a select is right for five options and a scroll for 500
 export { picker3d, matchesQuery, groupsOf } from './picker.js'
