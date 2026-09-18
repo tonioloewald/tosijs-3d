@@ -1334,7 +1334,7 @@
       {
         "name": "reach",
         "default": "0",
-        "description": "Max distance in world units; `0` means no limit"
+        "description": "Max distance **from the player**, in world units; `0` means no limit"
       },
       {
         "name": "disabled",

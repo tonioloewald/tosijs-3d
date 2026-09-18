@@ -72,6 +72,18 @@ export class B3dElevator extends AbstractMesh {
   private _baseY = 0
   /** Which stop it is heading for. */
   private _target = 1
+  /**
+   * Which way it is stepping through the stops, +1 or -1.
+   *
+   * A reversal test alone is not enough with more than two stops: "if I am at
+   * the top go to the bottom, if at the bottom go to the top" says NOTHING about
+   * the middle, so a three-stop lift reached stop 1 and parked there forever.
+   * Tonio: "the left elevator just sits there." It had arrived and had no
+   * opinion about where next.
+   */
+  private _dir = 1
+  /** `pressure` mode: was something standing on it last frame? */
+  private _wasOccupied = false
   /** Seconds left of the hold at a stop. */
   private _waiting = 0
   /** `switch` mode: a call is outstanding. */
@@ -98,7 +110,26 @@ export class B3dElevator extends AbstractMesh {
   private _occupied(scene: BABYLON.Scene): boolean {
     const mesh = this.mesh
     if (mesh == null) return false
-    const top = mesh.absolutePosition.y + this.thickness / 2
+    /*
+    THE PLATFORM'S OWN COORDS, not its `absolutePosition`.
+
+    A freshly built mesh reports `absolutePosition` as (0,0,0) until its first
+    world-matrix compute — so on frame one this plate was testing a footprint at
+    the WORLD ORIGIN, which is exactly where the ground plane's origin sits. The
+    ground passed every clause, the plate latched "someone stepped on me" before
+    anyone had, and it rode to the top during the loading screen. You then
+    arrived to find it parked out of reach with no way to call it, which reads as
+    a dead lift rather than a triggered one.
+
+    `x`/`y`/`z` are right from the moment `sceneReady` runs, and since the travel
+    code now drives `y` directly (see above) they are also the authority on where
+    this thing IS. Using them removes the frame-one window rather than narrowing
+    it. Candidates keep `absolutePosition`: one that is still stale reads as
+    being at the origin, which is now metres from any plate that isn't there.
+    */
+    const top = this.y + this.thickness / 2
+    const cx = this.x
+    const cz = this.z
     const hw = this.width / 2
     const hd = this.depth / 2
     for (const m of scene.meshes) {
@@ -108,8 +139,8 @@ export class B3dElevator extends AbstractMesh {
       // passenger.
       const p = m.absolutePosition
       if (p.y < top - 0.1 || p.y > top + 0.6) continue
-      if (Math.abs(p.x - mesh.absolutePosition.x) > hw) continue
-      if (Math.abs(p.z - mesh.absolutePosition.z) > hd) continue
+      if (Math.abs(p.x - cx) > hw) continue
+      if (Math.abs(p.z - cz) > hd) continue
       return true
     }
     return false
@@ -146,46 +177,71 @@ export class B3dElevator extends AbstractMesh {
       modes disagree about. Everything below is shared, so a bug in the travel
       is a bug in all three rather than in whichever one nobody tried.
       */
-      const wants =
-        this.mode === 'cycle'
-          ? true
-          : this.mode === 'pressure'
-          ? this._occupied(scene)
-          : this._called
+      /*
+      A PRESSURE PLATE IS A BUTTON YOU STAND ON, not a dead-man's switch.
 
-      const goal = this._baseY + this._stopY(this._target)
-      const gap = goal - mesh.position.y
-      if (!wants && Math.abs(gap) < 0.01) return
+      It used to move only while occupied and slink home when you stepped off,
+      which meant you could never get off at the top — the ride down started the
+      moment you did. Tonio: "I was hoping it would wait up top until I stepped
+      off and back on."
+
+      So it triggers on the EDGE of someone arriving, and then finishes the leg
+      and stays. Step off at the top, step back on, and it takes you down.
+      */
+      const occupied = this.mode === 'pressure' ? this._occupied(scene) : false
+      if (this.mode === 'pressure') {
+        if (occupied && !this._wasOccupied) this._called = true
+        this._wasOccupied = occupied
+      }
+
+      const wants = this.mode === 'cycle' ? true : this._called
 
       /*
-      A pressure plate that is stepped off half way RETURNS, rather than
-      stopping in mid-air — otherwise the arena fills with lifts parked at
-      shin height. `cycle` and `switch` always finish the leg they started.
+      ⚠️ DRIVE `this.y`, NEVER `mesh.position.y`.
+
+      `AbstractMesh.render()` stamps `mesh.position` from the element's own
+      `x/y/z` on every render, so a lift that moved its mesh directly was in a
+      fight it could only lose: it climbed between renders and was snapped back
+      to its declared `y` whenever tosijs re-rendered the element. Not every
+      frame, which is what made it look like three unrelated faults instead of
+      one — Tonio saw the cycling lift "stuck at midpoint", the pressure plate
+      "goes down immediately", and drew the reasonable conclusion that the mode
+      logic was wrong. The mode logic was fine. The platform was being teleported
+      home underneath it.
+
+      Writing the property instead makes the stamp the MECHANISM rather than the
+      adversary: `y` is the truth, `render()` copies it to the mesh, and the
+      value survives because nothing else owns it.
+
+      This is the fifth time this class of bug has landed in this repo, so it is
+      worth stating as a rule and not as an anecdote: BEFORE WRITING A TRANSFORM,
+      ASK WHAT ELSE WRITES IT AND WHEN. Anything under an `AbstractMesh` has an
+      answer, and the answer is "the element, every render".
       */
-      if (!wants && this.mode === 'pressure') {
-        const home = this._baseY + this._stopY(0)
-        const back = home - mesh.position.y
-        const step = Math.sign(back) * Math.min(Math.abs(back), this.speed * dt)
-        mesh.position.y += step
-        this._target = 1
-        return
-      }
+      const goal = this._baseY + this._stopY(this._target)
+      const gap = goal - this.y
+      if (!wants && Math.abs(gap) < 0.01) return
+
       if (!wants) return
 
       const step = Math.sign(gap) * Math.min(Math.abs(gap), this.speed * dt)
-      mesh.position.y += step
+      this.y += step
       if (Math.abs(gap) <= Math.abs(step)) {
         // Arrived: hold, then pick the next stop, reversing at the ends.
-        mesh.position.y = goal
+        this.y = goal
         this._waiting = this.pause
         const n = Math.max(2, Math.round(this.stops))
-        if (this.mode === 'switch') {
+        if (this.mode !== 'cycle') {
+          // A called lift has arrived; the next call goes the other way.
           this._called = false
-          this._target = this._target === 0 ? n - 1 : 0
-        } else if (this._target >= n - 1) {
-          this._target = 0
-        } else if (this._target <= 0) {
-          this._target = n - 1
+          this._dir = this._target >= n - 1 ? -1 : 1
+          this._target = this._target >= n - 1 ? 0 : n - 1
+        } else {
+          // Step to the next stop, turning round at the ends — which is the
+          // part a bare reversal test cannot express (see `_dir`).
+          if (this._target >= n - 1) this._dir = -1
+          else if (this._target <= 0) this._dir = 1
+          this._target = Math.max(0, Math.min(n - 1, this._target + this._dir))
         }
       }
     })

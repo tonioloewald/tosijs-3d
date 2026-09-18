@@ -366,7 +366,7 @@ b3d-interactive
 
   target  = ''  — Mesh or node name to make touchable. Empty = the mesh of the element this one is nested inside
   include  = 'subtree'  — `'subtree'` counts the named node and everything under it; `'self'` counts only the node itself
-  reach  = 0  — Max distance in world units; `0` means no limit
+  reach  = 0  — Max distance **from the player**, in world units; `0` means no limit
   disabled  = false  — Refuses hover, and drops a press already in flight
   highlight  = '#ffcc44'  — Hover outline colour; `'none'` for no highlight
 

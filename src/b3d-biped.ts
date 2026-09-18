@@ -408,6 +408,9 @@ const DEFAULT_BUOYANCY = 1.15
 
 const STEP_OFFSET = 0.35
 /** How high a lip the biped walks straight over instead of being stopped by. */
+/** Half-height of the collision capsule standing, and crouched. */
+const STAND_HALF = 0.75
+const CROUCH_HALF = 0.45
 const STEP_UP = 0.5
 /** How far the ground may drop before it becomes a FALL rather than a step. */
 const STEP_DOWN = 0.6
@@ -1914,6 +1917,30 @@ export class B3dBiped extends B3dControllable {
     someone toggled twice.
     */
     this._showWeapons(this.gunplay)
+    /*
+    A CROUCH HAS TO SHRINK THE BODY, not just the pose.
+
+    The collision capsule was set once in `setupMesh` and never changed, so
+    crouching lowered the camera and the animation and left a standing-sized
+    body behind — you could not fit anywhere you could not already stand.
+    Tonio, wedged on a ledge: "when I stepped onto the shelf I just got
+    completely stuck (even when crouched — looks like I am still colliding as if
+    I were standing)."
+
+    Cheap and exact: the capsule's half-height IS the thing a crouch changes, and
+    the offset has to follow it or the feet leave the floor.
+
+    (Cover is unaffected and was right all along — `exposure` takes a STANCE and
+    measures the silhouette with rays, so it never consulted the capsule. Worth
+    saying because the same symptom would be expected from both.)
+    */
+    if (this.mesh?.ellipsoid != null) {
+      const half = this._sneaking ? CROUCH_HALF : STAND_HALF
+      if (this.mesh.ellipsoid.y !== half) {
+        this.mesh.ellipsoid.y = half
+        this.mesh.ellipsoidOffset.y = half + STEP_OFFSET
+      }
+    }
     if (this.gunplay) this._aimWeapons()
 
     // Camera toggle on the view button (edge-detected).
@@ -3366,10 +3393,10 @@ export class B3dBiped extends B3dControllable {
         Kept below `STEP_UP` (the probe's reach), so anything the body walks over
         is something the probe can then stand you on.
         */
-        this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
+        this.mesh.ellipsoid = new BABYLON.Vector3(0.3, STAND_HALF, 0.3)
         this.mesh.ellipsoidOffset = new BABYLON.Vector3(
           0,
-          0.75 + STEP_OFFSET,
+          STAND_HALF + STEP_OFFSET,
           0
         )
         this.mesh.checkCollisions = true

@@ -394,40 +394,82 @@ export function playground(options: PlaygroundOptions = {}) {
   /*
   THE TOWER — a tall block with a way up each side.
 
-  West face: a scramble. STAGGERED LEDGES rather than a marked climbing surface,
-  and that is a design decision rather than a shortcut. MOBILITY-DESIGN is
-  explicit that a `_climbable` suffix would be a bug ("the next person adds
-  `_cover` and `_climbable` and reinvents Mass Effect") — climbing should be
-  DISCOVERED from the geometry, the way cover is. `mantle` already measures a
-  ledge and picks a clip by its height, so a face built from real ledges is
-  climbable without the engine being told anything.
+  West face: A RAMP, not a ladder of shelves. The first pass built the scramble
+  out of staggered ledges on the theory that `mantle` already measures a ledge,
+  so a face made of real ledges is climbable without the engine being told
+  anything. That reasoning was fine and the result was not. Tonio: "the
+  climbable surface shouldn't need shelves, I should just be able to spiderman
+  up it, at least if [it] weren't vertical. And when I stepped onto the shelf I
+  just got completely stuck."
 
-  Offsetting them left and right is what makes it a scramble instead of a
-  ladder: you have to move sideways along the face between pulls, which is the
-  "bit of sideways climbing" the arena wanted and which falls out of the
-  geometry rather than needing a climbing MODE.
+  Both halves of that are right. A shelf is a place to get stuck — 0.9 m deep,
+  with a wall behind and a drop in front, is a pocket the collision ellipsoid
+  fits into and cannot leave. And a scramble made of discrete pulls is a
+  staircase wearing a costume; it is not the continuous thing "climbable
+  surface" describes.
 
-  (A true climbing mode — hanging on a wall, `Climb_Up/Down/Left/Right_Loop` —
-  needs those clips, which are in UAL and not in the published subset. That is
-  the content pass currently parked.)
+  SO WHAT ANGLE IS ACTUALLY WALKABLE? The first answer here was 70°, derived
+  from the ground snap: it probes `STEP_UP` (0.5 m) up and down each frame, a
+  run at 5 m/s covers 8.3 cm per frame, and 70° only lifts you 23 cm in that
+  distance — comfortably inside the probe. The arena was built at 70° on that
+  basis and Tonio could not climb it: "And I can't climb the climbable wall :D".
+
+  The arithmetic was right and the model was wrong, which is the more useful
+  kind of mistake to write down. It asked how far the FEET rise per frame. But
+  the feet never get there — the character is a swept ellipsoid 0.3 m in radius,
+  so it touches the slope 0.3 m AHEAD of its origin, and on a slope that contact
+  is already `0.3 · tan(θ)` above the ground:
+
+  | face | contact height | verdict |
+  | ---- | -------------- | ------- |
+  | 45°  | 0.30 m | a walkable hill |
+  | 55°  | 0.43 m | steep — a scramble, still inside the step |
+  | 59°  | 0.50 m | exactly `STEP_UP`; the knife edge |
+  | 70°  | 0.82 m | a wall. Measured: he stops dead 2 cm short and never rises |
+
+  Above 59° the collider is blocked by geometry taller than a step, the ground
+  snap finds only the floor beneath his origin (there is no ramp under it yet),
+  and the two deadlock — he stands at the foot walking on the spot. That is a
+  DERIVED limit, `atan(STEP_UP / ellipsoid radius)`, not a tuning choice, and it
+  moves if either of those moves.
+
+  So the face is **55°**, which leaves margin and is still far steeper than any
+  staircase. What is still missing is everything ABOVE that line: MOBILITY-DESIGN
+  wants 75° by default, 85° on rough material, past vertical with skills and
+  gear, and wet/encumbrance moving it back down. None of those are reachable by
+  walking geometry — they need a real climbing verb (hang on the wall, move on
+  it, `Climb_Up/Down/Left/Right_Loop`) plus the surface-material registry. Until
+  that exists a steeper face is not "hard to climb", it is a wall you bounce off,
+  and shipping the regime that works beats faking the two that do not.
   */
   const towerX = -26
   const towerZ = 20
+  const CLIMB_DEG = 55
+  const towerH = 6
+  // The run a 70° face needs to reach the top, and the slab length that spans it.
+  const climbRun = towerH / Math.tan((CLIMB_DEG * Math.PI) / 180)
+  const climbLen = Math.hypot(towerH, climbRun)
   parts.push(
-    wall('tower', towerX, towerZ, 6, 6, 6, DARK_STONE),
-    // Rungs up the west face, alternating north and south of centre.
-    ...[0.55, 1.35, 2.15, 2.95, 3.75, 4.55, 5.35].map((h, i) =>
-      wall(
-        `tower-hold-${i}`,
-        towerX - 3.2,
-        towerZ + (i % 2 === 0 ? -1.1 : 1.1),
-        0.9,
-        0.25,
-        1.1,
-        METAL,
-        h
-      )
-    )
+    wall('tower', towerX, towerZ, 6, towerH, 6, DARK_STONE),
+    b3dBox({
+      meshName: 'tower-climb',
+      // Centred on the midpoint of the slope: it meets the ground at the far
+      // edge of the run and the tower's west face at the top.
+      x: towerX - 3 - climbRun / 2,
+      y: towerH / 2,
+      z: towerZ,
+      width: climbLen,
+      // 0.8 m, deliberately over `MIN_SOLID_HEIGHT` — a thinner slab would earn
+      // a solid proxy, and a proxy is an axis-aligned box that would stand the
+      // ramp's collision volume back up straight.
+      height: 0.8,
+      depth: 4,
+      // Positive rz carries local +X toward +Y, so the long axis climbs from
+      // the low-x foot to the high-x top. The face you walk on is its top.
+      rz: CLIMB_DEG,
+      color: '#6b6256',
+      solid: 'on',
+    })
   )
 
   /*
@@ -458,30 +500,45 @@ export function playground(options: PlaygroundOptions = {}) {
   )
 
   /*
-  THE SWITCH that calls the third lift — a post with a head you press.
+  THE SWITCHES that call the third lift — ONE AT EACH END, which is the whole
+  point rather than a nicety.
+
+  A call button only at the bottom is a lift that strands you. Tonio: "I can't
+  figure out how to activate the red elevator but it doesn't have a control that
+  goes with it / up top." Both halves of that were real and they were separate
+  faults: the reach was measured from the camera (see `b3d-interactive` → "Reach
+  is measured from the PLAYER"), so the bottom switch did nothing at all; and
+  even once it worked, riding up left you on a ledge with no way to send the
+  platform back.
+
+  So the post is a factory and there are two of them. Real lifts work this way
+  for the same reason.
 
   `b3d-interactive` is the "touch a mesh" substrate, and the rule it enforces is
   worth the post existing: a press must START and END on the thing, within
   `reach`. So you walk up to it and press it, rather than shooting it from
   across the arena or brushing it on the way past.
   */
-  const switchPost = wall('lift-switch-post', liftX + 1.9, towerZ + 2.4, 0.18, 1.1, 0.18, METAL)
-  const switchHead = wall('lift-switch-head', liftX + 1.9, towerZ + 2.4, 0.42, 0.42, 0.2, '#d8b24a', 1.15)
-  parts.push(
-    switchPost,
-    switchHead,
-    b3dInteractive({
-      target: 'lift-switch-head',
-      reach: 2.5,
-      highlight: '#ffdd66',
-      whenActivated: () => {
-        const lift = document.querySelector(
-          'tosi-b3d-elevator[mesh-name="lift-switch"]'
-        ) as unknown as { call?: () => void } | null
-        lift?.call?.()
-      },
-    })
-  )
+  const callSwitch = (name: string, x: number, z: number, base: number) => {
+    parts.push(
+      wall(`${name}-post`, x, z, 0.18, 1.1, 0.18, METAL, base + 0.55),
+      wall(`${name}-head`, x, z, 0.42, 0.42, 0.2, '#d8b24a', base + 1.15),
+      b3dInteractive({
+        target: `${name}-head`,
+        reach: 2.5,
+        highlight: '#ffdd66',
+        whenActivated: () => {
+          const lift = document.querySelector(
+            'tosi-b3d-elevator[mesh-name="lift-switch"]'
+          ) as unknown as { call?: () => void } | null
+          lift?.call?.()
+        },
+      })
+    )
+  }
+  // At the foot of the lift, and on the tower top beside where it arrives.
+  callSwitch('lift-switch-call-low', liftX + 1.9, towerZ + 2.4, 0)
+  callSwitch('lift-switch-call-high', towerX + 2.4, towerZ + 2.4, towerH)
 
   /*
   NO POND, and the reason is worth recording rather than quietly omitting.

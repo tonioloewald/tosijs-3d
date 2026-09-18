@@ -35,6 +35,34 @@ export function semanticParent(el: HTMLElement): HTMLElement | null {
 }
 
 /**
+ * WHERE THE PLAYER'S HANDS ARE — the point an interaction's `reach` is measured from.
+ *
+ * Not the camera. A picking ray starts at the eye, and flat, the eye and the
+ * hand are the same point — so `pickInfo.distance` is a perfectly good reach
+ * everywhere EXCEPT behind a third-person character, where the camera trails
+ * several metres and every human-sized reach is exceeded while you stand with
+ * your nose against the switch. CLAUDE.md names this as the one thing that does
+ * not transfer between surfaces; it says it of a headset, and a chase camera is
+ * the same geometry for the same reason.
+ *
+ * Walks the scene's own subtree for the live `player: true` controllable — an
+ * interactive is a sibling of the player, not a descendant, so there is no
+ * parent chain to climb. Returns `null` when there is no player (an orbit-camera
+ * scene, a spectator), which means "measure along the ray", the old behaviour.
+ */
+export function playerPosition(owner: B3d | null): BABYLON.Vector3 | null {
+  const host = owner as unknown as HTMLElement | null
+  if (host == null || typeof host.querySelectorAll !== 'function') return null
+  for (const node of host.querySelectorAll('*')) {
+    const e = node as any
+    if (e.player === true && !e.dead && !e.crashed && e.mesh?.position != null) {
+      return e.mesh.position as BABYLON.Vector3
+    }
+  }
+  return null
+}
+
+/**
  * Rebuild a container's children WITHOUT destroying the popup layers in it.
  *
  * A `widgets3d` popup mounts as a SIBLING of the panel it belongs to — that is

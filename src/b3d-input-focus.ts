@@ -42,6 +42,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { B3dControllable } from './b3d-controllable.js'
+import { useNearest } from './interactive-behavior.js'
 import { gameController, type GameController } from './game-controller.js'
 import {
   MappedInputProvider,
@@ -305,7 +306,30 @@ export class B3dInputFocus extends B3dChild {
 
       if (closest) {
         this.enterVehicle(closest)
+        return
       }
+
+      /*
+      NOTHING TO GET INTO — SO REACH FOR WHAT IS THERE.
+
+      `interact` is one verb and it had exactly one meaning: get in a vehicle.
+      Which left `b3d-interactive` — doors, knobs, switches, levers, the entire
+      "touch a mesh" substrate — reachable ONLY by mouse pointer. `useNearest`,
+      the function whose whole job is to be bound to this button, had no caller
+      anywhere in the engine; it was written, exported, documented with this
+      exact line in `b3d-interactive`'s own page, and never wired.
+
+      On a keyboard or a pad that is not a hard-to-reach control, it is no
+      control at all: you walk up to a lift switch, press the button the game
+      told you to press, and nothing happens — with no hover, no refusal and no
+      error, because you never generated a pointer event in the first place.
+      Tonio, twice: "I can't figure out how to activate the red elevator."
+
+      Vehicles keep priority. Standing beside a car with a door panel on the
+      wall, the car is what you meant — and the interactive is still there when
+      you step away from it.
+      */
+      useNearest(this.owner.scene, playerPos as BABYLON.Vector3)
     } else {
       // Player is in a vehicle — exit back to biped
       this.exitVehicle()
