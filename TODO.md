@@ -5176,3 +5176,35 @@ hand-fitting session whose numbers are valid for exactly one rig and one stance.
 animation problem, notes above), the crowd↔skinned swap demo, the stadium, and the
 `Sword_*`/`Shield_*` animation sets — which are the deepest in the library and have
 meshes already published, if a chunkier art style is acceptable.
+
+## Characters want a SEPARATE HEAD MESH (Tonio, 2026-09-18)
+
+*"Ultimately, I think, our actual models will want separate head meshes for lots of good
+reasons."* Agreed, and two days of first-person work arrived at the same place from the
+other direction — every runtime route to hiding a head is blocked:
+
+- Scaling the head bone's LINKED TRANSFORM NODE: overwritten within a frame.
+- Scaling it through Babylon's own Bone API (`bone.setScale`): also overwritten.
+- Both because the AnimationGroup stamps the bone's whole transform every frame, and the
+  matrices the shader reads are baked in `skeleton.prepare()` on top of that.
+
+So on a single-mesh rig the head cannot be hidden at runtime at all, and the workarounds
+each cost something: raising `minZ` far enough to clip a skull also lets you see through
+any wall you stand against, and pushing the eye forward (what we now do, `eyeForward`) is
+a compromise between clearing the face and keeping your own hands in frame.
+
+**What a separate head submesh buys, beyond first person:**
+- hide it in FPV, one line, no compromise
+- headgear that swaps without a second body
+- damage/decapitation, and the `Head` socket already resolves across rigs
+- LOD and culling: a head is a disproportionate share of a character's triangles
+- per-character faces on one shared body
+
+It is a CONTENT change — a split in the `static-assets` conversion, not engine work — and
+it belongs with the weapon-set pass that is already parked for the same reason.
+
+- [ ] **Camera misbehaves climbing onto the catwalk** — "the body jumps out partially in
+      front and so on" going up the crate steps in first person. Not diagnosed. Likely the
+      mantle path moving the root while the eye tracks the head bone, so the body leads the
+      camera through the transition. Separate from the head problem, though a head submesh
+      would hide the worst of it.

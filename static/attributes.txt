@@ -163,6 +163,7 @@ b3d-biped
   aimFreeYaw
   aimMaxYaw
   maxLookPitch
+  eyeForward
   invertLookY
   cameraMinHeight
   jumpSpeed

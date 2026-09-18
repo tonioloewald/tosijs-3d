@@ -539,6 +539,14 @@ export class B3dBiped extends B3dControllable {
     not changing sense when you get your feet wet, which it still does not. That
     was never an argument for which sense it starts in.
     */
+    /**
+     * How far in FRONT of the head bone the first-person eye sits, in metres.
+     *
+     * Enough to put the face behind the near plane while walking, and no more:
+     * every centimetre here is a centimetre your viewpoint leads your body by,
+     * which is what makes a too-large value feel like floating.
+     */
+    eyeForward: 0.13,
     invertLookY: 'off' as 'on' | 'off',
     /**
      * Never let the follow camera drop below this above the character's feet.
@@ -1929,7 +1937,29 @@ export class B3dBiped extends B3dControllable {
     ) {
       const eye = this.getHeadPosition()
       this.fpvCamera.parent = null
-      if (eye != null) this.fpvCamera.position.copyFrom(eye)
+      if (eye != null) {
+        /*
+        AHEAD OF THE SKULL, or you see your own face when you walk.
+
+        The camera is built at `(0, eyeHeight, 0.15)` — with a forward offset —
+        and then this per-frame path overwrote it with the raw head position and
+        threw the 0.15 away. So the eye sat ON the head bone, 0.134 from its
+        origin, and the face swung through the near plane on every step. That is
+        the reason the body used to be hidden outright in first person.
+
+        Offsetting forward is better than raising `minZ` to clip the head, which
+        was the obvious alternative: the near plane applies to the WHOLE WORLD,
+        so a plane far enough out to swallow a skull also lets you see through
+        any wall you stand against — and standing against walls is most of what
+        this arena is for.
+        */
+        const f = this.mesh.forward
+        this.fpvCamera.position.set(
+          eye.x + f.x * attrs.eyeForward,
+          eye.y,
+          eye.z + f.z * attrs.eyeForward
+        )
+      }
       const f = this.mesh.forward
       /*
       AND IT PITCHES. It used to be yaw only — `rotation.set(0, yaw, 0)` — so in
