@@ -56,9 +56,9 @@ const gun = b3dLauncher({
   socket: 'right-hand',
   // DIALLED IN WITH THE GIZMO, not computed. See the note below on why these
   // are not multiples of 90.
-  x: -0.04, y: 0.049, z: -0.067,
+  x: -0.04, y: 0.051, z: -0.059,
   rx: -105, ry: -15, rz: -165,
-  modelScale: 0.8,
+  modelScale: 0.86,
   muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
   ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
 })

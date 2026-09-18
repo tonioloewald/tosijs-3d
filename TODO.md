@@ -5110,3 +5110,20 @@ carried a position and no orientation.
       - So BOTH halves can live in the browser, which makes the whole thing one tool:
         import a humanoid, place joints, bind, retarget the UAL clips onto it. The
         Blender pipeline stays useful for batch work, not because the browser cannot.
+
+## Aim pose in a crouch — the head does not follow the aim (Tonio, 2026-09-18)
+
+- [ ] **A head look-at while aiming.** Crouched with the weapon up, Tonio: "the gun is
+      correctly positioned but the character is looking like 30 degrees below horizontal."
+      Measured: the SHOT is fine — `aimDirection` is dead level `(0,0,-1)` — and the aim
+      layer IS applying (`Crouch_Idle_Loop|Pistol_Aim_Neutral`, 3 base tiers and 3 layer
+      tiers). So this is the POSE, not the aiming.
+      The cause is that `Pistol_Aim_*` are STANDING poses blended over a crouch through an
+      upper-body mask with falloff, so the head lands somewhere between the crouch clip's
+      own head angle and the standing aim's. UAL has no `Pistol_Crouch_*` to substitute.
+      The fix that works in every stance rather than one: drive the head bone to look
+      along `aimDirection` after the layer resolves, the way most games do. `findBone` and
+      `BONE_SOCKETS.head` already resolve the joint across rigs.
+      ⚠️ Don't guess the head bone's forward axis — on this rig the HAND's forward is +Y,
+      not +Z, and the head's convention was not obvious from its axes when measured.
+      Verify against the rig before applying a rotation.

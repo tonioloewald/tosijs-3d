@@ -17,9 +17,9 @@ const weapons = b3dLibrary({
 const gun = b3dLauncher({
   library: 'weapons', meshName: 'pistol',
   socket: 'right-hand',
-  x: -0.04, y: 0.049, z: -0.067,
+  x: -0.04, y: 0.051, z: -0.059,
   rx: -105, ry: -15, rz: -165,
-  modelScale: 0.8,
+  modelScale: 0.86,
   muzzleSpeed: 45, fireRate: 6, ammo: 999, reloadRate: 40,
 })
 
@@ -40,7 +40,7 @@ hero.append(gun)
 //
 // It still survives a panel rebuild, because `panel()` reads `fit` when it runs
 // and `fit` outlives the panel.
-const fit = { name: 'pistol', x: -0.04, y: 0.049, z: -0.067, rx: -105, ry: -15, rz: -165, scale: 0.8 }
+const fit = { name: 'pistol', x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 0.86 }
 
 const apply = () => {
   gun.x = fit.x; gun.y = fit.y; gun.z = fit.z

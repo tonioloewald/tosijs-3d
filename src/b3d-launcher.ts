@@ -264,6 +264,24 @@ mirrored. (Worth stating because a mesh that IS mirrored looks like an authoring
 mistake, and the instinct is to flip it in Blender — which is what would actually
 break it.)
 
+### Make the grip NARROWER than life
+
+A note for authoring or adapting weapons, from fitting Kenney's pistol to a
+1.83m character. Tonio: *"a big problem with the gun is that its grip is too
+wide... a real gun would have fingers wrapped and spread around it. When I model
+the actual weapons — or adapt others' models — I should make the grips a little
+narrower so they don't look weird."*
+
+The grip is not really oversized; the HAND is the problem. A game character's
+fingers are a few low-poly stubs that do not close, and they cannot wrap and
+spread the way real fingers do around a real grip. So a life-accurate grip
+leaves the hand visibly sitting beside it rather than around it, and the cheapest
+fix is at the other end: thin the grip until the stub fingers read as closed on
+it.
+
+Same family as the reason weapons are held slightly small — the eye is judging
+the RELATIONSHIP, not the measurement.
+
 ### Kenney's weapon pack — 37 of them, already on the CDN
 
 `kenney/libraries/weapon-pack.glb` — pistols, uzis, shotguns, snipers,
