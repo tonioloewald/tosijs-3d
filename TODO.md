@@ -944,14 +944,75 @@ floe edge below. Depth that is systemic, not textural.
   `checkCollisions` and finding a lead becomes real navigation. The boundary is
   the exit. That is a whole mechanic bought with a collision flag.
 
-⚠️ **One thing to TEST rather than assume: what `b3d-water`'s surface plane does
-inside the floe.** Water is one flat plane at sea level and the ice straddles
-it, so the plane is buried inside the ice lens — hidden from above by the opaque
-top, and *possibly* visible from below THROUGH the translucent underside, where
-a rippling reflective water surface inside a block of ice would read as a bug.
-It may cost nothing (depth order may hide it) or it may need water to discard
-under ice coverage, which would make water a fifth consumer of the same field.
-Cheap to answer by looking; do not design for it before measuring.
+### From below, ice is EMISSIVE — not translucent (Tonio)
+
+*"I think ice should not look translucent from below. It should look emissive."*
+
+Right, and right for a physical reason rather than a stylistic one: ice
+SCATTERS. Look up at a floe from underwater and you are not looking through a
+window at a sky image — light has entered the top, bounced around inside, and
+is leaving the underside diffusely. The ceiling is a SOURCE. Anyone who has seen
+under-ice footage knows the look: a glowing lid, brilliant where it is thin,
+dark under a pressure ridge.
+
+**And emissive is OPAQUE, which quietly deletes a whole class of problems.** The
+translucent version had to be alpha-blended, which means not depth-written,
+which means re-sorted every frame — the exact failure `rounded-rect.ts` documents
+("a transparent mesh isn't depth-written, so it is re-sorted per frame and
+flickers"). An opaque emissive underside needs no transparency pass, no sorting
+against the water plane, and **the `b3d-water`-plane-inside-the-lens worry
+flagged above simply stops existing**: an opaque underside hides it from below
+exactly as the opaque top hides it from above. A note that said "test this
+before designing for it" gets answered by an art direction, which is the good
+kind of surprise.
+
+So `iceTransmission(thickness)` drives EMISSIVE INTENSITY rather than alpha, and
+the model gets a consistency check it passes: thin ice transmits more, so it is
+DARKER from above (you see the dark water through it), BRIGHTER from below
+(sunlight reaches you), and puts MORE light on the seafloor. Opposite visual
+senses, one number, all three correct.
+
+Leads need no translucency either: a hole is the ABSENCE of ice, the lens has
+already closed to zero thickness at its edge, and brilliant-thin-ice meets
+open-water-brightness continuously — so there is no seam to hide.
+
+### The water mesh should encode land depth (Tonio)
+
+*"I think the water mesh should encode depth of land so it can do shoreline
+effects."*
+
+Today `b3d-water` is one flat `CreateGround` that knows nothing about the ground
+beneath it, and **per-vertex depth is not an option**: `subdivisions` is 32, so
+at the documented `waterSize: 1024` that is a 32 m quad and a shoreline needs
+metre scale. It has to be a texture.
+
+`cloud-shadows.ts` is the precedent and it is an exact fit — "painted top-down
+into one small texture, and any material that receives shadows samples it by
+world position in the fragment shader… for the cost of one texture sample and
+zero raycasts" — down to a `shadowWindowUv(px, pz, cx, cz, worldSize)` helper
+that a depth window would want verbatim. Repainted only when the source changes,
+which for terrain is `regenerate()`.
+
+What it buys: depth-graded colour (turquoise shallows → blue deep), a foam/surf
+band at the waterline, a transparency ramp so the bottom shows through in the
+shallows, and wave amplitude damping as it shoals.
+
+**But the strongest argument is that it closes a loop that is already half
+built.** `surfFactor(depth, surfDepth)` and `photicFactor(depth)` are pure,
+shipped, and already drive the TERRAIN side of the waterline — beach → rock →
+coral, growth never starting at the waterline itself. Terrain knows the depth
+because it *is* the terrain; water does not, so the two sides of the same
+shoreline are currently reasoning from different information. Handing water the
+same depth field makes them agree by construction — the identical "change one,
+change both" discipline `photicFactor` already shares with the underwater fog.
+This is less a new effect than an existing one finally having both halves.
+
+**It also turns out to be an ice prerequisite.** An ice floe in 2 m of water
+cannot have 9× draft — the underside would punch through the seafloor. Clamping
+the underside against the terrain needs exactly this depth field, and the
+clamped case is not a degenerate one to be tolerated: GROUNDED ice is real,
+common in the shallows, and the thing that builds pressure ridges. So the same
+texture serves water's shoreline and the floe's keel.
 
 One thing still to decide, not blocking:
 
