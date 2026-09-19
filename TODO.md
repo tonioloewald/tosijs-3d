@@ -855,6 +855,50 @@ and the province carry SEPARATE extents because they genuinely differ. So the
 per-tile ice decision now has the test it needs — what is left is the geometry
 and the shader.
 
+**Does ice go in the standard biome shader?** Tonio asked; the answer is that
+the surface half is ALREADY there and the other half must not be.
+
+`biome-chart.ts` has a polar ice cell and reaches it the right way — emergent
+from temperature and moisture, no flag: *"ice is frozen WATER; it belongs to
+cold-with-some-moisture… cold regions grow polar ice naturally"*, and its own
+demo says that dragging the climate cold *"collapses the beach→…→ice run until
+ice meets the waterline"*. That IS the frozen-water-world look, and it arrives
+with no mode to enter. Adding an `ice` colour path would duplicate a working
+mechanism with a worse one.
+
+What the chart cannot do is the two things that make a FLOE different from icy
+ground, and the reason is concrete rather than stylistic: **the biome plugin
+shades an opaque terrain surface**, and the ask is a back face plus
+thickness-driven translucency. Transparency is not a colour the chart can pick —
+it changes depth writing and render order, and this repo already carries that
+scar (`rounded-rect.ts`: a transparent mesh is not depth-written, so it re-sorts
+per frame and flickers). Terrain should not go on that path to gain a floe.
+
+So the split is three ways, not two:
+
+| what | where | status |
+| ---- | ----- | ------ |
+| ice as a SURFACE — colour, snow, where it appears | the biome chart | **already done, emergent** |
+| thin ice reading as thin FROM ABOVE | the biome chart — a small, real addition | not done |
+| the floe's underside + true translucency | its own mesh and material | the actual work |
+
+**The middle row is the one piece that genuinely belongs in the shader, and it
+is nearly free.** Because the underside is DERIVED from the topside by a ratio,
+thickness is `ratio · (h − seaLevel)` — a pure function of height, and the
+plugin already carries `seaLevel` as a uniform and computes altitude from world
+Y. So the ice cell can darken and desaturate as it approaches the waterline with
+**no new vertex lane and no new uniform**. That buys most of the visual payoff
+(dark water showing through thin ice, bright white on a pressure ridge) without
+putting terrain on the transparency path at all.
+
+⚠️ **And ice must NOT be a province-lane feature, because that lane is full.**
+The per-vertex province channel is the colour buffer's ALPHA, it means volcanism
+specifically, and it is already read raw because Babylon's `vertexColorMixing`
+copies only `color.rgb`. One scalar, one meaning — so "ice as a second province"
+would make a volcanic island and an ice shelf mutually exclusive in one world.
+Happily it never needs to be one: ice's natural input is thickness, and
+thickness comes from the geometry (and, above, from height) for free.
+
 One thing still to decide, not blocking:
 
 - **How it meets `b3d-water`.** These are the same surface seen from two sides,
