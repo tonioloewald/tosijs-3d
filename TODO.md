@@ -777,6 +777,38 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **The night sky should show STARS and nebulae — and it is the same sky as
+space.** Tonio: *"we should have the night-time sky show stars and maybe nebulae
+if possible and that would also transition to a sky for space (and vacuum
+planets)"*.
+
+**Most of this is already built, in the wrong element.** `b3d-galaxy` renders
+both — it carries a `starSps` AND a `nebulaSps` (billboarded
+`SolidParticleSystem`s with their own `ShaderMaterial`) over `galaxy-data`'s
+seeded, deterministic star catalogue with real spectral classes and
+luminosities. Meanwhile `b3d-skybox` drives everything off `timeOfDay` and its
+night is, in its own words, "a dark sky that reads as night" — empty. So the
+task is not "build a starfield". It is to let the skybox composite the one we
+have.
+
+**The framing that makes the transition free: stars are not a night feature.
+They are always there, and the ATMOSPHERE is what hides them.** Daylight is
+scattered air outshining them; space is air that never does; a vacuum world is
+air that was never there. Composite the starfield *behind* the atmospheric
+scattering term and all three are one number going to zero — by hour, by
+altitude, or by the planet having no atmosphere. No modes, nothing to enter, and
+no separate "space skybox" to keep in sync with the planetary one.
+
+That is exactly what `MEDIUM-DESIGN.md` already stages as **sky-as-medium**
+("one idea for water/air/cloud/weather/vacuum"), so this is that entry's first
+concrete consumer rather than a new axis.
+
+Worth deciding early: whether the night sky samples the SAME galaxy the space
+view uses (so the constellations you see from a planet are the stars you can
+fly to — which is the whole appeal, and `generateGalaxy(seed)` is deterministic
+so it costs nothing to be consistent), or whether a planet gets a cheap
+decorative field. The first is barely harder and is the one that pays off twice.
+
 [ ] **Terrain `ice` mode — a surface with an UNDERSIDE, translucent where it is
 thin.** Tonio: *"an 'ice' mode for terrain where it has an underside that is (by
 default) 9x deeper on the underside than the topside and has a shader that makes
@@ -975,6 +1007,34 @@ senses, one number, all three correct.
 Leads need no translucency either: a hole is the ABSENCE of ice, the lens has
 already closed to zero thickness at its edge, and brilliant-thin-ice meets
 open-water-brightness continuously — so there is no seam to hide.
+
+**"To the extent ice is 'translucent' it should be very blurry (can we do
+blurred transmission cheaply?)"** — yes, and the blur is *precisely why* it is
+cheap. Sharp transmission is the expensive one: it needs what is behind the
+surface at full resolution, which means a refraction capture and all the sorting
+that comes with it. A VERY blurry transmission needs almost no spatial detail —
+and a wide enough blur of anything is just its average colour.
+
+Which we already compute. What is behind the ice is the water column, and its
+average colour at a given depth IS the fog curve `photicFactor` already shares
+with `b3d-water` (and that `atmosphere.ts` already composites). So blurred
+transmission costs **zero texture samples**: tint toward the water's own fog
+colour as a function of path length. No refraction capture, no mips, no
+transparency pass.
+
+That also sharpens the topside rule stated earlier. "Darken the ice cell toward
+the waterline" was almost right; **lerp toward the water's fog colour** is the
+same cost, the correct hue, and automatically agrees with whatever the water is
+actually doing — the same change-one-change-both discipline again. And it gets
+ice's real-world colour for free: ice is blue because of absorption over path
+length, which is what a fog curve integrated over thickness gives you.
+
+The user's two notes turn out to be one model at two thicknesses: thick ice
+blurs everything behind it to a flat colour, which is the EMISSIVE term; thin
+ice blurs it less. If a case ever genuinely needs shapes readable through thin
+ice (a seal, a rock), the cheap answer is sampling a high MIP of a refraction
+texture — the hardware already built the blur — but that is a later feature that
+should earn its way in, not a v1 requirement.
 
 ### The water mesh should encode land depth (Tonio)
 
