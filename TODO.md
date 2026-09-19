@@ -899,6 +899,60 @@ would make a volcanic island and an ice shelf mutually exclusive in one world.
 Happily it never needs to be one: ice's natural input is thickness, and
 thickness comes from the geometry (and, above, from height) for free.
 
+### Under the ice: the sea floor, and the floe edge (Manta)
+
+Tonio: *"it directly impacts manta. The question is when you're in ice, what
+happens to the sea floor, and what happens at the boundary of non-ice?"*
+
+Both land on a mechanism that already exists, which is the answer worth having:
+**`photicFactor`**. The chart already gates seafloor growth on light — coral and
+kelp only establish where light reaches — and it is deliberately THE SAME curve
+as `b3d-water`'s underwater fog, "change one, change both". Ice is not a new
+seafloor rule. It is one more attenuator in a light budget that is already the
+thing deciding what lives down there.
+
+So: **ice contributes LIGHT, not temperature.** That distinction matters, because
+the tempting move is to make the water under ice colder and it would be
+double-counting — the ice is there *because* the chart already said it was cold.
+The genuinely new information ice carries is that the ceiling is opaque.
+
+`photicFactor(depth, fog, murk)` stays purely about the water column; ice
+multiplies it (Beer–Lambert composes, so a sibling `iceTransmission(thickness)`
+times the existing factor is both correct and non-invasive — the water/photic
+contract survives intact).
+
+**Which gives the through-line the whole feature hangs on: ONE thickness, ONE
+transmission curve, FOUR consumers** — the underside's translucency, the
+topside's darkening toward the waterline, the seafloor's light budget, and the
+floe edge below. Depth that is systemic, not textural.
+
+**At the boundary of non-ice, everything falls out of the falloff:**
+
+- **Geometry** — thickness → 0, so the underside converges onto the topside and
+  the floe closes into a lens. Nothing to stitch (see above).
+- **Light** — transmission → 1 over the same taper, so the seafloor's photic
+  budget ramps from ice-dark to open-water across the edge. **A ring of life at
+  the floe edge, emergent, nothing authored** — which is also ecologically true:
+  ice edges and polynyas are the most productive water in a polar sea. This is
+  the single best argument for doing it this way rather than painting ice on.
+- **Shafts** — the floe edge is where light floods in, and `MEDIUM-DESIGN.md`
+  already stages shafts as part of the medium generalisation. The ice edge is
+  its natural first consumer.
+- **Navigation, and this is the Manta one** — under ice you cannot surface.
+  `swim-aim.ts` already has `surfaceAimLimit` ("you cannot swim up out of
+  water"); under ice the ceiling is the floe, so the underside wants
+  `checkCollisions` and finding a lead becomes real navigation. The boundary is
+  the exit. That is a whole mechanic bought with a collision flag.
+
+⚠️ **One thing to TEST rather than assume: what `b3d-water`'s surface plane does
+inside the floe.** Water is one flat plane at sea level and the ice straddles
+it, so the plane is buried inside the ice lens — hidden from above by the opaque
+top, and *possibly* visible from below THROUGH the translucent underside, where
+a rippling reflective water surface inside a block of ice would read as a bug.
+It may cost nothing (depth order may hide it) or it may need water to discard
+under ice coverage, which would make water a fifth consumer of the same field.
+Cheap to answer by looking; do not design for it before measuring.
+
 One thing still to decide, not blocking:
 
 - **How it meets `b3d-water`.** These are the same surface seen from two sides,
