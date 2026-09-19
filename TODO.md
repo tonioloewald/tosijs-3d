@@ -845,15 +845,15 @@ Two things that fall out, one nice and one a hazard:
   when the tile is next filled without a hole" note. An underside needs the same
   release or you get ice under a desert.
 
-**The actual blocker is smaller than the feature: a province has no queryable
-extent.** `landform.ts` hands terrain `{landform, province}` where `province` is
-a bare `(x,z) => number` closure — `volcano({radius})` closes over its radius and
-throws it away. So "does this province touch this tile" is currently unaskable,
-and a per-tile decision needs it. Either provinces start carrying bounds
-(better, and `PROVINCE-DESIGN.md` already says a province HAS a footprint — the
-terrain hook just never receives it), or accept a conservative sample-the-corners
-test. Worth fixing on the province side regardless; this is not the only caller
-that would want it.
+~~**The actual blocker is smaller than the feature: a province has no queryable
+extent.**~~ **DONE** — `landform.ts` now tags every field it makes with an
+`extent` (the world AABB outside which it is inert), `extentOf`/`touchesExtent`
+ask the question, and `b3d-terrain` already uses it to skip a province that
+cannot reach the tile it is building. Measured on the live terrain demo: 67 of
+68 drawn tiles skipped, 0 mismatches over 24,004 drawn vertices. The landform
+and the province carry SEPARATE extents because they genuinely differ. So the
+per-tile ice decision now has the test it needs — what is left is the geometry
+and the shader.
 
 One thing still to decide, not blocking:
 

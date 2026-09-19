@@ -251,3 +251,170 @@ describe('cover — the tunnel stays buried', () => {
     expect(both(200, 0, 20)).toBeCloseTo(140, 5) // over the tunnel: raised
   })
 })
+
+import {
+  circleExtent,
+  corridorExtent,
+  extentOf,
+  touchesExtent,
+  unionExtent,
+  withExtent,
+} from './landform.js'
+
+/*
+A PROVINCE HAS A NATURAL BOUNDARY — IT JUST SPANS MORE THAN ONE TILE.
+
+Every factory already knew its own footprint and threw it away behind a closure,
+so terrain only ever held a bare `(x, z) => number` and could not ask "does this
+touch that tile". These tests pin the promise an `extent` makes: OUTSIDE IT THE
+FIELD IS INERT. A caller is entitled to skip the field entirely out there, so an
+extent that is too small clips its own landform with no error — which is why
+each one is checked against the field's real behaviour rather than against the
+number it was built from.
+*/
+describe('extent — where a field stops', () => {
+  test('a volcano is inert outside its landform extent', () => {
+    const v = volcano({ x: 45, z: -25, radius: 55, height: 24 })
+    const e = extentOf(v.landform)!
+    expect(e).not.toBe(null)
+    // Just outside each edge, the landform must leave h alone.
+    for (const [x, z] of [
+      [e.minX - 0.5, -25],
+      [e.maxX + 0.5, -25],
+      [45, e.minZ - 0.5],
+      [45, e.maxZ + 0.5],
+    ]) {
+      expect(v.landform(x, z, 7)).toBe(7)
+    }
+  })
+
+  test('the province extent is its OWN, and a wide caldera outruns the cone', () => {
+    /*
+    The case a single shared box gets wrong. The glow tail reaches
+    `craterRadius + radius * 0.4`; with the default crater (0.22 R) that is
+    inside the edifice, but `craterRadius` is an option and a wide caldera
+    pushes the tail PAST the cone's own radius. Reusing the landform's extent
+    for the province would clip the glow exactly when someone authors the
+    dramatic version.
+    */
+    const wide = volcano({
+      x: 0,
+      z: 0,
+      radius: 100,
+      height: 30,
+      craterRadius: 90,
+    })
+    const land = extentOf(wide.landform)!
+    const prov = extentOf(wide.province)!
+    expect(prov.maxX).toBeGreaterThan(land.maxX)
+    // And the province really is still live out where the landform has stopped.
+    expect(wide.province(land.maxX + 1, 0)).toBeGreaterThan(0)
+    expect(wide.landform(land.maxX + 1, 0, 3)).toBe(3)
+  })
+
+  test('a crater glows over a SMALLER area than it reshapes', () => {
+    // The mirror image: the rim runs to 1.25 R, the floor glow dies at 0.85 R.
+    const c = impactCrater({ x: 0, z: 0, radius: 40, depth: 8 })
+    const land = extentOf(c.landform)!
+    const prov = extentOf(c.province)!
+    expect(prov.maxX).toBeLessThan(land.maxX)
+    expect(c.province(prov.maxX + 0.5, 0)).toBe(0)
+  })
+
+  test('a pad claims its SKIRT, not just the flat interior', () => {
+    const p = pad({ x: 10, z: 10, radius: 20, level: 5, blend: 15 })
+    const e = extentOf(p)!
+    expect(e.maxX).toBeCloseTo(45, 5)
+    expect(p(e.maxX + 0.5, 10, 2)).toBe(2)
+  })
+
+  test('an oriented corridor bounds the ROTATED rectangle, not its dimensions', () => {
+    /*
+    `gulley`/`cover` work in (along, lateral) about a heading, so at 45° the
+    world footprint is wider than the corridor is in either of its own axes. A
+    box built from width/length alone would be too small — the invisible kind
+    of wrong.
+    */
+    const g = gulley({
+      x: 0,
+      z: 0,
+      heading: 45,
+      width: 20,
+      length: 100,
+      floorY: 0,
+    })
+    const e = extentOf(g)!
+    const diag = 100 * Math.cos(Math.PI / 4)
+    expect(e.maxX).toBeGreaterThan(diag)
+    expect(e.maxZ).toBeGreaterThan(diag)
+    // Sample along the axis: inside the extent it forces, outside it does not.
+    expect(g(e.maxX + 5, e.maxZ + 5, 50)).toBe(50)
+  })
+
+  test('cover is bounded too, and only forward of its mouth', () => {
+    const c = cover({
+      x: 0,
+      z: 0,
+      heading: 0,
+      width: 30,
+      length: 80,
+      minHeight: 40,
+    })
+    const e = extentOf(c)!
+    // `along` runs 0..length from the mouth, so nothing reaches behind it.
+    expect(e.minX).toBeCloseTo(0, 5)
+    expect(c(-5, 0, 1)).toBe(1)
+  })
+
+  test('touchesExtent is rectangle-vs-rectangle, inclusive on the edge', () => {
+    const f = withExtent((_x: number, _z: number) => 1, circleExtent(0, 0, 10))
+    expect(touchesExtent(f, 5, 5, 20, 20)).toBe(true)
+    // Abutting exactly: the shared boundary belongs to both.
+    expect(touchesExtent(f, 10, -5, 30, 5)).toBe(true)
+    expect(touchesExtent(f, 10.001, -5, 30, 5)).toBe(false)
+    // A tile that fully CONTAINS the province still touches it.
+    expect(touchesExtent(f, -100, -100, 100, 100)).toBe(true)
+  })
+
+  test('an unannotated field is UNBOUNDED, so nothing changes for it', () => {
+    const bare = (x: number, _z: number) => (x > 0 ? 1 : 0)
+    expect(extentOf(bare)).toBe(null)
+    expect(touchesExtent(bare, 1e6, 1e6, 1e6 + 1, 1e6 + 1)).toBe(true)
+  })
+
+  test('merging unions the extents', () => {
+    const a = volcano({ x: -100, z: 0, radius: 10, height: 5 })
+    const b = volcano({ x: 100, z: 0, radius: 10, height: 5 })
+    const e = extentOf(mergeProvinces(a.province, b.province))!
+    expect(e.minX).toBeLessThan(-100)
+    expect(e.maxX).toBeGreaterThan(100)
+  })
+
+  test('ONE unbounded member makes the whole composition unbounded', () => {
+    /*
+    The asymmetry that keeps this safe. A box drawn around only the members
+    that declared one is a promise nobody made, and it would clip the
+    unannotated field outside it — silently. Forfeiting the optimisation is the
+    honest answer.
+    */
+    const known = volcano({ x: 0, z: 0, radius: 10, height: 5 })
+    const bare = (x: number, _z: number) => (x > 500 ? 1 : 0)
+    expect(extentOf(mergeProvinces(known.province, bare))).toBe(null)
+    expect(extentOf(composeLandforms(known.landform, bare2))).toBe(null)
+  })
+
+  test('unionExtent is the smallest box containing both', () => {
+    const u = unionExtent(circleExtent(0, 0, 1), circleExtent(10, -4, 2))
+    expect(u).toEqual({ minX: -1, minZ: -6, maxX: 12, maxZ: 1 })
+  })
+
+  test('corridorExtent at 0° is just the corridor', () => {
+    const e = corridorExtent(0, 0, 0, -10, 50, 5)
+    expect(e.minX).toBeCloseTo(-10, 5)
+    expect(e.maxX).toBeCloseTo(50, 5)
+    expect(e.minZ).toBeCloseTo(-5, 5)
+    expect(e.maxZ).toBeCloseTo(5, 5)
+  })
+})
+
+const bare2 = (x: number, _z: number, h: number) => (x > 500 ? 0 : h)

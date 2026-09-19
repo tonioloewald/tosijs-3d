@@ -332,6 +332,7 @@ import {
 } from './terrain-grid.js'
 import { resolveBudget } from './b3d-quality.js'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
+import { touchesExtent } from './landform.js'
 
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
@@ -1531,6 +1532,26 @@ export class B3dTerrain extends B3dChild {
         cg = 0.3 + 0.65 * (((hh >>> 8) & 255) / 255)
         cb = 0.3 + 0.65 * (((hh >>> 16) & 255) / 255)
       }
+      /*
+      SKIP A PROVINCE THAT CANNOT REACH THIS TILE.
+
+      A province has a natural boundary but spans many tiles, so the question
+      each tile has to ask is rectangle-vs-rectangle — and until `landform.ts`
+      started tagging its fields with an `extent`, it could not be asked at all:
+      terrain received a bare `(x, z) => number` with its footprint closed over
+      and discarded. So every vertex of every tile in the world sampled the
+      volcano, including tiles thousands of metres from it.
+
+      This is EXACTLY equivalent, not an approximation, and it is worth saying
+      why: the loop above has already written alpha `1` everywhere, and `1` is
+      "no province" (the lane is inverted so untouched buffers mean none).
+      Outside its extent the field returns 0, and `1 - 0` is `1`. Skipping
+      writes the same bytes.
+
+      Which also means a field that lies about its extent clips itself with no
+      error — see `Extent` in landform.ts. An unannotated field declares no
+      extent, `touchesExtent` answers `true`, and nothing changes for it.
+      */
       const field = this.provinceField
       for (let v = 0; v < colors.length / 4; v++) {
         colors[v * 4] = cr
@@ -1538,7 +1559,17 @@ export class B3dTerrain extends B3dChild {
         colors[v * 4 + 2] = cb
         colors[v * 4 + 3] = 1
       }
-      if (field) {
+      const half = tileSize / 2
+      const inReach =
+        field != null &&
+        touchesExtent(
+          field,
+          cell.cx + this.originOffsetX - half,
+          cell.cz + this.originOffsetZ - half,
+          cell.cx + this.originOffsetX + half,
+          cell.cz + this.originOffsetZ + half
+        )
+      if (field && inReach) {
         const offX = this.originOffsetX
         const offZ = this.originOffsetZ
         for (let v = 0; v < tpl.gridCount; v++) {

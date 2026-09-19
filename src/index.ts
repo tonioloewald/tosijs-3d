@@ -1031,6 +1031,13 @@ export {
   cover,
   composeLandforms,
   mergeProvinces,
+  // A field knows where it stops — see landform's "A field knows where it stops".
+  withExtent,
+  extentOf,
+  touchesExtent,
+  unionExtent,
+  circleExtent,
+  corridorExtent,
 } from './landform.js'
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js'
@@ -1088,6 +1095,10 @@ export type {
 } from './sdf-lattice.js'
 export type {
   AuthoredLandform,
+  Extent,
+  Bounded,
+  LandformFn,
+  ProvinceFn,
   VolcanoOptions,
   CraterOptions,
   PadOptions,
