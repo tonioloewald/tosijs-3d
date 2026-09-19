@@ -777,6 +777,53 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Terrain `ice` mode — a surface with an UNDERSIDE, translucent where it is
+thin.** Tonio: *"an 'ice' mode for terrain where it has an underside that is (by
+default) 9x deeper on the underside than the topside and has a shader that makes
+it look translucent when thin. (For frozen water worlds / ice packs)"*
+
+The 9× is the iceberg ratio, and it being a physical constant rather than a
+taste is what makes it the right DEFAULT: freshwater ice is ~917 kg/m³ floating
+in ~1025 kg/m³ seawater, so a bit under 90% of it sits below the waterline.
+Draw the relief you want above the water and the mass below follows from it, the
+way it does in the world — which means an author tunes ONE surface and gets a
+floe that is correctly ponderous underneath for free. Keep it a dial, though:
+`9` is sea ice, and a shelf, a frozen freshwater lake or an alien solvent are
+all different numbers.
+
+Two halves, and they are separable:
+
+- **The geometry.** Terrain is a heightfield, so this is a second skin at
+  `waterline - ratio * (height - waterline)` — same grid, same LOD, flipped
+  winding. It is not a volumetric problem and should NOT reach for
+  `sdf-lattice`/`patch-field`: those exist for caves, where the topology is the
+  hard part. Here the topology is trivially known.
+- **The optics.** Thickness comes out of the geometry for nothing — it is
+  `top - bottom` at the fragment, already in hand — which is the detail that
+  makes this cheap. So translucency is a curve over a value the mesh knows about
+  itself, no depth pre-pass, no screen-space thickness estimate, no second
+  render target. Thin ice glows blue-green and shows what is under it; a
+  pressure ridge goes opaque and white. That contrast IS the read, and it is
+  what makes an ice pack legible as a surface rather than as white terrain.
+
+Two things to decide, neither blocking:
+
+- **Where it lives.** A terrain MODE (what was asked for) or a province
+  (`PROVINCE-DESIGN.md`) — the latter would let one world carry open water,
+  pack ice and a shelf that differ locally, which is what an ice pack actually
+  looks like. Probably: the mode first, because it is the thing you can look at,
+  and the province layer later once there is something worth localising.
+- **How it meets `b3d-water`.** These are the same surface seen from two sides,
+  and the underside work already queued for water (Snell's window, adopter #15)
+  is the neighbouring problem — a component that occupies a surface owes that
+  surface a treatment. Worth reading that entry before starting this one; the
+  two should not invent separate answers for "what does the bottom of a floating
+  plane look like".
+
+Fits the north star: this is depth that is **systemic, not textural** — one
+ratio and one thickness curve buy a whole planet's worth of readable ice,
+without spending a single vertex on detail.
+
 [ ] **A province should accept a HEIGHT FIELD — a bitmap or an SVG — as input.**
 Today a province is described by curves and a footprint
 (`province-climate.ts`, `footprint-field.ts`, `curve.ts`), which is right for
