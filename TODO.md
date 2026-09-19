@@ -806,13 +806,57 @@ Two halves, and they are separable:
   pressure ridge goes opaque and white. That contrast IS the read, and it is
   what makes an ice pack legible as a surface rather than as white terrain.
 
-Two things to decide, neither blocking:
+**Can a PROVINCE add the underside, or does that force a modal terrain change?**
+Tonio asked, and it is the question that decides the shape of the feature. Read
+the code rather than the design doc, because they disagree.
 
-- **Where it lives.** A terrain MODE (what was asked for) or a province
-  (`PROVINCE-DESIGN.md`) — the latter would let one world carry open water,
-  pack ice and a shelf that differ locally, which is what an ice pack actually
-  looks like. Probably: the mode first, because it is the thing you can look at,
-  and the province layer later once there is something worth localising.
+A province CANNOT add geometry today. Both hooks terrain exposes are **value**
+hooks over an already-built vertex grid: `landform: (x,z,h) => h'` returns a
+height, and `provinceField: (x,z) => 0..1` returns a scalar that rides in the
+vertex-colour ALPHA lane (free, because PBR multiplies albedo by `vColor.rgb`
+only). Neither can bring a vertex into existence. So the concern is real as
+stated.
+
+But the fix is not a mode — it is a PER-TILE decision, which terrain already
+makes. A tile grows a second skin iff an ice province's footprint touches it,
+the same *kind* of choice as its LOD level, and exactly the shape of the
+existing `PoolTile.masked` flag (a tile that draws its own index buffer because
+a patch cut a hole in it). Building the underside planet-wide and letting it
+degenerate where there is no ice would also work and is much worse: it doubles
+the vertex count of a whole world to put ice in one bay.
+
+**The province's falloff is what makes this not need a mode at all.** Thickness
+is `ratio · (h − waterline) · provinceWeight`, so at the province edge the
+weight goes to 0, the underside converges onto the topside, and the ice
+terminates at zero thickness — which is both what a floe edge looks like and why
+there is nothing to stitch. The transition lives where thickness → 0, never at a
+tile boundary, so a tile with ice beside a tile without one cannot show a seam.
+Same discipline as `sdf-lattice` (seams unrepresentable rather than stitched)
+and the MOBILITY north star (derived, not entered).
+
+Two things that fall out, one nice and one a hazard:
+
+- **Thickness ships free in the UNDERSIDE's own alpha lane.** The topside's is
+  already spoken for by `provinceField`, but the underside is a separate mesh
+  with its own (translucent) material, so its vertex-colour alpha is ours —
+  per-vertex thickness interpolated across the fragment, no depth pre-pass.
+- ⚠️ **Tiles are POOLED, and that is the bug to design against first.** Meshes
+  are reused anywhere, which is why `masked` carries an explicit "release this
+  when the tile is next filled without a hole" note. An underside needs the same
+  release or you get ice under a desert.
+
+**The actual blocker is smaller than the feature: a province has no queryable
+extent.** `landform.ts` hands terrain `{landform, province}` where `province` is
+a bare `(x,z) => number` closure — `volcano({radius})` closes over its radius and
+throws it away. So "does this province touch this tile" is currently unaskable,
+and a per-tile decision needs it. Either provinces start carrying bounds
+(better, and `PROVINCE-DESIGN.md` already says a province HAS a footprint — the
+terrain hook just never receives it), or accept a conservative sample-the-corners
+test. Worth fixing on the province side regardless; this is not the only caller
+that would want it.
+
+One thing still to decide, not blocking:
+
 - **How it meets `b3d-water`.** These are the same surface seen from two sides,
   and the underside work already queued for water (Snell's window, adopter #15)
   is the neighbouring problem — a component that occupies a surface owes that
