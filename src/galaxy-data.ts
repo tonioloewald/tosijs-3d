@@ -887,7 +887,20 @@ export function generateGalaxy(
   const scatterRadius = minRadius * 0.4
   const spiralB = ((spiralAngleDegrees / Math.PI) * minRadius) / maxRadius
 
-  const names: string[] = []
+  /*
+  A SET, NOT AN ARRAY — `names.includes()` made this O(n²).
+
+  The list exists only to keep names unique, so every star linearly scanned
+  every star before it: 5×10⁹ string comparisons at 100k stars. Measured before
+  and after, same seed, byte-identical output (a membership test is a membership
+  test; the PRNG sees the same call sequence, so the names and their order do
+  not move).
+
+  It showed up asking whether a planet's night sky could afford to sample the
+  real galaxy. It is not really a sky question — nothing that calls
+  `generateGalaxy` at scale wants this.
+  */
+  const names = new Set<string>()
   const stars: StarData[] = []
   const prng = new PRNG(seed)
 
@@ -897,10 +910,10 @@ export function generateGalaxy(
 
     // Generate unique, non-profane name
     newName = randomName(prng, numberOfSyllables)
-    while (names.includes(newName) || isBadWord(newName)) {
+    while (names.has(newName) || isBadWord(newName)) {
       newName = randomName(prng, numberOfSyllables)
     }
-    names.push(newName)
+    names.add(newName)
 
     const starSeed = prng.range(1, 100000)
     const detail = generateStarDetail(starSeed)

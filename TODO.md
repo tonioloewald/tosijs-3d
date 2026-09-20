@@ -803,11 +803,68 @@ That is exactly what `MEDIUM-DESIGN.md` already stages as **sky-as-medium**
 ("one idea for water/air/cloud/weather/vacuum"), so this is that entry's first
 concrete consumer rather than a new axis.
 
-Worth deciding early: whether the night sky samples the SAME galaxy the space
-view uses (so the constellations you see from a planet are the stars you can
-fly to — which is the whole appeal, and `generateGalaxy(seed)` is deterministic
-so it costs nothing to be consistent), or whether a planet gets a cheap
-decorative field. The first is barely harder and is the one that pays off twice.
+**Same galaxy as the space view — DECIDED (Tonio: "ideal as long as it's not
+too costly"). And it is affordable, but NOT the way it reads.** Measured, this
+machine, after the O(n²) fix below:
+
+| stars | `generateGalaxy` |
+| ----- | ---------------- |
+| 1,000 | 106 ms |
+| 6,000 (a naked-eye sky) | 632 ms |
+| 20,000 | 2.25 s |
+
+Two thirds of a second on the main thread is not something to do at load, so
+taken literally the answer is "too costly". But **the sky does not need what
+makes it slow.** Per star a sky wants a DIRECTION, a BRIGHTNESS and a COLOUR —
+about five numbers. `generateGalaxy` builds a sixteen-field record with a
+rejection-sampled unique name (checked against a 52-entry profanity list), a
+`new PRNG(seed)` per star for spectral detail (79 ms per 6,000 on its own — the
+largest single item found), planet seeds, masses and lifespans. The sky throws
+every one of those away.
+
+So the answer is the same seed and the same spiral distribution through a LIGHT
+path, not the full catalogue: genuinely the same galaxy, consistent with the
+space view, for a small fraction of the cost. The heavy record is what you build
+for a star you are actually looking at or flying to — which is the shape
+`galaxy-data` already half has, since it carries `starSeed`/`planetSeed` for
+exactly that kind of on-demand detail. (Names are the part that resists: they
+come from the shared PRNG sequence with a global uniqueness check, so they
+cannot be derived per-star without changing what they are.)
+
+And it stays cheap after the build, which is the other half: **a night sky is
+static.** Stars do not move relative to each other; only the planet's rotation
+turns the whole sphere. Build once, rotate. Do NOT reuse `b3d-galaxy`'s
+renderer for this — it calls `setParticles()` on both SPSs *every frame* to
+re-billboard, which is right for a galaxy you orbit and entirely wrong for a
+backdrop. **Reuse the data, not the renderer.**
+
+### A solar system rendered inside its own galaxy (Tonio)
+
+*"It would be very nice to render a solar system inside the galaxy it's part of
+using the same sky shader. It could even add glare around the star."*
+
+This is the same sky again, and it closes the set. One celestial sphere with
+brightness ∝ luminosity / distance², composited behind an atmosphere term:
+
+- **planet, night** — atmosphere unlit, the galaxy shows through
+- **planet, day** — the same sky, with scattered sunlight outshining it
+- **orbit / vacuum** — the atmosphere term is zero, so the sky is simply always
+  there
+- **inside the system** — the same backdrop, with your own star as the nearest
+  member of it
+
+Nothing is a mode, and there is no second "space skybox" to keep in sync with
+the planetary one.
+
+⚠️ **The one place that framing breaks is DYNAMIC RANGE, and it breaks for a
+practical reason rather than a physical one.** The local sun is on the order of
+10¹⁰ times brighter than a naked-eye star; no 8-bit backdrop holds both. So the
+split is by DISTANCE, not by kind: the distant galaxy is the shader backdrop,
+while the local star and planets are real objects drawn in front of it. Glare
+then belongs to those near objects — and `<tosi-b3d>` already has
+`glowLayerIntensity`, with `b3d-star.ts` for the body itself, so the machinery
+exists. Conceptually the sun is just a promoted member of the starfield; in the
+renderer it must not be one.
 
 [ ] **Terrain `ice` mode — a surface with an UNDERSIDE, translucent where it is
 thin.** Tonio: *"an 'ice' mode for terrain where it has an underside that is (by
