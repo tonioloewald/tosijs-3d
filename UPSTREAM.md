@@ -125,3 +125,34 @@ with zero comments — and #30 had drawn a **duplicate re-report five days after
 the fix landed**. An adopter cannot see your git log: an open issue IS the
 status, so leaving one open after fixing it buys a second report of the same
 bug.
+
+## `Quaternion.FromLookDirectionLH/RH` silently accept non-orthogonal input
+
+**Not a bug — a documented precondition with no guard**, filed here because it
+cost a long debugging session and will cost the next person one too.
+
+Both functions require `forward` and `up` to be **orthogonal** to each other, and
+say so in the JSDoc. Pass a conventional world up alongside an arbitrary forward
+— the obvious thing to write, and what Unity's `LookRotation` accepts happily by
+orthogonalising internally — and Babylon neither corrects nor complains. It
+returns a quaternion that is silently wrong, by an amount proportional to how
+non-orthogonal the pair was.
+
+That error profile is what makes it expensive: near-orthogonal inputs look
+CORRECT, so the failure appears only in part of a scene and reads as a rendering
+or projection artefact rather than a bad argument. Ours looked like a cube-map
+projection problem for several rounds; particles near the galactic plane were
+fine and only the pole faces were visibly wrong.
+
+Worth suggesting upstream, in preference order:
+
+1. Orthogonalise internally (one cross product), matching what most engines do.
+2. Failing that, assert in debug builds — the check is a dot product against a
+   tolerance.
+3. Failing that, say in the docs what happens when the precondition is violated,
+   since "must be" reads as advice rather than as "otherwise the result is
+   quietly meaningless".
+
+Workaround, and arguably what anyone should do anyway: build the basis yourself
+(`right = cross(up, forward)`, `realUp = cross(forward, right)`) and go through
+`Quaternion.FromRotationMatrix`. See `B3dGalaxy.facePoint`.

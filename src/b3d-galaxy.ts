@@ -506,19 +506,28 @@ export class B3dGalaxy extends B3dChild {
         dir.normalize()
         const ref = Math.abs(dir.y) > 0.98 ? upZ : upY
         /*
-        BUILD THE BASIS BY HAND — `FromLookDirectionLH` does not do this.
+        ORTHOGONALISE FIRST — `FromLookDirectionLH` requires it and does not do
+        it for you.
 
-        I assumed it aligned local +Z with the direction given. MEASURED, for a
-        particle 1.7 units below the bake point, it put the quad's normal 30°
-        off-axis: local +Z mapped to (-0.498, -0.359, 0.746) against a camera
-        direction of (0.498, 0.718, -0.487) — a dot of -0.87, neither +1 nor -1,
-        so not even a sign convention. A quad 30° off is an ELLIPSE, which is
-        what Tonio kept seeing in the middle of the pole faces while I kept
-        explaining it away as projection.
+        Babylon's own contract says so plainly: "@param forward … Must be
+        normalized and ORTHOGONAL to up" and the same of `up`. This code handed
+        it a world up of (0,1,0) beside an arbitrary direction, which is almost
+        never orthogonal, and Babylon does not silently fix it up the way (for
+        instance) Unity's LookRotation does. Our bug, from ignoring a documented
+        precondition — not a Babylon one.
 
-        Three cross products are unambiguous and cost nothing, and the result is
-        verifiable with one dot product — which is how this was finally caught,
-        and should have been the first thing tried.
+        It also explains the shape of the failure exactly. The error grows with
+        how non-orthogonal the pair is, so particles IN the disc plane (dir
+        nearly horizontal, nearly perpendicular to world up) came out almost
+        right and the pole faces came out badly wrong. Measured at one particle
+        1.7 units below the bake point: local +Z landed at
+        (-0.498, -0.359, 0.746) against a camera direction of
+        (0.498, 0.718, -0.487) — a dot of -0.87, some 30° off, which is an
+        ellipse.
+
+        The three cross products below ARE the missing orthogonalisation, and
+        the result is checkable with one dot product: worst alignment across the
+        whole field is now 1.0000.
         */
         const fwd = dir
         const right = BABYLON.Vector3.Cross(ref, fwd).normalize()
