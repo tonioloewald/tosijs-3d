@@ -860,12 +860,12 @@
       },
       {
         "name": "thickness",
-        "default": "320",
-        "description": "Vertical extent of the whiteout. Deep on purpose — see \"You must never see it edge-on\""
+        "default": "140",
+        "description": "Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud"
       },
       {
         "name": "haze",
-        "default": "0.9",
+        "default": "0.6",
         "description": "How much the air under the deck takes the cloud's colour. Hides the rim"
       },
       {

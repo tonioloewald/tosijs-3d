@@ -226,8 +226,8 @@ b3d-cloud-deck
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
   cirrusHeadingDeg  = 0  — Which way the streaks run
   transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
-  thickness  = 320  — Vertical extent of the whiteout. Deep on purpose — see "You must never see it edge-on"
-  haze  = 0.9  — How much the air under the deck takes the cloud's colour. Hides the rim
+  thickness  = 140  — Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud
+  haze  = 0.6  — How much the air under the deck takes the cloud's colour. Hides the rim
   seed  = 1337  — Same seed, same weather
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   octaves  = 6  — Detail octaves. Billow needs more than fBm — folding eats fine structure

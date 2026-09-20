@@ -95,8 +95,8 @@ preview.append(
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks `1`. Rebakes the field |
 | `cirrusHeadingDeg` | `0` | Which way the streaks run |
 | `transmission` | `-1` | How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage` |
-| `thickness` | `320` | Vertical extent of the whiteout. Deep on purpose — see "You must never see it edge-on" |
-| `haze` | `0.9` | How much the air under the deck takes the cloud's colour. Hides the rim |
+| `thickness` | `140` | Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud |
+| `haze` | `0.6` | How much the air under the deck takes the cloud's colour. Hides the rim |
 | `seed` | `1337` | Same seed, same weather |
 | `frequency` | `3` | Field repeats across its own width. Higher = smaller puffs |
 | `octaves` | `6` | Detail octaves. Billow needs more than fBm — folding eats fine structure |
@@ -379,15 +379,16 @@ export class B3dCloudDeck extends B3dChild {
      * Vertical extent of the whiteout. The geometry stays a surface; this is
      * how far either side of it counts as being inside the cloud.
      *
-     * BIG on purpose — see "You must never see it edge-on".
+     * Deep enough to pass THROUGH rather than across — see "You must never see
+     * it edge-on" — and no deeper. It is a cloud, not a climate.
      */
-    thickness: 320,
+    thickness: 140,
     /**
      * Haze under the deck, `0…1`: how much the air below an overcast is the
      * cloud's own colour. What it buys is the deck's RIM — a 4 km plane has an
      * edge, and fog is what a real sky uses to hide it.
      */
-    haze: 0.9,
+    haze: 0.6,
     /** Octaves of detail in the baked field. Billow needs more than fBm. */
     octaves: 6,
     fieldSize: 512,
@@ -496,6 +497,13 @@ export class B3dCloudDeck extends B3dChild {
     )
     // Seen from both sides — that is the entire point of a deck.
     mat.backFaceCulling = false
+    /*
+    BIND THE SAMPLER HERE. The bake runs before this material exists, so its own
+    setTexture is a no-op on the first pass — which left the deck invisible
+    until something forced a re-bake. Tonio: "the cloud layer in the demo
+    doesn't render until you twiddle the cirrus knob."
+    */
+    if (this.fieldTexture != null) mat.setTexture('cloudField', this.fieldTexture)
     mesh.material = mat
     this.mesh = mesh
 
@@ -685,8 +693,13 @@ export class B3dCloudDeck extends B3dChild {
    * leave cloud — and the moment that would have given the trick away happens
    * where you cannot see anything at all.
    *
-   * That is why `thickness` defaults big. It costs nothing: no geometry has
-   * depth here, only the ramp does.
+   * ⚠️ **But the band is not a licence to be enormous.** It first shipped at
+   * 320, which sounds harmless — no geometry has depth here, only the ramp —
+   * and it is not: at half-thickness 160 you are "inside" the cloud while
+   * standing plainly underneath it, so the screen whites out with the deck
+   * visibly overhead and the ground visibly below. Tonio: "coverage 100% is
+   * whiting out the whole screen. It should white out the edge of the cloud
+   * layer and beyond." Being inside has to mean being inside.
    */
   private _immersionAt(p?: BABYLON.Vector3 | null): number {
     if (p == null || this._field == null) return 0
@@ -730,6 +743,24 @@ export class B3dCloudDeck extends B3dChild {
   } {
     const immersion = this._immersionAt(p)
     this._immersion = immersion
+    /*
+    GEOMETRIC IMMERSION IS NOT OPTICAL DEPTH, and the fog wants the second one.
+
+    `_immersion` answers "how far into the slab, over how much cloud" — a
+    fraction of a distance. What you can SEE saturates far faster than that: a
+    few metres into real cloud and it is already total. So 0.89 geometric is
+    essentially 1.0 optical, and treating them as the same number left the
+    pass-through at a hundred-odd metres of visibility, which reads as thick
+    haze rather than as being inside something.
+
+    This matters more than it sounds because immersion rarely reaches 1.0 in
+    broken cloud — it is the product of the vertical ramp AND the local density
+    — and the whiteout should not be reserved for the exact centre of the
+    thickest patch. It also fixes the composite: at a weight of 0.89 the scene's
+    base fog still contributes a tenth of a kilometre of visibility, and no
+    amount of tuning the layer's own `end` can get past that.
+    */
+    const optical = 1 - (1 - immersion) * (1 - immersion)
 
     const half = Math.max(1, this.thickness * 0.5)
     const dy = p == null ? 0 : p.y - this.altitude
@@ -750,7 +781,7 @@ export class B3dCloudDeck extends B3dChild {
     */
     const cov = Math.min(1, Math.max(0, this.coverage))
     const haze = Math.min(1, Math.max(0, this.haze)) * near * cov * cov
-    const weight = Math.max(haze, immersion)
+    const weight = Math.max(haze, optical)
 
     /*
     THE COLOUR RUNS THE HEIGHT OF THE BAND — darkest underside at the bottom,
@@ -764,6 +795,21 @@ export class B3dCloudDeck extends B3dChild {
     continuously, which is what flying out of the top of a cloud looks like, and
     it costs no extra dial because both ends are already the material's.
     */
+    /*
+    VISIBILITY INTERPOLATES GEOMETRICALLY, not linearly — because that is what
+    optical depth does, and the linear version does not feel like cloud at all.
+
+    Straight-line from 1800 m to 12 m leaves you at ~200 m of visibility when
+    you are 90% into the cloud, which reads as thick haze rather than as being
+    inside anything. Halving the distance for each equal step in is the real
+    curve, and it puts the whiteout where the cloud is instead of only at the
+    exact centre of it — which matters because immersion rarely reaches 1.0 in
+    broken cloud and should not have to.
+    */
+    const rim = Math.max(24, this.size * 0.45)
+    const NEAR = 12
+    const end = NEAR * Math.pow(rim / NEAR, 1 - optical)
+
     const top = BABYLON.Color3.FromHexString(this.color)
     const under = BABYLON.Color3.FromHexString(this.underColor)
     const darkest = BABYLON.Color3.Lerp(
@@ -776,12 +822,53 @@ export class B3dCloudDeck extends B3dChild {
 
     return {
       weight,
-      // Only IMMERSION hides the sky. Haze under a deck leaves it plainly
-      // visible straight up, which is exactly what an overcast looks like.
-      veil: immersion,
+      /*
+      HAZE VEILS THE SKY TOO — by how MUCH of it the deck has shut, which is
+      what `haze` already carries (it is scaled by coverage squared).
+
+      The first version veiled only on immersion, reasoning that you can see
+      straight up through a gap. True at scattered coverage and wrong at total:
+      the deck hazes to grey toward its rim while the sky beyond stayed blue,
+      so the one thing the haze exists to hide — the fact that a 4 km plane has
+      an edge — was drawn as a bright seam right along it. Tonio: "It should
+      white out the edge of the cloud layer and beyond."
+
+      Under 100% overcast there is no blue sky anywhere, so this is not a fudge
+      to cover the seam; it is the case the first version got wrong. `veil` is
+      still not `weight` — immersion can exceed the haze, and a layer is free to
+      own the air without standing in front of the sky.
+      */
+      veil: Math.max(optical, haze),
       color: { r: c.r, g: c.g, b: c.b },
-      density: 1.0,
-      start: 0,
+      /*
+      DENSITY DERIVED FROM `end`, never a constant — because which of the two
+      the scene actually uses is not ours to know.
+
+      A scene with no <tosi-b3d-fog> runs EXP2 at a whisper density (that is how
+      a layer can ramp up without ever switching fogMode and recompiling every
+      shader — see atmosphere.ts). Handing such a scene a flat `density: 1.0`
+      composites to 0.15 at a mere 15% haze, which fogs everything within a
+      hundred metres to solid. That was three separate bug reports with one
+      cause: the deck rendered navy instead of its own colour (so `transmission`
+      looked broken), the ground washed out (so cloud shadows had nothing to
+      fall on), and the pass-through whiteout could not be told from the haze
+      because both were already total.
+
+      exp(-(d·k)²) = 0.05 at d·k = 1.73, so k = 1.73 / end makes the EXP2 curve
+      reach the same visibility distance the LINEAR one does. One number, both
+      modes, no assumption about which is live.
+      */
+      density: 1.73 / end,
+      /*
+      START BACK, so haze does not paint what is at your feet. Linear fog from
+      zero begins the moment anything is further away than nothing, which under
+      a thick deck greys the ground you are standing on — and that is where the
+      cloud SHADOWS are supposed to be legible. Keeping the near fifth clear
+      leaves the foreground readable while the distance still closes up; at full
+      whiteout the whole scale has collapsed to arm's length anyway, so the
+      fraction costs nothing there.
+      */
+      start: end * 0.2,
       /*
       The scene's fog is usually LINEAR, where `end` decides opacity and
       `density` is ignored. At minimum this reaches about half the deck, which
@@ -789,7 +876,7 @@ export class B3dCloudDeck extends B3dChild {
       a distant `end` is never opaque close up and that was the old "the
       whiteout never reaches full white" bug.
       */
-      end: 12 + (1 - immersion) * this.size * 0.45,
+      end,
     }
   }
 
