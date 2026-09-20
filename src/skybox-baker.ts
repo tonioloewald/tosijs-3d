@@ -18,7 +18,7 @@ import { b3d, b3dGalaxy, bakeSkyboxCube, defaultBakePose, button3d, label3d, sli
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
-  bake: { seed: 1234, stars: 50000, particleSize: 0.7, outFraction: 0.55, offPlane: 3, face: 512, status: 'ready' },
+  bake: { seed: 1234, stars: 50000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, face: 512, status: 'ready' },
 })
 
 let sceneEl = null
@@ -33,7 +33,7 @@ preview.append(
         slider3d({ label: 'stars', value: bake.stars, min: 5000, max: 50000, step: 1000 }),
         slider3d({ label: 'particle size', value: bake.particleSize, min: 0.1, max: 1.5, step: 0.05 }),
         slider3d({ label: 'out from core', value: bake.outFraction, min: 0.1, max: 0.9, step: 0.05 }),
-        slider3d({ label: 'off plane', value: bake.offPlane, min: 0, max: 12, step: 0.5 }),
+        slider3d({ label: 'off plane', value: bake.offPlane, min: 0, max: 6, step: 0.25 }),
         slider3d({ label: 'face px', value: bake.face, min: 256, max: 1024, step: 256 }),
         label3d({ text: bake.status, muted: true }),
         button3d({ label: 'bake cube', handleClick: async () => {
@@ -91,8 +91,8 @@ the plane**, which is roughly where Earth is — the Sun sits about 8 of the dis
 | choice | what it buys |
 | ------ | ------------ |
 | 50–60% out | the core is off to one side and bright, the far rim thin behind it. Dead centre is dense in every direction; the rim leaves one half empty |
-| slightly off-plane | lets the band read AS a band. Exactly in it, you are inside the dust and near stars swamp everything |
-| **tilted** | the band ARCS across the sky instead of lying level — and a level band reads as wallpaper the moment anyone looks up |
+| slightly off-plane | lets the band read AS a band — and TINY is the word. The disc half-thickness here is ~12, so 1 is plenty; 3 already reads as looking down on the galaxy rather than living in it |
+| **tilted** | the band ARCS across the sky instead of lying level — and a level band reads as wallpaper the moment anyone looks up. Applied to the CUBE, not the galaxy: rotating the subject moves it out from under the camera |
 
 The tilt is the one worth insisting on, and it is free: it is a property of the
 capture basis, not the galaxy, so it costs one rotation and no geometry. Seed it
@@ -129,15 +129,23 @@ export interface SkyboxBakeOptions {
 /**
  * Where to stand, given a galaxy's radius.
  *
- * Returns a world position — the TILT is deliberately not here, because it
- * belongs to whatever you are photographing (rotate the galaxy) or to the cube's
- * consumer (rotate the skybox mesh), and baking it into the pose would make it
- * the one thing you could not change afterwards.
+ * ⚠️ THIS IS IN THE GALAXY'S OWN FRAME. The first bake rotated the galaxy to
+ * tilt the band and then used this position unchanged, so the camera stayed
+ * where it was while the disc swung away from it — the sky came out
+ * photographed from well outside, looking back at the galaxy as an object.
+ * Tonio: "It should be baked from INSIDE the galaxy just off the plane, vs. way
+ * off to the side."
+ *
+ * So: either leave the subject unrotated and use this directly (what the baker
+ * does), or transform it by the subject's world matrix. **Do not rotate the
+ * galaxy to get a tilt** — tilt the cube where it is USED, which is free, and
+ * keeps the one number that must be right about placement out of the business
+ * of orientation entirely.
  */
 export function defaultBakePose(
   galaxyRadius: number,
   outFraction = 0.55,
-  offPlane = 3
+  offPlane = 1
 ): { x: number; y: number; z: number } {
   return { x: galaxyRadius * outFraction, y: offPlane, z: 0 }
 }
@@ -199,7 +207,12 @@ export async function bakeSkyboxCube(
       cam.setTarget(at.add(face.dir))
       scene.activeCamera = cam
       /*
-      RENDER NORMALLY FIRST, so billboards face THIS camera.
+      RENDER NORMALLY FIRST, so anything camera-dependent settles.
+
+      ⚠️ AND IF THE SUBJECT BILLBOARDS, POINT IT AT THE CAMERA POSITION FIRST —
+      see `B3dGalaxy.facePoint`. Billboards align to the camera's VIEW PLANE,
+      which differs per face, so left alone every particle re-orients between
+      captures and the faces disagree at their seams.
 
       A `SolidParticleSystem` re-orients its quads toward `scene.activeCamera`
       from a beforeRender observer — which the screenshot's own render target

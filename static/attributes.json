@@ -1277,7 +1277,7 @@
       },
       {
         "name": "coreSize",
-        "default": "0.25",
+        "default": "0.12",
         "description": "Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly"
       }
     ]
@@ -2740,6 +2740,11 @@
         "name": "starfieldCube",
         "default": "''",
         "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
+      },
+      {
+        "name": "starfieldTilt",
+        "default": "'0,0,0'",
+        "description": "Degrees `rx,ry,rz` on the baked cube — where a galactic tilt belongs"
       },
       {
         "name": "starfield",

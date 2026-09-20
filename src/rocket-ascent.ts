@@ -263,6 +263,9 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       // THE BAKED SKY — six faces photographed from inside the galaxy this
       // project generates, 55% out from the core and tilted. See skybox-baker.
       starfieldCube: '/sky/default',
+      // Tilt the CUBE, not the galaxy — so the band arcs across the sky rather
+      // than lying level, which is what stops a baked sky reading as wallpaper.
+      starfieldTilt: '12,25,58',
       starfield,
       nebulae,
       // Black-backed, so additive blending gets the silhouette from the

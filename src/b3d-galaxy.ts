@@ -31,7 +31,7 @@ const { demo } = tosi({
     radius: 100,
     spiralArms: 4,
     particleSize: 2.5,
-    coreSize: 0.25,
+    coreSize: 0.12,
     habitability: 5,
     nameSearch: '',
     selectedStar: '',
@@ -320,7 +320,7 @@ tosi-b3d {
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
 | `thickness` | `0.06` | Disk thickness (fraction of radius) |
 | `particleSize` | `1.0` | Base star particle diameter |
-| `coreSize` | `0.25` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
+| `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
 */
 /*{ "parent": "Space" }*/
@@ -354,10 +354,17 @@ export class B3dGalaxy extends B3dChild {
     spiralAngle: 240,
     thickness: 0.06,
     particleSize: 1.0,
-    // Halved (was 0.5): at galaxy scale the hole is a landmark, not a subject.
-    // The accretion-disk radii are MULTIPLES of this, so the whole assembly
-    // scales with it — there is no separate disk size left at full scale.
-    coreSize: 0.25,
+    /*
+    SMALL, AND DIM. Measured rather than guessed: at `0.25` the whole assembly
+    is 0.8 units across while a nebula is 2.25–7.5, so the hole was never
+    geometrically large — it was SALIENT, a hard bright ring among soft faint
+    gas, which reads as bigger than it is. Tonio: "the core black hole is simply
+    way too big relative to anything else. It reads as the size of a nebula."
+
+    So both levers: half the size again, and the disk and photon ring turned
+    down. Brightness is the one that was actually doing the damage.
+    */
+    coreSize: 0.12,
   }
 
   declare seed: number
@@ -410,10 +417,57 @@ export class B3dGalaxy extends B3dChild {
     this.owner = null
   }
 
+  /**
+   * Point every particle at THE CAMERA POSITION — a fixed world point, rather
+   * than at the camera's view plane.
+   *
+   * ⚠️ THIS IS WHAT MAKES A CUBE BAKE WORK. `SolidParticleSystem.billboard`
+   * aligns quads to the camera's VIEW PLANE, which is a different plane for
+   * each of a cube's six faces — so every star and nebula silently re-orients
+   * between captures, and the faces disagree at their seams.
+   *
+   * A cube map is ONE viewpoint photographed six ways. All six share a camera
+   * POSITION and differ only in rotation, so that position is what the
+   * particles should face: do it once, and every face sees each nebula from the
+   * same angle and as the same shape.
+   *
+   * ⚠️ NOT the galactic centre. This was first written as `faceOrigin`, which
+   * named the wrong thing even though the argument was right — Tonio: "No
+   * faceorigin is wrong. Face the camera position." The observer is 55% of the
+   * way out from the core, so facing the core would tilt every particle away
+   * from the viewer by a different amount depending where it sits.
+   *
+   * Pass `null` to hand orientation back to the live camera.
+   */
+  facePoint(target: BABYLON.Vector3 | null): void {
+    const systems = [this.starSps, this.nebulaSps]
+    for (const sps of systems) {
+      if (sps == null) continue
+      if (target == null) {
+        sps.billboard = true
+        sps.updateParticle = (p) => p
+        sps.setParticles()
+        continue
+      }
+      sps.billboard = false
+      const up = new BABYLON.Vector3(0, 1, 0)
+      sps.updateParticle = (p) => {
+        const dir = target.subtract(p.position)
+        if (dir.lengthSquared() < 1e-8) return p
+        dir.normalize()
+        p.rotationQuaternion = BABYLON.Quaternion.FromLookDirectionLH(dir, up)
+        return p
+      }
+      sps.setParticles()
+    }
+  }
+
   private update() {
-    // Update particles every frame for billboard facing
-    if (this.starSps) this.starSps.setParticles()
-    if (this.nebulaSps) this.nebulaSps.setParticles()
+    // Update particles every frame for billboard facing — unless something has
+    // taken orientation over (see `facePoint`), in which case re-running this
+    // would be harmless but pointless work.
+    if (this.starSps?.billboard) this.starSps.setParticles()
+    if (this.nebulaSps?.billboard) this.nebulaSps.setParticles()
   }
 
   private disposeMeshes() {
@@ -696,11 +750,11 @@ export class B3dGalaxy extends B3dChild {
       radius: coreSize,
       diskInnerRadius: 1.05,
       diskOuterRadius: 1.6,
-      diskBrightness: 1.5,
+      diskBrightness: 0.5,
       rotationSpeed: 0.3,
       lensing: true,
       photonRing: true,
-      photonRingBrightness: 2.0,
+      photonRingBrightness: 0.7,
       subdivisions: 32,
     })
     // Append to galaxy's parent (inside the b3d element)
