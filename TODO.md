@@ -777,6 +777,57 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **CLOUD LAYERS SHOULD BE A PLANE, NOT A CROWD OF BLOBS.** Tonio, and it is
+the harshest and most useful note the sky has had:
+
+> *"What we have is not worthy of everything else we've got. It looks like a
+> child's cartoon next to everything else. I think we should do a cloud layer as
+> a procedural very large plane with gaussian clouds in it that is bright on the
+> top-side with a faux bump map, and then the underside should render as dark
+> with emissive fringes. This would allow us to go from clear day to total
+> overcast and raise and lower the cloud layer very easily. And we can use the
+> whiteout effect to conceal the layer during the pass-through."*
+
+**The existing `b3d-clouds` is not wrong, it is answering a different question.**
+Discrete lobes are right for cloud you fly BETWEEN — the aircraft demo, a
+canyon of thunderheads, `insideCloud` as a tactic. They are wrong for a DECK,
+which is what you see from below on any ordinary day and from above on any
+ordinary flight, and the rocket demo made that obvious by looking at one from
+both sides in ninety seconds. Both should exist; this is a second primitive, not
+a replacement.
+
+Why the plane is the better shape for a deck, beyond looking right:
+
+- **Coverage becomes one continuous dial.** Clear → broken → overcast is a
+  threshold on the noise field, not a count of spawned objects, so it is
+  smooth, and it has no pool size to exhaust at the overcast end.
+- **Altitude becomes one number.** Raising or lowering a deck is `y`, where
+  today it is a respawn of the whole field.
+- **The two faces are genuinely different, and that IS the look.** Lit tops
+  with a faux bump map; dark undersides with bright fringes where the sun
+  reaches the edges. A billboard cannot do this — it has one appearance — and
+  it is most of why blobs read as cartoon.
+- **Cost stops scaling with weather.** One plane, one shader, whatever the
+  coverage.
+
+**And the pass-through problem solves itself**, which is the part of the idea
+worth calling out: a plane has no thickness, so flying through it would pop —
+except the whiteout already exists and is already a fog band keyed to
+immersion. Drive it from proximity to the plane instead of to a blob and the
+whiteout conceals the crossing exactly as it conceals a lobe today. The
+mechanism is built; it needs a different source.
+
+Fits the sky architecture already settled: clouds are **the one opaque thing,
+and therefore foreground**, not part of the additive emitter stack. Nothing
+about the dome, the stars or the exposure model has to change.
+
+Open questions worth settling before building: whether the plane is a single
+huge quad with a world-XZ-sampled shader (the `cloud-shadows`/terrain-depth
+pattern again) or a coarse grid that can undulate; whether the same noise field
+feeds `cloud-shadows` so the shadows on the ground match the cloud you can see
+(it should — that agreement is free here and impossible with recycling blobs);
+and whether `coverage` keeps its current meaning so existing scenes port.
+
 [ ] **THE SKY IS A STACK OF EMITTERS OVER BLACK.** Tonio, arriving at it while
 debugging the starfield, and it is the best one-line statement of this whole
 area:

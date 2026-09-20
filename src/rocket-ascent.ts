@@ -15,22 +15,31 @@ taking turns. Watching it can.
 ## Demo
 
 ```js
-import { b3d, rocketAscent, toggle3d, slider3d, label3d } from 'tosijs-3d'
+import { b3d, rocketAscent, slider3d, label3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 // The panel is the `scenePanel` hook, which renders BOTH as the flat gear
 // overlay and as a floating panel inside VR — so the demo is tweakable in a
-// headset, where there is no console and no keyboard. A demo with a frame loop
-// and no way to stop it is hard to look at; this one needed a pause.
-const { flight } = tosi({ flight: { paused: false, timeOfDay: 14 } })
+// headset, where there is no console and no keyboard.
+const { flight } = tosi({ flight: { timeOfDay: 14 } })
 
 preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
       scenePanel: () => [
-        label3d({ value: 'Ascent' }),
-        toggle3d({ label: 'pause', value: flight.paused }),
+        // `text`, not `value` — label3d is the one widget here keyed that way,
+        // and getting it wrong does not produce a blank row, it takes the WHOLE
+        // PANEL down: the undefined string reaches measureTextWidth and throws
+        // before anything renders. "The scene panel button has appeared but it
+        // literally does nothing." Doc examples are not type-checked, which is
+        // exactly why this shipped.
+        label3d({ text: 'Ascent' }),
+        // NO PAUSE ROW. `<tosi-b3d>` already has pause as a first-class feature
+        // — `pause()`/`resume()`, `startPaused`, and `pauseWhenHidden` on by
+        // default — and it stops the SIMULATION, not just the render, which a
+        // hand-rolled flag in this demo's own loop could never do for the rest
+        // of the scene.
         slider3d({
           label: 'time of day',
           value: flight.timeOfDay,
@@ -40,13 +49,7 @@ preview.append(
         }),
       ],
     },
-    ...rocketAscent({
-      // STRICT ===, because a tosijs leaf can read back as a boxed proxy and
-      // every object is truthy — which pinned this at `paused` from the first
-      // frame and looked like a dead frame loop. Failing this way round flies.
-      paused: () => flight.paused === true,
-      timeOfDay: flight.timeOfDay,
-    })
+    ...rocketAscent({ timeOfDay: flight.timeOfDay })
   )
 )
 ```
@@ -138,8 +141,6 @@ export interface RocketAscentOptions {
   starfield?: number
   nebulae?: number
   timeOfDay?: number
-  /** Return `true` to hold the flight where it is. See the demo's panel. */
-  paused?: () => boolean
   rocketScale?: number
 }
 
@@ -317,10 +318,6 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
     drive: (_input: unknown, dt: number) => {
       const scene = (ctrl as any).owner?.scene as BABYLON.Scene | undefined
       if (scene == null) return
-      // Held, not stopped: everything keeps rendering, the altitude simply
-      // stops advancing — so you can orbit the rocket and look at the sky at
-      // whatever height you froze it.
-      if (options.paused?.()) return
 
       if (wait > 0) {
         wait -= dt
