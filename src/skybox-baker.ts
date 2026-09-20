@@ -18,10 +18,37 @@ import { b3d, b3dGalaxy, bakeSkyboxCube, defaultBakePose, button3d, label3d, sli
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
-  bake: { seed: 1234, stars: 10000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, face: 512, status: 'ready' },
+  bake: { seed: 1234, stars: 10000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, face: 1024, status: 'ready' },
 })
 
 let sceneEl = null
+
+// THE GALAXY DOES NOT REBUILD ITSELF. Changing `starCount` sets a property and
+// nothing more — `regenerate()` is what rebuilds the particle systems, and the
+// galaxy demo has always called it from an observer. This one did not, so every
+// slider here was inert: the value changed, the scene did not.
+//
+// (Line comments, not a block. A block comment inside a fence CLOSES the
+// enclosing /*# doc comment — which is exactly what just happened, and what
+// CLAUDE.md warns about.)
+//
+// Debounced: at the top of the range a rebuild is ~12 s of blocked main thread,
+// and a drag would otherwise queue one per step.
+const galaxy = b3dGalaxy({
+  seed: bake.seed,
+  starCount: bake.stars,
+  particleSize: bake.particleSize,
+  coreSize: 0.12,
+  radius: 100,
+})
+
+let pending = 0
+for (const key of ['seed', 'stars', 'particleSize']) {
+  bake[key].observe(() => {
+    clearTimeout(pending)
+    pending = setTimeout(() => galaxy.regenerate(), 400)
+  })
+}
 
 preview.append(
   b3d(
@@ -35,7 +62,7 @@ preview.append(
         slider3d({ label: 'particle size', value: bake.particleSize, min: 0.1, max: 1.5, step: 0.05 }),
         slider3d({ label: 'out from core', value: bake.outFraction, min: 0.1, max: 0.9, step: 0.05 }),
         slider3d({ label: 'off plane', value: bake.offPlane, min: 0, max: 6, step: 0.25 }),
-        slider3d({ label: 'face px', value: bake.face, min: 256, max: 1024, step: 256 }),
+        slider3d({ label: 'face px', value: bake.face, min: 256, max: 2048, step: 256 }),
         label3d({ text: bake.status, muted: true }),
         button3d({ label: 'bake cube', handleClick: async () => {
           bake.status = 'baking…'
@@ -54,13 +81,7 @@ preview.append(
       ],
       sceneCreated(el) { sceneEl = el },
     },
-    b3dGalaxy({
-      seed: bake.seed,
-      starCount: bake.stars,
-      particleSize: bake.particleSize,
-      coreSize: 0.25,
-      radius: 100,
-    })
+    galaxy
   )
 )
 ```
@@ -141,7 +162,20 @@ export interface SkyboxBakeOptions {
   x: number
   y: number
   z: number
-  /** Pixels per cube face. 512 is the usual sweet spot; 1024 costs 25 MB. */
+  /**
+   * Pixels per cube face. Each face is a genuine render at this size, not an
+   * upscale, so it is the only knob that buys actual sky detail.
+   *
+   * A face covers 90°, so it is stretched across a large part of a wide
+   * viewport — 512 reads as soft the moment the sky fills the screen. 1024 is
+   * the sensible default; 2048 is a hero asset.
+   *
+   * | face | VRAM (RGBA, 6 faces) |
+   * | ---- | -------------------- |
+   * | 512 | 6 MB |
+   * | 1024 | 25 MB |
+   * | 2048 | 100 MB |
+   */
   size?: number
   /** Far plane for the capture. Must reach past whatever you are photographing. */
   maxZ?: number

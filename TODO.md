@@ -777,6 +777,50 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] ⚠️ **OPEN BUG: baked stars render ELONGATED, including mid-face.** The
+skybox baker works end to end — six faces, right asymmetry, correct exposure —
+but every star and nebula comes out as an ellipse rather than a point, and
+Tonio's decisive observation is that it happens **in the MIDDLE of a face**, not
+only near its edges.
+
+That single fact kills the comfortable explanation. At a face's centre the view
+direction IS the face normal, so a quad oriented toward the camera position is
+parallel to the image plane and must render round. "It is the inherent stretch
+of a 90° projection, and it cancels when sampled onto a sphere" is therefore
+WRONG — I offered it twice and it does not survive the mid-face case.
+
+What has been ruled out, so nobody repeats it:
+
+- **Not the billboard mode.** `B3dGalaxy.facePoint` sets `billboard = false` and
+  installs an `updateParticle` that aims each quad at the bake position.
+- **Not a no-op.** Verified live: `computeParticleRotation` is true,
+  `rotationQuaternion` is set, and the quaternions genuinely DIFFER per particle
+  (`[0.002,-0.811,0,0.585]` vs `[-0.004,-0.752,0,0.659]` for particles in
+  different places), so the math runs and the values vary with position.
+- **Not the canvas aspect.** Squaring the viewport before baking changed
+  nothing.
+- **Not the probe path.** This is the six-camera renderer; the probe route was
+  abandoned earlier for returning all-zero pixels.
+
+Best remaining suspects, in order:
+
+1. **The quad's normal is not local +Z.** `FromLookDirectionLH` aligns local +Z
+   with the given direction, and a Babylon plane's VISIBLE face is local −Z. If
+   the SPS shape's normal convention differs from that assumption, every quad is
+   oriented about the wrong axis — which would produce exactly a consistent
+   elongation rather than a random one.
+2. **`p.position` is SPS-LOCAL, the target is WORLD.** They coincide only while
+   the galaxy root is identity. It is identity right now, so this is not the
+   current cause, but it is a live trap the moment anyone rotates or moves the
+   galaxy — and the API takes a world-space target with no conversion.
+3. Something downstream re-orienting after `setParticles()`.
+
+**The cheap decisive experiment** (not yet run): set every particle to the SAME
+known quaternion and look. If the picture does not change, the quaternion is not
+reaching the vertices at all; if it does, the aiming math is wrong. That
+separates the two families in one step, which is what the last several rounds of
+guessing failed to do.
+
 [ ] **CLOUD LAYERS SHOULD BE A PLANE, NOT A CROWD OF BLOBS.** Tonio, and it is
 the harshest and most useful note the sky has had:
 
