@@ -450,12 +450,31 @@ export class B3dGalaxy extends B3dChild {
         continue
       }
       sps.billboard = false
-      const up = new BABYLON.Vector3(0, 1, 0)
+      /*
+      TILT TOWARD THE POINT — do not pivot about the galactic plane.
+
+      A FIXED world up (0,1,0) constrains the quad's own up to stay as close to
+      +Y as it can, so the particle only ever yaws about the plane normal. Near
+      the disc that looks fine and it is why the first version passed. Look down
+      the Y axis, though, and the reference is parallel to the view direction:
+      the rotation is degenerate, every particle goes edge-on, and the galaxy
+      falls apart from exactly the angle you would most want to admire it from.
+      Tonio: "I'd actually tilt the billboards to point at the camera, not pivot
+      on the galactic plane. Then the galaxy would look good from above too."
+
+      So the reference up SWAPS when the direction gets close to it. Any
+      non-parallel vector will do — the roll of a radially symmetric blob does
+      not matter — and swapping removes the singularity rather than moving it
+      somewhere less likely.
+      */
+      const upY = new BABYLON.Vector3(0, 1, 0)
+      const upZ = new BABYLON.Vector3(0, 0, 1)
       sps.updateParticle = (p) => {
         const dir = target.subtract(p.position)
         if (dir.lengthSquared() < 1e-8) return p
         dir.normalize()
-        p.rotationQuaternion = BABYLON.Quaternion.FromLookDirectionLH(dir, up)
+        const ref = Math.abs(dir.y) > 0.98 ? upZ : upY
+        p.rotationQuaternion = BABYLON.Quaternion.FromLookDirectionLH(dir, ref)
         return p
       }
       sps.setParticles()
