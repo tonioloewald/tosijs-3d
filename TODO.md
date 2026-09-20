@@ -777,6 +777,49 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **DISTANT GALAXIES — the right fix for a sparse sky.** Tonio: *"set aside a
+budget for other galaxies — nebula that are further out and pale yellow to
+orange."*
+
+Better than what is currently shipped, and it supersedes it. The default cube
+was re-baked denser by raising PARTICLE SIZE, which fills the frame at a real
+cost: stars are billboards sized in world units, so enlarging them to populate
+the empty sky also turns the nearest ones into dinner plates. The two pull
+against each other and no single value wins.
+
+Distant galaxies break the tie, because they fill exactly the region that is
+empty and nothing else does. Off the galactic band the real sky is not black —
+it is faint external galaxies, and a sky that renders it black is the one that
+reads as sparse.
+
+The colour note is right too, and worth writing down so it is not "tuned" away
+later: they are pale yellow through orange because they are OLD stellar
+populations, reddened further by redshift. Not blue, not white, not the vivid
+palette the foreground stars use.
+
+Shape of it:
+
+- **Placement** on a shell well outside `maxRadius`, roughly ISOTROPIC rather
+  than following the disc — they are not part of this galaxy, and scattering
+  them evenly is what fills the poles the band cannot reach.
+- **Small and faint.** Their whole job is texture in the empty regions; anything
+  large enough to read as a subject is a different feature.
+- **Elliptical, randomly oriented** — a disc galaxy seen at a random angle is an
+  ellipse at a random roll, which is free here and is most of what makes one
+  recognisable at a glance.
+- **A budget**, as Tonio framed it: a count independent of `starCount`, so the
+  emptiness gets populated on purpose rather than as a side effect of cranking
+  something else.
+
+Cheapest first pass: extend the nebula generation in `galaxy-data` with a
+far-out, warm, small-scale fraction. That needs NO new rendering path — the
+emission-nebula branch already exists — and would tell us quickly whether the
+idea carries before anything gets its own shader.
+
+Related and still open: the magnitude-aware star size clamp. With distant
+galaxies doing the filling, particle size can come back DOWN, which is the other
+half of getting the near stars under control.
+
 [ ] ⚠️ **THE BAKED SKY NEEDS ONE MESH, WHICH MEANS FORKING THE SKY SHADER.**
 Tonio: *"the skybox with two cubes NEVER worked. It's z-chasing at the
 corners"*, and *"Can't you just assign the starfield assets as backdrop textures
