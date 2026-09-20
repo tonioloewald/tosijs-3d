@@ -2727,6 +2727,16 @@
         "description": "Atmospheric haze"
       },
       {
+        "name": "spaceStart",
+        "default": "0",
+        "description": "Altitude (m) where the fade to space BEGINS"
+      },
+      {
+        "name": "spaceFull",
+        "default": "0",
+        "description": "Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`"
+      },
+      {
         "name": "luminance",
         "default": "1",
         "description": "Sky brightness"

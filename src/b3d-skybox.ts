@@ -46,6 +46,8 @@ preview.append(scene)
 | `luminance` | `1` | Sky brightness |
 | `turbidity` | `10` | Atmospheric haze |
 | `rayleigh` | `2` | Rayleigh scattering |
+| `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
+| `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
 | `sunColor` | `'#eeeeff'` | Midday sun color |
 | `duskColor` | `'#ffaa22'` | Dawn/dusk sun color |
 | `moonColor` | `'#6688cc'` | Night light color |
@@ -57,6 +59,7 @@ preview.append(scene)
 import * as BABYLON from '@babylonjs/core'
 import { SkyMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils.js'
+import { band } from './atmosphere.js'
 import type { B3d } from './tosi-b3d.js'
 import type { B3dSun } from './b3d-shadows.js'
 
@@ -83,6 +86,22 @@ export class B3dSkybox extends AbstractMesh {
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     turbidity: 10,
+    /*
+    LEAVING THE ATMOSPHERE — the altitudes over which the sky fades to space.
+    Metres, and OFF unless `spaceFull > spaceStart`, so no existing scene wakes
+    up with a black sky.
+
+    There is no realistic default to pick, and pretending otherwise would be
+    worse than declining: the Kármán line is 100 km, which no demo ever climbs,
+    so a "correct" default would simply mean the feature never fires. The right
+    numbers are dramatic ones chosen per scene — a rocket demo that tops out at
+    3 km wants the whole fade inside 3 km.
+
+    The pair mirrors `band(value, startAt, full)` in atmosphere.ts on purpose:
+    these ARE its two arguments, so there is nothing to translate.
+    */
+    spaceStart: 0,
+    spaceFull: 0,
     luminance: 1,
     // ⚠️ Babylon's SkyMaterial azimuth is a 0–1 FRACTION of a turn, not an
     // angle. Passed through unchanged rather than converted, because a
@@ -162,6 +181,25 @@ export class B3dSkybox extends AbstractMesh {
     return c
   }
 
+  /** 0 in the troposphere, 1 in vacuum. See `spaceStart`/`spaceFull`. */
+  private _vacuum = 0
+  private _removeFogLayer: (() => void) | null = null
+
+  /**
+   * How far out of the atmosphere the VIEWER is — the camera, not the skybox,
+   * which is pinned to the camera anyway. Read live rather than cached because
+   * the thing that moves is someone else's mesh.
+   */
+  private _vacuumNow(): number {
+    const attrs = this as any
+    const full = attrs.spaceFull as number
+    const start = attrs.spaceStart as number
+    if (!(full > start)) return 0
+    const cam = this.owner?.scene?.activeCamera
+    if (cam == null) return 0
+    return band(cam.globalPosition.y, start, full)
+  }
+
   private updateSky() {
     if (this.mesh?.material == null) return
     const attrs = this as any
@@ -178,7 +216,22 @@ export class B3dSkybox extends AbstractMesh {
     const isDay = attrs.timeOfDay > 6 && attrs.timeOfDay < 18
     sunVector.rotateByQuaternionToRef(this._qTotal, sunVector)
 
-    material.luminance = attrs.luminance
+    /*
+    VACUUM IS NOT A SKY COLOUR — IT IS THE ABSENCE OF SCATTERING.
+
+    The sky is blue because air scatters; take the air away and it goes black
+    on its own, with the sun still a hard bright disc because the mie term is
+    forward-scattering off the sun itself. So the fade to space drives the three
+    uniforms that MEAN atmosphere — `rayleigh`, `turbidity`, `luminance` —
+    toward zero, and `SkyMaterial` renders the result. No second sky, no shader,
+    nothing to cross-fade: the same material does daylight and vacuum because
+    they are the same equation with different air.
+
+    `_air` is 1 in the troposphere and 0 in vacuum, so every scattering term
+    below is simply multiplied by it.
+    */
+    const air = 1 - this._vacuum
+    material.luminance = attrs.luminance * air
     material.azimuth = attrs.azimuth
     material.mieDirectionalG = attrs.mieDirectionalG
     material.mieCoefficient = attrs.mieCoefficient
@@ -220,8 +273,8 @@ export class B3dSkybox extends AbstractMesh {
             light.diffuse
           )
           light.intensity = intensity * dim
-          material.rayleigh = attrs.rayleigh
-          material.turbidity = attrs.turbidity
+          material.rayleigh = attrs.rayleigh * air
+          material.turbidity = attrs.turbidity * air
 
           // Horizon: blend light color with sky blue, then brighten toward white
           // at high sun — written in place into _horizonColor via a scratch.
@@ -240,8 +293,8 @@ export class B3dSkybox extends AbstractMesh {
         } else {
           light.diffuse.copyFrom(this.hex(attrs.moonColor))
           light.intensity = attrs.moonIntensity * dim
-          material.rayleigh = attrs.rayleigh * 0.05
-          material.turbidity = attrs.turbidity * 0.05
+          material.rayleigh = attrs.rayleigh * 0.05 * air
+          material.turbidity = attrs.turbidity * 0.05 * air
 
           // Night horizon: dark desaturated blue
           this._horizonColor.copyFrom(NIGHT_HORIZON)
@@ -318,14 +371,49 @@ export class B3dSkybox extends AbstractMesh {
       // stays stranded — freezing the sky (the "time-of-day slider does nothing in
       // XR until you exit" bug). Driving updateSky off the frame loop, gated on a
       // timeOfDay change, keeps it live everywhere.
+      /*
+      ALTITUDE IS THE SECOND CLOCK. The gate below used to watch `timeOfDay`
+      alone, which is right for a sky that only changes with the hour — but a
+      rocket climbing at a fixed hour would have held a blue sky all the way to
+      orbit, the update never firing because nothing it watched had moved.
+      */
+      const vac = this._vacuumNow()
+      // Quantised, not compared raw: a float that drifts by 1e-7 every frame
+      // would refresh the sky every frame and the gate would be decorative.
+      const moved = Math.abs(vac - this._vacuum) > 0.002
+      if (moved) this._vacuum = vac
       const waiting = !this._sunApplied && this._sunWaitFrames < 300
       if (waiting) this._sunWaitFrames++
-      if (attrs.timeOfDay !== this._lastSkyTime || waiting) {
+      if (attrs.timeOfDay !== this._lastSkyTime || moved || waiting) {
         this._lastSkyTime = attrs.timeOfDay
         this.updateSky()
       }
     }
     scene.registerBeforeRender(this._sizeToCamera)
+    /*
+    THE HAZE HAS TO GO TOO, or the sky turns black behind air you can still see
+    through — vacuum with weather in it. This is the `space` layer atmosphere.ts
+    has specified from the start ("altitude leaving the atmosphere: density → 0,
+    colour → black") and that nothing has ever registered: water and clouds both
+    contribute bands, the third was documented and unwired. So the compositor
+    already knew how to do this; it was only ever missing a caller.
+
+    Density and end are pulled toward "nothing between you and infinity"; the
+    colour goes black so that whatever haze remains mid-fade darkens rather than
+    staying blue.
+    */
+    this._removeFogLayer = owner.addFogLayer(() => {
+      const w = this._vacuum
+      return w <= 0
+        ? null
+        : {
+            weight: w,
+            color: { r: 0, g: 0, b: 0 },
+            density: 0,
+            start: 1e6,
+            end: 1e7,
+          }
+    })
     this.updateSky()
     owner.register({ meshes: [this.mesh] })
   }
@@ -339,6 +427,9 @@ export class B3dSkybox extends AbstractMesh {
       this.owner.scene.unregisterBeforeRender(this._sizeToCamera)
       this._sizeToCamera = null
     }
+    this._removeFogLayer?.()
+    this._removeFogLayer = null
+    this._vacuum = 0
     // Hand intensity ownership back to the sun before we let go of it.
     if (this.sunEl != null) this.sunEl.externallyLit = false
     this.sunEl = null

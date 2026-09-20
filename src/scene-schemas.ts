@@ -130,6 +130,13 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       turbidity: num(10, { minimum: 1, maximum: 40 }),
       luminance: num(1, { minimum: 0, maximum: 2 }),
       rayleigh: num(2, { minimum: 0, maximum: 4 }),
+      // Leaving the atmosphere. Metres, and a BAND: the pair is literally
+      // `band(altitude, startAt, full)` from atmosphere.ts. Off while
+      // `spaceFull <= spaceStart`, which is why both default to 0 — there is no
+      // honest default altitude (the Kármán line is 100 km and no demo climbs
+      // it), so the scene that wants the effect states its own dramatic scale.
+      spaceStart: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
+      spaceFull: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
       mieCoefficient: num(0.005, { minimum: 0, maximum: 0.05 }),
       mieDirectionalG: num(0.8, { minimum: 0, maximum: 1 }),
       sunColor: color('#eeeeff'),
