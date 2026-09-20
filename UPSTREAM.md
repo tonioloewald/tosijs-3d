@@ -156,3 +156,49 @@ Worth suggesting upstream, in preference order:
 Workaround, and arguably what anyone should do anyway: build the basis yourself
 (`right = cross(up, forward)`, `realUp = cross(forward, right)`) and go through
 `Quaternion.FromRotationMatrix`. See `B3dGalaxy.facePoint`.
+
+## `MaterialPluginBase` attaches to ANY material and silently no-ops on most
+
+**This is the one worth filing.** A plugin can be added to a material that has no
+ability to run it: the attach succeeds, `material.pluginManager` lists the plugin
+by name, `isCompatible` passes, and nothing whatsoever happens at render time.
+
+The mechanism, from the source: `MaterialPluginManager._addPlugin` installs
+`material._callbackPluginEventGeneric`, and it is then **the material's job** to
+invoke that callback while preparing defines, creating its effect and binding.
+Materials that do so, in `@babylonjs/core`:
+
+- `standardMaterial`, `pbrBaseMaterial`, `openpbrMaterial`,
+  `gaussianSplattingMaterial`
+
+Materials that do NOT — the entire `@babylonjs/materials` pack, every one:
+
+- `cell`, `custom`, `fire`, `fur`, `gradient`, `grid`, `lava`, `mix`, `normal`,
+  `shadowOnly`, `simple`, **`sky`**, `terrain`, `triPlanar`, `water`
+
+So a plugin on `SkyMaterial` (or `WaterMaterial`, or any of them) is accepted and
+ignored. `SkyMaterial` additionally hardcodes `shaderName = "sky"`,
+`samplers: []` and a fixed uniform list in its `createEffect`, and never calls
+`customShaderNameResolve` — so there is no supported extension point at all.
+
+**Why this is worth a maintainer's time:** the failure is silent AND every
+diagnostic says it is working. We lost most of a day to it. `pluginManager`
+listed our plugin next to two that DO work (ours were on StandardMaterial), the
+texture reported ready, the uniform values were correct — and the shader had
+compiled the whole block out because the DEFINE never reached it.
+
+Suggested, in preference order:
+
+1. **Throw or warn on attach** when the target material does not invoke plugin
+   events. It is detectable — a static capability flag, or simply that the
+   material class never overrides the hook.
+2. Document, on `MaterialPluginBase`, which materials support plugins. The class
+   reads as universal and is not.
+3. Longer term: have the custom-materials pack call the plugin callbacks, since
+   several of them (sky, water, terrain) are exactly the ones people want to
+   extend.
+
+Workaround: fork the shader. Babylon keeps the source in
+`ShaderStore.ShadersStore` (e.g. `skyPixelShader`), so it can be copied,
+modified, re-registered under a new name and driven from a `ShaderMaterial` —
+at the cost of re-binding by hand every uniform the original bound for you.

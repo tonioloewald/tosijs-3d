@@ -571,12 +571,17 @@ export class B3dSkybox extends AbstractMesh {
     `MaterialPluginBase` attaches cleanly and reports itself attached —
     `pluginManager` lists it alongside CloudShadow and Biome.
 
-    It still renders nothing, and the reason is one step further in: the DEFINE
-    never reaches the effect. `SkyMaterial` does not route plugin defines into
-    its shader compilation, so `#ifdef B3D_STARFIELD` is compiled out and the
-    sampler is never read. Everything measurable said it was working — plugin
-    present, texture ready, level 0.8 — while the sky stayed black, which is why
-    this took two rounds of "still black" to pin down.
+    It still renders nothing, and the reason is not SkyMaterial-specific: the
+    plugin manager installs `material._callbackPluginEventGeneric` and it is
+    then THE MATERIAL'S JOB to invoke it. Only standardMaterial, pbrBaseMaterial,
+    openpbrMaterial and gaussianSplattingMaterial do. NOT ONE material in the
+    `@babylonjs/materials` pack does — sky, water, terrain, grid, all of them
+    accept a plugin and ignore it. So the define never reaches the effect,
+    `#ifdef B3D_STARFIELD` compiles out, and the sampler is never read.
+
+    Attaching succeeds silently and every diagnostic agrees it worked — plugin
+    listed in `pluginManager`, texture ready, level 0.8 — which is why this took
+    two rounds of "still black" to locate. Filed in UPSTREAM.md.
 
     So the cube gets its own mesh again. It is scaled slightly OUTSIDE the dome
     rather than onto it, which is what fixes the original complaint: two shells
