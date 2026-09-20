@@ -802,9 +802,30 @@ Two honest gaps for the simple version, neither blocking:
 
 - **Space is black, not starry.** The starfield is designed and unbuilt, so
   today the payoff is sky → thinning → black. Real, but half the drama.
-- **No sun in vacuum.** At full vacuum the sun disc goes with the luminance,
-  because the local star is GEOMETRY under the agreed architecture, not
-  something `SkyMaterial` draws — and that geometry does not exist yet.
+- **No sun in vacuum — but the object exists.** Tonio: *"Don't we have a star
+  object already?"* We do, and the gap as first filed was overstated.
+  `b3d-star` is a full procedural star — cube-sphere with Perlin granulation,
+  spectral-class colour, optional point light, and a CORONA (`coronaSize`,
+  `glowIntensity`), which is the glare asked for earlier, already built. So the
+  missing piece is not the body, it is that **nothing places it.**
+
+  And the pattern to place it by is already there: `b3d-skybox` computes the sun
+  vector each update and WRITES IT INTO `b3d-sun` (whose own docs say the
+  direction is "overridden by skybox when present"). A star should ride the same
+  channel — the skybox finds a `tosi-b3d-star` child the way it already finds
+  `tosi-b3d-sun`, and puts it along that vector at a camera-relative distance.
+  Small, and idiomatic rather than new.
+
+  It also lands on the same principle as everything else here: **the star body
+  is always there, and the atmosphere washes it out.** At sea level it is lost
+  in a bright sky; in vacuum it is stark. Not a handoff between two suns, and no
+  crossfade — the same object under more or less air, exactly like the stars
+  behind it.
+
+  Worth deciding when built: apparent size is `radius / distance`, so either the
+  author controls both, or the skybox places at a distance derived from a
+  desired angular diameter (the sun's is 0.53°). The first is honest and the
+  second is convenient; do not do both.
 
 The submarine version needs nothing conceptually new: water already contributes
 its band and `buoyancy.ts` already models breaking the surface. It is sequencing
