@@ -31,7 +31,7 @@ const { demo } = tosi({
     radius: 100,
     spiralArms: 4,
     particleSize: 2.5,
-    coreSize: 0.5,
+    coreSize: 0.25,
     habitability: 5,
     nameSearch: '',
     selectedStar: '',
@@ -320,7 +320,7 @@ tosi-b3d {
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
 | `thickness` | `0.06` | Disk thickness (fraction of radius) |
 | `particleSize` | `1.0` | Base star particle diameter |
-| `coreSize` | `0.5` | Central black hole radius (the doc said `2.0` for a long time; the default is and was `0.5`) |
+| `coreSize` | `0.25` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
 */
 /*{ "parent": "Space" }*/
@@ -354,7 +354,10 @@ export class B3dGalaxy extends B3dChild {
     spiralAngle: 240,
     thickness: 0.06,
     particleSize: 1.0,
-    coreSize: 0.5,
+    // Halved (was 0.5): at galaxy scale the hole is a landmark, not a subject.
+    // The accretion-disk radii are MULTIPLES of this, so the whole assembly
+    // scales with it — there is no separate disk size left at full scale.
+    coreSize: 0.25,
   }
 
   declare seed: number

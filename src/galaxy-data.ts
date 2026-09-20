@@ -989,9 +989,8 @@ export function generateGalaxy(
   }
 
   for (let i = 0; i < nebulaCount; i++) {
-    const isDark = prng.probability(0.35)
     /*
-    A FIFTH OF THEM SIT ON THE CORE, which is scenery with a job.
+    ABOUT ONE IN ELEVEN SITS ON THE CORE, which is scenery with a job.
 
     The central black hole reads as an object rather than as a galactic centre
     when you can see all of it against empty space — Tonio: "If the black hole
@@ -1000,7 +999,15 @@ export function generateGalaxy(
     also what the real thing looks like: the Milky Way's centre is behind so
     much dust that we cannot see it in visible light at all.
     */
-    const inCore = prng.probability(0.2)
+    const inCore = prng.probability(0.09)
+    /*
+    AND MOST OF THE CORE ONES ARE DARK. Dark nebulae are DUST, and dust is what
+    actually hides a galactic centre — the bright ones veil it by adding glow,
+    which at any useful density just makes the middle brighter. Raised across
+    the board too (0.35 → 0.5): the arms read better with lanes cutting them
+    than with glow alone.
+    */
+    const isDark = prng.probability(inCore ? 0.72 : 0.5)
     let r = inCore
       ? prng.realRange(0, minRadius * 1.3)
       : prng.realRange(minRadius * 0.5, maxRadius)
@@ -1013,7 +1020,16 @@ export function generateGalaxy(
 
     const x = Math.cos(theta) * r
     const y = Math.sin(theta) * r
-    const z = prng.gaussrandom(thickness * 0.3 * (1 - r))
+    /*
+    FLATTEN THE CORE ONES. `(1 - r)` is the BULGE: with radii normalised, r → 0
+    at the centre, so the vertical spread is at its MAXIMUM exactly where these
+    sit. That is right for a stellar bulge and wrong for what they are doing
+    here — Tonio: "too vertically distributed" — because a veil wants to lie
+    across the centre, not stand up through it.
+    */
+    const z = prng.gaussrandom(
+      thickness * 0.3 * (1 - r) * (inCore ? 0.28 : 1)
+    )
 
     // 50% bigger than the first pass, judged against the live galaxy: at the
     // old size they read as separate puffs rather than as a continuous medium.

@@ -1277,8 +1277,8 @@
       },
       {
         "name": "coreSize",
-        "default": "0.5",
-        "description": "Central black hole radius (the doc said `2.0` for a long time; the default is and was `0.5`)"
+        "default": "0.25",
+        "description": "Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly"
       }
     ]
   },
