@@ -409,8 +409,22 @@ export class B3dSkybox extends AbstractMesh {
       then land near zero and genuinely vanish, and its bright knots land at a
       colour rather than at white.
       */
+      /*
+      MANY STAMPS MEANS EACH ONE HAS TO BE FAINTER THAN YOU THINK.
+
+      0.16 was right for one stamp and wrong for a field of them. Additive
+      contributions SUM, so six overlapping nebulae at 0.16 clip every channel
+      and go white while their thin outer edges stay under 1.0 and keep the
+      hue — which is exactly the reported signature: "white nebulae with colored
+      fringes". Raising the count without dropping the tint traded one bad look
+      for another.
+
+      The galaxy gets away with a stronger colour because its stamps are spread
+      through a volume and rarely pile up; on the inside of a sphere they
+      overlap constantly. So the budget is per-FIELD, not per-stamp.
+      */
       const warm = prng.value()
-      const V = 0.16
+      const V = 0.05
       mat.emissiveColor = new BABYLON.Color3(
         V * (0.35 + 0.65 * warm),
         V * (0.2 + 0.3 * (1 - Math.abs(warm - 0.5) * 2)),
