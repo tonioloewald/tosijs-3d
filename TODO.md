@@ -777,6 +777,39 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **The ascent demo: a rocket through every medium.** Tonio: *"a simple demo
+of a rocket with a camera pointed at it horizontally. It starts on the ground
+and launches and it ascends through the cloud layer and then the sky fades into
+space… Ultimately this could start with a submarine launching a missile and we
+go through multiple media layers weather systems clouds and ultimately
+vacuum."*
+
+This is `MEDIUM-DESIGN.md`'s thesis made watchable, and it is the right shape
+for this repo: the unit of progress is a behaviour you can watch, not a
+screenshot. It is also a TEST — nothing has ever traversed the whole medium
+stack in one continuous shot, so it will find the seams between bands that unit
+tests cannot.
+
+**Most of it already exists.** `B3d` composites fog layers live every frame;
+`b3d-water` registers the underwater band, `b3d-clouds` the cloud whiteout, and
+`b3d-skybox` now registers space (`spaceStart`/`spaceFull`). So the simple
+version is an authoring job plus a rocket: a mesh, an ascent, and a camera
+holding a fixed horizontal offset so it climbs with it. (It must climb with it —
+a camera left on the ground never sees the sky change, so "pointed at it
+horizontally" has to mean a side-on tracking shot that rises.)
+
+Two honest gaps for the simple version, neither blocking:
+
+- **Space is black, not starry.** The starfield is designed and unbuilt, so
+  today the payoff is sky → thinning → black. Real, but half the drama.
+- **No sun in vacuum.** At full vacuum the sun disc goes with the luminance,
+  because the local star is GEOMETRY under the agreed architecture, not
+  something `SkyMaterial` draws — and that geometry does not exist yet.
+
+The submarine version needs nothing conceptually new: water already contributes
+its band and `buoyancy.ts` already models breaking the surface. It is sequencing
+plus a missile, and `b3d-launcher` already flies those.
+
 [ ] **The night sky should show STARS and nebulae — and it is the same sky as
 space.** Tonio: *"we should have the night-time sky show stars and maybe nebulae
 if possible and that would also transition to a sky for space (and vacuum
@@ -914,6 +947,28 @@ drawn at all. No alpha trickery, no change to `SkyMaterial`, and the day → nig
 → space progression falls out of one term rather than being authored. Replacing
 `SkyMaterial` with our own shader is the bigger-control option and should not be
 needed for v1.
+
+**The dome IS the compositing surface** — Tonio: *"Isn't the sky dome part of
+our sky architecture? It should be the surface that overlays on the starfield
+(if present)."* Yes, and the space band shipped above is already built that way
+without having planned to be: fading `rayleigh`/`turbidity`/`luminance` to zero
+makes the dome contribute NOTHING, and a dome contributing nothing is exactly
+what reveals whatever is behind it. Under `ALPHA_ADD` that is the whole
+mechanism — no cross-fade, no second sky, and "(if present)" costs nothing
+because with no starfield behind it the same dome simply fades to black.
+
+**And ship a stock starfield on the CDN** — *"we could simply ship a nice
+starfield on the CDN to save rendering it if we just want a nice starfield."*
+Right, and it settles the cost question in the most direct way available: for
+the common case it is ZERO. Most scenes want *a* nice night sky, not the actual
+sky from a named system, so a curated cubemap behind `assetUrl()` serves them
+with no generation and no bake at all. The procedural per-system path then
+becomes what it should always have been — the opt-in for a game where the stars
+you see are places you can go, rather than the default everyone pays for.
+
+Fits the CDN's rule (curated artifacts only, no discovery surface). Worth
+deciding the encoding deliberately: stars on black are unkind to JPEG (ringing
+around every bright point), so PNG or a basis/KTX2 cube.
 
 Persistence beyond the session is deliberately NOT worth it: with the light
 generation path a re-bake is cheap, so storing cubes in IndexedDB buys little
