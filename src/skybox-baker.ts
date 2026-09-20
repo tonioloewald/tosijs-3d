@@ -18,7 +18,7 @@ import { b3d, b3dGalaxy, bakeSkyboxCube, defaultBakePose, button3d, label3d, sli
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
-  bake: { seed: 1234, stars: 10000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, face: 1024, status: 'ready' },
+  bake: { seed: 1234, stars: 10000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, roll: 0, face: 1024, status: 'ready' },
 })
 
 let sceneEl = null
@@ -62,6 +62,7 @@ preview.append(
         slider3d({ label: 'particle size', value: bake.particleSize, min: 0.1, max: 1.5, step: 0.05 }),
         slider3d({ label: 'out from core', value: bake.outFraction, min: 0.1, max: 0.9, step: 0.05 }),
         slider3d({ label: 'off plane', value: bake.offPlane, min: 0, max: 6, step: 0.25 }),
+        slider3d({ label: 'roll', value: bake.roll, min: -180, max: 180, step: 5 }),
         slider3d({ label: 'face px', value: bake.face, min: 256, max: 2048, step: 256 }),
         label3d({ text: bake.status, muted: true }),
         button3d({ label: 'bake cube', handleClick: async () => {
@@ -69,6 +70,7 @@ preview.append(
           const faces = await bakeSkyboxCube(sceneEl.scene, {
             ...defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf()),
             size: bake.face.valueOf(),
+            roll: bake.roll.valueOf(),
           })
           for (let i = 0; i < faces.length; i++) {
             const a = document.createElement('a')
@@ -189,6 +191,16 @@ export interface SkyboxBakeOptions {
    * disagree at their seams.
    */
   subjects?: Array<{ facePoint(t: BABYLON.Vector3 | null): void }>
+  /**
+   * Roll the capture basis about its Z axis, in DEGREES — where the galactic
+   * band sits in the finished sky.
+   *
+   * Baked in rather than applied later because the whole value of an
+   * interactive baker is SEEING the framing while you choose it. (The cube can
+   * still be re-oriented afterwards with `b3d-skybox`'s `starfieldTilt`; this is
+   * for deciding, that is for adjusting.)
+   */
+  roll?: number
 }
 
 /**
@@ -253,6 +265,21 @@ export async function bakeSkyboxCube(
     { name: 'pz', dir: new V(0, 0, 1), up: new V(0, 1, 0) },
     { name: 'nz', dir: new V(0, 0, -1), up: new V(0, 1, 0) },
   ]
+
+  /*
+  ROLL THE BASIS, NOT THE SUBJECT. Rotating the galaxy to tilt the band moves it
+  out from under the camera — that bug is recorded on `defaultBakePose`. Rolling
+  the six face directions turns the sky instead, which is what "rotate the
+  skybox" should mean and cannot displace the observer.
+  */
+  const roll = ((options.roll ?? 0) * Math.PI) / 180
+  if (roll !== 0) {
+    const R = BABYLON.Matrix.RotationZ(roll)
+    for (const f of FACES) {
+      BABYLON.Vector3.TransformNormalToRef(f.dir, R, f.dir)
+      BABYLON.Vector3.TransformNormalToRef(f.up, R, f.up)
+    }
+  }
 
   const at = new V(options.x, options.y, options.z)
   const cam = new BABYLON.FreeCamera('skybox-bake-cam', at.clone(), scene, false)
