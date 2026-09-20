@@ -860,6 +860,31 @@ has to be told. "The moon is the color of coal" — albedo ~0.12, and brilliant
 white at night — is the sharpest way to remember that what is on screen is a
 tone-mapped fiction, and that the tone-mapping is ours to apply.
 
+[ ] **Sprite nebulae are a DEAD END — recorded so nobody retries it.** Several
+passes of tuning the skybox's stamped nebulae produced a different wrong answer
+each time (white discs, then coloured squares, then white-with-fringes), and the
+reason is structural rather than a bad constant:
+
+- **The texture is a round blob, so every stamp is a circle.** Squash and roll
+  vary the outline, not the fact of it. Tonio: "Each nebular is a single
+  squashed circle and looks wrong."
+- **The two requirements fight.** Turbulent structure only reads when a stamp is
+  LARGE; a field only reads when stamps are small and many — at which point each
+  is a few pixels wide, mips average the detail flat, and it is a smooth disc
+  again. No count/size pair satisfies both.
+
+I also mis-diagnosed the last round as additive accumulation clipping across
+overlaps. It was not; a single stamp looks wrong on its own. Worth noting
+because the fix I shipped for it (a fainter per-stamp tint) was reasoning about
+the wrong mechanism.
+
+`b3d-galaxy` avoids all of this by not using sprites: its fragment shader runs
+fbm per particle from a per-particle seed and distorts the falloff with it, so
+no two nebulae share a shape. Porting that is the fallback's only real fix — and
+the better move is to skip it and bake the galaxy, which brings real structure
+AND real stars in one step. The skybox's own nebulae are now OFF by default and
+stay a cheap no-dependency fallback.
+
 [ ] **THE BAKERY IS THE GALAXY.** Tonio, and it collapses most of the starfield
 plan into something that already exists:
 

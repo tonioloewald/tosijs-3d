@@ -304,7 +304,30 @@ export class B3dSkybox extends AbstractMesh {
   one rather than assuming it is already there.
   */
   /**
-   * NEBULAE — what stops a starfield reading as pepper on black.
+   * NEBULAE — off by default, and honestly a dead end in this form.
+   *
+   * ⚠️ A STAMPED SPRITE CANNOT BE A NEBULA. The texture is a round blob, so
+   * every stamp is a circle; squashing and rolling it varies the outline but
+   * not the fact of it. Tonio, after several passes of tuning: "This isn't from
+   * overlaps. Each nebular is a single squashed circle and looks wrong."
+   *
+   * And the two requirements fight. Structure only reads when a stamp is LARGE,
+   * while a field only reads when the stamps are small and many — at which
+   * point each one is a few pixels across, mips average the turbulence flat,
+   * and you are back to a smooth disc. There is no count/size that satisfies
+   * both, which is why tuning kept producing a different wrong answer.
+   *
+   * `b3d-galaxy` does not have this problem because its nebulae are not
+   * sprites: the fragment shader runs fbm per particle with a per-particle seed
+   * and distorts the falloff with it, so no two are the same shape. That is the
+   * approach to port if this is ever worth doing here — or, better, skip it
+   * entirely and BAKE THE GALAXY, which is the agreed direction and gets real
+   * structure plus real stars in one step.
+   *
+   * Kept, off, and cheap: a no-dependency fallback for a scene with no galaxy.
+   */
+  /**
+   * (Implementation note) What stops a starfield reading as pepper on black.
    *
    * Quads, not points, because a nebula is an EXTENT. They need no billboarding
    * despite always facing you: the camera sits at the centre of this sphere and

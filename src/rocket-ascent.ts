@@ -115,7 +115,7 @@ matters: in that shot the camera is on the missile.
 | `accel` | `9` | Net acceleration (m/s²) — thrust already minus gravity |
 | `holdSeconds` | `2.5` | Pause on the pad, and again at apogee |
 | `starfield` | `2500` | Background stars (see [b3d-skybox](?b3d-skybox.ts)) |
-| `nebulae` | `70` | Soft emission clouds behind the stars |
+| `nebulae` | `0` | Sprite nebulae — OFF, see b3d-skybox; the galaxy bake supersedes them |
 | `rocketScale` | `4` | Uniform scale on the Kenney parts |
 | `timeOfDay` | `14` | Broad daylight — so the stars appear because the AIR ran out, not because night fell |
 */
@@ -181,7 +181,13 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
   const accel = options.accel ?? 9
   const hold = options.holdSeconds ?? 2.5
   const starfield = options.starfield ?? 2500
-  const nebulae = options.nebulae ?? 70
+  /*
+  OFF. The sprite-stamped nebulae cannot look right at any setting — see the
+  note in b3d-skybox — and a demo is the wrong place to display a known dead
+  end. The sky here is stars until the galaxy bake lands, which is the thing
+  that will actually carry nebulae.
+  */
+  const nebulae = options.nebulae ?? 0
   /*
   MID-AFTERNOON, not dusk. The first pass launched at 17:00 so the climb would
   run into evening, and it made the demo WORSE in a way worth recording: a dusk

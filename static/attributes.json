@@ -4072,8 +4072,8 @@
       },
       {
         "name": "nebulae",
-        "default": "70",
-        "description": "Soft emission clouds behind the stars"
+        "default": "0",
+        "description": "Sprite nebulae — OFF, see b3d-skybox; the galaxy bake supersedes them"
       },
       {
         "name": "rocketScale",
