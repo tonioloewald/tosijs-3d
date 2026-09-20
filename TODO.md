@@ -852,6 +852,34 @@ interstellar distances. It only becomes stale when you change SYSTEM — which i
 exactly where a loading moment already lives. So: bake keyed on the system,
 invalidate on a jump.
 
+Tonio, sharpening it: *"Really the skybox starfield shouldn't change within a
+solar system let alone a planet."* Which is the stronger and more useful
+statement, because it means **ONE CUBE PER SYSTEM, ROTATED** — not one per
+planet, per latitude, or per hour. Latitude, axial tilt and time of day all
+change *which* stars are overhead, and every one of those is an ORIENTATION of
+the same celestial sphere, never a different sphere.
+
+That machinery is already written: `b3d-skybox` takes a `latitude` and applies
+it as a quaternion (`RotationAxisToRef(SKY_AXIS_X, latitude, this._qLat)`) to
+swing the sun's arc. The same quaternion orients the starfield. Nothing new is
+needed for the dynamic half — it is a rotation the element already computes.
+
+It also fixes WHERE the thing lives, which matters more than it sounds. If a
+bake survives a whole system, it must not be owned by a scene that gets torn
+down: navigating between demos, re-entering XR, or any `<tosi-b3d>` remount
+would otherwise throw away something valid for the rest of the session. But a
+cube RTT is a GPU resource and **cannot outlive its engine** — `B3d` disposes
+the engine outright on a genuine teardown. So the cache is two tiers:
+
+- **The star LIST** (directions, brightness, colour — plain arrays, no Babylon)
+  keyed by galaxy seed + system. Engine-independent, survives everything, and is
+  the expensive half.
+- **The baked CUBE**, per engine. Rebuilt on a new engine, which is cheap
+  precisely because the list is already in hand.
+
+Get that split wrong and it looks like it works, then silently regenerates a
+catalogue on every scene remount.
+
 `b3d-reflections` already does the mechanism — a `ReflectionProbe` set to
 `REFRESHRATE_RENDER_ONCE` — so a bake-once cube RTT is a pattern this repo
 already runs, not a new one. Drawing ~6,000 point sprites into six faces is
