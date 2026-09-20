@@ -348,6 +348,7 @@ b3d-galaxy
   thickness  = 0.06  — Disk thickness (fraction of radius)
   particleSize  = 1.0  — Base star particle diameter
   coreSize  = 0.12  — Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly
+  distantGalaxies  = 500  — External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty
 
 ## b3d-hud — <tosi-b3d-hud>
 b3d-hud

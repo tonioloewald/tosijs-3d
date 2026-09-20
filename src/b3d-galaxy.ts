@@ -320,6 +320,7 @@ tosi-b3d {
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
 | `thickness` | `0.06` | Disk thickness (fraction of radius) |
 | `particleSize` | `1.0` | Base star particle diameter |
+| `distantGalaxies` | `500` | External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty |
 | `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
 */
@@ -365,6 +366,12 @@ export class B3dGalaxy extends B3dChild {
     down. Brightness is the one that was actually doing the damage.
     */
     coreSize: 0.12,
+    /*
+    OTHER GALAXIES, scattered outside this one. A budget of its own rather than
+    a fraction of `starCount`, because the emptiness they fill belongs to the
+    SKY and not to how dense this galaxy happens to be.
+    */
+    distantGalaxies: 500,
   }
 
   declare seed: number
@@ -375,6 +382,7 @@ export class B3dGalaxy extends B3dChild {
   declare thickness: number
   declare particleSize: number
   declare coreSize: number
+  declare distantGalaxies: number
 
   owner: B3d | null = null
 
@@ -712,6 +720,7 @@ export class B3dGalaxy extends B3dChild {
       spiralArms: attrs.spiralArms,
       spiralAngleDegrees: attrs.spiralAngle,
       thickness: attrs.thickness,
+      distantGalaxies: attrs.distantGalaxies,
     })
 
     const { stars, nebulae } = this.galaxyData

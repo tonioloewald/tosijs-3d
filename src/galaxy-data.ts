@@ -849,6 +849,14 @@ export interface GalaxyOptions {
   minRadius?: number
   maxRadius?: number
   thickness?: number
+  /**
+   * How many external galaxies to scatter isotropically OUTSIDE the disc.
+   *
+   * A budget of its own rather than a fraction of `numberOfStars`, because the
+   * emptiness it fills is a property of the SKY and not of how dense this
+   * galaxy happens to be.
+   */
+  distantGalaxies?: number
 }
 
 const GALAXY_DEFAULTS: Required<GalaxyOptions> = {
@@ -857,6 +865,8 @@ const GALAXY_DEFAULTS: Required<GalaxyOptions> = {
   minRadius: 0.02,
   maxRadius: 0.9,
   thickness: 0.06,
+  /** How many external galaxies to scatter around the outside. */
+  distantGalaxies: 500,
 }
 
 export interface NebulaData {
@@ -979,6 +989,21 @@ export function generateGalaxy(
     }
   }
 
+  /*
+  OTHER GALAXIES — pale yellow through orange, and the colour is not a taste.
+
+  They read warm because they are OLD stellar populations, reddened further by
+  redshift. Nothing out there is blue at that distance, and nothing is white,
+  so this palette deliberately shares no range with the foreground stars.
+  */
+  function distantGalaxyColor(t: number): [number, number, number] {
+    return [
+      255,
+      Math.round(236 - t * 60), // 236 → 176
+      Math.round(198 - t * 96), // 198 → 102
+    ]
+  }
+
   // Dark nebula color: black → brown
   function darkNebulaColor(t: number): [number, number, number] {
     return [
@@ -1054,6 +1079,64 @@ export function generateGalaxy(
         opacity,
       })
     }
+  }
+
+  /*
+  A BUDGET FOR OTHER GALAXIES, which is what actually fills an empty sky.
+
+  Off the galactic band the real sky is not black — it is faint external
+  galaxies — and a sky that renders it black is the one that reads as sparse.
+  The alternative we tried first was raising star PARTICLE SIZE, which fills the
+  frame and turns the nearest stars into dinner plates: stars are billboards
+  sized in world units, so the two pull against each other and no single value
+  wins. Tonio: "set aside a budget for other galaxies — nebula that are further
+  out and pale yellow to orange."
+
+  Three things make them read as galaxies rather than as more nebulae:
+
+  - **ISOTROPIC**, not along the arms. They are not part of this galaxy, and
+    scattering them evenly is the only thing that reaches the poles the band
+    cannot.
+  - **OUTSIDE** it, on a shell past `maxRadius`, so they never interleave with
+    local structure.
+  - **SMALL and FAINT.** Their whole job is texture where there is none;
+    anything big enough to read as a subject is a different feature.
+
+  They are appended to `nebulae` on purpose — the emission path already draws
+  exactly this, so a whole rendering path is saved by placing them differently
+  rather than by inventing them.
+  */
+  const galaxyCount = Math.max(0, Math.round(opts.distantGalaxies))
+  for (let i = 0; i < galaxyCount; i++) {
+    // Uniform on the sphere: z uniform, NOT latitude uniform, or they bunch at
+    // the poles — which is precisely the region they exist to populate.
+    const u = prng.realRange(-1, 1)
+    const theta = prng.realRange(0, Math.PI * 2)
+    const r = Math.sqrt(Math.max(0, 1 - u * u))
+    const dist = maxRadius * prng.realRange(1.35, 2.9)
+    nebulae.push({
+      position: {
+        x: dist * r * Math.cos(theta),
+        y: dist * r * Math.sin(theta),
+        z: dist * u,
+      },
+      /*
+      SIZED AGAINST THE DISTANCE, not against "small".
+
+      The first pass used 0.5–1.9 while local nebulae are 2.25–7.5, and put them
+      2–3× further away on top of that — so they landed roughly twenty times
+      smaller on screen and a 1024px face showed essentially nothing. "Small"
+      is an ANGULAR judgement and these are the far objects, so the world size
+      has to grow to stay legible.
+
+      At 3–9 units and 2–3× the distance they subtend about a third to a half of
+      a local nebula: still clearly the far things, now actually present.
+      */
+      scale: prng.realRange(3, 9),
+      rgb: distantGalaxyColor(prng.value()),
+      type: 'emission',
+      opacity: prng.realRange(0.3, 0.55),
+    })
   }
 
   return { stars, nebulae, seed, options: opts }

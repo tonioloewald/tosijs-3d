@@ -1279,6 +1279,11 @@
         "name": "coreSize",
         "default": "0.12",
         "description": "Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly"
+      },
+      {
+        "name": "distantGalaxies",
+        "default": "500",
+        "description": "External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty"
       }
     ]
   },
