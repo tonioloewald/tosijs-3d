@@ -229,7 +229,9 @@ b3d-cloud-deck
   tiles  = 6  — How many times the field repeats across `size`
   color  = '#ffffff'  — Lit top colour
   underColor  = '#3a4350'  — Shadowed underside
-  fringe  = 1.2  — Brightness of the lit edges seen from below
+  fringe  = 0.9  — Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1
+  bump  = 34  — Faux-bump strength. Higher = more pronounced relief
+  shade  = 0.22  — How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water
 
 ## b3d-clouds — <tosi-b3d-clouds>
 b3d-clouds

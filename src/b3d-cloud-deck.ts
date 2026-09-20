@@ -61,7 +61,9 @@ preview.append(
 | `tiles` | `6` | How many times the field repeats across `size` |
 | `color` | `'#ffffff'` | Lit top colour |
 | `underColor` | `'#3a4350'` | Shadowed underside |
-| `fringe` | `1.2` | Brightness of the lit edges seen from below |
+| `fringe` | `0.9` | Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1 |
+| `bump` | `34` | Faux-bump strength. Higher = more pronounced relief |
+| `shade` | `0.22` | How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water |
 
 ## A grid, not a quad
 
@@ -97,17 +99,19 @@ quad cannot do at all.
 Honest state, so nobody mistakes "it renders" for "it is finished". Three things
 are visibly off and all three are art direction rather than architecture:
 
-1. **Too continuous at mid coverage.** At `coverage` 0.5 it should be broken
-   sky with real gaps; it reads closer to overcast. The threshold curve in
-   `cloudOpacity` is probably crossing too much of the field — the fix is the
-   curve, not the noise.
-2. **It reads like WATER.** The faux bump produces smooth rolling relief rather
-   than puffy cauliflower, because a single fBm gradient is exactly what an
-   ocean shader uses. Cloud wants sharper, more clustered highs — a ridged or
-   billow noise, or the gradient pushed through a harder curve.
-3. **The repeat is visible.** `tiles: 6` across `size: 4000` puts a 667 m period
-   in plain sight. Fewer, larger tiles or a second field at another scale to
+1. **`coverage` needs recalibrating for BILLOW.** Switching the field from fBm
+   to billow fixed the water look and moved the distribution with it — most of
+   the field now sits low, so 0.5 gives thin scattered cloud where it used to
+   give overcast. The threshold in `cloudOpacity` is calibrated for the old
+   spread. It is a curve, not a rebuild.
+2. **The repeat is visible.** `tiles: 6` across `size: 4000` puts a 667 m period
+   in plain sight. Fewer, larger tiles, or a second field at another scale to
    break the rhythm.
+3. **No REFRACTION, and that is deliberate** — Tonio flagged it and the material
+   already satisfies it: this is plain alpha blending with no refraction
+   texture, no screen-space sampling and no index-of-refraction term. Cloud
+   scatters, it does not bend what is behind it, and anything that distorts the
+   sky through a thin edge would read as glass.
 
 None of these need a different primitive, which is the part worth knowing: the
 deck, the two faces, the live dials and the vertex channel are all doing their
@@ -157,6 +161,8 @@ uniform vec3 topColor;
 uniform vec3 underColor;
 uniform vec3 sunDir;
 uniform float fringe;
+uniform float bump;
+uniform float shade;
 
 float density(vec2 p) { return texture2D(cloudField, p * invTile).r; }
 
@@ -189,15 +195,33 @@ void main(void) {
   differences on the density give a normal for free, which is what makes a lit
   top read as billowing rather than as painted.
   */
-  float e = 6.0;
+  float e = 2.5;
   float dx = density(p + vec2(e, 0.0)) - density(p - vec2(e, 0.0));
   float dz = density(p + vec2(0.0, e)) - density(p - vec2(0.0, e));
-  vec3 n = normalize(vec3(-dx * 12.0, 1.0, -dz * 12.0));
+  vec3 n = normalize(vec3(-dx * bump, 1.0, -dz * bump));
 
   if (gl_FrontFacing) {
-    // TOP: sunlit, with the bump doing the shaping.
+    /*
+    TOP: MOSTLY WHITE, bump-mapped. Not a lit surface with a wide tonal range.
+
+    The first version swung 0.55→1.0 with the lambert term, which is what an
+    OCEAN shader does — broad light and dark bands rolling across a smooth
+    gradient — and it read as exactly that. Tonio: "The material should look
+    mostly white but bump mapped from above… So it shouldn't look at all like
+    water."
+
+    Cloud is near-white almost everywhere; what tells you its shape is a narrow
+    band of shading on top of that whiteness, not a swing between bright and
+    dark. So the lambert term is a small perturbation of the colour rather than
+    a multiplier of it — and topColor stays essentially what you SEE, which is
+    also what makes it usable as a dial: set it sulfurous and you get a
+    sulfurous sky, not a grey one with a yellow tint.
+
+    (No backticks in here: this is inside a template literal, and one would end
+    the shader mid-sentence.)
+    */
     float lam = clamp(dot(n, normalize(-sunDir)), 0.0, 1.0);
-    vec3 col = topColor * (0.55 + 0.45 * lam);
+    vec3 col = topColor * (1.0 - shade + shade * lam);
     gl_FragColor = vec4(col, a);
   } else {
     /*
@@ -208,8 +232,11 @@ void main(void) {
     cloud at the edges transmits, so the fringe rides the part of the ramp
     where opacity is still climbing, and the thick middle stays shadowed.
     */
-    float thin = 1.0 - smoothstep(0.25, 0.9, a);
-    vec3 col = mix(underColor, topColor * fringe, thin * thin);
+    float thin = 1.0 - smoothstep(0.2, 0.75, a);
+    // EMISSIVE edges, so they read as lit-from-behind rather than as pale
+    // paint: the fringe is ADDED to the dark base, which is what lets it go
+    // brighter than the material's own colour where the cloud is thinnest.
+    vec3 col = underColor + topColor * fringe * thin * thin;
     gl_FragColor = vec4(col, a);
   }
 }
@@ -227,7 +254,12 @@ export class B3dCloudDeck extends B3dChild {
     tiles: 6,
     color: '#ffffff',
     underColor: '#3a4350',
-    fringe: 1.2,
+    /** Brightness of the lit edges seen from below — ADDED, so it can exceed 1. */
+    fringe: 0.9,
+    /** Strength of the faux bump normal. Higher = more pronounced relief. */
+    bump: 34,
+    /** How much of the top's brightness the lighting may take. SMALL on purpose. */
+    shade: 0.22,
   }
 
   declare altitude: number
@@ -241,6 +273,8 @@ export class B3dCloudDeck extends B3dChild {
   declare color: string
   declare underColor: string
   declare fringe: number
+  declare bump: number
+  declare shade: number
 
   mesh?: BABYLON.Mesh
   /** The baked density field — the thing a shadow decal should also sample. */
@@ -317,6 +351,8 @@ export class B3dCloudDeck extends B3dChild {
           'underColor',
           'sunDir',
           'fringe',
+          'bump',
+          'shade',
         ],
         samplers: ['cloudField'],
         needAlphaBlending: true,
@@ -345,6 +381,8 @@ export class B3dCloudDeck extends B3dChild {
     mat.setColor3('topColor', BABYLON.Color3.FromHexString(attrs.color))
     mat.setColor3('underColor', BABYLON.Color3.FromHexString(attrs.underColor))
     mat.setFloat('fringe', attrs.fringe)
+    mat.setFloat('bump', attrs.bump)
+    mat.setFloat('shade', attrs.shade)
     const sun = this.owner?.scene?.lights?.find(
       (l) => (l as BABYLON.DirectionalLight).direction != null
     ) as BABYLON.DirectionalLight | undefined

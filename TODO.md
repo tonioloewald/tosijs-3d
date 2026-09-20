@@ -777,6 +777,44 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **CLOUD PROVINCES — localized weather, and Tonio named the mechanism
+himself.** *"And if we can somehow generate localized turbulence that would be
+fabulous."* … *"But that might involve the equivalent of provinces."*
+
+It does, and that is the good news rather than the bad: **provinces already
+exist here** and gained a queryable `extent` this same session. A cloud province
+is a terrain province with different consequences — one footprint, one falloff,
+and a payload that says what the weather does inside it.
+
+The delivery mechanism is already built too. `b3d-cloud-deck` is a GRID
+precisely so there is somewhere to put this: each vertex has a world position
+and an unused colour channel, so a province is sampled per-vertex at build and
+written into that channel. The shader then reads it as a local multiplier —
+turbulence, density, height, colour — and no per-fragment province lookup is
+needed at all.
+
+What a cloud province would carry, beyond a footprint:
+
+- **Turbulence** — the ask. Higher-frequency detail and a stronger bump inside
+  the region, so a storm cell looks churned while the deck around it stays
+  smooth. It is a per-vertex gain on the noise, not a different field.
+- **Density**, so a front can be solid where the rest is broken.
+- **Altitude**, so the deck can sag or tower locally rather than being one flat
+  plane everywhere.
+
+And the case that makes it systemic rather than decorative, from the same
+conversation: *"Or have clouds that cluster near mountains say."* Orographic
+cloud is a province whose field is the TERRAIN HEIGHT — the vertex asks how high
+the ground is beneath it and writes the answer. Weather then follows landscape
+because of the landscape, which is the same "systemic, not textural" move as
+biomes falling out of temperature and moisture.
+
+Worth deciding early: whether cloud provinces are their own type or literally
+`province-climate`'s, which already models water/temperature/volcanism as
+bipolar curves over normalised distance. Reusing it would mean a planet's
+climate and its clouds cannot disagree — which is exactly the kind of agreement
+this project keeps finding is worth more than either feature alone.
+
 [ ] **DISTANT GALAXIES — the right fix for a sparse sky.** Tonio: *"set aside a
 budget for other galaxies — nebula that are further out and pale yellow to
 orange."*

@@ -1,7 +1,9 @@
 /*#
 # cloud-field
 
-**One cloud field, sampled by everything that needs it.** A deck you can see, a
+**One cloud field, sampled by everything that needs it.** BILLOW noise, not
+fBm — the absolute value creases the field at every zero crossing, which is what
+makes cloud read as cauliflower instead of swell. A deck you can see, a
 shadow on the ground, and a whiteout when you fly through it are three views of
 the same weather — so they are three reads of one array rather than three
 systems that have to be kept in agreement.
@@ -84,13 +86,27 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
       let norm = 0
       for (let o = 0; o < octaves; o++) {
         const r = freq / (Math.PI * 2)
-        sum +=
-          amp *
-          noise.noise3D(
-            r * Math.cos(u),
-            r * Math.sin(u),
-            r * Math.cos(v) + r * Math.sin(v)
-          )
+        const n = noise.noise3D(
+          r * Math.cos(u),
+          r * Math.sin(u),
+          r * Math.cos(v) + r * Math.sin(v)
+        )
+        /*
+        BILLOW, NOT fBm — `abs`, and this one character is the difference
+        between cloud and sea.
+
+        Plain fBm is smooth on both sides of zero, so its gradient rolls: broad
+        swells with long shoulders, which is exactly what an ocean shader wants
+        and exactly why the first pass read as water however white it was
+        painted. Tonio: "So it shouldn't look at all like water."
+
+        Taking the absolute value folds the negative lobe up, putting a CREASE
+        at every zero crossing. The highs become rounded lumps separated by
+        sharp valleys — cauliflower rather than swell — and because the relief
+        here is derived from the field's own gradient, the shading inherits that
+        character for free.
+        */
+        sum += amp * Math.abs(n)
         norm += amp
         amp *= persistence
         freq *= 2

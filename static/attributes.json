@@ -875,8 +875,18 @@
       },
       {
         "name": "fringe",
-        "default": "1.2",
-        "description": "Brightness of the lit edges seen from below"
+        "default": "0.9",
+        "description": "Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1"
+      },
+      {
+        "name": "bump",
+        "default": "34",
+        "description": "Faux-bump strength. Higher = more pronounced relief"
+      },
+      {
+        "name": "shade",
+        "default": "0.22",
+        "description": "How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water"
       }
     ]
   },

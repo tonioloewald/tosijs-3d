@@ -161,7 +161,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
   All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 - https://3d.tosijs.net/cloud-field/ — cloud-field
-  shadow on the ground, and a whiteout when you fly through it are three views of
+  fBm — the absolute value creases the field at every zero crossing, which is what
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/color/ — color
