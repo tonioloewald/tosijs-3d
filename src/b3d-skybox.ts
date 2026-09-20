@@ -111,89 +111,6 @@ function proceduralNebula(scene: BABYLON.Scene): BABYLON.DynamicTexture {
   return tex
 }
 
-/*
-ONE SKY, ONE MATERIAL — the starfield composited INTO the dome's shader.
-
-The first version drew the baked cube on its own box behind the dome, and Tonio
-was right to keep pushing on it: "Can't we composite on a single material rather
-than render on geometry on another?" Two shells pinned to the same camera have
-no honest depth relationship — they were coincident, their order depended on
-draw sequence, and it visibly changed as the dome faded ("really odd compositing
-issues as the background fades in").
-
-`SkyMaterial` is a closed shader, but it is not a sealed one: its fragment
-source declares `varying vec3 vPositionW`, a `cameraPosition` uniform, and the
-standard `CUSTOM_FRAGMENT_DEFINITIONS` / `CUSTOM_FRAGMENT_MAIN_END` hooks. That
-is everything a cube sample needs — the world-space view direction is
-`normalize(vPositionW - cameraPosition)`, which the sky already computes for
-itself.
-
-So the starfield is ADDED to `gl_FragColor` after the sky is written, which is
-the architecture stated several passes ago and now literally true in one
-shader: black at the back, stars added, atmosphere added over them. No second
-geometry, no ordering, nothing to fade against anything else.
-*/
-class StarfieldSkyPlugin extends BABYLON.MaterialPluginBase {
-  texture: BABYLON.CubeTexture | null = null
-  /** Exposure — 1 in vacuum, 0 in a daylit sky. */
-  level = 1
-  rotation = BABYLON.Matrix.Identity()
-
-  constructor(material: BABYLON.Material) {
-    super(material, 'B3dStarfield', 200, { B3D_STARFIELD: false })
-    this._enable(true)
-  }
-
-  isCompatible(): boolean {
-    return true
-  }
-
-  prepareDefines(defines: Record<string, unknown>): void {
-    defines.B3D_STARFIELD = this.texture != null
-  }
-
-  getSamplers(samplers: string[]): void {
-    samplers.push('b3dStarfield')
-  }
-
-  getUniforms() {
-    return {
-      ubo: [
-        { name: 'b3dStarfieldLevel', size: 1, type: 'float' },
-        { name: 'b3dStarfieldRot', size: 16, type: 'mat4' },
-      ],
-      fragment: `#ifdef B3D_STARFIELD
-        uniform float b3dStarfieldLevel;
-        uniform mat4 b3dStarfieldRot;
-      #endif`,
-    }
-  }
-
-  bindForSubMesh(uniformBuffer: BABYLON.UniformBuffer): void {
-    if (this.texture == null) return
-    uniformBuffer.updateFloat('b3dStarfieldLevel', this.level)
-    uniformBuffer.updateMatrix('b3dStarfieldRot', this.rotation)
-    uniformBuffer.setTexture('b3dStarfield', this.texture)
-  }
-
-  getCustomCode(shaderType: string): Record<string, string> | null {
-    if (shaderType !== 'fragment') return null
-    return {
-      CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef B3D_STARFIELD
-        uniform samplerCube b3dStarfield;
-      #endif`,
-      // AFTER gl_FragColor is written: the sky is the overlay, the stars are
-      // what it overlays. Adding here is what makes that true rather than
-      // merely intended.
-      CUSTOM_FRAGMENT_MAIN_END: `#ifdef B3D_STARFIELD
-        vec3 b3dDir = normalize(vPositionW - cameraPosition);
-        b3dDir = (b3dStarfieldRot * vec4(b3dDir, 0.0)).xyz;
-        gl_FragColor.rgb += textureCube(b3dStarfield, b3dDir).rgb * b3dStarfieldLevel;
-      #endif`,
-    }
-  }
-}
-
 const SKY_AXIS_X = new BABYLON.Vector3(1, 0, 0)
 const SKY_AXIS_Z = new BABYLON.Vector3(0, 0, 1)
 const SKY_BLUE = new BABYLON.Color3(0.55, 0.7, 0.9)
@@ -608,7 +525,6 @@ export class B3dSkybox extends AbstractMesh {
   }
   private _starfieldMesh: BABYLON.Mesh | null = null
   private _clearBase: BABYLON.Color4 | null = null
-  private _starPlugin: StarfieldSkyPlugin | null = null
   private _nebulaMeshes: BABYLON.Mesh[] = []
   private _nebulaMats: BABYLON.StandardMaterial[] = []
   private _nebulaBase: BABYLON.Color3[] = []
@@ -645,36 +561,63 @@ export class B3dSkybox extends AbstractMesh {
     from.
     */
     /*
-    THE BAKED CUBE IS NOT GEOMETRY. It rides the dome's own shader — see
-    `StarfieldSkyPlugin`. One mesh, one material, no second shell to sort
-    against.
+    A SEPARATE BOX, and the single-material version is recorded here as TRIED
+    AND FAILED rather than quietly dropped.
+
+    Compositing the starfield into the sky's own shader is the right
+    architecture and Tonio asked for it twice. `SkyMaterial` even looked
+    willing: its fragment source has `varying vec3 vPositionW`, a
+    `cameraPosition` uniform and the standard CUSTOM_FRAGMENT hooks. A
+    `MaterialPluginBase` attaches cleanly and reports itself attached —
+    `pluginManager` lists it alongside CloudShadow and Biome.
+
+    It still renders nothing, and the reason is one step further in: the DEFINE
+    never reaches the effect. `SkyMaterial` does not route plugin defines into
+    its shader compilation, so `#ifdef B3D_STARFIELD` is compiled out and the
+    sampler is never read. Everything measurable said it was working — plugin
+    present, texture ready, level 0.8 — while the sky stayed black, which is why
+    this took two rounds of "still black" to pin down.
+
+    So the cube gets its own mesh again. It is scaled slightly OUTSIDE the dome
+    rather than onto it, which is what fixes the original complaint: two shells
+    on the same shell had no honest depth relationship and their order changed
+    as the dome faded.
     */
     const cubeRoot = (attrs.starfieldCube as string) || ''
     if (cubeRoot) {
-      const sky = this.mesh.material
-      if (sky != null) {
-        const plug =
-          (this._starPlugin ??= new StarfieldSkyPlugin(sky as BABYLON.Material))
-        plug.texture = new BABYLON.CubeTexture(cubeRoot, scene, [
-          '_px.png',
-          '_py.png',
-          '_pz.png',
-          '_nx.png',
-          '_ny.png',
-          '_nz.png',
-        ])
-        const t = String(attrs.starfieldTilt ?? '0,0,0')
-          .split(',')
-          .map((n) => (parseFloat(n) || 0) * DEG_TO_RAD)
-        // The tilt is applied to the sampling DIRECTION, which is why it costs
-        // nothing and can differ per system from one baked texture.
-        plug.rotation = BABYLON.Matrix.RotationYawPitchRoll(
-          t[1] ?? 0,
-          t[0] ?? 0,
-          t[2] ?? 0
-        )
-        sky.markDirty(true)
-      }
+      const box = BABYLON.MeshBuilder.CreateBox(
+        'skybox-starfield_nocast',
+        { size: 1000, sideOrientation: BABYLON.Mesh.BACKSIDE },
+        scene
+      )
+      const cm = new BABYLON.StandardMaterial('starfield-cube', scene)
+      cm.backFaceCulling = false
+      cm.disableLighting = true
+      // Black diffuse and specular: the REFLECTION sample is the colour, and
+      // emissive would only add white on top of it.
+      cm.diffuseColor = new BABYLON.Color3(0, 0, 0)
+      cm.specularColor = new BABYLON.Color3(0, 0, 0)
+      cm.emissiveColor = new BABYLON.Color3(0, 0, 0)
+      // Extensions spelled out — CubeTexture defaults to .jpg, silently.
+      cm.reflectionTexture = new BABYLON.CubeTexture(cubeRoot, scene, [
+        '_px.png',
+        '_py.png',
+        '_pz.png',
+        '_nx.png',
+        '_ny.png',
+        '_nz.png',
+      ])
+      cm.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
+      box.material = cm
+      box.isPickable = false
+      box.applyFog = false
+      box.infiniteDistance = true
+      const tilt = String(attrs.starfieldTilt ?? '0,0,0')
+        .split(',')
+        .map((n) => (parseFloat(n) || 0) * DEG_TO_RAD)
+      box.rotation.set(tilt[0] ?? 0, tilt[1] ?? 0, tilt[2] ?? 0)
+      this._starfieldMesh = box
+      this._excludeFromGlow(scene)
       return
     }
 
@@ -941,8 +884,6 @@ export class B3dSkybox extends AbstractMesh {
     The last row is the one that says this is a model rather than a tuning: it
     is what an astronaut sees, and nothing special-cased it.
     */
-    // The baked cube lives in the sky's own shader, so exposure is a uniform.
-    if (this._starPlugin != null) this._starPlugin.level = 1 - dayBrightness * air
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {
         this._excludeFromGlow(this.owner.scene)
@@ -957,7 +898,17 @@ export class B3dSkybox extends AbstractMesh {
       to — so its knob is the texture's `level`. Driving the wrong one paints
       the sky white rather than dimming it.
       */
-      m.emissiveColor.set(exposed, exposed, exposed)
+      /*
+      TWO KINDS OF BACKDROP, TWO KNOBS. A point cloud is emissive, so its
+      brightness IS `emissiveColor`. A baked cube gets its colour from a
+      reflection sample, which emissive can only ADD to — driving the wrong one
+      paints the sky white rather than dimming it.
+      */
+      if (m.reflectionTexture != null) {
+        m.reflectionTexture.level = exposed
+      } else {
+        m.emissiveColor.set(exposed, exposed, exposed)
+      }
       this._starfieldMesh.setEnabled(exposed > 0.01)
       // Nebulae are backdrop too, so the same exposure governs them — they must
       // not survive a daylight sky the stars have already vanished from.
@@ -1231,8 +1182,6 @@ export class B3dSkybox extends AbstractMesh {
     this._nebulaBase = []
     this._starfieldMesh?.dispose()
     this._starfieldMesh = null
-    if (this._starPlugin != null) this._starPlugin.texture?.dispose()
-    this._starPlugin = null
     this._glowExcluded = false
     this._clearBase = null
     this.starEl = null
