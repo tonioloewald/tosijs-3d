@@ -18,7 +18,7 @@ import { b3d, b3dGalaxy, bakeSkyboxCube, defaultBakePose, button3d, label3d, sli
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
-  bake: { seed: 1234, stars: 50000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, face: 512, status: 'ready' },
+  bake: { seed: 1234, stars: 10000, particleSize: 0.7, outFraction: 0.55, offPlane: 1, face: 512, status: 'ready' },
 })
 
 let sceneEl = null
@@ -30,7 +30,8 @@ preview.append(
       clearColor: '#01020a',
       scenePanel: () => [
         label3d({ text: 'Bake a sky' }),
-        slider3d({ label: 'stars', value: bake.stars, min: 5000, max: 50000, step: 1000 }),
+        // 10k to work with, 100k to finish with — see "Framing, then baking".
+        slider3d({ label: 'stars', value: bake.stars, min: 5000, max: 100000, step: 5000 }),
         slider3d({ label: 'particle size', value: bake.particleSize, min: 0.1, max: 1.5, step: 0.05 }),
         slider3d({ label: 'out from core', value: bake.outFraction, min: 0.1, max: 0.9, step: 0.05 }),
         slider3d({ label: 'off plane', value: bake.offPlane, min: 0, max: 6, step: 0.25 }),
@@ -97,6 +98,26 @@ the plane**, which is roughly where Earth is — the Sun sits about 8 of the dis
 The tilt is the one worth insisting on, and it is free: it is a property of the
 capture basis, not the galaxy, so it costs one rotation and no geometry. Seed it
 per system and no two stars share a sky.
+
+## Framing, then baking
+
+The star count defaults to **10,000 and goes to 100,000**, and the gap is
+deliberate: you want the scene responsive while you are deciding where to stand
+and how big the stars should be, and dense only for the shot you keep.
+
+The cost is generation, not rendering, and it is worth knowing before you drag
+the slider to the end. Measured on this machine:
+
+| stars | `generateGalaxy` |
+| ----- | ---------------- |
+| 10,000 | ~1.1 s |
+| 50,000 | ~5 s |
+| 100,000 | ~12.6 s |
+
+It is roughly linear and it blocks the main thread, so 100k is a deliberate
+"now bake it" action rather than something to nudge through. (It used to be far
+worse — the generator kept its used names in an array and scanned it per star,
+which made this O(n²); 100k took 34 s before that was a `Set`.)
 
 ⚠️ **Tune particle size AT 90°.** A cube face is 90° FOV where a typical demo
 camera is nearer 46°, so a star covers about half the angular fraction of the
