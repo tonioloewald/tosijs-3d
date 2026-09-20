@@ -153,8 +153,20 @@ export class B3dSkybox extends AbstractMesh {
     nebulae: 0,
     /** Nebula brightness 0…1. */
     nebulaBrightness: 1,
-    /** Nebula size as a fraction of the sky's radius. */
-    nebulaSize: 0.16,
+    /*
+    SMALL, AND THEREFORE MANY.
+
+    Tonio: "The nebulae will only look good if there's a LOT of them and they're
+    individually quite small." Proven in the galaxy, which has always been built
+    that way — 750 stamps at a few percent of its radius — and reads as gas,
+    where fourteen stamps at 16% of the sky radius read as what they are: huge
+    discs with a visible straight quad edge.
+
+    The reason is that ONE stamp is never a nebula. Structure comes from many
+    dim overlapping ones ACCUMULATING under additive blending, so each has to be
+    small enough to be a brushstroke rather than the whole painting.
+    */
+    nebulaSize: 0.045,
     /**
      * Image stamped for each nebula — black-backed, since it is composited
      * ADDITIVELY and the black is what makes the silhouette. Empty falls back

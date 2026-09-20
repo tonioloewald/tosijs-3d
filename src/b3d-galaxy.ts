@@ -505,7 +505,12 @@ export class B3dGalaxy extends B3dChild {
           // Add wispy tendrils
           float tendrils = fbm(uv * 8.0 + seed * 0.5);
           soft *= 0.6 + tendrils * 0.8;
-          vec3 col = vColor.rgb * soft * nebulaOpacity * 0.3;
+          // 0.5, tuned by eye against the live galaxy — 0.3 was invisible
+          // ("they're dim and pretty saturated in the galaxy. Too dim") and 1.2
+          // blew out. The DARK branch below keeps its 0.35: dark nebulae darken,
+          // so they were never part of the too-dim complaint and a stronger one
+          // just blots the arm out.
+          vec3 col = vColor.rgb * soft * nebulaOpacity * 0.5;
           gl_FragColor = vec4(col, 0.0);
         } else {
           // Dark nebula: turbulent darkening

@@ -140,7 +140,7 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       starfield: num(0, { minimum: 0, maximum: 20000 }),
       nebulae: num(0, { minimum: 0, maximum: 200 }),
       nebulaBrightness: num(1, { minimum: 0, maximum: 3 }),
-      nebulaSize: num(0.16, { minimum: 0.02, maximum: 1 }),
+      nebulaSize: num(0.045, { minimum: 0.02, maximum: 1 }),
       spaceColor: color('#05070f'),
       nebulaTexture: { type: 'string', default: '' },
       starfieldSeed: num(12345, { minimum: 0, maximum: 999999 }),

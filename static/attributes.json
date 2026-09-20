@@ -4072,7 +4072,7 @@
       },
       {
         "name": "nebulae",
-        "default": "14",
+        "default": "160",
         "description": "Soft emission clouds behind the stars"
       },
       {
