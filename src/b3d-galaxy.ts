@@ -320,7 +320,7 @@ tosi-b3d {
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
 | `thickness` | `0.06` | Disk thickness (fraction of radius) |
 | `particleSize` | `1.0` | Base star particle diameter |
-| `coreSize` | `2.0` | Central black hole radius |
+| `coreSize` | `0.5` | Central black hole radius (the doc said `2.0` for a long time; the default is and was `0.5`) |
 
 */
 /*{ "parent": "Space" }*/
@@ -515,12 +515,18 @@ export class B3dGalaxy extends B3dChild {
           // Add wispy tendrils
           float tendrils = fbm(uv * 8.0 + seed * 0.5);
           soft *= 0.6 + tendrils * 0.8;
-          // 0.5, tuned by eye against the live galaxy — 0.3 was invisible
-          // ("they're dim and pretty saturated in the galaxy. Too dim") and 1.2
-          // blew out. The DARK branch below keeps its 0.35: dark nebulae darken,
-          // so they were never part of the too-dim complaint and a stronger one
-          // just blots the arm out.
-          vec3 col = vColor.rgb * soft * nebulaOpacity * 0.5;
+          /*
+          0.4, tuned by eye against the live galaxy across three passes: 0.3 was
+          invisible ("dim and pretty saturated… too dim"), 1.2 blew out ("way
+          too bright"), 0.5 was close, and 0.4 is the settled value once the
+          stamps grew 50% — bigger nebulae overlap more, so each wants to be
+          slightly fainter to land in the same place.
+
+          The DARK branch below keeps its 0.35: dark nebulae darken, so they
+          were never part of the too-dim complaint and a stronger one just blots
+          the arm out.
+          */
+          vec3 col = vColor.rgb * soft * nebulaOpacity * 0.4;
           gl_FragColor = vec4(col, 0.0);
         } else {
           // Dark nebula: turbulent darkening

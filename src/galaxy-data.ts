@@ -990,10 +990,23 @@ export function generateGalaxy(
 
   for (let i = 0; i < nebulaCount; i++) {
     const isDark = prng.probability(0.35)
-    let r = prng.realRange(minRadius * 0.5, maxRadius)
+    /*
+    A FIFTH OF THEM SIT ON THE CORE, which is scenery with a job.
+
+    The central black hole reads as an object rather than as a galactic centre
+    when you can see all of it against empty space — Tonio: "If the black hole
+    weren't enormous and were obscured by some nebulae it would be basically
+    perfect." Veiling it is the better half of that than shrinking it, and it is
+    also what the real thing looks like: the Milky Way's centre is behind so
+    much dust that we cannot see it in visible light at all.
+    */
+    const inCore = prng.probability(0.2)
+    let r = inCore
+      ? prng.realRange(0, minRadius * 1.3)
+      : prng.realRange(minRadius * 0.5, maxRadius)
 
     // Nebulae follow spiral arms more strongly
-    r += prng.gaussrandom(scatterRadius * 2)
+    r += prng.gaussrandom(scatterRadius * (inCore ? 0.6 : 2))
     let theta =
       spiralB * Math.log(r / maxRadius) + prng.gaussrandom(scatterTheta * 1.5)
     theta += (prng.range(0, spiralArms - 1) * Math.PI * 2) / spiralArms
@@ -1002,7 +1015,9 @@ export function generateGalaxy(
     const y = Math.sin(theta) * r
     const z = prng.gaussrandom(thickness * 0.3 * (1 - r))
 
-    const scale = prng.realRange(1.5, 5)
+    // 50% bigger than the first pass, judged against the live galaxy: at the
+    // old size they read as separate puffs rather than as a continuous medium.
+    const scale = prng.realRange(2.25, 7.5)
     const opacity = prng.realRange(0.15, 0.5)
     const t = prng.value()
 

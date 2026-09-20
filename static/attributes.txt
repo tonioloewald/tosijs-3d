@@ -347,7 +347,7 @@ b3d-galaxy
   spiralAngle  = 240  — Spiral arm sweep in degrees
   thickness  = 0.06  — Disk thickness (fraction of radius)
   particleSize  = 1.0  — Base star particle diameter
-  coreSize  = 2.0  — Central black hole radius
+  coreSize  = 0.5  — Central black hole radius (the doc said `2.0` for a long time; the default is and was `0.5`)
 
 ## b3d-hud — <tosi-b3d-hud>
 b3d-hud
