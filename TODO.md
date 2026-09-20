@@ -777,6 +777,45 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] ⚠️ **THE BAKED SKY NEEDS ONE MESH, WHICH MEANS FORKING THE SKY SHADER.**
+Tonio: *"the skybox with two cubes NEVER worked. It's z-chasing at the
+corners"*, and *"Can't you just assign the starfield assets as backdrop textures
+for the shader?"* Both right; here is what is now PROVEN, so nobody re-treads it:
+
+**Two meshes cannot work.** The dome and a starfield cube are both
+`infiniteDistance`, which pins them to the far plane where depth precision is
+exhausted — so the tie is resolved per pixel and the frame splits along a hard
+diagonal. Scaling the cube 6% OUTSIDE the dome and 10% INSIDE it both produced
+it, because **scale does not change the depth of an infinite-distance mesh.**
+
+**`SkyMaterial` cannot be extended.** Three routes tried, all dead:
+
+| route | why it fails |
+| ----- | ------------ |
+| `MaterialPluginBase` | attaches, and `pluginManager` lists it — but SkyMaterial never routes plugin DEFINES into its effect, so the `#ifdef` compiles out. Every signal says "working" while the sky stays black |
+| `customShaderNameResolve` | SkyMaterial never calls it |
+| passing a texture | its `createEffect` hardcodes `shaderName = "sky"`, `samplers: []` and a fixed uniform list |
+
+**So the fix is to fork the shader.** Babylon keeps the source in
+`ShaderStore.ShadersStore.skyPixelShader`; register a copy under a new name with
+a `samplerCube` added and the sample ADDED before `gl_FragColor`, then drive it
+from a `ShaderMaterial`. The shader already computes what is needed —
+`normalize(vPositionW - cameraPosition)` is the world view direction, right
+there in its own sky-colour maths.
+
+The work is not the injection, it is re-binding by hand what SkyMaterial binds
+for you: `luminance`, `turbidity`, `rayleigh`, `mieCoefficient`,
+`mieDirectionalG`, `sunPosition`, `up`, `cameraPosition`, `cameraOffset`, plus
+fog and clip-plane includes.
+
+**It also fixes a second bug for free**, which is the argument for doing it
+properly rather than patching: Tonio noticed *"the cloud whiteout is not whiting
+out the skybox"* — `b3d-clouds` fades the DOME by immersion and knows nothing
+about a second starfield mesh. One mesh, one thing to fade.
+
+Until then `b3d-skybox`'s `starfieldCube` is left in place but the rocket demo
+uses the procedural point starfield, which has no such problem.
+
 [x] ~~**Baked stars render ELONGATED, including mid-face.**~~ **FIXED** — and
 the cause was embarrassingly simple once Tonio named it: *"I think you're
 pointing the stars at the galactic origin. That makes the coreward render look

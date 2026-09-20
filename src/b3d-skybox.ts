@@ -1108,19 +1108,25 @@ export class B3dSkybox extends AbstractMesh {
       */
       if (this._starfieldMesh != null) {
         /*
-        JUST OUTSIDE THE DOME, not on it.
+        INSIDE THE DOME — and putting it OUTSIDE was the bug, not the fix.
 
-        Both are pinned to the camera and the dome is scaled to sit inside the
-        far plane — so copying that scale verbatim put the backdrop and the sky
-        on the SAME SHELL, coincident, with nothing to break the tie. What you
-        see then depends on draw order rather than on depth, and it changes as
-        the dome fades in and out. Tonio: "some really odd compositing issues as
-        the background fades in."
+        Both boxes are `infiniteDistance`, pinned to the camera and sitting at
+        the far plane, where depth precision is at its worst. Pushing the
+        backdrop 6% FURTHER out did not separate them: at that range the two
+        depths are indistinguishable, so the tie was decided per-pixel and the
+        frame split along a hard diagonal, blue sky one side and stars the other.
+        Tonio: "It's z-chasing at the corners… the skybox with two cubes NEVER
+        worked."
 
-        A few percent further out makes the backdrop unambiguously behind, which
-        is what it is. Rotation stays the cube's own — see `starfieldTilt`.
+        Nesting it inside gives the depth buffer a real difference to work with.
+        It also matches what the two things ARE: the sky is drawn in front of the
+        stars and hides them by day, which is the whole model — so the starfield
+        being the nearer mesh is only a rendering detail, while being the
+        further one was a claim depth could not honour.
+
+        Rotation stays the cube's own — see `starfieldTilt`.
         */
-        this._starfieldMesh.scaling.copyFrom(this.mesh.scaling).scaleInPlace(1.06)
+        this._starfieldMesh.scaling.copyFrom(this.mesh.scaling).scaleInPlace(0.9)
         this._starfieldMesh.position.copyFrom(this.mesh.position)
       }
       const vac = this._vacuumNow()
