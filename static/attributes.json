@@ -2742,6 +2742,26 @@
         "description": "How many background stars to build. `0` = none"
       },
       {
+        "name": "nebulae",
+        "default": "0",
+        "description": "Soft emission clouds behind the stars. `0` = none"
+      },
+      {
+        "name": "nebulaBrightness",
+        "default": "0.55",
+        "description": "Nebula brightness 0…1"
+      },
+      {
+        "name": "nebulaSize",
+        "default": "0.3",
+        "description": "Nebula size as a fraction of the sky radius"
+      },
+      {
+        "name": "spaceColor",
+        "default": "'#05070f'",
+        "description": "What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go"
+      },
+      {
         "name": "starfieldSeed",
         "default": "12345",
         "description": "Seed for the starfield — same seed, same constellations"
@@ -4044,6 +4064,16 @@
         "name": "starfield",
         "default": "2500",
         "description": "Background stars (see [b3d-skybox](?b3d-skybox.ts))"
+      },
+      {
+        "name": "nebulae",
+        "default": "14",
+        "description": "Soft emission clouds behind the stars"
+      },
+      {
+        "name": "rocketScale",
+        "default": "4",
+        "description": "Uniform scale on the Kenney parts"
       },
       {
         "name": "timeOfDay",

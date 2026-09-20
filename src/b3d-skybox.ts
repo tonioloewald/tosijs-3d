@@ -49,6 +49,10 @@ preview.append(scene)
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
 | `starfield` | `0` | How many background stars to build. `0` = none |
+| `nebulae` | `0` | Soft emission clouds behind the stars. `0` = none |
+| `nebulaBrightness` | `0.55` | Nebula brightness 0…1 |
+| `nebulaSize` | `0.3` | Nebula size as a fraction of the sky radius |
+| `spaceColor` | `'#05070f'` | What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go |
 | `starfieldSeed` | `12345` | Seed for the starfield — same seed, same constellations |
 | `starDistance` | `0` | Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone |
 | `sunColor` | `'#eeeeff'` | Midday sun color |
@@ -115,6 +119,31 @@ export class B3dSkybox extends AbstractMesh {
     the camera, so there is nothing to update per frame.
     */
     starfield: 0,
+    /**
+     * Soft emission clouds behind the stars — a count, `0` = none. They are
+     * what stops a starfield reading as pepper on black.
+     */
+    nebulae: 0,
+    /** Nebula brightness 0…1. */
+    nebulaBrightness: 0.5,
+    /** Nebula size as a fraction of the sky's radius. */
+    nebulaSize: 0.16,
+    /*
+    THE BACK OF THE SKY — what is behind the stars when the air is gone.
+
+    Tonio's own statement of the architecture: "In the back is black (or
+    interstellar background radiation), stars are additive dots. The atmosphere
+    is additive light scattering." So the backdrop needs an owner, and it is
+    this element rather than whatever `clearColor` a scene happened to set: the
+    sky fading out was revealing the default grey and reading as the sky getting
+    LIGHTER in space, which is precisely backwards.
+
+    Default is JUST north of black on purpose — "allow us to make a black hole
+    actual black in the middle". Something truly black in frame has nothing left
+    to be darker than, so the sky keeps a floor and the void keeps somewhere to
+    go.
+    */
+    spaceColor: '#05070f',
     /** Seed for `starfield`. Same seed, same constellations. */
     starfieldSeed: 12345,
     /**
@@ -228,6 +257,93 @@ export class B3dSkybox extends AbstractMesh {
   before or after this element's `sceneReady`, so this retries until it finds
   one rather than assuming it is already there.
   */
+  /**
+   * NEBULAE — what stops a starfield reading as pepper on black.
+   *
+   * Quads, not points, because a nebula is an EXTENT. They need no billboarding
+   * despite always facing you: the camera sits at the centre of this sphere and
+   * only ever rotates, so a quad built facing the centre faces the viewer
+   * forever. Per-frame billboarding would buy precisely nothing — the same
+   * reason the stars are points and the same reason none of this backdrop is
+   * rebuilt after the first frame.
+   *
+   * Additive and soft-edged, like everything else in the sky: emission cannot
+   * darken what is behind it, and two overlapping nebulae should pool rather
+   * than occlude.
+   */
+  private _buildNebulae(scene: BABYLON.Scene, prng: PRNG, radius: number): void {
+    const attrs = this as any
+    const count = Math.floor(attrs.nebulae) || 0
+    if (count <= 0 || this._starfieldMesh == null) return
+
+    const tex = new BABYLON.DynamicTexture(
+      'nebula-falloff',
+      { width: 128, height: 128 },
+      scene,
+      false
+    )
+    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+    // A long soft tail rather than a disc — a hard edge reads as a sticker.
+    g.addColorStop(0, 'rgba(255,255,255,1)')
+    g.addColorStop(0.3, 'rgba(255,255,255,0.45)')
+    g.addColorStop(0.65, 'rgba(255,255,255,0.12)')
+    g.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, 128, 128)
+    tex.update()
+
+    const size = radius * 2 * (attrs.nebulaSize as number)
+    for (let i = 0; i < count; i++) {
+      const z = prng.realRange(-1, 1)
+      const t = prng.realRange(0, Math.PI * 2)
+      const r = Math.sqrt(Math.max(0, 1 - z * z))
+      const quad = BABYLON.MeshBuilder.CreatePlane(
+        `skybox-nebula-${i}_nocast`,
+        { size: size * prng.realRange(0.6, 1.6) },
+        scene
+      )
+      quad.position.set(
+        radius * r * Math.cos(t),
+        radius * z,
+        radius * r * Math.sin(t)
+      )
+      quad.lookAt(BABYLON.Vector3.Zero())
+      quad.rotate(
+        BABYLON.Axis.Z,
+        prng.realRange(0, Math.PI * 2),
+        BABYLON.Space.LOCAL
+      )
+      const mat = new BABYLON.StandardMaterial(`skybox-nebula-${i}`, scene)
+      mat.disableLighting = true
+      mat.emissiveTexture = tex
+      mat.opacityTexture = tex
+      mat.alphaMode = BABYLON.Constants.ALPHA_ADD
+      mat.disableDepthWrite = true
+      mat.backFaceCulling = false
+      /*
+      DIM AND SATURATED, which is the note the galaxy's own nebulae get right
+      and this first pass got exactly backwards: these were near-white, and a
+      desaturated nebula is just fog. Hydrogen reds through reflection blues,
+      with one channel pushed and the others held down so the hue survives being
+      added onto black.
+      */
+      const warm = prng.value()
+      mat.emissiveColor = new BABYLON.Color3(
+        0.10 + 0.55 * warm,
+        0.06 + 0.16 * (1 - Math.abs(warm - 0.5) * 2),
+        0.14 + 0.5 * (1 - warm)
+      )
+      this._nebulaBase.push(mat.emissiveColor.clone())
+      quad.material = mat
+      quad.isPickable = false
+      quad.applyFog = false
+      quad.parent = this._starfieldMesh
+      this._nebulaMeshes.push(quad)
+      this._nebulaMats.push(mat)
+    }
+  }
+
   private _excludeFromGlow(scene: BABYLON.Scene): void {
     const mesh = this._starfieldMesh
     if (mesh == null || this._glowExcluded) return
@@ -240,6 +356,10 @@ export class B3dSkybox extends AbstractMesh {
     }
   }
   private _starfieldMesh: BABYLON.Mesh | null = null
+  private _clearBase: BABYLON.Color4 | null = null
+  private _nebulaMeshes: BABYLON.Mesh[] = []
+  private _nebulaMats: BABYLON.StandardMaterial[] = []
+  private _nebulaBase: BABYLON.Color3[] = []
   private starEl: AbstractMesh | null = null
 
   /**
@@ -336,8 +456,24 @@ export class B3dSkybox extends AbstractMesh {
     mesh.isPickable = false
     mesh.applyFog = false
     mesh.infiniteDistance = true
-    mesh.parent = this.mesh
+    /*
+    A SIBLING OF THE DOME, NOT ITS CHILD.
+
+    Parenting was tidier — the starfield inherited the camera pin and the
+    per-frame rescale for nothing. It also made the stars hostage to the dome:
+    `setEnabled(false)` on a parent disables its children, so the dome could
+    never be switched off without taking the sky with it.
+
+    And it has to be switchable, because `SkyMaterial` does not reach black.
+    Even with rayleigh, turbidity and luminance at zero it keeps a floor colour,
+    so at full vacuum the sky stayed faintly lit — Tonio: "the sky never
+    completely fades away." Scattering going to zero is the right model and the
+    shader simply does not honour the limit, so at the limit the dome stops
+    drawing instead.
+    */
+    mesh.scaling.setAll(1)
     this._starfieldMesh = mesh
+    this._buildNebulae(scene, prng, R)
     this._excludeFromGlow(scene)
 
     /*
@@ -410,7 +546,56 @@ export class B3dSkybox extends AbstractMesh {
     below is simply multiplied by it.
     */
     const air = 1 - this._vacuum
-    material.luminance = attrs.luminance * air
+    /*
+    FADE THE DOME OUT. DO NOT DIM ITS LUMINANCE.
+
+    `luminance` is not a brightness scale in `SkyMaterial` — it sits in the
+    Preetham tonemap as a divisor, so driving it toward zero does not darken the
+    sky, it BLOWS IT OUT. Tonio: "The sky suddenly goes WHITE in space." Suddenly
+    is the tell: it was a threshold, and just below it luminance was small enough
+    to saturate every channel.
+
+    So luminance is left exactly where the author put it. `rayleigh` and
+    `turbidity` still scale with the remaining air — those genuinely mean
+    scattering, and the night path has always used them that way — and the dome
+    itself fades on ALPHA.
+
+    Which is the architecture arrived at several passes ago rather than a patch:
+    the dome is an OVERLAY on the starfield, so "no atmosphere" is the overlay
+    at zero opacity, revealing what was always behind it. It is also smooth,
+    where the threshold it replaces could only ever pop.
+    */
+    this.mesh.setEnabled(air > 0.004)
+    material.alpha = air
+
+    /*
+    AND THE SKY OWNS WHAT IS BEHIND IT.
+
+    Fading the dome revealed the scene's clear colour, which is a mid grey by
+    default — so climbing out of the atmosphere made the sky get BRIGHTER, which
+    is the exact opposite of the thing being modelled. The backdrop is part of
+    the sky, so the sky sets it: the scene's own colour at sea level, lerped to
+    `spaceColor` as the air goes.
+
+    The base is captured ONCE rather than read each frame, because this writes
+    the value it would otherwise be reading — and `b3d-clouds` borrows the same
+    property during a whiteout, so a re-read would eventually latch white.
+    */
+    const sceneNow = this.owner?.scene
+    if (sceneNow == null) return
+    if (this._clearBase == null) {
+      this._clearBase = sceneNow.clearColor.clone()
+    }
+    const sc = this.hex(attrs.spaceColor)
+    const v = this._vacuum
+    sceneNow.clearColor.set(
+      this._clearBase.r + (sc.r - this._clearBase.r) * v,
+      this._clearBase.g + (sc.g - this._clearBase.g) * v,
+      this._clearBase.b + (sc.b - this._clearBase.b) * v,
+      1
+    )
+    material.needAlphaBlending = () => air < 0.999
+    material.luminance = attrs.luminance
 
     /*
     EXPOSURE FADES THE BACKDROP. SCATTER IS NOT THE MECHANISM.
@@ -448,6 +633,26 @@ export class B3dSkybox extends AbstractMesh {
       const m = this._starfieldMesh.material as BABYLON.StandardMaterial
       m.emissiveColor.set(exposed, exposed, exposed)
       this._starfieldMesh.setEnabled(exposed > 0.01)
+      // Nebulae are backdrop too, so the same exposure governs them — they must
+      // not survive a daylight sky the stars have already vanished from.
+      /*
+      EXPOSURE DRIVES THE EMISSIVE, NOT THE ALPHA.
+
+      `alpha` does not gate an ADDITIVE emissive material — the emission is
+      added regardless — so setting it left fourteen enormous nebulae glowing at
+      full strength in broad daylight. Tonio: "something is rendering as ultra
+      big and glowy." Scaling the colour is what actually dims an emitter, which
+      is the same thing the stars already do a few lines up.
+      */
+      const nb = (attrs.nebulaBrightness as number) * exposed
+      for (let i = 0; i < this._nebulaMats.length; i++) {
+        const base = this._nebulaBase[i]
+        this._nebulaMats[i].emissiveColor.set(
+          base.r * nb,
+          base.g * nb,
+          base.b * nb
+        )
+      }
     }
     material.azimuth = attrs.azimuth
     material.mieDirectionalG = attrs.mieDirectionalG
@@ -624,6 +829,10 @@ export class B3dSkybox extends AbstractMesh {
       rocket climbing at a fixed hour would have held a blue sky all the way to
       orbit, the update never firing because nothing it watched had moved.
       */
+      if (this._starfieldMesh != null) {
+        this._starfieldMesh.scaling.copyFrom(this.mesh.scaling)
+        this._starfieldMesh.position.copyFrom(this.mesh.position)
+      }
       const vac = this._vacuumNow()
       // Quantised, not compared raw: a float that drifts by 1e-7 every frame
       // would refresh the sky every frame and the gate would be decorative.
@@ -676,9 +885,15 @@ export class B3dSkybox extends AbstractMesh {
       this.owner.scene.unregisterBeforeRender(this._sizeToCamera)
       this._sizeToCamera = null
     }
+    for (const q of this._nebulaMeshes) q.dispose()
+    this._nebulaMeshes = []
+    for (const nm of this._nebulaMats) nm.dispose()
+    this._nebulaMats = []
+    this._nebulaBase = []
     this._starfieldMesh?.dispose()
     this._starfieldMesh = null
     this._glowExcluded = false
+    this._clearBase = null
     this.starEl = null
     this._removeFogLayer?.()
     this._removeFogLayer = null

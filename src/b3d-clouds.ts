@@ -332,6 +332,8 @@ export class B3dClouds extends B3dChild {
   private _fogColor = new BABYLON.Color3(1, 1, 1)
   /** The skybox, so the whiteout can blot the SKY too (scene fog alone can't — it opts out). */
   private _sky: BABYLON.AbstractMesh | null = null
+  /** The scene's clear colour before a whiteout borrowed it. */
+  private _clearWas: BABYLON.Color4 | null = null
   private _lastCoverage = -1
   private _tick = () => this._update()
   private _onShift = (dx: number, dz: number) => {
@@ -810,17 +812,47 @@ export class B3dClouds extends B3dChild {
     // sky shows straight through the whiteout. Fade the skybox by immersion; the fading sky reveals
     // the scene clear colour, which we tint to the fog colour so what's behind it is white, not
     // black. (Geometry is already whited out by the scene fog itself.)
-    if (this._sky == null)
-      this._sky = scene.meshes.find((m) => /sky/i.test(m.name)) ?? null
+    if (this._sky == null) {
+      // The DOME specifically. `/sky/i` also matches `skybox-starfield`, and
+      // `find` returns whichever came first — so a scene with a starfield could
+      // have had its stars faded by the whiteout while the sky it meant to blot
+      // stayed put.
+      this._sky =
+        scene.meshes.find((m) => /^skybox/i.test(m.name) && !/star/i.test(m.name)) ??
+        null
+    }
     if (this._sky != null) {
       this._sky.visibility = 1 - this._immersion
-      if (this._immersion > 0)
+      /*
+      AND PUT THE CLEAR COLOUR BACK, which this never did.
+
+      The write below is correct while you are inside cloud — the fading sky
+      reveals the clear colour, and it should be white rather than black. But it
+      was one-way: once set, the scene kept a WHITE background for the rest of
+      its life. Nothing noticed, because an opaque sky dome covered it from that
+      moment on.
+
+      It stopped being invisible the moment the dome learned to fade out in
+      vacuum: fly up through a cloud deck and on into space and the stars came
+      up against a white sky. Tonio: "The sky suddenly goes WHITE in space." The
+      cloud layer had painted it white a kilometre and a half earlier.
+
+      So the original is captured on the way in and restored on the way out.
+      */
+      if (this._immersion > 0) {
+        if (this._clearWas == null) {
+          this._clearWas = scene.clearColor.clone()
+        }
         scene.clearColor.set(
           this._fogColor.r,
           this._fogColor.g,
           this._fogColor.b,
           1
         )
+      } else if (this._clearWas != null) {
+        scene.clearColor.copyFrom(this._clearWas)
+        this._clearWas = null
+      }
     }
   }
 }

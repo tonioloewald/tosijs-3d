@@ -15,10 +15,39 @@ taking turns. Watching it can.
 ## Demo
 
 ```js
-import { b3d, rocketAscent } from 'tosijs-3d'
+import { b3d, rocketAscent, toggle3d, slider3d, label3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+// The panel is the `scenePanel` hook, which renders BOTH as the flat gear
+// overlay and as a floating panel inside VR — so the demo is tweakable in a
+// headset, where there is no console and no keyboard. A demo with a frame loop
+// and no way to stop it is hard to look at; this one needed a pause.
+const { flight } = tosi({ flight: { paused: false, timeOfDay: 14 } })
 
 preview.append(
-  b3d({ style: 'width:100%;height:100%' }, ...rocketAscent())
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      scenePanel: () => [
+        label3d({ value: 'Ascent' }),
+        toggle3d({ label: 'pause', value: flight.paused }),
+        slider3d({
+          label: 'time of day',
+          value: flight.timeOfDay,
+          min: 0,
+          max: 24,
+          step: 0.5,
+        }),
+      ],
+    },
+    ...rocketAscent({
+      // STRICT ===, because a tosijs leaf can read back as a boxed proxy and
+      // every object is truthy — which pinned this at `paused` from the first
+      // frame and looked like a dead frame loop. Failing this way round flies.
+      paused: () => flight.paused === true,
+      timeOfDay: flight.timeOfDay,
+    })
+  )
 )
 ```
 ```css
@@ -55,13 +84,19 @@ attribute on would have met it. The clouds are not, because there is nothing to
 fix: bloom belongs to bright things IN the world, a muzzle flash or a corona,
 and a cloud deck is not one.
 
-## The rocket is four boxes and a sphere
+## The rocket is Kenney's, and it is a KIT
 
-Deliberately. The north star here is behavioural richness rather than
-photorealism — _fidelity is a promise_, and a beautifully modelled rocket would
-be promising a flight model this does not have. A toy that reads as a toy can
-spend all of its credibility on the one thing it is actually demonstrating,
-which is the sky.
+The Space Kit does not ship a rocket — it ships five stackable parts (base,
+sides, fuel, fins, nose, each in an A and a B variant), so the rocket here is
+assembled rather than loaded. That is the right way round for this demo anyway:
+the point is the sky, and a kit-built rocket reads as a toy, which is exactly
+the promise we want to make. _Fidelity is a promise_, and a beautifully modelled
+booster would be promising a flight model this does not have.
+
+There is **no submarine anywhere in Kenney's 3D packs** — the only `sub` hits
+are a sandwich and a subway train — so the eventual underwater launch will need
+a model from somewhere else, or a silhouette made of primitives. It barely
+matters: in that shot the camera is on the missile.
 
 ## Attributes
 
@@ -77,6 +112,8 @@ which is the sky.
 | `accel` | `9` | Net acceleration (m/s²) — thrust already minus gravity |
 | `holdSeconds` | `2.5` | Pause on the pad, and again at apogee |
 | `starfield` | `2500` | Background stars (see [b3d-skybox](?b3d-skybox.ts)) |
+| `nebulae` | `14` | Soft emission clouds behind the stars |
+| `rocketScale` | `4` | Uniform scale on the Kenney parts |
 | `timeOfDay` | `14` | Broad daylight — so the stars appear because the AIR ran out, not because night fell |
 */
 /*{ "parent": "Demos", "order": 20 }*/
@@ -84,7 +121,9 @@ which is the sky.
 import { b3dSkybox } from './b3d-skybox.js'
 import { b3dSun } from './b3d-shadows.js'
 import { b3dClouds } from './b3d-clouds.js'
-import { b3dBox, b3dGround, b3dSphere } from './b3d-primitives.js'
+import { b3dBox, b3dGround } from './b3d-primitives.js'
+import { b3dProp } from './b3d-prop.js'
+import { assetUrl } from './asset-url.js'
 import { b3dParticles } from './b3d-particles.js'
 import { b3dController } from './b3d-controller.js'
 import * as BABYLON from '@babylonjs/core'
@@ -97,8 +136,35 @@ export interface RocketAscentOptions {
   accel?: number
   holdSeconds?: number
   starfield?: number
+  nebulae?: number
   timeOfDay?: number
+  /** Return `true` to hold the flight where it is. See the demo's panel. */
+  paused?: () => boolean
+  rocketScale?: number
 }
+
+/*
+THE STACK, in kit units, bottom to top.
+
+Kenney's Space Kit rocket is FIVE parts on a fixed vertical increment — that is
+what makes it a kit rather than a model, and it is why these are offsets rather
+than one `meshName`. `dy` is measured from the loaded parts (see the demo's own
+notes), not guessed from the previews.
+*/
+const ROCKET_STACK = [
+  // Measured off the loaded parts rather than guessed: heights in kit units are
+  // base 1.6, sides 1.0, fins 0.7, fuel 0.5, nose 0.8, and every origin sits at
+  // the part's BOTTOM. The first guess (a tidy 0/1/2) buried the fuel section
+  // inside the base and left the nose floating above a gap.
+  { name: 'rocket_baseA', dy: 0 },
+  { name: 'rocket_sidesA', dy: 0 },
+  { name: 'rocket_finsA', dy: 0 },
+  { name: 'rocket_fuelA', dy: 1.6 },
+  { name: 'rocket_topA', dy: 2.1 },
+] as const
+
+/** Total height in kit units — used to aim the camera at its middle. */
+const ROCKET_HEIGHT = 2.9
 
 /**
  * The ascent, as scene children.
@@ -114,6 +180,7 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
   const accel = options.accel ?? 9
   const hold = options.holdSeconds ?? 2.5
   const starfield = options.starfield ?? 2500
+  const nebulae = options.nebulae ?? 14
   /*
   MID-AFTERNOON, not dusk. The first pass launched at 17:00 so the climb would
   run into evening, and it made the demo WORSE in a way worth recording: a dusk
@@ -125,49 +192,43 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
   */
   const timeOfDay = options.timeOfDay ?? 14
 
-  const BODY = '#d9dde3'
-  const TRIM = '#c2453a'
+  /*
+  A REAL ROCKET, from Kenney's Space Kit — which turns out to be a MODULAR
+  STACK rather than one model: base, fuel section, sides, fins and nose, each
+  in an A and a B variant. So the rocket is assembled here the way the kit
+  intends, not loaded.
+
+  The offsets are in kit units and multiplied by `scale`, because the parts
+  stack on a fixed increment — that is what makes it a kit. They are measured
+  rather than guessed; see the note on ROCKET_STACK.
+  */
+  const scale = options.rocketScale ?? 4
+
+  const stack = ROCKET_STACK.map((part) =>
+    b3dProp({
+      libraryUrl: assetUrl('kenney/libraries/space-kit.glb'),
+      meshName: part.name,
+      scale,
+      y: part.dy * scale,
+    })
+  )
 
   /*
-  THE ROCKET, as separate elements rather than one parented rig.
-
-  Each piece carries its own `y`, and the driver writes all of them — which
-  looks redundant next to parenting them to a root and moving the root once.
-  It is deliberate: `AbstractMesh.render()` stamps `mesh.position` from the
-  element's own x/y/z every render, so a parent whose CHILD elements also
-  declare positions gets a fight between the two every frame. Writing the
-  elements IS the supported way to move them, and four writes cost nothing.
+  AN INVISIBLE ANCHOR at the rocket's middle, purely so the camera has ONE node
+  to lock onto. Cheaper and steadier than aiming at a part — and a part would
+  drag the framing around every time the stack is edited.
   */
-  const body = b3dBox({
-    meshName: 'rocket-body',
-    width: 2,
-    height: 9,
-    depth: 2,
-    color: BODY,
-    y: 4.5,
+  const anchor = b3dBox({
+    meshName: 'rocket-anchor',
+    // 1 cm, which is invisible in practice at this remove. `b3dBox` has no
+    // visibility attribute and inventing one here would be a prop that does
+    // nothing — the repo has shipped enough of those.
+    width: 0.01,
+    height: 0.01,
+    depth: 0.01,
+    y: ROCKET_HEIGHT * 0.5 * (options.rocketScale ?? 4),
   })
-  const nose = b3dSphere({
-    meshName: 'rocket-nose',
-    diameter: 2,
-    color: TRIM,
-    y: 9.6,
-  })
-  const finA = b3dBox({
-    meshName: 'rocket-fin-a',
-    width: 3.4,
-    height: 2.2,
-    depth: 0.3,
-    color: TRIM,
-    y: 1.1,
-  })
-  const finB = b3dBox({
-    meshName: 'rocket-fin-b',
-    width: 0.3,
-    height: 2.2,
-    depth: 3.4,
-    color: TRIM,
-    y: 1.1,
-  })
+
   const exhaust = b3dParticles({
     emitRate: 300,
     capacity: 1200,
@@ -188,11 +249,30 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       spaceStart,
       spaceFull,
       starfield,
+      nebulae,
     }),
     b3dSun({ x: -0.4, y: -1, z: -0.3 }),
-    b3dGround({ size: 4000, color: '#4a5d43' }),
-    // The pad, so the first few seconds have something to leave.
-    b3dBox({ meshName: 'pad', width: 16, height: 1, depth: 16, y: -0.5, color: '#6b6e73' }),
+    // Muted, and not very large. A saturated green slab out to 4 km was the
+    // brightest thing on screen in a demo whose subject is the sky, and it read
+    // as exactly what it is — one enormous flat quad.
+    b3dGround({ size: 2400, color: '#3f4a3c' }),
+    /*
+    THE PAD — and its top must CLEAR the ground, not meet it.
+
+    It was a 1 m box centred at y = -0.5, which puts its top face at exactly
+    y = 0: coplanar with the ground plane, which is the textbook z-fight. Tonio:
+    "there's a square and a rather ugly green plane." Two surfaces at the same
+    depth is not a tie the depth buffer can break, so it flickers between them
+    per pixel and per frame.
+    */
+    b3dBox({
+      meshName: 'pad',
+      width: 18,
+      height: 0.6,
+      depth: 18,
+      y: 0.31,
+      color: '#6b6e73',
+    }),
     /*
     A DECK YOU FLY THROUGH, not weather in the distance.
 
@@ -203,6 +283,11 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
     flight path actually is.
     */
     b3dClouds({
+      // OUR cloud lobe, not the procedural ellipsoid. Every other demo in the
+      // repo passes this and I had left it off, so the deck was default blobs —
+      // Tonio spotted it from the shape alone.
+      model: '/cloud.glb',
+      castShadows: true,
       altitude: cloudAltitude,
       thickness: 34,
       coverage: 0.85,
@@ -210,10 +295,8 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       spread: 320,
       size: 60,
     }),
-    body,
-    nose,
-    finA,
-    finB,
+    ...stack,
+    anchor,
     exhaust,
   ] as unknown as HTMLElement[]
 
@@ -234,6 +317,10 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
     drive: (_input: unknown, dt: number) => {
       const scene = (ctrl as any).owner?.scene as BABYLON.Scene | undefined
       if (scene == null) return
+      // Held, not stopped: everything keeps rendering, the altitude simply
+      // stops advancing — so you can orbit the rocket and look at the sky at
+      // whatever height you froze it.
+      if (options.paused?.()) return
 
       if (wait > 0) {
         wait -= dt
@@ -266,15 +353,11 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
         }
       }
 
-      const b = body as any
-      const n = nose as any
-      const fa = finA as any
-      const fb = finB as any
+      for (let i = 0; i < stack.length; i++) {
+        ;(stack[i] as any).y = y + ROCKET_STACK[i].dy * scale
+      }
+      ;(anchor as any).y = y + ROCKET_HEIGHT * 0.5 * scale
       const ex = exhaust as any
-      b.y = y + 4.5
-      n.y = y + 9.6
-      fa.y = y + 1.1
-      fb.y = y + 1.1
       ex.y = y
       // Exhaust only while the motor is lit — on the pad and on the way down
       // it should be a falling object, not a thing still under power.
@@ -291,16 +374,35 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       shrink and never see the sky change, which is the entire point of the
       demo.
       */
+      /*
+      HAND THE FOLLOW TO BABYLON — do not write the target each frame.
+
+      The first version set `cam.target` from inside this callback, and it was
+      visibly jerky. Tonio: "The camera is a bit jerky so I think the parenting
+      isn't quite right." He was right about the shape of it: the driver and the
+      camera update are different points in the frame, so the camera was always
+      chasing a target one step stale, and at ascent speed one frame of lag is
+      plainly visible.
+
+      `setTarget(mesh)` makes the camera track the node itself, updated in the
+      camera's own pass where the ordering is already correct. Aimed at the
+      anchor rather than a part, so the framing does not shift as the stack
+      changes.
+
+      `beta` is exactly π/2 — level. It was 1.45, which tips the camera down by
+      about 7°, and on a shot with a visible horizon that reads immediately as
+      wrong: "the horizon seems to be at about 2/3 the height (so I guess the
+      camera is pointing down a bit unnecessarily)."
+      */
       const cam = scene.activeCamera as BABYLON.ArcRotateCamera
-      if (cam?.target != null) {
-        cam.target.set(0, y + 5, 0)
-        if (cam.maxZ < 20000) {
-          cam.maxZ = 20000
-          cam.radius = 34
-          cam.beta = 1.45
-          cam.lowerRadiusLimit = 12
-          cam.upperRadiusLimit = 400
-        }
+      const anchorMesh = (anchor as any).mesh
+      if (cam != null && anchorMesh != null && cam.maxZ < 20000) {
+        cam.maxZ = 20000
+        cam.setTarget(anchorMesh)
+        cam.radius = 30
+        cam.beta = Math.PI / 2
+        cam.lowerRadiusLimit = 12
+        cam.upperRadiusLimit = 400
       }
     },
   })
