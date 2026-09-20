@@ -2737,6 +2737,11 @@
         "description": "Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`"
       },
       {
+        "name": "starfieldCube",
+        "default": "''",
+        "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
+      },
+      {
         "name": "starfield",
         "default": "0",
         "description": "How many background stars to build. `0` = none"
@@ -4127,6 +4132,9 @@
         "name": "glowLayerIntensity",
         "default": "0",
         "description": "Glow effect intensity (0 = off)"
+      },
+      {
+        "name": "clearColor"
       },
       {
         "name": "frameRate",

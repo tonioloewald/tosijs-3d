@@ -520,6 +520,18 @@ export class B3d extends Component {
 
   static initAttributes = {
     glowLayerIntensity: 0,
+    /*
+    THE COLOUR BEHIND EVERYTHING. Empty keeps Babylon's default.
+
+    It is here because three shipped demos already pass it — `b3d-star`,
+    `b3d-star-system` and `b3d-black-hole` all set `clearColor` in their `b3d()`
+    config — and NOTHING READ IT. The element creator turned each into a
+    `clear-color` attribute that no code consulted, so every one of them has
+    been quietly rendering against the default blue-grey while its source says
+    black. Found while baking a skybox, where a purple-grey void is rather hard
+    to miss.
+    */
+    clearColor: '',
     frameRate: 30,
     // Default orbit-camera limits (only used when no camera is supplied). They
     // stop the two constant annoyances: zooming out into orbit / in through the
@@ -2361,6 +2373,20 @@ export class B3d extends Component {
     }
   }
 
+  /**
+   * Apply `clearColor` if the author gave one.
+   *
+   * Empty means "leave Babylon's default alone" rather than "black", because a
+   * scene that never mentions the attribute should not change appearance for
+   * having gained one.
+   */
+  private _applyClearColor(): void {
+    const hex = (this as any).clearColor as string
+    if (this.scene == null || !hex) return
+    const c = BABYLON.Color3.FromHexString(hex)
+    this.scene.clearColor = new BABYLON.Color4(c.r, c.g, c.b, 1)
+  }
+
   private _updateFog(dt: number): void {
     const scene = this.scene
     if (scene == null) return
@@ -3192,6 +3218,7 @@ export class B3d extends Component {
     })
 
     this.scene = new BABYLON.Scene(this.engine)
+    this._applyClearColor()
     this.scene.collisionsEnabled = true
     this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0)
 

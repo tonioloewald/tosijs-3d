@@ -296,6 +296,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal
   A **soft blob shadow** — the oldest trick in real-time 3D, and still the right one in a lot of
+- https://3d.tosijs.net/skybox-baker/ — Skybox Baker
+  become a cube map — a starfield with real structure, for the cost of a texture
 - https://3d.tosijs.net/slope-profile/ — slope-profile
   noise field before amplitude. A profile remaps normalized height (0..1 → 0..1),
 - https://3d.tosijs.net/space/ — Space

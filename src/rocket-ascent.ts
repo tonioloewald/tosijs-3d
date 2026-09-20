@@ -260,6 +260,9 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       realtimeScale: 0,
       spaceStart,
       spaceFull,
+      // THE BAKED SKY — six faces photographed from inside the galaxy this
+      // project generates, 55% out from the core and tilted. See skybox-baker.
+      starfieldCube: '/sky/default',
       starfield,
       nebulae,
       // Black-backed, so additive blending gets the silhouette from the

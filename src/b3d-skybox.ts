@@ -48,6 +48,7 @@ preview.append(scene)
 | `rayleigh` | `2` | Rayleigh scattering |
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
+| `starfieldCube` | `''` | Root path of a baked cube (`<root>_px.png` …). Replaces `starfield` |
 | `starfield` | `0` | How many background stars to build. `0` = none |
 | `nebulae` | `0` | Soft emission clouds behind the stars. `0` = none |
 | `nebulaBrightness` | `0.55` | Nebula brightness 0…1 |
@@ -145,6 +146,15 @@ export class B3dSkybox extends AbstractMesh {
     stars do not move relative to each other, and the dome is already pinned to
     the camera, so there is nothing to update per frame.
     */
+    /**
+     * A BAKED cube map behind the sky — the root path of six files named
+     * `<root>_px.png` … `<root>_nz.png` (see [skybox-baker](?skybox-baker.ts)).
+     *
+     * When set it replaces the procedural `starfield` entirely, because it is
+     * the same job done properly: real star positions photographed from a real
+     * system, with structure no scattering of points will reproduce.
+     */
+    starfieldCube: '',
     starfield: 0,
     /**
      * Soft emission clouds behind the stars — a count, `0` = none. They are
@@ -529,7 +539,66 @@ export class B3dSkybox extends AbstractMesh {
     const count = Math.floor(attrs.starfield) || 0
     this._starfieldMesh?.dispose()
     this._starfieldMesh = null
-    if (count <= 0 || this.mesh == null) return
+    if (this.mesh == null) return
+    if (count <= 0 && !((this as any).starfieldCube as string)) return
+
+    /*
+    A BAKED CUBE WINS, and it is one mesh instead of thousands of points.
+
+    Same treatment as the point starfield: pinned to the camera, depth-written
+    like ordinary far geometry, and faded by the same EXPOSURE term so it
+    vanishes into a daylit sky. The difference is only where the pixels come
+    from.
+    */
+    const cubeRoot = (attrs.starfieldCube as string) || ''
+    if (cubeRoot) {
+      const box = BABYLON.MeshBuilder.CreateBox(
+        'skybox-starfield_nocast',
+        { size: 1000, sideOrientation: BABYLON.Mesh.BACKSIDE },
+        scene
+      )
+      const cm = new BABYLON.StandardMaterial('starfield-cube', scene)
+      cm.backFaceCulling = false
+      cm.disableLighting = true
+      cm.diffuseColor = new BABYLON.Color3(0, 0, 0)
+      cm.specularColor = new BABYLON.Color3(0, 0, 0)
+      /*
+      SPELL OUT THE EXTENSIONS. `CubeTexture` defaults to `.jpg`, silently.
+
+      Give it a root and it goes looking for `<root>_px.jpg` … `_nz.jpg`; ours
+      are PNG, because a sky is stars on black and JPEG rings around every
+      bright point. The failure is quiet in the worst way — `isReady()` simply
+      stays false and you get a black sky, which is indistinguishable from
+      pointing the camera at the sparse half of a real one.
+      */
+      cm.reflectionTexture = new BABYLON.CubeTexture(
+        cubeRoot,
+        scene,
+        ['_px.png', '_py.png', '_pz.png', '_nx.png', '_ny.png', '_nz.png']
+      )
+      cm.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
+      /*
+      ⚠️ EMISSIVE STAYS BLACK. The REFLECTION TEXTURE is the colour.
+
+      Setting it white to use as an exposure tint painted the whole sky white:
+      emissive ADDS, so `diffuse(black) + emissive(white)` is white before the
+      cube is ever sampled. Same mistake as the nebulae two passes ago, and it
+      looks identical — a blown-out field with the real image somewhere
+      underneath it.
+
+      A skybox material's brightness knob is the texture's own `level`, which
+      SCALES the sample instead of adding to it. That is what exposure drives
+      below.
+      */
+      cm.emissiveColor = new BABYLON.Color3(0, 0, 0)
+      box.material = cm
+      box.isPickable = false
+      box.applyFog = false
+      box.infiniteDistance = true
+      this._starfieldMesh = box
+      this._excludeFromGlow(scene)
+      return
+    }
 
     const prng = new PRNG(attrs.starfieldSeed || 1)
     const positions: number[] = []
@@ -800,7 +869,19 @@ export class B3dSkybox extends AbstractMesh {
       }
       const exposed = 1 - dayBrightness * air
       const m = this._starfieldMesh.material as BABYLON.StandardMaterial
-      m.emissiveColor.set(exposed, exposed, exposed)
+      /*
+      TWO KINDS OF BACKDROP, TWO DIFFERENT KNOBS, ONE exposure.
+
+      A point cloud is emissive, so its brightness IS `emissiveColor`. A baked
+      cube gets its colour from a reflection sample, which emissive can only add
+      to — so its knob is the texture's `level`. Driving the wrong one paints
+      the sky white rather than dimming it.
+      */
+      if (m.reflectionTexture != null) {
+        m.reflectionTexture.level = exposed
+      } else {
+        m.emissiveColor.set(exposed, exposed, exposed)
+      }
       this._starfieldMesh.setEnabled(exposed > 0.01)
       // Nebulae are backdrop too, so the same exposure governs them — they must
       // not survive a daylight sky the stars have already vanished from.

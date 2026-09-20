@@ -14,4 +14,5 @@ reading the code.
 - [Biped Playground](/playground/)
 - [Rocket Ascent](/rocket-ascent/)
 - [Weapon Fit](/weapon-fit/)
+- [Skybox Baker](/skybox-baker/)
 <!-- /toc -->

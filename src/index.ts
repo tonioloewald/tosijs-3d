@@ -631,6 +631,12 @@ export {
 export { playground, type PlaygroundOptions } from './playground.js'
 export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
 export {
+  bakeSkyboxCube,
+  defaultBakePose,
+  type BakedFace,
+  type SkyboxBakeOptions,
+} from './skybox-baker.js'
+export {
   SurroundingsProbe,
   makeProbeScratch,
   readSurroundings,
