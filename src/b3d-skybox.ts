@@ -205,6 +205,40 @@ export class B3dSkybox extends AbstractMesh {
 
   /** 0 in the troposphere, 1 in vacuum. See `spaceStart`/`spaceFull`. */
   private _vacuum = 0
+  private _glowExcluded = false
+
+  /*
+  KEEP THE STARFIELD OUT OF THE GLOW LAYER.
+
+  The stars are emissive, which is what makes them stars — and an emissive mesh
+  is exactly what a `GlowLayer` is looking for. Two and a half thousand of them
+  bloom into each other and the whole frame goes WHITE: not a dim wash, a total
+  blowout that reads as a broken sky rather than as bloom. It cost a real
+  diagnosis on the ascent demo, where the sky and the fog both measured
+  correctly (a pixel probe read 10,12,8 — nearly black) while the screenshot was
+  pure white, because the blowout happens in a post-process after everything the
+  scene can tell you about.
+
+  `glowLayerIntensity` is a documented `<tosi-b3d>` attribute, so any adopter who
+  turns it on would meet this. Bloom belongs to bright things IN the world — a
+  muzzle flash, a corona, a lamp — never to the backdrop, which is by definition
+  the dimmest thing on screen.
+
+  Deferred because ordering is not guaranteed: B3d may build its glow layer
+  before or after this element's `sceneReady`, so this retries until it finds
+  one rather than assuming it is already there.
+  */
+  private _excludeFromGlow(scene: BABYLON.Scene): void {
+    const mesh = this._starfieldMesh
+    if (mesh == null || this._glowExcluded) return
+    for (const layer of scene.effectLayers ?? []) {
+      const add = (layer as any).addExcludedMesh
+      if (typeof add === 'function') {
+        add.call(layer, mesh)
+        this._glowExcluded = true
+      }
+    }
+  }
   private _starfieldMesh: BABYLON.Mesh | null = null
   private starEl: AbstractMesh | null = null
 
@@ -304,6 +338,7 @@ export class B3dSkybox extends AbstractMesh {
     mesh.infiniteDistance = true
     mesh.parent = this.mesh
     this._starfieldMesh = mesh
+    this._excludeFromGlow(scene)
 
     /*
     THE DOME IS LEFT ALONE, deliberately.
@@ -406,6 +441,9 @@ export class B3dSkybox extends AbstractMesh {
     is what an astronaut sees, and nothing special-cased it.
     */
     if (this._starfieldMesh != null) {
+      if (!this._glowExcluded && this.owner?.scene != null) {
+        this._excludeFromGlow(this.owner.scene)
+      }
       const exposed = 1 - dayBrightness * air
       const m = this._starfieldMesh.material as BABYLON.StandardMaterial
       m.emissiveColor.set(exposed, exposed, exposed)
@@ -624,6 +662,7 @@ export class B3dSkybox extends AbstractMesh {
           }
     })
     this._buildStarfield(scene)
+    this._glowExcluded = false
     this.updateSky()
     owner.register({ meshes: [this.mesh] })
   }
@@ -639,6 +678,7 @@ export class B3dSkybox extends AbstractMesh {
     }
     this._starfieldMesh?.dispose()
     this._starfieldMesh = null
+    this._glowExcluded = false
     this.starEl = null
     this._removeFogLayer?.()
     this._removeFogLayer = null

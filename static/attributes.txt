@@ -1071,6 +1071,18 @@ picker
   placeholder  = 'choose…'  — shown when nothing is selected
   handleChange  — the chosen value; fires on pick, and the popup closes
 
+## rocket-ascent
+Rocket Ascent
+
+  cloudAltitude  = 140  — Centre of the cloud deck (m)
+  spaceStart  = 500  — Where the sky begins to fade (m)
+  spaceFull  = 2400  — Full vacuum (m)
+  apogee  = 3200  — Where it stops and resets (m)
+  accel  = 9  — Net acceleration (m/s²) — thrust already minus gravity
+  holdSeconds  = 2.5  — Pause on the pad, and again at apogee
+  starfield  = 2500  — Background stars (see [b3d-skybox](?b3d-skybox.ts))
+  timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
+
 ## slope-profile
 slope-profile
 

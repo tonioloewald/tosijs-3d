@@ -629,6 +629,7 @@ export {
   type FitOptions,
 } from './camera-fit.js'
 export { playground, type PlaygroundOptions } from './playground.js'
+export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
 export {
   SurroundingsProbe,
   makeProbeScratch,

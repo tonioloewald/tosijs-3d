@@ -12,5 +12,6 @@ reading the code.
 
 <!-- toc -->
 - [Biped Playground](/playground/)
+- [Rocket Ascent](/rocket-ascent/)
 - [Weapon Fit](/weapon-fit/)
 <!-- /toc -->
