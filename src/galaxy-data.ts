@@ -1135,7 +1135,10 @@ export function generateGalaxy(
       scale: prng.realRange(3, 9),
       rgb: distantGalaxyColor(prng.value()),
       type: 'emission',
-      opacity: prng.realRange(0.3, 0.55),
+      // Raised from 0.3–0.55: present rather than merely detectable. They are
+      // still the faintest thing in the sky — the point is that the eye finds
+      // them without hunting.
+      opacity: prng.realRange(0.5, 0.85),
     })
   }
 

@@ -320,6 +320,7 @@ tosi-b3d {
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
 | `thickness` | `0.06` | Disk thickness (fraction of radius) |
 | `particleSize` | `1.0` | Base star particle diameter |
+| `maxStarApparentSize` | `0.01` | Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end |
 | `distantGalaxies` | `500` | External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty |
 | `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
@@ -372,6 +373,16 @@ export class B3dGalaxy extends B3dChild {
     SKY and not to how dense this galaxy happens to be.
     */
     distantGalaxies: 500,
+    /*
+    Largest apparent size a star may have, as a fraction of its distance —
+    roughly its angular radius in radians. `0` disables the clamp.
+
+    Only bites on the NEAR end: stars already smaller than this keep the size
+    they were given, so the distant field is untouched. Applied when the
+    particles are aimed at a viewpoint (see `facePoint`), because apparent size
+    is meaningless without one.
+    */
+    maxStarApparentSize: 0.01,
   }
 
   declare seed: number
@@ -383,6 +394,7 @@ export class B3dGalaxy extends B3dChild {
   declare particleSize: number
   declare coreSize: number
   declare distantGalaxies: number
+  declare maxStarApparentSize: number
 
   owner: B3d | null = null
 
@@ -468,11 +480,55 @@ export class B3dGalaxy extends B3dChild {
         */
         sps.billboard = true
         sps.updateParticle = (p) => p
-        for (const p of sps.particles) p.rotationQuaternion = null
+        for (const p of sps.particles) {
+          p.rotationQuaternion = null
+          // And undo the apparent-size clamp — it belongs to one viewpoint.
+          const s0 = (p.props as { s0?: number } | undefined)?.s0
+          if (s0 != null) p.scale.x = p.scale.y = p.scale.z = s0
+        }
         sps.setParticles()
         continue
       }
       sps.billboard = false
+      /*
+      CLAMP APPARENT SIZE — the fix for "nearby stars are way too big".
+
+      Particles are sized in WORLD units, so a star's apparent size is
+      `scale / distance` and the nearest ones are dinner plates while the far
+      field is specks. Shrinking `particleSize` fixes the near end by thinning
+      the far end, which is why that knob has never had a good value: it moves
+      both ends together.
+
+      A cap on ANGULAR size moves only the end that is wrong. Anything whose
+      apparent size exceeds the limit is scaled down to it and everything else
+      is untouched, so the distant field keeps exactly the density it was tuned
+      to — which is the whole reason this is done HERE, where the viewpoint is
+      known, rather than at build time where it is not.
+
+      Originals are stashed so `facePoint(null)` can put them back.
+      */
+      /*
+      ⚠️ STARS ONLY. This loop runs over BOTH particle systems, and the first
+      version clamped the nebulae with them — shrinking the distant galaxies
+      that had just been enlarged to fill the sky, and cutting the baked pole
+      face from 119k of PNG back to 37k. The clamp is about point sources whose
+      world size is a stand-in for brightness; a nebula's size is its actual
+      extent and means something.
+      */
+      const maxApparent = sps === this.starSps ? this.maxStarApparentSize : 0
+      if (maxApparent > 0) {
+        for (const p of sps.particles) {
+          const props = (p.props ??= {}) as { s0?: number }
+          props.s0 ??= p.scale.x
+          const dx = p.position.x - target.x
+          const dy = p.position.y - target.y
+          const dz = p.position.z - target.z
+          const d = Math.hypot(dx, dy, dz)
+          const cap = maxApparent * d
+          const want = props.s0 > cap ? cap : props.s0
+          p.scale.x = p.scale.y = p.scale.z = want
+        }
+      }
       /*
       TILT TOWARD THE POINT — do not pivot about the galactic plane.
 

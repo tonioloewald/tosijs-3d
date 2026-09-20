@@ -1284,6 +1284,11 @@
         "name": "distantGalaxies",
         "default": "500",
         "description": "External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty"
+      },
+      {
+        "name": "maxStarApparentSize",
+        "default": "0.01",
+        "description": "Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end"
       }
     ]
   },

@@ -816,9 +816,11 @@ far-out, warm, small-scale fraction. That needs NO new rendering path — the
 emission-nebula branch already exists — and would tell us quickly whether the
 idea carries before anything gets its own shader.
 
-Related and still open: the magnitude-aware star size clamp. With distant
-galaxies doing the filling, particle size can come back DOWN, which is the other
-half of getting the near stars under control.
+~~Related and still open: the magnitude-aware star size clamp.~~ **DONE** —
+`maxStarApparentSize` caps a star's size as a FRACTION OF ITS DISTANCE, applied
+in `facePoint` where the viewpoint is known. It only bites on the near end, so
+the far field keeps the density it was tuned to; `particleSize` is back to 0.7
+with the galaxies doing the filling.
 
 [ ] ⚠️ **THE BAKED SKY NEEDS ONE MESH, WHICH MEANS FORKING THE SKY SHADER.**
 Tonio: *"the skybox with two cubes NEVER worked. It's z-chasing at the

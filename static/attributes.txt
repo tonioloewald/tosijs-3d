@@ -349,6 +349,7 @@ b3d-galaxy
   particleSize  = 1.0  — Base star particle diameter
   coreSize  = 0.12  — Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly
   distantGalaxies  = 500  — External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty
+  maxStarApparentSize  = 0.01  — Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end
 
 ## b3d-hud — <tosi-b3d-hud>
 b3d-hud
