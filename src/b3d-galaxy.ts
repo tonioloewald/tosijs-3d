@@ -469,8 +469,24 @@ export class B3dGalaxy extends B3dChild {
       */
       const upY = new BABYLON.Vector3(0, 1, 0)
       const upZ = new BABYLON.Vector3(0, 0, 1)
+      /*
+      THE TARGET MUST BE IN THE PARTICLES' OWN SPACE.
+
+      `particle.position` is SPS-LOCAL — relative to the system's mesh — while
+      the camera position handed in is WORLD. They coincide only while the
+      galaxy sits at the origin unrotated, which it usually does, so this was
+      invisible and would have come back the moment anyone moved or tilted it.
+      Converting once here costs nothing and removes the trap.
+      */
+      const mesh = sps.mesh
+      const local = target.clone()
+      if (mesh != null) {
+        mesh.computeWorldMatrix(true)
+        const inv = BABYLON.Matrix.Invert(mesh.getWorldMatrix())
+        BABYLON.Vector3.TransformCoordinatesToRef(target, inv, local)
+      }
       sps.updateParticle = (p) => {
-        const dir = target.subtract(p.position)
+        const dir = local.subtract(p.position)
         if (dir.lengthSquared() < 1e-8) return p
         dir.normalize()
         const ref = Math.abs(dir.y) > 0.98 ? upZ : upY

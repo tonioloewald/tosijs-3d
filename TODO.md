@@ -777,7 +777,36 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
-[ ] ⚠️ **OPEN BUG: baked stars render ELONGATED, including mid-face.** The
+[x] ~~**Baked stars render ELONGATED, including mid-face.**~~ **FIXED** — and
+the cause was embarrassingly simple once Tonio named it: *"I think you're
+pointing the stars at the galactic origin. That makes the coreward render look
+pretty good but it's terrible for the others."*
+
+`facePoint` was correct and **nothing called it**. The demo's bake button went
+straight to `bakeSkyboxCube`, which left the particle systems billboarding per
+face — so the only times it had ever been applied were my own hand-run evals,
+which is exactly why my measurements said "the quaternions are right" while the
+pictures said otherwise. I was verifying a code path the baker did not use.
+
+The signature Tonio read off the image is the giveaway, and worth keeping: with
+billboards left to their own devices the face centred on the core looks nearly
+right and everything further off-axis is progressively smeared, radially, about
+the image centre. Origin-facing and camera-facing agree in exactly one
+direction.
+
+Fixed by moving the call INSIDE `bakeSkyboxCube`, where it cannot be skipped,
+with restore in a `finally`. **A guard that lives in the documentation is not a
+guard.** Also fixed a latent trap while there: `particle.position` is SPS-LOCAL
+and the target is WORLD, which coincide only while the galaxy sits unrotated at
+the origin — converting once removes it.
+
+⚠️ The lesson worth more than the fix: four rounds were spent proposing
+mechanisms (projection stretch, aspect, degenerate up vectors, missing
+`computeParticleRotation`) and *measuring* a path the product never executed.
+The question "is this code actually running in the failing case?" was never
+asked, and it was the whole answer.
+
+[ ] **Superseded notes on the elongation hunt (kept for the ruled-out list).** The
 skybox baker works end to end — six faces, right asymmetry, correct exposure —
 but every star and nebula comes out as an ellipse rather than a point, and
 Tonio's decisive observation is that it happens **in the MIDDLE of a face**, not

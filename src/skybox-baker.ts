@@ -179,6 +179,16 @@ export interface SkyboxBakeOptions {
   size?: number
   /** Far plane for the capture. Must reach past whatever you are photographing. */
   maxZ?: number
+  /**
+   * Things that billboard and must be aimed at the camera POSITION before the
+   * capture — anything with a `facePoint(v)` method, which `b3d-galaxy` has.
+   *
+   * Defaults to every `<tosi-b3d-galaxy>` in the document, because forgetting
+   * this is not a small mistake: leave a subject billboarding and it re-orients
+   * to each face's view plane, so stars come out radially smeared and the faces
+   * disagree at their seams.
+   */
+  subjects?: Array<{ facePoint(t: BABYLON.Vector3 | null): void }>
 }
 
 /**
@@ -253,6 +263,26 @@ export async function bakeSkyboxCube(
   cam.minZ = 0.1
   cam.maxZ = (options.maxZ ?? 5000)
 
+  /*
+  AIM THE BILLBOARDS AT THE CAMERA — inside the baker, so it cannot be skipped.
+
+  `facePoint` existed for exactly this and NOTHING CALLED IT: the demo's bake
+  button went straight to this function, so every capture ran with the particle
+  systems still billboarding per face. Tonio, from the result: "I think you're
+  pointing the stars at the galactic origin. That makes the coreward render look
+  pretty good but it's terrible for the others" — which is the signature, since
+  a face centred on the core has its billboards nearly right and everything
+  further off-axis progressively worse.
+
+  A guard that lives in the documentation is not a guard. It belongs here.
+  */
+  const subjects =
+    options.subjects ??
+    (Array.from(
+      document.querySelectorAll('tosi-b3d-galaxy')
+    ) as unknown as Array<{ facePoint(t: BABYLON.Vector3 | null): void }>)
+  for (const s of subjects) s.facePoint?.(at)
+
   const previous = scene.activeCamera
   const out: BakedFace[] = []
   try {
@@ -289,6 +319,9 @@ export async function bakeSkyboxCube(
       out.push({ name: face.name, url })
     }
   } finally {
+    // Hand orientation back to the live camera, or the scene stays frozen
+    // facing a point the viewer has since left.
+    for (const s of subjects) s.facePoint?.(null)
     scene.activeCamera = previous
     cam.dispose()
   }
