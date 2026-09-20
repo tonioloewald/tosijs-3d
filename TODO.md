@@ -943,6 +943,24 @@ already runs `REFRESHRATE_RENDER_ONCE`), an export, and the observer placement �
 "stick a camera in it somewhere" wants to become "put the camera at THIS star",
 which is the same lookup a system jump already needs.
 
+⚠️ **TUNE PARTICLE SIZE AT 90°, NOT IN THE DEMO.** Tonio: "with a 90 degree
+camera to render the skybox we might want a slightly larger particle size."
+Right, and it is arithmetic rather than taste: a cube face is 90° FOV where the
+demo's camera is around 46°, so the same star covers roughly HALF the angular
+fraction of the frame once you widen it. Anything dialled in while orbiting the
+demo will come out small in the bake. Tune with the capture camera, or expect to
+re-tune everything downstream of it.
+
+🚫 **DECLINED: a "realistic" stellar palette.** I offered a
+`stellarPalette: 'realistic' | 'vivid'` on the grounds that the current colours
+are a rainbow ramp rather than a temperature sequence — saturated greens
+included, and no star looks green to the eye. Tonio: *"frankly I don't want
+'realistic' — we can always make things look more boring ;)"*. Which is the
+call, and the right one for this project: the north star is a style that
+under-promises so behaviour can over-deliver, not a simulation of a sky. Recorded
+so the observation does not get re-proposed as a defect — the palette is
+deliberate, and the greens stay.
+
 ⚠️ One thing to check early rather than discover late: the galaxy's stars are a
 billboarded `SolidParticleSystem` sized in WORLD units, so their apparent size
 depends on distance from the camera. Baking from inside means near stars render
