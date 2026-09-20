@@ -377,7 +377,16 @@ export class B3dSkybox extends AbstractMesh {
         radius * z,
         radius * r * Math.sin(t)
       )
-      quad.lookAt(BABYLON.Vector3.Zero())
+      /*
+      FACE THE VIEWER WITH THE VISIBLE SIDE, so ONE face draws.
+
+      `lookAt(Zero())` aims local +Z at the centre — and a Babylon plane's
+      visible face is local −Z (the same fact that mirrored the death dialog;
+      see dialog-placement), so this was showing the quad's BACK to the camera
+      and only rendered at all because culling was off. Aim +Z outward instead
+      and the front face is the one you see.
+      */
+      quad.lookAt(quad.position.scale(2))
       quad.rotate(
         BABYLON.Axis.Z,
         prng.realRange(0, Math.PI * 2),
@@ -409,7 +418,33 @@ export class B3dSkybox extends AbstractMesh {
       mat.emissiveTexture = tex as BABYLON.Texture
       mat.alphaMode = BABYLON.Constants.ALPHA_ADD
       mat.disableDepthWrite = true
-      mat.backFaceCulling = false
+      /*
+      ⚠️ CULL THE BACK FACE — ADDITIVE BLENDING DOUBLES WHATEVER DRAWS TWICE.
+
+      This was `false`, which is harmless for an opaque mesh and is NOT harmless
+      here: with no culling and no depth write, both faces of every quad render,
+      and each one ADDS. So the framebuffer got `colour + colour + background`
+      where the model says `textureValue · colour + background` — a 2× overdose
+      that saturated the middle of every stamp to white and left only the thin
+      edges under 1.0, keeping their hue. Tonio, who spotted the arithmetic from
+      the look alone: "it seems more like nebula color + color + background".
+
+      Worth stating as the general rule, because it is invisible on anything
+      opaque: under additive blending, DOUBLE-SIDED MEANS DOUBLE-BRIGHT.
+
+      ⚠️ STILL UNEXPLAINED, and left here for whoever picks this up: Tonio's
+      last reading was that the output is the nebula's COLOUR rather than the
+      texture's VALUE times that colour — "There should be no white unless a
+      green nebular overlaps an orange one". Babylon's StandardMaterial does
+      document `emissiveColor *= emissiveTexture`, which is value × colour, so
+      either something upstream is not setting the EMISSIVE define or the
+      observation has another cause. I could not account for it, and three of my
+      explanations in this area were already wrong, so it is recorded as open
+      rather than resolved. If this is ever revived, put the image in the
+      DIFFUSE slot with `disableLighting` — `diffuseColor × texture` has no
+      ambiguity to argue about.
+      */
+      mat.backFaceCulling = true
       /*
       DIM AND SATURATED, which is the note the galaxy's own nebulae get right
       and this first pass got exactly backwards: these were near-white, and a
@@ -435,19 +470,13 @@ export class B3dSkybox extends AbstractMesh {
       /*
       MANY STAMPS MEANS EACH ONE HAS TO BE FAINTER THAN YOU THINK.
 
-      0.16 was right for one stamp and wrong for a field of them. Additive
-      contributions SUM, so six overlapping nebulae at 0.16 clip every channel
-      and go white while their thin outer edges stay under 1.0 and keep the
-      hue — which is exactly the reported signature: "white nebulae with colored
-      fringes". Raising the count without dropping the tint traded one bad look
-      for another.
-
-      The galaxy gets away with a stronger colour because its stamps are spread
-      through a volume and rarely pile up; on the inside of a sphere they
-      overlap constantly. So the budget is per-FIELD, not per-stamp.
+      The tint is what the image's VALUE multiplies, so it sets the peak of a
+      stamp rather than its brightness curve. 0.12 with one draw per quad lands
+      where 0.16 was aiming before back-face culling was fixed — the old value
+      was arriving twice.
       */
       const warm = prng.value()
-      const V = 0.05
+      const V = 0.12
       mat.emissiveColor = new BABYLON.Color3(
         V * (0.35 + 0.65 * warm),
         V * (0.2 + 0.3 * (1 - Math.abs(warm - 0.5) * 2)),

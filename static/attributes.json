@@ -4073,7 +4073,7 @@
       {
         "name": "nebulae",
         "default": "0",
-        "description": "Sprite nebulae — OFF, see b3d-skybox; the galaxy bake supersedes them"
+        "description": "Sprite nebulae, OFF — superseded by baking the galaxy"
       },
       {
         "name": "rocketScale",

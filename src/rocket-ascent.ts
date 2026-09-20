@@ -115,7 +115,7 @@ matters: in that shot the camera is on the missile.
 | `accel` | `9` | Net acceleration (m/s²) — thrust already minus gravity |
 | `holdSeconds` | `2.5` | Pause on the pad, and again at apogee |
 | `starfield` | `2500` | Background stars (see [b3d-skybox](?b3d-skybox.ts)) |
-| `nebulae` | `0` | Sprite nebulae — OFF, see b3d-skybox; the galaxy bake supersedes them |
+| `nebulae` | `0` | Sprite nebulae, OFF — superseded by baking the galaxy |
 | `rocketScale` | `4` | Uniform scale on the Kenney parts |
 | `timeOfDay` | `14` | Broad daylight — so the stars appear because the AIR ran out, not because night fell |
 */
@@ -182,10 +182,15 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
   const hold = options.holdSeconds ?? 2.5
   const starfield = options.starfield ?? 2500
   /*
-  OFF. The sprite-stamped nebulae cannot look right at any setting — see the
-  note in b3d-skybox — and a demo is the wrong place to display a known dead
-  end. The sky here is stars until the galaxy bake lands, which is the thing
-  that will actually carry nebulae.
+  OFF — decided, not defeated.
+
+  The double-draw below WAS a real bug and is fixed, but Tonio's call is that
+  the sprite route is not worth more of anyone's time: "Anyway, I think this is
+  unnecessary. We should just use the galaxy to render skyboxes." He is right,
+  and the galaxy's nebulae are procedural per-particle fbm rather than one
+  stamped image, which is the thing that actually produces structure.
+
+  So the sky here is stars until the bake lands.
   */
   const nebulae = options.nebulae ?? 0
   /*

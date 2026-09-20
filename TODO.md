@@ -860,7 +860,35 @@ has to be told. "The moon is the color of coal" — albedo ~0.12, and brilliant
 white at night — is the sharpest way to remember that what is on screen is a
 tone-mapped fiction, and that the tone-mapping is ours to apply.
 
-[ ] **Sprite nebulae are a DEAD END — recorded so nobody retries it.** Several
+[ ] **DECIDED: skyboxes come from BAKING THE GALAXY, not from sprite nebulae.**
+Tonio: *"Anyway, I think this is unnecessary. We should just use the galaxy to
+render skyboxes."* That supersedes the tuning below; `b3d-skybox`'s own nebulae
+are off by default and stay a cheap fallback.
+
+Two things from that pass are worth keeping anyway:
+
+- **A real bug, fixed: additive + double-sided = double-bright.** Every nebula
+  quad had `backFaceCulling = false`, so both faces drew and each ADDED —
+  `colour + colour + background` where the model says `value · colour +
+  background`. Harmless on anything opaque, which is why it survived; the
+  general rule is worth remembering for any additive mesh.
+- **One reading I could NOT account for, left open:** Tonio's last look said the
+  output is the nebula's COLOUR rather than the texture's VALUE times it
+  ("There should be no white unless a green nebular overlaps an orange one").
+  Babylon documents `emissiveColor *= emissiveTexture`, which is value × colour,
+  so either an EMISSIVE define is not being set or something else is going on. I
+  did not find it, and three of my explanations in this area were already wrong,
+  so it is recorded as unresolved rather than argued away. If this is ever
+  revived: put the image in the DIFFUSE slot with `disableLighting`, where
+  `diffuseColor × texture` is unambiguous.
+
+**And the meta-lesson, which cost more than the feature was worth:** I tuned
+constants through four rounds on something whose artifact shape — an identical
+circle every time — was already saying the mechanism was wrong. When re-tuning
+produces a DIFFERENT wrong answer each time, stop tuning and question the
+mechanism.
+
+[ ] **Sprite nebulae: why stamping cannot work (kept for reference).** Several
 passes of tuning the skybox's stamped nebulae produced a different wrong answer
 each time (white discs, then coloured squares, then white-with-fringes), and the
 reason is structural rather than a bad constant:
