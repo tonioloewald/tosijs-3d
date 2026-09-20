@@ -838,6 +838,65 @@ renderer for this — it calls `setParticles()` on both SPSs *every frame* to
 re-billboard, which is right for a galaxy you orbit and entirely wrong for a
 backdrop. **Reuse the data, not the renderer.**
 
+### Bake the starfield once and composite onto it (Tonio)
+
+*"Can we statically render the starfield skybox, keep it somewhere and
+composite onto it when needed?"* — yes, and it is the right shape, because the
+thing that makes a sky expensive is generating it and the thing that makes it
+static is that stars do not move relative to each other.
+
+**The bake is valid for a whole STAR SYSTEM.** Planet rotation is a rotation of
+the sampling direction (free). Time of day, altitude and weather are all
+composited on top. Even planet-to-planet travel shows no parallax at
+interstellar distances. It only becomes stale when you change SYSTEM — which is
+exactly where a loading moment already lives. So: bake keyed on the system,
+invalidate on a jump.
+
+`b3d-reflections` already does the mechanism — a `ReflectionProbe` set to
+`REFRESHRATE_RENDER_ONCE` — so a bake-once cube RTT is a pattern this repo
+already runs, not a new one. Drawing ~6,000 point sprites into six faces is
+sub-frame work; the 632 ms measured above was *generating* the catalogue, not
+drawing it, which is the whole reason baking wins.
+
+Size should be `auto` against a per-tier budget (`resolveBudget`, the repo's
+standing rule for anything performance-sensitive), because this is VRAM and the
+Quest is the baseline:
+
+| face | VRAM | angular resolution |
+| ---- | ---- | ------------------ |
+| 256² | 1.6 MB | 0.35°/texel |
+| 512² | 6.3 MB | 0.18°/texel |
+| 1024² | 25 MB | 0.09°/texel |
+
+512 is likely the sweet spot. A star lands on about one texel, so draw them as
+small gaussians rather than points or filtering will eat them — and a baked sky
+being slightly soft is not a defect, it is what a sky looks like.
+
+⚠️ **The constraint to know first: `b3d-skybox` uses Babylon's `SkyMaterial`,
+which is a CLOSED procedural shader** (Preetham scattering, computed
+analytically). There is no slot to hand it a background cube, so "composite"
+cannot mean "give the sky material a texture".
+
+**It should mean additive blending, which is also what scattering physically
+is.** The atmosphere does not occlude the stars; it ADDS in-scattered sunlight
+on top of them. So: draw the baked starfield box first, then the `SkyMaterial`
+box over it with `ALPHA_ADD`. At night the atmosphere contributes ~0 and the
+stars come through; by day it swamps them; in vacuum the atmosphere box is not
+drawn at all. No alpha trickery, no change to `SkyMaterial`, and the day → night
+→ space progression falls out of one term rather than being authored. Replacing
+`SkyMaterial` with our own shader is the bigger-control option and should not be
+needed for v1.
+
+Persistence beyond the session is deliberately NOT worth it: with the light
+generation path a re-bake is cheap, so storing cubes in IndexedDB buys little
+and costs cache-invalidation problems. The one case worth considering is
+shipping ONE baked cube for the default seed, so the common demo path pays
+nothing at all.
+
+Floating origin needs no thought here, which is worth stating so nobody goes
+looking: a skybox is direction-only and viewer-centred, and `shiftOrigin`
+already leaves skybox and water alone by design.
+
 ### A solar system rendered inside its own galaxy (Tonio)
 
 *"It would be very nice to render a solar system inside the galaxy it's part of
