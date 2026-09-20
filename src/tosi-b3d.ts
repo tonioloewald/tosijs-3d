@@ -2311,6 +2311,7 @@ export class B3d extends Component {
   // end), their weights ramp over a band rather than flipping at a boundary, and the result
   // is temporally smoothed.
   private _fogLayers: FogContributor[] = []
+  private _fogVeil = 0
   private _fogBase: FogState | null = null
   private _fogNow: FogState | null = null
 
@@ -2342,6 +2343,27 @@ export class B3d extends Component {
       const i = this.media.indexOf(m)
       if (i >= 0) this.media.splice(i, 1)
     }
+  }
+
+  /**
+   * How much a MEDIUM is between you and everything, `0…1` — and therefore how
+   * much of the SKY it should hide.
+   *
+   * Distance fog and a medium are not the same thing and must not be summed.
+   * Haze thickens with distance, so it is right that it never erases the sky —
+   * the sky IS the far distance and Babylon's fog already handles it. Being
+   * INSIDE cloud, water or a dust storm is the other case: there is white a
+   * metre from your face, and a blue sky above it is simply wrong. That was
+   * the "the cloud whiteout is not whiting out the skybox" report, and the
+   * reason it could not be fixed by turning fog on for the sky mesh is exactly
+   * this distinction — the base fog would then eat the sky too.
+   *
+   * So this is the composited weight of the LAYERS only, never the base, and
+   * the colour to pair it with is `scene.fogColor` (already composited and
+   * smoothed by the same pass).
+   */
+  get fogVeil(): number {
+    return this._fogVeil
   }
 
   addFogLayer(layer: FogContributor): () => void {
@@ -2413,12 +2435,26 @@ export class B3d extends Component {
       const l = fn()
       if (l != null && l.weight > 0) layers.push(l)
     }
+    /*
+    OVER, not summed: each layer covers what is left of the sky rather than
+    adding to it, so two half-weight media read as three-quarters hidden and
+    nothing can push past total.
+    */
+    let veil = 0
+    for (const l of layers) {
+      const v = l.veil ?? l.weight
+      veil += (1 - veil) * Math.min(1, Math.max(0, v))
+    }
     const target = compositeFog(base, layers)
     // A SHORT time constant. This exists to stop a hard pop (and to absorb a layer whose
     // weight jumps — a cloud recycling behind you, a camera teleporting), NOT to make
     // transitions leisurely. Crossing the water's surface should read as instant-but-smooth:
     // a few frames, not a fade.
     this._fogNow = approachFog(this._fogNow, target, dt, 0.07)
+    // Same time constant as the fog itself, so the sky and the air in front of
+    // it cannot arrive at a transition a few frames apart.
+    const k = 1 - Math.exp(-dt / 0.07)
+    this._fogVeil += (veil - this._fogVeil) * k
     const f = this._fogNow
     scene.fogColor.set(f.color.r, f.color.g, f.color.b)
     scene.fogDensity = f.density

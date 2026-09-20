@@ -967,6 +967,29 @@ export function generateGalaxy(
 
   // Generate nebulae using same spiral arm positioning
   const nebulaCount = Math.max(50, Math.floor(numberOfStars * 0.15))
+  /*
+  OPACITY FALLS AS THE COUNT RISES, because they ADD.
+
+  Nebula count is tied to star count, and the baker's star slider spans 5k to
+  100k — a 20× swing, which at fixed opacity is a 20× swing in how much glow is
+  piled onto the same sky. A galaxy tuned at 10k blows out white at 100k, and
+  that is not a tuning error to be re-tuned at each setting: it is the count
+  being a brightness dial nobody meant to turn. Tonio: "we probably should turn
+  down nebula opacity as we raise the count."
+
+  SQRT, not linear. Holding the total constant (ref/count) is the other obvious
+  choice and it is worse: at 10x the count each nebula gets a tenth the opacity,
+  so no individual one is visible and the result is a uniform wash. Under sqrt
+  the sky still gets richer as you add nebulae — it just stops getting brighter
+  in proportion — which is what "more detail" should mean.
+
+  Clamped both ways so a small galaxy is not dim and a huge one is not gone.
+  */
+  const NEBULA_REFERENCE = 1500 // ≈ the 10k-star default, where this was tuned
+  const densityScale = Math.min(
+    1.5,
+    Math.max(0.3, Math.sqrt(NEBULA_REFERENCE / nebulaCount))
+  )
   const nebulae: NebulaData[] = []
 
   // Nebula color from a continuous spectrum: purple → green → orange
@@ -1004,6 +1027,9 @@ export function generateGalaxy(
     ]
   }
 
+  /** Dust vs glow. One number, applied everywhere — see the note at the draw. */
+  const DARK_FRACTION = 0.5
+
   // Dark nebula color: black → brown
   function darkNebulaColor(t: number): [number, number, number] {
     return [
@@ -1026,13 +1052,18 @@ export function generateGalaxy(
     */
     const inCore = prng.probability(0.09)
     /*
-    AND MOST OF THE CORE ONES ARE DARK. Dark nebulae are DUST, and dust is what
-    actually hides a galactic centre — the bright ones veil it by adding glow,
-    which at any useful density just makes the middle brighter. Raised across
-    the board too (0.35 → 0.5): the arms read better with lanes cutting them
-    than with glow alone.
+    HALF DUST, HALF GLOW — everywhere, core included. Tonio: "change the mix of
+    bright and emissive nebula to 50 50."
+
+    The core used to be biased heavily toward dark (0.72) on the reasoning that
+    dust is what actually hides a galactic centre, and that is still true; what
+    made the bias unnecessary is the opacity scaling above. The veil was being
+    asked to do its job against emission nebulae that were individually too
+    bright, so it needed numbers on its side. With the glow turned down as the
+    count goes up, an even mix covers the core without the middle lighting up.
+    One constant now, because two were tuning the same thing from both ends.
     */
-    const isDark = prng.probability(inCore ? 0.72 : 0.5)
+    const isDark = prng.probability(DARK_FRACTION)
     let r = inCore
       ? prng.realRange(0, minRadius * 1.3)
       : prng.realRange(minRadius * 0.5, maxRadius)
@@ -1059,7 +1090,7 @@ export function generateGalaxy(
     // 50% bigger than the first pass, judged against the live galaxy: at the
     // old size they read as separate puffs rather than as a continuous medium.
     const scale = prng.realRange(2.25, 7.5)
-    const opacity = prng.realRange(0.15, 0.5)
+    const opacity = prng.realRange(0.15, 0.5) * densityScale
     const t = prng.value()
 
     if (isDark) {
@@ -1138,7 +1169,7 @@ export function generateGalaxy(
       // Raised from 0.3–0.55: present rather than merely detectable. They are
       // still the faintest thing in the sky — the point is that the eye finds
       // them without hunting.
-      opacity: prng.realRange(0.5, 0.85),
+      opacity: prng.realRange(0.5, 0.85) * densityScale,
     })
   }
 

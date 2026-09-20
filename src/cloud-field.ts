@@ -28,6 +28,23 @@ removes the gap rather than narrowing it.
 time, so weather is a live uniform on both the deck and its shadow and they
 cannot disagree about it — clear to overcast with nothing regenerated.
 
+## Cirrus vs cumulus is one dial
+
+`cirrus` runs from rounded heaps to long wispy streaks, and it moves two things
+together because one alone does not read: the noise domain is STRETCHED along a
+heading (long), and the billow fold is inverted and narrowed into filaments
+(wispy). Stretch on its own makes sausages; filaments on their own make a
+scribble. Tonio asked for "more long and wispy vs more rounded" — those are the
+two axes of the same request, so they are one control.
+
+The stretch is free of seams because the two torus radii are independent: the
+wrap comes from going round a circle, so any radii tile. **Which WAY the
+streaks run is not baked at all** — rotating inside the bake does not tile
+(`u` advances by `2π·cos θ` across the field, which only closes at right
+angles), so the heading is a rotation of the sampler's UVs instead. A wrapped
+texture read through a rotated UV has no seam, the repeat lattice simply sits
+at an angle to the world — and changing the wind direction costs no rebake.
+
 ## Tileable by construction
 
 Sampled on a torus, the same trick `water-normal` uses: the 2D position is
@@ -46,10 +63,20 @@ export interface CloudFieldOptions {
   seed?: number
   /** How many times the field repeats across its own width. Higher = smaller puffs. */
   frequency?: number
-  /** fBm octaves. 4 is plenty for cloud; more just costs bake time. */
+  /**
+   * Octaves of detail. Billow needs MORE than fBm would: folding at every zero
+   * crossing eats the fine structure, so the crinkle has to be put back by
+   * stacking octaves rather than by sharpening one.
+   */
   octaves?: number
   /** Amplitude ratio between octaves. */
   persistence?: number
+  /**
+   * `0` rounded cumulus, `1` long wispy cirrus. Two changes at once, because
+   * that is what distinguishes the two clouds — see "Cirrus is a shape, not a
+   * texture" below.
+   */
+  cirrus?: number
 }
 
 /**
@@ -62,9 +89,17 @@ export interface CloudFieldOptions {
 export function cloudField(options: CloudFieldOptions = {}): Float32Array {
   const size = options.size ?? 256
   const frequency = options.frequency ?? 3
-  const octaves = options.octaves ?? 4
-  const persistence = options.persistence ?? 0.5
+  const octaves = options.octaves ?? 6
+  const persistence = options.persistence ?? 0.58
+  const cirrus = Math.min(1, Math.max(0, options.cirrus ?? 0))
   const noise = new PerlinNoise(options.seed ?? 1337)
+  /*
+  STRETCH THE DOMAIN, not the output. The two torus radii need not match and
+  need not be integers — the wrap comes from going round a circle, so ANY radii
+  tile. That is what makes anisotropy free here: a stretched cloud is the same
+  construction read at two scales, not a resampling that has to be re-seamed.
+  */
+  const stretch = 1 + cirrus * 5
 
   const out = new Float32Array(size * size)
   let min = Infinity
@@ -86,11 +121,14 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
       let norm = 0
       for (let o = 0; o < octaves; o++) {
         const r = freq / (Math.PI * 2)
+        // Along the streaks the field varies SLOWLY; across them, at full rate.
+        const ru = r / stretch
         const n = noise.noise3D(
-          r * Math.cos(u),
-          r * Math.sin(u),
+          ru * Math.cos(u),
+          ru * Math.sin(u),
           r * Math.cos(v) + r * Math.sin(v)
         )
+        const f = Math.abs(n)
         /*
         BILLOW, NOT fBm — `abs`, and this one character is the difference
         between cloud and sea.
@@ -106,12 +144,30 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
         here is derived from the field's own gradient, the shading inherits that
         character for free.
         */
-        sum += amp * Math.abs(n)
+        sum += amp * f
         norm += amp
         amp *= persistence
         freq *= 2
       }
-      const value = sum / norm
+      /*
+      THINNED, not re-shaped. Cirrus is the same billow noise seen sideways and
+      stretched thin — and getting there by a different noise TRANSFORM was two
+      failed attempts, both worth recording because they failed the same way.
+
+      A filament along the zero contour (windowed, so it really was a thread)
+      produces exactly what the maths promises and it is wrong: a noise contour
+      is a long SMOOTH CURVE, so the sky fills with unbroken parallel lines that
+      read as telephone wires. Breaking them up with the finer octaves did not
+      help — the wires just became dashed wires.
+
+      What actually reads as wisp is a LUMPY streak: billow, stretched along the
+      wind, and then thinned by contrast so only the cores survive and the
+      shoulders fall away to clear sky. The lumps are what stop it looking
+      drawn, the stretch is what makes it long, and the exponent is what makes
+      it wispy instead of merely elongated.
+      */
+      const raw = sum / norm
+      const value = cirrus > 0 ? Math.pow(raw, 1 + cirrus * 3.5) : raw
       out[y * size + x] = value
       if (value < min) min = value
       if (value > max) max = value
@@ -119,14 +175,54 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
   }
 
   /*
-  NORMALISE TO [0,1] AFTER THE FACT. fBm does not fill its nominal range — the
-  octaves rarely align — so a field left raw sits in a narrow band around the
-  middle and `coverage` then does almost nothing across most of its travel.
-  Stretching to the observed extremes makes the dial behave the same whatever
-  the seed and octave count happen to produce.
+  NORMALISE BY PERCENTILE, not by the extremes.
+
+  Two problems with min/max, and the second is the one that bites. fBm does not
+  fill its nominal range — the octaves rarely align — so a raw field sits in a
+  narrow band around the middle and `coverage` does almost nothing across most
+  of its travel. That much min/max also fixes.
+
+  What it cannot fix is that the extremes are a SAMPLE OF TWO. One unusually
+  bright pixel sets the scale for the whole sky, so the same weather rescales
+  when the seed changes, when the resolution changes, and — the visible case —
+  as `cirrus` is dialled: at 0.4 the filament peak starts winning the maximum
+  and everything else is compressed under it, a 0.1 step in the mean from a 0.1
+  step on the slider. The dial had a cliff in the middle of it.
+
+  Percentiles have no such dependence on one pixel, so the dial is smooth, the
+  dial is seed-independent, and `coverage` finally means one thing: at `c` the
+  threshold sits at the same place in the DISTRIBUTION whatever kind of cloud
+  this is. Clipped tails are wanted, not tolerated — a cloud core should be
+  solid white and a gap should be properly empty.
+
+  Histogram rather than a sort: this runs over a quarter of a million texels at
+  the default size, and the bin width is far below anything the ramp that reads
+  it can resolve.
   */
-  const span = max - min || 1
-  for (let i = 0; i < out.length; i++) out[i] = (out[i] - min) / span
+  const BINS = 2048
+  const TAIL = 0.02
+  const span0 = max - min || 1
+  const hist = new Int32Array(BINS)
+  for (let i = 0; i < out.length; i++) {
+    const b = Math.min(BINS - 1, Math.floor(((out[i] - min) / span0) * BINS))
+    hist[b]++
+  }
+  const pick = (fraction: number): number => {
+    const want = fraction * out.length
+    let seen = 0
+    for (let b = 0; b < BINS; b++) {
+      seen += hist[b]
+      if (seen >= want) return min + ((b + 0.5) / BINS) * span0
+    }
+    return max
+  }
+  const lo = pick(TAIL)
+  const hi = pick(1 - TAIL)
+  const span = hi - lo || 1
+  for (let i = 0; i < out.length; i++) {
+    const v = (out[i] - lo) / span
+    out[i] = v < 0 ? 0 : v > 1 ? 1 : v
+  }
   return out
 }
 

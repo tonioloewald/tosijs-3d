@@ -223,9 +223,15 @@ b3d-cloud-deck
   size  = 4000  — World extent of the deck
   subdivisions  = 48  — Grid resolution — see "A grid, not a quad"
   coverage  = 0.5  — Clear `0` → overcast `1`. LIVE, and shared with the shadow
+  cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
+  cirrusHeadingDeg  = 0  — Which way the streaks run
+  transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
+  thickness  = 320  — Vertical extent of the whiteout. Deep on purpose — see "You must never see it edge-on"
+  haze  = 0.9  — How much the air under the deck takes the cloud's colour. Hides the rim
   seed  = 1337  — Same seed, same weather
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
-  fieldSize  = 256  — Texels per edge of the baked density field
+  octaves  = 6  — Detail octaves. Billow needs more than fBm — folding eats fine structure
+  fieldSize  = 512  — Texels per edge of the baked density field. More texels = finer cloud, 1 byte each
   tiles  = 6  — How many times the field repeats across `size`
   color  = '#ffffff'  — Lit top colour
   underColor  = '#3a4350'  — Shadowed underside

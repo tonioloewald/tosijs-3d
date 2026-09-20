@@ -65,6 +65,21 @@ export type FogLayer = {
   density?: number
   start?: number
   end?: number
+  /**
+   * How much this layer hides the SKY, `0…1`. Defaults to `weight`.
+   *
+   * It is separate because the two really are different questions, and a layer
+   * that conflates them has to pick one and be wrong about the other. Haze
+   * under an overcast is fully in charge of the air — it should pull the fog
+   * colour and haul `end` in far enough to hide the deck's own rim — while
+   * hiding none of the sky, because you can still see straight up. Being
+   * INSIDE that cloud is the opposite end of the same layer.
+   *
+   * So: `weight` is how much of the AIR this medium owns, `veil` is how much of
+   * the SKY it is standing in front of. Leave it unset and they are the same,
+   * which is right for water and for anything you are simply immersed in.
+   */
+  veil?: number
 }
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t

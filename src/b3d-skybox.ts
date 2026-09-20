@@ -164,7 +164,8 @@ function registerForkedSky(): boolean {
   store[`${B3D_SKY}PixelShader`] = src
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
-      'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform mat4 b3dStarRot;'
+      'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform mat4 b3dStarRot;' +
+        'uniform vec3 b3dVeilColor;uniform float b3dVeil;'
     )
     .replace(
       anchor,
@@ -180,6 +181,17 @@ function registerForkedSky(): boolean {
       `vec3 b3dDir=normalize(vPositionW-cameraPosition);` +
         `b3dDir=(b3dStarRot*vec4(b3dDir,0.0)).xyz;` +
         `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
+        /*
+        THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
+        light arriving, it is light being blocked. Inside cloud there is white a
+        metre from your face and no sky behind it; adding would only make a
+        brighter blue.
+
+        It is the last thing in the shader for the same reason: a medium sits in
+        front of the whole sky, stars included, so anything added after it would
+        be shining through the fog rather than being hidden by it.
+        */
+        `color.rgb=mix(color.rgb,b3dVeilColor,b3dVeil);` +
         anchor
     )
   return true
@@ -216,6 +228,8 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'up',
         'b3dStarLevel',
         'b3dStarRot',
+        'b3dVeil',
+        'b3dVeilColor',
       ],
       samplers: ['b3dStars'],
       // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -227,6 +241,8 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector3('cameraOffset', BABYLON.Vector3.Zero())
   mat.setFloat('b3dStarLevel', 0)
   mat.setMatrix('b3dStarRot', BABYLON.Matrix.Identity())
+  mat.setFloat('b3dVeil', 0)
+  mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
   const num = (name: string, initial: number) => {
     let v = initial
     mat.setFloat(name, v)
@@ -244,6 +260,9 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   num('mieCoefficient', 0.005)
   num('mieDirectionalG', 0.8)
   let sun = new BABYLON.Vector3(0, 100, 0)
+  // Seed the uniform, not just the JS side: a scene with no <tosi-b3d-sun>
+  // never writes it, and an unset vec3 is not a defined sky.
+  mat.setVector3('sunPosition', sun)
   Object.defineProperty(mat, 'sunPosition', {
     get: () => sun,
     set: (v: BABYLON.Vector3) => {
@@ -265,6 +284,11 @@ const HORIZON_WHITE = new BABYLON.Color3(0.95, 0.95, 0.97)
 const NIGHT_HORIZON = new BABYLON.Color3(0.08, 0.1, 0.18)
 
 export class B3dSkybox extends AbstractMesh {
+  /** Whether the sky is on OUR shader — the starfield and the veil need it. */
+  private _forkedSky = false
+  // Reused, not re-allocated: this is written every frame.
+  private _veilColor = new BABYLON.Color3(1, 1, 1)
+
   static preferredTagName = 'tosi-b3d-skybox'
 
   static initAttributes = {
@@ -899,6 +923,24 @@ export class B3dSkybox extends AbstractMesh {
     return band(cam.globalPosition.y, start, full)
   }
 
+  /**
+   * Hide the sky behind whatever medium you are standing in.
+   *
+   * The colour is the scene's own composited fog, so the sky and the air in
+   * front of it are the same white by construction — there is no second place
+   * to tune and nothing to keep in step. See `B3d.fogVeil` for why this is a
+   * different number from the fog's own weight.
+   */
+  private _applyVeil(): void {
+    if (!this._forkedSky || this.owner == null || this.mesh == null) return
+    const sm = this.mesh.material as unknown as BABYLON.ShaderMaterial
+    if (sm?.setFloat == null) return
+    const fc = this.owner.scene.fogColor
+    sm.setFloat('b3dVeil', this.owner.fogVeil)
+    this._veilColor.set(fc.r, fc.g, fc.b)
+    sm.setColor3('b3dVeilColor', this._veilColor)
+  }
+
   private updateSky() {
     if (this.mesh?.material == null) return
     const attrs = this as any
@@ -1242,15 +1284,33 @@ export class B3dSkybox extends AbstractMesh {
     and can become the default once it has earned that.
     */
     const wantsCube = !!((this as any).starfieldCube as string)
-    const forked = wantsCube && registerForkedSky()
+    /*
+    OURS BY DEFAULT NOW. The fork used to be reserved for `starfieldCube`, on
+    the principle that every existing scene should stay on the proven path until
+    it had earned more — and it has: a second thing needs it.
+
+    Being INSIDE a medium has to hide the sky, and there is no way to do that
+    from outside the sky shader. Babylon's own fog is the wrong lever (it would
+    make distance haze erase the sky, which is backwards — the sky IS the
+    distance), a second infiniteDistance mesh z-fights by construction, and a
+    near-plane veil covers the geometry too. One uniform in the shader that
+    already draws the sky is the only place the answer fits.
+
+    The fallback is unchanged and still the right one: if Babylon rewrites their
+    shader past recognition we get stock SkyMaterial, losing the starfield and
+    the veil rather than the sky.
+    */
+    const forked = registerForkedSky()
     const material = forked
       ? (makeForkedSkyMaterial(scene) as unknown as SkyMaterial)
       : new SkyMaterial('skybox', scene)
-    if (wantsCube && !forked) {
+    this._forkedSky = forked
+    if (!forked) {
       console.warn(
-        'b3d-skybox: could not derive a sky shader from Babylon — `starfieldCube` ignored. Babylon\'s sky shader may have changed shape; see registerForkedSky.'
+        'b3d-skybox: could not derive a sky shader from Babylon — `starfieldCube` and the medium veil are unavailable. Babylon\'s sky shader may have changed shape; see registerForkedSky.'
       )
     }
+    void wantsCube
     material.backFaceCulling = false
     material.useSunPosition = true
 
@@ -1325,6 +1385,15 @@ export class B3dSkybox extends AbstractMesh {
         this._lastSkyTime = attrs.timeOfDay
         this.updateSky()
       }
+      /*
+      EVERY FRAME, unlike the rest of the sky. `updateSky` is deliberately gated
+      on the time of day actually moving — it recomputes a whole atmosphere —
+      but a medium arrives and leaves on its own clock, so a veil computed there
+      would lag the fog it is supposed to match by however long until the next
+      minute of game time. That is exactly how it first failed: the fog went
+      white, the sky stayed blue, and both numbers read correct.
+      */
+      this._applyVeil()
     }
     scene.registerBeforeRender(this._sizeToCamera)
     /*

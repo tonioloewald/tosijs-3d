@@ -844,6 +844,31 @@
         "description": "Clear `0` → overcast `1`. LIVE, and shared with the shadow"
       },
       {
+        "name": "cirrus",
+        "default": "0",
+        "description": "Rounded heaps `0` → long wispy streaks `1`. Rebakes the field"
+      },
+      {
+        "name": "cirrusHeadingDeg",
+        "default": "0",
+        "description": "Which way the streaks run"
+      },
+      {
+        "name": "transmission",
+        "default": "-1",
+        "description": "How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`"
+      },
+      {
+        "name": "thickness",
+        "default": "320",
+        "description": "Vertical extent of the whiteout. Deep on purpose — see \"You must never see it edge-on\""
+      },
+      {
+        "name": "haze",
+        "default": "0.9",
+        "description": "How much the air under the deck takes the cloud's colour. Hides the rim"
+      },
+      {
         "name": "seed",
         "default": "1337",
         "description": "Same seed, same weather"
@@ -854,9 +879,14 @@
         "description": "Field repeats across its own width. Higher = smaller puffs"
       },
       {
+        "name": "octaves",
+        "default": "6",
+        "description": "Detail octaves. Billow needs more than fBm — folding eats fine structure"
+      },
+      {
         "name": "fieldSize",
-        "default": "256",
-        "description": "Texels per edge of the baked density field"
+        "default": "512",
+        "description": "Texels per edge of the baked density field. More texels = finer cloud, 1 byte each"
       },
       {
         "name": "tiles",

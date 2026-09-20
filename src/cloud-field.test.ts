@@ -28,15 +28,26 @@ describe('cloudField', () => {
     Sampled on a torus, so this is true by construction rather than by luck.
     A cloud layer has to repeat and a visible tile boundary is worse than no
     clouds at all — which is why it is asserted rather than assumed.
+
+    Measured as "the worst seam step is no worse than the worst ordinary step",
+    never against a fixed number. A constant here is really an assertion about
+    the field's CONTRAST, so it fails the day the normalisation changes and
+    says "seam" when it means "sharper" — which is exactly what it did.
     */
     const size = 64
     const f = cloudField({ size, seed: 3 })
     const at = (x: number, y: number) => f[y * size + x]
+    let worstX = 0
+    let worstY = 0
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (x > 0) worstX = Math.max(worstX, Math.abs(at(x, y) - at(x - 1, y)))
+        if (y > 0) worstY = Math.max(worstY, Math.abs(at(x, y) - at(x, y - 1)))
+      }
+    }
     for (let i = 0; i < size; i++) {
-      // Wrapping in x: the last column should continue into the first.
-      expect(Math.abs(at(size - 1, i) - at(0, i))).toBeLessThan(0.2)
-      // And in y.
-      expect(Math.abs(at(i, size - 1) - at(i, 0))).toBeLessThan(0.2)
+      expect(Math.abs(at(size - 1, i) - at(0, i))).toBeLessThanOrEqual(worstX)
+      expect(Math.abs(at(i, size - 1) - at(i, 0))).toBeLessThanOrEqual(worstY)
     }
   })
 
@@ -117,5 +128,109 @@ describe('cloudOpacity — the shared weather dial', () => {
   test('clamps coverage rather than trusting its caller', () => {
     expect(cloudOpacity(0.5, -3)).toBe(0)
     expect(cloudOpacity(0.5, 9)).toBe(1)
+  })
+})
+
+describe('cirrus — long and wispy vs rounded', () => {
+  test('streaks are ANISOTROPIC: it varies less along the heading than across', () => {
+    /*
+    The property that makes a streak a streak. Measured as mean absolute
+    difference between neighbours in each axis: at `cirrus: 0` the field is
+    isotropic and the two agree; stretched along x, walking in x should change
+    the density far less than walking in z.
+    */
+    const size = 128
+    const rough = (f: Float32Array, dx: number, dz: number) => {
+      let sum = 0
+      let n = 0
+      for (let z = 0; z < size - dz; z++) {
+        for (let x = 0; x < size - dx; x++) {
+          sum += Math.abs(f[(z + dz) * size + (x + dx)] - f[z * size + x])
+          n++
+        }
+      }
+      return sum / n
+    }
+    const round = cloudField({ size, seed: 21, cirrus: 0 })
+    const wispy = cloudField({ size, seed: 21, cirrus: 1 })
+    const isotropy = (f: Float32Array) => rough(f, 1, 0) / rough(f, 0, 1)
+    // Rounded cloud has no preferred direction.
+    expect(isotropy(round)).toBeGreaterThan(0.7)
+    expect(isotropy(round)).toBeLessThan(1.4)
+    // Cirrus does, and it is the one we stretched.
+    expect(isotropy(wispy)).toBeLessThan(0.5)
+  })
+
+  test('WISPY means SPARSE — most of the sky is empty, threads are bright', () => {
+    /*
+    The property that actually distinguishes the two, and the one two wrong
+    implementations both slipped past.
+
+    The first test here asked "is less of the field above 0.6" — which a field
+    renormalised to its own extremes can satisfy while looking like heavy
+    overcast with holes in it, and one of them did. What separates a wisp from a
+    heap is the DISTRIBUTION: cumulus fills the middle of its range, cirrus is
+    mostly empty with a thin bright tail. So this measures the median, and the
+    cumulus case is asserted too — otherwise "sparse" has nothing to be sparse
+    compared to.
+    */
+    const size = 160
+    const median = (f: Float32Array) => {
+      const v = [...f].sort((a, b) => a - b)
+      return v[Math.floor(v.length / 2)]
+    }
+    const round = median(cloudField({ size, seed: 9, cirrus: 0 }))
+    const wispy = median(cloudField({ size, seed: 9, cirrus: 1 }))
+    // Cumulus sits in the middle of its range: heaps everywhere.
+    expect(round).toBeGreaterThan(0.25)
+    /*
+    Cirrus does not — and this is asserted RELATIVE to cumulus, not against a
+    number. The normalisation re-stretches whatever the thinning produced, so an
+    absolute threshold here is a claim about the normaliser rather than about
+    the cloud, and it would have to be re-picked every time either changes.
+    */
+    expect(wispy).toBeLessThan(round * 0.6)
+  })
+
+  test('still TILES when stretched', () => {
+    /*
+    The stretch is free of seams because any pair of torus radii wrap. Measured
+    against the field's OWN roughness rather than an absolute number: cirrus is
+    genuinely high-frequency across the streaks, so "the seam is small" is the
+    wrong question and "the seam is no worse than an ordinary step" is right.
+
+    Max against MAX, deliberately. Comparing the worst of 64 seam steps to the
+    MEAN of 4,000 interior ones fails on any rough field and says nothing about
+    seams — a wrap is seamless when its biggest step is an ordinary biggest
+    step, which is the thing an eye would actually notice.
+    */
+    const size = 64
+    for (const cirrus of [0, 0.5, 1]) {
+      const f = cloudField({ size, seed: 4, cirrus })
+      const at = (x: number, y: number) => f[y * size + x]
+      let worstX = 0
+      let worstY = 0
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          if (x > 0) worstX = Math.max(worstX, Math.abs(at(x, y) - at(x - 1, y)))
+          if (y > 0) worstY = Math.max(worstY, Math.abs(at(x, y) - at(x, y - 1)))
+        }
+      }
+      for (let i = 0; i < size; i++) {
+        expect(Math.abs(at(size - 1, i) - at(0, i))).toBeLessThanOrEqual(worstX)
+        expect(Math.abs(at(i, size - 1) - at(i, 0))).toBeLessThanOrEqual(worstY)
+      }
+    }
+  })
+
+  test('the dial is continuous — no jump between cumulus and cirrus', () => {
+    const size = 48
+    const mean = (f: Float32Array) => [...f].reduce((a, b) => a + b, 0) / f.length
+    let last = mean(cloudField({ size, seed: 6, cirrus: 0 }))
+    for (let c = 0.1; c <= 1.0001; c += 0.1) {
+      const m = mean(cloudField({ size, seed: 6, cirrus: c }))
+      expect(Math.abs(m - last)).toBeLessThan(0.12)
+      last = m
+    }
   })
 })
