@@ -31,6 +31,7 @@ const { demo } = tosi({
     radius: 100,
     spiralArms: 4,
     particleSize: 2.5,
+    coreSize: 0.5,
     habitability: 5,
     nameSearch: '',
     selectedStar: '',
@@ -43,6 +44,7 @@ const galaxy = b3dGalaxy({
   radius: demo.radius,
   spiralArms: demo.spiralArms,
   particleSize: demo.particleSize,
+  coreSize: demo.coreSize,
 })
 
 // Star system state
@@ -71,10 +73,18 @@ const scene = b3d(
         { label: 'Survivable+', value: 2 },
         { label: 'Earthlike', value: 1 },
       ] }),
-      slider3d({ label: 'stars', value: demo.starCount, min: 1000, max: 20000, step: 1000 }),
+      // 50k, because the interesting use of this demo is now to stand INSIDE a
+      // galaxy and photograph the sky from it — and a naked-eye sky wants tens
+      // of thousands of stars, not five.
+      slider3d({ label: 'stars', value: demo.starCount, min: 1000, max: 50000, step: 1000 }),
       slider3d({ label: 'radius', value: demo.radius, min: 50, max: 300, step: 10 }),
       slider3d({ label: 'spiral arms', value: demo.spiralArms, min: 1, max: 8, step: 1 }),
-      slider3d({ label: 'particle size', value: demo.particleSize, min: 0.5, max: 3, step: 0.1 }),
+      // Down to 0.1: the old floor was 0.5, so the size you actually want for a
+      // dense field was unreachable. Tonio: "I was testing 0.6 but couldn't
+      // dial up 0.4."
+      slider3d({ label: 'particle size', value: demo.particleSize, min: 0.1, max: 3, step: 0.1 }),
+      // The core is scenery at galaxy scale and an obstruction from inside one.
+      slider3d({ label: 'core size', value: demo.coreSize, min: 0, max: 4, step: 0.1 }),
       slider3d({ label: 'seed', value: demo.seed, min: 0, max: 65535, step: 1 }),
     ],
     sceneCreated(el, BABYLON) {
@@ -256,7 +266,7 @@ preview.append(
   )
 )
 
-for (const key of ['seed', 'starCount', 'radius', 'spiralArms', 'particleSize']) {
+for (const key of ['seed', 'starCount', 'radius', 'spiralArms', 'particleSize', 'coreSize']) {
   demo[key].observe(() => {
     if (activeStarSystem) {
       activeStarSystem.remove()

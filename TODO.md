@@ -860,6 +860,44 @@ has to be told. "The moon is the color of coal" — albedo ~0.12, and brilliant
 white at night — is the sharpest way to remember that what is on screen is a
 tone-mapped fiction, and that the tone-mapping is ours to apply.
 
+[ ] **THE BAKERY IS THE GALAXY.** Tonio, and it collapses most of the starfield
+plan into something that already exists:
+
+> *"if you want to render a pretty nice skybox you can just dial the galaxy up
+> to 50k stars, set particle size small (0.4 maybe), stick a camera in it
+> somewhere, and render the skybox from that point of view. Oh and scale down
+> the central black hole and maybe put a bunch of nebulae around it."*
+
+Which is right, and it is better than the thing it replaces. `b3d-galaxy`
+already renders stars AND nebulae from real seeded data, with spiral structure
+and spectral colour. Standing a camera inside it and capturing six faces gives a
+starfield that needs **no separate starfield code at all** — and the property we
+wanted most falls out for nothing: **the constellations you see ARE the stars
+you can fly to**, because you are photographing the actual galaxy from the
+actual system rather than generating a decorative field that resembles one.
+
+It also explains why `b3d-skybox`'s own `starfield`/`nebulae` should stay small
+and dumb. They are the no-dependency fallback — "a nice night sky" for a scene
+that has no galaxy — and everything ambitious belongs in the bake.
+
+Done here, so the parameters are reachable: the demo's particle-size floor was
+0.5 ("I was testing 0.6 but couldn't dial up 0.4"), now 0.1; the star slider
+tops out at 50k rather than 20k; and `coreSize` has a control at all, since the
+black hole is scenery from outside and an obstruction from inside.
+
+Still to build: the capture itself (a cube RTT per face — `b3d-reflections`
+already runs `REFRESHRATE_RENDER_ONCE`), an export, and the observer placement —
+"stick a camera in it somewhere" wants to become "put the camera at THIS star",
+which is the same lookup a system jump already needs.
+
+⚠️ One thing to check early rather than discover late: the galaxy's stars are a
+billboarded `SolidParticleSystem` sized in WORLD units, so their apparent size
+depends on distance from the camera. Baking from inside means near stars render
+large and far ones vanish — which is either exactly right (it is what parallax
+IS, and it is why the Milky Way has a band) or needs a magnitude-aware size
+clamp so nearby dwarfs do not become dinner plates. Worth looking at with
+`particleSize` low before tuning anything else.
+
 [ ] **An interactive starfield BAKERY.** Tonio: *"we could also build an
 interactive starfield skybox bakery which could save out starfield and allow you
 to pick a seed and a star count and tweak star size and nebula brightness and so
