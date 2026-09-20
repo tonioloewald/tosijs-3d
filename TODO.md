@@ -943,8 +943,32 @@ brightness ∝ luminosity / distance², composited behind an atmosphere term:
 Nothing is a mode, and there is no second "space skybox" to keep in sync with
 the planetary one.
 
-⚠️ **The one place that framing breaks is DYNAMIC RANGE, and it breaks for a
-practical reason rather than a physical one.** The local sun is on the order of
+**THE CUBE HOLDS ONLY WHAT IS AT INFINITY — and two independent arguments land
+on that same line**, which is the strongest sign it is the right one.
+
+Tonio found the second: *"if the local star is painted into the skybox then it
+needs regeneration for each planet and slowly over time."* Correct, and it is
+fatal to the cache. Each planet sees its sun from a different distance and
+direction, so a baked sun means a bake PER PLANET; and orbital motion drags it
+across the background, so it also means a slow continuous re-bake. The
+one-cube-per-system property does not survive a sun in the cube.
+
+The first argument was dynamic range (below) and it says the sun cannot be in
+the cube. This one says it must not be. Same conclusion, no tension — so the
+invariant is simply: **parallax ⇒ geometry.** If a thing moves relative to the
+background, it IS not background. Stars and nebulae are at infinity and bake;
+the local star, the planets and the moons are objects drawn in front.
+
+That also hands over a detail worth having for free: **planets visibly wander
+against fixed stars**, which is what the word means. It falls out of the split
+rather than being animated.
+
+The cost of being on the geometry side is nil — the sun is one billboard plus a
+glow — and it has to be there anyway for glare, so nothing is lost by the rule
+that keeps the cache sound.
+
+⚠️ **The dynamic-range argument, which reaches the same place for a practical
+reason rather than a physical one.** The local sun is on the order of
 10¹⁰ times brighter than a naked-eye star; no 8-bit backdrop holds both. So the
 split is by DISTANCE, not by kind: the distant galaxy is the shader backdrop,
 while the local star and planets are real objects drawn in front of it. Glare
