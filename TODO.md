@@ -777,6 +777,63 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **THE SKY IS A STACK OF EMITTERS OVER BLACK.** Tonio, arriving at it while
+debugging the starfield, and it is the best one-line statement of this whole
+area:
+
+> *"every sort of the skybox is additive. In the back is black (or interstellar
+> background radiation), stars are additive dots. The atmosphere is additive
+> light scattering. The only thing that might be opaque would be clouds and
+> they are foreground."*
+
+Everything derived over the last several passes is a consequence of that, which
+is why it belongs at the top rather than buried in the ice entry:
+
+- **Nothing in the sky occludes anything else in the sky.** There is no depth
+  relationship to get right between stars, nebulae and air — they sum. Two
+  separate hunts for a sky depth bug (both mine) were looking for something that
+  cannot exist.
+- **Day, night and vacuum are one term, not three modes.** Scattering rises and
+  the sky whitens; it goes to zero and the stars are simply what is left.
+- **Clouds being a separate element is CORRECT, not an accident.** They are the
+  one opaque thing, so they are foreground — which is exactly what `b3d-clouds`
+  already is, something you fly into rather than something the sky paints.
+- **The base is black, or the CMB if we ever care.** A fun place to put a real
+  number in eventually; nothing depends on it.
+
+The counterweight, learned the hard way (see the starfield commit): **additive
+is the right model and it is not sufficient on its own**, because we simulate a
+dynamic range the framebuffer has no headroom for. Reality washes stars out at
+noon through EXPOSURE, not by adding to them, and a buffer that clips at 1.0
+has to be told. "The moon is the color of coal" — albedo ~0.12, and brilliant
+white at night — is the sharpest way to remember that what is on screen is a
+tone-mapped fiction, and that the tone-mapping is ours to apply.
+
+[ ] **An interactive starfield BAKERY.** Tonio: *"we could also build an
+interactive starfield skybox bakery which could save out starfield and allow you
+to pick a seed and a star count and tweak star size and nebula brightness and so
+on."*
+
+This is the missing half of the "ship a nice starfield on the CDN" idea — the
+bakery is how the shipped one gets MADE, and without it somebody is hand-tuning
+constants in a source file and reloading. `weapon-fit` is the precedent and it
+earned its keep immediately for exactly this reason (Tonio, of that one:
+"fantastic work on this tool"); the same shape applies — live controls, a
+preview you are looking at, and an export.
+
+Controls: seed, count, point size, brightness curve, spectral spread, nebula
+density/brightness, and the Milky Way band once the real galaxy projection
+exists. Export in two forms, because they serve different consumers:
+
+- **A snippet** (`b3dSkybox({starfield: 4000, starfieldSeed: 812, …})`) for
+  anyone who wants it procedural and free.
+- **A baked cube** for the CDN, which is the zero-cost path for everyone who
+  just wants a nice night sky.
+
+Worth noting it is also the natural place to SEE the exposure model — put a
+time-of-day slider on it and the backdrop fading out is the thing you are
+testing, not a side effect.
+
 [ ] **The ascent demo: a rocket through every medium.** Tonio: *"a simple demo
 of a rocket with a camera pointed at it horizontally. It starts on the ground
 and launches and it ascends through the cloud layer and then the sky fades into
