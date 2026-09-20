@@ -238,9 +238,22 @@ export function cloudOpacity(density: number, coverage: number): number {
   const c = coverage < 0 ? 0 : coverage > 1 ? 1 : coverage
   if (c <= 0) return 0
   if (c >= 1) return 1
-  // Threshold falls as coverage rises: more of the field qualifies as cloud.
-  const threshold = 1 - c
-  const softness = 0.18 * (1 - c) + 0.02
+  /*
+  THE THRESHOLD IS SHAPED, not a straight `1 - c`.
+
+  A linear threshold assumes the density is spread evenly through [0,1] and it
+  is not: even after percentile normalisation the field piles up around its
+  middle, so `c = 0.5` put the line at 0.5 — above the median — and half
+  coverage rendered as thin scattered wisps with almost no solid core. You could
+  see it from the ground and you could measure it flying through: the whiteout
+  had nothing to fire on at the default weather.
+
+  The exponent leans the line below the median at mid-dial, so half coverage
+  means about half the sky has cloud in it and a quarter of it is solid. That is
+  what "half covered" looks like out of a window.
+  */
+  const threshold = Math.pow(1 - c, 1.25)
+  const softness = 0.14 * (1 - c) + 0.02
   const t = (density - threshold + softness) / (softness * 2)
   return t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t)
 }

@@ -830,12 +830,12 @@
       },
       {
         "name": "size",
-        "default": "4000",
-        "description": "World extent of the deck"
+        "default": "14000",
+        "description": "World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free"
       },
       {
         "name": "subdivisions",
-        "default": "48",
+        "default": "64",
         "description": "Grid resolution — see \"A grid, not a quad\""
       },
       {
@@ -849,9 +849,29 @@
         "description": "Rounded heaps `0` → long wispy streaks `1`. Rebakes the field"
       },
       {
-        "name": "cirrusHeadingDeg",
+        "name": "wind",
+        "default": "8",
+        "description": "Metres per second the deck drifts. Nothing rebakes"
+      },
+      {
+        "name": "windHeadingDeg",
         "default": "0",
-        "description": "Which way the streaks run"
+        "description": "Which way it drifts — and the direction cirrus streaks run"
+      },
+      {
+        "name": "evolve",
+        "default": "0.5",
+        "description": "How fast shapes change, `0` rigid → `1` restless"
+      },
+      {
+        "name": "shadows",
+        "default": "'on'",
+        "description": "Cloud shadows on the ground"
+      },
+      {
+        "name": "shadowStrength",
+        "default": "0.45",
+        "description": "How dark a fully-clouded patch makes the ground"
       },
       {
         "name": "transmission",
@@ -889,9 +909,14 @@
         "description": "Texels per edge of the baked density field. More texels = finer cloud, 1 byte each"
       },
       {
-        "name": "tiles",
-        "default": "6",
-        "description": "How many times the field repeats across `size`"
+        "name": "period",
+        "default": "700",
+        "description": "Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck"
+      },
+      {
+        "name": "edgeFade",
+        "default": "0.45",
+        "description": "Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage"
       },
       {
         "name": "color",

@@ -153,10 +153,12 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
       ubo: [
         { name: 'cloudShadowWindow', size: 4, type: 'vec4' },
         { name: 'cloudShadowSun', size: 4, type: 'vec4' },
+        { name: 'cloudShadowTile', size: 4, type: 'vec4' },
       ],
       fragment: `#ifdef CLOUDSHADOW
         uniform vec4 cloudShadowWindow;
         uniform vec4 cloudShadowSun;
+        uniform vec4 cloudShadowTile;
       #endif`,
     }
   }
@@ -190,7 +192,25 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
       map.sunZ,
       map.groundY
     )
-    uniformBuffer.setTexture('cloudShadowSampler', map.texture)
+    /*
+    TWO SOURCES, ONE RECEIVER. A blob field is PAINTED into a window that
+    follows the camera; a deck's field TILES and has no window at all. They are
+    the same question at the receiver — "how much light reaches this fragment"
+    — so they share the plugin rather than growing a second one, and `.w`
+    says which geometry to use.
+    */
+    const tiled = map.fieldTexture != null
+    uniformBuffer.updateFloat4(
+      'cloudShadowTile',
+      map.invPeriod,
+      map.offsetX,
+      map.offsetZ,
+      tiled ? 1 : 0
+    )
+    uniformBuffer.setTexture(
+      'cloudShadowSampler',
+      tiled ? map.fieldTexture! : map.texture
+    )
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -207,8 +227,13 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
           ? (cloudShadowSun.w - vPositionW.y) / cloudShadowSun.y
           : 0.0;
         vec2 csGround = vPositionW.xz + cloudShadowSun.xz * csT;
-        vec2 csUv = (csGround - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
-        if (csUv.x > 0.0 && csUv.x < 1.0 && csUv.y > 0.0 && csUv.y < 1.0) {
+        // TILED: the field repeats, so there is no window and nothing to leave.
+        // WINDOWED: a painted texture, clamped, and outside it there is no data.
+        bool csTiled = cloudShadowTile.w > 0.5;
+        vec2 csUv = csTiled
+          ? (csGround + cloudShadowTile.yz) * cloudShadowTile.x
+          : (csGround - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
+        if (csTiled || (csUv.x > 0.0 && csUv.x < 1.0 && csUv.y > 0.0 && csUv.y < 1.0)) {
           float csShadow = texture2D(cloudShadowSampler, csUv).r;
           #ifdef FOG
             // We inject at MAIN_END, AFTER fog — so a naive multiply darkens the already-fogged
@@ -253,6 +278,25 @@ export class CloudShadowMap {
   /** Top of the cloud layer (world Y). Receivers above this get no shadow (nothing casts from
    * higher). Defaults huge so an unset map shadows everything; clouds set it to the real top. */
   layerTop = 1e9
+  /**
+   * A TILING density source, as an alternative to painting blobs.
+   *
+   * A deck has no blobs to stamp and no window to follow — its field repeats
+   * forever — so when this is set the receiver samples it by world XZ scaled by
+   * {@link invPeriod} and the window is ignored entirely. Set it and the map is
+   * in tiled mode; leave it null and {@link paint} works as before.
+   *
+   * It must carry OPACITY, not density: white is lit, dark is shadowed. Putting
+   * the threshold on whoever bakes this texture is deliberate — it keeps the
+   * `coverage` curve from acquiring a third implementation, which is the bug
+   * class this whole module exists to avoid.
+   */
+  fieldTexture: BABYLON.BaseTexture | null = null
+  /** Tiled mode: 1 / metres per repeat. */
+  invPeriod = 1 / 700
+  /** Tiled mode: world-XZ offset, so a drifting deck drags its shadows along. */
+  offsetX = 0
+  offsetZ = 0
 
   private _plugins: CloudShadowPlugin[] = []
   /** How many blobs the last {@link paint} stamped — a debug readout. */
@@ -286,8 +330,17 @@ export class CloudShadowMap {
     ) as CloudShadowPlugin | null
     if (plugin == null) {
       plugin = new CloudShadowPlugin(material)
-      this._plugins.push(plugin)
     }
+    /*
+    TRACK WHAT WE ENABLED, not what we CONSTRUCTED. The plugin is in Babylon's
+    registry (it has to be, or `Material.clone()` dereferences an undefined
+    factory), which means every material in the scene already has an instance
+    before anyone asks for one — so the branch above almost never runs and a
+    count of it read zero while the hook was binding fifty-eight times a frame.
+    A debug readout that says "0 receivers" about a working system is worse than
+    no readout at all.
+    */
+    if (!this._plugins.includes(plugin)) this._plugins.push(plugin)
     plugin.map = this
     plugin.isEnabled = true
   }

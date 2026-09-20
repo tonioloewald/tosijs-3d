@@ -19,7 +19,16 @@ import { b3d, b3dSun, b3dSkybox, b3dGround, b3dCloudDeck, slider3d, label3d } fr
 import { tosi } from 'tosijs'
 
 const { sky } = tosi({
-  sky: { coverage: 0.5, cirrus: 0, transmission: 0.5, altitude: 140, timeOfDay: 10 },
+  sky: {
+    coverage: 0.5,
+    cirrus: 0,
+    transmission: 0.5,
+    altitude: 140,
+    eye: 60,
+    wind: 8,
+    evolve: 0.5,
+    timeOfDay: 10,
+  },
 })
 
 preview.append(
@@ -29,9 +38,7 @@ preview.append(
       sceneCreated(el, BABYLON) {
         // OUR OWN CAMERA, because `sceneCreated` runs BEFORE the default one is
         // built -- that is what the hook is for. The default frames the origin
-        // at radius 8, and for a 4 km deck at 140 m you would never see it at
-        // all, let alone from below. This sits the eye at about 60 m: under the
-        // deck, above the ground, looking up at the undersides.
+        // at radius 8, and a 14 km deck would never appear in it at all.
         const cam = new BABYLON.ArcRotateCamera(
           'deck-camera',
           -1.0,
@@ -40,7 +47,7 @@ preview.append(
           new BABYLON.Vector3(0, 140, 0),
           el.scene
         )
-        cam.maxZ = 12000
+        cam.maxZ = 40000
         cam.lowerBetaLimit = 0.05
         cam.upperBetaLimit = 1.9
         cam.lowerRadiusLimit = 80
@@ -48,6 +55,16 @@ preview.append(
         cam.wheelPrecision = 0.2
         cam.attachControl(el.parts.canvas, true)
         el.scene.activeCamera = cam
+        // FLY AT A HEIGHT, look around. An orbit camera's EYE height is
+        // target.y + radius*cos(beta), which on this rig swings from -400 to
+        // +600 as you orbit -- so the altitude slider often could not reach
+        // you, and the pass-through whiteout looked broken when it was only
+        // unreachable. Pinning the eye and letting orbit change the look
+        // direction makes "move the deck through your eyeline" a thing you can
+        // actually do.
+        el.scene.registerBeforeRender(() => {
+          cam.target.y = sky.eye.valueOf() - cam.radius * Math.cos(cam.beta)
+        })
       },
       scenePanel: () => [
         label3d({ text: 'Weather' }),
@@ -55,17 +72,22 @@ preview.append(
         slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'transmission', value: sky.transmission, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'altitude', value: sky.altitude, min: 20, max: 600, step: 10 }),
+        slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 600, step: 5 }),
+        slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
+        slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
       ],
     },
     b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0 }),
     b3dSun({ x: -0.4, y: -1, z: -0.3 }),
-    b3dGround({ size: 3000, color: '#3f4a3c' }),
+    b3dGround({ size: 12000, color: '#4a5a44', receiveShadows: true }),
     b3dCloudDeck({
       coverage: sky.coverage,
       cirrus: sky.cirrus,
       transmission: sky.transmission,
       altitude: sky.altitude,
+      wind: sky.wind,
+      evolve: sky.evolve,
     })
   )
 )
@@ -76,24 +98,31 @@ preview.append(
 
 > Drag `coverage` from 0 to 1 — clear to overcast is one dial on a threshold,
 > not a count of spawned objects, so it has no pool to exhaust at the top.
-> `cirrus` takes the same sky from heaped cumulus to long wispy streaks, and
+> `wind` slides the whole sky and `evolve` reshapes it as it goes — both free,
+> neither rebakes anything. `cirrus` takes the same sky from heaped cumulus to
+> long wispy streaks, and
 > `transmission` decides how much daylight comes through from above: at 0 the
 > underside is storm-dark, at 1 it glows.
 >
-> **Drag `altitude` down past 60.** The deck sweeps through the camera and you
-> get the whiteout — the same fog layer a plane flying through it would see,
-> and the reason a pass-through needs no special case.
+> **Bring `altitude` and `eye height` together.** The deck sweeps through you
+> and you get the whiteout — the same fog layer a plane flying through it would
+> see, and the reason a pass-through needs no special case. `eye height` pins
+> where your eye is; orbiting then changes only which way you look.
 
 ## Attributes
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `altitude` | `140` | Height of the deck. Moving it is ONE number |
-| `size` | `4000` | World extent of the deck |
-| `subdivisions` | `48` | Grid resolution — see "A grid, not a quad" |
+| `size` | `14000` | World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free |
+| `subdivisions` | `64` | Grid resolution — see "A grid, not a quad" |
 | `coverage` | `0.5` | Clear `0` → overcast `1`. LIVE, and shared with the shadow |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks `1`. Rebakes the field |
-| `cirrusHeadingDeg` | `0` | Which way the streaks run |
+| `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
+| `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
+| `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
+| `shadows` | `'on'` | Cloud shadows on the ground |
+| `shadowStrength` | `0.45` | How dark a fully-clouded patch makes the ground |
 | `transmission` | `-1` | How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage` |
 | `thickness` | `140` | Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud |
 | `haze` | `0.6` | How much the air under the deck takes the cloud's colour. Hides the rim |
@@ -101,7 +130,8 @@ preview.append(
 | `frequency` | `3` | Field repeats across its own width. Higher = smaller puffs |
 | `octaves` | `6` | Detail octaves. Billow needs more than fBm — folding eats fine structure |
 | `fieldSize` | `512` | Texels per edge of the baked density field. More texels = finer cloud, 1 byte each |
-| `tiles` | `6` | How many times the field repeats across `size` |
+| `period` | `700` | Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck |
+| `edgeFade` | `0.45` | Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage |
 | `color` | `'#ffffff'` | Lit top colour |
 | `underColor` | `'#3a4350'` | Shadowed underside |
 | `fringe` | `0.9` | Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1 |
@@ -142,14 +172,13 @@ quad cannot do at all.
 Honest state, so nobody mistakes "it renders" for "it is finished". Three things
 are visibly off and all three are art direction rather than architecture:
 
-1. **The repeat is visible.** `tiles: 6` across `size: 4000` puts a 667 m period
-   in plain sight. Fewer, larger tiles, or a second field at another scale to
-   break the rhythm.
-2. **`coverage` still wants its own curve.** Percentile normalisation fixed the
-   worst of it — the threshold now sits at the same place in the distribution
-   whatever kind of cloud this is, so the dial behaves the same for cumulus and
-   cirrus and across seeds. What is left is taste: the *feel* of the travel from
-   clear to overcast, which is a curve on the dial, not a rebuild.
+1. **The repeat is visible.** `period: 700` puts a 700 m rhythm in plain sight
+   once you look for it. A second field at another scale would break it.
+2. **`coverage` has its curve now.** Percentile normalisation put the threshold
+   at the same place in the distribution whatever kind of cloud this is, and the
+   threshold itself is shaped rather than linear — so half coverage really is
+   about half the sky, with solid cores you can fly into rather than wisps. What
+   is left is taste, not calibration.
 3. **No REFRACTION, and that is deliberate** — Tonio flagged it and the material
    already satisfies it: this is plain alpha blending with no refraction
    texture, no screen-space sampling and no index-of-refraction term. Cloud
@@ -184,9 +213,10 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.
 /*{ "parent": "environment", "order": 930 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild } from './b3d-utils.js'
+import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { cloudField, cloudOpacity } from './cloud-field.js'
+import { CloudShadowMap } from './cloud-shadows.js'
 
 const DECK_VERT = `
 precision highp float;
@@ -196,9 +226,13 @@ uniform mat4 worldViewProjection;
 uniform mat4 world;
 varying vec3 vWorld;
 varying vec4 vChannel;
+varying vec2 vLocal;
 void main(void) {
   vec4 wp = world * vec4(position, 1.0);
   vWorld = wp.xyz;
+  // OBJECT space, so the fade is anchored to the deck's own rim wherever the
+  // deck happens to be — including after a floating-origin rebase.
+  vLocal = position.xz;
   // RESERVED: per-vertex weather. Unused today, carried so localized effects
   // are a shader edit rather than a different primitive.
   vChannel = color;
@@ -210,7 +244,13 @@ const DECK_FRAG = `
 precision highp float;
 varying vec3 vWorld;
 varying vec4 vChannel;
+varying vec2 vLocal;
 uniform sampler2D cloudField;
+uniform float halfSize;
+uniform float edgeFade;
+// xy = drift of the main layer, zw = drift of the second one.
+uniform vec4 drift;
+uniform float evolve;
 uniform float coverage;
 uniform float invTile;
 uniform vec2 windAxis;
@@ -235,9 +275,36 @@ the texture wraps, so a rotated read has no seam — the repeat lattice simply
 sits at an angle to the world. Turning the wind therefore costs nothing and
 rebakes nothing.
 */
+vec2 toField(vec2 p) {
+  return vec2(p.x * windAxis.x - p.y * windAxis.y, p.x * windAxis.y + p.y * windAxis.x);
+}
+
+/*
+WEATHER MOVES, AND IT CHANGES SHAPE, and those are two different things.
+
+DRIFT is free: offset the sample and the whole sky slides. On its own it is
+also obviously a texture on a conveyor belt — the shapes are rigid, and a cloud
+that never changes while crossing the sky reads as wallpaper.
+
+EVOLUTION is the second layer, sampled at a different scale and sliding at a
+different speed, MULTIPLIED in. Where the two agree there is cloud; where either
+thins, the cloud thins. As they slide past each other that intersection is
+continuously reshaped — clouds build, stretch and dissolve — and none of it is
+animation: it is one static field read twice.
+
+Multiply, not cross-fade. A cross-fade between two phases PULSES, because the
+whole sky dims at the halfway point; a product has no halfway point to dim at.
+The square root pulls the distribution back up, since multiplying two fields in
+[0,1] would otherwise halve everything and make coverage lie.
+*/
 float density(vec2 p) {
-  vec2 q = vec2(p.x * windAxis.x - p.y * windAxis.y, p.x * windAxis.y + p.y * windAxis.x);
-  return texture2D(cloudField, q * invTile).r;
+  float a = texture2D(cloudField, toField(p + drift.xy) * invTile).r;
+  if (evolve <= 0.0) return a;
+  // 0.83 and the extra rotation keep the second layer from ever agreeing with
+  // the first at a fixed offset, which would just look like one sharper field.
+  vec2 q = toField(p + drift.zw) * invTile * 1.2;
+  float b = texture2D(cloudField, q + vec2(0.37, 0.11)).r;
+  return mix(a, sqrt(max(a * b, 0.0)) * 1.15, evolve);
 }
 
 /*
@@ -251,8 +318,8 @@ languages is where "why is the shadow off the cloud" bugs live.
 float opacityAt(float d) {
   if (coverage <= 0.0) return 0.0;
   if (coverage >= 1.0) return 1.0;
-  float threshold = 1.0 - coverage;
-  float softness = 0.18 * (1.0 - coverage) + 0.02;
+  float threshold = pow(1.0 - coverage, 1.25);
+  float softness = 0.14 * (1.0 - coverage) + 0.02;
   float t = clamp((d - threshold + softness) / (softness * 2.0), 0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
@@ -285,7 +352,24 @@ float fogAmount(vec3 world) {
 void main(void) {
   vec2 p = vWorld.xz;
   float d = density(p);
-  float a = opacityAt(d) * vChannel.a;
+  /*
+  THE RIM FADES OUT, and it is not the fog's job.
+
+  Hiding the edge with haze worked only when the haze was thick, which tied it
+  to coverage — so a fair-weather sky showed the deck terminating in mid-air.
+  Tonio: "the cloud looks like a pavillion roof." An edge is a GEOMETRIC fact
+  and has to be hidden geometrically, at every weather.
+
+  Radial, so the deck is effectively a DISC however the grid is built: a square
+  rim is closer at the sides than at the corners, so any fade that follows the
+  grid ends at a different distance depending on where you look. A circular one
+  ends at the same distance everywhere, which is the only way it can pass for a
+  horizon.
+  */
+  float r = length(vLocal) / halfSize;
+  float rim = 1.0 - smoothstep(edgeFade, 1.0, r);
+
+  float a = opacityAt(d) * vChannel.a * rim;
   if (a <= 0.004) discard;
 
   /*
@@ -360,15 +444,30 @@ void main(void) {
 export class B3dCloudDeck extends B3dChild {
   static initAttributes = {
     altitude: 140,
-    size: 4000,
-    subdivisions: 48,
+    /**
+     * World extent of the deck. BIG — it has to reach the horizon, and a flat
+     * grid is nearly free. See "The rim fades out".
+     */
+    size: 14000,
+    subdivisions: 64,
     coverage: 0.5,
     seed: 1337,
     frequency: 3,
     /** Rounded heaps `0` → long wispy streaks `1`. Rebakes the field. */
     cirrus: 0,
-    /** Which way the cirrus streaks run. */
-    cirrusHeadingDeg: 0,
+    /** Metres per second the deck drifts. The whole sky slides; nothing rebakes. */
+    wind: 8,
+    /** Which way it drifts. Also the direction cirrus streaks run. */
+    windHeadingDeg: 0,
+    /**
+     * How fast cloud shapes change, `0` rigid → `1` restless. A second sample
+     * of the same field sliding at a different rate — see the shader note.
+     */
+    evolve: 0.5,
+    /** Cloud shadows on the ground: `'on'` or `'off'`. */
+    shadows: 'on',
+    /** How dark a fully-clouded patch makes the ground, `0…1`. */
+    shadowStrength: 0.45,
     /**
      * How much daylight comes THROUGH from above: `0` storm-dark underside,
      * `1` glowing. `-1` derives it from `coverage`, which is the honest default
@@ -392,7 +491,13 @@ export class B3dCloudDeck extends B3dChild {
     /** Octaves of detail in the baked field. Billow needs more than fBm. */
     octaves: 6,
     fieldSize: 512,
-    tiles: 6,
+    /** Metres per repeat of the field. The size of the CLOUDS, not of the deck. */
+    period: 700,
+    /**
+     * Where the radial fade begins, as a fraction of the half-size. Below this
+     * the deck is solid; beyond it, it thins to nothing before the rim.
+     */
+    edgeFade: 0.45,
     color: '#ffffff',
     underColor: '#3a4350',
     /** Brightness of the lit edges seen from below — ADDED, so it can exceed 1. */
@@ -410,13 +515,18 @@ export class B3dCloudDeck extends B3dChild {
   declare seed: number
   declare frequency: number
   declare cirrus: number
-  declare cirrusHeadingDeg: number
+  declare wind: number
+  declare windHeadingDeg: number
+  declare evolve: number
+  declare shadows: string
+  declare shadowStrength: number
   declare transmission: number
   declare thickness: number
   declare haze: number
   declare octaves: number
   declare fieldSize: number
-  declare tiles: number
+  declare period: number
+  declare edgeFade: number
   declare color: string
   declare underColor: string
   declare fringe: number
@@ -436,6 +546,40 @@ export class B3dCloudDeck extends B3dChild {
   private _field: Float32Array | null = null
   private _fieldSize = 0
   private _bakeKey = ''
+  private _elapsed = 0
+  private _driftX = 0
+  private _driftZ = 0
+  private _driftX2 = 0
+  private _driftZ2 = 0
+  /** The shadow half — see `_syncShadows`. Null when `shadows` is off. */
+  private _shadowMap: CloudShadowMap | null = null
+  private _shadowTex: BABYLON.RawTexture | null = null
+  private _shadowBytes: Uint8Array | null = null
+  private _shadowRes = 0
+  private _shadowCoverage = -1
+  private _onAddition = (a: { meshes?: BABYLON.AbstractMesh[] }): void => {
+    for (const m of a.meshes ?? []) this._maybeReceive(m)
+  }
+
+  /**
+   * Attach the shadow hook, if this mesh can actually wear one.
+   *
+   * The filter is not tidiness. `MaterialPluginBase` attaches happily to ANY
+   * material and then silently does nothing on the ones that never route plugin
+   * events — every `@babylonjs/materials` material, and our own ShaderMaterials
+   * (see UPSTREAM.md). So attaching to the sky, or to this very deck, costs a
+   * live plugin instance that can never fire and, worse, reads as "wired up"
+   * to anyone checking.
+   */
+  private _maybeReceive(m: BABYLON.AbstractMesh): void {
+    const map = this._shadowMap
+    const mat = m.material
+    if (map == null || mat == null || !m.receiveShadows) return
+    if (m === this.mesh) return
+    const kind = mat.getClassName()
+    if (kind !== 'StandardMaterial' && !kind.includes('PBR')) return
+    map.attachTo(mat)
+  }
   private _immersion = 0
   private _removeFogLayer: (() => void) | null = null
 
@@ -480,6 +624,10 @@ export class B3dCloudDeck extends B3dChild {
           'coverage',
           'invTile',
           'windAxis',
+          'halfSize',
+          'edgeFade',
+          'drift',
+          'evolve',
           'topColor',
           'underColor',
           'sunDir',
@@ -519,9 +667,16 @@ export class B3dCloudDeck extends B3dChild {
       return st.weight <= 0 ? null : st
     })
 
-    this._obs = scene.onBeforeRenderObservable.add(() => this._sync())
+    this._obs = scene.onBeforeRenderObservable.add(() => {
+      // sceneDelta, never engine.getDeltaTime: a scene observer can run more
+      // than once per frame and the engine's delta is the WHOLE frame each time.
+      this._elapsed += sceneDelta(scene)
+      this._sync()
+    })
     this._sync()
     owner.register({ meshes: [mesh] })
+
+    if (!isOff(attrs.shadows)) this._setupShadows(owner, scene)
   }
 
   /** Push the live dials at the shader. Cheap enough to do every frame. */
@@ -535,10 +690,34 @@ export class B3dCloudDeck extends B3dChild {
     }
     this.mesh.position.y = attrs.altitude
     mat.setFloat('coverage', attrs.coverage)
-    // World XZ → field UV. `tiles` repeats of the field across the deck.
-    mat.setFloat('invTile', (attrs.tiles || 1) / (attrs.size || 1))
-    const h = (attrs.cirrusHeadingDeg * Math.PI) / 180
+    // ONE FIELD REPEAT PER `period` METRES — the cloud's scale is a property of
+    // the weather, not of how big the sheet happens to be, so pushing the deck
+    // further out no longer changes the size of the puffs.
+    mat.setFloat('invTile', 1 / (attrs.period || 1))
+    mat.setFloat('halfSize', (attrs.size || 1) * 0.5)
+    mat.setFloat('edgeFade', Math.min(0.99, Math.max(0, attrs.edgeFade)))
+    const h = (attrs.windHeadingDeg * Math.PI) / 180
     mat.setVector2('windAxis', new BABYLON.Vector2(Math.cos(h), Math.sin(h)))
+    /*
+    DRIFT IS A WORLD OFFSET, not a moving mesh. Moving the deck itself would
+    drag its rim fade along with it and eventually slide the sheet off the
+    world; offsetting the SAMPLE leaves the geometry exactly where it is and
+    the sky slides forever. The whiteout and the shadows read the same offset,
+    so all three stay on the same weather.
+    */
+    const t = this._elapsed
+    const dx = -Math.cos(h) * attrs.wind * t
+    const dz = -Math.sin(h) * attrs.wind * t
+    mat.setVector4(
+      'drift',
+      new BABYLON.Vector4(dx, dz, dx * 1.9, dz * 1.9 + t * attrs.wind * 0.35)
+    )
+    mat.setFloat('evolve', Math.min(1, Math.max(0, attrs.evolve)))
+    this._driftX = dx
+    this._driftZ = dz
+    this._driftX2 = dx * 1.9
+    this._driftZ2 = dz * 1.9 + t * attrs.wind * 0.35
+    this._syncShadows()
     mat.setColor3('topColor', BABYLON.Color3.FromHexString(attrs.color))
     mat.setColor3('underColor', BABYLON.Color3.FromHexString(attrs.underColor))
     mat.setFloat('fringe', attrs.fringe)
@@ -654,20 +833,42 @@ export class B3dCloudDeck extends B3dChild {
     return Math.min(1, 0.15 + 0.75 * (1 - cov) + wisp)
   }
 
-  /** Density at a world XZ, sampled from the same array the shader reads. */
+  /**
+   * Density at a world XZ, sampled from the same array the shader reads.
+   *
+   * ⚠️ **It must apply the same transforms the shader does** — the wind
+   * rotation, the drift, the tiling period, and the second evolution layer.
+   * "Same array" is not the same as "same place", and this read had none of
+   * them: it was sampling the sky as it would have looked with no wind, at the
+   * origin of time. The deck drew cloud overhead while the whiteout looked up
+   * at a gap somewhere else entirely.
+   */
   private _densityAt(x: number, z: number): number {
     const f = this._field
     const n = this._fieldSize
     if (f == null || n === 0) return 0
-    const invTile = (this.tiles || 1) / (this.size || 1)
+    const attrs = this as any
+    const invTile = 1 / (attrs.period || 1)
+    const cos = Math.cos((attrs.windHeadingDeg * Math.PI) / 180)
+    const sin = Math.sin((attrs.windHeadingDeg * Math.PI) / 180)
     const wrap = (v: number) => {
       const m = v % n
       return m < 0 ? m + n : m
     }
     // Nearest texel is enough: this feeds a smoothed fog weight, not a pixel.
-    const ix = Math.floor(wrap(x * invTile * n))
-    const iz = Math.floor(wrap(z * invTile * n))
-    return f[iz * n + ix]
+    const tap = (px: number, pz: number, scale: number, ou: number, ov: number) => {
+      const qx = px * cos - pz * sin
+      const qz = px * sin + pz * cos
+      const ix = Math.floor(wrap((qx * invTile * scale + ou) * n))
+      const iz = Math.floor(wrap((qz * invTile * scale + ov) * n))
+      return f[iz * n + ix]
+    }
+    const a = tap(x + this._driftX, z + this._driftZ, 1, 0, 0)
+    const evolve = Math.min(1, Math.max(0, attrs.evolve))
+    if (evolve <= 0) return a
+    const b = tap(x + this._driftX2, z + this._driftZ2, 1.2, 0.37, 0.11)
+    const mixed = Math.sqrt(Math.max(a * b, 0)) * 1.15
+    return a + (mixed - a) * evolve
   }
 
   /**
@@ -709,7 +910,50 @@ export class B3dCloudDeck extends B3dChild {
     const CORE = 0.45
     const t = Math.min(1, Math.max(0, (1 - d) / (1 - CORE)))
     if (t <= 0) return 0
-    const opacity = cloudOpacity(this._densityAt(p.x, p.z), this.coverage)
+    /*
+    SAMPLE A NEIGHBOURHOOD, not a point.
+
+    A camera is a point and a cloud is not. Reading one texel means sitting in
+    one small gap gives no whiteout at all while you are plainly inside a bank —
+    which is the difference between a whiteout that works and one that works
+    most of the time, and "most of the time" is indistinguishable from broken
+    when you are the one flying through it.
+
+    Five taps over about a hundred metres, averaged. Broken cloud still flickers
+    between white and clear, which is what it should do; a single gap no longer
+    switches the whole effect off.
+    */
+    /*
+    TIGHT. A field texel is `period / fieldSize` — about 1.4 m at the defaults —
+    but the FEATURES are 50-150 m, so a 70 m radius spans a whole puff and into
+    the next gap. Averaging over that returns the same middling number
+    everywhere and the sky stops having weather in it: no clear air, no
+    whiteout, just permanent haze. This is a camera's immediate surroundings,
+    not a forecast for the region.
+    */
+    const R = 25
+    const cov = this.coverage
+    /*
+    THRESHOLD EACH TAP, THEN AVERAGE — not the other way round.
+
+    Averaging the densities first and thresholding once is the obvious order and
+    it is wrong, because the threshold is STEEP: a neighbourhood that is
+    three-fifths solid cloud can average to a density that falls below the
+    coverage line entirely, and the whiteout switches off while you are inside
+    the bank. Thresholding first asks the question that actually matters — how
+    much of what is around me is cloud — and answers it three-fifths.
+
+    This is the difference between a whiteout that fires when you fly through a
+    deck and one that fires only when you happen to cross a thick part of it.
+    */
+    const at = (x: number, z: number) => cloudOpacity(this._densityAt(x, z), cov)
+    const opacity =
+      (at(p.x, p.z) * 2 +
+        at(p.x + R, p.z) +
+        at(p.x - R, p.z) +
+        at(p.x, p.z + R) +
+        at(p.x, p.z - R)) /
+      6
     // Smoothstep so entry has no crease; opacity already ramps smoothly.
     return t * t * (3 - 2 * t) * opacity
   }
@@ -880,6 +1124,104 @@ export class B3dCloudDeck extends B3dChild {
     }
   }
 
+  /**
+   * Cloud shadows on the ground, from the SAME field the deck is drawn from.
+   *
+   * This is the third reader, and the one that makes the shade underfoot
+   * actually belong to the cloud overhead rather than merely resemble it. The
+   * receiving half already existed for [b3d-clouds](?b3d-clouds.ts) — a
+   * material plugin sampling by world XZ, conforming to terrain, projecting
+   * each fragment down the sun — and it was fed by painting blob positions into
+   * a window. A deck has no blobs and no window: its field tiles, so the map
+   * runs in tiled mode and samples this texture forever in every direction.
+   *
+   * The texture carries OPACITY, thresholded on the CPU through the shared
+   * `cloudOpacity`. That is the whole reason it is baked here rather than
+   * thresholded in the receiver's shader: the `coverage` curve already lives in
+   * two places (this element's shader and cloud-field.ts) and a third would be
+   * one too many — "why is the shadow off the cloud" is exactly the bug that
+   * lives in those gaps.
+   */
+  private _setupShadows(owner: B3d, scene: BABYLON.Scene): void {
+    const map = new CloudShadowMap(scene, 1)
+    this._shadowMap = map
+    this._shadowRes = Math.min(256, this._fieldSize)
+    this._shadowBytes = new Uint8Array(this._shadowRes * this._shadowRes)
+    const tex = new BABYLON.RawTexture(
+      this._shadowBytes,
+      this._shadowRes,
+      this._shadowRes,
+      BABYLON.Constants.TEXTUREFORMAT_R,
+      scene,
+      false,
+      false,
+      BABYLON.Texture.BILINEAR_SAMPLINGMODE
+    )
+    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
+    tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+    this._shadowTex = tex
+    map.fieldTexture = tex
+    for (const m of scene.meshes) this._maybeReceive(m)
+    owner.addSceneListener(this._onAddition)
+  }
+
+  /** Push the live dials at the shadow map, re-baking its texture when needed. */
+  private _syncShadows(): void {
+    const map = this._shadowMap
+    const bytes = this._shadowBytes
+    if (map == null || bytes == null || this._field == null) return
+    const attrs = this as any
+
+    map.invPeriod = 1 / (attrs.period || 1)
+    /*
+    THE OFFSET IS THE DRIFT, so the shadows travel with the sky rather than
+    sitting still under a moving cloud. It is also why drift had to be a sample
+    offset rather than a moving mesh — there is one number to share, and both
+    readers take it.
+    */
+    map.offsetX = this._driftX
+    map.offsetZ = this._driftZ
+    /*
+    `groundY` is the CLOUD's altitude, not the ground's. The receiver projects
+    each fragment along the sun to this plane and looks up what is there — so
+    the plane has to be where the occluder is, and the shadow lands displaced
+    by the sun's slant exactly as it should. Setting it to the actual ground
+    would sample the cloud directly overhead and give every shadow a noon sun.
+    */
+    const sun = this.owner?.scene?.lights?.find(
+      (l) => (l as BABYLON.DirectionalLight).direction != null
+    ) as BABYLON.DirectionalLight | undefined
+    const dir = sun?.direction ?? new BABYLON.Vector3(-0.4, -1, -0.3)
+    map.setSun({ x: dir.x, y: dir.y, z: dir.z }, attrs.altitude)
+    // Nothing above the deck can be shadowed by it.
+    map.layerTop = attrs.altitude + attrs.thickness * 0.5
+
+    /*
+    RE-BAKE ONLY WHEN THE WEATHER MOVES. The shadow texture is a function of the
+    field and `coverage`, and drift is handled by the offset above — so an
+    ordinary frame with the sky sliding past re-bakes nothing at all.
+    */
+    const key = attrs.coverage * 1000 + (attrs.shadowStrength || 0)
+    if (Math.abs(key - this._shadowCoverage) < 0.5) return
+    this._shadowCoverage = key
+
+    const res = this._shadowRes
+    const n = this._fieldSize
+    const strength = Math.min(1, Math.max(0, attrs.shadowStrength))
+    const field = this._field
+    const step = n / res
+    for (let z = 0; z < res; z++) {
+      const sz = Math.min(n - 1, Math.floor(z * step))
+      for (let x = 0; x < res; x++) {
+        const sx = Math.min(n - 1, Math.floor(x * step))
+        const o = cloudOpacity(field[sz * n + sx], attrs.coverage)
+        // White is lit. The receiver multiplies, so this IS the light left.
+        bytes[z * res + x] = Math.round((1 - o * strength) * 255)
+      }
+    }
+    this._shadowTex?.update(bytes)
+  }
+
   sceneDispose(): void {
     const scene = this.owner?.scene
     if (scene != null && this._obs != null) {
@@ -889,6 +1231,12 @@ export class B3dCloudDeck extends B3dChild {
     this._removeFogLayer?.()
     this._removeFogLayer = null
     this._field = null
+    this.owner?.removeSceneListener(this._onAddition)
+    this._shadowMap?.dispose()
+    this._shadowMap = null
+    this._shadowTex?.dispose()
+    this._shadowTex = null
+    this._shadowBytes = null
     this.fieldTexture?.dispose()
     this.fieldTexture = undefined
     this.mesh?.dispose()

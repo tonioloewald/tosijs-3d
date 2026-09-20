@@ -220,11 +220,15 @@ b3d-car
 b3d-cloud-deck
 
   altitude  = 140  — Height of the deck. Moving it is ONE number
-  size  = 4000  — World extent of the deck
-  subdivisions  = 48  — Grid resolution — see "A grid, not a quad"
+  size  = 14000  — World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free
+  subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
   coverage  = 0.5  — Clear `0` → overcast `1`. LIVE, and shared with the shadow
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
-  cirrusHeadingDeg  = 0  — Which way the streaks run
+  wind  = 8  — Metres per second the deck drifts. Nothing rebakes
+  windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
+  evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
+  shadows  = 'on'  — Cloud shadows on the ground
+  shadowStrength  = 0.45  — How dark a fully-clouded patch makes the ground
   transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
   thickness  = 140  — Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud
   haze  = 0.6  — How much the air under the deck takes the cloud's colour. Hides the rim
@@ -232,7 +236,8 @@ b3d-cloud-deck
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   octaves  = 6  — Detail octaves. Billow needs more than fBm — folding eats fine structure
   fieldSize  = 512  — Texels per edge of the baked density field. More texels = finer cloud, 1 byte each
-  tiles  = 6  — How many times the field repeats across `size`
+  period  = 700  — Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck
+  edgeFade  = 0.45  — Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage
   color  = '#ffffff'  — Lit top colour
   underColor  = '#3a4350'  — Shadowed underside
   fringe  = 0.9  — Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1
