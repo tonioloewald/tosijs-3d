@@ -444,8 +444,23 @@ export class B3dGalaxy extends B3dChild {
     for (const sps of systems) {
       if (sps == null) continue
       if (target == null) {
+        /*
+        ⚠️ CLEAR THE QUATERNIONS. Billboarding does not replace them, it
+        COMPOSES with them.
+
+        Restoring `billboard = true` looked like enough and reported success —
+        the flag really was back — while every particle silently kept the
+        orientation `facePoint` had given it, so the live view came back as
+        vertical smears. Tonio spotted it from the outside: "If you open the
+        baker, screen cap, bake, and screen cap again you can see something
+        weird is happening on restore."
+
+        Which also means the two mechanisms were stacking during any pass where
+        both were live, and that is worth knowing beyond this function.
+        */
         sps.billboard = true
         sps.updateParticle = (p) => p
+        for (const p of sps.particles) p.rotationQuaternion = null
         sps.setParticles()
         continue
       }
@@ -490,7 +505,32 @@ export class B3dGalaxy extends B3dChild {
         if (dir.lengthSquared() < 1e-8) return p
         dir.normalize()
         const ref = Math.abs(dir.y) > 0.98 ? upZ : upY
-        p.rotationQuaternion = BABYLON.Quaternion.FromLookDirectionLH(dir, ref)
+        /*
+        BUILD THE BASIS BY HAND — `FromLookDirectionLH` does not do this.
+
+        I assumed it aligned local +Z with the direction given. MEASURED, for a
+        particle 1.7 units below the bake point, it put the quad's normal 30°
+        off-axis: local +Z mapped to (-0.498, -0.359, 0.746) against a camera
+        direction of (0.498, 0.718, -0.487) — a dot of -0.87, neither +1 nor -1,
+        so not even a sign convention. A quad 30° off is an ELLIPSE, which is
+        what Tonio kept seeing in the middle of the pole faces while I kept
+        explaining it away as projection.
+
+        Three cross products are unambiguous and cost nothing, and the result is
+        verifiable with one dot product — which is how this was finally caught,
+        and should have been the first thing tried.
+        */
+        const fwd = dir
+        const right = BABYLON.Vector3.Cross(ref, fwd).normalize()
+        const realUp = BABYLON.Vector3.Cross(fwd, right)
+        p.rotationQuaternion = BABYLON.Quaternion.FromRotationMatrix(
+          BABYLON.Matrix.FromValues(
+            right.x, right.y, right.z, 0,
+            realUp.x, realUp.y, realUp.z, 0,
+            fwd.x, fwd.y, fwd.z, 0,
+            0, 0, 0, 1
+          )
+        )
         return p
       }
       sps.setParticles()
