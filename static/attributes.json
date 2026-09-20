@@ -820,6 +820,67 @@
     ]
   },
   {
+    "module": "b3d-cloud-deck",
+    "summary": "b3d-cloud-deck",
+    "attributes": [
+      {
+        "name": "altitude",
+        "default": "140",
+        "description": "Height of the deck. Moving it is ONE number"
+      },
+      {
+        "name": "size",
+        "default": "4000",
+        "description": "World extent of the deck"
+      },
+      {
+        "name": "subdivisions",
+        "default": "48",
+        "description": "Grid resolution — see \"A grid, not a quad\""
+      },
+      {
+        "name": "coverage",
+        "default": "0.5",
+        "description": "Clear `0` → overcast `1`. LIVE, and shared with the shadow"
+      },
+      {
+        "name": "seed",
+        "default": "1337",
+        "description": "Same seed, same weather"
+      },
+      {
+        "name": "frequency",
+        "default": "3",
+        "description": "Field repeats across its own width. Higher = smaller puffs"
+      },
+      {
+        "name": "fieldSize",
+        "default": "256",
+        "description": "Texels per edge of the baked density field"
+      },
+      {
+        "name": "tiles",
+        "default": "6",
+        "description": "How many times the field repeats across `size`"
+      },
+      {
+        "name": "color",
+        "default": "'#ffffff'",
+        "description": "Lit top colour"
+      },
+      {
+        "name": "underColor",
+        "default": "'#3a4350'",
+        "description": "Shadowed underside"
+      },
+      {
+        "name": "fringe",
+        "default": "1.2",
+        "description": "Brightness of the lit edges seen from below"
+      }
+    ]
+  },
+  {
     "module": "b3d-clouds",
     "tag": "tosi-b3d-clouds",
     "summary": "b3d-clouds",

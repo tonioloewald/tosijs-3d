@@ -25,4 +25,6 @@
 - [biome-plugin](/biome-plugin/)
 - [patch-field](/patch-field/)
 - [slope-profile](/slope-profile/)
+- [cloud-field](/cloud-field/)
+- [b3d-cloud-deck](/b3d-cloud-deck/)
 <!-- /toc -->

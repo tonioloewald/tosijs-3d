@@ -216,6 +216,21 @@ b3d-car
   turnRate  = 90  — Degrees per second at full speed
   friction  = 3  — Deceleration when coasting
 
+## b3d-cloud-deck
+b3d-cloud-deck
+
+  altitude  = 140  — Height of the deck. Moving it is ONE number
+  size  = 4000  — World extent of the deck
+  subdivisions  = 48  — Grid resolution — see "A grid, not a quad"
+  coverage  = 0.5  — Clear `0` → overcast `1`. LIVE, and shared with the shadow
+  seed  = 1337  — Same seed, same weather
+  frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
+  fieldSize  = 256  — Texels per edge of the baked density field
+  tiles  = 6  — How many times the field repeats across `size`
+  color  = '#ffffff'  — Lit top colour
+  underColor  = '#3a4350'  — Shadowed underside
+  fringe  = 1.2  — Brightness of the lit edges seen from below
+
 ## b3d-clouds — <tosi-b3d-clouds>
 b3d-clouds
 

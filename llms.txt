@@ -56,6 +56,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Procedural black hole with accretion disk, gravitational lensing effect,
 - https://3d.tosijs.net/b3d-car/ — b3d-car
   Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+- https://3d.tosijs.net/b3d-cloud-deck/ — b3d-cloud-deck
+  bright fringes, driven by a field you can dial from clear to overcast and slide
 - https://3d.tosijs.net/b3d-clouds/ — b3d-clouds
   A cloud layer you can **fly into** — and lose the world inside.
 - https://3d.tosijs.net/b3d-collisions/ — b3d-collisions
@@ -158,6 +160,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   mine shafts — everything a heightfield cannot say, because a heightfield has one
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
   All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
+- https://3d.tosijs.net/cloud-field/ — cloud-field
+  shadow on the ground, and a whiteout when you fly through it are three views of
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/color/ — color
