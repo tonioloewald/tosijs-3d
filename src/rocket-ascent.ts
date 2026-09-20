@@ -180,7 +180,7 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
   const apogee = options.apogee ?? 3200
   const accel = options.accel ?? 9
   const hold = options.holdSeconds ?? 2.5
-  const starfield = options.starfield ?? 3000
+  const starfield = options.starfield ?? 0
   /*
   OFF — decided, not defeated.
 
@@ -260,21 +260,14 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       realtimeScale: 0,
       spaceStart,
       spaceFull,
-      // THE BAKED CUBE IS OFF HERE UNTIL IT CAN SHARE ONE MESH WITH THE SKY.
-      //
-      // A separate cube behind the dome cannot work: both are infiniteDistance,
-      // which pins them to the far plane where depth precision is gone, so the
-      // tie is decided per pixel and the frame splits along a hard diagonal —
-      // blue sky one side, stars the other. Scaling it outside the dome and
-      // inside the dome both produced it, because scale does not change the
-      // depth of an infinite-distance mesh.
-      //
-      // The fix is one mesh, which needs the sky SHADER to sample the cube —
-      // see the note in b3d-skybox. Until then this demo uses the procedural
-      // point starfield, which shares no such problem.
-      // starfieldCube: '/sky/default',
-      // Tilt the CUBE, not the galaxy — so the band arcs across the sky rather
-      // than lying level, which is what stops a baked sky reading as wallpaper.
+      // THE BAKED SKY — six faces photographed from inside the galaxy this
+      // project generates, composited into the sky's own shader rather than
+      // drawn on a second mesh. See skybox-baker.
+      starfieldCube: '/sky/default',
+      // Tilt the sampling DIRECTION, not the galaxy — so the band arcs across
+      // the sky rather than lying level, which is what stops a baked sky
+      // reading as wallpaper.
+      starfieldTilt: '12,25,58',
       starfield,
       nebulae,
       // Black-backed, so additive blending gets the silhouette from the

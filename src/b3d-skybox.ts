@@ -69,6 +69,14 @@ preview.append(scene)
 import * as BABYLON from '@babylonjs/core'
 import { PRNG } from './mersenne-twister.js'
 import { SkyMaterial } from '@babylonjs/materials'
+/*
+Imported for SIDE EFFECTS: these register `skyVertexShader` and
+`skyPixelShader` in Babylon's `ShaderStore`. `SkyMaterial` loads them lazily on
+first compile, which is too late for us — we want to read the source at setup
+and derive our own from it.
+*/
+import '@babylonjs/materials/sky/sky.vertex.js'
+import '@babylonjs/materials/sky/sky.fragment.js'
 import { AbstractMesh } from './b3d-utils.js'
 import { band } from './atmosphere.js'
 import type { B3d } from './tosi-b3d.js'
@@ -109,6 +117,145 @@ function proceduralNebula(scene: BABYLON.Scene): BABYLON.DynamicTexture {
   ctx.fillRect(0, 0, 128, 128)
   tex.update()
   return tex
+}
+
+/*
+OUR SKY, DERIVED FROM BABYLON'S AT RUNTIME.
+
+The sky is the one major visual in this repo we did not own — eight other files
+carry their own shaders and `b3d-skybox` rented `SkyMaterial`. That was fine
+until it wasn't: a baked starfield has to be composited INTO the sky, and
+SkyMaterial has no extension point at all (no plugin support, no
+`customShaderNameResolve`, `samplers: []` hardcoded — see UPSTREAM.md).
+
+So we fork it — by reading their registered source out of `ShaderStore` and
+injecting into it, rather than pasting a copy here. What we maintain is a
+three-line diff instead of a Preetham implementation.
+
+⚠️ Do NOT oversell that as "we inherit their improvements". Tonio's read is
+right: this is a straightforward implementation of Preetham et al. (SIGGRAPH
+1999) and it will not change unless the underlying APIs do or someone writes a
+better paper. There are no algorithmic improvements coming to inherit.
+
+The benefit is the OTHER half of that sentence. Engine-plumbing changes — a
+renamed include, a new uniform, a WGSL migration — are the likely churn, and
+deriving at runtime tracks exactly those, where a pasted copy would quietly stop
+matching the engine around it.
+
+If the anchor ever disappears — they rewrite the shader, rename something — the
+fork simply does not register and the caller falls back to stock `SkyMaterial`.
+Losing the starfield is a much better failure than a black sky.
+*/
+const B3D_SKY = 'b3dSky'
+
+function registerForkedSky(): boolean {
+  const store = BABYLON.ShaderStore.ShadersStore as Record<string, string>
+  if (store[`${B3D_SKY}PixelShader`] != null) return true
+
+  const src = store.skyPixelShader
+  const vert = store.skyVertexShader
+  if (src == null || vert == null) return false
+
+  // The last statement of their main(), and the only place we need to be.
+  const anchor = 'gl_FragColor=color;'
+  if (!src.includes(anchor)) return false
+
+  store[`${B3D_SKY}VertexShader`] = vert
+  store[`${B3D_SKY}PixelShader`] = src
+    .replace(
+      '#define CUSTOM_FRAGMENT_DEFINITIONS',
+      'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform mat4 b3dStarRot;'
+    )
+    .replace(
+      anchor,
+      /*
+      ADDED, not blended. The backdrop is behind the air: stars contribute
+      light and the atmosphere contributes light, which is the model this
+      element has been built around all along — and now it is literally one
+      shader rather than two meshes arguing about depth.
+
+      `vPositionW - cameraPosition` is the world view direction, which their
+      own sky-colour maths already computes a line above.
+      */
+      `vec3 b3dDir=normalize(vPositionW-cameraPosition);` +
+        `b3dDir=(b3dStarRot*vec4(b3dDir,0.0)).xyz;` +
+        `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
+        anchor
+    )
+  return true
+}
+
+/**
+ * A `ShaderMaterial` on the forked sky shader, wearing `SkyMaterial`'s property
+ * names.
+ *
+ * The accessors are the point. `updateSky` writes `material.luminance`,
+ * `material.rayleigh` and so on, and it should not have to care which of the two
+ * materials it is holding — so these forward to `setFloat`/`setVector3` and the
+ * rest of this element stays written once.
+ */
+function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
+  const mat = new BABYLON.ShaderMaterial(
+    'b3d-skybox',
+    scene,
+    { vertex: B3D_SKY, fragment: B3D_SKY },
+    {
+      attributes: ['position'],
+      uniforms: [
+        'world',
+        'viewProjection',
+        'view',
+        'luminance',
+        'turbidity',
+        'rayleigh',
+        'mieCoefficient',
+        'mieDirectionalG',
+        'sunPosition',
+        'cameraPosition',
+        'cameraOffset',
+        'up',
+        'b3dStarLevel',
+        'b3dStarRot',
+      ],
+      samplers: ['b3dStars'],
+      // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
+      // compile at all.
+      defines: ['#define DITHER 0'],
+    }
+  )
+  mat.setVector3('up', new BABYLON.Vector3(0, 1, 0))
+  mat.setVector3('cameraOffset', BABYLON.Vector3.Zero())
+  mat.setFloat('b3dStarLevel', 0)
+  mat.setMatrix('b3dStarRot', BABYLON.Matrix.Identity())
+  const num = (name: string, initial: number) => {
+    let v = initial
+    mat.setFloat(name, v)
+    Object.defineProperty(mat, name, {
+      get: () => v,
+      set: (n: number) => {
+        v = n
+        mat.setFloat(name, n)
+      },
+    })
+  }
+  num('luminance', 1)
+  num('turbidity', 10)
+  num('rayleigh', 2)
+  num('mieCoefficient', 0.005)
+  num('mieDirectionalG', 0.8)
+  let sun = new BABYLON.Vector3(0, 100, 0)
+  Object.defineProperty(mat, 'sunPosition', {
+    get: () => sun,
+    set: (v: BABYLON.Vector3) => {
+      sun = v
+      mat.setVector3('sunPosition', v)
+    },
+  })
+  // Accepted and ignored: ours is always positioned by `sunPosition`, and
+  // `azimuth` is SkyMaterial's other way of saying the same thing.
+  Object.defineProperty(mat, 'useSunPosition', { get: () => true, set: () => {} })
+  Object.defineProperty(mat, 'azimuth', { get: () => 0, set: () => {} })
+  return mat
 }
 
 const SKY_AXIS_X = new BABYLON.Vector3(1, 0, 0)
@@ -525,6 +672,7 @@ export class B3dSkybox extends AbstractMesh {
   }
   private _starfieldMesh: BABYLON.Mesh | null = null
   private _clearBase: BABYLON.Color4 | null = null
+  private _starCube: BABYLON.CubeTexture | null = null
   private _nebulaMeshes: BABYLON.Mesh[] = []
   private _nebulaMats: BABYLON.StandardMaterial[] = []
   private _nebulaBase: BABYLON.Color3[] = []
@@ -547,6 +695,8 @@ export class B3dSkybox extends AbstractMesh {
   private _buildStarfield(scene: BABYLON.Scene): void {
     const attrs = this as any
     const count = Math.floor(attrs.starfield) || 0
+    this._starCube?.dispose()
+    this._starCube = null
     this._starfieldMesh?.dispose()
     this._starfieldMesh = null
     if (this.mesh == null) return
@@ -561,50 +711,25 @@ export class B3dSkybox extends AbstractMesh {
     from.
     */
     /*
-    A SEPARATE BOX, and the single-material version is recorded here as TRIED
-    AND FAILED rather than quietly dropped.
+    THE BAKED CUBE IS A UNIFORM ON THE SKY, not a mesh behind it.
 
-    Compositing the starfield into the sky's own shader is the right
-    architecture and Tonio asked for it twice. `SkyMaterial` even looked
-    willing: its fragment source has `varying vec3 vPositionW`, a
-    `cameraPosition` uniform and the standard CUSTOM_FRAGMENT hooks. A
-    `MaterialPluginBase` attaches cleanly and reports itself attached —
-    `pluginManager` lists it alongside CloudShadow and Biome.
+    Two meshes could never work: dome and cube are both `infiniteDistance`,
+    which pins them to the far plane where depth precision is gone, so the tie
+    was decided per pixel and the frame split along a hard diagonal. Scaling the
+    cube outside the dome AND inside it both produced it — scale does not change
+    the depth of an infinite-distance mesh. Tonio: "the skybox with two cubes
+    NEVER worked. It's z-chasing at the corners."
 
-    It still renders nothing, and the reason is not SkyMaterial-specific: the
-    plugin manager installs `material._callbackPluginEventGeneric` and it is
-    then THE MATERIAL'S JOB to invoke it. Only standardMaterial, pbrBaseMaterial,
-    openpbrMaterial and gaussianSplattingMaterial do. NOT ONE material in the
-    `@babylonjs/materials` pack does — sky, water, terrain, grid, all of them
-    accept a plugin and ignore it. So the define never reaches the effect,
-    `#ifdef B3D_STARFIELD` compiles out, and the sampler is never read.
-
-    Attaching succeeds silently and every diagnostic agrees it worked — plugin
-    listed in `pluginManager`, texture ready, level 0.8 — which is why this took
-    two rounds of "still black" to locate. Filed in UPSTREAM.md.
-
-    So the cube gets its own mesh again. It is scaled slightly OUTSIDE the dome
-    rather than onto it, which is what fixes the original complaint: two shells
-    on the same shell had no honest depth relationship and their order changed
-    as the dome faded.
+    One mesh has no tie to break. It also means the cloud whiteout, which fades
+    the dome by immersion, now fades the stars with it — the other bug reported
+    in the same breath.
     */
     const cubeRoot = (attrs.starfieldCube as string) || ''
     if (cubeRoot) {
-      const box = BABYLON.MeshBuilder.CreateBox(
-        'skybox-starfield_nocast',
-        { size: 1000, sideOrientation: BABYLON.Mesh.BACKSIDE },
-        scene
-      )
-      const cm = new BABYLON.StandardMaterial('starfield-cube', scene)
-      cm.backFaceCulling = false
-      cm.disableLighting = true
-      // Black diffuse and specular: the REFLECTION sample is the colour, and
-      // emissive would only add white on top of it.
-      cm.diffuseColor = new BABYLON.Color3(0, 0, 0)
-      cm.specularColor = new BABYLON.Color3(0, 0, 0)
-      cm.emissiveColor = new BABYLON.Color3(0, 0, 0)
-      // Extensions spelled out — CubeTexture defaults to .jpg, silently.
-      cm.reflectionTexture = new BABYLON.CubeTexture(cubeRoot, scene, [
+      const mat = this.mesh.material as unknown as BABYLON.ShaderMaterial
+      if (typeof mat?.setTexture !== 'function') return
+      // Extensions spelled out: CubeTexture defaults to .jpg, silently.
+      const cube = new BABYLON.CubeTexture(cubeRoot, scene, [
         '_px.png',
         '_py.png',
         '_pz.png',
@@ -612,17 +737,18 @@ export class B3dSkybox extends AbstractMesh {
         '_ny.png',
         '_nz.png',
       ])
-      cm.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
-      box.material = cm
-      box.isPickable = false
-      box.applyFog = false
-      box.infiniteDistance = true
-      const tilt = String(attrs.starfieldTilt ?? '0,0,0')
+      cube.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
+      mat.setTexture('b3dStars', cube)
+      this._starCube = cube
+      const t = String(attrs.starfieldTilt ?? '0,0,0')
         .split(',')
         .map((n) => (parseFloat(n) || 0) * DEG_TO_RAD)
-      box.rotation.set(tilt[0] ?? 0, tilt[1] ?? 0, tilt[2] ?? 0)
-      this._starfieldMesh = box
-      this._excludeFromGlow(scene)
+      // Applied to the sampling DIRECTION, so it costs nothing and one baked
+      // texture can wear a different orientation per system.
+      mat.setMatrix(
+        'b3dStarRot',
+        BABYLON.Matrix.RotationYawPitchRoll(t[1] ?? 0, t[0] ?? 0, t[2] ?? 0)
+      )
       return
     }
 
@@ -829,8 +955,36 @@ export class B3dSkybox extends AbstractMesh {
     at zero opacity, revealing what was always behind it. It is also smooth,
     where the threshold it replaces could only ever pop.
     */
-    this.mesh.setEnabled(air > 0.004)
-    material.alpha = air
+    /*
+    TWO WAYS TO FADE, because the dome is now carrying the stars.
+
+    The stock path hides the dome and fades it on ALPHA — `SkyMaterial` cannot
+    reach black on its own, so switching it off is the only way to finish the
+    job.
+
+    ⚠️ That is exactly wrong once the starfield lives IN the sky's shader:
+    disabling the mesh takes the stars with it, which is why vacuum came back
+    pure black on the first run of this. With a cube bound the dome stays
+    enabled and opaque, and the ATMOSPHERE alone is what falls away.
+    */
+    const hasCube = this._starCube != null
+    if (!hasCube) {
+      this.mesh.setEnabled(air > 0.004)
+      material.alpha = air
+    }
+
+    /*
+    AND IT FALLS AWAY FASTER THAN LINEARLY. Tonio: "As the sky fades it also
+    needs to get much darker faster."
+
+    Linear `air` spends most of the climb still visibly blue, because scattering
+    is what you SEE and it does not thin in proportion to altitude — the
+    atmosphere is exponential, and the visible sky is gone long before the last
+    of the air is. Cubing it puts the transition where the eye expects: bright
+    at sea level, most of it lost across the first half of the band, essentially
+    space by two-thirds.
+    */
+    const airSky = air * air * air
 
     /*
     AND THE SKY OWNS WHAT IS BEHIND IT.
@@ -889,6 +1043,15 @@ export class B3dSkybox extends AbstractMesh {
     The last row is the one that says this is a model rather than a tuning: it
     is what an astronaut sees, and nothing special-cased it.
     */
+    /*
+    THE BAKED CUBE'S EXPOSURE IS A UNIFORM on the same material that draws the
+    sky — so there is exactly one thing to dim, and it dims in step with the
+    atmosphere it sits behind.
+    */
+    if (this._starCube != null) {
+      const sm = material as unknown as BABYLON.ShaderMaterial
+      sm.setFloat?.('b3dStarLevel', 1 - dayBrightness * air)
+    }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {
         this._excludeFromGlow(this.owner.scene)
@@ -1007,8 +1170,8 @@ export class B3dSkybox extends AbstractMesh {
             light.diffuse
           )
           light.intensity = intensity * dim
-          material.rayleigh = attrs.rayleigh * air
-          material.turbidity = attrs.turbidity * air
+          material.rayleigh = attrs.rayleigh * airSky
+          material.turbidity = attrs.turbidity * airSky
 
           // Horizon: blend light color with sky blue, then brighten toward white
           // at high sun — written in place into _horizonColor via a scratch.
@@ -1027,8 +1190,8 @@ export class B3dSkybox extends AbstractMesh {
         } else {
           light.diffuse.copyFrom(this.hex(attrs.moonColor))
           light.intensity = attrs.moonIntensity * dim
-          material.rayleigh = attrs.rayleigh * 0.05 * air
-          material.turbidity = attrs.turbidity * 0.05 * air
+          material.rayleigh = attrs.rayleigh * 0.05 * airSky
+          material.turbidity = attrs.turbidity * 0.05 * airSky
 
           // Night horizon: dark desaturated blue
           this._horizonColor.copyFrom(NIGHT_HORIZON)
@@ -1070,7 +1233,24 @@ export class B3dSkybox extends AbstractMesh {
         24
     }, attrs.updateFrequencyMs)
 
-    const material = new SkyMaterial('skybox', scene)
+    /*
+    OUR FORKED SKY when there is a baked cube to composite, stock `SkyMaterial`
+    otherwise.
+
+    Deliberately not "always ours" yet. Every existing scene is on the proven
+    path and stays there; the fork is exercised by the one case that needs it
+    and can become the default once it has earned that.
+    */
+    const wantsCube = !!((this as any).starfieldCube as string)
+    const forked = wantsCube && registerForkedSky()
+    const material = forked
+      ? (makeForkedSkyMaterial(scene) as unknown as SkyMaterial)
+      : new SkyMaterial('skybox', scene)
+    if (wantsCube && !forked) {
+      console.warn(
+        'b3d-skybox: could not derive a sky shader from Babylon — `starfieldCube` ignored. Babylon\'s sky shader may have changed shape; see registerForkedSky.'
+      )
+    }
     material.backFaceCulling = false
     material.useSunPosition = true
 
