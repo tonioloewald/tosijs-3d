@@ -51,7 +51,8 @@ preview.append(scene)
 | `starfield` | `0` | How many background stars to build. `0` = none |
 | `nebulae` | `0` | Soft emission clouds behind the stars. `0` = none |
 | `nebulaBrightness` | `0.55` | Nebula brightness 0…1 |
-| `nebulaSize` | `0.3` | Nebula size as a fraction of the sky radius |
+| `nebulaSize` | `0.16` | Nebula size as a fraction of the sky radius |
+| `nebulaTexture` | `''` | Black-backed image stamped per nebula; empty = a plain procedural falloff |
 | `spaceColor` | `'#05070f'` | What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go |
 | `starfieldSeed` | `12345` | Seed for the starfield — same seed, same constellations |
 | `starDistance` | `0` | Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone |
@@ -82,6 +83,32 @@ function hexToColor3(hex: string): BABYLON.Color3 {
 
 // Shared constants so updateSky (which runs per frame while the sky animates) can
 // stay allocation-free — see the reused scratch on the component.
+/**
+ * The fallback when no `nebulaTexture` is given — a plain radial falloff.
+ *
+ * Deliberately modest: it is a DISC, symmetric and smooth, and it reads as a
+ * lens flare rather than as gas. It exists so the attribute is optional, not
+ * because it is any good. Point `nebulaTexture` at a real painted one.
+ */
+function proceduralNebula(scene: BABYLON.Scene): BABYLON.DynamicTexture {
+  const tex = new BABYLON.DynamicTexture(
+    'nebula-falloff',
+    { width: 128, height: 128 },
+    scene,
+    false
+  )
+  const ctx = tex.getContext() as unknown as CanvasRenderingContext2D
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.35, 'rgba(255,255,255,0.4)')
+  g.addColorStop(0.7, 'rgba(255,255,255,0.1)')
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 128, 128)
+  tex.update()
+  return tex
+}
+
 const SKY_AXIS_X = new BABYLON.Vector3(1, 0, 0)
 const SKY_AXIS_Z = new BABYLON.Vector3(0, 0, 1)
 const SKY_BLUE = new BABYLON.Color3(0.55, 0.7, 0.9)
@@ -125,9 +152,16 @@ export class B3dSkybox extends AbstractMesh {
      */
     nebulae: 0,
     /** Nebula brightness 0…1. */
-    nebulaBrightness: 0.5,
+    nebulaBrightness: 1,
     /** Nebula size as a fraction of the sky's radius. */
     nebulaSize: 0.16,
+    /**
+     * Image stamped for each nebula — black-backed, since it is composited
+     * ADDITIVELY and the black is what makes the silhouette. Empty falls back
+     * to a procedural falloff, which is a poor substitute: this repo ships
+     * `/nebula.png`, and a consumer should point this at their own.
+     */
+    nebulaTexture: '',
     /*
     THE BACK OF THE SKY — what is behind the stars when the air is gone.
 
@@ -276,22 +310,22 @@ export class B3dSkybox extends AbstractMesh {
     const count = Math.floor(attrs.nebulae) || 0
     if (count <= 0 || this._starfieldMesh == null) return
 
-    const tex = new BABYLON.DynamicTexture(
-      'nebula-falloff',
-      { width: 128, height: 128 },
-      scene,
-      false
-    )
-    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D
-    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
-    // A long soft tail rather than a disc — a hard edge reads as a sticker.
-    g.addColorStop(0, 'rgba(255,255,255,1)')
-    g.addColorStop(0.3, 'rgba(255,255,255,0.45)')
-    g.addColorStop(0.65, 'rgba(255,255,255,0.12)')
-    g.addColorStop(1, 'rgba(255,255,255,0)')
-    ctx.fillStyle = g
-    ctx.fillRect(0, 0, 128, 128)
-    tex.update()
+    /*
+    A PAINTED NEBULA BEATS A GRADIENT, and it is not close.
+
+    The procedural version was a radial falloff, which is a DISC — smooth,
+    symmetric, and reading as a lens flare rather than as gas. Real structure
+    (turbulent, uneven, dark lanes cutting through bright knots) is not
+    something a two-stop gradient can fake, and this repo ships a 1024² one.
+
+    It needs NO opacity map, which is the neat part: the image is black-backed,
+    and under additive blending black adds exactly nothing. The silhouette comes
+    free from the pixels rather than from a second sampler.
+    */
+    const src = (attrs.nebulaTexture as string) || ''
+    const tex: BABYLON.BaseTexture = src
+      ? new BABYLON.Texture(src, scene)
+      : proceduralNebula(scene)
 
     const size = radius * 2 * (attrs.nebulaSize as number)
     for (let i = 0; i < count; i++) {
@@ -314,10 +348,30 @@ export class B3dSkybox extends AbstractMesh {
         prng.realRange(0, Math.PI * 2),
         BABYLON.Space.LOCAL
       )
+      /*
+      SQUASHED, NOT SCALED. One image stamped fourteen times is obvious the
+      moment two of them are the same shape, so each gets its own roll AND its
+      own non-proportional stretch — the same pixels read as a different cloud.
+      */
+      quad.scaling.set(prng.realRange(0.6, 1.5), prng.realRange(0.6, 1.5), 1)
       const mat = new BABYLON.StandardMaterial(`skybox-nebula-${i}`, scene)
       mat.disableLighting = true
-      mat.emissiveTexture = tex
-      mat.opacityTexture = tex
+      /*
+      BLACK DIFFUSE, OR THE NEBULA IS WHITE WHATEVER COLOUR YOU GIVE IT.
+
+      `disableLighting` does not mean "emissive only" — it makes StandardMaterial
+      use `diffuseColor` DIRECTLY as an unlit base, and that defaults to white.
+      So every nebula rendered as a white cloud with a faint tint on top, no
+      matter what `emissiveColor` said. Tonio: "How are the nebulae coming out
+      white?"
+
+      The stars dodge it by accident: they carry vertex colours, which multiply
+      that white base and end up the colour of the star. The nebulae have no
+      vertex colours, so the base came through untouched.
+      */
+      mat.diffuseColor = new BABYLON.Color3(0, 0, 0)
+      mat.specularColor = new BABYLON.Color3(0, 0, 0)
+      mat.emissiveTexture = tex as BABYLON.Texture
       mat.alphaMode = BABYLON.Constants.ALPHA_ADD
       mat.disableDepthWrite = true
       mat.backFaceCulling = false
@@ -328,11 +382,27 @@ export class B3dSkybox extends AbstractMesh {
       with one channel pushed and the others held down so the hue survives being
       added onto black.
       */
+      /*
+      DARK COLOURS, BECAUSE THE TEXTURE IS THE BRIGHT PART.
+
+      The emissive here is a TINT that the image's own value multiplies, not a
+      brightness — and the previous values (up to 0.94 in a channel) meant the
+      texture's bright core came out well past 1.0 and clipped to white, while
+      its faint outer field still read strongly enough to show the quad's edge.
+      Tonio: "colored squares with blown out blurry white circles in the middle.
+      You should multiply the value by the nebular color and it should be a
+      darkish color (value 40 say)."
+
+      So the peak channel is ~0.16 — value 40 of 255. The image's dark lanes
+      then land near zero and genuinely vanish, and its bright knots land at a
+      colour rather than at white.
+      */
       const warm = prng.value()
+      const V = 0.16
       mat.emissiveColor = new BABYLON.Color3(
-        0.10 + 0.55 * warm,
-        0.06 + 0.16 * (1 - Math.abs(warm - 0.5) * 2),
-        0.14 + 0.5 * (1 - warm)
+        V * (0.35 + 0.65 * warm),
+        V * (0.2 + 0.3 * (1 - Math.abs(warm - 0.5) * 2)),
+        V * (0.4 + 0.6 * (1 - warm))
       )
       this._nebulaBase.push(mat.emissiveColor.clone())
       quad.material = mat
@@ -408,14 +478,35 @@ export class B3dSkybox extends AbstractMesh {
       const t = prng.realRange(0, Math.PI * 2)
       const r = Math.sqrt(Math.max(0, 1 - z * z))
       positions.push(R * r * Math.cos(t), R * z, R * r * Math.sin(t))
-      const u = prng.value()
-      const mag = u * u * u
+      /*
+      MAGNITUDES ARE LOGARITHMIC. THE FIRST VERSION WAS NOT.
+
+      Brightness was `u³` on a uniform draw, which is a skew but a LINEAR one —
+      and its top end sits at 1.0, so the brightest stars were pure white
+      maximum-value dots added onto near-black. Tonio: "what look like insanely
+      bright stars… we might need to log-scale them." (Not the glow layer, as it
+      turned out: `glowLayerIntensity` defaults to 0 and this demo sets none.
+      They were simply that bright.)
+
+      Real star brightness runs on magnitudes, where each step of 1 is a factor
+      of ~2.512 in flux, so a naked-eye sky spans roughly 100:1 between its
+      brightest and faintest — mostly faint, with a handful that carry the
+      constellations. `flux = 10^(-0.4·m)` is that relation exactly, and drawing
+      `m` with a skew toward the faint end gives the count distribution too:
+      many dim stars, few bright ones, none of them blinding.
+
+      Capped below 1 as well, because a star at full channel value is not a
+      bright star, it is a clipped one — and with nothing brighter left on the
+      scale, everything above the cap reads as the same white dot.
+      */
+      const m = Math.pow(prng.value(), 0.55) * 5
+      const flux = Math.pow(10, -0.4 * m) * 0.85
       // Warm dim dwarfs through to rare hot blue-white giants.
       const warm = prng.value()
       const rr = 0.55 + 0.45 * warm
       const gg = 0.6 + 0.4 * (1 - Math.abs(warm - 0.5) * 2)
       const bb = 0.6 + 0.4 * (1 - warm)
-      colors.push(rr * mag, gg * mag, bb * mag, 1)
+      colors.push(rr * flux, gg * flux, bb * flux, 1)
     }
     const mesh = new BABYLON.Mesh('skybox-starfield_nocast', scene)
     const vd = new BABYLON.VertexData()

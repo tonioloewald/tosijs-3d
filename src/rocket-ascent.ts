@@ -251,6 +251,9 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       spaceFull,
       starfield,
       nebulae,
+      // Black-backed, so additive blending gets the silhouette from the
+      // pixels — no opacity map, no falloff geometry.
+      nebulaTexture: '/nebula.png',
     }),
     b3dSun({ x: -0.4, y: -1, z: -0.3 }),
     // Muted, and not very large. A saturated green slab out to 4 km was the

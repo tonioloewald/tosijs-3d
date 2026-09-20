@@ -740,7 +740,8 @@ b3d-skybox
   starfield  = 0  — How many background stars to build. `0` = none
   nebulae  = 0  — Soft emission clouds behind the stars. `0` = none
   nebulaBrightness  = 0.55  — Nebula brightness 0…1
-  nebulaSize  = 0.3  — Nebula size as a fraction of the sky radius
+  nebulaSize  = 0.16  — Nebula size as a fraction of the sky radius
+  nebulaTexture  = ''  — Black-backed image stamped per nebula; empty = a plain procedural falloff
   spaceColor  = '#05070f'  — What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go
   starfieldSeed  = 12345  — Seed for the starfield — same seed, same constellations
   starDistance  = 0  — Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone

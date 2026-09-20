@@ -2753,8 +2753,13 @@
       },
       {
         "name": "nebulaSize",
-        "default": "0.3",
+        "default": "0.16",
         "description": "Nebula size as a fraction of the sky radius"
+      },
+      {
+        "name": "nebulaTexture",
+        "default": "''",
+        "description": "Black-backed image stamped per nebula; empty = a plain procedural falloff"
       },
       {
         "name": "spaceColor",
