@@ -943,6 +943,34 @@ already runs `REFRESHRATE_RENDER_ONCE`), an export, and the observer placement �
 "stick a camera in it somewhere" wants to become "put the camera at THIS star",
 which is the same lookup a system jump already needs.
 
+**WHERE TO STAND FOR THE DEFAULT BAKE.** Tonio: *"slightly off-plane, about
+50-60% of the way out from the core and tilted so we get the 'milky way across
+the sky' effect and everything isn't quite so perfectly lined up."*
+
+Which is, not coincidentally, where we actually live — the Sun sits about 8 of
+the disc's ~13 kpc out (≈60%) and a few tens of parsecs above the mid-plane. So
+the numbers are defensible as well as good-looking, and each one is doing a
+distinct job:
+
+- **50–60% out** puts the core off to one side and bright, with the far rim
+  thin behind it. Dead centre gives you a sky that is dense in every direction;
+  out at the rim gives you a band with nothing on one side.
+- **Slightly off-plane** is what lets you SEE the band as a band. Exactly in it,
+  you are inside the dust and the near stars swamp everything; a little above,
+  the plane resolves into a structure you are looking at rather than through.
+- **TILTED is the one that matters most, and it is the cheapest.** A band lying
+  level across a cube face reads as wallpaper the instant anyone looks up in a
+  game — because nothing in nature lines up with a horizon that was chosen
+  independently of it. Ours is tilted ~60° to the celestial equator, which is
+  precisely why the Milky Way ARCS overhead instead of ringing the horizon.
+
+Worth noting for implementation: the tilt is a property of the CAPTURE BASIS,
+not of the galaxy — you are choosing which way is "up" for the cube, so it costs
+one quaternion and no geometry. Which also means it should be SEEDED per system
+rather than fixed: two stars should not share a sky orientation, and getting
+that for free is the sort of thing that makes a generated universe feel
+authored.
+
 ⚠️ **TUNE PARTICLE SIZE AT 90°, NOT IN THE DEMO.** Tonio: "with a 90 degree
 camera to render the skybox we might want a slightly larger particle size."
 Right, and it is arithmetic rather than taste: a cube face is 90° FOV where the
