@@ -137,6 +137,9 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       // it), so the scene that wants the effect states its own dramatic scale.
       spaceStart: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
       spaceFull: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
+      starfield: num(0, { minimum: 0, maximum: 20000 }),
+      starfieldSeed: num(12345, { minimum: 0, maximum: 999999 }),
+      starDistance: num(0, { minimum: 0, maximum: 100000, unit: 'm' }),
       mieCoefficient: num(0.005, { minimum: 0, maximum: 0.05 }),
       mieDirectionalG: num(0.8, { minimum: 0, maximum: 1 }),
       sunColor: color('#eeeeff'),

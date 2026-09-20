@@ -48,6 +48,9 @@ preview.append(scene)
 | `rayleigh` | `2` | Rayleigh scattering |
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
+| `starfield` | `0` | How many background stars to build. `0` = none |
+| `starfieldSeed` | `12345` | Seed for the starfield — same seed, same constellations |
+| `starDistance` | `0` | Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone |
 | `sunColor` | `'#eeeeff'` | Midday sun color |
 | `duskColor` | `'#ffaa22'` | Dawn/dusk sun color |
 | `moonColor` | `'#6688cc'` | Night light color |
@@ -57,6 +60,7 @@ preview.append(scene)
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { PRNG } from './mersenne-twister.js'
 import { SkyMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils.js'
 import { band } from './atmosphere.js'
@@ -102,6 +106,24 @@ export class B3dSkybox extends AbstractMesh {
     */
     spaceStart: 0,
     spaceFull: 0,
+    /*
+    A STARFIELD BEHIND THE DOME — a count, 0 = none.
+
+    Not the real galaxy: this is the "we just want a nice night sky" case, which
+    is most of them. Seeded, so it is the same sky every load, and built ONCE —
+    stars do not move relative to each other, and the dome is already pinned to
+    the camera, so there is nothing to update per frame.
+    */
+    starfield: 0,
+    /** Seed for `starfield`. Same seed, same constellations. */
+    starfieldSeed: 12345,
+    /**
+     * Where a `<tosi-b3d-star>` child gets parked along the sun vector. `0`
+     * leaves it wherever the author put it. Apparent size is `radius /
+     * starDistance`, and that is deliberately the author's arithmetic rather
+     * than ours — see the note in updateSky.
+     */
+    starDistance: 0,
     luminance: 1,
     // ⚠️ Babylon's SkyMaterial azimuth is a 0–1 FRACTION of a turn, not an
     // angle. Passed through unchanged rather than converted, because a
@@ -183,6 +205,122 @@ export class B3dSkybox extends AbstractMesh {
 
   /** 0 in the troposphere, 1 in vacuum. See `spaceStart`/`spaceFull`. */
   private _vacuum = 0
+  private _starfieldMesh: BABYLON.Mesh | null = null
+  private starEl: AbstractMesh | null = null
+
+  /**
+   * The background starfield — built ONCE, then never touched.
+   *
+   * Points, not billboards: a star is a point source and there is nothing to
+   * face. `b3d-galaxy` re-billboards its whole particle system every frame,
+   * which is right for a galaxy you orbit and would be pure waste for a sky
+   * that cannot change. Parented to the dome so it inherits the per-frame
+   * camera pinning and rescaling for free.
+   *
+   * Colour follows the spectral sequence (cool red → hot blue) with most stars
+   * dim, because a sky of uniformly bright white dots reads as static. The
+   * brightness curve is `u^3`, which is not physics but does put a handful of
+   * bright stars among many faint ones, which is what the eye is looking for.
+   */
+  private _buildStarfield(scene: BABYLON.Scene): void {
+    const attrs = this as any
+    const count = Math.floor(attrs.starfield) || 0
+    this._starfieldMesh?.dispose()
+    this._starfieldMesh = null
+    if (count <= 0 || this.mesh == null) return
+
+    const prng = new PRNG(attrs.starfieldSeed || 1)
+    const positions: number[] = []
+    const colors: number[] = []
+    /*
+    IN THE DOME'S OWN UNITS, which are NOT unit-box units.
+
+    `CreateBox({size: skyboxSize})` spans ±skyboxSize/2 in local space, so a
+    radius of 0.45 put the whole sky 4.5 m from the camera — stars in front of
+    the scenery, scattered over the ground and the props. It looked like a depth
+    bug and was a units bug, which is the expensive kind: the first fix attempted
+    was depth-write, and depth was never involved.
+
+    0.45 of the box's SIZE puts them just inside its half-extent (0.5), so they
+    ride the same per-frame rescale and stay behind everything the camera can
+    see.
+    */
+    const R = ((attrs.skyboxSize as number) || 1000) * 0.45
+    for (let i = 0; i < count; i++) {
+      // Uniform on the sphere: z uniform, NOT latitude uniform — the naive
+      // version bunches stars at the poles, and a sky with two bald patches is
+      // the one starfield bug everyone ships once.
+      const z = prng.realRange(-1, 1)
+      const t = prng.realRange(0, Math.PI * 2)
+      const r = Math.sqrt(Math.max(0, 1 - z * z))
+      positions.push(R * r * Math.cos(t), R * z, R * r * Math.sin(t))
+      const u = prng.value()
+      const mag = u * u * u
+      // Warm dim dwarfs through to rare hot blue-white giants.
+      const warm = prng.value()
+      const rr = 0.55 + 0.45 * warm
+      const gg = 0.6 + 0.4 * (1 - Math.abs(warm - 0.5) * 2)
+      const bb = 0.6 + 0.4 * (1 - warm)
+      colors.push(rr * mag, gg * mag, bb * mag, 1)
+    }
+    const mesh = new BABYLON.Mesh('skybox-starfield_nocast', scene)
+    const vd = new BABYLON.VertexData()
+    vd.positions = positions
+    vd.colors = colors
+    vd.applyToMesh(mesh)
+    const mat = new BABYLON.StandardMaterial('starfield', scene)
+    mat.disableLighting = true
+    mat.emissiveColor = new BABYLON.Color3(1, 1, 1)
+    mat.pointsCloud = true
+    mat.pointSize = 2
+    /*
+    STARS ADD. THEY DO NOT PAINT.
+
+    This is the whole fix, and the bug it replaces is worth keeping because it
+    looked like three other things first. Opaque points meant a DIM star drew a
+    near-black dot — so the night sky was speckled with dark specks and the blue
+    day sky was speckled with them too. Tonio, who spotted it: "The blue of the
+    sky should wash out dark stars. Right now the dim stars show as dark dots."
+
+    I read those dots as stars punching through the foreground and went hunting
+    for a depth-order bug — tried depth-write, the double `infiniteDistance`
+    pin, a glow layer, and background/foreground rendering groups. None of them
+    were it, because none of it was about depth. A star is a LIGHT SOURCE: it
+    adds to whatever is behind it and can never darken it. Additive blending
+    says exactly that, and then everything else falls out for free — a dim star
+    adds almost nothing, so a bright sky washes it out and a black one does not,
+    with no day/night branch anywhere.
+
+    Depth is still TESTED, just not written, so the ground in front still
+    occludes them. Background-ness is a consequence of being at the dome's
+    radius, not something that needs its own rendering group.
+    */
+    mat.alphaMode = BABYLON.Constants.ALPHA_ADD
+    mat.disableDepthWrite = true
+    mat.needAlphaBlending = () => true
+    mesh.material = mat
+    mesh.isPickable = false
+    mesh.applyFog = false
+    mesh.infiniteDistance = true
+    mesh.parent = this.mesh
+    this._starfieldMesh = mesh
+
+    /*
+    THE DOME IS LEFT ALONE, deliberately.
+
+    The first attempt moved it onto the transparent path so it could composite
+    over the stars, which is the right picture — scattering adds over whatever
+    comes from beyond the air — but it is the wrong PLACE to implement it. Make
+    the stars additive instead and the same result arrives with the core element
+    untouched: the dome paints the sky, the stars add to it, and a dim one
+    vanishes into a bright sky on its own.
+
+    Which also means the vacuum fade needs no special case. `_vacuum` already
+    drives rayleigh/turbidity/luminance to zero, so at altitude the dome paints
+    black and the stars are simply all that is left — day, night and space out
+    of one term, with nothing switched.
+    */
+  }
   private _removeFogLayer: (() => void) | null = null
 
   /**
@@ -214,6 +352,12 @@ export class B3dSkybox extends AbstractMesh {
     BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_Z, timeAngle, this._qTime)
     this._qLat.multiplyToRef(this._qTime, this._qTotal)
     const isDay = attrs.timeOfDay > 6 && attrs.timeOfDay < 18
+    // The day curve, hoisted: it used to be computed only inside the sun
+    // branch, but the backdrop's exposure needs it whether or not a
+    // <tosi-b3d-sun> happens to be in the scene.
+    const dayBrightness = isDay
+      ? Math.min(Math.abs((t + 0.52) * 10), Math.abs((t - 0.52) * 10), 1)
+      : 0
     sunVector.rotateByQuaternionToRef(this._qTotal, sunVector)
 
     /*
@@ -232,9 +376,78 @@ export class B3dSkybox extends AbstractMesh {
     */
     const air = 1 - this._vacuum
     material.luminance = attrs.luminance * air
+
+    /*
+    EXPOSURE FADES THE BACKDROP. SCATTER IS NOT THE MECHANISM.
+
+    The first version of this dimmed the stars with the scattering term, on the
+    theory that daylight ADDS enough to swamp them. Tonio: "Really the big thing
+    is that exposure adjusts at daytime and the entire backdrop is basically
+    being faded out. The scatter is actually not the issue." That is the better
+    model and it is the true one — you cannot see stars at noon because your
+    pupil has stopped down, not because the sky has been added to them. The
+    whole backdrop goes, together, and it goes because of EXPOSURE.
+
+    Which matters here because we are quietly simulating a dynamic range far
+    wider than the framebuffer holds. Tonio again: "The moon is the color of
+    coal." It is — an albedo around 0.12 — and it reads as brilliant white at
+    night purely because the eye is wide open. Nothing in an 8-bit buffer
+    behaves that way on its own, so the exposure has to be applied by hand.
+
+    `dayBrightness` is the element's OWN day curve, the same number that drives
+    the sun's intensity, so the sky and its exposure cannot drift apart. `air`
+    is in there because vacuum has no bright sky to stop down FOR:
+
+      night, sea level  → 0            → backdrop full
+      noon,  sea level  → 1 · 1        → faded out
+      noon,  in VACUUM  → 1 · 0        → stars AND the sun, together
+
+    The last row is the one that says this is a model rather than a tuning: it
+    is what an astronaut sees, and nothing special-cased it.
+    */
+    if (this._starfieldMesh != null) {
+      const exposed = 1 - dayBrightness * air
+      const m = this._starfieldMesh.material as BABYLON.StandardMaterial
+      m.emissiveColor.set(exposed, exposed, exposed)
+      this._starfieldMesh.setEnabled(exposed > 0.01)
+    }
     material.azimuth = attrs.azimuth
     material.mieDirectionalG = attrs.mieDirectionalG
     material.mieCoefficient = attrs.mieCoefficient
+
+    /*
+    PARK A `<tosi-b3d-star>` CHILD ON THE SUN VECTOR.
+
+    The skybox already owns this relationship for light — `b3d-sun`'s own docs
+    say its direction is "overridden by skybox when present" — so the visible
+    body rides the same channel rather than inventing a second one. Tonio:
+    "Don't we have a star object already?" We do, with a corona; nothing placed
+    it.
+
+    Apparent size stays the AUTHOR's arithmetic (`radius / starDistance`)
+    rather than being derived from an angular diameter here. Deriving it would
+    be friendlier for one case — a sun-like 0.53° disc — and would quietly make
+    `radius` a lie for every other, which is the worse trade for a star you can
+    also fly to.
+    */
+    if (this.owner != null && attrs.starDistance > 0) {
+      if (this.starEl == null) {
+        this.starEl = this.owner.querySelector(
+          'tosi-b3d-star'
+        ) as unknown as AbstractMesh | null
+      }
+      const star = this.starEl
+      const cam = this.owner.scene?.activeCamera
+      if (star != null && cam != null) {
+        const d = attrs.starDistance / Math.max(1e-6, sunVector.length())
+        // The star sits along the sun vector FROM THE CAMERA, so like the dome
+        // it never recedes — it is a body at effective infinity, not scenery
+        // you can outrun.
+        star.x = cam.globalPosition.x + sunVector.x * d
+        star.y = cam.globalPosition.y + sunVector.y * d
+        star.z = cam.globalPosition.z + sunVector.z * d
+      }
+    }
 
     if (this.owner != null) {
       if (this.sunEl == null) {
@@ -259,11 +472,7 @@ export class B3dSkybox extends AbstractMesh {
         light.direction.x = -this._dir.x
         light.direction.y = -this._dir.y
         light.direction.z = -this._dir.z
-        const intensity = Math.min(
-          Math.abs((t + 0.52) * 10),
-          Math.abs((t - 0.52) * 10),
-          1
-        )
+        const intensity = dayBrightness
         if (isDay) {
           // Blend dusk→sun straight into light.diffuse (cached parsed sources).
           BABYLON.Color3.LerpToRef(
@@ -414,6 +623,7 @@ export class B3dSkybox extends AbstractMesh {
             end: 1e7,
           }
     })
+    this._buildStarfield(scene)
     this.updateSky()
     owner.register({ meshes: [this.mesh] })
   }
@@ -427,6 +637,9 @@ export class B3dSkybox extends AbstractMesh {
       this.owner.scene.unregisterBeforeRender(this._sizeToCamera)
       this._sizeToCamera = null
     }
+    this._starfieldMesh?.dispose()
+    this._starfieldMesh = null
+    this.starEl = null
     this._removeFogLayer?.()
     this._removeFogLayer = null
     this._vacuum = 0

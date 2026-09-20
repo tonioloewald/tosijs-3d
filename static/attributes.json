@@ -2737,6 +2737,21 @@
         "description": "Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`"
       },
       {
+        "name": "starfield",
+        "default": "0",
+        "description": "How many background stars to build. `0` = none"
+      },
+      {
+        "name": "starfieldSeed",
+        "default": "12345",
+        "description": "Seed for the starfield — same seed, same constellations"
+      },
+      {
+        "name": "starDistance",
+        "default": "0",
+        "description": "Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone"
+      },
+      {
         "name": "luminance",
         "default": "1",
         "description": "Sky brightness"
