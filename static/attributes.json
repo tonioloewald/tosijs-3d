@@ -930,12 +930,12 @@
       },
       {
         "name": "fieldSize",
-        "default": "512",
+        "default": "1024",
         "description": "Texels per edge of the baked density field. More texels = finer cloud, 1 byte each"
       },
       {
         "name": "period",
-        "default": "700",
+        "default": "1800",
         "description": "Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck"
       },
       {

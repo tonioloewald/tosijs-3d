@@ -134,8 +134,8 @@ preview.append(
 | `seed` | `1337` | Same seed, same weather |
 | `frequency` | `3` | Field repeats across its own width. Higher = smaller puffs |
 | `octaves` | `6` | Detail octaves. Billow needs more than fBm — folding eats fine structure |
-| `fieldSize` | `512` | Texels per edge of the baked density field. More texels = finer cloud, 1 byte each |
-| `period` | `700` | Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck |
+| `fieldSize` | `1024` | Texels per edge of the baked density field. More texels = finer cloud, 1 byte each |
+| `period` | `1800` | Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck |
 | `edgeFade` | `0.45` | Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage |
 | `color` | `'#ffffff'` | Lit top colour |
 | `underColor` | `'#3a4350'` | Shadowed underside |
@@ -177,8 +177,9 @@ quad cannot do at all.
 Honest state, so nobody mistakes "it renders" for "it is finished". Three things
 are visibly off and all three are art direction rather than architecture:
 
-1. **The repeat is visible.** `period: 700` puts a 700 m rhythm in plain sight
-   once you look for it. A second field at another scale would break it.
+1. **~~The repeat is visible.~~** Fixed: two sampling layers at an irrational
+   scale ratio never realign, so the field has no period to see. See the shader
+   note on `density`.
 2. **`coverage` has its curve now.** Percentile normalisation put the threshold
    at the same place in the distribution whatever kind of cloud this is, and the
    threshold itself is shaped rather than linear — so half coverage really is
@@ -302,14 +303,32 @@ whole sky dims at the halfway point; a product has no halfway point to dim at.
 The square root pulls the distribution back up, since multiplying two fields in
 [0,1] would otherwise halve everything and make coverage lie.
 */
+/*
+WHY THE SECOND LAYER IS ALWAYS ON, AND WHY ITS SCALE IS IRRATIONAL.
+
+(No backticks in here: this is inside a template literal and one would end the
+shader mid-sentence. Third time that has bitten, hence the reminder.)
+
+One tiling texture repeats, and you can see it repeat -- a 700 m period put a
+visible rhythm across the sky. Making the tile bigger only postpones that; the
+grid is still there, and a flat deck is exactly the surface that shows it.
+
+Two layers at an IRRATIONAL scale ratio never realign, so the product has no
+period at all. The old ratio was 1.2 -- six fifths -- which realigns every five
+tiles, so it broke the rhythm into a bigger rhythm and called it solved. The
+golden ratio is the standard choice for "as far from any simple fraction as a
+number gets", and here that is the entire specification.
+
+So the second sample is not an evolution feature that happens to help; it is
+what makes the sky aperiodic, and evolve only decides how fast the two layers
+SLIDE past each other. At evolve 0 the shapes are rigid and the field is still
+seamless and non-repeating.
+*/
 float density(vec2 p) {
   float a = texture2D(cloudField, toField(p + drift.xy) * invTile).r;
-  if (evolve <= 0.0) return a;
-  // 0.83 and the extra rotation keep the second layer from ever agreeing with
-  // the first at a fixed offset, which would just look like one sharper field.
-  vec2 q = toField(p + drift.zw) * invTile * 1.2;
+  vec2 q = toField(p + drift.zw) * invTile * 1.6180339;
   float b = texture2D(cloudField, q + vec2(0.37, 0.11)).r;
-  return mix(a, sqrt(max(a * b, 0.0)) * 1.15, evolve);
+  return sqrt(max(a * b, 0.0)) * 1.15;
 }
 
 /*
@@ -529,9 +548,16 @@ export class B3dCloudDeck extends B3dChild {
     haze: 0.6,
     /** Octaves of detail in the baked field. Billow needs more than fBm. */
     octaves: 6,
-    fieldSize: 512,
-    /** Metres per repeat of the field. The size of the CLOUDS, not of the deck. */
-    period: 700,
+    fieldSize: 1024,
+    /**
+     * Metres per repeat of the field — the size of the CLOUDS, not of the deck.
+     *
+     * Big, because these are weather-system features seen from kilometres away,
+     * not puffs seen from a garden. It is no longer a visible rhythm either:
+     * the two sampling layers are at an irrational scale ratio, so nothing
+     * realigns — see the shader note.
+     */
+    period: 1800,
     /**
      * Where the radial fade begins, as a fraction of the half-size. Below this
      * the deck is solid; beyond it, it thins to nothing before the rim.
@@ -611,12 +637,15 @@ export class B3dCloudDeck extends B3dChild {
   }
   private _driftX = 0
   private _driftZ = 0
+  private _driftX2 = 0
+  private _driftZ2 = 0
   /** The shadow half — see `_syncShadows`. Null when `shadows` is off. */
   private _shadowMap: CloudShadowMap | null = null
   private _shadowTex: BABYLON.RawTexture | null = null
   private _shadowBytes: Uint8Array | null = null
   private _shadowRes = 0
   private _shadowCoverage = -1
+  private _shadowAt = -1
   /*
   THE SUN'S BRIGHTNESS IS NOT OURS, so it is borrowed rather than taken.
 
@@ -800,6 +829,8 @@ export class B3dCloudDeck extends B3dChild {
     mat.setFloat('evolve', Math.min(1, Math.max(0, attrs.evolve)))
     this._driftX = dx
     this._driftZ = dz
+    this._driftX2 = dx * 1.9
+    this._driftZ2 = dz * 1.9 + t * attrs.wind * 0.35
     this._syncShadows()
     mat.setColor3('topColor', BABYLON.Color3.FromHexString(attrs.color))
     mat.setColor3('underColor', BABYLON.Color3.FromHexString(attrs.underColor))
@@ -885,6 +916,45 @@ export class B3dCloudDeck extends B3dChild {
     this.fieldTexture = tex
     const mat = this.mesh?.material as BABYLON.ShaderMaterial | undefined
     mat?.setTexture('cloudField', tex)
+  }
+
+  /**
+   * The CPU mirror of the shader's `density()` — same two layers, same drift.
+   *
+   * It exists because the shadow has to be the SAME cloud. Baking the shadow
+   * from the raw field was a single-layer approximation, and the moment the
+   * rendered sky became a product of two layers sliding past each other, the
+   * shade underfoot stopped being the cloud overhead — which is the one thing
+   * this whole design was for.
+   *
+   * ⚠️ **If you change `density()` in the shader, change this.** They are two
+   * implementations of one function and nothing enforces that; the field itself
+   * is still baked exactly once and read by both, so the worst a drift here can
+   * do is move a shadow, not invent different weather.
+   */
+  private _densityAt(x: number, z: number): number {
+    const f = this._field
+    const n = this._fieldSize
+    if (f == null || n === 0) return 0
+    const attrs = this as any
+    const invTile = 1 / (attrs.period || 1)
+    const h = (attrs.windHeadingDeg * Math.PI) / 180
+    const cos = Math.cos(h)
+    const sin = Math.sin(h)
+    const wrap = (v: number) => {
+      const m = v % n
+      return m < 0 ? m + n : m
+    }
+    const tap = (px: number, pz: number, scale: number, ou: number, ov: number) => {
+      const qx = px * cos - pz * sin
+      const qz = px * sin + pz * cos
+      const ix = Math.floor(wrap((qx * invTile * scale + ou) * n))
+      const iz = Math.floor(wrap((qz * invTile * scale + ov) * n))
+      return f[iz * n + ix]
+    }
+    const a = tap(x + this._driftX, z + this._driftZ, 1, 0, 0)
+    const b = tap(x + this._driftX2, z + this._driftZ2, 1.6180339, 0.37, 0.11)
+    return Math.min(1, Math.sqrt(Math.max(a * b, 0)) * 1.15)
   }
 
   /** The bake inputs, as one comparable value. */
@@ -1201,8 +1271,10 @@ export class B3dCloudDeck extends B3dChild {
     offset rather than a moving mesh — there is one number to share, and both
     readers take it.
     */
-    map.offsetX = this._driftX
-    map.offsetZ = this._driftZ
+    // The drift is already baked into the texture (see below), so the receiver
+    // must not apply it a second time or the shadows would travel twice.
+    map.offsetX = 0
+    map.offsetZ = 0
     /*
     `groundY` is the CLOUD's altitude, not the ground's. The receiver projects
     each fragment along the sun to this plane and looks up what is there — so
@@ -1239,20 +1311,33 @@ export class B3dCloudDeck extends B3dChild {
     const strength =
       Math.min(1, Math.max(0, attrs.shadowStrength)) * (1 - 0.8 * t)
 
-    // Re-bake when any of the three inputs move, transmission included.
+    /*
+    RE-BAKE ON THE WEATHER, AND ON A SLOW CLOCK.
+
+    `coverage`, `transmission` and the drift all change what the shadow is, and
+    the drift changes every frame — but a cloud shadow is a soft, low-frequency
+    cue that nobody can see stepping at 4 Hz, and the alternative is 65k samples
+    every frame for something the eye reads as continuous either way. So: rebake
+    immediately when a dial moves, and otherwise a few times a second.
+    */
     const key = attrs.coverage * 1000 + strength
-    if (Math.abs(key - this._shadowCoverage) < 0.002) return
+    const moved = Math.abs(key - this._shadowCoverage) >= 0.002
+    if (!moved && this._elapsed - this._shadowAt < 0.25) return
     this._shadowCoverage = key
+    this._shadowAt = this._elapsed
 
     const res = this._shadowRes
-    const n = this._fieldSize
-    const field = this._field
-    const step = n / res
+    const period = attrs.period || 1
+    /*
+    SAMPLED IN WORLD METRES over one `period`, because that is the window the
+    receiver tiles. The drift is already inside `_densityAt`, so a baked tile is
+    the sky as it is RIGHT NOW — and the plugin's own offset then has nothing
+    left to do, which is why it is no longer set.
+    */
+    const step = period / res
     for (let z = 0; z < res; z++) {
-      const sz = Math.min(n - 1, Math.floor(z * step))
       for (let x = 0; x < res; x++) {
-        const sx = Math.min(n - 1, Math.floor(x * step))
-        const o = cloudOpacity(field[sz * n + sx], attrs.coverage)
+        const o = cloudOpacity(this._densityAt(x * step, z * step), attrs.coverage)
         // White is lit. The receiver multiplies, so this IS the light left.
         bytes[z * res + x] = Math.round((1 - o * strength) * 255)
       }

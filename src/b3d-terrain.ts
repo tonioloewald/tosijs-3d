@@ -85,7 +85,10 @@ const posDisplay = span({ class: 'pos-display' })
 // right trigger = forward throttle, pull back to climb, turn stick banks.
 const plane = () => b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
+  // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
+  // you can be under it, in it, or over it. The stock 300 m is a low-level
+  // strike ceiling and it sat below even the spawn altitude here.
+  player: true, y: 400, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
 })
 const focus = inputFocus(gameController(), plane())
 

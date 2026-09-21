@@ -240,8 +240,8 @@ b3d-cloud-deck
   seed  = 1337  — Same seed, same weather
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   octaves  = 6  — Detail octaves. Billow needs more than fBm — folding eats fine structure
-  fieldSize  = 512  — Texels per edge of the baked density field. More texels = finer cloud, 1 byte each
-  period  = 700  — Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck
+  fieldSize  = 1024  — Texels per edge of the baked density field. More texels = finer cloud, 1 byte each
+  period  = 1800  — Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck
   edgeFade  = 0.45  — Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage
   color  = '#ffffff'  — Lit top colour
   underColor  = '#3a4350'  — Shadowed underside
