@@ -894,6 +894,21 @@
         "description": "How far the sun may be taken down at zero transmission"
       },
       {
+        "name": "localRise",
+        "default": "1200",
+        "description": "How far a local weather field can lift the cloud TOP. Large because the orographic field is attenuated at massif scale — see the attribute note"
+      },
+      {
+        "name": "orographic",
+        "default": "0",
+        "description": "Cloud gathers over high ground, `0…1`. Needs a terrain in the scene"
+      },
+      {
+        "name": "orographicPeak",
+        "default": "260",
+        "description": "Terrain height at which `orographic` is at full strength"
+      },
+      {
         "name": "shadows",
         "default": "'on'",
         "description": "Cloud shadows on the ground"

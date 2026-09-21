@@ -41,7 +41,9 @@ const { demo } = tosi({
 // `cloud base` is separate because it is geography, not weather: drop it to
 // ~250 and the peaks stand out of the overcast, and you have to get down into
 // the valleys to see anything at all.
-const { sky } = tosi({ sky: { coverage: 0.55, altitude: 700, timeOfDay: 10 } })
+const { sky } = tosi({
+  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8 },
+})
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
 // filled by priority (biased toward where you're looking + going). horizScale 4
@@ -131,6 +133,7 @@ const scene = b3d(
       slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],
@@ -164,7 +167,15 @@ const scene = b3d(
   //
   // This is the layer case. Blob clouds (b3d-clouds) are still the right tool for
   // cloud you fly BETWEEN, and for a stylised sky — see their own page.
-  b3dCloudDeck({ altitude: 700, coverage: sky.coverage, transmission: sky.transmission, wind: 10 }),
+  // `orographic` asks the TERRAIN for its own height sampler, so the towers build
+  // over the mountains that are actually there — landforms, the volcano province,
+  // slider changes and all — rather than over a second guess at the same ground.
+  b3dCloudDeck({
+    altitude: sky.altitude,
+    coverage: sky.coverage,
+    orographic: sky.orographic,
+    wind: 10,
+  }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
   // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
   // never runs out from under you and never flickers), while the ripples stay anchored in world

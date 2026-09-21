@@ -131,6 +131,9 @@ preview.append(
 | `ambientGloom` | `0.45` | How far the ambient may be taken down |
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
+| `localRise` | `1200` | How far a local weather field can lift the cloud TOP. Large because the orographic field is attenuated at massif scale — see the attribute note |
+| `orographic` | `0` | Cloud gathers over high ground, `0…1`. Needs a terrain in the scene |
+| `orographicPeak` | `260` | Terrain height at which `orographic` is at full strength |
 | `shadows` | `'on'` | Cloud shadows on the ground |
 | `shadowResolution` | `0` (auto) | Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail |
 | `shadowRange` | `6000` | Width in metres of the shadow window, centred on the camera |
@@ -240,13 +243,30 @@ attribute vec4 color;
 uniform mat4 worldViewProjection;
 uniform mat4 world;
 uniform mat4 view;
+uniform float localRise;
 varying vec3 vWorld;
 varying vec4 vChannel;
 varying vec2 vLocal;
 varying vec3 vViewPos;
 varying vec3 vViewUp;
 void main(void) {
-  vec4 wp = world * vec4(position, 1.0);
+  /*
+  LOCAL THICKENING, as an actual bulge in the mesh.
+
+  color.r is the local weather field sampled at this vertex's world XZ (a
+  province, or the terrain height for orographic cloud); color.g marks which
+  skin this is, 1 for the top and 0 for the base. So the top rises over the
+  province and the base does not — which is the same asymmetry the global
+  thickening has, for the same reason: a cloud base sits at the condensation
+  level and what builds is the top.
+
+  This is why the deck was a subdivided grid from the first commit rather than
+  one quad. The vertices have world positions, so they can ASK what is under
+  them; a quad has nowhere to put the answer.
+  */
+  vec3 pos = position;
+  pos.y += color.r * color.g * localRise;
+  vec4 wp = world * vec4(pos, 1.0);
   vWorld = wp.xyz;
   /*
   WHICH SIDE AM I LOOKING AT — asked in VIEW SPACE, not from the winding.
@@ -268,7 +288,7 @@ void main(void) {
   // RESERVED: per-vertex weather. Unused today, carried so localized effects
   // are a shader edit rather than a different primitive.
   vChannel = color;
-  gl_Position = worldViewProjection * vec4(position, 1.0);
+  gl_Position = worldViewProjection * vec4(pos, 1.0);
 }
 `
 
@@ -405,6 +425,8 @@ varying vec3 vViewPos;
 varying vec3 vViewUp;
 uniform float halfSize;
 uniform float underBump;
+uniform float globalRise;
+uniform float localRise;
 uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
@@ -473,6 +495,17 @@ void main(void) {
   */
   float r = length(vLocal) / halfSize;
   float rim = 1.0 - smoothstep(edgeFade, 1.0, r);
+
+  /*
+  THE TOP SKIN ONLY EXISTS WHERE IT IS SEPARATED from the base. Without this it
+  would sit exactly on the base wherever nothing has lifted it and z-fight for
+  the whole sky — and it means one mechanism covers every case: no thickening
+  and no province leaves a single sheet (identical to before), global
+  thickening lifts it everywhere, and a province lifts it only over itself, so
+  a tower stands above an otherwise flat deck.
+  */
+  float separation = globalRise + vChannel.r * localRise;
+  if (vChannel.g > 0.5 && separation < 4.0) discard;
 
   float a = opacityAt(d) * vChannel.a * rim;
   if (a <= 0.004) discard;
@@ -645,6 +678,32 @@ export class B3dCloudDeck extends B3dChild {
      * Turn it off only for a scene small enough that `size` covers it.
      */
     follow: 'on',
+    /**
+     * How far a local weather field can lift the cloud top, in metres.
+     *
+     * The bulge is `weather(x, z) × localRise`, added to whatever the global
+     * `coverage` thickening is already doing — so a province towers ABOVE an
+     * overcast rather than instead of it.
+     *
+     * Large, because the OROGRAPHIC field is deliberately attenuated: it is
+     * smoothed at massif scale, so a lone summit peaks around 0.2 and only a
+     * whole range of high ground approaches 1. That attenuation is the physics
+     * — one peak does not build a thunderhead — so the amplitude belongs here
+     * rather than in a blur that lies about the shape. An authored `weather`
+     * province returning 1 gets the full height.
+     */
+    localRise: 1200,
+    /**
+     * Orographic cloud, `0…1`: how strongly cloud gathers over high ground.
+     *
+     * Needs a `<tosi-b3d-terrain>` in the scene; it asks that terrain for its
+     * own height sampler, so the cloud is built over the ground that is
+     * actually there — landforms, provinces, slider changes and all — rather
+     * than over a second guess at it.
+     */
+    orographic: 0,
+    /** Terrain height, in metres, at which `orographic` cloud is at full strength. */
+    orographicPeak: 260,
     /** Cloud shadows on the ground: `'on'` or `'off'`. */
     shadows: 'on',
     /**
@@ -752,6 +811,9 @@ export class B3dCloudDeck extends B3dChild {
   declare windHeadingDeg: number
   declare evolve: number
   declare follow: string
+  declare localRise: number
+  declare orographic: number
+  declare orographicPeak: number
   declare shadows: string
   declare shadowResolution: number
   declare shadowRange: number
@@ -790,6 +852,8 @@ export class B3dCloudDeck extends B3dChild {
   private _fieldSize = 0
   private _bakeKey = ''
   private _elapsed = 0
+  private _weatherKey = ''
+  private _weatherMax = 0
   /*
   TOTAL FLOATING-ORIGIN SHIFT, accumulated.
 
@@ -882,7 +946,9 @@ export class B3dCloudDeck extends B3dChild {
     */
     const count = mesh.getTotalVertices()
     const colors = new Float32Array(count * 4)
-    colors.fill(1)
+    // r = local weather (baked below), g = which skin, b unused, a = opacity.
+    colors.fill(0)
+    for (let v = 3; v < colors.length; v += 4) colors[v] = 1
     mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors, true)
 
     const mat = new BABYLON.ShaderMaterial(
@@ -902,6 +968,8 @@ export class B3dCloudDeck extends B3dChild {
           'edgeFade',
           'drift',
           'evolve',
+          'globalRise',
+          'localRise',
           'topColor',
           'underColor',
           'sunDir',
@@ -956,7 +1024,15 @@ export class B3dCloudDeck extends B3dChild {
     top.isPickable = false
     top.applyFog = false
     top.material = mat
-    top.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors.slice(), true)
+    /*
+    `g` MARKS THE SKIN: 1 on the top, 0 on the base. One shared material cannot
+    carry a per-mesh uniform, and this is the channel that already exists for
+    exactly this kind of per-vertex fact — so the vertex shader lifts the top
+    and leaves the base alone without a second material to keep in step.
+    */
+    const topColors = colors.slice()
+    for (let v = 1; v < topColors.length; v += 4) topColors[v] = 1
+    top.setVerticesData(BABYLON.VertexBuffer.ColorKind, topColors, true)
     top.isVisible = false
     this.topMesh = top
 
@@ -1019,14 +1095,36 @@ export class B3dCloudDeck extends B3dChild {
     */
     const cam = this.owner?.scene?.activeCamera
     if (!isOff(attrs.follow) && cam != null) {
-      this.mesh.position.x = cam.globalPosition.x
-      this.mesh.position.z = cam.globalPosition.z
+      /*
+      SNAPPED TO THE VERTEX GRID, the same trick b3d-water uses — and here it
+      is load-bearing rather than tidy. The local weather field is sampled PER
+      VERTEX, so if the grid slid continuously every vertex would be over new
+      ground every frame and the field would have to be re-sampled 4,600 times
+      a frame. Snapped, the vertices sit on a fixed world lattice and the
+      samples stay valid until the snap changes.
+
+      The jump is invisible because nothing about the CLOUD moves with it: the
+      density is read in world space and the rim is far away and faded, so what
+      steps is only the sheet the sky is painted on.
+      */
+      const step = Math.max(1, attrs.size / Math.max(1, attrs.subdivisions))
+      this.mesh.position.x = Math.round(cam.globalPosition.x / step) * step
+      this.mesh.position.z = Math.round(cam.globalPosition.z / step) * step
     }
     const rise = this.topRise
     const top = this.topMesh
+    this._bakeWeather()
+    const local = Math.max(0, attrs.localRise) * this._weatherMax
+    mat.setFloat('globalRise', rise)
+    mat.setFloat('localRise', Math.max(0, attrs.localRise))
     if (top != null) {
-      // Below a couple of metres the two skins would z-fight for nothing.
-      top.isVisible = rise > 2
+      /*
+      The top skin is SHOWN whenever anything could separate it, and the shader
+      then discards it wherever nothing has — so a province raises a tower over
+      a deck that is otherwise a single sheet, with no z-fighting anywhere the
+      two would coincide.
+      */
+      top.isVisible = rise > 2 || local > 2
       top.position.set(
         this.mesh.position.x,
         attrs.altitude + rise,
@@ -1158,6 +1256,127 @@ export class B3dCloudDeck extends B3dChild {
     this.fieldTexture = tex
     const mat = this.mesh?.material as BABYLON.ShaderMaterial | undefined
     mat?.setTexture('cloudField', tex)
+  }
+
+  /**
+   * LOCAL weather: `(x, z) → 0…1`, in logical world coordinates.
+   *
+   * Set it to a province falloff for an authored thunderhead, or leave it null
+   * and set `orographic` to have the deck build one from the terrain. Sampled
+   * per vertex, so its resolution is the grid's: at the default 14 km over 64
+   * subdivisions that is one sample every 220 m, and a feature much smaller
+   * than that will alias rather than appear. Raise `subdivisions` for finer
+   * weather, or carry the fine detail in the density field where it is free.
+   *
+   * ⚠️ It must be ORIGIN-STABLE — the same coordinates must give the same
+   * answer after a floating-origin rebase, or the sky will slide off the
+   * ground it belongs to. `B3dTerrain.heightSampler()` already promises this,
+   * which is why `orographic` uses it rather than the render-space one.
+   */
+  weather: ((x: number, z: number) => number) | null = null
+
+  /**
+   * Resolve the field actually in force: an explicit `weather`, or one built
+   * from the terrain for `orographic`, or nothing.
+   */
+  private _weatherField(): ((x: number, z: number) => number) | null {
+    if (this.weather != null) return this.weather
+    const strength = Math.min(1, Math.max(0, this.orographic))
+    if (strength <= 0) return null
+    const terrain = this.owner?.querySelector(
+      'tosi-b3d-terrain'
+    ) as { heightSampler?: () => (x: number, z: number) => number } | null
+    const height = terrain?.heightSampler?.()
+    if (height == null) return null
+    const peak = Math.max(1, this.orographicPeak)
+    /*
+    A RIDGE, not a height map. What makes orographic cloud is air being pushed
+    UP, so the interesting thing is elevation relative to what is around it —
+    but a first pass on absolute height already puts the towers over the
+    mountains and the clear air over the sea, which is the effect being asked
+    for. Smoothstepped so a coastal plain contributes nothing rather than a
+    little of everything.
+    */
+    return (x, z) => {
+      const t = Math.min(1, Math.max(0, height(x, z) / peak))
+      return strength * t * t * (3 - 2 * t)
+    }
+  }
+
+  /**
+   * Write the local weather field into the vertex channel.
+   *
+   * ONLY WHEN THE GRID HAS MOVED, which is what the snapped follow buys: the
+   * vertices sit on a fixed world lattice, so between snaps every vertex is
+   * over the same ground and the samples stay valid. At 14 km over 64
+   * subdivisions the snap is 220 m, so at 50 m/s this runs about once every
+   * four seconds rather than 4,600 samples a frame.
+   */
+  private _bakeWeather(force = false): void {
+    const mesh = this.mesh
+    const top = this.topMesh
+    if (mesh == null || top == null) return
+    const field = this._weatherField()
+    const key = field == null ? 'none' : `${mesh.position.x},${mesh.position.z}`
+    if (!force && key === this._weatherKey) return
+    this._weatherKey = key
+
+    const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+    const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind)
+    const topColors = top.getVerticesData(BABYLON.VertexBuffer.ColorKind)
+    if (positions == null || colors == null || topColors == null) return
+    const ox = mesh.position.x - this._originX
+    const oz = mesh.position.z - this._originZ
+    const n = Math.max(1, Math.floor(this.subdivisions)) + 1
+    const raw = new Float32Array(n * n)
+    for (let k = 0, i = 0; k < raw.length; k++, i += 3) {
+      const w = field == null ? 0 : field(positions[i] + ox, positions[i + 2] + oz)
+      raw[k] = w < 0 ? 0 : w > 1 ? 1 : w
+    }
+
+    /*
+    SMOOTHED ACROSS THE GRID, and this is the difference between cloud and a
+    mirrored mountain range.
+
+    The first version displaced each vertex by the terrain height beneath it,
+    which is exactly what the description says and produces faceted triangular
+    peaks hanging in the sky — recognisably the same ridgeline, upside down.
+    Two things were wrong with it. A 220 m vertex spacing cannot represent a
+    ridge, so it aliases into facets; and orographic lift is not a copy of the
+    ground anyway — air rides up over a whole massif, so what builds is a broad
+    dome over the high GROUND, not a cast of its skyline.
+
+    Four box passes over 65x65 is a few thousand adds, it runs only when the
+    grid snaps, and it turns a mountain into weather.
+    */
+    const smooth = new Float32Array(raw.length)
+    let src = raw
+    let dst = smooth
+    for (let pass = 0; pass < 4; pass++) {
+      for (let z = 0; z < n; z++) {
+        for (let x = 0; x < n; x++) {
+          const i = z * n + x
+          let sum = src[i] * 2
+          let count = 2
+          if (x > 0) { sum += src[i - 1]; count++ }
+          if (x < n - 1) { sum += src[i + 1]; count++ }
+          if (z > 0) { sum += src[i - n]; count++ }
+          if (z < n - 1) { sum += src[i + n]; count++ }
+          dst[i] = sum / count
+        }
+      }
+      const swap = src
+      src = dst
+      dst = swap
+    }
+
+    for (let k = 0, v = 0; k < src.length; k++, v += 4) {
+      colors[v] = src[k]
+      topColors[v] = src[k]
+    }
+    mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors)
+    top.updateVerticesData(BABYLON.VertexBuffer.ColorKind, topColors)
+    this._weatherMax = field == null ? 0 : 1
   }
 
   /** The bake inputs, as one comparable value. */
@@ -1296,7 +1515,18 @@ export class B3dCloudDeck extends B3dChild {
     flying down through a thickening deck stays white for longer rather than
     behaving differently.
     */
-    const top = this.altitude + this.topRise
+    /*
+    THE SLAB FOLLOWS THE LOCAL BULGE, so flying into a tower is flying into
+    cloud. One field call a frame — the geometry is per-vertex, but what is
+    over YOUR head is a single point.
+    */
+    const field = this._weatherField()
+    const localTop =
+      field == null
+        ? 0
+        : Math.min(1, Math.max(0, field(p.x - this._originX, p.z - this._originZ))) *
+          Math.max(0, this.localRise)
+    const top = this.altitude + this.topRise + localTop
     const bottom = this.altitude
     const outside =
       p.y > top ? p.y - top : p.y < bottom ? bottom - p.y : 0
