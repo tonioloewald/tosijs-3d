@@ -894,6 +894,16 @@
         "description": "Cloud shadows on the ground"
       },
       {
+        "name": "shadowResolution",
+        "default": "0",
+        "description": "Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail"
+      },
+      {
+        "name": "shadowRange",
+        "default": "6000",
+        "description": "Width in metres of the shadow window, centred on the camera"
+      },
+      {
         "name": "shadowStrength",
         "default": "0.75",
         "description": "Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow"

@@ -79,6 +79,12 @@ export interface PerfBudgets {
    */
   tileBuildMs: number
   shadowTextureSize: number
+  /**
+   * Cloud-shadow texture size. DELIBERATELY SMALL — a cloud shadow is a soft,
+   * low-frequency cue, so it is rendered far coarser than the cloud casting it
+   * and nobody can tell. Its cost is a quad draw, not a sample loop.
+   */
+  cloudShadowSize: number
   numCascades: number
   /** Reflection probe resolution (per face). */
   reflectionSize: number
@@ -170,6 +176,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     fillBudget: 24,
     tileBuildMs: 4,
     shadowTextureSize: 2048,
+    cloudShadowSize: 512,
     numCascades: 4,
     reflectionSize: 512,
     reflections: true,
@@ -183,6 +190,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     fillBudget: 18,
     tileBuildMs: 3,
     shadowTextureSize: 1024,
+    cloudShadowSize: 384,
     numCascades: 4,
     reflectionSize: 256,
     reflections: true,
@@ -196,6 +204,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     fillBudget: 12,
     tileBuildMs: 2,
     shadowTextureSize: 1024,
+    cloudShadowSize: 256,
     numCascades: 2,
     reflectionSize: 128,
     reflections: false,

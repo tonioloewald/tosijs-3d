@@ -153,12 +153,10 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
       ubo: [
         { name: 'cloudShadowWindow', size: 4, type: 'vec4' },
         { name: 'cloudShadowSun', size: 4, type: 'vec4' },
-        { name: 'cloudShadowTile', size: 4, type: 'vec4' },
       ],
       fragment: `#ifdef CLOUDSHADOW
         uniform vec4 cloudShadowWindow;
         uniform vec4 cloudShadowSun;
-        uniform vec4 cloudShadowTile;
       #endif`,
     }
   }
@@ -193,23 +191,15 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
       map.groundY
     )
     /*
-    TWO SOURCES, ONE RECEIVER. A blob field is PAINTED into a window that
-    follows the camera; a deck's field TILES and has no window at all. They are
-    the same question at the receiver — "how much light reaches this fragment"
-    — so they share the plugin rather than growing a second one, and `.w`
-    says which geometry to use.
+    THE SOURCE CAN BE OVERRIDDEN. A blob field is PAINTED into `texture`; a
+    cloud DECK renders its own window on the GPU and hands it over. Same
+    question at the receiver — how much light reaches this fragment — so they
+    share the plugin rather than growing a second one, and the window math is
+    identical either way.
     */
-    const tiled = map.fieldTexture != null
-    uniformBuffer.updateFloat4(
-      'cloudShadowTile',
-      map.invPeriod,
-      map.offsetX,
-      map.offsetZ,
-      tiled ? 1 : 0
-    )
     uniformBuffer.setTexture(
       'cloudShadowSampler',
-      tiled ? map.fieldTexture! : map.texture
+      map.sourceTexture ?? map.texture
     )
   }
 
@@ -227,13 +217,8 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
           ? (cloudShadowSun.w - vPositionW.y) / cloudShadowSun.y
           : 0.0;
         vec2 csGround = vPositionW.xz + cloudShadowSun.xz * csT;
-        // TILED: the field repeats, so there is no window and nothing to leave.
-        // WINDOWED: a painted texture, clamped, and outside it there is no data.
-        bool csTiled = cloudShadowTile.w > 0.5;
-        vec2 csUv = csTiled
-          ? (csGround + cloudShadowTile.yz) * cloudShadowTile.x
-          : (csGround - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
-        if (csTiled || (csUv.x > 0.0 && csUv.x < 1.0 && csUv.y > 0.0 && csUv.y < 1.0)) {
+        vec2 csUv = (csGround - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
+        if (csUv.x > 0.0 && csUv.x < 1.0 && csUv.y > 0.0 && csUv.y < 1.0) {
           float csShadow = texture2D(cloudShadowSampler, csUv).r;
           #ifdef FOG
             // We inject at MAIN_END, AFTER fog — so a naive multiply darkens the already-fogged
@@ -279,24 +264,18 @@ export class CloudShadowMap {
    * higher). Defaults huge so an unset map shadows everything; clouds set it to the real top. */
   layerTop = 1e9
   /**
-   * A TILING density source, as an alternative to painting blobs.
+   * A texture to sample INSTEAD of the painted one, in the same window.
    *
-   * A deck has no blobs to stamp and no window to follow — its field repeats
-   * forever — so when this is set the receiver samples it by world XZ scaled by
-   * {@link invPeriod} and the window is ignored entirely. Set it and the map is
-   * in tiled mode; leave it null and {@link paint} works as before.
+   * A blob field is painted into {@link texture} on the CPU, which suits blobs:
+   * a few dozen stamps, repainted only when one recycles. A cloud DECK has no
+   * blobs to stamp — its shadow is a continuous function — so it renders the
+   * window itself on the GPU and sets this. The window math, the sun
+   * projection and the layer-top test are identical either way, which is the
+   * reason this is one field rather than a second plugin.
    *
-   * It must carry OPACITY, not density: white is lit, dark is shadowed. Putting
-   * the threshold on whoever bakes this texture is deliberate — it keeps the
-   * `coverage` curve from acquiring a third implementation, which is the bug
-   * class this whole module exists to avoid.
+   * Whatever is set here must carry OPACITY, not density: white is lit.
    */
-  fieldTexture: BABYLON.BaseTexture | null = null
-  /** Tiled mode: 1 / metres per repeat. */
-  invPeriod = 1 / 700
-  /** Tiled mode: world-XZ offset, so a drifting deck drags its shadows along. */
-  offsetX = 0
-  offsetZ = 0
+  sourceTexture: BABYLON.BaseTexture | null = null
 
   private _plugins: CloudShadowPlugin[] = []
   /** How many blobs the last {@link paint} stamped — a debug readout. */

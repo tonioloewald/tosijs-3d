@@ -127,6 +127,8 @@ preview.append(
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
 | `shadows` | `'on'` | Cloud shadows on the ground |
+| `shadowResolution` | `0` (auto) | Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail |
+| `shadowRange` | `6000` | Width in metres of the shadow window, centred on the camera |
 | `shadowStrength` | `0.75` | Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow |
 | `transmission` | `-1` | How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage` |
 | `thickness` | `180` | Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long |
@@ -220,8 +222,9 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
+import { resolveBudget } from './b3d-quality.js'
 import type { B3d } from './tosi-b3d.js'
-import { cloudField, cloudOpacity } from './cloud-field.js'
+import { cloudField } from './cloud-field.js'
 import { CloudShadowMap } from './cloud-shadows.js'
 
 const DECK_VERT = `
@@ -246,41 +249,26 @@ void main(void) {
 }
 `
 
-const DECK_FRAG = `
-precision highp float;
-varying vec3 vWorld;
-varying vec4 vChannel;
-varying vec2 vLocal;
+/*
+THE FIELD, AS ONE PIECE OF GLSL, shared by the deck and by its shadow.
+
+Not tidiness — correctness, and it replaced something worse. The shadow used to
+be baked on the CPU from a TypeScript mirror of this, which meant one function
+in two languages and a comment asking the next person to keep them in step. They
+had already drifted once: the mirror read a single layer while the sky rendered
+two, so the shade underfoot was not quite the cloud overhead.
+
+One string, compiled into two shaders, is how that class of bug stops being
+possible rather than being watched for.
+*/
+const FIELD_GLSL = `
 uniform sampler2D cloudField;
-uniform float halfSize;
-uniform float edgeFade;
-// xy = drift of the main layer, zw = drift of the second one.
-uniform vec4 drift;
-uniform float evolve;
 uniform float coverage;
 uniform float invTile;
 uniform vec2 windAxis;
-uniform vec3 topColor;
-uniform vec3 underColor;
-uniform vec3 sunDir;
-uniform float fringe;
-uniform float bump;
-uniform float shade;
-uniform float transmission;
-uniform vec3 fogColorU;
-// (mode, start, end, density) — Babylon's own vFogInfos, read from the scene.
-uniform vec4 fogInfos;
-uniform vec3 camPos;
+// xy = drift of the main layer, zw = drift of the second one.
+uniform vec4 drift;
 
-/*
-WIND HEADING IS A UV ROTATION, not something baked into the field.
-
-Rotating inside the bake does not tile (the torus angle advances by 2*PI*cos
-across the field, which only closes at right angles). Rotating the SAMPLE does:
-the texture wraps, so a rotated read has no seam — the repeat lattice simply
-sits at an angle to the world. Turning the wind therefore costs nothing and
-rebakes nothing.
-*/
 vec2 toField(vec2 p) {
   return vec2(p.x * windAxis.x - p.y * windAxis.y, p.x * windAxis.y + p.y * windAxis.x);
 }
@@ -347,6 +335,72 @@ float opacityAt(float d) {
   float t = clamp((d - threshold + softness) / (softness * 2.0), 0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
+`
+
+/*
+THE SHADOW IS RENDERED, NOT COMPUTED.
+
+It used to be baked on the CPU: 65,536 samples plus a texture upload, four times
+a second, costing **28.7 ms** a go — nearly two frames at 60 Hz. Average FPS
+looked fine and the thing stuttered four times a second, which is exactly what
+"the frame rate seems terrible" means and is exactly what an average hides.
+Tonio: *"I assume that's some kind of process manually updating a texture rather
+than just rendering the clouds dynamically in the fragment shader."* It was.
+
+A 512-square quad drawn by the GPU is a rounding error by comparison, and it can
+run every frame instead of stepping. It also deletes the CPU mirror of
+`density()` — the shadow is now literally the same code the sky is.
+
+A WINDOW that follows the camera, not a tile. Tiling the result only works when
+the wind heading is axis-aligned: with any other heading, sampling at `p` and
+`p + period` lands on points that are not a lattice apart in the rotated frame,
+so the seams would reappear the moment someone turned the wind.
+*/
+const SHADOW_FRAG = `
+precision highp float;
+varying vec2 vUV;
+${FIELD_GLSL}
+uniform vec2 shadowCenter;
+uniform float shadowWorldSize;
+uniform float shadowStrength;
+
+void main(void) {
+  vec2 p = shadowCenter + (vUV - 0.5) * shadowWorldSize;
+  // White is lit: the receiver MULTIPLIES, so this is the light that is left.
+  float lit = 1.0 - opacityAt(density(p)) * shadowStrength;
+  gl_FragColor = vec4(lit, lit, lit, 1.0);
+}
+`
+
+const DECK_FRAG = `
+precision highp float;
+${FIELD_GLSL}
+varying vec3 vWorld;
+varying vec4 vChannel;
+varying vec2 vLocal;
+uniform float halfSize;
+uniform float edgeFade;
+uniform vec3 topColor;
+uniform vec3 underColor;
+uniform vec3 sunDir;
+uniform float fringe;
+uniform float bump;
+uniform float shade;
+uniform float transmission;
+uniform vec3 fogColorU;
+// (mode, start, end, density) — Babylon's own vFogInfos, read from the scene.
+uniform vec4 fogInfos;
+uniform vec3 camPos;
+
+/*
+WIND HEADING IS A UV ROTATION, not something baked into the field.
+
+Rotating inside the bake does not tile (the torus angle advances by 2*PI*cos
+across the field, which only closes at right angles). Rotating the SAMPLE does:
+the texture wraps, so a rotated read has no seam — the repeat lattice simply
+sits at an angle to the world. Turning the wind therefore costs nothing and
+rebakes nothing.
+*/
 
 /*
 OUR OWN FOG, because this is our own shader.
@@ -500,6 +554,20 @@ export class B3dCloudDeck extends B3dChild {
     /** Cloud shadows on the ground: `'on'` or `'off'`. */
     shadows: 'on',
     /**
+     * Shadow texture resolution. `0` resolves from the device tier.
+     *
+     * Fractional by nature — a cloud shadow is a soft, low-frequency cue, so it
+     * is rendered far coarser than the cloud that casts it and nobody can tell.
+     */
+    shadowResolution: 0,
+    /**
+     * Width of the shadow window in metres, centred on the camera.
+     *
+     * A WINDOW rather than a tiling texture, so the wind can blow in any
+     * direction without seams — see the note on `SHADOW_FRAG`.
+     */
+    shadowRange: 6000,
+    /**
      * `transmission` below which the AMBIENT fill starts to go, `0` to disable.
      *
      * The ambient goes FIRST and the sun goes second — see `_applyGloom`.
@@ -585,6 +653,8 @@ export class B3dCloudDeck extends B3dChild {
   declare evolve: number
   declare follow: string
   declare shadows: string
+  declare shadowResolution: number
+  declare shadowRange: number
   declare shadowStrength: number
   declare ambientGloomBelow: number
   declare ambientGloom: number
@@ -641,11 +711,7 @@ export class B3dCloudDeck extends B3dChild {
   private _driftZ2 = 0
   /** The shadow half — see `_syncShadows`. Null when `shadows` is off. */
   private _shadowMap: CloudShadowMap | null = null
-  private _shadowTex: BABYLON.RawTexture | null = null
-  private _shadowBytes: Uint8Array | null = null
-  private _shadowRes = 0
-  private _shadowCoverage = -1
-  private _shadowAt = -1
+  private _shadowTex: BABYLON.ProceduralTexture | null = null
   /*
   THE SUN'S BRIGHTNESS IS NOT OURS, so it is borrowed rather than taken.
 
@@ -916,45 +982,6 @@ export class B3dCloudDeck extends B3dChild {
     this.fieldTexture = tex
     const mat = this.mesh?.material as BABYLON.ShaderMaterial | undefined
     mat?.setTexture('cloudField', tex)
-  }
-
-  /**
-   * The CPU mirror of the shader's `density()` — same two layers, same drift.
-   *
-   * It exists because the shadow has to be the SAME cloud. Baking the shadow
-   * from the raw field was a single-layer approximation, and the moment the
-   * rendered sky became a product of two layers sliding past each other, the
-   * shade underfoot stopped being the cloud overhead — which is the one thing
-   * this whole design was for.
-   *
-   * ⚠️ **If you change `density()` in the shader, change this.** They are two
-   * implementations of one function and nothing enforces that; the field itself
-   * is still baked exactly once and read by both, so the worst a drift here can
-   * do is move a shadow, not invent different weather.
-   */
-  private _densityAt(x: number, z: number): number {
-    const f = this._field
-    const n = this._fieldSize
-    if (f == null || n === 0) return 0
-    const attrs = this as any
-    const invTile = 1 / (attrs.period || 1)
-    const h = (attrs.windHeadingDeg * Math.PI) / 180
-    const cos = Math.cos(h)
-    const sin = Math.sin(h)
-    const wrap = (v: number) => {
-      const m = v % n
-      return m < 0 ? m + n : m
-    }
-    const tap = (px: number, pz: number, scale: number, ou: number, ov: number) => {
-      const qx = px * cos - pz * sin
-      const qz = px * sin + pz * cos
-      const ix = Math.floor(wrap((qx * invTile * scale + ou) * n))
-      const iz = Math.floor(wrap((qz * invTile * scale + ov) * n))
-      return f[iz * n + ix]
-    }
-    const a = tap(x + this._driftX, z + this._driftZ, 1, 0, 0)
-    const b = tap(x + this._driftX2, z + this._driftZ2, 1.6180339, 0.37, 0.11)
-    return Math.min(1, Math.sqrt(Math.max(a * b, 0)) * 1.15)
   }
 
   /** The bake inputs, as one comparable value. */
@@ -1235,52 +1262,84 @@ export class B3dCloudDeck extends B3dChild {
    * lives in those gaps.
    */
   private _setupShadows(owner: B3d, scene: BABYLON.Scene): void {
-    const map = new CloudShadowMap(scene, 1)
+    const map = new CloudShadowMap(scene, this.shadowRange)
     this._shadowMap = map
-    this._shadowRes = Math.min(256, this._fieldSize)
-    this._shadowBytes = new Uint8Array(this._shadowRes * this._shadowRes)
-    const tex = new BABYLON.RawTexture(
-      this._shadowBytes,
-      this._shadowRes,
-      this._shadowRes,
-      BABYLON.Constants.TEXTUREFORMAT_R,
+    const res = resolveBudget(this.shadowResolution, 'cloudShadowSize')
+    const tex = new BABYLON.ProceduralTexture(
+      'cloud-deck-shadow',
+      res,
+      { fragmentSource: SHADOW_FRAG },
       scene,
+      undefined,
       false,
-      false,
-      BABYLON.Texture.BILINEAR_SAMPLINGMODE
+      false
     )
-    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
-    tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+    /*
+    EVERY FRAME, because it now costs a quad. The window follows the camera, so
+    a stale one would smear the shadows behind you as you fly — the old 4 Hz
+    bake could only be excused because it was tiled and stationary.
+    */
+    tex.refreshRate = 1
+    tex.setTexture('cloudField', this.fieldTexture!)
+    // The window is CLAMPED: outside it there is no data, and the receiver
+    // already skips fragments that fall outside rather than wrapping to garbage.
+    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE
+    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE
     this._shadowTex = tex
-    map.fieldTexture = tex
+    map.sourceTexture = tex
     for (const m of scene.meshes) this._maybeReceive(m)
     owner.addSceneListener(this._onAddition)
   }
 
-  /** Push the live dials at the shadow map, re-baking its texture when needed. */
+  /** Push the live dials at the shadow map and its shader. */
   private _syncShadows(): void {
     const map = this._shadowMap
-    const bytes = this._shadowBytes
-    if (map == null || bytes == null || this._field == null) return
+    const tex = this._shadowTex
+    if (map == null || tex == null) return
     const attrs = this as any
 
-    map.invPeriod = 1 / (attrs.period || 1)
     /*
-    THE OFFSET IS THE DRIFT, so the shadows travel with the sky rather than
-    sitting still under a moving cloud. It is also why drift had to be a sample
-    offset rather than a moving mesh — there is one number to share, and both
-    readers take it.
+    TRANSMISSION DARKENS OR LIGHTENS THE SHADOW, because it is the same fact
+    seen from the other side. `transmission` says how much daylight comes
+    THROUGH the cloud; light that got through is light that reached the ground,
+    so a deck rendering as luminous from below cannot also be laying down a hard
+    shadow. Not all the way to zero — even thin cloud dims what is under it, and
+    a shadow that vanishes entirely reads as the shadows being broken rather
+    than as the cloud being thin.
     */
-    // The drift is already baked into the texture (see below), so the receiver
-    // must not apply it a second time or the shadows would travel twice.
-    map.offsetX = 0
-    map.offsetZ = 0
+    const strength =
+      Math.min(1, Math.max(0, attrs.shadowStrength)) *
+      (1 - 0.8 * this.resolvedTransmission)
+
+    // The window follows the camera; the weather inside it does not move with it.
+    const cam = this.owner?.scene?.activeCamera?.globalPosition
+    const range = Math.max(100, attrs.shadowRange)
+    map.worldSize = range
+    if (cam != null) map.setCenter(cam.x, cam.z)
+
+    tex.setVector2('shadowCenter', new BABYLON.Vector2(map.centerX, map.centerZ))
+    tex.setFloat('shadowWorldSize', range)
+    tex.setFloat('shadowStrength', strength)
+    tex.setFloat('coverage', attrs.coverage)
+    tex.setFloat('invTile', 1 / (attrs.period || 1))
+    const h = (attrs.windHeadingDeg * Math.PI) / 180
+    tex.setVector2('windAxis', new BABYLON.Vector2(Math.cos(h), Math.sin(h)))
+    tex.setVector4(
+      'drift',
+      new BABYLON.Vector4(
+        this._driftX,
+        this._driftZ,
+        this._driftX2,
+        this._driftZ2
+      )
+    )
+
     /*
     `groundY` is the CLOUD's altitude, not the ground's. The receiver projects
     each fragment along the sun to this plane and looks up what is there — so
-    the plane has to be where the occluder is, and the shadow lands displaced
-    by the sun's slant exactly as it should. Setting it to the actual ground
-    would sample the cloud directly overhead and give every shadow a noon sun.
+    the plane has to be where the occluder is, and the shadow lands displaced by
+    the sun's slant exactly as it should. Setting it to the actual ground would
+    sample the cloud directly overhead and give every shadow a noon sun.
     */
     const sun = this.owner?.scene?.lights?.find(
       (l) => (l as BABYLON.DirectionalLight).direction != null
@@ -1289,60 +1348,6 @@ export class B3dCloudDeck extends B3dChild {
     map.setSun({ x: dir.x, y: dir.y, z: dir.z }, attrs.altitude)
     // Nothing above the deck can be shadowed by it.
     map.layerTop = attrs.altitude + this._halfDepth()
-
-    /*
-    RE-BAKE ONLY WHEN THE WEATHER MOVES. The shadow texture is a function of the
-    field and `coverage`, and drift is handled by the offset above — so an
-    ordinary frame with the sky sliding past re-bakes nothing at all.
-    */
-    /*
-    TRANSMISSION DARKENS OR LIGHTENS THE SHADOW, because it is the same fact
-    seen from the other side. `transmission` says how much daylight comes
-    THROUGH the cloud; light that got through is light that reached the ground,
-    so a deck rendering as luminous from below cannot also be laying down a
-    hard shadow. Tonio: "Transmission doesn't affect shadows (it probably should
-    when transmission gets really high)."
-
-    Not all the way to zero — even thin cloud dims what is under it, and a
-    shadow that vanishes entirely reads as the shadows being broken rather than
-    as the cloud being thin.
-    */
-    const t = this.resolvedTransmission
-    const strength =
-      Math.min(1, Math.max(0, attrs.shadowStrength)) * (1 - 0.8 * t)
-
-    /*
-    RE-BAKE ON THE WEATHER, AND ON A SLOW CLOCK.
-
-    `coverage`, `transmission` and the drift all change what the shadow is, and
-    the drift changes every frame — but a cloud shadow is a soft, low-frequency
-    cue that nobody can see stepping at 4 Hz, and the alternative is 65k samples
-    every frame for something the eye reads as continuous either way. So: rebake
-    immediately when a dial moves, and otherwise a few times a second.
-    */
-    const key = attrs.coverage * 1000 + strength
-    const moved = Math.abs(key - this._shadowCoverage) >= 0.002
-    if (!moved && this._elapsed - this._shadowAt < 0.25) return
-    this._shadowCoverage = key
-    this._shadowAt = this._elapsed
-
-    const res = this._shadowRes
-    const period = attrs.period || 1
-    /*
-    SAMPLED IN WORLD METRES over one `period`, because that is the window the
-    receiver tiles. The drift is already inside `_densityAt`, so a baked tile is
-    the sky as it is RIGHT NOW — and the plugin's own offset then has nothing
-    left to do, which is why it is no longer set.
-    */
-    const step = period / res
-    for (let z = 0; z < res; z++) {
-      for (let x = 0; x < res; x++) {
-        const o = cloudOpacity(this._densityAt(x * step, z * step), attrs.coverage)
-        // White is lit. The receiver multiplies, so this IS the light left.
-        bytes[z * res + x] = Math.round((1 - o * strength) * 255)
-      }
-    }
-    this._shadowTex?.update(bytes)
   }
 
   /**
@@ -1455,7 +1460,6 @@ export class B3dCloudDeck extends B3dChild {
     this._shadowMap = null
     this._shadowTex?.dispose()
     this._shadowTex = null
-    this._shadowBytes = null
     this.fieldTexture?.dispose()
     this.fieldTexture = undefined
     this.mesh?.dispose()

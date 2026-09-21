@@ -233,6 +233,8 @@ b3d-cloud-deck
   sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
   sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   shadows  = 'on'  — Cloud shadows on the ground
+  shadowResolution  = 0  — Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail
+  shadowRange  = 6000  — Width in metres of the shadow window, centred on the camera
   shadowStrength  = 0.75  — Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow
   transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
   thickness  = 180  — Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long
