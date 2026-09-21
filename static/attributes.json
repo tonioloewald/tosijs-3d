@@ -974,6 +974,11 @@
         "description": "Faux-bump strength. Higher = more pronounced relief"
       },
       {
+        "name": "underBump",
+        "default": "0.85",
+        "description": "How much relief the UNDERSIDE shows. Borrowed from the top's lighting, so both faces share one shape"
+      },
+      {
         "name": "shade",
         "default": "0.22",
         "description": "How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water"

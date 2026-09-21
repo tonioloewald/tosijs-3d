@@ -143,6 +143,7 @@ preview.append(
 | `underColor` | `'#3a4350'` | Shadowed underside |
 | `fringe` | `0.9` | Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1 |
 | `bump` | `34` | Faux-bump strength. Higher = more pronounced relief |
+| `underBump` | `0.85` | How much relief the UNDERSIDE shows. Borrowed from the top's lighting, so both faces share one shape |
 | `shade` | `0.22` | How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water |
 
 ## A grid, not a quad
@@ -233,12 +234,29 @@ attribute vec3 position;
 attribute vec4 color;
 uniform mat4 worldViewProjection;
 uniform mat4 world;
+uniform mat4 view;
 varying vec3 vWorld;
 varying vec4 vChannel;
 varying vec2 vLocal;
+varying vec3 vViewPos;
+varying vec3 vViewUp;
 void main(void) {
   vec4 wp = world * vec4(position, 1.0);
   vWorld = wp.xyz;
+  /*
+  WHICH SIDE AM I LOOKING AT — asked in VIEW SPACE, not from the winding.
+
+  gl_FrontFacing is a winding test, and a MIRROR reverses winding: the water's
+  reflection pass renders through a matrix with negative determinant, so every
+  face reports the opposite side and the reflection drew the sunlit TOP of the
+  deck when it should have drawn the underside. Tonio spotted it in the water.
+
+  A dot product between the surface normal and the eye direction, both carried
+  into view space, describes actual geometry and does not care how the triangle
+  is wound. It is the same answer in the main pass and the mirrored one.
+  */
+  vViewPos = (view * wp).xyz;
+  vViewUp = (view * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
   // OBJECT space, so the fade is anchored to the deck's own rim wherever the
   // deck happens to be — including after a floating-origin rebase.
   vLocal = position.xz;
@@ -378,7 +396,10 @@ ${FIELD_GLSL}
 varying vec3 vWorld;
 varying vec4 vChannel;
 varying vec2 vLocal;
+varying vec3 vViewPos;
+varying vec3 vViewUp;
 uniform float halfSize;
+uniform float underBump;
 uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
@@ -461,7 +482,10 @@ void main(void) {
   float dz = density(p + vec2(0.0, e)) - density(p - vec2(0.0, e));
   vec3 n = normalize(vec3(-dx * bump, 1.0, -dz * bump));
 
-  if (gl_FrontFacing) {
+  // Geometric, not winding-based — survives the mirrored reflection pass.
+  bool topSide = dot(normalize(vViewUp), -normalize(vViewPos)) > 0.0;
+
+  if (topSide) {
     /*
     TOP: MOSTLY WHITE, bump-mapped. Not a lit surface with a wide tonal range.
 
@@ -508,7 +532,33 @@ void main(void) {
     The lift is a mix toward topColor rather than a brightening, which is what
     keeps an alien sky alien — a sulfurous deck transmits sulfurous light.
     */
-    vec3 base = mix(underColor, topColor, transmission * 0.6);
+    /*
+    THE UNDERSIDE GETS RELIEF, BORROWED FROM THE TOP.
+
+    Tonio: *"can we give the undersides of the clouds a visible bump map
+    (obviously it isn't actually directionally lit, but its topside is -- can we
+    leverage that?)"* Yes, and in two ways that are both physically the same
+    story told from underneath:
+
+    - **What the lobes do.** Flip the faux-bump normal and light it with the
+      same sun. There is no direct sun down here, so this is not illumination —
+      it is the SHAPE reading, the way mammatus lobes read: the side of a bulge
+      that faces the sun has less cloud between you and the lit top than the
+      side that does not.
+    - **What the top does.** Where the top is brightly lit, more light arrives
+      to be transmitted, so the underside brightens with it. That is what ties
+      the two faces together: the relief you see from below is caused by the
+      same bumps you would see from above, not by a second unrelated noise.
+
+    Both are modulations of the base rather than added light, so a storm-dark
+    deck gains shape without gaining brightness.
+    */
+    float lamUnder = clamp(dot(vec3(n.x, -n.y, n.z), normalize(-sunDir)), 0.0, 1.0);
+    float lamTop = clamp(dot(n, normalize(-sunDir)), 0.0, 1.0);
+    float relief = mix(1.0, 0.62 + 0.72 * lamUnder, underBump);
+    float through = mix(1.0, 0.78 + 0.34 * lamTop, underBump);
+
+    vec3 base = mix(underColor, topColor, transmission * 0.6) * relief * through;
     // EMISSIVE edges, so they read as lit-from-behind rather than as pale
     // paint: the fringe is ADDED to the base, which is what lets it go brighter
     // than the material's own colour where the cloud is thinnest.
@@ -637,6 +687,11 @@ export class B3dCloudDeck extends B3dChild {
     fringe: 0.9,
     /** Strength of the faux bump normal. Higher = more pronounced relief. */
     bump: 34,
+    /**
+     * How much relief the UNDERSIDE shows, `0…1`. The lobes are shaped by the
+     * same bumps the top is lit by — see the shader note.
+     */
+    underBump: 0.85,
     /** How much of the top's brightness the lighting may take. SMALL on purpose. */
     shade: 0.22,
   }
@@ -671,6 +726,7 @@ export class B3dCloudDeck extends B3dChild {
   declare underColor: string
   declare fringe: number
   declare bump: number
+  declare underBump: number
   declare shade: number
 
   mesh?: BABYLON.Mesh
@@ -789,6 +845,7 @@ export class B3dCloudDeck extends B3dChild {
         uniforms: [
           'world',
           'worldViewProjection',
+          'view',
           'coverage',
           'invTile',
           'windAxis',
@@ -803,6 +860,7 @@ export class B3dCloudDeck extends B3dChild {
           'bump',
           'shade',
           'transmission',
+          'underBump',
           'fogColorU',
           'fogInfos',
           'camPos',
@@ -904,6 +962,7 @@ export class B3dCloudDeck extends B3dChild {
     mat.setFloat('bump', attrs.bump)
     mat.setFloat('shade', attrs.shade)
     mat.setFloat('transmission', this.resolvedTransmission)
+    mat.setFloat('underBump', Math.min(1, Math.max(0, attrs.underBump)))
     const scene = this.owner?.scene
     if (scene != null) {
       mat.setColor3('fogColorU', scene.fogColor)
