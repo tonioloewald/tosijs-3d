@@ -114,6 +114,7 @@ export {
   isIgnored,
   placeOnSurface,
   boundingBottomOffset,
+  hierarchyExtents,
   sceneDelta,
   sceneFrame,
   // Documented API that was reachable only by a deep import — which `exports`

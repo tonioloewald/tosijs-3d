@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -33,6 +33,11 @@ const { demo } = tosi({
     debugColor: false,
   },
 })
+
+// The weather, separate from the landscape — both live, neither rebuilds the
+// other. `transmission` runs the deck from storm-dark underneath to luminous,
+// and below 0.25 it takes the sun down with it.
+const { sky } = tosi({ sky: { coverage: 0.55, transmission: 0.5 } })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
 // filled by priority (biased toward where you're looking + going). horizScale 4
@@ -115,6 +120,9 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      label3d({ text: 'Weather' }),
+      slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 1, step: 0.02 }),
+      slider3d({ label: 'transmission', value: sky.transmission, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],
@@ -133,9 +141,14 @@ const scene = b3d(
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   terrain,
-  // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
-  // rebases the world under you. Fly down into it and the world whites out.
-  b3dClouds({ model: '/cloud.glb', altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
+  // A cloud DECK over the peaks. `follow` keeps it centred under you and it is
+  // origin-shift aware, so it neither runs out nor lurches when the terrain rebases
+  // the world — the sheet slides, the weather stays where it is. Fly up through it
+  // and the world whites out; the shadows underfoot are the same field you flew into.
+  //
+  // This is the layer case. Blob clouds (b3d-clouds) are still the right tool for
+  // cloud you fly BETWEEN, and for a stylised sky — see their own page.
+  b3dCloudDeck({ altitude: 700, coverage: sky.coverage, transmission: sky.transmission, wind: 10 }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
   // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
   // never runs out from under you and never flickers), while the ripples stay anchored in world

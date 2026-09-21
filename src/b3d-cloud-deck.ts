@@ -121,8 +121,11 @@ preview.append(
 | `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
+| `follow` | `'on'` | Keep the deck centred under the camera. A deck is finite; the world is not |
+| `gloomBelow` | `0.25` | Below this `transmission` the deck dims the sun for anything under it. `0` disables |
+| `gloomDepth` | `0.65` | How far the sun may be taken down at zero transmission |
 | `shadows` | `'on'` | Cloud shadows on the ground |
-| `shadowStrength` | `0.45` | How dark a fully-clouded patch makes the ground |
+| `shadowStrength` | `0.75` | Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow |
 | `transmission` | `-1` | How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage` |
 | `thickness` | `180` | Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long |
 | `haze` | `0.6` | How much the air under the deck takes the cloud's colour. Hides the rim |
@@ -464,10 +467,34 @@ export class B3dCloudDeck extends B3dChild {
      * of the same field sliding at a different rate — see the shader note.
      */
     evolve: 0.5,
+    /**
+     * Keep the deck centred under the camera: `'on'` or `'off'`.
+     *
+     * ON by default, because a deck is finite and the world is not. The field
+     * is sampled in WORLD XZ, so sliding the disc along does not slide the
+     * weather — the clouds stay where they are and the sheet moves under them.
+     * Turn it off only for a scene small enough that `size` covers it.
+     */
+    follow: 'on',
     /** Cloud shadows on the ground: `'on'` or `'off'`. */
     shadows: 'on',
-    /** How dark a fully-clouded patch makes the ground, `0…1`. */
-    shadowStrength: 0.45,
+    /**
+     * Below this `transmission`, the deck starts DIMMING THE SUN for anything
+     * under it. `0` disables the effect entirely.
+     *
+     * A thick overcast does not merely cast patchy shadows — it takes the sun
+     * away, and the whole world under it goes flat and grey. That is a global
+     * fact about the light, so no per-fragment shadow can express it.
+     */
+    gloomBelow: 0.25,
+    /** How far the sun may be taken down at zero transmission, `0…1`. */
+    gloomDepth: 0.65,
+    /**
+     * How dark a fully-clouded patch makes the ground at ZERO transmission,
+     * `0…1`. What actually reaches the ground is this scaled by how much light
+     * the cloud lets through — see `_syncShadows`.
+     */
+    shadowStrength: 0.75,
     /**
      * How much daylight comes THROUGH from above: `0` storm-dark underside,
      * `1` glowing. `-1` derives it from `coverage`, which is the honest default
@@ -521,8 +548,11 @@ export class B3dCloudDeck extends B3dChild {
   declare wind: number
   declare windHeadingDeg: number
   declare evolve: number
+  declare follow: string
   declare shadows: string
   declare shadowStrength: number
+  declare gloomBelow: number
+  declare gloomDepth: number
   declare transmission: number
   declare thickness: number
   declare haze: number
@@ -550,6 +580,24 @@ export class B3dCloudDeck extends B3dChild {
   private _fieldSize = 0
   private _bakeKey = ''
   private _elapsed = 0
+  /*
+  TOTAL FLOATING-ORIGIN SHIFT, accumulated.
+
+  Terrain rebases the world toward the origin every so often, and the field is
+  sampled by WORLD XZ — so without this the entire sky would jump sideways at
+  each rebase, which is the one moment a player is guaranteed to be looking at
+  it (they are moving fast enough to have triggered one). Adding the shift back
+  into the sample position puts the same clouds over the same ground.
+
+  Held in JS rather than on a node, so this uses `addOriginListener` and must
+  NOT also `registerWorldRoot` — see the floating-origin note in CLAUDE.md.
+  */
+  private _originX = 0
+  private _originZ = 0
+  private _onShift = (dx: number, dz: number): void => {
+    this._originX += dx
+    this._originZ += dz
+  }
   private _driftX = 0
   private _driftZ = 0
   /** The shadow half — see `_syncShadows`. Null when `shadows` is off. */
@@ -558,6 +606,18 @@ export class B3dCloudDeck extends B3dChild {
   private _shadowBytes: Uint8Array | null = null
   private _shadowRes = 0
   private _shadowCoverage = -1
+  /*
+  THE SUN'S BRIGHTNESS IS NOT OURS, so it is borrowed rather than taken.
+
+  `b3d-skybox` drives the sun from the time of day, and capturing its intensity
+  once would freeze the day cycle at whatever o'clock we happened to start. So
+  remember what we last WROTE: if the light no longer reads that, somebody else
+  moved it and their value becomes the new base. Costs one comparison a frame
+  and means the two systems compose instead of fighting.
+  */
+  private _sunBase: number | null = null
+  private _sunApplied: number | null = null
+  private _sunLight: BABYLON.DirectionalLight | null = null
   private _onAddition = (a: { meshes?: BABYLON.AbstractMesh[] }): void => {
     for (const m of a.meshes ?? []) this._maybeReceive(m)
   }
@@ -676,6 +736,7 @@ export class B3dCloudDeck extends B3dChild {
     })
     this._sync()
     owner.register({ meshes: [mesh] })
+    owner.addOriginListener(this._onShift)
 
     if (!isOff(attrs.shadows)) this._setupShadows(owner, scene)
   }
@@ -706,9 +767,20 @@ export class B3dCloudDeck extends B3dChild {
     the sky slides forever. The whiteout and the shadows read the same offset,
     so all three stay on the same weather.
     */
+    /*
+    FOLLOW IN XZ, and the weather does not come with it. The shader reads world
+    position, so moving the sheet slides the disc under a sky that stays put —
+    which is what lets a 14 km deck cover an endless terrain without ever
+    showing an edge or dragging the clouds along behind you.
+    */
+    const cam = this.owner?.scene?.activeCamera
+    if (!isOff(attrs.follow) && cam != null) {
+      this.mesh.position.x = cam.globalPosition.x
+      this.mesh.position.z = cam.globalPosition.z
+    }
     const t = this._elapsed
-    const dx = -Math.cos(h) * attrs.wind * t
-    const dz = -Math.sin(h) * attrs.wind * t
+    const dx = -Math.cos(h) * attrs.wind * t + this._originX
+    const dz = -Math.sin(h) * attrs.wind * t + this._originZ
     mat.setVector4(
       'drift',
       new BABYLON.Vector4(dx, dz, dx * 1.9, dz * 1.9 + t * attrs.wind * 0.35)
@@ -748,6 +820,7 @@ export class B3dCloudDeck extends B3dChild {
       'sunDir',
       sun?.direction ?? new BABYLON.Vector3(-0.4, -1, -0.3)
     )
+    this._applyGloom(sun ?? null)
   }
 
   /**
@@ -1138,13 +1211,29 @@ export class B3dCloudDeck extends B3dChild {
     field and `coverage`, and drift is handled by the offset above — so an
     ordinary frame with the sky sliding past re-bakes nothing at all.
     */
-    const key = attrs.coverage * 1000 + (attrs.shadowStrength || 0)
-    if (Math.abs(key - this._shadowCoverage) < 0.5) return
+    /*
+    TRANSMISSION DARKENS OR LIGHTENS THE SHADOW, because it is the same fact
+    seen from the other side. `transmission` says how much daylight comes
+    THROUGH the cloud; light that got through is light that reached the ground,
+    so a deck rendering as luminous from below cannot also be laying down a
+    hard shadow. Tonio: "Transmission doesn't affect shadows (it probably should
+    when transmission gets really high)."
+
+    Not all the way to zero — even thin cloud dims what is under it, and a
+    shadow that vanishes entirely reads as the shadows being broken rather than
+    as the cloud being thin.
+    */
+    const t = this.resolvedTransmission
+    const strength =
+      Math.min(1, Math.max(0, attrs.shadowStrength)) * (1 - 0.8 * t)
+
+    // Re-bake when any of the three inputs move, transmission included.
+    const key = attrs.coverage * 1000 + strength
+    if (Math.abs(key - this._shadowCoverage) < 0.002) return
     this._shadowCoverage = key
 
     const res = this._shadowRes
     const n = this._fieldSize
-    const strength = Math.min(1, Math.max(0, attrs.shadowStrength))
     const field = this._field
     const step = n / res
     for (let z = 0; z < res; z++) {
@@ -1159,6 +1248,65 @@ export class B3dCloudDeck extends B3dChild {
     this._shadowTex?.update(bytes)
   }
 
+  /**
+   * Take the sun down for anything under a thick deck.
+   *
+   * Tonio: *"When transmission is below 0.25 it should reduce the brightness of
+   * the sun below the deck."* Right, and it is the piece the shadow map cannot
+   * supply: a shadow says "this patch is darker than that one", while a heavy
+   * overcast says there is no direct sun at all down here. Without it a storm
+   * sky renders as bright ground under black cloud, which reads as a lighting
+   * bug rather than as weather.
+   *
+   * Gated on being BELOW the layer, because above it the sun is entirely
+   * unobstructed — climbing out into the light is most of the reward for
+   * climbing, and it should be dramatic.
+   */
+  private _applyGloom(sun: BABYLON.DirectionalLight | null): void {
+    // The light can change between frames; a new one starts a new borrowing.
+    if (sun !== this._sunLight) {
+      if (this._sunLight != null && this._sunBase != null) {
+        this._sunLight.intensity = this._sunBase
+      }
+      this._sunLight = sun
+      this._sunBase = null
+      this._sunApplied = null
+    }
+    if (sun == null) return
+    // Somebody else (the day cycle) moved it — adopt their value as the base.
+    if (this._sunApplied == null || sun.intensity !== this._sunApplied) {
+      this._sunBase = sun.intensity
+    }
+    const base = this._sunBase ?? sun.intensity
+
+    /*
+    CLAMP THROUGH A FINITE GUARD, and check the result before writing it.
+
+    Not defensive habit — this blacked the whole scene out. `gloomBelow` was
+    declared but never added to `initAttributes`, so it read `undefined`; the
+    ramp correctly produced no gloom, and then `1 - 0 * NaN` is NaN rather than
+    1, so the sun's intensity became NaN and every lit surface rendered black.
+    A cosmetic dimmer must not be able to do that: one bad number should cost
+    the effect, not the picture.
+    */
+    const num = (v: number, fallback: number) =>
+      Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback
+    const below = num(this.gloomBelow, 0)
+    const cam = this.owner?.scene?.activeCamera?.globalPosition
+    let gloom = 0
+    if (below > 0 && cam != null && cam.y < this.altitude + this._halfDepth()) {
+      const t = this.resolvedTransmission
+      // 0 at the threshold, 1 at fully opaque cloud.
+      const deep = Math.max(0, Math.min(1, (below - t) / below))
+      const cov = Math.max(0, Math.min(1, this.coverage))
+      gloom = deep * deep * (3 - 2 * deep) * cov
+    }
+    const next = base * (1 - gloom * num(this.gloomDepth, 0))
+    if (!Number.isFinite(next)) return
+    sun.intensity = next
+    this._sunApplied = next
+  }
+
   sceneDispose(): void {
     const scene = this.owner?.scene
     if (scene != null && this._obs != null) {
@@ -1168,6 +1316,12 @@ export class B3dCloudDeck extends B3dChild {
     this._removeFogLayer?.()
     this._removeFogLayer = null
     this._field = null
+    // Give the sun back exactly as we found it.
+    if (this._sunLight != null && this._sunBase != null) {
+      this._sunLight.intensity = this._sunBase
+    }
+    this._sunLight = null
+    this.owner?.removeOriginListener(this._onShift)
     this.owner?.removeSceneListener(this._onAddition)
     this._shadowMap?.dispose()
     this._shadowMap = null

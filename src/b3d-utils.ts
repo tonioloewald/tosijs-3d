@@ -444,6 +444,42 @@ export function inCollisionGroup(
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).
  */
+/**
+ * World-space extents of a node's whole hierarchy, or `null` if it has no
+ * geometry.
+ *
+ * `skip` drops descendants by name — which is not a nicety. A vehicle's
+ * hierarchy carries things that are not the vehicle: an aiming reticle parented
+ * to the airframe sits at GUN RANGE, so including it measured the scout as 115 m
+ * long instead of 4.9 and would have derived every camera offset from a ring
+ * floating a hundred metres ahead of the nose.
+ *
+ * `keep` is the other half: measure only what matches, which is how a named
+ * sub-assembly (a `Cockpit` node) gets measured on its own.
+ */
+export function hierarchyExtents(
+  node: BABYLON.TransformNode,
+  options: { skip?: RegExp; keep?: RegExp } = {}
+): { min: BABYLON.Vector3; max: BABYLON.Vector3 } | null {
+  let min: BABYLON.Vector3 | null = null
+  let max: BABYLON.Vector3 | null = null
+  for (const mesh of node.getChildMeshes(false)) {
+    if (options.skip?.test(mesh.name)) continue
+    if (options.keep != null && !options.keep.test(mesh.name)) continue
+    if (mesh.getTotalVertices() === 0) continue
+    mesh.computeWorldMatrix(true)
+    const box = mesh.getBoundingInfo().boundingBox
+    if (min == null || max == null) {
+      min = box.minimumWorld.clone()
+      max = box.maximumWorld.clone()
+    } else {
+      min.minimizeInPlace(box.minimumWorld)
+      max.maximizeInPlace(box.maximumWorld)
+    }
+  }
+  return min != null && max != null ? { min, max } : null
+}
+
 export function boundingBottomOffset(node: BABYLON.TransformNode): number {
   const minY = hierarchyMinWorldY(node)
   if (minY == null) return 0

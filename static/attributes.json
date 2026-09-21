@@ -864,14 +864,29 @@
         "description": "How fast shapes change, `0` rigid → `1` restless"
       },
       {
+        "name": "follow",
+        "default": "'on'",
+        "description": "Keep the deck centred under the camera. A deck is finite; the world is not"
+      },
+      {
+        "name": "gloomBelow",
+        "default": "0.25",
+        "description": "Below this `transmission` the deck dims the sun for anything under it. `0` disables"
+      },
+      {
+        "name": "gloomDepth",
+        "default": "0.65",
+        "description": "How far the sun may be taken down at zero transmission"
+      },
+      {
         "name": "shadows",
         "default": "'on'",
         "description": "Cloud shadows on the ground"
       },
       {
         "name": "shadowStrength",
-        "default": "0.45",
-        "description": "How dark a fully-clouded patch makes the ground"
+        "default": "0.75",
+        "description": "Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow"
       },
       {
         "name": "transmission",
