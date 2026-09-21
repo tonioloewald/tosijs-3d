@@ -124,7 +124,7 @@ preview.append(
 | `shadows` | `'on'` | Cloud shadows on the ground |
 | `shadowStrength` | `0.45` | How dark a fully-clouded patch makes the ground |
 | `transmission` | `-1` | How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage` |
-| `thickness` | `140` | Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud |
+| `thickness` | `180` | Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long |
 | `haze` | `0.6` | How much the air under the deck takes the cloud's colour. Hides the rim |
 | `seed` | `1337` | Same seed, same weather |
 | `frequency` | `3` | Field repeats across its own width. Higher = smaller puffs |
@@ -480,8 +480,11 @@ export class B3dCloudDeck extends B3dChild {
      *
      * Deep enough to pass THROUGH rather than across — see "You must never see
      * it edge-on" — and no deeper. It is a cloud, not a climate.
+     *
+     * This is the depth at FULL coverage; thinner skies scale it down, so the
+     * whiteout is always there and its LENGTH is what the weather decides.
      */
-    thickness: 140,
+    thickness: 180,
     /**
      * Haze under the deck, `0…1`: how much the air below an overcast is the
      * cloud's own colour. What it buys is the deck's RIM — a 4 km plane has an
@@ -549,8 +552,6 @@ export class B3dCloudDeck extends B3dChild {
   private _elapsed = 0
   private _driftX = 0
   private _driftZ = 0
-  private _driftX2 = 0
-  private _driftZ2 = 0
   /** The shadow half — see `_syncShadows`. Null when `shadows` is off. */
   private _shadowMap: CloudShadowMap | null = null
   private _shadowTex: BABYLON.RawTexture | null = null
@@ -715,8 +716,6 @@ export class B3dCloudDeck extends B3dChild {
     mat.setFloat('evolve', Math.min(1, Math.max(0, attrs.evolve)))
     this._driftX = dx
     this._driftZ = dz
-    this._driftX2 = dx * 1.9
-    this._driftZ2 = dz * 1.9 + t * attrs.wind * 0.35
     this._syncShadows()
     mat.setColor3('topColor', BABYLON.Color3.FromHexString(attrs.color))
     mat.setColor3('underColor', BABYLON.Color3.FromHexString(attrs.underColor))
@@ -834,51 +833,33 @@ export class B3dCloudDeck extends B3dChild {
   }
 
   /**
-   * Density at a world XZ, sampled from the same array the shader reads.
+   * The whiteout half-depth, in metres — `thickness` scaled by `coverage`.
    *
-   * ⚠️ **It must apply the same transforms the shader does** — the wind
-   * rotation, the drift, the tiling period, and the second evolution layer.
-   * "Same array" is not the same as "same place", and this read had none of
-   * them: it was sampling the sky as it would have looked with no wind, at the
-   * origin of time. The deck drew cloud overhead while the whiteout looked up
-   * at a gap somewhere else entirely.
+   * PASSING THROUGH ALWAYS WHITES OUT. Coverage decides for how LONG, not
+   * whether. Tonio: *"I think we always whiteout passing through the layer,
+   * just shrink the whiteout depth based on coverage."*
+   *
+   * The earlier model multiplied immersion by the cloud density right above
+   * you, which is defensible — broken cloud IS mostly gaps — and it made the
+   * single most important moment in the element unreliable. Whether you got a
+   * whiteout depended on where you happened to be when you crossed, so the
+   * feature worked in testing and not in use, and no amount of widening the
+   * sampling fixed that: it only made every crossing equally grey.
+   *
+   * A depth is the better dial because it degrades the right way. Thin cloud
+   * gives a brief flash as you punch through; overcast gives a long blind
+   * climb. Neither is ever nothing, and the difference between them is legible
+   * without being a coin toss.
    */
-  private _densityAt(x: number, z: number): number {
-    const f = this._field
-    const n = this._fieldSize
-    if (f == null || n === 0) return 0
-    const attrs = this as any
-    const invTile = 1 / (attrs.period || 1)
-    const cos = Math.cos((attrs.windHeadingDeg * Math.PI) / 180)
-    const sin = Math.sin((attrs.windHeadingDeg * Math.PI) / 180)
-    const wrap = (v: number) => {
-      const m = v % n
-      return m < 0 ? m + n : m
-    }
-    // Nearest texel is enough: this feeds a smoothed fog weight, not a pixel.
-    const tap = (px: number, pz: number, scale: number, ou: number, ov: number) => {
-      const qx = px * cos - pz * sin
-      const qz = px * sin + pz * cos
-      const ix = Math.floor(wrap((qx * invTile * scale + ou) * n))
-      const iz = Math.floor(wrap((qz * invTile * scale + ov) * n))
-      return f[iz * n + ix]
-    }
-    const a = tap(x + this._driftX, z + this._driftZ, 1, 0, 0)
-    const evolve = Math.min(1, Math.max(0, attrs.evolve))
-    if (evolve <= 0) return a
-    const b = tap(x + this._driftX2, z + this._driftZ2, 1.2, 0.37, 0.11)
-    const mixed = Math.sqrt(Math.max(a * b, 0)) * 1.15
-    return a + (mixed - a) * evolve
+  private _halfDepth(): number {
+    const cov = Math.min(1, Math.max(0, this.coverage))
+    if (cov <= 0) return 0
+    // Below linear, so even a thin sky has a band you can feel.
+    return Math.max(1, this.thickness * 0.5) * Math.pow(cov, 0.7)
   }
 
   /**
    * How far inside the cloud a point is, `0…1`.
-   *
-   * TWO tests, and the second is the one that makes it weather rather than a
-   * ceiling: being at the right ALTITUDE is not being in cloud — there has to
-   * be cloud overhead at that XZ. Scattered cumulus is mostly gaps, so flying
-   * along the deck should flicker between white and clear, which is exactly
-   * what an aircraft in broken cloud does.
    *
    * ## You must never see it edge-on
    *
@@ -888,74 +869,30 @@ export class B3dCloudDeck extends B3dChild {
    * seeing it edge-on."
    *
    * The fix is not geometry, it is the BAND. The whiteout saturates well before
-   * the plane (inside `CORE` of the half-thickness) and stays saturated well
-   * past it, so by the time your eye is level with the sheet there has been
-   * nothing but white for a long while. You enter cloud, you are in cloud, you
-   * leave cloud — and the moment that would have given the trick away happens
-   * where you cannot see anything at all.
+   * the plane (inside `CORE` of the half-depth) and stays saturated well past
+   * it, so by the time your eye is level with the sheet there has been nothing
+   * but white for a long while. You enter cloud, you are in cloud, you leave
+   * cloud — and the moment that would have given the trick away happens where
+   * you cannot see anything at all.
    *
    * ⚠️ **But the band is not a licence to be enormous.** It first shipped at
    * 320, which sounds harmless — no geometry has depth here, only the ramp —
    * and it is not: at half-thickness 160 you are "inside" the cloud while
    * standing plainly underneath it, so the screen whites out with the deck
-   * visibly overhead and the ground visibly below. Tonio: "coverage 100% is
-   * whiting out the whole screen. It should white out the edge of the cloud
-   * layer and beyond." Being inside has to mean being inside.
+   * visibly overhead and the ground visibly below. Being inside has to mean
+   * being inside.
    */
   private _immersionAt(p?: BABYLON.Vector3 | null): number {
-    if (p == null || this._field == null) return 0
-    const half = Math.max(1, this.thickness * 0.5)
+    if (p == null) return 0
+    const half = this._halfDepth()
+    if (half <= 0) return 0
     const d = Math.abs(p.y - this.altitude) / half
     // Saturate inside the core, ramp to nothing at the band edge.
     const CORE = 0.45
     const t = Math.min(1, Math.max(0, (1 - d) / (1 - CORE)))
     if (t <= 0) return 0
-    /*
-    SAMPLE A NEIGHBOURHOOD, not a point.
-
-    A camera is a point and a cloud is not. Reading one texel means sitting in
-    one small gap gives no whiteout at all while you are plainly inside a bank —
-    which is the difference between a whiteout that works and one that works
-    most of the time, and "most of the time" is indistinguishable from broken
-    when you are the one flying through it.
-
-    Five taps over about a hundred metres, averaged. Broken cloud still flickers
-    between white and clear, which is what it should do; a single gap no longer
-    switches the whole effect off.
-    */
-    /*
-    TIGHT. A field texel is `period / fieldSize` — about 1.4 m at the defaults —
-    but the FEATURES are 50-150 m, so a 70 m radius spans a whole puff and into
-    the next gap. Averaging over that returns the same middling number
-    everywhere and the sky stops having weather in it: no clear air, no
-    whiteout, just permanent haze. This is a camera's immediate surroundings,
-    not a forecast for the region.
-    */
-    const R = 25
-    const cov = this.coverage
-    /*
-    THRESHOLD EACH TAP, THEN AVERAGE — not the other way round.
-
-    Averaging the densities first and thresholding once is the obvious order and
-    it is wrong, because the threshold is STEEP: a neighbourhood that is
-    three-fifths solid cloud can average to a density that falls below the
-    coverage line entirely, and the whiteout switches off while you are inside
-    the bank. Thresholding first asks the question that actually matters — how
-    much of what is around me is cloud — and answers it three-fifths.
-
-    This is the difference between a whiteout that fires when you fly through a
-    deck and one that fires only when you happen to cross a thick part of it.
-    */
-    const at = (x: number, z: number) => cloudOpacity(this._densityAt(x, z), cov)
-    const opacity =
-      (at(p.x, p.z) * 2 +
-        at(p.x + R, p.z) +
-        at(p.x - R, p.z) +
-        at(p.x, p.z + R) +
-        at(p.x, p.z - R)) /
-      6
-    // Smoothstep so entry has no crease; opacity already ramps smoothly.
-    return t * t * (3 - 2 * t) * opacity
+    // Smoothstep so entry and exit have no crease.
+    return t * t * (3 - 2 * t)
   }
 
   /**
@@ -1006,7 +943,7 @@ export class B3dCloudDeck extends B3dChild {
     */
     const optical = 1 - (1 - immersion) * (1 - immersion)
 
-    const half = Math.max(1, this.thickness * 0.5)
+    const half = Math.max(1, this._halfDepth())
     const dy = p == null ? 0 : p.y - this.altitude
     /*
     HAZE ONLY BELOW, and only while the deck is overhead rather than a distant
@@ -1194,7 +1131,7 @@ export class B3dCloudDeck extends B3dChild {
     const dir = sun?.direction ?? new BABYLON.Vector3(-0.4, -1, -0.3)
     map.setSun({ x: dir.x, y: dir.y, z: dir.z }, attrs.altitude)
     // Nothing above the deck can be shadowed by it.
-    map.layerTop = attrs.altitude + attrs.thickness * 0.5
+    map.layerTop = attrs.altitude + this._halfDepth()
 
     /*
     RE-BAKE ONLY WHEN THE WEATHER MOVES. The shadow texture is a function of the

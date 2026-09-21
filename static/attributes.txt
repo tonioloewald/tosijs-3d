@@ -230,7 +230,7 @@ b3d-cloud-deck
   shadows  = 'on'  — Cloud shadows on the ground
   shadowStrength  = 0.45  — How dark a fully-clouded patch makes the ground
   transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
-  thickness  = 140  — Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud
+  thickness  = 180  — Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long
   haze  = 0.6  — How much the air under the deck takes the cloud's colour. Hides the rim
   seed  = 1337  — Same seed, same weather
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs

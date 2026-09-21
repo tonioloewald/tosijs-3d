@@ -880,8 +880,8 @@
       },
       {
         "name": "thickness",
-        "default": "140",
-        "description": "Vertical extent of the whiteout — how far either side of the surface counts as inside the cloud"
+        "default": "180",
+        "description": "Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long"
       },
       {
         "name": "haze",
