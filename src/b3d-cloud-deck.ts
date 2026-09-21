@@ -243,7 +243,8 @@ attribute vec4 color;
 uniform mat4 worldViewProjection;
 uniform mat4 world;
 uniform mat4 view;
-uniform float localRise;
+// x = how far the BASE bulges, y = how far the TOP does. See the note below.
+uniform vec2 localScale;
 varying vec3 vWorld;
 varying vec4 vChannel;
 varying vec2 vLocal;
@@ -251,21 +252,28 @@ varying vec3 vViewPos;
 varying vec3 vViewUp;
 void main(void) {
   /*
-  LOCAL THICKENING, as an actual bulge in the mesh.
+  LOCAL THICKENING, as an actual bulge in the mesh — and WHICH SKIN CARRIES IT
+  depends on whether there are two skins yet.
 
-  color.r is the local weather field sampled at this vertex's world XZ (a
-  province, or the terrain height for orographic cloud); color.g marks which
-  skin this is, 1 for the top and 0 for the base. So the top rises over the
-  province and the base does not — which is the same asymmetry the global
-  thickening has, for the same reason: a cloud base sits at the condensation
-  level and what builds is the top.
+  color.r is the local weather field at this vertex's world XZ (a province, or
+  the terrain height for orographic cloud); color.g marks the skin, 1 for the
+  top and 0 for the base.
+
+  Below full coverage there is only ONE sheet, so that sheet has to be the
+  cloud: it bulges, and the whiteout band is what gives it apparent depth. Past
+  full coverage the base settles to the condensation level and the TOP takes
+  the bulge over, so the cloud is genuinely thicker over the high ground rather
+  than merely riding higher. localScale blends the two across the crossing, so
+  the shape hands off from one skin to the other with nothing jumping. (No
+  backticks in this file's shader strings -- they are template literals and one
+  ends the shader mid-sentence. Fifth time.)
 
   This is why the deck was a subdivided grid from the first commit rather than
   one quad. The vertices have world positions, so they can ASK what is under
   them; a quad has nowhere to put the answer.
   */
   vec3 pos = position;
-  pos.y += color.r * color.g * localRise;
+  pos.y += color.r * (color.g > 0.5 ? localScale.y : localScale.x);
   vec4 wp = world * vec4(pos, 1.0);
   vWorld = wp.xyz;
   /*
@@ -426,7 +434,8 @@ varying vec3 vViewUp;
 uniform float halfSize;
 uniform float underBump;
 uniform float globalRise;
-uniform float localRise;
+// How much further the TOP bulges than the base, per unit of the weather field.
+uniform float localDelta;
 uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
@@ -497,14 +506,22 @@ void main(void) {
   float rim = 1.0 - smoothstep(edgeFade, 1.0, r);
 
   /*
-  THE TOP SKIN ONLY EXISTS WHERE IT IS SEPARATED from the base. Without this it
-  would sit exactly on the base wherever nothing has lifted it and z-fight for
-  the whole sky — and it means one mechanism covers every case: no thickening
-  and no province leaves a single sheet (identical to before), global
-  thickening lifts it everywhere, and a province lifts it only over itself, so
-  a tower stands above an otherwise flat deck.
+  THE TOP SKIN ONLY EXISTS WHERE IT IS SEPARATED from the base — otherwise it
+  sits exactly on it and z-fights for the whole sky.
+
+  And separation only ever comes from FULL COVERAGE now. Tonio: "the top layer
+  should only be positioned differently from the bottom layer if cover is 100%
+  ... showing two layers above each other looks weird." He is right, and it was
+  a real error: a province could separate the skins at half coverage, where the
+  sky still has gaps — so you looked through a hole in one sheet at another
+  sheet, which is two decks, not one cloud.
+
+  Below full coverage there is one sheet and nothing to see through to. Above
+  it, the field is opaque everywhere, so the two skins exist but you only ever
+  meet one of them: the top from above, the base from below, and whiteout in
+  between if you are inside.
   */
-  float separation = globalRise + vChannel.r * localRise;
+  float separation = globalRise + vChannel.r * localDelta;
   if (vChannel.g > 0.5 && separation < 4.0) discard;
 
   float a = opacityAt(d) * vChannel.a * rim;
@@ -969,7 +986,8 @@ export class B3dCloudDeck extends B3dChild {
           'drift',
           'evolve',
           'globalRise',
-          'localRise',
+          'localDelta',
+          'localScale',
           'topColor',
           'underColor',
           'sunDir',
@@ -1115,17 +1133,31 @@ export class B3dCloudDeck extends B3dChild {
     const rise = this.topRise
     const top = this.topMesh
     this._bakeWeather()
-    const local = Math.max(0, attrs.localRise) * this._weatherMax
+
+    /*
+    THE HANDOFF. Below full coverage the base IS the cloud and carries the whole
+    bulge; above it, the base settles flat and the top carries it instead. The
+    blend runs over the first fifth of the thickening dial so the shape moves
+    from one skin to the other continuously — at the moment of handoff the top
+    appears exactly where the base bulge was, so nothing jumps.
+
+    `localDelta` is what the fragment shader needs: how much FURTHER the top
+    goes than the base, which is the only thing that can separate them.
+    */
+    const scale = this.localScales()
+    mat.setVector2('localScale', new BABYLON.Vector2(scale.base, scale.top))
     mat.setFloat('globalRise', rise)
-    mat.setFloat('localRise', Math.max(0, attrs.localRise))
+    mat.setFloat('localDelta', scale.top - scale.base)
+
     if (top != null) {
       /*
-      The top skin is SHOWN whenever anything could separate it, and the shader
-      then discards it wherever nothing has — so a province raises a tower over
-      a deck that is otherwise a single sheet, with no z-fighting anywhere the
-      two would coincide.
+      THE SECOND SKIN ONLY EXISTS AT FULL COVERAGE. Below it there is one sheet
+      and no way to see past it; above it the field is opaque everywhere, so two
+      skins can exist without ever both being visible. The shader still discards
+      the top where the two would coincide, which covers the first hair of the
+      dial where nothing has separated them yet.
       */
-      top.isVisible = rise > 2 || local > 2
+      top.isVisible = attrs.coverage >= 1
       top.position.set(
         this.mesh.position.x,
         attrs.altitude + rise,
@@ -1448,8 +1480,24 @@ export class B3dCloudDeck extends B3dChild {
    * machinery, which is the sign it was the right axis: the whiteout band
    * becomes a slab instead of a plane, `transmission` is already 0 by 1.5 so
    * the underside is already black, and the gloom ramps already have the sun
-   * on the way out. Thickening only exists in the regime where the deck is
-   * opaque everywhere, so there are no gaps for the two skins to show through.
+   * on the way out.
+   *
+   * ## There is only ever ONE layer to see
+   *
+   * Thickening exists ONLY at full coverage, and that is a rule rather than a
+   * convenience. Tonio: *"the top layer should only be positioned differently
+   * from the bottom layer if cover is 100% ... showing two layers above each
+   * other looks weird."*
+   *
+   * Below full cover the sky has gaps, so a second surface would be visible
+   * through them — you would be looking through a hole in one deck at another
+   * deck, which is two decks and not one cloud. So below 1 there is a single
+   * infinitely thin sheet, and the whiteout band is what gives it depth: you
+   * never catch it edge-on, so you never learn that it is thin.
+   *
+   * At and above 1 the field is opaque everywhere, so two skins can exist
+   * without both ever being seen — the top from above, the base from below, and
+   * whiteout in between if you are inside it.
    */
   get thickening(): number {
     const x = Math.min(1, Math.max(0, this.coverage - 1))
@@ -1465,6 +1513,21 @@ export class B3dCloudDeck extends B3dChild {
   /** How far the cloud TOP currently stands above `altitude`, in metres. */
   get topRise(): number {
     return this.thickening * Math.max(0, this.thickenDepth)
+  }
+
+  /**
+   * How far a unit of local weather lifts each skin, in metres.
+   *
+   * ONE ANSWER, read by the shader and by the whiteout, because they describe
+   * the same surfaces and a disagreement would put the fog somewhere the cloud
+   * is not. Below full coverage the base carries the whole bulge — it IS the
+   * cloud — and above it the top takes over, blended across the first fifth of
+   * the thickening dial so the shape hands off with nothing jumping.
+   */
+  localScales(): { base: number; top: number } {
+    const full = Math.max(0, this.localRise)
+    const handoff = Math.min(1, Math.max(0, (this.coverage - 1) / 0.2))
+    return { base: full * (1 - handoff), top: full }
   }
 
   /**
@@ -1535,15 +1598,16 @@ export class B3dCloudDeck extends B3dChild {
     over YOUR head is a single point.
     */
     const field = this._weatherField()
-    const localTop =
+    const w =
       field == null
         ? 0
         : Math.min(
             1,
             Math.max(0, field(p.x - this._originX, p.z - this._originZ))
-          ) * Math.max(0, this.localRise)
-    const top = this.altitude + this.topRise + localTop
-    const bottom = this.altitude
+          )
+    const scale = this.localScales()
+    const top = this.altitude + this.topRise + w * scale.top
+    const bottom = this.altitude + w * scale.base
     const outside = p.y > top ? p.y - top : p.y < bottom ? bottom - p.y : 0
     const d = outside / half
     // Saturate inside the core, ramp to nothing at the band edge.
