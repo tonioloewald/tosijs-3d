@@ -212,8 +212,10 @@ describe('cirrus — long and wispy vs rounded', () => {
       let worstY = 0
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
-          if (x > 0) worstX = Math.max(worstX, Math.abs(at(x, y) - at(x - 1, y)))
-          if (y > 0) worstY = Math.max(worstY, Math.abs(at(x, y) - at(x, y - 1)))
+          if (x > 0)
+            worstX = Math.max(worstX, Math.abs(at(x, y) - at(x - 1, y)))
+          if (y > 0)
+            worstY = Math.max(worstY, Math.abs(at(x, y) - at(x, y - 1)))
         }
       }
       for (let i = 0; i < size; i++) {
@@ -225,7 +227,8 @@ describe('cirrus — long and wispy vs rounded', () => {
 
   test('the dial is continuous — no jump between cumulus and cirrus', () => {
     const size = 48
-    const mean = (f: Float32Array) => [...f].reduce((a, b) => a + b, 0) / f.length
+    const mean = (f: Float32Array) =>
+      [...f].reduce((a, b) => a + b, 0) / f.length
     let last = mean(cloudField({ size, seed: 6, cirrus: 0 }))
     for (let c = 0.1; c <= 1.0001; c += 0.1) {
       const m = mean(cloudField({ size, seed: 6, cirrus: c }))

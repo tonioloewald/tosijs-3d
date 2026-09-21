@@ -257,7 +257,11 @@ export async function bakeSkyboxCube(
   straight up.
   */
   const V = BABYLON.Vector3
-  const FACES: Array<{ name: string; dir: BABYLON.Vector3; up: BABYLON.Vector3 }> = [
+  const FACES: Array<{
+    name: string
+    dir: BABYLON.Vector3
+    up: BABYLON.Vector3
+  }> = [
     { name: 'px', dir: new V(1, 0, 0), up: new V(0, 1, 0) },
     { name: 'nx', dir: new V(-1, 0, 0), up: new V(0, 1, 0) },
     { name: 'py', dir: new V(0, 1, 0), up: new V(0, 0, -1) },
@@ -282,13 +286,18 @@ export async function bakeSkyboxCube(
   }
 
   const at = new V(options.x, options.y, options.z)
-  const cam = new BABYLON.FreeCamera('skybox-bake-cam', at.clone(), scene, false)
+  const cam = new BABYLON.FreeCamera(
+    'skybox-bake-cam',
+    at.clone(),
+    scene,
+    false
+  )
   // 90° EXACTLY, and square — a cube face is a quarter turn per axis. Anything
   // else leaves gaps at the seams that no amount of tuning will close.
   cam.fov = Math.PI / 2
   cam.fovMode = BABYLON.Camera.FOVMODE_VERTICAL_FIXED
   cam.minZ = 0.1
-  cam.maxZ = (options.maxZ ?? 5000)
+  cam.maxZ = options.maxZ ?? 5000
 
   /*
   AIM THE BILLBOARDS AT THE CAMERA — inside the baker, so it cannot be skipped.

@@ -598,10 +598,22 @@ export class B3dGalaxy extends B3dChild {
         const realUp = BABYLON.Vector3.Cross(fwd, right)
         p.rotationQuaternion = BABYLON.Quaternion.FromRotationMatrix(
           BABYLON.Matrix.FromValues(
-            right.x, right.y, right.z, 0,
-            realUp.x, realUp.y, realUp.z, 0,
-            fwd.x, fwd.y, fwd.z, 0,
-            0, 0, 0, 1
+            right.x,
+            right.y,
+            right.z,
+            0,
+            realUp.x,
+            realUp.y,
+            realUp.z,
+            0,
+            fwd.x,
+            fwd.y,
+            fwd.z,
+            0,
+            0,
+            0,
+            0,
+            1
           )
         )
         return p

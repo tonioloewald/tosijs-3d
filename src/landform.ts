@@ -478,8 +478,7 @@ export function gulley(opts: GulleyOptions): Bounded<LandformFn> {
   guard it describes is an extent that goes stale the first time someone tunes
   a fade.
   */
-  return withExtent(
-    (x: number, z: number, h: number) => {
+  return withExtent((x: number, z: number, h: number) => {
     const dx = x - fx
     const dz = z - fz
     const along = dx * cos + dz * sin // + = outward from the face
@@ -509,16 +508,7 @@ export function gulley(opts: GulleyOptions): Bounded<LandformFn> {
         : 1 - smooth((along - fadeStart) / (length - fadeStart))
     const w = lateralW * alongW
     return h + (forced - h) * w
-    },
-    corridorExtent(
-      fx,
-      fz,
-      headingDeg,
-      -faceRun - crestFade,
-      length,
-      halfW + wallFade
-    )
-  )
+  }, corridorExtent(fx, fz, headingDeg, -faceRun - crestFade, length, halfW + wallFade))
 }
 
 export interface CoverOptions {
@@ -565,18 +555,19 @@ export function cover(opts: CoverOptions): Bounded<LandformFn> {
   return withExtent(
     (x: number, z: number, h: number) => {
       if (h >= minHeight) return h // already deep enough: nothing to do
-    const dx = x - sx
-    const dz = z - sz
-    const along = dx * cos + dz * sin
-    if (along < 0 || along > length) return h
-    const lateral = Math.abs(-dx * sin + dz * cos)
-    if (lateral > halfW + fade) return h
-    // Ease at both ends of the corridor as well as the sides, so the raised
-    // ground is a ridge the tunnel runs under — not a wall across the map.
-    const lateralW = lateral <= halfW ? 1 : 1 - smooth((lateral - halfW) / fade)
-    const endW = 1 - smooth((along - length * 0.75) / (length * 0.25))
-    const w = lateralW * Math.max(0, Math.min(1, endW))
-    return h + (minHeight - h) * w
+      const dx = x - sx
+      const dz = z - sz
+      const along = dx * cos + dz * sin
+      if (along < 0 || along > length) return h
+      const lateral = Math.abs(-dx * sin + dz * cos)
+      if (lateral > halfW + fade) return h
+      // Ease at both ends of the corridor as well as the sides, so the raised
+      // ground is a ridge the tunnel runs under — not a wall across the map.
+      const lateralW =
+        lateral <= halfW ? 1 : 1 - smooth((lateral - halfW) / fade)
+      const endW = 1 - smooth((along - length * 0.75) / (length * 0.25))
+      const w = lateralW * Math.max(0, Math.min(1, endW))
+      return h + (minHeight - h) * w
     },
     // `along` runs 0..length from the mouth; `lateral` reaches halfW + fade.
     corridorExtent(sx, sz, headingDeg, 0, length, halfW + fade)

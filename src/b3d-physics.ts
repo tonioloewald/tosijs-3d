@@ -13,8 +13,6 @@ and dispatches a `'physics-ready'` event when initialization completes.
 ```js
 import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh, label3d, button3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
-import { elements } from 'tosijs'
-const { div, p } = elements
 
 let sphere = null
 let dropSphere = null
@@ -158,14 +156,11 @@ function doExplode() {
   setTimeout(createSphere, 6000)
 }
 
-preview.append(
-  scene,
-  div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
-    p('Fragments use Jolt physics. Controls in the scene panel (VR too).'),
-  ),
-)
+preview.append(scene)
 ```
+
+> The fragments are simulated by Jolt rather than animated. Controls live in the
+> ⚙ scene panel, which is the same panel you get floating in front of you in VR.
 
 ## Attributes
 

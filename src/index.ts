@@ -631,7 +631,11 @@ export {
 } from './camera-fit.js'
 export { playground, type PlaygroundOptions } from './playground.js'
 export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js'
-export { cloudField, cloudOpacity, type CloudFieldOptions } from './cloud-field.js'
+export {
+  cloudField,
+  cloudOpacity,
+  type CloudFieldOptions,
+} from './cloud-field.js'
 export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
 export {
   bakeSkyboxCube,

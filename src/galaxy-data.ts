@@ -1083,9 +1083,7 @@ export function generateGalaxy(
     here — Tonio: "too vertically distributed" — because a veil wants to lie
     across the centre, not stand up through it.
     */
-    const z = prng.gaussrandom(
-      thickness * 0.3 * (1 - r) * (inCore ? 0.28 : 1)
-    )
+    const z = prng.gaussrandom(thickness * 0.3 * (1 - r) * (inCore ? 0.28 : 1))
 
     // 50% bigger than the first pass, judged against the live galaxy: at the
     // old size they read as separate puffs rather than as a continuous medium.

@@ -127,7 +127,6 @@ preview.append(
           label: 'fire rate', value: s.rate, min: 1, max: 12, step: 1, showValue: 'always',
           handleChange: (v) => { gun.fireRate = Math.round(v) },
         }),
-        label3d({ text: 'WASD move · mouse aim · F shoot', muted: true }),
       ],
       sceneCreated(el, BABYLON) {
         // No camera of our own: a `player` biped brings a follow camera, and a

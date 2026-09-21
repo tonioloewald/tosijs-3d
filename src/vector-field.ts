@@ -80,8 +80,8 @@ preview.append(
     { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div(
       { style: 'display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px' },
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM — drag a number to scrub', panel),
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture — same widget', scene)
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM', panel),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture', scene)
     ),
     readout
   )
@@ -92,6 +92,10 @@ preview.append(
   height: 100%;
 }
 ```
+
+> Drag any number left or right to scrub it. It is one control on one row, so a
+> coordinate stays a coordinate rather than three fields that happen to sit near
+> each other — and the 3D pane is the same widget, not a picture of it.
 */
 /*{ "parent": "UI", "order": 250 }*/
 

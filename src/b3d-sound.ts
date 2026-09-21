@@ -14,8 +14,6 @@ until the user interacts with the page.
 ```js
 import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround, label3d, button3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
-import { elements } from 'tosijs'
-const { div, p } = elements
 
 const spatialSound = b3dSound({
   url: '/hum.mp3',
@@ -51,13 +49,13 @@ preview.append(
     b3dGround({ diameter: 20, color: '#556644' }),
     b3dSphere({ x: 4, y: 1, z: 0, diameter: 0.5, color: '#ff4400' }),
     spatialSound,
-  ),
-  div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
-    p('Orbit the camera to hear spatial panning. Play/Stop in the scene panel (VR too).'),
-  ),
+  )
 )
 ```
+
+> Orbit the camera and the sound pans with it — that is the whole point of a
+> positional source. Play and Stop are in the ⚙ scene panel, which is also the
+> panel you get in VR.
 
 ## Attributes
 

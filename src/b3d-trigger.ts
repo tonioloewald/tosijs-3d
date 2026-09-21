@@ -119,12 +119,19 @@ preview.append(
   ),
   div(
     { style: 'position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace' },
-    p('An NPC walks to the marker → it relocates → repeat'),
     span({ bindText: demo.status }),
     p({ style: 'opacity:0.7' }, span({ bindText: demo.dist })),
   )
 )
 ```
+
+> Watch it rather than drive it: an NPC walks to the marker, the trigger fires,
+> the marker relocates, and it goes again. Nothing here is scripted — the
+> trigger is a volume and the walking is a behaviour, and the loop is what
+> happens when you put them together.
+>
+> The overlay is the live state: what the trigger last reported, and how far the
+> NPC still has to go.
 
 ## Attributes
 

@@ -272,7 +272,10 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   })
   // Accepted and ignored: ours is always positioned by `sunPosition`, and
   // `azimuth` is SkyMaterial's other way of saying the same thing.
-  Object.defineProperty(mat, 'useSunPosition', { get: () => true, set: () => {} })
+  Object.defineProperty(mat, 'useSunPosition', {
+    get: () => true,
+    set: () => {},
+  })
   Object.defineProperty(mat, 'azimuth', { get: () => 0, set: () => {} })
   return mat
 }
@@ -531,7 +534,11 @@ export class B3dSkybox extends AbstractMesh {
    * darken what is behind it, and two overlapping nebulae should pool rather
    * than occlude.
    */
-  private _buildNebulae(scene: BABYLON.Scene, prng: PRNG, radius: number): void {
+  private _buildNebulae(
+    scene: BABYLON.Scene,
+    prng: PRNG,
+    radius: number
+  ): void {
     const attrs = this as any
     const count = Math.floor(attrs.nebulae) || 0
     if (count <= 0 || this._starfieldMesh == null) return
@@ -1307,7 +1314,7 @@ export class B3dSkybox extends AbstractMesh {
     this._forkedSky = forked
     if (!forked) {
       console.warn(
-        'b3d-skybox: could not derive a sky shader from Babylon — `starfieldCube` and the medium veil are unavailable. Babylon\'s sky shader may have changed shape; see registerForkedSky.'
+        "b3d-skybox: could not derive a sky shader from Babylon — `starfieldCube` and the medium veil are unavailable. Babylon's sky shader may have changed shape; see registerForkedSky."
       )
     }
     void wantsCube
@@ -1371,7 +1378,9 @@ export class B3dSkybox extends AbstractMesh {
 
         Rotation stays the cube's own — see `starfieldTilt`.
         */
-        this._starfieldMesh.scaling.copyFrom(this.mesh.scaling).scaleInPlace(0.9)
+        this._starfieldMesh.scaling
+          .copyFrom(this.mesh.scaling)
+          .scaleInPlace(0.9)
         this._starfieldMesh.position.copyFrom(this.mesh.position)
       }
       const vac = this._vacuumNow()

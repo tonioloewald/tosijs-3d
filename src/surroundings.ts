@@ -73,7 +73,6 @@ const panel = () => [
     handleChange: (v) => { s.range = v } }),
   slider3d({ label: 'needed', value: s.needed, min: 0.4, max: 1, step: 0.05, showValue: 'always',
     handleChange: (v) => { s.needed = v } }),
-  label3d({ text: 'WASD to move · green = in cover', muted: true }),
 ]
 
 const scene = b3d(
@@ -182,6 +181,14 @@ preview.append(readout)
 ```css
 .preview { height: 100%; position: relative; }
 ```
+
+> **WASD** to move. The marker turns green when the probe says you are in cover
+> — walk behind a block and watch it flip, then widen `reach` and watch cover
+> start further out.
+>
+> Cover is DISCOVERED here, not entered: nothing puts you into a cover mode and
+> there is no state to leave. The readout is the live answer, which is why it
+> can disagree with where you thought you were standing.
 
 ## Why a shared read rather than a fan of rays per feature
 

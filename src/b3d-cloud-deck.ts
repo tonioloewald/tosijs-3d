@@ -995,7 +995,8 @@ export class B3dCloudDeck extends B3dChild {
     until something forced a re-bake. Tonio: "the cloud layer in the demo
     doesn't render until you twiddle the cirrus knob."
     */
-    if (this.fieldTexture != null) mat.setTexture('cloudField', this.fieldTexture)
+    if (this.fieldTexture != null)
+      mat.setTexture('cloudField', this.fieldTexture)
     mesh.material = mat
     this.mesh = mesh
 
@@ -1283,9 +1284,9 @@ export class B3dCloudDeck extends B3dChild {
     if (this.weather != null) return this.weather
     const strength = Math.min(1, Math.max(0, this.orographic))
     if (strength <= 0) return null
-    const terrain = this.owner?.querySelector(
-      'tosi-b3d-terrain'
-    ) as { heightSampler?: () => (x: number, z: number) => number } | null
+    const terrain = this.owner?.querySelector('tosi-b3d-terrain') as {
+      heightSampler?: () => (x: number, z: number) => number
+    } | null
     const height = terrain?.heightSampler?.()
     if (height == null) return null
     const peak = Math.max(1, this.orographicPeak)
@@ -1330,7 +1331,8 @@ export class B3dCloudDeck extends B3dChild {
     const n = Math.max(1, Math.floor(this.subdivisions)) + 1
     const raw = new Float32Array(n * n)
     for (let k = 0, i = 0; k < raw.length; k++, i += 3) {
-      const w = field == null ? 0 : field(positions[i] + ox, positions[i + 2] + oz)
+      const w =
+        field == null ? 0 : field(positions[i] + ox, positions[i + 2] + oz)
       raw[k] = w < 0 ? 0 : w > 1 ? 1 : w
     }
 
@@ -1358,10 +1360,22 @@ export class B3dCloudDeck extends B3dChild {
           const i = z * n + x
           let sum = src[i] * 2
           let count = 2
-          if (x > 0) { sum += src[i - 1]; count++ }
-          if (x < n - 1) { sum += src[i + 1]; count++ }
-          if (z > 0) { sum += src[i - n]; count++ }
-          if (z < n - 1) { sum += src[i + n]; count++ }
+          if (x > 0) {
+            sum += src[i - 1]
+            count++
+          }
+          if (x < n - 1) {
+            sum += src[i + 1]
+            count++
+          }
+          if (z > 0) {
+            sum += src[i - n]
+            count++
+          }
+          if (z < n - 1) {
+            sum += src[i + n]
+            count++
+          }
           dst[i] = sum / count
         }
       }
@@ -1524,12 +1538,13 @@ export class B3dCloudDeck extends B3dChild {
     const localTop =
       field == null
         ? 0
-        : Math.min(1, Math.max(0, field(p.x - this._originX, p.z - this._originZ))) *
-          Math.max(0, this.localRise)
+        : Math.min(
+            1,
+            Math.max(0, field(p.x - this._originX, p.z - this._originZ))
+          ) * Math.max(0, this.localRise)
     const top = this.altitude + this.topRise + localTop
     const bottom = this.altitude
-    const outside =
-      p.y > top ? p.y - top : p.y < bottom ? bottom - p.y : 0
+    const outside = p.y > top ? p.y - top : p.y < bottom ? bottom - p.y : 0
     const d = outside / half
     // Saturate inside the core, ramp to nothing at the band edge.
     const CORE = 0.45
@@ -1660,10 +1675,7 @@ export class B3dCloudDeck extends B3dChild {
       top,
       Math.min(1, this.resolvedTransmission * 0.6)
     )
-    const bandPos = Math.min(
-      1,
-      Math.max(0, (dy + half) / (rise + half * 2))
-    )
+    const bandPos = Math.min(1, Math.max(0, (dy + half) / (rise + half * 2)))
     const c = BABYLON.Color3.Lerp(darkest, top, bandPos)
 
     return {
@@ -1800,7 +1812,10 @@ export class B3dCloudDeck extends B3dChild {
     map.worldSize = range
     if (cam != null) map.setCenter(cam.x, cam.z)
 
-    tex.setVector2('shadowCenter', new BABYLON.Vector2(map.centerX, map.centerZ))
+    tex.setVector2(
+      'shadowCenter',
+      new BABYLON.Vector2(map.centerX, map.centerZ)
+    )
     tex.setFloat('shadowWorldSize', range)
     tex.setFloat('shadowStrength', strength)
     tex.setFloat('coverage', attrs.coverage)
@@ -1894,7 +1909,8 @@ export class B3dCloudDeck extends B3dChild {
     dark day and no daylight at all.
     */
     const th = this.thickening
-    const ambientDepth = num(this.ambientGloom, 0) + (0.8 - num(this.ambientGloom, 0)) * th
+    const ambientDepth =
+      num(this.ambientGloom, 0) + (0.8 - num(this.ambientGloom, 0)) * th
     const sunDepth = num(this.sunGloom, 0) + (1 - num(this.sunGloom, 0)) * th
 
     const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth

@@ -107,8 +107,8 @@ preview.append(
     { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div(
       { style: 'display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px' },
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM — click / arrow-key; 3D mirrors it', svgEl),
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture — click the buttons', scene)
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture', scene)
     ),
     readout
   )
@@ -117,6 +117,10 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+> Click a button in either pane, or move between them with the arrow keys. The
+> two are not copies of each other — they are ONE box rendered twice, so
+> whatever you do to one, the other already knows.
 
 ## Resizable — drag to re-wrap, then scroll (flat AND in 3D)
 
@@ -242,7 +246,7 @@ preview.append(
         // page layout (and the 3D scene beside it) never moves during a drag.
         div({ style: 'width:400px;height:260px' }, svgEl)
       ),
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — drag the grip to resize; drag elsewhere to orbit', scene)
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture', scene)
     )
   )
 )
@@ -250,6 +254,10 @@ preview.append(
 ```css
 .preview { height: 100%; }
 ```
+
+> Drag the corner grip to resize; drag anywhere else on the plane to orbit. The
+> text re-wraps as the box narrows and then scrolls once it runs out of room —
+> the same layout pass in both panes.
 */
 /*{ "parent": "UI", "order": 200 }*/
 

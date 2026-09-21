@@ -55,7 +55,12 @@ export function playerPosition(owner: B3d | null): BABYLON.Vector3 | null {
   if (host == null || typeof host.querySelectorAll !== 'function') return null
   for (const node of host.querySelectorAll('*')) {
     const e = node as any
-    if (e.player === true && !e.dead && !e.crashed && e.mesh?.position != null) {
+    if (
+      e.player === true &&
+      !e.dead &&
+      !e.crashed &&
+      e.mesh?.position != null
+    ) {
       return e.mesh.position as BABYLON.Vector3
     }
   }

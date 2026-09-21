@@ -818,8 +818,9 @@ export class B3dClouds extends B3dChild {
       // have had its stars faded by the whiteout while the sky it meant to blot
       // stayed put.
       this._sky =
-        scene.meshes.find((m) => /^skybox/i.test(m.name) && !/star/i.test(m.name)) ??
-        null
+        scene.meshes.find(
+          (m) => /^skybox/i.test(m.name) && !/star/i.test(m.name)
+        ) ?? null
     }
     if (this._sky != null) {
       this._sky.visibility = 1 - this._immersion

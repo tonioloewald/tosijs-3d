@@ -778,8 +778,8 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 ## The queue
 
 [ ] **CLOUD PROVINCES — localized weather, and Tonio named the mechanism
-himself.** *"And if we can somehow generate localized turbulence that would be
-fabulous."* … *"But that might involve the equivalent of provinces."*
+himself.** _"And if we can somehow generate localized turbulence that would be
+fabulous."_ … _"But that might involve the equivalent of provinces."_
 
 It does, and that is the good news rather than the bad: **provinces already
 exist here** and gained a queryable `extent` this same session. A cloud province
@@ -803,7 +803,7 @@ What a cloud province would carry, beyond a footprint:
   plane everywhere.
 
 And the case that makes it systemic rather than decorative, from the same
-conversation: *"Or have clouds that cluster near mountains say."* Orographic
+conversation: _"Or have clouds that cluster near mountains say."_ Orographic
 cloud is a province whose field is the TERRAIN HEIGHT — the vertex asks how high
 the ground is beneath it and writes the answer. Weather then follows landscape
 because of the landscape, which is the same "systemic, not textural" move as
@@ -815,9 +815,9 @@ bipolar curves over normalised distance. Reusing it would mean a planet's
 climate and its clouds cannot disagree — which is exactly the kind of agreement
 this project keeps finding is worth more than either feature alone.
 
-[ ] **DISTANT GALAXIES — the right fix for a sparse sky.** Tonio: *"set aside a
+[ ] **DISTANT GALAXIES — the right fix for a sparse sky.** Tonio: _"set aside a
 budget for other galaxies — nebula that are further out and pale yellow to
-orange."*
+orange."_
 
 Better than what is currently shipped, and it supersedes it. The default cube
 was re-baked denser by raising PARTICLE SIZE, which fills the frame at a real
@@ -861,9 +861,9 @@ the far field keeps the density it was tuned to; `particleSize` is back to 0.7
 with the galaxies doing the filling.
 
 [ ] ⚠️ **THE BAKED SKY NEEDS ONE MESH, WHICH MEANS FORKING THE SKY SHADER.**
-Tonio: *"the skybox with two cubes NEVER worked. It's z-chasing at the
-corners"*, and *"Can't you just assign the starfield assets as backdrop textures
-for the shader?"* Both right; here is what is now PROVEN, so nobody re-treads it:
+Tonio: _"the skybox with two cubes NEVER worked. It's z-chasing at the
+corners"_, and _"Can't you just assign the starfield assets as backdrop textures
+for the shader?"_ Both right; here is what is now PROVEN, so nobody re-treads it:
 
 **Two meshes cannot work.** The dome and a starfield cube are both
 `infiniteDistance`, which pins them to the far plane where depth precision is
@@ -873,11 +873,11 @@ it, because **scale does not change the depth of an infinite-distance mesh.**
 
 **`SkyMaterial` cannot be extended.** Three routes tried, all dead:
 
-| route | why it fails |
-| ----- | ------------ |
-| `MaterialPluginBase` | attaches, and `pluginManager` lists it — but SkyMaterial never routes plugin DEFINES into its effect, so the `#ifdef` compiles out. Every signal says "working" while the sky stays black |
-| `customShaderNameResolve` | SkyMaterial never calls it |
-| passing a texture | its `createEffect` hardcodes `shaderName = "sky"`, `samplers: []` and a fixed uniform list |
+| route                     | why it fails                                                                                                                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MaterialPluginBase`      | attaches, and `pluginManager` lists it — but SkyMaterial never routes plugin DEFINES into its effect, so the `#ifdef` compiles out. Every signal says "working" while the sky stays black |
+| `customShaderNameResolve` | SkyMaterial never calls it                                                                                                                                                                |
+| passing a texture         | its `createEffect` hardcodes `shaderName = "sky"`, `samplers: []` and a fixed uniform list                                                                                                |
 
 **So the fix is to fork the shader.** Babylon keeps the source in
 `ShaderStore.ShadersStore.skyPixelShader`; register a copy under a new name with
@@ -892,17 +892,17 @@ for you: `luminance`, `turbidity`, `rayleigh`, `mieCoefficient`,
 fog and clip-plane includes.
 
 **It also fixes a second bug for free**, which is the argument for doing it
-properly rather than patching: Tonio noticed *"the cloud whiteout is not whiting
-out the skybox"* — `b3d-clouds` fades the DOME by immersion and knows nothing
+properly rather than patching: Tonio noticed _"the cloud whiteout is not whiting
+out the skybox"_ — `b3d-clouds` fades the DOME by immersion and knows nothing
 about a second starfield mesh. One mesh, one thing to fade.
 
 Until then `b3d-skybox`'s `starfieldCube` is left in place but the rocket demo
 uses the procedural point starfield, which has no such problem.
 
 [x] ~~**Baked stars render ELONGATED, including mid-face.**~~ **FIXED** — and
-the cause was embarrassingly simple once Tonio named it: *"I think you're
+the cause was embarrassingly simple once Tonio named it: _"I think you're
 pointing the stars at the galactic origin. That makes the coreward render look
-pretty good but it's terrible for the others."*
+pretty good but it's terrible for the others."_
 
 `facePoint` was correct and **nothing called it**. The demo's bake button went
 straight to `bakeSkyboxCube`, which left the particle systems billboarding per
@@ -924,7 +924,7 @@ the origin — converting once removes it.
 
 ⚠️ The lesson worth more than the fix: four rounds were spent proposing
 mechanisms (projection stretch, aspect, degenerate up vectors, missing
-`computeParticleRotation`) and *measuring* a path the product never executed.
+`computeParticleRotation`) and _measuring_ a path the product never executed.
 The question "is this code actually running in the failing case?" was never
 asked, and it was the whole answer.
 
@@ -975,13 +975,13 @@ guessing failed to do.
 [ ] **CLOUD LAYERS SHOULD BE A PLANE, NOT A CROWD OF BLOBS.** Tonio, and it is
 the harshest and most useful note the sky has had:
 
-> *"What we have is not worthy of everything else we've got. It looks like a
+> _"What we have is not worthy of everything else we've got. It looks like a
 > child's cartoon next to everything else. I think we should do a cloud layer as
 > a procedural very large plane with gaussian clouds in it that is bright on the
 > top-side with a faux bump map, and then the underside should render as dark
 > with emissive fringes. This would allow us to go from clear day to total
 > overcast and raise and lower the cloud layer very easily. And we can use the
-> whiteout effect to conceal the layer during the pass-through."*
+> whiteout effect to conceal the layer during the pass-through."_
 
 **The existing `b3d-clouds` is not wrong, it is answering a different question.**
 Discrete lobes are right for cloud you fly BETWEEN — the aircraft demo, a
@@ -1027,10 +1027,10 @@ and whether `coverage` keeps its current meaning so existing scenes port.
 debugging the starfield, and it is the best one-line statement of this whole
 area:
 
-> *"every sort of the skybox is additive. In the back is black (or interstellar
+> _"every sort of the skybox is additive. In the back is black (or interstellar
 > background radiation), stars are additive dots. The atmosphere is additive
 > light scattering. The only thing that might be opaque would be clouds and
-> they are foreground."*
+> they are foreground."_
 
 Everything derived over the last several passes is a consequence of that, which
 is why it belongs at the top rather than buried in the ice entry:
@@ -1056,8 +1056,8 @@ white at night — is the sharpest way to remember that what is on screen is a
 tone-mapped fiction, and that the tone-mapping is ours to apply.
 
 [ ] **DECIDED: skyboxes come from BAKING THE GALAXY, not from sprite nebulae.**
-Tonio: *"Anyway, I think this is unnecessary. We should just use the galaxy to
-render skyboxes."* That supersedes the tuning below; `b3d-skybox`'s own nebulae
+Tonio: _"Anyway, I think this is unnecessary. We should just use the galaxy to
+render skyboxes."_ That supersedes the tuning below; `b3d-skybox`'s own nebulae
 are off by default and stay a cheap fallback.
 
 Two things from that pass are worth keeping anyway:
@@ -1065,7 +1065,7 @@ Two things from that pass are worth keeping anyway:
 - **A real bug, fixed: additive + double-sided = double-bright.** Every nebula
   quad had `backFaceCulling = false`, so both faces drew and each ADDED —
   `colour + colour + background` where the model says `value · colour +
-  background`. Harmless on anything opaque, which is why it survived; the
+background`. Harmless on anything opaque, which is why it survived; the
   general rule is worth remembering for any additive mesh.
 - **One reading I could NOT account for, left open:** Tonio's last look said the
   output is the nebula's COLOUR rather than the texture's VALUE times it
@@ -1111,10 +1111,10 @@ stay a cheap no-dependency fallback.
 [ ] **THE BAKERY IS THE GALAXY.** Tonio, and it collapses most of the starfield
 plan into something that already exists:
 
-> *"if you want to render a pretty nice skybox you can just dial the galaxy up
+> _"if you want to render a pretty nice skybox you can just dial the galaxy up
 > to 50k stars, set particle size small (0.4 maybe), stick a camera in it
 > somewhere, and render the skybox from that point of view. Oh and scale down
-> the central black hole and maybe put a bunch of nebulae around it."*
+> the central black hole and maybe put a bunch of nebulae around it."_
 
 Which is right, and it is better than the thing it replaces. `b3d-galaxy`
 already renders stars AND nebulae from real seeded data, with spiral structure
@@ -1138,9 +1138,9 @@ already runs `REFRESHRATE_RENDER_ONCE`), an export, and the observer placement �
 "stick a camera in it somewhere" wants to become "put the camera at THIS star",
 which is the same lookup a system jump already needs.
 
-**WHERE TO STAND FOR THE DEFAULT BAKE.** Tonio: *"slightly off-plane, about
+**WHERE TO STAND FOR THE DEFAULT BAKE.** Tonio: _"slightly off-plane, about
 50-60% of the way out from the core and tilted so we get the 'milky way across
-the sky' effect and everything isn't quite so perfectly lined up."*
+the sky' effect and everything isn't quite so perfectly lined up."_
 
 Which is, not coincidentally, where we actually live — the Sun sits about 8 of
 the disc's ~13 kpc out (≈60%) and a few tens of parsecs above the mid-plane. So
@@ -1177,8 +1177,8 @@ re-tune everything downstream of it.
 🚫 **DECLINED: a "realistic" stellar palette.** I offered a
 `stellarPalette: 'realistic' | 'vivid'` on the grounds that the current colours
 are a rainbow ramp rather than a temperature sequence — saturated greens
-included, and no star looks green to the eye. Tonio: *"frankly I don't want
-'realistic' — we can always make things look more boring ;)"*. Which is the
+included, and no star looks green to the eye. Tonio: _"frankly I don't want
+'realistic' — we can always make things look more boring ;)"_. Which is the
 call, and the right one for this project: the north star is a style that
 under-promises so behaviour can over-deliver, not a simulation of a sky. Recorded
 so the observation does not get re-proposed as a defect — the palette is
@@ -1192,10 +1192,10 @@ IS, and it is why the Milky Way has a band) or needs a magnitude-aware size
 clamp so nearby dwarfs do not become dinner plates. Worth looking at with
 `particleSize` low before tuning anything else.
 
-[ ] **An interactive starfield BAKERY.** Tonio: *"we could also build an
+[ ] **An interactive starfield BAKERY.** Tonio: _"we could also build an
 interactive starfield skybox bakery which could save out starfield and allow you
 to pick a seed and a star count and tweak star size and nebula brightness and so
-on."*
+on."_
 
 This is the missing half of the "ship a nice starfield on the CDN" idea — the
 bakery is how the shipped one gets MADE, and without it somebody is hand-tuning
@@ -1217,12 +1217,12 @@ Worth noting it is also the natural place to SEE the exposure model — put a
 time-of-day slider on it and the backdrop fading out is the thing you are
 testing, not a side effect.
 
-[ ] **The ascent demo: a rocket through every medium.** Tonio: *"a simple demo
+[ ] **The ascent demo: a rocket through every medium.** Tonio: _"a simple demo
 of a rocket with a camera pointed at it horizontally. It starts on the ground
 and launches and it ascends through the cloud layer and then the sky fades into
 space… Ultimately this could start with a submarine launching a missile and we
 go through multiple media layers weather systems clouds and ultimately
-vacuum."*
+vacuum."_
 
 This is `MEDIUM-DESIGN.md`'s thesis made watchable, and it is the right shape
 for this repo: the unit of progress is a behaviour you can watch, not a
@@ -1242,8 +1242,8 @@ Two honest gaps for the simple version, neither blocking:
 
 - **Space is black, not starry.** The starfield is designed and unbuilt, so
   today the payoff is sky → thinning → black. Real, but half the drama.
-- **No sun in vacuum — but the object exists.** Tonio: *"Don't we have a star
-  object already?"* We do, and the gap as first filed was overstated.
+- **No sun in vacuum — but the object exists.** Tonio: _"Don't we have a star
+  object already?"_ We do, and the gap as first filed was overstated.
   `b3d-star` is a full procedural star — cube-sphere with Perlin granulation,
   spectral-class colour, optional point light, and a CORONA (`coronaSize`,
   `glowIntensity`), which is the glare asked for earlier, already built. So the
@@ -1272,9 +1272,9 @@ its band and `buoyancy.ts` already models breaking the surface. It is sequencing
 plus a missile, and `b3d-launcher` already flies those.
 
 [ ] **The night sky should show STARS and nebulae — and it is the same sky as
-space.** Tonio: *"we should have the night-time sky show stars and maybe nebulae
+space.** Tonio: _"we should have the night-time sky show stars and maybe nebulae
 if possible and that would also transition to a sky for space (and vacuum
-planets)"*.
+planets)"_.
 
 **Most of this is already built, in the wrong element.** `b3d-galaxy` renders
 both — it carries a `starSps` AND a `nebulaSps` (billboarded
@@ -1288,7 +1288,7 @@ have.
 **The framing that makes the transition free: stars are not a night feature.
 They are always there, and the ATMOSPHERE is what hides them.** Daylight is
 scattered air outshining them; space is air that never does; a vacuum world is
-air that was never there. Composite the starfield *behind* the atmospheric
+air that was never there. Composite the starfield _behind_ the atmospheric
 scattering term and all three are one number going to zero — by hour, by
 altitude, or by the planet having no atmosphere. No modes, nothing to enter, and
 no separate "space skybox" to keep in sync with the planetary one.
@@ -1301,11 +1301,11 @@ concrete consumer rather than a new axis.
 too costly"). And it is affordable, but NOT the way it reads.** Measured, this
 machine, after the O(n²) fix below:
 
-| stars | `generateGalaxy` |
-| ----- | ---------------- |
-| 1,000 | 106 ms |
-| 6,000 (a naked-eye sky) | 632 ms |
-| 20,000 | 2.25 s |
+| stars                   | `generateGalaxy` |
+| ----------------------- | ---------------- |
+| 1,000                   | 106 ms           |
+| 6,000 (a naked-eye sky) | 632 ms           |
+| 20,000                  | 2.25 s           |
 
 Two thirds of a second on the main thread is not something to do at load, so
 taken literally the answer is "too costly". But **the sky does not need what
@@ -1328,14 +1328,14 @@ cannot be derived per-star without changing what they are.)
 And it stays cheap after the build, which is the other half: **a night sky is
 static.** Stars do not move relative to each other; only the planet's rotation
 turns the whole sphere. Build once, rotate. Do NOT reuse `b3d-galaxy`'s
-renderer for this — it calls `setParticles()` on both SPSs *every frame* to
+renderer for this — it calls `setParticles()` on both SPSs _every frame_ to
 re-billboard, which is right for a galaxy you orbit and entirely wrong for a
 backdrop. **Reuse the data, not the renderer.**
 
 ### Bake the starfield once and composite onto it (Tonio)
 
-*"Can we statically render the starfield skybox, keep it somewhere and
-composite onto it when needed?"* — yes, and it is the right shape, because the
+_"Can we statically render the starfield skybox, keep it somewhere and
+composite onto it when needed?"_ — yes, and it is the right shape, because the
 thing that makes a sky expensive is generating it and the thing that makes it
 static is that stars do not move relative to each other.
 
@@ -1346,11 +1346,11 @@ interstellar distances. It only becomes stale when you change SYSTEM — which i
 exactly where a loading moment already lives. So: bake keyed on the system,
 invalidate on a jump.
 
-Tonio, sharpening it: *"Really the skybox starfield shouldn't change within a
-solar system let alone a planet."* Which is the stronger and more useful
+Tonio, sharpening it: _"Really the skybox starfield shouldn't change within a
+solar system let alone a planet."_ Which is the stronger and more useful
 statement, because it means **ONE CUBE PER SYSTEM, ROTATED** — not one per
 planet, per latitude, or per hour. Latitude, axial tilt and time of day all
-change *which* stars are overhead, and every one of those is an ORIENTATION of
+change _which_ stars are overhead, and every one of those is an ORIENTATION of
 the same celestial sphere, never a different sphere.
 
 That machinery is already written: `b3d-skybox` takes a `latitude` and applies
@@ -1377,18 +1377,18 @@ catalogue on every scene remount.
 `b3d-reflections` already does the mechanism — a `ReflectionProbe` set to
 `REFRESHRATE_RENDER_ONCE` — so a bake-once cube RTT is a pattern this repo
 already runs, not a new one. Drawing ~6,000 point sprites into six faces is
-sub-frame work; the 632 ms measured above was *generating* the catalogue, not
+sub-frame work; the 632 ms measured above was _generating_ the catalogue, not
 drawing it, which is the whole reason baking wins.
 
 Size should be `auto` against a per-tier budget (`resolveBudget`, the repo's
 standing rule for anything performance-sensitive), because this is VRAM and the
 Quest is the baseline:
 
-| face | VRAM | angular resolution |
-| ---- | ---- | ------------------ |
-| 256² | 1.6 MB | 0.35°/texel |
-| 512² | 6.3 MB | 0.18°/texel |
-| 1024² | 25 MB | 0.09°/texel |
+| face  | VRAM   | angular resolution |
+| ----- | ------ | ------------------ |
+| 256²  | 1.6 MB | 0.35°/texel        |
+| 512²  | 6.3 MB | 0.18°/texel        |
+| 1024² | 25 MB  | 0.09°/texel        |
 
 512 is likely the sweet spot. A star lands on about one texel, so draw them as
 small gaussians rather than points or filtering will eat them — and a baked sky
@@ -1409,19 +1409,19 @@ drawn at all. No alpha trickery, no change to `SkyMaterial`, and the day → nig
 `SkyMaterial` with our own shader is the bigger-control option and should not be
 needed for v1.
 
-**The dome IS the compositing surface** — Tonio: *"Isn't the sky dome part of
+**The dome IS the compositing surface** — Tonio: _"Isn't the sky dome part of
 our sky architecture? It should be the surface that overlays on the starfield
-(if present)."* Yes, and the space band shipped above is already built that way
+(if present)."_ Yes, and the space band shipped above is already built that way
 without having planned to be: fading `rayleigh`/`turbidity`/`luminance` to zero
 makes the dome contribute NOTHING, and a dome contributing nothing is exactly
 what reveals whatever is behind it. Under `ALPHA_ADD` that is the whole
 mechanism — no cross-fade, no second sky, and "(if present)" costs nothing
 because with no starfield behind it the same dome simply fades to black.
 
-**And ship a stock starfield on the CDN** — *"we could simply ship a nice
-starfield on the CDN to save rendering it if we just want a nice starfield."*
+**And ship a stock starfield on the CDN** — _"we could simply ship a nice
+starfield on the CDN to save rendering it if we just want a nice starfield."_
 Right, and it settles the cost question in the most direct way available: for
-the common case it is ZERO. Most scenes want *a* nice night sky, not the actual
+the common case it is ZERO. Most scenes want _a_ nice night sky, not the actual
 sky from a named system, so a curated cubemap behind `assetUrl()` serves them
 with no generation and no bake at all. The procedural per-system path then
 becomes what it should always have been — the opt-in for a game where the stars
@@ -1443,8 +1443,8 @@ already leaves skybox and water alone by design.
 
 ### A solar system rendered inside its own galaxy (Tonio)
 
-*"It would be very nice to render a solar system inside the galaxy it's part of
-using the same sky shader. It could even add glare around the star."*
+_"It would be very nice to render a solar system inside the galaxy it's part of
+using the same sky shader. It could even add glare around the star."_
 
 This is the same sky again, and it closes the set. One celestial sphere with
 brightness ∝ luminosity / distance², composited behind an atmosphere term:
@@ -1462,8 +1462,8 @@ the planetary one.
 **THE CUBE HOLDS ONLY WHAT IS AT INFINITY — and two independent arguments land
 on that same line**, which is the strongest sign it is the right one.
 
-Tonio found the second: *"if the local star is painted into the skybox then it
-needs regeneration for each planet and slowly over time."* Correct, and it is
+Tonio found the second: _"if the local star is painted into the skybox then it
+needs regeneration for each planet and slowly over time."_ Correct, and it is
 fatal to the cache. Each planet sees its sun from a different distance and
 direction, so a baked sun means a bake PER PLANET; and orbital motion drags it
 across the background, so it also means a slow continuous re-bake. The
@@ -1494,9 +1494,9 @@ exists. Conceptually the sun is just a promoted member of the starfield; in the
 renderer it must not be one.
 
 [ ] **Terrain `ice` mode — a surface with an UNDERSIDE, translucent where it is
-thin.** Tonio: *"an 'ice' mode for terrain where it has an underside that is (by
+thin.** Tonio: _"an 'ice' mode for terrain where it has an underside that is (by
 default) 9x deeper on the underside than the topside and has a shader that makes
-it look translucent when thin. (For frozen water worlds / ice packs)"*
+it look translucent when thin. (For frozen water worlds / ice packs)"_
 
 The 9× is the iceberg ratio, and it being a physical constant rather than a
 taste is what makes it the right DEFAULT: freshwater ice is ~917 kg/m³ floating
@@ -1535,7 +1535,7 @@ stated.
 
 But the fix is not a mode — it is a PER-TILE decision, which terrain already
 makes. A tile grows a second skin iff an ice province's footprint touches it,
-the same *kind* of choice as its LOD level, and exactly the shape of the
+the same _kind_ of choice as its LOD level, and exactly the shape of the
 existing `PoolTile.masked` flag (a tile that draws its own index buffer because
 a patch cut a hole in it). Building the underside planet-wide and letting it
 degenerate where there is no ice would also work and is much worse: it doubles
@@ -1575,10 +1575,10 @@ and the shader.
 the surface half is ALREADY there and the other half must not be.
 
 `biome-chart.ts` has a polar ice cell and reaches it the right way — emergent
-from temperature and moisture, no flag: *"ice is frozen WATER; it belongs to
-cold-with-some-moisture… cold regions grow polar ice naturally"*, and its own
-demo says that dragging the climate cold *"collapses the beach→…→ice run until
-ice meets the waterline"*. That IS the frozen-water-world look, and it arrives
+from temperature and moisture, no flag: _"ice is frozen WATER; it belongs to
+cold-with-some-moisture… cold regions grow polar ice naturally"_, and its own
+demo says that dragging the climate cold _"collapses the beach→…→ice run until
+ice meets the waterline"_. That IS the frozen-water-world look, and it arrives
 with no mode to enter. Adding an `ice` colour path would duplicate a working
 mechanism with a worse one.
 
@@ -1592,11 +1592,11 @@ per frame and flickers). Terrain should not go on that path to gain a floe.
 
 So the split is three ways, not two:
 
-| what | where | status |
-| ---- | ----- | ------ |
-| ice as a SURFACE — colour, snow, where it appears | the biome chart | **already done, emergent** |
-| thin ice reading as thin FROM ABOVE | the biome chart — a small, real addition | not done |
-| the floe's underside + true translucency | its own mesh and material | the actual work |
+| what                                              | where                                    | status                     |
+| ------------------------------------------------- | ---------------------------------------- | -------------------------- |
+| ice as a SURFACE — colour, snow, where it appears | the biome chart                          | **already done, emergent** |
+| thin ice reading as thin FROM ABOVE               | the biome chart — a small, real addition | not done                   |
+| the floe's underside + true translucency          | its own mesh and material                | the actual work            |
 
 **The middle row is the one piece that genuinely belongs in the shader, and it
 is nearly free.** Because the underside is DERIVED from the topside by a ratio,
@@ -1617,8 +1617,8 @@ thickness comes from the geometry (and, above, from height) for free.
 
 ### Under the ice: the sea floor, and the floe edge (Manta)
 
-Tonio: *"it directly impacts manta. The question is when you're in ice, what
-happens to the sea floor, and what happens at the boundary of non-ice?"*
+Tonio: _"it directly impacts manta. The question is when you're in ice, what
+happens to the sea floor, and what happens at the boundary of non-ice?"_
 
 Both land on a mechanism that already exists, which is the answer worth having:
 **`photicFactor`**. The chart already gates seafloor growth on light — coral and
@@ -1629,7 +1629,7 @@ thing deciding what lives down there.
 
 So: **ice contributes LIGHT, not temperature.** That distinction matters, because
 the tempting move is to make the water under ice colder and it would be
-double-counting — the ice is there *because* the chart already said it was cold.
+double-counting — the ice is there _because_ the chart already said it was cold.
 The genuinely new information ice carries is that the ceiling is opaque.
 
 `photicFactor(depth, fog, murk)` stays purely about the water column; ice
@@ -1662,7 +1662,7 @@ floe edge below. Depth that is systemic, not textural.
 
 ### From below, ice is EMISSIVE — not translucent (Tonio)
 
-*"I think ice should not look translucent from below. It should look emissive."*
+_"I think ice should not look translucent from below. It should look emissive."_
 
 Right, and right for a physical reason rather than a stylistic one: ice
 SCATTERS. Look up at a floe from underwater and you are not looking through a
@@ -1693,7 +1693,7 @@ already closed to zero thickness at its edge, and brilliant-thin-ice meets
 open-water-brightness continuously — so there is no seam to hide.
 
 **"To the extent ice is 'translucent' it should be very blurry (can we do
-blurred transmission cheaply?)"** — yes, and the blur is *precisely why* it is
+blurred transmission cheaply?)"** — yes, and the blur is _precisely why_ it is
 cheap. Sharp transmission is the expensive one: it needs what is behind the
 surface at full resolution, which means a refraction capture and all the sorting
 that comes with it. A VERY blurry transmission needs almost no spatial detail —
@@ -1722,8 +1722,8 @@ should earn its way in, not a v1 requirement.
 
 ### The water mesh should encode land depth (Tonio)
 
-*"I think the water mesh should encode depth of land so it can do shoreline
-effects."*
+_"I think the water mesh should encode depth of land so it can do shoreline
+effects."_
 
 Today `b3d-water` is one flat `CreateGround` that knows nothing about the ground
 beneath it, and **per-vertex depth is not an option**: `subdivisions` is 32, so
@@ -1745,7 +1745,7 @@ shallows, and wave amplitude damping as it shoals.
 built.** `surfFactor(depth, surfDepth)` and `photicFactor(depth)` are pure,
 shipped, and already drive the TERRAIN side of the waterline — beach → rock →
 coral, growth never starting at the waterline itself. Terrain knows the depth
-because it *is* the terrain; water does not, so the two sides of the same
+because it _is_ the terrain; water does not, so the two sides of the same
 shoreline are currently reasoning from different information. Handing water the
 same depth field makes them agree by construction — the identical "change one,
 change both" discipline `photicFactor` already shares with the underwater fog.
@@ -6033,7 +6033,7 @@ three weapons, so this is a `flight` attribute on `b3d-launcher`.
 
 - [ ] **`bolt` — the LOOK only.** The physics already works: `ballisticStep` with
       `gravity: 0, drag: 0` is constant velocity, so `b3dLauncher({gravity:0, drag:0,
-    muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
+  muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
       draw as a stretched emissive segment rather than a sphere. Smallest of the three;
       do it first.
 - [ ] **`hitscan`.** The genuine new code path: one ray at fire time, resolved in that
@@ -6056,14 +6056,11 @@ carried a position and no orientation.
       to mark guns up with a hand position and muzzle position at minimum... so we can have
       muzzle flashes etc. also maybe an ejector position and a mag position. Swords will
       need haft positions and hit positions, maybe guard positions if we implement proper
-      physics based parrying."
-      - guns: `_grip` (**position AND orientation** — the orientation is the half that was
-        missing and the half that cannot be guessed), `_muzzle` (exists), `_eject`, `_mag`
-      - blades: `_haft`, `_edge` (the part that cuts — a segment, not a point), `_guard`
-      - The rule that makes this worth doing: a marker is the MODEL's business. Every
-        alternative puts a per-rig wrist offset in every consumer's scene, and they will
-        each get a different one. `findSuffixed` already reads these; the work is agreeing
-        the names and honouring orientation, not new machinery.
+      physics based parrying." - guns: `_grip` (**position AND orientation** — the orientation is the half that was
+      missing and the half that cannot be guessed), `_muzzle` (exists), `_eject`, `_mag` - blades: `_haft`, `_edge` (the part that cuts — a segment, not a point), `_guard` - The rule that makes this worth doing: a marker is the MODEL's business. Every
+      alternative puts a per-rig wrist offset in every consumer's scene, and they will
+      each get a different one. `findSuffixed` already reads these; the work is agreeing
+      the names and honouring orientation, not new machinery.
 
 - [x] **A placement tool** — shipped 2026-09-17 as the `weapon-fit` demo page: weapon
       picker, position and rotation rows, live in the character's hands, `copy snippet`.
@@ -6082,28 +6079,25 @@ carried a position and no orientation.
 - [ ] **Retargeting: YES. Auto-skinning: not in the engine.** Tonio asked about "importing a
       humanoid mesh, position some joints, then heat-bind an adjusted skeleton onto our
       chosen rig". Splitting that in two is the whole answer, because the halves have very
-      different costs:
-      - **Retargeting** (drive mesh B with rig A's clips) is tractable and high value: it is
-        bone-name mapping plus rest-pose deltas, and we have already built both halves of
-        the naming problem for other reasons — `ualAnimationStates` reconciles CLIP names,
-        `findBone`/`BONE_SOCKETS` reconcile BONE names. The third axis is the rest pose.
-        It multiplies the UAL library across any humanoid we can get.
-      - **Heat-binding** — ⚠️ I ARGUED THIS WAS TOO HARD FOR THE BROWSER AND I WAS WRONG.
-        The claim was that it is a quality-sensitive volumetric solve, decades-refined in
-        Blender, and would be both slow and worse in JS. Tonio: *"I thought blender just
-        implemented the algorithm in the original paper and it worked almost perfectly.
-        Cheetah 3d added heat binding after I mentioned the paper to the developer in
-        something like a day. It works great."* And: *"mixamo does it in the browser."*
-        Which settles it — a shipping product doing exactly this, in this environment, is
-        better evidence than my estimate of the difficulty.
-        The paper is Baran & Popović, *Automatic Rigging and Animation of 3D Characters*
-        (SIGGRAPH 2007, the Pinocchio system); the binding half is bone-heat diffusion,
-        a sparse linear solve over the mesh's vertices. At game-mesh sizes that is a
-        normal amount of arithmetic, not a research problem. Read the paper before
-        estimating again.
-      - So BOTH halves can live in the browser, which makes the whole thing one tool:
-        import a humanoid, place joints, bind, retarget the UAL clips onto it. The
-        Blender pipeline stays useful for batch work, not because the browser cannot.
+      different costs: - **Retargeting** (drive mesh B with rig A's clips) is tractable and high value: it is
+      bone-name mapping plus rest-pose deltas, and we have already built both halves of
+      the naming problem for other reasons — `ualAnimationStates` reconciles CLIP names,
+      `findBone`/`BONE_SOCKETS` reconcile BONE names. The third axis is the rest pose.
+      It multiplies the UAL library across any humanoid we can get. - **Heat-binding** — ⚠️ I ARGUED THIS WAS TOO HARD FOR THE BROWSER AND I WAS WRONG.
+      The claim was that it is a quality-sensitive volumetric solve, decades-refined in
+      Blender, and would be both slow and worse in JS. Tonio: _"I thought blender just
+      implemented the algorithm in the original paper and it worked almost perfectly.
+      Cheetah 3d added heat binding after I mentioned the paper to the developer in
+      something like a day. It works great."_ And: _"mixamo does it in the browser."_
+      Which settles it — a shipping product doing exactly this, in this environment, is
+      better evidence than my estimate of the difficulty.
+      The paper is Baran & Popović, _Automatic Rigging and Animation of 3D Characters_
+      (SIGGRAPH 2007, the Pinocchio system); the binding half is bone-heat diffusion,
+      a sparse linear solve over the mesh's vertices. At game-mesh sizes that is a
+      normal amount of arithmetic, not a research problem. Read the paper before
+      estimating again. - So BOTH halves can live in the browser, which makes the whole thing one tool:
+      import a humanoid, place joints, bind, retarget the UAL clips onto it. The
+      Blender pipeline stays useful for batch work, not because the browser cannot.
 
 ## Aim pose in a crouch — the head does not follow the aim (Tonio, 2026-09-18)
 
@@ -6120,22 +6114,17 @@ carried a position and no orientation.
       `BONE_SOCKETS.head` already resolve the joint across rigs.
       ⚠️ ATTEMPTED 2026-09-18 AND REVERTED. Four approaches, none of which moved the head
       by a single degree, so the next attempt should start from these measurements rather
-      than repeat them:
-      - Writing `rotationQuaternion` on the head bone's LINKED TRANSFORM NODE does not
-        survive a frame. Measured directly: stamp identity onto it, read it back one frame
-        later, and the animated value is there unchanged to four decimals.
-      - Moving the write from `onBeforeRenderObservable` (the update loop) to
-        `onAfterAnimationsObservable` changed nothing — still 116.76° off, to two decimals,
-        which is the same number and therefore no effect at all.
-      - This skeleton has `useTextureToStoreBoneMatrices: true`, so the matrices the shader
-        reads are baked in `skeleton.prepare()`. That is the likely reason node writes are
-        ignored, and the thing to investigate first.
-      - The untried candidate is Babylon's own bone-posing API — `bone.setRotationQuaternion(q,
-        Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
-        anything clever.
-      - Axis calibration DID work (it picks the local axis whose world direction best matches
-        the body's forward, and chose +Z here), so that part is worth keeping. But calibrate
-        from a REST pose: it ran mid-crouch and scored an axis that was 116° from the aim.
+      than repeat them: - Writing `rotationQuaternion` on the head bone's LINKED TRANSFORM NODE does not
+      survive a frame. Measured directly: stamp identity onto it, read it back one frame
+      later, and the animated value is there unchanged to four decimals. - Moving the write from `onBeforeRenderObservable` (the update loop) to
+      `onAfterAnimationsObservable` changed nothing — still 116.76° off, to two decimals,
+      which is the same number and therefore no effect at all. - This skeleton has `useTextureToStoreBoneMatrices: true`, so the matrices the shader
+      reads are baked in `skeleton.prepare()`. That is the likely reason node writes are
+      ignored, and the thing to investigate first. - The untried candidate is Babylon's own bone-posing API — `bone.setRotationQuaternion(q,
+      Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
+      anything clever. - Axis calibration DID work (it picks the local axis whose world direction best matches
+      the body's forward, and chose +Z here), so that part is worth keeping. But calibrate
+      from a REST pose: it ran mid-crouch and scored an axis that was 116° from the aim.
       The general lesson, which cost three separate attempts across one day: before writing a
       transform, ask what else writes it and when. `AbstractMesh.render()` stamps a weapon's
       rotation and position; an AnimationGroup stamps a bone. Correct arithmetic into a value
@@ -6143,8 +6132,8 @@ carried a position and no orientation.
 
 ## ⏸️ WEAPONS ARE PARKED (Tonio, 2026-09-18)
 
-*"Let's set more weapons aside until we have a consistently scaled and oriented set of
-weapons and ideally more animations. The meshes I have lying around."*
+_"Let's set more weapons aside until we have a consistently scaled and oriented set of
+weapons and ideally more animations. The meshes I have lying around."_
 
 So the blocker is CONTENT, not engine work, and the engine side is in a good place to
 stop: `socket` + `grip: 'auto'` + `modelScale` + the `weapon-fit` tool are enough to fit
@@ -6173,8 +6162,8 @@ meshes already published, if a chunkier art style is acceptable.
 
 ## Characters want a SEPARATE HEAD MESH (Tonio, 2026-09-18)
 
-*"Ultimately, I think, our actual models will want separate head meshes for lots of good
-reasons."* Agreed, and two days of first-person work arrived at the same place from the
+_"Ultimately, I think, our actual models will want separate head meshes for lots of good
+reasons."_ Agreed, and two days of first-person work arrived at the same place from the
 other direction — every runtime route to hiding a head is blocked:
 
 - Scaling the head bone's LINKED TRANSFORM NODE: overwritten within a frame.
@@ -6188,6 +6177,7 @@ any wall you stand against, and pushing the eye forward (what we now do, `eyeFor
 a compromise between clearing the face and keeping your own hands in frame.
 
 **What a separate head submesh buys, beyond first person:**
+
 - hide it in FPV, one line, no compromise
 - headgear that swaps without a second body
 - damage/decapitation, and the `Head` socket already resolves across rigs
@@ -6205,32 +6195,26 @@ it belongs with the weapon-set pass that is already parked for the same reason.
 
 ## The barrel and the shot disagree while walking (Tonio, 2026-09-18)
 
-*"When you're in aim mode and just walking around your gun points off to the left and yet
+_"When you're in aim mode and just walking around your gun points off to the left and yet
 you shoot straight. We somehow need to compute the direction we shoot based on the pose
-and/or tweak the pose to shoot in the direction we really want to shoot."*
+and/or tweak the pose to shoot in the direction we really want to shoot."_
 
 **Of the two, tweak the WEAPON.** Firing along the barrel would make the gun honest and the
 aim useless: the reticle would wander with the walk cycle and you could not hold a point.
 A crosshair is a promise that the round goes there, so the barrel is what has to move.
 
 - [ ] **Point a socketed weapon along the aim.** Attempted 2026-09-18 and reverted — two
-      conventions wrong, measured, so the next attempt can skip them:
-      - Write through `rx`/`ry`/`rz` on the launcher, NOT the mesh. `AbstractMesh.render()`
-        rebuilds `rotationQuaternion` from those every frame. (This part is right and was
-        confirmed; it is the rest that failed.)
-      - `FromLookDirectionLH(dir, up).toEulerAngles()` with the aim transformed into the
-        parent's space: barrel ends up **149.3°** off, constant.
-      - The same with `FromLookDirectionRH`: **77.7°** off, constant.
-      - Constant error at both means a systematic convention mismatch, not a maths slip.
-        The remaining suspect is EULER ORDER — `render()` rebuilds via
-        `RotationYawPitchRoll(ry, rx, rz)`, and `toEulerAngles()` may not be its inverse in
-        a chain carrying the glTF handedness mirror.
-      - Do NOT decompose the parent's world matrix to get its rotation: negative
-        determinant, meaningless quaternion. Transforming the DIRECTIONS is right.
-      - If a third convention guess fails, stop guessing and close the loop numerically:
-        measure the barrel, measure the error against the aim, and drive `rx/ry/rz` with
-        feedback. Slower to converge, immune to every convention question, and this file
-        now contains four wrong convention guesses from one day.
+      conventions wrong, measured, so the next attempt can skip them: - Write through `rx`/`ry`/`rz` on the launcher, NOT the mesh. `AbstractMesh.render()`
+      rebuilds `rotationQuaternion` from those every frame. (This part is right and was
+      confirmed; it is the rest that failed.) - `FromLookDirectionLH(dir, up).toEulerAngles()` with the aim transformed into the
+      parent's space: barrel ends up **149.3°** off, constant. - The same with `FromLookDirectionRH`: **77.7°** off, constant. - Constant error at both means a systematic convention mismatch, not a maths slip.
+      The remaining suspect is EULER ORDER — `render()` rebuilds via
+      `RotationYawPitchRoll(ry, rx, rz)`, and `toEulerAngles()` may not be its inverse in
+      a chain carrying the glTF handedness mirror. - Do NOT decompose the parent's world matrix to get its rotation: negative
+      determinant, meaningless quaternion. Transforming the DIRECTIONS is right. - If a third convention guess fails, stop guessing and close the loop numerically:
+      measure the barrel, measure the error against the aim, and drive `rx/ry/rz` with
+      feedback. Slower to converge, immune to every convention question, and this file
+      now contains four wrong convention guesses from one day.
 
 Until then the weapon follows the hand, which looks natural and aims wrong, and the reticle
 remains the truth about where the round goes.

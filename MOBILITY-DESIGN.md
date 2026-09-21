@@ -270,13 +270,13 @@ wants instead of vertices.
 Tonio's model, and it is the thing that makes "derived from geometry" real for
 climbing rather than aspirational:
 
-> *"Material and inclination. So by default if a surface is less than 75 degrees
+> _"Material and inclination. So by default if a surface is less than 75 degrees
 > you can climb it, but if it's specifically a rough material that can increase
 > to 85 degrees, and then you can get climbing skills and gear that make these
 > angles even higher (eventually allowing a really skilled and equipped climber
 > to handle mild overhangs). Weather conditions and a surface being wet change
 > the equation, as does encumbrance. Some materials might be especially
-> climbable (rope ladders, chain link defences)."*
+> climbable (rope ladders, chain link defences)."_
 
 ### Why this is the right shape
 
@@ -305,14 +305,14 @@ climbLimit(surface, actor, conditions) -> degrees
 Degrees ADDITIVE and capped, because that is what a designer can tune and a UI
 can explain ("you need another 10°"):
 
-| term | from | rough magnitude |
-| --- | --- | --- |
-| base | — | 75° |
-| material | the surface | +10° rough rock, −15° wet glass |
-| skill | the actor | 0…+15° |
-| gear | the actor | 0…+15° |
-| encumbrance | the actor | −0…20° |
-| weather / wetness | conditions | −0…15° |
+| term              | from        | rough magnitude                 |
+| ----------------- | ----------- | ------------------------------- |
+| base              | —           | 75°                             |
+| material          | the surface | +10° rough rock, −15° wet glass |
+| skill             | the actor   | 0…+15°                          |
+| gear              | the actor   | 0…+15°                          |
+| encumbrance       | the actor   | −0…20°                          |
+| weather / wetness | conditions  | −0…15°                          |
 
 Past 90° is a mild overhang and should stay expensive — reachable only by a
 skilled, equipped, unencumbered climber in good conditions, which is exactly
@@ -320,7 +320,7 @@ Tonio's ceiling and falls out of the arithmetic rather than needing a special
 case.
 
 **The comparison is separate from the limit.** `climbLimit` returns a number and
-`canClimb(inclination, limit)` decides — so an AI can ask *could I* without
+`canClimb(inclination, limit)` decides — so an AI can ask _could I_ without
 committing, a UI can show why not, and the limit is inspectable in a debug
 panel. And the comparison carries hysteresis, for the reason `isSwimming` and
 `inShelter` do: a face that flickers at the boundary is worse than one that is

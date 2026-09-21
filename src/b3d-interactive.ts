@@ -106,12 +106,18 @@ preview.append(
   ),
   div(
     { style: 'position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace' },
-    p('Hover highlights. Press and release ON a thing to use it.'),
     span({ bindText: demo.status }),
     p({ style: 'opacity:0.7' }, 'carrying: ', span({ bindText: demo.key })),
   )
 )
 ```
+
+> Hover highlights whatever is in reach. **Press and release ON the thing** to
+> use it — sliding off before you let go cancels, exactly as it does for a
+> button, because that is the gesture people already know.
+>
+> The overlay is the live state, not a caption: it says what the scene thinks is
+> happening and what you are carrying.
 
 ## Attributes
 
