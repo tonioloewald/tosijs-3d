@@ -68,7 +68,7 @@ preview.append(
       },
       scenePanel: () => [
         label3d({ text: 'Weather' }),
-        slider3d({ label: 'coverage', value: sky.coverage, min: 0, max: 1, step: 0.02 }),
+        slider3d({ label: 'coverage', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
         slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'transmission', value: sky.transmission, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'altitude', value: sky.altitude, min: 20, max: 600, step: 10 }),
@@ -101,8 +101,12 @@ preview.append(
 > `wind` slides the whole sky and `evolve` reshapes it as it goes — both free,
 > neither rebakes anything. `cirrus` takes the same sky from heaped cumulus to
 > long wispy streaks, and
-> `transmission` decides how much daylight comes through from above: at 0 the
-> underside is storm-dark, at 1 it glows.
+> `transmission` normally FOLLOWS coverage and is here only so you can override
+> it; at 0 the underside is storm-dark, at 1 it glows.
+>
+> **Push `coverage` past 1.** There is no sky left to cover, so the extra goes
+> into DEPTH: the base descends toward the ground, the sun goes out, and you get
+> a deck you can fly down into and not come out of.
 >
 > **Bring `altitude` and `eye height` together.** The deck sweeps through you
 > and you get the whiteout — the same fog layer a plane flying through it would
@@ -116,7 +120,8 @@ preview.append(
 | `altitude` | `140` | Height of the deck. Moving it is ONE number |
 | `size` | `14000` | World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free |
 | `subdivisions` | `64` | Grid resolution — see "A grid, not a quad" |
-| `coverage` | `0.5` | Clear `0` → overcast `1`. LIVE, and shared with the shadow |
+| `coverage` | `0.5` | Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow |
+| `thickenDepth` | `700` | How far the cloud BASE descends at `coverage: 2` |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks `1`. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
@@ -578,7 +583,21 @@ export class B3dCloudDeck extends B3dChild {
      */
     size: 14000,
     subdivisions: 64,
+    /**
+     * Clear `0` → solid `1` → THICKENING, up to `2`.
+     *
+     * Past 1 there is no more sky left to cover, so the extra goes into DEPTH:
+     * the base descends toward the ground while the top stays put. See
+     * "Coverage past 1 is thickness".
+     */
     coverage: 0.5,
+    /**
+     * How far the cloud BASE descends at `coverage: 2`, in metres.
+     *
+     * The default reaches the ground from a 700 m deck, which is the point:
+     * full thickening should be able to put you inside the cloud at sea level.
+     */
+    thickenDepth: 700,
     seed: 1337,
     frequency: 3,
     /** Rounded heaps `0` → long wispy streaks `1`. Rebakes the field. */
@@ -700,6 +719,7 @@ export class B3dCloudDeck extends B3dChild {
   declare size: number
   declare subdivisions: number
   declare coverage: number
+  declare thickenDepth: number
   declare seed: number
   declare frequency: number
   declare cirrus: number
@@ -730,6 +750,8 @@ export class B3dCloudDeck extends B3dChild {
   declare shade: number
 
   mesh?: BABYLON.Mesh
+  /** The cloud BASE, shown only when `coverage` past 1 has separated it. */
+  baseMesh?: BABYLON.Mesh
   /** The baked density field — the thing a shadow decal should also sample. */
   fieldTexture?: BABYLON.RawTexture
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
@@ -882,6 +904,35 @@ export class B3dCloudDeck extends B3dChild {
     this.mesh = mesh
 
     /*
+    A SECOND SKIN FOR THE BASE, so a thick deck has a top you fly over and a
+    bottom you fly under, with nothing but whiteout between them.
+
+    Two meshes rather than one because a plane cannot be at two heights, and
+    the alternative — an actual volume — buys nothing: with `coverage` past 1
+    the field is opaque everywhere, so there are no gaps for a viewer to see
+    the far skin through. What is between them is fog, which is both cheaper
+    and what you would actually see.
+
+    It shares the material, so every dial moves both, and it is hidden whenever
+    the drop is small enough for the two to z-fight.
+    */
+    const base = BABYLON.MeshBuilder.CreateGround(
+      'cloud-deck-base_nocast',
+      {
+        width: attrs.size,
+        height: attrs.size,
+        subdivisions: Math.max(1, Math.floor(attrs.subdivisions)),
+      },
+      scene
+    )
+    base.isPickable = false
+    base.applyFog = false
+    base.material = mat
+    base.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors.slice(), true)
+    base.isVisible = false
+    this.baseMesh = base
+
+    /*
     THE WHITEOUT IS A FOG LAYER, exactly as it is for b3d-clouds — the scene
     composites and smooths every layer together (see atmosphere.ts), so passing
     through a deck cannot fight the sea, the base fog or space, and nothing ever
@@ -900,7 +951,7 @@ export class B3dCloudDeck extends B3dChild {
       this._sync()
     })
     this._sync()
-    owner.register({ meshes: [mesh] })
+    owner.register({ meshes: [mesh, base] })
     owner.addOriginListener(this._onShift)
 
     if (!isOff(attrs.shadows)) this._setupShadows(owner, scene)
@@ -942,6 +993,17 @@ export class B3dCloudDeck extends B3dChild {
     if (!isOff(attrs.follow) && cam != null) {
       this.mesh.position.x = cam.globalPosition.x
       this.mesh.position.z = cam.globalPosition.z
+    }
+    const drop = this.baseDrop
+    const base = this.baseMesh
+    if (base != null) {
+      // Below a couple of metres the two skins would z-fight for nothing.
+      base.isVisible = drop > 2
+      base.position.set(
+        this.mesh.position.x,
+        attrs.altitude - drop,
+        this.mesh.position.z
+      )
     }
     const t = this._elapsed
     const dx = -Math.cos(h) * attrs.wind * t + this._originX
@@ -1050,27 +1112,62 @@ export class B3dCloudDeck extends B3dChild {
   }
 
   /**
-   * `transmission`, with `-1` resolved against `coverage`.
+   * `transmission`, DERIVED from `coverage` unless explicitly set.
    *
-   * Tonio asked for it "loosely tied to coverage" — loosely being the whole
-   * point. A thin sky genuinely does transmit and an overcast one genuinely
-   * does not, so the default should not have to be set to be right; but the
-   * tie is a default rather than a law, because a bright thin overcast and a
-   * black scattered squall are both real skies and neither is derivable from
-   * how MUCH cloud there is.
+   * Tonio: *"I'd suggest we derive transmission from cover... rather than make
+   * it independent."* Right, because they are not two facts. How much light
+   * gets through a cloud is a consequence of how much cloud there is, and
+   * letting an author set "total overcast that is also luminous" mostly
+   * produces skies that look wrong in a way they then have to go hunting for.
+   * One dial that cannot contradict itself beats two that can.
+   *
+   * | `coverage` | `transmission` | |
+   * |---|---|---|
+   * | `0` | `0.70` | a clear sky: the little cloud there is, glows |
+   * | `1` | `0.25` | solid overcast, dim underneath |
+   * | `1.5` | `0` | thick enough that nothing comes through |
+   * | `2` | `0` | and it stays there while the base descends |
+   *
+   * Two straight segments rather than a curve, because those numbers ARE the
+   * specification and a curve through them would only add places to argue.
+   * `transmission` stays settable for the deliberate case — a bright thin
+   * overcast, an alien sky — and `-1`, the default, means "follow the coverage".
    */
   get resolvedTransmission(): number {
     const t = this.transmission
     if (t >= 0) return Math.min(1, t)
-    const cov = Math.min(1, Math.max(0, this.coverage))
-    /*
-    CIRRUS LIFTS IT, because wispy cloud is THIN cloud. You can see the sun
-    through cirrus and you cannot see it through a cumulus deck, so a sky dialled
-    toward wisps that stayed storm-dark underneath would be contradicting its own
-    shape. One dial moving two things that always move together.
-    */
-    const wisp = Math.min(1, Math.max(0, this.cirrus)) * 0.35
-    return Math.min(1, 0.15 + 0.75 * (1 - cov) + wisp)
+    const c = Math.max(0, this.coverage)
+    if (c <= 1) return 0.7 - 0.45 * c
+    return Math.max(0, 0.25 - 0.5 * (c - 1))
+  }
+
+  /**
+   * How far past solid the deck is, `0…1` — `coverage` 1 → 2.
+   *
+   * ## Coverage past 1 is thickness
+   *
+   * At `coverage` 1 there is no sky left to cover, so more weather has to mean
+   * something other than more area, and what it means is DEPTH. The top stays
+   * where it is and the BASE descends, which is the direction real weather
+   * moves: a deck does not climb to swallow you, it comes down.
+   *
+   * Tonio: *"this would let us have a solid deck at moderate altitude that goes
+   * down to low altitude before you can see anything, or even to ground level."*
+   *
+   * It also composes with everything already here rather than needing new
+   * machinery, which is the sign it was the right axis: the whiteout band
+   * becomes a slab instead of a plane, `transmission` is already 0 by 1.5 so
+   * the underside is already black, and the gloom ramps already have the sun
+   * on the way out. Thickening only exists in the regime where the deck is
+   * opaque everywhere, so there are no gaps for the two skins to show through.
+   */
+  get thickening(): number {
+    return Math.min(1, Math.max(0, this.coverage - 1))
+  }
+
+  /** How far the cloud base currently sits below `altitude`, in metres. */
+  get baseDrop(): number {
+    return this.thickening * Math.max(0, this.thickenDepth)
   }
 
   /**
@@ -1127,7 +1224,19 @@ export class B3dCloudDeck extends B3dChild {
     if (p == null) return 0
     const half = this._halfDepth()
     if (half <= 0) return 0
-    const d = Math.abs(p.y - this.altitude) / half
+    /*
+    A SLAB, not a plane. With no thickening the two faces coincide and this is
+    the old single-plane band exactly; as `coverage` goes past 1 the base
+    descends and the whiteout simply spans the gap. Nothing special-cases the
+    thick sky — it is the same ramp with two edges instead of one, which is why
+    flying down through a thickening deck stays white for longer rather than
+    behaving differently.
+    */
+    const top = this.altitude
+    const bottom = this.altitude - this.baseDrop
+    const outside =
+      p.y > top ? p.y - top : p.y < bottom ? bottom - p.y : 0
+    const d = outside / half
     // Saturate inside the core, ramp to nothing at the band edge.
     const CORE = 0.45
     const t = Math.min(1, Math.max(0, (1 - d) / (1 - CORE)))
@@ -1185,15 +1294,33 @@ export class B3dCloudDeck extends B3dChild {
     const optical = 1 - (1 - immersion) * (1 - immersion)
 
     const half = Math.max(1, this._halfDepth())
-    const dy = p == null ? 0 : p.y - this.altitude
+    const drop = this.baseDrop
+    // Measured from the BASE, so the colour ramp covers the whole slab: black
+    // at the bottom of a thick deck, whiteout at the top.
+    const dy = p == null ? 0 : p.y - (this.altitude - drop)
     /*
     HAZE ONLY BELOW, and only while the deck is overhead rather than a distant
     ceiling. Above it the air is clear — that is the whole reward for climbing
     out — so this is deliberately one-sided.
     */
-    const below = Math.max(0, -dy - half)
+    /*
+    ONE-SIDED, and it took a probe to notice it was not.
+
+    The intent was always "haze under the deck, clear air above it" — climbing
+    out is the reward. But the distance test was written as `-dy - half`, which
+    is zero for EVERY point above the base, so it read "full haze" both just
+    under the deck and a kilometre over the top of it. The comment said one
+    thing and the arithmetic did another, and nothing caught it because from
+    under a deck the answer is right.
+
+    Now: nothing above the top, full inside the slab and just below it, falling
+    off with distance beneath the base.
+    */
     const reach = Math.max(1, this.size * 0.3)
-    const near = 1 - Math.min(1, below / reach)
+    const near =
+      p != null && p.y > this.altitude
+        ? 0
+        : 1 - Math.min(1, Math.max(0, this.altitude - drop - (p?.y ?? 0)) / reach)
     /*
     SQUARED in coverage, because haze is not proportional to how much sky is
     covered — it is what happens when the sky is SHUT. Scattered fair-weather
@@ -1239,7 +1366,10 @@ export class B3dCloudDeck extends B3dChild {
       top,
       Math.min(1, this.resolvedTransmission * 0.6)
     )
-    const bandPos = Math.min(1, Math.max(0, (dy + half) / (half * 2)))
+    const bandPos = Math.min(
+      1,
+      Math.max(0, (dy + half) / (drop + half * 2))
+    )
     const c = BABYLON.Color3.Lerp(darkest, top, bandPos)
 
     return {
@@ -1460,8 +1590,20 @@ export class B3dCloudDeck extends B3dChild {
       return x * x * (3 - 2 * x) * cov
     }
 
-    const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * num(this.ambientGloom, 0)
-    const key = 1 - ramp(num(this.sunGloomBelow, 0)) * num(this.sunGloom, 0)
+    /*
+    THICKENING TAKES THE REST. The staged ramps already have the sun most of the
+    way out by the time transmission reaches 0, but "most of the way" is not
+    what being inside a kilometre of cloud looks like. Past `coverage` 1 the
+    remaining headroom is spent, so at full thickening the sun is gone and the
+    ambient is down to a quarter — which is what makes the difference between a
+    dark day and no daylight at all.
+    */
+    const th = this.thickening
+    const ambientDepth = num(this.ambientGloom, 0) + (0.8 - num(this.ambientGloom, 0)) * th
+    const sunDepth = num(this.sunGloom, 0) + (1 - num(this.sunGloom, 0)) * th
+
+    const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth
+    const key = 1 - ramp(num(this.sunGloomBelow, 0)) * sunDepth
 
     for (const light of scene.lights) {
       const isSun = light === sun
@@ -1523,6 +1665,8 @@ export class B3dCloudDeck extends B3dChild {
     this.fieldTexture = undefined
     this.mesh?.dispose()
     this.mesh = undefined
+    this.baseMesh?.dispose()
+    this.baseMesh = undefined
     super.sceneDispose()
   }
 }

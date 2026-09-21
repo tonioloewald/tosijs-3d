@@ -34,10 +34,10 @@ const { demo } = tosi({
   },
 })
 
-// The weather, separate from the landscape — both live, neither rebuilds the
-// other. `transmission` runs the deck from storm-dark underneath to luminous,
-// and below 0.25 it takes the sun down with it.
-const { sky } = tosi({ sky: { coverage: 0.55, transmission: 0.5 } })
+// The weather is ONE dial. Transmission, the gloom under the deck and (past 1)
+// the depth of the cloud all follow `coverage`, so there is no way to ask for a
+// sky that contradicts itself. Past 1 the base descends toward the ground.
+const { sky } = tosi({ sky: { coverage: 0.55 } })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
 // filled by priority (biased toward where you're looking + going). horizScale 4
@@ -124,8 +124,7 @@ const scene = b3d(
         },
       }),
       label3d({ text: 'Weather' }),
-      slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 1, step: 0.02 }),
-      slider3d({ label: 'transmission', value: sky.transmission, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],

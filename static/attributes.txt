@@ -222,7 +222,8 @@ b3d-cloud-deck
   altitude  = 140  — Height of the deck. Moving it is ONE number
   size  = 14000  — World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free
   subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
-  coverage  = 0.5  — Clear `0` → overcast `1`. LIVE, and shared with the shadow
+  coverage  = 0.5  — Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow
+  thickenDepth  = 700  — How far the cloud BASE descends at `coverage: 2`
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
   wind  = 8  — Metres per second the deck drifts. Nothing rebakes
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run

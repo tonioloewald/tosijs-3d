@@ -841,7 +841,12 @@
       {
         "name": "coverage",
         "default": "0.5",
-        "description": "Clear `0` → overcast `1`. LIVE, and shared with the shadow"
+        "description": "Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow"
+      },
+      {
+        "name": "thickenDepth",
+        "default": "700",
+        "description": "How far the cloud BASE descends at `coverage: 2`"
       },
       {
         "name": "cirrus",
