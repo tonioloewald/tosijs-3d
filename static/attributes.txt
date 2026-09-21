@@ -228,8 +228,10 @@ b3d-cloud-deck
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
   follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not
-  gloomBelow  = 0.25  — Below this `transmission` the deck dims the sun for anything under it. `0` disables
-  gloomDepth  = 0.65  — How far the sun may be taken down at zero transmission
+  ambientGloomBelow  = 0.7  — `transmission` below which the AMBIENT fill starts to go. `0` disables
+  ambientGloom  = 0.45  — How far the ambient may be taken down
+  sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
+  sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   shadows  = 'on'  — Cloud shadows on the ground
   shadowStrength  = 0.75  — Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow
   transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`

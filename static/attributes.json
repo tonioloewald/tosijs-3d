@@ -869,12 +869,22 @@
         "description": "Keep the deck centred under the camera. A deck is finite; the world is not"
       },
       {
-        "name": "gloomBelow",
-        "default": "0.25",
-        "description": "Below this `transmission` the deck dims the sun for anything under it. `0` disables"
+        "name": "ambientGloomBelow",
+        "default": "0.7",
+        "description": "`transmission` below which the AMBIENT fill starts to go. `0` disables"
       },
       {
-        "name": "gloomDepth",
+        "name": "ambientGloom",
+        "default": "0.45",
+        "description": "How far the ambient may be taken down"
+      },
+      {
+        "name": "sunGloomBelow",
+        "default": "0.25",
+        "description": "`transmission` below which the SUN starts to go — later than the ambient, on purpose"
+      },
+      {
+        "name": "sunGloom",
         "default": "0.65",
         "description": "How far the sun may be taken down at zero transmission"
       },

@@ -122,8 +122,10 @@ preview.append(
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
 | `follow` | `'on'` | Keep the deck centred under the camera. A deck is finite; the world is not |
-| `gloomBelow` | `0.25` | Below this `transmission` the deck dims the sun for anything under it. `0` disables |
-| `gloomDepth` | `0.65` | How far the sun may be taken down at zero transmission |
+| `ambientGloomBelow` | `0.7` | `transmission` below which the AMBIENT fill starts to go. `0` disables |
+| `ambientGloom` | `0.45` | How far the ambient may be taken down |
+| `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
+| `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
 | `shadows` | `'on'` | Cloud shadows on the ground |
 | `shadowStrength` | `0.75` | Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow |
 | `transmission` | `-1` | How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage` |
@@ -479,16 +481,23 @@ export class B3dCloudDeck extends B3dChild {
     /** Cloud shadows on the ground: `'on'` or `'off'`. */
     shadows: 'on',
     /**
-     * Below this `transmission`, the deck starts DIMMING THE SUN for anything
-     * under it. `0` disables the effect entirely.
+     * `transmission` below which the AMBIENT fill starts to go, `0` to disable.
      *
-     * A thick overcast does not merely cast patchy shadows — it takes the sun
-     * away, and the whole world under it goes flat and grey. That is a global
-     * fact about the light, so no per-fragment shadow can express it.
+     * The ambient goes FIRST and the sun goes second — see `_applyGloom`.
      */
-    gloomBelow: 0.25,
+    ambientGloomBelow: 0.7,
+    /** How far the ambient may be taken down, `0…1`. */
+    ambientGloom: 0.45,
+    /**
+     * `transmission` below which the SUN starts to go, `0` to disable.
+     *
+     * Later than the ambient, deliberately: by the time the key light is being
+     * removed the fill has already flattened the scene, so the world dims
+     * before it goes sunless rather than both at once.
+     */
+    sunGloomBelow: 0.25,
     /** How far the sun may be taken down at zero transmission, `0…1`. */
-    gloomDepth: 0.65,
+    sunGloom: 0.65,
     /**
      * How dark a fully-clouded patch makes the ground at ZERO transmission,
      * `0…1`. What actually reaches the ground is this scaled by how much light
@@ -551,8 +560,10 @@ export class B3dCloudDeck extends B3dChild {
   declare follow: string
   declare shadows: string
   declare shadowStrength: number
-  declare gloomBelow: number
-  declare gloomDepth: number
+  declare ambientGloomBelow: number
+  declare ambientGloom: number
+  declare sunGloomBelow: number
+  declare sunGloom: number
   declare transmission: number
   declare thickness: number
   declare haze: number
@@ -615,9 +626,10 @@ export class B3dCloudDeck extends B3dChild {
   moved it and their value becomes the new base. Costs one comparison a frame
   and means the two systems compose instead of fighting.
   */
-  private _sunBase: number | null = null
-  private _sunApplied: number | null = null
-  private _sunLight: BABYLON.DirectionalLight | null = null
+  private _borrowed = new Map<
+    BABYLON.Light,
+    { base: number; applied: number }
+  >()
   private _onAddition = (a: { meshes?: BABYLON.AbstractMesh[] }): void => {
     for (const m of a.meshes ?? []) this._maybeReceive(m)
   }
@@ -1249,62 +1261,97 @@ export class B3dCloudDeck extends B3dChild {
   }
 
   /**
-   * Take the sun down for anything under a thick deck.
+   * Take the light down for anything under a thick deck — AMBIENT FIRST, then
+   * the sun.
    *
-   * Tonio: *"When transmission is below 0.25 it should reduce the brightness of
-   * the sun below the deck."* Right, and it is the piece the shadow map cannot
-   * supply: a shadow says "this patch is darker than that one", while a heavy
-   * overcast says there is no direct sun at all down here. Without it a storm
-   * sky renders as bright ground under black cloud, which reads as a lighting
-   * bug rather than as weather.
+   * Tonio: *"transmission first cuts ambient and then cuts the sun."* The order
+   * is the whole design, and it is what makes one dial read as weather rather
+   * than as a brightness slider. Thickening cloud does two different things to
+   * a scene, and they are not simultaneous:
    *
-   * Gated on being BELOW the layer, because above it the sun is entirely
-   * unobstructed — climbing out into the light is most of the reward for
-   * climbing, and it should be dramatic.
+   * 1. **The fill goes.** Early, from `ambientGloomBelow`. The sky stops
+   *    bouncing light into every shadow, so the world gets darker and a little
+   *    contrastier while the sun is still plainly there. This is an overcast
+   *    building.
+   * 2. **The key goes.** Late, from `sunGloomBelow`. Now there is no direct sun
+   *    down here at all and the scene goes flat. This is the overcast having
+   *    arrived.
+   *
+   * Running them together would just be a dimmer. Staggered, the light changes
+   * CHARACTER on the way down, which is the thing you actually notice about
+   * weather — and it is why no per-fragment shadow can stand in for it: a
+   * shadow says "this patch is darker than that one", never "there is no sun".
+   *
+   * Both are gated on being BELOW the layer. Above it nothing is obstructed,
+   * and climbing out into the light should be dramatic.
    */
   private _applyGloom(sun: BABYLON.DirectionalLight | null): void {
-    // The light can change between frames; a new one starts a new borrowing.
-    if (sun !== this._sunLight) {
-      if (this._sunLight != null && this._sunBase != null) {
-        this._sunLight.intensity = this._sunBase
-      }
-      this._sunLight = sun
-      this._sunBase = null
-      this._sunApplied = null
-    }
-    if (sun == null) return
-    // Somebody else (the day cycle) moved it — adopt their value as the base.
-    if (this._sunApplied == null || sun.intensity !== this._sunApplied) {
-      this._sunBase = sun.intensity
-    }
-    const base = this._sunBase ?? sun.intensity
+    const scene = this.owner?.scene
+    if (scene == null) return
+    const cam = scene.activeCamera?.globalPosition
+    const below = cam != null && cam.y < this.altitude + this._halfDepth()
+    const t = this.resolvedTransmission
+    const cov = Math.max(0, Math.min(1, this.coverage))
 
     /*
-    CLAMP THROUGH A FINITE GUARD, and check the result before writing it.
-
-    Not defensive habit — this blacked the whole scene out. `gloomBelow` was
-    declared but never added to `initAttributes`, so it read `undefined`; the
-    ramp correctly produced no gloom, and then `1 - 0 * NaN` is NaN rather than
-    1, so the sun's intensity became NaN and every lit surface rendered black.
-    A cosmetic dimmer must not be able to do that: one bad number should cost
-    the effect, not the picture.
+    CLAMP THROUGH A FINITE GUARD. Not defensive habit — this blacked the whole
+    scene out once. An attribute that was declared but never added to
+    `initAttributes` read `undefined`; the ramp correctly produced no gloom, and
+    then `1 - 0 * NaN` is NaN rather than 1, so the sun's intensity became NaN
+    and every lit surface rendered black. A cosmetic dimmer must not be able to
+    do that: one bad number should cost the effect, not the picture.
     */
     const num = (v: number, fallback: number) =>
       Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback
-    const below = num(this.gloomBelow, 0)
-    const cam = this.owner?.scene?.activeCamera?.globalPosition
-    let gloom = 0
-    if (below > 0 && cam != null && cam.y < this.altitude + this._halfDepth()) {
-      const t = this.resolvedTransmission
-      // 0 at the threshold, 1 at fully opaque cloud.
-      const deep = Math.max(0, Math.min(1, (below - t) / below))
-      const cov = Math.max(0, Math.min(1, this.coverage))
-      gloom = deep * deep * (3 - 2 * deep) * cov
+
+    /** How far past `threshold` the transmission has fallen, smoothed, 0…1. */
+    const ramp = (threshold: number): number => {
+      if (!below || threshold <= 0 || t >= threshold) return 0
+      const x = Math.max(0, Math.min(1, (threshold - t) / threshold))
+      return x * x * (3 - 2 * x) * cov
     }
-    const next = base * (1 - gloom * num(this.gloomDepth, 0))
+
+    const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * num(this.ambientGloom, 0)
+    const key = 1 - ramp(num(this.sunGloomBelow, 0)) * num(this.sunGloom, 0)
+
+    for (const light of scene.lights) {
+      const isSun = light === sun
+      const isFill = light.getClassName() === 'HemisphericLight'
+      if (!isSun && !isFill) continue
+      this._dim(light, isSun ? key : ambient)
+    }
+    // Anything that left the scene, or stopped qualifying, gets itself back.
+    for (const light of [...this._borrowed.keys()]) {
+      if (scene.lights.includes(light)) continue
+      this._borrowed.delete(light)
+    }
+  }
+
+  /**
+   * Scale a light's intensity, BORROWING rather than taking it.
+   *
+   * `b3d-skybox` drives the sun from the time of day, so capturing an intensity
+   * once would freeze the day cycle at whatever o'clock we happened to start.
+   * Remember what we last WROTE instead: if the light no longer reads that,
+   * somebody else moved it and their value becomes the new base. One comparison
+   * a frame, and the two systems compose instead of fighting.
+   */
+  private _dim(light: BABYLON.Light, factor: number): void {
+    let rec = this._borrowed.get(light)
+    if (rec == null || light.intensity !== rec.applied) {
+      rec = { base: light.intensity, applied: light.intensity }
+      this._borrowed.set(light, rec)
+    }
+    const next = rec.base * factor
     if (!Number.isFinite(next)) return
-    sun.intensity = next
-    this._sunApplied = next
+    light.intensity = next
+    rec.applied = next
+  }
+
+  /** Give every borrowed light back exactly as it was found. */
+  private _releaseLights(): void {
+    for (const [light, rec] of this._borrowed) light.intensity = rec.base
+    this._borrowed.clear()
   }
 
   sceneDispose(): void {
@@ -1316,11 +1363,7 @@ export class B3dCloudDeck extends B3dChild {
     this._removeFogLayer?.()
     this._removeFogLayer = null
     this._field = null
-    // Give the sun back exactly as we found it.
-    if (this._sunLight != null && this._sunBase != null) {
-      this._sunLight.intensity = this._sunBase
-    }
-    this._sunLight = null
+    this._releaseLights()
     this.owner?.removeOriginListener(this._onShift)
     this.owner?.removeSceneListener(this._onAddition)
     this._shadowMap?.dispose()
