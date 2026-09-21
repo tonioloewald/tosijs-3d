@@ -35,9 +35,13 @@ const { demo } = tosi({
 })
 
 // The weather is ONE dial. Transmission, the gloom under the deck and (past 1)
-// the depth of the cloud all follow `coverage`, so there is no way to ask for a
-// sky that contradicts itself. Past 1 the base descends toward the ground.
-const { sky } = tosi({ sky: { coverage: 0.55 } })
+// the height of the cloud all follow `coverage`, so there is no way to ask for
+// a sky that contradicts itself. Past 1 the base stays put and the top towers.
+//
+// `cloud base` is separate because it is geography, not weather: drop it to
+// ~250 and the peaks stand out of the overcast, and you have to get down into
+// the valleys to see anything at all.
+const { sky } = tosi({ sky: { coverage: 0.55, altitude: 700, timeOfDay: 10 } })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
 // filled by priority (biased toward where you're looking + going). horizScale 4
@@ -125,6 +129,8 @@ const scene = b3d(
       }),
       label3d({ text: 'Weather' }),
       slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
+      slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],
@@ -138,7 +144,15 @@ const scene = b3d(
     },
   },
   b3dSun({ activeDistance: 80 }),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
+  // The baked galaxy, so night is a real sky rather than an absence of one. It
+  // is ONE cube on the sky's own material (see b3d-skybox's forked shader), so
+  // it costs no extra mesh and the water reflects it for free.
+  b3dSkybox({
+    timeOfDay: sky.timeOfDay,
+    realtimeScale: 0,
+    starfieldCube: '/sky/default',
+    starfieldTilt: '12,25,58',
+  }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),

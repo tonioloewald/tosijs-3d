@@ -223,7 +223,7 @@ b3d-cloud-deck
   size  = 14000  — World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free
   subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
   coverage  = 0.5  — Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow
-  thickenDepth  = 700  — How far the cloud BASE descends at `coverage: 2`
+  thickenDepth  = 900  — MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
   wind  = 8  — Metres per second the deck drifts. Nothing rebakes
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
@@ -248,7 +248,7 @@ b3d-cloud-deck
   edgeFade  = 0.45  — Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage
   color  = '#ffffff'  — Lit top colour
   underColor  = '#3a4350'  — Shadowed underside
-  fringe  = 0.9  — Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1
+  fringe  = 0.9  — Brightness of the lit edges seen from below. ADDED, so it can exceed 1, and it takes the scene light's colour and direction — brightest with the sun behind the cloud
   bump  = 34  — Faux-bump strength. Higher = more pronounced relief
   underBump  = 0.85  — How much relief the UNDERSIDE shows. Borrowed from the top's lighting, so both faces share one shape
   shade  = 0.22  — How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water

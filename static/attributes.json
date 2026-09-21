@@ -845,8 +845,8 @@
       },
       {
         "name": "thickenDepth",
-        "default": "700",
-        "description": "How far the cloud BASE descends at `coverage: 2`"
+        "default": "900",
+        "description": "MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`"
       },
       {
         "name": "cirrus",
@@ -971,7 +971,7 @@
       {
         "name": "fringe",
         "default": "0.9",
-        "description": "Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1"
+        "description": "Brightness of the lit edges seen from below. ADDED, so it can exceed 1, and it takes the scene light's colour and direction — brightest with the sun behind the cloud"
       },
       {
         "name": "bump",

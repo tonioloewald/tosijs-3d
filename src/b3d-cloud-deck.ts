@@ -105,8 +105,8 @@ preview.append(
 > it; at 0 the underside is storm-dark, at 1 it glows.
 >
 > **Push `coverage` past 1.** There is no sky left to cover, so the extra goes
-> into DEPTH: the base descends toward the ground, the sun goes out, and you get
-> a deck you can fly down into and not come out of.
+> into DEPTH: the base stays put and the top TOWERS, the sun goes out, and you
+> get a deck you can climb into and not come out of.
 >
 > **Bring `altitude` and `eye height` together.** The deck sweeps through you
 > and you get the whiteout — the same fog layer a plane flying through it would
@@ -121,7 +121,7 @@ preview.append(
 | `size` | `14000` | World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free |
 | `subdivisions` | `64` | Grid resolution — see "A grid, not a quad" |
 | `coverage` | `0.5` | Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow |
-| `thickenDepth` | `700` | How far the cloud BASE descends at `coverage: 2` |
+| `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks `1`. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
@@ -146,7 +146,7 @@ preview.append(
 | `edgeFade` | `0.45` | Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage |
 | `color` | `'#ffffff'` | Lit top colour |
 | `underColor` | `'#3a4350'` | Shadowed underside |
-| `fringe` | `0.9` | Brightness of the lit edges seen from below. ADDED to `underColor`, so it can exceed 1 |
+| `fringe` | `0.9` | Brightness of the lit edges seen from below. ADDED, so it can exceed 1, and it takes the scene light's colour and direction — brightest with the sun behind the cloud |
 | `bump` | `34` | Faux-bump strength. Higher = more pronounced relief |
 | `underBump` | `0.85` | How much relief the UNDERSIDE shows. Borrowed from the top's lighting, so both faces share one shape |
 | `shade` | `0.22` | How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water |
@@ -409,6 +409,7 @@ uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
 uniform vec3 sunDir;
+uniform vec3 skyTint;
 uniform float fringe;
 uniform float bump;
 uniform float shade;
@@ -511,7 +512,7 @@ void main(void) {
     the shader mid-sentence.)
     */
     float lam = clamp(dot(n, normalize(-sunDir)), 0.0, 1.0);
-    vec3 col = topColor * (1.0 - shade + shade * lam);
+    vec3 col = topColor * (1.0 - shade + shade * lam) * skyTint;
     gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
   } else {
     /*
@@ -567,8 +568,30 @@ void main(void) {
     // EMISSIVE edges, so they read as lit-from-behind rather than as pale
     // paint: the fringe is ADDED to the base, which is what lets it go brighter
     // than the material's own colour where the cloud is thinnest.
-    float glow = fringe * (0.25 + 0.75 * transmission);
-    vec3 col = base + topColor * glow * (thin * thin + 0.12 * transmission);
+    /*
+    THE SILVER LINING IS FORWARD SCATTER, so it has to know where the sun is
+    FROM HERE — not just how thin the cloud is.
+
+    Tonio: *"emissive edges on the underside being driven by the light source if
+    that's practical."* It is, and it is one dot product. Light that gets
+    through a thin cloud edge carries on in roughly the direction it was already
+    going, so an edge blazes when the sun is behind it from where you stand and
+    is merely pale when it is off to one side. That is why a cloud you are
+    flying toward at sunset looks nothing like the same cloud over your
+    shoulder, and without it every edge glows equally in every direction, which
+    is the giveaway that it is a texture effect rather than light.
+
+    The colour and the strength both come from skyTint below -- the scene's own
+    light -- so the fringes go orange at dusk, silver at noon and nearly out at
+    night, from the same numbers that light the terrain. (No backticks in this
+    file's shader strings: they are template literals and one ends the shader
+    mid-sentence. Fourth time.)
+    */
+    vec3 viewDir = normalize(vWorld - camPos);
+    float forward = clamp(dot(viewDir, normalize(sunDir)), 0.0, 1.0);
+    float silver = 0.3 + 0.7 * pow(forward, 4.0);
+    float glow = fringe * (0.25 + 0.75 * transmission) * silver;
+    vec3 col = (base + topColor * glow * (thin * thin + 0.12 * transmission)) * skyTint;
     gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
   }
 }
@@ -592,12 +615,14 @@ export class B3dCloudDeck extends B3dChild {
      */
     coverage: 0.5,
     /**
-     * How far the cloud BASE descends at `coverage: 2`, in metres.
+     * MAXIMUM thickening: how far the cloud TOP stands above `altitude` at
+     * `coverage: 2`, in metres.
      *
-     * The default reaches the ground from a 700 m deck, which is the point:
-     * full thickening should be able to put you inside the cloud at sea level.
+     * This is the cap, and the dial reaches it only at the very top of its
+     * travel — see `thickening` for the easing. A thunderhead is several
+     * kilometres tall, so there is a lot of room above the default here.
      */
-    thickenDepth: 700,
+    thickenDepth: 900,
     seed: 1337,
     frequency: 3,
     /** Rounded heaps `0` → long wispy streaks `1`. Rebakes the field. */
@@ -750,8 +775,8 @@ export class B3dCloudDeck extends B3dChild {
   declare shade: number
 
   mesh?: BABYLON.Mesh
-  /** The cloud BASE, shown only when `coverage` past 1 has separated it. */
-  baseMesh?: BABYLON.Mesh
+  /** The cloud TOP, shown only when `coverage` past 1 has separated it. */
+  topMesh?: BABYLON.Mesh
   /** The baked density field — the thing a shadow decal should also sample. */
   fieldTexture?: BABYLON.RawTexture
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
@@ -799,6 +824,8 @@ export class B3dCloudDeck extends B3dChild {
   moved it and their value becomes the new base. Costs one comparison a frame
   and means the two systems compose instead of fighting.
   */
+  // Reused, not re-allocated: written every frame.
+  private _tint = new BABYLON.Color3(1, 1, 1)
   private _borrowed = new Map<
     BABYLON.Light,
     { base: number; applied: number }
@@ -878,6 +905,7 @@ export class B3dCloudDeck extends B3dChild {
           'topColor',
           'underColor',
           'sunDir',
+          'skyTint',
           'fringe',
           'bump',
           'shade',
@@ -904,8 +932,8 @@ export class B3dCloudDeck extends B3dChild {
     this.mesh = mesh
 
     /*
-    A SECOND SKIN FOR THE BASE, so a thick deck has a top you fly over and a
-    bottom you fly under, with nothing but whiteout between them.
+    A SECOND SKIN FOR THE TOP, so a thick deck has a top you fly over and a
+    base you fly under, with nothing but whiteout between them.
 
     Two meshes rather than one because a plane cannot be at two heights, and
     the alternative — an actual volume — buys nothing: with `coverage` past 1
@@ -916,8 +944,8 @@ export class B3dCloudDeck extends B3dChild {
     It shares the material, so every dial moves both, and it is hidden whenever
     the drop is small enough for the two to z-fight.
     */
-    const base = BABYLON.MeshBuilder.CreateGround(
-      'cloud-deck-base_nocast',
+    const top = BABYLON.MeshBuilder.CreateGround(
+      'cloud-deck-top_nocast',
       {
         width: attrs.size,
         height: attrs.size,
@@ -925,12 +953,12 @@ export class B3dCloudDeck extends B3dChild {
       },
       scene
     )
-    base.isPickable = false
-    base.applyFog = false
-    base.material = mat
-    base.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors.slice(), true)
-    base.isVisible = false
-    this.baseMesh = base
+    top.isPickable = false
+    top.applyFog = false
+    top.material = mat
+    top.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors.slice(), true)
+    top.isVisible = false
+    this.topMesh = top
 
     /*
     THE WHITEOUT IS A FOG LAYER, exactly as it is for b3d-clouds — the scene
@@ -951,7 +979,7 @@ export class B3dCloudDeck extends B3dChild {
       this._sync()
     })
     this._sync()
-    owner.register({ meshes: [mesh, base] })
+    owner.register({ meshes: [mesh, top] })
     owner.addOriginListener(this._onShift)
 
     if (!isOff(attrs.shadows)) this._setupShadows(owner, scene)
@@ -994,14 +1022,14 @@ export class B3dCloudDeck extends B3dChild {
       this.mesh.position.x = cam.globalPosition.x
       this.mesh.position.z = cam.globalPosition.z
     }
-    const drop = this.baseDrop
-    const base = this.baseMesh
-    if (base != null) {
+    const rise = this.topRise
+    const top = this.topMesh
+    if (top != null) {
       // Below a couple of metres the two skins would z-fight for nothing.
-      base.isVisible = drop > 2
-      base.position.set(
+      top.isVisible = rise > 2
+      top.position.set(
         this.mesh.position.x,
-        attrs.altitude - drop,
+        attrs.altitude + rise,
         this.mesh.position.z
       )
     }
@@ -1050,6 +1078,33 @@ export class B3dCloudDeck extends B3dChild {
       'sunDir',
       sun?.direction ?? new BABYLON.Vector3(-0.4, -1, -0.3)
     )
+    /*
+    THE DECK IS LIT BY WHATEVER IS LIGHTING THE WORLD.
+
+    It was not: `topColor` went straight to the framebuffer, so at midnight the
+    cloud tops were the same brilliant white they are at noon — a lit overcast
+    hanging over a dark landscape under a galaxy. Nothing about the shader knew
+    what time it was.
+
+    So the sun's own colour AND intensity scale both faces. `b3d-skybox` already
+    drives that light from the time of day (`sunColor`, `duskColor`,
+    `moonColor`, `moonIntensity`), which means dusk turns the cloud tops orange
+    and moonlight turns them blue-grey for free, from the same numbers that
+    light the terrain — rather than from a second time-of-day model that would
+    have to be kept in step.
+
+    The floor is small and deliberate: cloud is never truly black from outside,
+    it catches skyglow. Not clamped to 1 either — a bright sun should be allowed
+    to blow the tops out a little, which is exactly what they do.
+    */
+    const tint = sun?.diffuse ?? new BABYLON.Color3(1, 1, 1)
+    const level = sun?.intensity ?? 1
+    this._tint.set(
+      Math.min(1.15, tint.r * level + 0.12),
+      Math.min(1.15, tint.g * level + 0.12),
+      Math.min(1.15, tint.b * level + 0.13)
+    )
+    mat.setColor3('skyTint', this._tint)
     this._applyGloom(sun ?? null)
   }
 
@@ -1147,12 +1202,14 @@ export class B3dCloudDeck extends B3dChild {
    * ## Coverage past 1 is thickness
    *
    * At `coverage` 1 there is no sky left to cover, so more weather has to mean
-   * something other than more area, and what it means is DEPTH. The top stays
-   * where it is and the BASE descends, which is the direction real weather
-   * moves: a deck does not climb to swallow you, it comes down.
+   * something other than more area, and what it means is DEPTH.
    *
-   * Tonio: *"this would let us have a solid deck at moderate altitude that goes
-   * down to low altitude before you can see anything, or even to ground level."*
+   * **It grows UPWARD.** The base stays at `altitude` and the top towers, which
+   * is both what Tonio asked for and what the atmosphere does: a cloud base sits
+   * at the condensation level, a property of how humid and how warm the air is,
+   * and it does not move much. What builds is the top. A deck that thickened
+   * downward would be a deck descending to meet you, which happens — but it is
+   * a different event, and it is spelled by moving `altitude`.
    *
    * It also composes with everything already here rather than needing new
    * machinery, which is the sign it was the right axis: the whiteout band
@@ -1162,11 +1219,18 @@ export class B3dCloudDeck extends B3dChild {
    * opaque everywhere, so there are no gaps for the two skins to show through.
    */
   get thickening(): number {
-    return Math.min(1, Math.max(0, this.coverage - 1))
+    const x = Math.min(1, Math.max(0, this.coverage - 1))
+    /*
+    EASED IN, because linear arrived far too fast. Tonio: "perhaps it comes on a
+    bit too quickly." Squared spends the first quarter of the dial's travel on
+    the first sixteenth of the depth, so a sky just past solid is a sky just
+    past solid — the towering is the top of the dial, not the middle of it.
+    */
+    return x * x
   }
 
-  /** How far the cloud base currently sits below `altitude`, in metres. */
-  get baseDrop(): number {
+  /** How far the cloud TOP currently stands above `altitude`, in metres. */
+  get topRise(): number {
     return this.thickening * Math.max(0, this.thickenDepth)
   }
 
@@ -1232,8 +1296,8 @@ export class B3dCloudDeck extends B3dChild {
     flying down through a thickening deck stays white for longer rather than
     behaving differently.
     */
-    const top = this.altitude
-    const bottom = this.altitude - this.baseDrop
+    const top = this.altitude + this.topRise
+    const bottom = this.altitude
     const outside =
       p.y > top ? p.y - top : p.y < bottom ? bottom - p.y : 0
     const d = outside / half
@@ -1294,10 +1358,10 @@ export class B3dCloudDeck extends B3dChild {
     const optical = 1 - (1 - immersion) * (1 - immersion)
 
     const half = Math.max(1, this._halfDepth())
-    const drop = this.baseDrop
+    const rise = this.topRise
     // Measured from the BASE, so the colour ramp covers the whole slab: black
     // at the bottom of a thick deck, whiteout at the top.
-    const dy = p == null ? 0 : p.y - (this.altitude - drop)
+    const dy = p == null ? 0 : p.y - this.altitude
     /*
     HAZE ONLY BELOW, and only while the deck is overhead rather than a distant
     ceiling. Above it the air is clear — that is the whole reward for climbing
@@ -1318,9 +1382,9 @@ export class B3dCloudDeck extends B3dChild {
     */
     const reach = Math.max(1, this.size * 0.3)
     const near =
-      p != null && p.y > this.altitude
+      p != null && p.y > this.altitude + rise
         ? 0
-        : 1 - Math.min(1, Math.max(0, this.altitude - drop - (p?.y ?? 0)) / reach)
+        : 1 - Math.min(1, Math.max(0, this.altitude - (p?.y ?? 0)) / reach)
     /*
     SQUARED in coverage, because haze is not proportional to how much sky is
     covered — it is what happens when the sky is SHUT. Scattered fair-weather
@@ -1368,7 +1432,7 @@ export class B3dCloudDeck extends B3dChild {
     )
     const bandPos = Math.min(
       1,
-      Math.max(0, (dy + half) / (drop + half * 2))
+      Math.max(0, (dy + half) / (rise + half * 2))
     )
     const c = BABYLON.Color3.Lerp(darkest, top, bandPos)
 
@@ -1536,7 +1600,7 @@ export class B3dCloudDeck extends B3dChild {
     const dir = sun?.direction ?? new BABYLON.Vector3(-0.4, -1, -0.3)
     map.setSun({ x: dir.x, y: dir.y, z: dir.z }, attrs.altitude)
     // Nothing above the deck can be shadowed by it.
-    map.layerTop = attrs.altitude + this._halfDepth()
+    map.layerTop = attrs.altitude + this.topRise + this._halfDepth()
   }
 
   /**
@@ -1568,7 +1632,8 @@ export class B3dCloudDeck extends B3dChild {
     const scene = this.owner?.scene
     if (scene == null) return
     const cam = scene.activeCamera?.globalPosition
-    const below = cam != null && cam.y < this.altitude + this._halfDepth()
+    const below =
+      cam != null && cam.y < this.altitude + this.topRise + this._halfDepth()
     const t = this.resolvedTransmission
     const cov = Math.max(0, Math.min(1, this.coverage))
 
@@ -1665,8 +1730,8 @@ export class B3dCloudDeck extends B3dChild {
     this.fieldTexture = undefined
     this.mesh?.dispose()
     this.mesh = undefined
-    this.baseMesh?.dispose()
-    this.baseMesh = undefined
+    this.topMesh?.dispose()
+    this.topMesh = undefined
     super.sceneDispose()
   }
 }
