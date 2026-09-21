@@ -61,15 +61,24 @@ function mount(): {
   return { el, scene }
 }
 
+/**
+ * Let the attach microtask run — `B3dChild` defers its `whenReady`
+ * registration by one, because an element can be connected before its
+ * attributes arrive. A macrotask is unconditionally enough.
+ */
+const settle = () => new Promise<void>((r) => setTimeout(r, 0))
+
 describe('inputFocus wires itself', () => {
-  test('THE BUG: no gameController child still yields a provider', () => {
+  test('THE BUG: no gameController child still yields a provider', async () => {
     const { el } = mount()
+    await settle()
     expect(el.inputMappedProvider).not.toBe(null)
     el.remove()
   })
 
-  test('it appends the controller it had to invent', () => {
+  test('it appends the controller it had to invent', async () => {
     const { el } = mount()
+    await settle()
     expect(el.querySelector('tosi-game-controller')).not.toBe(null)
     el.remove()
   })

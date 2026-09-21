@@ -828,8 +828,42 @@ export class B3dChild extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    const owner = findB3dOwner(this)
-    if (owner != null) {
+    /*
+    ONE MICROTASK BEFORE WE LOOK AT ANYTHING, because an element can be
+    CONNECTED BEFORE ITS ATTRIBUTES HAVE ARRIVED.
+
+    This file used to say that by `connectedCallback` tosijs had drained the
+    element's attributes, so they read correctly. Measured, that is not true of
+    the HYPHENATED ones. An aircraft built by the doc system logged, at its
+    first connect:
+
+      library "vehicles"   mesh-name null
+
+    — the single-word attribute applied, the two-word one not yet. `sceneReady`
+    then ran synchronously (the scene was already up, so `whenReady` does not
+    defer), read an empty `meshName`, and took neither load branch. No error, no
+    warning: an aircraft that silently never loads its model, so the camera
+    never transfers and the demo opens inside the terrain.
+
+    It had been surviving on luck. The element is connected a SECOND time later
+    — fully configured by then — but `_attachedScene` correctly suppresses a
+    repeat, so the save was that the scene itself used to be rebuilt in between,
+    which made the guard miss and `sceneReady` run again with real attributes.
+    A panel change removed that rebuild and the latent race became a dead demo,
+    which is why it looked like a rendering bug in something unrelated.
+
+    A microtask is enough — measured, not assumed: a probe queued from that same
+    first connect already saw `mesh-name`. It is also strictly safer than the
+    synchronous path for the TDZ hazard documented above, since a `whenReady`
+    callback can no longer run inside the caller's own constructor frame.
+    Siblings all defer equally and microtasks run FIFO, so relative order is
+    unchanged.
+    */
+    queueMicrotask(() => {
+      // Moved-and-removed both land here; only the still-attached ones matter.
+      if (!this.isConnected) return
+      const owner = findB3dOwner(this)
+      if (owner == null) return
       owner.whenReady(() => {
         // A queued callback can outlive the connection that queued it.
         if (!this.isConnected) return
@@ -839,7 +873,7 @@ export class B3dChild extends Component {
         this.owner = owner
         this.sceneReady(owner, owner.scene)
       })
-    }
+    })
   }
 
   disconnectedCallback() {

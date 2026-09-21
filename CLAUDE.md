@@ -425,7 +425,7 @@ Child components find their parent `B3d` via `findB3dOwner(el)` which walks up t
 
 **Every element that lives inside a `<tosi-b3d>` scene extends `B3dChild`** (or `AbstractMesh`, which extends `B3dChild` and adds position/rotation syncing). `B3dChild` (in `b3d-utils.ts`) centralizes the scene-attach lifecycle in ONE place, and it's a **pull** model, not parent orchestration:
 
-- On its own `connectedCallback` (by which point tosijs has drained the element's attributes, so they read correctly), the child finds its owner and calls **`owner.whenReady(cb)`** — which runs `cb` immediately if the scene is already up, else queues it until the scene is ready.
+- On its own `connectedCallback`, **plus one microtask**, the child finds its owner and calls **`owner.whenReady(cb)`** — which runs `cb` immediately if the scene is already up, else queues it until the scene is ready. ⚠️ **The microtask is load-bearing: an element can be CONNECTED BEFORE ITS ATTRIBUTES ARRIVE.** This note used to claim tosijs had drained them by `connectedCallback`; measured, that is false for HYPHENATED ones — an aircraft logged `library "vehicles"` and `mesh-name null` at its first connect, so `sceneReady` read an empty `meshName` and silently loaded no model. It had been surviving on a scene rebuild between the element's first and second connect making the `_attachedScene` guard miss; a panel change removed the rebuild and the latent race became a dead demo.
 - `cb` sets `this.owner` and calls the subclass's **`sceneReady(owner, scene)`**. So `sceneReady` fires exactly once, only when the child is ready AND the scene exists.
 - On disconnect, `B3dChild.disconnectedCallback` calls the subclass's **`sceneDispose()`** and releases.
 

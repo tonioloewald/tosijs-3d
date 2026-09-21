@@ -109,33 +109,51 @@ function disconnect(child: any) {
   child.remove()
 }
 
+/**
+ * Let the attach microtask run.
+ *
+ * `B3dChild` defers its `whenReady` registration by one microtask, because an
+ * element can be CONNECTED BEFORE ITS ATTRIBUTES ARRIVE — measured on a
+ * hyphenated attribute that was still null at the first `connectedCallback`.
+ * These tests drive the real DOM, so they have to give that turn back.
+ *
+ * A macrotask rather than a microtask: it is unconditionally enough, and a test
+ * that has to count microtask turns is a test that will break the next time the
+ * chain gains a link.
+ */
+const settle = () => new Promise<void>((r) => setTimeout(r, 0))
+
 describe('B3dChild attach lifecycle', () => {
-  test('a plain connect readies exactly once', () => {
+  test('a plain connect readies exactly once', async () => {
     const owner = fakeOwner(new B.Scene(new B.NullEngine()))
     const host = hostFor(owner)
     const child = makeChild()
     connect(child, host)
+    await settle()
     owner.becomeReady()
     expect(child.readied).toBe(1)
     expect(child.disposed).toBe(0)
   })
 
-  test('THE BUG: reconnecting before the scene is up readies only once', () => {
+  test('THE BUG: reconnecting before the scene is up readies only once', async () => {
     // Three connects while the scene is still loading queue three callbacks.
     // Before the guard, all three ran — and each one added a render observer.
     const owner = fakeOwner(new B.Scene(new B.NullEngine()))
     const host = hostFor(owner)
     const child = makeChild()
     connect(child, host)
+    await settle()
     disconnect(child)
     connect(child, host)
+    await settle()
     disconnect(child)
     connect(child, host)
+    await settle()
     owner.becomeReady()
     expect(child.readied).toBe(1)
   })
 
-  test('a disconnect BEFORE the scene is up disposes nothing', () => {
+  test('a disconnect BEFORE the scene is up disposes nothing', async () => {
     // There is nothing to tear down, and calling `sceneDispose` anyway is how a
     // subclass ends up guarding every field against a teardown that precedes
     // its own construction.
@@ -143,35 +161,39 @@ describe('B3dChild attach lifecycle', () => {
     const host = hostFor(owner)
     const child = makeChild()
     connect(child, host)
+    await settle()
     disconnect(child)
     expect(child.disposed).toBe(0)
     expect(child.readied).toBe(0)
   })
 
-  test('a callback queued by a connection that has since ended does not fire', () => {
+  test('a callback queued by a connection that has since ended does not fire', async () => {
     const owner = fakeOwner(new B.Scene(new B.NullEngine()))
     const host = hostFor(owner)
     const child = makeChild()
     connect(child, host)
+    await settle()
     disconnect(child)
     owner.becomeReady()
     expect(child.readied).toBe(0)
   })
 
-  test('ready → dispose → ready is allowed, because it is a real move', () => {
+  test('ready → dispose → ready is allowed, because it is a real move', async () => {
     const owner = fakeOwner(new B.Scene(new B.NullEngine()))
     const host = hostFor(owner)
     const child = makeChild()
     connect(child, host)
+    await settle()
     owner.becomeReady()
     expect(child.readied).toBe(1)
     disconnect(child)
     expect(child.disposed).toBe(1)
     connect(child, host)
+    await settle()
     expect(child.readied).toBe(2)
   })
 
-  test('MOVING an attached child disposes and re-readies, in balance', () => {
+  test('MOVING an attached child disposes and re-readies, in balance', async () => {
     /*
     Appending a node already in the tree is a MOVE, and the DOM implements a
     move as a disconnect followed by a connect — so the child tears down and
@@ -187,22 +209,26 @@ describe('B3dChild attach lifecycle', () => {
     const host = hostFor(owner)
     const child = makeChild()
     connect(child, host)
+    await settle()
     owner.becomeReady()
     expect(child.readied).toBe(1)
     connect(child, host)
+    await settle()
     expect(child.readied).toBe(2)
     expect(child.disposed).toBe(1)
   })
 
-  test('a NEW scene readies again — the guard is per scene, not once ever', () => {
+  test('a NEW scene readies again — the guard is per scene, not once ever', async () => {
     // An engine can be disposed and rebuilt under a child that never moved.
     const child = makeChild()
     const first = fakeOwner(new B.Scene(new B.NullEngine()))
     connect(child, hostFor(first))
+    await settle()
     first.becomeReady()
     disconnect(child)
     const second = fakeOwner(new B.Scene(new B.NullEngine()))
     connect(child, hostFor(second))
+    await settle()
     second.becomeReady()
     expect(child.readied).toBe(2)
   })
