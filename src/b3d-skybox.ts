@@ -89,7 +89,7 @@ preview.append(scene)
 | `starfieldCube` | `''` | Root path of a baked cube (`<root>_px.png` …). Replaces `starfield` |
 | `starfieldData` | `''` | Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it |
 | `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
-| `starfieldSharpness` | `1` | How sharp a decoded point is — higher is tighter. 1 draws stars that read as stars |
+| `starfieldSharpness` | `2.2` | How sharp a decoded point is — higher is tighter. 2.2 draws stars about a pixel across |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |
@@ -220,6 +220,19 @@ uniform float b3dStarDataLevel;
 // x = texels per face, y = radians per texel, z = point sharpness, w = size scale
 uniform vec4 b3dStarInfo;
 
+/*
+DISPLAY EXPONENT — the look, not the data.
+
+The encoded gamma (BRIGHT_GAMMA) spends the 8 bits where the magnitudes are;
+this extra exponent shapes how they PRESENT. 1.5 (net m^1.5 on the recovered
+magnitude) reads like a log scale: the field is subtle, the brightest few stay
+bright points. Tonio: "the galaxy should be mostly subtle with only a few
+actual bright points of light." At 1.0 the band accumulates to bright white;
+at 2.0 the faint mass vanishes and the field reads empty — 1.5 was measured
+between them.
+*/
+#define DISPLAY_EXP 1.5
+
 /** One reconstructed point, given its sub-texel position and its look. */
 vec3 b3dPoint(
   vec2 sub, float brightness, vec3 tint, float radius,
@@ -255,7 +268,9 @@ vec3 b3dUnpackOne(float bits, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   float vv = floor(mod(v, 64.0) / 16.0);
   float bb = floor(mod(v, 16.0) / 2.0);
   float c = mod(v, 2.0);
-  float brightness = pow((bb + 1.0) / 8.0, 1.0 / ${BRIGHT_GAMMA.toFixed(3)});
+  float brightness = pow((bb + 1.0) / 8.0, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(
+    3
+  )});
   vec3 tint = c > 0.5 ? STAR_PALETTE[9] : STAR_PALETTE[3];
   return b3dPoint(
     vec2((uu + 0.5) / 4.0, (vv + 0.5) / 4.0), brightness, tint, 0.5,
@@ -288,7 +303,7 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   */
   // Size: 0 is a point, 15 is a small disc (a distant galaxy).
   float size = floor(texel.a * 255.0 / 16.0) / 15.0;
-  float brightness = pow(texel.b, 1.0 / ${BRIGHT_GAMMA.toFixed(3)});
+  float brightness = pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)});
   int idx = int(mod(texel.a * 255.0, 16.0));
   return b3dPoint(
     texel.rg, brightness, STAR_PALETTE[idx], 0.5 + size * b3dStarInfo.w,
@@ -542,10 +557,12 @@ export class B3dSkybox extends AbstractMesh {
     /**
      * How sharp a decoded point is — higher is tighter.
      *
-     * Tuned by looking: 2.2 draws stars about a pixel across, which is
-     * defensible and nearly invisible. Around 1 they read as stars.
+     * Tuned by looking, twice: 2.2 draws stars about a pixel across, which is
+     * what a point should be — at 1 the gaussian tail spreads a star over
+     * several pixels and the sky reads soft-focus (the 1 was tuned against the
+     * dim canvas-era stars, which hid the blur by being nearly invisible).
      */
-    starfieldSharpness: 1,
+    starfieldSharpness: 2.2,
     /** How much bigger a full-size object (a distant galaxy) is than a star. */
     starfieldSizeScale: 3,
     /**
@@ -923,6 +940,13 @@ export class B3dSkybox extends AbstractMesh {
   private _clearBase: BABYLON.Color4 | null = null
   private _starCube: BABYLON.CubeTexture | null = null
   private _starData: BABYLON.CubeTexture | null = null
+  /*
+  The author's tilt, and the per-frame rotation it composes with. Cached so the
+  per-frame path in updateSky allocates nothing — see the scratch note there.
+  */
+  private _starTilt: BABYLON.Matrix | null = null
+  private _rotScratch = BABYLON.Matrix.Identity()
+  private _starRotOut = BABYLON.Matrix.Identity()
   private _nebulaMeshes: BABYLON.Mesh[] = []
   private _nebulaMats: BABYLON.StandardMaterial[] = []
   private _nebulaBase: BABYLON.Color3[] = []
@@ -979,6 +1003,25 @@ export class B3dSkybox extends AbstractMesh {
     const cubeRoot = (attrs.starfieldCube as string) || ''
     const mat0 = this.mesh.material as unknown as BABYLON.ShaderMaterial
     /*
+    THE AUTHOR'S TILT — parsed once, applied per frame.
+
+    Applied to the sampling DIRECTION, so it costs nothing and one baked
+    texture can wear a different orientation per system. The diurnal rotation
+    composes ON TOP of it in updateSky: the tilt is the sky as it appears at
+    local noon, and time turns it about the world pole.
+    */
+    if (this._starTilt == null) {
+      const t = String(attrs.starfieldTilt ?? '0,0,0')
+        .split(',')
+        .map((n) => (parseFloat(n) || 0) * DEG_TO_RAD)
+      this._starTilt = BABYLON.Matrix.RotationYawPitchRoll(
+        t[1] ?? 0,
+        t[0] ?? 0,
+        t[2] ?? 0
+      )
+      this._starRotOut.copyFrom(this._starTilt)
+    }
+    /*
     THE DATA CUBE, loaded alongside the raster one rather than instead of it.
     They ADD in the shader, so a scene can carry its nebulae as a small smooth
     picture and its stars as a table — which is what the measurements argued
@@ -994,7 +1037,6 @@ export class B3dSkybox extends AbstractMesh {
         '_ny.png',
         '_nz.png',
       ])
-      data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
       data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
       /*
       NEAREST, and this is not a quality setting — it is correctness. The texels
@@ -1014,6 +1056,8 @@ export class B3dSkybox extends AbstractMesh {
       */
       mat0.setTexture('b3dStarData', data)
       this._starData = data
+      // The tilt applies to whichever cube exists — see the shared parse below.
+      mat0.setMatrix('b3dStarRot', this._starRotOut)
       const n = Math.max(8, Number(attrs.starfieldDataSize) || 512)
       /*
       RADIANS PER TEXEL. A face spans 90°, so a texel is (PI/2)/n across at the
@@ -1048,15 +1092,7 @@ export class B3dSkybox extends AbstractMesh {
       cube.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
       mat.setTexture('b3dStars', cube)
       this._starCube = cube
-      const t = String(attrs.starfieldTilt ?? '0,0,0')
-        .split(',')
-        .map((n) => (parseFloat(n) || 0) * DEG_TO_RAD)
-      // Applied to the sampling DIRECTION, so it costs nothing and one baked
-      // texture can wear a different orientation per system.
-      mat.setMatrix(
-        'b3dStarRot',
-        BABYLON.Matrix.RotationYawPitchRoll(t[1] ?? 0, t[0] ?? 0, t[2] ?? 0)
-      )
+      mat.setMatrix('b3dStarRot', this._starRotOut)
       return
     }
 
@@ -1387,6 +1423,23 @@ export class B3dSkybox extends AbstractMesh {
     if (this._starData != null) {
       const sm = material as unknown as BABYLON.ShaderMaterial
       sm.setFloat?.('b3dStarDataLevel', 1 - dayBrightness * air)
+    }
+    /*
+    THE SKY TURNS. The stars are the fixed celestial sphere and the observer
+    rotates under it, so the cube turns as the day does — one full turn per
+    24 hours about the world Y (the celestial pole). Composed on top of the
+    author's tilt, which is the sky at local noon: noon shows the tilt
+    exactly, and time swings the whole sky around the pole from there.
+    */
+    if (
+      this._starTilt != null &&
+      (this._starCube != null || this._starData != null)
+    ) {
+      const sm = material as unknown as BABYLON.ShaderMaterial
+      const tod = ((Number(attrs.timeOfDay) % 24) + 24) % 24
+      BABYLON.Matrix.RotationYToRef((-tod / 24) * Math.PI * 2, this._rotScratch)
+      this._rotScratch.multiplyToRef(this._starTilt, this._starRotOut)
+      sm.setMatrix?.('b3dStarRot', this._starRotOut)
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {

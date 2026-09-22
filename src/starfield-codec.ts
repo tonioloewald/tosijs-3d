@@ -170,24 +170,33 @@ export const PACKED_CAPACITY = 3
  * ⚠️ The shader builds its palette from this array via {@link paletteGlsl}, so
  * there is exactly one copy of these numbers.
  */
+/*
+THE PALETTE IS THE STYLE. Blackbody-ordered (blue → white → amber) but more
+saturated than the physics, because a real star is a washed-out thing and a
+night sky full of washed-out dots reads as grey noise. First shipped pastel —
+Tonio: "blurry and desaturated" — so the blue end went deeper and the warm end
+went amber. Entries are the ONLY colours a star can have, so each one earns its
+place; the ordering is load-bearing (encoded indices are nearest-match against
+these, and a reorder would silently re-colour every baked sky).
+*/
 export const STAR_PALETTE: Array<[number, number, number]> = [
-  [0.61, 0.69, 1.0],
-  [0.67, 0.75, 1.0],
-  [0.78, 0.84, 1.0],
-  [0.86, 0.9, 1.0],
-  [0.94, 0.95, 1.0],
-  [1.0, 0.99, 0.98],
-  [1.0, 0.96, 0.89],
-  [1.0, 0.92, 0.8],
-  [1.0, 0.87, 0.7],
-  [1.0, 0.8, 0.6],
-  [1.0, 0.72, 0.5],
-  [1.0, 0.62, 0.4],
+  [0.47, 0.62, 1.0],
+  [0.58, 0.7, 1.0],
+  [0.7, 0.79, 1.0],
+  [0.8, 0.87, 1.0],
+  [0.9, 0.94, 1.0],
+  [1.0, 0.98, 0.92],
+  [1.0, 0.94, 0.8],
+  [1.0, 0.89, 0.66],
+  [1.0, 0.83, 0.52],
+  [1.0, 0.75, 0.38],
+  [1.0, 0.64, 0.25],
+  [1.0, 0.5, 0.15],
   // Distant galaxies: warm, and deliberately off the stellar line.
-  [1.0, 0.93, 0.78],
-  [1.0, 0.88, 0.68],
-  [1.0, 0.82, 0.58],
-  [1.0, 0.75, 0.48],
+  [1.0, 0.9, 0.66],
+  [1.0, 0.82, 0.5],
+  [1.0, 0.73, 0.36],
+  [1.0, 0.62, 0.24],
 ]
 
 /** Which cube face a direction lands on, and where on it. */
