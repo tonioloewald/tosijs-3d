@@ -783,7 +783,7 @@ b3d-skybox
   starfieldCube  = ''  — Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`
   starfieldData  = ''  — Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it
   starfieldDataSize  = 1024  — Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band
-  starfieldSharpness  = 2.2  — How sharp a decoded point is — higher is tighter. 2.2 draws stars about a pixel across
+  starfieldSharpness  = 3  — How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point
   starfieldSizeScale  = 3  — How much bigger a full-size object (a distant galaxy) is than a star
   starfieldTilt  = '0,0,0'  — Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs
   starfield  = 0  — How many background stars to build. `0` = none

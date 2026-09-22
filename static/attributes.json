@@ -2954,8 +2954,8 @@
       },
       {
         "name": "starfieldSharpness",
-        "default": "2.2",
-        "description": "How sharp a decoded point is — higher is tighter. 2.2 draws stars about a pixel across"
+        "default": "3",
+        "description": "How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point"
       },
       {
         "name": "starfieldSizeScale",

@@ -89,7 +89,7 @@ preview.append(scene)
 | `starfieldCube` | `''` | Root path of a baked cube (`<root>_px.png` …). Replaces `starfield` |
 | `starfieldData` | `''` | Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it |
 | `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
-| `starfieldSharpness` | `2.2` | How sharp a decoded point is — higher is tighter. 2.2 draws stars about a pixel across |
+| `starfieldSharpness` | `3` | How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |
@@ -224,14 +224,14 @@ uniform vec4 b3dStarInfo;
 DISPLAY EXPONENT — the look, not the data.
 
 The encoded gamma (BRIGHT_GAMMA) spends the 8 bits where the magnitudes are;
-this extra exponent shapes how they PRESENT. 1.5 (net m^1.5 on the recovered
-magnitude) reads like a log scale: the field is subtle, the brightest few stay
-bright points. Tonio: "the galaxy should be mostly subtle with only a few
-actual bright points of light." At 1.0 the band accumulates to bright white;
-at 2.0 the faint mass vanishes and the field reads empty — 1.5 was measured
-between them.
+this extra exponent shapes how they PRESENT. 2.0 (net m² on the recovered
+magnitude) reads like a log scale: a mid star is a quarter of its linear
+brightness, the faint mass falls away, and only the brightest few stay bright
+points. Tonio: "the galaxy should be mostly subtle with only a few actual
+bright points of light" — 1.0 blew the band out to white, 1.5 was still too
+bright on screen, 2.0 is where the judgement landed.
 */
-#define DISPLAY_EXP 1.5
+#define DISPLAY_EXP 2.0
 
 /** One reconstructed point, given its sub-texel position and its look. */
 vec3 b3dPoint(
@@ -557,12 +557,12 @@ export class B3dSkybox extends AbstractMesh {
     /**
      * How sharp a decoded point is — higher is tighter.
      *
-     * Tuned by looking, twice: 2.2 draws stars about a pixel across, which is
-     * what a point should be — at 1 the gaussian tail spreads a star over
-     * several pixels and the sky reads soft-focus (the 1 was tuned against the
-     * dim canvas-era stars, which hid the blur by being nearly invisible).
+     * Tuned by looking, three times: 2.2 draws stars about a pixel across,
+     * which read as points — but a bright star's gaussian tail stays visible
+     * well past the core, so on a real screen they still read as soft blobs.
+     * 3 tucks the tail in. At 1 the sky reads soft-focus.
      */
-    starfieldSharpness: 2.2,
+    starfieldSharpness: 3,
     /** How much bigger a full-size object (a distant galaxy) is than a star. */
     starfieldSizeScale: 3,
     /**
@@ -1425,19 +1425,20 @@ export class B3dSkybox extends AbstractMesh {
       sm.setFloat?.('b3dStarDataLevel', 1 - dayBrightness * air)
     }
     /*
-    THE SKY TURNS. The stars are the fixed celestial sphere and the observer
-    rotates under it, so the cube turns as the day does — one full turn per
-    24 hours about the world Y (the celestial pole). Composed on top of the
-    author's tilt, which is the sky at local noon: noon shows the tilt
-    exactly, and time swings the whole sky around the pole from there.
+    THE SKY TURNS — and it turns the way the SUN does, because it is one
+    rigid sphere. The stars ride the sun's own quaternion (`_qTotal` — the
+    latitude tilt composed with the time rotation computed above), so the
+    backdrop, the sun and the moon wheel together and cannot disagree about
+    which way the day is going. The first try rotated about world Y, which
+    moved the stars AGAINST the sun — Tonio spotted it in one look.
+    `starfieldTilt` composes on top and is the sky at local noon.
     */
     if (
       this._starTilt != null &&
       (this._starCube != null || this._starData != null)
     ) {
       const sm = material as unknown as BABYLON.ShaderMaterial
-      const tod = ((Number(attrs.timeOfDay) % 24) + 24) % 24
-      BABYLON.Matrix.RotationYToRef((-tod / 24) * Math.PI * 2, this._rotScratch)
+      BABYLON.Matrix.FromQuaternionToRef(this._qTotal, this._rotScratch)
       this._rotScratch.multiplyToRef(this._starTilt, this._starRotOut)
       sm.setMatrix?.('b3dStarRot', this._starRotOut)
     }
