@@ -169,8 +169,15 @@ export interface SkyboxBakeOptions {
    * upscale, so it is the only knob that buys actual sky detail.
    *
    * A face covers 90°, so it is stretched across a large part of a wide
-   * viewport — 512 reads as soft the moment the sky fills the screen. 1024 is
-   * the sensible default; 2048 is a hero asset.
+   * viewport — 512 reads as soft the moment the sky fills the screen.
+   *
+   * **The shipped `/sky/default` is 2048**, which is what a sky you can look
+   * directly at wants: at 1024 the stars are a smear rather than points once
+   * the sky fills a wide viewport, and a starfield is nothing but points.
+   *
+   * On disk it costs far less than the VRAM column suggests — the six faces
+   * total 2.3 MB, barely more than the 1.8 MB they replaced at half the
+   * resolution, because a night sky is mostly black and PNG knows it.
    *
    * | face | VRAM (RGBA, 6 faces) |
    * | ---- | -------------------- |
