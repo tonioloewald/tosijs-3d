@@ -63,7 +63,7 @@ preview.append(
         slider3d({ label: 'out from core', value: bake.outFraction, min: 0.1, max: 0.9, step: 0.05 }),
         slider3d({ label: 'off plane', value: bake.offPlane, min: 0, max: 6, step: 0.25 }),
         slider3d({ label: 'roll', value: bake.roll, min: -180, max: 180, step: 5 }),
-        slider3d({ label: 'face px', value: bake.face, min: 256, max: 2048, step: 256 }),
+        slider3d({ label: 'face px', value: bake.face, min: 256, max: 4096, step: 256 }),
         label3d({ text: bake.status, muted: true }),
         button3d({ label: 'bake cube', handleClick: async () => {
           bake.status = 'baking…'
@@ -181,9 +181,17 @@ export interface SkyboxBakeOptions {
    *
    * | face | VRAM (RGBA, 6 faces) |
    * | ---- | -------------------- |
-   * | 512 | 6 MB |
-   * | 1024 | 25 MB |
-   * | 2048 | 100 MB |
+   * | 512 | 6 MiB |
+   * | 1024 | 24 MiB |
+   * | 2048 | 96 MiB |
+   * | 4096 | 384 MiB |
+   *
+   * ⚠️ **4096 is a desktop-only asset, and not because of the VRAM.** WebGL2
+   * only guarantees `MAX_CUBE_MAP_TEXTURE_SIZE` of **2048** — a conformant
+   * device may refuse a 4096 cube outright. Real hardware is usually far above
+   * the floor (an M5 Max reports 16384) but a headset or a phone is exactly
+   * where you would find the floor, and a sky that fails to load is a black
+   * sky. Bake 4096 when you know the target; ship 2048 when you do not.
    */
   size?: number
   /** Far plane for the capture. Must reach past whatever you are photographing. */
@@ -247,6 +255,27 @@ export async function bakeSkyboxCube(
 ): Promise<BakedFace[]> {
   const size = options.size ?? 512
   const engine = scene.getEngine()
+
+  /*
+  SAY SO IF THIS MACHINE COULD NOT DISPLAY WHAT IT IS ABOUT TO BAKE.
+
+  The bake itself is a 2D render target, so it will happily produce faces larger
+  than this device can ever load back as a CUBE — and the failure then happens
+  somewhere else entirely, at load time, as a black sky. Cheap to check here
+  where the number is in hand, and the warning names the limit rather than the
+  symptom.
+
+  It is only a warning: baking a 4096 asset on a modest machine for a beefier
+  one is a legitimate thing to be doing, and refusing would stop it.
+  */
+  const maxCube = engine.getCaps().maxCubemapTextureSize
+  if (maxCube > 0 && size > maxCube) {
+    console.warn(
+      `skybox-baker: baking ${size}px faces, but this device caps cube maps at ` +
+        `${maxCube}px — it will not be able to load the result as a skybox. ` +
+        `WebGL2 only guarantees 2048.`
+    )
+  }
 
   /*
   SIX CAMERAS AFTER ALL — `ReflectionProbe` read back BLACK.
