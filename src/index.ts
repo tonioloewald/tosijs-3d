@@ -636,6 +636,21 @@ export {
   cloudOpacity,
   type CloudFieldOptions,
 } from './cloud-field.js'
+export {
+  BRIGHT_GAMMA,
+  FACE_NAMES,
+  STAR_PALETTE,
+  decodeTexel,
+  dirToFace,
+  encodeStarfield,
+  faceToDir,
+  paletteGlsl,
+  paletteIndex,
+  type DecodedObject,
+  type EncodedStarfield,
+  type FaceUv,
+  type SkyObject,
+} from './starfield-codec.js'
 export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
 export {
   bakeSkyboxCube,
