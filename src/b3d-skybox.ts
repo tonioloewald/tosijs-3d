@@ -178,9 +178,59 @@ uniform float b3dStarDataLevel;
 // x = texels per face, y = radians per texel, z = point sharpness, w = size scale
 uniform vec4 b3dStarInfo;
 
+/** One reconstructed point, given its sub-texel position and its look. */
+vec3 b3dPoint(
+  vec2 sub, float brightness, vec3 tint, float radius,
+  vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir
+) {
+  float du = (sub.x - 0.5) * b3dStarInfo.y;
+  float dv = (sub.y - 0.5) * b3dStarInfo.y;
+  vec3 starDir = normalize(tapDir + tangent * du + bitangent * dv);
+  float d = length(viewDir - starDir) / b3dStarInfo.y;
+  /*
+  A GAUSSIAN, not a hard disc. A point source drawn as a circle of pixels reads
+  as a sticker; drawn as a falloff it reads as light, and it antialiases itself
+  at every zoom — which is the entire reason for doing this rather than baking.
+  */
+  float falloff = exp(-(d * d) / (radius * radius) * b3dStarInfo.z);
+  if (falloff < 0.004) return vec3(0.0);
+  return tint * brightness * falloff;
+}
+
+/*
+PACKED TEXELS: B == 1.0 marks three crude objects in R, G and A, eight bits
+each — uu(2) vv(2) bbb(3) c(1). It only ever applies where objects are ALREADY
+inside one texel of each other, which is the dense core, where they merge into
+a blur and what survives is aggregate brightness rather than any one star.
+
+Without it a real galaxy loses 21% of its stars at 512, because the birthday
+estimate assumes an even sky and a galaxy is the opposite of even. With it, 2%.
+*/
+vec3 b3dUnpackOne(float bits, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
+  float v = floor(bits * 255.0 + 0.5);
+  if (v <= 0.0) return vec3(0.0);
+  float uu = floor(v / 64.0);
+  float vv = floor(mod(v, 64.0) / 16.0);
+  float bb = floor(mod(v, 16.0) / 2.0);
+  float c = mod(v, 2.0);
+  float brightness = pow((bb + 1.0) / 8.0, 1.0 / ${BRIGHT_GAMMA.toFixed(3)});
+  vec3 tint = c > 0.5 ? STAR_PALETTE[9] : STAR_PALETTE[3];
+  return b3dPoint(
+    vec2((uu + 0.5) / 4.0, (vv + 0.5) / 4.0), brightness, tint, 0.5,
+    tapDir, tangent, bitangent, viewDir
+  );
+}
+
 vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
   // B is zero for an empty texel, which is most of them.
   if (texel.b <= 0.0) return vec3(0.0);
+
+  // ...and 255 means packed rather than bright — see above.
+  if (texel.b > 0.998) {
+    return b3dUnpackOne(texel.r, tapDir, tangent, bitangent, viewDir)
+      + b3dUnpackOne(texel.g, tapDir, tangent, bitangent, viewDir)
+      + b3dUnpackOne(texel.a, tapDir, tangent, bitangent, viewDir);
+  }
 
   /*
   The sub-texel offset is stored in the FACE's uv frame and read back here in
@@ -194,30 +244,14 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   INCONSISTENCY, and there is none: every fragment that sees this texel
   reconstructs the same position from the same numbers.
   */
-  float du = (texel.r - 0.5) * b3dStarInfo.y;
-  float dv = (texel.g - 0.5) * b3dStarInfo.y;
-  vec3 starDir = normalize(tapDir + tangent * du + bitangent * dv);
-
-  // Angular distance from this fragment to the star, in texel widths.
-  float d = length(viewDir - starDir) / b3dStarInfo.y;
-
   // Size: 0 is a point, 15 is a small disc (a distant galaxy).
   float size = floor(texel.a * 255.0 / 16.0) / 15.0;
-  float radius = 0.5 + size * b3dStarInfo.w;
-
-  /*
-  A GAUSSIAN, not a hard disc. A point source drawn as a circle of pixels reads
-  as a sticker; drawn as a falloff it reads as light, and it also antialiases
-  itself for free at every zoom level — which is the entire reason for doing
-  this rather than baking a raster.
-  */
-  float falloff = exp(-(d * d) / (radius * radius) * b3dStarInfo.z);
-  if (falloff < 0.004) return vec3(0.0);
-
   float brightness = pow(texel.b, 1.0 / ${BRIGHT_GAMMA.toFixed(3)});
   int idx = int(mod(texel.a * 255.0, 16.0));
-  vec3 tint = STAR_PALETTE[idx];
-  return tint * brightness * falloff;
+  return b3dPoint(
+    texel.rg, brightness, STAR_PALETTE[idx], 0.5 + size * b3dStarInfo.w,
+    tapDir, tangent, bitangent, viewDir
+  );
 }
 
 vec3 b3dDecodeStars(vec3 viewDir) {
@@ -455,8 +489,14 @@ export class B3dSkybox extends AbstractMesh {
      * which is the split the measurements argued for.
      */
     starfieldData: '',
-    /** Texels per face of `starfieldData`. Must match what encoded it. */
-    starfieldDataSize: 512,
+    /**
+     * Texels per face of `starfieldData`. Must match what encoded it.
+     *
+     * 1024 is the size to ship. At 512 a crowded texel's quarter-texel packed
+     * position becomes a visible lattice through the dense band once a texel
+     * spans several screen pixels — see `PACKED_CAPACITY`.
+     */
+    starfieldDataSize: 1024,
     /**
      * How sharp a decoded point is — higher is tighter.
      *

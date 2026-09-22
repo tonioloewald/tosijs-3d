@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   BRIGHT_GAMMA,
+  PACKED_CAPACITY,
   STAR_PALETTE,
   decodeTexel,
   dirToFace,
@@ -96,7 +97,7 @@ describe('encode → decode', () => {
       const { face, u, v } = dirToFace(o.x, o.y, o.z)
       const ix = Math.min(size - 1, Math.floor(u * size))
       const iy = Math.min(size - 1, Math.floor(v * size))
-      const d = decodeTexel(enc.faces, size, face, ix, iy)
+      const [d] = decodeTexel(enc.faces, size, face, ix, iy)
       if (d == null) continue // lost to a collision; counted separately
       const dot = d.x * o.x + d.y * o.y + d.z * o.z
       // One texel at 512/face is ~0.176°; allow two for the corner stretch.
@@ -114,10 +115,10 @@ describe('encode → decode', () => {
         size
       )
       const { face, u, v } = dirToFace(1, 0.01, 0.02)
-      const d = decodeTexel(
+      const [d] = decodeTexel(
         enc.faces, size, face,
         Math.floor(u * size), Math.floor(v * size)
-      )!
+      )
       // 8 bits of a gamma curve — relative error, not absolute.
       expect(Math.abs(d.brightness - b) / b).toBeLessThan(0.08)
     }
@@ -133,9 +134,9 @@ describe('encode → decode', () => {
       size
     )
     const { face, u, v } = dirToFace(1, 0, 0)
-    const d = decodeTexel(enc.faces, size, face, Math.floor(u * size), Math.floor(v * size))
-    expect(d).not.toBe(null)
-    expect(d!.brightness).toBeGreaterThan(0)
+    const [d] = decodeTexel(enc.faces, size, face, Math.floor(u * size), Math.floor(v * size))
+    expect(d).toBeDefined()
+    expect(d.brightness).toBeGreaterThan(0)
   })
 
   test('size and colour come back', () => {
@@ -145,7 +146,7 @@ describe('encode → decode', () => {
       size
     )
     const { face, u, v } = dirToFace(0.1, 1, 0.1)
-    const d = decodeTexel(enc.faces, size, face, Math.floor(u * size), Math.floor(v * size))!
+    const [d] = decodeTexel(enc.faces, size, face, Math.floor(u * size), Math.floor(v * size))
     expect(d.size).toBeCloseTo(1, 2)
     expect(d.r).toBeCloseTo(1, 2)
     expect(d.b).toBeCloseTo(0.48, 2)
@@ -153,11 +154,12 @@ describe('encode → decode', () => {
 })
 
 describe('collisions', () => {
-  test('the BRIGHTER object wins a contested texel', () => {
+  test('a contested texel PACKS both rather than dropping one', () => {
     /*
-    The whole argument for a hash is that what it loses does not matter. That
-    only holds if the loser is chosen rather than arbitrary — order-dependence
-    here would mean the sky changes when the generator's loop order does.
+    Two objects in one texel used to mean one was lost. They are packed now, so
+    the assertion is that BOTH survive — and that the order they arrived in does
+    not change the result, because order-dependence would mean the sky changes
+    when the generator's loop order does.
     */
     const size = 8
     /*
@@ -181,9 +183,56 @@ describe('collisions', () => {
 
     for (const order of [[dim, bright], [bright, dim]]) {
       const enc = encodeStarfield(order, size)
-      const d = decodeTexel(enc.faces, size, face, ix, iy)!
-      expect(d.brightness).toBeGreaterThan(0.5)
-      expect(enc.collided).toBe(1)
+      const got = decodeTexel(enc.faces, size, face, ix, iy)
+      expect(got.length).toBe(2)
+      // Brightest first, whichever order they were handed over in.
+      expect(got[0].brightness).toBeGreaterThan(got[1].brightness)
+      expect(got[0].brightness).toBeGreaterThan(0.4)
+      expect(enc.collided).toBe(0)
+    }
+  })
+
+  test('holds up to PACKED_CAPACITY, then drops the faintest', () => {
+    const size = 8
+    // Five objects in one texel, brightest last so order cannot be doing it.
+    const many = [0.1, 0.3, 0.5, 0.7, 0.9].map((brightness, i) => ({
+      x: 1, y: 0.03 + i * 0.0002, z: 0.03, brightness, r: 1, g: 1, b: 1,
+    }))
+    const a = dirToFace(many[0].x, many[0].y, many[0].z)
+    const enc = encodeStarfield(many, size)
+    const got = decodeTexel(
+      enc.faces, size, a.face,
+      Math.floor(a.u * size), Math.floor(a.v * size)
+    )
+    expect(got.length).toBe(PACKED_CAPACITY)
+    expect(enc.collided).toBe(many.length - PACKED_CAPACITY)
+    // What survived is the BRIGHT end — 0.9, 0.7, 0.5 rather than any three.
+    expect(got[0].brightness).toBeGreaterThan(0.6)
+    expect(Math.min(...got.map((o) => o.brightness))).toBeGreaterThan(0.2)
+  })
+
+  test('a packed object still decodes to roughly where it was', () => {
+    /*
+    Quarter-texel resolution instead of 1/256, which is the price of packing.
+    At 512 a texel is 0.176°, so a quarter is 0.044° — still far under a pixel
+    at any sane field of view, which is why the trade is worth making.
+    */
+    const size = 512
+    const pair = [
+      { x: 1, y: 0.031, z: 0.017, brightness: 0.9, r: 1, g: 1, b: 1 },
+      { x: 1, y: 0.0312, z: 0.0172, brightness: 0.4, r: 1, g: 1, b: 1 },
+    ]
+    const a = dirToFace(pair[0].x, pair[0].y, pair[0].z)
+    const enc = encodeStarfield(pair, size)
+    const got = decodeTexel(
+      enc.faces, size, a.face,
+      Math.floor(a.u * size), Math.floor(a.v * size)
+    )
+    expect(got.length).toBe(2)
+    for (const d of got) {
+      const L = Math.hypot(pair[0].x, pair[0].y, pair[0].z)
+      const dot = d.x * (pair[0].x / L) + d.y * (pair[0].y / L) + d.z * (pair[0].z / L)
+      expect(Math.acos(Math.min(1, dot)) * 57.2958).toBeLessThan(0.2)
     }
   })
 

@@ -18,7 +18,7 @@ is 2048 only because stars smeared at 1024 — the nebulae never needed it.
 
 | | raster | data |
 | --- | --- | --- |
-| VRAM | 96 MiB (2048 cube) | 6 MiB (512 cube) |
+| VRAM | 96 MiB (2048 cube) | 24 MiB (1024 cube) |
 | on disk | 2.3 MB | a few hundred KB |
 | sharpness | fixed pixels — blurs as you zoom | **resolution-independent** |
 
@@ -42,20 +42,28 @@ smooth cube, while stars **and distant galaxies** belong here. A distant galaxy
 is a small disc rather than a point, which is what the `size` field is for: the
 same four bytes doing slightly more work rather than a third mechanism.
 
-## One object per texel, and collisions are fine
+## Crowded texels PACK rather than drop
 
-The encoding is a spatial hash, so two objects can land on one texel and one of
-them is lost. At the densities involved that is a rounding error:
+The encoding is a spatial hash, so objects can land on the same texel. The
+birthday estimate says that is rare — and the birthday estimate assumes an
+evenly spread sky, which **a galaxy is the exact opposite of**. Measured against
+the real generator, one object per texel loses 21% of a galaxy at 512 and 7% at
+1024, not the fractions of a percent the formula promises.
 
-| objects | cube | occupancy | lost |
-| --- | --- | --- | --- |
-| 10k | 512 | 0.64% | ~0.3% |
-| 30k | 512 | 1.91% | ~1.0% |
-| 100k | 1024 | 1.59% | ~0.8% |
+So a crowded texel switches layout instead: `B = 255` marks three objects at
+eight bits each (`uu vv bbb c`), which recovers essentially all of them.
 
-And the loser is chosen rather than arbitrary: **the brighter object wins**, so
-what disappears is always the fainter of a pair that were already within one
-texel of each other, which is the one nobody can see.
+| cap | kept at 512 | kept at 1024 |
+| --- | --- | --- |
+| 1 | 78.8% | 93.0% |
+| 2 | 93.7% | 99.1% |
+| **3** | **98.0%** | 99.8% |
+
+Crude on purpose: this layout only ever applies where objects are already inside
+one texel of each other, which is the dense core, where they merge into a blur
+and what survives is aggregate brightness rather than any individual star. And
+what a full texel does drop is still chosen rather than arbitrary — **brightest
+first**, so the loss lands on the faintest.
 
 ## The layout
 
@@ -109,6 +117,40 @@ export const FACE_NAMES = ['px', 'nx', 'py', 'ny', 'pz', 'nz'] as const
  * 1.5e-5 of full, which covers the range with room to spare.
  */
 export const BRIGHT_GAMMA = 0.5
+
+/**
+ * `B === 255` marks a PACKED texel: three crude stars instead of one precise
+ * one. Precise brightness is therefore capped at 254, which costs the top
+ * 0.4% of one channel and buys the dense core.
+ */
+export const PACKED_FLAG = 255
+
+/**
+ * How many objects a packed texel holds. Three, chosen by MEASUREMENT rather
+ * than by what fits — the occupancy histogram of a real galaxy is what picked
+ * it, and 24 bits happening to divide by three is luck.
+ *
+ * | cap | kept at 512 | kept at 1024 |
+ * | --- | --- | --- |
+ * | 1 | 78.8% | 93.0% |
+ * | 2 | 93.7% | 99.1% |
+ * | **3** | **98.0%** | 99.8% |
+ * | 4 | 99.3% | 99.9% |
+ *
+ * Three is where the curve flattens, and it takes a real galaxy from 21% lost
+ * to essentially none.
+ *
+ * ⚠️ **But packing trades position for capacity, and at 512 that shows.** A
+ * packed object keeps only a QUARTER-texel position, and when a texel spans
+ * several screen pixels the quantisation becomes a visible lattice through the
+ * dense band — measured by looking, not predicted. At 1024 a texel is half as
+ * wide and the lattice disappears.
+ *
+ * So: **1024 is the size to ship** (24 MiB, nothing lost), and 512 is for
+ * sparser skies or wider fields of view, where the core never gets close
+ * enough to the eye for a quarter of a texel to matter.
+ */
+export const PACKED_CAPACITY = 3
 
 /**
  * Sixteen colours, because a star is not any colour — it is a blackbody, and
@@ -275,6 +317,18 @@ export function encodeStarfield(
   let placed = 0
   let collided = 0
 
+  /*
+  BUCKET FIRST, then choose a mode per texel — rather than writing as we go and
+  discarding losers.
+
+  A one-pass encoder cannot know whether a texel will end up holding one object
+  or four, so it has to commit to the precise layout on the first write and drop
+  everything after. Counting first means a crowded texel can switch to the
+  packed layout and keep three, which is what takes the real galaxy from 21%
+  lost to 2% at 512.
+  */
+  const buckets = new Map<number, SkyObject[]>()
+  const stride = size * size
   for (const o of objects) {
     const len = Math.hypot(o.x, o.y, o.z)
     if (!(len > 0)) continue
@@ -285,26 +339,69 @@ export function encodeStarfield(
     const fy = Math.min(size - 1e-6, Math.max(0, v * size))
     const ix = Math.floor(fx)
     const iy = Math.floor(fy)
-    const p = (iy * size + ix) * 4
-    const buf = faces[face]
+    const key = face * stride + iy * size + ix
+    const at = buckets.get(key)
+    // Carry the sub-texel position along rather than recomputing it later.
+    const tagged = { ...o, x: fx - ix, y: fy - iy, z: 0 } as SkyObject
+    if (at == null) buckets.set(key, [tagged])
+    else at.push(tagged)
+  }
 
-    const bright = Math.min(
-      255,
-      Math.max(1, Math.round(255 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)))
+  for (const [key, group] of buckets) {
+    const face = Math.floor(key / stride)
+    const rest = key - face * stride
+    const p = rest * 4
+    const buf = faces[face]
+    // Brightest first: whatever a crowded texel has to drop should be faintest.
+    group.sort((a, b) => b.brightness - a.brightness)
+    placed += Math.min(group.length, group.length === 1 ? 1 : PACKED_CAPACITY)
+    collided += Math.max(
+      0,
+      group.length - (group.length === 1 ? 1 : PACKED_CAPACITY)
     )
-    // Occupied and the sitting tenant is brighter or equal — leave it alone.
-    if (buf[p + 2] >= bright) {
-      if (buf[p + 2] > 0) collided++
+
+    if (group.length === 1) {
+      const o = group[0]
+      const sizeNibble = Math.min(15, Math.max(0, Math.round((o.size ?? 0) * 15)))
+      buf[p] = Math.round(o.x * 255)
+      buf[p + 1] = Math.round(o.y * 255)
+      // 254, not 255 — that code is the packed flag.
+      buf[p + 2] = Math.min(
+        PACKED_FLAG - 1,
+        Math.max(1, Math.round(255 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)))
+      )
+      buf[p + 3] = (sizeNibble << 4) | paletteIndex(o.r, o.g, o.b)
       continue
     }
-    if (buf[p + 2] > 0) collided++
-    else placed++
 
-    const sizeNibble = Math.min(15, Math.max(0, Math.round((o.size ?? 0) * 15)))
-    buf[p] = Math.round((fx - ix) * 255)
-    buf[p + 1] = Math.round((fy - iy) * 255)
-    buf[p + 2] = bright
-    buf[p + 3] = (sizeNibble << 4) | paletteIndex(o.r, o.g, o.b)
+    /*
+    PACKED: three objects at eight bits each, in R, G and A.
+
+      uu(2) vv(2) bbb(3) c(1)
+
+    Quarter-texel position, eight brightness levels, one bit of colour. Crude on
+    purpose — this layout only ever applies where objects are ALREADY within one
+    texel of each other, which is the dense core, where they merge into a blur
+    and what survives is aggregate brightness rather than any individual star.
+    */
+    const slots = [p, p + 1, p + 3]
+    for (let i = 0; i < PACKED_CAPACITY; i++) {
+      const o = group[i]
+      if (o == null) {
+        buf[slots[i]] = 0
+        continue
+      }
+      const uu = Math.min(3, Math.floor(o.x * 4))
+      const vv = Math.min(3, Math.floor(o.y * 4))
+      const bb = Math.min(
+        7,
+        Math.max(0, Math.round(8 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)) - 1)
+      )
+      // One bit: warm or cool, taken from the same palette the precise path uses.
+      const c = paletteIndex(o.r, o.g, o.b) >= 6 ? 1 : 0
+      buf[slots[i]] = (uu << 6) | (vv << 4) | (bb << 1) | c
+    }
+    buf[p + 2] = PACKED_FLAG
   }
   return { faces, size, placed, collided }
 }
@@ -322,7 +419,8 @@ export interface DecodedObject {
 }
 
 /**
- * Decode one texel back into an object, or `null` if it is empty.
+ * Decode one texel back into the objects it holds — none, one, or up to
+ * {@link PACKED_CAPACITY}.
  *
  * Exists so the round trip can be TESTED without a GPU. The shader does the
  * same arithmetic; this is what pins it down, because a decode that only exists
@@ -334,26 +432,53 @@ export function decodeTexel(
   face: number,
   ix: number,
   iy: number
-): DecodedObject | null {
+): DecodedObject[] {
   const p = (iy * size + ix) * 4
   const buf = faces[face]
-  const bright = buf[p + 2]
-  if (bright === 0) return null
-  const u = (ix + buf[p] / 255) / size
-  const v = (iy + buf[p + 1] / 255) / size
-  const d = faceToDir(face, u, v)
-  const len = Math.hypot(d.x, d.y, d.z)
-  const pal = STAR_PALETTE[buf[p + 3] & 0x0f]
-  return {
-    x: d.x / len,
-    y: d.y / len,
-    z: d.z / len,
-    brightness: Math.pow(bright / 255, 1 / BRIGHT_GAMMA),
-    r: pal[0],
-    g: pal[1],
-    b: pal[2],
-    size: (buf[p + 3] >> 4) / 15,
+  const flag = buf[p + 2]
+  if (flag === 0) return []
+
+  const at = (su: number, sv: number, bright: number, pal: [number, number, number], sz: number) => {
+    const d = faceToDir(face, (ix + su) / size, (iy + sv) / size)
+    const len = Math.hypot(d.x, d.y, d.z)
+    return {
+      x: d.x / len, y: d.y / len, z: d.z / len,
+      brightness: bright, r: pal[0], g: pal[1], b: pal[2], size: sz,
+    }
   }
+
+  if (flag !== PACKED_FLAG) {
+    return [
+      at(
+        buf[p] / 255,
+        buf[p + 1] / 255,
+        Math.pow(flag / 255, 1 / BRIGHT_GAMMA),
+        STAR_PALETTE[buf[p + 3] & 0x0f],
+        (buf[p + 3] >> 4) / 15
+      ),
+    ]
+  }
+
+  // Packed: three crude objects in R, G and A — see `encodeStarfield`.
+  const out: DecodedObject[] = []
+  for (const slot of [p, p + 1, p + 3]) {
+    const bits = buf[slot]
+    if (bits === 0) continue
+    const uu = (bits >> 6) & 3
+    const vv = (bits >> 4) & 3
+    const bb = (bits >> 1) & 7
+    const c = bits & 1
+    out.push(
+      at(
+        (uu + 0.5) / 4,
+        (vv + 0.5) / 4,
+        Math.pow((bb + 1) / 8, 1 / BRIGHT_GAMMA),
+        STAR_PALETTE[c === 1 ? 9 : 3],
+        0
+      )
+    )
+  }
+  return out
 }
 
 /**
