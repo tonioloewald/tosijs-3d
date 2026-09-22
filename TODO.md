@@ -777,6 +777,64 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **A STARFIELD IS DATA, NOT A PICTURE — encode it as one (Tonio's idea).**
+_"Given a starfield background is a very specific kind of image I imagine we
+could encode something very efficient in say a 512 or 1024 map by treating the
+values as data."_
+
+Right, and the numbers say it is not a small win. A baked sky is a RASTER of a
+thing that is almost entirely empty: at 2048 we ship 25 million texels to carry
+maybe ten thousand stars, and we went to 2048 in the first place ONLY because at
+1024 the stars smear — the low-frequency part (nebulae, the galactic haze) was
+never the reason.
+
+So split the sky by frequency and stop paying raster prices for point sources.
+
+**The smooth half stays a cube, and can be tiny.** Nebulae and the band glow are
+low-frequency; 256 is plenty and costs 1.5 MiB of VRAM against the current 96.
+
+**The stars become a SPATIAL HASH in a small cube**, which is the "values as
+data" part. One RGBA8 texel per star:
+
+| channel | carries |
+| --- | --- |
+| R, G | sub-texel position (1/256 of a texel — at 512/face that is ~0.0007°) |
+| B | brightness, log-encoded so magnitudes survive the 8 bits |
+| A | colour/temperature index |
+
+The shader reads a 3x3 neighbourhood around the view direction, reconstructs
+each star as a point at its sub-texel position and accumulates. Stars are then
+**resolution-independent** — sharper than any bake, at any FOV — which is
+exactly what 2048 was buying and failing to buy properly.
+
+Capacity is the question a hash always raises, and it is fine:
+
+| stars | cube | occupancy | collisions |
+| --- | --- | --- | --- |
+| 10k | 512 | 0.64% | ~32 (0.3% lost) |
+| 30k | 512 | 1.91% | ~286 (1.0%) |
+| 100k | 512 | 6.36% | ~3179 (3.2%) |
+| 100k | 1024 | 1.59% | ~795 (0.8%) |
+
+A lost star is a star that fell on an occupied texel — invisible, because the
+occupant is still there. Keep the brighter of the two and the loss is
+concentrated in the faintest, which is where nobody is looking.
+
+**Cost:** ~7.5 MiB VRAM (256 smooth + 512 stars) against 96, and a few hundred
+KB on disk against 2.3 MB. Nine taps a fragment instead of one, which is
+nothing next to what it replaces.
+
+**What to check before building it:** whether an 8-bit log brightness holds the
+magnitude range without banding the faint end (the flux table from the starfield
+work is the input), and whether the 3x3 read is enough at the point-spread
+radius we actually want — one texel at 512/face is 0.176°, and a star's glow is
+about that, so it should be, but it wants measuring rather than assuming.
+
+**It also kills the 4096 question.** 4096 exists because points need
+resolution; encode the points as points and 512 beats 4096 outright, at a
+fortieth of the VRAM.
+
+
 [ ] **CLOUD PROVINCES — localized weather, and Tonio named the mechanism
 himself.** _"And if we can somehow generate localized turbulence that would be
 fabulous."_ … _"But that might involve the equivalent of provinces."_
