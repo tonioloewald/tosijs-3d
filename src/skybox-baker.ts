@@ -150,6 +150,11 @@ small in the bake — 0.7 here against 0.3–0.5 there.
 /*{ "parent": "Demos", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import {
+  FACE_NAMES,
+  encodeStarfield,
+  type SkyObject,
+} from './starfield-codec.js'
 
 /** One baked cube face: a PNG data URL plus the suffix Babylon expects. */
 export interface BakedFace {
@@ -171,13 +176,15 @@ export interface SkyboxBakeOptions {
    * A face covers 90°, so it is stretched across a large part of a wide
    * viewport — 512 reads as soft the moment the sky fills the screen.
    *
-   * **The shipped `/sky/default` is 2048**, which is what a sky you can look
-   * directly at wants: at 1024 the stars are a smear rather than points once
-   * the sky fills a wide viewport, and a starfield is nothing but points.
+   * ⚠️ **The shipped sky is no longer one of these.** `/sky/default` is a 2048
+   * raster and is kept for reference, but what the demos load is the PAIR that
+   * {@link bakeSkyPair} produces: a 256 smooth cube for the nebulae and a
+   * 1024 DATA cube for the points. 344 KB and 25 MiB, against 2.3 MB and 96 —
+   * and the stars stay points at any zoom instead of being a smear baked at
+   * one resolution.
    *
-   * On disk it costs far less than the VRAM column suggests — the six faces
-   * total 2.3 MB, barely more than the 1.8 MB they replaced at half the
-   * resolution, because a night sky is mostly black and PNG knows it.
+   * Reach for a big raster only when what you are baking is genuinely
+   * low-frequency everywhere. The moment it contains points, encode the points.
    *
    * | face | VRAM (RGBA, 6 faces) |
    * | ---- | -------------------- |
@@ -249,6 +256,143 @@ export function defaultBakePose(
  * other as `<root>_px.png` … `<root>_nz.png` and loaded with
  * `new CubeTexture(root, scene)`.
  */
+/**
+ * Pull the point-like sky out of a `<tosi-b3d-galaxy>` as encodable objects.
+ *
+ * Stars AND the small members of the nebula system, because the latter are the
+ * DISTANT GALAXIES and they are points too — measured: baking the nebula system
+ * alone at 256 versus 1024 preserves energy and bright-area almost exactly and
+ * loses only PEAK, and peak is what a point is. The big members stay behind for
+ * the smooth cube, which is all they ever needed.
+ *
+ * Brightness comes from particle SCALE rather than from colour, because that is
+ * what the galaxy varies: `b3d-galaxy` sizes a star by its apparent magnitude
+ * and then clamps the nearest ones, so scale is the magnitude that survived.
+ */
+export function starsFromGalaxy(
+  galaxy: {
+    starSps?: { particles: BABYLON.SolidParticle[] } | null
+    nebulaSps?: { particles: BABYLON.SolidParticle[] } | null
+  },
+  eye: { x: number; y: number; z: number },
+  options: { galaxyMaxScale?: number } = {}
+): SkyObject[] {
+  const out: SkyObject[] = []
+  const stars = galaxy.starSps?.particles ?? []
+  let maxScale = 0
+  for (const p of stars) maxScale = Math.max(maxScale, p.scaling?.x ?? 0)
+  const norm = maxScale > 0 ? 1 / maxScale : 1
+  for (const p of stars) {
+    out.push({
+      x: p.position.x - eye.x,
+      y: p.position.y - eye.y,
+      z: p.position.z - eye.z,
+      // A floor, because a star encoded as zero is a star deleted.
+      brightness: Math.max(0.02, Math.min(1, (p.scaling?.x ?? 0) * norm)),
+      r: p.color?.r ?? 1,
+      g: p.color?.g ?? 1,
+      b: p.color?.b ?? 1,
+    })
+  }
+
+  /*
+  The nebula system holds two populations and they are told apart by SIZE: the
+  nebulae proper are big soft veils, the distant galaxies are small discs. Only
+  the second belongs here.
+  */
+  const cut = options.galaxyMaxScale ?? 8
+  for (const p of galaxy.nebulaSps?.particles ?? []) {
+    const s = p.scaling?.x ?? 0
+    if (s <= 0 || s > cut) continue
+    out.push({
+      x: p.position.x - eye.x,
+      y: p.position.y - eye.y,
+      z: p.position.z - eye.z,
+      brightness: Math.max(0.05, Math.min(1, s / cut)),
+      r: p.color?.r ?? 1,
+      g: p.color?.g ?? 1,
+      b: p.color?.b ?? 1,
+      // A galaxy is a small DISC, which is the whole reason `size` exists.
+      size: Math.min(1, s / cut),
+    })
+  }
+  return out
+}
+
+/**
+ * Encoded faces → PNG data URLs, ready to save beside a skybox.
+ *
+ * ⚠️ **PNG, and it must stay PNG.** These are packed fields, not pictures: a
+ * lossy codec would quantise a sub-texel position into a different position and
+ * a brightness into a different star. JPEG here would not look slightly worse,
+ * it would move the sky.
+ */
+export function facesToPngs(faces: Uint8Array[], size: number): BakedFace[] {
+  const out: BakedFace[] = []
+  for (let i = 0; i < faces.length; i++) {
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+    if (ctx == null) continue
+    const img = ctx.createImageData(size, size)
+    img.data.set(faces[i])
+    ctx.putImageData(img, 0, 0)
+    out.push({ name: FACE_NAMES[i], url: canvas.toDataURL('image/png') })
+  }
+  return out
+}
+
+/**
+ * Bake a galaxy into the PAIR of cubes the sky wants: a small smooth one for
+ * the nebulae and a data one for the points.
+ *
+ * The two are separate because they are different KINDS of thing, measured
+ * rather than assumed — see `starfield-codec`. The smooth half is
+ * low-frequency and survives 256; the points need position, not pixels.
+ */
+export async function bakeSkyPair(
+  scene: BABYLON.Scene,
+  galaxy: {
+    starMesh?: BABYLON.AbstractMesh | null
+    starSps?: { particles: BABYLON.SolidParticle[] } | null
+    nebulaSps?: { particles: BABYLON.SolidParticle[] } | null
+  },
+  options: SkyboxBakeOptions & { dataSize?: number; smoothSize?: number }
+): Promise<{ smooth: BakedFace[]; data: BakedFace[]; placed: number; lost: number }> {
+  /*
+  HIDE THE STARS FOR THE SMOOTH BAKE. They are about to be stored exactly;
+  rendering them into the nebula cube as well would double every one of them,
+  and the smeared copy is the thing this whole exercise exists to delete.
+  */
+  const mesh = galaxy.starMesh ?? null
+  const wasVisible = mesh?.isVisible ?? false
+  if (mesh != null) mesh.isVisible = false
+  let smooth: BakedFace[]
+  try {
+    smooth = await bakeSkyboxCube(scene, {
+      ...options,
+      size: options.smoothSize ?? 256,
+    })
+  } finally {
+    if (mesh != null) mesh.isVisible = wasVisible
+  }
+
+  const objects = starsFromGalaxy(galaxy, {
+    x: options.x,
+    y: options.y,
+    z: options.z,
+  })
+  const size = options.dataSize ?? 1024
+  const enc = encodeStarfield(objects, size)
+  return {
+    smooth,
+    data: facesToPngs(enc.faces, size),
+    placed: enc.placed,
+    lost: enc.collided,
+  }
+}
+
 export async function bakeSkyboxCube(
   scene: BABYLON.Scene,
   options: SkyboxBakeOptions

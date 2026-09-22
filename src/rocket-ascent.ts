@@ -263,7 +263,11 @@ export function rocketAscent(options: RocketAscentOptions = {}) {
       // THE BAKED SKY — six faces photographed from inside the galaxy this
       // project generates, composited into the sky's own shader rather than
       // drawn on a second mesh. See skybox-baker.
-      starfieldCube: '/sky/default',
+      // The PAIR: nebulae as a small raster, stars as data the shader decodes
+      // into points. An ascent ends in vacuum staring straight at the sky, so
+      // this is the demo that most wanted stars that stay points.
+      starfieldCube: '/sky/nebula',
+      starfieldData: '/sky/stars',
       // Tilt the sampling DIRECTION, not the galaxy — so the band arcs across
       // the sky rather than lying level, which is what stops a baked sky
       // reading as wallpaper.

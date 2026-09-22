@@ -76,13 +76,15 @@ preview.append(
         slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
       ],
     },
-    // The baked galaxy, so the deck has a real night to be seen against — and
-    // so the whiteout has something worth hiding. It is ONE cube on the sky's
-    // own material (b3d-skybox's forked shader), so it costs no extra mesh.
+    // THE PAIR, not one raster. Nebulae are low-frequency and live in a 256
+    // cube; stars and distant galaxies are POINTS and live in a data cube that
+    // the shader decodes — so they stay points at any zoom instead of being a
+    // smear baked at one resolution. 344 KB and 25 MiB against 2.3 MB and 96.
     b3dSkybox({
       timeOfDay: sky.timeOfDay,
       realtimeScale: 0,
-      starfieldCube: '/sky/default',
+      starfieldCube: '/sky/nebula',
+      starfieldData: '/sky/stars',
       starfieldTilt: '12,25,58',
     }),
     b3dSun({ x: -0.4, y: -1, z: -0.3 }),

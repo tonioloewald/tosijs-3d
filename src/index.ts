@@ -639,6 +639,8 @@ export {
 export {
   BRIGHT_GAMMA,
   FACE_NAMES,
+  PACKED_CAPACITY,
+  PACKED_FLAG,
   STAR_PALETTE,
   decodeTexel,
   dirToFace,
@@ -654,6 +656,9 @@ export {
 export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
 export {
   bakeSkyboxCube,
+  bakeSkyPair,
+  starsFromGalaxy,
+  facesToPngs,
   defaultBakePose,
   type BakedFace,
   type SkyboxBakeOptions,

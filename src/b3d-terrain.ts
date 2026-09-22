@@ -147,13 +147,15 @@ const scene = b3d(
     },
   },
   b3dSun({ activeDistance: 80 }),
-  // The baked galaxy, so night is a real sky rather than an absence of one. It
-  // is ONE cube on the sky's own material (see b3d-skybox's forked shader), so
-  // it costs no extra mesh and the water reflects it for free.
+  // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
+  // points for the stars. Split because they are different KINDS of thing —
+  // one is low-frequency and one is not — and the points stay points at any
+  // zoom rather than being a smear baked at one resolution.
   b3dSkybox({
     timeOfDay: sky.timeOfDay,
     realtimeScale: 0,
-    starfieldCube: '/sky/default',
+    starfieldCube: '/sky/nebula',
+    starfieldData: '/sky/stars',
     starfieldTilt: '12,25,58',
   }),
   b3dLight({ intensity: 0.5 }),
