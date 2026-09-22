@@ -824,6 +824,25 @@ concentrated in the faintest, which is where nobody is looking.
 KB on disk against 2.3 MB. Nine taps a fragment instead of one, which is
 nothing next to what it replaces.
 
+**The split is POINT-LIKE vs SMOOTH, not stars vs nebulae — measured.** Baked
+the nebula system alone (stars hidden) at 256 and 1024 and compared:
+
+| | 256 | 1024 |
+| --- | --- | --- |
+| mean luminance | 3.838 | 3.839 |
+| bright texels | 0.615% | 0.624% |
+| peak luminance | 196 | 238 |
+
+Energy and bright-area survive 256 almost exactly; what 256 loses is PEAK, and
+it loses it on the point-like things. The nebulae proper — 1500 soft blobs along
+the band — come through a 256 map fine, which is the premise holding. But the
+**500 distant galaxies live in the same system and are points**, and at 256 they
+dim toward the background instead of reading as objects.
+
+So they belong in the hash with the stars, not in the smooth cube — with a SIZE
+channel, since a distant galaxy is a small disc rather than a point. That is the
+same four bytes doing slightly more work, not a third mechanism.
+
 **What to check before building it:** whether an 8-bit log brightness holds the
 magnitude range without banding the faint end (the flux table from the starfield
 work is the input), and whether the 3x3 read is enough at the point-spread
