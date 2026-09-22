@@ -168,9 +168,7 @@ export class PRNG {
   /** Returns true with probability p (0..1) */
   probability(p: number): boolean {
     return this.value() < p
-  }
-
-  /** Random float in [min, max) with optional skew function */
+  } /** Random float in [min, max) with optional skew function */
   realRange(
     min: number,
     max: number,
@@ -205,6 +203,78 @@ export class PRNG {
   }
 
   /** Weighted random selection from array */
+  pick<T>(array: T[], weights?: number[]): T {
+    let s = 0
+    let idx: number
+
+    if (weights !== undefined) {
+      for (idx = 0; idx < weights.length; idx++) {
+        s += weights[idx]
+      }
+      s = this.value() * s
+      for (idx = 0; idx < weights.length; idx++) {
+        s -= weights[idx]
+        if (s < 0) {
+          break
+        }
+      }
+    } else {
+      idx = this.range(0, array.length - 1)
+    }
+
+    return array[idx]
+  }
+}
+
+/** The part of a PRNG that derived-data generators need — PRNG and
+ * CheapPRNG both satisfy it, so a function like `randomName` can accept
+ * either without caring which engine it is. */
+export interface RandomLike {
+  value(): number
+  range(min: number, max: number): number
+  pick<T>(array: T[], weights?: number[]): T
+}
+
+/**
+ * mulberry32 — a tiny, FAST seeded PRNG for derived per-object data.
+ *
+ * Not MT-quality; quality is not the job. It exists because the Mersenne
+ * Twister costs ~14 µs just to CONSTRUCT, which makes "one seeded PRNG per
+ * star" unaffordable at galaxy scale — while derived data (a star's name,
+ * its spectral detail) needs exactly that shape: a pure function of the
+ * star's seed. Deterministic, like everything else here.
+ */
+export class CheapPRNG {
+  private s: number
+
+  constructor(seed: number) {
+    this.s = seed | 0
+  }
+
+  /** Random float in [0, 1) */
+  value(): number {
+    this.s = (this.s + 0x6d2b79f5) | 0
+    let t = Math.imul(this.s ^ (this.s >>> 15), 1 | this.s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+
+  /** Random integer in [min, max] (inclusive) */
+  range(min: number, max: number): number {
+    return Math.floor(this.value() * (max - min + 1) + min)
+  }
+
+  /** Random float in [min, max) */
+  realRange(min: number, max: number): number {
+    return this.value() * (max - min) + min
+  }
+
+  /** Returns true with probability p (0..1) */
+  probability(p: number): boolean {
+    return this.value() < p
+  }
+
+  /** Weighted random selection from array — same surface as PRNG */
   pick<T>(array: T[], weights?: number[]): T {
     let s = 0
     let idx: number

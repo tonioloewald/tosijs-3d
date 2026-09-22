@@ -156,19 +156,19 @@ The star count defaults to **10,000 and goes to 100,000**, and the gap is
 deliberate: you want the scene responsive while you are deciding where to stand
 and how big the stars should be, and dense only for the shot you keep.
 
-The cost is generation, not rendering, and it is worth knowing before you drag
-the slider to the end. Measured on this machine:
+The cost used to be generation, and is no longer — planets were 71% of it
+and are now computed on demand, names come from each star's own seed, and a
+cheap PRNG replaced a Mersenne Twister per star (see `galaxy-data`). Measured:
 
 | stars | `generateGalaxy` |
 | ----- | ---------------- |
-| 10,000 | ~1.1 s |
-| 50,000 | ~5 s |
-| 100,000 | ~12.6 s |
+| 10,000 | ~25 ms |
+| 100,000 | ~200 ms |
 
-It is roughly linear and it blocks the main thread, so 100k is a deliberate
-"now bake it" action rather than something to nudge through. (It used to be far
-worse — the generator kept its used names in an array and scanned it per star,
-which made this O(n²); 100k took 34 s before that was a `Set`.)
+So 100k is no longer a deliberate "now bake it" action; drag the slider
+freely. (It used to be ~12.6 s and blocked the main thread — the generator
+kept a name table, generated full planet systems per star, and built an MT
+per star plus one per planet.)
 
 ⚠️ **Tune particle size AT 90°.** A cube face is 90° FOV where a typical demo
 camera is nearer 46°, so a star covers about half the angular fraction of the

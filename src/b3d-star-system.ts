@@ -15,7 +15,7 @@ import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy, label3
 import { tosi, elements } from 'tosijs'
 const { div, p, pre } = elements
 
-const galaxy = generateGalaxy(1234, 1000)
+const galaxy = generateGalaxy(1234, 1000, { generatePlanets: true })
 
 const { demo } = tosi({
   demo: {
@@ -292,7 +292,9 @@ export class B3dStarSystem extends B3dChild {
     const scene = this.owner.scene
 
     // Generate galaxy and find the star
-    const galaxy = generateGalaxy(attrs.galaxySeed, attrs.starCount)
+    const galaxy = generateGalaxy(attrs.galaxySeed, attrs.starCount, {
+      generatePlanets: true,
+    })
     const starIndex = Math.min(
       Math.max(0, attrs.starIndex),
       galaxy.stars.length - 1

@@ -198,7 +198,11 @@ function zoomToStar(idx, camera, el) {
   const pos = galaxy.getStarPosition(idx)
   if (!star || !pos) return
 
-  demo.selectedStar.value = star.name + ' (' + star.spectralType + ', HI ' + star.bestHI + ')'
+  const system = galaxy.getStarSystem(idx)
+  const hi = system && system.planets.length > 0
+    ? Math.min(...system.planets.map((p) => p.HI))
+    : star.bestHI
+  demo.selectedStar.value = star.name + ' (' + star.spectralType + ', HI ' + hi + ')'
   galaxy.hideStarAt(idx)
 
   // Save camera state for return trip
@@ -1021,7 +1025,19 @@ export class B3dGalaxy extends B3dChild {
     for (let i = 0; i < stars.length; i++) {
       const orig = this.originalColors[i]
       const particle = this.starSps.particles[i]
-      const hiPass = maxHI >= 5 || stars[i].bestHI <= maxHI
+      // bestHI is computed on demand: bulk generation skips planets (see
+      // generatePlanets in galaxy-data), so the FIRST HI filter pays for the
+      // systems it examines and the result is cached on the star.
+      let hi = stars[i].bestHI
+      if (maxHI < 5 && hi >= 5 && !stars[i].hiComputed) {
+        const system = generateStarSystem(stars[i])
+        let best = 5
+        for (const p of system.planets) if (p.HI < best) best = p.HI
+        hi = best
+        stars[i].bestHI = best
+        stars[i].hiComputed = true
+      }
+      const hiPass = maxHI >= 5 || hi <= maxHI
       const namePass = !needle || stars[i].name.toLowerCase().includes(needle)
       if (hiPass && namePass) {
         particle.color = orig.clone()
