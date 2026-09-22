@@ -113,7 +113,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `shadowStrength` | `0.65` | Darkness of those shadows 0…1, scaled further by `coverage` (≈50% darkening at typical coverage) |
 | `seed` | `1` | Deterministic layout — same seed, same sky |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "Environment", "order": 501 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'

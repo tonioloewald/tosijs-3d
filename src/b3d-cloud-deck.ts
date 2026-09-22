@@ -249,7 +249,7 @@ by `b3d-clouds` painting blob positions into a moving window. Pointing it at
 this field instead, with the same live `coverage` uniform, is what makes the
 shade underfoot belong to the cloud overhead rather than merely resemble it.
 */
-/*{ "parent": "environment", "order": 930 }*/
+/*{ "parent": "environment", "order": 502 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
@@ -1388,6 +1388,16 @@ export class B3dCloudDeck extends B3dChild {
     this.fieldTexture = tex
     const mat = this.mesh?.material as BABYLON.ShaderMaterial | undefined
     mat?.setTexture('cloudField', tex)
+    /*
+    THE SHADOW SAMPLES THE SAME FIELD, and it must re-bind too. Miss this and
+    the shadow's ProceduralTexture keeps sampling the DISPOSED texture — the
+    deck re-renders with the new weather while the shadows go black and stay
+    black, with no error anywhere (a disposed texture fails silently). This
+    was exactly the reported "play with the demo a while and the shadows stop
+    working": `cirrus` is in the bake key, so the first slider scrub killed
+    them. One frame later nobody can see a reason.
+    */
+    this._shadowTex?.setTexture('cloudField', tex)
   }
 
   /**

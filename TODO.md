@@ -1,20 +1,26 @@
 # TODO
 
-- [ ] **Cloud-deck: shadows stop working after a while, no console error.**
-      Tonio's report while testing the encoded sky: play with the cloud-deck
-      demo for a bit and the shadows die silently. Suspect dynamic culling
-      kicking in after a framerate drop — verify before believing it (check the
-      sun's shadow generator state and the caster list at failure time; see
-      also the perf-tier auto-scaling in `b3d-quality`).
+- [x] ~~**Cloud-deck: shadows stop working after a while, no console error.**~~
+      **FIXED** — not framerate culling: the field re-bake path disposed the
+      old field texture and re-bound the new one to the DECK's material but
+      NOT to the shadow's ProceduralTexture, which kept sampling the disposed
+      texture. `cirrus` is in the bake key, so the first slider scrub killed
+      the shadows silently. One line: `_shadowTex?.setTexture('cloudField',
+      tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
+      separate observation: the sun's own shadow generator never activates in
+      this demo — the visible shadows are the deck's cloud shadows.)
 
-- [ ] **The old `b3d-clouds` demo (cartoon geometry) is broken.** Tonio:
-      "outright broken now", assumed unintentional — presumably a casualty of
-      the encoded-sky demo migration or a stale asset path. Diff its demo
-      wiring against the known-good cloud-deck/terrain demos.
+- [x] ~~**The old `b3d-clouds` demo (cartoon geometry) is broken.**~~
+      **FIXED** — `demo/demo-utils.ts`'s re-export list was stale: `flightStage`
+      (added to `src/demo-utils.ts` later) was never added to the site shim, so
+      the demo died with `TypeError: flightStage is not a function`. Added
+      `flightStage` + `FlightStageOptions` to the re-exports.
 
-- [ ] **Deck demo should sit right after the b3d-clouds demo in the ordering**
-      rather than languishing at the bottom of the list. Order lives in the
-      `src/docs/*.md` category landing page (`<!--{ "order": n }-->` / toc).
+- [x] ~~**Deck demo should sit right after the b3d-clouds demo in the
+      ordering**~~ **DONE** — the toc is build-GENERATED (hand edits to the
+      category md are overwritten); the real mechanism is each page's
+      `"order"` metadata. The trio now runs clouds (501) → deck (502) →
+      fog (503).
 
 - [ ] **`select3d` should open a POPUP above ~6 options, and stay a cycler
       below.** The last open item of ensemble's #37: `‹ value ›` is right for three

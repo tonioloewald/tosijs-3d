@@ -291,10 +291,11 @@ export class B3dStarSystem extends B3dChild {
     const attrs = this as any
     const scene = this.owner.scene
 
-    // Generate galaxy and find the star
-    const galaxy = generateGalaxy(attrs.galaxySeed, attrs.starCount, {
-      generatePlanets: true,
-    })
+    // Generate the galaxy (cheap — no bulk planets) and find the star. Only
+    // THE star's system is generated, right below: bulk planet generation
+    // (generatePlanets) was the 71% of generation time this element used to
+    // pay for every star it then threw away.
+    const galaxy = generateGalaxy(attrs.galaxySeed, attrs.starCount)
     const starIndex = Math.min(
       Math.max(0, attrs.starIndex),
       galaxy.stars.length - 1

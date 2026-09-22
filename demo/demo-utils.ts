@@ -56,10 +56,12 @@ export { orbitCam }
 export {
   demoSun,
   spinner,
+  flightStage,
   type DemoHost,
   type DemoSunOptions,
   type OrbitCamOptions,
   type SpinnerOptions,
+  type FlightStageOptions,
 } from '../src/demo-utils'
 import {
   orbitCam,
