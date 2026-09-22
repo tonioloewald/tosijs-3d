@@ -233,7 +233,8 @@ b3d-cloud-deck
   ambientGloom  = 0.45  — How far the ambient may be taken down
   sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
   sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
-  localRise  = 1200  — How far a local weather field can lift the cloud TOP. Large because the orographic field is attenuated at massif scale — see the attribute note
+  localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
+  localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
   orographic  = 0  — Cloud gathers over high ground, `0…1`. Needs a terrain in the scene
   orographicPeak  = 260  — Terrain height at which `orographic` is at full strength
   shadows  = 'on'  — Cloud shadows on the ground

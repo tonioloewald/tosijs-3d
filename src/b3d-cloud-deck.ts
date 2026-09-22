@@ -131,7 +131,8 @@ preview.append(
 | `ambientGloom` | `0.45` | How far the ambient may be taken down |
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
-| `localRise` | `1200` | How far a local weather field can lift the cloud TOP. Large because the orographic field is attenuated at massif scale — see the attribute note |
+| `localRise` | `1200` | How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note |
+| `localCoverage` | `1` | How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast |
 | `orographic` | `0` | Cloud gathers over high ground, `0…1`. Needs a terrain in the scene |
 | `orographicPeak` | `260` | Terrain height at which `orographic` is at full strength |
 | `shadows` | `'on'` | Cloud shadows on the ground |
@@ -319,6 +320,41 @@ uniform float invTile;
 uniform vec2 windAxis;
 // xy = drift of the main layer, zw = drift of the second one.
 uniform vec4 drift;
+uniform float localCoverage;
+
+/*
+THE LOCAL WEATHER FIELD, as a world-space texture.
+
+It is the same 65x65 grid the vertices are sampled on — the honest resolution of
+the field — uploaded so that the things WITHOUT vertices can read it too. The
+shadow is a full-screen quad and has no vertex channel to interpolate, and a
+shadow that could not see local coverage would put shade under cloud that is not
+there. One bake, three readers, which is the same rule the density field follows
+and for the same reason.
+
+xy = window centre in world XZ, z = 1 / window size.
+*/
+uniform sampler2D weatherTex;
+uniform vec4 weatherWindow;
+
+float weatherAt(vec2 p) {
+  vec2 uv = (p - weatherWindow.xy) * weatherWindow.z + 0.5;
+  return texture2D(weatherTex, clamp(uv, 0.0, 1.0)).r;
+}
+
+/*
+COVERAGE IS LOCAL. Tonio: "if coverage isn't near full the cloud shouldn't
+necessarily get too thick so much as just more coverage near high ground."
+
+That is what orographic cloud IS below an overcast: the mountains make MORE
+cloud, not a taller lump of it. And it needs no mode switch, because the boost
+cancels itself exactly where it would stop making sense — at full cover the
+threshold is already saturated, so adding to it changes nothing and the field
+goes back to driving height instead.
+*/
+float coverageAt(vec2 p) {
+  return coverage + weatherAt(p) * localCoverage;
+}
 
 vec2 toField(vec2 p) {
   return vec2(p.x * windAxis.x - p.y * windAxis.y, p.x * windAxis.y + p.y * windAxis.x);
@@ -378,11 +414,11 @@ worst a drift here can do is soften an edge differently. That is the whole
 reason the density is baked rather than re-implemented: a noise function in two
 languages is where "why is the shadow off the cloud" bugs live.
 */
-float opacityAt(float d) {
-  if (coverage <= 0.0) return 0.0;
-  if (coverage >= 1.0) return 1.0;
-  float threshold = pow(1.0 - coverage, 1.25);
-  float softness = 0.14 * (1.0 - coverage) + 0.02;
+float opacityAt(float d, float cov) {
+  if (cov <= 0.0) return 0.0;
+  if (cov >= 1.0) return 1.0;
+  float threshold = pow(1.0 - cov, 1.25);
+  float softness = 0.14 * (1.0 - cov) + 0.02;
   float t = clamp((d - threshold + softness) / (softness * 2.0), 0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
@@ -418,7 +454,7 @@ uniform float shadowStrength;
 void main(void) {
   vec2 p = shadowCenter + (vUV - 0.5) * shadowWorldSize;
   // White is lit: the receiver MULTIPLIES, so this is the light that is left.
-  float lit = 1.0 - opacityAt(density(p)) * shadowStrength;
+  float lit = 1.0 - opacityAt(density(p), coverageAt(p)) * shadowStrength;
   gl_FragColor = vec4(lit, lit, lit, 1.0);
 }
 `
@@ -524,7 +560,7 @@ void main(void) {
   float separation = globalRise + vChannel.r * localDelta;
   if (vChannel.g > 0.5 && separation < 4.0) discard;
 
-  float a = opacityAt(d) * vChannel.a * rim;
+  float a = opacityAt(d, coverageAt(p)) * vChannel.a * rim;
   if (a <= 0.004) discard;
 
   /*
@@ -647,6 +683,17 @@ void main(void) {
 }
 `
 
+/**
+ * What `_bindWeather` needs of a shader — satisfied by both a `ShaderMaterial`
+ * and a `ProceduralTexture`, which is the point: they are two consumers of one
+ * field and neither should need a different call.
+ */
+type WeatherTarget = {
+  setTexture(name: string, texture: BABYLON.BaseTexture): unknown
+  setVector4(name: string, value: BABYLON.Vector4): unknown
+  setFloat(name: string, value: number): unknown
+}
+
 export class B3dCloudDeck extends B3dChild {
   static initAttributes = {
     altitude: 140,
@@ -710,6 +757,15 @@ export class B3dCloudDeck extends B3dChild {
      * province returning 1 gets the full height.
      */
     localRise: 1200,
+    /**
+     * How much a unit of local weather adds to `coverage`.
+     *
+     * This is what the field does BELOW an overcast: high ground makes more
+     * cloud, not a taller lump of it. It needs no upper switch because it
+     * cancels itself — at full cover the threshold is already saturated, so the
+     * boost changes nothing and the field goes back to driving height.
+     */
+    localCoverage: 1,
     /**
      * Orographic cloud, `0…1`: how strongly cloud gathers over high ground.
      *
@@ -829,6 +885,7 @@ export class B3dCloudDeck extends B3dChild {
   declare evolve: number
   declare follow: string
   declare localRise: number
+  declare localCoverage: number
   declare orographic: number
   declare orographicPeak: number
   declare shadows: string
@@ -871,6 +928,8 @@ export class B3dCloudDeck extends B3dChild {
   private _elapsed = 0
   private _weatherKey = ''
   private _weatherMax = 0
+  private _weatherTex: BABYLON.RawTexture | null = null
+  private _weatherTexSize = 0
   /*
   TOTAL FLOATING-ORIGIN SHIFT, accumulated.
 
@@ -988,6 +1047,8 @@ export class B3dCloudDeck extends B3dChild {
           'globalRise',
           'localDelta',
           'localScale',
+          'localCoverage',
+          'weatherWindow',
           'topColor',
           'underColor',
           'sunDir',
@@ -1001,7 +1062,7 @@ export class B3dCloudDeck extends B3dChild {
           'fogInfos',
           'camPos',
         ],
-        samplers: ['cloudField'],
+        samplers: ['cloudField', 'weatherTex'],
         needAlphaBlending: true,
       }
     )
@@ -1148,6 +1209,7 @@ export class B3dCloudDeck extends B3dChild {
     mat.setVector2('localScale', new BABYLON.Vector2(scale.base, scale.top))
     mat.setFloat('globalRise', rise)
     mat.setFloat('localDelta', scale.top - scale.base)
+    this._bindWeather(mat)
 
     if (top != null) {
       /*
@@ -1294,6 +1356,21 @@ export class B3dCloudDeck extends B3dChild {
   /**
    * LOCAL weather: `(x, z) → 0…1`, in logical world coordinates.
    *
+   * WHAT IT DOES depends on how full the sky already is, and that is the whole
+   * design rather than a special case:
+   *
+   * - **Below full cover** it adds to `coverage` (`localCoverage`). High ground
+   *   makes MORE cloud, not a taller lump of it — which is what orographic
+   *   cloud looks like under a broken sky, and it keeps the single sheet flat
+   *   so it is never caught edge-on.
+   * - **Above full cover** it adds HEIGHT (`localRise`), on the same none-at-1
+   *   to maximum-at-2 ramp the global thickening rides. There is no more sky to
+   *   cover, so the same field starts building upward instead.
+   *
+   * The handover needs no switch: the coverage boost cancels itself exactly
+   * where it stops meaning anything, because a saturated threshold cannot be
+   * saturated further.
+   *
    * Set it to a province falloff for an authored thunderhead, or leave it null
    * and set `orographic` to have the deck build one from the terrain. Sampled
    * per vertex, so its resolution is the grid's: at the default 14 km over 64
@@ -1422,7 +1499,62 @@ export class B3dCloudDeck extends B3dChild {
     }
     mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors)
     top.updateVerticesData(BABYLON.VertexBuffer.ColorKind, topColors)
+
+    /*
+    AND AS A TEXTURE, because the things without vertices need it too. The
+    shadow is a full-screen quad with nothing to interpolate, and a shadow blind
+    to local coverage would lay shade under cloud that is not there. Same grid,
+    same numbers, no second sampling of the field — the texture IS the vertex
+    data, uploaded.
+    */
+    const bytes = new Uint8Array(src.length)
+    for (let k = 0; k < src.length; k++) bytes[k] = Math.round(src[k] * 255)
+    if (this._weatherTex == null || this._weatherTexSize !== n) {
+      this._weatherTex?.dispose()
+      this._weatherTexSize = n
+      const scene = this.owner?.scene
+      if (scene == null) return
+      const tex = new BABYLON.RawTexture(
+        bytes,
+        n,
+        n,
+        BABYLON.Constants.TEXTUREFORMAT_R,
+        scene,
+        false,
+        false,
+        BABYLON.Texture.BILINEAR_SAMPLINGMODE
+      )
+      tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE
+      tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE
+      this._weatherTex = tex
+    } else {
+      this._weatherTex.update(bytes)
+    }
     this._weatherMax = field == null ? 0 : 1
+  }
+
+  /**
+   * Hand the local weather to a shader — the deck's material or the shadow's.
+   *
+   * ONE CALL FOR BOTH, because they must agree about where the cloud is. The
+   * window is the deck's own grid: centred where the (snapped) mesh sits and
+   * exactly `size` across, which is the extent the samples were taken over.
+   */
+  private _bindWeather(mat: WeatherTarget): void {
+    const tex = this._weatherTex
+    const mesh = this.mesh
+    if (tex == null || mesh == null) return
+    mat.setTexture('weatherTex', tex)
+    mat.setVector4(
+      'weatherWindow',
+      new BABYLON.Vector4(
+        mesh.position.x,
+        mesh.position.z,
+        1 / Math.max(1, this.size),
+        0
+      )
+    )
+    mat.setFloat('localCoverage', Math.max(0, this.localCoverage))
   }
 
   /** The bake inputs, as one comparable value. */
@@ -1525,9 +1657,18 @@ export class B3dCloudDeck extends B3dChild {
    * the thickening dial so the shape hands off with nothing jumping.
    */
   localScales(): { base: number; top: number } {
-    const full = Math.max(0, this.localRise)
-    const handoff = Math.min(1, Math.max(0, (this.coverage - 1) / 0.2))
-    return { base: full * (1 - handoff), top: full }
+    /*
+    THE BASE NEVER BULGES. Below full cover the field is spending itself on
+    COVERAGE instead — more cloud over the high ground rather than a taller lump
+    of it — so the one sheet there stays flat, which is also what keeps it from
+    ever being caught edge-on.
+
+    Above full cover the top's lift rides the SAME ramp as the global
+    thickening: none at 1, maximum at 2. One curve for every kind of thickness
+    means they cannot arrive at different times, and the tower grows out of the
+    deck instead of appearing on it.
+    */
+    return { base: 0, top: Math.max(0, this.localRise) * this.thickening }
   }
 
   /**
@@ -1876,6 +2017,7 @@ export class B3dCloudDeck extends B3dChild {
     map.worldSize = range
     if (cam != null) map.setCenter(cam.x, cam.z)
 
+    this._bindWeather(tex)
     tex.setVector2(
       'shadowCenter',
       new BABYLON.Vector2(map.centerX, map.centerZ)
@@ -2036,6 +2178,8 @@ export class B3dCloudDeck extends B3dChild {
     this._shadowMap = null
     this._shadowTex?.dispose()
     this._shadowTex = null
+    this._weatherTex?.dispose()
+    this._weatherTex = null
     this.fieldTexture?.dispose()
     this.fieldTexture = undefined
     this.mesh?.dispose()

@@ -896,7 +896,12 @@
       {
         "name": "localRise",
         "default": "1200",
-        "description": "How far a local weather field can lift the cloud TOP. Large because the orographic field is attenuated at massif scale — see the attribute note"
+        "description": "How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note"
+      },
+      {
+        "name": "localCoverage",
+        "default": "1",
+        "description": "How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast"
       },
       {
         "name": "orographic",
