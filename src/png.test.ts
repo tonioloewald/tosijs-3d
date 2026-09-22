@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { inflateSync } from 'node:zlib'
 import { adler32, crc32, pngEncode } from './png.js'
 
 describe('crc32', () => {
@@ -24,28 +25,15 @@ describe('adler32', () => {
 })
 
 describe('pngEncode', () => {
-  async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
-    const ds = new DecompressionStream('deflate')
-    const writer = ds.writable.getWriter()
-    void writer.write(bytes)
-    void writer.close()
-    const reader = ds.readable.getReader()
-    const parts: Uint8Array[] = []
-    let total = 0
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      parts.push(value as Uint8Array)
-      total += (value as Uint8Array).length
-    }
-    const out = new Uint8Array(total)
-    let at = 0
-    for (const p of parts) {
-      out.set(p, at)
-      at += p.length
-    }
-    return out
-  }
+  // node:zlib, not DecompressionStream — the platform decompressor is as
+  // finicky about streams it did not make as the strict decoder this whole
+  // exercise exists to survive. See the fflate note in png.ts.
+  const inflate = (bytes: Uint8Array) =>
+    new Uint8Array(
+      inflateSync(bytes).buffer,
+      inflateSync(bytes).byteOffset,
+      inflateSync(bytes).byteLength
+    )
 
   test('round-trips RGBA bytes exactly, alpha 0 included', async () => {
     // Deliberately hostile: fully transparent texels carrying data, plus
@@ -59,7 +47,7 @@ describe('pngEncode', () => {
     rgba[3] = 0
     rgba[7] = 1
 
-    const png = await pngEncode(rgba, width, height)
+    const png = pngEncode(rgba, width, height)
 
     // Signature + IHDR fields.
     expect([...png.subarray(0, 8)]).toEqual([
@@ -95,7 +83,7 @@ describe('pngEncode', () => {
     // scanlines.
     const zlib = idat as Uint8Array
     expect(zlib[0]).toBe(0x78)
-    const inflated = await inflate(zlib.subarray(2, zlib.length - 4))
+    const inflated = inflate(zlib)
     const stride = width * 4
     expect(inflated.length).toBe((stride + 1) * height)
     for (let y = 0; y < height; y++) {
@@ -112,6 +100,6 @@ describe('pngEncode', () => {
   })
 
   test('rejects a size mismatch', async () => {
-    await expect(pngEncode(new Uint8Array(16), 3, 3)).rejects.toThrow()
+    expect(() => pngEncode(new Uint8Array(16), 3, 3)).toThrow()
   })
 })

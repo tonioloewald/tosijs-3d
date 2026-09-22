@@ -1,7 +1,7 @@
 {
   "name": "tosijs-3d",
   "version": "0.8.1",
-  "description": "Declarative 3D/XR components for the web \u2014 Babylon.js and tosijs, composable as custom elements.",
+  "description": "Declarative 3D/XR components for the web — Babylon.js and tosijs, composable as custom elements.",
   "license": "Apache-2.0",
   "homepage": "https://3d.tosijs.net",
   "bugs": {
@@ -90,5 +90,8 @@
   },
   "overrides": {
     "brace-expansion": "^5.0.9"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
   }
 }

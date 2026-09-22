@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "tosijs-3d",
+      "dependencies": {
+        "fflate": "^0.8.3",
+      },
       "devDependencies": {
         "@babylonjs/core": "^9.16.2",
         "@babylonjs/gui": "^9.16.2",
@@ -31,7 +34,7 @@
         "@babylonjs/loaders": "^9.0.0",
         "@babylonjs/materials": "^9.0.0",
         "jolt-physics": "^1.1.0",
-        "tosijs": "^1.7.8",
+        "tosijs": "^1.9.2",
       },
       "optionalPeers": [
         "jolt-physics",
@@ -207,6 +210,8 @@
     "fast-levenshtein": ["fast-levenshtein@2.0.6", "", {}, ""],
 
     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" } }, ""],
+
+    "fflate": ["fflate@0.8.3", "", {}, "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA=="],
 
     "file-entry-cache": ["file-entry-cache@8.0.0", "", { "dependencies": { "flat-cache": "^4.0.0" } }, ""],
 

@@ -10,10 +10,20 @@ Measured against a real 100k-star galaxy: the canvas path alone corrupted or
 deleted 67% of one face's occupied texels before any compression question
 arose. (See `skybox-baker` for the experiment and the shipped consequence.)
 
-So the bytes are written directly — signature, IHDR, IDAT (zlib/deflate via
-`CompressionStream`), IEND — with no canvas anywhere in the chain. A texel
-with alpha 0 and nonzero RGB is just bytes here, and it survives exactly.
+So the bytes are written directly — signature, IHDR, IDAT, IEND — with no
+canvas anywhere in the chain. A texel with alpha 0 and nonzero RGB is just
+bytes here, and it survives exactly.
+
+⚠️ The deflate is `fflate`'s, NOT `CompressionStream`'s — and that choice is
+empirical, not aesthetic. Chrome's own strict PNG decoder (`createImageBitmap`,
+the path Babylon's image loader uses) REJECTS PNGs whose IDAT came from
+Chrome's own `CompressionStream('deflate')`, while the same bytes deflated by
+a real zlib (bun's, fflate's) decode everywhere. A valid deflate stream that
+the platform itself will not read back is the one failure mode no spec check
+would have predicted; the bisect that found it is recorded in the commit.
 */
+
+import { zlibSync } from 'fflate'
 
 const CRC_TABLE = new Uint32Array(256)
 for (let n = 0; n < 256; n++) {
@@ -51,31 +61,6 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
   return out
 }
 
-async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
-  const cs = new CompressionStream('deflate')
-  const writer = cs.writable.getWriter()
-  // The stream API wants a view over a plain ArrayBuffer; every buffer here is
-  // freshly allocated by this module, so the narrowing cast is honest.
-  void writer.write(bytes as Uint8Array<ArrayBuffer>)
-  void writer.close()
-  const reader = cs.readable.getReader()
-  const parts: Uint8Array[] = []
-  let total = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    parts.push(value as Uint8Array)
-    total += (value as Uint8Array).length
-  }
-  const out = new Uint8Array(total)
-  let at = 0
-  for (const p of parts) {
-    out.set(p, at)
-    at += p.length
-  }
-  return out
-}
-
 const SIGNATURE = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ])
@@ -86,11 +71,11 @@ const SIGNATURE = new Uint8Array([
  * Filter type 0 throughout (raw rows), which is optimal for the packed fields
  * this exists for and fine elsewhere. Returns the complete PNG file bytes.
  */
-export async function pngEncode(
+export function pngEncode(
   rgba: Uint8Array,
   width: number,
   height: number
-): Promise<Uint8Array> {
+): Uint8Array {
   if (rgba.length !== width * height * 4) {
     throw new Error(
       `pngEncode: expected ${width * height * 4} bytes, got ${rgba.length}`
@@ -114,14 +99,9 @@ export async function pngEncode(
     raw.set(rgba.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1)
   }
 
-  const deflated = await deflate(raw)
-  // The zlib wrapper: 0x78 0x9c (deflate, 32k window) + stream + Adler-32 of
-  // the UNCOMPRESSED input.
-  const zlib = new Uint8Array(deflated.length + 6)
-  zlib[0] = 0x78
-  zlib[1] = 0x9c
-  zlib.set(deflated, 2)
-  new DataView(zlib.buffer).setUint32(deflated.length + 2, adler32(raw))
+  // fflate's zlibSync emits the complete zlib stream (header + deflate +
+  // Adler-32), so the wrapper is its problem and not ours.
+  const zlib = zlibSync(raw)
 
   const idat = chunk('IDAT', zlib)
   const iend = chunk('IEND', new Uint8Array(0))

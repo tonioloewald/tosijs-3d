@@ -371,7 +371,7 @@ export async function facesToPngs(
 ): Promise<BakedFace[]> {
   const out: BakedFace[] = []
   for (let i = 0; i < faces.length; i++) {
-    const bytes = await pngEncode(faces[i], size, size)
+    const bytes = pngEncode(faces[i], size, size)
     // btoa over 1 MB in one slice is fine; the chunking is for safety, not size.
     let binary = ''
     const CHUNK = 0x8000

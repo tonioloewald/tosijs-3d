@@ -995,6 +995,7 @@ export class B3dSkybox extends AbstractMesh {
         '_nz.png',
       ])
       data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
+      data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
       /*
       NEAREST, and this is not a quality setting — it is correctness. The texels
       are packed fields, so interpolating two of them produces a third star that
@@ -1002,6 +1003,15 @@ export class B3dSkybox extends AbstractMesh {
       off for the same reason.
       */
       data.updateSamplingMode(BABYLON.Texture.NEAREST_SAMPLINGMODE)
+      /*
+      The alpha bytes are DATA (a palette index), not opacity — which is why
+      these files must never pass through a premultiplying layer. They do not
+      here: Babylon 9's upload path never sets UNPACK_PREMULTIPLY_ALPHA_WEBGL,
+      so the straight-alpha bytes arrive intact. The two lossy layers this
+      encoding has actually met — canvas production, and Chrome's strict PNG
+      decoder rejecting `CompressionStream` deflate — both live and died in
+      `png.ts`.
+      */
       mat0.setTexture('b3dStarData', data)
       this._starData = data
       const n = Math.max(8, Number(attrs.starfieldDataSize) || 512)
