@@ -14,7 +14,7 @@ however pretty.
 ## Demo
 
 ```js
-import { b3d, b3dGalaxy, bakeSkyboxCube, defaultBakePose, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, defaultBakePose, button3d, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
@@ -79,6 +79,28 @@ preview.append(
             a.click()
           }
           bake.status = `saved ${faces.length} faces`
+        } }),
+        // THE PAIR: a 256 smooth cube for the nebulae plus a 1024 DATA cube
+        // the sky shader decodes into points. The right output once the star
+        // slider is at 100k — a plain raster at that density is a picture of
+        // itself, and it would need 4096 to stop smearing.
+        button3d({ label: 'bake pair (256 + 1024 data)', handleClick: async () => {
+          bake.status = 'baking pair…'
+          const res = await bakeSkyPair(sceneEl.scene, galaxy, {
+            ...defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf()),
+            roll: bake.roll.valueOf(),
+            smoothSize: 256,
+            dataSize: 1024,
+          })
+          for (const [prefix, set] of [['nebula', res.smooth], ['stars', res.data]]) {
+            for (const f of set) {
+              const a = document.createElement('a')
+              a.href = f.url
+              a.download = `${prefix}_${f.name}.png`
+              a.click()
+            }
+          }
+          bake.status = `pair baked: ${res.placed} placed, ${res.lost} lost`
         } }),
       ],
       sceneCreated(el) { sceneEl = el },
@@ -155,6 +177,7 @@ import {
   encodeStarfield,
   type SkyObject,
 } from './starfield-codec.js'
+import { pngEncode } from './png.js'
 
 /** One baked cube face: a PNG data URL plus the suffix Babylon expects. */
 export interface BakedFace {
@@ -179,7 +202,7 @@ export interface SkyboxBakeOptions {
    * ⚠️ **The shipped sky is no longer one of these.** `/sky/default` is a 2048
    * raster and is kept for reference, but what the demos load is the PAIR that
    * {@link bakeSkyPair} produces: a 256 smooth cube for the nebulae and a
-   * 1024 DATA cube for the points. 344 KB and 25 MiB, against 2.3 MB and 96 —
+   * 1024 DATA cube for the points. 406 KB and 25 MiB, against 2.3 MB and 96 —
    * and the stars stay points at any zoom instead of being a smear baked at
    * one resolution.
    *
@@ -259,11 +282,17 @@ export function defaultBakePose(
 /**
  * Pull the point-like sky out of a `<tosi-b3d-galaxy>` as encodable objects.
  *
- * Stars AND the small members of the nebula system, because the latter are the
- * DISTANT GALAXIES and they are points too — measured: baking the nebula system
- * alone at 256 versus 1024 preserves energy and bright-area almost exactly and
- * loses only PEAK, and peak is what a point is. The big members stay behind for
- * the smooth cube, which is all they ever needed.
+ * Stars AND the distant galaxies, because the latter are points too — measured:
+ * baking the nebula system alone at 256 versus 1024 preserves energy and
+ * bright-area almost exactly and loses only PEAK, and peak is what a point is.
+ * The nebulae stay behind for the smooth cube, which is all they ever needed.
+ *
+ * The distant galaxies come through the galaxy's own accessor rather than a
+ * size cut over the nebula system — at scale 3–9 they overlap the local
+ * nebulae (2.25–7.5), so "small" would sweep in most of the nebulae along with
+ * them. At the default 10k galaxy that was 1,400 extra discs in the cube; at
+ * 100k it is fourteen thousand, crowding the cube and displacing real stars.
+ * The data model knows which is which — ask it.
  *
  * Brightness comes from particle SCALE rather than from colour, because that is
  * what the galaxy varies: `b3d-galaxy` sizes a star by its apparent magnitude
@@ -272,7 +301,7 @@ export function defaultBakePose(
 export function starsFromGalaxy(
   galaxy: {
     starSps?: { particles: BABYLON.SolidParticle[] } | null
-    nebulaSps?: { particles: BABYLON.SolidParticle[] } | null
+    getDistantGalaxyParticles?: () => BABYLON.SolidParticle[] | null
   },
   eye: { x: number; y: number; z: number },
   options: { galaxyMaxScale?: number } = {}
@@ -296,14 +325,13 @@ export function starsFromGalaxy(
   }
 
   /*
-  The nebula system holds two populations and they are told apart by SIZE: the
-  nebulae proper are big soft veils, the distant galaxies are small discs. Only
-  the second belongs here.
+  The galaxies are the faintest things in the sky, and small discs rather than
+  points — which is the whole reason the `size` field exists.
   */
-  const cut = options.galaxyMaxScale ?? 8
-  for (const p of galaxy.nebulaSps?.particles ?? []) {
+  const cut = options.galaxyMaxScale ?? 9
+  for (const p of galaxy.getDistantGalaxyParticles?.() ?? []) {
     const s = p.scaling?.x ?? 0
-    if (s <= 0 || s > cut) continue
+    if (s <= 0) continue
     out.push({
       x: p.position.x - eye.x,
       y: p.position.y - eye.y,
@@ -322,23 +350,38 @@ export function starsFromGalaxy(
 /**
  * Encoded faces → PNG data URLs, ready to save beside a skybox.
  *
- * ⚠️ **PNG, and it must stay PNG.** These are packed fields, not pictures: a
- * lossy codec would quantise a sub-texel position into a different position and
- * a brightness into a different star. JPEG here would not look slightly worse,
- * it would move the sky.
+ * ⚠️ **PNG, and it must stay PNG — but that is only half the rule.** These are
+ * packed fields, not pictures, and a lossy codec would quantise a sub-texel
+ * position into a different position and a brightness into a different star.
+ * JPEG here would not look slightly worse, it would move the sky.
+ *
+ * The other half is that the PNG must not pass through a CANVAS. The canvas 2D
+ * backing store is premultiplied, and a star's alpha byte is a palette index
+ * (0..9) rather than an opacity — so `putImageData` rounds the RGB of every
+ * low-alpha texel toward zero, `toDataURL` faithfully saves the destruction,
+ * and the shader decodes a sky with its faint stars silently deleted.
+ * Measured against the real 100k-star galaxy before this was written: 67% of
+ * one face's occupied texels corrupted or gone, positions snapped to 0/255,
+ * before any compression question arose. `pngEncode` writes the bytes
+ * directly; a texel with alpha 0 and nonzero RGB survives exactly.
  */
-export function facesToPngs(faces: Uint8Array[], size: number): BakedFace[] {
+export async function facesToPngs(
+  faces: Uint8Array[],
+  size: number
+): Promise<BakedFace[]> {
   const out: BakedFace[] = []
   for (let i = 0; i < faces.length; i++) {
-    const canvas = document.createElement('canvas')
-    canvas.width = size
-    canvas.height = size
-    const ctx = canvas.getContext('2d')
-    if (ctx == null) continue
-    const img = ctx.createImageData(size, size)
-    img.data.set(faces[i])
-    ctx.putImageData(img, 0, 0)
-    out.push({ name: FACE_NAMES[i], url: canvas.toDataURL('image/png') })
+    const bytes = await pngEncode(faces[i], size, size)
+    // btoa over 1 MB in one slice is fine; the chunking is for safety, not size.
+    let binary = ''
+    const CHUNK = 0x8000
+    for (let at = 0; at < bytes.length; at += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(at, at + CHUNK))
+    }
+    out.push({
+      name: FACE_NAMES[i],
+      url: `data:image/png;base64,${btoa(binary)}`,
+    })
   }
   return out
 }
@@ -359,7 +402,12 @@ export async function bakeSkyPair(
     nebulaSps?: { particles: BABYLON.SolidParticle[] } | null
   },
   options: SkyboxBakeOptions & { dataSize?: number; smoothSize?: number }
-): Promise<{ smooth: BakedFace[]; data: BakedFace[]; placed: number; lost: number }> {
+): Promise<{
+  smooth: BakedFace[]
+  data: BakedFace[]
+  placed: number
+  lost: number
+}> {
   /*
   HIDE THE STARS FOR THE SMOOTH BAKE. They are about to be stored exactly;
   rendering them into the nebula cube as well would double every one of them,
@@ -387,7 +435,7 @@ export async function bakeSkyPair(
   const enc = encodeStarfield(objects, size)
   return {
     smooth,
-    data: facesToPngs(enc.faces, size),
+    data: await facesToPngs(enc.faces, size),
     placed: enc.placed,
     lost: enc.collided,
   }

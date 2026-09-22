@@ -951,6 +951,23 @@ export class B3dGalaxy extends B3dChild {
     return this.starMesh
   }
 
+  /**
+   * The DISTANT GALAXY particles, for the skybox baker.
+   *
+   * They live inside the nebula SPS (appended last, in generation order — see
+   * the note in `galaxy-data`), so the only code that knows which particles
+   * they are without guessing by size or colour is the code next to the build.
+   * That is here: the last `distantGalaxies.length` particles, in the SPS's
+   * own (Babylon) frame — which is the frame a baker photographs in.
+   */
+  getDistantGalaxyParticles(): BABYLON.SolidParticle[] {
+    if (this.nebulaSps == null || this.galaxyData == null) return []
+    const count = this.galaxyData.distantGalaxies.length
+    if (count === 0) return []
+    const particles = this.nebulaSps.particles
+    return particles.slice(Math.max(0, particles.length - count))
+  }
+
   /** Hide a star particle (e.g. to replace it with a star system) */
   hideStarAt(index: number) {
     if (

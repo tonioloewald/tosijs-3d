@@ -54,8 +54,17 @@ describe('the cube convention', () => {
     // The axes are the corner cases: exactly on a face centre, and exactly on
     // an edge between two faces. Both must land somewhere legal.
     const axes: Array<[number, number, number]> = [
-      [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
-      [1, 1, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1], [-1, -1, -1],
+      [1, 0, 0],
+      [-1, 0, 0],
+      [0, 1, 0],
+      [0, -1, 0],
+      [0, 0, 1],
+      [0, 0, -1],
+      [1, 1, 0],
+      [0, 1, 1],
+      [1, 0, 1],
+      [1, 1, 1],
+      [-1, -1, -1],
     ]
     for (const [x, y, z] of axes) {
       const { face, u, v } = dirToFace(x, y, z)
@@ -86,9 +95,13 @@ describe('encode → decode', () => {
     */
     const size = 512
     const objs: SkyObject[] = directions(300).map(([x, y, z], i) => ({
-      x, y, z,
+      x,
+      y,
+      z,
       brightness: 0.2 + (i % 7) * 0.1,
-      r: 1, g: 0.92, b: 0.8,
+      r: 1,
+      g: 0.92,
+      b: 0.8,
     }))
     const enc = encodeStarfield(objs, size)
 
@@ -116,8 +129,11 @@ describe('encode → decode', () => {
       )
       const { face, u, v } = dirToFace(1, 0.01, 0.02)
       const [d] = decodeTexel(
-        enc.faces, size, face,
-        Math.floor(u * size), Math.floor(v * size)
+        enc.faces,
+        size,
+        face,
+        Math.floor(u * size),
+        Math.floor(v * size)
       )
       // 8 bits of a gamma curve — relative error, not absolute.
       expect(Math.abs(d.brightness - b) / b).toBeLessThan(0.08)
@@ -134,7 +150,13 @@ describe('encode → decode', () => {
       size
     )
     const { face, u, v } = dirToFace(1, 0, 0)
-    const [d] = decodeTexel(enc.faces, size, face, Math.floor(u * size), Math.floor(v * size))
+    const [d] = decodeTexel(
+      enc.faces,
+      size,
+      face,
+      Math.floor(u * size),
+      Math.floor(v * size)
+    )
     expect(d).toBeDefined()
     expect(d.brightness).toBeGreaterThan(0)
   })
@@ -142,11 +164,28 @@ describe('encode → decode', () => {
   test('size and colour come back', () => {
     const size = 32
     const enc = encodeStarfield(
-      [{ x: 0.1, y: 1, z: 0.1, brightness: 0.8, r: 1, g: 0.75, b: 0.48, size: 1 }],
+      [
+        {
+          x: 0.1,
+          y: 1,
+          z: 0.1,
+          brightness: 0.8,
+          r: 1,
+          g: 0.75,
+          b: 0.48,
+          size: 1,
+        },
+      ],
       size
     )
     const { face, u, v } = dirToFace(0.1, 1, 0.1)
-    const [d] = decodeTexel(enc.faces, size, face, Math.floor(u * size), Math.floor(v * size))
+    const [d] = decodeTexel(
+      enc.faces,
+      size,
+      face,
+      Math.floor(u * size),
+      Math.floor(v * size)
+    )
     expect(d.size).toBeCloseTo(1, 2)
     expect(d.r).toBeCloseTo(1, 2)
     expect(d.b).toBeCloseTo(0.48, 2)
@@ -170,7 +209,15 @@ describe('collisions', () => {
     it as a behaviour rather than a snapshot.
     */
     const dim = { x: 1, y: 0.03, z: 0.03, brightness: 0.05, r: 1, g: 1, b: 1 }
-    const bright = { x: 1, y: 0.031, z: 0.031, brightness: 0.9, r: 1, g: 1, b: 1 }
+    const bright = {
+      x: 1,
+      y: 0.031,
+      z: 0.031,
+      brightness: 0.9,
+      r: 1,
+      g: 1,
+      b: 1,
+    }
     const a = dirToFace(dim.x, dim.y, dim.z)
     const b2 = dirToFace(bright.x, bright.y, bright.z)
     const face = a.face
@@ -181,7 +228,10 @@ describe('collisions', () => {
     expect(Math.floor(b2.u * size)).toBe(ix)
     expect(Math.floor(b2.v * size)).toBe(iy)
 
-    for (const order of [[dim, bright], [bright, dim]]) {
+    for (const order of [
+      [dim, bright],
+      [bright, dim],
+    ]) {
       const enc = encodeStarfield(order, size)
       const got = decodeTexel(enc.faces, size, face, ix, iy)
       expect(got.length).toBe(2)
@@ -196,13 +246,22 @@ describe('collisions', () => {
     const size = 8
     // Five objects in one texel, brightest last so order cannot be doing it.
     const many = [0.1, 0.3, 0.5, 0.7, 0.9].map((brightness, i) => ({
-      x: 1, y: 0.03 + i * 0.0002, z: 0.03, brightness, r: 1, g: 1, b: 1,
+      x: 1,
+      y: 0.03 + i * 0.0002,
+      z: 0.03,
+      brightness,
+      r: 1,
+      g: 1,
+      b: 1,
     }))
     const a = dirToFace(many[0].x, many[0].y, many[0].z)
     const enc = encodeStarfield(many, size)
     const got = decodeTexel(
-      enc.faces, size, a.face,
-      Math.floor(a.u * size), Math.floor(a.v * size)
+      enc.faces,
+      size,
+      a.face,
+      Math.floor(a.u * size),
+      Math.floor(a.v * size)
     )
     expect(got.length).toBe(PACKED_CAPACITY)
     expect(enc.collided).toBe(many.length - PACKED_CAPACITY)
@@ -225,13 +284,17 @@ describe('collisions', () => {
     const a = dirToFace(pair[0].x, pair[0].y, pair[0].z)
     const enc = encodeStarfield(pair, size)
     const got = decodeTexel(
-      enc.faces, size, a.face,
-      Math.floor(a.u * size), Math.floor(a.v * size)
+      enc.faces,
+      size,
+      a.face,
+      Math.floor(a.u * size),
+      Math.floor(a.v * size)
     )
     expect(got.length).toBe(2)
     for (const d of got) {
       const L = Math.hypot(pair[0].x, pair[0].y, pair[0].z)
-      const dot = d.x * (pair[0].x / L) + d.y * (pair[0].y / L) + d.z * (pair[0].z / L)
+      const dot =
+        d.x * (pair[0].x / L) + d.y * (pair[0].y / L) + d.z * (pair[0].z / L)
       expect(Math.acos(Math.min(1, dot)) * 57.2958).toBeLessThan(0.2)
     }
   })
@@ -246,7 +309,13 @@ describe('collisions', () => {
     // exact number — this is the claim the whole design rests on.
     const size = 512
     const objs: SkyObject[] = directions(10000).map(([x, y, z], i) => ({
-      x, y, z, brightness: 0.1 + (i % 9) * 0.1, r: 1, g: 1, b: 1,
+      x,
+      y,
+      z,
+      brightness: 0.1 + (i % 9) * 0.1,
+      r: 1,
+      g: 1,
+      b: 1,
     }))
     const enc = encodeStarfield(objs, size)
     expect(enc.placed).toBeGreaterThan(9900)

@@ -1,5 +1,21 @@
 # TODO
 
+- [ ] **Cloud-deck: shadows stop working after a while, no console error.**
+      Tonio's report while testing the encoded sky: play with the cloud-deck
+      demo for a bit and the shadows die silently. Suspect dynamic culling
+      kicking in after a framerate drop — verify before believing it (check the
+      sun's shadow generator state and the caster list at failure time; see
+      also the perf-tier auto-scaling in `b3d-quality`).
+
+- [ ] **The old `b3d-clouds` demo (cartoon geometry) is broken.** Tonio:
+      "outright broken now", assumed unintentional — presumably a casualty of
+      the encoded-sky demo migration or a stale asset path. Diff its demo
+      wiring against the known-good cloud-deck/terrain demos.
+
+- [ ] **Deck demo should sit right after the b3d-clouds demo in the ordering**
+      rather than languishing at the bottom of the list. Order lives in the
+      `src/docs/*.md` category landing page (`<!--{ "order": n }-->` / toc).
+
 - [ ] **`select3d` should open a POPUP above ~6 options, and stay a cycler
       below.** The last open item of ensemble's #37: `‹ value ›` is right for three
       options and unusable for twenty-four (choosing a mesh from a library is
@@ -777,7 +793,38 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
-[ ] **A STARFIELD IS DATA, NOT A PICTURE — encode it as one (Tonio's idea).**
+[x] **A STARFIELD IS DATA, NOT A PICTURE — encode it as one (Tonio's idea).**
+**SHIPPED** (0.9 dev cycle, 2026-09-22 — commits 03d87e4e…). The plan below
+landed with three deltas measurement forced, all recorded here because each
+corrected an assumption:
+
+- **Crowded texels PACK three stars** (`B=255` sentinel, `uu vv bbb c` per
+  object in R/G/A) instead of dropping two — at 1024 the loss went from the
+  predicted 6.9% to ~0.1%, and the packed layout only ever applies in the
+  dense core where stars merge into blur anyway. **Brightest first, always** —
+  whatever a full texel drops is its faintest member.
+- **The shader is forked, not a second mesh** — the "one mesh" item below
+  shipped as part of this: `b3dSky` is Babylon's own sky shader read out of
+  `ShaderStore` at runtime with a three-line injection (see that item).
+- **The shipped pair is baked at 100k stars** (Tonio's follow-up ask): 93,867
+  of 100,500 objects placed (6.6% lost, concentrated in the band where stars
+  overlap), 406 KB on disk / 25 MiB VRAM vs the 2.3 MB / 96 MiB raster.
+- **The PNG path was lossy and nobody could see it.** `facesToPngs` went
+  through a canvas, and the canvas backing store is premultiplied — a star's
+  alpha is a PALETTE INDEX (0..9), so ~19% of texels had their RGB destroyed
+  and many more scrambled (positions snapped to 0/255) before any compression
+  question arose. It shipped that way once and looked fine, because a starfield
+  with 20% of its stars silently moved is still a starfield. `png.ts` now
+  writes the bytes directly (zlib via `CompressionStream`, filter 0) and the
+  test round-trips through real inflate; the bake is verified byte-identical
+  through WebGL readback.
+- **The distant galaxies left the size cut.** They overlap local nebulae in
+  scale (3–9 vs 2.25–7.5), so "small nebula → data cube" swept in 1,400 extra
+  discs at 10k and 14,000 at 100k. `generateGalaxy` now returns them as their
+  own population and `b3d-galaxy` exposes `getDistantGalaxyParticles()`.
+
+The baker demo gained a **"bake pair (256 + 1024 data)"** button beside the
+plain raster bake — both outputs from one tool, per Tonio.
 _"Given a starfield background is a very specific kind of image I imagine we
 could encode something very efficient in say a 512 or 1024 map by treating the
 values as data."_
@@ -796,11 +843,11 @@ low-frequency; 256 is plenty and costs 1.5 MiB of VRAM against the current 96.
 **The stars become a SPATIAL HASH in a small cube**, which is the "values as
 data" part. One RGBA8 texel per star:
 
-| channel | carries |
-| --- | --- |
-| R, G | sub-texel position (1/256 of a texel — at 512/face that is ~0.0007°) |
-| B | brightness, log-encoded so magnitudes survive the 8 bits |
-| A | colour/temperature index |
+| channel | carries                                                              |
+| ------- | -------------------------------------------------------------------- |
+| R, G    | sub-texel position (1/256 of a texel — at 512/face that is ~0.0007°) |
+| B       | brightness, log-encoded so magnitudes survive the 8 bits             |
+| A       | colour/temperature index                                             |
 
 The shader reads a 3x3 neighbourhood around the view direction, reconstructs
 each star as a point at its sub-texel position and accumulates. Stars are then
@@ -814,10 +861,10 @@ galaxy is the opposite of evenly spread**. Measured against the real generator
 (11,914 objects), against the uniform prediction:
 
 | cube | predicted lost | ACTUAL lost |
-| --- | --- | --- |
-| 512 | ~0.3% | **21.1%** |
-| 1024 | ~0.1% | 6.9% |
-| 2048 | — | 2.0% |
+| ---- | -------------- | ----------- |
+| 512  | ~0.3%          | **21.1%**   |
+| 1024 | ~0.1%          | 6.9%        |
+| 2048 | —              | 2.0%        |
 
 So the smallest usable star cube is 1024, not 512 — 24 MiB rather than 6. Still
 a quarter of the 96 MiB the raster wants, and still resolution-independent.
@@ -837,11 +884,11 @@ nothing next to what it replaces.
 **The split is POINT-LIKE vs SMOOTH, not stars vs nebulae — measured.** Baked
 the nebula system alone (stars hidden) at 256 and 1024 and compared:
 
-| | 256 | 1024 |
-| --- | --- | --- |
-| mean luminance | 3.838 | 3.839 |
-| bright texels | 0.615% | 0.624% |
-| peak luminance | 196 | 238 |
+|                | 256    | 1024   |
+| -------------- | ------ | ------ |
+| mean luminance | 3.838  | 3.839  |
+| bright texels  | 0.615% | 0.624% |
+| peak luminance | 196    | 238    |
 
 Energy and bright-area survive 256 almost exactly; what 256 loses is PEAK, and
 it loses it on the point-like things. The nebulae proper — 1500 soft blobs along
@@ -862,7 +909,6 @@ about that, so it should be, but it wants measuring rather than assuming.
 **It also kills the 4096 question.** 4096 exists because points need
 resolution; encode the points as points and 512 beats 4096 outright, at a
 fortieth of the VRAM.
-
 
 [ ] **CLOUD PROVINCES — localized weather, and Tonio named the mechanism
 himself.** _"And if we can somehow generate localized turbulence that would be
@@ -947,7 +993,20 @@ in `facePoint` where the viewpoint is known. It only bites on the near end, so
 the far field keeps the density it was tuned to; `particleSize` is back to 0.7
 with the galaxies doing the filling.
 
-[ ] ⚠️ **THE BAKED SKY NEEDS ONE MESH, WHICH MEANS FORKING THE SKY SHADER.**
+[x] ⚠️ **THE BAKED SKY NEEDS ONE MESH, WHICH MEANS FORKING THE SKY SHADER.**
+**DONE** (shipped with the codec, 2026-09-22) — and the fork took a better
+road than the plan below: rather than pasting a copy, `registerForkedSky()`
+reads Babylon's own source out of `ShaderStore.ShadersStore.skyPixelShader` and
+injects a three-line diff (the uniforms + the added samples anchored on the
+final `gl_FragColor=color;`). What we maintain is a diff, not a Preetham
+implementation. If the anchor ever disappears the fork declines to register and
+the sky falls back to stock `SkyMaterial` — losing the starfield is a much
+better failure than a black sky.
+
+The re-binding was the work, as predicted, and both cubes are now two textures
+on the ONE material (`b3dStars` raster + `b3dStarData` decoded). The whiteout
+fix came free as planned: the medium veil mixes AFTER the stars in the same
+shader, so one thing fades both.
 Tonio: _"the skybox with two cubes NEVER worked. It's z-chasing at the
 corners"_, and _"Can't you just assign the starfield assets as backdrop textures
 for the shader?"_ Both right; here is what is now PROVEN, so nobody re-treads it:
@@ -981,10 +1040,8 @@ fog and clip-plane includes.
 **It also fixes a second bug for free**, which is the argument for doing it
 properly rather than patching: Tonio noticed _"the cloud whiteout is not whiting
 out the skybox"_ — `b3d-clouds` fades the DOME by immersion and knows nothing
-about a second starfield mesh. One mesh, one thing to fade.
-
-Until then `b3d-skybox`'s `starfieldCube` is left in place but the rocket demo
-uses the procedural point starfield, which has no such problem.
+about a second starfield mesh. One mesh, one thing to fade. (Shipped, per the
+note above — the veil now sits in the same shader after the stars.)
 
 [x] ~~**Baked stars render ELONGATED, including mid-face.**~~ **FIXED** — and
 the cause was embarrassingly simple once Tonio named it: _"I think you're
@@ -6120,7 +6177,7 @@ three weapons, so this is a `flight` attribute on `b3d-launcher`.
 
 - [ ] **`bolt` — the LOOK only.** The physics already works: `ballisticStep` with
       `gravity: 0, drag: 0` is constant velocity, so `b3dLauncher({gravity:0, drag:0,
-  muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
+muzzleSpeed:120})` fires blaster bolts today. What is missing is that a bolt should
       draw as a stretched emissive segment rather than a sphere. Smallest of the three;
       do it first.
 - [ ] **`hitscan`.** The genuine new code path: one ray at fire time, resolved in that
@@ -6208,7 +6265,7 @@ carried a position and no orientation.
       which is the same number and therefore no effect at all. - This skeleton has `useTextureToStoreBoneMatrices: true`, so the matrices the shader
       reads are baked in `skeleton.prepare()`. That is the likely reason node writes are
       ignored, and the thing to investigate first. - The untried candidate is Babylon's own bone-posing API — `bone.setRotationQuaternion(q,
-      Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
+  Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
       anything clever. - Axis calibration DID work (it picks the local axis whose world direction best matches
       the body's forward, and chose +Z here), so that part is worth keeping. But calibrate
       from a REST pose: it ran mid-crouch and scored an axis that was 116° from the aim.

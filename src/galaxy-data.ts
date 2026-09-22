@@ -880,6 +880,14 @@ export interface NebulaData {
 export interface GalaxyData {
   stars: StarData[]
   nebulae: NebulaData[]
+  /**
+   * The external galaxies, ALSO present in `nebulae` — they are appended there
+   * on purpose, because the emission path already draws exactly this and a
+   * whole rendering path is saved by placing them differently rather than by
+   * inventing one. Kept separately here so a consumer that must tell them
+   * apart (the skybox baker) does not have to guess by size or colour.
+   */
+  distantGalaxies: NebulaData[]
   seed: number
   options: Required<GalaxyOptions>
 }
@@ -1136,6 +1144,7 @@ export function generateGalaxy(
   rather than by inventing them.
   */
   const galaxyCount = Math.max(0, Math.round(opts.distantGalaxies))
+  const distantGalaxies: NebulaData[] = []
   for (let i = 0; i < galaxyCount; i++) {
     // Uniform on the sphere: z uniform, NOT latitude uniform, or they bunch at
     // the poles — which is precisely the region they exist to populate.
@@ -1169,7 +1178,8 @@ export function generateGalaxy(
       // them without hunting.
       opacity: prng.realRange(0.5, 0.85) * densityScale,
     })
+    distantGalaxies.push(nebulae[nebulae.length - 1])
   }
 
-  return { stars, nebulae, seed, options: opts }
+  return { stars, nebulae, distantGalaxies, seed, options: opts }
 }

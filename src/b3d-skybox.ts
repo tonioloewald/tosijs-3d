@@ -35,6 +35,44 @@ const scene = b3d(
 preview.append(scene)
 ```
 
+## Demo — the encoded sky
+
+A baked sky is a raster of a thing that is almost entirely empty, and the
+stars are the expensive part. The PAIR that `bakeSkyPair()` emits splits the
+sky the way the measurements argued for: nebulae (low-frequency) in a small
+smooth cube, stars and distant galaxies (points) in a DATA cube the shader
+decodes — so stars stay points at any zoom instead of being a smear baked at
+one resolution. Zoom into the band and watch them stay sharp.
+
+```js
+import { b3d, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
+import { tosi } from 'tosijs'
+
+const { sky } = tosi({ sky: { timeOfDay: 23.5 } })
+
+const scene = b3d(
+  {
+    scenePanel: () => [
+      label3d({ text: 'Encoded sky' }),
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
+    ],
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 15, target: [0, 0, 0] })
+    },
+  },
+  b3dSkybox({
+    timeOfDay: sky.timeOfDay,
+    realtimeScale: 0,
+    starfieldCube: '/sky/nebula',
+    starfieldData: '/sky/stars',
+    starfieldTilt: '12,25,58',
+  }),
+  b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+)
+preview.append(scene)
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -49,11 +87,15 @@ preview.append(scene)
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
 | `starfieldCube` | `''` | Root path of a baked cube (`<root>_px.png` …). Replaces `starfield` |
-| `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` on the baked cube — where a galactic tilt belongs |
+| `starfieldData` | `''` | Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it |
+| `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
+| `starfieldSharpness` | `1` | How sharp a decoded point is — higher is tighter. 1 draws stars that read as stars |
+| `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
+| `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |
 | `nebulae` | `0` | Soft emission clouds behind the stars. `0` = none |
-| `nebulaBrightness` | `0.55` | Nebula brightness 0…1 |
-| `nebulaSize` | `0.16` | Nebula size as a fraction of the sky radius |
+| `nebulaBrightness` | `1` | Nebula brightness 0…1 |
+| `nebulaSize` | `0.045` | Nebula size as a fraction of the sky radius |
 | `nebulaTexture` | `''` | Black-backed image stamped per nebula; empty = a plain procedural falloff |
 | `spaceColor` | `'#05070f'` | What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go |
 | `starfieldSeed` | `12345` | Seed for the starfield — same seed, same constellations |

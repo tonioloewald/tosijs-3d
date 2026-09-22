@@ -654,6 +654,7 @@ export {
   type SkyObject,
 } from './starfield-codec.js'
 export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
+export { pngEncode, crc32, adler32 } from './png.js'
 export {
   bakeSkyboxCube,
   bakeSkyPair,

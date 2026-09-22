@@ -2943,21 +2943,29 @@
         "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
       },
       {
-        "name": "starfieldData"
+        "name": "starfieldData",
+        "default": "''",
+        "description": "Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it"
       },
       {
-        "name": "starfieldDataSize"
+        "name": "starfieldDataSize",
+        "default": "1024",
+        "description": "Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band"
       },
       {
-        "name": "starfieldSharpness"
+        "name": "starfieldSharpness",
+        "default": "1",
+        "description": "How sharp a decoded point is — higher is tighter. 1 draws stars that read as stars"
       },
       {
-        "name": "starfieldSizeScale"
+        "name": "starfieldSizeScale",
+        "default": "3",
+        "description": "How much bigger a full-size object (a distant galaxy) is than a star"
       },
       {
         "name": "starfieldTilt",
         "default": "'0,0,0'",
-        "description": "Degrees `rx,ry,rz` on the baked cube — where a galactic tilt belongs"
+        "description": "Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs"
       },
       {
         "name": "starfield",
@@ -2971,12 +2979,12 @@
       },
       {
         "name": "nebulaBrightness",
-        "default": "0.55",
+        "default": "1",
         "description": "Nebula brightness 0…1"
       },
       {
         "name": "nebulaSize",
-        "default": "0.16",
+        "default": "0.045",
         "description": "Nebula size as a fraction of the sky radius"
       },
       {

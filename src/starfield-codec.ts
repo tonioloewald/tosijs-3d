@@ -12,14 +12,15 @@ the values as data."*
 
 ## Why, in numbers
 
-A baked sky is a raster of something almost entirely empty. The shipped 2048
-cube carries **25 million texels to describe about ten thousand stars**, and it
-is 2048 only because stars smeared at 1024 — the nebulae never needed it.
+A baked sky is a raster of something almost entirely empty. The 2048 cube it
+replaces carried **25 million texels to describe about a hundred thousand
+stars**, and it was 2048 only because stars smeared at 1024 — the nebulae never
+needed it.
 
 | | raster | data |
 | --- | --- | --- |
-| VRAM | 96 MiB (2048 cube) | 24 MiB (1024 cube) |
-| on disk | 2.3 MB | a few hundred KB |
+| VRAM | 96 MiB (2048 cube) | 25 MiB (256 smooth + 1024 data) |
+| on disk | 2.3 MB | 0.4 MB |
 | sharpness | fixed pixels — blurs as you zoom | **resolution-independent** |
 
 The third row is the one that matters. A raster star is a smear of pixels baked
@@ -64,6 +65,12 @@ one texel of each other, which is the dense core, where they merge into a blur
 and what survives is aggregate brightness rather than any individual star. And
 what a full texel does drop is still chosen rather than arbitrary — **brightest
 first**, so the loss lands on the faintest.
+
+The table is measured at the default 10k-star galaxy. Loss rises with density
+rather than staying at the birthday estimate, because a bigger galaxy is a
+denser band: at the shipped 100k, cap 3 keeps **93.4%** at 1024 — and what goes
+is, again, the faintest members of already-crowded texels in the band, where
+stars overlap into blur.
 
 ## The layout
 
@@ -280,7 +287,9 @@ export function paletteIndex(r: number, g: number, b: number): number {
   for (let i = 0; i < STAR_PALETTE.length; i++) {
     const p = STAR_PALETTE[i]
     const d =
-      (p[0] - r) * (p[0] - r) + (p[1] - g) * (p[1] - g) + (p[2] - b) * (p[2] - b)
+      (p[0] - r) * (p[0] - r) +
+      (p[1] - g) * (p[1] - g) +
+      (p[2] - b) * (p[2] - b)
     if (d < bestD) {
       bestD = d
       best = i
@@ -362,13 +371,21 @@ export function encodeStarfield(
 
     if (group.length === 1) {
       const o = group[0]
-      const sizeNibble = Math.min(15, Math.max(0, Math.round((o.size ?? 0) * 15)))
+      const sizeNibble = Math.min(
+        15,
+        Math.max(0, Math.round((o.size ?? 0) * 15))
+      )
       buf[p] = Math.round(o.x * 255)
       buf[p + 1] = Math.round(o.y * 255)
       // 254, not 255 — that code is the packed flag.
       buf[p + 2] = Math.min(
         PACKED_FLAG - 1,
-        Math.max(1, Math.round(255 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)))
+        Math.max(
+          1,
+          Math.round(
+            255 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)
+          )
+        )
       )
       buf[p + 3] = (sizeNibble << 4) | paletteIndex(o.r, o.g, o.b)
       continue
@@ -395,7 +412,12 @@ export function encodeStarfield(
       const vv = Math.min(3, Math.floor(o.y * 4))
       const bb = Math.min(
         7,
-        Math.max(0, Math.round(8 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)) - 1)
+        Math.max(
+          0,
+          Math.round(
+            8 * Math.pow(Math.max(0, Math.min(1, o.brightness)), BRIGHT_GAMMA)
+          ) - 1
+        )
       )
       // One bit: warm or cool, taken from the same palette the precise path uses.
       const c = paletteIndex(o.r, o.g, o.b) >= 6 ? 1 : 0
@@ -438,12 +460,24 @@ export function decodeTexel(
   const flag = buf[p + 2]
   if (flag === 0) return []
 
-  const at = (su: number, sv: number, bright: number, pal: [number, number, number], sz: number) => {
+  const at = (
+    su: number,
+    sv: number,
+    bright: number,
+    pal: [number, number, number],
+    sz: number
+  ) => {
     const d = faceToDir(face, (ix + su) / size, (iy + sv) / size)
     const len = Math.hypot(d.x, d.y, d.z)
     return {
-      x: d.x / len, y: d.y / len, z: d.z / len,
-      brightness: bright, r: pal[0], g: pal[1], b: pal[2], size: sz,
+      x: d.x / len,
+      y: d.y / len,
+      z: d.z / len,
+      brightness: bright,
+      r: pal[0],
+      g: pal[1],
+      b: pal[2],
+      size: sz,
     }
   }
 
