@@ -15,14 +15,13 @@ we've got. It looks like a child's cartoon next to everything else."*
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, b3dCloudDeck, slider3d, label3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dCloudDeck, slider3d, label3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { sky } = tosi({
   sky: {
     coverage: 0.5,
     cirrus: 0,
-    transmission: 0.5,
     altitude: 140,
     eye: 60,
     wind: 8,
@@ -70,21 +69,30 @@ preview.append(
         label3d({ text: 'Weather' }),
         slider3d({ label: 'coverage', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
         slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
-        slider3d({ label: 'transmission', value: sky.transmission, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'altitude', value: sky.altitude, min: 20, max: 600, step: 10 }),
-        slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 600, step: 5 }),
+        slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 3000, step: 25 }),
         slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
         slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
         slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
       ],
     },
-    b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0 }),
+    // The baked galaxy, so the deck has a real night to be seen against — and
+    // so the whiteout has something worth hiding. It is ONE cube on the sky's
+    // own material (b3d-skybox's forked shader), so it costs no extra mesh.
+    b3dSkybox({
+      timeOfDay: sky.timeOfDay,
+      realtimeScale: 0,
+      starfieldCube: '/sky/default',
+      starfieldTilt: '12,25,58',
+    }),
     b3dSun({ x: -0.4, y: -1, z: -0.3 }),
+    // An ambient fill, because the deck DIMS it — and a scene with no fill has
+    // nothing for the first half of the gloom to take away.
+    b3dLight({ intensity: 0.5 }),
     b3dGround({ size: 12000, color: '#4a5a44', receiveShadows: true }),
     b3dCloudDeck({
       coverage: sky.coverage,
       cirrus: sky.cirrus,
-      transmission: sky.transmission,
       altitude: sky.altitude,
       wind: sky.wind,
       evolve: sky.evolve,
@@ -98,11 +106,18 @@ preview.append(
 
 > Drag `coverage` from 0 to 1 — clear to overcast is one dial on a threshold,
 > not a count of spawned objects, so it has no pool to exhaust at the top.
+> Take `time of day` to 22 and the deck is lit by moonlight against the baked
+> galaxy — the same cube the [skybox](?b3d-skybox.ts) uses, so it costs no extra
+> mesh and the cloud tops take their colour from whatever is lighting the world.
+>
 > `wind` slides the whole sky and `evolve` reshapes it as it goes — both free,
 > neither rebakes anything. `cirrus` takes the same sky from heaped cumulus to
 > long wispy streaks, and
-> `transmission` normally FOLLOWS coverage and is here only so you can override
-> it; at 0 the underside is storm-dark, at 1 it glows.
+> There is no `transmission` slider, and that is the point: it FOLLOWS coverage,
+> along with the gloom under the deck and the depth of the cloud. Pinning it here
+> was quietly defeating its own demo — a fixed 0.5 sits above the gloom
+> threshold, so the sun never dimmed however far the coverage went. It is still
+> settable as an attribute for the deliberate case.
 >
 > **Push `coverage` past 1.** There is no sky left to cover, so the extra goes
 > into DEPTH: the base stays put and the top TOWERS, the sun goes out, and you
@@ -112,6 +127,10 @@ preview.append(
 > and you get the whiteout — the same fog layer a plane flying through it would
 > see, and the reason a pass-through needs no special case. `eye height` pins
 > where your eye is; orbiting then changes only which way you look.
+>
+> It goes to 3 km because the deck does: past `coverage` 1 the top can stand
+> 900 m above the base and a local bulge another 1200 on top of that, so
+> "above the cloud tops" is a long way up once the weather is turned on.
 
 ## Attributes
 
@@ -1340,10 +1359,26 @@ export class B3dCloudDeck extends B3dChild {
       size,
       BABYLON.Constants.TEXTUREFORMAT_R,
       scene,
+      // MIPMAPS, and this is not an optimisation — it is the streaking.
+      //
+      // A deck is the worst case a texture can be given: an enormous plane seen
+      // at a grazing angle, so a screen pixel near the horizon covers hundreds
+      // of texels. Without mipmaps the sampler takes ONE of them, so the cloud
+      // stops being cloud and becomes aliasing that smears along the view
+      // direction — which reads exactly as stretching, and is why it looked
+      // like a scaling or mirroring fault rather than a filtering one.
+      true,
       false,
-      false,
-      BABYLON.Texture.BILINEAR_SAMPLINGMODE
+      BABYLON.Texture.TRILINEAR_SAMPLINGMODE
     )
+    /*
+    ANISOTROPIC, because the footprint at a grazing angle is not square. Plain
+    trilinear has to pick one level for a footprint that is short across and
+    long along, so it blurs the short axis to match the long one and the horizon
+    goes soft. Sampling the long axis properly is what keeps distant cloud
+    detailed instead of merely un-aliased.
+    */
+    tex.anisotropicFilteringLevel = 8
     // It tiles by construction — say so, or the edges clamp into streaks.
     tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
     tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
@@ -1831,6 +1866,7 @@ export class B3dCloudDeck extends B3dChild {
     off with distance beneath the base.
     */
     const reach = Math.max(1, this.size * 0.3)
+    const beneath = p != null && p.y <= this.altitude + rise
     const near =
       p != null && p.y > this.altitude + rise
         ? 0
@@ -1882,26 +1918,52 @@ export class B3dCloudDeck extends B3dChild {
     )
     const bandPos = Math.min(1, Math.max(0, (dy + half) / (rise + half * 2)))
     const c = BABYLON.Color3.Lerp(darkest, top, bandPos)
+    /*
+    AND THE FOG IS LIT BY THE SAME LIGHT THE CLOUD IS.
+
+    The two ends of this ramp are the colours the shader paints — but the shader
+    then scales them by `skyTint`, the scene's own sun, and this did not. So as
+    transmission fell the underside went dark while the horizon fog stayed at
+    its unlit value, and the haze ended up brighter than the cloud casting it.
+    Tonio: "as transmission goes to 0 the underside of the cloud deck darkens
+    which means the horizon fog should darken too."
+
+    One multiply, and it fixes dusk and night for free as well — the fog was
+    equally wrong at midnight, just less obviously.
+    */
+    c.r *= this._tint.r
+    c.g *= this._tint.g
+    c.b *= this._tint.b
 
     return {
       weight,
       /*
-      HAZE VEILS THE SKY TOO — by how MUCH of it the deck has shut, which is
-      what `haze` already carries (it is scaled by coverage squared).
+      HOW MUCH SKY IS LEFT IS NOT THE SAME QUESTION AS HOW THICK THE AIR IS.
 
-      The first version veiled only on immersion, reasoning that you can see
-      straight up through a gap. True at scattered coverage and wrong at total:
-      the deck hazes to grey toward its rim while the sky beyond stayed blue,
-      so the one thing the haze exists to hide — the fact that a 4 km plane has
-      an edge — was drawn as a bright seam right along it. Tonio: "It should
-      white out the edge of the cloud layer and beyond."
+      The veil used to be `max(immersion, haze)`, and `haze` is a tunable
+      scalar defaulting to 0.6 — so under a deck at FULL coverage the sky was
+      only 51% hidden and you could still see the skybox sitting on the horizon
+      past the deck's rim. Tonio caught it in both demos.
 
-      Under 100% overcast there is no blue sky anywhere, so this is not a fudge
-      to cover the seam; it is the case the first version got wrong. `veil` is
-      still not `weight` — immersion can exceed the haze, and a layer is free to
-      own the air without standing in front of the sky.
+      But `haze` is answering "how much does the air under this take the cloud's
+      colour", which an author may legitimately want dialled down. How much sky
+      remains is not theirs to dial: at 100% coverage there is none, and that is
+      arithmetic. So the veil reads the COVERAGE directly and the haze scalar
+      only governs the air.
+
+      Squared, so it tracks what you would actually see: at half cover the
+      horizon is milky rather than closed, and it shuts completely only as the
+      sky does.
+
+      And it does NOT fade with distance below the deck the way the haze does.
+      The air thins as you descend away from cloud — that is real — but the
+      amount of SKY over your head does not change, because the deck is 14 km
+      wide and follows you. Using the haze's own falloff here left 13% of the
+      skybox showing from 550 m under a total overcast, which is the horizon
+      leak Tonio reported. `veil` is still not `weight` — immersion can exceed it, and a
+      layer is free to own the air without standing in front of the sky.
       */
-      veil: Math.max(optical, haze),
+      veil: Math.max(optical, beneath ? cov * cov : 0),
       color: { r: c.r, g: c.g, b: c.b },
       /*
       DENSITY DERIVED FROM `end`, never a constant — because which of the two
@@ -2115,8 +2177,18 @@ export class B3dCloudDeck extends B3dChild {
     dark day and no daylight at all.
     */
     const th = this.thickening
+    /*
+    AND AT FULL THICKENING IT IS NIGHT. Tonio: "ambient isn't being scaled down
+    enough when cover gets really high. At 200% it should basically be as dark
+    as night."
+
+    A kilometre of cloud overhead does not leave a dim day, it leaves no day —
+    so the ambient has to go almost all the way rather than most of the way.
+    0.9 takes a 0.5 fill down to 0.05, which is darker than this scene's actual
+    night, where the fill stays put and only the moon carries the sun's half.
+    */
     const ambientDepth =
-      num(this.ambientGloom, 0) + (0.8 - num(this.ambientGloom, 0)) * th
+      num(this.ambientGloom, 0) + (0.9 - num(this.ambientGloom, 0)) * th
     const sunDepth = num(this.sunGloom, 0) + (1 - num(this.sunGloom, 0)) * th
 
     const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth
