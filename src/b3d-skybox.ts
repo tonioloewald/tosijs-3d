@@ -224,14 +224,14 @@ uniform vec4 b3dStarInfo;
 DISPLAY EXPONENT — the look, not the data.
 
 The encoded gamma (BRIGHT_GAMMA) spends the 8 bits where the magnitudes are;
-this extra exponent shapes how they PRESENT. 2.0 (net m² on the recovered
-magnitude) reads like a log scale: a mid star is a quarter of its linear
+this extra exponent shapes how they PRESENT. 2.3 (net m^2.3 on the recovered
+magnitude) reads like a log scale: a mid star is under a fifth of its linear
 brightness, the faint mass falls away, and only the brightest few stay bright
 points. Tonio: "the galaxy should be mostly subtle with only a few actual
-bright points of light" — 1.0 blew the band out to white, 1.5 was still too
-bright on screen, 2.0 is where the judgement landed.
+bright points of light" — 1.0 blew the band out to white, 2.0 was a tad
+bright, 2.3 is where the judgement landed.
 */
-#define DISPLAY_EXP 2.0
+#define DISPLAY_EXP 2.3
 
 /** One reconstructed point, given its sub-texel position and its look. */
 vec3 b3dPoint(
