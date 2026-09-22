@@ -807,14 +807,24 @@ each star as a point at its sub-texel position and accumulates. Stars are then
 **resolution-independent** — sharper than any bake, at any FOV — which is
 exactly what 2048 was buying and failing to buy properly.
 
-Capacity is the question a hash always raises, and it is fine:
+Capacity is the question a hash always raises, and the first answer here was
+WRONG by seventy times — worth keeping, because the error is instructive. The
+birthday estimate assumes objects are spread evenly over the sphere, and **a
+galaxy is the opposite of evenly spread**. Measured against the real generator
+(11,914 objects), against the uniform prediction:
 
-| stars | cube | occupancy | collisions |
-| --- | --- | --- | --- |
-| 10k | 512 | 0.64% | ~32 (0.3% lost) |
-| 30k | 512 | 1.91% | ~286 (1.0%) |
-| 100k | 512 | 6.36% | ~3179 (3.2%) |
-| 100k | 1024 | 1.59% | ~795 (0.8%) |
+| cube | predicted lost | ACTUAL lost |
+| --- | --- | --- |
+| 512 | ~0.3% | **21.1%** |
+| 1024 | ~0.1% | 6.9% |
+| 2048 | — | 2.0% |
+
+So the smallest usable star cube is 1024, not 512 — 24 MiB rather than 6. Still
+a quarter of the 96 MiB the raster wants, and still resolution-independent.
+
+And the 6.9% is better than it looks: the losses concentrate in the dense core,
+where stars overlap anyway and the eye reads a blur — and brighter always wins,
+so what goes is the faintest member of an already-crowded texel.
 
 A lost star is a star that fell on an occupied texel — invisible, because the
 occupant is still there. Keep the brighter of the two and the loss is

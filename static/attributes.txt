@@ -781,6 +781,10 @@ b3d-skybox
   spaceStart  = 0  — Altitude (m) where the fade to space BEGINS
   spaceFull  = 0  — Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`
   starfieldCube  = ''  — Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`
+  starfieldData
+  starfieldDataSize
+  starfieldSharpness
+  starfieldSizeScale
   starfieldTilt  = '0,0,0'  — Degrees `rx,ry,rz` on the baked cube — where a galactic tilt belongs
   starfield  = 0  — How many background stars to build. `0` = none
   nebulae  = 0  — Soft emission clouds behind the stars. `0` = none

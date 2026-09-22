@@ -69,6 +69,7 @@ preview.append(scene)
 import * as BABYLON from '@babylonjs/core'
 import { PRNG } from './mersenne-twister.js'
 import { SkyMaterial } from '@babylonjs/materials'
+import { BRIGHT_GAMMA, paletteGlsl } from './starfield-codec.js'
 /*
 Imported for SIDE EFFECTS: these register `skyVertexShader` and
 `skyPixelShader` in Babylon's `ShaderStore`. `SkyMaterial` loads them lazily on
@@ -148,6 +149,103 @@ Losing the starfield is a much better failure than a black sky.
 */
 const B3D_SKY = 'b3dSky'
 
+/**
+ * The GLSL half of `starfield-codec` — decode the data cube into points.
+ *
+ * The palette comes from `paletteGlsl()` rather than being written out here, so
+ * the two halves of the codec cannot drift apart.
+ *
+ * ## Why a 3x3 read
+ *
+ * The cube is sampled NEAREST, because the texels are data and interpolating
+ * between two packed stars produces a third star that is not there. So a
+ * fragment must look at the neighbourhood itself: a star near a texel edge
+ * still has to light the fragment next door, or every star would be clipped to
+ * its own texel and the sky would be a grid of hard squares.
+ *
+ * The neighbours are reached by PERTURBING THE DIRECTION rather than by
+ * offsetting uv, which costs one normalize per tap and buys the face seams for
+ * free — a direction that wanders off the edge of a face is simply a direction,
+ * and `textureCube` resolves it. Offsetting uv would need every seam handled by
+ * hand, six times, in both axes.
+ */
+function starDecodeGlsl(palette: string): string {
+  return `
+${palette}
+
+uniform samplerCube b3dStarData;
+uniform float b3dStarDataLevel;
+// x = texels per face, y = radians per texel, z = point sharpness, w = size scale
+uniform vec4 b3dStarInfo;
+
+vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
+  // B is zero for an empty texel, which is most of them.
+  if (texel.b <= 0.0) return vec3(0.0);
+
+  /*
+  The sub-texel offset is stored in the FACE's uv frame and read back here in
+  the TAP's tangent frame. Those differ by a rotation within the tangent plane,
+  so a star lands up to half a texel from where it was encoded.
+
+  That is deliberate. Getting it exact would mean reconstructing the face basis
+  per tap — six branches in the inner loop — to correct an error smaller than
+  the point it is drawing, on a sky where (Tonio) "being subtly wrong is
+  actually fine". Nobody knows the constellations. What must not happen is
+  INCONSISTENCY, and there is none: every fragment that sees this texel
+  reconstructs the same position from the same numbers.
+  */
+  float du = (texel.r - 0.5) * b3dStarInfo.y;
+  float dv = (texel.g - 0.5) * b3dStarInfo.y;
+  vec3 starDir = normalize(tapDir + tangent * du + bitangent * dv);
+
+  // Angular distance from this fragment to the star, in texel widths.
+  float d = length(viewDir - starDir) / b3dStarInfo.y;
+
+  // Size: 0 is a point, 15 is a small disc (a distant galaxy).
+  float size = floor(texel.a * 255.0 / 16.0) / 15.0;
+  float radius = 0.5 + size * b3dStarInfo.w;
+
+  /*
+  A GAUSSIAN, not a hard disc. A point source drawn as a circle of pixels reads
+  as a sticker; drawn as a falloff it reads as light, and it also antialiases
+  itself for free at every zoom level — which is the entire reason for doing
+  this rather than baking a raster.
+  */
+  float falloff = exp(-(d * d) / (radius * radius) * b3dStarInfo.z);
+  if (falloff < 0.004) return vec3(0.0);
+
+  float brightness = pow(texel.b, 1.0 / ${BRIGHT_GAMMA.toFixed(3)});
+  int idx = int(mod(texel.a * 255.0, 16.0));
+  vec3 tint = STAR_PALETTE[idx];
+  return tint * brightness * falloff;
+}
+
+vec3 b3dDecodeStars(vec3 viewDir) {
+  if (b3dStarDataLevel <= 0.0) return vec3(0.0);
+
+  // A tangent frame around the view direction. The reference axis is swapped
+  // near the pole because a cross product with a parallel vector is zero.
+  vec3 ref = abs(viewDir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+  vec3 tangent = normalize(cross(ref, viewDir));
+  vec3 bitangent = cross(viewDir, tangent);
+
+  vec3 sum = vec3(0.0);
+  float step = b3dStarInfo.y;
+  for (int i = -1; i <= 1; i++) {
+    for (int j = -1; j <= 1; j++) {
+      vec3 tapDir = normalize(
+        viewDir + tangent * (float(i) * step) + bitangent * (float(j) * step)
+      );
+      sum += b3dDecodeOne(
+        textureCube(b3dStarData, tapDir), tapDir, tangent, bitangent, viewDir
+      );
+    }
+  }
+  return sum * b3dStarDataLevel;
+}
+`
+}
+
 function registerForkedSky(): boolean {
   const store = BABYLON.ShaderStore.ShadersStore as Record<string, string>
   if (store[`${B3D_SKY}PixelShader`] != null) return true
@@ -165,7 +263,8 @@ function registerForkedSky(): boolean {
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
       'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform mat4 b3dStarRot;' +
-        'uniform vec3 b3dVeilColor;uniform float b3dVeil;'
+        'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
+        starDecodeGlsl(paletteGlsl())
     )
     .replace(
       anchor,
@@ -180,7 +279,16 @@ function registerForkedSky(): boolean {
       */
       `vec3 b3dDir=normalize(vPositionW-cameraPosition);` +
         `b3dDir=(b3dStarRot*vec4(b3dDir,0.0)).xyz;` +
+        // The RASTER backdrop — a baked cube, still supported.
         `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
+        /*
+        AND THE DECODED ONE, which is the same light arriving by a better road:
+        points reconstructed from data rather than sampled from a picture of
+        themselves. Both add, so a scene can carry a smooth nebula cube in
+        `b3dStars` and its stars in `b3dStarData` — which is the split the
+        measurements argued for.
+        */
+        `color.rgb+=b3dDecodeStars(b3dDir);` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
         light arriving, it is light being blocked. Inside cloud there is white a
@@ -227,11 +335,13 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'cameraOffset',
         'up',
         'b3dStarLevel',
+        'b3dStarDataLevel',
+        'b3dStarInfo',
         'b3dStarRot',
         'b3dVeil',
         'b3dVeilColor',
       ],
-      samplers: ['b3dStars'],
+      samplers: ['b3dStars', 'b3dStarData'],
       // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
       // compile at all.
       defines: ['#define DITHER 0'],
@@ -240,6 +350,8 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector3('up', new BABYLON.Vector3(0, 1, 0))
   mat.setVector3('cameraOffset', BABYLON.Vector3.Zero())
   mat.setFloat('b3dStarLevel', 0)
+  mat.setFloat('b3dStarDataLevel', 0)
+  mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
   mat.setMatrix('b3dStarRot', BABYLON.Matrix.Identity())
   mat.setFloat('b3dVeil', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
@@ -330,6 +442,30 @@ export class B3dSkybox extends AbstractMesh {
      * system, with structure no scattering of points will reproduce.
      */
     starfieldCube: '',
+    /**
+     * Root path of a DATA cube (`<root>_px.png` …) encoded by
+     * [starfield-codec](?starfield-codec.ts).
+     *
+     * Not a picture of a starfield — a table of stars, decoded in the shader
+     * into points that stay sharp at any field of view. Costs a 512 cube where
+     * the rastered equivalent wanted 2048, and does not blur when you zoom.
+     *
+     * Composes with `starfieldCube` rather than replacing it: put the smooth
+     * half (nebulae, band glow) in a small raster and the point-like half here,
+     * which is the split the measurements argued for.
+     */
+    starfieldData: '',
+    /** Texels per face of `starfieldData`. Must match what encoded it. */
+    starfieldDataSize: 512,
+    /**
+     * How sharp a decoded point is — higher is tighter.
+     *
+     * Tuned by looking: 2.2 draws stars about a pixel across, which is
+     * defensible and nearly invisible. Around 1 they read as stars.
+     */
+    starfieldSharpness: 1,
+    /** How much bigger a full-size object (a distant galaxy) is than a star. */
+    starfieldSizeScale: 3,
     /**
      * Roll/pitch/yaw applied to `starfieldCube`, in DEGREES, as `'rx,ry,rz'`.
      *
@@ -704,6 +840,7 @@ export class B3dSkybox extends AbstractMesh {
   private _starfieldMesh: BABYLON.Mesh | null = null
   private _clearBase: BABYLON.Color4 | null = null
   private _starCube: BABYLON.CubeTexture | null = null
+  private _starData: BABYLON.CubeTexture | null = null
   private _nebulaMeshes: BABYLON.Mesh[] = []
   private _nebulaMats: BABYLON.StandardMaterial[] = []
   private _nebulaBase: BABYLON.Color3[] = []
@@ -728,6 +865,8 @@ export class B3dSkybox extends AbstractMesh {
     const count = Math.floor(attrs.starfield) || 0
     this._starCube?.dispose()
     this._starCube = null
+    this._starData?.dispose()
+    this._starData = null
     this._starfieldMesh?.dispose()
     this._starfieldMesh = null
     if (this.mesh == null) return
@@ -756,6 +895,52 @@ export class B3dSkybox extends AbstractMesh {
     in the same breath.
     */
     const cubeRoot = (attrs.starfieldCube as string) || ''
+    const mat0 = this.mesh.material as unknown as BABYLON.ShaderMaterial
+    /*
+    THE DATA CUBE, loaded alongside the raster one rather than instead of it.
+    They ADD in the shader, so a scene can carry its nebulae as a small smooth
+    picture and its stars as a table — which is what the measurements argued
+    for, and why this is not an either/or attribute.
+    */
+    const dataRoot = String(attrs.starfieldData ?? '')
+    if (dataRoot && typeof mat0?.setTexture === 'function') {
+      const data = new BABYLON.CubeTexture(dataRoot, scene, [
+        '_px.png',
+        '_py.png',
+        '_pz.png',
+        '_nx.png',
+        '_ny.png',
+        '_nz.png',
+      ])
+      data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
+      /*
+      NEAREST, and this is not a quality setting — it is correctness. The texels
+      are packed fields, so interpolating two of them produces a third star that
+      does not exist, at a position and brightness nobody encoded. Mipmaps are
+      off for the same reason.
+      */
+      data.updateSamplingMode(BABYLON.Texture.NEAREST_SAMPLINGMODE)
+      mat0.setTexture('b3dStarData', data)
+      this._starData = data
+      const n = Math.max(8, Number(attrs.starfieldDataSize) || 512)
+      /*
+      RADIANS PER TEXEL. A face spans 90°, so a texel is (PI/2)/n across at the
+      face centre — and rather more at the corners, where the cube stretches.
+      The 3x3 read covers that slack: a star up to a texel and a half away still
+      reaches the fragment, which is cheaper than being exact about a number
+      whose error is smaller than the dot it draws.
+      */
+      mat0.setVector4(
+        'b3dStarInfo',
+        new BABYLON.Vector4(
+          n,
+          Math.PI / 2 / n,
+          Number(attrs.starfieldSharpness) || 1,
+          Number(attrs.starfieldSizeScale) || 3
+        )
+      )
+    }
+
     if (cubeRoot) {
       const mat = this.mesh.material as unknown as BABYLON.ShaderMaterial
       if (typeof mat?.setTexture !== 'function') return
@@ -1100,6 +1285,16 @@ export class B3dSkybox extends AbstractMesh {
     if (this._starCube != null) {
       const sm = material as unknown as BABYLON.ShaderMaterial
       sm.setFloat?.('b3dStarLevel', 1 - dayBrightness * air)
+    }
+    /*
+    THE DECODED STARS DIM ON THE SAME CURVE, because they are the same sky.
+    Daylight hides stars by EXPOSURE, not by removing them — the eye stops down
+    — so one number drives the raster backdrop and the decoded points together
+    and they cannot disagree about what time it is.
+    */
+    if (this._starData != null) {
+      const sm = material as unknown as BABYLON.ShaderMaterial
+      sm.setFloat?.('b3dStarDataLevel', 1 - dayBrightness * air)
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {

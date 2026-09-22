@@ -2943,6 +2943,18 @@
         "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
       },
       {
+        "name": "starfieldData"
+      },
+      {
+        "name": "starfieldDataSize"
+      },
+      {
+        "name": "starfieldSharpness"
+      },
+      {
+        "name": "starfieldSizeScale"
+      },
+      {
         "name": "starfieldTilt",
         "default": "'0,0,0'",
         "description": "Degrees `rx,ry,rz` on the baked cube — where a galactic tilt belongs"
