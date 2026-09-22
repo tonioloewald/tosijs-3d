@@ -14,7 +14,7 @@ however pretty.
 ## Demo
 
 ```js
-import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, defaultBakePose, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, button3d, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
@@ -72,13 +72,15 @@ preview.append(
             size: bake.face.valueOf(),
             roll: bake.roll.valueOf(),
           })
-          for (let i = 0; i < faces.length; i++) {
-            const a = document.createElement('a')
-            a.href = faces[i].url
-            a.download = `sky_${faces[i].name}.png`
-            a.click()
-          }
-          bake.status = `saved ${faces.length} faces`
+          // ONE zip, not six downloads — a burst of automatic downloads gets
+          // throttled and dropped by the browser (see facesToZip).
+          const zip = facesToZip([{ prefix: 'sky', faces }], 'sky-cube.zip')
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(zip.blob)
+          a.download = zip.name
+          a.click()
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+          bake.status = `saved ${zip.name} (${faces.length} faces)`
         } }),
         // THE PAIR: a 256 smooth cube for the nebulae plus a 1024 DATA cube
         // the sky shader decodes into points. The right output once the star
@@ -92,14 +94,18 @@ preview.append(
             smoothSize: 256,
             dataSize: 1024,
           })
-          for (const [prefix, set] of [['nebula', res.smooth], ['stars', res.data]]) {
-            for (const f of set) {
-              const a = document.createElement('a')
-              a.href = f.url
-              a.download = `${prefix}_${f.name}.png`
-              a.click()
-            }
-          }
+          const zip = facesToZip(
+            [
+              { prefix: 'nebula', faces: res.smooth },
+              { prefix: 'stars', faces: res.data },
+            ],
+            'sky-pair.zip'
+          )
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(zip.blob)
+          a.download = zip.name
+          a.click()
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000)
           bake.status = `pair baked: ${res.placed} placed, ${res.lost} lost`
         } }),
       ],
@@ -172,6 +178,7 @@ small in the bake — 0.7 here against 0.3–0.5 there.
 /*{ "parent": "Demos", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { zipSync } from 'fflate'
 import {
   FACE_NAMES,
   encodeStarfield,
@@ -270,6 +277,37 @@ export function defaultBakePose(
   offPlane = 1
 ): { x: number; y: number; z: number } {
   return { x: galaxyRadius * outFraction, y: offPlane, z: 0 }
+}
+
+/**
+ * Bundle baked faces into ONE zip for download.
+ *
+ * Twelve separate browser downloads are both rude and unreliable: Chrome
+ * treats a burst of automatic downloads as a permission event and silently
+ * drops the rest mid-burst (observed: four of six star faces arrived). One
+ * file, no prompts, nothing dropped.
+ *
+ * STORED, not compressed — the PNGs are already compressed, so deflating
+ * again buys nothing and costs time.
+ */
+export function facesToZip(
+  groups: Array<{ prefix: string; faces: BakedFace[] }>,
+  zipName = 'sky-faces.zip'
+): { blob: Blob; name: string } {
+  const files: Record<string, Uint8Array> = {}
+  for (const { prefix, faces } of groups) {
+    for (const f of faces) {
+      const bin = atob(f.url.split(',')[1])
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      files[`${prefix}_${f.name}.png`] = bytes
+    }
+  }
+  const zipped = zipSync(files, { level: 0 })
+  return {
+    blob: new Blob([zipped], { type: 'application/zip' }),
+    name: zipName,
+  }
 }
 
 /**

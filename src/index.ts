@@ -660,6 +660,7 @@ export {
   bakeSkyPair,
   starsFromGalaxy,
   facesToPngs,
+  facesToZip,
   defaultBakePose,
   type BakedFace,
   type SkyboxBakeOptions,
