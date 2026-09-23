@@ -52,6 +52,31 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       planet is the natural home (b3d-planet with a `gasGiant` surface mode),
       and the kitchen sink (world-sim) is where a gas giant hangs in the sky.
 
+- [ ] **0.8.2 GATE FOLLOW-UPS** (from `reviews/0.8.2-pre-tag-gate.md` — filed,
+      none blocking):
+      - `src/mersenne-twister.test.ts` + `galaxy-data.test.ts` — the 72x
+        generator and the shipped sky it baked rest on untested code; pin
+        golden values + determinism.
+      - The galaxy's per-frame billboard pass: `distantStars` ride the
+        billboarded SPS (~0.32 ms at 3k, ~5.6 ms at 50k); state the cost,
+        move to a non-billboarded SPS, or gate `setParticles()` on camera
+        change.
+      - The sky's on-disk figure drifted twice (measured 564 KB; four places
+        say 0.4 MB / 406 KB / 344 KB) — pin it or keep only the ratio.
+      - `static/sky/default_*.png` — 2.4 MB of dead raster, referenced only
+        by a prose comment; move out of `static/`.
+      - `git rm -r undefined/` (a path assembled from a missing value) and
+        make the writer throw.
+      - TODO.md's `png.ts` line still says "CompressionStream" — the code
+        and CHANGELOG say fflate; fix the note before someone follows it.
+      - CLAUDE.md's "~1s" suite figure is ~5x stale; have the test script
+        print the real line.
+      - `skybox-baker` (the shipped sky's provenance) has no behavioural
+        test — the pure siblings do.
+      - Bundle-size row: extend to fflate + the 2.9 MB of new assets.
+      - world-sim's sun shadow path is known-dead (activeDistance 30 vs a
+        12 km ground) — list it on the page or fix it.
+
 - [ ] **GALAXY ARCHITECTURE — the main disc should hold only the bright end.**
       Tonio's long-running idea, now written down: the galaxy MAIN does not
       include any G6+/K/M stars — it holds a budget of (say) 50k bright stars
