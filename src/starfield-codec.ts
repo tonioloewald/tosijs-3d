@@ -79,7 +79,7 @@ stars overlap into blur.
 | R | sub-texel u, so position survives the quantisation |
 | G | sub-texel v |
 | B | brightness, gamma-encoded. **`0` means empty** — that is what makes a mostly-black sky compress |
-| A | `size` in the high nibble, palette index in the low |
+| A | the precision budget: `0` empty, `1` faint warm yellow, `2–31` a galaxy disc's size, `32–255` a bright star's spectral value (224 steps, decoded through a continuous ramp) |
 
 ## ⚠️ The face convention is load-bearing
 
@@ -100,10 +100,20 @@ export interface SkyObject {
   z: number
   /** 0…1. Gamma-encoded into 8 bits — see `BRIGHT_GAMMA`. */
   brightness: number
-  /** 0…1 red, green, blue. Quantised to {@link STAR_PALETTE}. */
+  /** 0…1 red, green, blue. Nearest-matched to {@link STAR_PALETTE} unless
+   * `palette` is set. */
   r: number
   g: number
   b: number
+  /**
+   * Spectral value 0…1 (O at 0, M at 1) for BRIGHT stars — see
+   * {@link spectralValue}. A star's colour FOLLOWS its class, so encoding the
+   * class beats nearest-matching a quantised rgb (the latter is what made
+   * every star land in the near-white entries). Only stars above
+   * {@link BRIGHT_SPECTRAL_FLOOR} carry it — the faint mass renders warm
+   * yellow, because that is the one colour a faint star visibly has.
+   */
+  spectral?: number
   /**
    * Angular radius as a fraction of `sizeScale`, 0…1. A star is 0 (a point);
    * a distant galaxy is a small disc.
@@ -160,44 +170,91 @@ export const PACKED_FLAG = 255
 export const PACKED_CAPACITY = 3
 
 /**
- * Sixteen colours, because a star is not any colour — it is a blackbody, and
- * they run along one line from blue-white to orange-red.
- *
- * The last four are the distant-galaxy range (pale yellow to orange), which
- * shares no part of the stellar line on purpose: those are old populations seen
- * through redshift, and nothing out there is blue.
- *
- * ⚠️ The shader builds its palette from this array via {@link paletteGlsl}, so
- * there is exactly one copy of these numbers.
+ * Sixteen colours, one per encoded index. See the spectral-sequence note on
+ * the array below — and ⚠️ the shader builds its palette from this array via
+ * {@link paletteGlsl}, so there is exactly one copy of these numbers.
  */
 /*
-THE PALETTE IS THE STYLE. Blackbody-ordered (blue → white → amber) but more
-saturated than the physics, because a real star is a washed-out thing and a
-night sky full of washed-out dots reads as grey noise. First shipped pastel —
-Tonio: "blurry and desaturated" — so the blue end went deeper and the warm end
-went amber. Entries are the ONLY colours a star can have, so each one earns its
-place; the ordering is load-bearing (encoded indices are nearest-match against
-these, and a reorder would silently re-colour every baked sky).
+THE PALETTE — still used by the paths that don't carry spectral data: the
+packed objects (indices 3 and 9, cool/warm), the faint default (6), and the
+distant galaxies (12/13). Bright singles decode through the continuous
+spectral ramp (`spectralGlsl`) instead. The shader builds from this array via
+`paletteGlsl`, so there is exactly one copy of these numbers.
 */
 export const STAR_PALETTE: Array<[number, number, number]> = [
-  [0.47, 0.62, 1.0],
-  [0.58, 0.7, 1.0],
-  [0.7, 0.79, 1.0],
-  [0.8, 0.87, 1.0],
-  [0.9, 0.94, 1.0],
-  [1.0, 0.98, 0.92],
-  [1.0, 0.94, 0.8],
-  [1.0, 0.89, 0.66],
-  [1.0, 0.83, 0.52],
-  [1.0, 0.75, 0.38],
-  [1.0, 0.64, 0.25],
-  [1.0, 0.5, 0.15],
+  [0.42, 0.55, 1.0], // 0 O — deep blue-white
+  [0.55, 0.66, 1.0], // 1 B — blue-white
+  [0.75, 0.82, 1.0], // 2 A — white-blue
+  [0.88, 0.92, 1.0], // 3 F — cool white (packed cool)
+  [1.0, 0.97, 0.88], // 4 G — warm white
+  [1.0, 0.85, 0.62], // 5 K-hot
+  [1.0, 0.74, 0.45], // 6 K — the faint default
+  [1.0, 0.62, 0.32], // 7 K-cool
+  [1.0, 0.52, 0.24], // 8 M-hot
+  [1.0, 0.44, 0.18], // 9 M (packed warm)
+  [1.0, 0.36, 0.13], // 10 M-cool
+  [1.0, 0.28, 0.1], // 11 M-red
   // Distant galaxies: warm, and deliberately off the stellar line.
   [1.0, 0.9, 0.66],
   [1.0, 0.82, 0.5],
   [1.0, 0.73, 0.36],
   [1.0, 0.62, 0.24],
 ]
+
+/*
+THE A BYTE LAYOUT — precision where the eye is.
+
+The channel spends its 256 codes on what the eye can actually SEE. Tonio:
+"only encode the brightest stars spectral value (and do it with more
+precision) and just treat the less bright stars as warm yellow."
+
+- `0`  — empty texel
+- `1`  — a FAINT star: warm yellow, no spectral spend
+- `2…31` — a distant-galaxy disc: 30 size steps (0…29), the tint alternating
+  two warm entries (12/13) — galaxies are small discs, and size is the only
+  thing about one that varies visibly
+- `32…255` — a BRIGHT star's spectral value, 224 steps of class+index
+  (`spectralValue`), decoded through a continuous blackbody ramp instead of
+  16 quantised entries
+
+The faint default also spends the 8-bit brightness more honestly: a faint
+star's colour was never visible, so its colour was never information.
+*/
+export const FAINT_A = 1
+export const GALAXY_A_BASE = 2
+export const SPECTRAL_A_BASE = 32
+
+/**
+ * Stars at or above this brightness carry their spectral value; below it they
+ * render warm yellow. Chosen against the real magnitude histogram: the faint
+ * mass is K/M floor-clamped and the eye reads those as a warm sprinkle
+ * regardless of which of them it is.
+ */
+export const BRIGHT_SPECTRAL_FLOOR = 0.3
+
+/** Class → [t0, t1] on the spectral ramp. K and M own the wide bands —
+ * that is where the population lives and where the colour changes. */
+const CLASS_T: Record<string, [number, number]> = {
+  O: [0, 0.06],
+  B: [0.1, 0.16],
+  A: [0.2, 0.27],
+  F: [0.31, 0.38],
+  G: [0.42, 0.5],
+  K: [0.54, 0.74],
+  M: [0.78, 1],
+}
+
+/**
+ * Spectral type (`'G2'`, `'M5'`…) → 0…1 along the ramp. The colour FOLLOWS
+ * the class. Unknown classes fall back to G.
+ */
+export function spectralValue(spectralType: string): number {
+  const range = CLASS_T[spectralType.charAt(0)]
+  if (range == null) return 0.45
+  const num = parseInt(spectralType.slice(1), 10)
+  const frac = Number.isFinite(num) ? Math.max(0, Math.min(9, num)) / 9 : 0.5
+  return range[0] + (range[1] - range[0]) * frac
+}
 
 /** Which cube face a direction lands on, and where on it. */
 export interface FaceUv {
@@ -326,6 +383,24 @@ export interface EncodedStarfield {
  * costs is always the fainter of two things already within one texel of each
  * other.
  */
+/**
+ * The A byte for one object — see the layout note above the constants.
+ */
+function encodeAlpha(o: SkyObject): number {
+  if ((o.size ?? 0) > 0) {
+    // A distant galaxy: size on the 0…29 ramp, tint alternating the two warm
+    // entries. Size is the only thing about a galaxy that varies visibly.
+    return (
+      GALAXY_A_BASE + Math.min(29, Math.round(Math.min(1, o.size ?? 0) * 29))
+    )
+  }
+  if (o.brightness < BRIGHT_SPECTRAL_FLOOR) return FAINT_A
+  // A bright star: 224 steps of spectral value, decoded through a continuous
+  // ramp — more colour precision than 16 quantised entries, spent only where
+  // the eye can see it.
+  return SPECTRAL_A_BASE + Math.min(223, Math.round((o.spectral ?? 0.5) * 223))
+}
+
 export function encodeStarfield(
   objects: SkyObject[],
   size = 512
@@ -380,10 +455,6 @@ export function encodeStarfield(
 
     if (group.length === 1) {
       const o = group[0]
-      const sizeNibble = Math.min(
-        15,
-        Math.max(0, Math.round((o.size ?? 0) * 15))
-      )
       buf[p] = Math.round(o.x * 255)
       buf[p + 1] = Math.round(o.y * 255)
       // 254, not 255 — that code is the packed flag.
@@ -396,7 +467,7 @@ export function encodeStarfield(
           )
         )
       )
-      buf[p + 3] = (sizeNibble << 4) | paletteIndex(o.r, o.g, o.b)
+      buf[p + 3] = encodeAlpha(o)
       continue
     }
 
@@ -428,13 +499,69 @@ export function encodeStarfield(
           ) - 1
         )
       )
-      // One bit: warm or cool, taken from the same palette the precise path uses.
-      const c = paletteIndex(o.r, o.g, o.b) >= 6 ? 1 : 0
+      // One bit: warm or cool — the spectral value splits at K.
+      const c = (o.spectral ?? 0.5) >= 0.54 ? 1 : 0
       buf[slots[i]] = (uu << 6) | (vv << 4) | (bb << 1) | c
     }
     buf[p + 2] = PACKED_FLAG
   }
   return { faces, size, placed, collided }
+}
+
+/*
+THE SPECTRAL RAMP — one list of control points, two consumers.
+
+Bright stars decode their 224-step spectral value through a continuous ramp
+instead of 16 quantised palette entries. The TS side (`spectralRamp`) is what
+the round-trip tests decode with; the GLSL side (`spectralGlsl`) is what the
+shader runs — both generated from this one list, so the two halves of the
+codec cannot drift. Saturated on purpose: a real blackbody is a washed-out
+thing and a sky of washed-out dots reads as grey noise.
+*/
+const SPECTRAL_RAMP: Array<[number, [number, number, number]]> = [
+  [0.0, [0.42, 0.55, 1.0]], // O — deep blue-white
+  [0.16, [0.6, 0.71, 1.0]], // B
+  [0.27, [0.78, 0.85, 1.0]], // A
+  [0.38, [0.9, 0.93, 1.0]], // F
+  [0.5, [1.0, 0.97, 0.88]], // G
+  [0.74, [1.0, 0.7, 0.38]], // K
+  [1.0, [1.0, 0.28, 0.1]], // M-red
+]
+
+/** Piecewise-linear along the ramp — the same maths the shader runs. */
+export function spectralRamp(t: number): [number, number, number] {
+  const tt = Math.max(0, Math.min(1, t))
+  for (let i = 1; i < SPECTRAL_RAMP.length; i++) {
+    const [t1, c1] = SPECTRAL_RAMP[i]
+    if (tt <= t1) {
+      const [t0, c0] = SPECTRAL_RAMP[i - 1]
+      const k = (tt - t0) / (t1 - t0)
+      return [
+        c0[0] + (c1[0] - c0[0]) * k,
+        c0[1] + (c1[1] - c0[1]) * k,
+        c0[2] + (c1[2] - c0[2]) * k,
+      ]
+    }
+  }
+  return SPECTRAL_RAMP[SPECTRAL_RAMP.length - 1][1]
+}
+
+/** The ramp as GLSL — generated, never transcribed. */
+export function spectralGlsl(): string {
+  const lines = ['vec3 b3dSpectral(float t) {', '  t = clamp(t, 0.0, 1.0);']
+  for (let i = 1; i < SPECTRAL_RAMP.length; i++) {
+    const [t0, c0] = SPECTRAL_RAMP[i - 1]
+    const [t1, c1] = SPECTRAL_RAMP[i]
+    lines.push(
+      `  if (t <= ${t1}) {`,
+      `    float k = (t - ${t0}) / ${(t1 - t0).toFixed(4)};`,
+      `    return mix(vec3(${c0[0]}, ${c0[1]}, ${c0[2]}), vec3(${c1[0]}, ${c1[1]}, ${c1[2]}), k);`,
+      '  }'
+    )
+  }
+  const last = SPECTRAL_RAMP[SPECTRAL_RAMP.length - 1][1]
+  lines.push(`  return vec3(${last[0]}, ${last[1]}, ${last[2]});`, '}')
+  return lines.join('\n')
 }
 
 /** One decoded object, as the shader would reconstruct it. */
@@ -491,13 +618,26 @@ export function decodeTexel(
   }
 
   if (flag !== PACKED_FLAG) {
+    const aByte = buf[p + 3]
+    let pal: [number, number, number]
+    let sz = 0
+    if (aByte >= SPECTRAL_A_BASE) {
+      pal = spectralRamp((aByte - SPECTRAL_A_BASE) / 223)
+    } else if (aByte >= GALAXY_A_BASE) {
+      // Tint alternates the two warm galaxy entries with the size ramp.
+      pal = STAR_PALETTE[12 + ((aByte - GALAXY_A_BASE) & 1)]
+      sz = (aByte - GALAXY_A_BASE) / 29
+    } else {
+      // FAINT_A — warm yellow, the one colour a faint star visibly has.
+      pal = STAR_PALETTE[6]
+    }
     return [
       at(
         buf[p] / 255,
         buf[p + 1] / 255,
         Math.pow(flag / 255, 1 / BRIGHT_GAMMA),
-        STAR_PALETTE[buf[p + 3] & 0x0f],
-        (buf[p + 3] >> 4) / 15
+        pal,
+        sz
       ),
     ]
   }

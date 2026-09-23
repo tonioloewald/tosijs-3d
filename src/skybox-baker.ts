@@ -182,6 +182,7 @@ import { zipSync } from 'fflate'
 import {
   FACE_NAMES,
   encodeStarfield,
+  spectralValue,
   type SkyObject,
 } from './starfield-codec.js'
 import { pngEncode } from './png.js'
@@ -332,33 +333,54 @@ export function facesToZip(
  * 100k it is fourteen thousand, crowding the cube and displacing real stars.
  * The data model knows which is which — ask it.
  *
- * Brightness comes from particle SCALE rather than from colour, because that is
- * what the galaxy varies: `b3d-galaxy` sizes a star by its apparent magnitude
- * and then clamps the nearest ones, so scale is the magnitude that survived.
+ * Stars join the star DATA by particle index (the SPS builds one particle per
+ * star, in order — the same alignment `hideStarAt` relies on). Two reasons,
+ * both measured rather than assumed:
+ *
+ * - **Colour from the SPECTRAL CLASS, not the rgb.** A star's colour follows
+ *   its class, so `palette: spectralPaletteIndex(spectralType)` is what the
+ *   encoder stores — nearest-matching the particle's rgb made every star land
+ *   in the near-white palette entries, which is exactly the "bright white
+ *   dots, no colour" sky Tonio called out.
+ * - **Brightness from the AUTHORED scale, not the clamped particle size.**
+ *   `b3d-galaxy` clamps a star's apparent size (`maxStarApparentSize`), and at
+ *   bake distance the clamp bit most of the population — the particle scales
+ *   were nearly uniform, so the encoded magnitudes were too, and the display
+ *   curve had no gradient to show. `StarData.scale` is derived from
+ *   luminosity before any clamping, so the real magnitude range survives.
  */
 export function starsFromGalaxy(
   galaxy: {
     starSps?: { particles: BABYLON.SolidParticle[] } | null
     getDistantGalaxyParticles?: () => BABYLON.SolidParticle[] | null
+    getGalaxyData?: () => {
+      stars: Array<{ spectralType: string; scale: number }>
+    } | null
   },
   eye: { x: number; y: number; z: number },
   options: { galaxyMaxScale?: number } = {}
 ): SkyObject[] {
   const out: SkyObject[] = []
   const stars = galaxy.starSps?.particles ?? []
+  const starData = galaxy.getGalaxyData?.()?.stars ?? []
   let maxScale = 0
-  for (const p of stars) maxScale = Math.max(maxScale, p.scaling?.x ?? 0)
+  for (const s of starData) maxScale = Math.max(maxScale, s.scale || 0)
   const norm = maxScale > 0 ? 1 / maxScale : 1
-  for (const p of stars) {
+  for (let i = 0; i < stars.length; i++) {
+    const p = stars[i]
+    const data = starData[i]
     out.push({
       x: p.position.x - eye.x,
       y: p.position.y - eye.y,
       z: p.position.z - eye.z,
-      // A floor, because a star encoded as zero is a star deleted.
-      brightness: Math.max(0.02, Math.min(1, (p.scaling?.x ?? 0) * norm)),
+      // The star's OWN scale, pre-clamp — see the note above. A floor,
+      // because a star encoded as zero is a star deleted.
+      brightness: Math.max(0.02, Math.min(1, (data?.scale ?? 0) * norm)),
       r: p.color?.r ?? 1,
       g: p.color?.g ?? 1,
       b: p.color?.b ?? 1,
+      // Colour follows the class; rgb is the fallback when the data is gone.
+      spectral: data != null ? spectralValue(data.spectralType) : undefined,
     })
   }
 

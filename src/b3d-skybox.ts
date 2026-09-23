@@ -111,7 +111,7 @@ preview.append(scene)
 import * as BABYLON from '@babylonjs/core'
 import { PRNG } from './mersenne-twister.js'
 import { SkyMaterial } from '@babylonjs/materials'
-import { BRIGHT_GAMMA, paletteGlsl } from './starfield-codec.js'
+import { BRIGHT_GAMMA, paletteGlsl, spectralGlsl } from './starfield-codec.js'
 /*
 Imported for SIDE EFFECTS: these register `skyVertexShader` and
 `skyPixelShader` in Babylon's `ShaderStore`. `SkyMaterial` loads them lazily on
@@ -194,8 +194,9 @@ const B3D_SKY = 'b3dSky'
 /**
  * The GLSL half of `starfield-codec` — decode the data cube into points.
  *
- * The palette comes from `paletteGlsl()` rather than being written out here, so
- * the two halves of the codec cannot drift apart.
+ * The palette comes from `paletteGlsl()` and the spectral ramp from
+ * `spectralGlsl()` rather than being written out here, so the two halves of
+ * the codec cannot drift apart.
  *
  * ## Why a 3x3 read
  *
@@ -224,14 +225,22 @@ uniform vec4 b3dStarInfo;
 DISPLAY EXPONENT — the look, not the data.
 
 The encoded gamma (BRIGHT_GAMMA) spends the 8 bits where the magnitudes are;
-this extra exponent shapes how they PRESENT. 2.3 (net m^2.3 on the recovered
-magnitude) reads like a log scale: a mid star is under a fifth of its linear
-brightness, the faint mass falls away, and only the brightest few stay bright
-points. Tonio: "the galaxy should be mostly subtle with only a few actual
-bright points of light" — 1.0 blew the band out to white, 2.0 was a tad
-bright, 2.3 is where the judgement landed.
+this extra exponent shapes how they PRESENT. 2.0 (net m^2 on the recovered
+magnitude) reads like a log scale: the field is subtle, the brightest few stay
+bright points. Tonio: "the galaxy should be mostly subtle with only a few
+actual bright points of light." Tuned through 1.0 (band blew out white), 2.3
+(too far — it suppressed the faint K/M stars, which is exactly where the
+COLOUR lives, leaving only hot blue-white dots) and back to 2.0, where the
+colourful mass survives as a dim sprinkle.
 */
-#define DISPLAY_EXP 2.3
+#define DISPLAY_EXP 2.0
+/*
+STAR GAIN — the intensity cap. The curve alone cannot stop the brightest
+stars sitting at 1.0 over the band's glow, which reads as white-hot dots no
+matter what tint they carry. Halving the whole contribution keeps the few
+bright points as the brightest things in the sky without the blowout.
+*/
+#define STAR_GAIN 0.55
 
 /** One reconstructed point, given its sub-texel position and its look. */
 vec3 b3dPoint(
@@ -301,12 +310,32 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   INCONSISTENCY, and there is none: every fragment that sees this texel
   reconstructs the same position from the same numbers.
   */
-  // Size: 0 is a point, 15 is a small disc (a distant galaxy).
-  float size = floor(texel.a * 255.0 / 16.0) / 15.0;
+  /*
+  The A byte's layout — see the note in starfield-codec. Precision goes where
+  the eye is: faint stars render warm yellow (their colour was never visible
+  information), galaxies carry size, and bright stars carry a 224-step
+  spectral value decoded through a continuous ramp.
+  */
+  float a = texel.a * 255.0;
   float brightness = pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)});
-  int idx = int(mod(texel.a * 255.0, 16.0));
+  if (a >= 32.0) {
+    return b3dPoint(
+      texel.rg, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5,
+      tapDir, tangent, bitangent, viewDir
+    );
+  }
+  if (a >= 2.0) {
+    // A distant galaxy: size on the 0…29 ramp, tint alternating two warms.
+    float size = (a - 2.0) / 29.0;
+    vec3 tint = mod(a, 2.0) < 1.0 ? STAR_PALETTE[12] : STAR_PALETTE[13];
+    return b3dPoint(
+      texel.rg, brightness, tint, 0.5 + size * b3dStarInfo.w,
+      tapDir, tangent, bitangent, viewDir
+    );
+  }
+  // FAINT: warm yellow, the one colour a faint star visibly has.
   return b3dPoint(
-    texel.rg, brightness, STAR_PALETTE[idx], 0.5 + size * b3dStarInfo.w,
+    texel.rg, brightness, STAR_PALETTE[6], 0.5,
     tapDir, tangent, bitangent, viewDir
   );
 }
@@ -332,7 +361,7 @@ vec3 b3dDecodeStars(vec3 viewDir) {
       );
     }
   }
-  return sum * b3dStarDataLevel;
+  return sum * b3dStarDataLevel * STAR_GAIN;
 }
 `
 }
@@ -355,7 +384,7 @@ function registerForkedSky(): boolean {
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
       'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform mat4 b3dStarRot;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
-        starDecodeGlsl(paletteGlsl())
+        starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
     .replace(
       anchor,

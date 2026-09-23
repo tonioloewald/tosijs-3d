@@ -6,7 +6,7 @@
       NOT to the shadow's ProceduralTexture, which kept sampling the disposed
       texture. `cirrus` is in the bake key, so the first slider scrub killed
       the shadows silently. One line: `_shadowTex?.setTexture('cloudField',
-      tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
+    tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       separate observation: the sun's own shadow generator never activates in
       this demo — the visible shadows are the deck's cloud shadows.)
 
@@ -6284,7 +6284,7 @@ carried a position and no orientation.
       which is the same number and therefore no effect at all. - This skeleton has `useTextureToStoreBoneMatrices: true`, so the matrices the shader
       reads are baked in `skeleton.prepare()`. That is the likely reason node writes are
       ignored, and the thing to investigate first. - The untried candidate is Babylon's own bone-posing API — `bone.setRotationQuaternion(q,
-  Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
+Space.WORLD, mesh)` — rather than touching the linked node. Reach for that before
       anything clever. - Axis calibration DID work (it picks the local axis whose world direction best matches
       the body's forward, and chose +Z here), so that part is worth keeping. But calibrate
       from a REST pose: it ran mid-crouch and scored an axis that was 116° from the aim.
