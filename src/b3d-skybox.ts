@@ -126,6 +126,9 @@ import type { B3d } from './tosi-b3d.js'
 import type { B3dSun } from './b3d-shadows.js'
 
 const DEG_TO_RAD = Math.PI / 180
+// The sun's direction in the DOME'S LOCAL frame — constant, because the
+// dome's rotation IS the sun's arc. See the fork.
+const SKY_LOCAL_SUN = new BABYLON.Vector3(0, 100, 0)
 
 function hexToColor3(hex: string): BABYLON.Color3 {
   const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -399,14 +402,30 @@ function registerForkedSky(): boolean {
   const anchor = 'gl_FragColor=color;'
   if (!src.includes(anchor)) return false
 
+  // The vertex fork passes the LOCAL position through. The whole sky lives
+  // in the dome's local frame — the dome's rotation orients everything in
+  // it (stars, gradient, sun, moon) as one rigid sky, and the cubemaps are
+  // sampled at the plain local direction. No per-star rotation, no matrix
+  // conventions, nothing to transpose.
   store[`${B3D_SKY}VertexShader`] = vert
+    .replace(
+      'varying vec3 vPositionW;',
+      'varying vec3 vPositionW;\nvarying vec3 vSkyLocal;'
+    )
+    .replace(
+      'vPositionW=vec3(worldPos);',
+      'vPositionW=vec3(worldPos);vSkyLocal=position.xyz;'
+    )
   store[`${B3D_SKY}PixelShader`] = src
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
-      'uniform samplerCube b3dStars;uniform float b3dStarLevel;' +
+      'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
+    // Every world direction in their sky math (zenith, the mie phase, the
+    // sampling `direction`) becomes the dome-local one.
+    .replaceAll('vPositionW-cameraPosition', 'vSkyLocal')
     .replace(
       anchor,
       /*
@@ -418,11 +437,10 @@ function registerForkedSky(): boolean {
       `vPositionW - cameraPosition` is the world view direction, which their
       own sky-colour maths already computes a line above.
       */
-      `vec3 b3dDir=normalize(vPositionW-cameraPosition);` +
-        // The stars sample the RAW view direction — the DOME's own rotation
-        // (tilt composed with the diurnal turn) orients the whole sky, so
-        // there is no per-star rotation here and no matrix to get transposed.
-        // One frame, everything in it, by construction.` +
+      // ONE frame, everything in it: the dome's own rotation orients the
+      // whole sky, so the backdrop samples the same local direction the sky
+      // math above already used. No per-star rotation, no second channel.
+      `vec3 b3dDir=normalize(vSkyLocal);` +
         // The RASTER backdrop — a baked cube, still supported.
         `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
         /*
@@ -433,6 +451,12 @@ function registerForkedSky(): boolean {
         measurements argued for.
         */
         `color.rgb+=b3dDecodeStars(b3dDir);` +
+        // The moon, part of the backdrop: the sun's ANTIPODE in the sky's
+        // frame — the local sun direction negated — so the disc and the
+        // moonlight are the same direction by definition, and it rides the
+        // dome's rotation with the stars.
+        `{float md=max(0.0,dot(normalize(b3dDir),-sunDirection));` +
+        `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
         light arriving, it is light being blocked. Inside cloud there is white a
@@ -1491,16 +1515,23 @@ export class B3dSkybox extends AbstractMesh {
       sm.setFloat?.('b3dStarDataLevel', 1 - dayBrightness * air)
     }
     /*
-    THE DOME CARRIES THE SKY. Rotate the RENDER, not the sampled direction —
-    Tonio: "We shouldn't rotate the starfield AT ALL. We should rotate the
-    cubemap render (which we do)." The dome's rotation (tilt composed with
-    the diurnal turn) orients EVERYTHING rendered in it — stars, nebulae,
-    the sun's glow, the moon — as one rigid sky, so they cannot diverge by
-    construction. There is no matrix uniform for the stars to mis-upload.
+    THE DOME ORIENTS THE WHOLE SKY. Tonio: "The sky itself is little more
+    than a gradient with a glowing sun and moon stuck on top of them. It's
+    just math. The cubemap of the starfield is the complicated bit that you
+    want to avoid messing with." Exactly — so the dome's rotation (tilt
+    composed with the diurnal turn) carries EVERYTHING in its local frame:
+    the gradient, the sun and moon glows, and the cubemaps (sampled at the
+    plain local direction). Nothing can diverge because there is nothing
+    left to diverge — one rotation, one frame.
     */
     if (this.mesh != null && this._tiltQuat != null) {
       this._tiltQuat.multiplyToRef(this._qTotal, this._domeQuat)
       this.mesh.rotationQuaternion = this._domeQuat
+      // The moon rides the same fade as the stars — night shows it, day
+      // hides it, and its direction is the local sun's antipode (see the
+      // shader), which is the moonlight direction by definition.
+      const sm = material as unknown as BABYLON.ShaderMaterial
+      sm.setFloat?.('b3dMoon', attrs.moonIntensity * (1 - dayBrightness * air))
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {
@@ -1605,7 +1636,12 @@ export class B3dSkybox extends AbstractMesh {
         // underwater dimFactor so the two stay in agreement.
         sunEl.externallyLit = true
         const dim = sunEl.dimFactor ?? 1
-        material.sunPosition = sunVector
+        // The shader's sky math runs in the DOME'S LOCAL frame, and the
+        // sun's local direction is a CONSTANT: the dome's rotation is
+        // exactly the composition that carries the sun's arc, so the local
+        // sun is the untouched +Y — every part of the arc comes from the
+        // dome turning. The scene's LIGHT keeps the world direction.
+        material.sunPosition = SKY_LOCAL_SUN
         sunVector.normalizeToRef(this._dir)
         light.direction.x = -this._dir.x
         light.direction.y = -this._dir.y
@@ -1622,6 +1658,7 @@ export class B3dSkybox extends AbstractMesh {
           light.intensity = intensity * dim
           material.rayleigh = attrs.rayleigh * airSky
           material.turbidity = attrs.turbidity * airSky
+          material.mieCoefficient = attrs.mieCoefficient
 
           // Horizon: blend light color with sky blue, then brighten toward white
           // at high sun — written in place into _horizonColor via a scratch.
@@ -1642,6 +1679,9 @@ export class B3dSkybox extends AbstractMesh {
           light.intensity = attrs.moonIntensity * dim
           material.rayleigh = attrs.rayleigh * 0.05 * airSky
           material.turbidity = attrs.turbidity * 0.05 * airSky
+          // The sun's disc must SET — the local sun is fixed, so night
+          // kills the mie term that draws it.
+          material.mieCoefficient = attrs.mieCoefficient * 0.05
 
           // Night horizon: dark desaturated blue
           this._horizonColor.copyFrom(NIGHT_HORIZON)
