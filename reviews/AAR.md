@@ -1,4 +1,3 @@
-
 ## 0.8.2 cycle
 
 - **The gate blocked twice on the same class of bug, one level deeper each

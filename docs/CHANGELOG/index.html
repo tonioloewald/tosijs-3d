@@ -62,7 +62,10 @@ galaxy at 25 MiB of VRAM and 0.4 MB on disk, against the 2.3 MB / 96 MiB
 raster it replaces. The A-byte spends precision where the eye is: faint stars
 are warm yellow, bright stars carry a 224-step spectral ramp, galaxy discs
 their size.</li>
-<li><strong><code>png.ts</code></strong> — a lossless PNG encoder. The packed fields must survive
+<li><strong><code>png.ts</code></strong> — a lossless PNG encoder — and with it the package&#39;s first
+runtime dependency: <strong><code>fflate</code> (<code>^0.8.3</code>)</strong> supplies the deflate, because
+Chrome&#39;s <code>CompressionStream</code> output is rejected by Chrome&#39;s own PNG decoder
+and the packed fields must survive byte-exact. The packed fields must survive
 byte-exact, and both the canvas path (premultiplied backing store) and
 Chrome&#39;s <code>CompressionStream</code> deflate destroy them; the encoder writes the
 bytes directly and a test round-trips through real inflate.</li>
@@ -92,6 +95,10 @@ dropped by the browser mid-burst.</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
+<li>The biome classifier&#39;s sea level and lapse rate are LIVE dials — they
+move the snow line without re-cutting the tile pool (the shader reads the
+plugin params every bind; the old spelling regenerated the world for a
+value the shader never saw).</li>
 <li>The cloud-deck shadow survived field re-bakes (the shadow&#39;s sampler was
 left pointing at a disposed texture).</li>
 <li>The cloud-deck&#39;s core glow no longer blows out at high star counts.</li>
@@ -3281,7 +3288,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
-      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <li><details><summary><a class="doc-link" href="../world-sim/">world-sim</a></summary>
       <ul>
         <li><a class="doc-link" href="../world-store/">world-store</a></li>
         <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
@@ -3486,7 +3493,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
+    <li><a class="doc-link" href="../world-simulation/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">

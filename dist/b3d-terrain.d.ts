@@ -290,6 +290,11 @@ export declare class B3dTerrain extends B3dChild {
     private _generationKey;
     private _genKey;
     render(): void;
+    private _syncedSeaLevel;
+    private _syncedLapseRate;
+    private _syncBiome;
+    /** Material tweaks that must never cost a regeneration. */
+    private _syncMaterial;
     regenerate(): void;
     private _rebuild;
 }

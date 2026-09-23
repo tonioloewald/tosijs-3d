@@ -775,6 +775,9 @@ export class B3dTerrain extends B3dChild {
         this.pool = [];
         if (this.material)
             this.material.dispose();
+        this.biomePlugin = null;
+        this._syncedSeaLevel = NaN;
+        this._syncedLapseRate = NaN;
         this.owner = null;
     }
     createSampler() {
@@ -793,16 +796,7 @@ export class B3dTerrain extends B3dChild {
         mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
         mat.backFaceCulling = false;
         mat.wireframe = this.wireframe;
-        if (!isOff(this.biome)) {
-            // One shader spans seafloor → beach → mountain; sea level comes from the
-            // attr (keep it equal to the sibling b3d-water's y).
-            this.biomePlugin = attachBiomePlugin(mat, {
-                seaLevel: this.biomeSeaLevel ?? 0,
-                ...(this.biomeLapseRate > 0
-                    ? { lapseRate: this.biomeLapseRate }
-                    : {}),
-            });
-        }
+        // The biome plugin attaches lazily in _syncBiome() — one door, not two.
         return mat;
     }
     /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
@@ -1643,9 +1637,6 @@ export class B3dTerrain extends B3dChild {
             a.reach,
             a.hiResSubdivisions,
             a.normalSmoothing,
-            a.biome,
-            a.biomeSeaLevel,
-            a.biomeLapseRate,
         ].join('|');
     }
     _genKey = '';
@@ -1676,6 +1667,8 @@ export class B3dTerrain extends B3dChild {
         super.render();
         if (this.owner == null)
             return;
+        this._syncBiome();
+        this._syncMaterial();
         const key = this._generationKey();
         if (key === this._genKey)
             return;
@@ -1683,6 +1676,57 @@ export class B3dTerrain extends B3dChild {
         // BUDGETED, not unbounded: this fires once per rAF while a slider is
         // dragged. See `markPoolStale` for why that distinction is the whole fix.
         this._rebuild(false);
+    }
+    /*
+    THE BIOME'S DIALS ARE LIVE, not generation attributes.
+  
+    The plugin re-reads its params every bind, so pushing the sea level and
+    lapse rate here is what makes a slider move the snow line — WITHOUT a pool
+    re-cut (they are deliberately NOT in the generation key). The old spelling
+    — write the attribute, call regenerate() — re-cut the whole pool for a
+    value the shader never saw; the 0.8.2 gate caught that dead seam, and its
+    re-review added the rest of this class: the OFF toggle must actually
+    disable the plugin, the plugin must be derived from the LIVE material
+    (a cached reference orphans across a re-parent), the attribute wins over
+    direct params writes only when it CHANGES (memo, so a chart's direct
+    `params.seaLevel = v` survives a frame), and a lapse back to `0` means
+    auto again.
+    */
+    _syncedSeaLevel = NaN;
+    _syncedLapseRate = NaN;
+    _syncBiome() {
+        const a = this;
+        if (this.material == null)
+            return;
+        if (isOff(a.biome)) {
+            if (this.biomePlugin != null && this.biomePlugin.isEnabled) {
+                this.biomePlugin.isEnabled = false;
+            }
+            return;
+        }
+        // One door: derive from the live material (attachBiomePlugin is
+        // idempotent — it returns the existing plugin when one is present).
+        this.biomePlugin = attachBiomePlugin(this.material, {});
+        if (!this.biomePlugin.isEnabled)
+            this.biomePlugin.isEnabled = true;
+        const sea = Number.isFinite(a.biomeSeaLevel) ? a.biomeSeaLevel : 0;
+        if (sea !== this._syncedSeaLevel) {
+            this._syncedSeaLevel = sea;
+            this.biomePlugin.params.seaLevel = sea;
+        }
+        const lapse = Number.isFinite(a.biomeLapseRate)
+            ? Math.max(0, Math.min(1, a.biomeLapseRate))
+            : 0;
+        if (lapse !== this._syncedLapseRate) {
+            this._syncedLapseRate = lapse;
+            // 0 is the documented AUTO — the plugin's own default, not a zero.
+            this.biomePlugin.params.lapseRate = lapse > 0 ? lapse : 0.004;
+        }
+    }
+    /** Material tweaks that must never cost a regeneration. */
+    _syncMaterial() {
+        if (this.material)
+            this.material.wireframe = this.wireframe;
     }
     regenerate() {
         /*
@@ -1696,8 +1740,6 @@ export class B3dTerrain extends B3dChild {
     }
     _rebuild(unbounded) {
         const attrs = this;
-        if (this.material)
-            this.material.wireframe = attrs.wireframe;
         // Re-seed if the seed changed — terrain is fully determined by (seed, params),
         // so the same seed always reproduces the same world.
         if (attrs.seed !== this.noiseSeed) {
