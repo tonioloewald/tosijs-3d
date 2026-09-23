@@ -430,10 +430,11 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 /*{ "parent": "UI", "order": 100 }*/
 import { svgElements, StyleSheet } from 'tosijs';
 import { placePopup } from './flow-layout.js';
-import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, DEFAULT_SLIDER_PRECISION, measureTextWidth, } from './widgets3d-layout.js';
+import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, DEFAULT_SLIDER_PRECISION, ellipsize, measureTextWidth, } from './widgets3d-layout.js';
 import { handlerOf, resetHandlerWarnings } from './handler-of.js';
 import { w3dTheme } from './w3d-theme.js';
 import { iconGlyph } from './svg-icons.js';
+import { chromeLayout } from './popup-chrome.js';
 const { svg, g, rect, text, circle, clipPath } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
 /*
@@ -751,7 +752,22 @@ export function label3d(config) {
     const h = config.compact ? TH.LINE_H : TH.ROW;
     t.setAttribute('x', String(TH.PAD_X));
     t.setAttribute('y', String(h / 2));
-    return { el: g({ 'data-w3d': 'label' }, t), layout: () => h };
+    return {
+        el: g({ 'data-w3d': 'label' }, t),
+        /*
+        A CAPTION TRUNCATES; PROSE WRAPS. This one is a single line by definition —
+        `text3d`/`textBlock3d` exist for anything that should flow — so a caption
+        too long for the panel used to simply run off the right-hand edge and under
+        the scroll rail, which is how the panel's own title read in a 282px VR
+        panel.
+    
+        `layout` was already handed the width and threw it away.
+        */
+        layout(width) {
+            t.textContent = ellipsize(config.text, width - TH.PAD_X * 2, config.bold ? TH.BOLD_FONT : TH.TEXT_FONT);
+            return h;
+        },
+    };
 }
 /**
  * A wrapped, multi-line text block — the honest way to render prose in an SVG
@@ -834,6 +850,9 @@ export function button3d(config) {
             btnWidth = width;
             bg.setAttribute('width', String(width));
             lbl.setAttribute('x', String(width / 2));
+            // Centred text overflows BOTH ends, so it escapes the button on the left
+            // as well — the one case where a caption spills outside its own control.
+            lbl.textContent = ellipsize(config.label, width - TH.PAD_X * 2, TH.TEXT_FONT);
             return TH.ROW;
         },
         handle(kind) {
@@ -916,10 +935,22 @@ export function iconBar3d(config) {
             rx: 1,
             fill: item.active ? TH.ACCENT : 'transparent',
         });
+        /*
+        DIM IS A COLOUR, not an opacity.
+    
+        This SVG is rasterised to a texture where a group opacity composites against
+        whatever is behind it in the same pass — which for an icon sitting on its
+        own button chrome reads as a smudge rather than as faintness. Muting the
+        glyph's colour says the same thing and survives the raster.
+        */
         const glyph = iconGlyph(item.icon, {
             // Baked at creation (texture-safe), so a SELECTED icon takes the active
             // label colour here rather than being repainted later.
-            color: item.active ? w3dTheme.buttonActiveText : TH.TEXT,
+            color: item.active
+                ? w3dTheme.buttonActiveText
+                : item.dim
+                    ? TH.MUTED
+                    : TH.TEXT,
             size: ICON,
             x: (BS - ICON) / 2,
             y: (BS - ICON) / 2,
@@ -1080,6 +1111,9 @@ export function toggle3d(config) {
             rowBg.setAttribute('width', String(width));
             trackX = width - trackW - TH.PAD_X;
             track.setAttribute('x', String(trackX));
+            // Up to the switch, not to the panel edge: an untruncated label ran
+            // straight under it and out the other side.
+            lbl.textContent = ellipsize(config.label ?? '', trackX - TH.PAD_X - 8, TH.TEXT_FONT);
             reflect();
             return TH.ROW;
         },
@@ -1108,32 +1142,54 @@ export function slider3d(config) {
     const zeroStop = config.zeroStop ?? false;
     const precision = config.precision ?? DEFAULT_SLIDER_PRECISION;
     const bound = boundValue(config.value, handlerOf(config, 'handleChange', 'onChange'));
+    const labelText = config.label ?? '';
     const lbl = config.label ? baseText(config.label) : null;
     // A clip, so a label squeezed by the track's minimum is TRUNCATED rather than
     // painted over the control it just gave way to.
     const labelClipId = `w3d-lbl-${clipSeq++}`;
     const labelClip = rect({ x: 0, y: 0, width: 0, height: TH.ROW });
     const labelClipPath = clipPath({ id: labelClipId }, labelClip);
+    /*
+    TWO ROWS: the caption above, the track across the FULL WIDTH below.
+  
+    It used to be one row — label, track, value — and the track got whatever was
+    left, which on a narrow panel was not much. `MIN_TRACK` bought it a floor at
+    the label's expense, but that is rationing rather than a fix: the row is only
+    ever as wide as the panel, and three things wanted it.
+  
+    Tonio: "the slider is the full width and the displayed number is above it.
+    The narrow width of the slider makes it harder to use." Stacking gives the
+    track the whole width, which matters most exactly where the old layout hurt
+    most — a headset, where you aim with your arm and the panel is 282px across.
+  
+    The caption is a notch smaller than body text, so two rows cost less than one
+    and a half. A slider is now taller than a toggle, and it should be: it is the
+    control that needs the most aim.
+    */
+    const CAP_Y = Math.round(TH.FONT * 1.05);
+    const TRACK_Y = CAP_Y + Math.round(TH.FONT * 0.85);
+    const SLIDER_H = TRACK_Y + Math.round(TH.FONT * 0.8);
+    const capFont = { ...TH.TEXT_FONT, size: TH.FONT * 0.86 };
     if (lbl) {
         lbl.setAttribute('x', String(TH.PAD_X));
-        lbl.setAttribute('y', String(TH.ROW / 2));
-        lbl.setAttribute('clip-path', `url(#${labelClipId})`);
+        lbl.setAttribute('y', String(CAP_Y));
+        lbl.setAttribute('font-size', String(capFont.size));
     }
     const trackEl = rect({
         height: 6,
         rx: 3,
         ry: 3,
         fill: TH.TRACK,
-        y: TH.ROW / 2 - 3,
+        y: TRACK_Y - 3,
     });
     const fillEl = rect({
         height: 6,
         rx: 3,
         ry: 3,
         fill: TH.ACCENT,
-        y: TH.ROW / 2 - 3,
+        y: TRACK_Y - 3,
     });
-    const knob = circle({ cy: TH.ROW / 2, r: 10, fill: '#fff' });
+    const knob = circle({ cy: TRACK_Y, r: 10, fill: '#fff' });
     // Exact-value readout: shown (in place of the track) while you point at or drag
     // the slider, so the precise number is legible even at low XR texture res. The
     // label stays visible beside it. Decimals follow the step.
@@ -1156,9 +1212,9 @@ export function slider3d(config) {
     const format = config.format ??
         (scale === 'log' ? logFormat : (v) => v.toFixed(decimals));
     const valText = baseText('', TH.ACCENT);
-    valText.setAttribute('text-anchor', 'start');
-    valText.setAttribute('x', String(TH.PAD_X));
-    valText.setAttribute('y', String(TH.ROW / 2));
+    valText.setAttribute('text-anchor', 'end');
+    valText.setAttribute('y', String(CAP_Y));
+    valText.setAttribute('font-size', String(capFont.size));
     valText.setAttribute('font-weight', '600');
     valText.setAttribute('display', 'none');
     /*
@@ -1171,7 +1227,8 @@ export function slider3d(config) {
     */
     const fixedVal = baseText('', TH.ACCENT);
     fixedVal.setAttribute('text-anchor', 'end');
-    fixedVal.setAttribute('y', String(TH.ROW / 2));
+    fixedVal.setAttribute('y', String(CAP_Y));
+    fixedVal.setAttribute('font-size', String(capFont.size));
     fixedVal.setAttribute('font-weight', '600');
     if (showValue !== 'always')
         fixedVal.setAttribute('display', 'none');
@@ -1211,11 +1268,15 @@ export function slider3d(config) {
     };
     // Peek shows the exact value in place of the LABEL — the track and knob stay
     // visible, so you can still see and drag the slider while reading the number.
+    /*
+    Peek appears BESIDE the label now rather than in place of it. Replacing it was
+    a concession to a single row — there was nowhere else for a number to go — and
+    a label that vanishes the moment you touch the control is exactly the wrong
+    time to lose the name of the thing you are adjusting.
+    */
     const peek = (on) => {
         if (showValue !== 'peek')
             return;
-        if (lbl)
-            lbl.setAttribute('display', on ? 'none' : 'inline');
         valText.setAttribute('display', on ? 'inline' : 'none');
     };
     // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
@@ -1229,42 +1290,50 @@ export function slider3d(config) {
         el,
         layout(width) {
             rowBg.setAttribute('width', String(width));
+            rowBg.setAttribute('height', String(SLIDER_H - 4));
             /*
-            THE TRACK GETS ITS MINIMUM FIRST, and the label yields for it.
+            THE TRACK TAKES THE WHOLE WIDTH, because it is on its own row now and
+            nothing competes with it.
       
-            The label took a flat 45% and the readout took whatever it needed, so on a
-            narrow panel with `showValue: 'always'` and a unit in the format the track
-            was whatever happened to be left. Measured in a headset at 282px wide with
-            a "0.015 1/m" readout: a 53px track, against 229px of label and number.
-      
-              Tonio: "the panel is narrow combined with the way the value is now
-              displayed so that for the top scale slider in VR the slider is TINY and
-              the entire row is occupied by the title and the value."
-      
-            A label you can only half-read is a nuisance; a track you cannot aim at is
-            a broken control, and in a headset you are aiming with your arm. So the
-            track is reserved and the label is clipped to what is left — never below a
-            floor of its own, because a label clipped to nothing is not a trade.
+            What this replaces was a negotiation — `MIN_TRACK` reserved 90px and the
+            label was clipped to whatever remained — and the negotiation only existed
+            because three things shared one row. Stacking removes the argument rather
+            than arbitrating it.
             */
-            const MIN_TRACK = 90;
-            const MIN_LABEL = 56;
-            const avail = width - TH.PAD_X * 2 - 12 - readoutW;
-            let labelW = lbl ? Math.min(width * 0.45, 150) : 0;
-            if (lbl && avail - labelW < MIN_TRACK) {
-                labelW = Math.max(MIN_LABEL, avail - MIN_TRACK);
-            }
-            labelClip.setAttribute('width', String(Math.max(0, labelW - 6)));
-            trackX = TH.PAD_X + labelW;
-            trackW = width - trackX - TH.PAD_X - 12 - readoutW;
-            fixedVal.setAttribute('x', String(width - TH.PAD_X));
+            trackX = TH.PAD_X + 10;
+            trackW = Math.max(20, width - trackX - TH.PAD_X - 10);
             trackEl.setAttribute('x', String(trackX));
             trackEl.setAttribute('width', String(trackW));
+            fixedVal.setAttribute('x', String(width - TH.PAD_X));
+            valText.setAttribute('x', String(width - TH.PAD_X));
+            /*
+            ELLIPSIS, NOT A CLIP. Tonio: "Can we make captions check the width of the
+            string and truncate to ellipsis?" A clipped label ends mid-stroke and says
+            nothing about having been cut — `cameraHeightOffset` becomes
+            `cameraHeigh` with the h sliced down the middle, and nothing tells you it
+            was not named that. An ellipsis is a claim that the name goes on, for the
+            cost of one character.
+      
+            The caption yields to the readout, which is the same ranking the old
+            single-row version settled on — a number you cannot read is a broken
+            control, a name you can half-read is a nuisance — applied to text rather
+            than to a track.
+            */
+            if (lbl) {
+                const room = width - TH.PAD_X * 2 - readoutW - (readoutW > 0 ? 8 : 0);
+                lbl.textContent = ellipsize(labelText, room, capFont);
+            }
             reflect();
-            return TH.ROW;
+            return SLIDER_H;
         },
-        // Only the track is interactive; the label area is scroll surface.
+        /*
+        The whole width is the track now, so the whole width is interactive. The old
+        test excluded the label area, which on a stacked layout is a different row —
+        and a slider that ignores presses at its own left-hand end is precisely the
+        bug the single-row layout made unavoidable.
+        */
         hitTest(x) {
-            return x >= trackX - 10 && x <= trackX + trackW + 10;
+            return x >= trackX - 14 && x <= trackX + trackW + 14;
         },
         handle(kind, x) {
             if (kind === 'leave') {
@@ -1416,6 +1485,11 @@ export function select3d(config) {
             const caretX = width - TH.PAD_X - CARET;
             caret.setAttribute('transform', `translate(${caretX} ${TH.ROW / 2 - 7})`);
             val.setAttribute('x', String(caretX - 8));
+            // The value cluster wins the right-hand side, so the caption takes what
+            // is left of the row rather than printing through it.
+            if (lbl) {
+                lbl.textContent = ellipsize(config.label ?? '', clusterX - TH.PAD_X - 8, TH.TEXT_FONT);
+            }
             reflect();
             return TH.ROW;
         },
@@ -1601,10 +1675,13 @@ export function spinner3d(config = {}) {
             ring.setAttribute('cx', String(cx));
             ring.setAttribute('cy', String(cy));
             if (lbl) {
-                lbl.setAttribute('x', String(TH.PAD_X + size + 8));
+                const x = TH.PAD_X + size + 8;
+                lbl.setAttribute('x', String(x));
                 lbl.setAttribute('y', String(cy));
+                // `void width` was here: the width was received and deliberately
+                // dropped, so a long "loading…" line ran off the panel.
+                lbl.textContent = ellipsize(config.label ?? '', width - x - TH.PAD_X, TH.TEXT_FONT);
             }
-            void width;
             return TH.ROW;
         },
         // Not interactive: a spinner reports, it does not respond. Returning false
@@ -1666,6 +1743,9 @@ export function progress3d(config = {}) {
             if (lbl) {
                 lbl.setAttribute('x', String(TH.PAD_X));
                 lbl.setAttribute('y', String(TH.ROW / 2));
+                // It already yields width to the bar; now it says so rather than
+                // printing across it.
+                lbl.textContent = ellipsize(config.label ?? '', labelW - 8, TH.TEXT_FONT);
             }
             if (pct) {
                 pct.setAttribute('x', String(trackX + trackW + 8));
@@ -2158,8 +2238,22 @@ export function panel3d(config, ...widgets) {
             is reserved only if one of THESE hosts actually draws chrome, so a
             flat-only panel gets no empty strip above its menu.
             */
-            const drawsChrome = hosts.some((h) => h.drawsChrome === true);
-            const sheet = panelPopupSheet(config.width ?? 360, items, drawsChrome ? POPUP_CHROME_BAND : 0);
+            /*
+            CHROME IS A PROPERTY OF THE POPUP, not of the host.
+      
+            It used to be "does any mounting host draw glyphs", which is right for the
+            in-scene face — `popup-surface` always draws them, so the band must exist
+            or they land on the content — and wrong for a MENU, which wants neither a
+            title bar nor a way to be dragged. Reserving it regardless is what put an
+            empty strip above every flat dropdown.
+      
+            So: a host that always draws (the plane) still forces the band, and
+            otherwise the CALLER says. `panel.popup` asks for chrome; a select does
+            not.
+            */
+            const alwaysDraws = hosts.some((h) => h.drawsChrome === true);
+            const chromeBand = alwaysDraws || config.chrome === true ? POPUP_CHROME_BAND : 0;
+            const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand);
             /*
             ONE CLOSE, however it starts.
       
@@ -2181,7 +2275,12 @@ export function panel3d(config, ...widgets) {
                     o.close();
                 handlerOf(config, 'handleClose', 'onClose')?.();
             };
-            opened.push(...hosts.map((h) => h(sheet, { ...placed, handleClosed: closeAll })));
+            opened.push(
+            // `chromeBand` travels with the popup: the sheet reserved it, so every
+            // host has to agree about whether it exists. Computing it twice is how
+            // glyphs end up drawn over content in one presentation and floating in
+            // an empty strip in the other.
+            ...hosts.map((h) => h(sheet, { ...placed, handleClosed: closeAll, chromeBand })));
             return { close: closeAll };
         },
         get hasLayer() {
@@ -2443,9 +2542,63 @@ export function panel3d(config, ...widgets) {
             applyScroll();
         }, { passive: false });
     }
-    // Exposed so an in-scene/VR host can feed picks (UV → viewBox coords) without
-    // any DOM events — the whole point of staying coordinate-based.
+    /*
+    A POPUP IN ONE CALL, because the friction was the whole problem.
+  
+    Everything needed already existed — `hostFor(i).showLayer` opens widgets in a
+    real layer above the panel, unbounded, identically flat and in a headset — but
+    it was reachable only from INSIDE a widget, and it wanted an anchor. So the
+    cheap way to show a bit of extra information stayed "add some rows", and rows
+    push the panel around.
+  
+    Tonio: *"It should be super easy to make popups so that it's the low friction
+    way of presenting additional information."* And the reason it matters:
+    *"Having one of these info panels push out the panel layout is a bad
+    experience."*
+  
+    So: `panel.popup({ title }, ...widgets)`. A title row and a Close button are
+    supplied, because a popup without a way out is a trap and every caller would
+    otherwise write the same two lines.
+    */
     ;
+    root.popup = (config, ...items) => {
+        const host = hostFor(0);
+        let handle = null;
+        const close = () => handle?.close();
+        /*
+        NO CLOSE BUTTON ROW. The mounting layer draws the chrome — a move glyph and
+        a × in the popup's own title band, in BOTH presentations now — so a
+        full-width button was a second way to do the same thing, and the less
+        conventional one. Tonio: "The popups should just have the usual move and
+        drag affordances rather than a giant close button and being stuck in place."
+        */
+        const rows = [];
+        if (config.title != null)
+            rows.push(label3d({ text: config.title, bold: true }));
+        rows.push(...items);
+        handle = host.showLayer({
+            // Anchored to the panel's top edge rather than to a widget, because
+            // nothing here is a widget: this is the PANEL showing something.
+            anchor: { x: 0, y: 0, width: config.width ?? width, height: 0 },
+            side: 'below',
+            width: config.width,
+            // A thing you might keep open while you use the panel behind it, so it
+            // gets a title band you can drag it by and a × to dismiss it.
+            chrome: true,
+            /*
+            CAPPED, so it SCROLLS rather than overflowing.
+    
+            Uncapped, a debug readout came out 572 units tall in a 360-unit demo
+            and ran off the bottom of the page — taking its own Close button with
+            it. A popup whose only exit is below the fold is a trap, and the fact
+            that an outside press also dismisses it is not something a first-time
+            user knows.
+            */
+            maxHeight: config.maxHeight ?? host.bounds.height,
+            handleClose: config.handleClose,
+        }, ...rows);
+        return { close };
+    };
     root.handlePointer =
         handlePointer;
     root.scrollBy = (dy) => {
@@ -2494,7 +2647,15 @@ export function panel3d(config, ...widgets) {
                 display: 'none',
             },
         });
-        return root.addLayerHost((sheet, config) => {
+        /*
+        DECLARE THE CHROME, or the sheet leaves no room for it.
+    
+        `panelPopupSheet` reserves its top band only when some mounting host says it
+        draws handles — the note on `chromeBand` is explicit that an unreserved band
+        puts the glyphs on the content ("the move affordance overlaps the 'q'").
+        This host draws them now, so it says so.
+        */
+        const domLayerHost = (sheet, config) => {
             const rect = root.getBoundingClientRect();
             /*
             A ZERO SCALE IS A ZERO-SIZE KEYBOARD, so never take one.
@@ -2524,6 +2685,38 @@ export function panel3d(config, ...widgets) {
             holder.style.height = `${h * scale}px`;
             sheet.setAttribute('width', String(w * scale));
             sheet.setAttribute('height', String(h * scale));
+            /*
+            CHROME ON THE FLAT LAYER TOO — move and close, and a popup you can drag.
+      
+            This host used to draw none: the in-scene popup got handles from
+            `popup-surface` and the DOM one got nothing, so flat a popup was stuck
+            where it opened and its only exit was whatever button the caller had
+            thought to include. Tonio: "The popups should just have the usual move and
+            drag affordances rather than a giant close button and being stuck in
+            place."
+      
+            Same geometry as the plane's, from `chromeLayout`, so the two
+            presentations put the handles in the same place and a person who has
+            learnt one has learnt the other.
+            */
+            const band = config.chromeBand ?? 0;
+            const chrome = chromeLayout(w, h, band / Math.max(1, h));
+            let closeGlyph = null;
+            if (band > 0 && chrome.barHeight > 0) {
+                const mk = (name, at) => iconGlyph(name, {
+                    color: TH.MUTED,
+                    size: at.size,
+                    x: at.x,
+                    y: at.y,
+                });
+                // The move glyph is PURELY an affordance — the drag below already
+                // works anywhere that is not a widget. It is here because an
+                // undiscoverable gesture is not a feature.
+                if (chrome.move != null)
+                    sheet.appendChild(mk('move', chrome.move));
+                closeGlyph = mk('close', chrome.close);
+                sheet.appendChild(closeGlyph);
+            }
             holder.appendChild(sheet);
             // Beside the panel — see the note above on shadow hosts.
             const parent = container ?? root.parentNode;
@@ -2616,13 +2809,59 @@ export function panel3d(config, ...widgets) {
             const onUp = () => {
                 dragFrom = null;
             };
+            /*
+            THE × CLOSES, and it has to be wired BEFORE the drag handler sees the
+            press — otherwise pressing close drags the popup by its own close button,
+            which is the most annoying possible outcome.
+      
+            A generous target rather than the glyph's own box: `chromeLayout` computes
+            `closeHitX` separately for exactly this reason — a shrunken × on a
+            controller ray is a miss waiting to happen, and a mouse deserves the same
+            courtesy at the corner of a small popup.
+            */
+            if (closeGlyph != null) {
+                const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                hit.setAttribute('x', String(chrome.closeHitX));
+                hit.setAttribute('y', '0');
+                hit.setAttribute('width', String(Math.max(0, w - chrome.closeHitX)));
+                hit.setAttribute('height', String(chrome.barHeight));
+                hit.setAttribute('fill', 'transparent');
+                hit.style.cursor = 'pointer';
+                hit.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                    config.handleClosed?.();
+                    holder.remove();
+                });
+                sheet.appendChild(hit);
+            }
+            /*
+            CAPTURE PHASE, or the drag never starts.
+      
+            The sheet IS a `panel3d` root, and panel3d's own `pointerdown` listener
+            calls `stopPropagation()` — deliberately, so a press on a panel does not
+            reach the scene behind it. The consequence is that a bubble-phase listener
+            on the HOLDER never hears anything: every press inside the popup was
+            swallowed by the popup's own panel. Tonio: "It can't be dragged."
+      
+            Capture runs on the way DOWN, before the sheet sees the event, so the drag
+            decision is made first — and `onDown` still bows out when the press landed
+            on a widget, which is what keeps a slider inside a popup draggable as a
+            slider rather than as the popup.
+            */
             holder.style.touchAction = 'none';
-            holder.addEventListener('pointerdown', onDown);
-            holder.addEventListener('pointermove', onMove);
-            holder.addEventListener('pointerup', onUp);
-            holder.addEventListener('pointercancel', onUp);
+            holder.style.cursor = 'move';
+            holder.addEventListener('pointerdown', onDown, true);
+            holder.addEventListener('pointermove', onMove, true);
+            holder.addEventListener('pointerup', onUp, true);
+            holder.addEventListener('pointercancel', onUp, true);
             return { close: () => holder.remove() };
-        });
+        };
+        /*
+        NOT `drawsChrome`. That flag means "always draws, so always reserve", which
+        is the PLANE's situation. This host draws when it is given a band and
+        nothing when it is not, which is what lets a flat menu stay bandless.
+        */
+        return root.addLayerHost(domLayerHost);
     };
     root.addLayerHost = (fn) => {
         const list = (root.__layerHosts ??= []);

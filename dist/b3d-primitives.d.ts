@@ -40,6 +40,39 @@ export declare class B3dSphere extends AbstractMesh {
         glow: number;
         glowColor: string;
         mirror: boolean;
+        /**
+         * `'on'` makes it SOLID — a character walks into it instead of through it.
+         *
+         * Off by default because most primitives in most scenes are scenery, and a
+         * decorative box that silently starts blocking a doorway is a worse
+         * surprise than one you have to ask to be solid. A `b3dGround` is always
+         * solid; it is the one primitive nobody wants to fall through.
+         *
+         * A SHORT SOLID GETS AN INVISIBLE COLLISION PROXY, automatically.
+         *
+         * Babylon's character collision sweeps an ellipsoid, and it misses a
+         * collider much under half a metre tall: measured against the biped, a bar
+         * 0.2m or 0.4m tall is walked straight through, 0.6m and up stops it dead.
+         * Height is the variable — a bar floating well clear of the floor stops a
+         * character perfectly well if it is tall enough, and a bar resting ON the
+         * floor does not if it is not.
+         *
+         * So anything solid and shorter than `MIN_SOLID_HEIGHT` gets a hidden box
+         * of that height, centred on it, doing the colliding.
+         *
+         * ⚠️ THE PROXY IS NOT PICKABLE, and that is the point rather than an
+         * implementation detail. Character collision reads `checkCollisions`;
+         * projectiles, the ground probe and every cover query raycast against
+         * PICKABLE meshes. Keeping the proxy out of the second set means a handrail
+         * stops you walking off a catwalk and you can still shoot through the gap
+         * under it — which is what a handrail does, and what a solid block faking it
+         * would get wrong. Tonio: "you should be able to shoot through the gap."
+         *
+         * Set `solidProxy: 'off'` to decline it and collide with the real geometry.
+         */
+        solid: "on" | "off";
+        /** Decline the automatic collision proxy described on `solid`. */
+        solidProxy: "on" | "off";
         x: number;
         y: number;
         z: number;
@@ -71,6 +104,39 @@ export declare class B3dBox extends AbstractMesh {
          */
         glow: number;
         glowColor: string;
+        /**
+         * `'on'` makes it SOLID — a character walks into it instead of through it.
+         *
+         * Off by default because most primitives in most scenes are scenery, and a
+         * decorative box that silently starts blocking a doorway is a worse
+         * surprise than one you have to ask to be solid. A `b3dGround` is always
+         * solid; it is the one primitive nobody wants to fall through.
+         *
+         * A SHORT SOLID GETS AN INVISIBLE COLLISION PROXY, automatically.
+         *
+         * Babylon's character collision sweeps an ellipsoid, and it misses a
+         * collider much under half a metre tall: measured against the biped, a bar
+         * 0.2m or 0.4m tall is walked straight through, 0.6m and up stops it dead.
+         * Height is the variable — a bar floating well clear of the floor stops a
+         * character perfectly well if it is tall enough, and a bar resting ON the
+         * floor does not if it is not.
+         *
+         * So anything solid and shorter than `MIN_SOLID_HEIGHT` gets a hidden box
+         * of that height, centred on it, doing the colliding.
+         *
+         * ⚠️ THE PROXY IS NOT PICKABLE, and that is the point rather than an
+         * implementation detail. Character collision reads `checkCollisions`;
+         * projectiles, the ground probe and every cover query raycast against
+         * PICKABLE meshes. Keeping the proxy out of the second set means a handrail
+         * stops you walking off a catwalk and you can still shoot through the gap
+         * under it — which is what a handrail does, and what a solid block faking it
+         * would get wrong. Tonio: "you should be able to shoot through the gap."
+         *
+         * Set `solidProxy: 'off'` to decline it and collide with the real geometry.
+         */
+        solid: "on" | "off";
+        /** Decline the automatic collision proxy described on `solid`. */
+        solidProxy: "on" | "off";
         x: number;
         y: number;
         z: number;

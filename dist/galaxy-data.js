@@ -57,11 +57,11 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 | --- | --- |
 | `StarData` | name, seed, position, spectralType, luminosity, mass, numberOfPlanets, rgb |
 | `PlanetData` | name, classification, orbitalRadius, radius, density, atmosphere, tempC, HI, description |
-| `GalaxyOptions` | spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness |
+| `GalaxyOptions` | spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness, distantGalaxies, generatePlanets |
 
 */
 /*{ "parent": "Space", "order": 900 }*/
-import { PRNG } from './mersenne-twister.js';
+import { PRNG, CheapPRNG } from './mersenne-twister.js';
 // --- Utilities ---
 export function capitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -585,7 +585,10 @@ const planetTypeData = [
 ];
 export { planetTypeData };
 function generateStarDetail(seed) {
-    const prng = new PRNG(seed);
+    // A CHEAP prng: detail is derived data, a pure function of the star's seed,
+    // and MT construction (~14 µs) × 100k stars is a second and a half of doing
+    // nothing. Quality is irrelevant here — determinism is what matters.
+    const prng = new CheapPRNG(seed);
     const spectralClass = prng.pick(['O', 'B', 'A', 'F', 'G', 'K', 'M'], [0.0001, 0.2, 1, 3, 8, 12, 20]);
     const spectralIndex = prng.range(0, 9);
     const template = starTypeData[spectralClass];
@@ -668,6 +671,11 @@ const GALAXY_DEFAULTS = {
     minRadius: 0.02,
     maxRadius: 0.9,
     thickness: 0.06,
+    /** How many external galaxies to scatter around the outside. */
+    distantGalaxies: 500,
+    /** How many dim far-out stars to scatter around the outside. */
+    distantStars: 3000,
+    generatePlanets: false,
 };
 export function generateGalaxy(seed, numberOfStars, options = {}) {
     const opts = { ...GALAXY_DEFAULTS, ...options };
@@ -675,25 +683,39 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
     const scatterTheta = (Math.PI / spiralArms) * 0.2;
     const scatterRadius = minRadius * 0.4;
     const spiralB = ((spiralAngleDegrees / Math.PI) * minRadius) / maxRadius;
-    const names = [];
+    /*
+    NO NAME TABLE — names are derived per star, so there is nothing to scan
+    and nothing to saturate. (The name table's previous lives: an ARRAY with
+    `includes()` made this O(n²) — 5×10⁹ comparisons at 100k — and the Set that
+    replaced it still cost a collision-retry loop whose draws grew as the name
+    space filled. Both gone.)
+    */
     const stars = [];
     const prng = new PRNG(seed);
     for (let i = 0; i < numberOfStars; i++) {
-        const numberOfSyllables = Math.floor(prng.value() * 2 + 2);
-        let newName;
-        // Generate unique, non-profane name
-        newName = randomName(prng, numberOfSyllables);
-        while (names.includes(newName) || isBadWord(newName)) {
-            newName = randomName(prng, numberOfSyllables);
-        }
-        names.push(newName);
         const starSeed = prng.range(1, 100000);
         const detail = generateStarDetail(starSeed);
+        /*
+        THE NAME IS DERIVED FROM THE STAR'S OWN SEED — same architecture as
+        planets (see `GalaxyOptions.generatePlanets`). It makes the name a pure
+        function of the star, so generation is O(1) per star: no shared name
+        table, no collision-retry loop whose cost grows as the name space
+        saturates. Duplicates are possible (two stars can draw the same seed)
+        and accepted. The bad-word check still runs, and retries continue on the
+        star's own stream.
+        */
+        const namePrng = new CheapPRNG(starSeed + 1);
+        let newName = randomName(namePrng, namePrng.range(2, 3));
+        while (isBadWord(newName)) {
+            newName = randomName(namePrng, namePrng.range(2, 3));
+        }
         // Position in galaxy
         let x, y;
         let r = prng.realRange(minRadius, maxRadius);
         if (detail.inSpiralArm) {
-            r += prng.gaussrandom(scatterRadius);
+            // The gaussian can swing r NEGATIVE, and Math.log of a negative is NaN
+            // — one star in ~100k landed at (NaN, NaN, z). Clamp to the disc.
+            r = Math.max(1e-6, r + prng.gaussrandom(scatterRadius));
             let theta = spiralB * Math.log(r / maxRadius) + prng.gaussrandom(scatterTheta);
             theta += (prng.range(0, spiralArms - 1) * Math.PI * 2) / spiralArms;
             x = Math.cos(theta) * r;
@@ -712,10 +734,21 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
             position: { x, y, z },
             bestHI: 5,
         };
-        // Compute best habitability index from planets
-        const system = generateStarSystem(star);
-        if (system.planets.length > 0) {
-            star.bestHI = Math.min(...system.planets.map((p) => p.HI));
+        /*
+        Planets are a FILTERING concern, not a generation one — and they are the
+        expensive part (71% of the time at 100k). `generatePlanets` opts back in;
+        everything else gets `bestHI` computed on demand through
+        `generateStarSystem`, which produces the identical number.
+        */
+        if (opts.generatePlanets) {
+            const system = generateStarSystem(star);
+            if (system.planets.length > 0) {
+                let best = star.bestHI;
+                for (const p of system.planets)
+                    if (p.HI < best)
+                        best = p.HI;
+                star.bestHI = best;
+            }
         }
         stars.push(star);
     }
@@ -723,6 +756,26 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
     stars.sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
     // Generate nebulae using same spiral arm positioning
     const nebulaCount = Math.max(50, Math.floor(numberOfStars * 0.15));
+    /*
+    OPACITY FALLS AS THE COUNT RISES, because they ADD.
+  
+    Nebula count is tied to star count, and the baker's star slider spans 5k to
+    100k — a 20× swing, which at fixed opacity is a 20× swing in how much glow is
+    piled onto the same sky. A galaxy tuned at 10k blows out white at 100k, and
+    that is not a tuning error to be re-tuned at each setting: it is the count
+    being a brightness dial nobody meant to turn. Tonio: "we probably should turn
+    down nebula opacity as we raise the count."
+  
+    SQRT, not linear. Holding the total constant (ref/count) is the other obvious
+    choice and it is worse: at 10x the count each nebula gets a tenth the opacity,
+    so no individual one is visible and the result is a uniform wash. Under sqrt
+    the sky still gets richer as you add nebulae — it just stops getting brighter
+    in proportion — which is what "more detail" should mean.
+  
+    Clamped both ways so a small galaxy is not dim and a huge one is not gone.
+    */
+    const NEBULA_REFERENCE = 1500; // ≈ the 10k-star default, where this was tuned
+    const densityScale = Math.min(1.5, Math.max(0.3, Math.sqrt(NEBULA_REFERENCE / nebulaCount)));
     const nebulae = [];
     // Nebula color from a continuous spectrum: purple → green → orange
     function nebulaColor(t) {
@@ -744,6 +797,24 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
             ];
         }
     }
+    /*
+    OTHER GALAXIES — pale yellow through orange, and the colour is not a taste.
+  
+    They read warm because they are OLD stellar populations, reddened further by
+    redshift. Nothing out there is blue at that distance, and nothing is white,
+    so this palette deliberately shares no range with the foreground stars.
+    */
+    function distantGalaxyColor(t) {
+        return [
+            255,
+            Math.round(236 - t * 60), // 236 → 176
+            Math.round(198 - t * 96), // 198 → 102
+        ];
+    }
+    /** Dust vs glow. One number, applied everywhere — see the note at the draw. */
+    const DARK_FRACTION = 0.5;
+    /** Core-bound nebulae, REGARDLESS of the total count — see `inCore`. */
+    const CORE_NEBULA_BUDGET = 150;
     // Dark nebula color: black → brown
     function darkNebulaColor(t) {
         return [
@@ -753,17 +824,60 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
         ];
     }
     for (let i = 0; i < nebulaCount; i++) {
-        const isDark = prng.probability(0.35);
-        let r = prng.realRange(minRadius * 0.5, maxRadius);
+        /*
+        ABOUT ONE IN ELEVEN SITS ON THE CORE, which is scenery with a job.
+    
+        The central black hole reads as an object rather than as a galactic centre
+        when you can see all of it against empty space — Tonio: "If the black hole
+        weren't enormous and were obscured by some nebulae it would be basically
+        perfect." Veiling it is the better half of that than shrinking it, and it is
+        also what the real thing looks like: the Milky Way's centre is behind so
+        much dust that we cannot see it in visible light at all.
+        */
+        /*
+        A FIXED BUDGET, not a fraction. The core is ONE visual feature, and it
+        should not grow nine times brighter just because the galaxy has nine
+        times the nebulae — a 0.09 fraction put ~1,400 blobs on the core at
+        100k (against ~135 at 10k), and the coreward bake face peaked at
+        247/255: blinding. 150 is the count the 10k galaxy had when the core
+        looked right, so that is what every galaxy gets.
+        */
+        const inCore = i < CORE_NEBULA_BUDGET;
+        /*
+        HALF DUST, HALF GLOW — everywhere, core included. Tonio: "change the mix of
+        bright and emissive nebula to 50 50."
+    
+        The core used to be biased heavily toward dark (0.72) on the reasoning that
+        dust is what actually hides a galactic centre, and that is still true; what
+        made the bias unnecessary is the opacity scaling above. The veil was being
+        asked to do its job against emission nebulae that were individually too
+        bright, so it needed numbers on its side. With the glow turned down as the
+        count goes up, an even mix covers the core without the middle lighting up.
+        One constant now, because two were tuning the same thing from both ends.
+        */
+        const isDark = prng.probability(DARK_FRACTION);
+        let r = inCore
+            ? prng.realRange(0, minRadius * 1.3)
+            : prng.realRange(minRadius * 0.5, maxRadius);
         // Nebulae follow spiral arms more strongly
-        r += prng.gaussrandom(scatterRadius * 2);
+        // Same NaN clamp as the star loop: the gaussian can swing r negative.
+        r = Math.max(1e-6, r + prng.gaussrandom(scatterRadius * (inCore ? 0.6 : 2)));
         let theta = spiralB * Math.log(r / maxRadius) + prng.gaussrandom(scatterTheta * 1.5);
         theta += (prng.range(0, spiralArms - 1) * Math.PI * 2) / spiralArms;
         const x = Math.cos(theta) * r;
         const y = Math.sin(theta) * r;
-        const z = prng.gaussrandom(thickness * 0.3 * (1 - r));
-        const scale = prng.realRange(1.5, 5);
-        const opacity = prng.realRange(0.15, 0.5);
+        /*
+        FLATTEN THE CORE ONES. `(1 - r)` is the BULGE: with radii normalised, r → 0
+        at the centre, so the vertical spread is at its MAXIMUM exactly where these
+        sit. That is right for a stellar bulge and wrong for what they are doing
+        here — Tonio: "too vertically distributed" — because a veil wants to lie
+        across the centre, not stand up through it.
+        */
+        const z = prng.gaussrandom(thickness * 0.3 * (1 - r) * (inCore ? 0.28 : 1));
+        // 50% bigger than the first pass, judged against the live galaxy: at the
+        // old size they read as separate puffs rather than as a continuous medium.
+        const scale = prng.realRange(2.25, 7.5);
+        const opacity = prng.realRange(0.15, 0.5) * densityScale;
         const t = prng.value();
         if (isDark) {
             nebulae.push({
@@ -784,6 +898,97 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
             });
         }
     }
-    return { stars, nebulae, seed, options: opts };
+    /*
+    A BUDGET FOR OTHER GALAXIES, which is what actually fills an empty sky.
+  
+    Off the galactic band the real sky is not black — it is faint external
+    galaxies — and a sky that renders it black is the one that reads as sparse.
+    The alternative we tried first was raising star PARTICLE SIZE, which fills the
+    frame and turns the nearest stars into dinner plates: stars are billboards
+    sized in world units, so the two pull against each other and no single value
+    wins. Tonio: "set aside a budget for other galaxies — nebula that are further
+    out and pale yellow to orange."
+  
+    Three things make them read as galaxies rather than as more nebulae:
+  
+    - **ISOTROPIC**, not along the arms. They are not part of this galaxy, and
+      scattering them evenly is the only thing that reaches the poles the band
+      cannot.
+    - **OUTSIDE** it, on a shell past `maxRadius`, so they never interleave with
+      local structure.
+    - **SMALL and FAINT.** Their whole job is texture where there is none;
+      anything big enough to read as a subject is a different feature.
+  
+    They are appended to `nebulae` on purpose — the emission path already draws
+    exactly this, so a whole rendering path is saved by placing them differently
+    rather than by inventing them.
+    */
+    const galaxyCount = Math.max(0, Math.round(opts.distantGalaxies));
+    const distantGalaxies = [];
+    for (let i = 0; i < galaxyCount; i++) {
+        // Uniform on the sphere: z uniform, NOT latitude uniform, or they bunch at
+        // the poles — which is precisely the region they exist to populate.
+        const u = prng.realRange(-1, 1);
+        const theta = prng.realRange(0, Math.PI * 2);
+        const r = Math.sqrt(Math.max(0, 1 - u * u));
+        const dist = maxRadius * prng.realRange(1.35, 2.9);
+        nebulae.push({
+            position: {
+                x: dist * r * Math.cos(theta),
+                y: dist * r * Math.sin(theta),
+                z: dist * u,
+            },
+            /*
+            SIZED AGAINST THE DISTANCE, not against "small".
+      
+            The first pass used 0.5–1.9 while local nebulae are 2.25–7.5, and put them
+            2–3× further away on top of that — so they landed roughly twenty times
+            smaller on screen and a 1024px face showed essentially nothing. "Small"
+            is an ANGULAR judgement and these are the far objects, so the world size
+            has to grow to stay legible.
+      
+            At 3–9 units and 2–3× the distance they subtend about a third to a half of
+            a local nebula: still clearly the far things, now actually present.
+            */
+            scale: prng.realRange(3, 9),
+            rgb: distantGalaxyColor(prng.value()),
+            type: 'emission',
+            // Raised from 0.3–0.55: present rather than merely detectable. They are
+            // still the faintest thing in the sky — the point is that the eye finds
+            // them without hunting.
+            opacity: prng.realRange(0.5, 0.85) * densityScale,
+        });
+        distantGalaxies.push(nebulae[nebulae.length - 1]);
+    }
+    /*
+    DIM FAR-OUT STARS — the same emptiness argument as the distant galaxies,
+    but for POINTS. Tonio: "bake in a few thousand distant dim stars (much
+    like the distant dim 'galaxy' nebulae) just so there's more going on in
+    the empty areas." Isotropic, on the same shell outside the disc, small and
+    warm — they are the faintest stars in the sky and their whole job is to
+    keep the off-band sky from reading as blank.
+    */
+    const distantStarCount = Math.max(0, Math.round(opts.distantStars));
+    const distantStars = [];
+    for (let i = 0; i < distantStarCount; i++) {
+        const u = prng.realRange(-1, 1);
+        const theta = prng.realRange(0, Math.PI * 2);
+        const r = Math.sqrt(Math.max(0, 1 - u * u));
+        const dist = maxRadius * prng.realRange(1.35, 2.9);
+        distantStars.push({
+            position: {
+                x: dist * r * Math.cos(theta),
+                y: dist * r * Math.sin(theta),
+                z: dist * u,
+            },
+            scale: prng.realRange(0.5, 2.5),
+            rgb: [
+                255,
+                Math.round(210 + prng.realRange(0, 40)),
+                Math.round(150 + prng.realRange(0, 40)),
+            ],
+        });
+    }
+    return { stars, nebulae, distantGalaxies, distantStars, seed, options: opts };
 }
 //# sourceMappingURL=galaxy-data.js.map

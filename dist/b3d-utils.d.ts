@@ -10,6 +10,42 @@ export declare function findB3dOwner(el: HTMLElement): B3d | null;
  * radar-blip in a target) must skip the slot(s).
  */
 export declare function semanticParent(el: HTMLElement): HTMLElement | null;
+/**
+ * WHERE THE PLAYER'S HANDS ARE — the point an interaction's `reach` is measured from.
+ *
+ * Not the camera. A picking ray starts at the eye, and flat, the eye and the
+ * hand are the same point — so `pickInfo.distance` is a perfectly good reach
+ * everywhere EXCEPT behind a third-person character, where the camera trails
+ * several metres and every human-sized reach is exceeded while you stand with
+ * your nose against the switch. CLAUDE.md names this as the one thing that does
+ * not transfer between surfaces; it says it of a headset, and a chase camera is
+ * the same geometry for the same reason.
+ *
+ * Walks the scene's own subtree for the live `player: true` controllable — an
+ * interactive is a sibling of the player, not a descendant, so there is no
+ * parent chain to climb. Returns `null` when there is no player (an orbit-camera
+ * scene, a spectator), which means "measure along the ray", the old behaviour.
+ */
+export declare function playerPosition(owner: B3d | null): BABYLON.Vector3 | null;
+/**
+ * Rebuild a container's children WITHOUT destroying the popup layers in it.
+ *
+ * A `widgets3d` popup mounts as a SIBLING of the panel it belongs to — that is
+ * what a DOM layer is for, since a popup inside the panel's `<svg>` is cropped
+ * by its viewBox — so it is a child of whatever holds the panel. Which makes a
+ * plain `replaceChildren` on that container a popup killer, and an invisible
+ * one: the popup does not error, it simply stops existing.
+ *
+ * That is what "clicking reset worst closed the panel" was. Every action button
+ * in a debug panel repaints, every repaint rebuilt the host, and the popup the
+ * button was IN went with it. Re-appending the holders keeps everything a
+ * rebuild has no business touching: where the popup was dragged to, how far it
+ * was scrolled, and the live rows already ticking inside it.
+ *
+ * Named and tested rather than inlined because it went wrong twice — the second
+ * time as a commit message describing a fix the diff did not contain.
+ */
+export declare function replaceKeepingLayers(host: Element, ...children: Array<Node | string>): void;
 export declare function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[];
 /**
  * Is an on-by-default toggle in its OFF state? Use for feature flags that should
@@ -201,6 +237,26 @@ export declare function inCollisionGroup(mesh: BABYLON.AbstractMesh, groups: rea
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).
  */
+/**
+ * World-space extents of a node's whole hierarchy, or `null` if it has no
+ * geometry.
+ *
+ * `skip` drops descendants by name — which is not a nicety. A vehicle's
+ * hierarchy carries things that are not the vehicle: an aiming reticle parented
+ * to the airframe sits at GUN RANGE, so including it measured the scout as 115 m
+ * long instead of 4.9 and would have derived every camera offset from a ring
+ * floating a hundred metres ahead of the nose.
+ *
+ * `keep` is the other half: measure only what matches, which is how a named
+ * sub-assembly (a `Cockpit` node) gets measured on its own.
+ */
+export declare function hierarchyExtents(node: BABYLON.TransformNode, options?: {
+    skip?: RegExp;
+    keep?: RegExp;
+}): {
+    min: BABYLON.Vector3;
+    max: BABYLON.Vector3;
+} | null;
 export declare function boundingBottomOffset(node: BABYLON.TransformNode): number;
 /**
  * Place `node` so the bottom of its geometry rests on a surface, leaving a
@@ -293,6 +349,27 @@ export declare function applyMaterialConventions(meshes: BABYLON.AbstractMesh[])
  */
 export declare class B3dChild extends Component {
     owner: B3d | null;
+    /**
+     * The scene this child has actually attached to, or `null`.
+     *
+     * It exists because `sceneReady` was being called MORE THAN ONCE without an
+     * intervening `sceneDispose`, and everything a child sets up there — render
+     * observers, above all — was quietly accumulating.
+     *
+     * How: `whenReady` QUEUES when the scene is not up yet, and a child can be
+     * connected, disconnected and reconnected before that happens (the doc system
+     * does exactly this while mounting a live example, and "moving any ancestor
+     * does it to every descendant"). Each connect queues another callback; the
+     * disconnect in between disposes nothing, because nothing had been set up
+     * yet. Then the scene comes up and every queued callback fires.
+     *
+     * The symptom is not a crash. It is TIME RUNNING FAST — two observers each
+     * subtracting `dt` from the same cooldown, so a launcher with `fireRate: 6`
+     * fires eleven times a second. Measured at 2.09× on a doc page, and the
+     * launcher was blameless: the duplicates were invisible to it because it only
+     * keeps a handle on the LAST observer it added.
+     */
+    private _attachedScene;
     connectedCallback(): void;
     disconnectedCallback(): void;
     sceneReady(_owner: B3d, _scene: BABYLON.Scene): void;

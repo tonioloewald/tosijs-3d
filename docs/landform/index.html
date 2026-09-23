@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
   <title>landform — tosijs-3d</title>
   <meta name="description" content="Authored landforms as terrain overrides — where [[slope-profile]]s remap the noise (levels curves), a landform forces a shape through it: a volcano cone, an…" />
   <link rel="canonical" href="https://3d.tosijs.net/landform/" />
@@ -74,6 +74,34 @@ crater with almost no effort. <code>pad</code> is the same idea for CIVILIZATION
 dead-flat surface with a cut-and-fill skirt, which is how cities and bases
 claim ground (terrace several up a hillside with <code>composeLandforms</code>).
 <code>composeLandforms</code> chains shapes; <code>mergeProvinces</code> maxes glow fields.</p>
+<h2>A field knows where it stops</h2>
+<p>Every factory here returns a field tagged with an <strong><code>extent</code></strong> — the world-space
+AABB outside which it is inert. A province has a natural boundary; it just
+spans more than one tile, so the question a tile has to ask is
+rectangle-vs-rectangle:</p>
+<pre><code class="language-javascript">const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 24 })
+extentOf(vesuvius.province)                     // {minX, minZ, maxX, maxZ}
+touchesExtent(vesuvius.province, x0, z0, x1, z1) // does it reach this tile?
+</code></pre>
+<p>It exists because a bare <code>(x, z) =&gt; number</code> cannot be asked that. The footprint
+was always known — <code>volcano({radius})</code> early-returns past its radius — and it
+was closed over and discarded, so terrain sampled every province at every vertex
+of every tile in the world. <code>b3d-terrain</code> now skips a province that cannot reach
+the tile it is building, which is exactly equivalent (the alpha lane is already
+<code>1</code> = none, and the field returns <code>0</code> out there) and is the same test a per-tile
+decision like an ice underside needs.</p>
+<p><strong>The landform and the province carry SEPARATE extents</strong>, because they genuinely
+differ: a volcano&#39;s glow tail dies at <code>craterRadius + radius * 0.4</code> — inside the
+cone for a default crater and <em>outside</em> it for a wide caldera — while a crater&#39;s
+glow stops at <code>0.85 R</code> and its rim runs to <code>1.25 R</code>. One box for both is wrong
+in one direction or the other every time.</p>
+<p>⚠️ <strong>An extent is a promise, and a wrong one is invisible.</strong> Callers may skip the
+field entirely outside it, so an extent that is too SMALL clips the thing it
+describes with no error; too large only costs work. A hand-written closure that
+declares none is treated as unbounded and behaves exactly as it always did — and
+one unbounded member makes a whole <code>mergeProvinces</code>/<code>composeLandforms</code>
+unbounded, because a box around only the members that declared one is a promise
+nobody made.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -81,9 +109,34 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><a class="doc-link" href="../Migration/">Migration</a></li>
     <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
       <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
@@ -133,8 +186,6 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
@@ -145,12 +196,16 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link current" href="../landform/" aria-current="page">landform</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
@@ -183,6 +238,7 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
     </details></li>
     <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
     <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
@@ -252,28 +308,19 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
     <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
-      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-    </ul>
-    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -282,6 +329,6 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
 </body>
 </html>

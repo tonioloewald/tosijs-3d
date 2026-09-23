@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
   <title>b3d-terrain — tosijs-3d</title>
   <meta name="description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-terrain/" />
@@ -53,7 +53,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span, p } = elements
 
@@ -76,6 +76,17 @@ const { demo } = tosi({
     wireframe: false,
     debugColor: false,
   },
+})
+
+// The weather is ONE dial. Transmission, the gloom under the deck and (past 1)
+// the height of the cloud all follow `coverage`, so there is no way to ask for
+// a sky that contradicts itself. Past 1 the base stays put and the top towers.
+//
+// `cloud base` is separate because it is geography, not weather: drop it to
+// ~250 and the peaks stand out of the overcast, and you have to get down into
+// the valleys to see anything at all.
+const { sky } = tosi({
+  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8 },
 })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
@@ -124,7 +135,10 @@ const posDisplay = span({ class: &#39;pos-display&#39; })
 // right trigger = forward throttle, pull back to climb, turn stick banks.
 const plane = () =&gt; b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
-  player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
+  // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
+  // you can be under it, in it, or over it. The stock 300 m is a low-level
+  // strike ceiling and it sat below even the spawn altitude here.
+  player: true, y: 400, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
 })
 const focus = inputFocus(gameController(), plane())
 
@@ -159,6 +173,11 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      label3d({ text: &#39;Weather&#39; }),
+      slider3d({ label: &#39;cloud cover&#39;, value: sky.coverage, min: 0, max: 2, step: 0.02 }),
+      slider3d({ label: &#39;cloud base&#39;, value: sky.altitude, min: 60, max: 1400, step: 10 }),
+      slider3d({ label: &#39;time of day&#39;, value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      slider3d({ label: &#39;orographic&#39;, value: sky.orographic, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
       toggle3d({ label: &#39;debug color&#39;, value: demo.debugColor }),
     ],
@@ -172,14 +191,37 @@ const scene = b3d(
     },
   },
   b3dSun({ activeDistance: 80 }),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
+  // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
+  // points for the stars. Split because they are different KINDS of thing —
+  // one is low-frequency and one is not — and the points stay points at any
+  // zoom rather than being a smear baked at one resolution.
+  b3dSkybox({
+    timeOfDay: sky.timeOfDay,
+    realtimeScale: 0,
+    starfieldCube: &#39;/sky/nebula&#39;,
+    starfieldData: &#39;/sky/stars&#39;,
+    starfieldTilt: &#39;12,25,58&#39;,
+  }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: &#39;/test-3.glb&#39;, type: &#39;vehicles&#39; }),
   terrain,
-  // A cloud layer over the peaks — origin-shift aware, so it doesn&#39;t lurch when the terrain
-  // rebases the world under you. Fly down into it and the world whites out.
-  b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
+  // A cloud DECK over the peaks. `follow` keeps it centred under you and it is
+  // origin-shift aware, so it neither runs out nor lurches when the terrain rebases
+  // the world — the sheet slides, the weather stays where it is. Fly up through it
+  // and the world whites out; the shadows underfoot are the same field you flew into.
+  //
+  // This is the layer case. Blob clouds (b3d-clouds) are still the right tool for
+  // cloud you fly BETWEEN, and for a stylised sky — see their own page.
+  // `orographic` asks the TERRAIN for its own height sampler, so the towers build
+  // over the mountains that are actually there — landforms, the volcano province,
+  // slider changes and all — rather than over a second guess at the same ground.
+  b3dCloudDeck({
+    altitude: sky.altitude,
+    coverage: sky.coverage,
+    orographic: sky.orographic,
+    wind: 10,
+  }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
   // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
   // never runs out from under you and never flickers), while the ripples stay anchored in world
@@ -501,9 +543,34 @@ document.body.append(b3d({}, terrain))
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><a class="doc-link" href="../Migration/">Migration</a></li>
     <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
       <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
@@ -553,8 +620,6 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
@@ -565,12 +630,16 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
@@ -603,6 +672,7 @@ document.body.append(b3d({}, terrain))
     </details></li>
     <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
     <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
@@ -672,28 +742,19 @@ document.body.append(b3d({}, terrain))
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
     <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
-      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-    </ul>
-    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -702,6 +763,6 @@ document.body.append(b3d({}, terrain))
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
 </body>
 </html>

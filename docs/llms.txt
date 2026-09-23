@@ -1,4 +1,4 @@
-# tosijs-3d v0.8.1
+# tosijs-3d v0.8.2
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -26,12 +26,16 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 
 ## Pages
 
+- https://3d.tosijs.net/aim/ — aim
+  degrees and plain `{x, y, z}`, no Babylon — so the whole of walk-and-aim can be
 - https://3d.tosijs.net/ambient-budget/ — ambient-budget
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
   The one ambient effect that is **not a sprite**.
 - https://3d.tosijs.net/angle-field/ — angle-field
   rings, because the quantity is a circle and a slider track is not. The model is
+- https://3d.tosijs.net/animation-layers/ — animation-layers
+  walk-and-aim: legs keep the locomotion, arms and head take the aim, and the
 - https://3d.tosijs.net/arc/ — arc
   direction; an arc is a direction *and* a width. No DOM, no Babylon — so the part
 - https://3d.tosijs.net/asset-url/ — asset-url
@@ -52,6 +56,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Procedural black hole with accretion disk, gravitational lensing effect,
 - https://3d.tosijs.net/b3d-car/ — b3d-car
   Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+- https://3d.tosijs.net/b3d-cloud-deck/ — b3d-cloud-deck
+  bright fringes, driven by a field you can dial from clear to overcast and slide
 - https://3d.tosijs.net/b3d-clouds/ — b3d-clouds
   A cloud layer you can **fly into** — and lose the world inside.
 - https://3d.tosijs.net/b3d-collisions/ — b3d-collisions
@@ -66,6 +72,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   to the wreck, you go on "flying" a corpse, and the game is stuck. (`b3d-aircraft` used to
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
   A thing that can take damage and be destroyed — the scene-side bridge to the pure
+- https://3d.tosijs.net/b3d-elevator/ — b3d-elevator
+  it to move — it just runs, you stand on it, or you throw a switch — which are the
 - https://3d.tosijs.net/b3d-exploder/ — b3d-exploder
   Shatters a mesh into fragments and animates them flying apart. Works by
 - https://3d.tosijs.net/b3d-fog/ — b3d-fog
@@ -136,16 +144,24 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **pure biome-classification model** under the procedural terrain shader
 - https://3d.tosijs.net/biome-plugin/ — biome-plugin
   The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
+- https://3d.tosijs.net/playground/ — Biped Playground
+  arena — ground, light, cover, crates, a catwalk and something to shoot — as
+- https://3d.tosijs.net/bone-mask/ — bone-mask
+  hierarchy is names and parents, so none of this needs a skeleton, a renderer or
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
 - https://3d.tosijs.net/buoyancy/ — buoyancy
   biped's swimming: how fast a body sinks, why it comes back up, and where it
+- https://3d.tosijs.net/camera-fit/ — camera-fit
+  Babylon, no rays — so the rules can be tested without a scene.
 - https://3d.tosijs.net/carve/ — carve
   Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/sdf-lattice/ — Carved landforms
   mine shafts — everything a heightfield cannot say, because a heightfield has one
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
   All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
+- https://3d.tosijs.net/cloud-field/ — cloud-field
+  fBm — the absolute value creases the field at every zero crossing, which is what
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/color/ — color
@@ -165,6 +181,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
+- https://3d.tosijs.net/demos/ — Demos
+  Whole scenes you can walk around in, rather than one component at a time.
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
@@ -272,6 +290,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/rocket-ascent/ — Rocket Ascent
+  through the cloud deck, and keeps going until the air runs out and the stars
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
 - https://3d.tosijs.net/scene-schemas/ — Scene schemas
@@ -280,13 +300,21 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal
   A **soft blob shadow** — the oldest trick in real-time 3D, and still the right one in a lot of
+- https://3d.tosijs.net/skybox-baker/ — Skybox Baker
+  become a cube map — a starfield with real structure, for the cost of a texture
 - https://3d.tosijs.net/slope-profile/ — slope-profile
   noise field before amplitude. A profile remaps normalized height (0..1 → 0..1),
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/starfield-codec/ — starfield-codec
+  faces where the channels are not colour but *position, brightness, colour index
 - https://3d.tosijs.net/surface/ — surface
   The **UI surface** — a root that holds a content [[box]] plus a top **overlay
+- https://3d.tosijs.net/surroundings/ — surroundings
+  from it.** Pure — distances and degrees, no Babylon, no rays — so cover can be
+- https://3d.tosijs.net/surroundings-probe/ — surroundings-probe
+  The pure module answers questions about a measurement; this takes the
 - https://3d.tosijs.net/svg-icons/ — svg-icons
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture
@@ -321,6 +349,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 - https://3d.tosijs.net/water-normal/ — water-normal
   field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
+- https://3d.tosijs.net/weapon-fit/ — Weapon Fit
+  weapon library, and a panel of coordinates wired to the thing you are looking
 - https://3d.tosijs.net/widgets3d-layout/ — Widget layout maths
   Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 - https://3d.tosijs.net/widget-box/ — widget-box
@@ -329,9 +359,11 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
 - https://3d.tosijs.net/wind/ — wind
   Babylon — so the composition rule can be tested without a sky.
-- https://3d.tosijs.net/world-sim/ — World Sim
+- https://3d.tosijs.net/world-sim-md/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
+- https://3d.tosijs.net/world-sim-ts/ — world-sim
+  (with live dials), a sea, weather over both, and the encoded sky behind. As
 - https://3d.tosijs.net/world-store/ — world-store
   A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
 - https://3d.tosijs.net/world-topology/ — world-topology

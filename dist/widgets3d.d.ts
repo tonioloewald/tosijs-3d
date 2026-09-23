@@ -142,6 +142,17 @@ sheet: SVGSVGElement, config: {
      * the opener still believing it had a popup open.
      */
     handleClosed?: () => void;
+    /**
+     * Headroom reserved in the sheet for move/close glyphs, in viewBox units.
+     *
+     * `0` means the caller asked for NO chrome, and a host must then draw none:
+     * the band and the glyphs are one decision, and a host that draws without a
+     * reservation puts them on the content ("the move affordance overlaps the
+     * 'q'"), while a reservation nobody draws into is the empty strip above
+     * every flat menu ("a lot of wasted space up top"). Both complaints are on
+     * record; this is the single number that settles them together.
+     */
+    chromeBand?: number;
 }) => {
     close: () => void;
 };
@@ -258,6 +269,18 @@ export interface WidgetHost {
         side?: PopupSide;
         width?: number;
         maxHeight?: number;
+        /**
+         * Give it a title band with move and close glyphs.
+         *
+         * For a popup you might want to KEEP — a readout, a panel of extra
+         * information. A menu wants none: it is transient, you pick from it and
+         * it goes, and a title bar on a dropdown is both odd and 30px of waste.
+         *
+         * The in-scene presentation draws handles regardless (the plane always
+         * has them), so this decides the flat one and whether the sheet reserves
+         * room at all.
+         */
+        chrome?: boolean;
         /** Called when it goes away, however it went. */
         handleClose?: () => void;
         /** @deprecated use `handleClose` — removed in 0.9. */
@@ -365,6 +388,14 @@ export declare function iconBar3d(config: {
         icon: string;
         title?: string;
         active?: boolean;
+        /**
+         * Nothing to report — drawn faint.
+         *
+         * Distinct from `active` (which is a SELECTION) and from disabled (which
+         * this deliberately is not): a dimmed icon is still pressable, because
+         * "confirm there are no errors" is a thing people do.
+         */
+        dim?: boolean;
         /** Fired on release, on the thing pressed. */
         handleClick?: () => void;
         /** @deprecated use `handleClick` — removed in 0.9. */

@@ -227,6 +227,53 @@ export function measureTextWidth(text, font) {
     return max;
 }
 /**
+ * Shorten a string to fit a width, ending in an ellipsis.
+ *
+ * A clip path was the cheap answer and it is the wrong one: a clipped label
+ * ends mid-stroke, so "cameraHeightOffset" becomes "cameraHeigh" with the `h`
+ * sliced down the middle, and there is nothing to tell you it was cut rather
+ * than named that. An ellipsis is a CLAIM — the name goes on — and it costs one
+ * character of the width you were arguing over.
+ *
+ * Measured rather than counted, because these are proportional fonts: "illicit"
+ * and "WWWWWWW" are the same number of characters and nearly three times the
+ * width apart.
+ *
+ * Binary search rather than a walk, since `measureTextWidth` builds a measurer
+ * each call and a long label in a narrow column would otherwise measure it
+ * dozens of times.
+ *
+ * ⚠️ **It is exactly as accurate as the measurer.** In a browser that is a
+ * canvas and the fit is exact; headless there is no canvas and the width is
+ * estimated, so two strings of equal length can measure the same whatever
+ * letters they contain. That is fine for layout maths and is worth knowing
+ * before writing a test that assumes otherwise (one did).
+ */
+export function ellipsize(text, maxWidth, font, ellipsis = '…') {
+    if (!(maxWidth > 0))
+        return '';
+    if (text === '')
+        return '';
+    if (measureTextWidth(text, font) <= maxWidth)
+        return text;
+    const dots = measureTextWidth(ellipsis, font);
+    // Not even room for the ellipsis: better to show nothing than a lone dot
+    // where a name should be.
+    if (dots > maxWidth)
+        return '';
+    let lo = 0;
+    let hi = text.length;
+    while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (measureTextWidth(text.slice(0, mid), font) + dots <= maxWidth)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    // Trailing space before an ellipsis reads as a gap rather than a truncation.
+    return lo <= 0 ? ellipsis : text.slice(0, lo).trimEnd() + ellipsis;
+}
+/**
  * The base a log scale's STEP is measured in — and only its step.
  *
  * The position mapping is base-independent: `log_b(x) = ln(x)/ln(b)`, so the

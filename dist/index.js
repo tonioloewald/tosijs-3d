@@ -21,7 +21,7 @@ export { WorldView, defaultMeshFactory } from './world-view.js';
 export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology.js';
 export { runMinSimConformance } from './min-sim-conformance.js';
 // Utilities
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, sceneFrame, 
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, hierarchyExtents, sceneDelta, sceneFrame, 
 // Documented API that was reachable only by a deep import — which `exports`
 // (a bare string) blocks with ERR_PACKAGE_PATH_NOT_EXPORTED. `isNoCollide`'s
 // shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to
@@ -137,6 +137,7 @@ export { B3dManipulator, b3dManipulator } from './b3d-manipulator.js';
 export { arcOf, arcStart, arcEnd, arcContains, arcWithinArc, arcComplement, clampAngleToArc, clampArc, dragArc, nearestArcGrip, FULL_CIRCLE, } from './arc.js';
 export { angle3d, arc3d } from './angle-field.js';
 export { B3dBeacon, b3dBeacon, beaconOwner } from './b3d-beacon.js';
+export { B3dElevator, b3dElevator } from './b3d-elevator.js';
 // Choosing one of many — a select is right for five options and a scroll for 500
 export { picker3d, matchesQuery, groupsOf } from './picker.js';
 // One wind for the scene, and provinces that bend it
@@ -161,6 +162,23 @@ export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
 scene, and `a` is a strafe key.
 */
 export { isTextEntry } from './text-entry.js';
+/*
+Bone masking for layered animation — walk and aim at once. Pure: a hierarchy is
+names and parents.
+*/
+export { UPPER_BODY_ROOTS, BONE_SOCKETS, boneMask, complementMask, descendantDepths, findBone, maskIsEmpty, } from './bone-mask.js';
+export { boneHierarchy, layerGroups, layerOnUpperBody, } from './animation-layers.js';
+export { clearOfBand, easeDistance, fitChase, fitDistance, forceFirstPerson, } from './camera-fit.js';
+export { playground } from './playground.js';
+export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js';
+export { cloudField, cloudOpacity, } from './cloud-field.js';
+export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, } from './starfield-codec.js';
+export { rocketAscent } from './rocket-ascent.js';
+export { pngEncode, crc32, adler32 } from './png.js';
+export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, facesToPngs, facesToZip, defaultBakePose, } from './skybox-baker.js';
+export { SurroundingsProbe, makeProbeScratch, readSurroundings, } from './surroundings-probe.js';
+export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, } from './surroundings.js';
+export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, } from './aim.js';
 export { B3dCrowd, b3dCrowd, VatPlugin, buildBenchFigure, writeVatTextures, } from './b3d-crowd.js';
 /*
 Vertex-animation substrate — the crowd/fauna primitive. Pure layout and phase
@@ -288,7 +306,9 @@ export const ui = {
 export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, } from './biome-chart.js';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
-export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, } from './landform.js';
+export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, 
+// A field knows where it stops — see landform's "A field knows where it stops".
+withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js';
 /*

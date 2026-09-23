@@ -44,6 +44,19 @@ export declare class CloudShadowMap {
     /** Top of the cloud layer (world Y). Receivers above this get no shadow (nothing casts from
      * higher). Defaults huge so an unset map shadows everything; clouds set it to the real top. */
     layerTop: number;
+    /**
+     * A texture to sample INSTEAD of the painted one, in the same window.
+     *
+     * A blob field is painted into {@link texture} on the CPU, which suits blobs:
+     * a few dozen stamps, repainted only when one recycles. A cloud DECK has no
+     * blobs to stamp — its shadow is a continuous function — so it renders the
+     * window itself on the GPU and sets this. The window math, the sun
+     * projection and the layer-top test are identical either way, which is the
+     * reason this is one field rather than a second plugin.
+     *
+     * Whatever is set here must carry OPACITY, not density: white is lit.
+     */
+    sourceTexture: BABYLON.BaseTexture | null;
     private _plugins;
     /** How many blobs the last {@link paint} stamped — a debug readout. */
     lastPaintCount: number;

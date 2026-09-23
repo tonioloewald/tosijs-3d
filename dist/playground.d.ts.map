@@ -1,0 +1,1 @@
+{"version":3,"file":"playground.d.ts","sourceRoot":"","sources":["../src/playground.ts"],"names":[],"mappings":"AAsLA,MAAM,WAAW,iBAAiB;IAChC,gFAAgF;IAChF,IAAI,CAAC,EAAE,MAAM,CAAA;IACb,4EAA4E;IAC5E,QAAQ,CAAC,EAAE,OAAO,CAAA;IAClB,yEAAyE;IACzE,OAAO,CAAC,EAAE,MAAM,CAAA;IAChB,qEAAqE;IACrE,SAAS,CAAC,EAAE,MAAM,CAAA;CACnB;AAOD;;;;;GAKG;AACH,wBAAgB,UAAU,CAAC,OAAO,GAAE,iBAAsB,iBAoZzD"}

@@ -75,6 +75,8 @@ export declare class B3dClouds extends B3dChild {
     private _fogColor;
     /** The skybox, so the whiteout can blot the SKY too (scene fog alone can't — it opts out). */
     private _sky;
+    /** The scene's clear colour before a whiteout borrowed it. */
+    private _clearWas;
     private _lastCoverage;
     private _tick;
     private _onShift;

@@ -5,6 +5,13 @@
 Babylon, no GPU — so the layout and the phase maths can be tested without a
 renderer.
 
+Measured, so the ratio is not a guess. In a scene with a ground and shadows:
+200,000 blocky figures (~144 verts) at 60ms, 20,000 baked omnidudes (1,380
+verts) at 33ms, 200,000 of those at 600ms. The budget has two terms — total
+vertices AND how finely divided they are, since a packed field of sub-pixel
+figures pays overdraw and wasted shading quads on top. Both are what a decimated
+re-bake (the LOD note below) buys back.
+
 The substrate for things there are MANY of — and, now the numbers are in, mostly
 NOT for armies. A whole miniatures battle is ~270 figures against 200,000
 measured at 33ms, so the place this earns its keep is **flocks of birds, swarms

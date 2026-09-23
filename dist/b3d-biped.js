@@ -57,6 +57,124 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## Demo — aiming and shooting
+
+**WASD** to move, **mouse / right stick** to aim, **F or the trigger** to shoot
+the cans off the wall. The white marker is where he is FACING; the orange one is
+where he is AIMING, and they are different things — which is the whole point of
+`aiming="on"`.
+
+Watch the feet. Standing, the shoulders hold a twist of up to `aimFreeYaw` and
+the legs stay planted, because that is a pose a person holds. Start walking and
+the band narrows, so the body comes round to the aim — which also means walking
+forward walks where you are looking, the strafing-shooter feel, out of one
+number rather than a movement mode.
+
+The launcher is simply NESTED. It fires along the character's aim rather than
+along its own mesh, because a gun parented to a hand inherits whatever the
+animation is doing with that hand.
+
+```js
+import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, inputFocus, sceneDelta, label3d, slider3d, ualAnimationStates } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const demo = tosi({ shootDemo: { free: 45, rate: 6 } })
+const s = demo.shootDemo
+
+// Nested, so `x`/`y`/`z` are where it rides ON HIM. NEGATIVE x is his right:
+// facing -Z with +Y up, a character's right hand is at -X, and the positive
+// value hung it off his left shoulder.
+const gun = b3dLauncher({
+  x: -0.28, y: 1.15, z: 0.5,
+  muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
+  ammo: 999, reloadRate: 40, damage: 25, projColor: '#ffdd66',
+})
+
+// Assigned as a statement, not inline in the scene — the shape the rest of
+// these demos use, and one the doc transpiler is known to be happy with.
+// The UAL rig, because aiming is the demo: at 1.83m the gun sits at 1.25 where
+// it was placed, and `aimFreeYaw` is a real shoulder angle rather than an angle
+// on a figure half the intended size.
+const hero = b3dBiped(
+  {
+    url: assetUrl('quaternius/UAL1_core.glb', 2),
+    animationStates: ualAnimationStates(),
+    player: true, cameraType: 'follow', aiming: 'on', aimFreeYaw: 45,
+  },
+  gun
+)
+
+const cans = []
+for (let i = 0; i < 7; i++) {
+  cans.push(b3dDestroyable({
+    x: -4.5 + i * 1.5, y: 1.6, z: -9,
+    size: 0.45, color: '#cc5533',
+  }))
+}
+
+preview.append(
+  b3d(
+    {
+      style: 'width:100%;height:100%',
+      gamepad: 'left_stick,right_stick,B,Y', // Y toggles first person
+      scenePanel: () => [
+        label3d({ text: 'Aim & shoot' }),
+        slider3d({
+          label: 'free twist', value: s.free, min: 0, max: 90, step: 5, showValue: 'always',
+          handleChange: (v) => { s.free = Math.round(v); hero.aimFreeYaw = Math.round(v) },
+        }),
+        slider3d({
+          label: 'fire rate', value: s.rate, min: 1, max: 12, step: 1, showValue: 'always',
+          handleChange: (v) => { gun.fireRate = Math.round(v) },
+        }),
+      ],
+      sceneCreated(el, BABYLON) {
+        // No camera of our own: a `player` biped brings a follow camera, and a
+        // second one is not merely redundant — an extra active camera makes
+        // every scene observer run again, which is the 2x-time bug in person.
+
+        // Two markers, because the claim is that facing and aim are DIFFERENT.
+        const bar = (name, color) => {
+          const m = BABYLON.MeshBuilder.CreateBox(name, { width: 0.09, height: 0.09, depth: 2.4 }, el.scene)
+          const mat = new BABYLON.StandardMaterial(name + '-m', el.scene)
+          mat.diffuseColor = BABYLON.Color3.FromHexString(color)
+          mat.emissiveColor = BABYLON.Color3.FromHexString(color).scale(0.4)
+          m.material = mat
+          m.isPickable = false
+          return m
+        }
+        const facingBar = bar('facing', '#ffffff')
+        const aimBar = bar('aim', '#ff9944')
+
+        el.scene.onBeforeRenderObservable.add(() => {
+          sceneDelta(el.scene)
+          if (!hero || !hero.entries || !hero.entries.rootNodes[0]) return
+          const root = hero.entries.rootNodes[0]
+          const p = root.absolutePosition
+          const f = root.forward
+          facingBar.position.set(p.x + f.x * 1.4, 1.0, p.z + f.z * 1.4)
+          facingBar.rotation.set(0, Math.atan2(f.x, f.z), 0)
+          const d = hero.aimDirection
+          const o = hero.aimOrigin
+          aimBar.position.set(o.x + d.x * 1.2, o.y + d.y * 1.2, o.z + d.z * 1.2)
+          aimBar.rotation.set(Math.asin(-d.y), Math.atan2(d.x, d.z), 0)
+        })
+      },
+    },
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dSun({ shadowMaxZ: 60, activeDistance: 40 }),
+    b3dLight({ intensity: 0.5, groundColor: '#4b5348' }),
+    b3dGround({ meshName: 'ground_nocast', width: 40, height: 40, color: '#7f8a6c', texture: 'noise', textureTiles: 6 }),
+    ...cans,
+    inputFocus(hero)
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -106,13 +224,18 @@ document.body.append(
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
-import { collidable, isOff } from './b3d-utils.js';
+import { collidable, isOff, markUiMesh } from './b3d-utils.js';
 import { canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
 import { buoyantStep, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
 import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim.js';
+import { fitChase } from './camera-fit.js';
+import { DEFAULT_AIM_LIMITS, aimDirection as aimToDirection, aimPoseWeights, bodyCatchUp, relaxAim, stepAim, wrapDeg, } from './aim.js';
 import { xrControllers } from './gamepad.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { CompositeInputProvider } from './control-input.js';
+import { bipedMapping } from './virtual-gamepad.js';
+import { layerOnUpperBody } from './animation-layers.js';
+import { predictPath } from './ballistics.js';
 import { XRInputProvider } from './xr-input-provider.js';
 const DEG_TO_RAD = Math.PI / 180;
 function lerp(a, b, t) {
@@ -145,7 +268,7 @@ export class AnimState {
  *
  * ```js
  * b3dBiped({
- *   url: assetUrl('quaternius/UAL1_core.glb'),
+ *   url: assetUrl('quaternius/UAL1_core.glb', 2),
  *   animationStates: ualAnimationStates(),
  * })
  * ```
@@ -197,6 +320,31 @@ export function ualAnimationStates(extra = []) {
         { name: 'pilot', animation: 'Driving_Loop', loop: true },
         { name: 'pickup', animation: 'Interact', loop: false },
         { name: 'look', animation: 'Idle_Loop', loop: true },
+        /*
+        THE GUNPLAY SET, and the three aim poses are not arbitrary — they are
+        exactly the shape [[aim]]'s `aimPoseWeights` was written against: up, level,
+        down, blended by pitch. That function has been exported and tested and had
+        no caller since it was written; these are what it was waiting for.
+    
+        Named for the ROLE, not the weapon, so a rifle or bow set drops in by
+        overriding four entries rather than by teaching the biped a second
+        vocabulary. UAL2 ships `Bow_Aim_Up/Neutral/Down` + `Bow_Shoot` in precisely
+        this shape.
+    
+        A rig without them degrades rather than breaks: `setAnimationState` skips a
+        state whose clip the loaded GLB does not carry, so a character simply aims
+        with his locomotion pose, which is what every character did until now.
+    
+        `UAL1_core.glb` on the CDN carries all six as of 2026-09-13 — they cost
+        1.28 MB of its 6.28, the biggest single line in that subset, which is worth
+        knowing before anyone trims it.
+        */
+        { name: 'aimIdle', animation: 'Pistol_Idle_Loop', loop: true },
+        { name: 'aimUp', animation: 'Pistol_Aim_Up', loop: true },
+        { name: 'aimLevel', animation: 'Pistol_Aim_Neutral', loop: true },
+        { name: 'aimDown', animation: 'Pistol_Aim_Down', loop: true },
+        { name: 'shoot', animation: 'Pistol_Shoot', loop: false },
+        { name: 'reload', animation: 'Pistol_Reload', loop: false },
     ];
     const byName = new Map();
     for (const spec of [...base, ...extra]) {
@@ -212,6 +360,9 @@ export function ualAnimationStates(extra = []) {
 const DEFAULT_BUOYANCY = 1.15;
 const STEP_OFFSET = 0.35;
 /** How high a lip the biped walks straight over instead of being stopped by. */
+/** Half-height of the collision capsule standing, and crouched. */
+const STAND_HALF = 0.75;
+const CROUCH_HALF = 0.45;
 const STEP_UP = 0.5;
 /** How far the ground may drop before it becomes a FALL rather than a step. */
 const STEP_DOWN = 0.6;
@@ -277,6 +428,43 @@ export class B3dBiped extends B3dControllable {
         eyeHeight: 1.6,
         /** Degrees per second the right stick swings the view. */
         lookRate: 120,
+        /**
+         * `'on'` gives the character an AIM that is separate from its facing.
+         *
+         * Off (the default), the right stick turns the body and the two are the
+         * same thing — which is the right feel for a character who is simply
+         * walking around, and is what every existing demo expects. On, the stick
+         * moves the aim, the shoulders lead and the feet follow (see [[aim]]), and
+         * `aimDirection` becomes the thing a weapon fires along.
+         *
+         * A mode rather than always-on because it is a real change of feel, not an
+         * improvement: a twist that the body only partly follows is exactly wrong
+         * for someone crossing a room and exactly right for someone holding a gun.
+         *
+         * **Nesting a weapon turns it on regardless**, which is the same statement
+         * from the other end: a character holding a gun is aiming, and requiring
+         * the attribute as well would let the two disagree.
+         */
+        aiming: 'off',
+        /** Twist held with the feet planted, degrees. See [[aim]]'s two thresholds. */
+        /*
+        ZERO, so the aim and the body cannot disagree.
+    
+        It was 45 — the aim could sit forty-five degrees off the body before
+        `bodyCatchUp` turned anything. Combined with a weapon bolted to the body,
+        that gave THREE different directions at once, which is exactly how it was
+        reported: "shots aren't going in the direction I'm facing, the character is
+        facing, or the gun is facing." All three were true.
+    
+        Tonio's model is the fix: *"if you're not in first person view then aim is
+        basically where you're pointing, possibly offset by the right stick."* The
+        offset is the flourish, not the mechanism — so the body follows the aim
+        immediately by default, and a project that wants a lazier torso can set this
+        back up.
+        */
+        aimFreeYaw: 0,
+        /** The spine's limit. Past this the body is dragged round. */
+        aimMaxYaw: 90,
         /** How far up/down the look can go, degrees. */
         maxLookPitch: 70,
         /**
@@ -289,7 +477,30 @@ export class B3dBiped extends B3dControllable {
          * is false, so a default-true boolean can never turn on (and tosijs now
          * throws on one) — see CLAUDE.md.
          */
-        invertLookY: 'on',
+        /*
+        NOT INVERTED, which is a changed default and the direct cause of a bug
+        report: "when I fire it just fires into my feet".
+    
+        It used to default `'on'`, so pushing the stick up lowered the view — the
+        AIRCRAFT convention, where you pull back to climb, and the right one for a
+        thing you fly. A character is not a thing you fly. Aim follows the view, so
+        inverted look means pushing up aims DOWN, and a player lining up a shot
+        puts it in the dirt in front of them. Measured before the change: stick up
+        gave pitch +70° and an aim direction of y = -0.94.
+    
+        The land/water consistency note below still stands — it is about the control
+        not changing sense when you get your feet wet, which it still does not. That
+        was never an argument for which sense it starts in.
+        */
+        /**
+         * How far in FRONT of the head bone the first-person eye sits, in metres.
+         *
+         * Enough to put the face behind the near plane while walking, and no more:
+         * every centimetre here is a centimetre your viewpoint leads your body by,
+         * which is what makes a too-large value feel like floating.
+         */
+        eyeForward: 0.13,
+        invertLookY: 'off',
         /**
          * Never let the follow camera drop below this above the character's feet.
          * Pitch drives the camera's HEIGHT, so looking up walks it downward — and
@@ -450,6 +661,454 @@ export class B3dBiped extends B3dControllable {
      * right stick turns the BODY now, so the camera has no yaw of its own.
      */
     _lookPitch = 0;
+    /** Aim-down-sights, 0..1, eased. See the note where it is driven. */
+    _ads = 0;
+    /** Sights up right now — the aim layer and the camera both read it. */
+    get aimingDownSights() {
+        return this._ads > 0.5;
+    }
+    /**
+     * Where the upper body is pointing, RELATIVE to the facing — see [[aim]].
+     *
+     * Only meaningful while `aiming` is on. It is relative on purpose: it is the
+     * number a bone mask wants, and it bounds itself.
+     */
+    _aim = { yawDeg: 0, pitchDeg: 0 };
+    /**
+     * Is the character holding something it points?
+     *
+     * A getter rather than a stored flag, so it cannot drift from the attribute
+     * that decides it — and so that a nested weapon can eventually force it on
+     * without a second source of truth.
+     *
+     * ⚠️ Note for anyone editing this class: tosijs `Component` carries an index
+     * signature, so `this._isAming` would have TYPE-CHECKED and silently read
+     * `undefined`. `bun run typecheck` will not save you from a misspelt private
+     * member here. (Found the hard way, thirty seconds after writing the code
+     * above that uses it.)
+     */
+    /**
+     * Weapon RAISED — the gunplay half of the two modes.
+     *
+     * Tonio: *"I should be able to toggle between walking and gunplay mode, and
+     * be aiming when I am in gunplay."* So this is one flag with two jobs: it is
+     * what the aim solver keys off, and it is what tells `bipedMapping` whether
+     * the right trigger fires or sprints.
+     *
+     * Toggled, not held — `input.weapon` is edge-detected — so you can walk
+     * around with the gun up without holding a button down, which is the thing a
+     * hold-to-aim scheme cannot do.
+     */
+    gunplay = false;
+    weaponWasPressed = false;
+    /**
+     * Put the weapon up or down.
+     *
+     * Public because an AI, a cutscene or a pickup all want to do it, and because
+     * a mode a consumer cannot set is a mode they have to fight.
+     */
+    setGunplay(on) {
+        this.gunplay = on;
+        this._showWeapons(on);
+    }
+    /**
+     * A LOWERED WEAPON IS NOT A VISIBLE WEAPON.
+     *
+     * Without a hip socket there is nowhere to holster it TO, and a gun mounted
+     * at the offset that puts it in the hands of the ready stance stays exactly
+     * there when the hands go down — hanging at chest height in front of a
+     * character who is plainly not holding it. Tonio: "The gun is just floating
+     * in the air."
+     *
+     * Hiding it is the honest answer for now and not a fudge: a holstered weapon
+     * you cannot see is a weapon on your back, which is where it would be. What
+     * it costs is the thing a socket buys — seeing it swing at the hip as you
+     * walk — and that is already on the list.
+     */
+    _showWeapons(visible) {
+        for (const w of this._weapons())
+            w.mesh?.setEnabled(visible);
+    }
+    /**
+     * POINT THE WEAPON WHERE THE SHOT GOES.
+     *
+     * A nested launcher is parented to the character's root at a fixed offset, so
+     * it pointed wherever the BODY pointed and took no notice of the aim. Aim up
+     * and the round left along the aim while the barrel stayed level — the gun
+     * visibly disagreeing with its own shot, which is the least forgivable thing
+     * a weapon can do.
+     *
+     * Rotation only, not position: the weapon does not orbit the shoulder, it
+     * pivots roughly where it is held. At the small offsets a held weapon uses
+     * that is indistinguishable from correct and it costs nothing.
+     *
+     * ⚠️ The pitch sign is NOT negated, which is the opposite of what the
+     * first-person camera needs and was wrong on the first attempt. The weapon
+     * hangs under the character's `__root__`, which carries the glTF handedness
+     * mirror, so a local X rotation there reads the other way round from one on a
+     * camera in world space. Measured rather than reasoned: with the aim at
+     * y = +0.94 the negated version pointed the barrel at y = -0.94 — same
+     * magnitude, opposite sign, which is the signature of exactly this.
+     */
+    _aimWeapons() {
+        for (const w of this._weapons()) {
+            /*
+            A SOCKETED WEAPON IS ORIENTED BY `rx`/`ry`/`rz` ON THE LAUNCHER, not here.
+      
+            Not because the hand aims it — it does not. Measured on this rig, the hand
+            bone's +Y is the body's forward and its +Z is UP, so a weapon built
+            barrel-along-+Z points at the sky. Invisible in third person; unmissable
+            down the sights. Tonio: "you can now see the gun is mis-positioned."
+      
+            But this is the wrong place to fix it. `b3dLauncher` extends
+            `AbstractMesh`, which writes `rotationQuaternion` from those attributes
+            EVERY FRAME, so anything written here is stamped over on the next one. I
+            tried twice before checking — once composing a world quaternion, once via
+            direction transforms to dodge the handedness mirror — and both were
+            correct arithmetic into a value with a shorter life than a frame.
+      
+            So the correction lives on the element (`rx: -90` for this rig) where it
+            survives, and the real answer is an authored `_grip` node carrying the
+            orientation, which makes it the model's business rather than every
+            consumer's. See `b3d-launcher` → "Authoring a weapon mesh".
+            */
+            if (w.socketed === true)
+                continue;
+            const m = w.mesh;
+            if (m?.rotation == null)
+                continue;
+            // A quaternion would win over euler angles if one were set — clear it.
+            if (m.rotationQuaternion != null)
+                m.rotationQuaternion = null;
+            m.rotation.set(this._aim.pitchDeg * DEG_TO_RAD, this._aim.yawDeg * DEG_TO_RAD, 0);
+        }
+    }
+    /**
+     * OUR mapping, so the right trigger can mean two things.
+     *
+     * A closure over `this` rather than a mode passed at wiring time, because
+     * `focusEntity` calls `setMapping` ONCE — a mapping captured then would hold
+     * whichever mode was current at focus and never change. Reading `this.gunplay`
+     * inside the closure means the trigger's meaning follows the weapon.
+     *
+     * A FIELD, not an accessor: the base class declares `inputMapping` as a
+     * property, and TypeScript will not let a subclass override one with a getter
+     * (TS2611). An arrow field binds `this` and reads the mode live, which is all
+     * the getter was for.
+     */
+    inputMapping = (pad, dt) => bipedMapping(pad, dt, this.gunplay);
+    /**
+     * Aiming right now.
+     *
+     * Gunplay is the answer when the character has a weapon up. `aiming: 'on'`
+     * still forces it for a rig that should always track — a turret operator, a
+     * demo about the aim solver itself — so the attribute became an OVERRIDE
+     * rather than the whole story.
+     *
+     * It used to also return true merely because the character was carrying
+     * something with a `fire` method, which made "armed" and "aiming" the same
+     * fact and left no way to walk with the gun down.
+     */
+    get _isAiming() {
+        return this.gunplay || !isOff(this.aiming);
+    }
+    /*
+    WHAT THIS CHARACTER IS CARRYING.
+  
+    Duck-typed — anything nested with a `fire` method — rather than matched on a
+    tag name, which is the same rule `findB3dOwner` uses and for the same reason:
+    a consumer may have registered the element under a name of its own.
+  
+    Cached with a short life, because this runs while the trigger is held and
+    `querySelectorAll('*')` every frame is how a character controller starts
+    showing up in a profile. Half a second means a weapon picked up at runtime
+    works without anyone having to remember to tell us.
+    */
+    _weaponCache = [];
+    _weaponCacheAge = Infinity;
+    _weapons() {
+        if (this._weaponCacheAge < 0.5)
+            return this._weaponCache;
+        this._weaponCacheAge = 0;
+        this._weaponCache = [...this.querySelectorAll('*')].filter((el) => typeof el.fire === 'function');
+        return this._weaponCache;
+    }
+    /**
+     * WHERE THE ROUND WILL ACTUALLY LAND — a marker in the world, not a dot on
+     * the screen.
+     *
+     * Tonio: *"I don't seem to be able to aim."* The aiming was working; there
+     * was simply no way to see it. Everything he fired hit the nearest cover and
+     * that was all the feedback there was.
+     *
+     * A world-space marker rather than a screen-centre crosshair, for three
+     * reasons that all point the same way. In third person the camera is not the
+     * gun, so a centre dot is a lie about where the round goes. With drop, it is
+     * a lie even in first person — the point of using `predictPath` is that the
+     * marker sinks as the range grows, which is the whole reason a lobbed weapon
+     * is interesting to aim. And a screen-space overlay does not exist in a
+     * headset, where a thing in the world is exactly what you want.
+     *
+     * Prediction IS simulation here: the same `predictPath` the bomb sight uses,
+     * fed the same `ballisticParams` from the same weapon. A sight that
+     * approximates its own projectile is a sight that lies at the ranges you care
+     * about.
+     */
+    _reticle = null;
+    _reticleScratch = {
+        pos: { x: 0, y: 0, z: 0 },
+        vel: { x: 0, y: 0, z: 0 },
+    };
+    _updateReticle(scene) {
+        const show = this.gunplay && this.player;
+        if (!show) {
+            if (this._reticle != null)
+                this._reticle.setEnabled(false);
+            return;
+        }
+        const weapon = this._weapons()[0];
+        if (weapon?.ballisticParams == null) {
+            if (this._reticle != null)
+                this._reticle.setEnabled(false);
+            return;
+        }
+        if (this._reticle == null) {
+            /*
+            A TORUS, deliberately: a ring reads as a sight at any distance because
+            you see THROUGH it, where a disc occludes the thing you are aiming at —
+            which is the one thing a sight must never do.
+            */
+            this._reticle = BABYLON.MeshBuilder.CreateTorus('aim-reticle', { diameter: 0.34, thickness: 0.045, tessellation: 20 }, scene);
+            const mat = new BABYLON.StandardMaterial('aim-reticle-mat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.35);
+            mat.disableLighting = true;
+            // Drawn over whatever it lands on. A sight occluded by the wall it is
+            // sitting on is a sight you cannot use against cover, which is most of
+            // what this arena is made of.
+            mat.zOffset = -8;
+            this._reticle.material = mat;
+            this._reticle.isPickable = false;
+            this._reticle.doNotSyncBoundingInfo = true;
+            markUiMesh(this._reticle);
+        }
+        const origin = this.aimOrigin;
+        const dir = this.aimDirection;
+        const speed = weapon.muzzleSpeed ?? 40;
+        const st = this._reticleScratch;
+        st.pos.x = origin.x;
+        st.pos.y = origin.y;
+        st.pos.z = origin.z;
+        st.vel.x = dir.x * speed;
+        st.vel.y = dir.y * speed;
+        st.vel.z = dir.z * speed;
+        /*
+        The hit test is a RAY PER STEP, not a point-in-solid test, because at 45 m/s
+        and a 40ms step the round covers nearly two metres between samples and would
+        tunnel straight through any wall thinner than that — which is every wall in
+        the playground.
+        */
+        const node = this._rootNode();
+        let prev = { ...st.pos };
+        const { impact, points } = predictPath(st, weapon.ballisticParams, {
+            dt: 1 / 25,
+            maxSteps: 40,
+            hitTest: (pos) => {
+                const dx = pos.x - prev.x;
+                const dy = pos.y - prev.y;
+                const dz = pos.z - prev.z;
+                const len = Math.hypot(dx, dy, dz);
+                prev = { ...pos };
+                if (len <= 0)
+                    return false;
+                this._aimRay.origin.set(prev.x - dx, prev.y - dy, prev.z - dz);
+                this._aimRay.direction.set(dx / len, dy / len, dz / len);
+                this._aimRay.length = len;
+                const hit = scene.pickWithRay(this._aimRay, collidable((m) => m === node || m.isDescendantOf(node)));
+                if (hit?.hit && hit.pickedPoint != null) {
+                    this._aimHit.copyFrom(hit.pickedPoint);
+                    this._aimNormal.copyFrom(hit.getNormal(true) ?? BABYLON.Vector3.Up());
+                    return true;
+                }
+                return false;
+            },
+        });
+        this._reticle.setEnabled(true);
+        if (impact != null) {
+            // Lifted off the surface, and LYING ON IT — a ring standing upright in a
+            // wall is half buried, and the half you can see is the half that tells
+            // you nothing.
+            this._reticle.position
+                .copyFrom(this._aimHit)
+                .addInPlace(this._aimNormal.scale(0.02));
+            const up = BABYLON.Vector3.Up();
+            const axis = BABYLON.Vector3.Cross(up, this._aimNormal);
+            const angle = Math.acos(Math.max(-1, Math.min(1, BABYLON.Vector3.Dot(up, this._aimNormal))));
+            this._reticle.rotationQuaternion =
+                axis.lengthSquared() > 1e-8
+                    ? BABYLON.Quaternion.RotationAxis(axis.normalize(), angle)
+                    : BABYLON.Quaternion.Identity();
+        }
+        else {
+            /*
+            Nothing in range: park it at the END OF THE ARC, facing the shooter, so it
+            still says which way the gun is pointing.
+      
+            `points[points.length - 1]`, NOT `st`. `predictPath` copies the state it is
+            given and integrates the copy — it does not mutate the caller's — so
+            reading `st` back gives the muzzle, and the ring sat 0.3m in front of the
+            character's chest looking like the aim was broken rather than the readback.
+            */
+            const end = points[points.length - 1] ?? st.pos;
+            this._reticle.position.set(end.x, end.y, end.z);
+            this._reticle.rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Cross(BABYLON.Vector3.Up(), dir).normalize(), Math.PI / 2);
+        }
+    }
+    _aimRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1);
+    _aimHit = BABYLON.Vector3.Zero();
+    _aimNormal = BABYLON.Vector3.Up();
+    /**
+     * Fire everything this character is holding, along its AIM.
+     *
+     * Called while the trigger is held rather than on the press: a launcher
+     * governs its own fire rate, so this gives single shots and full auto from
+     * one line, with the weapon deciding which it is.
+     *
+     * The direction is the character's, not the weapon mesh's. A gun parented to
+     * a hand inherits whatever the animation is doing with that hand, and rounds
+     * that follow a reload flourish across the room are the single most
+     * recognisable symptom of firing along the wrong transform.
+     */
+    _fireWeapons() {
+        const weapons = this._weapons();
+        if (weapons.length === 0)
+            return;
+        const dir = this.aimDirection;
+        const origin = this.aimOrigin;
+        let fired = false;
+        for (const w of weapons)
+            fired = w.fire(dir, origin) !== false || fired;
+        /*
+        Only on a shot that ACTUALLY happened. `fire` returns false on cooldown or
+        an empty magazine, and re-triggering the recoil pose on every frame of a
+        held trigger would animate a weapon that is not firing — which looks exactly
+        like a jammed one.
+        */
+        if (fired)
+            this._shootFor = 0.18;
+    }
+    /**
+     * The transform everything here is relative to.
+     *
+     * The same one the update loop drives — `entries.rootNodes[0]` — rather than
+     * `this.mesh`, which for a loaded GLB is a child and carries the model's own
+     * baked orientation. Two different answers to "which way is he facing" is how
+     * a weapon ends up firing out of somebody's hip.
+     */
+    _rootNode() {
+        return (this.entries?.rootNodes?.[0] ??
+            this.mesh ??
+            null);
+    }
+    /** Chase-camera state carried between frames — see [[camera-fit]]. */
+    _camFit = { distance: 5, height: 2, firstPerson: false };
+    /** WE forced first person, so we may hand the view back when it clears. */
+    _camForcedFpv = false;
+    _camRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), 1);
+    /**
+     * How far the camera may sit behind, before something is in the way.
+     *
+     * One ray, from the subject's shoulder toward where the camera WANTS to be —
+     * not from the camera, which is the version that cannot tell "the wall is
+     * between us" from "the camera is already inside the wall".
+     *
+     * Returns `Infinity` for a clear view, which is what `fitChase` reads as
+     * "sit where you were asked to".
+     */
+    _cameraObstruction(node, radius, height) {
+        const scene = this.owner?.scene;
+        if (scene == null)
+            return Infinity;
+        const origin = node.absolutePosition.clone();
+        origin.y += Math.max(0.2, height * 0.5);
+        const back = node.forward.scale(-radius);
+        const target = origin.add(back);
+        target.y = node.absolutePosition.y + height;
+        const to = target.subtract(origin);
+        const len = to.length();
+        if (!(len > 0.01))
+            return Infinity;
+        this._camRay.origin.copyFrom(origin);
+        this._camRay.direction.copyFrom(to.scaleInPlace(1 / len));
+        this._camRay.length = len;
+        /*
+        EXCLUDE OURSELF, or the character's own shoulder is the obstruction and the
+        camera lives permanently inside its own head. `isDescendantOf` covers the
+        whole loaded rig without anyone having to enumerate its meshes.
+        */
+        const root = this.entries?.rootNodes?.[0];
+        const hit = scene.pickWithRay(this._camRay, (m) => m.isPickable !== false &&
+            m.isEnabled() &&
+            m.getTotalVertices() > 0 &&
+            !(root != null && m.isDescendantOf(root)));
+        return hit?.hit === true ? hit.distance : Infinity;
+    }
+    /**
+     * The medium boundary the camera should not sit in, if there is one.
+     *
+     * `MEDIUM-DESIGN` §6a: a frame is uniformly one medium, so a camera straddling
+     * the waterline shows air fog over an underwater world. Until there is a
+     * per-pixel answer, the fix is Manta's — be decidedly one side or the other —
+     * and expressed as a band it is just another camera constraint.
+     *
+     * The band is widened past the medium's own transition, because sitting just
+     * outside a fog ramp still looks wrong; you want to be clearly under.
+     */
+    _cameraBand() {
+        const media = this.owner?.media;
+        if (media == null || media.length === 0)
+            return null;
+        for (const m of media) {
+            if (m.kind !== 'plane')
+                continue;
+            const half = Math.max(0.35, (m.band ?? 0.4) * 1.5);
+            return { low: m.y - half, high: m.y + half };
+        }
+        return null;
+    }
+    /** Where the upper body points, RELATIVE to the facing. Degrees; see [[aim]]. */
+    get aim() {
+        return { ...this._aim };
+    }
+    /**
+     * The world direction the character is aiming — what a weapon fires along.
+     *
+     * Derived from the facing plus the twist rather than from any mesh's
+     * orientation, so it is correct before a weapon exists and cannot disagree
+     * with one that does.
+     */
+    get aimDirection() {
+        const node = this._rootNode();
+        const facing = node != null
+            ? (Math.atan2(node.forward.x, node.forward.z) * 180) / Math.PI
+            : 0;
+        const d = aimToDirection(wrapDeg(facing), this._aim);
+        return new BABYLON.Vector3(d.x, d.y, d.z);
+    }
+    /**
+     * Where a shot leaves from — shoulder height, on the aim side of the body.
+     *
+     * Not the character's origin (that is between the feet, and a round fired
+     * from there starts inside the floor) and not the camera (which is metres
+     * behind in third person, so its line and the character's differ by enough to
+     * clear cover the character is behind).
+     */
+    get aimOrigin() {
+        const node = this._rootNode();
+        const base = node != null ? node.absolutePosition.clone() : BABYLON.Vector3.Zero();
+        const dir = this.aimDirection;
+        base.y += this.height != null ? this.height * 0.8 : 1.45;
+        return base.add(dir.scale(0.35));
+    }
     _sneaking = false;
     /** Held the jump button while grounded: winding up, not yet launched. */
     _jumpWasDown = false;
@@ -801,7 +1460,120 @@ export class B3dBiped extends B3dControllable {
         this._inAir = false;
         return true;
     }
+    /**
+     * The gun-ready version of a state, when there is one and the gun is up.
+     *
+     * Only `idle` has a full-body substitute — `Pistol_Idle_Loop` is a whole
+     * stance, not a torso pose, and a character standing still with a weapon
+     * stands DIFFERENTLY rather than standing normally with his arms edited. The
+     * moving states keep their locomotion and take the aim pose as an upper-body
+     * layer instead, because a walk cycle is still a walk cycle.
+     */
+    _gunplayState(name) {
+        if (!this.gunplay)
+            return name;
+        if (name !== 'idle')
+            return name;
+        if (this._hasClip('Pistol_Idle_Loop'))
+            return 'aimIdle';
+        /*
+        SAY SO, ONCE, rather than quietly standing there.
+    
+        A rig without the gunplay clips degrades to its ordinary locomotion, which
+        is the right behaviour and an awful diagnosis: the weapon appears in the
+        hand, the aim works, the reticle moves, and the character simply does not
+        change pose. Tonio hit exactly this and the cause was not the code at all —
+        a browser holding a CACHED copy of `UAL1_core.glb` from before the clips
+        were added to it. The CDN serves `immutable, max-age=31536000`, so an old
+        copy is kept for a year and nothing about the page looks stale.
+    
+        "Weird it's working in electron but not chrome" is the signature, and it is
+        worth recognising: a private Electron instance has no cache, so it fetched
+        the new asset and the ordinary browser did not.
+        */
+        this._warnOnce(`b3d-biped: weapon raised, but ${this.url || 'this rig'} has no ` +
+            `Pistol_Idle_Loop — the character will aim in its walking pose. ` +
+            `If the rig should have it, the asset is probably cached (hard-reload).`);
+        return name;
+    }
+    _warned = new Set();
+    _warnOnce(message) {
+        if (this._warned.has(message))
+            return;
+        this._warned.add(message);
+        console.warn(message);
+    }
+    _hasClip(clip) {
+        const groups = this.entries?.animationGroups ?? [];
+        return groups.some((g) => g.name.replace(/^Clone of /, '') === clip);
+    }
+    /**
+     * THE AIM POSE, layered on the upper body over whatever the legs are doing.
+     *
+     * [[aim]]'s `aimPoseWeights` picks it: three poses — up, level, down — chosen
+     * by pitch, which is the shape the UAL pistol and bow sets both ship in. The
+     * function has been exported and tested since the aim work landed and had no
+     * caller; this is it.
+     *
+     * The dominant pose rather than a three-way blend, because `layerGroups`
+     * splits ONE layer against one base and a true blend would mean three sets of
+     * tiers rebuilt whenever the pitch moved. With a slew-limited aim the pose
+     * changes rarely, and the tier rebuild is the expensive part — so the cheap
+     * thing and the good-looking thing agree here.
+     */
+    _aimLayer = null;
+    _aimLayerKey = '';
+    _updateAimLayer() {
+        const skeleton = this.entries?.skeletons?.[0];
+        const scene = this.owner?.scene;
+        if (skeleton == null || scene == null)
+            return;
+        let layerClip = '';
+        if (this._shootFor > 0) {
+            layerClip = 'Pistol_Shoot';
+        }
+        else if (this.gunplay) {
+            const w = aimPoseWeights(this._aim.pitchDeg);
+            layerClip =
+                w.up > w.level && w.up > w.down
+                    ? 'Pistol_Aim_Up'
+                    : w.down > w.level
+                        ? 'Pistol_Aim_Down'
+                        : 'Pistol_Aim_Neutral';
+        }
+        const baseGroup = this.animationGroup;
+        const baseClip = baseGroup?.name.replace(/^Clone of /, '') ?? '';
+        // The gun-ready idle IS the pose; layering one over it fights itself.
+        if (layerClip !== 'Pistol_Shoot' && baseClip === 'Pistol_Idle_Loop') {
+            layerClip = '';
+        }
+        const key = layerClip === '' ? '' : `${baseClip}|${layerClip}`;
+        if (key === this._aimLayerKey)
+            return;
+        this._aimLayerKey = key;
+        this._aimLayer?.stop();
+        this._aimLayer?.dispose();
+        this._aimLayer = null;
+        if (layerClip === '' || baseGroup == null) {
+            // Back to plain locomotion — restart it, because the tiers were playing
+            // in its place and it was left stopped.
+            if (baseGroup != null && !baseGroup.isPlaying) {
+                baseGroup.start(this.animationState?.loop ?? true);
+            }
+            return;
+        }
+        const groups = this.entries?.animationGroups ?? [];
+        const layerGroup = groups.find((g) => g.name.replace(/^Clone of /, '') === layerClip);
+        if (layerGroup == null)
+            return;
+        baseGroup.stop();
+        this._aimLayer = layerOnUpperBody(scene, skeleton, baseGroup, layerGroup);
+        this._aimLayer?.play(layerClip !== 'Pistol_Shoot');
+    }
+    /** Seconds left of the one-shot fire pose. */
+    _shootFor = 0;
     setAnimationState(name, speed = 1) {
+        name = this._gunplayState(name);
         if (name == null) {
             throw new Error('setAnimationState failed, no animation name specified.');
         }
@@ -889,9 +1661,55 @@ export class B3dBiped extends B3dControllable {
             }
             return;
         }
+        /*
+        WEAPON UP / DOWN (edge-detected), and it must be read BEFORE `shoot`, or
+        the frame you raise the gun is a frame the trigger already means "fire" to
+        the mapping and "sprint" to us.
+        */
+        const weaponPressed = (input.weapon ?? 0) > 0.5;
+        if (weaponPressed && !this.weaponWasPressed) {
+            this.setGunplay(!this.gunplay);
+        }
+        this.weaponWasPressed = weaponPressed;
+        /*
+        RE-ASSERT IT, because a weapon arrives LATE. `b3d-launcher` loads its model
+        a frame or more after the biped starts running, and `_weapons()` caches for
+        half a second on top — so a weapon that did not exist when the mode was last
+        set would come up visible on a holstered character and stay that way until
+        someone toggled twice.
+        */
+        this._showWeapons(this.gunplay);
+        /*
+        A CROUCH HAS TO SHRINK THE BODY, not just the pose.
+    
+        The collision capsule was set once in `setupMesh` and never changed, so
+        crouching lowered the camera and the animation and left a standing-sized
+        body behind — you could not fit anywhere you could not already stand.
+        Tonio, wedged on a ledge: "when I stepped onto the shelf I just got
+        completely stuck (even when crouched — looks like I am still colliding as if
+        I were standing)."
+    
+        Cheap and exact: the capsule's half-height IS the thing a crouch changes, and
+        the offset has to follow it or the feet leave the floor.
+    
+        (Cover is unaffected and was right all along — `exposure` takes a STANCE and
+        measures the silhouette with rays, so it never consulted the capsule. Worth
+        saying because the same symptom would be expected from both.)
+        */
+        if (this.mesh?.ellipsoid != null) {
+            const half = this._sneaking ? CROUCH_HALF : STAND_HALF;
+            if (this.mesh.ellipsoid.y !== half) {
+                this.mesh.ellipsoid.y = half;
+                this.mesh.ellipsoidOffset.y = half + STEP_OFFSET;
+            }
+        }
+        if (this.gunplay)
+            this._aimWeapons();
         // Camera toggle on the view button (edge-detected).
         const viewPressed = input.view > 0.5;
         if (viewPressed && !this.viewWasPressed) {
+            // Their choice from here: stop second-guessing it when the wall clears.
+            this._camForcedFpv = false;
             this.setCameraView(this.cameraView === 'chase' ? 'fpv' : 'chase');
         }
         this.viewWasPressed = viewPressed;
@@ -905,10 +1723,42 @@ export class B3dBiped extends B3dControllable {
             !this.owner?.xrActive) {
             const eye = this.getHeadPosition();
             this.fpvCamera.parent = null;
-            if (eye != null)
-                this.fpvCamera.position.copyFrom(eye);
+            if (eye != null) {
+                /*
+                AHEAD OF THE SKULL, or you see your own face when you walk.
+        
+                The camera is built at `(0, eyeHeight, 0.15)` — with a forward offset —
+                and then this per-frame path overwrote it with the raw head position and
+                threw the 0.15 away. So the eye sat ON the head bone, 0.134 from its
+                origin, and the face swung through the near plane on every step. That is
+                the reason the body used to be hidden outright in first person.
+        
+                Offsetting forward is better than raising `minZ` to clip the head, which
+                was the obvious alternative: the near plane applies to the WHOLE WORLD,
+                so a plane far enough out to swallow a skull also lets you see through
+                any wall you stand against — and standing against walls is most of what
+                this arena is for.
+                */
+                const f = this.mesh.forward;
+                this.fpvCamera.position.set(eye.x + f.x * attrs.eyeForward, eye.y, eye.z + f.z * attrs.eyeForward);
+            }
             const f = this.mesh.forward;
-            this.fpvCamera.rotation.set(0, Math.atan2(f.x, f.z), 0);
+            /*
+            AND IT PITCHES. It used to be yaw only — `rotation.set(0, yaw, 0)` — so in
+            first person you could not look up or down AT ALL, which is a strange
+            thing to discover about a first-person view and stranger still on a page
+            about shooting.
+      
+            Tonio's rule: *"If you're in first person, aim is your right stick / mouse
+            look."* So the camera takes the same `_lookPitch` the aim does, and the two
+            are the same direction by construction rather than by agreement. Babylon's
+            `rotation.x` is positive DOWN and `_lookPitch` is positive UP, which is the
+            one sign to get right.
+      
+            Roll stays zero deliberately: the head bob is in the eye POSITION, and
+            rolling the view with it is how you make people ill.
+            */
+            this.fpvCamera.rotation.set(-this._lookPitch * DEG_TO_RAD, Math.atan2(f.x, f.z), 0);
         }
         /*
         SNEAK IS A TOGGLE ON LAND AND A HELD CONTROL IN WATER.
@@ -994,31 +1844,124 @@ export class B3dBiped extends B3dControllable {
         // change sense when you get your feet wet. (Tried land-only; Tonio's call
         // is that consistency wins, and the head-underwater problem was elsewhere.)
         const lookYSign = isOff(attrs.invertLookY) ? 1 : -1;
-        this._lookPitch = Math.max(-attrs.maxLookPitch, Math.min(attrs.maxLookPitch, this._lookPitch + (input.lookY ?? 0) * lookYSign * attrs.lookRate * dt));
+        /*
+        AIM DOWN SIGHTS — what `input.aim` (left trigger, or Q) actually does.
+    
+        It arrived in the mapping correctly and nothing consumed it, so pressing it
+        did nothing at all. Tonio: "I can't aim with q."
+    
+        Three things, and they are the three things ADS mechanically IS, rather than
+        a pose: the view narrows, the camera comes in over the shoulder, and the
+        look SLOWS DOWN. The last one is the one people feel without naming — a
+        precision aim that swings at walking-around speed is not a precision aim,
+        and halving the rate is worth more than the zoom.
+    
+        Held, not toggled — the opposite of the weapon mode above, and deliberately:
+        a mode you hold is one you leave by relaxing, which is what you want for
+        something you do for a second and a half at a time.
+    
+        Eased rather than snapped, because a hard cut to a narrow FOV is a flinch.
+        */
+        const adsWant = this.gunplay && (input.aim ?? 0) > 0.3 ? 1 : 0;
+        this._ads += (adsWant - this._ads) * Math.min(1, dt * 8);
+        this._lookPitch = Math.max(-attrs.maxLookPitch, Math.min(attrs.maxLookPitch, this._lookPitch +
+            (input.lookY ?? 0) *
+                lookYSign *
+                attrs.lookRate *
+                // Slower with the sights up — the half of ADS you feel most.
+                (1 - 0.5 * this._ads) *
+                dt));
+        {
+            const cam = this.cameraView === 'fpv' ? this.fpvCamera : this.camera;
+            if (cam != null) {
+                // A narrower view, eased. 0.8 rad ≈ 46° is the Babylon default; 0.55
+                // ≈ 31° is a modest scope rather than a sniper's.
+                cam.fov = 0.8 - 0.25 * this._ads;
+            }
+        }
         if (this.camera instanceof BABYLON.FollowCamera) {
-            this.camera.radius = lerp(attrs.cameraMinFollowDistance, attrs.cameraMaxFollowDistance, Math.max(0, Math.min(1, this._camZoom)));
+            const desiredRadius = lerp(attrs.cameraMinFollowDistance, attrs.cameraMaxFollowDistance, Math.max(0, Math.min(1, this._camZoom))) *
+                // Over the shoulder with the sights up. Multiplied rather than set, so
+                // it composes with the player's own zoom instead of overriding it.
+                (1 - 0.45 * this._ads);
             this._camZoom = Math.max(0, Math.min(1, this._camZoom + (input.cameraZoom ?? 0) * dt));
             // Straight behind the body. The right stick turns the CHARACTER now, so
             // the camera has no yaw of its own and cannot end up pointing somewhere
             // the character is not — which is the failure mode an orbiting
             // third-person camera has and a GTA-style one does not.
             this.camera.rotationOffset = 180;
-            // Pitch as height: +look is up, which means the camera drops BELOW the
-            // subject to look up at it, so the offset runs the other way.
             /*
-            KEEP THE CAMERA ABOVE GROUND.
+            Pitch as height: +look is up, which means the camera drops BELOW the
+            subject to look up at it, so the offset runs the other way.
       
-            Pitch drives HEIGHT on a FollowCamera, so looking up walks the camera
-            downward — and past a certain angle it goes underground and the world
-            vanishes. A floor is the cheap, always-correct half of the fix; the
-            thorough version raycasts from the subject to the camera and pulls in, the
-            way the world-dialog depth guard does, which also handles walls rather
-            than just terrain.
+            ⚠️ CLAMPED, or looking up buries the camera and you get thrown into first
+            person. `tan` runs away near the limit — at the 70° the look allows, this
+            asks for the camera roughly 1.4 radii UNDERGROUND. The obstruction ray then
+            hits the floor, `forceFirstPerson` correctly concludes there is nowhere to
+            stand, and you are in first person staring at the sky with no idea why.
+            Tonio: "if you arrow key into 'first person' view you end up staring at the
+            sky."
+      
+            Measured before the clamp: chase at pitch 20, FORCED to fpv by pitch 43,
+            and stuck there at 70. The first-person fallback was doing its job on a
+            request that should never have been made.
+      
+            So the request is bounded instead. `minHeight` keeps the camera above the
+            subject's feet, which is all that is needed to keep the ray out of the
+            ground, and looking further up simply stops lowering the camera rather than
+            changing the view mode underneath you.
             */
-            this.camera.heightOffset = Math.max(attrs.cameraMinHeight, attrs.cameraHeightOffset +
-                Math.tan((-this._lookPitch * Math.PI) / 180) *
-                    this.camera.radius *
-                    0.5);
+            const pitchDrop = Math.tan((-this._lookPitch * Math.PI) / 180) * desiredRadius * 0.5;
+            const desiredHeight = Math.max(attrs.cameraMinHeight, attrs.cameraHeightOffset + pitchDrop);
+            const camNode = this._rootNode();
+            /*
+            PUT THE CAMERA SOMEWHERE IT IS ALLOWED TO BE.
+      
+            The comment this replaces already knew the answer: "a floor is the cheap,
+            always-correct half of the fix; the thorough version raycasts from the
+            subject to the camera and pulls in… which also handles walls rather than
+            just terrain." This is that, plus the two things it did not anticipate —
+            a first-person fallback when there is nowhere to stand, and the medium
+            band, which is the same correction wearing different clothes.
+      
+            One ray per frame. The rules are in [[camera-fit]], which is pure, so what
+            is here is the measurement and the application.
+            */
+            // No rig yet (the GLB is still loading) means nothing to measure from, so
+            // the camera keeps what it was asked for rather than being corrected
+            // against a subject that is not there.
+            const fit = fitChase({ distance: desiredRadius, height: desiredHeight }, this._camFit, {
+                hit: camNode != null
+                    ? this._cameraObstruction(camNode, desiredRadius, desiredHeight)
+                    : Infinity,
+                dt,
+                subjectY: camNode?.absolutePosition.y ?? 0,
+                band: this._cameraBand(),
+            }, {
+                min: attrs.cameraMinFollowDistance * 0.35,
+                minHeight: attrs.cameraMinHeight,
+            });
+            this._camFit = fit;
+            this.camera.radius = fit.distance;
+            this.camera.heightOffset = fit.height;
+            /*
+            NOWHERE SAFE: GO FIRST PERSON. Tonio's call, and what every third-person
+            camera that works does — the alternatives are a camera inside a wall
+            showing the inside of the world, or one jammed against a shoulder blade.
+      
+            `_camForcedFpv` remembers that WE did it, so clearing the obstruction
+            returns the player to the view they chose rather than to a default; and a
+            manual toggle while forced drops the flag, because after that the choice
+            is theirs again.
+            */
+            if (fit.firstPerson && this.cameraView === 'chase') {
+                this._camForcedFpv = true;
+                this.setCameraView('fpv');
+            }
+            else if (!fit.firstPerson && this._camForcedFpv) {
+                this._camForcedFpv = false;
+                this.setCameraView('chase');
+            }
         }
         // XR camera zoom from right stick
         if (input.cameraZoom !== 0 && this.xrStuff) {
@@ -1060,7 +2003,107 @@ export class B3dBiped extends B3dControllable {
                 BABYLON.Vector3.CrossToRef(BABYLON.Vector3.Up(), node.forward, _rightScratch);
                 node.moveWithCollisions(_rightScratch.scaleInPlace(strafe * walk * attrs.strafeSpeed * dt));
             }
-            node.rotate(BABYLON.Vector3.Up(), rotation * dt * attrs.turnSpeed * DEG_TO_RAD);
+            /*
+            AIMING SPLITS THE STICK FROM THE FEET.
+      
+            Without a weapon the right stick turns the BODY and the two are one thing
+            — the comment on `_lookPitch` says as much: "there is no `_lookYaw`". With
+            one, the stick has to move the AIM instead, or the character cannot look
+            at something without walking sideways relative to it, and the whole point
+            of a layered upper body evaporates.
+      
+            So the same input reaches `node.rotate` either directly (not aiming) or
+            through [[aim]]'s catch-up (aiming), and the character's facing is driven
+            by exactly one path in both cases.
+            */
+            let bodyTurnDeg = rotation * dt * attrs.turnSpeed;
+            if (this._isAiming) {
+                /*
+                THE FREE BAND CLOSES WHEN YOU WALK, and that is what makes this read as
+                aiming rather than as a broken neck.
+        
+                Standing, a held twist is a POSE: you are looking 45° off your facing
+                with your feet planted, which is what a person does and what the band
+                is for. Start walking and it becomes a limp — the feet should go where
+                you are pointing. Measured before this existed: with the stick centred
+                the character stood permanently twisted 45° and never unwound, because
+                `yawFree` is a stable fixed point by design.
+        
+                Narrowing the band while moving also gives strafing-shooter movement
+                for free: the body comes round to the aim, and since movement is
+                body-relative, walking forward walks where you are looking.
+                */
+                const moving = Math.abs(input.forward ?? 0) + Math.abs(input.strafe ?? 0) > 0.1;
+                const limits = {
+                    ...DEFAULT_AIM_LIMITS,
+                    yawFree: attrs.aimFreeYaw * (moving ? 0.2 : 1),
+                    yawMax: attrs.aimMaxYaw,
+                    pitchUp: attrs.maxLookPitch,
+                    pitchDown: attrs.maxLookPitch,
+                };
+                // `_lookPitch` is positive UP and an aim pitch is positive DOWN. The
+                // conversion lives here, once, rather than at every reader.
+                /*
+                FIRST PERSON HAS NO AIM OFFSET — the body turns instead.
+        
+                Tonio: *"If you're not in first person view then aim is basically where
+                you're pointing, possibly offset by the right stick. If you're in first
+                person, aim is your right stick / mouse look."*
+        
+                Third person keeps the offset, and that is what makes it feel like a
+                third-person shooter: the stick swings the aim, the body comes round
+                after it. In first person the camera IS the eye, so an aim sitting 20°
+                off to one side would point the weapon somewhere you are not looking —
+                the crosshair would be centred and the shot would not be. So the offset
+                goes to zero and `bodyCatchUp` turns the whole character, which is the
+                same thing every first-person game does.
+                */
+                const firstPerson = this.cameraView === 'fpv';
+                const want = {
+                    yawDeg: firstPerson
+                        ? 0
+                        : this._aim.yawDeg + rotation * dt * attrs.turnSpeed,
+                    pitchDeg: -this._lookPitch,
+                };
+                this._aim = stepAim(this._aim, want, dt, {
+                    slewDeg: attrs.turnSpeed * 3,
+                    limits,
+                });
+                if (firstPerson) {
+                    /*
+                    THE STICK TURNS THE BODY, directly.
+          
+                    With the aim offset pinned to zero there is nothing for `bodyCatchUp`
+                    to catch up to — it would return a turn of zero and the character
+                    could not turn at all, which is a worse bug than the one pinning the
+                    offset fixes. In first person the look IS the facing, so the turn
+                    input goes straight to the body and the aim stays dead ahead of it.
+                    */
+                    bodyTurnDeg = rotation * dt * attrs.turnSpeed;
+                }
+                else {
+                    const caught = bodyCatchUp(this._aim.yawDeg, dt, attrs.turnSpeed, limits);
+                    this._aim = { ...this._aim, yawDeg: caught.yawDeg };
+                    bodyTurnDeg = caught.bodyTurnDeg;
+                }
+            }
+            else if (this._aim.yawDeg !== 0 || this._aim.pitchDeg !== 0) {
+                // Lowering the weapon unwinds the twist rather than snapping it.
+                this._aim = relaxAim(this._aim, dt, attrs.turnSpeed);
+            }
+            node.rotate(BABYLON.Vector3.Up(), bodyTurnDeg * DEG_TO_RAD);
+            this._weaponCacheAge += dt;
+            // Only with the weapon up. The mapping already withholds `shoot` when it
+            // is down, but an XR controller or an AI feeds this directly and a
+            // holstered character who fires anyway is worse than one who cannot.
+            if (this.gunplay && (input.shoot ?? 0) > 0.5)
+                this._fireWeapons();
+            // After the shot, so the ring sits where THIS frame's aim points rather
+            // than lagging it by one.
+            if (this.owner != null)
+                this._updateReticle(this.owner.scene);
+            this._shootFor = Math.max(0, this._shootFor - dt);
+            this._updateAimLayer();
             /*
             STAND ON THE GROUND — a SNAP, not a dead band.
       
@@ -1832,7 +2875,22 @@ export class B3dBiped extends B3dControllable {
      * camera) — while still casting its shadow. */
     setCameraView(view) {
         this.cameraView = view;
-        this.setBodyHidden(view === 'fpv');
+        /*
+        THE BODY STAYS VISIBLE IN FIRST PERSON — "true first person".
+    
+        It used to be hidden outright, on the reasoning that it would be in your
+        face and could run ahead of the camera. The consequence is that you see
+        NOTHING of yourself: no arm, no weapon, no legs when you look down. Tonio:
+        "In first person view you can't see yourself (your arm or gun). Not sure if
+        there's a neat fix for that (don't want the gun floating in the air)."
+    
+        Showing only the weapon would be that floating gun, and this rig is a SINGLE
+        skinned mesh, so there is no head submesh to hide either. What makes it work
+        instead is that the eye camera already sits 0.15 forward of the head bone
+        with a 0.06 near plane: the skull is behind the near plane and clips away by
+        itself, while the arms, the weapon and the legs are all in front of it.
+        */
+        this.setBodyHidden(false);
         if (this.owner?.xrActive)
             return; // the XR rig handles the viewpoint in VR
         const cam = view === 'fpv' ? this.fpvCamera : this.camera;
@@ -1981,8 +3039,8 @@ export class B3dBiped extends B3dControllable {
                 Kept below `STEP_UP` (the probe's reach), so anything the body walks over
                 is something the probe can then stand you on.
                 */
-                this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3);
-                this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75 + STEP_OFFSET, 0);
+                this.mesh.ellipsoid = new BABYLON.Vector3(0.3, STAND_HALF, 0.3);
+                this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, STAND_HALF + STEP_OFFSET, 0);
                 this.mesh.checkCollisions = true;
                 owner.register({ meshes });
                 // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX
@@ -2012,6 +3070,13 @@ export class B3dBiped extends B3dControllable {
         }
     }
     sceneDispose() {
+        this._reticle?.dispose();
+        this._reticle = null;
+        // The layer owns AnimationGroups it built; the source clips are the GLB's
+        // and are not ours to dispose.
+        this._aimLayer?.dispose();
+        this._aimLayer = null;
+        this._aimLayerKey = '';
         if (this.fpvCamera) {
             this.fpvCamera.parent = null;
             this.fpvCamera.dispose();

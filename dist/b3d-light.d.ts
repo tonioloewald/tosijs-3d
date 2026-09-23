@@ -10,6 +10,7 @@ export declare class B3dLight extends B3dChild {
         intensity: number;
         diffuse: string;
         specular: string;
+        groundColor: string;
     };
     owner: B3d | null;
     light?: BABYLON.HemisphericLight;

@@ -1,0 +1,188 @@
+export {};
+/*#
+# world-sim
+
+**THE KITCHEN SINK** — one world that grows with the world-sim layer. Terrain
+(with live dials), a sea, weather over both, and the encoded sky behind. As
+provinces, weather systems and the simulation land, they land HERE first: this
+page is where the pieces meet, so it is also where their disagreements show
+first — which is the point.
+
+## Demo
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, volcano } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { demo } = tosi({
+  demo: {
+    seed: 111,
+    grossScale: 0.015,
+    detailScale: 0.09,
+    horizScale: 8,
+    grossAmplitude: 250,
+    detailAmplitude: 45,
+    // Sea level as a FRACTION of v-size, so the ocean scales with the
+    // mountains — the same world at any amplitude keeps the same share of
+    // land and sea.
+    seaLevel: 0.32,
+    volcano: false,
+    wireframe: false,
+  },
+})
+
+// Weather is ONE dial at the top (coverage drives transmission, gloom and
+// depth) plus the shaping ones: wind slides the sky, evolve reshapes it,
+// cirrus thins it, orographic asks the terrain for its own height sampler so
+// the towers build over the mountains that are actually there.
+const { sky } = tosi({
+  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8, wind: 10, cirrus: 0.3, evolve: 0.5, eye: 220 },
+})
+
+let water
+const terrain = b3dTerrain({
+  seed: demo.seed,
+  biome: 'on',
+  surfaceType: 'cylinder',
+  radius: 1000,
+  cylinderHeight: 1000,
+  tileSize: 128,
+  lodLevels: 3,
+  splitFactor: 2,
+  reach: 5000,
+  grossScale: demo.grossScale,
+  detailScale: demo.detailScale,
+  horizScale: demo.horizScale,
+  grossAmplitude: demo.grossAmplitude,
+  detailAmplitude: demo.detailAmplitude,
+  wireframe: demo.wireframe,
+  // The biome classifier's snow line anchors to the SAME sea level as the
+  // water plane — keep them equal or the islands between the old and new
+  // water line render as snowcaps.
+  biomeSeaLevel: demo.seaLevel * demo.grossAmplitude,
+})
+
+const scene = b3d(
+  {
+    // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
+    // screens, and the SAME panel floats in front of you in VR.
+    scenePanel: () => [
+      label3d({ text: 'Terrain' }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
+      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
+      slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, scale: 'log2' }),
+      slider3d({ label: 'v size', value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
+      slider3d({ label: 'sea level', value: demo.seaLevel, min: 0, max: 1, step: 0.02 }),
+      slider3d({ label: 'v detail', value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
+      slider3d({ label: 'seed', value: demo.seed, min: 0, max: 999, step: 1 }),
+      // THE FIRST PROVINCE — an authored volcano forced through the live
+      // terrain, with the volcanism field that makes it glow. The kitchen
+      // sink grows from here.
+      toggle3d({
+        label: 'volcano province',
+        value: demo.volcano,
+        handleChange: (on) => {
+          const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+          terrain.landform = on ? v.landform : null
+          terrain.provinceField = on ? v.province : null
+          terrain.regenerate()
+        },
+      }),
+      label3d({ text: 'Weather' }),
+      slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
+      slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
+      slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
+      slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      label3d({ text: 'Camera' }),
+      slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
+      toggle3d({ label: 'wireframe', value: demo.wireframe }),
+    ],
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera(
+        'orbit',
+        -Math.PI / 2,
+        Math.PI / 3,
+        300,
+        new BABYLON.Vector3(0, 60, 0),
+        el.scene
+      )
+      cam.lowerRadiusLimit = 20
+      cam.upperRadiusLimit = 3000
+      cam.minZ = 0.1
+      cam.maxZ = 12000
+      cam.attachControl(el.parts.canvas, true)
+      el.setActiveCamera(cam)
+      // THE EYE IS PINNED, orbit changes only where you look — so the eye
+      // height slider means what it says instead of being unreachable at the
+      // top and bottom of the orbit.
+      el.scene.registerBeforeRender(() => {
+        cam.target.y = sky.eye.valueOf() - cam.radius * Math.cos(cam.beta)
+      })
+    },
+  },
+  b3dSun({ activeDistance: 80 }),
+  // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
+  // points. Split because they are different KINDS of thing — one is
+  // low-frequency and one is not — and the points stay points at any zoom.
+  b3dSkybox({
+    timeOfDay: sky.timeOfDay,
+    realtimeScale: 0,
+    starfieldCube: '/sky/nebula',
+    starfieldData: '/sky/stars',
+    starfieldTilt: '12,25,58',
+  }),
+  b3dLight({ intensity: 0.5 }),
+  b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
+  terrain,
+  // The layer case: a cloud DECK over the peaks, orographic so the towers
+  // build over the actual mountains. Blob clouds (b3d-clouds) remain the
+  // right tool for cloud you fly BETWEEN.
+  b3dCloudDeck({
+    altitude: sky.altitude,
+    coverage: sky.coverage,
+    orographic: sky.orographic,
+    wind: sky.wind,
+    cirrus: sky.cirrus,
+    evolve: sky.evolve,
+  }),
+  // The sea follows BOTH dials: seaLevel (a fraction) times v-size, so the
+  // ocean scales with the mountains instead of sitting at a fixed height
+  // while the world reshapes around it. `follow` keeps it under the camera;
+  // the ripples stay anchored in world space.
+  water = b3dWater({ y: demo.seaLevel * demo.grossAmplitude, waterSize: 8000, follow: true, twoSided: true }),
+)
+
+preview.append(scene)
+
+// Regenerate the terrain when its dials move, and keep the sea at the same
+// FRACTION of the terrain's height.
+for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel']) {
+  demo[key].observe(() => {
+    terrain.regenerate()
+    water.y = demo.seaLevel * demo.grossAmplitude
+    terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
+  })
+}
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
+Drag the terrain dials and the world reshapes under you. Cover the sky, drop
+the cloud base into the valleys, scrub to midnight — the encoded galaxy comes
+out with the moon riding it, the deck moonlit above.
+
+## The kitchen sink grows from here
+
+- **Provinces** land as toggles like the volcano: a footprint, a falloff, and
+  what they do to the terrain and the weather — see PROVINCE-DESIGN.md.
+- **Weather systems** arrive as province-driven dials (one wind, shared and
+  overridable — see the TODO).
+- **The simulation** (world-store / world-view) gets a corner of this world
+  to populate — the same one a visitor just reshaped.
+*/
+/*{ "parent": "Demos", "order": 40 }*/
+//# sourceMappingURL=world-sim.js.map

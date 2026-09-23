@@ -290,9 +290,28 @@ export class B3dManipulator extends B3dChild {
         view.setVisible(on);
         if (!on)
             return;
-        const p = node.getAbsolutePosition();
+        /*
+        THE WIDGET HOLDS STILL WHILE YOU DRAG IT.
+    
+        It used to re-read the target's world position every frame, which is right
+        for an object sitting still and wrong for one that is ALIVE: a weapon
+        parented to a hand bone inherits the idle animation, so the handles drifted
+        and breathed under the cursor mid-drag. Tonio: "the way the manipulator
+        moves around as I drag it is a bit odd (it doesn't affect the drag)."
+    
+        It did not affect the drag — the solve is against pointer rays and the
+        target's own transform, not against where the handles are drawn — so this is
+        purely about it feeling stable in the hand. Freezing the anchor for the
+        duration of a grab is what every DCC gizmo does, and for the same reason.
+        */
+        const p = this._drag != null && this._anchor != null
+            ? this._anchor
+            : node.getAbsolutePosition();
+        if (this._drag == null) {
+            this._anchor = p.clone();
+            view.setOrientation(this._rotationOf(node));
+        }
         view.moveTo({ x: p.x, y: p.y, z: p.z });
-        view.setOrientation(this._rotationOf(node));
         const camera = scene.activeCamera;
         if (camera != null) {
             // Constant size ON SCREEN: world-sized handles are correct at exactly one
@@ -311,9 +330,39 @@ export class B3dManipulator extends B3dChild {
             : node.rotation;
         return { rx: e.x / DEG_TO_RAD, ry: e.y / DEG_TO_RAD, rz: e.z / DEG_TO_RAD };
     }
+    /**
+     * A world point from the node's PARENT frame — the inverse of
+     * `_toParentSpace`.
+     */
+    _toWorldSpace(node, p) {
+        const local = new BABYLON.Vector3(p.x, p.y, p.z);
+        const parent = node.parent;
+        if (parent == null || typeof parent.getWorldMatrix !== 'function') {
+            return local;
+        }
+        parent.computeWorldMatrix(true);
+        return BABYLON.Vector3.TransformCoordinates(local, parent.getWorldMatrix());
+    }
     /** The transform as it stands now, in the units the drag speaks. */
     _currentTransform(node) {
-        const p = node.getAbsolutePosition();
+        /*
+        THE ELEMENT'S OWN `x`/`y`/`z` ARE THE TRUTH, not the mesh's origin.
+    
+        They are not always the same point. `b3d-launcher` defines them as the GRIP —
+        where the hand holds the weapon — and offsets the model so the grip lands
+        there, so the mesh origin sits a grip-length away. Reading the origin and
+        writing it back to `x`/`y`/`z` is then not an identity: a click with no drag
+        at all moved the weapon by the length of its own grip, which is how this was
+        found (measured: 0,0,0 became 0.007, 0.099, -0.037 on a no-op write).
+    
+        Going through the element's own numbers makes the round trip exact whatever
+        the element means by them, and puts the gizmo on the handle the author
+        declared rather than on wherever the modeller happened to put the origin.
+        */
+        const el = this._targetElement();
+        const p = el != null && typeof el.x === 'number'
+            ? this._toWorldSpace(node, { x: el.x, y: el.y ?? 0, z: el.z ?? 0 })
+            : node.getAbsolutePosition();
         return {
             position: { x: p.x, y: p.y, z: p.z },
             rotation: this._rotationOf(node),
@@ -405,6 +454,8 @@ export class B3dManipulator extends B3dChild {
         this.dispatchEvent(new CustomEvent('commit', { detail: committed, bubbles: true }));
         return true;
     }
+    /** Where the handles were when the grab started — see `_track`. */
+    _anchor = null;
     /** Is a drag in progress? */
     get dragging() {
         return this._drag != null;
@@ -412,6 +463,23 @@ export class B3dManipulator extends B3dChild {
     /* --------------------------------------------------------------------- *
      * Writing
      * --------------------------------------------------------------------- */
+    /**
+     * A world point in the node's PARENT frame — or unchanged if it has none.
+     *
+     * `TransformCoordinates` through the inverse world matrix, rather than
+     * subtracting the parent's position, because a parent can be rotated and
+     * scaled (a hand bone is all three) and subtraction only handles the easy
+     * case — which is exactly the trap this function exists to close.
+     */
+    _toParentSpace(node, p) {
+        const world = new BABYLON.Vector3(p.x, p.y, p.z);
+        const parent = node.parent;
+        if (parent == null || typeof parent.getWorldMatrix !== 'function') {
+            return world;
+        }
+        parent.computeWorldMatrix(true);
+        return BABYLON.Vector3.TransformCoordinates(world, BABYLON.Matrix.Invert(parent.getWorldMatrix()));
+    }
     _write(t) {
         const node = this._targetNode();
         if (node == null)
@@ -420,15 +488,33 @@ export class B3dManipulator extends B3dChild {
         if (el != null && typeof el.x === 'number') {
             // The element owns position and rotation: writing the mesh instead is
             // undone by its next render, silently.
-            el.x = t.position.x;
-            el.y = t.position.y;
-            el.z = t.position.z;
+            /*
+            ⚠️ INTO THE PARENT'S FRAME FIRST.
+      
+            The drag works in WORLD space — it must, because it is solving against
+            pointer rays — and `_currentTransform` reads `getAbsolutePosition()`. But
+            `el.x/y/z` are the element's LOCAL offset from whatever it hangs on. Those
+            are the same numbers only for an unparented node, which is every target
+            this widget had been tried against, so the bug sat in plain sight.
+      
+            Parent it to anything and the first click teleports the target by the
+            parent's world offset, and the axes it drags along are the parent's
+            rotated ones rather than the world ones you can see. Reported against a
+            pistol parented to a hand bone: "the axes aren't wired up correctly and as
+            soon as I clicked the gizmo the gun jumped away." Both halves, one cause.
+            */
+            const local = this._toParentSpace(node, t.position);
+            el.x = local.x;
+            el.y = local.y;
+            el.z = local.z;
             el.rx = t.rotation.rx;
             el.ry = t.rotation.ry;
             el.rz = t.rotation.rz;
         }
         else {
-            node.position.set(t.position.x, t.position.y, t.position.z);
+            // Same conversion for a bare node: `position` is parent-relative too.
+            const local = this._toParentSpace(node, t.position);
+            node.position.copyFrom(local);
             // Clear the quaternion or `.rotation` is ignored — the glTF loader always
             // sets one, and a rotation drag would move nothing with no error.
             node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(t.rotation.ry * DEG_TO_RAD, t.rotation.rx * DEG_TO_RAD, t.rotation.rz * DEG_TO_RAD);

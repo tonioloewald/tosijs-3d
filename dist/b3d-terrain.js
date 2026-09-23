@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -32,6 +32,17 @@ const { demo } = tosi({
     wireframe: false,
     debugColor: false,
   },
+})
+
+// The weather is ONE dial. Transmission, the gloom under the deck and (past 1)
+// the height of the cloud all follow `coverage`, so there is no way to ask for
+// a sky that contradicts itself. Past 1 the base stays put and the top towers.
+//
+// `cloud base` is separate because it is geography, not weather: drop it to
+// ~250 and the peaks stand out of the overcast, and you have to get down into
+// the valleys to see anything at all.
+const { sky } = tosi({
+  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8 },
 })
 
 // Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
@@ -80,7 +91,10 @@ const posDisplay = span({ class: 'pos-display' })
 // right trigger = forward throttle, pull back to climb, turn stick banks.
 const plane = () => b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
+  // A ceiling ABOVE the cloud deck, because the whole point of a deck is that
+  // you can be under it, in it, or over it. The stock 300 m is a low-level
+  // strike ceiling and it sat below even the spawn altitude here.
+  player: true, y: 400, ceiling: 1600, vtolSpeed: 6, maxSpeed: 50,
 })
 const focus = inputFocus(gameController(), plane())
 
@@ -115,6 +129,11 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      label3d({ text: 'Weather' }),
+      slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
+      slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],
@@ -128,14 +147,37 @@ const scene = b3d(
     },
   },
   b3dSun({ activeDistance: 80 }),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
+  // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
+  // points for the stars. Split because they are different KINDS of thing —
+  // one is low-frequency and one is not — and the points stay points at any
+  // zoom rather than being a smear baked at one resolution.
+  b3dSkybox({
+    timeOfDay: sky.timeOfDay,
+    realtimeScale: 0,
+    starfieldCube: '/sky/nebula',
+    starfieldData: '/sky/stars',
+    starfieldTilt: '12,25,58',
+  }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   terrain,
-  // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
-  // rebases the world under you. Fly down into it and the world whites out.
-  b3dClouds({ model: '/cloud.glb', altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
+  // A cloud DECK over the peaks. `follow` keeps it centred under you and it is
+  // origin-shift aware, so it neither runs out nor lurches when the terrain rebases
+  // the world — the sheet slides, the weather stays where it is. Fly up through it
+  // and the world whites out; the shadows underfoot are the same field you flew into.
+  //
+  // This is the layer case. Blob clouds (b3d-clouds) are still the right tool for
+  // cloud you fly BETWEEN, and for a stylised sky — see their own page.
+  // `orographic` asks the TERRAIN for its own height sampler, so the towers build
+  // over the mountains that are actually there — landforms, the volcano province,
+  // slider changes and all — rather than over a second guess at the same ground.
+  b3dCloudDeck({
+    altitude: sky.altitude,
+    coverage: sky.coverage,
+    orographic: sky.orographic,
+    wind: 10,
+  }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
   // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
   // never runs out from under you and never flickers), while the ripples stay anchored in world
@@ -313,6 +355,7 @@ import { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler
 import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, budgetedReach, MAX_TILES_ACROSS, } from './terrain-grid.js';
 import { resolveBudget } from './b3d-quality.js';
 import { attachBiomePlugin } from './biome-plugin.js';
+import { touchesExtent } from './landform.js';
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
 const MIRROR_SAFE_V = 0.25;
@@ -1352,6 +1395,26 @@ export class B3dTerrain extends B3dChild {
                 cg = 0.3 + 0.65 * (((hh >>> 8) & 255) / 255);
                 cb = 0.3 + 0.65 * (((hh >>> 16) & 255) / 255);
             }
+            /*
+            SKIP A PROVINCE THAT CANNOT REACH THIS TILE.
+      
+            A province has a natural boundary but spans many tiles, so the question
+            each tile has to ask is rectangle-vs-rectangle — and until `landform.ts`
+            started tagging its fields with an `extent`, it could not be asked at all:
+            terrain received a bare `(x, z) => number` with its footprint closed over
+            and discarded. So every vertex of every tile in the world sampled the
+            volcano, including tiles thousands of metres from it.
+      
+            This is EXACTLY equivalent, not an approximation, and it is worth saying
+            why: the loop above has already written alpha `1` everywhere, and `1` is
+            "no province" (the lane is inverted so untouched buffers mean none).
+            Outside its extent the field returns 0, and `1 - 0` is `1`. Skipping
+            writes the same bytes.
+      
+            Which also means a field that lies about its extent clips itself with no
+            error — see `Extent` in landform.ts. An unannotated field declares no
+            extent, `touchesExtent` answers `true`, and nothing changes for it.
+            */
             const field = this.provinceField;
             for (let v = 0; v < colors.length / 4; v++) {
                 colors[v * 4] = cr;
@@ -1359,7 +1422,10 @@ export class B3dTerrain extends B3dChild {
                 colors[v * 4 + 2] = cb;
                 colors[v * 4 + 3] = 1;
             }
-            if (field) {
+            const half = tileSize / 2;
+            const inReach = field != null &&
+                touchesExtent(field, cell.cx + this.originOffsetX - half, cell.cz + this.originOffsetZ - half, cell.cx + this.originOffsetX + half, cell.cz + this.originOffsetZ + half);
+            if (field && inReach) {
                 const offX = this.originOffsetX;
                 const offZ = this.originOffsetZ;
                 for (let v = 0; v < tpl.gridCount; v++) {

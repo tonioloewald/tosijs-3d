@@ -114,6 +114,29 @@ export function skyboxSchema(extra = {}) {
         turbidity: num(10, { minimum: 1, maximum: 40 }),
         luminance: num(1, { minimum: 0, maximum: 2 }),
         rayleigh: num(2, { minimum: 0, maximum: 4 }),
+        // Leaving the atmosphere. Metres, and a BAND: the pair is literally
+        // `band(altitude, startAt, full)` from atmosphere.ts. Off while
+        // `spaceFull <= spaceStart`, which is why both default to 0 — there is no
+        // honest default altitude (the Kármán line is 100 km and no demo climbs
+        // it), so the scene that wants the effect states its own dramatic scale.
+        spaceStart: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
+        spaceFull: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
+        starfield: num(0, { minimum: 0, maximum: 20000 }),
+        nebulae: num(0, { minimum: 0, maximum: 200 }),
+        nebulaBrightness: num(1, { minimum: 0, maximum: 3 }),
+        nebulaSize: num(0.045, { minimum: 0.02, maximum: 1 }),
+        spaceColor: color('#05070f'),
+        nebulaTexture: { type: 'string', default: '' },
+        starfieldCube: { type: 'string', default: '' },
+        // A DATA cube, not a picture — see starfield-codec. The three numbers
+        // below describe how to decode it and must match what encoded it.
+        starfieldData: { type: 'string', default: '' },
+        starfieldDataSize: num(1024, { minimum: 8, maximum: 4096 }),
+        starfieldSharpness: num(3, { minimum: 0.1, maximum: 8 }),
+        starfieldSizeScale: num(3, { minimum: 1, maximum: 12 }),
+        starfieldTilt: { type: 'string', default: '0,0,0' },
+        starfieldSeed: num(12345, { minimum: 0, maximum: 999999 }),
+        starDistance: num(0, { minimum: 0, maximum: 100000, unit: 'm' }),
         mieCoefficient: num(0.005, { minimum: 0, maximum: 0.05 }),
         mieDirectionalG: num(0.8, { minimum: 0, maximum: 1 }),
         sunColor: color('#eeeeff'),
@@ -156,7 +179,7 @@ export function sunSchema(extra = {}) {
         stabilizeCascades: choice('on', ['on', 'off']),
         lambda: num(0.8, { minimum: 0, maximum: 1 }),
         cascadeBlendPercentage: num(0.1, { minimum: 0, maximum: 1 }),
-        shadowNormalBias: num(0.05, { minimum: 0, maximum: 0.5 }),
+        shadowNormalBias: num(0.02, { minimum: 0, maximum: 0.5 }),
         shadowBias: num(0.00005, { minimum: 0, maximum: 0.01 }),
         updateIntervalMs: num(1000, { minimum: 0, maximum: 10000, ...MS }),
     }, extra);
@@ -271,6 +294,10 @@ export function hemisphericLightSchema(extra = {}) {
         intensity: num(1, { minimum: 0, maximum: 4 }),
         diffuse: color('#ffffff'),
         specular: color('#808080'),
+        // Bounce from below. Black is Babylon's default and is why an
+        // ambient-only scene has vertical faces that stay dark however high
+        // `intensity` goes — a dim, desaturated ground colour is the fix.
+        groundColor: color('#000000'),
         x: num(0, { minimum: -1, maximum: 1 }),
         y: num(1, { minimum: -1, maximum: 1 }),
         z: num(0, { minimum: -1, maximum: 1 }),

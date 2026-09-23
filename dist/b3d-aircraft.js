@@ -349,7 +349,7 @@ import { canonicalize, applyCenterOfGravity } from './model-transform.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { aircraftMapping } from './virtual-gamepad.js';
 import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire.js';
-import { placeOnSurface, boundingBottomOffset, isOff, collidable, } from './b3d-utils.js';
+import { placeOnSurface, boundingBottomOffset, hierarchyExtents, isOff, collidable, } from './b3d-utils.js';
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js';
 import { DestroyableBehavior } from './destroyable-behavior.js';
 // Small gap kept between the model's belly and the ground.
@@ -588,6 +588,21 @@ export class B3dAircraft extends B3dControllable {
     chaseMinHeight = 2.6; // chase height zoomed all the way in
     chaseHeight = 4.2; // chase height zoomed out (overview)
     chaseDistance = 6.2; // chase distance behind
+    /*
+    THE DEFAULTS ABOVE ARE A FALLBACK, not the answer — see `fitCameras`.
+  
+    Recorded so an author's value can be told from an untouched one. These are
+    plain fields, not attributes, so there is no setter to hook; comparing against
+    what the class shipped with is how "did anyone choose this?" gets answered
+    without inventing a second way to say it.
+    */
+    static CAMERA_DEFAULTS = {
+        eyeHeight: 0.9,
+        cockpitForward: 0.5,
+        chaseMinHeight: 2.6,
+        chaseHeight: 4.2,
+        chaseDistance: 6.2,
+    };
     velocity = new BABYLON.Vector3(0, 0, 0);
     _fwd = new BABYLON.Vector3(); // scratch: world nose direction (unit)
     // Weapon cooldowns (seconds until ready) + edge-detect for the one-shot weapons.
@@ -1826,6 +1841,80 @@ export class B3dAircraft extends B3dControllable {
             };
         }
     }
+    /**
+     * Size the cameras to the MODEL, instead of to a number someone once liked.
+     *
+     * Both camera bugs were the same bug. When content moved to human scale (a
+     * person is 1.8 m — see CLAUDE.md) the aircraft roughly doubled, and the
+     * offsets did not: measured on the scout, the chase sat 6.2 m behind a 4.9 m
+     * aircraft — **1.26 body-lengths**, which is why it read as being right on
+     * top of it — and the cockpit eye sat 0.9 m above an origin whose airframe
+     * spans 0.37 to 2.40, i.e. INSIDE THE FUSELAGE. Tonio: *"The chase camera is
+     * way too close... The in cockpit camera is too low (same reason)."*
+     *
+     * The previous fix multiplied the constants by 1.3 and left them constants,
+     * so the next model to arrive at a different size breaks them again. A ratio
+     * to the thing being looked at cannot go stale: content can be re-scaled, a
+     * consumer can fly something the size of a bus, and the framing holds.
+     *
+     * **The cockpit is MEASURED, not assumed.** A canopy's height is not derivable
+     * from a bounding box — a bubble and a slot sit in very different places on
+     * the same silhouette — so if the model names a `Cockpit` node (the scout
+     * does) its centre IS the eye. That generalises for free: any model carrying
+     * one gets a correct viewpoint with nothing authored. Without one, a
+     * proportion of the airframe is the honest fallback.
+     *
+     * Author-set values always win — untouched is told from chosen by comparing
+     * against `CAMERA_DEFAULTS`.
+     */
+    fitCameras(root) {
+        // The reticle is parented to the airframe and lives at GUN RANGE; measuring
+        // it would size the cameras to a ring a hundred metres past the nose.
+        const ext = hierarchyExtents(root, { skip: /reticle|hud|blip/i });
+        if (ext == null)
+            return;
+        const origin = root.getAbsolutePosition();
+        const length = ext.max.z - ext.min.z;
+        const height = ext.max.y - ext.min.y;
+        if (!(length > 0.01) || !(height > 0.01))
+            return;
+        const d = B3dAircraft.CAMERA_DEFAULTS;
+        const untouched = (v, was) => Math.abs(v - was) < 1e-6;
+        /*
+        Measured at setup, before the craft has flown, so the node is still at its
+        load pose and world space differs from local only by the translation. That
+        is the one moment this measurement is cheap AND correct.
+        */
+        const pit = hierarchyExtents(root, { keep: /cockpit/i });
+        if (untouched(this.eyeHeight, d.eyeHeight)) {
+            this.eyeHeight =
+                pit != null
+                    ? (pit.min.y + pit.max.y) / 2 - origin.y
+                    : ext.max.y - origin.y - height * 0.3;
+        }
+        if (untouched(this.cockpitForward, d.cockpitForward)) {
+            this.cockpitForward =
+                pit != null ? (pit.min.z + pit.max.z) / 2 - origin.z : length * 0.14;
+        }
+        /*
+        ALL THREE CHASE NUMBERS MOVE TOGETHER, because `_chaseLookPitch` is
+        `atan2(chaseMinHeight, chaseDistance)` — so holding the ratios holds the
+        framing ANGLE and the camera backs off along the same sight line. Changing
+        distance alone would tilt the shot, which is not what "pull it back" means.
+        */
+        const distance = length * 2.6;
+        if (untouched(this.chaseDistance, d.chaseDistance)) {
+            const k = distance / d.chaseDistance;
+            this.chaseDistance = distance;
+            if (untouched(this.chaseMinHeight, d.chaseMinHeight)) {
+                this.chaseMinHeight = d.chaseMinHeight * k;
+            }
+            if (untouched(this.chaseHeight, d.chaseHeight)) {
+                this.chaseHeight = d.chaseHeight * k;
+            }
+        }
+        this._applyChaseGeometry();
+    }
     setupMesh(root, owner) {
         this.meshNode = root;
         this._ownMeshes = null; // rebuild the raycast exclusion set for the new model
@@ -1848,6 +1937,7 @@ export class B3dAircraft extends B3dControllable {
         // clearance from geometry so flight keeps the body (not the origin) above
         // the surface.
         this.groundClearance = boundingBottomOffset(root) + GROUND_SEPARATION;
+        this.fitCameras(root);
         placeOnSurface(root, this.y ?? 0, GROUND_SEPARATION);
         // Set up follow camera now that we have a mesh (may have been deferred if
         // inputFocus called setupCameraForEntity before mesh was loaded)

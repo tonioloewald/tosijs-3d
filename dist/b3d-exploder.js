@@ -21,8 +21,6 @@ until they all leave the camera view.
 ```js
 import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh, label3d, button3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
-import { elements } from 'tosijs'
-const { div, p } = elements
 
 let sphere = null
 // Captured from sceneCreated so the delayed respawn (setTimeout below) can
@@ -78,14 +76,11 @@ function doExplode() {
   setTimeout(() => createSphere(babylon), 3000)
 }
 
-preview.append(
-  scene,
-  div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
-    p('Shatter the sphere via the scene panel (works in VR).'),
-  ),
-)
+preview.append(scene)
 ```
+
+> Shatter the sphere from the ⚙ scene panel — the same panel floats in front of
+> you in VR, so this works in a headset too.
 
 */
 /*{ "parent": "Effects" }*/

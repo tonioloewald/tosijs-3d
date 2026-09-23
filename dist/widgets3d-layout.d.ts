@@ -113,6 +113,30 @@ export declare function textMeasurer(font: FontSpec): (s: string) => number;
 export declare function measureTextWrap(text: string, maxWidth: number, font: FontSpec): string[];
 /** Measured width of the widest line in `text` — for sizing a box to its content. */
 export declare function measureTextWidth(text: string, font: FontSpec): number;
+/**
+ * Shorten a string to fit a width, ending in an ellipsis.
+ *
+ * A clip path was the cheap answer and it is the wrong one: a clipped label
+ * ends mid-stroke, so "cameraHeightOffset" becomes "cameraHeigh" with the `h`
+ * sliced down the middle, and there is nothing to tell you it was cut rather
+ * than named that. An ellipsis is a CLAIM — the name goes on — and it costs one
+ * character of the width you were arguing over.
+ *
+ * Measured rather than counted, because these are proportional fonts: "illicit"
+ * and "WWWWWWW" are the same number of characters and nearly three times the
+ * width apart.
+ *
+ * Binary search rather than a walk, since `measureTextWidth` builds a measurer
+ * each call and a long label in a narrow column would otherwise measure it
+ * dozens of times.
+ *
+ * ⚠️ **It is exactly as accurate as the measurer.** In a browser that is a
+ * canvas and the fit is exact; headless there is no canvas and the width is
+ * estimated, so two strings of equal length can measure the same whatever
+ * letters they contain. That is fine for layout maths and is worth knowing
+ * before writing a test that assumes otherwise (one did).
+ */
+export declare function ellipsize(text: string, maxWidth: number, font: FontSpec, ellipsis?: string): string;
 /** Map a value in [min, max] to a 0..1 fraction (clamped, step-snapped). */
 /**
  * How a slider's travel maps to its value.

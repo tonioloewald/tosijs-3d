@@ -264,7 +264,11 @@ export function mergeGamepads(a, b) {
  */
 export const STICK_UP_IS_POSITIVE = true;
 // --- Built-in mapping presets ---
-export function bipedMapping(pad, _dt) {
+/**
+ * @param gunplay Weapon raised. The right trigger changes job across this line
+ * and nothing else does — see the block comment below.
+ */
+export function bipedMapping(pad, _dt, gunplay = false) {
     const input = emptyInput();
     /*
     GTA V LAYOUT: the left stick MOVES, the right stick TURNS.
@@ -280,11 +284,42 @@ export function bipedMapping(pad, _dt) {
     input.forward = pad.leftStickY;
     input.strafe = pad.leftStickX;
     input.turn = pad.rightStickX;
-    // Right trigger, not left bumper: movement is the LEFT stick, so a left-hand
-    // sprint modifier fights the left thumb. Right trigger frees that up.
-    input.sprint = pad.rightTrigger;
     input.interact = pad.buttonX;
-    input.shoot = pad.buttonB;
+    /*
+    THE RIGHT TRIGGER CHANGES JOB WITH THE WEAPON, and nothing else does.
+  
+    Tonio: *"Why not right trigger to shoot? I should be able to toggle between
+    walking and gunplay mode, and be aiming when I am in gunplay."* Right on both
+    counts, and the mode is what makes the mapping possible rather than a fight
+    over one button.
+  
+    The trigger used to sprint permanently, with a real argument behind it:
+    movement is the left stick, so a left-hand sprint modifier fights the left
+    thumb. That argument still holds — which is why sprint stays on the right
+    trigger for the half of the game where you are not shooting. GTA V's own
+    resolution, and the reason it needs no displaced control: you cannot sprint
+    while aiming a weapon anyway, so the two never want the trigger at once.
+  
+    Weapon raised: right trigger FIRES, left trigger aims down the sights, and
+    sprint is unavailable. Weapon down: right trigger sprints and the gun does
+    nothing. `buttonB` stays a fire alias so a pad without usable triggers — and
+    the glass pad, where a trigger is a poor touch target — can still shoot.
+    */
+    if (gunplay) {
+        input.shoot = Math.max(pad.rightTrigger, pad.buttonB);
+        input.aim = pad.leftTrigger;
+    }
+    else {
+        input.sprint = pad.rightTrigger;
+    }
+    /*
+    RAISE AND LOWER on A, which is the one face button the biped left unused.
+  
+    It does not jump — that was Tonio's call and it is why the button was free —
+    so the key everyone presses expecting something now does something, and the
+    thing it does is the mode this whole mapping turns on.
+    */
+    // (weapon is set with jump below — one place, so they cannot drift apart)
     /*
     Right stick Y is PITCH — the camera's, and while swimming the body's. There is
     no separate camera yaw, because X turns the body and the camera follows it, so
@@ -310,7 +345,23 @@ export function bipedMapping(pad, _dt) {
     changes meaning per vehicle is a vocabulary you have to relearn. A convention
     borrowed from other games is worth less than consistency within this one.
     */
-    input.jump = pad.rightBumper;
+    /*
+    RIGHT BUMPER RAISES AND LOWERS THE WEAPON; A JUMPS.
+  
+    Tonio: *"having right bumper toggle weapon ready mode is probably the best
+    option (and not a bad option in general ... a lot of games use the button we're
+    using for view toggle to toggle weapon ready mode)."*
+  
+    ⚠️ This moves JUMP onto `buttonA`, which reverses an earlier call recorded
+    right here — that the face buttons are reserved for actions, so that a control
+    vocabulary does not change meaning per vehicle. That reasoning still stands for
+    the aircraft. It is being overruled for the biped because a shoulder button is
+    where every third-person shooter puts weapon-ready, A-to-jump is the single
+    most universal convention there is, and a mode you toggle constantly deserves
+    the better button. Easily reverted if it plays worse than it reads.
+    */
+    input.weapon = pad.rightBumper;
+    input.jump = pad.buttonA;
     input.sneak = pad.leftBumper;
     // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
     input.view = Math.max(pad.view, pad.buttonY);
@@ -322,11 +373,15 @@ export const bipedMappingDescriptor = {
         leftStickY: 'move',
         leftStickX: 'strafe',
         rightStickX: 'turn',
-        rightBumper: 'jump',
+        rightBumper: 'weapon',
+        buttonA: 'jump',
         leftBumper: 'sneak',
-        rightTrigger: 'sprint',
+        // The trigger's label is mode-dependent and a descriptor is not, so it
+        // names both rather than picking the half that happens to be true now.
+        rightTrigger: 'sprint / fire',
+        leftTrigger: 'aim',
         buttonX: 'interact',
-        buttonB: 'shoot',
+        buttonB: 'fire',
         rightStickY: 'pitch',
         dpadUp: 'zoom',
     },

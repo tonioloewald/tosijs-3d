@@ -157,7 +157,14 @@ export function findMuzzle(root) {
 }
 /** Shared matcher — mirrors `conventionName`, inlined so this module stays
  * dependency-free for headless tests (see `findCenterOfGravity`). */
-function findSuffixed(root, suffixes) {
+/**
+ * The first descendant whose convention name ends in one of `suffixes`.
+ *
+ * Exported because the suffix vocabulary is open: `_muzzle` and `_barrel` have
+ * wrappers here, and `_grip` is read by `b3d-launcher` for the same reason —
+ * a named node beats a heuristic about shape.
+ */
+export function findSuffixed(root, suffixes) {
     const match = (n) => {
         const lower = n.name.split('.model').join('').toLowerCase();
         return suffixes.some((sfx) => lower.includes(sfx));

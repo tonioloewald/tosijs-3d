@@ -137,6 +137,7 @@ export declare class B3dAircraft extends B3dControllable {
     chaseMinHeight: number;
     chaseHeight: number;
     chaseDistance: number;
+    private static readonly CAMERA_DEFAULTS;
     private velocity;
     private _fwd;
     private _gunCd;
@@ -354,6 +355,33 @@ export declare class B3dAircraft extends B3dControllable {
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     private loadFromUrl;
     private loadFromLibrary;
+    /**
+     * Size the cameras to the MODEL, instead of to a number someone once liked.
+     *
+     * Both camera bugs were the same bug. When content moved to human scale (a
+     * person is 1.8 m — see CLAUDE.md) the aircraft roughly doubled, and the
+     * offsets did not: measured on the scout, the chase sat 6.2 m behind a 4.9 m
+     * aircraft — **1.26 body-lengths**, which is why it read as being right on
+     * top of it — and the cockpit eye sat 0.9 m above an origin whose airframe
+     * spans 0.37 to 2.40, i.e. INSIDE THE FUSELAGE. Tonio: *"The chase camera is
+     * way too close... The in cockpit camera is too low (same reason)."*
+     *
+     * The previous fix multiplied the constants by 1.3 and left them constants,
+     * so the next model to arrive at a different size breaks them again. A ratio
+     * to the thing being looked at cannot go stale: content can be re-scaled, a
+     * consumer can fly something the size of a bus, and the framing holds.
+     *
+     * **The cockpit is MEASURED, not assumed.** A canopy's height is not derivable
+     * from a bounding box — a bubble and a slot sit in very different places on
+     * the same silhouette — so if the model names a `Cockpit` node (the scout
+     * does) its centre IS the eye. That generalises for free: any model carrying
+     * one gets a correct viewpoint with nothing authored. Without one, a
+     * proportion of the airframe is the honest fallback.
+     *
+     * Author-set values always win — untouched is told from chosen by comparing
+     * against `CAMERA_DEFAULTS`.
+     */
+    private fitCameras;
     private setupMesh;
     /**
      * Build the gun-aiming reticle: a ring parented to the airframe, sitting

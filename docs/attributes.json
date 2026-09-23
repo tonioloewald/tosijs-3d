@@ -627,7 +627,19 @@
         "name": "lookRate"
       },
       {
+        "name": "aiming"
+      },
+      {
+        "name": "aimFreeYaw"
+      },
+      {
+        "name": "aimMaxYaw"
+      },
+      {
         "name": "maxLookPitch"
+      },
+      {
+        "name": "eyeForward"
       },
       {
         "name": "invertLookY"
@@ -808,6 +820,197 @@
     ]
   },
   {
+    "module": "b3d-cloud-deck",
+    "summary": "b3d-cloud-deck",
+    "attributes": [
+      {
+        "name": "altitude",
+        "default": "140",
+        "description": "Height of the deck. Moving it is ONE number"
+      },
+      {
+        "name": "size",
+        "default": "14000",
+        "description": "World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free"
+      },
+      {
+        "name": "subdivisions",
+        "default": "64",
+        "description": "Grid resolution — see \"A grid, not a quad\""
+      },
+      {
+        "name": "coverage",
+        "default": "0.5",
+        "description": "Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow"
+      },
+      {
+        "name": "thickenDepth",
+        "default": "900",
+        "description": "MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`"
+      },
+      {
+        "name": "cirrus",
+        "default": "0",
+        "description": "Rounded heaps `0` → long wispy streaks `1`. Rebakes the field"
+      },
+      {
+        "name": "wind",
+        "default": "8",
+        "description": "Metres per second the deck drifts. Nothing rebakes"
+      },
+      {
+        "name": "windHeadingDeg",
+        "default": "0",
+        "description": "Which way it drifts — and the direction cirrus streaks run"
+      },
+      {
+        "name": "evolve",
+        "default": "0.5",
+        "description": "How fast shapes change, `0` rigid → `1` restless"
+      },
+      {
+        "name": "follow",
+        "default": "'on'",
+        "description": "Keep the deck centred under the camera. A deck is finite; the world is not"
+      },
+      {
+        "name": "ambientGloomBelow",
+        "default": "0.7",
+        "description": "`transmission` below which the AMBIENT fill starts to go. `0` disables"
+      },
+      {
+        "name": "ambientGloom",
+        "default": "0.45",
+        "description": "How far the ambient may be taken down"
+      },
+      {
+        "name": "sunGloomBelow",
+        "default": "0.25",
+        "description": "`transmission` below which the SUN starts to go — later than the ambient, on purpose"
+      },
+      {
+        "name": "sunGloom",
+        "default": "0.65",
+        "description": "How far the sun may be taken down at zero transmission"
+      },
+      {
+        "name": "localRise",
+        "default": "1200",
+        "description": "How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note"
+      },
+      {
+        "name": "localCoverage",
+        "default": "1",
+        "description": "How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast"
+      },
+      {
+        "name": "orographic",
+        "default": "0",
+        "description": "Cloud gathers over high ground, `0…1`. Needs a terrain in the scene"
+      },
+      {
+        "name": "orographicPeak",
+        "default": "260",
+        "description": "Terrain height at which `orographic` is at full strength"
+      },
+      {
+        "name": "shadows",
+        "default": "'on'",
+        "description": "Cloud shadows on the ground"
+      },
+      {
+        "name": "shadowResolution",
+        "default": "0",
+        "description": "Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail"
+      },
+      {
+        "name": "shadowRange",
+        "default": "6000",
+        "description": "Width in metres of the shadow window, centred on the camera"
+      },
+      {
+        "name": "shadowStrength",
+        "default": "0.75",
+        "description": "Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow"
+      },
+      {
+        "name": "transmission",
+        "default": "-1",
+        "description": "How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`"
+      },
+      {
+        "name": "thickness",
+        "default": "180",
+        "description": "Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long"
+      },
+      {
+        "name": "haze",
+        "default": "0.6",
+        "description": "How much the air under the deck takes the cloud's colour. Hides the rim"
+      },
+      {
+        "name": "seed",
+        "default": "1337",
+        "description": "Same seed, same weather"
+      },
+      {
+        "name": "frequency",
+        "default": "3",
+        "description": "Field repeats across its own width. Higher = smaller puffs"
+      },
+      {
+        "name": "octaves",
+        "default": "6",
+        "description": "Detail octaves. Billow needs more than fBm — folding eats fine structure"
+      },
+      {
+        "name": "fieldSize",
+        "default": "1024",
+        "description": "Texels per edge of the baked density field. More texels = finer cloud, 1 byte each"
+      },
+      {
+        "name": "period",
+        "default": "1800",
+        "description": "Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck"
+      },
+      {
+        "name": "edgeFade",
+        "default": "0.45",
+        "description": "Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage"
+      },
+      {
+        "name": "color",
+        "default": "'#ffffff'",
+        "description": "Lit top colour"
+      },
+      {
+        "name": "underColor",
+        "default": "'#3a4350'",
+        "description": "Shadowed underside"
+      },
+      {
+        "name": "fringe",
+        "default": "0.9",
+        "description": "Brightness of the lit edges seen from below. ADDED, so it can exceed 1, and it takes the scene light's colour and direction — brightest with the sun behind the cloud"
+      },
+      {
+        "name": "bump",
+        "default": "34",
+        "description": "Faux-bump strength. Higher = more pronounced relief"
+      },
+      {
+        "name": "underBump",
+        "default": "0.85",
+        "description": "How much relief the UNDERSIDE shows. Borrowed from the top's lighting, so both faces share one shape"
+      },
+      {
+        "name": "shade",
+        "default": "0.22",
+        "description": "How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water"
+      }
+    ]
+  },
+  {
     "module": "b3d-clouds",
     "tag": "tosi-b3d-clouds",
     "summary": "b3d-clouds",
@@ -978,6 +1181,20 @@
         "name": "skinnedUrl",
         "default": "'/omnidude.glb'",
         "description": "The GLB the baseline clones"
+      },
+      {
+        "name": "url",
+        "default": "a rigged GLB to bake from; empty = the synthetic figure"
+      },
+      {
+        "name": "clips",
+        "default": "''",
+        "description": "Which of its clips to bake, comma-separated. Empty = all"
+      },
+      {
+        "name": "figureScale",
+        "default": "1",
+        "description": "Scale applied to the baked figure (omnidude is 0.88m)"
       }
     ]
   },
@@ -1123,6 +1340,56 @@
     ]
   },
   {
+    "module": "b3d-elevator",
+    "summary": "b3d-elevator",
+    "attributes": [
+      {
+        "name": "mode",
+        "default": "'cycle'",
+        "description": "`'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()`"
+      },
+      {
+        "name": "travel",
+        "default": "3",
+        "description": "Metres between the bottom stop and the top"
+      },
+      {
+        "name": "stops",
+        "default": "2",
+        "description": "How many stops, evenly spaced. `2` is bottom and top"
+      },
+      {
+        "name": "speed",
+        "default": "1.2",
+        "description": "Metres per second"
+      },
+      {
+        "name": "pause",
+        "default": "1.5",
+        "description": "Seconds held at each stop"
+      },
+      {
+        "name": "width",
+        "default": "2",
+        "description": "Platform size"
+      },
+      {
+        "name": "depth",
+        "default": "2",
+        "description": "Platform size"
+      },
+      {
+        "name": "thickness",
+        "default": "0.2",
+        "description": "Platform thickness — it gets a collision proxy like any thin solid"
+      },
+      {
+        "name": "color",
+        "default": "'#8a8f98'"
+      }
+    ]
+  },
+  {
     "module": "b3d-fog",
     "tag": "tosi-b3d-fog",
     "summary": "b3d-fog",
@@ -1201,8 +1468,23 @@
       },
       {
         "name": "coreSize",
-        "default": "2.0",
-        "description": "Central black hole radius"
+        "default": "0.12",
+        "description": "Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly"
+      },
+      {
+        "name": "distantGalaxies",
+        "default": "500",
+        "description": "External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty"
+      },
+      {
+        "name": "distantStars",
+        "default": "3000",
+        "description": "Dim far-out stars scattered isotropically outside the disc — the same emptiness budget, but for POINTS. They carry no name or system; they exist so the sky outside the band has texture"
+      },
+      {
+        "name": "maxStarApparentSize",
+        "default": "0.01",
+        "description": "Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end"
       }
     ]
   },
@@ -1258,7 +1540,7 @@
       {
         "name": "reach",
         "default": "0",
-        "description": "Max distance in world units; `0` means no limit"
+        "description": "Max distance **from the player**, in world units; `0` means no limit"
       },
       {
         "name": "disabled",
@@ -1595,6 +1877,15 @@
         "name": "library"
       },
       {
+        "name": "grip"
+      },
+      {
+        "name": "socket"
+      },
+      {
+        "name": "modelScale"
+      },
+      {
         "name": "muzzleSpeed",
         "default": "30",
         "description": "Launch speed (units/sec) along the fire direction"
@@ -1732,6 +2023,11 @@
         "name": "specular",
         "default": "'#808080'",
         "description": "Specular color (hex)"
+      },
+      {
+        "name": "groundColor",
+        "default": "'#000000'",
+        "description": "Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour"
       }
     ]
   },
@@ -2221,6 +2517,12 @@
       },
       {
         "name": "mirror"
+      },
+      {
+        "name": "solid"
+      },
+      {
+        "name": "solidProxy"
       }
     ]
   },
@@ -2275,6 +2577,12 @@
       },
       {
         "name": "glowColor"
+      },
+      {
+        "name": "solid"
+      },
+      {
+        "name": "solidProxy"
       }
     ]
   },
@@ -2623,6 +2931,86 @@
         "name": "turbidity",
         "default": "10",
         "description": "Atmospheric haze"
+      },
+      {
+        "name": "spaceStart",
+        "default": "0",
+        "description": "Altitude (m) where the fade to space BEGINS"
+      },
+      {
+        "name": "spaceFull",
+        "default": "0",
+        "description": "Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`"
+      },
+      {
+        "name": "starfieldCube",
+        "default": "''",
+        "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
+      },
+      {
+        "name": "starfieldData",
+        "default": "''",
+        "description": "Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it"
+      },
+      {
+        "name": "starfieldDataSize",
+        "default": "1024",
+        "description": "Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band"
+      },
+      {
+        "name": "starfieldSharpness",
+        "default": "3",
+        "description": "How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point"
+      },
+      {
+        "name": "starfieldSizeScale",
+        "default": "3",
+        "description": "How much bigger a full-size object (a distant galaxy) is than a star"
+      },
+      {
+        "name": "starfieldTilt",
+        "default": "'0,0,0'",
+        "description": "Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs"
+      },
+      {
+        "name": "starfield",
+        "default": "0",
+        "description": "How many background stars to build. `0` = none"
+      },
+      {
+        "name": "nebulae",
+        "default": "0",
+        "description": "Soft emission clouds behind the stars. `0` = none"
+      },
+      {
+        "name": "nebulaBrightness",
+        "default": "1",
+        "description": "Nebula brightness 0…1"
+      },
+      {
+        "name": "nebulaSize",
+        "default": "0.045",
+        "description": "Nebula size as a fraction of the sky radius"
+      },
+      {
+        "name": "nebulaTexture",
+        "default": "''",
+        "description": "Black-backed image stamped per nebula; empty = a plain procedural falloff"
+      },
+      {
+        "name": "spaceColor",
+        "default": "'#05070f'",
+        "description": "What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go"
+      },
+      {
+        "name": "starfieldSeed",
+        "default": "12345",
+        "description": "Seed for the starfield — same seed, same constellations"
+      },
+      {
+        "name": "starDistance",
+        "default": "0",
+        "description": "Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone"
       },
       {
         "name": "luminance",
@@ -3594,6 +3982,11 @@
         "description": "Aim down sights"
       },
       {
+        "name": "weapon",
+        "default": "0..1",
+        "description": "Raise/lower the weapon — edge-detected by consumers, so it TOGGLES"
+      },
+      {
         "name": "cameraZoom",
         "default": "-1..1",
         "description": "Camera zoom"
@@ -3615,6 +4008,12 @@
       },
       {
         "name": "updateIntervalMs"
+      },
+      {
+        "name": "mouseLook"
+      },
+      {
+        "name": "mouseSensitivity"
       }
     ]
   },
@@ -3869,6 +4268,62 @@
     ]
   },
   {
+    "module": "rocket-ascent",
+    "summary": "Rocket Ascent",
+    "attributes": [
+      {
+        "name": "cloudAltitude",
+        "default": "140",
+        "description": "Centre of the cloud deck (m)"
+      },
+      {
+        "name": "spaceStart",
+        "default": "500",
+        "description": "Where the sky begins to fade (m)"
+      },
+      {
+        "name": "spaceFull",
+        "default": "2400",
+        "description": "Full vacuum (m)"
+      },
+      {
+        "name": "apogee",
+        "default": "3200",
+        "description": "Where it stops and resets (m)"
+      },
+      {
+        "name": "accel",
+        "default": "9",
+        "description": "Net acceleration (m/s²) — thrust already minus gravity"
+      },
+      {
+        "name": "holdSeconds",
+        "default": "2.5",
+        "description": "Pause on the pad, and again at apogee"
+      },
+      {
+        "name": "starfield",
+        "default": "2500",
+        "description": "Background stars (see [b3d-skybox](?b3d-skybox.ts))"
+      },
+      {
+        "name": "nebulae",
+        "default": "0",
+        "description": "Sprite nebulae, OFF — superseded by baking the galaxy"
+      },
+      {
+        "name": "rocketScale",
+        "default": "4",
+        "description": "Uniform scale on the Kenney parts"
+      },
+      {
+        "name": "timeOfDay",
+        "default": "14",
+        "description": "Broad daylight — so the stars appear because the AIR ran out, not because night fell"
+      }
+    ]
+  },
+  {
     "module": "slope-profile",
     "summary": "slope-profile",
     "attributes": [
@@ -3908,6 +4363,9 @@
         "name": "glowLayerIntensity",
         "default": "0",
         "description": "Glow effect intensity (0 = off)"
+      },
+      {
+        "name": "clearColor"
       },
       {
         "name": "frameRate",

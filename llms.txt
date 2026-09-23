@@ -1,4 +1,4 @@
-# tosijs-3d v0.8.1
+# tosijs-3d v0.8.2
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -359,9 +359,11 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
 - https://3d.tosijs.net/wind/ — wind
   Babylon — so the composition rule can be tested without a sky.
-- https://3d.tosijs.net/world-sim/ — World Sim
+- https://3d.tosijs.net/world-sim-md/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
+- https://3d.tosijs.net/world-sim-ts/ — world-sim
+  (with live dials), a sea, weather over both, and the encoded sky behind. As
 - https://3d.tosijs.net/world-store/ — world-store
   A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
 - https://3d.tosijs.net/world-topology/ — world-topology

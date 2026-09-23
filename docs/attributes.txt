@@ -159,7 +159,11 @@ b3d-biped
   groundY
   eyeHeight
   lookRate
+  aiming
+  aimFreeYaw
+  aimMaxYaw
   maxLookPitch
+  eyeForward
   invertLookY
   cameraMinHeight
   jumpSpeed
@@ -212,6 +216,47 @@ b3d-car
   turnRate  = 90  — Degrees per second at full speed
   friction  = 3  — Deceleration when coasting
 
+## b3d-cloud-deck
+b3d-cloud-deck
+
+  altitude  = 140  — Height of the deck. Moving it is ONE number
+  size  = 14000  — World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free
+  subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
+  coverage  = 0.5  — Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow
+  thickenDepth  = 900  — MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`
+  cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
+  wind  = 8  — Metres per second the deck drifts. Nothing rebakes
+  windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
+  evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
+  follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not
+  ambientGloomBelow  = 0.7  — `transmission` below which the AMBIENT fill starts to go. `0` disables
+  ambientGloom  = 0.45  — How far the ambient may be taken down
+  sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
+  sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
+  localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
+  localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
+  orographic  = 0  — Cloud gathers over high ground, `0…1`. Needs a terrain in the scene
+  orographicPeak  = 260  — Terrain height at which `orographic` is at full strength
+  shadows  = 'on'  — Cloud shadows on the ground
+  shadowResolution  = 0  — Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail
+  shadowRange  = 6000  — Width in metres of the shadow window, centred on the camera
+  shadowStrength  = 0.75  — Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow
+  transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
+  thickness  = 180  — Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long
+  haze  = 0.6  — How much the air under the deck takes the cloud's colour. Hides the rim
+  seed  = 1337  — Same seed, same weather
+  frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
+  octaves  = 6  — Detail octaves. Billow needs more than fBm — folding eats fine structure
+  fieldSize  = 1024  — Texels per edge of the baked density field. More texels = finer cloud, 1 byte each
+  period  = 1800  — Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck
+  edgeFade  = 0.45  — Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage
+  color  = '#ffffff'  — Lit top colour
+  underColor  = '#3a4350'  — Shadowed underside
+  fringe  = 0.9  — Brightness of the lit edges seen from below. ADDED, so it can exceed 1, and it takes the scene light's colour and direction — brightest with the sun behind the cloud
+  bump  = 34  — Faux-bump strength. Higher = more pronounced relief
+  underBump  = 0.85  — How much relief the UNDERSIDE shows. Borrowed from the top's lighting, so both faces share one shape
+  shade  = 0.22  — How much of the top's brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water
+
 ## b3d-clouds — <tosi-b3d-clouds>
 b3d-clouds
 
@@ -261,6 +306,9 @@ b3d-crowd
   interpolate  = 'on'  — `'off'` snaps to the nearest frame: cheaper, jerkier
   skinned  = 0  — How many SKINNED clones to spawn alongside, as the baseline
   skinnedUrl  = '/omnidude.glb'  — The GLB the baseline clones
+  url  = a rigged GLB to bake from; empty = the synthetic figure
+  clips  = ''  — Which of its clips to bake, comma-separated. Empty = all
+  figureScale  = 1  — Scale applied to the baked figure (omnidude is 0.88m)
 
 ## b3d-death — <tosi-b3d-death>
 b3d-death
@@ -307,6 +355,19 @@ b3d-destroyable
   blastRadius
   blastDelay
 
+## b3d-elevator
+b3d-elevator
+
+  mode  = 'cycle'  — `'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()`
+  travel  = 3  — Metres between the bottom stop and the top
+  stops  = 2  — How many stops, evenly spaced. `2` is bottom and top
+  speed  = 1.2  — Metres per second
+  pause  = 1.5  — Seconds held at each stop
+  width  = 2  — Platform size
+  depth  = 2  — Platform size
+  thickness  = 0.2  — Platform thickness — it gets a collision proxy like any thin solid
+  color  = '#8a8f98'
+
 ## b3d-fog — <tosi-b3d-fog>
 b3d-fog
 
@@ -327,7 +388,10 @@ b3d-galaxy
   spiralAngle  = 240  — Spiral arm sweep in degrees
   thickness  = 0.06  — Disk thickness (fraction of radius)
   particleSize  = 1.0  — Base star particle diameter
-  coreSize  = 2.0  — Central black hole radius
+  coreSize  = 0.12  — Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly
+  distantGalaxies  = 500  — External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty
+  distantStars  = 3000  — Dim far-out stars scattered isotropically outside the disc — the same emptiness budget, but for POINTS. They carry no name or system; they exist so the sky outside the band has texture
+  maxStarApparentSize  = 0.01  — Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end
 
 ## b3d-hud — <tosi-b3d-hud>
 b3d-hud
@@ -346,7 +410,7 @@ b3d-interactive
 
   target  = ''  — Mesh or node name to make touchable. Empty = the mesh of the element this one is nested inside
   include  = 'subtree'  — `'subtree'` counts the named node and everything under it; `'self'` counts only the node itself
-  reach  = 0  — Max distance in world units; `0` means no limit
+  reach  = 0  — Max distance **from the player**, in world units; `0` means no limit
   disabled  = false  — Refuses hover, and drops a press already in flight
   highlight  = '#ffcc44'  — Hover outline colour; `'none'` for no highlight
 
@@ -429,6 +493,9 @@ b3d-launcher
   axes
   meshName
   library
+  grip
+  socket
+  modelScale
   muzzleSpeed  = 30  — Launch speed (units/sec) along the fire direction
   fireRate  = 5  — Max shots per second (cadence gate)
   ammo  = 40  — Magazine capacity (a `Resource`)
@@ -462,6 +529,7 @@ b3d-light
   intensity  = 1  — Brightness multiplier
   diffuse  = '#ffffff'  — Diffuse color (hex)
   specular  = '#808080'  — Specular color (hex)
+  groundColor  = '#000000'  — Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour
 
 ## b3d-loader — <tosi-b3d-loader>
 b3d-loader
@@ -588,6 +656,8 @@ b3d-planet
   glow
   glowColor
   mirror
+  solid
+  solidProxy
 
 ## b3d-primitives (tosi-b3d-box) — <tosi-b3d-box>
 
@@ -607,6 +677,8 @@ b3d-planet
   mirror
   glow
   glowColor
+  solid
+  solidProxy
 
 ## b3d-primitives (tosi-b3d-ground) — <tosi-b3d-ground>
 
@@ -707,6 +779,22 @@ b3d-skybox
   rz
   axes
   turbidity  = 10  — Atmospheric haze
+  spaceStart  = 0  — Altitude (m) where the fade to space BEGINS
+  spaceFull  = 0  — Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`
+  starfieldCube  = ''  — Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`
+  starfieldData  = ''  — Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it
+  starfieldDataSize  = 1024  — Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band
+  starfieldSharpness  = 3  — How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point
+  starfieldSizeScale  = 3  — How much bigger a full-size object (a distant galaxy) is than a star
+  starfieldTilt  = '0,0,0'  — Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs
+  starfield  = 0  — How many background stars to build. `0` = none
+  nebulae  = 0  — Soft emission clouds behind the stars. `0` = none
+  nebulaBrightness  = 1  — Nebula brightness 0…1
+  nebulaSize  = 0.045  — Nebula size as a fraction of the sky radius
+  nebulaTexture  = ''  — Black-backed image stamped per nebula; empty = a plain procedural falloff
+  spaceColor  = '#05070f'  — What is behind the stars in vacuum. Just north of black, so a black hole still has somewhere darker to go
+  starfieldSeed  = 12345  — Seed for the starfield — same seed, same constellations
+  starDistance  = 0  — Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone
   luminance  = 1  — Sky brightness
   azimuth  = 0  — Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours
   latitude  = 40  — Geographic latitude in DEGREES (affects the sun's arc)
@@ -948,6 +1036,7 @@ control-input
   sprint  = 0..1  — Sprint modifier
   interact  = 0..1  — Enter vehicle / pick up / use
   aim  = 0..1  — Aim down sights
+  weapon  = 0..1  — Raise/lower the weapon — edge-detected by consumers, so it TOGGLES
   cameraZoom  = -1..1  — Camera zoom
   sneak  = 0\  — 1
 
@@ -956,6 +1045,8 @@ game-controller
 
   wheelSensitivity
   updateIntervalMs
+  mouseLook
+  mouseSensitivity
 
 ## gamepad-svg
 gamepad-svg
@@ -1035,6 +1126,20 @@ picker
   placeholder  = 'choose…'  — shown when nothing is selected
   handleChange  — the chosen value; fires on pick, and the popup closes
 
+## rocket-ascent
+Rocket Ascent
+
+  cloudAltitude  = 140  — Centre of the cloud deck (m)
+  spaceStart  = 500  — Where the sky begins to fade (m)
+  spaceFull  = 2400  — Full vacuum (m)
+  apogee  = 3200  — Where it stops and resets (m)
+  accel  = 9  — Net acceleration (m/s²) — thrust already minus gravity
+  holdSeconds  = 2.5  — Pause on the pad, and again at apogee
+  starfield  = 2500  — Background stars (see [b3d-skybox](?b3d-skybox.ts))
+  nebulae  = 0  — Sprite nebulae, OFF — superseded by baking the galaxy
+  rocketScale  = 4  — Uniform scale on the Kenney parts
+  timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
+
 ## slope-profile
 slope-profile
 
@@ -1048,6 +1153,7 @@ slope-profile
 b3d
 
   glowLayerIntensity  = 0  — Glow effect intensity (0 = off)
+  clearColor
   frameRate  = 30  — Target frame rate
   minElevation  = 5  — Default orbit-camera elevation limits (degrees above the horizon)
   maxElevation  = 70  — Default orbit-camera elevation limits (degrees above the horizon)

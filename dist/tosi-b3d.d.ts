@@ -34,6 +34,19 @@ export type DebugPanelSource = {
     /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
      * name — see [[svg-icons]]). Defaults to `'bug'`. */
     icon?: string;
+    /**
+     * Has this source nothing to report right now?
+     *
+     * Its icon is DIMMED when true, so the bar says "nothing here" without being
+     * pressed. Tonio: "The errors popup should be dimmed unless it has errors to
+     * report." A diagnostic you must open to discover is empty costs something
+     * every time you check it — and in a headset, where that bar is the only
+     * console there is, you check constantly.
+     *
+     * Absent means "always lit", which is right for a readout that is always
+     * saying something: the crowd's figure count, the perf stats.
+     */
+    quiet?: () => boolean;
 };
 /**
  * The per-frame package handed to update callbacks and published on the scene.
@@ -94,6 +107,7 @@ export declare class B3d extends Component {
     static preferredTagName: string;
     static initAttributes: {
         glowLayerIntensity: number;
+        clearColor: string;
         frameRate: number;
         minElevation: number;
         maxElevation: number;
@@ -433,6 +447,29 @@ export declare class B3d extends Component {
     private _frozen;
     get frozen(): boolean;
     freeze(on: boolean): void;
+    /**
+     * Stop BABYLON'S OWN clocks too, not just ours.
+     *
+     * Publishing `b3dFrameDelta = 0` pauses everything that simulates on
+     * `sceneDelta` — which is every component in this library. It does nothing
+     * whatever to the engine's own time: `AnimationGroup`s keep playing and the
+     * physics engine keeps stepping. So a paused scene held its projectiles and
+     * its water still while every character carried on walking, every door kept
+     * opening and anything with a rigid body kept falling. Tonio: "There are a
+     * LOT of examples where pause doesn't seem to pause anything."
+     *
+     * That is most of what a demo actually shows moving, which is why the pause
+     * read as doing nothing rather than as doing half.
+     *
+     * The previous values are REMEMBERED rather than assumed: a scene may have
+     * turned either of these off for its own reasons, and resuming must not hand
+     * it back something it never had. Only transitions write, so an app that
+     * disables animations mid-pause keeps its own choice on resume.
+     */
+    private _engineTimeStopped;
+    private _animationsWere;
+    private _physicsWere;
+    private _stopEngineTime;
     pause(reason?: 'user' | 'hidden' | 'xr' | 'start' | string): void;
     /** Let time run again, and (if `enterXrOnResume`) take the user into VR —
      * this call is expected to be inside a user gesture, which is what makes
@@ -741,6 +778,7 @@ export declare class B3d extends Component {
      * ```
      */
     private _fogLayers;
+    private _fogVeil;
     private _fogBase;
     private _fogNow;
     /**
@@ -765,10 +803,36 @@ export declare class B3d extends Component {
     readonly media: Medium[];
     /** Register a medium. Returns its unregister, like `addFogLayer`. */
     addMedium(m: Medium): () => void;
+    /**
+     * How much a MEDIUM is between you and everything, `0…1` — and therefore how
+     * much of the SKY it should hide.
+     *
+     * Distance fog and a medium are not the same thing and must not be summed.
+     * Haze thickens with distance, so it is right that it never erases the sky —
+     * the sky IS the far distance and Babylon's fog already handles it. Being
+     * INSIDE cloud, water or a dust storm is the other case: there is white a
+     * metre from your face, and a blue sky above it is simply wrong. That was
+     * the "the cloud whiteout is not whiting out the skybox" report, and the
+     * reason it could not be fixed by turning fog on for the sky mesh is exactly
+     * this distinction — the base fog would then eat the sky too.
+     *
+     * So this is the composited weight of the LAYERS only, never the base, and
+     * the colour to pair it with is `scene.fogColor` (already composited and
+     * smoothed by the same pass).
+     */
+    get fogVeil(): number;
     addFogLayer(layer: FogContributor): () => void;
     /** The fog everything else blends FROM. `b3d-fog` owns this; without one we still keep a
      * whisper of fog on, so a layer can ramp up without ever switching the mode. */
     setFogBase(base: FogState | null): void;
+    /**
+     * Apply `clearColor` if the author gave one.
+     *
+     * Empty means "leave Babylon's default alone" rather than "black", because a
+     * scene that never mentions the attribute should not change appearance for
+     * having gained one.
+     */
+    private _applyClearColor;
     private _updateFog;
     private _recenterXr;
     /**
@@ -822,6 +886,42 @@ export declare class B3d extends Component {
      * This is the one-tap way back, and it works in a headset too.
      */
     private _panelGadgets;
+    /** Popups currently open, by tool id — see `_syncDebugPopups`. */
+    private _debugPopups;
+    /** The live rows each open popup registered, so closing can retire them. */
+    private _popupLive;
+    /**
+     * The live flat panel's SVG, if the panel is open.
+     *
+     * Not held on a field, because the panel is REBUILT on every structural
+     * change — a stored reference would be a handle to a detached element, which
+     * is the same class of bug as the orphaned observers in `B3dChild`. Asking
+     * the host each time cannot go stale.
+     */
+    /** The in-scene panel, while a session is running. See `_attachXrPanel`. */
+    private _xrPanelEl;
+    private _livePanelEl;
+    /**
+     * Open and close debug popups so they match `_debugOpen`.
+     *
+     * Driven from the SET rather than from the click, so the icon's active state
+     * and the popup cannot drift apart — including when a popup is dismissed from
+     * outside, which clears the flag on its way out.
+     *
+     * There used to be an `afterRebuild` flag that dropped every handle on the
+     * floor, because a repaint replaced the panel's SVG and took the popup layers
+     * with it. It does not any more — `_openScenePanel` re-appends the holders —
+     * so this is now purely a reconciliation and can run after any repaint.
+     */
+    private _syncDebugPopups;
+    /**
+     * Forget a popup: its handle, and the live rows it registered.
+     *
+     * The rows matter — without this the ticker keeps rewriting text nodes that
+     * are no longer on screen, and the list grows by a block every time the popup
+     * is reopened.
+     */
+    private _retirePopup;
     private _debugTools;
     private _startLiveDebug;
     private _perfReadoutRows;

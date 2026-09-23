@@ -222,12 +222,110 @@ that assumes one orients its effect off nothing.
 | `blastRadius` | `3` | Warhead falloff radius |
 | `los` | `'on'` | Warhead line-of-sight gating |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
+
+## Authoring a weapon mesh
+
+Four rules, and the first one is the one that is easy to get wrong.
+
+**THE ORIGIN IS THE GRIP** — the point the hand closes around, not the centre of
+the mesh and not the back of it. Everything else is measured from there: today it
+is what `x`/`y`/`z` place, and once hand sockets land it is the point that gets
+pinned to the bone. An origin at the mesh centre means every consumer has to
+discover the same correction offset by eye, and they will each get a different
+one.
+
+**BARREL DOWN LOCAL −Y, UP LOCAL +Z, IN BLENDER.** The same frame every other
+model in this project is authored in (see CLAUDE.md → "Model authoring & the
+canonical frame"): Blender's own default front. The exporter turns that into
+glTF +Z-forward / +Y-up, which is what `muzzle()` and `forward()` read —
+`mesh.getDirection(Axis.Z)`. Do not "apply all transforms" to fix an orientation
+in a scene file; fix the model's LOCAL frame in edit mode.
+
+**ONE UNIT IS ONE METRE.** A pistol is about 0.22 long, a carbine 0.75, a rifle
+0.9–1.1. The character is 1.83, so a weapon authored at the wrong scale reads
+instantly and wrongly as the character being the wrong size.
+
+**ADD A `_muzzle` NODE** at the tip of the barrel, pointing the way the round
+leaves. It is an empty; only its position is read. Without one, `muzzle()` guesses
+0.55 along local +Z, which is right for the placeholder box and about 2.5× too
+far for a pistol — so rounds appear out of thin air a foot in front of the gun.
+A turret's rotating part is `_barrel`, which is a separate question: the barrel
+is what swings, the muzzle is where the round appears, and on a simple gun the
+muzzle node alone is enough.
+
+### The handedness flip is not your problem
+
+Babylon puts `scaling.z = -1` on a glTF's `__root__`, so everything under it is
+mirrored — and that includes the character, his skeleton and anything parented
+into his hierarchy. It is uniform, so it cancels: verified against the rig's own
+asymmetric bones, where `hand_r` lands at −X with the body facing −Z, which is
+anatomically correct. Author it the ordinary way and it will not come in
+mirrored. (Worth stating because a mesh that IS mirrored looks like an authoring
+mistake, and the instinct is to flip it in Blender — which is what would actually
+break it.)
+
+### Make the grip NARROWER than life
+
+A note for authoring or adapting weapons, from fitting Kenney's pistol to a
+1.83m character. Tonio: *"a big problem with the gun is that its grip is too
+wide... a real gun would have fingers wrapped and spread around it. When I model
+the actual weapons — or adapt others' models — I should make the grips a little
+narrower so they don't look weird."*
+
+The grip is not really oversized; the HAND is the problem. A game character's
+fingers are a few low-poly stubs that do not close, and they cannot wrap and
+spread the way real fingers do around a real grip. So a life-accurate grip
+leaves the hand visibly sitting beside it rather than around it, and the cheapest
+fix is at the other end: thin the grip until the stub fingers read as closed on
+it.
+
+Same family as the reason weapons are held slightly small — the eye is judging
+the RELATIONSHIP, not the measurement.
+
+### Kenney's weapon pack — 37 of them, already on the CDN
+
+`kenney/libraries/weapon-pack.glb` — pistols, uzis, shotguns, snipers,
+machineguns, rocket launchers, knives, grenades and matching ammo props. Built
+and published already; `b3dLibrary({url: assetUrl('kenney/libraries/weapon-pack.glb'),
+type: 'weapons'})` then `b3dLauncher({library: 'weapons', meshName: 'pistol'})`.
+
+Measured rather than assumed, because it matters that they agree with the rules
+above in two of three respects and not the third:
+
+| | Kenney | the rule above |
+| --- | --- | --- |
+| scale | real — pistol 0.29 long, sniper 1.04 | ✅ 1 unit = 1m |
+| barrel | local **+Z**, up **+Y** | ✅ same |
+| **origin** | **bottom-centre** | ❌ should be the grip |
+
+The origin is a PROP origin — right for a weapon lying on a table, wrong for one
+held in a hand — which is not a criticism of a pack authored for top-down
+shooters. It just has to be corrected somewhere, and the correction is
+derivable rather than per-weapon guesswork: **the grip is the centroid of the
+mesh's lowest third.** Measured that way, `pistol` grips at `(0, 0.011, -0.105)`,
+`uzi` at `(0, 0.045, -0.039)`, `shotgun` at `(0, 0.023, -0.106)`, `sniper` at
+`(0.005, 0.052, -0.238)` — each plausibly inside the handle.
+
+Mount it by making the grip and the hand coincide: `position = hand - grip`. The
+playground does exactly that, and shows its arithmetic.
+
+None of them carry a `_muzzle` node, which is what pushed `muzzle()` to measure
+the model instead of assuming 0.55.
+
+### Getting it in
+
+There is no `url` on this element yet — a model arrives through `library`, which
+means the weapon lives in a GLB the `b3d-library` element loads, with `.model`
+on the node that should be exported (`pistol.model` lists and instantiates as
+`pistol`). Behaviour suffixes compose with it, so `pistol_muzzle.model` is legal
+and does both.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
 import { loadLibraryMesh } from './library-mesh.js';
-import { findMuzzle } from './model-transform.js';
-import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js';
+import { findMuzzle, findSuffixed } from './model-transform.js';
+import { BONE_SOCKETS, findBone } from './bone-mask.js';
+import { AbstractMesh, isOff, sceneDelta, collidable, semanticParent, } from './b3d-utils.js';
 /** A guided missile always cruises at least this much FASTER than the platform that
  * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
@@ -548,6 +646,66 @@ export class B3dLauncher extends AbstractMesh {
         /** Instantiate `meshName` from this LIBRARY instead of the placeholder box.
          * `_muzzle` on the model says where rounds leave (#34). */
         library: '',
+        /*
+        WHERE THE HAND HOLDS IT — `'auto'`, `'off'`, or an explicit `'x,y,z'`.
+    
+        `x`/`y`/`z` place the model's ORIGIN, and a weapon's origin is wherever its
+        author put it. Kenney's weapon pack uses bottom-centre, which is the right
+        origin for one lying on a table and the wrong one for one in a fist: mount a
+        pistol by its origin and it floats beside the hand rather than in it.
+    
+        `'auto'` derives the grip from the geometry — the centroid of the mesh's
+        lowest third, which lands inside the handle on every weapon in that pack —
+        and offsets the model so the GRIP goes where `x`/`y`/`z` say. So the numbers
+        a caller writes are the point they want the hand to be, which is the
+        question they were actually asking.
+    
+        Kept consumer-side deliberately, rather than baked into the published
+        library, while the heuristic is still being tuned — it is a guess about
+        shape, and the shoulder-carried weapons (rocket launchers) are exactly where
+        a guess about "the bottom third" should be expected to fail. Tonio: "Let's
+        keep the fix consumer side for the time being in case it needs tweaking."
+    
+        `'off'` mounts by the origin, which is what you want when the model was
+        authored with its origin already at the grip — the convention this project
+        asks for in new content.
+        */
+        grip: 'auto',
+        /*
+        THE JOINT IT RIDES ON — `'right-hand'`, `'left-hand'`, `'head'`, `'spine'`,
+        `'hips'`, or `''` for the holder's root as before.
+        
+        A weapon parented to a character's ROOT does not move with the hand that is
+        supposed to be holding it: the animation swings the arm and the gun stays
+        where the offset put it. Tonio: "the gun is floating off to the right of the
+        characters hand and probably pinned to the wrong parent (it kind of drifts
+        relative to the hand)." Exactly right, and no offset can fix it — the offset
+        is constant and the hand is not.
+    
+        Attaching to the bone makes the weapon follow the hand for free, which also
+        retires the offsets: with a socket, `x`/`y`/`z` are relative to the JOINT and
+        usually want to be zero or nearly so.
+    
+        Rigs spell their joints differently, so the name here is the PLACE and
+        `BONE_SOCKETS` holds the spellings. An unknown socket, or a rig with no such
+        bone, falls back to the root and says so once — silently doing nothing would
+        look exactly like this bug.
+        */
+        socket: '',
+        /**
+         * Uniform scale for the loaded model.
+         *
+         * Weapon packs are authored at their own idea of real scale and a character
+         * rig at its own, and the two rarely agree TO THE EYE even when both are
+         * nominally correct — Kenney's pistol is a chunky 0.29m, which reads large
+         * in a 1.83m hand. Tonio, fitting one: "I'd also want to scale the weapon
+         * down somewhat."
+         *
+         * Applied to the mesh's `scaling`, which `AbstractMesh.render()` does NOT
+         * overwrite — the one part of a transform it leaves alone — so unlike
+         * `x`/`y`/`z` it survives without being re-applied every frame.
+         */
+        modelScale: 1,
         muzzleSpeed: 30,
         fireRate: 5, // shots per second
         ammo: 40, // magazine capacity
@@ -658,6 +816,20 @@ export class B3dLauncher extends AbstractMesh {
         });
         this._tick = scene.onBeforeRenderObservable.add(() => {
             const dt = sceneDelta(scene);
+            // Cheap: it returns immediately once parented, and a holder that loads a
+            // GLB asynchronously has no node to ride until it does.
+            this._rideHolder();
+            // First frame: the attribute drain is over, so `library`/`meshName` are
+            // finally true. See the note above `_loadLibraryModel`.
+            this._loadLibraryModel(owner);
+            // Keep the GRIP on `x`/`y`/`z`, not the model's origin — the render sync
+            // would otherwise undo it. Cheap: a cached vector and a rotate.
+            if (this._gripOffset != null)
+                this._applyGrip(this);
+            const ms = Number(this.modelScale);
+            if (this.mesh != null && Number.isFinite(ms) && ms > 0) {
+                this.mesh.scaling.setAll(ms);
+            }
             if (this._cooldown > 0)
                 this._cooldown -= dt;
             regenTick(this._ammoPool, dt);
@@ -670,9 +842,171 @@ export class B3dLauncher extends AbstractMesh {
         round appears, and on a multi-barrel mount or anything with a recoiling
         breech they are different nodes. On a simple gun only `_barrel` need exist.
     
-        Absent, `muzzle()` falls back to its existing 0.55 along local +Z, which is
-        right for the placeholder and a reasonable guess for a model nobody rigged.
+        Absent, `muzzle()` measures the model's own bounding box instead.
+    
+        ⚠️ DEFERRED BY A TICK, and that is not tidiness — it is the difference
+        between loading `pistol` and loading nothing.
+    
+        `elementCreator` does NOT assign these as properties when the element is
+        built: measured, a fresh `b3dLauncher({library:'weapons', meshName:'pistol'})`
+        reports `meshName: 'launcher'` and `library: ''` until it connects. They land
+        during the connect drain — and `sceneReady` runs inside that drain, so it can
+        see one of them and not the other. It did exactly that: `library` read
+        `'weapons'` while `meshName` was still the default, and the load asked the
+        weapon pack for a model called "launcher".
+    
+        `b3d-launcher: could not instantiate "launcher" from library "weapons"` is a
+        good error and it still cost a diagnosis, because everything downstream was
+        correct — the library had 37 names, `pistol` was one of them, and by the time
+        anyone inspected the element `meshName` read `'pistol'`. The values are only
+        wrong DURING setup.
+    
+        So the load runs from the render observer instead, on the first frame, by
+        which point the drain has finished and both reads are true. It is a one-shot:
+        `_libLoaded` latches so a missing model is not re-requested sixty times a
+        second.
         */
+        // (moved to `_loadLibraryModel`, run from the tick below.)
+    }
+    /**
+     * Shift the model so its GRIP lands on `x`/`y`/`z`, not its origin.
+     *
+     * Runs once, after the model loads, because it needs the geometry. A `_grip`
+     * node wins if the model carries one — the same deal `_muzzle` gets, and the
+     * thing this heuristic exists to substitute for.
+     */
+    /** The grip offset, measured once — see `_applyGrip`. */
+    _gripOffset = null;
+    _applyGrip(attrs) {
+        const spec = String(this.grip ?? 'auto');
+        if (spec === 'off' || this.mesh == null)
+            return;
+        let g = this._gripOffset;
+        const node = g != null ? null : findSuffixed(this.mesh, ['_grip']);
+        if (node != null) {
+            g = BABYLON.Vector3.TransformCoordinates(node.getAbsolutePosition(), BABYLON.Matrix.Invert(this.mesh.getWorldMatrix()));
+        }
+        else if (g == null && spec !== 'auto') {
+            const n = spec.split(',').map(Number);
+            if (n.length === 3 && n.every((v) => Number.isFinite(v))) {
+                g = new BABYLON.Vector3(n[0], n[1], n[2]);
+            }
+        }
+        else if (g == null) {
+            g = this._deriveGrip();
+        }
+        if (g == null)
+            return;
+        /*
+        CACHED, because this now runs EVERY FRAME rather than once at load.
+    
+        It has to: `x`/`y`/`z` are supposed to mean "put the GRIP here", and
+        `AbstractMesh.render()` rewrites `mesh.position` from those attributes on
+        every render — so a one-shot offset survives exactly until anything else
+        touches the transform. Dragging the manipulator was the thing that touched
+        it, and the weapon slid by the length of its own grip on the first drag.
+    
+        Re-deriving the offset each frame would mean walking every vertex sixty
+        times a second; measuring it once and rotating the cached vector is a
+        quaternion multiply.
+        */
+        this._gripOffset = g;
+        /*
+        ROTATE THE GRIP BEFORE SUBTRACTING IT.
+    
+        `g` is measured in the MESH's own frame, and `position` is in the PARENT's.
+        Those are the same frame only while the weapon is unrotated — and a
+        hand-socketed weapon is almost never unrotated, because the rig's hand frame
+        does not match the weapon's. With `rx: -90` the offset was applied a quarter
+        turn out, so the grip landed near the wrist instead of in the palm and the
+        whole weapon hung below the hand.
+    
+        Found by building the fitting tool and looking at the result, which is the
+        argument for the tool: the numbers all looked right, and the picture did not.
+        */
+        const rot = BABYLON.Quaternion.FromEulerAngles((attrs.rx * Math.PI) / 180, (attrs.ry * Math.PI) / 180, (attrs.rz * Math.PI) / 180);
+        const spun = BABYLON.Vector3.Zero();
+        g.rotateByQuaternionToRef(rot, spun);
+        this.mesh.position.set(attrs.x - spun.x, attrs.y - spun.y, attrs.z - spun.z);
+    }
+    /**
+     * The grip, guessed from the shape: the centroid of the lowest third.
+     *
+     * Measured against Kenney's pack, where it lands inside the handle on every
+     * one-handed weapon — pistol (0, 0.011, -0.105), uzi (0, 0.045, -0.039),
+     * shotgun (0, 0.023, -0.106). It is a guess about shape and it will be wrong
+     * for anything not held near its lowest point, a shoulder-carried launcher
+     * being the obvious case. `_grip` or an explicit offset is the answer there.
+     *
+     * Everything is converted into the LAUNCHER MESH's own local frame rather
+     * than read in world space, because a weapon held by a character hangs under
+     * a `__root__` carrying the glTF handedness mirror — so a world-space
+     * measurement comes back with its z sign flipped relative to the offsets we
+     * are about to write.
+     */
+    _deriveGrip() {
+        const root = this.mesh;
+        if (root == null)
+            return null;
+        const toLocal = BABYLON.Matrix.Invert(root.getWorldMatrix());
+        const pts = [];
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (const m of root.getChildMeshes()) {
+            const data = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+            if (data == null)
+                continue;
+            const toRoot = m.computeWorldMatrix(true).multiply(toLocal);
+            for (let i = 0; i < data.length; i += 3) {
+                const v = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(data[i], data[i + 1], data[i + 2]), toRoot);
+                pts.push(v);
+                if (v.y < lo)
+                    lo = v.y;
+                if (v.y > hi)
+                    hi = v.y;
+            }
+        }
+        if (pts.length === 0 || !(hi > lo))
+            return null;
+        const cut = lo + (hi - lo) / 3;
+        let n = 0;
+        const acc = BABYLON.Vector3.Zero();
+        for (const v of pts) {
+            if (v.y > cut)
+                continue;
+            acc.addInPlace(v);
+            n++;
+        }
+        return n > 0 ? acc.scaleInPlace(1 / n) : null;
+    }
+    /**
+     * Swap to a different model from the same library, at runtime.
+     *
+     * The load is a one-shot latch (see `_loadLibraryModel`), which is right for
+     * the normal case and wrong for a fitting tool that switches weapons while you
+     * watch. This releases the latch and drops the current mesh so the next frame
+     * loads whatever `meshName` now says.
+     *
+     * The proxy children go with it — `addSolidProxy` parents them to the mesh, so
+     * disposing the hierarchy takes them too, and forgetting that would leave an
+     * invisible collider hanging in the air where the old weapon was.
+     */
+    reloadModel() {
+        this._libLoaded = false;
+        this._socketed = false;
+        this._mount = undefined;
+        this._muzzleNode = null;
+        this._stopLoad?.();
+        this._stopLoad = null;
+        this.mesh?.dispose(false, true);
+        this.mesh = undefined;
+    }
+    /** Load the library model, once, after the attribute drain has finished. */
+    _libLoaded = false;
+    _loadLibraryModel(owner) {
+        if (this._libLoaded)
+            return;
+        const attrs = this;
         const libType = String(this.library ?? '');
         if (libType !== '') {
             this._stopLoad = loadLibraryMesh({
@@ -703,10 +1037,147 @@ export class B3dLauncher extends AbstractMesh {
                     */
                     this.render();
                     this._muzzleNode = findMuzzle(node);
+                    this._applyGrip(attrs);
                     owner.register({ meshes: node.getChildMeshes() });
                 },
             });
         }
+        this._libLoaded = true;
+    }
+    /**
+     * A NESTED launcher rides its holder.
+     *
+     * Without this, `b3dBiped({...}, b3dLauncher({...}))` reads as "this character
+     * is carrying a gun" and renders as a crate lying at the world origin — the
+     * mesh is placed in world space, and nothing ever told it about the thing it
+     * is nested in. The FIRING was already right (a biped fires along its own
+     * aim), which made the gap worse rather than better: correct behaviour
+     * attached to scenery.
+     *
+     * So `x`/`y`/`z` become a LOCAL offset when nested, which is what they
+     * obviously mean once there is something to be local to — a hip, a hardpoint,
+     * a turret ring.
+     *
+     * `semanticParent` rather than `parentElement`, because tosijs mounts light
+     * DOM children inside a `<tosi-slot>` and the raw parent is that wrapper.
+     */
+    _rideHolder() {
+        if (this.mesh == null || this.mesh.parent != null)
+            return;
+        const holder = semanticParent(this);
+        const node = holder?.entries?.rootNodes?.[0] ?? holder?.mesh;
+        if (node == null || node === this.mesh)
+            return;
+        const socketNode = this._socketNode(holder, node);
+        this._socketed = socketNode != null;
+        this.mesh.parent = socketNode ?? node;
+    }
+    /**
+     * The joint named by `socket`, as something to parent to.
+     *
+     * Babylon gives a glTF skeleton's bones LINKED TRANSFORM NODES — real nodes
+     * in the scene graph that the animation drives — so parenting to one is
+     * ordinary parenting and needs no `attachToBone` bookkeeping. A rig without
+     * them (a non-glTF import) has no node to hang off, and that is a fallback
+     * rather than a failure.
+     */
+    _socketNode(holder, root) {
+        const want = String(this.socket ?? '');
+        if (want === '')
+            return null;
+        const candidates = BONE_SOCKETS[want];
+        if (candidates == null) {
+            this._warnSocket(`b3d-launcher: unknown socket "${want}"`);
+            return null;
+        }
+        const skeleton = holder?.entries?.skeletons?.[0];
+        if (skeleton == null) {
+            this._warnSocket(`b3d-launcher: socket "${want}" — holder has no skeleton`);
+            return null;
+        }
+        /*
+        `findBone` wants `BoneNode`s — name plus PARENT NAME — because it is the
+        pure model and knows nothing about Babylon. A Babylon `Bone`'s `parent` is
+        another Bone, so the two disagree on one field and the shapes have to be
+        bridged here rather than by widening the pure type.
+        */
+        const nodes = skeleton.bones.map((b) => ({
+            name: b.name,
+            parent: b.getParent()?.name ?? null,
+        }));
+        const name = findBone(nodes, candidates);
+        if (name == null) {
+            this._warnSocket(`b3d-launcher: socket "${want}" — no matching bone (tried ${candidates.join(', ')})`);
+            return null;
+        }
+        const bone = skeleton.bones.find((b) => b.name === name);
+        const node = bone?.getTransformNode?.() ?? null;
+        if (node == null) {
+            this._warnSocket(`b3d-launcher: bone "${name}" has no transform node to parent to`);
+            return null;
+        }
+        // The root's scaling (and its handedness mirror) is already in the bone's
+        // own world matrix, so parenting to the joint must not re-apply it.
+        void root;
+        return node;
+    }
+    /**
+     * Riding a BONE rather than the holder's root.
+     *
+     * Read by the biped, which must not then rotate the weapon to the aim: the
+     * hand already carries it, and applying both gives you the hand's rotation
+     * times the aim's.
+     */
+    get socketed() {
+        return this._socketed;
+    }
+    _socketed = false;
+    /** Once per message — this runs from the render loop. */
+    _warnedSockets = new Set();
+    _warnSocket(message) {
+        if (this._warnedSockets.has(message))
+            return;
+        this._warnedSockets.add(message);
+        console.warn(`${message} — riding the holder's root instead`);
+    }
+    /**
+     * The node the launcher RIDES ON, if it is mounted on something.
+     *
+     * Cached, because it is asked for on every shot and the answer only changes
+     * when the launcher is re-parented — which `_rideHolder` does once.
+     */
+    _mountRoot() {
+        if (this._mount !== undefined)
+            return this._mount;
+        const holder = semanticParent(this);
+        this._mount = holder?.entries?.rootNodes?.[0] ?? holder?.mesh ?? null;
+        return this._mount;
+    }
+    _mount = undefined;
+    /**
+     * Geometry a round must not detonate on: our own barrel, and WHOEVER IS
+     * HOLDING US.
+     *
+     * The barrel alone was not enough, and the way it failed is worth recording
+     * because it does not look like a collision bug. A biped fires from
+     * `aimOrigin`, which is 0.35m in front of the body — and the body's collision
+     * ellipsoid has a radius of 0.75. So every round spawned INSIDE the shooter,
+     * hit him on its first swept step, and detonated. Tonio: "I don't seem to be
+     * able to aim, just cause explosions in front of me." Nothing was wrong with
+     * the aiming; the round never got out of the man.
+     *
+     * Moving the muzzle further forward would be the wrong fix — it would make
+     * the number bigger until a wider character or a crouch broke it again, and
+     * it would put the muzzle through a wall the shooter is standing against.
+     * Whoever holds the gun is not a target for it, at any distance.
+     */
+    _selfHit(m) {
+        if (m === this.mesh)
+            return true;
+        const root = this._mountRoot();
+        if (root == null)
+            return false;
+        return (m === root || m.isDescendantOf(root));
     }
     /** World-space muzzle point (barrel tip, in front of the launcher). */
     muzzle() {
@@ -720,7 +1191,54 @@ export class B3dLauncher extends AbstractMesh {
             return new BABYLON.Vector3(a.x, a.y, a.z);
         }
         const fwd = this.mesh.getDirection(BABYLON.Axis.Z).normalize();
-        return this.mesh.absolutePosition.add(fwd.scale(0.55));
+        /*
+        MEASURE THE MODEL rather than assume 0.55.
+    
+        0.55 is the placeholder box's own barrel length and was right for exactly
+        that. Kenney's pistol is 0.29 long from a bottom-centre origin, so its
+        barrel tip is 0.147 ahead — and a fixed 0.55 put the muzzle nearly 40cm
+        past the end of the gun, which is a round appearing out of thin air well in
+        front of the shooter's hand.
+    
+        The front of the mesh's own bounding box is the honest answer for a model
+        nobody rigged. A `_muzzle` node still beats it and still wins above: a
+        bounding box does not know about a barrel that is not the longest thing on
+        the weapon (a scope, a stock, an underslung launcher).
+        */
+        let reach = 0.55;
+        try {
+            /*
+            PROJECT THE CORNERS ONTO `fwd`, rather than reading a local max.
+      
+            `getHierarchyBoundingVectors` returns a WORLD axis-aligned box, and a
+            weapon held by a character hangs under that character's `__root__`, which
+            carries the glTF handedness mirror (`scaling.z = -1`). So the barrel tip
+            is at the box's world MIN z, not its max, and inverse-transforming `max`
+            gave a negative local z that silently failed the test and fell back to
+            0.55 — the placeholder's length, on a pistol.
+      
+            Projecting every corner onto the direction rounds actually leave in has no
+            opinion about handedness, rotation, or which corner is which.
+            */
+            const bb = this.mesh.getHierarchyBoundingVectors();
+            const o = this.mesh.absolutePosition;
+            let far = 0;
+            for (const x of [bb.min.x, bb.max.x]) {
+                for (const y of [bb.min.y, bb.max.y]) {
+                    for (const z of [bb.min.z, bb.max.z]) {
+                        const d = (x - o.x) * fwd.x + (y - o.y) * fwd.y + (z - o.z) * fwd.z;
+                        if (d > far)
+                            far = d;
+                    }
+                }
+            }
+            if (far > 0.01)
+                reach = far;
+        }
+        catch {
+            /* no geometry yet — the placeholder's own length is the right guess */
+        }
+        return this.mesh.absolutePosition.add(fwd.scale(reach));
     }
     /** The launcher's current forward (its default fire direction). */
     forward() {
@@ -750,7 +1268,8 @@ export class B3dLauncher extends AbstractMesh {
             color: this.projColor,
             maxLifetime: this.maxLifetime,
             useLos: !isOff(this.los),
-            ignore: (m) => m === this.mesh, // never detonate on our own barrel
+            // Our own barrel AND whoever is holding us — see `_selfHit`.
+            ignore: (m) => this._selfHit(m),
         });
         return true;
     }
@@ -776,6 +1295,7 @@ export class B3dLauncher extends AbstractMesh {
             radius: this.projRadius,
             maxLifetime: this.maxLifetime + 4, // missiles loiter a bit longer
             useLos: !isOff(this.los),
+            ignore: (m) => this._selfHit(m),
         });
         return true;
     }

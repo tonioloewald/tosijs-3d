@@ -12,28 +12,8 @@ LOGARITHMIC and goes to 200,000 on purpose: the first version stopped at 4000
 and the answer came back "flat, 18ms at any number", which is what you measure
 when the load never bends anything and vsync is doing the talking.
 
-⚠️ **No GPU timer in Safari.** WebKit has never shipped
-`EXT_disjoint_timer_query` — it is a timing-attack surface — so the GPU line
-reads `—` there and no amount of asking will change it. Chrome gives it to you.
-Where it is missing the only reading available is the wall clock, which means
-the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
-you that you fitted and nothing else. That is often enough (200,000 figures at
-33ms is a real measurement) and it is worth knowing the floor is blind.
-
-⚠️ **`wall` is not a cost.** It is the gap between frames, and with vsync on it
-reads ~16.7ms however little work you do. A flat 18ms means "we never missed a
-frame" — excellent news, and no information about the crowd. `GPU` is the
-number: `EXT_disjoint_timer_query` asking the hardware how long it actually
-took. Where the extension is missing it says so rather than reporting zero.
-
-The reading is in the **Perf Stats panel** under **Crowd** — figures, draw
-calls, this frame, the worst since you last moved the slider, and the budget it
-is being judged against. `reset worst` is a button because in a headset there is
-no console to clear, and because the worst you care about is the worst since the
-last thing you changed.
-
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
@@ -55,17 +35,49 @@ import { tosi } from 'tosijs'
 // crowd of 200 — a control that lies about the thing it controls, and no way to
 // tell except by counting figures.
 const FIGURES = 400
-const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0 } })
+// The clips a real rig gets baked with. Six that are different SHAPES, not six
+// different speeds — see the note on legibility at distance.
+const OMNI_CLIPS = 'walk,run,wave,dance,jump,salute'
+const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, omni: false, shadows: true } })
 const s = demo.crowdBench
 
 let crowd = null
 let scene = null
+let sun = null
 
 const panel = () => [
   label3d({ text: 'Crowd bench' }),
   slider3d({
-    label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', showValue: 'always',
+    // `snap: 1` — whole figures. `step` on a log scale is in DECADES, so it
+    // cannot say "integers"; `snap` quantises the value after the scale has
+    // been applied, which is exactly the question being asked. Without it the
+    // readout offered 2.5 figures, and the element rounded behind its back.
+    label: 'figures', value: s.figures, min: 1, max: 200000, scale: 'log', snap: 1,
+    showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.count = Math.round(v) },
+  }),
+  // A TOGGLE, not a select. A select needs a popup, and a popup is a second
+  // gesture that can fail on its own — which is what it did: "when I pick
+  // omnidude, nothing happens". Two states want one click anyway.
+  toggle3d({
+    label: 'omnidude mesh', value: s.omni,
+    handleChange: (v) => {
+      s.omni = v
+      if (!crowd) return
+      // omnidude is 0.88m — half a person. See CLAUDE.md on scale.
+      crowd.figureScale = v ? 2 : 1
+      crowd.clips = v ? OMNI_CLIPS : ''
+      crowd.url = v ? '/omnidude.glb' : ''
+    },
+  }),
+  // SHADOWS ARE A SECOND DRAWING OF EVERY FIGURE (one pass per cascade), so
+  // they belong on the bench as a switch rather than as a constant. Off is
+  // `activeDistance: 0` — the sun drops every caster beyond that distance, and
+  // re-adds them when it grows again. It re-evaluates once a second, so give
+  // it a moment before reading the number.
+  toggle3d({
+    label: 'shadows', value: s.shadows,
+    handleChange: (v) => { s.shadows = v; if (sun) sun.activeDistance = v ? 140 : 0 },
   }),
   toggle3d({
     label: 'interpolate frames', value: s.interp,
@@ -75,10 +87,20 @@ const panel = () => [
     label: 'skinned baseline', value: s.skinned, min: 0, max: 400, step: 1, showValue: 'always',
     handleChange: (v) => { if (crowd) crowd.skinned = Math.round(v) },
   }),
-  label3d({ text: 'Perf Stats → Crowd for the numbers', muted: true }),
+  // NO INSTRUCTION ROWS. Three muted labels used to sit here pointing at Perf
+  // Stats and explaining what omnidude is — two of them saying the same thing,
+  // and all three saying what the prose above already says. A panel is for the
+  // controls; the page is for the explanation. Tonio: "they're not really
+  // needed, I think."
 ]
 
 crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
+// Held so the `shadows` toggle can reach it. Assigned as a statement rather
+// than inline in the scene, which is the shape the rest of this demo uses.
+sun = b3dSun({
+  shadowMaxZ: 200, activeDistance: 140,
+  shadowTextureSize: 2048, shadowDarkness: 0.25,
+})
 
 scene = b3d(
   {
@@ -86,12 +108,30 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.1, beta: 1.12, radius: 85, target: [0, 2, 0] })
+      // Sun BEHIND the viewer. The first version had the camera looking into it,
+      // and a crowd lit from the far side is a crowd of silhouettes — which
+      // read as black figures rather than as a lighting choice.
+      orbitCam(el, { alpha: 0.62, beta: 1.12, radius: 85, target: [0, 2, 0] })
     },
   },
-  b3dSun({}),
-  b3dSkybox({ timeOfDay: 10 }),
-  b3dLight({ intensity: 0.45 }),
+  // A GROUND AND A REAL SUN, because a crowd against a skybox has no scale and
+  // no contact with anything: the mottle is what tells you the field is 80m
+  // across, and the shadows are what put the figures ON it rather than in front
+  // of it. (`activeDistance` is 140 rather than the 30m default, which is a
+  // character-scale number and would shadow the middle of the field only. And
+  // `_nocast` on the ground: it receives, and a ground plane casting into its
+  // own shadow map is just acne.)
+  sun,
+  b3dSkybox({ timeOfDay: 9 }),
+  // `groundColor` matters more here than intensity: Babylon's default is BLACK,
+  // so every vertical surface — which is most of a standing figure — gets
+  // nothing from the ambient light however far you push it.
+  b3dLight({ intensity: 0.6, groundColor: '#59604a' }),
+  b3dGround({
+    meshName: 'ground_nocast',
+    width: 160, height: 160,
+    color: '#8a9070', texture: 'noise', textureTiles: 9,
+  }),
   crowd
 )
 
@@ -101,77 +141,114 @@ preview.append(scene)
 .preview { height: 100%; }
 ```
 
+### Reading it
+
+The reading is in the **Perf Stats panel** under **Crowd** — figures, draw
+calls, this frame, the worst since you last moved the slider, and the budget it
+is being judged against. `reset worst` is a button because in a headset there is
+no console to clear, and because the worst you care about is the worst since the
+last thing you changed.
+
+⚠️ **`wall` is not a cost.** It is the gap between frames, and with vsync on it
+reads ~16.7ms however little work you do. A flat 18ms means "we never missed a
+frame" — excellent news, and no information about the crowd. `GPU` is the
+number: `EXT_disjoint_timer_query` asking the hardware how long it actually
+took. Where the extension is missing it says so rather than reporting zero.
+
+⚠️ **No GPU timer in Safari.** WebKit has never shipped
+`EXT_disjoint_timer_query` — it is a timing-attack surface — so the GPU line
+reads `—` there and no amount of asking will change it. Chrome gives it to you.
+Where it is missing the only reading available is the wall clock, which means
+the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
+you that you fitted and nothing else. That is often enough (200,000 figures at
+33ms is a real measurement) and it is worth knowing the floor is blind.
+
 ## Does it actually work?
 
 The shader is the part that fails silently: a VAT that will not compile leaves a
-black canvas, which looks exactly like a camera pointing the wrong way. So the
-page checks itself.
+black canvas, which looks exactly like a camera pointing the wrong way.
 
-⚠️ **The block below goes EMPTY on purpose**, and that is the check passing. It
-builds a crowd, waits for the material to become ready, and then removes its
-scene — because it is the page's second WebGL context and Safari counts those
-much more tightly than Chrome. An empty box here means the assertion ran; look
-at the test badge, not at the box.
+So the demo above reports it. **Perf Stats → Crowd** carries a `shader` line —
+`READY` once the material has compiled, `compiling…` before it, and it never
+leaves the second state if the vertex shader is broken.
 
-```test
-import { b3d, b3dLight, b3dCrowd } from 'tosijs-3d'
-import { orbitCam } from 'tosijs-3d/demo-utils'
+That is where the check lives now. It used to be a `test` fence with a scene of
+its own, which was a mistake three times over: the block rendered EMPTY whatever
+it did, it cost the page a second WebGL context (Safari counts those tightly),
+and an empty rectangle under the words "does it actually work?" answers them
+wrongly no matter what the paragraph beside it says. Tonio reported it blank
+three times, which is the signal that documentation was not the fix.
 
-test('the crowd builds, and its shader COMPILES', async () => {
-  const crowd = b3dCrowd({ count: 32, spread: 6, bakeFps: 8 })
-  const scene = b3d(
-    {
-      style: 'width:320px;height:200px',
-      // A camera, or this is a black box in the docs even when it passes — and
-      // a black box beside the words "does it actually work?" answers itself
-      // wrongly.
-      sceneCreated: (el) => orbitCam(el, { alpha: -1.2, beta: 1.15, radius: 14, target: [0, 1, 0] }),
-    },
-    b3dLight({ intensity: 0.9 }),
-    crowd
-  )
-  preview.append(scene)
+## Every figure is independent
 
-  // The scene mounts on its own schedule; poll rather than guess a delay.
-  const until = async (why, fn) => {
-    for (let i = 0; i < 200; i++) {
-      if (fn()) return
-      await new Promise((r) => setTimeout(r, 50))
-    }
-    throw new Error(why)
-  }
+`vatState` is per-instance — `(clipStart, clipFrames, phaseOffset,
+cyclesPerSecond)` — so no two figures need share anything:
 
-  await until('scene never came up', () => scene.scene != null)
-  let mesh = null
-  await until('no crowd mesh', () => {
-    mesh = scene.scene.meshes.find((m) => m.name === 'crowd-figure')
-    return mesh != null
-  })
+| | |
+| --- | --- |
+| **where in the clip** | a random phase offset; without it a crowd marches in lockstep, which reads as a bug even though every figure is correct |
+| **how fast** | its own rate, scaled by the clip's duration so a 0.7s wave and a 1s walk both play as baked |
+| **which clip** | `start` picks one of FOUR out of the shared bake — walk, wave, dance, jump |
 
-  // One draw call for all of them — the whole claim.
-  expect(mesh.thinInstanceCount).toBe(32)
+The clips are chosen to be told apart **at a hundred metres**, which is the only
+test that matters here and rules out most of what reads as variety close up. An
+idle fails it: a figure shifting its weight and a figure walking slowly are the
+same silhouette from far enough away, so a quarter of the field was doing
+something nobody could see. What survives the distance is gross limb position —
+legs striding, one arm above the head, both arms up, a body leaving the ground.
 
-  // `isReady` is the assertion that matters. A material whose vertex shader
-  // failed to compile never becomes ready, and nothing else here would notice —
-  // the canvas simply stays black, which is indistinguishable from a camera
-  // pointing at nothing.
-  //
-  // (LINE comments, not a block one: a close-comment token inside a fence ends
-  // the enclosing doc comment, and every line after it becomes TypeScript. That
-  // is tosijs-ui#142's third trap — and note this warning cannot SPELL the
-  // token either, which is the same joke the original report made about itself.)
-  await until('the VAT shader never compiled', () => mesh.material.isReady(mesh))
-  expect(mesh.material.isReady(mesh)).toBe(true)
+Getting there needed a second rotation AXIS. A swing about X is a stride, and
+anything built only from it is a walk at some speed; raising an arm is a
+rotation about Z, and without it the wave, the dance and the jumping jack all
+collapse back into the walk. The vertical bob costs one addition per baked
+vertex and carries furthest of all, because a silhouette that changes HEIGHT is
+visible when the limbs inside it are a pixel wide.
 
-  // HAND THE CONTEXT BACK. This scene is the page's SECOND WebGL context, and
-  // Safari caps contexts far more tightly than Chrome — a test that keeps one
-  // for the life of the page leaves a black rectangle under the words "does it
-  // actually work?", which answers them wrongly. Removing the element disposes
-  // the engine (see tosi-b3d's teardown), so the check costs a context for a
-  // few seconds rather than for the session.
-  scene.remove()
-})
-```
+Walk stays the plurality (`CLIP_MIX`) because a crowd is going somewhere; the
+other three split the rest evenly, none of them being a default. And the
+durations differ on purpose — identical ones would have every clip turn over
+together, and four animations sharing one heartbeat look more synchronised than
+one animation does.
+
+None of it costs anything. The clips share one texture, so switching is a change
+of two numbers rather than of material, and the CPU still touches nothing once
+the crowd is built.
+
+## A real rig, baked
+
+Tonio: *"Can we do an intermediate version where we use vertex animation to
+animate the omnidude mesh, or is that impractical?"* Entirely practical — set
+`url` and the crowd bakes that GLB instead of the blocky bench figure. The
+demo's **figure** control switches between them live.
+
+It is the rung that was missing. The blocky figure proves the mechanism and
+`b3d-biped` is the fully-articulated top end; this is the SAME character a biped
+would animate, drawn by the crowd path with no skeleton at all.
+
+The trick is that Babylon will CPU-skin for you. `applySkeleton` writes the
+posed vertices into the mesh's own buffers, so a bake is: put the animation at a
+frame, ask the skeleton for its matrices, apply, read the positions back. Six of
+omnidude's sixteen clips is about 6MB — and after the bake there is no skeleton,
+no `AnimationGroup` and no per-figure CPU work left, which is the whole point.
+
+| | |
+| --- | --- |
+| `url` | a rigged GLB to bake from; empty = the synthetic figure |
+| `clips` | which of its clips, comma-separated; empty = all of them |
+| `figureScale` | omnidude is 0.88m, so the demo bakes it at `2` |
+
+Two details that are not obvious. The head and body are separate meshes sharing
+one material, and they are concatenated into ONE mesh — two would be two draw
+calls for the entire crowd, which would undo the only claim this module makes.
+And every glTF root carries a handedness mirror, so the baked winding is
+reversed to match; without that the crowd is inside-out and reads as a lighting
+bug rather than as geometry.
+
+What you give up is the seam: a baked figure cannot retarget, cannot blend to a
+clip that was not baked, and has no bones to hang a sword from ([[vertex-animation]]'s
+`SocketLayout` is the answer to the last one). Promoting a figure to a named
+character means crossing back to a skinned rig, and that crossing wants
+designing rather than discovering.
 
 ## Where it sits: the third rung of the ambient ladder
 
@@ -189,6 +266,14 @@ right thing to route it through, because it already knows how to switch an
 effect OFF rather than thin it, which is the correct answer when a flock will
 not fit.
 
+**Fish are the same argument underwater, and the easiest case this substrate
+has.** Nobody inspects a fish: it is looked at from ten metres through water, so
+it wants ~100 vertices and two clips where a player character wants 1,380 and a
+dozen. The medium supplies the LOD — underwater fog already fades the far end on
+a curve that is physically motivated rather than a tuned cull distance — and a
+school fills a VOLUME, so a few hundred read as far more than the same number
+scattered on a field. Filed rather than built (see TODO).
+
 ## The target, and what it means that we cleared it
 
 The game this was built to answer for is a virtual miniatures battle. Tonio's
@@ -200,8 +285,9 @@ to nine units laid out three wide. So:
 | --- | --- |
 | largest army | 9 units × 15 = **135 figures** |
 | a whole battle | **~270** |
-| measured here | **200,000 at 33ms** |
-| headroom | **~740×** |
+| measured here | **200,000 blocky figures**, 60ms with shadows |
+| or | **20,000 baked omnidudes** at 33ms |
+| headroom | **~740×** on count, ~74× on a real rig |
 
 That is not "we can do it". That is the constraint having moved somewhere else
 entirely, which is the outcome worth acting on rather than celebrating.
@@ -214,13 +300,361 @@ every one of them can afford a real sensorium, its own equipment via
 [[vertex-animation|sockets]], and a bake rate high enough that clip blending is
 not a luxury reserved for wildlife.
 
-**And it reopens a question the bench was built to close.** If 270 is this far
-inside the envelope, the honest next question is whether the vertex-animated
-path is needed *for this game at all* — a skinned `b3d-biped` may handle 270
-perfectly well, in which case VAT is the tool for background fauna and for
-scenes an order of magnitude larger, not for the battle. That is exactly what
-the skinned baseline below is for, and it is now the only number this bench
-still owes.
+**And the skinned baseline has now been read, which settles it the other way.**
+
+| | figures | |
+| --- | --- | --- |
+| vertex-animated | **200,000** | blocky, 60ms with shadows (33ms without) |
+| vertex-animated | **20,000** | omnidude, 33ms with shadows |
+| skinned rigs | **~50** | before it gets brutal |
+
+About **4000×**, measured by Tonio in Safari on a work laptop. I had speculated
+the opposite — that 270 was so far inside the envelope a skinned `b3d-biped`
+would simply handle the battle, making this substrate a fauna tool. It will not:
+270 is five times past where the skinned path stops being comfortable.
+
+So **"actors and crowd" is a real boundary**, and the vertex-animated path is
+needed for the battle after all, not merely for birds.
+
+⚠️ And ~50 is the FLOOR, not the ceiling of the problem. The baseline spawns
+bare rigs — mesh, skeleton, `AnimationGroup` — with no controller, no collision,
+no camera rig and no state machine. A real `b3d-biped` is 2342 lines of
+per-instance update on top of that, so the number of actual bipeds is smaller
+than fifty, and by an amount nobody has measured.
+
+## What the ceiling actually is — and how I moved it without noticing
+
+The headline used to be "200,000 at 33ms". That number is real and it no longer
+describes this demo, because **I changed the scene it was measured in**: adding a
+ground and a shadow-casting sun (so you could see the figures in context) put
+every figure through the shadow map as well, once per cascade. Same slider, same
+crowd, different question. A bench's SCENE is part of its measurement, and I
+edited it without re-baselining — which is how a number outlives the thing it
+described.
+
+Tonio's readings on the current scene, with shadows:
+
+| figure | verts each | figures | verts/frame | frame |
+| --- | --- | --- | --- | --- |
+| blocks | ~144 | 200,000 | ~29M | **60ms** |
+| omnidude | 1,380 | 20,000 | ~28M | **33ms** |
+| omnidude | 1,380 | 200,000 | ~276M | **600ms+** |
+
+(For contrast: blocks at 200,000 was 33ms **before** the ground and sun went in.)
+
+⚠️ **Read those as BOUNDS, not as costs.** They were taken on a laptop that may
+have been driving a 30Hz display, where the floor is 33.3ms — so "20,000
+omnidudes at 33ms" may well mean the crowd was FREE and the wall clock was
+reporting the monitor. Likewise 60ms is two swap intervals: one missed frame,
+not sixty milliseconds of work. Tonio: *"I think these figures are always going
+to be rubbery unless we do proper benchmarking but we have some nice bounds
+here."* That is the right reading of them.
+
+The panel now measures the floor rather than assuming one — the fastest frame it
+has seen IS the swap interval — and reports the worst as a MULTIPLE of it, so a
+quantised reading is legible as quantised. `reset worst` clears the floor too,
+because a display can change under you.
+
+The readings that will actually settle the budget are a **headset** and a
+**Raspberry Pi**: the first has the tightest frame budget we ship against (13.9ms,
+twice, one per eye) and the second is the floor of the hardware range. Both are
+in `TODO.md`.
+
+Read them together and the tidy story I had written — *cost is vertices* — is
+only half right. Rows one and two are the same number of vertices and differ by
+**2×**, so something other than vertex count is being paid, and the third row is
+10× the vertices for 10× the time, so vertex count is clearly being paid too.
+
+Two candidates for the gap, and Tonio named the area: *"these are figures with
+shadow casting etc. added so we are torturing fill rates and buffers."*
+
+- **Overdraw.** `spread` is fixed at 80m, so raising the count does not enlarge
+  the field, it packs it. 200,000 figures on that ground is shoulder to
+  shoulder; every pixel is covered many times over, in the shadow map as well as
+  on screen. 20,000 is a crowd you can see between.
+- **Tiny triangles.** A GPU shades in 2×2 quads, so a triangle smaller than a
+  couple of pixels wastes most of the quad. 200,000 blocky figures at that
+  distance are largely sub-pixel; 20,000 omnidudes are not.
+
+Both scale with **how many separate small things** are on screen, which is
+exactly the axis that differs between rows one and two.
+
+So the honest budget has two terms — total vertices, and how finely divided they
+are — and the practical advice is unchanged: the **`verts` line in the panel is
+the one with a budget attached**, and the `shadows` toggle is there so the extra
+passes can be measured rather than assumed. It also sharpens
+[[vertex-animation]]'s "the bake IS the LOD": decimating a distant figure buys
+you on both terms at once.
+
+## MEASURED ON A QUEST 3
+
+The section below was arithmetic. This is the reading, taken by Tonio on the
+device, and it is worth putting first because two of the three numbers are worse
+than the laptop would have led you to expect and one of them is much worse.
+
+| | Quest 3 | laptop, for comparison |
+| --- | --- | --- |
+| baked omnidude, **in VR** | **750** — fine | 20,000 @ 33ms |
+| figures, flat in the headset's browser | frames start limiting at **~1,000** | 200,000 @ 60ms |
+| **skinned** `b3d-biped` rigs | **"nasty at maybe 20"** | ~50 |
+
+Three things follow, and the first two change plans rather than merely
+confirming them.
+
+**THE SKINNED CEILING IS ~20, NOT ~50.** That is the number that matters most,
+because it is the one the rest of the framework leans on. Half the desktop
+figure, and it arrives with everything else a character needs still to be paid
+for — controller, collision, AI, audio — none of which the bare baseline spawns.
+So "a handful of real actors, and everything else is crowd" is not a stylistic
+preference on this hardware; it is the budget. Anything that promotes crowd
+members to skinned rigs (see "Crossing the seam") is budgeting against 20, and
+should probably aim at half that.
+
+**THE CROWD CEILING IS ~750–1,000, NOT 3,000.** The arithmetic below concluded
+3,000 low-poly figures would fit comfortably. Measured, the omnidude path runs
+out at 750 in VR — and since omnidude is ~1,380 verts against a ~300-vertex
+soldier, the ~4.6× saving that section is built on would put an authored figure
+in the right neighbourhood of 3,000. So the reasoning survives; what it did NOT
+allow for is how little headroom there is to be wrong in. The conclusion below —
+author the figure for the job, do not decimate a hero — is now load-bearing
+rather than an optimisation.
+
+**750 IN VR AGAINST ~1,000 FLAT ON THE SAME DEVICE** is the interesting one: a
+quarter, not a half, for drawing everything twice. Whatever the extra cost is,
+it is not simply "two eyes" — which is a hint that the per-frame overhead
+(cull, submit, the compositor's own slice) matters more here than the vertex
+count, and therefore that fewer, fatter draw calls are the right direction.
+Exactly what this substrate does.
+
+⚠️ These are eyeball readings of where it "starts to limit", not instrumented
+frame times — the GPU timer is the thing to get onto the device next. Treat them
+as the right order of magnitude and the right RATIOS, which is what they are
+being used for.
+
+## Would a big battle fit in a headset?
+
+Tonio, sizing the ceiling: *"I could easily imagine wanting to quadruple the
+maximum figures but that's probably the absolute limit and we're still at
+what — 3000 figures. My guess is that's doable on the quest."*
+
+Worth doing the arithmetic rather than guessing — though see the measurements
+above, which arrived after this was written and tightened it considerably.
+
+A headset draws the scene **twice**, once per eye, and a shadow-casting crowd is
+drawn again per cascade. So it depends entirely on what a figure costs:
+
+| figure | verts | 3,000 of them, both eyes + 2 cascades |
+| --- | --- | --- |
+| baked omnidude | 1,380 | ~16.6M verts/frame — **no** |
+| a soldier authored for this | ~300 | ~3.6M — yes |
+| the blocky bench figure | ~144 | ~1.7M — easily |
+
+…against a laptop that did ~28M in *at most* 33ms, where a headset has some
+fraction of that GPU and less than half the time. So the question is not whether
+3,000 figures fit. It is how many vertices a soldier gets.
+
+…and the answer to that is not a technique, it is a decision. Tonio: *"I think
+we don't use anything as complex as omnidude at all."*
+
+Which settles it, and settles it cheaply. omnidude is a PLAYER character — a
+face, fingers, a silhouette meant to be looked at from two metres. A soldier in
+a formation is looked at from forty, and the bench's own blocky figure (~144
+verts) already reads as a person at that range. Author the figure for the job
+and 3,000 of them is ~0.4M verts per pass, ~1.7M a frame with both eyes and two
+cascades — comfortably inside a headset frame rather than four times outside it.
+
+So the omnidude path is not the plan for a battle; it is the **A/B**, and a
+useful one. It answers "what does a real rig cost" in one toggle, which is how
+you know a simple figure is worth authoring rather than assuming it.
+
+Two consequences worth keeping:
+
+- **Decimation stops being load-bearing.** [[vertex-animation]]'s "the bake IS
+  the LOD" is still true and still worth having for content you did not author
+  (and for the far end of a big field), but it moves from *required* to *nice*.
+  Authoring a 300-vertex soldier beats decimating a 1,380-vertex hero, and it
+  gives a better-looking result because a human chose which detail to keep.
+- **Detail moves to the SOCKETS.** A low-poly body plus instanced kit — helmet,
+  spear, shield, banner ([[vertex-animation]]'s `SocketLayout`) — is how a unit
+  becomes recognisable without the body getting heavier. Variety at the level
+  that reads at forty metres is equipment and colour, not topology.
+
+And **don't cast the crowd into a shadow cascade** either way: a blob decal per
+figure ([[shadow-decal]]) is one quad, and at battle distance it is the same
+picture. That removes half the passes for almost nothing, whatever the figure
+costs.
+
+## The roster, and why it is cheap
+
+The content this actually needs is not one figure, it is a cast. Tonio: *"what we
+will need is more figures and more animations. Assuming we have a winged
+creature, heavy mounted, light mounted, heavy infantry, light infantry and some
+accessories like helmets, shields, weapons."*
+
+That lands well, and specifically it lands on the axis this substrate is cheap
+on. **Draw calls scale with TYPES, not with figures**: one `b3dCrowd` per kind
+is five draw calls for an entire battlefield, whatever the counts. A thousand
+light infantry and eight hundred heavy are two calls, not eighteen hundred.
+
+The memory is not the problem either. A 300-vertex soldier with eight clips
+baked at 10fps is around 80 frames:
+
+    300 × 80 × 4 channels × 2 bytes × 2 textures ≈ 0.8MB
+
+So five types is a handful of megabytes, and doubling the clip count doubles a
+number nobody will notice. `vatBytes` is there to check rather than trust —
+the arithmetic turns nasty only at hero vertex counts with long clips (a
+16.9-second dance at 1,380 verts is most of the omnidude bake on its own).
+
+Three notes for when this is built rather than imagined:
+
+- **Bake rate follows how far the silhouette moves between frames ON SCREEN** —
+  which is not the same as how fast the animation is, and I had it wrong first
+  time. I wrote "the winged creature needs a high bake rate, a flap is fast";
+  Tonio: *"the winged creature is probably more like a dragon and has a slow
+  majestic flap."* A slow flap covers its arc over more time, so it needs FEWER
+  frames per second of clip, not more.
+
+  What makes a dragon unforgiving is the other term: it fills the view. The same
+  angular error between frames is a handful of pixels on a distant soldier and a
+  hand's width on a wing overhead. So the rule is angular change × apparent
+  size, and the two big cases pull in opposite directions — a fast flap far away
+  (a flock of birds) and a slow flap up close (this) can want the same rate for
+  entirely different reasons.
+
+  A slow flap also spends most of its cycle nearly still, gliding. That is where
+  a low rate is free, and it moves the real problem from frame rate to **clip
+  blending**: the pop when glide becomes flap is what you would notice, and it
+  is the one thing in `vertex-animation` still unbuilt.
+
+  And a dragon is a HANDFUL, not a crowd — so it can afford whatever it wants,
+  including not being baked at all. At three of them a skinned rig is fine
+  (~50 is the measured ceiling); at fifty wyverns this substrate wins again.
+- **Mounted is one figure, not two.** Horse and rider bake as a single mesh with
+  a single clip table, because they move together and a seam between them is a
+  second thing to synchronise for no gain. A rider who dismounts is a *different
+  figure*, which is the same seam as promoting one to a named character.
+- **Accessories are [[vertex-animation|sockets]]**, not geometry: helmet, shield
+  and weapon ride as their own instanced meshes sampling the same frame. That is
+  what keeps unit identity — the thing you actually read at forty metres — off
+  the body's vertex budget. It is the one piece of this that is designed and not
+  yet built.
+
+## Which path a thing takes is decided by UNIT SIZE
+
+The roster sorts itself once you ask how many of a thing stand together. Tonio:
+*"a dragon unit will likely be ONE figure or maybe three."*
+
+| unit | figures | path |
+| --- | --- | --- |
+| light / heavy infantry | 15 | baked crowd |
+| light / heavy mounted | 7–15 | baked crowd (horse and rider as one bake) |
+| **dragon** | **1–3** | **skinned rig** |
+
+At one to three there is nothing to amortise, and everything a named entity
+wants comes back: real clip blending (which the glide→flap seam actually needs),
+bones to parent a rider or a breath effect to, per-instance damage state, a
+skeleton for a hit probe. Baking one dragon would buy a draw call nobody was
+short of and give up all of it.
+
+So the two paths are not a ladder with the crowd at the top — they are a
+**threshold**, and unit size is the test. Hundreds of a thing: bake it, and
+accept that it cannot be inspected closely. One of a thing: rig it, and spend
+the budget the crowd just saved you on making it worth looking at.
+
+The seam between them is the piece to design rather than discover: a figure
+promoted out of a crowd (a champion stepping forward) or demoted into one has to
+cross it, and nothing does that today.
+
+## Crossing the seam: the MECHANISM, and whose job the rest is
+
+Tonio: *"demonstrate being able to switch a crowd mesh for a skinned mesh
+seamlessly... 10,000 shambling zombies in the distance but when they get close
+they swap to skinned meshes that can attack and die."*
+
+That is the seam above with a use case attached, and it is what makes the two
+paths one system instead of two.
+
+**The pose handoff is already solved, by accident, and it is the only part we
+should own.** A figure's `vatState` is `(clipStart, clipFrames, phaseOffset,
+cyclesPerSecond)` — which is to say the crowd can state exactly which clip a
+given figure is playing and how far through it is. So the swap is: read that
+phase, start the skinned rig's `AnimationGroup` on the same clip at the same
+normalised time, hide the instance. No blend, no cross-fade, no snap, because
+the two are in the same pose at the same instant. The hard part of a LOD swap is
+usually reconstructing that state; here it was never lost.
+
+That conversion — instance index to `{clip, t}` — is the piece that is
+impossible from outside the crowd and trivial from inside. It is the whole of
+what belongs here.
+
+**WHEN to swap is the consumer's call, and deliberately not ours.** Tonio: *"I
+think we'd leave the rules for switching to skinned models to the consumer since
+it will be more likely decided on specifics."* Which is right, and the three
+obvious cases disagree with each other enough to prove it: a horde game promotes
+whatever can reach you, a battle promotes the unit you selected regardless of
+distance, and a parade promotes whoever the camera is following. Any rule shipped
+here would be wrong for two of those, and worse, would be wrong *invisibly* —
+policy baked into a substrate is the kind of thing adopters work around rather
+than replace.
+
+So the surface to build is a handle, not a system: *give me the pose of figure
+N*, *hide figure N*, *put it back*. A consumer will probably want a budget
+rather than a radius, hysteresis at whatever boundary they pick, and a rule for
+what happens to a figure that dies while promoted — but those are their
+decisions to get right for their game, and this module has no opinion worth
+imposing.
+
+**The demo is the deliverable, and it has to show two things.** Tonio: *"have a
+crowd where they are swapped here and there and do something the crowd mesh
+members can't do (and we could change their textures as a debug feature)."*
+
+- That the swap is **invisible** — a handful of figures promoted here and there
+  in a moving crowd, with nothing to see at the moment it happens.
+- That the promoted ones can then **do something the crowd cannot**: turn to
+  look at you, take a hit and fall, be interacted with.
+
+And the debug toggle is the part that makes it a demo at all, because those two
+goals fight. A swap done properly looks like nothing happening, so a viewer
+cannot tell it from a crowd that never swapped anyone — which means the demo
+needs a way to *reveal* it on demand. Tinting the promoted figures does that:
+turn it on and the mechanism is visible, turn it off and the claim is that you
+cannot spot them. The usual instinct is to hide a LOD transition; here the
+ability to un-hide it is the feature.
+
+**What it is worth.** Ten thousand figures of menace for one draw call, and a
+handful of them — the ones you can actually reach — with collision, damage, a
+sensorium and a death. That is the north star's own argument (*agents and
+reactions, not vertices*) with the vertex bill itemised: the crowd is scenery
+until it is close enough to matter, and the budget goes to the ones that are.
+
+## A stadium, which needs almost none of the above
+
+Tonio: *"we could animate the entire crowd in a superbowl game — an animated
+stadium would be a cool demo."*
+
+Worth calling out separately, because a stadium crowd is a genuinely different
+SHAPE from a battle and it is the easier of the two by a wide margin:
+
+- **Nobody is promoted.** There is no seam to cross, no collision, no AI, no
+  death — a spectator is scenery that moves, which is exactly what this
+  substrate is. So it exercises the crowd at full size with none of the
+  machinery above.
+- **Placement is a lattice, not a scatter.** Seats are a generated bowl — tier,
+  row, seat — so the instance buffer is a loop rather than a distribution, and
+  every figure's position carries its bearing around the bowl for free.
+- **The clip set is small and seated.** Sit, clap, stand-and-cheer, wave. Four,
+  maybe five, and all of them short.
+- **And the interesting behaviour is CORRELATED, which is the part that is free.**
+  A Mexican wave is `phaseOffset` as a function of seat bearing. That is one
+  multiply in the buffer the crowd already fills — a stadium wave needs no new
+  capability at all. A section reacting to a play is the same trick on clip
+  choice instead of phase.
+
+It is also the one crowd whose real-world number is not a guess: about **70,000**
+people, which sits comfortably between the two figures this bench has measured.
+The rendering answer is already known, in other words — what the demo would show
+is the *authoring*, which is the part nobody has tried.
 
 ## ⚠️ Rendering is not the expensive part, and this bench only measures rendering
 
@@ -275,6 +709,9 @@ stops at 400 rather than 200,000, which is itself part of the finding.
 | `spread` | `60` | Metres across the field they scatter over |
 | `bakeFps` | `10` | Frames baked per second of clip — the memory knob |
 | `interpolate` | `'on'` | `'off'` snaps to the nearest frame: cheaper, jerkier |
+| `url` | `''` | A rigged GLB to BAKE from. Empty = the synthetic bench figure |
+| `clips` | `''` | Which of its clips to bake, comma-separated. Empty = all |
+| `figureScale` | `1` | Scale applied to the baked figure (omnidude is 0.88m) |
 | `skinned` | `0` | How many SKINNED clones to spawn alongside, as the baseline |
 | `skinnedUrl` | `'/omnidude.glb'` | The GLB the baseline clones |
 
@@ -470,19 +907,116 @@ function figureParts() {
         { size: [0.2, 0.8, 0.2], at: [0.15, 0.4, 0], limb: 4 },
     ];
 }
-/** Swing a limb about its top, so a leg pivots at the hip and not its middle. */
-function limbSwing(limb, phase) {
+const STILL = { x: 0, z: 0 };
+/**
+ * Pose one limb, for one clip, at one phase.
+ *
+ * Two axes rather than one, and that is what the extra clips needed: a swing
+ * about X is a stride, and every animation built only from it is a walk at some
+ * speed. Raising an arm — a wave, a dance, a jumping jack — is a rotation about
+ * Z, and without it the three of them collapse back into the walk.
+ *
+ * Limb 1 is the LEFT arm (−x) and 2 the right, 3 the left leg and 4 the right,
+ * so a positive `z` lifts an odd limb inward and an even one out. The signs
+ * below are not arbitrary.
+ */
+function limbPose(clip, limb, phase) {
     if (limb === 0)
-        return 0;
+        return STILL;
     const t = phase * Math.PI * 2;
-    // Arms oppose legs, and left opposes right — which is what reads as walking.
-    if (limb === 1)
-        return Math.sin(t) * 0.5;
-    if (limb === 2)
-        return -Math.sin(t) * 0.5;
-    if (limb === 3)
-        return -Math.sin(t) * 0.7;
-    return Math.sin(t) * 0.7;
+    switch (clip) {
+        case 'wave': {
+            // One arm ABOVE the head, flapping; the rest of the figure still. The
+            // asymmetry is the whole read — there is no other clip where one side
+            // does something the other does not.
+            if (limb === 2)
+                return { x: 0, z: 2.5 + Math.sin(t) * 0.4 };
+            if (limb === 1)
+                return { x: 0, z: -0.1 };
+            return STILL;
+        }
+        case 'dance': {
+            // Both arms up and swaying, legs on the OFFBEAT (twice the rate), so the
+            // silhouette is wide at the top and busy at the bottom.
+            if (limb === 1)
+                return { x: Math.sin(t) * 0.3, z: -(1.8 + Math.sin(t) * 0.5) };
+            if (limb === 2)
+                return { x: -Math.sin(t) * 0.3, z: 1.8 - Math.sin(t) * 0.5 };
+            if (limb === 3)
+                return { x: Math.sin(t * 2) * 0.35, z: -0.12 };
+            return { x: -Math.sin(t * 2) * 0.35, z: 0.12 };
+        }
+        case 'jump': {
+            // A jumping jack: one sweep out and back per cycle, arms and legs
+            // together. `s` runs 0 → 1 → 0, which is the star shape at its middle.
+            const s = (1 - Math.cos(t)) / 2;
+            if (limb === 1)
+                return { x: 0, z: -(0.1 + s * 2.5) };
+            if (limb === 2)
+                return { x: 0, z: 0.1 + s * 2.5 };
+            if (limb === 3)
+                return { x: 0, z: -s * 0.55 };
+            return { x: 0, z: s * 0.55 };
+        }
+        default: {
+            // Walk: arms oppose legs and left opposes right, which is the whole of
+            // why it reads as walking rather than as limbs moving.
+            if (limb === 1)
+                return { x: Math.sin(t) * 0.5, z: 0 };
+            if (limb === 2)
+                return { x: -Math.sin(t) * 0.5, z: 0 };
+            if (limb === 3)
+                return { x: -Math.sin(t) * 0.7, z: 0 };
+            return { x: Math.sin(t) * 0.7, z: 0 };
+        }
+    }
+}
+/**
+ * How far the whole figure leaves the ground.
+ *
+ * Cheaper than it looks — it is one addition to every baked vertex, no extra
+ * frames and no extra texture — and it carries further than any limb, because
+ * a silhouette that changes HEIGHT is visible when the limbs inside it are one
+ * pixel wide.
+ */
+function bodyBob(clip, phase) {
+    const t = phase * Math.PI * 2;
+    if (clip === 'jump')
+        return ((1 - Math.cos(t)) / 2) * 0.35;
+    if (clip === 'dance')
+        return ((1 - Math.cos(t * 2)) / 2) * 0.12;
+    if (clip === 'walk')
+        return ((1 - Math.cos(t * 2)) / 2) * 0.04;
+    return 0;
+}
+/**
+ * How much of the field does each clip, as relative weights.
+ *
+ * Walking stays the plurality because a crowd is going somewhere; the other
+ * three are even, since none of them is the "default" a figure falls back to.
+ * Lives next to the clips rather than at the call site so adding a clip is one
+ * edit — a mixture that has to be updated in two places is a mixture that
+ * silently stops summing.
+ */
+const CLIP_MIX = {
+    walk: 4,
+    run: 3,
+    wave: 2,
+    dance: 2,
+    jump: 2,
+};
+/** Pick a clip for one figure, weighted by `CLIP_MIX`. `r` is in `[0, 1)`. */
+function pickClip(clips, r) {
+    let total = 0;
+    for (const c of clips)
+        total += CLIP_MIX[c.name] ?? 1;
+    let cut = r * total;
+    for (const c of clips) {
+        cut -= CLIP_MIX[c.name] ?? 1;
+        if (cut < 0)
+            return c;
+    }
+    return clips[clips.length - 1];
 }
 /**
  * Build the figure mesh, and bake a walk for it.
@@ -511,33 +1045,105 @@ export function buildBenchFigure(scene, bakeFps = 10) {
     for (let v = 0; v < vertexCount; v++) {
         limbOf[v] = parts[Math.min(parts.length - 1, Math.floor(v / 24))].limb;
     }
-    const pivotOf = (limb) => limb === 1 || limb === 2 ? 1.5 : limb >= 3 ? 0.8 : 0;
-    const walkFrames = framesForClip(1, bakeFps);
-    const clips = [
-        { name: 'walk', start: 0, frames: walkFrames, duration: 1, loop: true },
+    /*
+    A LIMB PIVOTS AT ITS JOINT, AND A JOINT IS A POINT — not a height.
+  
+    The first version returned only a Y, which is harmless for the stride (a
+    rotation about X through any point on the body's centre line moves the limb
+    the same way) and wrong for everything else. Raising an arm is a rotation
+    about Z, and about the CENTRE LINE it swings the arm across the chest and out
+    the other side instead of lifting it from the shoulder. Tonio: "some of the
+    baked animations on the block guy are very messed up (hilariously so in some
+    cases). Mostly arms out of whack." Hilarious is the right word — at 132° the
+    waving arm ended up where the other arm should be.
+    */
+    /*
+    The arm pivots at its INNER TOP CORNER (0.27), not its own centre line
+    (0.36). The torso's edge is at 0.25, so pivoting at the arm's middle swings
+    it out of the socket and leaves a finger of daylight at the shoulder — the
+    difference between an arm being raised and an arm coming off.
+    */
+    const pivotOf = (limb) => limb === 1
+        ? { x: -0.27, y: 1.5 }
+        : limb === 2
+            ? { x: 0.27, y: 1.5 }
+            : limb === 3
+                ? { x: -0.15, y: 0.8 }
+                : limb === 4
+                    ? { x: 0.15, y: 0.8 }
+                    : { x: 0, y: 0 };
+    /*
+    SEVERAL CLIPS, ONE TEXTURE. `start` offsets each into the shared bake, so
+    switching clip is a change of two per-instance numbers rather than a change of
+    material — which is what keeps N figures doing different things at one draw
+    call. `vertex-animation`'s layout was built for this; it just had nothing to
+    hold until now.
+  
+    Durations differ deliberately. Identical ones would have every clip's phase
+    turn over together, and a field of four animations sharing one heartbeat is
+    more obviously synchronised than a field of one — `framesForClip` turns each
+    duration into the right number of frames, so the cost of the difference is a
+    few texels.
+    */
+    const spec = [
+        { name: 'walk', duration: 1 },
+        { name: 'wave', duration: 0.7 },
+        { name: 'dance', duration: 0.8 },
+        { name: 'jump', duration: 0.9 },
     ];
-    const layout = vatLayout(vertexCount, walkFrames);
+    const clips = [];
+    let frameCount = 0;
+    for (const { name, duration } of spec) {
+        const frames = framesForClip(duration, bakeFps);
+        clips.push({ name, start: frameCount, frames, duration, loop: true });
+        frameCount += frames;
+    }
+    // Which clip owns each frame of the bake, so the writer below is a lookup
+    // rather than a chain of comparisons that has to be edited per clip.
+    const clipOfFrame = [];
+    for (const c of clips)
+        for (let i = 0; i < c.frames; i++)
+            clipOfFrame.push(c);
+    const layout = vatLayout(vertexCount, frameCount);
     const { position, normal } = writeVatTextures(scene, layout, (v, f) => {
-        const phase = f / walkFrames;
+        const which = clipOfFrame[f] ?? clips[0];
+        const name = which.name;
+        const phase = (f - which.start) / which.frames;
         const limb = limbOf[v];
-        const a = limbSwing(limb, phase);
-        const px = positions[v * 3];
-        const py = positions[v * 3 + 1];
-        const pz = positions[v * 3 + 2];
-        const nx = normals[v * 3];
-        const ny = normals[v * 3 + 1];
-        const nz = normals[v * 3 + 2];
-        if (a === 0)
-            return { p: [px, py, pz], n: [nx, ny, nz] };
-        // Rotate about X at the limb's pivot height — a hip, not a waist.
+        const pose = limbPose(name, limb, phase);
+        const lift = bodyBob(name, phase);
+        let px = positions[v * 3];
+        let py = positions[v * 3 + 1];
+        let pz = positions[v * 3 + 2];
+        let nx = normals[v * 3];
+        let ny = normals[v * 3 + 1];
+        let nz = normals[v * 3 + 2];
+        // Both rotations happen about the limb's PIVOT — a hip or a shoulder, not
+        // the middle of the box. X first (the stride), then Z (the lift), so a
+        // raised arm swings in the plane it was raised into.
         const pivot = pivotOf(limb);
-        const dy = py - pivot;
-        const c = Math.cos(a);
-        const s = Math.sin(a);
-        return {
-            p: [px, pivot + dy * c - pz * s, dy * s + pz * c],
-            n: [nx, ny * c - nz * s, ny * s + nz * c],
-        };
+        if (pose.x !== 0) {
+            const c = Math.cos(pose.x);
+            const s2 = Math.sin(pose.x);
+            const dy = py - pivot.y;
+            py = pivot.y + dy * c - pz * s2;
+            pz = dy * s2 + pz * c;
+            const my = ny;
+            ny = my * c - nz * s2;
+            nz = my * s2 + nz * c;
+        }
+        if (pose.z !== 0) {
+            const c = Math.cos(pose.z);
+            const s2 = Math.sin(pose.z);
+            const dx = px - pivot.x;
+            const dy = py - pivot.y;
+            px = pivot.x + dx * c - dy * s2;
+            py = pivot.y + dx * s2 + dy * c;
+            const mx = nx;
+            nx = mx * c - ny * s2;
+            ny = mx * s2 + ny * c;
+        }
+        return { p: [px, py + lift, pz], n: [nx, ny, nz] };
     });
     const bake = {
         layout,
@@ -552,6 +1158,222 @@ export function buildBenchFigure(scene, bakeFps = 10) {
         index[v] = v;
     merged.setVerticesData('vatIndex', index, false, 1);
     return { mesh: merged, bake };
+}
+/**
+ * Bake a REAL rigged GLB into a VAT — the intermediate rung.
+ *
+ * Tonio: *"Can we do an intermediate version where we use vertex animation to
+ * animate the omnidude mesh, or is that impractical?"* It is entirely
+ * practical, and it is the rung that matters: the blocky bench figure proves
+ * the mechanism, a `b3d-biped` is the fully-articulated top end, and this is
+ * the same character as the biped, drawn by the crowd path.
+ *
+ * The trick is that Babylon will CPU-skin a mesh for you. `applySkeleton`
+ * writes the posed vertices into the mesh's own buffers, so a bake is: put the
+ * animation at a frame, ask the skeleton to compute its matrices, apply it,
+ * read the positions back. Sixteen clips of omnidude is a few megabytes, and
+ * after it is baked there is no skeleton, no animation group and no per-figure
+ * CPU work left — which is the entire point.
+ *
+ * What it costs is the seam. A baked figure cannot be retargeted, cannot blend
+ * to a clip that was not baked, and has no bones to hang a sword from (see
+ * `vertex-animation`'s `SocketLayout` for the answer to that one). Promoting a
+ * figure to a named character means crossing back to a skinned rig, and that
+ * crossing should be designed rather than discovered.
+ */
+export async function bakeGlbFigure(scene, url, options = {}) {
+    const bakeFps = options.bakeFps ?? 10;
+    const scale = options.scale ?? 1;
+    const slash = url.lastIndexOf('/');
+    const container = await BABYLON.SceneLoader.LoadAssetContainerAsync(url.slice(0, slash + 1), url.slice(slash + 1), scene);
+    container.addAllToScene();
+    const sources = container.meshes.filter((m) => m.skeleton != null && m.getTotalVertices() > 0);
+    const skeleton = sources[0]?.skeleton;
+    if (skeleton == null) {
+        container.dispose();
+        throw new Error(`b3d-crowd: ${url} has no skinned mesh to bake`);
+    }
+    /*
+    WHICH CLIPS, IN THE ORDER ASKED FOR. A name that is not in the file is
+    SKIPPED, not defaulted — a bake silently missing the clip you asked for looks
+    exactly like a bake that worked, because the other clips still play.
+    */
+    const wanted = options.clips ?? [];
+    const groups = wanted.length > 0
+        ? wanted
+            .map((n) => container.animationGroups.find((g) => g.name === n))
+            .filter((g) => g != null)
+        : container.animationGroups;
+    if (groups.length === 0) {
+        container.dispose();
+        throw new Error(`b3d-crowd: ${url} has none of the clips asked for`);
+    }
+    const vertexCount = sources.reduce((n, m) => n + m.getTotalVertices(), 0);
+    const clips = [];
+    let frameCount = 0;
+    for (const g of groups) {
+        // An AnimationGroup's range is in FRAMES at the animation's own rate, which
+        // glTF writes as 60 — the seconds are what `framesForClip` needs.
+        const fps = g.targetedAnimations[0]?.animation.framePerSecond || 60;
+        const duration = Math.max(0.1, (g.to - g.from) / fps);
+        const frames = framesForClip(duration, bakeFps);
+        clips.push({
+            name: g.name,
+            start: frameCount,
+            frames,
+            duration,
+            loop: true,
+        });
+        frameCount += frames;
+    }
+    // Posed vertices, one entry per baked frame. A few megabytes for the whole
+    // bake — read once by `writeVatTextures` and then dropped.
+    const posed = [];
+    const tmp = new BABYLON.Vector3();
+    /*
+    A REFLECTION REVERSES ORIENTATION, and every glTF root carries one (Babylon
+    puts the handedness flip on `__root__` as a negative scale). Mirroring the
+    positions turns the triangle's winding the wrong way round, so it is reversed
+    when the merged mesh is built below. Normally Babylon does that for you — it
+    flips side orientation when a world matrix has a negative determinant — but a
+    bake RESOLVES the transform, so the crowd mesh has an identity matrix and
+    there is nothing left for it to flip.
+  
+    The normals are NOT negated, though it is the obvious next thought and I
+    tried it: `getNormalsData` returns them in the mesh's own space and the
+    inverse-transpose carries them through the mirror correctly. Negating as well
+    lights the whole figure from inside — measurably darker, and it was only
+    obvious side by side with a normally-skinned clone.
+    */
+    for (let ci = 0; ci < groups.length; ci++) {
+        const g = groups[ci];
+        const clip = clips[ci];
+        g.play(true);
+        g.pause();
+        for (let f = 0; f < clip.frames; f++) {
+            g.goToFrame(g.from + ((g.to - g.from) * f) / clip.frames);
+            /*
+            `true` IS THE WHOLE BAKE. Without it `prepare` returns immediately —
+            it early-outs when it has already run for the current RENDER id, and a
+            bake loop is entirely inside one render. So every frame gets the pose of
+            frame zero, the texture is N copies of one pose, and the crowd renders
+            perfectly and stands perfectly still. Tonio: "the omnidude is frozen".
+      
+            That is the failure mode to remember here: nothing throws, nothing warns,
+            the shader is correct and the bake is the right size. It is only wrong
+            when you LOOK at it.
+            */
+            skeleton.prepare(true);
+            const p = new Float32Array(vertexCount * 3);
+            const n = new Float32Array(vertexCount * 3);
+            let o = 0;
+            for (const m of sources) {
+                const world = m.computeWorldMatrix(true);
+                // Normals do NOT transform by the world matrix — under the handedness
+                // mirror every glTF root carries, that would point them backwards.
+                const normalMatrix = BABYLON.Matrix.Transpose(BABYLON.Matrix.Invert(world));
+                /*
+                `getPositionData(applySkeleton, applyMorph)` rather than
+                `applySkeleton`: it CPU-skins into a copy and hands it back, where the
+                older call bakes into the mesh's own buffers — which both destroys the
+                bind pose the next frame has to skin from and carries a once-per-frame
+                guard of its own.
+                */
+                const mp = m.getPositionData(true, true);
+                const mn = m.getNormalsData(true, true);
+                for (let v = 0; v < mp.length; v += 3) {
+                    BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(mp[v], mp[v + 1], mp[v + 2], world, tmp);
+                    p[o + v] = tmp.x * scale;
+                    p[o + v + 1] = tmp.y * scale;
+                    p[o + v + 2] = tmp.z * scale;
+                    BABYLON.Vector3.TransformNormalFromFloatsToRef(mn[v], mn[v + 1], mn[v + 2], normalMatrix, tmp);
+                    tmp.normalize();
+                    n[o + v] = tmp.x;
+                    n[o + v + 1] = tmp.y;
+                    n[o + v + 2] = tmp.z;
+                }
+                o += mp.length;
+            }
+            posed.push({ p, n });
+        }
+        g.stop();
+    }
+    /*
+    ONE MESH OUT OF SEVERAL. omnidude is a head and a body sharing one material,
+    and two meshes would be two draw calls for the whole crowd — which would
+    undo the only claim this module makes. They are concatenated in the same
+    order the bake walks them, so vertex `i` of the merged mesh is vertex `i` of
+    the texture by construction rather than by agreement.
+    */
+    const positions = new Float32Array(vertexCount * 3);
+    const normals = new Float32Array(vertexCount * 3);
+    const uvs = new Float32Array(vertexCount * 2);
+    const indices = [];
+    positions.set(posed[0].p);
+    normals.set(posed[0].n);
+    let vOffset = 0;
+    let uvOffset = 0;
+    /*
+    THE WINDING IS LEFT ALONE, and working out why took a side-by-side render.
+  
+    Two flips are in play and they cancel. Babylon's glTF loader puts the
+    handedness mirror on `__root__` as `scaling.z = -1`, then relies on the
+    renderer flipping side orientation for a negative-determinant world matrix;
+    it ALSO gives the material `ClockWiseSideOrientation`, where a
+    `StandardMaterial` defaults to counter-clockwise. Baking resolves the
+    transform — the crowd mesh's matrix is the identity — so the renderer's flip
+    goes away, and the material swap supplies exactly one flip in its place.
+  
+    Reversing the indices as well is a third flip, which is a net inversion: the
+    figure renders INSIDE OUT. Not subtly, either — it draws its far surface, so
+    a figure facing you shows you the back of its own head. Tonio: "the omnidude
+    mesh is flipped inside out". It survived two headless checks because at crowd
+    distance an inverted humanoid still has a humanoid silhouette; it took one
+    frame of the baked figure beside a normally-skinned clone, both at identity
+    rotation, for it to be unmissable.
+    */
+    for (const m of sources) {
+        const mu = m.getVerticesData(BABYLON.VertexBuffer.UVKind);
+        if (mu != null)
+            uvs.set(mu, uvOffset);
+        const mi = m.getIndices() ?? [];
+        for (let i = 0; i < mi.length; i++)
+            indices.push(vOffset + mi[i]);
+        vOffset += m.getTotalVertices();
+        uvOffset += m.getTotalVertices() * 2;
+    }
+    const mesh = new BABYLON.Mesh('crowd-figure', scene);
+    const data = new BABYLON.VertexData();
+    data.positions = positions;
+    data.normals = normals;
+    data.uvs = uvs;
+    data.indices = indices;
+    data.applyToMesh(mesh);
+    mesh.isVisible = false;
+    const layout = vatLayout(vertexCount, frameCount);
+    const { position, normal } = writeVatTextures(scene, layout, (v, f) => {
+        const frame = posed[Math.min(posed.length - 1, f)];
+        const i = v * 3;
+        return {
+            p: [frame.p[i], frame.p[i + 1], frame.p[i + 2]],
+            n: [frame.n[i], frame.n[i + 1], frame.n[i + 2]],
+        };
+    });
+    const index = new Float32Array(vertexCount);
+    for (let v = 0; v < vertexCount; v++)
+        index[v] = v;
+    mesh.setVerticesData('vatIndex', index, false, 1);
+    // The source rig has done its job. Disabled rather than disposed, because the
+    // MATERIAL and its texture are what the crowd is about to wear.
+    for (const g of container.animationGroups)
+        g.stop();
+    for (const root of container.rootNodes)
+        root.setEnabled(false);
+    return {
+        mesh,
+        bake: { layout, clips, position, normal, bytes: vatBytes(layout) },
+        container,
+    };
 }
 /**
  * `<tosi-b3d-crowd>` — N vertex-animated figures in one draw call.
@@ -580,10 +1402,33 @@ export class B3dCrowd extends B3dChild {
         skinned: 0,
         /** The GLB the baseline clones. Modest vertex count on purpose. */
         skinnedUrl: '/omnidude.glb',
+        /**
+         * A rigged GLB to BAKE from, instead of the synthetic bench figure.
+         *
+         * The intermediate rung: the same character a `b3d-biped` would animate
+         * with a skeleton, drawn by the crowd path with none. Empty = the blocky
+         * figure, which is the honest default for a bench (it has no download and
+         * no licence attached to the number it produces).
+         */
+        url: '',
+        /**
+         * Which of the GLB's clips to bake, comma-separated. Empty = all of them.
+         *
+         * Worth naming rather than taking everything: memory is linear in frames,
+         * and a rig usually carries clips a crowd has no use for.
+         */
+        clips: '',
+        /** Scale applied to the baked figure. omnidude is 0.88m — half a person. */
+        figureScale: 1,
     };
     _mesh;
     _bake;
     _plugin;
+    /** Which `url` the live figure was baked from — `''` is the bench figure. */
+    _figureUrl = '';
+    _baking = false;
+    _bakeNote = '';
+    _bakeContainer = null;
     _obs = null;
     _built = -1;
     _t = 0;
@@ -601,6 +1446,22 @@ export class B3dCrowd extends B3dChild {
     _lastMs = 0;
     _frames = 0;
     /*
+    THE DISPLAY'S OWN FLOOR, measured rather than assumed.
+  
+    The readout used to call anything under 18ms "vsync — not a cost", which bakes
+    in a 60Hz monitor. Tonio: "We may also be dealing with a 30fps monitor btw so
+    these figures aren't ultra comparable to the ones from previous days." On a
+    30Hz display the floor is 33.3ms — so a 33ms reading means the crowd was FREE
+    where the old rule called it a cost, and 60ms is two intervals, i.e. one
+    missed frame rather than "60ms of work".
+  
+    The cheapest honest instrument is the fastest frame actually seen: nothing
+    renders faster than the swap interval, so the minimum IS the floor. It needs
+    no API, and it survives a browser capping the rate for its own reasons — a
+    battery saver, a background tab, an external display.
+    */
+    _floorMs = Infinity;
+    /*
     WALL TIME IS NOT COST, and the first version of this bench measured wall time.
   
     Tonio, at four thousand figures: "Performance is flat… 18ms is worst at any
@@ -617,30 +1478,38 @@ export class B3dCrowd extends B3dChild {
     _instr;
     _sceneInstr;
     _worstGpu = 0;
+    /**
+     * What the wall clock is entitled to claim, given the display it is on.
+     *
+     * Three genuinely different cases: paused (recording nothing), sitting ON the
+     * floor (we fitted, and that is ALL the wall clock knows), and above it (we
+     * missed frames — the one case where the number is a cost). The old version
+     * compared against a hard-wired 18ms, which is a 60Hz assumption wearing a
+     * measurement's clothes.
+     */
+    _wallVerdict() {
+        if (this.owner?.paused === true)
+            return '(PAUSED — not recording)';
+        if (!Number.isFinite(this._floorMs))
+            return '';
+        // 1.2× rather than 1.0: the floor is a minimum over noisy samples, so an
+        // exact match is not something a real reading offers.
+        if (this._worstMs <= this._floorMs * 1.2)
+            return '(at vsync — not a cost)';
+        return `(${(this._worstMs / this._floorMs).toFixed(1)}× vsync — MISSING FRAMES)`;
+    }
     /** What the bake costs on the GPU, for the readout. */
     get bakeBytes() {
         return this._bake?.bytes ?? 0;
     }
     sceneReady(owner, scene) {
+        // The bench figure first, ALWAYS. A baked GLB is a network round trip, and
+        // a crowd element that shows nothing until it arrives looks broken for as
+        // long as the download takes.
         const { mesh, bake } = buildBenchFigure(scene, this.bakeFps);
-        this._mesh = mesh;
-        this._bake = bake;
-        const mat = new BABYLON.StandardMaterial('crowd', scene);
-        mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
-        mat.diffuseColor = new BABYLON.Color3(0.62, 0.6, 0.55);
-        const plugin = new VatPlugin(mat);
-        plugin.bake = bake;
-        plugin.interpolate = this.interpolate !== 'off';
-        plugin.isEnabled = true;
-        this._plugin = plugin;
-        mesh.material = mat;
-        mesh.isVisible = true;
-        // The bake already holds world-space-ish positions for the figure, and a
-        // thin instance supplies the rest. Bounds must be set by hand or Babylon
-        // culls the whole crowd against the ONE figure's box.
-        mesh.alwaysSelectAsActiveMesh = true;
-        this._rebuild();
-        owner.register({ meshes: [mesh] });
+        this._useFigure(owner, scene, mesh, bake);
+        if (this.url !== '')
+            void this._bakeFrom(owner, scene, this.url);
         const instr = new BABYLON.EngineInstrumentation(scene.getEngine());
         instr.captureGPUFrameTime = true;
         this._instr = instr;
@@ -657,22 +1526,42 @@ export class B3dCrowd extends B3dChild {
             // `mesh`, because the whole claim is that a crowd IS one mesh.
             icon: 'mesh',
             lines: () => [
-                `figures ${this._built}   draws 1   verts ${((this._built * bake.layout.vertexCount) /
+                `figures ${this._built}   draws 1   verts ${((this._built * (this._bake?.layout.vertexCount ?? 0)) /
                     1000).toFixed(0)}k`,
                 // GPU time is the COST. Wall time only tells you whether it fitted.
                 this._worstGpu > 0
                     ? `GPU ${gpuMs() < 0 ? '—' : gpuMs().toFixed(2)}ms   WORST ${this._worstGpu.toFixed(2)}ms`
                     : `GPU — (no timer query on this device)`,
-                `wall ${this._lastMs.toFixed(1)}ms  worst ${this._worstMs.toFixed(1)}ms  ${this._worstMs < 18 ? '(vsync — not a cost)' : ''}`,
+                `wall ${this._lastMs.toFixed(1)}ms  worst ${this._worstMs.toFixed(1)}ms  ${this._wallVerdict()}`,
+                /*
+                THE FLOOR, AND THE WORST AS A MULTIPLE OF IT. "60ms" on a 30Hz panel is
+                not sixty milliseconds of work — it is two swap intervals, so one frame
+                was missed. Saying `1.8×` puts the reading in the only unit the wall
+                clock actually has.
+                */
+                Number.isFinite(this._floorMs)
+                    ? `vsync floor ${this._floorMs.toFixed(1)}ms (≈${Math.round(1000 / this._floorMs)}Hz)   worst = ${(this._worstMs / this._floorMs).toFixed(1)}× floor`
+                    : 'vsync floor — (measuring)',
                 `meshEval ${sceneInstr.activeMeshesEvaluationTimeCounter.current.toFixed(2)}ms`,
                 this._skinnedWant > 0
                     ? `SKINNED ${this._skinnedRoots.length}/${this._skinnedWant} × ${this._skinnedVerts} verts`
                     : 'skinned baseline off',
                 this._skinnedNote,
-                `bake ${(bake.bytes / 1024 / 1024).toFixed(2)}MB  ${bake.layout.frameCount} frames  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
-                // 13.9ms is a Quest frame; 16.7 is 60Hz flat. Naming the budget beside
-                // the number is what makes it a measurement rather than a readout.
-                `budget 13.9ms (VR) / 16.7ms (flat)`,
+                `figure ${this._figureUrl === '' ? 'blocks (synthetic)' : this._figureUrl}${this._baking ? ' — baking…' : ''}`,
+                this._bakeNote,
+                `bake ${((this._bake?.bytes ?? 0) / 1024 / 1024).toFixed(2)}MB  ${this._bake?.layout.frameCount ?? 0} frames  ${this._bake?.clips.length ?? 0} clips (${(this._bake?.clips ?? [])
+                    .map((c) => c.name)
+                    .join('/')})  interp ${this.interpolate !== 'off' ? 'on' : 'off'}`,
+                // 13.9ms is a Quest frame. Flat, the budget is whatever the display
+                // gives you, which is the line above rather than a constant — naming a
+                // budget beside the number is what makes it a measurement.
+                `budget 13.9ms (VR) / one vsync interval (flat)`,
+                // The silent failure, made loud. A vertex shader that will not compile
+                // never becomes ready, and the canvas simply stays black — which is
+                // indistinguishable from a camera pointing the wrong way.
+                `shader ${this._mesh?.material?.isReady(this._mesh) === true
+                    ? 'READY'
+                    : 'compiling…'}`,
             ],
             actions: [
                 {
@@ -680,6 +1569,10 @@ export class B3dCrowd extends B3dChild {
                     handleClick: () => {
                         this._worstMs = 0;
                         this._worstGpu = 0;
+                        // The floor goes too: a display can change under you (an external
+                        // monitor, a battery saver dropping to 30Hz), and a floor carried
+                        // over from before the change makes every later reading a lie.
+                        this._floorMs = Infinity;
                         this._frames = 0;
                     },
                 },
@@ -700,27 +1593,56 @@ export class B3dCrowd extends B3dChild {
             That is CLAUDE.md's own warning and it cost fourteen call sites in 0.7.0.
             I walked straight into it here.
             */
+            const stopped = owner.paused === true || owner.frozen === true;
             const ms = scene.getEngine().getDeltaTime();
-            this._lastMs = ms;
             /*
-            SKIP THE FIRST FEW. A rebuild, a shader compile and the first upload all
-            land in one frame, and reporting that as the worst says the crowd is
-            expensive when what was expensive was building it. The bench is about the
-            STEADY state.
+            A PAUSED FRAME IS NOT A MEASUREMENT. Tonio: "pausing kills your timer stat
+            accuracy."
+      
+            A paused scene still renders — that is the point, the panel has to be
+            there — but it renders a crowd that is not animating, into a frame whose
+            wall clock is measuring how long the user sat looking at it. Both numbers
+            are then about the pause rather than about the crowd, and the worst frame,
+            which is the one thing this bench exists to report, gets set by the act of
+            reading it.
+      
+            So paused frames record NOTHING and re-arm the warm-up, which also throws
+            away the catch-up frame on the way back. `_frames = 0` is doing two jobs
+            and both are wanted.
             */
-            if (++this._frames > 10 && ms > this._worstMs)
-                this._worstMs = ms;
-            if (this._frames > 10) {
-                const g = instr.gpuFrameTimeCounter.current / 1e6;
-                if (g > this._worstGpu)
-                    this._worstGpu = g;
+            if (stopped) {
+                this._frames = 0;
+            }
+            else {
+                this._lastMs = ms;
+                /*
+                SKIP THE FIRST FEW. A rebuild, a shader compile and the first upload all
+                land in one frame, and reporting that as the worst says the crowd is
+                expensive when what was expensive was building it. The bench is about
+                the STEADY state.
+                */
+                if (++this._frames > 10 && ms > this._worstMs)
+                    this._worstMs = ms;
+                if (this._frames > 10) {
+                    if (ms > 0 && ms < this._floorMs)
+                        this._floorMs = ms;
+                    const g = instr.gpuFrameTimeCounter.current / 1e6;
+                    if (g > this._worstGpu)
+                        this._worstGpu = g;
+                }
             }
             // PAUSE STOPS THEM. It did not, because this clock never consulted it —
             // and a pause that leaves four thousand figures marching is not a pause.
-            if (owner.paused !== true)
+            if (!stopped)
                 this._t += sceneDelta(scene);
             if (this._plugin != null)
                 this._plugin.time = this._t;
+            // A change of source figure is a re-bake, and it is async — so it is
+            // guarded rather than queued: the LAST url asked for wins, and one in
+            // flight is never cancelled halfway through writing a texture.
+            if (!this._baking && this.url !== this._figureUrl) {
+                void this._bakeFrom(owner, scene, this.url);
+            }
             const wantSkinned = Math.max(0, Math.round(this.skinned));
             if (this._skinnedWant !== wantSkinned) {
                 void this._buildSkinned(scene, wantSkinned);
@@ -751,6 +1673,119 @@ export class B3dCrowd extends B3dChild {
     _skinnedWant = 0;
     _skinnedNote = '';
     _container = null;
+    /**
+     * Adopt a figure — mesh plus bake — as the thing the crowd draws.
+     *
+     * One path for both sources, because the difference between a synthetic
+     * figure and a baked GLB is entirely upstream of here: by this point each is
+     * a mesh, a texture pair and a clip table, and everything below (the plugin,
+     * the shadow wrapper, the thin instances) is identical. Two paths would have
+     * meant the GLB figure quietly missing whichever of them was added later.
+     */
+    _useFigure(owner, scene, mesh, bake, source) {
+        const old = this._mesh;
+        const oldMat = old?.material;
+        const oldBake = this._bake;
+        this._mesh = mesh;
+        this._bake = bake;
+        const mat = new BABYLON.StandardMaterial('crowd', scene);
+        mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+        mat.diffuseColor = new BABYLON.Color3(0.62, 0.6, 0.55);
+        /*
+        THE SOURCE'S TEXTURE ON A STANDARD MATERIAL, not the source material
+        itself. glTF gives you PBR, and a crowd is the one place its cost is
+        multiplied by everything — two hundred thousand figures is not where you
+        spend an energy-conserving BRDF. The albedo map carries the character;
+        the shading model does not have to.
+        */
+        const albedo = source?.albedoTexture ??
+            source?.diffuseTexture;
+        if (albedo != null) {
+            mat.diffuseTexture = albedo;
+            mat.diffuseColor = BABYLON.Color3.White();
+        }
+        const plugin = new VatPlugin(mat);
+        plugin.bake = bake;
+        plugin.interpolate = this.interpolate !== 'off';
+        plugin.isEnabled = true;
+        this._plugin = plugin;
+        /*
+        THE SHADOW HAS TO KNOW ABOUT THE BAKE TOO. A shadow map is rendered with a
+        different (depth-only) shader, which knows nothing about a material plugin —
+        so by default a crowd of dancers casts a crowd of bind-pose mannequins, and
+        a figure mid-jump casts a shadow standing where it took off. A
+        `ShadowDepthWrapper` builds the depth pass FROM this material, plugin
+        included, so the shadow is the pose.
+        */
+        mat.shadowDepthWrapper = new BABYLON.ShadowDepthWrapper(mat, scene);
+        mesh.material = mat;
+        mesh.isVisible = true;
+        // The bake already holds world-space-ish positions for the figure, and a
+        // thin instance supplies the rest. Bounds must be set by hand or Babylon
+        // culls the whole crowd against the ONE figure's box.
+        mesh.alwaysSelectAsActiveMesh = true;
+        this._built = -1;
+        this._rebuild();
+        owner.register({ meshes: [mesh] });
+        if (old != null && old !== mesh) {
+            old.dispose();
+            // NOT the textures: an albedo map belongs to the asset container, which
+            // outlives this material and may be handed to the next one.
+            oldMat?.dispose();
+            oldBake?.position.dispose();
+            oldBake?.normal.dispose();
+        }
+    }
+    /**
+     * Re-bake from a different source, without the crowd disappearing meanwhile.
+     *
+     * Failure is REPORTED rather than thrown away — a bake that 404s or a GLB
+     * with no skin leaves the previous figure on screen, which is correct and is
+     * also indistinguishable from "the new one looks the same" unless the panel
+     * says so.
+     */
+    async _bakeFrom(owner, scene, url) {
+        this._baking = true;
+        this._figureUrl = url;
+        this._bakeNote = '';
+        try {
+            if (url === '') {
+                const { mesh, bake } = buildBenchFigure(scene, this.bakeFps);
+                this._useFigure(owner, scene, mesh, bake);
+            }
+            else {
+                const names = this.clips
+                    .split(',')
+                    .map((n) => n.trim())
+                    .filter((n) => n !== '');
+                const { mesh, bake, container } = await bakeGlbFigure(scene, url, {
+                    clips: names,
+                    bakeFps: this.bakeFps,
+                    scale: this.figureScale,
+                });
+                // The scene can go away while a GLB is in flight — a doc page being
+                // scrolled past is enough — and building into a disposed scene is a
+                // crash rather than a wasted download.
+                if (scene.isDisposed) {
+                    container.dispose();
+                    return;
+                }
+                const previous = this._bakeContainer;
+                this._bakeContainer = container;
+                this._useFigure(owner, scene, mesh, bake, container.materials[0]);
+                previous?.dispose();
+            }
+        }
+        catch (e) {
+            this._bakeNote = `BAKE FAILED ${url}: ${String(e).slice(0, 70)}`;
+        }
+        finally {
+            this._baking = false;
+            this._worstGpu = 0;
+            this._worstMs = 0;
+            this._frames = 0;
+        }
+    }
     _skinnedPrng = new MersenneTwister(7);
     /**
      * Spawn N SKINNED clones — the baseline the whole question turns on.
@@ -825,12 +1860,303 @@ export class B3dCrowd extends B3dChild {
             // scattered over 150 metres read as "nothing happened".
             root.scaling.setAll(2);
             this._skinnedRoots.push(root);
+            /*
+            REGISTER THEM, or the baseline is not the same scene as the crowd. The sun
+            learns about casters through `owner.register`, and an instantiated clone
+            goes through none of the loaders that would normally do it — so the
+            skinned figures stood in the crowd's shadows casting none of their own,
+            which reads as a bug in the rig rather than as a missing subscription.
+            Disposed clones are pruned by the sun itself (see `b3d-shadows`), so the
+            slider can go back down without leaking casters into the shadow map.
+            */
+            this.owner?.register({
+                meshes: root.getChildMeshes().filter((m) => m.getTotalVertices() > 0),
+            });
             for (const g of inst.animationGroups) {
                 g.play(true);
                 g.goToFrame(g.from + (g.to - g.from) * rnd());
             }
         }
         this._skinnedBuilt = this._skinnedRoots.length;
+    }
+    /**
+     * Load the rig the crowd's own figures were baked from, as a skinned asset.
+     *
+     * ⚠️ IT MUST BE `url`, THE FILE THE BAKE CAME FROM — not `skinnedUrl`.
+     *
+     * The two are different assets and only one of them has the right clips. I
+     * reached for `skinnedUrl` first, because the skinned BASELINE already loads
+     * it and reusing that container looked like the tidy move. It is not: the
+     * baseline exists to answer "what does a real rig cost", so its file is
+     * whatever you want to measure, while the bake's clip names come from `url`.
+     *
+     * Caught by overlaying a promoted rig on the instance it replaced instead of
+     * hiding it. A default crowd is SYNTHETIC BLOCK figures whose clips are
+     * generated in code, so the spawned omnidude stood in the same spot in a
+     * completely different pose — two figures, two animations, visibly nothing to
+     * do with each other. Numerically everything agreed: the clip resolved, the
+     * phase was right, the position matched to three decimals. The claim that
+     * pose transfers is only true when both sides came from one file, and there
+     * is no way to check that from the numbers.
+     *
+     * So a SYNTHETIC crowd cannot be promoted at all, and says so rather than
+     * promoting something that merely stands in the right place. Resolves `false`
+     * when there is no rig to load or the load failed; the note is on the debug
+     * panel either way.
+     */
+    async loadRig() {
+        const scene = this.owner?.scene;
+        if (scene == null)
+            return false;
+        /*
+        ITS OWN CONTAINER, not the baseline's. Sharing `_container` would let
+        whichever loaded first decide which file the other one got — the same bug
+        as above, arriving from the other direction and just as invisible.
+        */
+        if (this._rigContainer != null)
+            return true;
+        const url = this.url;
+        if (url === '') {
+            this._skinnedNote =
+                'no rig to promote to — this crowd is synthetic (set `url`)';
+            return false;
+        }
+        try {
+            const slash = url.lastIndexOf('/');
+            this._rigContainer = await BABYLON.SceneLoader.LoadAssetContainerAsync(url.slice(0, slash + 1), url.slice(slash + 1), scene);
+            return true;
+        }
+        catch (e) {
+            this._skinnedNote = `rig load failed: ${e.message}`;
+            return false;
+        }
+    }
+    _rigContainer = null;
+    /**
+     * Figure `i`, as a SKINNED RIG standing exactly where it was, mid-stride.
+     *
+     * The convenience half of the swap, and the reason it belongs here rather
+     * than in every consumer: matching the pose needs `poseOf`, matching the
+     * place needs `transformOf`, and matching the CLIP needs the rig to be the
+     * file the bake came from. All three live here. A consumer doing it by hand
+     * gets the first two right and discovers the third when their zombie plays
+     * the wrong animation.
+     *
+     * Hides the instance as it goes, so there is never a frame with both.
+     * `dispose()` on the returned handle puts the figure back in the crowd.
+     *
+     * Still not a policy: WHICH figure, and when, is the caller's entire
+     * business. This only makes the swap itself cheap to get right.
+     */
+    spawnPosed(i) {
+        const container = this._rigContainer;
+        const at = this.transformOf(i);
+        const pose = this.poseOf(i);
+        if (container == null || at == null || pose == null)
+            return null;
+        const inst = container.instantiateModelsToScene((name) => `${name}-swap${i}`, false);
+        const root = inst.rootNodes[0];
+        if (root == null)
+            return null;
+        root.position.set(at.x, at.y, at.z);
+        root.rotation.y = at.yaw;
+        root.scaling.setAll(this.figureScale);
+        /*
+        START IT WHERE THE INSTANCE ALREADY IS, which is the whole trick.
+    
+        `from`/`to` are FRAMES, so the phase — a 0..1 fraction of the clip — has to
+        be converted into this group's own frame range. Starting at `from` instead
+        would be a visible snap on every promotion, and the kind that reads as the
+        swap being broken rather than as one line of arithmetic being missing.
+        */
+        const group = inst.animationGroups.find((g) => g.name.replace(/^Clone of /, '').split('-swap')[0] === pose.clip) ?? null;
+        if (group != null) {
+            const at0 = group.from + (group.to - group.from) * pose.t;
+            /*
+            AND AT ITS OWN SPEED, which is the half that is easy to miss.
+      
+            Every figure gets a randomised rate at build time — `0.7 + rnd * 0.6`
+            cycles per second, scaled by clip duration — precisely so a crowd does not
+            march in lockstep. Start the clone at speed 1 and it plays the clip at the
+            speed it was AUTHORED at, so the two agree for exactly one frame and then
+            drift apart in front of you.
+      
+            `rate` is cycles per second and the clip's own natural rate is
+            `1 / duration`, so the ratio between them is `rate * duration`.
+      
+            Found by overlaying the rig on the instance rather than hiding it: the
+            pose matched at the instant of the swap and separated visibly a second
+            later, which is the one failure a still screenshot at the moment of
+            promotion would have called a success.
+            */
+            const clip = this._bake?.clips.find((c) => c.name === pose.clip);
+            const speed = clip != null && clip.duration > 0 ? pose.rate * clip.duration : 1;
+            group.start(true, speed, at0, group.to);
+            group.goToFrame(at0);
+        }
+        this.setFigureHidden(i, true);
+        this.owner?.register({ meshes: root.getChildMeshes() });
+        return {
+            root,
+            group,
+            dispose: () => {
+                for (const g of inst.animationGroups)
+                    g.dispose();
+                root.dispose(false, true);
+                this.setFigureHidden(i, false);
+            },
+        };
+    }
+    /** Per-instance buffers, kept so the swap API can read and edit them. */
+    _matrices = null;
+    _state = null;
+    /** Figures currently taken out of the crowd → the matrix they had. */
+    _hidden = new Map();
+    /** How many figures are in the crowd right now. Indices are `0..count-1`. */
+    get figureCount() {
+        return this._built > 0 ? this._built : 0;
+    }
+    /**
+     * WHICH CLIP FIGURE `i` IS PLAYING, AND HOW FAR THROUGH — the whole point.
+     *
+     * This is the half of a crowd→skinned swap that only the crowd can answer,
+     * and the half that normally makes such a swap look terrible. A LOD
+     * transition usually founders on reconstructing pose: you know where the
+     * thing is, not what it was doing. Here it was never lost — `vatState` is
+     * literally `(clipStart, clipFrames, phaseOffset, cyclesPerSecond)`, so the
+     * clip and the phase are a lookup and a `fract`.
+     *
+     * Start a skinned `AnimationGroup` on `clip` at `t` (a 0..1 fraction of the
+     * clip) and the two are in the same pose at the same instant. Nothing to
+     * blend, nothing to cross-fade, no snap.
+     *
+     * WHEN to swap is deliberately not here — see the note on `setFigureHidden`.
+     */
+    poseOf(i) {
+        const st = this._state;
+        const bake = this._bake;
+        if (st == null || bake == null || i < 0 || i >= this.figureCount)
+            return null;
+        const start = st[i * 4];
+        const clip = bake.clips.find((c) => c.start === start) ?? bake.clips[0];
+        if (clip == null)
+            return null;
+        const phase = st[i * 4 + 2];
+        const rate = st[i * 4 + 3];
+        // The same expression the vertex shader runs, so the answer is the pose on
+        // screen rather than a plausible reconstruction of it.
+        const t = (phase + this._t * rate) % 1;
+        return { clip: clip.name, t: t < 0 ? t + 1 : t, rate };
+    }
+    /**
+     * Where figure `i` is standing, and which way it faces.
+     *
+     * Read out of the instance matrix rather than recomputed from the seed: the
+     * buffer is the truth, and a consumer that places a rig from a recomputed
+     * position gets a figure that is almost in the right place, which is worse
+     * than obviously wrong.
+     */
+    transformOf(i) {
+        const m = this._matrices;
+        if (m == null || i < 0 || i >= this.figureCount)
+            return null;
+        const o = i * 16;
+        // Column-major: translation is [12,13,14]; yaw from the forward basis.
+        return {
+            x: m[o + 12],
+            y: m[o + 13],
+            z: m[o + 14],
+            yaw: Math.atan2(m[o + 8], m[o + 10]),
+        };
+    }
+    /**
+     * Take a figure out of the crowd, or put it back.
+     *
+     * The other half of the swap, and everything it does NOT do is deliberate.
+     * There is no promotion budget here, no radius, no hysteresis and no rule
+     * about what happens to a figure that dies while promoted — those depend on
+     * the game. A horde promotes whatever can reach you, a battle promotes the
+     * unit you selected regardless of distance, a parade promotes whoever the
+     * camera is following; any rule shipped here would be wrong for two of the
+     * three, and wrong invisibly. Tonio: *"leave the rules for switching to
+     * skinned models to the consumer since it will be more likely decided on
+     * specifics."*
+     *
+     * Hiding collapses the instance's matrix to zero scale, which is a
+     * zero-area triangle and therefore nothing rasterised. The original matrix is
+     * kept so `false` restores it exactly.
+     *
+     * ⚠️ IT REWRITES THE MATRIX BUFFER, so the cost is proportional to the WHOLE
+     * crowd, not to the one figure: 64 bytes × count per call. At the sizes this
+     * is for — promote a handful out of a few thousand — that is tens of
+     * kilobytes and fine. It would not be fine on the 200,000-figure bench, and
+     * the cheaper fix if that ever matters is a per-instance visibility
+     * attribute, so a hide writes one float instead of sixteen.
+     */
+    setFigureHidden(i, hidden) {
+        const m = this._matrices;
+        const mesh = this._mesh;
+        if (m == null || mesh == null || i < 0 || i >= this.figureCount)
+            return;
+        const was = this._hidden.get(i);
+        if (hidden) {
+            if (was != null)
+                return;
+            this._hidden.set(i, m.slice(i * 16, i * 16 + 16));
+            for (let k = 0; k < 16; k++)
+                m[i * 16 + k] = 0;
+        }
+        else {
+            if (was == null)
+                return;
+            m.set(was, i * 16);
+            this._hidden.delete(i);
+        }
+        mesh.thinInstanceBufferUpdated('matrix');
+    }
+    /** Is figure `i` currently taken out? */
+    isFigureHidden(i) {
+        return this._hidden.has(i);
+    }
+    /**
+     * The figures nearest a point, nearest first.
+     *
+     * A QUERY, not a policy — it answers "who is close", not "who should be
+     * promoted". It is here because the alternative is a consumer looping every
+     * figure and calling `transformOf` on each, which is the O(n) mistake this
+     * substrate exists to avoid: reading the buffer directly costs a subtract
+     * and a compare per figure with no allocation.
+     *
+     * `maxDistance` is the real economy — it rejects on squared distance before
+     * anything else happens, so a horde of ten thousand costs ten thousand cheap
+     * rejections rather than ten thousand sorts.
+     */
+    nearestFigures(point, options = {}) {
+        const m = this._matrices;
+        const n = this.figureCount;
+        if (m == null || n === 0)
+            return [];
+        const want = Math.max(0, Math.round(options.count ?? 8));
+        if (want === 0)
+            return [];
+        const far = options.maxDistance ?? Infinity;
+        const far2 = Number.isFinite(far) ? far * far : Infinity;
+        const keepHidden = options.includeHidden === true;
+        const found = [];
+        for (let i = 0; i < n; i++) {
+            if (!keepHidden && this._hidden.has(i))
+                continue;
+            const o = i * 16;
+            const dx = m[o + 12] - point.x;
+            const dy = m[o + 13] - point.y;
+            const dz = m[o + 14] - point.z;
+            const d = dx * dx + dy * dy + dz * dz;
+            if (d > far2)
+                continue;
+            found.push({ i, d });
+        }
+        found.sort((a, b) => a.d - b.d);
+        return found.slice(0, want).map((f) => f.i);
     }
     /**
      * Lay the crowd out and hand the GPU its per-instance state.
@@ -845,9 +2171,14 @@ export class B3dCrowd extends B3dChild {
             return;
         const n = Math.max(1, Math.round(this.count));
         this._built = n;
-        const clip = bake.clips[0];
         const matrices = new Float32Array(n * 16);
         const state = new Float32Array(n * 4);
+        // Kept, because the swap API reads them — see `poseOf`. A rebuild discards
+        // whatever was hidden: the figures are new ones, and a hidden index from
+        // the old layout would name a different body.
+        this._matrices = matrices;
+        this._state = state;
+        this._hidden.clear();
         const m = BABYLON.Matrix.Identity();
         // A deterministic scatter — the same crowd every run, so two measurements
         // are of the same picture.
@@ -872,12 +2203,28 @@ export class B3dCrowd extends B3dChild {
             BABYLON.Matrix.RotationYToRef(rnd() * Math.PI * 2, m);
             m.setTranslationFromFloats(x, 0, z);
             m.copyToArray(matrices, i * 16);
+            /*
+            A CLIP PER FIGURE, not per crowd. The bake holds several and `start` picks
+            one, so a field can be a mixture at no cost — the material never changes.
+      
+            Weighted rather than even (see `CLIP_MIX`): walking stays the plurality
+            because a crowd is going somewhere, and the other three split the rest.
+            */
+            const clip = pickClip(bake.clips, rnd());
             state[i * 4] = clip.start;
             state[i * 4 + 1] = clip.frames;
             // A phase OFFSET per figure, or two hundred soldiers march in lockstep —
             // which reads as a bug even though every one of them is correct.
             state[i * 4 + 2] = rnd();
-            state[i * 4 + 3] = 0.7 + rnd() * 0.6; // cycles per second
+            /*
+            And its own RATE. Scaled by the clip's duration so a 0.7s wave and a 1s
+            walk both play at the speed they were baked at: `phase` is normalised, so
+            cycles-per-second has to carry the difference or the shorter clip runs
+            fast — which would look like a bug in the wave rather than an error in
+            the units.
+            */
+            state[i * 4 + 3] =
+                (0.7 + rnd() * 0.6) / (clip.duration > 0 ? clip.duration : 1);
         }
         mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
         mesh.thinInstanceSetBuffer('vatState', state, 4, true);
@@ -895,6 +2242,10 @@ export class B3dCrowd extends B3dChild {
         this._skinnedRoots = [];
         this._container?.dispose();
         this._container = null;
+        this._rigContainer?.dispose();
+        this._rigContainer = null;
+        this._bakeContainer?.dispose();
+        this._bakeContainer = null;
         this._instr?.dispose();
         this._sceneInstr?.dispose();
         this._instr = undefined;

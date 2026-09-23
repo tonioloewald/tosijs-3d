@@ -88,13 +88,17 @@ preview.append(
   div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div({ style: 'display:flex;gap:20px;flex:1;min-height:0;padding:14px' },
       div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM', svgEl),
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — same panel, same drags', scene)),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture', scene)),
     readout)
 )
 ```
 ```css
 .preview { height: 100%; }
 ```
+
+> Drag the sliders in either pane — same panel, same drags. A drag that leaves
+> the track keeps working, which is the whole reason `BoxChild.handlePointer`
+> captures: on a texture there is no pointer capture to inherit.
 
 ## Why an adapter rather than a port
 

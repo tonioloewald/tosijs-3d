@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
   <title>b3d-biped — tosijs-3d</title>
   <meta name="description" content="Animated humanoid character controller. Loads a GLB model with skeletal animations and drives it via ControlInput." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-biped/" />
@@ -96,6 +96,116 @@ preview.append(
 )
 </code></pre>
 <pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>Demo — aiming and shooting</h2>
+<p><strong>WASD</strong> to move, <strong>mouse / right stick</strong> to aim, <strong>F or the trigger</strong> to shoot
+the cans off the wall. The white marker is where he is FACING; the orange one is
+where he is AIMING, and they are different things — which is the whole point of
+<code>aiming=&quot;on&quot;</code>.</p>
+<p>Watch the feet. Standing, the shoulders hold a twist of up to <code>aimFreeYaw</code> and
+the legs stay planted, because that is a pose a person holds. Start walking and
+the band narrows, so the body comes round to the aim — which also means walking
+forward walks where you are looking, the strafing-shooter feel, out of one
+number rather than a movement mode.</p>
+<p>The launcher is simply NESTED. It fires along the character&#39;s aim rather than
+along its own mesh, because a gun parented to a hand inherits whatever the
+animation is doing with that hand.</p>
+<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, inputFocus, sceneDelta, label3d, slider3d, ualAnimationStates } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const demo = tosi({ shootDemo: { free: 45, rate: 6 } })
+const s = demo.shootDemo
+
+// Nested, so `x`/`y`/`z` are where it rides ON HIM. NEGATIVE x is his right:
+// facing -Z with +Y up, a character&#39;s right hand is at -X, and the positive
+// value hung it off his left shoulder.
+const gun = b3dLauncher({
+  x: -0.28, y: 1.15, z: 0.5,
+  muzzleSpeed: 45, fireRate: 6, gravity: -2, projRadius: 0.08,
+  ammo: 999, reloadRate: 40, damage: 25, projColor: &#39;#ffdd66&#39;,
+})
+
+// Assigned as a statement, not inline in the scene — the shape the rest of
+// these demos use, and one the doc transpiler is known to be happy with.
+// The UAL rig, because aiming is the demo: at 1.83m the gun sits at 1.25 where
+// it was placed, and `aimFreeYaw` is a real shoulder angle rather than an angle
+// on a figure half the intended size.
+const hero = b3dBiped(
+  {
+    url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2),
+    animationStates: ualAnimationStates(),
+    player: true, cameraType: &#39;follow&#39;, aiming: &#39;on&#39;, aimFreeYaw: 45,
+  },
+  gun
+)
+
+const cans = []
+for (let i = 0; i &lt; 7; i++) {
+  cans.push(b3dDestroyable({
+    x: -4.5 + i * 1.5, y: 1.6, z: -9,
+    size: 0.45, color: &#39;#cc5533&#39;,
+  }))
+}
+
+preview.append(
+  b3d(
+    {
+      style: &#39;width:100%;height:100%&#39;,
+      gamepad: &#39;left_stick,right_stick,B,Y&#39;, // Y toggles first person
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Aim &amp; shoot&#39; }),
+        slider3d({
+          label: &#39;free twist&#39;, value: s.free, min: 0, max: 90, step: 5, showValue: &#39;always&#39;,
+          handleChange: (v) =&gt; { s.free = Math.round(v); hero.aimFreeYaw = Math.round(v) },
+        }),
+        slider3d({
+          label: &#39;fire rate&#39;, value: s.rate, min: 1, max: 12, step: 1, showValue: &#39;always&#39;,
+          handleChange: (v) =&gt; { gun.fireRate = Math.round(v) },
+        }),
+      ],
+      sceneCreated(el, BABYLON) {
+        // No camera of our own: a `player` biped brings a follow camera, and a
+        // second one is not merely redundant — an extra active camera makes
+        // every scene observer run again, which is the 2x-time bug in person.
+
+        // Two markers, because the claim is that facing and aim are DIFFERENT.
+        const bar = (name, color) =&gt; {
+          const m = BABYLON.MeshBuilder.CreateBox(name, { width: 0.09, height: 0.09, depth: 2.4 }, el.scene)
+          const mat = new BABYLON.StandardMaterial(name + &#39;-m&#39;, el.scene)
+          mat.diffuseColor = BABYLON.Color3.FromHexString(color)
+          mat.emissiveColor = BABYLON.Color3.FromHexString(color).scale(0.4)
+          m.material = mat
+          m.isPickable = false
+          return m
+        }
+        const facingBar = bar(&#39;facing&#39;, &#39;#ffffff&#39;)
+        const aimBar = bar(&#39;aim&#39;, &#39;#ff9944&#39;)
+
+        el.scene.onBeforeRenderObservable.add(() =&gt; {
+          sceneDelta(el.scene)
+          if (!hero || !hero.entries || !hero.entries.rootNodes[0]) return
+          const root = hero.entries.rootNodes[0]
+          const p = root.absolutePosition
+          const f = root.forward
+          facingBar.position.set(p.x + f.x * 1.4, 1.0, p.z + f.z * 1.4)
+          facingBar.rotation.set(0, Math.atan2(f.x, f.z), 0)
+          const d = hero.aimDirection
+          const o = hero.aimOrigin
+          aimBar.position.set(o.x + d.x * 1.2, o.y + d.y * 1.2, o.z + d.z * 1.2)
+          aimBar.rotation.set(Math.asin(-d.y), Math.atan2(d.x, d.z), 0)
+        })
+      },
+    },
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dSun({ shadowMaxZ: 60, activeDistance: 40 }),
+    b3dLight({ intensity: 0.5, groundColor: &#39;#4b5348&#39; }),
+    b3dGround({ meshName: &#39;ground_nocast&#39;, width: 40, height: 40, color: &#39;#7f8a6c&#39;, texture: &#39;noise&#39;, textureTiles: 6 }),
+    ...cans,
+    inputFocus(hero)
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
 <h2>Attributes</h2>
 <table>
@@ -210,9 +320,34 @@ document.body.append(
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><a class="doc-link" href="../Migration/">Migration</a></li>
     <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
       <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
@@ -262,8 +397,6 @@ document.body.append(
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
@@ -274,12 +407,16 @@ document.body.append(
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
@@ -312,6 +449,7 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
     <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
@@ -381,28 +519,19 @@ document.body.append(
     </details></li>
     <li><details open><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
     <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link current" href="../b3d-biped/" aria-current="page">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
-      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-    </ul>
-    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -411,6 +540,6 @@ document.body.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
 </body>
 </html>

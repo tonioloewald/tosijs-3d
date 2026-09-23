@@ -46,6 +46,11 @@ export declare class B3dManipulator extends B3dChild {
     /** Where the widget sits and how big it draws, once per frame. */
     private _track;
     private _rotationOf;
+    /**
+     * A world point from the node's PARENT frame — the inverse of
+     * `_toParentSpace`.
+     */
+    private _toWorldSpace;
     /** The transform as it stands now, in the units the drag speaks. */
     private _currentTransform;
     /** Start a drag from a world ray. Returns whether a handle was grabbed. */
@@ -74,8 +79,19 @@ export declare class B3dManipulator extends B3dChild {
      * on a handle instead.
      */
     release(): boolean;
+    /** Where the handles were when the grab started — see `_track`. */
+    private _anchor;
     /** Is a drag in progress? */
     get dragging(): boolean;
+    /**
+     * A world point in the node's PARENT frame — or unchanged if it has none.
+     *
+     * `TransformCoordinates` through the inverse world matrix, rather than
+     * subtracting the parent's position, because a parent can be rotated and
+     * scaled (a hand bone is all three) and subtraction only handles the easy
+     * case — which is exactly the trap this function exists to close.
+     */
+    private _toParentSpace;
     private _write;
     private _onPointer;
     private _captureCamera;

@@ -127,9 +127,9 @@ const panel = panel3d(
       state.log = `menu: ${action.label} (from ${ACTIONS[cell].label})`; show()
     },
   }),
-  label3d({ text: 'no captions — 12 tools in the space of 4', muted: true, compact: true }),
+  label3d({ text: 'radio', muted: true, compact: true }),
   iconGrid3d({ items: PALETTE, mode: 'radio', selected: 0, columns: 6 }),
-  label3d({ text: "ensemble's tool rule — scale fights move+rotate", muted: true, compact: true }),
+  label3d({ text: 'checkbox', muted: true, compact: true }),
   iconGrid3d({
     items: TOOLBOX, mode: 'checkbox', selected: [SELECT, MOVE],
     handleChange: toolRule,
@@ -158,6 +158,16 @@ preview.append(
   height: 100%;
 }
 ```
+
+> Three grids, one control. The first fires and forgets, the second is one-of-N,
+> the third is any-of-N — and the third also enforces ensemble's tool rule, that
+> **scale fights move+rotate**, so picking scale drops the other two. Try it:
+> the rule is a `handleChange` interceptor, not a fourth widget.
+>
+> The middle grid carries no captions at all and still fits twelve tools in the
+> space four labelled ones would take. That is the argument for icons, made by
+> putting them side by side rather than by asserting it.
+
 ## The control owns LAYOUT; the consumer owns MEANING
 
 Three widgets collapse into one because the difference between them was never

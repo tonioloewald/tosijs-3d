@@ -106,12 +106,18 @@ preview.append(
   ),
   div(
     { style: 'position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace' },
-    p('Hover highlights. Press and release ON a thing to use it.'),
     span({ bindText: demo.status }),
     p({ style: 'opacity:0.7' }, 'carrying: ', span({ bindText: demo.key })),
   )
 )
 ```
+
+> Hover highlights whatever is in reach. **Press and release ON the thing** to
+> use it — sliding off before you let go cancels, exactly as it does for a
+> button, because that is the gesture people already know.
+>
+> The overlay is the live state, not a caption: it says what the scene thinks is
+> happening and what you are carrying.
 
 ## Attributes
 
@@ -119,7 +125,7 @@ preview.append(
 |-----------|---------|-------------|
 | `target` | `''` | Mesh or node name to make touchable. Empty = the mesh of the element this one is nested inside |
 | `include` | `'subtree'` | `'subtree'` counts the named node and everything under it; `'self'` counts only the node itself |
-| `reach` | `0` | Max distance in world units; `0` means no limit |
+| `reach` | `0` | Max distance **from the player**, in world units; `0` means no limit |
 | `disabled` | `false` | Refuses hover, and drops a press already in flight |
 | `highlight` | `'#ffcc44'` | Hover outline colour; `'none'` for no highlight |
 
@@ -195,6 +201,23 @@ anyone has written.
 
 ## Reaching it without pointing at it
 
+## Reach is measured from the PLAYER, not the camera
+
+A `reach` of `2.5` means "two and a half metres from the character's hands",
+which is what you meant when you typed it. It is worth saying out loud because
+the obvious implementation says something else: the pointer's own
+`pickInfo.distance` is measured along the picking ray, and that ray starts at
+the **camera**. Flat and in first person those are the same point, so the
+distinction never comes up — until a third-person camera trails five metres
+behind the character and every switch they are standing on top of reads as five
+metres away. The control then does nothing at all, with no error and no hover,
+and the mesh, the pick and the callback all look fine in isolation.
+
+So the distance is taken from the live `player: true` controllable in the scene
+whenever there is one. With no player — an orbit-camera scene, a spectator, a
+flat diagram you click — it falls back to the ray, which is correct there: the
+cursor really is the only hand in the room.
+
 `useNearest(scene, position)` activates the closest thing within its own reach —
 the "walk up and press E" control, for wiring to `ControlInput.interact`:
 
@@ -205,7 +228,7 @@ if (input.interact) useNearest(scene, camera.globalPosition)
 */
 /*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, semanticParent } from './b3d-utils.js';
+import { B3dChild, playerPosition, semanticParent } from './b3d-utils.js';
 import { InteractiveBehavior, } from './interactive-behavior.js';
 export class B3dInteractive extends B3dChild {
     static preferredTagName = 'tosi-b3d-interactive';
@@ -246,6 +269,7 @@ export class B3dInteractive extends B3dChild {
         const behavior = new InteractiveBehavior(owner, this, {
             meshes: () => this._meshes(),
             reach: () => attrs.reach,
+            reachFrom: () => playerPosition(this.owner),
             enabled: () => !attrs.disabled,
             highlight: () => attrs.highlight,
         });

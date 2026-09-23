@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <title>Weapon Fit — tosijs-3d</title>
+  <meta name="description" content="Dial a weapon into a character&#39;s hand and copy out the numbers. A biped, a weapon library, and a panel of coordinates wired to the thing you are looking at —…" />
+  <link rel="canonical" href="https://3d.tosijs.net/weapon-fit/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="Weapon Fit — tosijs-3d" />
+  <meta property="og:description" content="Dial a weapon into a character&#39;s hand and copy out the numbers. A biped, a weapon library, and a panel of coordinates wired to the thing you are looking at —…" />
+  <meta property="og:url" content="https://3d.tosijs.net/weapon-fit/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Weapon Fit","description":"Dial a weapon into a character's hand and copy out the numbers. A biped, a weapon library, and a panel of coordinates wired to the thing you are looking at —…","url":"https://3d.tosijs.net/weapon-fit/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>Weapon Fit</h1>
+<p><strong>Dial a weapon into a character&#39;s hand and copy out the numbers.</strong> A biped, a
+weapon library, and a panel of coordinates wired to the thing you are looking
+at — so placement is something you SEE rather than something you compute.</p>
+<pre><code class="language-js">import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, b3dManipulator, b3dGround, b3dLight, b3dSkybox, b3dSun, inputFocus, ualAnimationStates, euler3d, vector3d, select3d, label3d, button3d, toggle3d, slider3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
+
+const weapons = b3dLibrary({
+  url: assetUrl(&#39;kenney/libraries/weapon-pack.glb&#39;),
+  type: &#39;weapons&#39;,
+})
+
+const gun = b3dLauncher({
+  library: &#39;weapons&#39;, meshName: &#39;pistol&#39;,
+  socket: &#39;right-hand&#39;,
+  x: -0.04, y: 0.051, z: -0.059,
+  rx: -105, ry: -15, rz: -165,
+  modelScale: 0.86,
+  muzzleSpeed: 45, fireRate: 6, ammo: 999, reloadRate: 40,
+})
+
+const hero = b3dBiped({
+  url: assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2),
+  animationStates: ualAnimationStates(),
+  player: true, cameraType: &#39;none&#39;,
+})
+hero.append(gun)
+
+// A PLAIN OBJECT, not a bound tosijs leaf.
+//
+// The first version bound these and read them back with `.valueOf()` inside the
+// change handler — which produced a weapon that flipped upside down and ignored
+// whatever you typed, because it was applying something that was not the number
+// on screen. The widgets already hand the new value to `handleChange`; taking it
+// from there removes the question entirely.
+//
+// It still survives a panel rebuild, because `panel()` reads `fit` when it runs
+// and `fit` outlives the panel.
+const fit = { name: &#39;pistol&#39;, x: -0.04, y: 0.051, z: -0.059, rx: -105, ry: -15, rz: -165, scale: 0.86 }
+
+const apply = () =&gt; {
+  gun.x = fit.x; gun.y = fit.y; gun.z = fit.z
+  gun.rx = fit.rx; gun.ry = fit.ry; gun.rz = fit.rz
+  gun.modelScale = fit.scale
+}
+
+const n = (v) =&gt; Math.round(v * 1000) / 1000
+const snippet = () =&gt;
+  `b3dLauncher({\n  library: &#39;weapons&#39;, meshName: &#39;${fit.name}&#39;,\n` +
+  `  socket: &#39;right-hand&#39;,\n` +
+  `  x: ${n(fit.x)}, y: ${n(fit.y)}, z: ${n(fit.z)},\n` +
+  `  rx: ${n(fit.rx)}, ry: ${n(fit.ry)}, rz: ${n(fit.rz)},\n` +
+  `  modelScale: ${n(fit.scale)},\n})`
+
+// DRAG IT, do not type it. Tonio: &quot;fine tuning the gun&#39;s position by typing is
+// horrible :)&quot; — quite. The manipulator targets the LAUNCHER ELEMENT rather than
+// its mesh, which matters: an element owns its transform and `render()` rewrites
+// the mesh from `x/y/z`/`rx/ry/rz` every frame, so a gizmo that moved the mesh
+// directly would be undone before you let go. `b3d-manipulator` already knows
+// that and writes the attributes.
+const gizmo = b3dManipulator({
+  target: &#39;tosi-b3d-launcher&#39;,
+  move: &#39;on&#39;,
+  turn: &#39;on&#39;,
+  size: 0.09,
+  // READ THE ELEMENT BACK, do not read the transform.
+  //
+  // The transform the gizmo hands you is in WORLD space and names its angles
+  // `rx/ry/rz`, not `x/y/z`. Taking position from it put world coordinates in a
+  // snippet whose numbers are meant to be local, and taking rotation from the
+  // wrong keys produced `rx: NaN, ry: NaN, rz: NaN` — which Tonio pasted back,
+  // because the position half looked plausible enough to trust.
+  //
+  // The element has already been written by the time this fires, and it holds
+  // exactly the numbers the snippet needs. Ask it.
+  handleChange: () =&gt; {
+    fit.x = gun.x; fit.y = gun.y; fit.z = gun.z
+    fit.rx = gun.rx; fit.ry = gun.ry; fit.rz = gun.rz
+  },
+  handleCommit: () =&gt; { scene &amp;&amp; scene.refreshScenePanel &amp;&amp; scene.refreshScenePanel() },
+})
+
+const panel = () =&gt; [
+  label3d({ text: &#39;Weapon fit&#39; }),
+  select3d({
+    label: &#39;weapon&#39;, value: fit.name,
+    options: weapons.getNames ? weapons.getNames().filter((w) =&gt; !w.startsWith(&#39;ammo&#39;)) : [&#39;pistol&#39;],
+    handleChange: (v) =&gt; { fit.name = v; gun.meshName = v; gun.reloadModel() },
+  }),
+  label3d({ text: &#39;offset from the joint (metres)&#39;, muted: true }),
+  vector3d({
+    value: { x: fit.x, y: fit.y, z: fit.z }, step: 0.01, scrub: 0.002,
+    handleChange: (v) =&gt; { fit.x = v.x; fit.y = v.y; fit.z = v.z; apply() },
+  }),
+  label3d({ text: &#39;rotation (degrees)&#39;, muted: true }),
+  euler3d({
+    value: { x: fit.rx, y: fit.ry, z: fit.rz }, step: 5, scrub: 0.5,
+    handleChange: (v) =&gt; { fit.rx = v.x; fit.ry = v.y; fit.rz = v.z; apply() },
+  }),
+  slider3d({
+    label: &#39;scale&#39;, value: fit.scale, min: 0.4, max: 1.6, step: 0.01, showValue: &#39;always&#39;,
+    handleChange: (v) =&gt; { fit.scale = v; apply() },
+  }),
+  toggle3d({
+    label: &#39;rotate (off = move)&#39;, value: gizmo.turn === &#39;on&#39; &amp;&amp; gizmo.move === &#39;off&#39;,
+    handleChange: (v) =&gt; { gizmo.turn = v ? &#39;on&#39; : &#39;off&#39;; gizmo.move = v ? &#39;off&#39; : &#39;on&#39; },
+  }),
+  button3d({
+    label: &#39;copy snippet&#39;,
+    handleClick: () =&gt; { navigator.clipboard &amp;&amp; navigator.clipboard.writeText(snippet()) },
+  }),
+  label3d({ text: &#39;pose: aiming — the stance placement must look right in&#39;, muted: true }),
+]
+
+const scene = b3d(
+    {
+      style: &#39;width:100%;height:100%&#39;,
+      scenePanelOpen: true,
+      scenePanel: panel,
+      sceneCreated(el) {
+        // In FRONT of him, close: placement errors are invisible over the shoulder.
+        orbitCam(el, { alpha: -Math.PI / 2 + 0.7, beta: 1.3, radius: 1.6, target: [0, 1.3, 0] })
+        // WAIT FOR THE CLIPS, do not guess a delay. A fixed timeout fired
+        // before the rig finished loading, `setAnimationState` had already
+        // settled on `idle`, and nothing re-evaluated it — so the character
+        // stood there holding a pistol in his walking pose. Tonio: &quot;and he
+        // lost his pose somehow.&quot;
+        //
+        // (Line comments. A block comment inside a fence closes the enclosing
+        // /*# doc comment — the fourth time this repo has learned that.)
+        const ready = setInterval(() =&gt; {
+          const groups = hero.entries &amp;&amp; hero.entries.animationGroups
+          if (!groups || !groups.some((g) =&gt; /Pistol_Idle_Loop/.test(g.name))) return
+          clearInterval(ready)
+          hero.setGunplay(true)
+          hero.setAnimationState(&#39;idle&#39;)
+          apply()
+        }, 250)
+      },
+    },
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dSun({ shadowMaxZ: 30, activeDistance: 20 }),
+    b3dLight({ intensity: 0.7, groundColor: &#39;#55604a&#39; }),
+    b3dGround({ meshName: &#39;ground_nocast&#39;, width: 20, height: 20, color: &#39;#7f8a6c&#39; }),
+    weapons,
+    gizmo,
+    inputFocus(hero)
+)
+
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+<h2>Why the numbers are not multiples of 90</h2>
+<p>They look like they should be. Both conventions ARE axis-aligned — a weapon is
+authored barrel-along-+Z, and this rig&#39;s hand bone measures as an identity
+rotation against its parent (<code>bindX [1,0,0]</code>, <code>bindY [0,1,-0.02]</code>,
+<code>bindZ [0,0.02,1]</code>). So a quarter turn ought to do it.</p>
+<p>It does not, and the reason is which frame the correction is actually against.
+The weapon hangs on the hand, and the hand&#39;s orientation is the whole arm chain
+composed — shoulder, elbow, wrist, each with its own bind rotation and its own
+pose on top. None of those are round, so their product is not either. The clean
+candidates were tried: <code>-90, 0, 180</code> aligns the barrel and the sights to the
+hand&#39;s own axes by dot product, and puts the pistol through the wrist on screen.</p>
+<p>Which is an argument for <code>_grip</code> rather than a quirk to live with. A <code>_grip</code>
+node is authored IN THE WEAPON, so the offset it declares is measured in the
+weapon&#39;s own frame — and the correction collapses to identity no matter what the
+arm is doing. The round numbers are available; they are just not available from
+this end.</p>
+<h2>Why this exists</h2>
+<p>Placement is six numbers per weapon per rig, and until now they were found by
+eye in a browser console, one weapon at a time. Tonio, after a pistol turned out
+to be pointing at the sky: <em>&quot;we could use a tool for fine-tuning the placement
+of weapons in a given biped&#39;s hands&quot;</em> — and, decisively, <em>&quot;I imagine weapon
+placement will need to be tweaked for different meshes.&quot;</em></p>
+<p>That last part is what makes it a tool rather than a constant. There is no
+single correct offset: it depends on the weapon&#39;s own origin (Kenney authors
+props bottom-centre, not by the grip), on the rig&#39;s hand frame (this one has +Y
+forward and +Z up, so a barrel-along-+Z weapon needs a quarter turn), and on the
+stance the character holds it in.</p>
+<h2>The camera is close on purpose</h2>
+<p>It opens two and a half metres from the character&#39;s hands, because that is the
+distance at which placement errors are visible and the distance at which nobody
+was looking. A weapon that reads fine over the shoulder can be through the wrist
+close up — which is exactly how the sky-pointing pistol survived: invisible in
+third person, unmissable down the sights.</p>
+<h2>What to do with the numbers</h2>
+<p><code>copy snippet</code> gives you a <code>b3dLauncher</code> call with the offsets baked in. That is
+the honest short-term answer and not the end state: the offsets belong in the
+MODEL, as a <code>_grip</code> node carrying position and orientation, so one asset is
+right for every consumer instead of every consumer discovering it again. Until
+the assets carry one, this is where the numbers come from.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details open><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link current" href="../weapon-fit/" aria-current="page">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      <li><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+</body>
+</html>

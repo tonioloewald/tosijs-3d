@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -51,6 +51,53 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.2</h2>
+<h3>Added</h3>
+<ul>
+<li><strong>The encoded sky</strong> — <code>starfield-codec</code> + <code>skybox-baker</code>. A starfield is data,
+not a picture: six small RGBA faces carry sub-texel position, gamma brightness
+and a spectral A-byte, decoded in the sky shader into points that stay points
+at any zoom. The shipped pair (256 smooth + 1024 data) renders a 100k-star
+galaxy at 25 MiB of VRAM and 0.4 MB on disk, against the 2.3 MB / 96 MiB
+raster it replaces. The A-byte spends precision where the eye is: faint stars
+are warm yellow, bright stars carry a 224-step spectral ramp, galaxy discs
+their size.</li>
+<li><strong><code>png.ts</code></strong> — a lossless PNG encoder. The packed fields must survive
+byte-exact, and both the canvas path (premultiplied backing store) and
+Chrome&#39;s <code>CompressionStream</code> deflate destroy them; the encoder writes the
+bytes directly and a test round-trips through real inflate.</li>
+<li><strong>Distant dim stars</strong> (<code>distantStars</code>, default 3000) — isotropic points
+outside the disc, so the off-band sky has texture instead of blankness.</li>
+<li><strong><code>b3d-cloud-deck</code></strong> — the cloud DECK: a tiled field shader with one
+coverage dial driving transmission, gloom and depth; orographic clouds that
+ask the terrain for its own height sampler; a shared cloud shadow.</li>
+<li><strong>The <code>world-sim</code> page</strong> — the kitchen sink: live-dialed terrain (sea level
+as a fraction of v-size), weather, and the encoded sky, under Demos.</li>
+<li><strong><code>spectralGlsl</code>/<code>spectralRamp</code>/<code>spectralValue</code></strong> and the <code>generatePlanets</code>
+galaxy option — the colour follows the class, and planets (71% of galaxy
+generation time) are computed on demand via <code>generateStarSystem</code>.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>Galaxy generation is ~70× faster</strong> — names derive from each star&#39;s own
+seed via a cheap PRNG (no collision retries, no name table), planets are
+on-demand, and the core nebulae are a fixed budget rather than a fraction.</li>
+<li><strong>The sky is one rigid frame</strong> — the dome&#39;s rotation carries the gradient,
+the sun, the moon and the stars together; the star fade dies by gamma at the
+first hint of daylight, and the golden hour has two stops (amber, then a
+pink-red at the horizon crossing) feeding the deck&#39;s fringe and the fog
+through the light&#39;s colour.</li>
+<li><strong>The baker downloads ONE zip</strong> — twelve separate downloads got silently
+dropped by the browser mid-burst.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>The cloud-deck shadow survived field re-bakes (the shadow&#39;s sampler was
+left pointing at a disposed texture).</li>
+<li>The cloud-deck&#39;s core glow no longer blows out at high star counts.</li>
+<li>The sky shader compiles under the strictest decoders — floats in the
+generated GLSL now LOOK like floats.</li>
+</ul>
 <h2>0.8.1</h2>
 <h3>⚠️ Breaking</h3>
 <p>Nothing breaks at compile time. Two behaviours change, and
@@ -3228,9 +3275,34 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><a class="doc-link" href="../Migration/">Migration</a></li>
     <li><a class="doc-link current" href="../CHANGELOG/" aria-current="page">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
       <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
@@ -3280,8 +3352,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
@@ -3292,12 +3362,16 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
@@ -3330,6 +3404,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
     <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
@@ -3399,28 +3474,19 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
     <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
-      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-    </ul>
-    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -3429,6 +3495,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
 </body>
 </html>

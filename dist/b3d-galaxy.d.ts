@@ -18,6 +18,9 @@ export declare class B3dGalaxy extends B3dChild {
         thickness: number;
         particleSize: number;
         coreSize: number;
+        distantGalaxies: number;
+        distantStars: number;
+        maxStarApparentSize: number;
     };
     seed: number;
     starCount: number;
@@ -27,6 +30,9 @@ export declare class B3dGalaxy extends B3dChild {
     thickness: number;
     particleSize: number;
     coreSize: number;
+    distantGalaxies: number;
+    distantStars: number;
+    maxStarApparentSize: number;
     owner: B3d | null;
     private rootNode;
     private starSps;
@@ -41,6 +47,29 @@ export declare class B3dGalaxy extends B3dChild {
     content: () => string;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
+    /**
+     * Point every particle at THE CAMERA POSITION — a fixed world point, rather
+     * than at the camera's view plane.
+     *
+     * ⚠️ THIS IS WHAT MAKES A CUBE BAKE WORK. `SolidParticleSystem.billboard`
+     * aligns quads to the camera's VIEW PLANE, which is a different plane for
+     * each of a cube's six faces — so every star and nebula silently re-orients
+     * between captures, and the faces disagree at their seams.
+     *
+     * A cube map is ONE viewpoint photographed six ways. All six share a camera
+     * POSITION and differ only in rotation, so that position is what the
+     * particles should face: do it once, and every face sees each nebula from the
+     * same angle and as the same shape.
+     *
+     * ⚠️ NOT the galactic centre. This was first written as `faceOrigin`, which
+     * named the wrong thing even though the argument was right — Tonio: "No
+     * faceorigin is wrong. Face the camera position." The observer is 55% of the
+     * way out from the core, so facing the core would tilt every particle away
+     * from the viewer by a different amount depending where it sits.
+     *
+     * Pass `null` to hand orientation back to the live camera.
+     */
+    facePoint(target: BABYLON.Vector3 | null): void;
     private update;
     private disposeMeshes;
     private registerShaders;
@@ -57,6 +86,22 @@ export declare class B3dGalaxy extends B3dChild {
     getStarSPS(): BABYLON.SolidParticleSystem | null;
     /** Get the star SPS mesh for pick comparison */
     getStarMesh(): BABYLON.Mesh | null;
+    /**
+     * The DISTANT STAR particles, for the skybox baker — the tail of the star
+     * SPS, in the same order `generateGalaxy` made them (see the note in
+     * `galaxy-data`).
+     */
+    getDistantStarParticles(): BABYLON.SolidParticle[];
+    /**
+     * The DISTANT GALAXY particles, for the skybox baker.
+     *
+     * They live inside the nebula SPS (appended last, in generation order — see
+     * the note in `galaxy-data`), so the only code that knows which particles
+     * they are without guessing by size or colour is the code next to the build.
+     * That is here: the last `distantGalaxies.length` particles, in the SPS's
+     * own (Babylon) frame — which is the frame a baker photographs in.
+     */
+    getDistantGalaxyParticles(): BABYLON.SolidParticle[];
     /** Hide a star particle (e.g. to replace it with a star system) */
     hideStarAt(index: number): void;
     /** Show a previously hidden star particle */

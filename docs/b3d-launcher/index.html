@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
   <title>b3d-launcher — tosijs-3d</title>
   <meta name="description" content="Fires ballistic projectiles — the scene-side shoot loop, bridging the pure ballistics.ts integrator + the pure resource.ts ammo pool to Babylon (see…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-launcher/" />
@@ -333,6 +333,100 @@ onto an element, and the callback then silently never runs.</p>
 <td>Launcher position (muzzle offset forward from here)</td>
 </tr>
 </tbody></table>
+<h2>Authoring a weapon mesh</h2>
+<p>Four rules, and the first one is the one that is easy to get wrong.</p>
+<p><strong>THE ORIGIN IS THE GRIP</strong> — the point the hand closes around, not the centre of
+the mesh and not the back of it. Everything else is measured from there: today it
+is what <code>x</code>/<code>y</code>/<code>z</code> place, and once hand sockets land it is the point that gets
+pinned to the bone. An origin at the mesh centre means every consumer has to
+discover the same correction offset by eye, and they will each get a different
+one.</p>
+<p><strong>BARREL DOWN LOCAL −Y, UP LOCAL +Z, IN BLENDER.</strong> The same frame every other
+model in this project is authored in (see CLAUDE.md → &quot;Model authoring &amp; the
+canonical frame&quot;): Blender&#39;s own default front. The exporter turns that into
+glTF +Z-forward / +Y-up, which is what <code>muzzle()</code> and <code>forward()</code> read —
+<code>mesh.getDirection(Axis.Z)</code>. Do not &quot;apply all transforms&quot; to fix an orientation
+in a scene file; fix the model&#39;s LOCAL frame in edit mode.</p>
+<p><strong>ONE UNIT IS ONE METRE.</strong> A pistol is about 0.22 long, a carbine 0.75, a rifle
+0.9–1.1. The character is 1.83, so a weapon authored at the wrong scale reads
+instantly and wrongly as the character being the wrong size.</p>
+<p><strong>ADD A <code>_muzzle</code> NODE</strong> at the tip of the barrel, pointing the way the round
+leaves. It is an empty; only its position is read. Without one, <code>muzzle()</code> guesses
+0.55 along local +Z, which is right for the placeholder box and about 2.5× too
+far for a pistol — so rounds appear out of thin air a foot in front of the gun.
+A turret&#39;s rotating part is <code>_barrel</code>, which is a separate question: the barrel
+is what swings, the muzzle is where the round appears, and on a simple gun the
+muzzle node alone is enough.</p>
+<h3>The handedness flip is not your problem</h3>
+<p>Babylon puts <code>scaling.z = -1</code> on a glTF&#39;s <code>__root__</code>, so everything under it is
+mirrored — and that includes the character, his skeleton and anything parented
+into his hierarchy. It is uniform, so it cancels: verified against the rig&#39;s own
+asymmetric bones, where <code>hand_r</code> lands at −X with the body facing −Z, which is
+anatomically correct. Author it the ordinary way and it will not come in
+mirrored. (Worth stating because a mesh that IS mirrored looks like an authoring
+mistake, and the instinct is to flip it in Blender — which is what would actually
+break it.)</p>
+<h3>Make the grip NARROWER than life</h3>
+<p>A note for authoring or adapting weapons, from fitting Kenney&#39;s pistol to a
+1.83m character. Tonio: <em>&quot;a big problem with the gun is that its grip is too
+wide... a real gun would have fingers wrapped and spread around it. When I model
+the actual weapons — or adapt others&#39; models — I should make the grips a little
+narrower so they don&#39;t look weird.&quot;</em></p>
+<p>The grip is not really oversized; the HAND is the problem. A game character&#39;s
+fingers are a few low-poly stubs that do not close, and they cannot wrap and
+spread the way real fingers do around a real grip. So a life-accurate grip
+leaves the hand visibly sitting beside it rather than around it, and the cheapest
+fix is at the other end: thin the grip until the stub fingers read as closed on
+it.</p>
+<p>Same family as the reason weapons are held slightly small — the eye is judging
+the RELATIONSHIP, not the measurement.</p>
+<h3>Kenney&#39;s weapon pack — 37 of them, already on the CDN</h3>
+<p><code>kenney/libraries/weapon-pack.glb</code> — pistols, uzis, shotguns, snipers,
+machineguns, rocket launchers, knives, grenades and matching ammo props. Built
+and published already; <code>b3dLibrary({url: assetUrl(&#39;kenney/libraries/weapon-pack.glb&#39;), type: &#39;weapons&#39;})</code> then <code>b3dLauncher({library: &#39;weapons&#39;, meshName: &#39;pistol&#39;})</code>.</p>
+<p>Measured rather than assumed, because it matters that they agree with the rules
+above in two of three respects and not the third:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Kenney</th>
+<th>the rule above</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>scale</td>
+<td>real — pistol 0.29 long, sniper 1.04</td>
+<td>✅ 1 unit = 1m</td>
+</tr>
+<tr>
+<td>barrel</td>
+<td>local <strong>+Z</strong>, up <strong>+Y</strong></td>
+<td>✅ same</td>
+</tr>
+<tr>
+<td><strong>origin</strong></td>
+<td><strong>bottom-centre</strong></td>
+<td>❌ should be the grip</td>
+</tr>
+</tbody></table>
+<p>The origin is a PROP origin — right for a weapon lying on a table, wrong for one
+held in a hand — which is not a criticism of a pack authored for top-down
+shooters. It just has to be corrected somewhere, and the correction is
+derivable rather than per-weapon guesswork: <strong>the grip is the centroid of the
+mesh&#39;s lowest third.</strong> Measured that way, <code>pistol</code> grips at <code>(0, 0.011, -0.105)</code>,
+<code>uzi</code> at <code>(0, 0.045, -0.039)</code>, <code>shotgun</code> at <code>(0, 0.023, -0.106)</code>, <code>sniper</code> at
+<code>(0.005, 0.052, -0.238)</code> — each plausibly inside the handle.</p>
+<p>Mount it by making the grip and the hand coincide: <code>position = hand - grip</code>. The
+playground does exactly that, and shows its arithmetic.</p>
+<p>None of them carry a <code>_muzzle</code> node, which is what pushed <code>muzzle()</code> to measure
+the model instead of assuming 0.55.</p>
+<h3>Getting it in</h3>
+<p>There is no <code>url</code> on this element yet — a model arrives through <code>library</code>, which
+means the weapon lives in a GLB the <code>b3d-library</code> element loads, with <code>.model</code>
+on the node that should be exported (<code>pistol.model</code> lists and instantiates as
+<code>pistol</code>). Behaviour suffixes compose with it, so <code>pistol_muzzle.model</code> is legal
+and does both.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -340,9 +434,34 @@ onto an element, and the callback then silently never runs.</p>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><a class="doc-link" href="../Migration/">Migration</a></li>
     <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
       <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
@@ -392,8 +511,6 @@ onto an element, and the callback then silently never runs.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
@@ -404,12 +521,16 @@ onto an element, and the callback then silently never runs.</p>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
@@ -442,6 +563,7 @@ onto an element, and the callback then silently never runs.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
     <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
@@ -511,28 +633,19 @@ onto an element, and the callback then silently never runs.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
     <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
-      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-    </ul>
-    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -541,6 +654,6 @@ onto an element, and the callback then silently never runs.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
 </body>
 </html>

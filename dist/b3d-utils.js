@@ -27,6 +27,59 @@ export function semanticParent(el) {
     }
     return node;
 }
+/**
+ * WHERE THE PLAYER'S HANDS ARE — the point an interaction's `reach` is measured from.
+ *
+ * Not the camera. A picking ray starts at the eye, and flat, the eye and the
+ * hand are the same point — so `pickInfo.distance` is a perfectly good reach
+ * everywhere EXCEPT behind a third-person character, where the camera trails
+ * several metres and every human-sized reach is exceeded while you stand with
+ * your nose against the switch. CLAUDE.md names this as the one thing that does
+ * not transfer between surfaces; it says it of a headset, and a chase camera is
+ * the same geometry for the same reason.
+ *
+ * Walks the scene's own subtree for the live `player: true` controllable — an
+ * interactive is a sibling of the player, not a descendant, so there is no
+ * parent chain to climb. Returns `null` when there is no player (an orbit-camera
+ * scene, a spectator), which means "measure along the ray", the old behaviour.
+ */
+export function playerPosition(owner) {
+    const host = owner;
+    if (host == null || typeof host.querySelectorAll !== 'function')
+        return null;
+    for (const node of host.querySelectorAll('*')) {
+        const e = node;
+        if (e.player === true &&
+            !e.dead &&
+            !e.crashed &&
+            e.mesh?.position != null) {
+            return e.mesh.position;
+        }
+    }
+    return null;
+}
+/**
+ * Rebuild a container's children WITHOUT destroying the popup layers in it.
+ *
+ * A `widgets3d` popup mounts as a SIBLING of the panel it belongs to — that is
+ * what a DOM layer is for, since a popup inside the panel's `<svg>` is cropped
+ * by its viewBox — so it is a child of whatever holds the panel. Which makes a
+ * plain `replaceChildren` on that container a popup killer, and an invisible
+ * one: the popup does not error, it simply stops existing.
+ *
+ * That is what "clicking reset worst closed the panel" was. Every action button
+ * in a debug panel repaints, every repaint rebuilt the host, and the popup the
+ * button was IN went with it. Re-appending the holders keeps everything a
+ * rebuild has no business touching: where the popup was dragged to, how far it
+ * was scrolled, and the live rows already ticking inside it.
+ *
+ * Named and tested rather than inlined because it went wrong twice — the second
+ * time as a commit message describing a fix the diff did not contain.
+ */
+export function replaceKeepingLayers(host, ...children) {
+    const keep = [...host.querySelectorAll(':scope > [data-w3d-dom-layer]')];
+    host.replaceChildren(...children, ...keep);
+}
 export function actualMeshes(meshes) {
     return meshes.filter((mesh) => mesh.geometry != null);
 }
@@ -352,6 +405,42 @@ export function inCollisionGroup(mesh, groups) {
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).
  */
+/**
+ * World-space extents of a node's whole hierarchy, or `null` if it has no
+ * geometry.
+ *
+ * `skip` drops descendants by name — which is not a nicety. A vehicle's
+ * hierarchy carries things that are not the vehicle: an aiming reticle parented
+ * to the airframe sits at GUN RANGE, so including it measured the scout as 115 m
+ * long instead of 4.9 and would have derived every camera offset from a ring
+ * floating a hundred metres ahead of the nose.
+ *
+ * `keep` is the other half: measure only what matches, which is how a named
+ * sub-assembly (a `Cockpit` node) gets measured on its own.
+ */
+export function hierarchyExtents(node, options = {}) {
+    let min = null;
+    let max = null;
+    for (const mesh of node.getChildMeshes(false)) {
+        if (options.skip?.test(mesh.name))
+            continue;
+        if (options.keep != null && !options.keep.test(mesh.name))
+            continue;
+        if (mesh.getTotalVertices() === 0)
+            continue;
+        mesh.computeWorldMatrix(true);
+        const box = mesh.getBoundingInfo().boundingBox;
+        if (min == null || max == null) {
+            min = box.minimumWorld.clone();
+            max = box.maximumWorld.clone();
+        }
+        else {
+            min.minimizeInPlace(box.minimumWorld);
+            max.maximizeInPlace(box.maximumWorld);
+        }
+    }
+    return min != null && max != null ? { min, max } : null;
+}
 export function boundingBottomOffset(node) {
     const minY = hierarchyMinWorldY(node);
     if (minY == null)
@@ -688,18 +777,89 @@ export const myThing = MyThing.elementCreator()
  */
 export class B3dChild extends Component {
     owner = null;
+    /**
+     * The scene this child has actually attached to, or `null`.
+     *
+     * It exists because `sceneReady` was being called MORE THAN ONCE without an
+     * intervening `sceneDispose`, and everything a child sets up there — render
+     * observers, above all — was quietly accumulating.
+     *
+     * How: `whenReady` QUEUES when the scene is not up yet, and a child can be
+     * connected, disconnected and reconnected before that happens (the doc system
+     * does exactly this while mounting a live example, and "moving any ancestor
+     * does it to every descendant"). Each connect queues another callback; the
+     * disconnect in between disposes nothing, because nothing had been set up
+     * yet. Then the scene comes up and every queued callback fires.
+     *
+     * The symptom is not a crash. It is TIME RUNNING FAST — two observers each
+     * subtracting `dt` from the same cooldown, so a launcher with `fireRate: 6`
+     * fires eleven times a second. Measured at 2.09× on a doc page, and the
+     * launcher was blameless: the duplicates were invisible to it because it only
+     * keeps a handle on the LAST observer it added.
+     */
+    _attachedScene = null;
     connectedCallback() {
         super.connectedCallback();
-        const owner = findB3dOwner(this);
-        if (owner != null) {
+        /*
+        ONE MICROTASK BEFORE WE LOOK AT ANYTHING, because an element can be
+        CONNECTED BEFORE ITS ATTRIBUTES HAVE ARRIVED.
+    
+        This file used to say that by `connectedCallback` tosijs had drained the
+        element's attributes, so they read correctly. Measured, that is not true of
+        the HYPHENATED ones. An aircraft built by the doc system logged, at its
+        first connect:
+    
+          library "vehicles"   mesh-name null
+    
+        — the single-word attribute applied, the two-word one not yet. `sceneReady`
+        then ran synchronously (the scene was already up, so `whenReady` does not
+        defer), read an empty `meshName`, and took neither load branch. No error, no
+        warning: an aircraft that silently never loads its model, so the camera
+        never transfers and the demo opens inside the terrain.
+    
+        It had been surviving on luck. The element is connected a SECOND time later
+        — fully configured by then — but `_attachedScene` correctly suppresses a
+        repeat, so the save was that the scene itself used to be rebuilt in between,
+        which made the guard miss and `sceneReady` run again with real attributes.
+        A panel change removed that rebuild and the latent race became a dead demo,
+        which is why it looked like a rendering bug in something unrelated.
+    
+        A microtask is enough — measured, not assumed: a probe queued from that same
+        first connect already saw `mesh-name`. It is also strictly safer than the
+        synchronous path for the TDZ hazard documented above, since a `whenReady`
+        callback can no longer run inside the caller's own constructor frame.
+        Siblings all defer equally and microtasks run FIFO, so relative order is
+        unchanged.
+        */
+        queueMicrotask(() => {
+            // Moved-and-removed both land here; only the still-attached ones matter.
+            if (!this.isConnected)
+                return;
+            const owner = findB3dOwner(this);
+            if (owner == null)
+                return;
             owner.whenReady(() => {
+                // A queued callback can outlive the connection that queued it.
+                if (!this.isConnected)
+                    return;
+                // ...and several can be queued before the scene exists.
+                if (this._attachedScene === owner.scene)
+                    return;
+                this._attachedScene = owner.scene;
                 this.owner = owner;
                 this.sceneReady(owner, owner.scene);
             });
-        }
+        });
     }
     disconnectedCallback() {
-        this.sceneDispose();
+        // Only tear down what was actually set up. A disconnect before the scene
+        // came up has nothing to dispose, and calling `sceneDispose` anyway is how
+        // a subclass ends up guarding every field against a teardown that precedes
+        // its own construction.
+        if (this._attachedScene != null) {
+            this._attachedScene = null;
+            this.sceneDispose();
+        }
         super.disconnectedCallback();
     }
     // Overridden by subclasses. Defaults are no-ops so a bare B3dChild is inert.

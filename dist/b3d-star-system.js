@@ -15,7 +15,7 @@ import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy, label3
 import { tosi, elements } from 'tosijs'
 const { div, p, pre } = elements
 
-const galaxy = generateGalaxy(1234, 1000)
+const galaxy = generateGalaxy(1234, 1000, { generatePlanets: true })
 
 const { demo } = tosi({
   demo: {
@@ -259,7 +259,10 @@ export class B3dStarSystem extends B3dChild {
             return;
         const attrs = this;
         const scene = this.owner.scene;
-        // Generate galaxy and find the star
+        // Generate the galaxy (cheap — no bulk planets) and find the star. Only
+        // THE star's system is generated, right below: bulk planet generation
+        // (generatePlanets) was the 71% of generation time this element used to
+        // pay for every star it then threw away.
         const galaxy = generateGalaxy(attrs.galaxySeed, attrs.starCount);
         const starIndex = Math.min(Math.max(0, attrs.starIndex), galaxy.stars.length - 1);
         const star = galaxy.stars[starIndex];

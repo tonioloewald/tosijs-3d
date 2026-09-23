@@ -42,6 +42,20 @@ export interface InteractiveConfig {
     meshes: () => BABYLON.AbstractMesh[];
     /** Max picking distance in world units; `0` (default) means no limit. */
     reach?: () => number;
+    /**
+     * WHERE THE HAND IS — the point `reach` is measured from.
+     *
+     * Without it, reach is measured along the picking ray, which begins at the
+     * CAMERA. That is right in first person and wrong behind a third-person
+     * character, whose camera is metres further back than their arm: every
+     * control with a human-sized reach then reads as out of reach and never
+     * fires. Return the character's position (or `null` to fall back to the ray).
+     */
+    reachFrom?: () => {
+        x: number;
+        y: number;
+        z: number;
+    } | null;
     /** `false` refuses hover AND drops a press already in flight. */
     enabled?: () => boolean;
     /** Hover outline colour; `''` or `'none'` for no highlight. */

@@ -137,7 +137,14 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
         // receiver at ANY height down the sun to the same plane the blobs were projected onto —
         // so a cloud shades the aircraft flying under it, not just the ground below the aircraft.
         uniformBuffer.updateFloat4('cloudShadowSun', map.sunX, map.sunY, map.sunZ, map.groundY);
-        uniformBuffer.setTexture('cloudShadowSampler', map.texture);
+        /*
+        THE SOURCE CAN BE OVERRIDDEN. A blob field is PAINTED into `texture`; a
+        cloud DECK renders its own window on the GPU and hands it over. Same
+        question at the receiver — how much light reaches this fragment — so they
+        share the plugin rather than growing a second one, and the window math is
+        identical either way.
+        */
+        uniformBuffer.setTexture('cloudShadowSampler', map.sourceTexture ?? map.texture);
     }
     getCustomCode(shaderType) {
         if (shaderType !== 'fragment')
@@ -194,6 +201,19 @@ export class CloudShadowMap {
     /** Top of the cloud layer (world Y). Receivers above this get no shadow (nothing casts from
      * higher). Defaults huge so an unset map shadows everything; clouds set it to the real top. */
     layerTop = 1e9;
+    /**
+     * A texture to sample INSTEAD of the painted one, in the same window.
+     *
+     * A blob field is painted into {@link texture} on the CPU, which suits blobs:
+     * a few dozen stamps, repainted only when one recycles. A cloud DECK has no
+     * blobs to stamp — its shadow is a continuous function — so it renders the
+     * window itself on the GPU and sets this. The window math, the sun
+     * projection and the layer-top test are identical either way, which is the
+     * reason this is one field rather than a second plugin.
+     *
+     * Whatever is set here must carry OPACITY, not density: white is lit.
+     */
+    sourceTexture = null;
     _plugins = [];
     /** How many blobs the last {@link paint} stamped — a debug readout. */
     lastPaintCount = 0;
@@ -216,8 +236,18 @@ export class CloudShadowMap {
         let plugin = material.pluginManager?.getPlugin('CloudShadow');
         if (plugin == null) {
             plugin = new CloudShadowPlugin(material);
-            this._plugins.push(plugin);
         }
+        /*
+        TRACK WHAT WE ENABLED, not what we CONSTRUCTED. The plugin is in Babylon's
+        registry (it has to be, or `Material.clone()` dereferences an undefined
+        factory), which means every material in the scene already has an instance
+        before anyone asks for one — so the branch above almost never runs and a
+        count of it read zero while the hook was binding fifty-eight times a frame.
+        A debug readout that says "0 receivers" about a working system is worse than
+        no readout at all.
+        */
+        if (!this._plugins.includes(plugin))
+            this._plugins.push(plugin);
         plugin.map = this;
         plugin.isEnabled = true;
     }

@@ -105,7 +105,7 @@ export class B3dSun extends B3dChild {
          * the trade this parameter makes, and the reason it is exposed rather than
          * simply raised.
          */
-        shadowNormalBias: 0.05,
+        shadowNormalBias: 0.02,
         /** Depth-direction bias. Babylon's CSM default; normalBias is the one to
          * reach for first, because depth bias peter-pans much sooner. */
         shadowBias: 0.00005,
@@ -211,6 +211,25 @@ export class B3dSun extends B3dChild {
         // (base * dimFactor) on its own faster cadence; don't double-write here.
         if (!this.externallyLit) {
             this.light.intensity = this.baseIntensity * dimFactor;
+        }
+        /*
+        DROP THE DEAD FIRST. A caster that has been disposed is still in these
+        lists — nothing tells the sun — and it stays in the generator's render
+        list, where it is drawn into the shadow map every frame forever. A scene
+        that spawns and despawns (a crowd slider, a spawner, anything pooled) leaks
+        a shadow caster per corpse, and the symptom is a shadow map that gets
+        slower with time rather than an error.
+        */
+        for (let i = this.shadowCasters.length - 1; i >= 0; i--) {
+            const mesh = this.shadowCasters[i];
+            if (!mesh.isDisposed())
+                continue;
+            this.shadowCasters.splice(i, 1);
+            const active = this.activeShadowCasters.indexOf(mesh);
+            if (active > -1) {
+                this.activeShadowCasters.splice(active, 1);
+                this.shadowGenerator.removeShadowCaster(mesh);
+            }
         }
         const activeDistance = this.activeDistance;
         for (const mesh of this.shadowCasters) {

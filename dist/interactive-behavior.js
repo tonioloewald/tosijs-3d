@@ -248,8 +248,30 @@ export class InteractiveBehavior {
         const pick = pointerInfo.pickInfo;
         const picked = pick?.hit ? pick.pickedMesh : null;
         const mine = picked != null && this.config.meshes().includes(picked);
-        const distance = pick?.distance ?? 0;
         const reach = this.config.reach?.() ?? 0;
+        /*
+        ⚠️ REACH IS FROM THE HAND, NOT THE RAY'S ORIGIN.
+    
+        `pick.distance` is measured along the picking ray, which starts at the
+        CAMERA — fine in first person, where the eye and the hand are the same
+        point, and wrong in third person, where the camera sits four to six metres
+        behind the character. A switch you are standing next to reads as five metres
+        away, so any sensible `reach` vetoes every press and the control is simply
+        inert. Tonio: "I can't figure out how to activate the red elevator."
+    
+        CLAUDE.md already names this as the one asymmetry that does not transfer
+        between surfaces ("the pointer ray originates at the camera — the eye and
+        the hand are the same point"). It says it about XR; it is just as true of a
+        chase camera.
+    
+        So the distance is measured from `reachFrom` — the thing doing the reaching —
+        whenever the host can name one, and falls back to the ray otherwise.
+        */
+        const from = this.config.reachFrom?.() ?? null;
+        const at = pick?.pickedPoint ?? null;
+        const distance = from != null && at != null
+            ? Math.hypot(at.x - from.x, at.y - from.y, at.z - from.z)
+            : pick?.distance ?? 0;
         const result = interactStep(this._state, {
             over: mine,
             down: this._down,

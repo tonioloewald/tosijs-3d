@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <title>b3d-cloud-deck — tosijs-3d</title>
+  <meta name="description" content="A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and slide" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-cloud-deck/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-cloud-deck — tosijs-3d" />
+  <meta property="og:description" content="A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and slide" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-cloud-deck/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-cloud-deck","description":"A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and slide","url":"https://3d.tosijs.net/b3d-cloud-deck/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>b3d-cloud-deck</h1>
+<p><strong>A cloud LAYER, as a layer.</strong> One lit surface overhead with dark undersides and
+bright fringes, driven by a field you can dial from clear to overcast and slide
+up and down without rebuilding anything.</p>
+<p>This is a second primitive, not a replacement for <a href="../b3d-clouds/">b3d-clouds</a>.
+Discrete blobs are right for cloud you fly BETWEEN — a canyon of thunderheads,
+<code>insideCloud</code> as a tactic. They are wrong for a DECK, which is what you see from
+below on an ordinary day and from above on an ordinary flight. Tonio, on seeing
+one from both sides in a rocket: <em>&quot;What we have is not worthy of everything else
+we&#39;ve got. It looks like a child&#39;s cartoon next to everything else.&quot;</em></p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dCloudDeck, slider3d, label3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { sky } = tosi({
+  sky: {
+    coverage: 0.5,
+    cirrus: 0,
+    altitude: 140,
+    eye: 60,
+    wind: 8,
+    evolve: 0.5,
+    timeOfDay: 10,
+  },
+})
+
+preview.append(
+  b3d(
+    {
+      style: &#39;width:100%;height:100%&#39;,
+      sceneCreated(el, BABYLON) {
+        // OUR OWN CAMERA, because `sceneCreated` runs BEFORE the default one is
+        // built -- that is what the hook is for. The default frames the origin
+        // at radius 8, and a 14 km deck would never appear in it at all.
+        const cam = new BABYLON.ArcRotateCamera(
+          &#39;deck-camera&#39;,
+          -1.0,
+          1.66,
+          900,
+          new BABYLON.Vector3(0, 140, 0),
+          el.scene
+        )
+        cam.maxZ = 40000
+        cam.lowerBetaLimit = 0.05
+        cam.upperBetaLimit = 1.9
+        cam.lowerRadiusLimit = 80
+        cam.upperRadiusLimit = 6000
+        cam.wheelPrecision = 0.2
+        cam.attachControl(el.parts.canvas, true)
+        el.scene.activeCamera = cam
+        // FLY AT A HEIGHT, look around. An orbit camera&#39;s EYE height is
+        // target.y + radius*cos(beta), which on this rig swings from -400 to
+        // +600 as you orbit -- so the altitude slider often could not reach
+        // you, and the pass-through whiteout looked broken when it was only
+        // unreachable. Pinning the eye and letting orbit change the look
+        // direction makes &quot;move the deck through your eyeline&quot; a thing you can
+        // actually do.
+        el.scene.registerBeforeRender(() =&gt; {
+          cam.target.y = sky.eye.valueOf() - cam.radius * Math.cos(cam.beta)
+        })
+      },
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Weather&#39; }),
+        slider3d({ label: &#39;coverage&#39;, value: sky.coverage, min: 0, max: 2, step: 0.02 }),
+        slider3d({ label: &#39;cirrus&#39;, value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: &#39;altitude&#39;, value: sky.altitude, min: 20, max: 600, step: 10 }),
+        slider3d({ label: &#39;eye height&#39;, value: sky.eye, min: 5, max: 3000, step: 25 }),
+        slider3d({ label: &#39;wind&#39;, value: sky.wind, min: 0, max: 40, step: 1 }),
+        slider3d({ label: &#39;evolve&#39;, value: sky.evolve, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: &#39;time of day&#39;, value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
+      ],
+    },
+    // THE PAIR, not one raster. Nebulae are low-frequency and live in a 256
+    // cube; stars and distant galaxies are POINTS and live in a data cube that
+    // the shader decodes — so they stay points at any zoom instead of being a
+    // smear baked at one resolution. 344 KB and 25 MiB against 2.3 MB and 96.
+    b3dSkybox({
+      timeOfDay: sky.timeOfDay,
+      realtimeScale: 0,
+      starfieldCube: &#39;/sky/nebula&#39;,
+      starfieldData: &#39;/sky/stars&#39;,
+      starfieldTilt: &#39;12,25,58&#39;,
+    }),
+    b3dSun({ x: -0.4, y: -1, z: -0.3 }),
+    // An ambient fill, because the deck DIMS it — and a scene with no fill has
+    // nothing for the first half of the gloom to take away.
+    b3dLight({ intensity: 0.5 }),
+    b3dGround({ size: 12000, color: &#39;#4a5a44&#39;, receiveShadows: true }),
+    b3dCloudDeck({
+      coverage: sky.coverage,
+      cirrus: sky.cirrus,
+      altitude: sky.altitude,
+      wind: sky.wind,
+      evolve: sky.evolve,
+    })
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+<blockquote>
+<p>Drag <code>coverage</code> from 0 to 1 — clear to overcast is one dial on a threshold,
+not a count of spawned objects, so it has no pool to exhaust at the top.
+Take <code>time of day</code> to 22 and the deck is lit by moonlight against the baked
+galaxy — the same cube the <a href="../b3d-skybox/">skybox</a> uses, so it costs no extra
+mesh and the cloud tops take their colour from whatever is lighting the world.</p>
+<p><code>wind</code> slides the whole sky and <code>evolve</code> reshapes it as it goes — both free,
+neither rebakes anything. <code>cirrus</code> takes the same sky from heaped cumulus to
+long wispy streaks, and
+There is no <code>transmission</code> slider, and that is the point: it FOLLOWS coverage,
+along with the gloom under the deck and the depth of the cloud. Pinning it here
+was quietly defeating its own demo — a fixed 0.5 sits above the gloom
+threshold, so the sun never dimmed however far the coverage went. It is still
+settable as an attribute for the deliberate case.</p>
+<p><strong>Push <code>coverage</code> past 1.</strong> There is no sky left to cover, so the extra goes
+into DEPTH: the base stays put and the top TOWERS, the sun goes out, and you
+get a deck you can climb into and not come out of.</p>
+<p><strong>Bring <code>altitude</code> and <code>eye height</code> together.</strong> The deck sweeps through you
+and you get the whiteout — the same fog layer a plane flying through it would
+see, and the reason a pass-through needs no special case. <code>eye height</code> pins
+where your eye is; orbiting then changes only which way you look.</p>
+<p>It goes to 3 km because the deck does: past <code>coverage</code> 1 the top can stand
+900 m above the base and a local bulge another 1200 on top of that, so
+&quot;above the cloud tops&quot; is a long way up once the weather is turned on.</p>
+</blockquote>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>altitude</code></td>
+<td><code>140</code></td>
+<td>Height of the deck. Moving it is ONE number</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>14000</code></td>
+<td>World extent of the deck. Big enough to reach the horizon — a flat grid is nearly free</td>
+</tr>
+<tr>
+<td><code>subdivisions</code></td>
+<td><code>64</code></td>
+<td>Grid resolution — see &quot;A grid, not a quad&quot;</td>
+</tr>
+<tr>
+<td><code>coverage</code></td>
+<td><code>0.5</code></td>
+<td>Clear <code>0</code> → solid <code>1</code> → thickening to <code>2</code>. LIVE, and shared with the shadow</td>
+</tr>
+<tr>
+<td><code>thickenDepth</code></td>
+<td><code>900</code></td>
+<td>MAX thickening — how far the cloud TOP rises above <code>altitude</code> at <code>coverage: 2</code></td>
+</tr>
+<tr>
+<td><code>cirrus</code></td>
+<td><code>0</code></td>
+<td>Rounded heaps <code>0</code> → long wispy streaks <code>1</code>. Rebakes the field</td>
+</tr>
+<tr>
+<td><code>wind</code></td>
+<td><code>8</code></td>
+<td>Metres per second the deck drifts. Nothing rebakes</td>
+</tr>
+<tr>
+<td><code>windHeadingDeg</code></td>
+<td><code>0</code></td>
+<td>Which way it drifts — and the direction cirrus streaks run</td>
+</tr>
+<tr>
+<td><code>evolve</code></td>
+<td><code>0.5</code></td>
+<td>How fast shapes change, <code>0</code> rigid → <code>1</code> restless</td>
+</tr>
+<tr>
+<td><code>follow</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td>Keep the deck centred under the camera. A deck is finite; the world is not</td>
+</tr>
+<tr>
+<td><code>ambientGloomBelow</code></td>
+<td><code>0.7</code></td>
+<td><code>transmission</code> below which the AMBIENT fill starts to go. <code>0</code> disables</td>
+</tr>
+<tr>
+<td><code>ambientGloom</code></td>
+<td><code>0.45</code></td>
+<td>How far the ambient may be taken down</td>
+</tr>
+<tr>
+<td><code>sunGloomBelow</code></td>
+<td><code>0.25</code></td>
+<td><code>transmission</code> below which the SUN starts to go — later than the ambient, on purpose</td>
+</tr>
+<tr>
+<td><code>sunGloom</code></td>
+<td><code>0.65</code></td>
+<td>How far the sun may be taken down at zero transmission</td>
+</tr>
+<tr>
+<td><code>localRise</code></td>
+<td><code>1200</code></td>
+<td>How far a local weather field can lift the cloud TOP, at <code>coverage: 2</code>. Large because the orographic field is attenuated at massif scale — see the attribute note</td>
+</tr>
+<tr>
+<td><code>localCoverage</code></td>
+<td><code>1</code></td>
+<td>How much a unit of local weather adds to <code>coverage</code>. What the field does BELOW an overcast</td>
+</tr>
+<tr>
+<td><code>orographic</code></td>
+<td><code>0</code></td>
+<td>Cloud gathers over high ground, <code>0…1</code>. Needs a terrain in the scene</td>
+</tr>
+<tr>
+<td><code>orographicPeak</code></td>
+<td><code>260</code></td>
+<td>Terrain height at which <code>orographic</code> is at full strength</td>
+</tr>
+<tr>
+<td><code>shadows</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td>Cloud shadows on the ground</td>
+</tr>
+<tr>
+<td><code>shadowResolution</code></td>
+<td><code>0</code> (auto)</td>
+<td>Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail</td>
+</tr>
+<tr>
+<td><code>shadowRange</code></td>
+<td><code>6000</code></td>
+<td>Width in metres of the shadow window, centred on the camera</td>
+</tr>
+<tr>
+<td><code>shadowStrength</code></td>
+<td><code>0.75</code></td>
+<td>Shadow darkness at zero transmission. Scaled down as <code>transmission</code> rises — a cloud you can see daylight through does not cast a hard shadow</td>
+</tr>
+<tr>
+<td><code>transmission</code></td>
+<td><code>-1</code></td>
+<td>How much light comes THROUGH: <code>0</code> storm-dark underside, <code>1</code> glowing. <code>-1</code> = auto from <code>coverage</code></td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td><code>180</code></td>
+<td>Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long</td>
+</tr>
+<tr>
+<td><code>haze</code></td>
+<td><code>0.6</code></td>
+<td>How much the air under the deck takes the cloud&#39;s colour. Hides the rim</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td><code>1337</code></td>
+<td>Same seed, same weather</td>
+</tr>
+<tr>
+<td><code>frequency</code></td>
+<td><code>3</code></td>
+<td>Field repeats across its own width. Higher = smaller puffs</td>
+</tr>
+<tr>
+<td><code>octaves</code></td>
+<td><code>6</code></td>
+<td>Detail octaves. Billow needs more than fBm — folding eats fine structure</td>
+</tr>
+<tr>
+<td><code>fieldSize</code></td>
+<td><code>1024</code></td>
+<td>Texels per edge of the baked density field. More texels = finer cloud, 1 byte each</td>
+</tr>
+<tr>
+<td><code>period</code></td>
+<td><code>1800</code></td>
+<td>Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck</td>
+</tr>
+<tr>
+<td><code>edgeFade</code></td>
+<td><code>0.45</code></td>
+<td>Where the radial fade starts, as a fraction of the half-size. The deck has no visible rim at any coverage</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>&#39;#ffffff&#39;</code></td>
+<td>Lit top colour</td>
+</tr>
+<tr>
+<td><code>underColor</code></td>
+<td><code>&#39;#3a4350&#39;</code></td>
+<td>Shadowed underside</td>
+</tr>
+<tr>
+<td><code>fringe</code></td>
+<td><code>0.9</code></td>
+<td>Brightness of the lit edges seen from below. ADDED, so it can exceed 1, and it takes the scene light&#39;s colour and direction — brightest with the sun behind the cloud</td>
+</tr>
+<tr>
+<td><code>bump</code></td>
+<td><code>34</code></td>
+<td>Faux-bump strength. Higher = more pronounced relief</td>
+</tr>
+<tr>
+<td><code>underBump</code></td>
+<td><code>0.85</code></td>
+<td>How much relief the UNDERSIDE shows. Borrowed from the top&#39;s lighting, so both faces share one shape</td>
+</tr>
+<tr>
+<td><code>shade</code></td>
+<td><code>0.22</code></td>
+<td>How much of the top&#39;s brightness the lighting may take. Small on purpose — cloud is near-white, and a wide swing reads as water</td>
+</tr>
+</tbody></table>
+<h2>A grid, not a quad</h2>
+<p>The obvious build is one huge quad, and it is the wrong one. Tonio: <em>&quot;If we use
+a bunch of quads we can use the vertex channels to drive localized weather
+effects later.&quot;</em></p>
+<p>That is the argument. A subdivided grid costs nothing at these resolutions and
+buys a <strong>per-vertex channel</strong> — somewhere to say <em>it is raining HERE, this part
+is a thunderhead, there is a hole over the airfield</em> — which a single quad has
+nowhere to put. The vertex colours are written white and unused today, and that
+is deliberate: the channel exists so localized weather is a later edit to a
+shader rather than a change of primitive.</p>
+<p>And the case that makes it more than a convenience — Tonio: <em>&quot;Or have clouds
+that cluster near mountains say.&quot;</em> That is orographic cloud, it is real, and it
+is the thing a noise field fundamentally cannot produce: noise knows nothing
+about the ground under it. But the deck is a grid whose vertices have world
+positions, so each one can ASK the terrain how high it is there and write the
+answer into its own channel. Cloud then gathers over ridges and thins over
+valleys because of the landscape rather than because someone painted it — the
+same &quot;systemic, not textural&quot; move the rest of this project keeps making.</p>
+<p>It generalises past mountains, too: anything samplable at a vertex can drive it.
+Cloud that builds over warm ground and breaks over cold water is the same edit
+with a different sampler.</p>
+<p>It also means the deck can eventually SAG and billow by displacement, which a
+quad cannot do at all.</p>
+<h2>⚠️ First pass — the structure is right, the LOOK is not tuned</h2>
+<p>Honest state, so nobody mistakes &quot;it renders&quot; for &quot;it is finished&quot;. Three things
+are visibly off and all three are art direction rather than architecture:</p>
+<ol>
+<li><strong><del>The repeat is visible.</del></strong> Fixed: two sampling layers at an irrational
+scale ratio never realign, so the field has no period to see. See the shader
+note on <code>density</code>.</li>
+<li><strong><code>coverage</code> has its curve now.</strong> Percentile normalisation put the threshold
+at the same place in the distribution whatever kind of cloud this is, and the
+threshold itself is shaped rather than linear — so half coverage really is
+about half the sky, with solid cores you can fly into rather than wisps. What
+is left is taste, not calibration.</li>
+<li><strong>No REFRACTION, and that is deliberate</strong> — Tonio flagged it and the material
+already satisfies it: this is plain alpha blending with no refraction
+texture, no screen-space sampling and no index-of-refraction term. Cloud
+scatters, it does not bend what is behind it, and anything that distorts the
+sky through a thin edge would read as glass.</li>
+</ol>
+<p>None of these need a different primitive, which is the part worth knowing: the
+deck, the two faces, the live dials and the vertex channel are all doing their
+jobs.</p>
+<h2>One field, three readers</h2>
+<p>The density comes from <a href="../cloud-field/">cloud-field</a> — baked once, tileable,
+sampled by world XZ. The deck reads it, the whiteout reads it, and the ground
+shadow is meant to, so all three agree by construction rather than by being kept
+in step. <code>coverage</code> stays a live uniform for the same reason: weather is one
+dial and nothing regenerates when it moves.</p>
+<p><strong>Two of the three are wired.</strong> The deck samples the field on the GPU and the
+whiteout samples the same array on the CPU — deliberately the same array, not
+a read-back and not a re-implementation, because a GPU read-back per frame would
+cost real time to learn something we baked ourselves, and a second copy of the
+noise is where &quot;why is the shadow off the cloud&quot; lives.</p>
+<p>The shadow is the one still missing. <code>fieldTexture</code> is exposed for it:
+<a href="../cloud-shadows/">cloud-shadows</a> already has the receiver half — a material
+plugin sampling a world-XZ texture, conforming to terrain — and today it is fed
+by <code>b3d-clouds</code> painting blob positions into a moving window. Pointing it at
+this field instead, with the same live <code>coverage</code> uniform, is what makes the
+shade underfoot belong to the cloud overhead rather than merely resemble it.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link current" href="../b3d-cloud-deck/" aria-current="page">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      <li><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+</body>
+</html>

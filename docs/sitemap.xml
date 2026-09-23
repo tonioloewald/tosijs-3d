@@ -3,9 +3,15 @@
   <url><loc>https://3d.tosijs.net/</loc></url>
   <url><loc>https://3d.tosijs.net/Migration/</loc></url>
   <url><loc>https://3d.tosijs.net/CHANGELOG/</loc></url>
+  <url><loc>https://3d.tosijs.net/demos/</loc></url>
+  <url><loc>https://3d.tosijs.net/playground/</loc></url>
   <url><loc>https://3d.tosijs.net/core/</loc></url>
   <url><loc>https://3d.tosijs.net/effects/</loc></url>
+  <url><loc>https://3d.tosijs.net/rocket-ascent/</loc></url>
+  <url><loc>https://3d.tosijs.net/weapon-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/combat/</loc></url>
+  <url><loc>https://3d.tosijs.net/skybox-baker/</loc></url>
+  <url><loc>https://3d.tosijs.net/world-sim-ts/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-lamp/</loc></url>
   <url><loc>https://3d.tosijs.net/tosi-b3d/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-controller/</loc></url>
@@ -20,6 +26,7 @@
   <url><loc>https://3d.tosijs.net/b3d-crowd/</loc></url>
   <url><loc>https://3d.tosijs.net/manipulator-view/</loc></url>
   <url><loc>https://3d.tosijs.net/arc/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-elevator/</loc></url>
   <url><loc>https://3d.tosijs.net/light-modulation/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-beacon/</loc></url>
   <url><loc>https://3d.tosijs.net/province-climate/</loc></url>
@@ -27,6 +34,12 @@
   <url><loc>https://3d.tosijs.net/wind/</loc></url>
   <url><loc>https://3d.tosijs.net/library-mesh/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-prop/</loc></url>
+  <url><loc>https://3d.tosijs.net/bone-mask/</loc></url>
+  <url><loc>https://3d.tosijs.net/animation-layers/</loc></url>
+  <url><loc>https://3d.tosijs.net/aim/</loc></url>
+  <url><loc>https://3d.tosijs.net/surroundings/</loc></url>
+  <url><loc>https://3d.tosijs.net/surroundings-probe/</loc></url>
+  <url><loc>https://3d.tosijs.net/camera-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/panel-orbit/</loc></url>
   <url><loc>https://3d.tosijs.net/panel-layer/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
@@ -54,16 +67,15 @@
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
   <url><loc>https://3d.tosijs.net/scene-schemas/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc></url>
+  <url><loc>https://3d.tosijs.net/starfield-codec/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-aircraft/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-biped/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-black-hole/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-car/</loc></url>
-  <url><loc>https://3d.tosijs.net/b3d-clouds/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-collisions/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-death/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-exploder/</loc></url>
-  <url><loc>https://3d.tosijs.net/b3d-fog/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-galaxy/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-input-focus/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-interactive/</loc></url>
@@ -114,10 +126,13 @@
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/vehicles/</loc></url>
   <url><loc>https://3d.tosijs.net/water-normal/</loc></url>
-  <url><loc>https://3d.tosijs.net/world-sim/</loc></url>
+  <url><loc>https://3d.tosijs.net/world-sim-md/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
   <url><loc>https://3d.tosijs.net/wreck-fall/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-frames/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-clouds/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-cloud-deck/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-fog/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-svg-plane/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-hud/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
@@ -163,4 +178,5 @@
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>
   <url><loc>https://3d.tosijs.net/world-topology/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/cloud-field/</loc></url>
 </urlset>

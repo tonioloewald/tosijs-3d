@@ -40,6 +40,8 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils.js';
 import { B3dControllable } from './b3d-controllable.js';
+import { useNearest } from './interactive-behavior.js';
+import { gameController } from './game-controller.js';
 import { bipedMapping, } from './virtual-gamepad.js';
 import { CompositeInputProvider } from './control-input.js';
 export class B3dInputFocus extends B3dChild {
@@ -60,13 +62,33 @@ export class B3dInputFocus extends B3dChild {
     interactWasPressed = false;
     sceneReady(owner, _scene) {
         this.owner = owner;
-        // Find the GameController child
-        const gcEl = this.querySelector('tosi-game-controller');
-        if (gcEl) {
-            this.gameController = gcEl;
-            this.inputMappedProvider =
-                this.gameController.getInputProvider(bipedMapping);
+        /*
+        A GameController, WHETHER OR NOT ANYONE SUPPLIED ONE.
+    
+        Without a provider `focusEntity` is never called, the player entity never
+        gets an `inputProvider`, and nothing responds to anything — no keyboard, no
+        hardware pad, and no glass pad, because the glass pad is a SOURCE added to
+        this provider rather than an input path of its own. The element looked
+        entirely correct: the biped was found, `player` was true, the pad was
+        mounted and drawn, and `focusedEntity` was quietly null.
+    
+        That is what "it doesn't seem to be wired up at all" was, and it had already
+        shipped in two demos written as `inputFocus(hero)`, which is the obvious
+        spelling and the one a reader will copy. There is no configuration where an
+        input manager with no input source is what someone meant, so the default is
+        to build one rather than to do nothing.
+        */
+        let gcEl = this.querySelector('tosi-game-controller');
+        if (gcEl == null) {
+            gcEl = gameController();
+            // Appended to the element itself, not through a slot: this is plumbing
+            // the author did not ask for and should not have to see among their
+            // children. Same shape as `b3d`'s own `_setupGamepad`.
+            this.append(gcEl);
         }
+        this.gameController = gcEl;
+        this.inputMappedProvider =
+            this.gameController.getInputProvider(bipedMapping);
         // Defer discovery to ensure all children have completed sceneReady
         // (inputFocus is notified before its children in document order)
         requestAnimationFrame(() => this.discoverEntities());
@@ -248,7 +270,29 @@ export class B3dInputFocus extends B3dChild {
             }
             if (closest) {
                 this.enterVehicle(closest);
+                return;
             }
+            /*
+            NOTHING TO GET INTO — SO REACH FOR WHAT IS THERE.
+      
+            `interact` is one verb and it had exactly one meaning: get in a vehicle.
+            Which left `b3d-interactive` — doors, knobs, switches, levers, the entire
+            "touch a mesh" substrate — reachable ONLY by mouse pointer. `useNearest`,
+            the function whose whole job is to be bound to this button, had no caller
+            anywhere in the engine; it was written, exported, documented with this
+            exact line in `b3d-interactive`'s own page, and never wired.
+      
+            On a keyboard or a pad that is not a hard-to-reach control, it is no
+            control at all: you walk up to a lift switch, press the button the game
+            told you to press, and nothing happens — with no hover, no refusal and no
+            error, because you never generated a pointer event in the first place.
+            Tonio, twice: "I can't figure out how to activate the red elevator."
+      
+            Vehicles keep priority. Standing beside a car with a door panel on the
+            wall, the car is what you meant — and the interactive is still there when
+            you step away from it.
+            */
+            useNearest(this.owner.scene, playerPos);
         }
         else {
             // Player is in a vehicle — exit back to biped

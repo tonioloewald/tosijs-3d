@@ -15,6 +15,15 @@ export interface ControlInput {
     sprint: number;
     interact: number;
     aim: number;
+    /**
+     * Raise or lower the weapon — a TOGGLE, edge-detected by whoever consumes it.
+     *
+     * Separate from `aim` because they are different questions: `aim` is "look
+     * down the sights right now" and is held, `weapon` is "am I carrying this
+     * thing ready or not" and persists. A character who has put the gun away is
+     * not aiming, but a character who is not aiming may still be armed.
+     */
+    weapon: number;
     cameraZoom: number;
     sneak: number;
     view: number;

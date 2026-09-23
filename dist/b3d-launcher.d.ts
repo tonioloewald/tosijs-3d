@@ -220,6 +220,22 @@ export declare class B3dLauncher extends AbstractMesh {
         /** Instantiate `meshName` from this LIBRARY instead of the placeholder box.
          * `_muzzle` on the model says where rounds leave (#34). */
         library: string;
+        grip: string;
+        socket: string;
+        /**
+         * Uniform scale for the loaded model.
+         *
+         * Weapon packs are authored at their own idea of real scale and a character
+         * rig at its own, and the two rarely agree TO THE EYE even when both are
+         * nominally correct — Kenney's pistol is a chunky 0.29m, which reads large
+         * in a 1.83m hand. Tonio, fitting one: "I'd also want to scale the weapon
+         * down somewhat."
+         *
+         * Applied to the mesh's `scaling`, which `AbstractMesh.render()` does NOT
+         * overwrite — the one part of a transform it leaves alone — so unlike
+         * `x`/`y`/`z` it survives without being re-applied every frame.
+         */
+        modelScale: number;
         muzzleSpeed: number;
         fireRate: number;
         ammo: number;
@@ -247,6 +263,9 @@ export declare class B3dLauncher extends AbstractMesh {
     };
     meshName: string;
     library: string;
+    grip: string;
+    socket: string;
+    modelScale: number;
     muzzleSpeed: number;
     fireRate: number;
     ammo: number;
@@ -290,6 +309,114 @@ export declare class B3dLauncher extends AbstractMesh {
     /** Ammo currently in the magazine. */
     get ammoRemaining(): number;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /**
+     * Shift the model so its GRIP lands on `x`/`y`/`z`, not its origin.
+     *
+     * Runs once, after the model loads, because it needs the geometry. A `_grip`
+     * node wins if the model carries one — the same deal `_muzzle` gets, and the
+     * thing this heuristic exists to substitute for.
+     */
+    /** The grip offset, measured once — see `_applyGrip`. */
+    private _gripOffset;
+    private _applyGrip;
+    /**
+     * The grip, guessed from the shape: the centroid of the lowest third.
+     *
+     * Measured against Kenney's pack, where it lands inside the handle on every
+     * one-handed weapon — pistol (0, 0.011, -0.105), uzi (0, 0.045, -0.039),
+     * shotgun (0, 0.023, -0.106). It is a guess about shape and it will be wrong
+     * for anything not held near its lowest point, a shoulder-carried launcher
+     * being the obvious case. `_grip` or an explicit offset is the answer there.
+     *
+     * Everything is converted into the LAUNCHER MESH's own local frame rather
+     * than read in world space, because a weapon held by a character hangs under
+     * a `__root__` carrying the glTF handedness mirror — so a world-space
+     * measurement comes back with its z sign flipped relative to the offsets we
+     * are about to write.
+     */
+    private _deriveGrip;
+    /**
+     * Swap to a different model from the same library, at runtime.
+     *
+     * The load is a one-shot latch (see `_loadLibraryModel`), which is right for
+     * the normal case and wrong for a fitting tool that switches weapons while you
+     * watch. This releases the latch and drops the current mesh so the next frame
+     * loads whatever `meshName` now says.
+     *
+     * The proxy children go with it — `addSolidProxy` parents them to the mesh, so
+     * disposing the hierarchy takes them too, and forgetting that would leave an
+     * invisible collider hanging in the air where the old weapon was.
+     */
+    reloadModel(): void;
+    /** Load the library model, once, after the attribute drain has finished. */
+    private _libLoaded;
+    private _loadLibraryModel;
+    /**
+     * A NESTED launcher rides its holder.
+     *
+     * Without this, `b3dBiped({...}, b3dLauncher({...}))` reads as "this character
+     * is carrying a gun" and renders as a crate lying at the world origin — the
+     * mesh is placed in world space, and nothing ever told it about the thing it
+     * is nested in. The FIRING was already right (a biped fires along its own
+     * aim), which made the gap worse rather than better: correct behaviour
+     * attached to scenery.
+     *
+     * So `x`/`y`/`z` become a LOCAL offset when nested, which is what they
+     * obviously mean once there is something to be local to — a hip, a hardpoint,
+     * a turret ring.
+     *
+     * `semanticParent` rather than `parentElement`, because tosijs mounts light
+     * DOM children inside a `<tosi-slot>` and the raw parent is that wrapper.
+     */
+    private _rideHolder;
+    /**
+     * The joint named by `socket`, as something to parent to.
+     *
+     * Babylon gives a glTF skeleton's bones LINKED TRANSFORM NODES — real nodes
+     * in the scene graph that the animation drives — so parenting to one is
+     * ordinary parenting and needs no `attachToBone` bookkeeping. A rig without
+     * them (a non-glTF import) has no node to hang off, and that is a fallback
+     * rather than a failure.
+     */
+    private _socketNode;
+    /**
+     * Riding a BONE rather than the holder's root.
+     *
+     * Read by the biped, which must not then rotate the weapon to the aim: the
+     * hand already carries it, and applying both gives you the hand's rotation
+     * times the aim's.
+     */
+    get socketed(): boolean;
+    private _socketed;
+    /** Once per message — this runs from the render loop. */
+    private _warnedSockets;
+    private _warnSocket;
+    /**
+     * The node the launcher RIDES ON, if it is mounted on something.
+     *
+     * Cached, because it is asked for on every shot and the answer only changes
+     * when the launcher is re-parented — which `_rideHolder` does once.
+     */
+    private _mountRoot;
+    private _mount;
+    /**
+     * Geometry a round must not detonate on: our own barrel, and WHOEVER IS
+     * HOLDING US.
+     *
+     * The barrel alone was not enough, and the way it failed is worth recording
+     * because it does not look like a collision bug. A biped fires from
+     * `aimOrigin`, which is 0.35m in front of the body — and the body's collision
+     * ellipsoid has a radius of 0.75. So every round spawned INSIDE the shooter,
+     * hit him on its first swept step, and detonated. Tonio: "I don't seem to be
+     * able to aim, just cause explosions in front of me." Nothing was wrong with
+     * the aiming; the round never got out of the man.
+     *
+     * Moving the muzzle further forward would be the wrong fix — it would make
+     * the number bigger until a wider character or a crouch broke it again, and
+     * it would put the muzzle through a wall the shooter is standing against.
+     * Whoever holds the gun is not a target for it, at any distance.
+     */
+    private _selfHit;
     /** World-space muzzle point (barrel tip, in front of the launcher). */
     muzzle(): BABYLON.Vector3;
     /** The launcher's current forward (its default fire direction). */

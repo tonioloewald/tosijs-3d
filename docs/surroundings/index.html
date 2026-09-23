@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <title>surroundings — tosijs-3d</title>
+  <meta name="description" content="One budgeted read of what is around a character, and the affordances derived from it. Pure — distances and degrees, no Babylon, no rays — so cover can be…" />
+  <link rel="canonical" href="https://3d.tosijs.net/surroundings/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="surroundings — tosijs-3d" />
+  <meta property="og:description" content="One budgeted read of what is around a character, and the affordances derived from it. Pure — distances and degrees, no Babylon, no rays — so cover can be…" />
+  <meta property="og:url" content="https://3d.tosijs.net/surroundings/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"surroundings","description":"One budgeted read of what is around a character, and the affordances derived from it. Pure — distances and degrees, no Babylon, no rays — so cover can be…","url":"https://3d.tosijs.net/surroundings/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>surroundings</h1>
+<p><strong>One budgeted read of what is around a character, and the affordances derived
+from it.</strong> Pure — distances and degrees, no Babylon, no rays — so cover can be
+tested against a world you type out by hand.</p>
+<p>Two halves, and the split is the point:</p>
+<ul>
+<li><strong>The READ</strong> is a measurement. A ring of bearings × a ladder of heights, each
+holding the distance to the nearest obstruction. It knows nothing about cover,
+climbing or shooting.</li>
+<li><strong>The QUERIES</strong> are relations between that measurement, a character and a
+threat. <code>shelterFrom</code> is not a property of a wall; it depends on your size,
+your stance and where the shooting is coming from.</li>
+</ul>
+<p><code>MOBILITY-DESIGN.md</code> argues both, and the second is the one with teeth:</p>
+<blockquote>
+<p><strong>Suffixes declare what geometry IS. Affordances describe what a character can
+DO with it, and must be computed.</strong> A <code>_cover</code> suffix would be a bug, not a
+shortcut.</p>
+</blockquote>
+<h2>Demo — walk into cover and watch it happen</h2>
+<p><strong>WASD / left stick</strong> to move. The red sphere is the shooter. The marker turns
+green when you are in cover, and the readout says how much of you is hidden,
+what stance the cover demands, which side you could lean out of, and whether
+your own wall is in the way of your shot.</p>
+<p>Things worth doing:</p>
+<ul>
+<li><strong>Stand behind the long low wall.</strong> You are covered — crouched. Now walk to
+its end and watch cover fall away with nothing pressed and nothing stuck.</li>
+<li><strong>Stand behind the pillar.</strong> Full cover, and <code>peek</code> says <code>both</code> — a pillar is
+cover you can shoot past on either side.</li>
+<li><strong>Walk into the corner.</strong> The wall doing the work is not the one facing the
+shooter, which is why <code>shelterFrom</code> searches an arc.</li>
+<li><strong>Compare the low wall with the railing</strong> (the one on legs). Same height, same
+distance, no cover at all — because a shelter with a gap under it is not a
+shelter.</li>
+</ul>
+<p>The rays are cast at 10Hz, not every frame, which is the budget the design
+asks for: 12 bearings × 7 heights is 84 casts, and at a walk you move 5cm
+between reads.</p>
+<pre><code class="language-js">import { b3d, b3dSkybox, b3dController, sceneDelta, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { makeSurroundings, SurroundingsProbe, shelterFrom, exposure, inShelter, stanceFor, peekSide, muzzleClearance, DEFAULT_HEIGHTS } from &#39;tosijs-3d&#39;
+import { demoSun, orbitCam, patternGround } from &#39;tosijs-3d/demo-utils&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const demo = tosi({ coverDemo: { range: 1.2, needed: 0.8 } })
+const s = demo.coverDemo
+
+let hero = null
+let babylon = null
+let readout = null
+let covered = false
+
+const controller = b3dController({
+  mapping: &#39;biped&#39;,
+  drive(input, dt) {
+    if (!hero) return
+    // World-axis walking: this demo is about WHERE you stand, not about driving.
+    hero.position.x += input.strafe * dt * 4
+    hero.position.z += input.forward * dt * 4
+  },
+})
+
+const panel = () =&gt; [
+  label3d({ text: &#39;Cover&#39; }),
+  slider3d({ label: &#39;reach (m)&#39;, value: s.range, min: 0.5, max: 3, step: 0.1, showValue: &#39;always&#39;,
+    handleChange: (v) =&gt; { s.range = v } }),
+  slider3d({ label: &#39;needed&#39;, value: s.needed, min: 0.4, max: 1, step: 0.05, showValue: &#39;always&#39;,
+    handleChange: (v) =&gt; { s.needed = v } }),
+]
+
+const scene = b3d(
+  {
+    style: &#39;width:100%;height:100%&#39;,
+    gamepad: &#39;left_stick&#39;,
+    scenePanel: panel,
+    sceneCreated(el, BABYLON) {
+      babylon = BABYLON
+      orbitCam(el, { radius: 26, beta: 0.62, target: [0, 1, 2] })
+
+      const solid = (name, w, h, d, x, y, z) =&gt; {
+        const m = BABYLON.MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, el.scene)
+        m.position.set(x, y, z)
+        const mat = new BABYLON.StandardMaterial(name + &#39;-mat&#39;, el.scene)
+        mat.diffuseColor = new BABYLON.Color3(0.55, 0.52, 0.48)
+        m.material = mat
+        el.register?.({ meshes: [m] })
+        return m
+      }
+
+      // A low wall, a pillar, an L-shaped corner, and a railing that is not cover.
+      solid(&#39;lowwall&#39;, 9, 1.1, 0.4, -3, 0.55, 5)
+      solid(&#39;pillar&#39;, 1.2, 2.4, 1.2, 5, 1.2, 4)
+      solid(&#39;corner-a&#39;, 0.4, 2.2, 5, 10, 1.1, 2)
+      solid(&#39;corner-b&#39;, 4, 2.2, 0.4, 8.2, 1.1, 4.6)
+      // A railing: top rail only, wide open underneath.
+      solid(&#39;rail&#39;, 6, 0.25, 0.3, -9, 1.05, 5)
+      solid(&#39;rail-post-a&#39;, 0.2, 1.1, 0.2, -11.8, 0.55, 5)
+      solid(&#39;rail-post-b&#39;, 0.2, 1.1, 0.2, -6.2, 0.55, 5)
+
+      const threat = BABYLON.MeshBuilder.CreateSphere(&#39;threat&#39;, { diameter: 0.9 }, el.scene)
+      threat.position.set(0, 1.5, 18)
+      const tm = new BABYLON.StandardMaterial(&#39;threat-mat&#39;, el.scene)
+      tm.diffuseColor = new BABYLON.Color3(0.9, 0.15, 0.2)
+      tm.emissiveColor = new BABYLON.Color3(0.5, 0.05, 0.08)
+      threat.material = tm
+
+      hero = BABYLON.MeshBuilder.CreateCapsule(&#39;hero&#39;, { height: 1.8, radius: 0.35 }, el.scene)
+      hero.position.set(0, 0.9, -2)
+      const hm = new BABYLON.StandardMaterial(&#39;hero-mat&#39;, el.scene)
+      hero.material = hm
+      el.register?.({ meshes: [hero] })
+
+      // ONE probe, throttled to 10Hz, reusing its buffers. `SurroundingsProbe`
+      // gathers the nearby meshes once per read instead of asking the whole
+      // scene 84 times — see the cost table in `surroundings-probe`.
+      const surr = makeSurroundings({ bearingCount: 12, heights: DEFAULT_HEIGHTS })
+      const probe = new SurroundingsProbe(surr, 10)
+      const solidOnly = (m) =&gt; m !== hero &amp;&amp; m !== threat &amp;&amp; m.name !== &#39;ground&#39; &amp;&amp; m.isVisible
+      const foot = new BABYLON.Vector3(0, 0, 0)
+
+      el.scene.onBeforeRenderObservable.add(() =&gt; {
+        const dt = sceneDelta(el.scene)
+        const range = Number(s.range)
+        // THE FEET, and the feet do not move when he crouches. Deriving them
+        // from `position` (a capsule CENTRE, which drops on a crouch) shifts
+        // the whole height ladder down with it, so the wall measures taller
+        // than it is and the character talks himself out of the cover he is
+        // standing behind — while crouching, which lowers it again.
+        foot.set(hero.position.x, 0, hero.position.z)
+        // `false` means &quot;nothing new to look at&quot; — so the derivation is skipped
+        // too, rather than recomputing identical answers sixty times a second.
+        if (!probe.update(el.scene, foot, dt, { maxRange: range, filter: solidOnly })) return
+
+        const threatDeg = (Math.atan2(threat.position.x - hero.position.x,
+                                      threat.position.z - hero.position.z) * 180) / Math.PI
+        const stature = { standing: 1.8, needed: Number(s.needed) }
+        const sh = shelterFrom(surr, threatDeg, { maxRange: range })
+        // Stance FIRST: how exposed you are depends on what you are doing
+        // about it, and a low wall you are crouched behind hides all of you.
+        const stance = stanceFor(sh.height, stature)
+        const masked = 1 - exposure(sh.height, stature, stance ?? &#39;standing&#39;)
+        covered = inShelter(masked, covered)
+        const peek = peekSide(surr, threatDeg, { maxRange: range })
+        const clear = muzzleClearance(surr, threatDeg, stance === &#39;crouched&#39; ? 0.9 : 1.45, { maxRange: range })
+
+        hm.diffuseColor = covered
+          ? new BABYLON.Color3(0.25, 0.75, 0.35)
+          : new BABYLON.Color3(0.9, 0.6, 0.2)
+        // Crouch when the cover demands it — derived, like everything else here.
+        hero.scaling.y = stance === &#39;crouched&#39; ? 0.62 : 1
+        // Keep the FEET on the floor whatever the stance does.
+        hero.position.y = 0.9 * hero.scaling.y
+
+        if (readout) {
+          readout.textContent =
+            `hidden ${(masked * 100).toFixed(0)}%   cover ${sh.height.toFixed(1)}m   ` +
+            `${covered ? &#39;IN COVER&#39; : &#39;exposed&#39;}   stance ${stance ?? &#39;none&#39;}   ` +
+            `peek ${peek ?? &#39;none&#39;}   ${clear &gt; 0 ? `shot BLOCKED (needs ${clear.toFixed(1)}m)` : &#39;shot clear&#39;}`
+        }
+      })
+    },
+  },
+  demoSun(),
+  b3dSkybox({ timeOfDay: 11 }),
+  patternGround({ size: 60 }),
+  controller
+)
+
+preview.append(scene)
+readout = document.createElement(&#39;div&#39;)
+readout.style.cssText = &#39;position:absolute;bottom:8px;left:8px;right:8px;font:12px monospace;background:#0009;color:#fff;padding:4px 8px;border-radius:4px&#39;
+preview.append(readout)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; position: relative; }
+</code></pre>
+<blockquote>
+<p><strong>WASD</strong> to move. The marker turns green when the probe says you are in cover
+— walk behind a block and watch it flip, then widen <code>reach</code> and watch cover
+start further out.</p>
+<p>Cover is DISCOVERED here, not entered: nothing puts you into a cover mode and
+there is no state to leave. The readout is the live answer, which is why it
+can disagree with where you thought you were standing.</p>
+</blockquote>
+<h2>Why a shared read rather than a fan of rays per feature</h2>
+<p>Also <code>MOBILITY-DESIGN.md</code>, written when <code>mantle</code> shipped and predicting this
+exact moment:</p>
+<blockquote>
+<p>when the second consumer appears, <strong>do not give it its own fan of rays.</strong> One
+budgeted environmental read per tick, shared — &quot;what is around me, at what
+heights, how far&quot; — with features asking questions of the result.</p>
+</blockquote>
+<p>Cover is that second consumer. A mantle check is eight casts; cover wants a ring;
+&quot;can I get there&quot; wants another; at eight per frame per feature a character
+controller eats the frame budget on its own. And a shared read has a second
+virtue that matters more than the cost: every feature is then reasoning about
+the SAME world. Two private reads disagree at exactly the moment they matter —
+the frame you are half behind a wall.</p>
+<p>The read is deliberately coarse. Twelve bearings is 30° apart, which sounds
+crude until you remember what it is for: a wall you are pressed against occupies
+many buckets, and a gap you could be shot through occupies at least one. It is
+sampling a room, not tracing a silhouette.</p>
+<h2>Heights, not a height</h2>
+<p>The lesson <code>mantle</code> paid for, in this module&#39;s shape rather than in a comment.
+One forward ray at shin height missed a canal bank whose face existed only
+between 0.25m and 1.25m — undercut below, sloping away above — so the character
+was visibly stuck against a wall the probe said was not there. <strong>Real geometry is
+not sampled correctly by a single ray, and the failure is silent</strong>, because a
+miss and an absence are the same reading.</p>
+<p>So the unit of measurement here is a COLUMN: what is in front of me, at every
+height that matters. A low wall and a doorway are the same distance and
+completely different affordances, and the only thing that tells them apart is
+which heights are blocked.</p>
+<h2>Cover is derived, never entered</h2>
+<p><code>shelterFrom</code> returns how much of you is masked, right now. There is no
+<code>enterCover</code>, no cover state and nothing to be stuck in — the anti-goal the whole
+design is organised around. <code>inShelter</code> adds the one bit of state anybody needs,
+and it is hysteresis rather than a mode: <code>isSwimming</code> flickered at its threshold
+in the smallest possible case, and this band is budgeted for from the start
+rather than discovered later.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      <li><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link current" href="../surroundings/" aria-current="page">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+</body>
+</html>

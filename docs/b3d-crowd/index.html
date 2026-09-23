@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
   <title>b3d-crowd — tosijs-3d</title>
   <meta name="description" content="Many animated figures, one draw call. The Babylon half of [[vertex-animation]] — a baker, a material plugin that replays the bake in the vertex shader, and…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-crowd/" />
@@ -54,24 +54,7 @@ vertex shader, and thin instances so the CPU does nothing per figure per frame.<
 LOGARITHMIC and goes to 200,000 on purpose: the first version stopped at 4000
 and the answer came back &quot;flat, 18ms at any number&quot;, which is what you measure
 when the load never bends anything and vsync is doing the talking.</p>
-<p>⚠️ <strong>No GPU timer in Safari.</strong> WebKit has never shipped
-<code>EXT_disjoint_timer_query</code> — it is a timing-attack surface — so the GPU line
-reads <code>—</code> there and no amount of asking will change it. Chrome gives it to you.
-Where it is missing the only reading available is the wall clock, which means
-the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
-you that you fitted and nothing else. That is often enough (200,000 figures at
-33ms is a real measurement) and it is worth knowing the floor is blind.</p>
-<p>⚠️ <strong><code>wall</code> is not a cost.</strong> It is the gap between frames, and with vsync on it
-reads ~16.7ms however little work you do. A flat 18ms means &quot;we never missed a
-frame&quot; — excellent news, and no information about the crowd. <code>GPU</code> is the
-number: <code>EXT_disjoint_timer_query</code> asking the hardware how long it actually
-took. Where the extension is missing it says so rather than reporting zero.</p>
-<p>The reading is in the <strong>Perf Stats panel</strong> under <strong>Crowd</strong> — figures, draw
-calls, this frame, the worst since you last moved the slider, and the budget it
-is being judged against. <code>reset worst</code> is a button because in a headset there is
-no console to clear, and because the worst you care about is the worst since the
-last thing you changed.</p>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dCrowd, slider3d, label3d, toggle3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dCrowd, slider3d, label3d, toggle3d } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
@@ -93,17 +76,49 @@ import { tosi } from &#39;tosijs&#39;
 // crowd of 200 — a control that lies about the thing it controls, and no way to
 // tell except by counting figures.
 const FIGURES = 400
-const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0 } })
+// The clips a real rig gets baked with. Six that are different SHAPES, not six
+// different speeds — see the note on legibility at distance.
+const OMNI_CLIPS = &#39;walk,run,wave,dance,jump,salute&#39;
+const demo = tosi({ crowdBench: { figures: FIGURES, interp: true, skinned: 0, omni: false, shadows: true } })
 const s = demo.crowdBench
 
 let crowd = null
 let scene = null
+let sun = null
 
 const panel = () =&gt; [
   label3d({ text: &#39;Crowd bench&#39; }),
   slider3d({
-    label: &#39;figures&#39;, value: s.figures, min: 1, max: 200000, scale: &#39;log&#39;, showValue: &#39;always&#39;,
+    // `snap: 1` — whole figures. `step` on a log scale is in DECADES, so it
+    // cannot say &quot;integers&quot;; `snap` quantises the value after the scale has
+    // been applied, which is exactly the question being asked. Without it the
+    // readout offered 2.5 figures, and the element rounded behind its back.
+    label: &#39;figures&#39;, value: s.figures, min: 1, max: 200000, scale: &#39;log&#39;, snap: 1,
+    showValue: &#39;always&#39;,
     handleChange: (v) =&gt; { if (crowd) crowd.count = Math.round(v) },
+  }),
+  // A TOGGLE, not a select. A select needs a popup, and a popup is a second
+  // gesture that can fail on its own — which is what it did: &quot;when I pick
+  // omnidude, nothing happens&quot;. Two states want one click anyway.
+  toggle3d({
+    label: &#39;omnidude mesh&#39;, value: s.omni,
+    handleChange: (v) =&gt; {
+      s.omni = v
+      if (!crowd) return
+      // omnidude is 0.88m — half a person. See CLAUDE.md on scale.
+      crowd.figureScale = v ? 2 : 1
+      crowd.clips = v ? OMNI_CLIPS : &#39;&#39;
+      crowd.url = v ? &#39;/omnidude.glb&#39; : &#39;&#39;
+    },
+  }),
+  // SHADOWS ARE A SECOND DRAWING OF EVERY FIGURE (one pass per cascade), so
+  // they belong on the bench as a switch rather than as a constant. Off is
+  // `activeDistance: 0` — the sun drops every caster beyond that distance, and
+  // re-adds them when it grows again. It re-evaluates once a second, so give
+  // it a moment before reading the number.
+  toggle3d({
+    label: &#39;shadows&#39;, value: s.shadows,
+    handleChange: (v) =&gt; { s.shadows = v; if (sun) sun.activeDistance = v ? 140 : 0 },
   }),
   toggle3d({
     label: &#39;interpolate frames&#39;, value: s.interp,
@@ -113,10 +128,20 @@ const panel = () =&gt; [
     label: &#39;skinned baseline&#39;, value: s.skinned, min: 0, max: 400, step: 1, showValue: &#39;always&#39;,
     handleChange: (v) =&gt; { if (crowd) crowd.skinned = Math.round(v) },
   }),
-  label3d({ text: &#39;Perf Stats → Crowd for the numbers&#39;, muted: true }),
+  // NO INSTRUCTION ROWS. Three muted labels used to sit here pointing at Perf
+  // Stats and explaining what omnidude is — two of them saying the same thing,
+  // and all three saying what the prose above already says. A panel is for the
+  // controls; the page is for the explanation. Tonio: &quot;they&#39;re not really
+  // needed, I think.&quot;
 ]
 
 crowd = b3dCrowd({ count: FIGURES, spread: 80, bakeFps: 10 })
+// Held so the `shadows` toggle can reach it. Assigned as a statement rather
+// than inline in the scene, which is the shape the rest of this demo uses.
+sun = b3dSun({
+  shadowMaxZ: 200, activeDistance: 140,
+  shadowTextureSize: 2048, shadowDarkness: 0.25,
+})
 
 scene = b3d(
   {
@@ -124,12 +149,30 @@ scene = b3d(
     scenePanelOpen: true,
     scenePanel: panel,
     sceneCreated(el) {
-      orbitCam(el, { alpha: -1.1, beta: 1.12, radius: 85, target: [0, 2, 0] })
+      // Sun BEHIND the viewer. The first version had the camera looking into it,
+      // and a crowd lit from the far side is a crowd of silhouettes — which
+      // read as black figures rather than as a lighting choice.
+      orbitCam(el, { alpha: 0.62, beta: 1.12, radius: 85, target: [0, 2, 0] })
     },
   },
-  b3dSun({}),
-  b3dSkybox({ timeOfDay: 10 }),
-  b3dLight({ intensity: 0.45 }),
+  // A GROUND AND A REAL SUN, because a crowd against a skybox has no scale and
+  // no contact with anything: the mottle is what tells you the field is 80m
+  // across, and the shadows are what put the figures ON it rather than in front
+  // of it. (`activeDistance` is 140 rather than the 30m default, which is a
+  // character-scale number and would shadow the middle of the field only. And
+  // `_nocast` on the ground: it receives, and a ground plane casting into its
+  // own shadow map is just acne.)
+  sun,
+  b3dSkybox({ timeOfDay: 9 }),
+  // `groundColor` matters more here than intensity: Babylon&#39;s default is BLACK,
+  // so every vertical surface — which is most of a standing figure — gets
+  // nothing from the ambient light however far you push it.
+  b3dLight({ intensity: 0.6, groundColor: &#39;#59604a&#39; }),
+  b3dGround({
+    meshName: &#39;ground_nocast&#39;,
+    width: 160, height: 160,
+    color: &#39;#8a9070&#39;, texture: &#39;noise&#39;, textureTiles: 9,
+  }),
   crowd
 )
 
@@ -137,73 +180,122 @@ preview.append(scene)
 </code></pre>
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
+<h3>Reading it</h3>
+<p>The reading is in the <strong>Perf Stats panel</strong> under <strong>Crowd</strong> — figures, draw
+calls, this frame, the worst since you last moved the slider, and the budget it
+is being judged against. <code>reset worst</code> is a button because in a headset there is
+no console to clear, and because the worst you care about is the worst since the
+last thing you changed.</p>
+<p>⚠️ <strong><code>wall</code> is not a cost.</strong> It is the gap between frames, and with vsync on it
+reads ~16.7ms however little work you do. A flat 18ms means &quot;we never missed a
+frame&quot; — excellent news, and no information about the crowd. <code>GPU</code> is the
+number: <code>EXT_disjoint_timer_query</code> asking the hardware how long it actually
+took. Where the extension is missing it says so rather than reporting zero.</p>
+<p>⚠️ <strong>No GPU timer in Safari.</strong> WebKit has never shipped
+<code>EXT_disjoint_timer_query</code> — it is a timing-attack surface — so the GPU line
+reads <code>—</code> there and no amount of asking will change it. Chrome gives it to you.
+Where it is missing the only reading available is the wall clock, which means
+the bench can see cost only ONCE YOU ARE OVER BUDGET: under ~16.7ms it can tell
+you that you fitted and nothing else. That is often enough (200,000 figures at
+33ms is a real measurement) and it is worth knowing the floor is blind.</p>
 <h2>Does it actually work?</h2>
 <p>The shader is the part that fails silently: a VAT that will not compile leaves a
-black canvas, which looks exactly like a camera pointing the wrong way. So the
-page checks itself.</p>
-<p>⚠️ <strong>The block below goes EMPTY on purpose</strong>, and that is the check passing. It
-builds a crowd, waits for the material to become ready, and then removes its
-scene — because it is the page&#39;s second WebGL context and Safari counts those
-much more tightly than Chrome. An empty box here means the assertion ran; look
-at the test badge, not at the box.</p>
-<pre><code class="language-test">import { b3d, b3dLight, b3dCrowd } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
-
-test(&#39;the crowd builds, and its shader COMPILES&#39;, async () =&gt; {
-  const crowd = b3dCrowd({ count: 32, spread: 6, bakeFps: 8 })
-  const scene = b3d(
-    {
-      style: &#39;width:320px;height:200px&#39;,
-      // A camera, or this is a black box in the docs even when it passes — and
-      // a black box beside the words &quot;does it actually work?&quot; answers itself
-      // wrongly.
-      sceneCreated: (el) =&gt; orbitCam(el, { alpha: -1.2, beta: 1.15, radius: 14, target: [0, 1, 0] }),
-    },
-    b3dLight({ intensity: 0.9 }),
-    crowd
-  )
-  preview.append(scene)
-
-  // The scene mounts on its own schedule; poll rather than guess a delay.
-  const until = async (why, fn) =&gt; {
-    for (let i = 0; i &lt; 200; i++) {
-      if (fn()) return
-      await new Promise((r) =&gt; setTimeout(r, 50))
-    }
-    throw new Error(why)
-  }
-
-  await until(&#39;scene never came up&#39;, () =&gt; scene.scene != null)
-  let mesh = null
-  await until(&#39;no crowd mesh&#39;, () =&gt; {
-    mesh = scene.scene.meshes.find((m) =&gt; m.name === &#39;crowd-figure&#39;)
-    return mesh != null
-  })
-
-  // One draw call for all of them — the whole claim.
-  expect(mesh.thinInstanceCount).toBe(32)
-
-  // `isReady` is the assertion that matters. A material whose vertex shader
-  // failed to compile never becomes ready, and nothing else here would notice —
-  // the canvas simply stays black, which is indistinguishable from a camera
-  // pointing at nothing.
-  //
-  // (LINE comments, not a block one: a close-comment token inside a fence ends
-  // the enclosing doc comment, and every line after it becomes TypeScript. That
-  // is tosijs-ui#142&#39;s third trap — and note this warning cannot SPELL the
-  // token either, which is the same joke the original report made about itself.)
-  await until(&#39;the VAT shader never compiled&#39;, () =&gt; mesh.material.isReady(mesh))
-  expect(mesh.material.isReady(mesh)).toBe(true)
-
-  // HAND THE CONTEXT BACK. This scene is the page&#39;s SECOND WebGL context, and
-  // Safari caps contexts far more tightly than Chrome — a test that keeps one
-  // for the life of the page leaves a black rectangle under the words &quot;does it
-  // actually work?&quot;, which answers them wrongly. Removing the element disposes
-  // the engine (see tosi-b3d&#39;s teardown), so the check costs a context for a
-  // few seconds rather than for the session.
-  scene.remove()
-})
-</code></pre>
+black canvas, which looks exactly like a camera pointing the wrong way.</p>
+<p>So the demo above reports it. <strong>Perf Stats → Crowd</strong> carries a <code>shader</code> line —
+<code>READY</code> once the material has compiled, <code>compiling…</code> before it, and it never
+leaves the second state if the vertex shader is broken.</p>
+<p>That is where the check lives now. It used to be a <code>test</code> fence with a scene of
+its own, which was a mistake three times over: the block rendered EMPTY whatever
+it did, it cost the page a second WebGL context (Safari counts those tightly),
+and an empty rectangle under the words &quot;does it actually work?&quot; answers them
+wrongly no matter what the paragraph beside it says. Tonio reported it blank
+three times, which is the signal that documentation was not the fix.</p>
+<h2>Every figure is independent</h2>
+<p><code>vatState</code> is per-instance — <code>(clipStart, clipFrames, phaseOffset, cyclesPerSecond)</code> — so no two figures need share anything:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>where in the clip</strong></td>
+<td>a random phase offset; without it a crowd marches in lockstep, which reads as a bug even though every figure is correct</td>
+</tr>
+<tr>
+<td><strong>how fast</strong></td>
+<td>its own rate, scaled by the clip&#39;s duration so a 0.7s wave and a 1s walk both play as baked</td>
+</tr>
+<tr>
+<td><strong>which clip</strong></td>
+<td><code>start</code> picks one of FOUR out of the shared bake — walk, wave, dance, jump</td>
+</tr>
+</tbody></table>
+<p>The clips are chosen to be told apart <strong>at a hundred metres</strong>, which is the only
+test that matters here and rules out most of what reads as variety close up. An
+idle fails it: a figure shifting its weight and a figure walking slowly are the
+same silhouette from far enough away, so a quarter of the field was doing
+something nobody could see. What survives the distance is gross limb position —
+legs striding, one arm above the head, both arms up, a body leaving the ground.</p>
+<p>Getting there needed a second rotation AXIS. A swing about X is a stride, and
+anything built only from it is a walk at some speed; raising an arm is a
+rotation about Z, and without it the wave, the dance and the jumping jack all
+collapse back into the walk. The vertical bob costs one addition per baked
+vertex and carries furthest of all, because a silhouette that changes HEIGHT is
+visible when the limbs inside it are a pixel wide.</p>
+<p>Walk stays the plurality (<code>CLIP_MIX</code>) because a crowd is going somewhere; the
+other three split the rest evenly, none of them being a default. And the
+durations differ on purpose — identical ones would have every clip turn over
+together, and four animations sharing one heartbeat look more synchronised than
+one animation does.</p>
+<p>None of it costs anything. The clips share one texture, so switching is a change
+of two numbers rather than of material, and the CPU still touches nothing once
+the crowd is built.</p>
+<h2>A real rig, baked</h2>
+<p>Tonio: <em>&quot;Can we do an intermediate version where we use vertex animation to
+animate the omnidude mesh, or is that impractical?&quot;</em> Entirely practical — set
+<code>url</code> and the crowd bakes that GLB instead of the blocky bench figure. The
+demo&#39;s <strong>figure</strong> control switches between them live.</p>
+<p>It is the rung that was missing. The blocky figure proves the mechanism and
+<code>b3d-biped</code> is the fully-articulated top end; this is the SAME character a biped
+would animate, drawn by the crowd path with no skeleton at all.</p>
+<p>The trick is that Babylon will CPU-skin for you. <code>applySkeleton</code> writes the
+posed vertices into the mesh&#39;s own buffers, so a bake is: put the animation at a
+frame, ask the skeleton for its matrices, apply, read the positions back. Six of
+omnidude&#39;s sixteen clips is about 6MB — and after the bake there is no skeleton,
+no <code>AnimationGroup</code> and no per-figure CPU work left, which is the whole point.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td>a rigged GLB to bake from; empty = the synthetic figure</td>
+</tr>
+<tr>
+<td><code>clips</code></td>
+<td>which of its clips, comma-separated; empty = all of them</td>
+</tr>
+<tr>
+<td><code>figureScale</code></td>
+<td>omnidude is 0.88m, so the demo bakes it at <code>2</code></td>
+</tr>
+</tbody></table>
+<p>Two details that are not obvious. The head and body are separate meshes sharing
+one material, and they are concatenated into ONE mesh — two would be two draw
+calls for the entire crowd, which would undo the only claim this module makes.
+And every glTF root carries a handedness mirror, so the baked winding is
+reversed to match; without that the crowd is inside-out and reads as a lighting
+bug rather than as geometry.</p>
+<p>What you give up is the seam: a baked figure cannot retarget, cannot blend to a
+clip that was not baked, and has no bones to hang a sword from (<a href="/vertex-animation/" class="wikilink">vertex-animation</a>&#39;s
+<code>SocketLayout</code> is the answer to the last one). Promoting a figure to a named
+character means crossing back to a skinned rig, and that crossing wants
+designing rather than discovering.</p>
 <h2>Where it sits: the third rung of the ambient ladder</h2>
 <p>Three tiers of &quot;many things&quot;, and they are not competitors:</p>
 <table>
@@ -239,6 +331,13 @@ is the gap this fills — and <code>b3d-ambient</code>&#39;s existing budget all
 right thing to route it through, because it already knows how to switch an
 effect OFF rather than thin it, which is the correct answer when a flock will
 not fit.</p>
+<p><strong>Fish are the same argument underwater, and the easiest case this substrate
+has.</strong> Nobody inspects a fish: it is looked at from ten metres through water, so
+it wants ~100 vertices and two clips where a player character wants 1,380 and a
+dozen. The medium supplies the LOD — underwater fog already fades the far end on
+a curve that is physically motivated rather than a tuned cull distance — and a
+school fills a VOLUME, so a few hundred read as far more than the same number
+scattered on a field. Filed rather than built (see TODO).</p>
 <h2>The target, and what it means that we cleared it</h2>
 <p>The game this was built to answer for is a virtual miniatures battle. Tonio&#39;s
 original ran on an Amiga 500 — 7MHz, 320×200, 16 colours, about 10fps — where a
@@ -261,11 +360,15 @@ to nine units laid out three wide. So:</p>
 </tr>
 <tr>
 <td>measured here</td>
-<td><strong>200,000 at 33ms</strong></td>
+<td><strong>200,000 blocky figures</strong>, 60ms with shadows</td>
+</tr>
+<tr>
+<td>or</td>
+<td><strong>20,000 baked omnidudes</strong> at 33ms</td>
 </tr>
 <tr>
 <td>headroom</td>
-<td><strong>~740×</strong></td>
+<td><strong>~740×</strong> on count, ~74× on a real rig</td>
 </tr>
 </tbody></table>
 <p>That is not &quot;we can do it&quot;. That is the constraint having moved somewhere else
@@ -277,13 +380,407 @@ goes — <em>agents and reactions, not vertices</em> (<code>AI-DESIGN.md</code>)
 every one of them can afford a real sensorium, its own equipment via
 <a href="/vertex-animation/" class="wikilink">sockets</a>, and a bake rate high enough that clip blending is
 not a luxury reserved for wildlife.</p>
-<p><strong>And it reopens a question the bench was built to close.</strong> If 270 is this far
-inside the envelope, the honest next question is whether the vertex-animated
-path is needed <em>for this game at all</em> — a skinned <code>b3d-biped</code> may handle 270
-perfectly well, in which case VAT is the tool for background fauna and for
-scenes an order of magnitude larger, not for the battle. That is exactly what
-the skinned baseline below is for, and it is now the only number this bench
-still owes.</p>
+<p><strong>And the skinned baseline has now been read, which settles it the other way.</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>figures</th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>vertex-animated</td>
+<td><strong>200,000</strong></td>
+<td>blocky, 60ms with shadows (33ms without)</td>
+</tr>
+<tr>
+<td>vertex-animated</td>
+<td><strong>20,000</strong></td>
+<td>omnidude, 33ms with shadows</td>
+</tr>
+<tr>
+<td>skinned rigs</td>
+<td><strong>~50</strong></td>
+<td>before it gets brutal</td>
+</tr>
+</tbody></table>
+<p>About <strong>4000×</strong>, measured by Tonio in Safari on a work laptop. I had speculated
+the opposite — that 270 was so far inside the envelope a skinned <code>b3d-biped</code>
+would simply handle the battle, making this substrate a fauna tool. It will not:
+270 is five times past where the skinned path stops being comfortable.</p>
+<p>So <strong>&quot;actors and crowd&quot; is a real boundary</strong>, and the vertex-animated path is
+needed for the battle after all, not merely for birds.</p>
+<p>⚠️ And ~50 is the FLOOR, not the ceiling of the problem. The baseline spawns
+bare rigs — mesh, skeleton, <code>AnimationGroup</code> — with no controller, no collision,
+no camera rig and no state machine. A real <code>b3d-biped</code> is 2342 lines of
+per-instance update on top of that, so the number of actual bipeds is smaller
+than fifty, and by an amount nobody has measured.</p>
+<h2>What the ceiling actually is — and how I moved it without noticing</h2>
+<p>The headline used to be &quot;200,000 at 33ms&quot;. That number is real and it no longer
+describes this demo, because <strong>I changed the scene it was measured in</strong>: adding a
+ground and a shadow-casting sun (so you could see the figures in context) put
+every figure through the shadow map as well, once per cascade. Same slider, same
+crowd, different question. A bench&#39;s SCENE is part of its measurement, and I
+edited it without re-baselining — which is how a number outlives the thing it
+described.</p>
+<p>Tonio&#39;s readings on the current scene, with shadows:</p>
+<table>
+<thead>
+<tr>
+<th>figure</th>
+<th>verts each</th>
+<th>figures</th>
+<th>verts/frame</th>
+<th>frame</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>blocks</td>
+<td>~144</td>
+<td>200,000</td>
+<td>~29M</td>
+<td><strong>60ms</strong></td>
+</tr>
+<tr>
+<td>omnidude</td>
+<td>1,380</td>
+<td>20,000</td>
+<td>~28M</td>
+<td><strong>33ms</strong></td>
+</tr>
+<tr>
+<td>omnidude</td>
+<td>1,380</td>
+<td>200,000</td>
+<td>~276M</td>
+<td><strong>600ms+</strong></td>
+</tr>
+</tbody></table>
+<p>(For contrast: blocks at 200,000 was 33ms <strong>before</strong> the ground and sun went in.)</p>
+<p>⚠️ <strong>Read those as BOUNDS, not as costs.</strong> They were taken on a laptop that may
+have been driving a 30Hz display, where the floor is 33.3ms — so &quot;20,000
+omnidudes at 33ms&quot; may well mean the crowd was FREE and the wall clock was
+reporting the monitor. Likewise 60ms is two swap intervals: one missed frame,
+not sixty milliseconds of work. Tonio: <em>&quot;I think these figures are always going
+to be rubbery unless we do proper benchmarking but we have some nice bounds
+here.&quot;</em> That is the right reading of them.</p>
+<p>The panel now measures the floor rather than assuming one — the fastest frame it
+has seen IS the swap interval — and reports the worst as a MULTIPLE of it, so a
+quantised reading is legible as quantised. <code>reset worst</code> clears the floor too,
+because a display can change under you.</p>
+<p>The readings that will actually settle the budget are a <strong>headset</strong> and a
+<strong>Raspberry Pi</strong>: the first has the tightest frame budget we ship against (13.9ms,
+twice, one per eye) and the second is the floor of the hardware range. Both are
+in <code>TODO.md</code>.</p>
+<p>Read them together and the tidy story I had written — <em>cost is vertices</em> — is
+only half right. Rows one and two are the same number of vertices and differ by
+<strong>2×</strong>, so something other than vertex count is being paid, and the third row is
+10× the vertices for 10× the time, so vertex count is clearly being paid too.</p>
+<p>Two candidates for the gap, and Tonio named the area: <em>&quot;these are figures with
+shadow casting etc. added so we are torturing fill rates and buffers.&quot;</em></p>
+<ul>
+<li><strong>Overdraw.</strong> <code>spread</code> is fixed at 80m, so raising the count does not enlarge
+the field, it packs it. 200,000 figures on that ground is shoulder to
+shoulder; every pixel is covered many times over, in the shadow map as well as
+on screen. 20,000 is a crowd you can see between.</li>
+<li><strong>Tiny triangles.</strong> A GPU shades in 2×2 quads, so a triangle smaller than a
+couple of pixels wastes most of the quad. 200,000 blocky figures at that
+distance are largely sub-pixel; 20,000 omnidudes are not.</li>
+</ul>
+<p>Both scale with <strong>how many separate small things</strong> are on screen, which is
+exactly the axis that differs between rows one and two.</p>
+<p>So the honest budget has two terms — total vertices, and how finely divided they
+are — and the practical advice is unchanged: the <strong><code>verts</code> line in the panel is
+the one with a budget attached</strong>, and the <code>shadows</code> toggle is there so the extra
+passes can be measured rather than assumed. It also sharpens
+<a href="/vertex-animation/" class="wikilink">vertex-animation</a>&#39;s &quot;the bake IS the LOD&quot;: decimating a distant figure buys
+you on both terms at once.</p>
+<h2>MEASURED ON A QUEST 3</h2>
+<p>The section below was arithmetic. This is the reading, taken by Tonio on the
+device, and it is worth putting first because two of the three numbers are worse
+than the laptop would have led you to expect and one of them is much worse.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Quest 3</th>
+<th>laptop, for comparison</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>baked omnidude, <strong>in VR</strong></td>
+<td><strong>750</strong> — fine</td>
+<td>20,000 @ 33ms</td>
+</tr>
+<tr>
+<td>figures, flat in the headset&#39;s browser</td>
+<td>frames start limiting at <strong>~1,000</strong></td>
+<td>200,000 @ 60ms</td>
+</tr>
+<tr>
+<td><strong>skinned</strong> <code>b3d-biped</code> rigs</td>
+<td><strong>&quot;nasty at maybe 20&quot;</strong></td>
+<td>~50</td>
+</tr>
+</tbody></table>
+<p>Three things follow, and the first two change plans rather than merely
+confirming them.</p>
+<p><strong>THE SKINNED CEILING IS ~20, NOT ~50.</strong> That is the number that matters most,
+because it is the one the rest of the framework leans on. Half the desktop
+figure, and it arrives with everything else a character needs still to be paid
+for — controller, collision, AI, audio — none of which the bare baseline spawns.
+So &quot;a handful of real actors, and everything else is crowd&quot; is not a stylistic
+preference on this hardware; it is the budget. Anything that promotes crowd
+members to skinned rigs (see &quot;Crossing the seam&quot;) is budgeting against 20, and
+should probably aim at half that.</p>
+<p><strong>THE CROWD CEILING IS ~750–1,000, NOT 3,000.</strong> The arithmetic below concluded
+3,000 low-poly figures would fit comfortably. Measured, the omnidude path runs
+out at 750 in VR — and since omnidude is ~1,380 verts against a ~300-vertex
+soldier, the ~4.6× saving that section is built on would put an authored figure
+in the right neighbourhood of 3,000. So the reasoning survives; what it did NOT
+allow for is how little headroom there is to be wrong in. The conclusion below —
+author the figure for the job, do not decimate a hero — is now load-bearing
+rather than an optimisation.</p>
+<p><strong>750 IN VR AGAINST ~1,000 FLAT ON THE SAME DEVICE</strong> is the interesting one: a
+quarter, not a half, for drawing everything twice. Whatever the extra cost is,
+it is not simply &quot;two eyes&quot; — which is a hint that the per-frame overhead
+(cull, submit, the compositor&#39;s own slice) matters more here than the vertex
+count, and therefore that fewer, fatter draw calls are the right direction.
+Exactly what this substrate does.</p>
+<p>⚠️ These are eyeball readings of where it &quot;starts to limit&quot;, not instrumented
+frame times — the GPU timer is the thing to get onto the device next. Treat them
+as the right order of magnitude and the right RATIOS, which is what they are
+being used for.</p>
+<h2>Would a big battle fit in a headset?</h2>
+<p>Tonio, sizing the ceiling: <em>&quot;I could easily imagine wanting to quadruple the
+maximum figures but that&#39;s probably the absolute limit and we&#39;re still at
+what — 3000 figures. My guess is that&#39;s doable on the quest.&quot;</em></p>
+<p>Worth doing the arithmetic rather than guessing — though see the measurements
+above, which arrived after this was written and tightened it considerably.</p>
+<p>A headset draws the scene <strong>twice</strong>, once per eye, and a shadow-casting crowd is
+drawn again per cascade. So it depends entirely on what a figure costs:</p>
+<table>
+<thead>
+<tr>
+<th>figure</th>
+<th>verts</th>
+<th>3,000 of them, both eyes + 2 cascades</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>baked omnidude</td>
+<td>1,380</td>
+<td>~16.6M verts/frame — <strong>no</strong></td>
+</tr>
+<tr>
+<td>a soldier authored for this</td>
+<td>~300</td>
+<td>~3.6M — yes</td>
+</tr>
+<tr>
+<td>the blocky bench figure</td>
+<td>~144</td>
+<td>~1.7M — easily</td>
+</tr>
+</tbody></table>
+<p>…against a laptop that did ~28M in <em>at most</em> 33ms, where a headset has some
+fraction of that GPU and less than half the time. So the question is not whether
+3,000 figures fit. It is how many vertices a soldier gets.</p>
+<p>…and the answer to that is not a technique, it is a decision. Tonio: <em>&quot;I think
+we don&#39;t use anything as complex as omnidude at all.&quot;</em></p>
+<p>Which settles it, and settles it cheaply. omnidude is a PLAYER character — a
+face, fingers, a silhouette meant to be looked at from two metres. A soldier in
+a formation is looked at from forty, and the bench&#39;s own blocky figure (~144
+verts) already reads as a person at that range. Author the figure for the job
+and 3,000 of them is ~0.4M verts per pass, ~1.7M a frame with both eyes and two
+cascades — comfortably inside a headset frame rather than four times outside it.</p>
+<p>So the omnidude path is not the plan for a battle; it is the <strong>A/B</strong>, and a
+useful one. It answers &quot;what does a real rig cost&quot; in one toggle, which is how
+you know a simple figure is worth authoring rather than assuming it.</p>
+<p>Two consequences worth keeping:</p>
+<ul>
+<li><strong>Decimation stops being load-bearing.</strong> <a href="/vertex-animation/" class="wikilink">vertex-animation</a>&#39;s &quot;the bake IS
+the LOD&quot; is still true and still worth having for content you did not author
+(and for the far end of a big field), but it moves from <em>required</em> to <em>nice</em>.
+Authoring a 300-vertex soldier beats decimating a 1,380-vertex hero, and it
+gives a better-looking result because a human chose which detail to keep.</li>
+<li><strong>Detail moves to the SOCKETS.</strong> A low-poly body plus instanced kit — helmet,
+spear, shield, banner (<a href="/vertex-animation/" class="wikilink">vertex-animation</a>&#39;s <code>SocketLayout</code>) — is how a unit
+becomes recognisable without the body getting heavier. Variety at the level
+that reads at forty metres is equipment and colour, not topology.</li>
+</ul>
+<p>And <strong>don&#39;t cast the crowd into a shadow cascade</strong> either way: a blob decal per
+figure (<a href="/shadow-decal/" class="wikilink">shadow-decal</a>) is one quad, and at battle distance it is the same
+picture. That removes half the passes for almost nothing, whatever the figure
+costs.</p>
+<h2>The roster, and why it is cheap</h2>
+<p>The content this actually needs is not one figure, it is a cast. Tonio: <em>&quot;what we
+will need is more figures and more animations. Assuming we have a winged
+creature, heavy mounted, light mounted, heavy infantry, light infantry and some
+accessories like helmets, shields, weapons.&quot;</em></p>
+<p>That lands well, and specifically it lands on the axis this substrate is cheap
+on. <strong>Draw calls scale with TYPES, not with figures</strong>: one <code>b3dCrowd</code> per kind
+is five draw calls for an entire battlefield, whatever the counts. A thousand
+light infantry and eight hundred heavy are two calls, not eighteen hundred.</p>
+<p>The memory is not the problem either. A 300-vertex soldier with eight clips
+baked at 10fps is around 80 frames:</p>
+<pre><code>300 × 80 × 4 channels × 2 bytes × 2 textures ≈ 0.8MB
+</code></pre>
+<p>So five types is a handful of megabytes, and doubling the clip count doubles a
+number nobody will notice. <code>vatBytes</code> is there to check rather than trust —
+the arithmetic turns nasty only at hero vertex counts with long clips (a
+16.9-second dance at 1,380 verts is most of the omnidude bake on its own).</p>
+<p>Three notes for when this is built rather than imagined:</p>
+<ul>
+<li><p><strong>Bake rate follows how far the silhouette moves between frames ON SCREEN</strong> —
+which is not the same as how fast the animation is, and I had it wrong first
+time. I wrote &quot;the winged creature needs a high bake rate, a flap is fast&quot;;
+Tonio: <em>&quot;the winged creature is probably more like a dragon and has a slow
+majestic flap.&quot;</em> A slow flap covers its arc over more time, so it needs FEWER
+frames per second of clip, not more.</p>
+<p>What makes a dragon unforgiving is the other term: it fills the view. The same
+angular error between frames is a handful of pixels on a distant soldier and a
+hand&#39;s width on a wing overhead. So the rule is angular change × apparent
+size, and the two big cases pull in opposite directions — a fast flap far away
+(a flock of birds) and a slow flap up close (this) can want the same rate for
+entirely different reasons.</p>
+<p>A slow flap also spends most of its cycle nearly still, gliding. That is where
+a low rate is free, and it moves the real problem from frame rate to <strong>clip
+blending</strong>: the pop when glide becomes flap is what you would notice, and it
+is the one thing in <code>vertex-animation</code> still unbuilt.</p>
+<p>And a dragon is a HANDFUL, not a crowd — so it can afford whatever it wants,
+including not being baked at all. At three of them a skinned rig is fine
+(~50 is the measured ceiling); at fifty wyverns this substrate wins again.</p>
+</li>
+<li><p><strong>Mounted is one figure, not two.</strong> Horse and rider bake as a single mesh with
+a single clip table, because they move together and a seam between them is a
+second thing to synchronise for no gain. A rider who dismounts is a <em>different
+figure</em>, which is the same seam as promoting one to a named character.</p>
+</li>
+<li><p><strong>Accessories are <a href="/vertex-animation/" class="wikilink">sockets</a></strong>, not geometry: helmet, shield
+and weapon ride as their own instanced meshes sampling the same frame. That is
+what keeps unit identity — the thing you actually read at forty metres — off
+the body&#39;s vertex budget. It is the one piece of this that is designed and not
+yet built.</p>
+</li>
+</ul>
+<h2>Which path a thing takes is decided by UNIT SIZE</h2>
+<p>The roster sorts itself once you ask how many of a thing stand together. Tonio:
+<em>&quot;a dragon unit will likely be ONE figure or maybe three.&quot;</em></p>
+<table>
+<thead>
+<tr>
+<th>unit</th>
+<th>figures</th>
+<th>path</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>light / heavy infantry</td>
+<td>15</td>
+<td>baked crowd</td>
+</tr>
+<tr>
+<td>light / heavy mounted</td>
+<td>7–15</td>
+<td>baked crowd (horse and rider as one bake)</td>
+</tr>
+<tr>
+<td><strong>dragon</strong></td>
+<td><strong>1–3</strong></td>
+<td><strong>skinned rig</strong></td>
+</tr>
+</tbody></table>
+<p>At one to three there is nothing to amortise, and everything a named entity
+wants comes back: real clip blending (which the glide→flap seam actually needs),
+bones to parent a rider or a breath effect to, per-instance damage state, a
+skeleton for a hit probe. Baking one dragon would buy a draw call nobody was
+short of and give up all of it.</p>
+<p>So the two paths are not a ladder with the crowd at the top — they are a
+<strong>threshold</strong>, and unit size is the test. Hundreds of a thing: bake it, and
+accept that it cannot be inspected closely. One of a thing: rig it, and spend
+the budget the crowd just saved you on making it worth looking at.</p>
+<p>The seam between them is the piece to design rather than discover: a figure
+promoted out of a crowd (a champion stepping forward) or demoted into one has to
+cross it, and nothing does that today.</p>
+<h2>Crossing the seam: the MECHANISM, and whose job the rest is</h2>
+<p>Tonio: <em>&quot;demonstrate being able to switch a crowd mesh for a skinned mesh
+seamlessly... 10,000 shambling zombies in the distance but when they get close
+they swap to skinned meshes that can attack and die.&quot;</em></p>
+<p>That is the seam above with a use case attached, and it is what makes the two
+paths one system instead of two.</p>
+<p><strong>The pose handoff is already solved, by accident, and it is the only part we
+should own.</strong> A figure&#39;s <code>vatState</code> is <code>(clipStart, clipFrames, phaseOffset, cyclesPerSecond)</code> — which is to say the crowd can state exactly which clip a
+given figure is playing and how far through it is. So the swap is: read that
+phase, start the skinned rig&#39;s <code>AnimationGroup</code> on the same clip at the same
+normalised time, hide the instance. No blend, no cross-fade, no snap, because
+the two are in the same pose at the same instant. The hard part of a LOD swap is
+usually reconstructing that state; here it was never lost.</p>
+<p>That conversion — instance index to <code>{clip, t}</code> — is the piece that is
+impossible from outside the crowd and trivial from inside. It is the whole of
+what belongs here.</p>
+<p><strong>WHEN to swap is the consumer&#39;s call, and deliberately not ours.</strong> Tonio: <em>&quot;I
+think we&#39;d leave the rules for switching to skinned models to the consumer since
+it will be more likely decided on specifics.&quot;</em> Which is right, and the three
+obvious cases disagree with each other enough to prove it: a horde game promotes
+whatever can reach you, a battle promotes the unit you selected regardless of
+distance, and a parade promotes whoever the camera is following. Any rule shipped
+here would be wrong for two of those, and worse, would be wrong <em>invisibly</em> —
+policy baked into a substrate is the kind of thing adopters work around rather
+than replace.</p>
+<p>So the surface to build is a handle, not a system: <em>give me the pose of figure
+N</em>, <em>hide figure N</em>, <em>put it back</em>. A consumer will probably want a budget
+rather than a radius, hysteresis at whatever boundary they pick, and a rule for
+what happens to a figure that dies while promoted — but those are their
+decisions to get right for their game, and this module has no opinion worth
+imposing.</p>
+<p><strong>The demo is the deliverable, and it has to show two things.</strong> Tonio: <em>&quot;have a
+crowd where they are swapped here and there and do something the crowd mesh
+members can&#39;t do (and we could change their textures as a debug feature).&quot;</em></p>
+<ul>
+<li>That the swap is <strong>invisible</strong> — a handful of figures promoted here and there
+in a moving crowd, with nothing to see at the moment it happens.</li>
+<li>That the promoted ones can then <strong>do something the crowd cannot</strong>: turn to
+look at you, take a hit and fall, be interacted with.</li>
+</ul>
+<p>And the debug toggle is the part that makes it a demo at all, because those two
+goals fight. A swap done properly looks like nothing happening, so a viewer
+cannot tell it from a crowd that never swapped anyone — which means the demo
+needs a way to <em>reveal</em> it on demand. Tinting the promoted figures does that:
+turn it on and the mechanism is visible, turn it off and the claim is that you
+cannot spot them. The usual instinct is to hide a LOD transition; here the
+ability to un-hide it is the feature.</p>
+<p><strong>What it is worth.</strong> Ten thousand figures of menace for one draw call, and a
+handful of them — the ones you can actually reach — with collision, damage, a
+sensorium and a death. That is the north star&#39;s own argument (<em>agents and
+reactions, not vertices</em>) with the vertex bill itemised: the crowd is scenery
+until it is close enough to matter, and the budget goes to the ones that are.</p>
+<h2>A stadium, which needs almost none of the above</h2>
+<p>Tonio: <em>&quot;we could animate the entire crowd in a superbowl game — an animated
+stadium would be a cool demo.&quot;</em></p>
+<p>Worth calling out separately, because a stadium crowd is a genuinely different
+SHAPE from a battle and it is the easier of the two by a wide margin:</p>
+<ul>
+<li><strong>Nobody is promoted.</strong> There is no seam to cross, no collision, no AI, no
+death — a spectator is scenery that moves, which is exactly what this
+substrate is. So it exercises the crowd at full size with none of the
+machinery above.</li>
+<li><strong>Placement is a lattice, not a scatter.</strong> Seats are a generated bowl — tier,
+row, seat — so the instance buffer is a loop rather than a distribution, and
+every figure&#39;s position carries its bearing around the bowl for free.</li>
+<li><strong>The clip set is small and seated.</strong> Sit, clap, stand-and-cheer, wave. Four,
+maybe five, and all of them short.</li>
+<li><strong>And the interesting behaviour is CORRELATED, which is the part that is free.</strong>
+A Mexican wave is <code>phaseOffset</code> as a function of seat bearing. That is one
+multiply in the buffer the crowd already fills — a stadium wave needs no new
+capability at all. A section reacting to a play is the same trick on clip
+choice instead of phase.</li>
+</ul>
+<p>It is also the one crowd whose real-world number is not a guess: about <strong>70,000</strong>
+people, which sits comfortably between the two figures this bench has measured.
+The rendering answer is already known, in other words — what the demo would show
+is the <em>authoring</em>, which is the part nobody has tried.</p>
 <h2>⚠️ Rendering is not the expensive part, and this bench only measures rendering</h2>
 <p>Tonio: <em>&quot;I imagine things like collision detection and so on could vastly
 outweigh the animation costs.&quot;</em> Almost certainly, and it is worth being explicit
@@ -371,6 +868,21 @@ stops at 400 rather than 200,000, which is itself part of the finding.</p>
 <td><code>&#39;off&#39;</code> snaps to the nearest frame: cheaper, jerkier</td>
 </tr>
 <tr>
+<td><code>url</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>A rigged GLB to BAKE from. Empty = the synthetic bench figure</td>
+</tr>
+<tr>
+<td><code>clips</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Which of its clips to bake, comma-separated. Empty = all</td>
+</tr>
+<tr>
+<td><code>figureScale</code></td>
+<td><code>1</code></td>
+<td>Scale applied to the baked figure (omnidude is 0.88m)</td>
+</tr>
+<tr>
 <td><code>skinned</code></td>
 <td><code>0</code></td>
 <td>How many SKINNED clones to spawn alongside, as the baseline</td>
@@ -404,9 +916,34 @@ it bakes into is already fixed and tested.</p>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><a class="doc-link" href="../Migration/">Migration</a></li>
     <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><details><summary><a class="doc-link" href="../world-sim-ts/">world-sim</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../world-store/">world-store</a></li>
+        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../world-view/">world-view</a></li>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
       <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
       <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
@@ -456,8 +993,6 @@ it bakes into is already fixed and tested.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
@@ -468,12 +1003,16 @@ it bakes into is already fixed and tested.</p>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
@@ -506,6 +1045,7 @@ it bakes into is already fixed and tested.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
     <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
@@ -575,28 +1115,19 @@ it bakes into is already fixed and tested.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
     <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
-      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-    </ul>
-    </details></li>
+    <li><a class="doc-link" href="../world-sim-md/">World Sim</a></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -605,6 +1136,6 @@ it bakes into is already fixed and tested.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+  <script type="module" src="../hydrate.js?v=0.8.2"></script>
 </body>
 </html>

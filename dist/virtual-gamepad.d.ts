@@ -57,7 +57,11 @@ export interface InputMappingDescriptor {
     map: InputMapping;
     labels: MappingLabels;
 }
-export declare function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput;
+/**
+ * @param gunplay Weapon raised. The right trigger changes job across this line
+ * and nothing else does — see the block comment below.
+ */
+export declare function bipedMapping(pad: VirtualGamepad, _dt: number, gunplay?: boolean): ControlInput;
 export declare const bipedMappingDescriptor: InputMappingDescriptor;
 export declare function carMapping(pad: VirtualGamepad, _dt: number): ControlInput;
 export declare const carMappingDescriptor: InputMappingDescriptor;

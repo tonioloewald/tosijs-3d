@@ -32,6 +32,41 @@ crater with almost no effort. `pad` is the same idea for CIVILIZATION — a
 dead-flat surface with a cut-and-fill skirt, which is how cities and bases
 claim ground (terrace several up a hillside with `composeLandforms`).
 `composeLandforms` chains shapes; `mergeProvinces` maxes glow fields.
+
+## A field knows where it stops
+
+Every factory here returns a field tagged with an **`extent`** — the world-space
+AABB outside which it is inert. A province has a natural boundary; it just
+spans more than one tile, so the question a tile has to ask is
+rectangle-vs-rectangle:
+
+```javascript
+const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 24 })
+extentOf(vesuvius.province)                     // {minX, minZ, maxX, maxZ}
+touchesExtent(vesuvius.province, x0, z0, x1, z1) // does it reach this tile?
+```
+
+It exists because a bare `(x, z) => number` cannot be asked that. The footprint
+was always known — `volcano({radius})` early-returns past its radius — and it
+was closed over and discarded, so terrain sampled every province at every vertex
+of every tile in the world. `b3d-terrain` now skips a province that cannot reach
+the tile it is building, which is exactly equivalent (the alpha lane is already
+`1` = none, and the field returns `0` out there) and is the same test a per-tile
+decision like an ice underside needs.
+
+**The landform and the province carry SEPARATE extents**, because they genuinely
+differ: a volcano's glow tail dies at `craterRadius + radius * 0.4` — inside the
+cone for a default crater and *outside* it for a wide caldera — while a crater's
+glow stops at `0.85 R` and its rim runs to `1.25 R`. One box for both is wrong
+in one direction or the other every time.
+
+⚠️ **An extent is a promise, and a wrong one is invisible.** Callers may skip the
+field entirely outside it, so an extent that is too SMALL clips the thing it
+describes with no error; too large only costs work. A hand-written closure that
+declares none is treated as unbounded and behaves exactly as it always did — and
+one unbounded member makes a whole `mergeProvinces`/`composeLandforms`
+unbounded, because a box around only the members that declared one is a promise
+nobody made.
 */
 /*{ "parent": "environment" }*/
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -39,6 +74,76 @@ const smooth = (t) => {
     const c = clamp01(t);
     return c * c * (3 - 2 * c);
 };
+/** Tag a field with the rectangle outside which it does nothing. */
+export function withExtent(fn, extent) {
+    return Object.assign(fn, { extent });
+}
+/** The AABB of a disc — the footprint shape most of these factories have. */
+export const circleExtent = (x, z, r) => ({
+    minX: x - r,
+    minZ: z - r,
+    maxX: x + r,
+    maxZ: z + r,
+});
+/**
+ * The AABB of an ORIENTED corridor — `gulley` and `cover` work in (along,
+ * lateral) about a heading, so their world footprint is a rotated rectangle and
+ * its bounding box is not simply the corridor's own dimensions.
+ */
+export function corridorExtent(x, z, headingDeg, alongMin, alongMax, halfLateral) {
+    const a = headingDeg * (Math.PI / 180);
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    const ax0 = alongMin * cos;
+    const ax1 = alongMax * cos;
+    const az0 = alongMin * sin;
+    const az1 = alongMax * sin;
+    const padX = halfLateral * Math.abs(sin);
+    const padZ = halfLateral * Math.abs(cos);
+    return {
+        minX: x + Math.min(ax0, ax1) - padX,
+        maxX: x + Math.max(ax0, ax1) + padX,
+        minZ: z + Math.min(az0, az1) - padZ,
+        maxZ: z + Math.max(az0, az1) + padZ,
+    };
+}
+/**
+ * The extent a field declares, or `null` for a hand-written closure that
+ * declares none. `null` means UNBOUNDED — "I might do something anywhere" — so
+ * an unannotated field keeps working exactly as before. Fail-open is the only
+ * safe default here: guessing a boundary for a function that never promised one
+ * would clip it.
+ */
+export function extentOf(fn) {
+    const e = fn?.extent;
+    return e != null &&
+        typeof e.minX === 'number' &&
+        typeof e.maxX === 'number' &&
+        typeof e.minZ === 'number' &&
+        typeof e.maxZ === 'number'
+        ? e
+        : null;
+}
+/** The smallest box containing both. */
+export const unionExtent = (a, b) => ({
+    minX: Math.min(a.minX, b.minX),
+    minZ: Math.min(a.minZ, b.minZ),
+    maxX: Math.max(a.maxX, b.maxX),
+    maxZ: Math.max(a.maxZ, b.maxZ),
+});
+/**
+ * Could this field do anything inside this rectangle? An unbounded field (no
+ * extent) always answers yes, so this is safe to put in front of any sampler.
+ *
+ * Inclusive on the edges: a field whose footprint exactly abuts a tile still
+ * counts, because the shared boundary vertices belong to both.
+ */
+export function touchesExtent(fn, minX, minZ, maxX, maxZ) {
+    const e = extentOf(fn);
+    if (e == null)
+        return true;
+    return e.minX <= maxX && e.maxX >= minX && e.minZ <= maxZ && e.maxZ >= minZ;
+}
 /**
  * A classic volcano that fades in as an override: smoothstep-blended flanks
  * (C1 at the footprint edge — no seam against the noise terrain), a steepened
@@ -82,7 +187,15 @@ export function volcano(opts) {
         const tail = smooth(1 - past / (radius * 0.4));
         return glow * (0.5 + 0.5 * wall) * tail;
     };
-    return { landform, province };
+    return {
+        landform: withExtent(landform, circleExtent(cx, cz, radius)),
+        // The glow tail reaches `craterRadius + radius * 0.4`, NOT `radius`. With
+        // the default crater (0.22 R) that is 0.62 R — comfortably inside the cone
+        // — but `craterRadius` is an option, and a wide caldera pushes the tail
+        // past the edifice. Derived rather than assumed, so it stays right when
+        // someone authors a crater that is most of the mountain.
+        province: withExtent(province, circleExtent(cx, cz, craterRadius + radius * 0.4)),
+    };
 }
 /**
  * An impact/explosion crater: a bowl sunk into the EXISTING terrain (no
@@ -110,7 +223,12 @@ export function impactCrater(opts) {
         const d = Math.sqrt(dx * dx + dz * dz);
         return glow * smooth(1 - d / (radius * 0.85));
     };
-    return { landform, province };
+    return {
+        // The rim fades to nothing by 1.25 R — the bowl is only the inner part.
+        landform: withExtent(landform, circleExtent(cx, cz, radius * 1.25)),
+        // The floor glow is gone by 0.85 R, well before the rim.
+        province: withExtent(province, circleExtent(cx, cz, radius * 0.85)),
+    };
 }
 /**
  * A construction pad: dead-flat at `level` across the interior, a smooth
@@ -121,7 +239,7 @@ export function impactCrater(opts) {
 export function pad(opts) {
     const { x: cx, z: cz, radius, level, blend = radius * 0.5 } = opts;
     const outer = radius + Math.max(blend, 0.01);
-    return (x, z, h) => {
+    return withExtent((x, z, h) => {
         const dx = x - cx;
         const dz = z - cz;
         const d = Math.sqrt(dx * dx + dz * dz);
@@ -130,7 +248,9 @@ export function pad(opts) {
         if (d <= radius)
             return level;
         return h + (level - h) * smooth((outer - d) / (outer - radius));
-    };
+    }, 
+    // The skirt, not the flat interior — a pad claims ground out to `outer`.
+    circleExtent(cx, cz, outer));
 }
 /**
  * A GULLEY: a **height-field FORCING FUNCTION** ending in a predictable cliff
@@ -172,7 +292,15 @@ export function gulley(opts) {
     const sin = Math.sin(heading);
     const halfW = width / 2;
     const fadeStart = length * (1 - fade);
-    return (x, z, h) => {
+    /*
+    The corridor's own two bail-outs ARE its footprint, read straight off the
+    guards below: `along` outside [-faceRun - crestFade, length], or `lateral`
+    past `halfW + wallFade`. Taking the numbers from the same expressions the
+    code tests against is the point — an extent maintained separately from the
+    guard it describes is an extent that goes stale the first time someone tunes
+    a fade.
+    */
+    return withExtent((x, z, h) => {
         const dx = x - fx;
         const dz = z - fz;
         const along = dx * cos + dz * sin; // + = outward from the face
@@ -199,7 +327,7 @@ export function gulley(opts) {
                 : 1 - smooth((along - fadeStart) / (length - fadeStart));
         const w = lateralW * alongW;
         return h + (forced - h) * w;
-    };
+    }, corridorExtent(fx, fz, headingDeg, -faceRun - crestFade, length, halfW + wallFade));
 }
 /**
  * COVER — force the ground ABOVE a tunnel to be high enough that the tunnel
@@ -225,7 +353,7 @@ export function cover(opts) {
     const cos = Math.cos(heading);
     const sin = Math.sin(heading);
     const halfW = width / 2;
-    return (x, z, h) => {
+    return withExtent((x, z, h) => {
         if (h >= minHeight)
             return h; // already deep enough: nothing to do
         const dx = x - sx;
@@ -242,20 +370,43 @@ export function cover(opts) {
         const endW = 1 - smooth((along - length * 0.75) / (length * 0.25));
         const w = lateralW * Math.max(0, Math.min(1, endW));
         return h + (minHeight - h) * w;
-    };
+    }, 
+    // `along` runs 0..length from the mouth; `lateral` reaches halfW + fade.
+    corridorExtent(sx, sz, headingDeg, 0, length, halfW + fade));
 }
 /** Chain landforms left → right (each sees the previous result). */
 export function composeLandforms(...fns) {
-    return (x, z, h) => {
+    const composed = (x, z, h) => {
         let acc = h;
         for (const f of fns)
             acc = f(x, z, acc);
         return acc;
     };
+    return carryExtent(composed, fns);
+}
+/**
+ * The union of the inputs' extents — or NO extent if any input lacks one.
+ *
+ * The asymmetry is the whole point and it is not conservatism for its own sake:
+ * one unbounded member makes the composition unbounded, because a box drawn
+ * around the members that *did* declare one would be a promise nobody made.
+ * Returning nothing is honest and merely forfeits the optimisation; returning
+ * the partial union would clip whatever the unannotated field was doing
+ * outside it, invisibly.
+ */
+function carryExtent(fn, parts) {
+    let acc = null;
+    for (const p of parts) {
+        const e = extentOf(p);
+        if (e == null)
+            return fn;
+        acc = acc == null ? e : unionExtent(acc, e);
+    }
+    return acc == null ? fn : withExtent(fn, acc);
 }
 /** Merge province fields by max — overlapping glows don't sum past 1. */
 export function mergeProvinces(...fields) {
-    return (x, z) => {
+    const merged = (x, z) => {
         let m = 0;
         for (const f of fields) {
             const v = f(x, z);
@@ -264,5 +415,6 @@ export function mergeProvinces(...fields) {
         }
         return m;
     };
+    return carryExtent(merged, fields);
 }
 //# sourceMappingURL=landform.js.map

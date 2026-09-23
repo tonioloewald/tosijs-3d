@@ -34,7 +34,7 @@ const scene = '/test-3.glb'
 //
 // Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
-const person = assetUrl('quaternius/UAL1_core.glb')
+const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -294,7 +294,7 @@ import { SvgTexture } from './svg-texture.js';
 import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
-import { cameraIsAttached, isNoCollide, isOff, markUiMesh, } from './b3d-utils.js';
+import { cameraIsAttached, isNoCollide, isOff, markUiMesh, replaceKeepingLayers, } from './b3d-utils.js';
 import { NO_WIND, gustAt, windFromPolar } from './wind.js';
 import { faceViewer } from './dialog-placement.js';
 import { attachSceneLayer } from './panel-layer.js';
@@ -343,6 +343,18 @@ export class B3d extends Component {
     static preferredTagName = 'tosi-b3d';
     static initAttributes = {
         glowLayerIntensity: 0,
+        /*
+        THE COLOUR BEHIND EVERYTHING. Empty keeps Babylon's default.
+    
+        It is here because three shipped demos already pass it — `b3d-star`,
+        `b3d-star-system` and `b3d-black-hole` all set `clearColor` in their `b3d()`
+        config — and NOTHING READ IT. The element creator turned each into a
+        `clear-color` attribute that no code consulted, so every one of them has
+        been quietly rendering against the default blue-grey while its source says
+        black. Found while baking a skybox, where a purple-grey void is rather hard
+        to miss.
+        */
+        clearColor: '',
         frameRate: 30,
         // Default orbit-camera limits (only used when no camera is supplied). They
         // stop the two constant annoyances: zooming out into orbit / in through the
@@ -876,6 +888,46 @@ export class B3d extends Component {
         // Don't hand the held time back as one giant step on the first live frame.
         if (!on)
             this.lastRender = Date.now();
+    }
+    /**
+     * Stop BABYLON'S OWN clocks too, not just ours.
+     *
+     * Publishing `b3dFrameDelta = 0` pauses everything that simulates on
+     * `sceneDelta` — which is every component in this library. It does nothing
+     * whatever to the engine's own time: `AnimationGroup`s keep playing and the
+     * physics engine keeps stepping. So a paused scene held its projectiles and
+     * its water still while every character carried on walking, every door kept
+     * opening and anything with a rigid body kept falling. Tonio: "There are a
+     * LOT of examples where pause doesn't seem to pause anything."
+     *
+     * That is most of what a demo actually shows moving, which is why the pause
+     * read as doing nothing rather than as doing half.
+     *
+     * The previous values are REMEMBERED rather than assumed: a scene may have
+     * turned either of these off for its own reasons, and resuming must not hand
+     * it back something it never had. Only transitions write, so an app that
+     * disables animations mid-pause keeps its own choice on resume.
+     */
+    _engineTimeStopped = false;
+    _animationsWere = true;
+    _physicsWere = true;
+    _stopEngineTime(stopped) {
+        if (stopped === this._engineTimeStopped)
+            return;
+        const scene = this.scene;
+        if (scene == null)
+            return;
+        this._engineTimeStopped = stopped;
+        if (stopped) {
+            this._animationsWere = scene.animationsEnabled;
+            this._physicsWere = scene.physicsEnabled;
+            scene.animationsEnabled = false;
+            scene.physicsEnabled = false;
+        }
+        else {
+            scene.animationsEnabled = this._animationsWere;
+            scene.physicsEnabled = this._physicsWere;
+        }
     }
     pause(reason = 'user') {
         if (this._paused)
@@ -1516,6 +1568,9 @@ export class B3d extends Component {
             Measured at 66 m of travel over a 3-second pause (#30).
             */
             this.lastRender = Date.now();
+            // Babylon's own clocks as well — see `_stopEngineTime`. Ours is the
+            // smaller half of a pause.
+            this._stopEngineTime(true);
             if (this.scene != null) {
                 if (this.scene.metadata == null)
                     this.scene.metadata = {};
@@ -1585,6 +1640,7 @@ export class B3d extends Component {
                 slow — a spinner, a UI tween, a countdown in real seconds.
                 */
                 const scale = Math.max(0, Number(this.timeScale ?? 1) || 0);
+                this._stopEngineTime(false);
                 this.frameDelta = realDt * scale;
                 this._realDelta = realDt;
                 this._simElapsed += this.frameDelta;
@@ -1973,6 +2029,7 @@ export class B3d extends Component {
     // end), their weights ramp over a band rather than flipping at a boundary, and the result
     // is temporally smoothed.
     _fogLayers = [];
+    _fogVeil = 0;
     _fogBase = null;
     _fogNow = null;
     /**
@@ -2004,6 +2061,26 @@ export class B3d extends Component {
                 this.media.splice(i, 1);
         };
     }
+    /**
+     * How much a MEDIUM is between you and everything, `0…1` — and therefore how
+     * much of the SKY it should hide.
+     *
+     * Distance fog and a medium are not the same thing and must not be summed.
+     * Haze thickens with distance, so it is right that it never erases the sky —
+     * the sky IS the far distance and Babylon's fog already handles it. Being
+     * INSIDE cloud, water or a dust storm is the other case: there is white a
+     * metre from your face, and a blue sky above it is simply wrong. That was
+     * the "the cloud whiteout is not whiting out the skybox" report, and the
+     * reason it could not be fixed by turning fog on for the sky mesh is exactly
+     * this distinction — the base fog would then eat the sky too.
+     *
+     * So this is the composited weight of the LAYERS only, never the base, and
+     * the colour to pair it with is `scene.fogColor` (already composited and
+     * smoothed by the same pass).
+     */
+    get fogVeil() {
+        return this._fogVeil;
+    }
     addFogLayer(layer) {
         this._fogLayers.push(layer);
         return () => {
@@ -2031,6 +2108,20 @@ export class B3d extends Component {
                 end: base.end,
             };
         }
+    }
+    /**
+     * Apply `clearColor` if the author gave one.
+     *
+     * Empty means "leave Babylon's default alone" rather than "black", because a
+     * scene that never mentions the attribute should not change appearance for
+     * having gained one.
+     */
+    _applyClearColor() {
+        const hex = this.clearColor;
+        if (this.scene == null || !hex)
+            return;
+        const c = BABYLON.Color3.FromHexString(hex);
+        this.scene.clearColor = new BABYLON.Color4(c.r, c.g, c.b, 1);
     }
     _updateFog(dt) {
         const scene = this.scene;
@@ -2061,12 +2152,26 @@ export class B3d extends Component {
             if (l != null && l.weight > 0)
                 layers.push(l);
         }
+        /*
+        OVER, not summed: each layer covers what is left of the sky rather than
+        adding to it, so two half-weight media read as three-quarters hidden and
+        nothing can push past total.
+        */
+        let veil = 0;
+        for (const l of layers) {
+            const v = l.veil ?? l.weight;
+            veil += (1 - veil) * Math.min(1, Math.max(0, v));
+        }
         const target = compositeFog(base, layers);
         // A SHORT time constant. This exists to stop a hard pop (and to absorb a layer whose
         // weight jumps — a cloud recycling behind you, a camera teleporting), NOT to make
         // transitions leisurely. Crossing the water's surface should read as instant-but-smooth:
         // a few frames, not a fade.
         this._fogNow = approachFog(this._fogNow, target, dt, 0.07);
+        // Same time constant as the fog itself, so the sky and the air in front of
+        // it cannot arrive at a transition a few frames apart.
+        const k = 1 - Math.exp(-dt / 0.07);
+        this._fogVeil += (veil - this._fogVeil) * k;
         const f = this._fogNow;
         scene.fogColor.set(f.color.r, f.color.g, f.color.b);
         scene.fogDensity = f.density;
@@ -2107,6 +2212,16 @@ export class B3d extends Component {
     _repaintPanels() {
         this.refreshScenePanel();
         this._refreshXrPanel();
+        /*
+        AND RECONCILE THE POPUPS, here rather than at the call sites.
+    
+        Every caller that changes `_debugOpen` needs this, and the one that did it
+        explicitly was the icon bar — so an action button inside a popup repainted,
+        the popup was not reconciled, and the set and the screen disagreed: the
+        popup was gone while `_debugOpen` still held its id, which is why bringing
+        it back took two clicks (the first one only turned the flag off again).
+        */
+        this._syncDebugPopups();
     }
     addDebugSource(source) {
         this._debugSources.push(source);
@@ -2316,13 +2431,140 @@ export class B3d extends Component {
         }
         return out;
     }
+    /** Popups currently open, by tool id — see `_syncDebugPopups`. */
+    _debugPopups = new Map();
+    /** The live rows each open popup registered, so closing can retire them. */
+    _popupLive = new Map();
+    /**
+     * The live flat panel's SVG, if the panel is open.
+     *
+     * Not held on a field, because the panel is REBUILT on every structural
+     * change — a stored reference would be a handle to a detached element, which
+     * is the same class of bug as the orphaned observers in `B3dChild`. Asking
+     * the host each time cannot go stale.
+     */
+    /** The in-scene panel, while a session is running. See `_attachXrPanel`. */
+    _xrPanelEl = null;
+    _livePanelEl() {
+        // In a session the in-scene panel IS the panel — the flat overlay is not
+        // visible, so a popup opened against it would be opened into nothing.
+        if (this.xrActive && this._xrPanelEl != null)
+            return this._xrPanelEl;
+        const host = this.parts?.scenePanelHost;
+        if (host == null || host.hasAttribute('hidden'))
+            return null;
+        /*
+        `:scope > svg`, not `svg`. The panel host also contains the header BUTTONS,
+        each of which is an svg icon, so a plain descendant query returns the first
+        icon — an element with no `popup` on it and a 24-unit viewBox, which is
+        exactly what it looked like: a panel that reported being 24 tall and
+        silently refused to open anything.
+        */
+        return host.querySelector(':scope > svg');
+    }
+    /**
+     * Open and close debug popups so they match `_debugOpen`.
+     *
+     * Driven from the SET rather than from the click, so the icon's active state
+     * and the popup cannot drift apart — including when a popup is dismissed from
+     * outside, which clears the flag on its way out.
+     *
+     * There used to be an `afterRebuild` flag that dropped every handle on the
+     * floor, because a repaint replaced the panel's SVG and took the popup layers
+     * with it. It does not any more — `_openScenePanel` re-appends the holders —
+     * so this is now purely a reconciliation and can run after any repaint.
+     */
+    _syncDebugPopups() {
+        for (const [id, handle] of [...this._debugPopups]) {
+            if (this._debugOpen.has(id))
+                continue;
+            handle.close();
+            this._retirePopup(id);
+        }
+        const panel = this._livePanelEl();
+        if (panel?.popup == null)
+            return;
+        for (const t of this._debugTools()) {
+            if (!this._debugOpen.has(t.id) || this._debugPopups.has(t.id))
+                continue;
+            const bucket = [];
+            let rows = [];
+            if (t.id === '__perf')
+                rows = this._perfReadoutRows();
+            else {
+                const src = this._debugSources.find((x) => x.name === t.id);
+                if (src)
+                    rows = this._sourceRows(src, bucket);
+            }
+            /*
+            REGISTER THE LIVE BUCKET or the readout freezes the moment it opens —
+            which is the failure the inline version's own comment already named: "a
+            readout that only refreshes on reopen is useless — you'd switch a profiler
+            on and then watch frozen zeros".
+            */
+            this._liveDebug.flat = [...this._liveDebug.flat, ...bucket];
+            this._popupLive.set(t.id, bucket);
+            this._startLiveDebug();
+            this._debugPopups.set(t.id, panel.popup({
+                /*
+                NO TITLE HERE. Both row builders already emit their own heading —
+                `_sourceRows` opens with the source's name and `_perfReadoutRows`
+                with its own labels — so passing one produced "Crowd" twice, one
+                above the other, which is what it looked like.
+                */
+                handleClose: () => {
+                    // Dismissed from outside: clear the flag so the icon un-lights.
+                    this._debugOpen.delete(t.id);
+                    this._retirePopup(t.id);
+                    this._repaintPanels();
+                },
+            }, ...rows));
+        }
+    }
+    /**
+     * Forget a popup: its handle, and the live rows it registered.
+     *
+     * The rows matter — without this the ticker keeps rewriting text nodes that
+     * are no longer on screen, and the list grows by a block every time the popup
+     * is reopened.
+     */
+    _retirePopup(id) {
+        this._debugPopups.delete(id);
+        const gone = this._popupLive.get(id);
+        if (gone == null)
+            return;
+        this._liveDebug.flat = this._liveDebug.flat.filter((r) => !gone.includes(r));
+        this._popupLive.delete(id);
+    }
     _debugTools() {
         const tools = [];
         if (perfDebugEnabled() || this.stats) {
-            tools.push({ id: '__perf', name: 'Perf Stats', icon: 'barChart2' });
+            tools.push({
+                id: '__perf',
+                name: 'Perf Stats',
+                icon: 'barChart2',
+                quiet: false,
+            });
         }
         for (const src of this._debugSources) {
-            tools.push({ id: src.name, name: src.name, icon: src.icon ?? 'bug' });
+            /*
+            A source that THROWS while deciding whether it is quiet is not quiet:
+            something is wrong and the icon should say so rather than going dark. Same
+            reasoning as `_sourceRows`, which renders the throw as its content.
+            */
+            let quiet;
+            try {
+                quiet = src.quiet?.() ?? false;
+            }
+            catch {
+                quiet = false;
+            }
+            tools.push({
+                id: src.name,
+                name: src.name,
+                icon: src.icon ?? 'bug',
+                quiet,
+            });
         }
         return tools;
     }
@@ -2446,11 +2688,15 @@ export class B3d extends Component {
                 icon: t.icon,
                 title: t.name,
                 active: this._debugOpen.has(t.id),
+                // Nothing to report → dimmed, so the bar answers before you press it.
+                dim: t.quiet,
                 handleClick: () => {
                     if (this._debugOpen.has(t.id))
                         this._debugOpen.delete(t.id);
                     else
                         this._debugOpen.add(t.id);
+                    // No hand re-sync: `_repaintPanels` reconciles, and doing it here
+                    // as well is what let the two paths drift.
                     this._repaintPanels();
                 },
             })),
@@ -2502,7 +2748,6 @@ export class B3d extends Component {
         const key = xr ? 'xr' : 'flat';
         this._disposeWidgets(key);
         const rows = this.scenePanel(this);
-        const tools = this._debugTools();
         const items = this._barItems();
         if (items.length === 0) {
             // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
@@ -2510,31 +2755,26 @@ export class B3d extends Component {
             this._builtWidgets[key] = rows;
             return rows;
         }
-        // NEITHER presentation gets its bar from here any more: flat renders the
-        // items as header buttons, XR builds an iconBar3d that also carries Exit VR
-        // and Re-seat. This returns the readouts and the author's rows only, so
-        // there is exactly one place each bar is assembled.
-        const out = [];
-        // Live text blocks for the OPEN sources are collected here and rewritten in place by
-        // `_startLiveDebug` (a readout that only refreshes on reopen is useless — you'd switch
-        // a profiler on and then watch frozen zeros). Collapsed tools contribute nothing.
-        const bucket = [];
-        for (const t of tools) {
-            if (!this._debugOpen.has(t.id))
-                continue;
-            if (t.id === '__perf')
-                out.push(...this._perfReadoutRows());
-            else {
-                const src = this._debugSources.find((s) => s.name === t.id);
-                if (src)
-                    out.push(...this._sourceRows(src, bucket));
-            }
-        }
-        this._liveDebug[key] = bucket;
-        this._startLiveDebug();
-        const all = [...out, ...rows];
-        this._builtWidgets[key] = all;
-        return all;
+        /*
+        THE PANEL CARRIES THE AUTHOR'S ROWS AND NOTHING ELSE.
+    
+        Neither presentation gets its bar from here — flat renders the items as
+        header buttons, XR builds an `iconBar3d` that also carries Exit VR and
+        Re-seat — and as of now neither gets the DEBUG READOUTS from here either.
+    
+        DEBUG TOOLS ARE POPUPS, not rows.
+    
+        They used to be spliced in above the author's controls, so switching a
+        diagnostic on shoved the whole panel down and changed its height — and the
+        thing you were measuring moved while you measured it. Tonio: "Having one of
+        these info panels push out the panel layout is a bad experience."
+    
+        The state still lives in `_debugOpen`; what changed is where the rows are
+        rendered. `_syncDebugPopups` opens and closes them against that set, so the
+        icon bar's active state and the popup cannot disagree.
+        */
+        this._builtWidgets[key] = rows;
+        return rows;
     }
     // window.requestAnimationFrame stops firing during an immersive XR session (the
     // session's own frame loop drives rendering instead). tosijs batches component
@@ -2673,6 +2913,7 @@ export class B3d extends Component {
             this.logDebug('gl', { event: 'context-restored' });
         });
         this.scene = new BABYLON.Scene(this.engine);
+        this._applyClearColor();
         this.scene.collisionsEnabled = true;
         this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0);
         // Seed device quality BEFORE any child component builds, so terrain/shadows/
@@ -2718,6 +2959,7 @@ export class B3d extends Component {
             this._errorCaptureOff = this._installErrorCapture();
             this.addDebugSource({
                 name: 'errors',
+                quiet: () => this._errors.length === 0,
                 lines: () => {
                     if (this._errors.length === 0)
                         return ['none'];
@@ -3050,6 +3292,16 @@ export class B3d extends Component {
         let panel = this._attachXrPanel(base, frames.eye);
         this._refreshXrPanel = () => {
             panel.dispose();
+            /*
+            AND THE POPUPS GO WITH IT. This presentation really does destroy them —
+            the plane is disposed and rebuilt — where the flat one preserves its
+            holders across a rebuild. So the handles are dropped rather than closed
+            (closing a disposed layer is a no-op at best), and `_syncDebugPopups`
+            re-opens whatever `_debugOpen` still asks for against the new panel.
+            */
+            for (const id of [...this._debugPopups.keys()])
+                this._retirePopup(id);
+            this._xrPanelEl = null;
             panel = this._attachXrPanel(base, frames.eye);
         };
         // A subtle grid floor — something to stand on and judge motion against.
@@ -3722,6 +3974,7 @@ export class B3d extends Component {
                 resetSpace?.removeEventListener('reset', rearmYaw);
                 this._recenterXr = noop;
                 this._refreshXrPanel = noopRefresh;
+                this._xrPanelEl = null;
                 panel.dispose();
                 for (const p of bodyPanels)
                     p.dispose();
@@ -3934,11 +4187,15 @@ export class B3d extends Component {
      */
     _openScenePanel() {
         const host = this.parts.scenePanelHost;
-        const mk = (title, icon, onClick, active = false) => {
+        const mk = (title, icon, onClick, active = false, dim = false) => {
             const b = button({
                 class: active ? 'scene-panel-btn active' : 'scene-panel-btn',
                 type: 'button',
                 title,
+                // Dimmed, not DISABLED: an empty error log is still worth opening to
+                // confirm it is empty, and a button you cannot press cannot tell you
+                // that.
+                style: dim ? { opacity: '0.45' } : {},
             }, icon);
             b.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -3947,12 +4204,24 @@ export class B3d extends Component {
             return b;
         };
         const buttons = this._barItems().map((it) => mk(it.title, svgIcons[it.icon]?.() ??
-            svgIcons.bug(), it.handleClick, it.active));
+            svgIcons.bug(), it.handleClick, it.active, it.dim));
         buttons.push(mk('Close', 
         // In a session the flat overlay isn't visible anyway, but keep it
         // playful: a bug-eyed face for VR, the close icon on flat screens.
         this.xrActive ? '😳' : svgIcons.close(), () => this._closeScenePanel()));
-        host.replaceChildren(div({ class: 'scene-panel-head' }, ...buttons), this._makePanel(this._panelWidgets()));
+        /*
+        KEEP THE POPUPS. They are SIBLINGS of the panel, not children of it — which
+        is the whole point of a DOM layer, since a popup inside the panel's `<svg>`
+        is cropped by its viewBox — so a plain `replaceChildren` deletes every open
+        popup along with the panel it is rebuilding.
+    
+        That is what "clicking reset worst closed the panel" was: every action
+        button repaints, every repaint rebuilt this host, and the popup the button
+        was IN went with it. Re-appending the holders keeps everything about them
+        that a rebuild has no business touching — where they were dragged to, how
+        far they were scrolled, and the live rows already ticking inside them.
+        */
+        replaceKeepingLayers(host, div({ class: 'scene-panel-head' }, ...buttons), this._makePanel(this._panelWidgets()));
         host.removeAttribute('hidden');
     }
     _closeScenePanel() {
@@ -3960,6 +4229,11 @@ export class B3d extends Component {
         this.parts.scenePanelHost.setAttribute('hidden', '');
         // Debug tools collapse again on next open — kept out of the way by default.
         this._debugOpen.clear();
+        // …and their popups go with the panel that opened them, live rows included.
+        for (const [id, h] of [...this._debugPopups]) {
+            h.close();
+            this._retirePopup(id);
+        }
     }
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,
@@ -4030,6 +4304,20 @@ export class B3d extends Component {
         });
         const rows = [...this._panelWidgets(true)];
         const panelEl = this._makePanel(rows, [barRow], true);
+        /*
+        THE PANEL A POPUP SHOULD OPEN ON, while a session is running.
+    
+        `_livePanelEl` only ever looked at the FLAT overlay's host, which is not
+        visible in a headset — so `_syncDebugPopups` found no panel, returned early,
+        and opened nothing, while `_debugOpen` kept the tool's id and lit its icon.
+        Tonio, from a Quest 3: "In VR the popup panels don't appear. There's a flash
+        and nothing. The indicator suggests it thinks the popup is open." It did
+        think so; there was simply nowhere for it to put one.
+    
+        (The flash was the repaint underneath: toggling the icon rebuilds this panel,
+        which in XR means dispose and re-attach.)
+        */
+        this._xrPanelEl = panelEl;
         // LIVE numbers in the headset. The XR panel is built once at entry, so a debug
         // readout would otherwise freeze at whatever it said when you put the headset on —
         // useless for watching a worst-frame spike as you fly. The SvgTexture re-renders

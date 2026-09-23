@@ -70,6 +70,16 @@ export declare function findBarrel(root: BABYLON.TransformNode): BABYLON.Transfo
  * anything with a long recoiling breech, they are not.
  */
 export declare function findMuzzle(root: BABYLON.TransformNode): BABYLON.TransformNode | null;
+/** Shared matcher — mirrors `conventionName`, inlined so this module stays
+ * dependency-free for headless tests (see `findCenterOfGravity`). */
+/**
+ * The first descendant whose convention name ends in one of `suffixes`.
+ *
+ * Exported because the suffix vocabulary is open: `_muzzle` and `_barrel` have
+ * wrappers here, and `_grip` is read by `b3d-launcher` for the same reason —
+ * a named node beats a heuristic about shape.
+ */
+export declare function findSuffixed(root: BABYLON.TransformNode, suffixes: string[]): BABYLON.TransformNode | null;
 /**
  * Find a model's **centre-of-gravity marker** — a descendant whose name
  * carries the `_centerOfGravity` suffix (underscore variant

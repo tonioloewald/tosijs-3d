@@ -1,7 +1,77 @@
+/**
+ * WHERE A FIELD STOPS — the rectangle outside which it is guaranteed inert.
+ *
+ * Every factory here already knows its own footprint: `volcano({radius})`
+ * early-returns `h` past the radius, `gulley` bails outside its corridor. But
+ * that knowledge was closed over and thrown away, so the only thing terrain
+ * ever received was a bare `(x, z) => number` — and a point sampler cannot
+ * answer "does this province touch this tile", which is the question any
+ * per-tile decision has to ask first. Tonio: "A province has a natural
+ * boundary, right? It just can affect more than one tile."
+ *
+ * Both halves of that are why this is an AABB in world space rather than a
+ * circle: a province spans tiles, so the useful query is rectangle-vs-rectangle
+ * against a tile, and an axis-aligned box is the one shape every footprint —
+ * disc, oriented corridor, traced polygon — can be reduced to without knowing
+ * what it was.
+ *
+ * ⚠️ AN EXTENT IS A PROMISE, AND A WRONG ONE IS INVISIBLE. Callers are entitled
+ * to skip the field entirely outside it, so an extent that is too SMALL silently
+ * clips the thing it describes — geometry that simply is not there, with no
+ * error. Too large only costs work. When in doubt, round outward.
+ */
+export interface Extent {
+    minX: number;
+    minZ: number;
+    maxX: number;
+    maxZ: number;
+}
+/** A field function that knows where it stops. */
+export type Bounded<F> = F & {
+    extent: Extent;
+};
+export type LandformFn = (x: number, z: number, h: number) => number;
+export type ProvinceFn = (x: number, z: number) => number;
+/** Tag a field with the rectangle outside which it does nothing. */
+export declare function withExtent<F extends (...args: never[]) => number>(fn: F, extent: Extent): Bounded<F>;
+/** The AABB of a disc — the footprint shape most of these factories have. */
+export declare const circleExtent: (x: number, z: number, r: number) => Extent;
+/**
+ * The AABB of an ORIENTED corridor — `gulley` and `cover` work in (along,
+ * lateral) about a heading, so their world footprint is a rotated rectangle and
+ * its bounding box is not simply the corridor's own dimensions.
+ */
+export declare function corridorExtent(x: number, z: number, headingDeg: number, alongMin: number, alongMax: number, halfLateral: number): Extent;
+/**
+ * The extent a field declares, or `null` for a hand-written closure that
+ * declares none. `null` means UNBOUNDED — "I might do something anywhere" — so
+ * an unannotated field keeps working exactly as before. Fail-open is the only
+ * safe default here: guessing a boundary for a function that never promised one
+ * would clip it.
+ */
+export declare function extentOf(fn: unknown): Extent | null;
+/** The smallest box containing both. */
+export declare const unionExtent: (a: Extent, b: Extent) => Extent;
+/**
+ * Could this field do anything inside this rectangle? An unbounded field (no
+ * extent) always answers yes, so this is safe to put in front of any sampler.
+ *
+ * Inclusive on the edges: a field whose footprint exactly abuts a tile still
+ * counts, because the shared boundary vertices belong to both.
+ */
+export declare function touchesExtent(fn: unknown, minX: number, minZ: number, maxX: number, maxZ: number): boolean;
 /** A landform + its matching volcanism province, made together. */
 export interface AuthoredLandform {
-    landform: (x: number, z: number, h: number) => number;
-    province: (x: number, z: number) => number;
+    landform: Bounded<LandformFn>;
+    /**
+     * The province carries its OWN extent, deliberately not shared with the
+     * landform's — the two genuinely differ. A `volcano`'s glow tail dies at
+     * `craterRadius + radius * 0.4`, which is well inside the cone for a default
+     * crater and OUTSIDE it for a wide one; a crater's glow stops at `0.85 R`
+     * while its rim runs to `1.25 R`. One box for both would be wrong in one
+     * direction or the other every time.
+     */
+    province: Bounded<ProvinceFn>;
 }
 export interface VolcanoOptions {
     /** Vent position (world coords). */
@@ -74,7 +144,7 @@ export interface PadOptions {
  * bases claim ground. No province (pads don't glow); compose several with
  * `composeLandforms` to terrace a settlement up a hillside.
  */
-export declare function pad(opts: PadOptions): (x: number, z: number, h: number) => number;
+export declare function pad(opts: PadOptions): Bounded<LandformFn>;
 export interface GulleyOptions {
     /** The FACE: where the cliff stands and the tunnel mouth sits. */
     x: number;
@@ -134,7 +204,7 @@ export interface GulleyOptions {
  * outer end (`fade`), so the channel joins the landscape instead of ending in
  * a second cliff. Everything outside is untouched, exactly.
  */
-export declare function gulley(opts: GulleyOptions): (x: number, z: number, h: number) => number;
+export declare function gulley(opts: GulleyOptions): Bounded<LandformFn>;
 export interface CoverOptions {
     /** Start of the corridor (usually the gulley's face). */
     x: number;
@@ -168,9 +238,9 @@ export interface CoverOptions {
  * is conditioned for it. Raising ground is visually safe: it reads as the
  * hill the tunnel goes through.
  */
-export declare function cover(opts: CoverOptions): (x: number, z: number, h: number) => number;
+export declare function cover(opts: CoverOptions): Bounded<LandformFn>;
 /** Chain landforms left → right (each sees the previous result). */
-export declare function composeLandforms(...fns: Array<(x: number, z: number, h: number) => number>): (x: number, z: number, h: number) => number;
+export declare function composeLandforms(...fns: LandformFn[]): LandformFn;
 /** Merge province fields by max — overlapping glows don't sum past 1. */
-export declare function mergeProvinces(...fields: Array<(x: number, z: number) => number>): (x: number, z: number) => number;
+export declare function mergeProvinces(...fields: ProvinceFn[]): ProvinceFn;
 //# sourceMappingURL=landform.d.ts.map

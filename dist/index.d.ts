@@ -13,7 +13,7 @@ export { proximityRung, rungNominal, routePortals, containmentPath, } from './wo
 export { runMinSimConformance } from './min-sim-conformance.js';
 export type { ConformanceHarness, TickableMinSim, } from './min-sim-conformance.js';
 export type { WorldState, WorldEntity, EntityComponents, HealthComponent, InventoryEntry, FactionComponent, InteractableComponent, EntityId, EntityKind, EntityIntent, Behavior, Zone, ZoneId, SpawnSpec, SimulationEvent, EventHandler, Unsubscribe, WorldApi, PlaceId, PortalId, ChoiceId, Shape, Proximity, PlaceKind, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, MinSimApi, } from './world-contract.js';
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, sceneFrame, markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, hierarchyExtents, sceneDelta, sceneFrame, markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
 export type { XRStuff, XRParams, SimGateOwner } from './b3d-utils.js';
 export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire.js';
 export type { FlyByWireConfig, FlyByWireCommand, FlyByWireState, } from './fly-by-wire.js';
@@ -107,6 +107,7 @@ export { arcOf, arcStart, arcEnd, arcContains, arcWithinArc, arcComplement, clam
 export type { Arc, ArcGrip, ArcLimits } from './arc.js';
 export { angle3d, arc3d } from './angle-field.js';
 export { B3dBeacon, b3dBeacon, beaconOwner } from './b3d-beacon.js';
+export { B3dElevator, b3dElevator } from './b3d-elevator.js';
 export { picker3d, matchesQuery, groupsOf } from './picker.js';
 export { NO_WIND, addWind, scaleWind, windSpeed, windFromPolar, windToPolar, windAt, provinceInfluence, gustAt, waterWind, } from './wind.js';
 export type { Wind, ProvinceWind } from './wind.js';
@@ -116,6 +117,19 @@ export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconB
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve.js';
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
 export { isTextEntry } from './text-entry.js';
+export { UPPER_BODY_ROOTS, BONE_SOCKETS, boneMask, complementMask, descendantDepths, findBone, maskIsEmpty, type BoneMask, type BoneMaskOptions, type BoneNode, type MaskMode, } from './bone-mask.js';
+export { boneHierarchy, layerGroups, layerOnUpperBody, type AnimationTier, type LayeredAnimation, } from './animation-layers.js';
+export { clearOfBand, easeDistance, fitChase, fitDistance, forceFirstPerson, type Band, type ChaseFit, type EaseOptions, type FitOptions, } from './camera-fit.js';
+export { playground, type PlaygroundOptions } from './playground.js';
+export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js';
+export { cloudField, cloudOpacity, type CloudFieldOptions, } from './cloud-field.js';
+export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, type DecodedObject, type EncodedStarfield, type FaceUv, type SkyObject, } from './starfield-codec.js';
+export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js';
+export { pngEncode, crc32, adler32 } from './png.js';
+export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, facesToPngs, facesToZip, defaultBakePose, type BakedFace, type SkyboxBakeOptions, } from './skybox-baker.js';
+export { SurroundingsProbe, makeProbeScratch, readSurroundings, type ProbeScratch, type ReadOptions, } from './surroundings-probe.js';
+export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, type PeekSide, type Shelter, type ShelterOptions, type Stature, type Surroundings, type SurroundingsSpec, } from './surroundings.js';
+export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, type Aim, type AimLimits, type AimPoseWeights, type AimStep, type AimVec, type BodyCatchUp, } from './aim.js';
 export { B3dCrowd, b3dCrowd, VatPlugin, buildBenchFigure, writeVatTextures, type VatBake, } from './b3d-crowd.js';
 export { framePair, framesForClip, phaseAt, socketLayout, socketTexel, vatBytes, vatLayout, vatTexel, type FramePair, type SocketLayout, type VatClip, type VatLayout, } from './vertex-animation.js';
 export { ORBIT_MAX_AZIMUTH, ORBIT_RUBBER_BAND, bandOrbit, orbitFromAim, rubberBand, ORBIT_MAX_ELEVATION, ORBIT_MIN_ELEVATION, angularHeight, clampOrbit, orbitCentre, orbitClampedBy, orbitFromDirection, orbitOf, orbitPosition, type Orbit, type OrbitVec3, } from './panel-orbit.js';
@@ -218,7 +232,7 @@ export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, 
 export type { BiomeChartConfig } from './biome-chart.js';
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
 export type { LocalizedFilter } from './slope-profile.js';
-export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, } from './landform.js';
+export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js';
 import { applyCarve, sphere, capsule, tube, box as carveBox, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft } from './carve.js';
 export declare const carve: {
@@ -240,7 +254,7 @@ export type { Carve, NoiseOptions, Vec3Like } from './carve.js';
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field.js';
 export type { PatchField, Footprint } from './patch-field.js';
 export type { SdfField, LatticeConfig, ChunkSpec, ExtractedMesh, } from './sdf-lattice.js';
-export type { AuthoredLandform, VolcanoOptions, CraterOptions, PadOptions, GulleyOptions, CoverOptions, } from './landform.js';
+export type { AuthoredLandform, Extent, Bounded, LandformFn, ProvinceFn, VolcanoOptions, CraterOptions, PadOptions, GulleyOptions, CoverOptions, } from './landform.js';
 export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin.js';
 export type { BiomeParams } from './biome-plugin.js';
 export { B3dParticles, b3dParticles } from './b3d-particles.js';
