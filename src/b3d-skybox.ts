@@ -419,7 +419,8 @@ function registerForkedSky(): boolean {
   store[`${B3D_SKY}PixelShader`] = src
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
-      'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;' +
+      'varying vec3 vSkyLocal;' +
+        'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
