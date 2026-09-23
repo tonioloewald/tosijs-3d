@@ -32,6 +32,26 @@
       change; the threshold is the only judgement call, and ensemble has the dense
       property panel to check it against.
 
+- [ ] **PLANET CLOUDS — cloud-deck-like rendering in the planetary atmosphere
+      shader.** `b3d-planet` renders a bare atmosphere today; the cloud DECK
+      (field texture + tiled shader + coverage-driven depth) is the proven
+      approach and should move onto the planet the same way — clouds that
+      belong to the planet, not a weather layer floating over a scene. The
+      deck's pieces are all reusable: the field, the coverage dial, the
+      whiteout. What changes is the surface (a sphere) and the view (from
+      orbit AND from the ground under it).
+
+- [ ] **GAS GIANT SHADER — the cloud deck's approach, with CIRCULATION BANDS.**
+      Same field-texture + shader base, but the field is striped into
+      alternating latitudinal bands (different directions and colours, like
+      Jupiter — belts and zones, each band's flow opposite its neighbour),
+      and the bands should advect over time rather than just drift. Stretch:
+      the geometric polar storms — Saturn's hexagon and Jupiter's circumpolar
+      cyclones — as a band-scale pattern at each pole, ideally a real
+      geometric "vortex crystal" rather than a painted approximation. The
+      planet is the natural home (b3d-planet with a `gasGiant` surface mode),
+      and the kitchen sink (world-sim) is where a gas giant hangs in the sky.
+
 - [ ] **GALAXY ARCHITECTURE — the main disc should hold only the bright end.**
       Tonio's long-running idea, now written down: the galaxy MAIN does not
       include any G6+/K/M stars — it holds a budget of (say) 50k bright stars
