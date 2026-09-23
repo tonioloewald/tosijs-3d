@@ -353,6 +353,7 @@ export function starsFromGalaxy(
   galaxy: {
     starSps?: { particles: BABYLON.SolidParticle[] } | null
     getDistantGalaxyParticles?: () => BABYLON.SolidParticle[] | null
+    getDistantStarParticles?: () => BABYLON.SolidParticle[] | null
     getGalaxyData?: () => {
       stars: Array<{ spectralType: string; scale: number }>
     } | null
@@ -402,6 +403,30 @@ export function starsFromGalaxy(
       b: p.color?.b ?? 1,
       // A galaxy is a small DISC, which is the whole reason `size` exists.
       size: Math.min(1, s / cut),
+    })
+  }
+
+  /*
+  The dim far-out stars — isotropic texture in the empty regions. Brightness
+  stays BELOW `BRIGHT_SPECTRAL_FLOOR` on purpose: they are the faintest
+  things in the sky, and the encoder then stores them as the warm-yellow
+  faint default rather than spending spectral precision on points the eye
+  cannot read colour on anyway.
+  */
+  const dimCut =
+    options.galaxyMaxScale != null ? options.galaxyMaxScale * 3.6 : 9
+  for (const p of galaxy.getDistantStarParticles?.() ?? []) {
+    const s = p.scaling?.x ?? 0
+    if (s <= 0) continue
+    out.push({
+      x: p.position.x - eye.x,
+      y: p.position.y - eye.y,
+      z: p.position.z - eye.z,
+      // 0.05…0.25 — dim, but present.
+      brightness: Math.max(0.05, Math.min(0.25, s / dimCut)),
+      r: p.color?.r ?? 1,
+      g: p.color?.g ?? 1,
+      b: p.color?.b ?? 1,
     })
   }
   return out

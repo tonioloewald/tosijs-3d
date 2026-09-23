@@ -326,6 +326,7 @@ tosi-b3d {
 | `particleSize` | `1.0` | Base star particle diameter |
 | `maxStarApparentSize` | `0.01` | Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end |
 | `distantGalaxies` | `500` | External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty |
+| `distantStars` | `3000` | Dim far-out stars scattered isotropically outside the disc — the same emptiness budget, but for POINTS. They carry no name or system; they exist so the sky outside the band has texture |
 | `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
 */
@@ -378,6 +379,13 @@ export class B3dGalaxy extends B3dChild {
     */
     distantGalaxies: 500,
     /*
+    Dim far-out stars outside the disc — the "something in the empty areas"
+    budget, like the distant galaxies but for points. They are NOT part of
+    the disc population and carry no name or system; they exist so the sky
+    outside the band has texture.
+    */
+    distantStars: 3000,
+    /*
     Largest apparent size a star may have, as a fraction of its distance —
     roughly its angular radius in radians. `0` disables the clamp.
 
@@ -398,6 +406,7 @@ export class B3dGalaxy extends B3dChild {
   declare particleSize: number
   declare coreSize: number
   declare distantGalaxies: number
+  declare distantStars: number
   declare maxStarApparentSize: number
 
   owner: B3d | null = null
@@ -809,7 +818,8 @@ export class B3dGalaxy extends B3dChild {
       { size: particleSize },
       scene
     )
-    starSps.addShape(starPlane, stars.length)
+    const distantStars = this.galaxyData?.distantStars ?? []
+    starSps.addShape(starPlane, stars.length + distantStars.length)
     starPlane.dispose()
     starSps.billboard = true
 
@@ -828,6 +838,27 @@ export class B3dGalaxy extends B3dChild {
           star.rgb[0] / 255,
           star.rgb[1] / 255,
           star.rgb[2] / 255,
+          1
+        )
+      }
+      /*
+      The dim far-out stars ride the same SPS, appended after the real
+      population — same argument as the distant galaxies in the nebula SPS:
+      the emission path already draws points, and they are points. They keep
+      the off-band sky from reading as blank when you stand inside the
+      galaxy, matching what the baked sky encodes.
+      */
+      for (let i = 0; i < distantStars.length; i++) {
+        const ds = distantStars[i]
+        const particle = starSps.particles[stars.length + i]
+        particle.position.x = ds.position.x * scaleFactor
+        particle.position.y = ds.position.z * scaleFactor
+        particle.position.z = ds.position.y * scaleFactor
+        particle.scale.x = particle.scale.y = particle.scale.z = ds.scale
+        particle.color = new BABYLON.Color4(
+          ds.rgb[0] / 255,
+          ds.rgb[1] / 255,
+          ds.rgb[2] / 255,
           1
         )
       }
@@ -953,6 +984,19 @@ export class B3dGalaxy extends B3dChild {
   /** Get the star SPS mesh for pick comparison */
   getStarMesh(): BABYLON.Mesh | null {
     return this.starMesh
+  }
+
+  /**
+   * The DISTANT STAR particles, for the skybox baker — the tail of the star
+   * SPS, in the same order `generateGalaxy` made them (see the note in
+   * `galaxy-data`).
+   */
+  getDistantStarParticles(): BABYLON.SolidParticle[] {
+    if (this.starSps == null || this.galaxyData == null) return []
+    const count = this.galaxyData.distantStars.length
+    if (count === 0) return []
+    const particles = this.starSps.particles
+    return particles.slice(Math.max(0, particles.length - count))
   }
 
   /**

@@ -1477,6 +1477,11 @@
         "description": "External galaxies scattered isotropically outside the disc — what keeps the off-band sky from reading as empty"
       },
       {
+        "name": "distantStars",
+        "default": "3000",
+        "description": "Dim far-out stars scattered isotropically outside the disc — the same emptiness budget, but for POINTS. They carry no name or system; they exist so the sky outside the band has texture"
+      },
+      {
         "name": "maxStarApparentSize",
         "default": "0.01",
         "description": "Cap on a star's apparent size as a fraction of its distance. `0` = off. Only affects the near end"

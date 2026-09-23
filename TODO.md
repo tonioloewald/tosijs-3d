@@ -6,7 +6,7 @@
       NOT to the shadow's ProceduralTexture, which kept sampling the disposed
       texture. `cirrus` is in the bake key, so the first slider scrub killed
       the shadows silently. One line: `_shadowTex?.setTexture('cloudField',
-    tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
+  tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       separate observation: the sun's own shadow generator never activates in
       this demo — the visible shadows are the deck's cloud shadows.)
 
@@ -31,6 +31,19 @@
       use. Only `select3d` never adopted it. Same `handleChange`, no call-site
       change; the threshold is the only judgement call, and ensemble has the dense
       property panel to check it against.
+
+- [ ] **GALAXY ARCHITECTURE — the main disc should hold only the bright end.**
+      Tonio's long-running idea, now written down: the galaxy MAIN does not
+      include any G6+/K/M stars — it holds a budget of (say) 50k bright stars
+      — and the K/M mass is generated PER REGION when something renders
+      nearby space. A world ends up with two budgets (50k bright + 50k
+      local) instead of one undifferentiated 100k, and something similar
+      probably applies to nebulae. The encoded-sky work makes this
+      cheaper than it looks: the distant faint mass is already a separate
+      population (`distantStars`), and the bake only ever samples one
+      position — but "nearby space" is a live-rendering problem, not a bake
+      one. Out of scope for now; recorded so the idea stops living in
+      conversation.
 
 - [ ] **Cloud-deck died ONCE on Quest — noted, not chased.** Measured when it
       was reported: the demo's VRAM is ~27 MiB (25.5 of it the encoded sky pair

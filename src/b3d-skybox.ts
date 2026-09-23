@@ -237,10 +237,19 @@ colourful mass survives as a dim sprinkle.
 /*
 STAR GAIN — the intensity cap. The curve alone cannot stop the brightest
 stars sitting at 1.0 over the band's glow, which reads as white-hot dots no
-matter what tint they carry. Halving the whole contribution keeps the few
-bright points as the brightest things in the sky without the blowout.
+matter what tint they carry. The whole contribution scales down so the few
+bright points stay the brightest things in the sky without the blowout.
+Toned: 0.55 was still "a little too bright", 0.45 is where it landed.
 */
-#define STAR_GAIN 0.55
+#define STAR_GAIN 0.45
+/*
+DISPLAY FLOOR — the faint mass must stay VISIBLE. The m^2 curve pushes the
+K/M bulk toward zero; clamping each star's brightness to a floor keeps the
+field as a dim warm sprinkle instead of a black gap between the bright few.
+Only the very bottom is flattened — everything above the floor keeps its
+relative order.
+*/
+#define DISPLAY_FLOOR 0.05
 
 /** One reconstructed point, given its sub-texel position and its look. */
 vec3 b3dPoint(
@@ -317,7 +326,9 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   spectral value decoded through a continuous ramp.
   */
   float a = texel.a * 255.0;
-  float brightness = pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)});
+  float brightness = max(
+    pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)}), DISPLAY_FLOOR
+  );
   if (a >= 32.0) {
     return b3dPoint(
       texel.rg, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5,

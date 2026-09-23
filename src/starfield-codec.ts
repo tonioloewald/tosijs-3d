@@ -519,13 +519,13 @@ codec cannot drift. Saturated on purpose: a real blackbody is a washed-out
 thing and a sky of washed-out dots reads as grey noise.
 */
 const SPECTRAL_RAMP: Array<[number, [number, number, number]]> = [
-  [0.0, [0.42, 0.55, 1.0]], // O — deep blue-white
-  [0.16, [0.6, 0.71, 1.0]], // B
-  [0.27, [0.78, 0.85, 1.0]], // A
-  [0.38, [0.9, 0.93, 1.0]], // F
-  [0.5, [1.0, 0.97, 0.88]], // G
-  [0.74, [1.0, 0.7, 0.38]], // K
-  [1.0, [1.0, 0.28, 0.1]], // M-red
+  [0.0, [0.34, 0.48, 1.0]], // O — deep blue
+  [0.16, [0.52, 0.64, 1.0]], // B
+  [0.27, [0.74, 0.82, 1.0]], // A
+  [0.38, [0.88, 0.92, 1.0]], // F
+  [0.5, [1.0, 0.94, 0.76]], // G — golden white
+  [0.74, [1.0, 0.62, 0.24]], // K — orange
+  [1.0, [1.0, 0.2, 0.06]], // M-red
 ]
 
 /** Piecewise-linear along the ramp — the same maths the shader runs. */

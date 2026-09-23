@@ -869,6 +869,13 @@ export interface GalaxyOptions {
    */
   distantGalaxies?: number
   /**
+   * Dim far-out STARS scattered isotropically outside the disc — the
+   * "something in the empty areas" budget, same idea as `distantGalaxies`
+   * but for points. A budget of its own, because the emptiness it fills is
+   * a property of the SKY and not of how dense this galaxy happens to be.
+   */
+  distantStars?: number
+  /**
    * Whether to generate full planet systems and `bestHI` per star — OFF by
    * default, because planets are a FILTERING concern, not a galaxy one.
    * Measured at 100k stars they are 71% of generation time (and each star
@@ -887,7 +894,17 @@ const GALAXY_DEFAULTS: Required<GalaxyOptions> = {
   thickness: 0.06,
   /** How many external galaxies to scatter around the outside. */
   distantGalaxies: 500,
+  /** How many dim far-out stars to scatter around the outside. */
+  distantStars: 3000,
   generatePlanets: false,
+}
+
+/** A dim far-out star: a point, nothing more. */
+export interface DistantStarData {
+  position: { x: number; y: number; z: number }
+  /** World size — the baker reads brightness from it. */
+  scale: number
+  rgb: [number, number, number]
 }
 
 export interface NebulaData {
@@ -909,6 +926,12 @@ export interface GalaxyData {
    * apart (the skybox baker) does not have to guess by size or colour.
    */
   distantGalaxies: NebulaData[]
+  /**
+   * The dim far-out stars, like `distantGalaxies` but points. Not part of
+   * `stars` — they have no name, no spectral type, no system; they exist to
+   * keep the empty regions of a sky from reading as blank.
+   */
+  distantStars: DistantStarData[]
   seed: number
   options: Required<GalaxyOptions>
 }
@@ -1211,5 +1234,35 @@ export function generateGalaxy(
     distantGalaxies.push(nebulae[nebulae.length - 1])
   }
 
-  return { stars, nebulae, distantGalaxies, seed, options: opts }
+  /*
+  DIM FAR-OUT STARS — the same emptiness argument as the distant galaxies,
+  but for POINTS. Tonio: "bake in a few thousand distant dim stars (much
+  like the distant dim 'galaxy' nebulae) just so there's more going on in
+  the empty areas." Isotropic, on the same shell outside the disc, small and
+  warm — they are the faintest stars in the sky and their whole job is to
+  keep the off-band sky from reading as blank.
+  */
+  const distantStarCount = Math.max(0, Math.round(opts.distantStars))
+  const distantStars: DistantStarData[] = []
+  for (let i = 0; i < distantStarCount; i++) {
+    const u = prng.realRange(-1, 1)
+    const theta = prng.realRange(0, Math.PI * 2)
+    const r = Math.sqrt(Math.max(0, 1 - u * u))
+    const dist = maxRadius * prng.realRange(1.35, 2.9)
+    distantStars.push({
+      position: {
+        x: dist * r * Math.cos(theta),
+        y: dist * r * Math.sin(theta),
+        z: dist * u,
+      },
+      scale: prng.realRange(0.5, 2.5),
+      rgb: [
+        255,
+        Math.round(210 + prng.realRange(0, 40)),
+        Math.round(150 + prng.realRange(0, 40)),
+      ],
+    })
+  }
+
+  return { stars, nebulae, distantGalaxies, distantStars, seed, options: opts }
 }
