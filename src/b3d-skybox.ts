@@ -1500,9 +1500,16 @@ export class B3dSkybox extends AbstractMesh {
     sky — so there is exactly one thing to dim, and it dims in step with the
     atmosphere it sits behind.
     */
+    /*
+    THE BACKDROP DIES BY GAMMA, not linearly. A linear fade left the whole
+    galaxy visible at dawn — dayBrightness 0.43 at 6:30 meant 57% stars.
+    Tonio: "the starmap should be more gammaed towards black when there's
+    any hint of sun in the sky." d^0.25 kills the stars by the first hint
+    of daylight while keeping the fade smooth.
+    */
     if (this._starCube != null) {
       const sm = material as unknown as BABYLON.ShaderMaterial
-      sm.setFloat?.('b3dStarLevel', 1 - dayBrightness * air)
+      sm.setFloat?.('b3dStarLevel', 1 - Math.pow(dayBrightness * air, 0.25))
     }
     /*
     THE DECODED STARS DIM ON THE SAME CURVE, because they are the same sky.
@@ -1512,7 +1519,7 @@ export class B3dSkybox extends AbstractMesh {
     */
     if (this._starData != null) {
       const sm = material as unknown as BABYLON.ShaderMaterial
-      sm.setFloat?.('b3dStarDataLevel', 1 - dayBrightness * air)
+      sm.setFloat?.('b3dStarDataLevel', 1 - Math.pow(dayBrightness * air, 0.25))
     }
     /*
     THE DOME ORIENTS THE WHOLE SKY. Tonio: "The sky itself is little more
@@ -1531,7 +1538,10 @@ export class B3dSkybox extends AbstractMesh {
       // hides it, and its direction is the local sun's antipode (see the
       // shader), which is the moonlight direction by definition.
       const sm = material as unknown as BABYLON.ShaderMaterial
-      sm.setFloat?.('b3dMoon', attrs.moonIntensity * (1 - dayBrightness * air))
+      sm.setFloat?.(
+        'b3dMoon',
+        attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25))
+      )
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {
@@ -1647,11 +1657,25 @@ export class B3dSkybox extends AbstractMesh {
         light.direction.z = -this._dir.z
         const intensity = dayBrightness
         if (isDay) {
-          // Blend dusk→sun straight into light.diffuse (cached parsed sources).
+          // THE GOLDEN HOUR — two stops. The bulk of the ramp blends the
+          // amber dusk colour toward the sun; the last stretch before the
+          // horizon crossing pushes through a pink-red, then back to amber
+          // as the sun clears it. light.diffuse feeds everything lit by the
+          // sun — the deck's fringe reads the scene light's colour, and the
+          // fog (syncSkybox) tracks the horizon colour derived from it — so
+          // the cloudtops, the fog and the light itself all turn together.
           BABYLON.Color3.LerpToRef(
             this.hex(attrs.duskColor),
             this.hex(attrs.sunColor),
             intensity,
+            light.diffuse
+          )
+          const sunset =
+            Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12)
+          BABYLON.Color3.LerpToRef(
+            light.diffuse,
+            this.hex(attrs.duskColor).scale(0.65),
+            sunset * 0.55,
             light.diffuse
           )
           light.intensity = intensity * dim

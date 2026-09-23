@@ -137,10 +137,12 @@ const scene = b3d(
     cirrus: sky.cirrus,
     evolve: sky.evolve,
   }),
-  // A sea at height 0 — the terrain straddles it, so the valleys flood into
-  // fjords and islands. `follow` keeps it under the camera; the ripples stay
-  // anchored in world space.
-  b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
+  // A sea at height 80 — high enough that the low ground floods into
+  // bays and straits around the spawn rather than hiding entirely below the
+  // terrain (at y 0 the whole visible world stood above the water line and
+  // the ocean was invisible). `follow` keeps it under the camera; the
+  // ripples stay anchored in world space.
+  b3dWater({ y: 80, waterSize: 8000, follow: true, twoSided: true }),
 )
 
 preview.append(scene)
@@ -167,4 +169,4 @@ out with the moon riding it, the deck moonlit above.
 - **The simulation** (world-store / world-view) gets a corner of this world
   to populate — the same one a visitor just reshaped.
 */
-/*{ "parent": "World Sim", "order": 980 }*/
+/*{ "parent": "Demos", "order": 40 }*/
