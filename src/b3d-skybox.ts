@@ -1332,6 +1332,19 @@ export class B3dSkybox extends AbstractMesh {
       ? Math.min(Math.abs((t + 0.52) * 10), Math.abs((t - 0.52) * 10), 1)
       : 0
     sunVector.rotateByQuaternionToRef(this._qTotal, sunVector)
+    /*
+    THE SUN SHARES THE SKY'S FRAME. `starfieldTilt` reorients the baked sky,
+    and if the sun and moon keep their UNTILTED arc they wheel against the
+    stars at exactly the tilt's angles — the moon races the galaxy over an
+    evening. Tonio's model: the moon is the sun's antipode, so it is a FIXED
+    point of the starfield — stationary against the background. That is only
+    true if every part of the sky shares one orientation. Apply the tilt
+    AFTER the diurnal rotation, the same order the shader applies it to the
+    star cubes (`dir' = tilt · (qTotal · dir)`).
+    */
+    if (this._starTilt != null) {
+      BABYLON.Vector3.TransformNormalToRef(sunVector, this._starTilt, sunVector)
+    }
 
     /*
     VACUUM IS NOT A SKY COLOUR — IT IS THE ABSENCE OF SCATTERING.
