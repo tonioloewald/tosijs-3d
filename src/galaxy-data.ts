@@ -1089,6 +1089,8 @@ export function generateGalaxy(
 
   /** Dust vs glow. One number, applied everywhere — see the note at the draw. */
   const DARK_FRACTION = 0.5
+  /** Core-bound nebulae, REGARDLESS of the total count — see `inCore`. */
+  const CORE_NEBULA_BUDGET = 150
 
   // Dark nebula color: black → brown
   function darkNebulaColor(t: number): [number, number, number] {
@@ -1110,7 +1112,15 @@ export function generateGalaxy(
     also what the real thing looks like: the Milky Way's centre is behind so
     much dust that we cannot see it in visible light at all.
     */
-    const inCore = prng.probability(0.09)
+    /*
+    A FIXED BUDGET, not a fraction. The core is ONE visual feature, and it
+    should not grow nine times brighter just because the galaxy has nine
+    times the nebulae — a 0.09 fraction put ~1,400 blobs on the core at
+    100k (against ~135 at 10k), and the coreward bake face peaked at
+    247/255: blinding. 150 is the count the 10k galaxy had when the core
+    looked right, so that is what every galaxy gets.
+    */
+    const inCore = i < CORE_NEBULA_BUDGET
     /*
     HALF DUST, HALF GLOW — everywhere, core included. Tonio: "change the mix of
     bright and emissive nebula to 50 50."
