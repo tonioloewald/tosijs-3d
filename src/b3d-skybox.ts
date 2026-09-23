@@ -403,7 +403,7 @@ function registerForkedSky(): boolean {
   store[`${B3D_SKY}PixelShader`] = src
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
-      'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform mat4 b3dStarRot;' +
+      'uniform samplerCube b3dStars;uniform float b3dStarLevel;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
@@ -419,7 +419,10 @@ function registerForkedSky(): boolean {
       own sky-colour maths already computes a line above.
       */
       `vec3 b3dDir=normalize(vPositionW-cameraPosition);` +
-        `b3dDir=(b3dStarRot*vec4(b3dDir,0.0)).xyz;` +
+        // The stars sample the RAW view direction — the DOME's own rotation
+        // (tilt composed with the diurnal turn) orients the whole sky, so
+        // there is no per-star rotation here and no matrix to get transposed.
+        // One frame, everything in it, by construction.` +
         // The RASTER backdrop — a baked cube, still supported.
         `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
         /*
@@ -478,7 +481,6 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dStarLevel',
         'b3dStarDataLevel',
         'b3dStarInfo',
-        'b3dStarRot',
         'b3dVeil',
         'b3dVeilColor',
       ],
@@ -493,7 +495,6 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setFloat('b3dStarLevel', 0)
   mat.setFloat('b3dStarDataLevel', 0)
   mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
-  mat.setMatrix('b3dStarRot', BABYLON.Matrix.Identity())
   mat.setFloat('b3dVeil', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
   const num = (name: string, initial: number) => {
@@ -995,8 +996,9 @@ export class B3dSkybox extends AbstractMesh {
   per-frame path in updateSky allocates nothing — see the scratch note there.
   */
   private _starTilt: BABYLON.Matrix | null = null
-  private _rotScratch = BABYLON.Matrix.Identity()
-  private _starRotOut = BABYLON.Matrix.Identity()
+  /** The tilt as a quaternion — the dome's rotation is composed from it. */
+  private _tiltQuat: BABYLON.Quaternion | null = null
+  private _domeQuat = new BABYLON.Quaternion()
   private _nebulaMeshes: BABYLON.Mesh[] = []
   private _nebulaMats: BABYLON.StandardMaterial[] = []
   private _nebulaBase: BABYLON.Color3[] = []
@@ -1055,10 +1057,10 @@ export class B3dSkybox extends AbstractMesh {
     /*
     THE AUTHOR'S TILT — parsed once, applied per frame.
 
-    Applied to the sampling DIRECTION, so it costs nothing and one baked
-    texture can wear a different orientation per system. The diurnal rotation
-    composes ON TOP of it in updateSky: the tilt is the sky as it appears at
-    local noon, and time turns it about the world pole.
+    The tilt orients the whole sky — the DOME's rotation carries it (see
+    updateSky), and the sun shares it so the scene lighting agrees with the
+    sky it lights. Two forms of the same rotation: a matrix (for the sun
+    vector) and a quaternion (for the dome).
     */
     if (this._starTilt == null) {
       const t = String(attrs.starfieldTilt ?? '0,0,0')
@@ -1069,7 +1071,11 @@ export class B3dSkybox extends AbstractMesh {
         t[0] ?? 0,
         t[2] ?? 0
       )
-      this._starRotOut.copyFrom(this._starTilt)
+      this._tiltQuat = BABYLON.Quaternion.RotationYawPitchRoll(
+        t[1] ?? 0,
+        t[0] ?? 0,
+        t[2] ?? 0
+      )
     }
     /*
     THE DATA CUBE, loaded alongside the raster one rather than instead of it.
@@ -1106,8 +1112,6 @@ export class B3dSkybox extends AbstractMesh {
       */
       mat0.setTexture('b3dStarData', data)
       this._starData = data
-      // The tilt applies to whichever cube exists — see the shared parse below.
-      mat0.setMatrix('b3dStarRot', this._starRotOut)
       const n = Math.max(8, Number(attrs.starfieldDataSize) || 512)
       /*
       RADIANS PER TEXEL. A face spans 90°, so a texel is (PI/2)/n across at the
@@ -1142,7 +1146,6 @@ export class B3dSkybox extends AbstractMesh {
       cube.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
       mat.setTexture('b3dStars', cube)
       this._starCube = cube
-      mat.setMatrix('b3dStarRot', this._starRotOut)
       return
     }
 
@@ -1488,22 +1491,16 @@ export class B3dSkybox extends AbstractMesh {
       sm.setFloat?.('b3dStarDataLevel', 1 - dayBrightness * air)
     }
     /*
-    THE SKY TURNS — and it turns the way the SUN does, because it is one
-    rigid sphere. The stars ride the sun's own quaternion (`_qTotal` — the
-    latitude tilt composed with the time rotation computed above), so the
-    backdrop, the sun and the moon wheel together and cannot disagree about
-    which way the day is going. The first try rotated about world Y, which
-    moved the stars AGAINST the sun — Tonio spotted it in one look.
-    `starfieldTilt` composes on top and is the sky at local noon.
+    THE DOME CARRIES THE SKY. Rotate the RENDER, not the sampled direction —
+    Tonio: "We shouldn't rotate the starfield AT ALL. We should rotate the
+    cubemap render (which we do)." The dome's rotation (tilt composed with
+    the diurnal turn) orients EVERYTHING rendered in it — stars, nebulae,
+    the sun's glow, the moon — as one rigid sky, so they cannot diverge by
+    construction. There is no matrix uniform for the stars to mis-upload.
     */
-    if (
-      this._starTilt != null &&
-      (this._starCube != null || this._starData != null)
-    ) {
-      const sm = material as unknown as BABYLON.ShaderMaterial
-      BABYLON.Matrix.FromQuaternionToRef(this._qTotal, this._rotScratch)
-      this._rotScratch.multiplyToRef(this._starTilt, this._starRotOut)
-      sm.setMatrix?.('b3dStarRot', this._starRotOut)
+    if (this.mesh != null && this._tiltQuat != null) {
+      this._tiltQuat.multiplyToRef(this._qTotal, this._domeQuat)
+      this.mesh.rotationQuaternion = this._domeQuat
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {
