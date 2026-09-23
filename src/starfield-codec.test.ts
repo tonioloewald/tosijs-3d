@@ -10,6 +10,9 @@ import {
   paletteGlsl,
   paletteIndex,
   type SkyObject,
+  spectralGlsl,
+  spectralRamp,
+  STAR_PALETTE,
 } from './starfield-codec.js'
 
 /*
@@ -161,8 +164,21 @@ describe('encode → decode', () => {
     expect(d.brightness).toBeGreaterThan(0)
   })
 
-  test('size and colour come back', () => {
+  test('size and colour come back, in the new A layout', () => {
     const size = 32
+    const at = (faces: Uint8Array[]) => {
+      const { face, u, v } = dirToFace(0.1, 1, 0.1)
+      const [d] = decodeTexel(
+        faces,
+        size,
+        face,
+        Math.floor(u * size),
+        Math.floor(v * size)
+      )
+      return d
+    }
+    // A galaxy: size round-trips; the colour is a fixed warm tint, not the
+    // input rgb — that is the design (galaxies are old warm populations).
     const enc = encodeStarfield(
       [
         {
@@ -178,17 +194,41 @@ describe('encode → decode', () => {
       ],
       size
     )
-    const { face, u, v } = dirToFace(0.1, 1, 0.1)
-    const [d] = decodeTexel(
-      enc.faces,
-      size,
-      face,
-      Math.floor(u * size),
-      Math.floor(v * size)
+    const g = at(enc.faces, 0)
+    expect(g.size).toBeCloseTo(1, 2)
+    expect(g.r).toBe(1)
+    expect(g.b).toBeGreaterThan(0.45)
+
+    // A bright star: the spectral value round-trips through the ramp.
+    const enc2 = encodeStarfield(
+      [
+        {
+          x: 0.1,
+          y: 1,
+          z: 0.1,
+          brightness: 0.8,
+          r: 1,
+          g: 1,
+          b: 1,
+          spectral: 0.9,
+        },
+      ],
+      size
     )
-    expect(d.size).toBeCloseTo(1, 2)
-    expect(d.r).toBeCloseTo(1, 2)
-    expect(d.b).toBeCloseTo(0.48, 2)
+    const ramp = spectralRamp(0.9)
+    const s2 = at(enc2.faces, 0)
+    expect(s2.size).toBe(0)
+    expect(s2.r).toBeCloseTo(ramp[0], 2)
+    expect(s2.b).toBeCloseTo(ramp[2], 2)
+
+    // A faint star: the warm-yellow default.
+    const enc3 = encodeStarfield(
+      [{ x: 0.1, y: 1, z: 0.1, brightness: 0.1, r: 1, g: 1, b: 1 }],
+      size
+    )
+    const f = at(enc3.faces, 0)
+    expect(f.r).toBeCloseTo(STAR_PALETTE[6][0], 2)
+    expect(f.b).toBeCloseTo(STAR_PALETTE[6][2], 2)
   })
 })
 
@@ -340,5 +380,17 @@ describe('the palette', () => {
     expect(glsl).toContain('vec3[16]')
     // Every entry appears, so a drift between the two cannot hide.
     for (const c of STAR_PALETTE) expect(glsl).toContain(c[0].toFixed(3))
+  })
+})
+
+describe('spectralGlsl', () => {
+  test('emits only float literals — GLSL ES has no int→float conversion in expressions', () => {
+    const src = spectralGlsl()
+    // An integer with no digit, dot or word char on either side. `0.16` is
+    // fine (digits attached to the dot), `vec3` is fine (attached to a
+    // word); `vec3(1, 0.5)` is not — the 1 is a bare int and the shader
+    // will not compile.
+    expect(src).not.toMatch(/(?<![\w.])\d+(?![\w.])/)
+    expect(src).toContain('vec3 b3dSpectral(float t)')
   })
 })

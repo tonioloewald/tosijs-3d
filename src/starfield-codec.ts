@@ -546,6 +546,17 @@ export function spectralRamp(t: number): [number, number, number] {
   return SPECTRAL_RAMP[SPECTRAL_RAMP.length - 1][1]
 }
 
+/**
+ * GLSL ES has NO implicit int→float conversion in expressions, and a JS
+ * template of `0.0` stringifies to `0` — an int literal. The first emission
+ * shipped `t - 0` and `t <= 1`, the shader failed to compile, and the sky
+ * quietly lost its stars (the fork falls back to stock SkyMaterial with no
+ * console fanfare). Every number goes through `glslFloat` so floats LOOK
+ * like floats; the test pins it.
+ */
+const glslFloat = (n: number) =>
+  Number.isInteger(n) ? n.toFixed(1) : String(n)
+
 /** The ramp as GLSL — generated, never transcribed. */
 export function spectralGlsl(): string {
   const lines = ['vec3 b3dSpectral(float t) {', '  t = clamp(t, 0.0, 1.0);']
@@ -553,14 +564,23 @@ export function spectralGlsl(): string {
     const [t0, c0] = SPECTRAL_RAMP[i - 1]
     const [t1, c1] = SPECTRAL_RAMP[i]
     lines.push(
-      `  if (t <= ${t1}) {`,
-      `    float k = (t - ${t0}) / ${(t1 - t0).toFixed(4)};`,
-      `    return mix(vec3(${c0[0]}, ${c0[1]}, ${c0[2]}), vec3(${c1[0]}, ${c1[1]}, ${c1[2]}), k);`,
+      `  if (t <= ${glslFloat(t1)}) {`,
+      `    float k = (t - ${glslFloat(t0)}) / ${glslFloat(t1 - t0)};`,
+      `    return mix(vec3(${glslFloat(c0[0])}, ${glslFloat(
+        c0[1]
+      )}, ${glslFloat(c0[2])}), vec3(${glslFloat(c1[0])}, ${glslFloat(
+        c1[1]
+      )}, ${glslFloat(c1[2])}), k);`,
       '  }'
     )
   }
   const last = SPECTRAL_RAMP[SPECTRAL_RAMP.length - 1][1]
-  lines.push(`  return vec3(${last[0]}, ${last[1]}, ${last[2]});`, '}')
+  lines.push(
+    `  return vec3(${glslFloat(last[0])}, ${glslFloat(last[1])}, ${glslFloat(
+      last[2]
+    )});`,
+    '}'
+  )
   return lines.join('\n')
 }
 
