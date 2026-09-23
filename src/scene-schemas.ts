@@ -148,7 +148,7 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       // below describe how to decode it and must match what encoded it.
       starfieldData: { type: 'string', default: '' },
       starfieldDataSize: num(1024, { minimum: 8, maximum: 4096 }),
-      starfieldSharpness: num(1, { minimum: 0.1, maximum: 8 }),
+      starfieldSharpness: num(3, { minimum: 0.1, maximum: 8 }),
       starfieldSizeScale: num(3, { minimum: 1, maximum: 12 }),
       starfieldTilt: { type: 'string', default: '0,0,0' },
       starfieldSeed: num(12345, { minimum: 0, maximum: 999999 }),
