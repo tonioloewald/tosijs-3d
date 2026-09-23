@@ -359,10 +359,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
 - https://3d.tosijs.net/wind/ — wind
   Babylon — so the composition rule can be tested without a sky.
-- https://3d.tosijs.net/world-sim-md/ — World Sim
+- https://3d.tosijs.net/world-simulation/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
-- https://3d.tosijs.net/world-sim-ts/ — world-sim
+- https://3d.tosijs.net/world-sim/ — world-sim
   (with live dials), a sea, weather over both, and the encoded sky behind. As
 - https://3d.tosijs.net/world-store/ — world-store
   A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
