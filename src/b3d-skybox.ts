@@ -126,9 +126,6 @@ import type { B3d } from './tosi-b3d.js'
 import type { B3dSun } from './b3d-shadows.js'
 
 const DEG_TO_RAD = Math.PI / 180
-// The sun's direction in the DOME'S LOCAL frame — constant, because the
-// dome's rotation IS the sun's arc. See the fork.
-const SKY_LOCAL_SUN = new BABYLON.Vector3(0, 100, 0)
 
 function hexToColor3(hex: string): BABYLON.Color3 {
   const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -424,9 +421,10 @@ function registerForkedSky(): boolean {
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
-    // Every world direction in their sky math (zenith, the mie phase, the
-    // sampling `direction`) becomes the dome-local one.
-    .replaceAll('vPositionW-cameraPosition', 'vSkyLocal')
+    // The GRADIENT keeps the WORLD direction — its horizon must stay aligned
+    // with the planet, not with the stars (the dome's rotation would turn
+    // the horizon into a diagonal). Only the backdrop (stars + moon, below)
+    // samples the local direction.
     .replace(
       anchor,
       /*
@@ -452,11 +450,12 @@ function registerForkedSky(): boolean {
         measurements argued for.
         */
         `color.rgb+=b3dDecodeStars(b3dDir);` +
-        // The moon, part of the backdrop: the sun's ANTIPODE in the sky's
-        // frame — the local sun direction negated — so the disc and the
-        // moonlight are the same direction by definition, and it rides the
-        // dome's rotation with the stars.
-        `{float md=max(0.0,dot(normalize(b3dDir),-sunDirection));` +
+        // The moon, part of the backdrop: the local antipode — a CONSTANT,
+        // because the dome's rotation is the sun's arc, so the sun's local
+        // direction never moves and neither does its opposite. The disc and
+        // the moonlight are the same direction by definition, and it rides
+        // the dome's rotation with the stars.
+        `{float md=max(0.0,dot(normalize(b3dDir),vec3(0.0,-1.0,0.0)));` +
         `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
@@ -1637,12 +1636,11 @@ export class B3dSkybox extends AbstractMesh {
         // underwater dimFactor so the two stay in agreement.
         sunEl.externallyLit = true
         const dim = sunEl.dimFactor ?? 1
-        // The shader's sky math runs in the DOME'S LOCAL frame, and the
-        // sun's local direction is a CONSTANT: the dome's rotation is
-        // exactly the composition that carries the sun's arc, so the local
-        // sun is the untouched +Y — every part of the arc comes from the
-        // dome turning. The scene's LIGHT keeps the world direction.
-        material.sunPosition = SKY_LOCAL_SUN
+        // The GRADIENT lives in the world frame (its horizon is the
+        // planet's), so it sees the WORLD sun — whose elevation drives the
+        // day/night colours and the sun disc. The backdrop (stars, moon)
+        // samples the dome-local direction instead.
+        material.sunPosition = sunVector
         sunVector.normalizeToRef(this._dir)
         light.direction.x = -this._dir.x
         light.direction.y = -this._dir.y
