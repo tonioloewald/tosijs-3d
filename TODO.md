@@ -32,6 +32,19 @@
       change; the threshold is the only judgement call, and ensemble has the dense
       property panel to check it against.
 
+- [ ] **Cloud-deck died ONCE on Quest — noted, not chased.** Measured when it
+      was reported: the demo's VRAM is ~27 MiB (25.5 of it the encoded sky pair
+      every demo carries; the deck's own textures are ~1.6 MiB), so it is not a
+      hog. The one genuinely expensive operation is the cloud-shadow
+      ProceduralTexture re-rendering EVERY frame (`refreshRate = 1`) — in
+      stereo XR an RTT isn't multiviewed, so that is an extra render pass per
+      frame. Throttling it was considered and rejected: the field drifts and
+      evolves continuously, so a throttled shadow would lag the clouds rather
+      than merely smear. The single crash fits the known Quest VRAM-retention
+      pattern (reticle→checkerboard) more than this demo; the in-VR Perf Stats
+      `xr Nx since 1st: mesh ±n mat ±n tex ±n` row is the instrument if it
+      recurs.
+
 - [ ] **Weather: one wind, shared and province-overridable** — filed as #73.
       Clouds, water and ambient each carry their own wind today, in three
       spellings, so an author sets it three times and they can silently disagree.
