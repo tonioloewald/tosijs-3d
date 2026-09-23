@@ -57,8 +57,12 @@ const terrain = b3dTerrain({
   wireframe: demo.wireframe,
   // The biome classifier's snow line anchors to the SAME sea level as the
   // water plane — keep them equal or the islands between the old and new
-  // water line render as snowcaps.
+  // water line render as snowcaps. The lapse rate MUST scale to the
+  // vertical range (0.5 / amplitude gives temperate valleys and cold
+  // summits — the element's own attribute note): the 0.004 default assumes
+  // a small world, and at v-size 400 every peak would still read as snow.
   biomeSeaLevel: demo.seaLevel * demo.grossAmplitude,
+  biomeLapseRate: 0.5 / demo.grossAmplitude,
 })
 
 const scene = b3d(
@@ -165,6 +169,7 @@ for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmpl
     // satisfies (the reverse order cost a second full pool re-cut per step,
     // found by the 0.8.2 review gate).
     terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
+    terrain.biomeLapseRate = 0.5 / demo.grossAmplitude
     terrain.regenerate()
     water.y = demo.seaLevel * demo.grossAmplitude
   })

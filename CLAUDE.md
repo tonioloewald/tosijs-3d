@@ -1049,6 +1049,10 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 ### Dependencies
 
 - **Peers** (not bundled, not hard deps — the consumer provides them; see `package.json` for exact ranges): `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^9), `tosijs` (do not re-export from this library)
+- **Runtime**: `fflate` (`^0.8.3`) — the ONLY `dependencies` entry; `png.ts`'s
+  deflate (Chrome's `CompressionStream` output is rejected by Chrome's own
+  PNG decoder). Declares `sideEffects: false`, so bundlers drop it entirely
+  when `pngEncode` is unused.
 - **Physics**: `jolt-physics` (^1.1) — optional peer dependency
 - **Dev/debug**: `haltija`, Babylon + jolt live in `devDependencies` (for build/test only) — they are peers at publish time, never runtime `dependencies` (a hard Babylon dep would nest a second engine copy in a consumer)
 - **Debug/automation**: `haltija` (`hj`) — headless-browser debug tool used to drive/verify live demos (see the `no-electron-haltija-by-default` memory for the pin-the-right-tab guardrails)

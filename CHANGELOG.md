@@ -18,7 +18,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   raster it replaces. The A-byte spends precision where the eye is: faint stars
   are warm yellow, bright stars carry a 224-step spectral ramp, galaxy discs
   their size.
-- **`png.ts`** — a lossless PNG encoder. The packed fields must survive
+- **`png.ts`** — a lossless PNG encoder — and with it the package's first
+  runtime dependency: **`fflate` (`^0.8.3`)** supplies the deflate, because
+  Chrome's `CompressionStream` output is rejected by Chrome's own PNG decoder
+  and the packed fields must survive byte-exact. The packed fields must survive
   byte-exact, and both the canvas path (premultiplied backing store) and
   Chrome's `CompressionStream` deflate destroy them; the encoder writes the
   bytes directly and a test round-trips through real inflate.
