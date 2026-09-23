@@ -1857,8 +1857,6 @@ export class B3dTerrain extends B3dChild {
       a.hiResSubdivisions,
       a.normalSmoothing,
       a.biome,
-      a.biomeSeaLevel,
-      a.biomeLapseRate,
     ].join('|')
   }
 
@@ -1890,12 +1888,47 @@ export class B3dTerrain extends B3dChild {
   render(): void {
     super.render()
     if (this.owner == null) return
+    this._syncBiome()
     const key = this._generationKey()
     if (key === this._genKey) return
     this._genKey = key
     // BUDGETED, not unbounded: this fires once per rAF while a slider is
     // dragged. See `markPoolStale` for why that distinction is the whole fix.
     this._rebuild(false)
+  }
+
+  /*
+  THE BIOME'S DIALS ARE LIVE, not generation attributes.
+
+  The plugin re-reads its params every bind, so pushing the sea level and
+  lapse rate here is what makes a slider move the snow line — WITHOUT a pool
+  re-cut (they are deliberately NOT in the generation key). The old spelling
+  — write the attribute, call regenerate() — re-cut the whole pool for a
+  value the shader never saw: `createMaterial()` reads the attributes once
+  and nothing ever wrote the plugin's params afterwards. The 0.8.2 review
+  gate caught the dead seam with a NullEngine reproduction; this is the
+  class fix for both attributes.
+  */
+  private _syncBiome(): void {
+    const a = this as any
+    if (this.biomePlugin != null) {
+      this.biomePlugin.params.seaLevel = a.biomeSeaLevel ?? 0
+      if (a.biomeLapseRate > 0) {
+        this.biomePlugin.params.lapseRate = a.biomeLapseRate
+      }
+      return
+    }
+    // Attached lazily so `biome` can flip to 'on' at runtime, not only at
+    // creation.
+    if (!isOff(a.biome) && this.material != null) {
+      this.biomePlugin = attachBiomePlugin(
+        this.material as BABYLON.StandardMaterial,
+        {
+          seaLevel: a.biomeSeaLevel ?? 0,
+          ...(a.biomeLapseRate > 0 ? { lapseRate: a.biomeLapseRate } : {}),
+        }
+      )
+    }
   }
 
   regenerate() {

@@ -160,9 +160,13 @@ preview.append(scene)
 // FRACTION of the terrain's height.
 for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel']) {
   demo[key].observe(() => {
+    // The biome's sea level is a LIVE dial on the terrain — write it BEFORE
+    // regenerate() so the adopted generation key is the one the rebuild
+    // satisfies (the reverse order cost a second full pool re-cut per step,
+    // found by the 0.8.2 review gate).
+    terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
     terrain.regenerate()
     water.y = demo.seaLevel * demo.grossAmplitude
-    terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
   })
 }
 ```

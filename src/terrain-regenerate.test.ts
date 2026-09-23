@@ -384,3 +384,30 @@ describe('a retained tile must be the cell it claims to be', () => {
     expect(t.stale).toBeGreaterThan(0)
   })
 })
+
+test('the biome sea level is a LIVE dial — the plugin follows the attribute without a pool re-cut', () => {
+  const t = terrain({ biome: 'on', biomeSeaLevel: 80 })
+  expect(t.el.biomePlugin).not.toBeNull()
+  expect(t.el.biomePlugin.params.seaLevel).toBe(80)
+
+  t.reset()
+  t.set({ biomeSeaLevel: 320 })
+  t.frame()
+  expect(t.el.biomePlugin.params.seaLevel).toBe(320)
+  // A live dial, not a generation attribute: no tile geometry re-cut.
+  expect(t.builds).toBe(0)
+
+  // And the lapse-rate twin follows the same seam.
+  t.set({ biomeLapseRate: 0.008 })
+  t.frame()
+  expect(t.el.biomePlugin.params.lapseRate).toBe(0.008)
+})
+
+test('biome can flip on at runtime and still gets the plugin', () => {
+  const t = terrain({ biome: 'off' })
+  expect(t.el.biomePlugin).toBeNull()
+  t.set({ biome: 'on' })
+  t.frame()
+  expect(t.el.biomePlugin).not.toBeNull()
+  expect(t.el.biomePlugin.params.seaLevel).toBe(0)
+})
