@@ -6,7 +6,7 @@
       NOT to the shadow's ProceduralTexture, which kept sampling the disposed
       texture. `cirrus` is in the bake key, so the first slider scrub killed
       the shadows silently. One line: `_shadowTex?.setTexture('cloudField',
-  tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
+tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       separate observation: the sun's own shadow generator never activates in
       this demo — the visible shadows are the deck's cloud shadows.)
 

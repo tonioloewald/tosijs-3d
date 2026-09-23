@@ -55,6 +55,10 @@ const terrain = b3dTerrain({
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
   wireframe: demo.wireframe,
+  // The biome classifier's snow line anchors to the SAME sea level as the
+  // water plane — keep them equal or the islands between the old and new
+  // water line render as snowcaps.
+  biomeSeaLevel: demo.seaLevel * demo.grossAmplitude,
 })
 
 const scene = b3d(
@@ -158,6 +162,7 @@ for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmpl
   demo[key].observe(() => {
     terrain.regenerate()
     water.y = demo.seaLevel * demo.grossAmplitude
+    terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
   })
 }
 ```

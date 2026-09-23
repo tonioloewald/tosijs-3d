@@ -12,7 +12,6 @@ import {
   type SkyObject,
   spectralGlsl,
   spectralRamp,
-  STAR_PALETTE,
 } from './starfield-codec.js'
 
 /*
@@ -194,8 +193,8 @@ describe('encode → decode', () => {
       ],
       size
     )
-    const g = at(enc.faces, 0)
-    expect(g.size).toBeCloseTo(1, 2)
+    const g = at(enc.faces)
+    expect(g.size).toBeCloseTo(1)
     expect(g.r).toBe(1)
     expect(g.b).toBeGreaterThan(0.45)
 
@@ -216,19 +215,19 @@ describe('encode → decode', () => {
       size
     )
     const ramp = spectralRamp(0.9)
-    const s2 = at(enc2.faces, 0)
+    const s2 = at(enc2.faces)
     expect(s2.size).toBe(0)
-    expect(s2.r).toBeCloseTo(ramp[0], 2)
-    expect(s2.b).toBeCloseTo(ramp[2], 2)
+    expect(s2.r).toBeCloseTo(ramp[0])
+    expect(s2.b).toBeCloseTo(ramp[2])
 
     // A faint star: the warm-yellow default.
     const enc3 = encodeStarfield(
       [{ x: 0.1, y: 1, z: 0.1, brightness: 0.1, r: 1, g: 1, b: 1 }],
       size
     )
-    const f = at(enc3.faces, 0)
-    expect(f.r).toBeCloseTo(STAR_PALETTE[6][0], 2)
-    expect(f.b).toBeCloseTo(STAR_PALETTE[6][2], 2)
+    const f = at(enc3.faces)
+    expect(f.r).toBeCloseTo(STAR_PALETTE[6][0])
+    expect(f.b).toBeCloseTo(STAR_PALETTE[6][2])
   })
 })
 

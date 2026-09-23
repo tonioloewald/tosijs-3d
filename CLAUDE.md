@@ -708,6 +708,29 @@ missile its target (no lock ⇒ the round flies ballistic).
 | `src/b3d-radar.ts`      | `<tosi-b3d-radar>` — nest in the platform (aircraft, turret); enumerates blips, runs `radar.ts`, exposes `tracks`/`nearestLock`                       |
 | `src/b3d-radar-blip.ts` | `<tosi-b3d-radar-blip>` — tags a thing as detectable (`profile`, `faction`); nested = follows that mesh, standalone = static world point              |
 
+**Sky, rigs & the world-sim layer:**
+
+| File                        | Purpose                                                                                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/starfield-codec.ts`    | The sky as DATA — six RGBA faces carrying sub-texel position, gamma brightness and a spectral A-byte (`1` faint warm, `2–31` galaxy disc, `32–255` bright star's spectral value), packed texels for the dense core; unit-tested |
+| `src/skybox-baker.ts`       | `bakeSkyPair()` — photographs a galaxy into the pair (256 smooth + 1024 data cube) a sky renders from; `facesToZip()` for downloads                                                                                             |
+| `src/png.ts`                | The lossless PNG encoder — packed fields must survive byte-exact (canvas premultiply and Chrome's `CompressionStream` deflate both destroy them); unit-tested                                                                   |
+| `src/b3d-cloud-deck.ts`     | The cloud DECK — tiled field shader, one coverage dial (transmission/gloom/depth follow), orographic clouds, the shared cloud shadow                                                                                            |
+| `src/cloud-field.ts`        | The fBm cloud field the deck renders and its shadow samples — one definition, three views (deck, ground shadow, whiteout)                                                                                                       |
+| `src/aim.ts`                | The input half of layered animation — walk-and-aim on one rig; pairs with `bone-mask` + `animation-layers`                                                                                                                      |
+| `src/animation-layers.ts`   | Layered animation playback — legs keep locomotion, arms/head take the aim, boundary feathered                                                                                                                                   |
+| `src/bone-mask.ts`          | Which bones a layer drives, as names and parents — no skeleton/GLB needed; pure, unit-tested                                                                                                                                    |
+| `src/vertex-animation.ts`   | Baked vertex animation — a baker + a material plugin replaying the bake in the vertex shader; pure layout math, unit-tested                                                                                                     |
+| `src/camera-fit.ts`         | Pure camera rules (wall between you and the camera, framing) — no Babylon, no rays; unit-tested                                                                                                                                 |
+| `src/weapon-fit.ts`         | The weapon-fitting demo — a library of weapons and a coordinate panel wired to what you're looking at                                                                                                                           |
+| `src/b3d-crowd.ts`          | `<tosi-b3d-crowd>` — thin-instanced crowds over the vertex-animation bake; GPU-bound, not CPU-bound                                                                                                                             |
+| `src/surroundings.ts`       | Pure cover measurement — distances and degrees from a world you type by hand; unit-tested                                                                                                                                       |
+| `src/surroundings-probe.ts` | Takes the measurement `surroundings` answers questions about — separate so the pure module stays renderer-free                                                                                                                  |
+| `src/b3d-elevator.ts`       | `<tosi-b3d-elevator>` — a moving platform you stand on, ride or switch; the arena's three behaviours                                                                                                                            |
+| `src/playground.ts`         | The combat playground — ground, light, cover, crates, a catwalk — as ordinary scene children, composing into any demo                                                                                                           |
+| `src/rocket-ascent.ts`      | The medium-crossing demo — through the deck, out of the air, stars come through; the one scene that crosses more than one medium                                                                                                |
+| `src/world-sim.ts`          | THE KITCHEN SINK — live-dialed terrain + sea + weather + the encoded sky; where provinces, weather systems and the simulation land first                                                                                        |
+
 ### Convention-Based Mesh/Light Configuration
 
 PBR material properties from Blender's Principled BSDF are preserved via glTF (`PBRMaterial`). Material appearance (metallic, roughness, emissive, alpha, etc.) comes through automatically. The loader applies performance optimizations based on material properties:
