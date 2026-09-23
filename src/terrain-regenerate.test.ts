@@ -387,6 +387,7 @@ describe('a retained tile must be the cell it claims to be', () => {
 
 test('the biome sea level is a LIVE dial — the plugin follows the attribute without a pool re-cut', () => {
   const t = terrain({ biome: 'on', biomeSeaLevel: 80 })
+  t.frame() // the plugin attaches lazily, on the first frame
   expect(t.el.biomePlugin).not.toBeNull()
   expect(t.el.biomePlugin.params.seaLevel).toBe(80)
 
@@ -410,4 +411,38 @@ test('biome can flip on at runtime and still gets the plugin', () => {
   t.frame()
   expect(t.el.biomePlugin).not.toBeNull()
   expect(t.el.biomePlugin.params.seaLevel).toBe(0)
+})
+
+test('the off toggle actually disables the plugin — and flipping back re-enables it', () => {
+  const t = terrain({ biome: 'on' })
+  t.frame()
+  expect(t.el.biomePlugin.isEnabled).toBe(true)
+  t.reset() // the first frame's initial world build is not the flip's cost
+  t.set({ biome: 'off' })
+  t.frame()
+  expect(t.el.biomePlugin.isEnabled).toBe(false)
+  expect(t.builds).toBe(0) // toggling the shading is not a generation change
+  t.reset()
+  t.set({ biome: 'on' })
+  t.frame()
+  expect(t.el.biomePlugin.isEnabled).toBe(true)
+  expect(t.builds).toBe(0)
+})
+
+test('the lapse rate returns to AUTO when the attribute goes back to 0', () => {
+  const t = terrain({ biome: 'on', biomeLapseRate: 0.008 })
+  t.frame()
+  expect(t.el.biomePlugin.params.lapseRate).toBe(0.008)
+  t.set({ biomeLapseRate: 0 })
+  t.frame()
+  expect(t.el.biomePlugin.params.lapseRate).toBe(0.004) // the plugin default
+})
+
+test('wireframe is a live material tweak — no tile re-cut', () => {
+  const t = terrain({ wireframe: false })
+  t.reset()
+  t.set({ wireframe: true })
+  t.frame()
+  expect(t.el.material.wireframe).toBe(true)
+  expect(t.builds).toBe(0)
 })

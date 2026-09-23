@@ -51,6 +51,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- The biome classifier's sea level and lapse rate are LIVE dials — they
+  move the snow line without re-cutting the tile pool (the shader reads the
+  plugin params every bind; the old spelling regenerated the world for a
+  value the shader never saw).
 - The cloud-deck shadow survived field re-bakes (the shadow's sampler was
   left pointing at a disposed texture).
 - The cloud-deck's core glow no longer blows out at high star counts.
