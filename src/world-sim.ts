@@ -21,6 +21,10 @@ const { demo } = tosi({
     horizScale: 8,
     grossAmplitude: 250,
     detailAmplitude: 45,
+    // Sea level as a FRACTION of v-size, so the ocean scales with the
+    // mountains — the same world at any amplitude keeps the same share of
+    // land and sea.
+    seaLevel: 0.32,
     volcano: false,
     wireframe: false,
   },
@@ -34,6 +38,7 @@ const { sky } = tosi({
   sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8, wind: 10, cirrus: 0.3, evolve: 0.5, eye: 220 },
 })
 
+let water
 const terrain = b3dTerrain({
   seed: demo.seed,
   biome: 'on',
@@ -62,6 +67,7 @@ const scene = b3d(
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
       slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, scale: 'log2' }),
       slider3d({ label: 'v size', value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
+      slider3d({ label: 'sea level', value: demo.seaLevel, min: 0, max: 1, step: 0.02 }),
       slider3d({ label: 'v detail', value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
       slider3d({ label: 'seed', value: demo.seed, min: 0, max: 999, step: 1 }),
       // THE FIRST PROVINCE — an authored volcano forced through the live
@@ -137,19 +143,22 @@ const scene = b3d(
     cirrus: sky.cirrus,
     evolve: sky.evolve,
   }),
-  // A sea at height 80 — high enough that the low ground floods into
-  // bays and straits around the spawn rather than hiding entirely below the
-  // terrain (at y 0 the whole visible world stood above the water line and
-  // the ocean was invisible). `follow` keeps it under the camera; the
-  // ripples stay anchored in world space.
-  b3dWater({ y: 80, waterSize: 8000, follow: true, twoSided: true }),
+  // The sea follows BOTH dials: seaLevel (a fraction) times v-size, so the
+  // ocean scales with the mountains instead of sitting at a fixed height
+  // while the world reshapes around it. `follow` keeps it under the camera;
+  // the ripples stay anchored in world space.
+  water = b3dWater({ y: demo.seaLevel * demo.grossAmplitude, waterSize: 8000, follow: true, twoSided: true }),
 )
 
 preview.append(scene)
 
-// Regenerate the terrain when its dials move.
-for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe']) {
-  demo[key].observe(() => terrain.regenerate())
+// Regenerate the terrain when its dials move, and keep the sea at the same
+// FRACTION of the terrain's height.
+for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel']) {
+  demo[key].observe(() => {
+    terrain.regenerate()
+    water.y = demo.seaLevel * demo.grossAmplitude
+  })
 }
 ```
 ```css
