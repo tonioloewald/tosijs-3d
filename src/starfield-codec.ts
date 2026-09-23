@@ -185,7 +185,7 @@ export const STAR_PALETTE: Array<[number, number, number]> = [
   [0.42, 0.55, 1.0], // 0 O — deep blue-white
   [0.55, 0.66, 1.0], // 1 B — blue-white
   [0.75, 0.82, 1.0], // 2 A — white-blue
-  [0.88, 0.92, 1.0], // 3 F — cool white (packed cool)
+  [0.78, 0.85, 1.0], // 3 F — blue-white (packed cool)
   [1.0, 0.97, 0.88], // 4 G — warm white
   [1.0, 0.85, 0.62], // 5 K-hot
   [1.0, 0.74, 0.45], // 6 K — the faint default

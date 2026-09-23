@@ -243,13 +243,15 @@ Toned: 0.55 was still "a little too bright", 0.45 is where it landed.
 */
 #define STAR_GAIN 0.45
 /*
-DISPLAY FLOOR — the faint mass must stay VISIBLE. The m^2 curve pushes the
-K/M bulk toward zero; clamping each star's brightness to a floor keeps the
-field as a dim warm sprinkle instead of a black gap between the bright few.
-Only the very bottom is flattened — everything above the floor keeps its
-relative order.
+DISPLAY FLOOR — the faint mass must stay VISIBLE, and the WARM COLOUR lives
+in the faint mass. The K/M classes are physically the dim ones — they never
+cross BRIGHT_SPECTRAL_FLOOR, so they all render through the warm-yellow
+faint path — and a floor of 0.05 put them at ~10/255, invisible on a real
+screen. Tonio: "zero stars visible in empty regions". 0.1 reads as a dim
+warm sprinkle. Only the very bottom is flattened — everything above the
+floor keeps its relative order.
 */
-#define DISPLAY_FLOOR 0.05
+#define DISPLAY_FLOOR 0.1
 
 /** One reconstructed point, given its sub-texel position and its look. */
 vec3 b3dPoint(
@@ -326,8 +328,16 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   spectral value decoded through a continuous ramp.
   */
   float a = texel.a * 255.0;
+  /*
+  GAIN BEFORE FLOOR — the order is the bug. With the gain on the SUM (the old
+  shape), the floor lifted the faint mass to 0.05 and the gain immediately
+  crushed it back to 0.02 — the distant stars and the faint sprinkle were
+  invisible, and Tonio read it as "zero stars in the empty regions". The
+  floor must be the LAST thing the brightness sees.
+  */
   float brightness = max(
-    pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)}), DISPLAY_FLOOR
+    pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)}) * STAR_GAIN,
+    DISPLAY_FLOOR
   );
   if (a >= 32.0) {
     return b3dPoint(
@@ -372,7 +382,7 @@ vec3 b3dDecodeStars(vec3 viewDir) {
       );
     }
   }
-  return sum * b3dStarDataLevel * STAR_GAIN;
+  return sum * b3dStarDataLevel;
 }
 `
 }
