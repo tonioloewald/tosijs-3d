@@ -283,25 +283,41 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     // The ladder lands where a volcano keeps it: full intensity (pools)
     // ONLY on the flat caldera floor; the crater WALL and rim drop to half
     // (glowing seams — crusted, never open lava, so the rim can't read as
-    // molten even where smoothed shading normals under-report steepness);
-    // outside, a long low tail (cold voronoi) down the flank.
+    // molten even where smoothed shading normals under-report steepness).
     const floorR = craterRadius * 0.55
     if (d <= floorR) return glow
-    const wall = smooth(1 - (d - floorR) / (craterRadius - floorR))
-    const past = Math.max(0, d - craterRadius)
-    const tail = smooth(1 - past / (radius * 0.4))
-    return glow * (0.5 + 0.5 * wall) * tail
+    if (d <= craterRadius) {
+      const wall = smooth(1 - (d - floorR) / (craterRadius - floorR))
+      return glow * (0.5 + 0.5 * wall)
+    }
+    /*
+    OUTSIDE: the seams COOL FAST, then a BASALT APRON, then the biome.
+
+    This was one smooth tail from 0.5 at the rim to 0 at 0.4R — and the shader
+    runs its ladder at 1 + 2·value, so almost all of that tail was glowing
+    seams, with the cold-basalt stage squeezed into a sliver at the very
+    edge where the volcanic mask was still half vegetation. Tonio: "the
+    transition from the surrounding terrain to lava seems a bit sudden (we'd
+    want to go through say basalt first)". So the tail is two terms: a quick
+    cooling (0.35 over 0.12R) and a basalt plateau at 0.15 that holds, then
+    fades between 0.3R and 0.65R past the rim. At the rim they sum to the
+    wall's 0.5, so the join is continuous.
+    */
+    const past = d - craterRadius
+    const cooling = smooth(1 - past / (radius * 0.12))
+    const apron = smooth(1 - clamp01((past - radius * 0.3) / (radius * 0.35)))
+    return glow * (0.35 * cooling + 0.15 * apron)
   }
   return {
     landform: withExtent(landform, circleExtent(cx, cz, radius)),
-    // The glow tail reaches `craterRadius + radius * 0.4`, NOT `radius`. With
-    // the default crater (0.22 R) that is 0.62 R — comfortably inside the cone
-    // — but `craterRadius` is an option, and a wide caldera pushes the tail
-    // past the edifice. Derived rather than assumed, so it stays right when
+    // The basalt apron reaches `craterRadius + radius * 0.65`, NOT `radius`.
+    // With the default crater (0.22 R) that is 0.87 R — inside the cone — but
+    // `craterRadius` is an option, and a wide caldera pushes the apron past
+    // the edifice. Derived rather than assumed, so it stays right when
     // someone authors a crater that is most of the mountain.
     province: withExtent(
       province,
-      circleExtent(cx, cz, craterRadius + radius * 0.4)
+      circleExtent(cx, cz, craterRadius + radius * 0.65)
     ),
   }
 }

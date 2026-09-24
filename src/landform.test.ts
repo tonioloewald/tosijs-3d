@@ -37,6 +37,22 @@ describe('volcano — the classic cone that fades in as an override', () => {
     expect(Math.abs(a - b)).toBeLessThan(20 * 0.6)
   })
 
+  test('province: seams cool into a BASALT apron before the biome', () => {
+    // radius 60, default crater 0.22R = 13.2 → rim at x = 113.2
+    const cr = 60 * 0.22
+    const rimIn = v.province(100 + cr - 1e-6, -50)
+    const rimOut = v.province(100 + cr + 1e-6, -50)
+    expect(Math.abs(rimIn - rimOut)).toBeLessThan(1e-3) // continuous
+    // 0.15–0.3R past the rim: the plateau — cold basalt, not glowing seams
+    for (const past of [0.15, 0.2, 0.28]) {
+      const p = v.province(100 + cr + 60 * past, -50)
+      expect(p).toBeGreaterThan(0.12)
+      expect(p).toBeLessThan(0.2)
+    }
+    // past the apron (0.65R beyond the rim), nothing
+    expect(v.province(100 + cr + 60 * 0.66, -50)).toBe(0)
+  })
+
   test('province: molten confined to the caldera, dead by the footprint', () => {
     expect(v.province(100, -50)).toBeCloseTo(1)
     expect(v.province(160, -50)).toBe(0)

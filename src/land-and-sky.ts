@@ -26,6 +26,15 @@ const { demo } = tosi({
     // land and sea.
     seaLevel: 0.64,
     volcano: true,
+    // CLIMATE, above water. Moisture is the one that matters most: the biome
+    // chart's default 0.45 sits between the dry row (dune) and the medium
+    // row (steppe), which is why a warm world with a coral reef below the
+    // waterline read as barren above it. 0.72 is the wet row — forest.
+    temperature: 0.72,
+    moisture: 0.72,
+    // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
+    // 55 m cone, where it gives ~11 m plates; here that is gravel.
+    volcanicScale: 0.025,
     wireframe: false,
   },
 })
@@ -72,6 +81,9 @@ const terrain = b3dTerrain({
   // a small world, and at v-size 400 every peak would still read as snow.
   biomeSeaLevel: demo.seaLevel * demo.grossAmplitude,
   biomeLapseRate: 0.5 / demo.grossAmplitude,
+  biomeTemperature: demo.temperature,
+  biomeMoisture: demo.moisture,
+  biomeVolcanicScale: demo.volcanicScale,
 })
 
 applyVolcano(demo.volcano.valueOf())
@@ -100,6 +112,10 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      label3d({ text: 'Climate' }),
+      slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather' }),
       slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),

@@ -93,6 +93,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Demos). Titled `world-sim`, it slugified onto the World Sim category and
   adopted all twelve world-simulation pages as its children; `/world-sim/` is
   the category's landing page again.
+- **A volcano goes through basalt before lava.** Its province tail was one
+  smooth ramp from 0.5 at the rim, so almost all of it sat on the ladder's
+  glowing-seam stage and vegetation met glowing rock directly. It now cools
+  quickly past the rim and holds a cold-basalt apron (~0.15) before fading
+  into the biome; the shader's local volcanic mask is fully on by 0.12 (was
+  0.3) so the apron reads as solid basalt, not half vegetation.
+- **Terrain climate is live:** `biomeTemperature`, `biomeMoisture` and
+  `biomeVolcanicScale` attributes (−1 = the plugin's default), synced like
+  `biomeSeaLevel`. The moisture default (0.45) is steppe — a green world
+  wants ~0.7.
+- **Land and Sky** gets a Climate group (temperature, moisture 0.72 —
+  forest — and volcanic scale 0.025, sized to its 420 m volcano).
 - **Land and Sky's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,
   volcano ON (now applied at startup too), cover 0.10, base 280, cirrus 0.25,
   18:30, eye 205.
