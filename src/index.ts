@@ -828,6 +828,7 @@ export type {
   Dynamic,
   Spinner3d,
   Progress3d,
+  Bindable,
 } from './widgets3d.js'
 export {
   panelFitWidth,

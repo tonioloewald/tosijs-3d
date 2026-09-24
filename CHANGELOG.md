@@ -10,6 +10,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Starfield attributes were construction-time only** (tosijs-3d#88). Setting
+  `starfieldData`, `starfieldCube`, `starfieldTilt`, `nebulae`, … on an
+  existing sky did nothing — no request, no stars, no error. They rebuild the
+  starfield now; the dome is untouched. A dispose also releases the cube
+  textures (a moved sky used to leave them behind).
+- **A sky given `starfieldData` alone drew no stars.** The build returned
+  early unless `starfield` or `starfieldCube` was set, although the data cube
+  stands on its own.
+- **`slider3d`, `toggle3d` and `select3d` rejected the reactive boxes they
+  are designed to bind** (tosijs-3d#76) — 24 false type errors in one
+  consumer panel. `value` is `Bindable<T>` now (exported): a `T` or anything
+  with `.value` and `.observe`.
 - **`spaceStart`, `spaceFull` and `starDistance` said `unit` where every other
   schema field says `x-unit`** (tosijs-3d#85). A test now rejects a bare `unit`.
 - **`azimuth` is out of `skyboxSchema()`** (tosijs-3d#86). It has been a no-op

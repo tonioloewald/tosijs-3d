@@ -94,6 +94,10 @@ consumer can read them from beside the data rather than hard-coding them.
 Versions so far: `0.8.3` (the `generateGalaxy` sky) and `0.8.4` (the voxel
 galaxy — far more stars). tosijs-3d#90.
 
+The starfield attributes (`starfield*`, `nebula*`) are **live**: changing one
+on an existing sky rebuilds the starfield, so applying a document to a sky
+that is already up works. `skyboxSize` is the one that is still read once.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -1055,6 +1059,58 @@ export class B3dSkybox extends AbstractMesh {
   private starEl: AbstractMesh | null = null
 
   /**
+   * Every attribute `_buildStarfield` reads. Changing one on a LIVE sky
+   * rebuilds the starfield (see `render`) — they were construction-time only,
+   * so a document applied to an existing sky got no stars and no error
+   * (tosijs-3d#88). `skyboxSize` is not here: it sizes the dome itself.
+   */
+  private static STARFIELD_KEYS = [
+    'starfield',
+    'starfieldCube',
+    'starfieldData',
+    'starfieldDataSize',
+    'starfieldSeed',
+    'starfieldSharpness',
+    'starfieldSizeScale',
+    'starfieldTilt',
+    'nebulae',
+    'nebulaSize',
+    'nebulaTexture',
+  ]
+  private _builtStarfieldKey = ''
+  private _starfieldKey(): string {
+    return B3dSkybox.STARFIELD_KEYS.map((k) => String((this as any)[k])).join(
+      '|'
+    )
+  }
+
+  /** Everything `_buildStarfield` makes, released — including the tilt cache. */
+  private _disposeStarfield(): void {
+    const mat = this.mesh?.material as unknown as
+      | BABYLON.ShaderMaterial
+      | undefined
+    // The shader samples whatever is bound while its level is non-zero, so a
+    // disposed cube must be switched off, not merely released.
+    mat?.setFloat?.('b3dStarLevel', 0)
+    mat?.setFloat?.('b3dStarDataLevel', 0)
+    this._starCube?.dispose()
+    this._starCube = null
+    this._starData?.dispose()
+    this._starData = null
+    for (const q of this._nebulaMeshes) q.dispose()
+    this._nebulaMeshes = []
+    for (const nm of this._nebulaMats) nm.dispose()
+    this._nebulaMats = []
+    this._nebulaBase = []
+    this._starfieldMesh?.dispose()
+    this._starfieldMesh = null
+    this._starTilt = null
+    this._tiltQuat = null
+    this._moonLocal = null
+    this._glowExcluded = false
+  }
+
+  /**
    * The background starfield — built ONCE, then never touched.
    *
    * Points, not billboards: a star is a point source and there is nothing to
@@ -1071,14 +1127,13 @@ export class B3dSkybox extends AbstractMesh {
   private _buildStarfield(scene: BABYLON.Scene): void {
     const attrs = this as any
     const count = Math.floor(attrs.starfield) || 0
-    this._starCube?.dispose()
-    this._starCube = null
-    this._starData?.dispose()
-    this._starData = null
-    this._starfieldMesh?.dispose()
-    this._starfieldMesh = null
+    this._builtStarfieldKey = this._starfieldKey()
+    this._disposeStarfield()
     if (this.mesh == null) return
-    if (count <= 0 && !((this as any).starfieldCube as string)) return
+    // The data cube stands on its own — it ADDS to the raster one rather than
+    // needing it — so it must not be gated on `starfieldCube` too. It was,
+    // and a sky given only `starfieldData` drew no stars and said nothing.
+    if (count <= 0 && !attrs.starfieldCube && !attrs.starfieldData) return
 
     /*
     A BAKED CUBE WINS, and it is one mesh instead of thousands of points.
@@ -1979,14 +2034,8 @@ export class B3dSkybox extends AbstractMesh {
       this.owner.scene.unregisterBeforeRender(this._sizeToCamera)
       this._sizeToCamera = null
     }
-    for (const q of this._nebulaMeshes) q.dispose()
-    this._nebulaMeshes = []
-    for (const nm of this._nebulaMats) nm.dispose()
-    this._nebulaMats = []
-    this._nebulaBase = []
-    this._starfieldMesh?.dispose()
-    this._starfieldMesh = null
-    this._glowExcluded = false
+    this._disposeStarfield()
+    this._builtStarfieldKey = ''
     this._clearBase = null
     this.starEl = null
     this._removeFogLayer?.()
@@ -2000,6 +2049,15 @@ export class B3dSkybox extends AbstractMesh {
 
   render() {
     super.render()
+    // A starfield attribute changed on a live sky: rebuild just the starfield.
+    if (
+      this.mesh != null &&
+      this.owner != null &&
+      this._builtStarfieldKey !== '' &&
+      this._starfieldKey() !== this._builtStarfieldKey
+    ) {
+      this._buildStarfield(this.owner.scene)
+    }
     this.updateSky()
   }
 }
