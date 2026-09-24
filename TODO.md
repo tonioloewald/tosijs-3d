@@ -50,24 +50,10 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
     measured the shader change (mount the galaxy, bake, hash the faces) is
     the obvious shape for one.
   - Bundle-size row: extend to fflate + the 2.9 MB of new assets.
-  - **0.8.3 re-review (`reviews/0.8.3-rereview.md`) — next patch:**
-    - **Cloud deck state survives `sceneDispose`** (verified minor): reset
-      `_weatherKey` from a fresh-memo factory and null `_terrain`, plus a
-      dispose + `sceneReady` test that reads the baked colour channel. (a) is
-      older than 0.8.3; (b), a moved deck reading the old scene's terrain, is
-      a narrow regression 0.8.3 introduced with the cached lookup.
-    - The "direct params write survives" test cannot fail on the old code —
-      make the other dial non-auto so the per-dial memo is exercised.
-    - Deck: restore the "no field" short-circuit (orographic 0, no `weather`
-      re-bakes zeros on every snap); tests for weather identity and
-      generationKey re-bakes.
-    - Stale sentence in `_syncBiome` ("Negative = leave the plugin's own
-      value alone") contradicts the code.
-  - **0.8.3 gate m4 — the build prints no bundle size.** Measured by hand
-    at 0.8.3: 811,657 B min / 268,260 B gzip (+0.88% / +1.2% on 0.8.2,
-    explained in the CHANGELOG). Have the build or RELEASING step 4 print the
-    barrel size (`--packages external`) and record a `dist-sizes.json`
-    baseline — release-doctor warns there is none.
+  - ~~0.8.3 re-review follow-ups and gate m4~~ **DONE (unreleased)** — the
+    deck's memo and terrain cache reset on dispose; the no-field short-circuit;
+    the whiteout samples the baked field instead of rebuilding it per frame;
+    the direct-write test can now fail; `bun run sizes` + `dist-sizes.json`.
 
   Done: the galaxy's per-frame billboard pass is GONE — billboarding moved
   into the vertex shader (3.19 → ~0.02 ms CPU per render; see CHANGELOG).

@@ -1986,8 +1986,7 @@ export class B3dTerrain extends B3dChild {
       this.biomePlugin.params.lapseRate = lapse > 0 ? lapse : 0.004
     }
     // Same memo rule: the attribute wins only when it CHANGES, so a panel
-    // writing params directly is not stomped every frame. Negative = leave
-    // the plugin's own value alone.
+    // writing params directly is not stomped every frame.
     const t = Number(a.biomeTemperature)
     const m = Number(a.biomeMoisture)
     const v = Number(a.biomeVolcanicScale)

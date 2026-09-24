@@ -73,6 +73,7 @@
     "format": "bun --bun eslint --cache --cache-location node_modules/.cache/eslint src bin --fix && bun --bun prettier --cache --write .",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "stop": "bun bin/site.ts --stop",
+    "sizes": "bun bin/sizes.ts",
     "keep": "bun bin/keep.ts"
   },
   "peerDependencies": {

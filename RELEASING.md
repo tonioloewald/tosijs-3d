@@ -139,6 +139,17 @@ are not type-checked**, so nothing else will catch it.
    bare `bun build` invokes Bun's bundler and dies with "Missing entrypoints" instead
    of running our script.
 
+4a. **Size** — print what this release costs a consumer against the committed
+baseline, and put the barrel line in the CHANGELOG entry:
+
+```sh
+bun run sizes             # barrel (min, packages external) + dist total, with deltas
+bun run sizes --record    # after tagging: the new baseline, committed with the release
+```
+
+The build does not print a size, so a release that grew was invisible until a
+reviewer bundled the barrel by hand (0.8.3 gate, m4).
+
 5. **Verify** — types + tests + lint:
 
    ```sh

@@ -6,6 +6,26 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **A cloud deck forgot its local weather on a re-parent.** Its bake memo
+  survived `sceneDispose`, so the fresh mesh stayed unbaked — orographic cloud
+  gone — until some input moved. A deck moved into another `<tosi-b3d>` also
+  kept sampling the OLD scene's terrain (a narrow regression from 0.8.3's
+  cached lookup). Both reset on dispose now.
+- **The deck did per-frame work it did not need.** With no field in force
+  (orographic 0, no `weather`) it re-baked zeros on every grid snap and every
+  terrain rebuild; and the fly-into-cloud whiteout rebuilt the whole weather
+  field — a fresh terrain height sampler — every frame to sample one point.
+  The first bakes once; the second samples the field the bake already built.
+
+### Added
+
+- **`bun run sizes`** — the barrel as a consumer bundles it, and the shipped
+  `dist/*.js`, against a committed `dist-sizes.json` (0.8.3: 263.1 KB gz).
+
 ## 0.8.3
 
 **A galaxy that costs nothing per frame, a sky that keeps the right time, and

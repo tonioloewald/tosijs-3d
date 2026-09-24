@@ -479,7 +479,14 @@ describe('the climate dials are LIVE, and survive a re-parent (0.8.3 gate B1)', 
   })
 
   test('a direct params write survives another dial moving', () => {
-    const t = terrain({ biome: 'on', biomeMoisture: 0.8 })
+    // Temperature is SET (not auto), so a sync that rewrites every dial when
+    // any one changes would stomp the panel's write. With temperature left at
+    // auto this passed on exactly that implementation (0.8.3 re-review).
+    const t = terrain({
+      biome: 'on',
+      biomeTemperature: 0.5,
+      biomeMoisture: 0.8,
+    })
     t.frame()
     t.el.biomePlugin.params.baseTemperature = 0.1 // a panel writing directly
     t.set({ biomeMoisture: 0.6 })

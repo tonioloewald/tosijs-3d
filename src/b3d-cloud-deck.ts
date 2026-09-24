@@ -786,6 +786,27 @@ type WeatherTarget = {
   setFloat(name: string, value: number): unknown
 }
 
+/** What the weather channel was last baked for — see `_bakeWeather`. */
+function freshWeatherKey(): {
+  inactive: boolean
+  x: number
+  z: number
+  orographic: number
+  peak: number
+  weather: ((x: number, z: number) => number) | null
+  gen: string
+} {
+  return {
+    inactive: false,
+    x: NaN,
+    z: NaN,
+    orographic: NaN,
+    peak: NaN,
+    weather: null,
+    gen: '',
+  }
+}
+
 export class B3dCloudDeck extends B3dChild {
   static initAttributes = {
     altitude: 140,
@@ -1018,14 +1039,15 @@ export class B3dCloudDeck extends B3dChild {
   private _fieldSize = 0
   private _bakeKey = ''
   private _elapsed = 0
-  private _weatherKey: {
-    x: number
-    z: number
-    orographic: number
-    peak: number
-    weather: ((x: number, z: number) => number) | null
-    gen: string
-  } = { x: NaN, z: NaN, orographic: NaN, peak: NaN, weather: null, gen: '' }
+  /*
+  RESET ON DISPOSE, from the factory — the terrain's B1 lesson applied here. A
+  re-parent builds fresh meshes with an unbaked colour channel; a memo that
+  survived would say "nothing changed" and the weather field would be missing
+  until some input moved (0.8.3 re-review).
+  */
+  private _weatherKey = freshWeatherKey()
+  /** The field the last bake built — what `_immersionAt` samples. */
+  private _liveWeather: ((x: number, z: number) => number) | null = null
   private _terrain: HTMLElement | null = null
 
   /** The scene's terrain, looked up once — re-queried only while absent or gone. */
@@ -1576,27 +1598,44 @@ export class B3dCloudDeck extends B3dChild {
     thrown away — plus a DOM query and a joined string. Now it is a handful of
     field compares, and the field is built only when one of them moved.
     */
-    const terrain = this._terrainEl()
     const k = this._weatherKey
-    const gen = this.weather == null ? terrain?.generationKey ?? '' : ''
-    if (
-      !force &&
-      k.x === mesh.position.x &&
-      k.z === mesh.position.z &&
-      k.orographic === this.orographic &&
-      k.peak === this.orographicPeak &&
-      k.weather === this.weather &&
-      k.gen === gen
-    ) {
-      return
+    /*
+    NO FIELD IN FORCE is one fact, not six. With no custom `weather` and no
+    orographic lift the channel is all zeros wherever the grid sits and
+    whatever the terrain does, so it is baked ONCE and nothing else is looked
+    at. Keying it like a live field re-baked zeros on every grid snap and on
+    every terrain rebuild — once a frame during a terrain slider drag (0.8.3
+    re-review).
+    */
+    const inactive = this.weather == null && !(this.orographic > 0)
+    if (inactive) {
+      if (!force && k.inactive) return
+      k.inactive = true
+    } else {
+      const terrain = this._terrainEl()
+      const gen = this.weather == null ? terrain?.generationKey ?? '' : ''
+      if (
+        !force &&
+        !k.inactive &&
+        k.x === mesh.position.x &&
+        k.z === mesh.position.z &&
+        k.orographic === this.orographic &&
+        k.peak === this.orographicPeak &&
+        k.weather === this.weather &&
+        k.gen === gen
+      ) {
+        return
+      }
+      k.inactive = false
+      k.x = mesh.position.x
+      k.z = mesh.position.z
+      k.orographic = this.orographic
+      k.peak = this.orographicPeak
+      k.weather = this.weather
+      k.gen = gen
     }
-    k.x = mesh.position.x
-    k.z = mesh.position.z
-    k.orographic = this.orographic
-    k.peak = this.orographicPeak
-    k.weather = this.weather
-    k.gen = gen
     const field = this._weatherField()
+    this._liveWeather = field
 
     const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
     const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind)
@@ -1902,10 +1941,13 @@ export class B3dCloudDeck extends B3dChild {
     */
     /*
     THE SLAB FOLLOWS THE LOCAL BULGE, so flying into a tower is flying into
-    cloud. One field call a frame — the geometry is per-vertex, but what is
-    over YOUR head is a single point.
+    cloud. One field SAMPLE a frame — the geometry is per-vertex, but what is
+    over YOUR head is a single point. The field itself is the one the last bake
+    built (same inputs, same key), not a fresh one: building it constructs a
+    terrain height sampler, and doing that every frame here was the cost the
+    bake's key exists to avoid (0.8.3 re-review).
     */
-    const field = this._weatherField()
+    const field = this._liveWeather
     const w =
       field == null
         ? 0
@@ -2390,6 +2432,11 @@ export class B3dCloudDeck extends B3dChild {
     this.mesh = undefined
     this.topMesh?.dispose()
     this.topMesh = undefined
+    // Memo and terrain cache both belong to the scene being left: a deck moved
+    // into another <tosi-b3d> must not keep sampling the old one's terrain.
+    this._weatherKey = freshWeatherKey()
+    this._liveWeather = null
+    this._terrain = null
     super.sceneDispose()
   }
 }
