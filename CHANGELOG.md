@@ -103,6 +103,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   `biomeVolcanicScale` attributes (−1 = the plugin's default), synced like
   `biomeSeaLevel`. The moisture default (0.45) is steppe — a green world
   wants ~0.7.
+- **Land and Sky's camera turns in place.** It was an orbit camera round a
+  point 300 m ahead with the eye height pinned, so up-arrow nose-dived (an
+  orbit camera moves UP over its target) and left/right swung the eye round
+  a 300 m circle. Now a free camera at eye height: arrows ROTATE (up = look
+  up), never move; drag looks around.
 - **Land and Sky** gets a Climate group (temperature, moisture 0.72 —
   forest — and volcanic scale 0.025, sized to its 420 m volcano).
 - **Land and Sky's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,

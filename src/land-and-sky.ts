@@ -130,28 +130,40 @@ const scene = b3d(
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
     ],
     sceneCreated(el, BABYLON) {
-      // FACING EAST, just below the horizon. An ArcRotateCamera looks along
-      // -(cos alpha, 0, sin alpha), so alpha = PI looks down +X, which is east
-      // (+Z is north). The old PI/3 beta looked 30 degrees into the ground.
-      const cam = new BABYLON.ArcRotateCamera(
-        'orbit',
-        Math.PI,
-        Math.PI / 2 - 0.08,
-        300,
-        new BABYLON.Vector3(0, 60, 0),
-        el.scene
-      )
-      cam.lowerRadiusLimit = 20
-      cam.upperRadiusLimit = 3000
+      // A LOOK-AROUND CAMERA: you stand at eye height and turn in place.
+      //
+      // This was an ArcRotateCamera orbiting a target 300 m ahead, with the eye
+      // height pinned by moving the target each frame. Orbit semantics leaked
+      // straight through: up-arrow moves an orbit camera UP OVER its target,
+      // which points the view DOWN — Tonio: "When I up-arrow the view nose-dives.
+      // Down arrow tilts upward." — and left/right swung the eye round a 300 m
+      // circle instead of turning it.
+      //
+      // So: a FreeCamera at the eye, arrows bound to ROTATION (up = look up;
+      // Babylon's keysRotateUp lowers rotation.x, which pitches up) and its
+      // move keys cleared so arrows never walk you. Dragging looks around.
+      // Facing EAST (+X; +Z is north), just below the horizon.
+      const cam = new BABYLON.FreeCamera('look', new BABYLON.Vector3(0, sky.eye.valueOf(), 0), el.scene)
+      cam.setTarget(new BABYLON.Vector3(1, sky.eye.valueOf() - 0.08, 0))
+      const keys = cam.inputs.attached.keyboard
+      keys.keysUp = []
+      keys.keysDown = []
+      keys.keysLeft = []
+      keys.keysRight = []
+      keys.keysUpward = []
+      keys.keysDownward = []
+      keys.keysRotateLeft = [37]
+      keys.keysRotateRight = [39]
+      keys.keysRotateUp = [38]
+      keys.keysRotateDown = [40]
+      keys.rotationSpeed = 0.6
       cam.minZ = 0.1
       cam.maxZ = 12000
       cam.attachControl(el.parts.canvas, true)
       el.setActiveCamera(cam)
-      // THE EYE IS PINNED, orbit changes only where you look — so the eye
-      // height slider means what it says instead of being unreachable at the
-      // top and bottom of the orbit.
+      // THE EYE IS PINNED: the slider means what it says.
       el.scene.registerBeforeRender(() => {
-        cam.target.y = sky.eye.valueOf() - cam.radius * Math.cos(cam.beta)
+        cam.position.y = sky.eye.valueOf()
       })
     },
   },
