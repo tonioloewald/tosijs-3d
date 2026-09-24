@@ -14,7 +14,7 @@ however pretty.
 ## Demo
 
 ```js
-import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
@@ -86,6 +86,17 @@ preview.append(
         // the sky shader decodes into points. The right output once the star
         // slider is at 100k — a plain raster at that density is a picture of
         // itself, and it would need 4096 to stop smearing.
+        // THE SHIPPED SKY'S RECIPE — sets every slider to what produced
+        // static/sky, so a rebake is one tap here and one tap below. (It used
+        // to live only in commit messages; reproducing it took archaeology.)
+        button3d({ label: 'use shipped recipe', handleClick: () => {
+          bake.stars = SHIPPED_SKY.stars
+          bake.particleSize = SHIPPED_SKY.particleSize
+          bake.outFraction = SHIPPED_SKY.outFraction
+          bake.offPlane = SHIPPED_SKY.offPlane
+          bake.roll = SHIPPED_SKY.roll
+          bake.status = 'shipped recipe — rebuilding, then bake pair'
+        } }),
         button3d({ label: 'bake pair (256 + 1024 data)', handleClick: async () => {
           bake.status = 'baking pair…'
           const res = await bakeSkyPair(sceneEl.scene, galaxy, {
@@ -264,6 +275,33 @@ export interface SkyboxBakeOptions {
    */
   roll?: number
 }
+
+/**
+ * THE RECIPE FOR `static/sky` — the pair every demo loads as
+ * `/sky/nebula` + `/sky/stars`.
+ *
+ * Written down because it was not: reproducing the shipped sky meant reading
+ * commit messages (100k stars in one, 42% out in another) and then proving the
+ * guess by rebaking and byte-comparing. Bake with these and the data faces
+ * are reproducible exactly.
+ *
+ * `tilt` is NOT baked in — the cube is photographed level and tilted where it
+ * is used (`b3dSkybox({ starfieldTilt: SHIPPED_SKY.tilt })`), for the reason
+ * on {@link defaultBakePose}. It is recorded here so the pair and the angle it
+ * was framed for travel together.
+ */
+export const SHIPPED_SKY = {
+  seed: 1234,
+  stars: 100000,
+  radius: 100,
+  particleSize: 0.7,
+  outFraction: 0.42,
+  offPlane: 1,
+  roll: 0,
+  smoothSize: 256,
+  dataSize: 1024,
+  tilt: '12,25,58',
+} as const
 
 /**
  * Where to stand, given a galaxy's radius.

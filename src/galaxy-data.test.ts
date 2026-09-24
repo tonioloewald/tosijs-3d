@@ -4,11 +4,13 @@ import {
   generateStarSystem,
   romanNumeral,
 } from './galaxy-data.js'
+import { SHIPPED_SKY } from './skybox-baker.js'
 
 // The galaxy the shipped sky (`static/sky/stars_*`, `nebula_*`) was baked
-// from is `generateGalaxy(1234, 10000)` — see skybox-baker's bake defaults.
-// A change that re-rolls it silently invalidates that bake, so it is pinned
-// by digest: if this fails on purpose, rebake the sky and update the digest.
+// from is `generateGalaxy(1234, 100000)` — `SHIPPED_SKY` in skybox-baker. A
+// change that re-rolls it silently invalidates that bake, so it is pinned by
+// digest: if this fails on purpose, rebake the sky and update the digest.
+// (10k is the baker demo's working size, pinned too.)
 
 function digest(g: ReturnType<typeof generateGalaxy>): string {
   let h = 0x811c9dc5
@@ -36,8 +38,14 @@ function digest(g: ReturnType<typeof generateGalaxy>): string {
 
 describe('generateGalaxy', () => {
   test('the shipped sky galaxy is unchanged', () => {
+    const g = generateGalaxy(SHIPPED_SKY.seed, SHIPPED_SKY.stars)
+    expect(g.stars.length).toBe(100000)
+    expect(g.nebulae.length).toBe(15500)
+    expect(digest(g)).toBe('66092914')
+  })
+
+  test("the baker demo's 10k working galaxy is unchanged", () => {
     const g = generateGalaxy(1234, 10000)
-    expect(g.stars.length).toBe(10000)
     expect(g.nebulae.length).toBe(2000)
     expect(digest(g)).toBe('1247aedc')
   })

@@ -36,7 +36,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **The skybox baker encoded every distant star twice** — once as a
   spectral-less 0.02 "star" (it walked the whole star mesh, whose tail IS the
   distant stars) and once properly. The baker's galaxy bakes 13,497 objects,
-  not 16,497. Skies baked before this carry the duplicates until rebaked.
+  not 16,497.
+- **The shipped sky is rebaked without them** (`static/sky/stars_*`; the
+  nebula faces are unaffected and unchanged). The recipe was first proven by
+  reproducing the old faces byte-for-byte with the pre-fix code.
+
+### Added (sky)
+
+- **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
+  1 off-plane, roll 0, 256 + 1024, and the `12,25,58` tilt it is framed for),
+  plus a "use shipped recipe" button in the baker demo. It used to live only
+  in commit messages.
 
 ### Deprecated
 

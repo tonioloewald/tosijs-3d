@@ -665,6 +665,7 @@ export {
   facesToPngs,
   facesToZip,
   defaultBakePose,
+  SHIPPED_SKY,
   type BakedFace,
   type SkyboxBakeOptions,
 } from './skybox-baker.js'
