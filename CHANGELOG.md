@@ -31,6 +31,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   one-pixel star is clickable.
 - `getStarPoints()` — every point in the star mesh, for bakers.
 
+### Fixed
+
+- **The skybox baker encoded every distant star twice** — once as a
+  spectral-less 0.02 "star" (it walked the whole star mesh, whose tail IS the
+  distant stars) and once properly. The baker's galaxy bakes 13,497 objects,
+  not 16,497. Skies baked before this carry the duplicates until rebaked.
+
 ### Deprecated
 
 - **`getStarSPS()`** returns `null` and warns once — there is no particle

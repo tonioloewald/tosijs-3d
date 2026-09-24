@@ -376,7 +376,17 @@ export function starsFromGalaxy(
   let maxScale = 0
   for (const s of starData) maxScale = Math.max(maxScale, s.scale || 0)
   const norm = maxScale > 0 ? 1 / maxScale : 1
-  for (let i = 0; i < stars.length; i++) {
+  /*
+  THE DISC STARS ONLY. The star mesh also carries the distant stars on its
+  tail, and they have their own loop below — walking the whole mesh encoded
+  each of them TWICE, once here as a spectral-less 0.02 "star" and once
+  properly. (Every sky baked before this fix carries the 3,000 duplicates;
+  `placed` counted them.) Without star data there is no telling which is
+  which, so everything is taken, as before.
+  */
+  const discCount =
+    starData.length > 0 ? Math.min(stars.length, starData.length) : stars.length
+  for (let i = 0; i < discCount; i++) {
     const p = stars[i]
     const data = starData[i]
     out.push({

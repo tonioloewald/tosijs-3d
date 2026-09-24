@@ -45,8 +45,13 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
 - [ ] **0.8.2 GATE FOLLOW-UPS** (from `reviews/0.8.2-pre-tag-gate.md` — filed,
       none blocking). Open:
 
-  - `skybox-baker` (the shipped sky's provenance) has no behavioural test —
-    the pure siblings do.
+  - `skybox-baker`: `starsFromGalaxy` is now tested; the render half
+    (`bakeSkyboxCube`) still is not — it needs a browser. The harness that
+    measured the shader change (mount the galaxy, bake, hash the faces) is
+    the obvious shape for one.
+  - **The shipped sky (`static/sky/stars_*`) carries 3,000 duplicate
+    distant stars** — baked before the double-encoding fix. A rebake from
+    the same pose drops them; that is a framing session, not a code change.
   - Bundle-size row: extend to fflate + the 2.9 MB of new assets.
 
   Done: the galaxy's per-frame billboard pass is GONE — billboarding moved
