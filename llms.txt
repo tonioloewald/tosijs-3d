@@ -347,6 +347,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
+- https://3d.tosijs.net/voxel-galaxy/ — voxel-galaxy
+  BRIGHT stars, one for its DIM stars. The bright pass is global (the stars you
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 - https://3d.tosijs.net/water-normal/ — water-normal

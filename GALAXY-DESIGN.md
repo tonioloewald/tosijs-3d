@@ -1,7 +1,9 @@
 # Galaxy design — a voxel galaxy with two populations
 
-> Status: **design**, agreed in conversation with Tonio (2026-09-24), nothing
-> built yet. Supersedes the "GALAXY ARCHITECTURE" TODO line.
+> Status: agreed with Tonio (2026-09-24). **Steps 1–2 are built** (the pure
+> core in `src/voxel-galaxy.ts`, the baker, `bin/bake-stars.ts`) and the
+> shipped sky was rebaked from it on 2026-09-25. Steps 3–4 are not started.
+> Supersedes the "GALAXY ARCHITECTURE" TODO line.
 
 ## The problem
 
@@ -155,6 +157,47 @@ distribution — spectral mix, radial profile, arm contrast — within noise. If
 matching needs a special case, that case names what the model is missing.
 
 ## Build order — the baker drives it
+
+### What the tuning loop found (2026-09-25)
+
+The shipped sky is **100k bright + 1M dim budget, `dimReach` 0.04, floor
+0.02** — `SHIPPED_SKY.voxel`, reproduced byte-for-byte by `bun
+bin/bake-stars.ts` with no flags. Of the dim budget only ~15.7k stars fall
+inside the computed gather radius (0.115), which is the point: a million-star
+galaxy for the price of one voxel neighbourhood.
+
+- **~5k bright is too few for the SKY.** At 5k, 20k and 40k the Milky Way band
+  loses its grain; 100k restores it. The 5k guess still reads right for what a
+  live galaxy view needs to show at once — the two consumers want different
+  bright budgets, and that is fine: it is a dial, not a constant.
+- **The local dim stars are the win** — an all-sky sprinkle the old bake never
+  had ("OUTSTANDINGLY improved. Far more stars").
+- **The band is broader than the old bake's**, because vertical cells (0.03 at
+  `nz` 20 over ±0.3) are thicker than the disc near the bake point (~0.017).
+  `--nz`/`--halfz` is the dial if it ever needs sharpening.
+
+### Where habitable worlds live — why the live galaxy must stream dim voxels
+
+Measured on `generateGalaxy(1234, 100000, { generatePlanets: true })`, systems
+by best HI:
+
+| class | HI 1 | HI 2 | HI 3  |
+| ----- | ---- | ---- | ----- |
+| A     | 22   | 208  | 1117  |
+| B     | 3    | 85   | 247   |
+| F     | 62   | 787  | 4732  |
+| G0–5  | 252  | 2144 | 7624  |
+| G6–9  | 127  | 1405 | 5172  |
+| K     | 207  | 2394 | 17455 |
+| M     | 0    | 0    | 277   |
+
+**Half the earthlike systems (334 of 673) are in the DIM population.** So a
+live galaxy that showed only the bright pass would silently halve what an HI
+filter finds. Its HI filter must cover the bright pass globally, the streamed
+dim voxels locally, and a "find earthlike anywhere" search walks voxels lazily
+(see Consumers). M dwarfs contribute nothing above HI 3, which is the case for
+underweighting them. Until step 4, `b3d-galaxy` stays on `generateGalaxy`, so
+its filter is unchanged.
 
 **The point of the whole design is generating the local dim stars RELATIVE TO
 THE BAKE CAMERA** (Tonio). The sky is where the dense local population is

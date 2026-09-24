@@ -37,6 +37,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   not guessed), and the distant shell. `bakeSkyPair` takes precomputed
   `objects`; `bin/bake-stars.ts` rebakes `static/sky/stars_*` without a
   browser in ~1 s for the tuning loop; `SHIPPED_SKY.voxel` holds the dials.
+
+### Changed
+
+- **The shipped sky's stars are rebaked from the voxel galaxy** — 100k bright
+  stars plus the dim stars around the bake point (~119k objects, against 100k
+  before). Far more stars at night, and a dense local sprinkle across the
+  whole sky rather than only along the band. The band itself is a little
+  broader. `bun bin/bake-stars.ts` with no flags reproduces it byte-for-byte;
+  the smooth `nebula_*` half is unchanged.
 - **`bun run sizes`** — the barrel as a consumer bundles it, and the shipped
   `dist/*.js`, against a committed `dist-sizes.json` (0.8.3: 263.1 KB gz).
 

@@ -310,14 +310,16 @@ export const SHIPPED_SKY = {
   tilt: '12,25,58',
   /**
    * The VOXEL galaxy's dials (GALAXY-DESIGN.md) — used by `bin/bake-stars.ts`.
-   * Starting values for the tuning loop; the sky in `static/sky` is whatever
-   * was last baked, so re-bake after changing these.
+   * These are the values `static/sky/stars_*` was baked with (approved by eye,
+   * 2026-09-25): `bun bin/bake-stars.ts` with no flags reproduces it. Re-bake
+   * after changing them. The bright budget is well past GALAXY-DESIGN's ~5k
+   * guess — at 5k the band loses its grain; 100k keeps it.
    */
   voxel: {
-    brightBudget: 5000,
-    dimBudget: 95000,
+    brightBudget: 100000,
+    dimBudget: 1000000,
     /** Generator units (disc radius 0.9) at which a dim star is at full brightness. */
-    dimReach: 0.03,
+    dimReach: 0.04,
     /** Faintest encoded dim star — also sets the gather radius. */
     floor: 0.02,
   },
