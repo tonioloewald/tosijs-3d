@@ -750,10 +750,27 @@ void main(void) {
     */
     float tintLevel = max(max(skyTint.r, skyTint.g), max(skyTint.b, 0.001));
     vec3 sunGlow = skyTint / tintLevel * sqrt(tintLevel);
-    vec3 col =
-      base * skyTint +
-      topColor * glow * (thin * thin + 0.12 * transmission + 0.45 * wisps) * sunGlow;
-    gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
+    /*
+    THIN CLOUD OUTSHINES THE SKY. Tonio: "Clouds should be brighter than the
+    sky at thinnest because they're catching a lot more light than dust or
+    whatever." A wisp in front of a low sun is lit through its whole depth by
+    direct sunlight; the air around it only scatters a little of it. So as
+    cover thins the emission climbs to ~3x — unchanged from 0.5 up, so an
+    overcast behaves exactly as before.
+    */
+    float bright = 1.0 + 2.0 * wisps;
+    vec3 emit =
+      topColor * glow * bright *
+      (thin * thin + 0.12 * transmission + 0.45 * wisps) * sunGlow;
+    /*
+    AND THE GLOW MOSTLY SURVIVES THE DISTANCE FOG. The brightest thin cloud at
+    sunset sits near the horizon, exactly where the fog was mixing it down to
+    the horizon colour. The body of the cloud fogs as before; its glow keeps
+    most of its strength, which is what a bright rim on a far cloud looks like.
+    */
+    float fa = fogAmount(vWorld);
+    vec3 body = mix(fogColorU, base * skyTint, fa);
+    gl_FragColor = vec4(body + emit * (0.4 + 0.6 * fa), a);
   }
 }
 `

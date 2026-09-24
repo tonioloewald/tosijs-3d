@@ -86,7 +86,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   orographic cap does not turn fair weather into a slab). Below 0.5 the whole
   cloud gains a forward-scatter glow in the sun's HUE — golden at golden
   hour — rather than its full dimming. An explicit `transmission` keeps its
-  authority.
+  authority. And at its thinnest it OUTSHINES the sky — a wisp in front of
+  a low sun is lit through its whole depth — with emission up to ~3× as
+  cover falls from 0.5 to 0, and the glow mostly spared the distance fog.
 - **world-sim's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,
   volcano ON (now applied at startup too), cover 0.10, base 280, cirrus 0.25,
   18:30, eye 205.
