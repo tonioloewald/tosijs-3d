@@ -729,7 +729,7 @@ missile its target (no lock ⇒ the round flies ballistic).
 | `src/b3d-elevator.ts`       | `<tosi-b3d-elevator>` — a moving platform you stand on, ride or switch; the arena's three behaviours                                                                                                                            |
 | `src/playground.ts`         | The combat playground — ground, light, cover, crates, a catwalk — as ordinary scene children, composing into any demo                                                                                                           |
 | `src/rocket-ascent.ts`      | The medium-crossing demo — through the deck, out of the air, stars come through; the one scene that crosses more than one medium                                                                                                |
-| `src/world-sim.ts`          | THE KITCHEN SINK — live-dialed terrain + sea + weather + the encoded sky; where provinces, weather systems and the simulation land first                                                                                        |
+| `src/land-and-sky.ts`       | THE KITCHEN SINK ("Land and Sky") — live-dialed terrain + sea + weather + the encoded sky; where provinces, weather systems and the simulation land first                                                                       |
 
 ### Convention-Based Mesh/Light Configuration
 

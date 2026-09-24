@@ -15,5 +15,5 @@ reading the code.
 - [Rocket Ascent](/rocket-ascent/)
 - [Weapon Fit](/weapon-fit/)
 - [Skybox Baker](/skybox-baker/)
-- [world-sim](/world-sim/)
+- [Land and Sky](/land-and-sky/)
 <!-- /toc -->

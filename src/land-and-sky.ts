@@ -1,5 +1,5 @@
 /*#
-# world-sim
+# Land and Sky
 
 **THE KITCHEN SINK** — one world that grows with the world-sim layer. Terrain
 (with live dials), a sea, weather over both, and the encoded sky behind. As

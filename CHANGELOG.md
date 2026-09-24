@@ -89,7 +89,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   authority. And at its thinnest it OUTSHINES the sky — a wisp in front of
   a low sun is lit through its whole depth — with emission up to ~3× as
   cover falls from 0.5 to 0, and the glow mostly spared the distance fog.
-- **world-sim's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,
+- **The kitchen-sink demo is "Land and Sky"** (`/land-and-sky/`, under
+  Demos). Titled `world-sim`, it slugified onto the World Sim category and
+  adopted all twelve world-simulation pages as its children; `/world-sim/` is
+  the category's landing page again.
+- **Land and Sky's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,
   volcano ON (now applied at startup too), cover 0.10, base 280, cirrus 0.25,
   18:30, eye 205.
 
