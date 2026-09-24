@@ -64,7 +64,11 @@ demo is now <strong>Land and Sky</strong>.</p>
 crosses the SOUTH at noon (it crossed the north), the tilt no longer lifts or
 drops it, the moon rides the night arc, cloud undersides are brighter and
 their rims glow toward the sun rather than away from it, and a volcano grows
-a basalt apron. No API was removed.</p>
+a basalt apron. No component API was removed, but two paths moved: the
+kitchen-sink demo module <code>tosijs-3d/world-sim</code> is now <code>tosijs-3d/land-and-sky</code>
+(a side-effect-only demo, not a library entry point), and the unused 2048
+reference sky (<code>/sky/default_*.png</code>) is no longer served — it lives in
+<code>reference/sky/</code> in the repo.</p>
 </blockquote>
 <h3>Added</h3>
 <ul>
@@ -115,7 +119,9 @@ distance fog. An explicit <code>transmission</code> keeps its authority.</li>
 Demos). Titled <code>world-sim</code>, it slugified onto the World Sim category and
 adopted all twelve world-simulation pages as its children; <code>/world-sim/</code> is
 the category&#39;s landing page again. New defaults (Tonio&#39;s): volcano on,
-moisture 0.72 (forest), volcanic scale 0.02 for its 420 m cone, cover 0.10,
+moisture 0.72 (forest), volcanic scale 0.02 for its 420 m cone (the
+demo&#39;s value — the library default stays 0.09, right for ~50 m cones),
+cover 0.10,
 18:30. A Climate group joins the panel, and the camera turns in place —
 arrows ROTATE (up = look up); it was an orbit camera, so up-arrow nose-dived
 and left/right swung the eye round a 300 m circle.</li>

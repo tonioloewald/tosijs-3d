@@ -226,6 +226,9 @@ export declare class B3dCloudDeck extends B3dChild {
     private _bakeKey;
     private _elapsed;
     private _weatherKey;
+    private _terrain;
+    /** The scene's terrain, looked up once — re-queried only while absent or gone. */
+    private _terrainEl;
     private _weatherMax;
     private _weatherTex;
     private _weatherTexSize;

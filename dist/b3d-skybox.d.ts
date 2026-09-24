@@ -126,6 +126,7 @@ export declare class B3dSkybox extends AbstractMesh {
     private _horizonScratch;
     /** The sun's (or moon's) colour this hour — the light takes it when there is one. */
     private _lightColor;
+    private _duskScratch;
     private _colorCache;
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor(): BABYLON.Color3;

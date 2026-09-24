@@ -693,10 +693,12 @@ export class B3dSkybox extends AbstractMesh {
     /*
     DID THE SUN BRANCH ACTUALLY RUN?
   
-    `updateSky` writes `sunPosition`, `rayleigh` and `turbidity` only when a sun
-    element's LIGHT exists, and the sun is a separate element that appears on its
-    own schedule. A first pass landing before it leaves the SkyMaterial at its
-    defaults — a dark sky that reads as night.
+    `updateSky` pushes direction, colour and intensity into a sun element's
+    LIGHT only when that light exists, and the sun is a separate element that
+    appears on its own schedule. (The DOME no longer waits on it — since 0.8.3
+    the gradient, scattering and sun disc follow the clock with or without a
+    sun — so what a missed first pass costs now is an unlit scene under a
+    correct sky, not a dark sky.)
   
     `realtimeScale: 10` hides this, because the clock drifts every tick and the
     time gate reopens until some pass catches the sun. Set `realtimeScale: 0` for
@@ -726,6 +728,7 @@ export class B3dSkybox extends AbstractMesh {
     _horizonScratch = new BABYLON.Color3();
     /** The sun's (or moon's) colour this hour — the light takes it when there is one. */
     _lightColor = new BABYLON.Color3(1, 1, 1);
+    _duskScratch = new BABYLON.Color3();
     _colorCache = new Map();
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor() {
@@ -1594,7 +1597,7 @@ export class B3dSkybox extends AbstractMesh {
             // and the light itself all turn together.
             BABYLON.Color3.LerpToRef(this.hex(attrs.duskColor), this.hex(attrs.sunColor), intensity, lightColor);
             const sunset = Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12);
-            BABYLON.Color3.LerpToRef(lightColor, this.hex(attrs.duskColor).scale(0.65), sunset * 0.55, lightColor);
+            BABYLON.Color3.LerpToRef(lightColor, this.hex(attrs.duskColor).scaleToRef(0.65, this._duskScratch), sunset * 0.55, lightColor);
             material.rayleigh = attrs.rayleigh * airSky;
             material.turbidity = attrs.turbidity * airSky;
             material.mieCoefficient = attrs.mieCoefficient;

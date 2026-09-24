@@ -139,14 +139,19 @@ export declare class B3dTerrain extends B3dChild {
      * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
      * after changing attributes or profiles.
      */
+    heightSampler(): (x: number, z: number) => number;
     /**
-     * Changes whenever the terrain's SHAPE does (a `regenerate()`, or an
-     * attribute that re-cuts the tiles). Compare it to know when anything you
-     * derived from {@link heightSampler} has gone stale — the cloud deck's
-     * orographic field does exactly this.
+     * Changes whenever the terrain's SHAPE does — any rebuild, including a
+     * `regenerate()` after changing only `landform`, `provinceField` or the
+     * profiles. Compare it to know when anything you derived from
+     * {@link heightSampler} has gone stale; the cloud deck's orographic field
+     * does exactly this.
+     *
+     * A COUNTER, not the attribute key. The key is built from attributes, so a
+     * property-only change (switching a volcano off) left it identical and the
+     * deck kept its cloud over the mountain that was gone (0.8.3 gate, B2).
      */
     get generationKey(): string;
-    heightSampler(): (x: number, z: number) => number;
     private makeHeightFn;
     /** Metres the hole's rim folds down into a patch opening (see the collar
      * note in `terrain-grid.tileIndexPlan`). */
@@ -299,10 +304,10 @@ export declare class B3dTerrain extends B3dChild {
     private markPoolStale;
     private _generationKey;
     private _genKey;
+    /** Bumped by every rebuild — what `generationKey` reports. */
+    private _shapeGen;
     render(): void;
-    private _syncedSeaLevel;
-    private _syncedLapseRate;
-    private _syncedClimate;
+    private _biomeMemo;
     private _syncBiome;
     /** Material tweaks that must never cost a regeneration. */
     private _syncMaterial;
