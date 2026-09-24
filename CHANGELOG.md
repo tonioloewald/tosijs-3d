@@ -28,9 +28,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   seed. `brightStars()` is the global pass; `dimStarsNear(point, radius)` is
   the local one the skybox baker will use. Density is sampled from
   `generateGalaxy` and propagated so no voxel is empty; stars are addressed
-  `population:voxel:n` (no shared-seed clones). Not wired into the baker or
-  the galaxy yet. `galaxy-data` exports `starDetailFor`, `SPECTRAL_CLASSES`
+  `population:voxel:n` (no shared-seed clones). `galaxy-data` exports `starDetailFor`, `SPECTRAL_CLASSES`
   and `SPECTRAL_WEIGHTS`, split out so both generators share one definition.
+- **The baker reads the voxel galaxy** (`GALAXY-DESIGN.md` step 2):
+  `starsFromVoxelGalaxy(galaxy, shell, eye, { dimReach, floor })` gives every
+  bright star (today's rule — intrinsic brightness), the dim stars near the
+  eye falling off with distance (the gather radius computed from the floor,
+  not guessed), and the distant shell. `bakeSkyPair` takes precomputed
+  `objects`; `bin/bake-stars.ts` rebakes `static/sky/stars_*` without a
+  browser in ~1 s for the tuning loop; `SHIPPED_SKY.voxel` holds the dials.
 - **`bun run sizes`** — the barrel as a consumer bundles it, and the shipped
   `dist/*.js`, against a committed `dist-sizes.json` (0.8.3: 263.1 KB gz).
 
