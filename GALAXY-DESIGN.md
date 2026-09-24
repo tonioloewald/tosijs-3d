@@ -154,13 +154,23 @@ The global bright pass plus every voxel's dim pass must reproduce the sampled
 distribution — spectral mix, radial profile, arm contrast — within noise. If
 matching needs a special case, that case names what the model is missing.
 
-## Build order
+## Build order — the baker drives it
 
-1. **The pure core** (Babylon-free, unit-tested): density grid (sample, smooth,
-   propagate), seed derivation, per-voxel bright and dim generation, rejection
-   placement. Tests pin determinism and load-order independence, no seed
-   clones, the falsifier above, and that dim generation touches only the voxels
-   asked for.
-2. **Identity:** address-based lookups; names/details/planets on demand.
-3. **Consumers:** the baker's radius gather, then the galaxy's streamed voxels.
-4. **Nebulae** on the same scheme; the bulge in the sampler.
+**The point of the whole design is generating the local dim stars RELATIVE TO
+THE BAKE CAMERA** (Tonio). The sky is where the dense local population is
+seen; the live galaxy's dim streaming is secondary and can come later. So the
+first deliverable is exactly what the baker needs:
+
+1. **The pure core, shaped by that query.** Density grid (sample, smooth,
+   propagate), seed derivation, the global bright pass, and
+   `dimStarsNear(point, radius)` — the dim stars of every voxel within
+   `radius` of `point`, placed by rejection. Babylon-free, unit-tested:
+   determinism and load-order independence, no seed clones, the falsifier
+   above, and that a query touches only the voxels within its radius.
+2. **The baker.** `starsFromGalaxy` gathers bright + `dimStarsNear(bakePoint,
+R)` + the distant shell, with R computed from the brightness falloff and the
+   display floor. `SHIPPED_SKY` gains the new parameters; the shipped sky is
+   rebaked.
+3. **Identity:** address-based lookups; names/details/planets on demand.
+4. **Later:** the live galaxy streaming dim voxels near its camera; nebulae on
+   the same scheme; the bulge in the sampler.
