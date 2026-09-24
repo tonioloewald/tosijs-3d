@@ -95,15 +95,27 @@ Today's spectral weights are top-heavy — A and F at 3–4× their real share �
 and **on purpose** (Tonio): with one global population, a realistic mix needs an
 obscene star count before the galaxy looks interesting, so the old model skewed
 the mix toward bright stars to get there on a sane budget. The voxel model
-removes that reason. Dim stars cost only where someone is looking, so the mix
-can move toward realistic without the count exploding — which is a second
-argument for the model, not just a side effect of it.
+removes the COST that forced it — dim stars cost only where someone is looking —
+but **not the reason to keep it.** Realism is not the target (the project's
+north star: behavioural richness, not photorealism). Tonio: _"A galaxy that is
+just full of lifeless red dwarfs is realistic but not more interesting and you
+won't be able to see most of them anyway. The dimmer red dwarfs in particular
+are just not interesting to us based on current modeling (they're too
+low-energy and unstable for our ideas of where life might form)."_
+
+So the weights serve what is worth visiting, not the census:
+
+- **Keep the skew.** The model permits a realistic mix; it does not call for one.
+- **The dim population is sky TEXTURE first.** Its job is to make the local sky
+  dense on a low star count. Late M dwarfs can be underweighted freely; their
+  names and planets stay derivable on demand (addresses make that free) but
+  nothing is spent on them unless something asks.
 
 Tonio's working guess — **~5k bright to ~95k dim** — sits between the A and F
 cuts on today's weights, or almost exactly "F and hotter" on real ones. The cut
 may be spectral or by luminosity (nearly equivalent; luminosity is what
-rendering cares about) — decide when building, alongside how far toward the
-real mix the weights should move.
+rendering cares about) — decide when building, along with how far to
+underweight the late M dwarfs.
 
 ### Why the local dim population is the payoff
 
