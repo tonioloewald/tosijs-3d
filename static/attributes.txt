@@ -1180,6 +1180,25 @@ b3d
   windGust
   enterXrOnResume
 
+## voxel-galaxy
+voxel-galaxy
+
+  seed  = —  — Galaxy seed: shapes the density AND derives every voxel's seeds
+  brightBudget  = 5000  — Stars in the global pass
+  dimBudget  = 95000  — Stars across all voxels' dim passes — most are never generated
+  samples  = 100000  — Samples drawn from `generateGalaxy` to impute the density
+  galaxyOptions  = {}  — Passed to the sampler (`spiralArms`, `thickness`, …)
+  nx  = 64  — Grid resolution across the disc (x)
+  ny  = 64  — Grid resolution across the disc (y)
+  nz  = 20  — Grid resolution through the disc (z)
+  halfXY  = 1.05  — Grid half-extent across the disc
+  halfZ  = 0.3  — Grid half-extent through the disc — room for a halo
+  smoothPasses  = 1  — Blur passes over the sampled histogram (calms sparse voxels)
+  fringeShare  = 0.02  — Share of the budget spread across EMPTY voxels
+  fringeFalloff  = 3  — Falloff length for the fringe, in voxels
+  brightMix  = O–G5  — The bright population's spectral mix — the bright/dim cut is here
+  dimMix  = G6–M  — The dim population's spectral mix — underweight late M freely
+
 ## widgets3d
 widgets3d
 

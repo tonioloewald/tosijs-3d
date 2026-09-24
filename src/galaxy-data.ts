@@ -707,6 +707,14 @@ export interface StarData {
   hiComputed?: boolean
 }
 
+/** The spectral classes, hot → cool, and their draw weights. */
+export const SPECTRAL_CLASSES = ['O', 'B', 'A', 'F', 'G', 'K', 'M'] as const
+/**
+ * Top-heavy ON PURPOSE: with one global population a realistic mix needs an
+ * obscene star count before a galaxy looks interesting (see GALAXY-DESIGN.md).
+ */
+export const SPECTRAL_WEIGHTS = [0.0001, 0.2, 1, 3, 8, 12, 20]
+
 function generateStarDetail(
   seed: number
 ): Omit<StarData, 'name' | 'position' | 'bestHI'> {
@@ -714,18 +722,32 @@ function generateStarDetail(
   // and MT construction (~14 µs) × 100k stars is a second and a half of doing
   // nothing. Quality is irrelevant here — determinism is what matters.
   const prng = new CheapPRNG(seed)
-  const spectralClass = prng.pick(
-    ['O', 'B', 'A', 'F', 'G', 'K', 'M'],
-    [0.0001, 0.2, 1, 3, 8, 12, 20]
-  )
+  const spectralClass = prng.pick([...SPECTRAL_CLASSES], SPECTRAL_WEIGHTS)
   const spectralIndex = prng.range(0, 9)
+  return starDetailFor(prng, seed, spectralClass, spectralIndex)
+}
+
+/**
+ * Everything a star's CLASS implies, drawn from `prng` in a fixed order.
+ *
+ * Split out of `generateStarDetail` so a generator that chooses the class
+ * itself (the voxel galaxy picks from a bright or a dim mix) shares the one
+ * definition instead of a copy. The draw order is unchanged, so every existing
+ * galaxy is byte-identical (galaxy-data.test pins it by digest).
+ */
+export function starDetailFor(
+  prng: RandomLike,
+  seed: number,
+  spectralClass: string,
+  spectralIndex: number
+): Omit<StarData, 'name' | 'position' | 'bestHI'> {
   const template = starTypeData[spectralClass]
 
   const luminosity = (template.luminosity * 3) / (spectralIndex + 2)
   const mass = (template.mass * 5) / (spectralIndex + 2)
   const numberOfPlanets = prng.range(template.planets[0], template.planets[1])
   const planetSeed = prng.range(0, 1000000)
-  const inSpiralArm = prng.probability(template.inSpiralArm)
+  const inSpiralArm = prng.value() < template.inSpiralArm
 
   let s = Math.log(luminosity) + 4
   s = Math.max(Math.min(s, 20), 2) * 0.5

@@ -605,6 +605,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-planet.ts` | Procedural planet rendering |
 | `src/b3d-star.ts` / `b3d-star-system.ts` | Star and star system rendering |
 | `src/b3d-galaxy.ts` / `galaxy-data.ts` | Galaxy visualization |
+| `src/voxel-galaxy.ts` | The VOXEL galaxy (GALAXY-DESIGN.md) — density sampled from `generateGalaxy` and propagated so every voxel is non-zero; each voxel derives a bright and a dim seed; `brightStars()` is the global pass, `dimStarsNear(point, r)` the local one the baker needs; stars addressed `population:voxel:n`. Pure, unit-tested (incl. the falsifier: it reproduces the sampled galaxy) |
 | `src/b3d-black-hole.ts` | Procedural black hole with accretion disk, lensing, photon ring |
 
 **UI & Textures:** — the Babylon-free SVG UI surface (box/surface/table/keyboard families

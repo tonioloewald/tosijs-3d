@@ -4467,6 +4467,87 @@
     ]
   },
   {
+    "module": "voxel-galaxy",
+    "summary": "voxel-galaxy",
+    "attributes": [
+      {
+        "name": "seed",
+        "default": "—",
+        "description": "Galaxy seed: shapes the density AND derives every voxel's seeds"
+      },
+      {
+        "name": "brightBudget",
+        "default": "5000",
+        "description": "Stars in the global pass"
+      },
+      {
+        "name": "dimBudget",
+        "default": "95000",
+        "description": "Stars across all voxels' dim passes — most are never generated"
+      },
+      {
+        "name": "samples",
+        "default": "100000",
+        "description": "Samples drawn from `generateGalaxy` to impute the density"
+      },
+      {
+        "name": "galaxyOptions",
+        "default": "{}",
+        "description": "Passed to the sampler (`spiralArms`, `thickness`, …)"
+      },
+      {
+        "name": "nx",
+        "default": "64",
+        "description": "Grid resolution across the disc (x)"
+      },
+      {
+        "name": "ny",
+        "default": "64",
+        "description": "Grid resolution across the disc (y)"
+      },
+      {
+        "name": "nz",
+        "default": "20",
+        "description": "Grid resolution through the disc (z)"
+      },
+      {
+        "name": "halfXY",
+        "default": "1.05",
+        "description": "Grid half-extent across the disc"
+      },
+      {
+        "name": "halfZ",
+        "default": "0.3",
+        "description": "Grid half-extent through the disc — room for a halo"
+      },
+      {
+        "name": "smoothPasses",
+        "default": "1",
+        "description": "Blur passes over the sampled histogram (calms sparse voxels)"
+      },
+      {
+        "name": "fringeShare",
+        "default": "0.02",
+        "description": "Share of the budget spread across EMPTY voxels"
+      },
+      {
+        "name": "fringeFalloff",
+        "default": "3",
+        "description": "Falloff length for the fringe, in voxels"
+      },
+      {
+        "name": "brightMix",
+        "default": "O–G5",
+        "description": "The bright population's spectral mix — the bright/dim cut is here"
+      },
+      {
+        "name": "dimMix",
+        "default": "G6–M",
+        "description": "The dim population's spectral mix — underweight late M freely"
+      }
+    ]
+  },
+  {
     "module": "widgets3d",
     "summary": "widgets3d",
     "attributes": [

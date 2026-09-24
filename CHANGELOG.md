@@ -23,6 +23,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`voxel-galaxy`** (`tosijs-3d/voxel-galaxy`) — the first step of
+  `GALAXY-DESIGN.md`: a galaxy as voxels, each with a derived bright and dim
+  seed. `brightStars()` is the global pass; `dimStarsNear(point, radius)` is
+  the local one the skybox baker will use. Density is sampled from
+  `generateGalaxy` and propagated so no voxel is empty; stars are addressed
+  `population:voxel:n` (no shared-seed clones). Not wired into the baker or
+  the galaxy yet. `galaxy-data` exports `starDetailFor`, `SPECTRAL_CLASSES`
+  and `SPECTRAL_WEIGHTS`, split out so both generators share one definition.
 - **`bun run sizes`** — the barrel as a consumer bundles it, and the shipped
   `dist/*.js`, against a committed `dist-sizes.json` (0.8.3: 263.1 KB gz).
 

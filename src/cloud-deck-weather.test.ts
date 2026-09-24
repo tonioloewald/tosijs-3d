@@ -83,8 +83,10 @@ const attach = (el: any, w: ReturnType<typeof world>) => {
 const deck = (attrs: Record<string, unknown>, w: ReturnType<typeof world>) => {
   const el = D.b3dCloudDeck({}) as any
   // shadows OFF: the cloud shadow paints into a 2D canvas, which happy-dom
-  // does not have, and it has nothing to do with the weather channel here.
-  Object.assign(el, { shadows: 'off', ...attrs })
+  // does not have. fieldSize TINY: the default bakes a 1024² cloud texture per
+  // deck (a million noise evaluations, ~0.4 s) that the weather channel never
+  // reads. Neither has anything to do with what these tests measure.
+  Object.assign(el, { shadows: 'off', fieldSize: 16, ...attrs })
   let builds = 0
   const proto = Object.getPrototypeOf(el)._weatherField
   el._weatherField = function (...args: unknown[]) {
