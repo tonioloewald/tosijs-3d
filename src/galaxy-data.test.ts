@@ -81,11 +81,14 @@ describe('generateGalaxy', () => {
       distantGalaxies: 0,
       distantStars: 0,
     })
-    for (const s of g.stars) {
-      expect(Number.isFinite(s.position.x)).toBe(true)
-      expect(Number.isFinite(s.position.y)).toBe(true)
-      expect(Number.isFinite(s.position.z)).toBe(true)
-    }
+    // One expect over the whole population: 300k per-star expects cost ~1 s.
+    const bad = g.stars.filter(
+      (s) =>
+        !Number.isFinite(s.position.x) ||
+        !Number.isFinite(s.position.y) ||
+        !Number.isFinite(s.position.z)
+    )
+    expect(bad.length).toBe(0)
   })
 
   test('planets on demand equal planets generated in bulk', () => {

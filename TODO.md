@@ -50,6 +50,11 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
     measured the shader change (mount the galaxy, bake, hash the faces) is
     the obvious shape for one.
   - Bundle-size row: extend to fflate + the 2.9 MB of new assets.
+  - **0.8.3 gate m4 — the build prints no bundle size.** Measured by hand
+    at 0.8.3: 811,657 B min / 268,260 B gzip (+0.88% / +1.2% on 0.8.2,
+    explained in the CHANGELOG). Have the build or RELEASING step 4 print the
+    barrel size (`--packages external`) and record a `dist-sizes.json`
+    baseline — release-doctor warns there is none.
 
   Done: the galaxy's per-frame billboard pass is GONE — billboarding moved
   into the vertex shader (3.19 → ~0.02 ms CPU per render; see CHANGELOG).

@@ -376,7 +376,22 @@ import {
   type QuadtreeConfig,
 } from './terrain-grid.js'
 import { resolveBudget } from './b3d-quality.js'
-import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
+import {
+  attachBiomePlugin,
+  BiomePlugin,
+  defaultBiomeParams,
+} from './biome-plugin.js'
+
+/** The plugin's own defaults — what a negative (AUTO) climate dial means. */
+const BIOME_AUTO = defaultBiomeParams()
+
+const freshBiomeMemo = () => ({
+  sea: NaN,
+  lapse: NaN,
+  temperature: NaN,
+  moisture: NaN,
+  volcanicScale: NaN,
+})
 import { touchesExtent } from './landform.js'
 
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
@@ -640,16 +655,6 @@ export class B3dTerrain extends B3dChild {
    * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
    * after changing attributes or profiles.
    */
-  /**
-   * Changes whenever the terrain's SHAPE does (a `regenerate()`, or an
-   * attribute that re-cuts the tiles). Compare it to know when anything you
-   * derived from {@link heightSampler} has gone stale — the cloud deck's
-   * orographic field does exactly this.
-   */
-  get generationKey(): string {
-    return this._genKey
-  }
-
   heightSampler(): (x: number, z: number) => number {
     const fn = this.makeHeightFn()
     const offX = this.originOffsetX
@@ -657,6 +662,21 @@ export class B3dTerrain extends B3dChild {
     // makeHeightFn takes RENDER coordinates and adds the offset internally,
     // so undo that here: callers think in logical world space.
     return (x, z) => fn(x - offX, z - offZ)
+  }
+
+  /**
+   * Changes whenever the terrain's SHAPE does — any rebuild, including a
+   * `regenerate()` after changing only `landform`, `provinceField` or the
+   * profiles. Compare it to know when anything you derived from
+   * {@link heightSampler} has gone stale; the cloud deck's orographic field
+   * does exactly this.
+   *
+   * A COUNTER, not the attribute key. The key is built from attributes, so a
+   * property-only change (switching a volcano off) left it identical and the
+   * deck kept its cloud over the mountain that was gone (0.8.3 gate, B2).
+   */
+  get generationKey(): string {
+    return `${this._genKey}#${this._shapeGen}`
   }
 
   private makeHeightFn(): (wx: number, wz: number) => number {
@@ -903,8 +923,7 @@ export class B3dTerrain extends B3dChild {
     this.pool = []
     if (this.material) this.material.dispose()
     this.biomePlugin = null
-    this._syncedSeaLevel = NaN
-    this._syncedLapseRate = NaN
+    this._biomeMemo = freshBiomeMemo()
     this.owner = null
   }
 
@@ -1873,6 +1892,8 @@ export class B3dTerrain extends B3dChild {
   }
 
   private _genKey = ''
+  /** Bumped by every rebuild — what `generationKey` reports. */
+  private _shapeGen = 0
 
   /*
   ORDINARY ATTRIBUTES REGENERATE, like every other element's do.
@@ -1925,9 +1946,14 @@ export class B3dTerrain extends B3dChild {
   `params.seaLevel = v` survives a frame), and a lapse back to `0` means
   auto again.
   */
-  private _syncedSeaLevel = NaN
-  private _syncedLapseRate = NaN
-  private _syncedClimate = ''
+  /*
+  ONE memo for every live biome dial, reset in ONE place. It was three fields,
+  and sceneDispose reset two of them: after a re-parent the new material got a
+  fresh plugin at its defaults while the climate memo still matched, so
+  biomeTemperature / biomeMoisture / biomeVolcanicScale never reached it
+  (0.8.3 gate, B1). A new dial added here is reset for free.
+  */
+  private _biomeMemo = freshBiomeMemo()
 
   private _syncBiome(): void {
     const a = this as any
@@ -1946,15 +1972,16 @@ export class B3dTerrain extends B3dChild {
     )
     if (!this.biomePlugin.isEnabled) this.biomePlugin.isEnabled = true
     const sea = Number.isFinite(a.biomeSeaLevel) ? a.biomeSeaLevel : 0
-    if (sea !== this._syncedSeaLevel) {
-      this._syncedSeaLevel = sea
+    const memo = this._biomeMemo
+    if (sea !== memo.sea) {
+      memo.sea = sea
       this.biomePlugin.params.seaLevel = sea
     }
     const lapse = Number.isFinite(a.biomeLapseRate)
       ? Math.max(0, Math.min(1, a.biomeLapseRate))
       : 0
-    if (lapse !== this._syncedLapseRate) {
-      this._syncedLapseRate = lapse
+    if (lapse !== memo.lapse) {
+      memo.lapse = lapse
       // 0 is the documented AUTO — the plugin's own default, not a zero.
       this.biomePlugin.params.lapseRate = lapse > 0 ? lapse : 0.004
     }
@@ -1964,13 +1991,22 @@ export class B3dTerrain extends B3dChild {
     const t = Number(a.biomeTemperature)
     const m = Number(a.biomeMoisture)
     const v = Number(a.biomeVolcanicScale)
-    const climate = `${t}|${m}|${v}`
-    if (climate !== this._syncedClimate) {
-      this._syncedClimate = climate
-      const p = this.biomePlugin.params
-      if (t >= 0) p.baseTemperature = Math.min(1, t)
-      if (m >= 0) p.mapMoisture = Math.min(1, m)
-      if (v >= 0) p.volcanicScale = v
+    // Each dial writes only when ITS value changes, so a panel writing one
+    // param directly is not stomped when a different attribute moves.
+    // Negative is AUTO: the plugin default is written back, so returning to
+    // -1 after a value really returns to auto (as the lapse branch does).
+    const p = this.biomePlugin.params
+    if (t !== memo.temperature) {
+      memo.temperature = t
+      p.baseTemperature = t >= 0 ? Math.min(1, t) : BIOME_AUTO.baseTemperature
+    }
+    if (m !== memo.moisture) {
+      memo.moisture = m
+      p.mapMoisture = m >= 0 ? Math.min(1, m) : BIOME_AUTO.mapMoisture
+    }
+    if (v !== memo.volcanicScale) {
+      memo.volcanicScale = v
+      p.volcanicScale = v >= 0 ? v : BIOME_AUTO.volcanicScale
     }
   }
 
@@ -1991,6 +2027,7 @@ export class B3dTerrain extends B3dChild {
   }
 
   private _rebuild(unbounded: boolean) {
+    this._shapeGen++
     const attrs = this as any
     // Re-seed if the seed changed — terrain is fully determined by (seed, params),
     // so the same seed always reproduces the same world.

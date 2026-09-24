@@ -446,3 +446,85 @@ test('wireframe is a live material tweak — no tile re-cut', () => {
   expect(t.el.material.wireframe).toBe(true)
   expect(t.builds).toBe(0)
 })
+
+describe('the climate dials are LIVE, and survive a re-parent (0.8.3 gate B1)', () => {
+  test('they reach the plugin without a pool re-cut', () => {
+    const t = terrain({ biome: 'on' })
+    t.frame()
+    t.reset()
+    t.set({
+      biomeTemperature: 0.3,
+      biomeMoisture: 0.8,
+      biomeVolcanicScale: 0.02,
+    })
+    t.frame()
+    const p = t.el.biomePlugin.params
+    expect([p.baseTemperature, p.mapMoisture, p.volcanicScale]).toEqual([
+      0.3, 0.8, 0.02,
+    ])
+    expect(t.builds).toBe(0)
+  })
+
+  test('-1 returns each to AUTO — the plugin default, not the last value', () => {
+    const t = terrain({
+      biome: 'on',
+      biomeMoisture: 0.8,
+      biomeVolcanicScale: 0.02,
+    })
+    t.frame()
+    t.set({ biomeMoisture: -1, biomeVolcanicScale: -1 })
+    t.frame()
+    expect(t.el.biomePlugin.params.mapMoisture).toBe(0.45)
+    expect(t.el.biomePlugin.params.volcanicScale).toBe(0.09)
+  })
+
+  test('a direct params write survives another dial moving', () => {
+    const t = terrain({ biome: 'on', biomeMoisture: 0.8 })
+    t.frame()
+    t.el.biomePlugin.params.baseTemperature = 0.1 // a panel writing directly
+    t.set({ biomeMoisture: 0.6 })
+    t.frame()
+    expect(t.el.biomePlugin.params.baseTemperature).toBe(0.1)
+    expect(t.el.biomePlugin.params.mapMoisture).toBe(0.6)
+  })
+
+  test('dispose + re-attach: the NEW plugin gets the values, not its defaults', () => {
+    const t = terrain({
+      biome: 'on',
+      biomeVolcanicScale: 0.02,
+      biomeMoisture: 0.72,
+      biomeSeaLevel: 90,
+    })
+    t.frame()
+    const owner = t.el.owner
+    const before = t.el.biomePlugin
+    t.el.sceneDispose()
+    t.el.sceneReady(owner, t.scene)
+    t.frame()
+    const p = t.el.biomePlugin.params
+    expect(t.el.biomePlugin).not.toBe(before) // really a fresh plugin
+    expect(p.volcanicScale).toBe(0.02)
+    expect(p.mapMoisture).toBe(0.72)
+    expect(p.seaLevel).toBe(90)
+  })
+})
+
+describe('generationKey changes whenever the SHAPE does (0.8.3 gate B2)', () => {
+  test('a regenerate() that only swaps the landform changes it', () => {
+    const t = terrain()
+    t.frame()
+    const before = t.el.generationKey
+    t.el.landform = (_x: number, _z: number, h: number) => h + 50
+    t.el.regenerate()
+    expect(t.el.generationKey).not.toBe(before)
+  })
+
+  test('an idle frame does not', () => {
+    const t = terrain()
+    t.frame()
+    const before = t.el.generationKey
+    t.idleFrame()
+    t.frame()
+    expect(t.el.generationKey).toBe(before)
+  })
+})

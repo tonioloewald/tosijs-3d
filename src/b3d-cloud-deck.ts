@@ -1018,7 +1018,28 @@ export class B3dCloudDeck extends B3dChild {
   private _fieldSize = 0
   private _bakeKey = ''
   private _elapsed = 0
-  private _weatherKey = ''
+  private _weatherKey: {
+    x: number
+    z: number
+    orographic: number
+    peak: number
+    weather: ((x: number, z: number) => number) | null
+    gen: string
+  } = { x: NaN, z: NaN, orographic: NaN, peak: NaN, weather: null, gen: '' }
+  private _terrain: HTMLElement | null = null
+
+  /** The scene's terrain, looked up once — re-queried only while absent or gone. */
+  private _terrainEl(): {
+    generationKey?: string
+    heightSampler?: () => (x: number, z: number) => number
+  } | null {
+    if (this._terrain == null || !this._terrain.isConnected) {
+      this._terrain =
+        (this.owner?.querySelector('tosi-b3d-terrain') as HTMLElement | null) ??
+        null
+    }
+    return this._terrain as any
+  }
   private _weatherMax = 0
   private _weatherTex: BABYLON.RawTexture | null = null
   private _weatherTexSize = 0
@@ -1513,10 +1534,7 @@ export class B3dCloudDeck extends B3dChild {
     if (this.weather != null) return this.weather
     const strength = Math.min(1, Math.max(0, this.orographic))
     if (strength <= 0) return null
-    const terrain = this.owner?.querySelector('tosi-b3d-terrain') as {
-      heightSampler?: () => (x: number, z: number) => number
-    } | null
-    const height = terrain?.heightSampler?.()
+    const height = this._terrainEl()?.heightSampler?.()
     if (height == null) return null
     const peak = Math.max(1, this.orographicPeak)
     /*
@@ -1546,29 +1564,39 @@ export class B3dCloudDeck extends B3dChild {
     const mesh = this.mesh
     const top = this.topMesh
     if (mesh == null || top == null) return
-    const field = this._weatherField()
     /*
     EVERYTHING THE FIELD DEPENDS ON, not just where the grid sits. The key was
     the grid position alone, so dragging `orographic` changed the strength and
     nothing re-sampled it (Tonio: "the orographic slider doesn't seem to
     work"), and a terrain reshaped under the deck kept the old mountains' cloud
     until the camera next moved a grid step.
+
+    COMPARED BEFORE ANYTHING IS BUILT. This runs every frame, and it used to
+    build the field first — a fresh terrain height sampler per frame, usually
+    thrown away — plus a DOM query and a joined string. Now it is a handful of
+    field compares, and the field is built only when one of them moved.
     */
-    const terrain = this.owner?.querySelector('tosi-b3d-terrain') as {
-      generationKey?: string
-    } | null
-    const key =
-      field == null
-        ? 'none'
-        : [
-            mesh.position.x,
-            mesh.position.z,
-            this.orographic,
-            this.orographicPeak,
-            this.weather == null ? terrain?.generationKey ?? '' : 'custom',
-          ].join('|')
-    if (!force && key === this._weatherKey) return
-    this._weatherKey = key
+    const terrain = this._terrainEl()
+    const k = this._weatherKey
+    const gen = this.weather == null ? terrain?.generationKey ?? '' : ''
+    if (
+      !force &&
+      k.x === mesh.position.x &&
+      k.z === mesh.position.z &&
+      k.orographic === this.orographic &&
+      k.peak === this.orographicPeak &&
+      k.weather === this.weather &&
+      k.gen === gen
+    ) {
+      return
+    }
+    k.x = mesh.position.x
+    k.z = mesh.position.z
+    k.orographic = this.orographic
+    k.peak = this.orographicPeak
+    k.weather = this.weather
+    k.gen = gen
+    const field = this._weatherField()
 
     const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
     const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind)
