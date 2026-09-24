@@ -53,10 +53,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   applied to the sun too (after the diurnal turn), so with the demos'
   `12,25,58` the noon sun sat ~15° up instead of 50°. The tilt now sits in
   the celestial frame, inside the diurnal turn — sun, moon and stars still
-  wheel as one and the moon stays the sun's exact antipode (measured: dot
-  −1). **Visible:** the same tilt value places the galactic band
-  differently at a given hour, so night framings tuned by eye may want
-  retuning.
+  wheel as one. The moon is drawn on the night arc — the same direction the
+  moonlight falls from — so it is up at night with or without a tilt (41°
+  at 22:00), and hidden by day rather than fading in on the setting sun. The
+  same tilt value places the galactic band differently at a given hour;
+  placement is cosmetic for now.
 
 ### Added (sky)
 

@@ -450,10 +450,8 @@ function registerForkedSky(): boolean {
         measurements argued for.
         */
         `color.rgb+=b3dDecodeStars(b3dDir);` +
-        // The moon, part of the backdrop: the sun's local antipode — a
-        // CONSTANT, because the dome's rotation carries the sun's arc, so the
-        // sun's local direction never moves and neither does its opposite.
-        // (Not simply -Y: the tilt sits inside the dome, so it is tilt⁻¹·-Y.)
+        // The moon, part of the backdrop, on the night arc — a CONSTANT in the
+        // dome's frame (tilt⁻¹·up, see updateSky), so it rides with the stars.
         `{float md=max(0.0,dot(normalize(b3dDir),b3dMoonDir));` +
         `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
         /*
@@ -521,7 +519,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
   mat.setFloat('b3dVeil', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
-  mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, -1, 0))
+  mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0))
   const num = (name: string, initial: number) => {
     let v = initial
     mat.setFloat(name, v)
@@ -1105,9 +1103,9 @@ export class B3dSkybox extends AbstractMesh {
         t[0] ?? 0,
         t[2] ?? 0
       )
-      // tilt⁻¹ · (0,-1,0): the inverse of a rotation is its transpose.
+      // tilt⁻¹ · (0,1,0): the inverse of a rotation is its transpose.
       this._moonLocal = BABYLON.Vector3.TransformNormal(
-        new BABYLON.Vector3(0, -1, 0),
+        new BABYLON.Vector3(0, 1, 0),
         this._starTilt.clone().transpose()
       )
     }
@@ -1550,9 +1548,16 @@ export class B3dSkybox extends AbstractMesh {
       this._qTotal.multiplyToRef(this._tiltQuat, this._domeQuat)
       this.mesh.rotationQuaternion = this._domeQuat
       /*
-      The moon is the sun's antipode IN THE DOME'S FRAME: the sun is
-      qTotal·up in the world, so its local direction is tilt⁻¹·up — a
-      constant, so the moon never moves against the stars.
+      THE MOON RIDES THE NIGHT ARC. The clock wraps every twelve hours, so at
+      night the "sun" vector is the day arc replayed — 23:00 sits where 11:00
+      did, which is (about) the real sun's antipode: where a full moon is. It
+      is also the direction the night branch lights the scene FROM, so the
+      disc drawn there and the moonlight falling from there agree.
+
+      In the dome's frame that vector is tilt⁻¹·up — a constant, so the moon
+      never moves against the stars. (Drawing it at the vector's own antipode,
+      as this did briefly, put it below the horizon all night once the tilt
+      stopped reaching the sun.)
       */
       if (this._moonLocal != null) {
         ;(material as unknown as BABYLON.ShaderMaterial).setVector3?.(
@@ -1560,13 +1565,14 @@ export class B3dSkybox extends AbstractMesh {
           this._moonLocal
         )
       }
-      // The moon rides the same fade as the stars — night shows it, day
-      // hides it, and its direction is the local sun's antipode (see the
-      // shader), which is the moonlight direction by definition.
+      // NIGHT ONLY: by day that same vector IS the sun, and a moon fading in
+      // on the setting sun is the one place it must not be.
       const sm = material as unknown as BABYLON.ShaderMaterial
       sm.setFloat?.(
         'b3dMoon',
-        attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25))
+        isDay
+          ? 0
+          : attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25))
       )
     }
     if (this._starfieldMesh != null) {
