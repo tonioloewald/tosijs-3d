@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
   <title>b3d-cloud-deck — tosijs-3d</title>
   <meta name="description" content="A cloud LAYER, as a layer. One lit surface overhead with dark undersides and bright fringes, driven by a field you can dial from clear to overcast and slide" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-cloud-deck/" />
@@ -109,7 +109,7 @@ preview.append(
       scenePanel: () =&gt; [
         label3d({ text: &#39;Weather&#39; }),
         slider3d({ label: &#39;coverage&#39;, value: sky.coverage, min: 0, max: 2, step: 0.02 }),
-        slider3d({ label: &#39;cirrus&#39;, value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: &#39;cirrus&#39;, value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
         slider3d({ label: &#39;altitude&#39;, value: sky.altitude, min: 20, max: 600, step: 10 }),
         slider3d({ label: &#39;eye height&#39;, value: sky.eye, min: 5, max: 3000, step: 25 }),
         slider3d({ label: &#39;wind&#39;, value: sky.wind, min: 0, max: 40, step: 1 }),
@@ -120,7 +120,8 @@ preview.append(
     // THE PAIR, not one raster. Nebulae are low-frequency and live in a 256
     // cube; stars and distant galaxies are POINTS and live in a data cube that
     // the shader decodes — so they stay points at any zoom instead of being a
-    // smear baked at one resolution. 344 KB and 25 MiB against 2.3 MB and 96.
+    // smear baked at one resolution. A quarter of the raster&#39;s disk, 25 MiB of
+    // VRAM against its 96.
     b3dSkybox({
       timeOfDay: sky.timeOfDay,
       realtimeScale: 0,
@@ -207,7 +208,7 @@ where your eye is; orbiting then changes only which way you look.</p>
 <tr>
 <td><code>cirrus</code></td>
 <td><code>0</code></td>
-<td>Rounded heaps <code>0</code> → long wispy streaks <code>1</code>. Rebakes the field</td>
+<td>Rounded heaps <code>0</code> → long wispy streaks at <code>±1</code>: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field</td>
 </tr>
 <tr>
 <td><code>wind</code></td>
@@ -439,22 +440,7 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.</p>
       <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
-      <li><details><summary><a class="doc-link" href="../world-sim/">world-sim</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../world-store/">world-store</a></li>
-        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-        <li><a class="doc-link" href="../interaction/">interaction</a></li>
-        <li><a class="doc-link" href="../world-view/">world-view</a></li>
-        <li><a class="doc-link" href="../formations/">formations</a></li>
-        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-        <li><a class="doc-link" href="../prefab/">prefab</a></li>
-        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
@@ -644,7 +630,22 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.</p>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><a class="doc-link" href="../world-simulation/">World Sim</a></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -653,6 +654,6 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+  <script type="module" src="../hydrate.js?v=0.8.3"></script>
 </body>
 </html>

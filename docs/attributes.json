@@ -851,7 +851,7 @@
       {
         "name": "cirrus",
         "default": "0",
-        "description": "Rounded heaps `0` → long wispy streaks `1`. Rebakes the field"
+        "description": "Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field"
       },
       {
         "name": "wind",
@@ -3457,6 +3457,21 @@
         "name": "biomeLapseRate",
         "default": "0",
         "description": "Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow"
+      },
+      {
+        "name": "biomeTemperature",
+        "default": "-1",
+        "description": "Sea-level temperature, `0…1` cold → warm. LIVE"
+      },
+      {
+        "name": "biomeMoisture",
+        "default": "-1",
+        "description": "Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE"
+      },
+      {
+        "name": "biomeVolcanicScale",
+        "default": "-1",
+        "description": "Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE"
       },
       {
         "name": "normalSmoothing",

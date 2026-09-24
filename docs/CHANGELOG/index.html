@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -51,6 +51,113 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.3</h2>
+<p><strong>A galaxy that costs nothing per frame, a sky that keeps the right time, and
+clouds that light like clouds.</strong> Galaxy billboarding moved into the vertex
+shader (3.19 ms → ~0.02 ms of CPU per render). The sun now runs a northern arc,
+ignores <code>starfieldTilt</code>, and a skybox without a sun still knows it is night.
+The cloud deck&#39;s silver lining finally faces the sun, and fair-weather cloud
+is white from below and outshines the sky at its thinnest. The kitchen-sink
+demo is now <strong>Land and Sky</strong>.</p>
+<blockquote>
+<p><strong>Visible, not breaking:</strong> scenes tuned by eye will look different. The sun
+crosses the SOUTH at noon (it crossed the north), the tilt no longer lifts or
+drops it, the moon rides the night arc, cloud undersides are brighter and
+their rims glow toward the sun rather than away from it, and a volcano grows
+a basalt apron. No API was removed.</p>
+</blockquote>
+<h3>Added</h3>
+<ul>
+<li><strong><code>galaxy.pickStar(x, y)</code></strong> — the star under a screen point, or <code>-1</code>: the
+nearest star whose DRAWN disc the ray crosses (the old triangle pick also
+hit a quad&#39;s invisible corners), else the nearest within 3 px, so a
+one-pixel star is clickable. <code>getStarPoints()</code> — every point in the star
+mesh, for bakers.</li>
+<li><strong><code>SHIPPED_SKY</code></strong> — the recipe for <code>static/sky</code> (seed, 100k stars, 42% out,
+1 off-plane, roll 0, 256 + 1024, and the <code>12,25,58</code> tilt it is framed for),
+plus a &quot;use shipped recipe&quot; button in the baker demo. It used to live only
+in commit messages.</li>
+<li><strong>Live terrain climate:</strong> <code>biomeTemperature</code>, <code>biomeMoisture</code> and
+<code>biomeVolcanicScale</code> attributes (−1 = the plugin&#39;s default), synced like
+<code>biomeSeaLevel</code>. The moisture default (0.45) is steppe — a green world
+wants ~0.7. And <code>terrain.generationKey</code>, which changes whenever the
+terrain&#39;s shape does.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong><code>b3d-galaxy</code> billboards in the vertex shader.</strong> Stars and nebulae are
+static quads the shader turns to face the viewpoint; the per-frame
+<code>setParticles()</code> that rewrote every vertex whether or not anything moved is
+gone. Measured on the baker&#39;s 10k-star galaxy: <strong>3.19 ms → ~0.02 ms of CPU
+per render</strong>, and it no longer scales with star count. A sky baked through
+it is byte-identical in the data cube and differs by 1/255 in 3 of 393,216
+smooth-cube pixels (GPU float32 vs CPU float64 at a triangle edge). Quads
+face the camera&#39;s POSITION rather than its view plane — the rule the cube
+bake already used, so there is one mechanism where there were two that
+could stack. <code>setVisibility()</code> now genuinely fades.</li>
+<li><strong><code>cirrus</code> is signed, <code>-1…1</code>.</strong> The magnitude is how wispy; the sign is
+the axis — positive streaks ALONG the wind heading (as before, bit for
+bit), negative ACROSS it.</li>
+<li><strong>A volcano goes through basalt before lava.</strong> Its province tail was one
+smooth ramp from 0.5 at the rim, so almost all of it sat on the ladder&#39;s
+glowing-seam stage and vegetation met glowing rock directly. It now cools
+gradually over 0.3 R past the rim and holds a cold-basalt apron (~0.15)
+before fading into the biome by 0.75 R; the shader&#39;s local volcanic mask is
+fully on by 0.12 (was 0.3), so the apron reads as solid basalt.</li>
+<li><strong>Fair-weather cloud is white from below, and outshines the sky at its
+thinnest.</strong> The underside lift peaked at 42% toward white on a clear day; it
+is now ~90% up to coverage 0.5, easing onto the storm curve by full cover
+(following the dial, so an orographic cap does not turn fair weather into a
+slab). Below 0.5 the cloud gains a forward-scatter glow in the sun&#39;s HUE —
+golden at golden hour — rising to ~3× as cover falls to 0, mostly spared the
+distance fog. An explicit <code>transmission</code> keeps its authority.</li>
+<li><strong>The kitchen-sink demo is &quot;Land and Sky&quot;</strong> (<code>/land-and-sky/</code>, under
+Demos). Titled <code>world-sim</code>, it slugified onto the World Sim category and
+adopted all twelve world-simulation pages as its children; <code>/world-sim/</code> is
+the category&#39;s landing page again. New defaults (Tonio&#39;s): volcano on,
+moisture 0.72 (forest), volcanic scale 0.02 for its 420 m cone, cover 0.10,
+18:30. A Climate group joins the panel, and the camera turns in place —
+arrows ROTATE (up = look up); it was an orbit camera, so up-arrow nose-dived
+and left/right swung the eye round a 300 m circle.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>The sun ran a southern-hemisphere arc at a northern latitude.</strong> North is
++Z (every heading is <code>atan2(x, z)</code>) and the latitude rotation leaned the arc
+toward +Z. Now it rises east, crosses the south at noon and sets west
+(98° / 180° / 262° at 7:00 / 12:00 / 17:00, latitude 40).</li>
+<li><strong><code>starfieldTilt</code> moved the sun.</strong> It orients the galaxy behind the
+atmosphere; noon is latitude and time. With the demos&#39; <code>12,25,58</code> the noon
+sun sat ~15° up instead of 50°. The tilt now sits in the celestial frame,
+inside the diurnal turn, so sun, moon and stars still wheel as one, and the
+moon rides the night arc — up at night with or without a tilt.</li>
+<li><strong>A skybox with no <code>&lt;tosi-b3d-sun&gt;</code> ignored the clock.</strong> The dome&#39;s
+day/night writes sat inside the sun-element branch, so without a sun it
+stayed at stock daylight while the star exposure said night — stars through
+a sunlit sky (the beacon demo). Only the light&#39;s writes need a light now.</li>
+<li><strong>Cloud deck: the silver lining pointed the wrong way.</strong> <code>sunDir</code> is the
+light&#39;s travel direction and the forward-scatter term read it unnegated, so
+rims blazed with the sun BEHIND the viewer and the clouds in front of a
+sunset were the darkest in the sky.</li>
+<li><strong>Cloud deck: <code>orographic</code> was not live.</strong> The local-weather field only
+re-sampled when the grid moved, so dragging <code>orographic</code> (or reshaping the
+terrain under it) did nothing until the camera travelled a grid step.</li>
+<li><strong>Cloud deck: <code>coverage: 0</code> is a clear sky.</strong> The orographic boost was added
+on top of the dial, so zero still left cloud on every peak; it now ramps in
+over the first quarter of the dial.</li>
+<li><strong>The skybox baker encoded every distant star twice</strong> — once as a
+spectral-less 0.02 &quot;star&quot; (it walked the whole star mesh, whose tail IS the
+distant stars) and once properly. The shipped sky (<code>static/sky/stars_*</code>) is
+rebaked without them; the recipe was first proven by reproducing the old
+faces byte-for-byte with the pre-fix code.</li>
+</ul>
+<h3>Deprecated</h3>
+<ul>
+<li><strong><code>getStarSPS()</code></strong> returns <code>null</code> and warns once — there is no particle
+system. Use <code>pickStar</code>. <code>getDistantStarParticles()</code> /
+<code>getDistantGalaxyParticles()</code> now return <code>GalaxyPoint</code>s (the
+<code>position</code>/<code>scaling</code>/<code>color</code> subset of a <code>SolidParticle</code> the baker read).</li>
+</ul>
 <h2>0.8.2</h2>
 <h3>Added</h3>
 <ul>
@@ -3288,22 +3395,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
-      <li><details><summary><a class="doc-link" href="../world-sim/">world-sim</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../world-store/">world-store</a></li>
-        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-        <li><a class="doc-link" href="../interaction/">interaction</a></li>
-        <li><a class="doc-link" href="../world-view/">world-view</a></li>
-        <li><a class="doc-link" href="../formations/">formations</a></li>
-        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-        <li><a class="doc-link" href="../prefab/">prefab</a></li>
-        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
@@ -3493,7 +3585,22 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><a class="doc-link" href="../world-simulation/">World Sim</a></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -3502,6 +3609,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+  <script type="module" src="../hydrate.js?v=0.8.3"></script>
 </body>
 </html>

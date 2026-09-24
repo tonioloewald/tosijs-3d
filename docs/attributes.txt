@@ -224,7 +224,7 @@ b3d-cloud-deck
   subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
   coverage  = 0.5  — Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow
   thickenDepth  = 900  — MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`
-  cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
+  cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
   wind  = 8  — Metres per second the deck drifts. Nothing rebakes
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
@@ -907,6 +907,9 @@ b3d-terrain
   biome
   biomeSeaLevel  = 0  — Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y`
   biomeLapseRate  = 0  — Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow
+  biomeTemperature  = -1  — Sea-level temperature, `0…1` cold → warm. LIVE
+  biomeMoisture  = -1  — Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE
+  biomeVolcanicScale  = -1  — Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE
   normalSmoothing  = 0.6  — Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag
   seed  = 12345  — Noise seed
   surfaceType  = 'cylinder'  — `'cylinder'`, `'torus'`, or `'sphere'`

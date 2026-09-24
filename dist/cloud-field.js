@@ -66,7 +66,9 @@ export function cloudField(options = {}) {
     const frequency = options.frequency ?? 3;
     const octaves = options.octaves ?? 6;
     const persistence = options.persistence ?? 0.58;
-    const cirrus = Math.min(1, Math.max(0, options.cirrus ?? 0));
+    const cirrus = Math.min(1, Math.max(-1, options.cirrus ?? 0));
+    // How wispy is the MAGNITUDE; which way the streaks run is the sign.
+    const wisp = Math.abs(cirrus);
     const noise = new PerlinNoise(options.seed ?? 1337);
     /*
     STRETCH THE DOMAIN, not the output. The two torus radii need not match and
@@ -74,7 +76,8 @@ export function cloudField(options = {}) {
     tile. That is what makes anisotropy free here: a stretched cloud is the same
     construction read at two scales, not a resampling that has to be re-seamed.
     */
-    const stretch = 1 + cirrus * 5;
+    const stretchU = cirrus > 0 ? 1 + cirrus * 5 : 1;
+    const stretchV = cirrus < 0 ? 1 - cirrus * 5 : 1;
     const out = new Float32Array(size * size);
     let min = Infinity;
     let max = -Infinity;
@@ -95,8 +98,9 @@ export function cloudField(options = {}) {
             for (let o = 0; o < octaves; o++) {
                 const r = freq / (Math.PI * 2);
                 // Along the streaks the field varies SLOWLY; across them, at full rate.
-                const ru = r / stretch;
-                const n = noise.noise3D(ru * Math.cos(u), ru * Math.sin(u), r * Math.cos(v) + r * Math.sin(v));
+                const ru = r / stretchU;
+                const rv = r / stretchV;
+                const n = noise.noise3D(ru * Math.cos(u), ru * Math.sin(u), rv * Math.cos(v) + rv * Math.sin(v));
                 const f = Math.abs(n);
                 /*
                 BILLOW, NOT fBm — `abs`, and this one character is the difference
@@ -136,7 +140,7 @@ export function cloudField(options = {}) {
             it wispy instead of merely elongated.
             */
             const raw = sum / norm;
-            const value = cirrus > 0 ? Math.pow(raw, 1 + cirrus * 3.5) : raw;
+            const value = wisp > 0 ? Math.pow(raw, 1 + wisp * 3.5) : raw;
             out[y * size + x] = value;
             if (value < min)
                 min = value;

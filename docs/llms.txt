@@ -1,4 +1,4 @@
-# tosijs-3d v0.8.2
+# tosijs-3d v0.8.3
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -79,7 +79,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/b3d-fog/ — b3d-fog
   Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
 - https://3d.tosijs.net/b3d-galaxy/ — b3d-galaxy
-  Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
+  Procedural galaxy renderer. Generates thousands of stars in a spiral arm
 - https://3d.tosijs.net/b3d-hud/ — b3d-hud
   A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
@@ -237,6 +237,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 - https://3d.tosijs.net/b3d-lamp/ — Lamps
   placed lights that come with their own fixture geometry, cast shadows where
+- https://3d.tosijs.net/land-and-sky/ — Land and Sky
+  (with live dials), a sea, weather over both, and the encoded sky behind. As
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/library-mesh/ — library-mesh
@@ -359,11 +361,9 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
 - https://3d.tosijs.net/wind/ — wind
   Babylon — so the composition rule can be tested without a sky.
-- https://3d.tosijs.net/world-simulation/ — World Sim
+- https://3d.tosijs.net/world-sim/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
-- https://3d.tosijs.net/world-sim/ — world-sim
-  (with live dials), a sea, weather over both, and the encoded sky behind. As
 - https://3d.tosijs.net/world-store/ — world-store
   A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
 - https://3d.tosijs.net/world-topology/ — world-topology

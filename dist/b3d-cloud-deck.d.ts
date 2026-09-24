@@ -29,7 +29,7 @@ export declare class B3dCloudDeck extends B3dChild {
         thickenDepth: number;
         seed: number;
         frequency: number;
-        /** Rounded heaps `0` → long wispy streaks `1`. Rebakes the field. */
+        /** Rounded heaps `0` → long wispy streaks at `±1` — positive ALONG the wind heading, negative ACROSS it. Rebakes the field. */
         cirrus: number;
         /** Metres per second the deck drifts. The whole sky slides; nothing rebakes. */
         wind: number;

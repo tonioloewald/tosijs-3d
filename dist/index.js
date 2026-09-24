@@ -175,7 +175,7 @@ export { cloudField, cloudOpacity, } from './cloud-field.js';
 export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, } from './starfield-codec.js';
 export { rocketAscent } from './rocket-ascent.js';
 export { pngEncode, crc32, adler32 } from './png.js';
-export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, facesToPngs, facesToZip, defaultBakePose, } from './skybox-baker.js';
+export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, facesToPngs, facesToZip, defaultBakePose, SHIPPED_SKY, } from './skybox-baker.js';
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, } from './surroundings-probe.js';
 export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, } from './surroundings.js';
 export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, } from './aim.js';

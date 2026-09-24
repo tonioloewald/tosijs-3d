@@ -6,7 +6,38 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.3
+
+**A galaxy that costs nothing per frame, a sky that keeps the right time, and
+clouds that light like clouds.** Galaxy billboarding moved into the vertex
+shader (3.19 ms → ~0.02 ms of CPU per render). The sun now runs a northern arc,
+ignores `starfieldTilt`, and a skybox without a sun still knows it is night.
+The cloud deck's silver lining finally faces the sun, and fair-weather cloud
+is white from below and outshines the sky at its thinnest. The kitchen-sink
+demo is now **Land and Sky**.
+
+> **Visible, not breaking:** scenes tuned by eye will look different. The sun
+> crosses the SOUTH at noon (it crossed the north), the tilt no longer lifts or
+> drops it, the moon rides the night arc, cloud undersides are brighter and
+> their rims glow toward the sun rather than away from it, and a volcano grows
+> a basalt apron. No API was removed.
+
+### Added
+
+- **`galaxy.pickStar(x, y)`** — the star under a screen point, or `-1`: the
+  nearest star whose DRAWN disc the ray crosses (the old triangle pick also
+  hit a quad's invisible corners), else the nearest within 3 px, so a
+  one-pixel star is clickable. `getStarPoints()` — every point in the star
+  mesh, for bakers.
+- **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
+  1 off-plane, roll 0, 256 + 1024, and the `12,25,58` tilt it is framed for),
+  plus a "use shipped recipe" button in the baker demo. It used to live only
+  in commit messages.
+- **Live terrain climate:** `biomeTemperature`, `biomeMoisture` and
+  `biomeVolcanicScale` attributes (−1 = the plugin's default), synced like
+  `biomeSeaLevel`. The moisture default (0.45) is steppe — a green world
+  wants ~0.7. And `terrain.generationKey`, which changes whenever the
+  terrain's shape does.
 
 ### Changed
 
@@ -16,116 +47,65 @@ versions may carry breaking peer-dependency changes — each is called out in a
   gone. Measured on the baker's 10k-star galaxy: **3.19 ms → ~0.02 ms of CPU
   per render**, and it no longer scales with star count. A sky baked through
   it is byte-identical in the data cube and differs by 1/255 in 3 of 393,216
-  smooth-cube pixels (GPU float32 vs CPU float64 at a triangle edge).
-  Quads now face the camera's POSITION rather than its view plane, the rule
-  the cube bake already used — one mechanism where there were two that could
-  stack.
-- **`setVisibility()` fades.** A `ShaderMaterial` is never handed
-  `mesh.visibility`, so it used to be all-or-nothing.
-
-### Added
-
-- **`galaxy.pickStar(x, y)`** — the star under a screen point, or `-1`. The
-  nearest star whose DRAWN disc the ray crosses (the old triangle pick also
-  hit a quad's invisible corners), else the nearest within 3 px, so a
-  one-pixel star is clickable.
-- `getStarPoints()` — every point in the star mesh, for bakers.
-
-### Fixed
-
-- **The skybox baker encoded every distant star twice** — once as a
-  spectral-less 0.02 "star" (it walked the whole star mesh, whose tail IS the
-  distant stars) and once properly. The baker's galaxy bakes 13,497 objects,
-  not 16,497.
-- **The shipped sky is rebaked without them** (`static/sky/stars_*`; the
-  nebula faces are unaffected and unchanged). The recipe was first proven by
-  reproducing the old faces byte-for-byte with the pre-fix code.
-
-- **A skybox with no `<tosi-b3d-sun>` ignored the clock.** The dome's
-  day/night writes (sun position, scattering, the sun disc) sat inside the
-  sun-element branch, so without a sun it stayed at stock daylight — while
-  the star exposure, driven by `timeOfDay` directly, said night: stars
-  showing through a sunlit sky. Nineteen demos carry a skybox without a sun;
-  the beacon demo (21:00) showed it. Only the light's writes need a light now.
-
-- **`starfieldTilt` no longer moves the sun.** It orients the galaxy
-  behind the atmosphere; noon is latitude and time. The tilt used to be
-  applied to the sun too (after the diurnal turn), so with the demos'
-  `12,25,58` the noon sun sat ~15° up instead of 50°. The tilt now sits in
-  the celestial frame, inside the diurnal turn — sun, moon and stars still
-  wheel as one. The moon is drawn on the night arc — the same direction the
-  moonlight falls from — so it is up at night with or without a tilt (41°
-  at 22:00), and hidden by day rather than fading in on the setting sun. The
-  same tilt value places the galactic band differently at a given hour;
-  placement is cosmetic for now.
-
-- **The sun ran a southern-hemisphere arc at a northern latitude.** North
-  is +Z (every heading is `atan2(x, z)`), and the latitude rotation leaned
-  the arc toward +Z — so at latitude 40 the noon sun stood in the NORTH.
-  Now it rises east, crosses the south at noon and sets west (measured:
-  98° / 180° / 262° at 7:00 / 12:00 / 17:00); a negative latitude gives a
-  southern sky.
-- **Cloud deck: `orographic` was not live.** The local-weather field only
-  re-sampled when the grid moved, so dragging `orographic` (or reshaping the
-  terrain under it) changed nothing until the camera travelled a grid step.
-  The field now re-samples on strength, peak and the terrain's new
-  `generationKey`.
-- **Cloud deck: `coverage: 0` is a clear sky.** The orographic boost was
-  added on top of the dial, so zero still left cloud on every peak. It now
-  ramps in over the first quarter of the dial — the low end reads as the
-  fair-weather sky with cloud sitting on the mountains.
-- **world-sim starts facing east toward the horizon**, not 30° into the
-  ground.
-- **Cloud deck: the silver lining pointed the wrong way.** `sunDir` is the
-  light's travel direction, and the forward-scatter term read it unnegated,
-  so fringes blazed with the sun BEHIND the viewer and the clouds in front
-  of a sunset were the darkest in the sky.
-- **Cloud deck: fair-weather cloud is white from below.** The underside lift
-  peaked at 42% toward white on a clear day; it is now ~90% up to coverage
-  0.5, easing onto the storm curve by full cover (it follows the dial, so an
-  orographic cap does not turn fair weather into a slab). Below 0.5 the whole
-  cloud gains a forward-scatter glow in the sun's HUE — golden at golden
-  hour — rather than its full dimming. An explicit `transmission` keeps its
-  authority. And at its thinnest it OUTSHINES the sky — a wisp in front of
-  a low sun is lit through its whole depth — with emission up to ~3× as
-  cover falls from 0.5 to 0, and the glow mostly spared the distance fog.
-- **The kitchen-sink demo is "Land and Sky"** (`/land-and-sky/`, under
-  Demos). Titled `world-sim`, it slugified onto the World Sim category and
-  adopted all twelve world-simulation pages as its children; `/world-sim/` is
-  the category's landing page again.
+  smooth-cube pixels (GPU float32 vs CPU float64 at a triangle edge). Quads
+  face the camera's POSITION rather than its view plane — the rule the cube
+  bake already used, so there is one mechanism where there were two that
+  could stack. `setVisibility()` now genuinely fades.
+- **`cirrus` is signed, `-1…1`.** The magnitude is how wispy; the sign is
+  the axis — positive streaks ALONG the wind heading (as before, bit for
+  bit), negative ACROSS it.
 - **A volcano goes through basalt before lava.** Its province tail was one
   smooth ramp from 0.5 at the rim, so almost all of it sat on the ladder's
   glowing-seam stage and vegetation met glowing rock directly. It now cools
   gradually over 0.3 R past the rim and holds a cold-basalt apron (~0.15)
-  before fading into the biome by 0.75 R; the shader's local volcanic mask is fully on by 0.12 (was
-  0.3) so the apron reads as solid basalt, not half vegetation.
-- **Terrain climate is live:** `biomeTemperature`, `biomeMoisture` and
-  `biomeVolcanicScale` attributes (−1 = the plugin's default), synced like
-  `biomeSeaLevel`. The moisture default (0.45) is steppe — a green world
-  wants ~0.7.
-- **Land and Sky's camera turns in place.** It was an orbit camera round a
-  point 300 m ahead with the eye height pinned, so up-arrow nose-dived (an
-  orbit camera moves UP over its target) and left/right swung the eye round
-  a 300 m circle. Now a free camera at eye height: arrows ROTATE (up = look
-  up), never move; drag looks around.
-- **Land and Sky** gets a Climate group (temperature, moisture 0.72 —
-  forest — and volcanic scale 0.02, sized to its 420 m volcano).
-- **Land and Sky's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,
-  volcano ON (now applied at startup too), cover 0.10, base 280, cirrus 0.25,
-  18:30, eye 205.
+  before fading into the biome by 0.75 R; the shader's local volcanic mask is
+  fully on by 0.12 (was 0.3), so the apron reads as solid basalt.
+- **Fair-weather cloud is white from below, and outshines the sky at its
+  thinnest.** The underside lift peaked at 42% toward white on a clear day; it
+  is now ~90% up to coverage 0.5, easing onto the storm curve by full cover
+  (following the dial, so an orographic cap does not turn fair weather into a
+  slab). Below 0.5 the cloud gains a forward-scatter glow in the sun's HUE —
+  golden at golden hour — rising to ~3× as cover falls to 0, mostly spared the
+  distance fog. An explicit `transmission` keeps its authority.
+- **The kitchen-sink demo is "Land and Sky"** (`/land-and-sky/`, under
+  Demos). Titled `world-sim`, it slugified onto the World Sim category and
+  adopted all twelve world-simulation pages as its children; `/world-sim/` is
+  the category's landing page again. New defaults (Tonio's): volcano on,
+  moisture 0.72 (forest), volcanic scale 0.02 for its 420 m cone, cover 0.10,
+  18:30. A Climate group joins the panel, and the camera turns in place —
+  arrows ROTATE (up = look up); it was an orbit camera, so up-arrow nose-dived
+  and left/right swung the eye round a 300 m circle.
 
-### Changed (clouds)
+### Fixed
 
-- **`cirrus` is signed, `-1…1`.** The magnitude is how wispy; the sign is
-  the axis — positive streaks ALONG the wind heading (as before, bit for
-  bit), negative ACROSS it.
-
-### Added (sky)
-
-- **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
-  1 off-plane, roll 0, 256 + 1024, and the `12,25,58` tilt it is framed for),
-  plus a "use shipped recipe" button in the baker demo. It used to live only
-  in commit messages.
+- **The sun ran a southern-hemisphere arc at a northern latitude.** North is
+  +Z (every heading is `atan2(x, z)`) and the latitude rotation leaned the arc
+  toward +Z. Now it rises east, crosses the south at noon and sets west
+  (98° / 180° / 262° at 7:00 / 12:00 / 17:00, latitude 40).
+- **`starfieldTilt` moved the sun.** It orients the galaxy behind the
+  atmosphere; noon is latitude and time. With the demos' `12,25,58` the noon
+  sun sat ~15° up instead of 50°. The tilt now sits in the celestial frame,
+  inside the diurnal turn, so sun, moon and stars still wheel as one, and the
+  moon rides the night arc — up at night with or without a tilt.
+- **A skybox with no `<tosi-b3d-sun>` ignored the clock.** The dome's
+  day/night writes sat inside the sun-element branch, so without a sun it
+  stayed at stock daylight while the star exposure said night — stars through
+  a sunlit sky (the beacon demo). Only the light's writes need a light now.
+- **Cloud deck: the silver lining pointed the wrong way.** `sunDir` is the
+  light's travel direction and the forward-scatter term read it unnegated, so
+  rims blazed with the sun BEHIND the viewer and the clouds in front of a
+  sunset were the darkest in the sky.
+- **Cloud deck: `orographic` was not live.** The local-weather field only
+  re-sampled when the grid moved, so dragging `orographic` (or reshaping the
+  terrain under it) did nothing until the camera travelled a grid step.
+- **Cloud deck: `coverage: 0` is a clear sky.** The orographic boost was added
+  on top of the dial, so zero still left cloud on every peak; it now ramps in
+  over the first quarter of the dial.
+- **The skybox baker encoded every distant star twice** — once as a
+  spectral-less 0.02 "star" (it walked the whole star mesh, whose tail IS the
+  distant stars) and once properly. The shipped sky (`static/sky/stars_*`) is
+  rebaked without them; the recipe was first proven by reproducing the old
+  faces byte-for-byte with the pre-fix code.
 
 ### Deprecated
 

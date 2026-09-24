@@ -68,7 +68,7 @@ preview.append(
       scenePanel: () => [
         label3d({ text: 'Weather' }),
         slider3d({ label: 'coverage', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
-        slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
         slider3d({ label: 'altitude', value: sky.altitude, min: 20, max: 600, step: 10 }),
         slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 3000, step: 25 }),
         slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
@@ -79,7 +79,8 @@ preview.append(
     // THE PAIR, not one raster. Nebulae are low-frequency and live in a 256
     // cube; stars and distant galaxies are POINTS and live in a data cube that
     // the shader decodes — so they stay points at any zoom instead of being a
-    // smear baked at one resolution. 344 KB and 25 MiB against 2.3 MB and 96.
+    // smear baked at one resolution. A quarter of the raster's disk, 25 MiB of
+    // VRAM against its 96.
     b3dSkybox({
       timeOfDay: sky.timeOfDay,
       realtimeScale: 0,
@@ -143,7 +144,7 @@ preview.append(
 | `subdivisions` | `64` | Grid resolution — see "A grid, not a quad" |
 | `coverage` | `0.5` | Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow |
 | `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
-| `cirrus` | `0` | Rounded heaps `0` → long wispy streaks `1`. Rebakes the field |
+| `cirrus` | `0` | Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
@@ -368,9 +369,16 @@ cloud, not a taller lump of it. And it needs no mode switch, because the boost
 cancels itself exactly where it would stop making sense — at full cover the
 threshold is already saturated, so adding to it changes nothing and the field
 goes back to driving height instead.
+
+AND IT RAMPS IN WITH THE DIAL, so coverage 0 is a clear sky. Added flat, the
+boost left cloud standing over every peak at "no cloud" — Tonio: "cloud cover 0
+doesn't get you to 0". It reaches full strength by a quarter cover, so the low
+end of the dial is the classic fair-weather sky: clear over the plain, cloud
+sitting on the mountains.
 */
 float coverageAt(vec2 p) {
-  return coverage + weatherAt(p) * localCoverage;
+  return coverage +
+    weatherAt(p) * localCoverage * clamp(coverage * 4.0, 0.0, 1.0);
 }
 
 vec2 toField(vec2 p) {
@@ -496,6 +504,8 @@ uniform float fringe;
 uniform float bump;
 uniform float shade;
 uniform float transmission;
+// 1 when transmission follows coverage; 0 when the author pinned it.
+uniform float autoLift;
 uniform vec3 fogColorU;
 // (mode, start, end, density) — Babylon's own vFogInfos, read from the scene.
 uniform vec4 fogInfos;
@@ -665,7 +675,24 @@ void main(void) {
     float relief = mix(1.0, 0.62 + 0.72 * lamUnder, underBump);
     float through = mix(1.0, 0.78 + 0.34 * lamTop, underBump);
 
-    vec3 base = mix(underColor, topColor, transmission * 0.6) * relief * through;
+    /*
+    FAIR-WEATHER CLOUD IS WHITE FROM BELOW. Tonio: "clouds below coverage 0.5
+    [should be] close to white from below and emissive at the edges". A thin,
+    broken deck is sunlit through — its underside is bright, not the grey slab
+    of an overcast. The lift used to be transmission x 0.6, which peaked at 42%
+    toward white on a CLEAR day: every scattered cumulus read as a raincloud.
+
+    So the base is near-white up to coverage 0.5 and eases onto the storm curve
+    by full cover. It reads the DIAL, not the local coverage: tried first, and
+    over hilly ground the orographic boost (+0.5 on average there) turned a
+    0.4 fair-weather sky into a grey slab — the dial said fair, the underside
+    said storm. Orographic cloud still means MORE cloud over the peaks; it just
+    does not repaint fair weather as foul. An explicitly set transmission
+    (autoLift 0) keeps its authority — a pinned storm-dark deck stays dark.
+    */
+    float fair = autoLift * (1.0 - smoothstep(0.5, 1.0, coverage));
+    float lift = max(transmission * 0.6, 0.9 * fair);
+    vec3 base = mix(underColor, topColor, lift) * relief * through;
     // EMISSIVE edges, so they read as lit-from-behind rather than as pale
     // paint: the fringe is ADDED to the base, which is what lets it go brighter
     // than the material's own colour where the cloud is thinnest.
@@ -689,11 +716,55 @@ void main(void) {
     mid-sentence. Fourth time.)
     */
     vec3 viewDir = normalize(vWorld - camPos);
-    float forward = clamp(dot(viewDir, normalize(sunDir)), 0.0, 1.0);
+    // sunDir is the light's DIRECTION — the way it travels, AWAY from the sun
+    // — so looking toward the sun is looking along -sunDir. This read +sunDir
+    // for a long time: the silver lining peaked with the sun BEHIND you, and
+    // the clouds in front of a sunset were the darkest in the sky.
+    float forward = clamp(dot(viewDir, -normalize(sunDir)), 0.0, 1.0);
     float silver = 0.3 + 0.7 * pow(forward, 4.0);
     float glow = fringe * (0.25 + 0.75 * transmission) * silver;
-    vec3 col = (base + topColor * glow * (thin * thin + 0.12 * transmission)) * skyTint;
-    gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
+    /*
+    AND AS COVER THINS TOWARD NOTHING, THE WHOLE CLOUD GLOWS — not just its
+    edges. The last wisps of a clearing sky are all edge: light passes straight
+    through them. Forward-weighted like the fringe and multiplied by skyTint
+    like everything else, so it is the sun's own colour: golden at golden hour.
+    */
+    float wisps = autoLift * (1.0 - smoothstep(0.0, 0.5, coverage));
+    /*
+    THE GLOW TAKES THE SUN'S HUE, NOT ITS WHOLE DIMMING. skyTint is the sun's
+    colour times its intensity, and at 17:30 the intensity is ~0.4 — so a
+    forward-scattered edge, multiplied by it like everything else, came out
+    DARKER than the bright sky right beside it: sunset clouds as grey
+    silhouettes. But light scattered forward toward you is the sun's own light,
+    and near a low sun it is among the brightest things in the sky. So the
+    emission keeps the tint's hue at full saturation and only the square root
+    of its level: golden at golden hour, and bright where the sun is behind the
+    cloud. The body of the underside still takes the full tint, so a dusk deck
+    still goes dim.
+    */
+    float tintLevel = max(max(skyTint.r, skyTint.g), max(skyTint.b, 0.001));
+    vec3 sunGlow = skyTint / tintLevel * sqrt(tintLevel);
+    /*
+    THIN CLOUD OUTSHINES THE SKY. Tonio: "Clouds should be brighter than the
+    sky at thinnest because they're catching a lot more light than dust or
+    whatever." A wisp in front of a low sun is lit through its whole depth by
+    direct sunlight; the air around it only scatters a little of it. So as
+    cover thins the emission climbs to ~3x — unchanged from 0.5 up, so an
+    overcast behaves exactly as before.
+    */
+    float bright = 1.0 + 2.0 * wisps;
+    vec3 emit =
+      topColor * glow * bright *
+      (thin * thin + 0.12 * transmission + 0.45 * wisps) * sunGlow;
+    /*
+    AND THE GLOW MOSTLY SURVIVES THE DISTANCE FOG. The brightest thin cloud at
+    sunset sits near the horizon, exactly where the fog was mixing it down to
+    the horizon colour. The body of the cloud fogs as before; its glow keeps
+    most of its strength, which is what a bright rim on a far cloud looks like.
+    */
+    float fa = fogAmount(vWorld);
+    vec3 body = mix(fogColorU, base * skyTint, fa);
+    gl_FragColor = vec4(body + emit * (0.4 + 0.6 * fa), a);
   }
 }
 `;
@@ -725,7 +796,7 @@ export class B3dCloudDeck extends B3dChild {
         thickenDepth: 900,
         seed: 1337,
         frequency: 3,
-        /** Rounded heaps `0` → long wispy streaks `1`. Rebakes the field. */
+        /** Rounded heaps `0` → long wispy streaks at `±1` — positive ALONG the wind heading, negative ACROSS it. Rebakes the field. */
         cirrus: 0,
         /** Metres per second the deck drifts. The whole sky slides; nothing rebakes. */
         wind: 8,
@@ -1010,6 +1081,7 @@ export class B3dCloudDeck extends B3dChild {
                 'bump',
                 'shade',
                 'transmission',
+                'autoLift',
                 'underBump',
                 'fogColorU',
                 'fogInfos',
@@ -1182,6 +1254,7 @@ export class B3dCloudDeck extends B3dChild {
         mat.setFloat('bump', attrs.bump);
         mat.setFloat('shade', attrs.shade);
         mat.setFloat('transmission', this.resolvedTransmission);
+        mat.setFloat('autoLift', this.transmission >= 0 ? 0 : 1);
         mat.setFloat('underBump', Math.min(1, Math.max(0, attrs.underBump)));
         const scene = this.owner?.scene;
         if (scene != null) {
@@ -1363,7 +1436,23 @@ export class B3dCloudDeck extends B3dChild {
         if (mesh == null || top == null)
             return;
         const field = this._weatherField();
-        const key = field == null ? 'none' : `${mesh.position.x},${mesh.position.z}`;
+        /*
+        EVERYTHING THE FIELD DEPENDS ON, not just where the grid sits. The key was
+        the grid position alone, so dragging `orographic` changed the strength and
+        nothing re-sampled it (Tonio: "the orographic slider doesn't seem to
+        work"), and a terrain reshaped under the deck kept the old mountains' cloud
+        until the camera next moved a grid step.
+        */
+        const terrain = this.owner?.querySelector('tosi-b3d-terrain');
+        const key = field == null
+            ? 'none'
+            : [
+                mesh.position.x,
+                mesh.position.z,
+                this.orographic,
+                this.orographicPeak,
+                this.weather == null ? terrain?.generationKey ?? '' : 'custom',
+            ].join('|');
         if (!force && key === this._weatherKey)
             return;
         this._weatherKey = key;

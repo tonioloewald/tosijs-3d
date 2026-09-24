@@ -1,5 +1,21 @@
 import * as BABYLON from '@babylonjs/core';
 import { type SkyObject } from './starfield-codec.js';
+/** A point the baker reads — what `b3d-galaxy`'s point accessors return. */
+export interface SkyPoint {
+    position: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    scaling?: {
+        x: number;
+    };
+    color?: {
+        r: number;
+        g: number;
+        b: number;
+    } | null;
+}
 /** One baked cube face: a PNG data URL plus the suffix Babylon expects. */
 export interface BakedFace {
     /** `px` | `nx` | `py` | `ny` | `pz` | `nz` — the `CubeTexture` file suffix. */
@@ -19,12 +35,14 @@ export interface SkyboxBakeOptions {
      * A face covers 90°, so it is stretched across a large part of a wide
      * viewport — 512 reads as soft the moment the sky fills the screen.
      *
-     * ⚠️ **The shipped sky is no longer one of these.** `/sky/default` is a 2048
-     * raster and is kept for reference, but what the demos load is the PAIR that
-     * {@link bakeSkyPair} produces: a 256 smooth cube for the nebulae and a
-     * 1024 DATA cube for the points. 406 KB and 25 MiB, against 2.3 MB and 96 —
-     * and the stars stay points at any zoom instead of being a smear baked at
-     * one resolution.
+     * ⚠️ **The shipped sky is no longer one of these.** `reference/sky/default`
+     * is a 2048 raster kept for comparison (out of `static/`, so nothing serves
+     * it), but what the demos load is the PAIR that {@link bakeSkyPair}
+     * produces: a 256 smooth cube for the nebulae and a 1024 DATA cube for the
+     * points. About a quarter of the raster's disk and 25 MiB of VRAM against
+     * its 96 (the disk figure moves with every rebake, so only the ratio is
+     * written down) — and the stars stay points at any zoom instead of being a
+     * smear baked at one resolution.
      *
      * Reach for a big raster only when what you are baking is genuinely
      * low-frequency everywhere. The moment it contains points, encode the points.
@@ -69,6 +87,32 @@ export interface SkyboxBakeOptions {
      */
     roll?: number;
 }
+/**
+ * THE RECIPE FOR `static/sky` — the pair every demo loads as
+ * `/sky/nebula` + `/sky/stars`.
+ *
+ * Written down because it was not: reproducing the shipped sky meant reading
+ * commit messages (100k stars in one, 42% out in another) and then proving the
+ * guess by rebaking and byte-comparing. Bake with these and the data faces
+ * are reproducible exactly.
+ *
+ * `tilt` is NOT baked in — the cube is photographed level and tilted where it
+ * is used (`b3dSkybox({ starfieldTilt: SHIPPED_SKY.tilt })`), for the reason
+ * on {@link defaultBakePose}. It is recorded here so the pair and the angle it
+ * was framed for travel together.
+ */
+export declare const SHIPPED_SKY: {
+    readonly seed: 1234;
+    readonly stars: 100000;
+    readonly radius: 100;
+    readonly particleSize: 0.7;
+    readonly outFraction: 0.42;
+    readonly offPlane: 1;
+    readonly roll: 0;
+    readonly smoothSize: 256;
+    readonly dataSize: 1024;
+    readonly tilt: "12,25,58";
+};
 /**
  * Where to stand, given a galaxy's radius.
  *
@@ -147,11 +191,9 @@ export declare function facesToZip(groups: Array<{
  *   luminosity before any clamping, so the real magnitude range survives.
  */
 export declare function starsFromGalaxy(galaxy: {
-    starSps?: {
-        particles: BABYLON.SolidParticle[];
-    } | null;
-    getDistantGalaxyParticles?: () => BABYLON.SolidParticle[] | null;
-    getDistantStarParticles?: () => BABYLON.SolidParticle[] | null;
+    getStarPoints?: () => SkyPoint[] | null;
+    getDistantGalaxyParticles?: () => SkyPoint[] | null;
+    getDistantStarParticles?: () => SkyPoint[] | null;
     getGalaxyData?: () => {
         stars: Array<{
             spectralType: string;
@@ -192,14 +234,8 @@ export declare function facesToPngs(faces: Uint8Array[], size: number): Promise<
  * rather than assumed — see `starfield-codec`. The smooth half is
  * low-frequency and survives 256; the points need position, not pixels.
  */
-export declare function bakeSkyPair(scene: BABYLON.Scene, galaxy: {
-    starMesh?: BABYLON.AbstractMesh | null;
-    starSps?: {
-        particles: BABYLON.SolidParticle[];
-    } | null;
-    nebulaSps?: {
-        particles: BABYLON.SolidParticle[];
-    } | null;
+export declare function bakeSkyPair(scene: BABYLON.Scene, galaxy: Parameters<typeof starsFromGalaxy>[0] & {
+    getStarMesh?: () => BABYLON.AbstractMesh | null;
 }, options: SkyboxBakeOptions & {
     dataSize?: number;
     smoothSize?: number;

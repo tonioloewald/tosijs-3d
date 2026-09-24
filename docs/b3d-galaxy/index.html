@@ -28,17 +28,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
   <title>b3d-galaxy — tosijs-3d</title>
-  <meta name="description" content="Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates thousands of stars in a spiral arm distribution, each colored by spectral class." />
+  <meta name="description" content="Procedural galaxy renderer. Generates thousands of stars in a spiral arm distribution, each colored by spectral class." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-galaxy/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="b3d-galaxy — tosijs-3d" />
-  <meta property="og:description" content="Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates thousands of stars in a spiral arm distribution, each colored by spectral class." />
+  <meta property="og:description" content="Procedural galaxy renderer. Generates thousands of stars in a spiral arm distribution, each colored by spectral class." />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-galaxy/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-galaxy","description":"Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates thousands of stars in a spiral arm distribution, each colored by spectral class.","url":"https://3d.tosijs.net/b3d-galaxy/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-galaxy","description":"Procedural galaxy renderer. Generates thousands of stars in a spiral arm distribution, each colored by spectral class.","url":"https://3d.tosijs.net/b3d-galaxy/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
@@ -46,12 +46,15 @@
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-galaxy</h1>
-<p>Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
-thousands of stars in a spiral arm distribution, each colored by spectral
-class. All generation is seeded — same seed always produces the same galaxy.</p>
+<p>Procedural galaxy renderer. Generates thousands of stars in a spiral arm
+distribution, each colored by spectral class. All generation is seeded — same
+seed always produces the same galaxy.</p>
+<p>Stars and nebulae are billboarded <strong>in the vertex shader</strong>: each is a static
+quad whose corners the shader turns to face the viewpoint, so a galaxy costs
+nothing per frame on the CPU however many stars it holds.</p>
 <p>Stars use a custom shader: white-hot center fading to spectral color at edges.
 A procedural black hole with accretion disk sits at the galaxy center.</p>
-<p>Stars are pickable — click one to zoom in and see its star system rendered
+<p>Stars are pickable with <code>pickStar(x, y)</code> — click one to zoom in and see its star system rendered
 in detail. Use <code>getStarAt(index)</code> to retrieve star data and
 <code>getStarSystem(index)</code> to get full planet detail for any star.
 Use <code>hideStarAt(index)</code> to hide a star (e.g. when replacing it with a
@@ -207,18 +210,8 @@ const scene = b3d(
         const dy = evt.offsetY - downY
         if (dx * dx + dy * dy &gt; 25) return // dragged — not a click
 
-        const sps = galaxy.getStarSPS()
-        const starMesh = galaxy.getStarMesh()
-        if (!sps || !starMesh) return
-
-        // Use Babylon&#39;s built-in scene pick + SPS pickedParticle
-        const pickResult = el.scene.pick(evt.offsetX, evt.offsetY)
-        if (pickResult.hit &amp;&amp; pickResult.pickedMesh === starMesh) {
-          const picked = sps.pickedParticle(pickResult)
-          if (picked) {
-            zoomToStar(picked.idx, camera, el)
-          }
-        }
+        const idx = galaxy.pickStar(evt.offsetX, evt.offsetY)
+        if (idx &gt;= 0) zoomToStar(idx, camera, el)
       }
     },
   },
@@ -428,22 +421,7 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
-      <li><details><summary><a class="doc-link" href="../world-sim/">world-sim</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../world-store/">world-store</a></li>
-        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-        <li><a class="doc-link" href="../interaction/">interaction</a></li>
-        <li><a class="doc-link" href="../world-view/">world-view</a></li>
-        <li><a class="doc-link" href="../formations/">formations</a></li>
-        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-        <li><a class="doc-link" href="../prefab/">prefab</a></li>
-        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
@@ -633,7 +611,22 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><a class="doc-link" href="../world-simulation/">World Sim</a></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -642,6 +635,6 @@ demo.nameSearch.observe(applyFilter)
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+  <script type="module" src="../hydrate.js?v=0.8.3"></script>
 </body>
 </html>

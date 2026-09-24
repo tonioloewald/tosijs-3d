@@ -598,7 +598,11 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             float volcG = biomeSurf.y > 0.0
               ? smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn)
               : 0.0;
-            float volc = max(volcG, smoothstep(0.02, 0.3, provVolc));
+            // The local mask is FULLY on by 0.12 — ladder stage 1.24, cold
+            // basalt — so a province's low tail reads as a basalt apron. At
+            // 0.3 the basalt stage only existed where the mask was still half
+            // vegetation, and vegetation met glowing seams directly.
+            float volc = max(volcG, smoothstep(0.02, 0.12, provVolc));
             float vEff = max(biomeSurf.y, provVolc);
             if (volc > 0.0) {
               // The intensity LADDER (stage 1..3): 1 = near-black basalt with

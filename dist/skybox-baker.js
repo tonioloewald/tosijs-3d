@@ -14,7 +14,7 @@ however pretty.
 ## Demo
 
 ```js
-import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
@@ -86,6 +86,17 @@ preview.append(
         // the sky shader decodes into points. The right output once the star
         // slider is at 100k — a plain raster at that density is a picture of
         // itself, and it would need 4096 to stop smearing.
+        // THE SHIPPED SKY'S RECIPE — sets every slider to what produced
+        // static/sky, so a rebake is one tap here and one tap below. (It used
+        // to live only in commit messages; reproducing it took archaeology.)
+        button3d({ label: 'use shipped recipe', handleClick: () => {
+          bake.stars = SHIPPED_SKY.stars
+          bake.particleSize = SHIPPED_SKY.particleSize
+          bake.outFraction = SHIPPED_SKY.outFraction
+          bake.offPlane = SHIPPED_SKY.offPlane
+          bake.roll = SHIPPED_SKY.roll
+          bake.status = 'shipped recipe — rebuilding, then bake pair'
+        } }),
         button3d({ label: 'bake pair (256 + 1024 data)', handleClick: async () => {
           bake.status = 'baking pair…'
           const res = await bakeSkyPair(sceneEl.scene, galaxy, {
@@ -181,6 +192,32 @@ import { zipSync } from 'fflate';
 import { FACE_NAMES, encodeStarfield, spectralValue, } from './starfield-codec.js';
 import { pngEncode } from './png.js';
 /**
+ * THE RECIPE FOR `static/sky` — the pair every demo loads as
+ * `/sky/nebula` + `/sky/stars`.
+ *
+ * Written down because it was not: reproducing the shipped sky meant reading
+ * commit messages (100k stars in one, 42% out in another) and then proving the
+ * guess by rebaking and byte-comparing. Bake with these and the data faces
+ * are reproducible exactly.
+ *
+ * `tilt` is NOT baked in — the cube is photographed level and tilted where it
+ * is used (`b3dSkybox({ starfieldTilt: SHIPPED_SKY.tilt })`), for the reason
+ * on {@link defaultBakePose}. It is recorded here so the pair and the angle it
+ * was framed for travel together.
+ */
+export const SHIPPED_SKY = {
+    seed: 1234,
+    stars: 100000,
+    radius: 100,
+    particleSize: 0.7,
+    outFraction: 0.42,
+    offPlane: 1,
+    roll: 0,
+    smoothSize: 256,
+    dataSize: 1024,
+    tilt: '12,25,58',
+};
+/**
  * Where to stand, given a galaxy's radius.
  *
  * ⚠️ THIS IS IN THE GALAXY'S OWN FRAME. The first bake rotated the galaxy to
@@ -267,13 +304,22 @@ export function facesToZip(groups, zipName = 'sky-faces.zip') {
  */
 export function starsFromGalaxy(galaxy, eye, options = {}) {
     const out = [];
-    const stars = galaxy.starSps?.particles ?? [];
+    const stars = galaxy.getStarPoints?.() ?? [];
     const starData = galaxy.getGalaxyData?.()?.stars ?? [];
     let maxScale = 0;
     for (const s of starData)
         maxScale = Math.max(maxScale, s.scale || 0);
     const norm = maxScale > 0 ? 1 / maxScale : 1;
-    for (let i = 0; i < stars.length; i++) {
+    /*
+    THE DISC STARS ONLY. The star mesh also carries the distant stars on its
+    tail, and they have their own loop below — walking the whole mesh encoded
+    each of them TWICE, once here as a spectral-less 0.02 "star" and once
+    properly. (Every sky baked before this fix carries the 3,000 duplicates;
+    `placed` counted them.) Without star data there is no telling which is
+    which, so everything is taken, as before.
+    */
+    const discCount = starData.length > 0 ? Math.min(stars.length, starData.length) : stars.length;
+    for (let i = 0; i < discCount; i++) {
         const p = stars[i];
         const data = starData[i];
         out.push({
@@ -385,7 +431,7 @@ export async function bakeSkyPair(scene, galaxy, options) {
     rendering them into the nebula cube as well would double every one of them,
     and the smeared copy is the thing this whole exercise exists to delete.
     */
-    const mesh = galaxy.starMesh ?? null;
+    const mesh = galaxy.getStarMesh?.() ?? null;
     const wasVisible = mesh?.isVisible ?? false;
     if (mesh != null)
         mesh.isVisible = false;
@@ -482,17 +528,18 @@ export async function bakeSkyboxCube(scene, options) {
     cam.minZ = 0.1;
     cam.maxZ = options.maxZ ?? 5000;
     /*
-    AIM THE BILLBOARDS AT THE CAMERA — inside the baker, so it cannot be skipped.
+    PIN THE VIEWPOINT — inside the baker, so it cannot be skipped.
   
-    `facePoint` existed for exactly this and NOTHING CALLED IT: the demo's bake
-    button went straight to this function, so every capture ran with the particle
-    systems still billboarding per face. Tonio, from the result: "I think you're
-    pointing the stars at the galactic origin. That makes the coreward render look
-    pretty good but it's terrible for the others" — which is the signature, since
-    a face centred on the core has its billboards nearly right and everything
-    further off-axis progressively worse.
+    `b3d-galaxy` billboards in its vertex shader toward the rendering camera's
+    POSITION, which the six faces share, so the seams agree on their own.
+    `facePoint` still matters: it fixes that viewpoint for the whole capture and
+    switches on the apparent-size clamp, which only means something from one
+    known point.
   
-    A guard that lives in the documentation is not a guard. It belongs here.
+    (It once existed and NOTHING CALLED IT, back when billboarding was per-face
+    on the CPU — Tonio, from the result: "I think you're pointing the stars at
+    the galactic origin." A guard that lives in the documentation is not a guard.
+    It belongs here.)
     */
     const subjects = options.subjects ??
         Array.from(document.querySelectorAll('tosi-b3d-galaxy'));
@@ -509,18 +556,13 @@ export async function bakeSkyboxCube(scene, options) {
             /*
             RENDER NORMALLY FIRST, so anything camera-dependent settles.
       
-            ⚠️ AND IF THE SUBJECT BILLBOARDS, POINT IT AT THE CAMERA POSITION FIRST —
-            see `B3dGalaxy.facePoint`. Billboards align to the camera's VIEW PLANE,
-            which differs per face, so left alone every particle re-orients between
-            captures and the faces disagree at their seams.
-      
-            A `SolidParticleSystem` re-orients its quads toward `scene.activeCamera`
-            from a beforeRender observer — which the screenshot's own render target
-            does not run. So the first face came out correct and the other five were
-            photographed with every star still edge-on to the PREVIOUS direction,
-            which reads as radial streaking rather than as an orientation bug.
-      
-            One throwaway frame per face is cheap and it is the whole fix.
+            The screenshot's own render target does not run the scene's beforeRender
+            observers, so anything that updates from one — CPU billboards, as a
+            `SolidParticleSystem` does — would otherwise be photographed still facing
+            the PREVIOUS face (the galaxy did exactly that, as radial streaking,
+            before it moved its billboarding into the vertex shader). One throwaway
+            frame per face is cheap, and keeps the baker honest for subjects that
+            are not the galaxy.
             */
             scene.render();
             const url = await BABYLON.Tools.CreateScreenshotUsingRenderTargetAsync(engine, cam, { width: size, height: size }, 'image/png', 1, false);

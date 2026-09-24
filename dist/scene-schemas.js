@@ -428,6 +428,10 @@ export function terrainSchema(extra = {}) {
         biome: choice('off', ['off', 'on']),
         biomeSeaLevel: num(0, { minimum: -1000, maximum: 1000, ...M }),
         biomeLapseRate: num(0, { minimum: 0, maximum: 1 }),
+        // -1 = the biome plugin's own default; 0 is a real value for all three.
+        biomeTemperature: num(-1, { minimum: -1, maximum: 1 }),
+        biomeMoisture: num(-1, { minimum: -1, maximum: 1 }),
+        biomeVolcanicScale: num(-1, { minimum: -1, maximum: 1 }),
         tileSize: num(10, { minimum: 1, maximum: 1000, ...M }),
         lodLevels: num(5, { minimum: 1, maximum: 12 }),
         splitFactor: num(2, { minimum: 2, maximum: 8 }),

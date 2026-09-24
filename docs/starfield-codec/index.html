@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
   <title>starfield-codec — tosijs-3d</title>
   <meta name="description" content="A starfield is DATA, not a picture — so store it as data. Six small RGBA faces where the channels are not colour but position, brightness, colour index and…" />
   <link rel="canonical" href="https://3d.tosijs.net/starfield-codec/" />
@@ -74,7 +74,7 @@ needed it.</p>
 <tr>
 <td>on disk</td>
 <td>2.3 MB</td>
-<td>0.4 MB</td>
+<td>about a quarter of that (moves with every rebake)</td>
 </tr>
 <tr>
 <td>sharpness</td>
@@ -203,22 +203,7 @@ directions through both, which is the only way this stays honest.</p>
       <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
-      <li><details><summary><a class="doc-link" href="../world-sim/">world-sim</a></summary>
-      <ul>
-        <li><a class="doc-link" href="../world-store/">world-store</a></li>
-        <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-        <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-        <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-        <li><a class="doc-link" href="../interaction/">interaction</a></li>
-        <li><a class="doc-link" href="../world-view/">world-view</a></li>
-        <li><a class="doc-link" href="../formations/">formations</a></li>
-        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-        <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-        <li><a class="doc-link" href="../prefab/">prefab</a></li>
-        <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-        <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      </ul>
-      </details></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
@@ -408,7 +393,22 @@ directions through both, which is the only way this stays honest.</p>
       <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
-    <li><a class="doc-link" href="../world-simulation/">World Sim</a></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">
@@ -417,6 +417,6 @@ directions through both, which is the only way this stays honest.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.2"></script>
+  <script type="module" src="../hydrate.js?v=0.8.3"></script>
 </body>
 </html>

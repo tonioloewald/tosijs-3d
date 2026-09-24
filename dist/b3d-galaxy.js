@@ -1,14 +1,18 @@
 /*#
 # b3d-galaxy
 
-Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
-thousands of stars in a spiral arm distribution, each colored by spectral
-class. All generation is seeded — same seed always produces the same galaxy.
+Procedural galaxy renderer. Generates thousands of stars in a spiral arm
+distribution, each colored by spectral class. All generation is seeded — same
+seed always produces the same galaxy.
+
+Stars and nebulae are billboarded **in the vertex shader**: each is a static
+quad whose corners the shader turns to face the viewpoint, so a galaxy costs
+nothing per frame on the CPU however many stars it holds.
 
 Stars use a custom shader: white-hot center fading to spectral color at edges.
 A procedural black hole with accretion disk sits at the galaxy center.
 
-Stars are pickable — click one to zoom in and see its star system rendered
+Stars are pickable with `pickStar(x, y)` — click one to zoom in and see its star system rendered
 in detail. Use `getStarAt(index)` to retrieve star data and
 `getStarSystem(index)` to get full planet detail for any star.
 Use `hideStarAt(index)` to hide a star (e.g. when replacing it with a
@@ -168,18 +172,8 @@ const scene = b3d(
         const dy = evt.offsetY - downY
         if (dx * dx + dy * dy > 25) return // dragged — not a click
 
-        const sps = galaxy.getStarSPS()
-        const starMesh = galaxy.getStarMesh()
-        if (!sps || !starMesh) return
-
-        // Use Babylon's built-in scene pick + SPS pickedParticle
-        const pickResult = el.scene.pick(evt.offsetX, evt.offsetY)
-        if (pickResult.hit && pickResult.pickedMesh === starMesh) {
-          const picked = sps.pickedParticle(pickResult)
-          if (picked) {
-            zoomToStar(picked.idx, camera, el)
-          }
-        }
+        const idx = galaxy.pickStar(evt.offsetX, evt.offsetY)
+        if (idx >= 0) zoomToStar(idx, camera, el)
       }
     },
   },
@@ -335,6 +329,86 @@ import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 import { generateGalaxy, generateStarSystem, } from './galaxy-data.js';
 import { b3dBlackHole } from './b3d-black-hole.js';
+/** The per-vertex size attribute the vertex shader expands quads by. */
+const QUAD_SCALE = 'quadScale';
+/** Pick slack, in pixels, so a one-pixel star is still clickable. */
+const SLACK_PX = 3;
+let warnedStarSps = false;
+/*
+One static quad per point, every vertex AT the point's centre. Same layout as
+`CreatePlane` — corners (0,0) (1,0) (1,1) (0,1), triangles 0-1-2 / 0-2-3 — and
+the same order the points came in, so draw order (which the premultiplied blend
+of additive and darkening nebulae depends on) is generation order.
+
+Only colour and size are ever rewritten, and only when something asks: a
+filter, a hide.
+*/
+function buildQuads(name, scene, points) {
+    const n = points.length;
+    const positions = new Float32Array(n * 12);
+    const uvs = new Float32Array(n * 8);
+    const colors = new Float32Array(n * 16);
+    const scales = new Float32Array(n * 4);
+    const indices = new Uint32Array(n * 6);
+    const CORNERS = [0, 0, 1, 0, 1, 1, 0, 1];
+    const writeColor = (i, c) => {
+        for (let k = 0; k < 4; k++) {
+            const at = i * 16 + k * 4;
+            colors[at] = c.r;
+            colors[at + 1] = c.g;
+            colors[at + 2] = c.b;
+            colors[at + 3] = c.a;
+        }
+    };
+    const writeScale = (i, s) => {
+        scales.fill(s, i * 4, i * 4 + 4);
+    };
+    for (let i = 0; i < n; i++) {
+        const p = points[i];
+        for (let k = 0; k < 4; k++) {
+            positions[i * 12 + k * 3] = p.position.x;
+            positions[i * 12 + k * 3 + 1] = p.position.y;
+            positions[i * 12 + k * 3 + 2] = p.position.z;
+            uvs[i * 8 + k * 2] = CORNERS[k * 2];
+            uvs[i * 8 + k * 2 + 1] = CORNERS[k * 2 + 1];
+        }
+        writeColor(i, p.color);
+        writeScale(i, p.scaling.x);
+        const v = i * 4;
+        indices.set([v, v + 1, v + 2, v, v + 2, v + 3], i * 6);
+    }
+    const mesh = new BABYLON.Mesh(name, scene);
+    const data = new BABYLON.VertexData();
+    data.positions = positions;
+    data.uvs = uvs;
+    data.colors = colors;
+    data.indices = indices;
+    data.applyToMesh(mesh, true);
+    mesh.setVerticesData(QUAD_SCALE, scales, true, 1);
+    // The CPU bounds are the centres only, so let nothing cull or pick by them.
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.isPickable = false;
+    const hidden = new Array(n).fill(false);
+    return {
+        mesh,
+        points,
+        hidden,
+        setHidden(i, h) {
+            hidden[i] = h;
+            writeScale(i, h ? 0 : points[i].scaling.x);
+            mesh.updateVerticesData(QUAD_SCALE, scales);
+        },
+        setColor(i, c, flush = true) {
+            points[i].color = c;
+            writeColor(i, c);
+            if (flush)
+                mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
+        },
+        flushColors() {
+            mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
+        },
+    };
+}
 export class B3dGalaxy extends B3dChild {
     static preferredTagName = 'tosi-b3d-galaxy';
     static shadowStyleSpec = {
@@ -387,15 +461,16 @@ export class B3dGalaxy extends B3dChild {
     };
     owner = null;
     rootNode = null;
-    starSps = null;
+    starQuads = null;
     starMesh = null;
-    nebulaSps = null;
+    nebulaQuads = null;
     nebulaMesh = null;
+    /** The fixed viewpoint set by `facePoint`, or null to follow the camera. */
+    faceTarget = null;
     blackHoleEl = null;
     galaxyData = null;
     originalColors = null;
     registered = false;
-    _beforeRender = null;
     content = () => '';
     sceneReady(owner, scene) {
         this.owner = owner;
@@ -403,13 +478,8 @@ export class B3dGalaxy extends B3dChild {
         this.rootNode = new BABYLON.TransformNode('galaxy-root', scene);
         this.buildGalaxy();
         this.buildBlackHole();
-        this._beforeRender = () => this.update();
-        scene.registerBeforeRender(this._beforeRender);
     }
     sceneDispose() {
-        if (this.owner && this._beforeRender) {
-            this.owner.scene.unregisterBeforeRender(this._beforeRender);
-        }
         this.disposeMeshes();
         if (this.blackHoleEl) {
             this.blackHoleEl.remove();
@@ -420,18 +490,16 @@ export class B3dGalaxy extends B3dChild {
         this.owner = null;
     }
     /**
-     * Point every particle at THE CAMERA POSITION — a fixed world point, rather
-     * than at the camera's view plane.
+     * Face every particle at a FIXED world point instead of the live camera, and
+     * clamp star sizes as seen from it. `null` hands orientation back to the
+     * camera.
      *
-     * ⚠️ THIS IS WHAT MAKES A CUBE BAKE WORK. `SolidParticleSystem.billboard`
-     * aligns quads to the camera's VIEW PLANE, which is a different plane for
-     * each of a cube's six faces — so every star and nebula silently re-orients
-     * between captures, and the faces disagree at their seams.
-     *
-     * A cube map is ONE viewpoint photographed six ways. All six share a camera
-     * POSITION and differ only in rotation, so that position is what the
-     * particles should face: do it once, and every face sees each nebula from the
-     * same angle and as the same shape.
+     * The particles always face the viewpoint's POSITION — the vertex shader
+     * does that (see `registerShaders`) — so a cube bake's six faces, which share
+     * a position and differ only in rotation, already agree at their seams
+     * without this. What a fixed point adds is the APPARENT-SIZE CLAMP
+     * (`maxStarApparentSize`), which only means something from one known
+     * viewpoint, and a guarantee that nothing between captures can move it.
      *
      * ⚠️ NOT the galactic centre. This was first written as `faceOrigin`, which
      * named the wrong thing even though the argument was right — Tonio: "No
@@ -439,188 +507,79 @@ export class B3dGalaxy extends B3dChild {
      * way out from the core, so facing the core would tilt every particle away
      * from the viewer by a different amount depending where it sits.
      *
-     * Pass `null` to hand orientation back to the live camera.
+     * (This used to write a rotation into every particle on the CPU, alongside
+     * Babylon's own per-frame billboarding — two mechanisms that COMPOSED rather
+     * than replaced each other, which is how a restore once left every star a
+     * vertical smear. One uniform cannot stack with anything.)
      */
     facePoint(target) {
-        const systems = [this.starSps, this.nebulaSps];
-        for (const sps of systems) {
-            if (sps == null)
-                continue;
-            if (target == null) {
-                /*
-                ⚠️ CLEAR THE QUATERNIONS. Billboarding does not replace them, it
-                COMPOSES with them.
-        
-                Restoring `billboard = true` looked like enough and reported success —
-                the flag really was back — while every particle silently kept the
-                orientation `facePoint` had given it, so the live view came back as
-                vertical smears. Tonio spotted it from the outside: "If you open the
-                baker, screen cap, bake, and screen cap again you can see something
-                weird is happening on restore."
-        
-                Which also means the two mechanisms were stacking during any pass where
-                both were live, and that is worth knowing beyond this function.
-                */
-                sps.billboard = true;
-                sps.updateParticle = (p) => p;
-                for (const p of sps.particles) {
-                    p.rotationQuaternion = null;
-                    // And undo the apparent-size clamp — it belongs to one viewpoint.
-                    const s0 = p.props?.s0;
-                    if (s0 != null)
-                        p.scale.x = p.scale.y = p.scale.z = s0;
-                }
-                sps.setParticles();
-                continue;
-            }
-            sps.billboard = false;
-            /*
-            CLAMP APPARENT SIZE — the fix for "nearby stars are way too big".
-      
-            Particles are sized in WORLD units, so a star's apparent size is
-            `scale / distance` and the nearest ones are dinner plates while the far
-            field is specks. Shrinking `particleSize` fixes the near end by thinning
-            the far end, which is why that knob has never had a good value: it moves
-            both ends together.
-      
-            A cap on ANGULAR size moves only the end that is wrong. Anything whose
-            apparent size exceeds the limit is scaled down to it and everything else
-            is untouched, so the distant field keeps exactly the density it was tuned
-            to — which is the whole reason this is done HERE, where the viewpoint is
-            known, rather than at build time where it is not.
-      
-            Originals are stashed so `facePoint(null)` can put them back.
-            */
-            /*
-            ⚠️ STARS ONLY. This loop runs over BOTH particle systems, and the first
-            version clamped the nebulae with them — shrinking the distant galaxies
-            that had just been enlarged to fill the sky, and cutting the baked pole
-            face from 119k of PNG back to 37k. The clamp is about point sources whose
-            world size is a stand-in for brightness; a nebula's size is its actual
-            extent and means something.
-            */
-            const maxApparent = sps === this.starSps ? this.maxStarApparentSize : 0;
-            if (maxApparent > 0) {
-                for (const p of sps.particles) {
-                    const props = (p.props ??= {});
-                    props.s0 ??= p.scale.x;
-                    const dx = p.position.x - target.x;
-                    const dy = p.position.y - target.y;
-                    const dz = p.position.z - target.z;
-                    const d = Math.hypot(dx, dy, dz);
-                    const cap = maxApparent * d;
-                    const want = props.s0 > cap ? cap : props.s0;
-                    p.scale.x = p.scale.y = p.scale.z = want;
-                }
-            }
-            /*
-            TILT TOWARD THE POINT — do not pivot about the galactic plane.
-      
-            A FIXED world up (0,1,0) constrains the quad's own up to stay as close to
-            +Y as it can, so the particle only ever yaws about the plane normal. Near
-            the disc that looks fine and it is why the first version passed. Look down
-            the Y axis, though, and the reference is parallel to the view direction:
-            the rotation is degenerate, every particle goes edge-on, and the galaxy
-            falls apart from exactly the angle you would most want to admire it from.
-            Tonio: "I'd actually tilt the billboards to point at the camera, not pivot
-            on the galactic plane. Then the galaxy would look good from above too."
-      
-            So the reference up SWAPS when the direction gets close to it. Any
-            non-parallel vector will do — the roll of a radially symmetric blob does
-            not matter — and swapping removes the singularity rather than moving it
-            somewhere less likely.
-            */
-            const upY = new BABYLON.Vector3(0, 1, 0);
-            const upZ = new BABYLON.Vector3(0, 0, 1);
-            /*
-            THE TARGET MUST BE IN THE PARTICLES' OWN SPACE.
-      
-            `particle.position` is SPS-LOCAL — relative to the system's mesh — while
-            the camera position handed in is WORLD. They coincide only while the
-            galaxy sits at the origin unrotated, which it usually does, so this was
-            invisible and would have come back the moment anyone moved or tilted it.
-            Converting once here costs nothing and removes the trap.
-            */
-            const mesh = sps.mesh;
-            const local = target.clone();
-            if (mesh != null) {
-                mesh.computeWorldMatrix(true);
-                const inv = BABYLON.Matrix.Invert(mesh.getWorldMatrix());
-                BABYLON.Vector3.TransformCoordinatesToRef(target, inv, local);
-            }
-            sps.updateParticle = (p) => {
-                const dir = local.subtract(p.position);
-                if (dir.lengthSquared() < 1e-8)
-                    return p;
-                dir.normalize();
-                const ref = Math.abs(dir.y) > 0.98 ? upZ : upY;
-                /*
-                ORTHOGONALISE FIRST — `FromLookDirectionLH` requires it and does not do
-                it for you.
-        
-                Babylon's own contract says so plainly: "@param forward … Must be
-                normalized and ORTHOGONAL to up" and the same of `up`. This code handed
-                it a world up of (0,1,0) beside an arbitrary direction, which is almost
-                never orthogonal, and Babylon does not silently fix it up the way (for
-                instance) Unity's LookRotation does. Our bug, from ignoring a documented
-                precondition — not a Babylon one.
-        
-                It also explains the shape of the failure exactly. The error grows with
-                how non-orthogonal the pair is, so particles IN the disc plane (dir
-                nearly horizontal, nearly perpendicular to world up) came out almost
-                right and the pole faces came out badly wrong. Measured at one particle
-                1.7 units below the bake point: local +Z landed at
-                (-0.498, -0.359, 0.746) against a camera direction of
-                (0.498, 0.718, -0.487) — a dot of -0.87, some 30° off, which is an
-                ellipse.
-        
-                The three cross products below ARE the missing orthogonalisation, and
-                the result is checkable with one dot product: worst alignment across the
-                whole field is now 1.0000.
-                */
-                const fwd = dir;
-                const right = BABYLON.Vector3.Cross(ref, fwd).normalize();
-                const realUp = BABYLON.Vector3.Cross(fwd, right);
-                p.rotationQuaternion = BABYLON.Quaternion.FromRotationMatrix(BABYLON.Matrix.FromValues(right.x, right.y, right.z, 0, realUp.x, realUp.y, realUp.z, 0, fwd.x, fwd.y, fwd.z, 0, 0, 0, 0, 1));
-                return p;
-            };
-            sps.setParticles();
-        }
-    }
-    update() {
-        // Update particles every frame for billboard facing — unless something has
-        // taken orientation over (see `facePoint`), in which case re-running this
-        // would be harmless but pointless work.
-        if (this.starSps?.billboard)
-            this.starSps.setParticles();
-        if (this.nebulaSps?.billboard)
-            this.nebulaSps.setParticles();
+        this.faceTarget = target == null ? null : target.clone();
     }
     disposeMeshes() {
-        if (this.starSps) {
-            this.starSps.dispose();
-            this.starSps = null;
-            this.starMesh = null;
-        }
-        if (this.nebulaSps) {
-            this.nebulaSps.dispose();
-            this.nebulaSps = null;
-            this.nebulaMesh = null;
-        }
+        this.starMesh?.dispose();
+        this.starMesh = null;
+        this.starQuads = null;
+        this.nebulaMesh?.dispose();
+        this.nebulaMesh = null;
+        this.nebulaQuads = null;
     }
     registerShaders() {
         if (BABYLON.Effect.ShadersStore['galaxyStarVertexShader'])
             return;
+        /*
+        BILLBOARDING, ON THE GPU. Every vertex of a quad sits at the particle's
+        centre; the shader pushes it out to its corner along axes that face the
+        VIEWPOINT'S POSITION. The CPU never touches a particle after the build —
+        the old per-frame `setParticles()` rewrote every vertex of every star
+        whether or not anything had moved.
+    
+        Facing a POSITION rather than the view plane is what keeps a cube bake's
+        seams consistent: the six faces share a position, so every quad is aimed
+        the same way in all of them.
+    
+        THE REFERENCE UP SWAPS near the poles. A fixed (0,1,0) makes the quad only
+        ever yaw about the plane normal, and looking straight down the galaxy's axis
+        the reference is parallel to the view direction — every particle goes
+        edge-on and the galaxy falls apart from exactly the angle you would most
+        want to admire it from. Any non-parallel vector will do for a radially
+        symmetric blob, and swapping removes the singularity rather than moving it.
+    
+        ORTHOGONALISED by the two cross products, which a look-rotation helper
+        will not do for you (Babylon's `FromLookDirectionLH` requires orthogonal
+        inputs and the CPU version once fed it a raw world up — an ellipse, some
+        30° off, worst at the poles).
+    
+        `eye` is in the mesh's LOCAL space (the material converts it at bind), so a
+        moved or tilted galaxy still faces the camera.
+        */
         BABYLON.Effect.ShadersStore['galaxyStarVertexShader'] = `
       precision highp float;
       attribute vec3 position;
       attribute vec2 uv;
       attribute vec4 color;
+      attribute float quadScale;
       uniform mat4 worldViewProjection;
+      uniform vec3 eye;
+      uniform float baseSize;
+      uniform float maxApparent;
       varying vec2 vUV;
       varying vec4 vColor;
       void main() {
-        gl_Position = worldViewProjection * vec4(position, 1.0);
+        vec3 dir = eye - position;
+        float d = length(dir);
+        vec3 fwd = d > 1e-4 ? dir / d : vec3(0.0, 0.0, 1.0);
+        vec3 ref = abs(fwd.y) > 0.98 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+        vec3 right = normalize(cross(ref, fwd));
+        vec3 up = cross(fwd, right);
+        // CLAMP APPARENT SIZE (stars, from a fixed viewpoint): anything whose
+        // apparent size exceeds the cap is scaled down to it and everything
+        // else is untouched, so the far field keeps the density it was tuned
+        // to. 0 = off.
+        float s = quadScale;
+        if (maxApparent > 0.0) s = min(s, maxApparent * d);
+        vec2 corner = (uv - 0.5) * (baseSize * s);
+        gl_Position = worldViewProjection *
+          vec4(position + right * corner.x + up * corner.y, 1.0);
         vUV = uv;
         vColor = color;
       }
@@ -636,6 +595,7 @@ export class B3dGalaxy extends B3dChild {
       precision highp float;
       varying vec2 vUV;
       varying vec4 vColor;
+      uniform float visibility;
 
       // Hash-based pseudo-random for noise
       float hash(vec2 p) {
@@ -668,7 +628,7 @@ export class B3dGalaxy extends B3dChild {
         return v;
       }
 
-      void main() {
+      vec4 shade() {
         vec2 uv = vUV - vec2(0.5);
         float d = length(uv) * 2.0;
         if (d > 1.0) discard;
@@ -682,7 +642,7 @@ export class B3dGalaxy extends B3dChild {
           vec3 starColor = vColor.rgb;
           vec3 col = mix(starColor, vec3(1.0), core) * (0.4 + glow * 0.6);
           float intensity = glow * glow;
-          gl_FragColor = vec4(col * intensity, 0.0);
+          return vec4(col * intensity, 0.0);
         } else if (a > 0.45) {
           // Emission nebula: turbulent additive glow
           float nebulaOpacity = (a - 0.5) * 2.5;
@@ -708,7 +668,7 @@ export class B3dGalaxy extends B3dChild {
           the arm out.
           */
           vec3 col = vColor.rgb * soft * nebulaOpacity * 0.4;
-          gl_FragColor = vec4(col, 0.0);
+          return vec4(col, 0.0);
         } else {
           // Dark nebula: turbulent darkening
           float nebulaOpacity = a * 2.0;
@@ -720,19 +680,71 @@ export class B3dGalaxy extends B3dChild {
           float tendrils = fbm(uv * 8.0 + seed * 0.5);
           soft *= 0.6 + tendrils * 0.8;
           float alpha = soft * nebulaOpacity * 0.35;
-          gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
+          return vec4(0.0, 0.0, 0.0, alpha);
         }
+      }
+
+      // Premultiplied, so scaling BOTH rgb and alpha is a true fade — for
+      // additive stars and darkening nebulae alike. (A ShaderMaterial is never
+      // handed mesh.visibility, so setVisibility() used to be all-or-nothing.)
+      //
+      // shade() RETURNS its colour: Babylon's WebGL2 rewrite declares the
+      // fragment output just above main(), so a helper cannot assign it.
+      void main() {
+        gl_FragColor = shade() * visibility;
       }
     `;
     }
-    createShaderMaterial(name, scene) {
+    createShaderMaterial(name, scene, clampsStars) {
         const mat = new BABYLON.ShaderMaterial(name, scene, { vertex: 'galaxyStar', fragment: 'galaxyStar' }, {
-            attributes: ['position', 'uv', 'color'],
-            uniforms: ['worldViewProjection'],
+            attributes: ['position', 'uv', 'color', QUAD_SCALE],
+            uniforms: [
+                'worldViewProjection',
+                'eye',
+                'baseSize',
+                'maxApparent',
+                'visibility',
+            ],
             needAlphaBlending: true,
         });
         mat.backFaceCulling = false;
         mat.alphaMode = BABYLON.Constants.ALPHA_PREMULTIPLIED;
+        /*
+        THE VIEWPOINT, PER BIND — not per frame. A bind happens for every camera
+        that draws the mesh (each XR eye, each render target, each cube face), and
+        the scene's view matrix at that moment belongs to whichever camera it is,
+        so this is always the camera actually rendering. Inverting two 4×4s per
+        bind is the entire per-frame cost of the galaxy.
+        */
+        const inverse = new BABYLON.Matrix();
+        const eyeWorld = new BABYLON.Vector3();
+        const eyeLocal = new BABYLON.Vector3();
+        mat.onBindObservable.add((mesh) => {
+            const effect = mat.getEffect();
+            if (effect == null)
+                return;
+            if (this.faceTarget != null) {
+                eyeWorld.copyFrom(this.faceTarget);
+            }
+            else {
+                scene.getViewMatrix().invertToRef(inverse);
+                inverse.getTranslationToRef(eyeWorld);
+            }
+            mesh.getWorldMatrix().invertToRef(inverse);
+            BABYLON.Vector3.TransformCoordinatesToRef(eyeWorld, inverse, eyeLocal);
+            effect.setVector3('eye', eyeLocal);
+            effect.setFloat('baseSize', this.particleSize);
+            /*
+            ⚠️ STARS ONLY, and only from a fixed point. A nebula's size is its actual
+            extent and means something; a star's world size is a stand-in for
+            brightness. (Clamping nebulae once shrank the distant galaxies that had
+            just been enlarged to fill the sky.)
+            */
+            effect.setFloat('maxApparent', clampsStars && this.faceTarget != null
+                ? this.maxStarApparentSize
+                : 0);
+            effect.setFloat('visibility', mesh.visibility);
+        });
         return mat;
     }
     buildGalaxy() {
@@ -749,88 +761,58 @@ export class B3dGalaxy extends B3dChild {
         });
         const { stars, nebulae } = this.galaxyData;
         const radius = attrs.radius;
-        const particleSize = attrs.particleSize;
         const scaleFactor = radius / 0.9;
-        // --- Star SPS (pickable) ---
-        const starSps = new BABYLON.SolidParticleSystem('galaxy-stars', scene, {
-            isPickable: true,
-        });
-        const starPlane = BABYLON.MeshBuilder.CreatePlane('star-template', { size: particleSize }, scene);
+        const toBabylon = (v) => 
+        // generation is z-up; the scene is y-up
+        new BABYLON.Vector3(v.x * scaleFactor, v.z * scaleFactor, v.y * scaleFactor);
+        const rgba = (rgb, a) => new BABYLON.Color4(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, a);
+        /*
+        Stars, then the dim far-out stars, in ONE mesh — generation order, which
+        `hideStarAt`, `filterStars` and the baker all index by. The distant stars
+        are appended rather than given their own mesh because they are points and
+        the star path already draws points; they keep the off-band sky from
+        reading as blank when you stand inside the galaxy.
+        */
         const distantStars = this.galaxyData?.distantStars ?? [];
-        starSps.addShape(starPlane, stars.length + distantStars.length);
-        starPlane.dispose();
-        starSps.billboard = true;
-        const starMesh = starSps.buildMesh();
-        starMesh.parent = this.rootNode;
-        starSps.initParticles = () => {
-            for (let p = 0; p < stars.length; p++) {
-                const particle = starSps.particles[p];
-                const star = stars[p];
-                particle.position.x = star.position.x * scaleFactor;
-                particle.position.y = star.position.z * scaleFactor;
-                particle.position.z = star.position.y * scaleFactor;
-                particle.scale.x = particle.scale.y = particle.scale.z = star.scale;
-                particle.color = new BABYLON.Color4(star.rgb[0] / 255, star.rgb[1] / 255, star.rgb[2] / 255, 1);
-            }
-            /*
-            The dim far-out stars ride the same SPS, appended after the real
-            population — same argument as the distant galaxies in the nebula SPS:
-            the emission path already draws points, and they are points. They keep
-            the off-band sky from reading as blank when you stand inside the
-            galaxy, matching what the baked sky encodes.
-            */
-            for (let i = 0; i < distantStars.length; i++) {
-                const ds = distantStars[i];
-                const particle = starSps.particles[stars.length + i];
-                particle.position.x = ds.position.x * scaleFactor;
-                particle.position.y = ds.position.z * scaleFactor;
-                particle.position.z = ds.position.y * scaleFactor;
-                particle.scale.x = particle.scale.y = particle.scale.z = ds.scale;
-                particle.color = new BABYLON.Color4(ds.rgb[0] / 255, ds.rgb[1] / 255, ds.rgb[2] / 255, 1);
-            }
-        };
-        starMesh.material = this.createShaderMaterial('galaxy-star-mat', scene);
-        starMesh.alwaysSelectAsActiveMesh = true;
-        starSps.initParticles();
-        this.originalColors = stars.map((_s, i) => starSps.particles[i].color.clone());
-        starSps.setParticles();
-        starSps.refreshVisibleSize();
-        this.starSps = starSps;
-        this.starMesh = starMesh;
-        // --- Nebula SPS (not pickable) ---
+        const starPoints = [];
+        for (const star of stars) {
+            starPoints.push({
+                position: toBabylon(star.position),
+                scaling: { x: star.scale },
+                color: rgba(star.rgb, 1),
+            });
+        }
+        for (const ds of distantStars) {
+            starPoints.push({
+                position: toBabylon(ds.position),
+                scaling: { x: ds.scale },
+                color: rgba(ds.rgb, 1),
+            });
+        }
+        const starQuads = buildQuads('galaxy-stars', scene, starPoints);
+        starQuads.mesh.parent = this.rootNode;
+        starQuads.mesh.material = this.createShaderMaterial('galaxy-star-mat', scene, true);
+        this.originalColors = starPoints
+            .slice(0, stars.length)
+            .map((p) => p.color.clone());
+        this.starQuads = starQuads;
+        this.starMesh = starQuads.mesh;
+        // Alpha encodes the kind: > 0.9 star, 0.5..0.9 emission, < 0.5 dark.
         if (nebulae.length > 0) {
-            const nebulaSps = new BABYLON.SolidParticleSystem('galaxy-nebulae', scene, { isPickable: false });
-            const nebPlane = BABYLON.MeshBuilder.CreatePlane('nebula-template', { size: particleSize }, scene);
-            nebulaSps.addShape(nebPlane, nebulae.length);
-            nebPlane.dispose();
-            nebulaSps.billboard = true;
-            const nebMesh = nebulaSps.buildMesh();
-            nebMesh.parent = this.rootNode;
-            nebulaSps.initParticles = () => {
-                for (let n = 0; n < nebulae.length; n++) {
-                    const particle = nebulaSps.particles[n];
-                    const neb = nebulae[n];
-                    particle.position.x = neb.position.x * scaleFactor;
-                    particle.position.y = neb.position.z * scaleFactor;
-                    particle.position.z = neb.position.y * scaleFactor;
-                    particle.scale.x = particle.scale.y = particle.scale.z = neb.scale;
-                    const alpha = neb.type === 'emission'
-                        ? 0.5 + neb.opacity * 0.4
-                        : neb.opacity * 0.45;
-                    particle.color = new BABYLON.Color4(neb.rgb[0] / 255, neb.rgb[1] / 255, neb.rgb[2] / 255, alpha);
-                }
-            };
-            nebMesh.material = this.createShaderMaterial('galaxy-nebula-mat', scene);
-            nebMesh.alwaysSelectAsActiveMesh = true;
-            nebulaSps.initParticles();
-            nebulaSps.setParticles();
-            nebulaSps.refreshVisibleSize();
-            this.nebulaSps = nebulaSps;
-            this.nebulaMesh = nebMesh;
+            const nebulaPoints = nebulae.map((neb) => ({
+                position: toBabylon(neb.position),
+                scaling: { x: neb.scale },
+                color: rgba(neb.rgb, neb.type === 'emission' ? 0.5 + neb.opacity * 0.4 : neb.opacity * 0.45),
+            }));
+            const nebulaQuads = buildQuads('galaxy-nebulae', scene, nebulaPoints);
+            nebulaQuads.mesh.parent = this.rootNode;
+            nebulaQuads.mesh.material = this.createShaderMaterial('galaxy-nebula-mat', scene, false);
+            this.nebulaQuads = nebulaQuads;
+            this.nebulaMesh = nebulaQuads.mesh;
         }
         if (!this.registered) {
             this.registered = true;
-            const meshes = [starMesh];
+            const meshes = [starQuads.mesh];
             if (this.nebulaMesh)
                 meshes.push(this.nebulaMesh);
             this.owner.register({ meshes });
@@ -873,73 +855,151 @@ export class B3dGalaxy extends B3dChild {
     getGalaxyData() {
         return this.galaxyData;
     }
-    /** Get the star SPS for external picking */
+    /**
+     * @deprecated There is no particle system any more — stars are billboarded
+     * in the vertex shader. Use {@link pickStar} to pick. Returns null; removed
+     * in 0.9.
+     */
     getStarSPS() {
-        return this.starSps;
+        if (!warnedStarSps) {
+            warnedStarSps = true;
+            console.warn('b3d-galaxy: getStarSPS() is gone (stars are billboarded in the ' +
+                'vertex shader) — use galaxy.pickStar(x, y) to pick a star.');
+        }
+        return null;
     }
-    /** Get the star SPS mesh for pick comparison */
+    /** The star mesh — hide it, fade it, or compare against it. */
     getStarMesh() {
         return this.starMesh;
     }
     /**
-     * The DISTANT STAR particles, for the skybox baker — the tail of the star
-     * SPS, in the same order `generateGalaxy` made them (see the note in
-     * `galaxy-data`).
+     * Every point in the star mesh — the disc stars in generation order, then
+     * the distant stars — in the mesh's own (Babylon) frame.
+     */
+    getStarPoints() {
+        return this.starQuads?.points ?? [];
+    }
+    /**
+     * The star under a screen point, or `-1`.
+     *
+     * ⚠️ NOT `scene.pick`. The mesh's CPU geometry is every quad collapsed to its
+     * centre — the corners only exist in the vertex shader — so a triangle pick
+     * finds nothing. This casts the pick ray and takes the NEAREST star whose
+     * drawn disc it passes through, with a few pixels of slack so a star a
+     * pixel wide is still clickable (the old quad pick was not that kind).
+     */
+    pickStar(x, y, camera = this.owner?.scene.activeCamera ?? null) {
+        const quads = this.starQuads;
+        const scene = this.owner?.scene;
+        if (quads == null ||
+            scene == null ||
+            camera == null ||
+            this.galaxyData == null)
+            return -1;
+        const world = scene.createPickingRay(x, y, BABYLON.Matrix.Identity(), camera);
+        const inverse = quads.mesh.computeWorldMatrix(true).clone().invert();
+        const ray = BABYLON.Ray.Transform(world, inverse);
+        const dir = ray.direction.normalize();
+        const o = ray.origin;
+        const particleSize = this.particleSize;
+        // Radians per pixel, vertically — the slack is SLACK_PX of these.
+        const height = scene.getEngine().getRenderHeight() || 1;
+        const perPixel = (camera.fov || 0.8) / height;
+        /*
+        A HIT BEATS A NEAR MISS, whatever the depth. Ranking everything inside the
+        slack by distance let a closer star three pixels to the side steal a click
+        aimed dead-centre at another — a third of test clicks did. So: the nearest
+        star whose disc the ray actually crosses (what a triangle pick meant), and
+        only if there is none, the star the ray misses by the smallest ANGLE.
+        */
+        let hit = -1;
+        let hitT = Infinity;
+        let near = -1;
+        let nearAngle = perPixel * SLACK_PX;
+        const n = this.galaxyData.stars.length;
+        for (let i = 0; i < n; i++) {
+            if (quads.hidden[i])
+                continue;
+            const p = quads.points[i].position;
+            const cx = p.x - o.x;
+            const cy = p.y - o.y;
+            const cz = p.z - o.z;
+            const t = cx * dir.x + cy * dir.y + cz * dir.z;
+            if (t <= 0)
+                continue;
+            const ex = cx - dir.x * t;
+            const ey = cy - dir.y * t;
+            const ez = cz - dir.z * t;
+            const miss = Math.sqrt(ex * ex + ey * ey + ez * ez);
+            const r = particleSize * quads.points[i].scaling.x * 0.5;
+            if (miss <= r) {
+                if (t < hitT) {
+                    hit = i;
+                    hitT = t;
+                }
+            }
+            else if (hit < 0) {
+                const angle = (miss - r) / t;
+                if (angle < nearAngle) {
+                    near = i;
+                    nearAngle = angle;
+                }
+            }
+        }
+        return hit >= 0 ? hit : near;
+    }
+    /**
+     * The DISTANT STAR points, for the skybox baker — the tail of the star
+     * mesh, in the same order `generateGalaxy` made them.
      */
     getDistantStarParticles() {
-        if (this.starSps == null || this.galaxyData == null)
+        if (this.starQuads == null || this.galaxyData == null)
             return [];
         const count = this.galaxyData.distantStars.length;
         if (count === 0)
             return [];
-        const particles = this.starSps.particles;
-        return particles.slice(Math.max(0, particles.length - count));
+        const points = this.starQuads.points;
+        return points.slice(Math.max(0, points.length - count));
     }
     /**
-     * The DISTANT GALAXY particles, for the skybox baker.
+     * The DISTANT GALAXY points, for the skybox baker.
      *
-     * They live inside the nebula SPS (appended last, in generation order — see
-     * the note in `galaxy-data`), so the only code that knows which particles
-     * they are without guessing by size or colour is the code next to the build.
-     * That is here: the last `distantGalaxies.length` particles, in the SPS's
+     * They live inside the nebula mesh (appended last, in generation order — see
+     * the note in `galaxy-data`), so the only code that knows which points they
+     * are without guessing by size or colour is the code next to the build.
+     * That is here: the last `distantGalaxies.length` points, in the mesh's
      * own (Babylon) frame — which is the frame a baker photographs in.
      */
     getDistantGalaxyParticles() {
-        if (this.nebulaSps == null || this.galaxyData == null)
+        if (this.nebulaQuads == null || this.galaxyData == null)
             return [];
         const count = this.galaxyData.distantGalaxies.length;
         if (count === 0)
             return [];
-        const particles = this.nebulaSps.particles;
-        return particles.slice(Math.max(0, particles.length - count));
+        const points = this.nebulaQuads.points;
+        return points.slice(Math.max(0, points.length - count));
     }
-    /** Hide a star particle (e.g. to replace it with a star system) */
+    isStarIndex(index) {
+        return (this.galaxyData != null &&
+            this.starQuads != null &&
+            index >= 0 &&
+            index < this.galaxyData.stars.length);
+    }
+    /** Hide a star (e.g. to replace it with a star system) */
     hideStarAt(index) {
-        if (!this.galaxyData ||
-            !this.starSps ||
-            index < 0 ||
-            index >= this.galaxyData.stars.length)
-            return;
-        this.starSps.particles[index].isVisible = false;
+        if (this.isStarIndex(index))
+            this.starQuads.setHidden(index, true);
     }
-    /** Show a previously hidden star particle */
+    /** Show a previously hidden star */
     showStarAt(index) {
-        if (!this.galaxyData ||
-            !this.starSps ||
-            index < 0 ||
-            index >= this.galaxyData.stars.length)
-            return;
-        this.starSps.particles[index].isVisible = true;
+        if (this.isStarIndex(index))
+            this.starQuads.setHidden(index, false);
     }
-    /** Get the world position of a star particle */
+    /** Get the world position of a star */
     getStarPosition(index) {
-        if (!this.starSps ||
-            !this.galaxyData ||
-            index < 0 ||
-            index >= this.galaxyData.stars.length)
+        if (!this.isStarIndex(index))
             return null;
-        const particle = this.starSps.particles[index];
-        const pos = particle.position.clone();
+        const pos = this.starQuads.points[index].position.clone();
         if (this.rootNode) {
             return BABYLON.Vector3.TransformCoordinates(pos, this.rootNode.getWorldMatrix());
         }
@@ -947,14 +1007,14 @@ export class B3dGalaxy extends B3dChild {
     }
     /** Filter stars: dim those that don't match criteria */
     filterStars(options = {}) {
-        if (!this.starSps || !this.galaxyData || !this.originalColors)
+        const quads = this.starQuads;
+        if (!quads || !this.galaxyData || !this.originalColors)
             return;
         const { maxHI = 5, nameSearch = '' } = options;
         const needle = nameSearch.toLowerCase();
         const { stars } = this.galaxyData;
         for (let i = 0; i < stars.length; i++) {
             const orig = this.originalColors[i];
-            const particle = this.starSps.particles[i];
             // bestHI is computed on demand: bulk generation skips planets (see
             // generatePlanets in galaxy-data), so the FIRST HI filter pays for the
             // systems it examines and the result is cached on the star.
@@ -971,13 +1031,11 @@ export class B3dGalaxy extends B3dChild {
             }
             const hiPass = maxHI >= 5 || hi <= maxHI;
             const namePass = !needle || stars[i].name.toLowerCase().includes(needle);
-            if (hiPass && namePass) {
-                particle.color = orig.clone();
-            }
-            else {
-                particle.color = new BABYLON.Color4(orig.r * 0.08, orig.g * 0.08, orig.b * 0.08, orig.a);
-            }
+            quads.setColor(i, hiPass && namePass
+                ? orig.clone()
+                : new BABYLON.Color4(orig.r * 0.08, orig.g * 0.08, orig.b * 0.08, orig.a), false);
         }
+        quads.flushColors();
     }
     /** Set visibility of the entire galaxy (0-1) */
     setVisibility(v) {

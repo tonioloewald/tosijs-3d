@@ -393,7 +393,7 @@ function registerForkedSky() {
         .replace('vPositionW=vec3(worldPos);', 'vPositionW=vec3(worldPos);vSkyLocal=position.xyz;');
     store[`${B3D_SKY}PixelShader`] = src
         .replace('#define CUSTOM_FRAGMENT_DEFINITIONS', 'varying vec3 vSkyLocal;' +
-        'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;' +
+        'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl()))
         // The GRADIENT keeps the WORLD direction — its horizon must stay aligned
@@ -424,12 +424,9 @@ function registerForkedSky() {
         measurements argued for.
         */
         `color.rgb+=b3dDecodeStars(b3dDir);` +
-        // The moon, part of the backdrop: the local antipode — a CONSTANT,
-        // because the dome's rotation is the sun's arc, so the sun's local
-        // direction never moves and neither does its opposite. The disc and
-        // the moonlight are the same direction by definition, and it rides
-        // the dome's rotation with the stars.
-        `{float md=max(0.0,dot(normalize(b3dDir),vec3(0.0,-1.0,0.0)));` +
+        // The moon, part of the backdrop, on the night arc — a CONSTANT in the
+        // dome's frame (tilt⁻¹·up, see updateSky), so it rides with the stars.
+        `{float md=max(0.0,dot(normalize(b3dDir),b3dMoonDir));` +
         `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
@@ -475,6 +472,7 @@ function makeForkedSkyMaterial(scene) {
             'b3dStarInfo',
             'b3dVeil',
             'b3dVeilColor',
+            'b3dMoonDir',
         ],
         samplers: ['b3dStars', 'b3dStarData'],
         // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -488,6 +486,7 @@ function makeForkedSkyMaterial(scene) {
     mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3));
     mat.setFloat('b3dVeil', 0);
     mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1));
+    mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0));
     const num = (name, initial) => {
         let v = initial;
         mat.setFloat(name, v);
@@ -725,6 +724,8 @@ export class B3dSkybox extends AbstractMesh {
     _qTime = new BABYLON.Quaternion();
     _qTotal = new BABYLON.Quaternion();
     _horizonScratch = new BABYLON.Color3();
+    /** The sun's (or moon's) colour this hour — the light takes it when there is one. */
+    _lightColor = new BABYLON.Color3(1, 1, 1);
     _colorCache = new Map();
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor() {
@@ -960,6 +961,8 @@ export class B3dSkybox extends AbstractMesh {
     /** The tilt as a quaternion — the dome's rotation is composed from it. */
     _tiltQuat = null;
     _domeQuat = new BABYLON.Quaternion();
+    /** Where the moon sits in the dome's frame — see updateSky. */
+    _moonLocal = null;
     _nebulaMeshes = [];
     _nebulaMats = [];
     _nebulaBase = [];
@@ -1018,10 +1021,10 @@ export class B3dSkybox extends AbstractMesh {
         /*
         THE AUTHOR'S TILT — parsed once, applied per frame.
     
-        The tilt orients the whole sky — the DOME's rotation carries it (see
-        updateSky), and the sun shares it so the scene lighting agrees with the
-        sky it lights. Two forms of the same rotation: a matrix (for the sun
-        vector) and a quaternion (for the dome).
+        The tilt orients the STARFIELD — the dome's rotation carries it, inside
+        the diurnal turn (see updateSky). It never reaches the sun: noon is
+        latitude and time. Two forms of the same rotation: a quaternion for the
+        dome, and a matrix to place the moon in the dome's frame.
         */
         if (this._starTilt == null) {
             const t = String(attrs.starfieldTilt ?? '0,0,0')
@@ -1029,6 +1032,8 @@ export class B3dSkybox extends AbstractMesh {
                 .map((n) => (parseFloat(n) || 0) * DEG_TO_RAD);
             this._starTilt = BABYLON.Matrix.RotationYawPitchRoll(t[1] ?? 0, t[0] ?? 0, t[2] ?? 0);
             this._tiltQuat = BABYLON.Quaternion.RotationYawPitchRoll(t[1] ?? 0, t[0] ?? 0, t[2] ?? 0);
+            // tilt⁻¹ · (0,1,0): the inverse of a rotation is its transpose.
+            this._moonLocal = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(0, 1, 0), this._starTilt.clone().transpose());
         }
         /*
         THE DATA CUBE, loaded alongside the raster one rather than instead of it.
@@ -1269,7 +1274,15 @@ export class B3dSkybox extends AbstractMesh {
         const t = (((attrs.timeOfDay + 30) % 12) / 12) * 1.04 - 0.52;
         const timeAngle = t * Math.PI;
         // Latitude tilts the sun's arc away from vertical; time rotates it east-west.
-        BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_X, latitude, this._qLat);
+        /*
+        NEGATIVE, because north is +Z (headings are atan2(x, z) everywhere) and
+        east is +X. Rotating +Y about +X by a POSITIVE angle leans it toward +Z,
+        which put the noon sun in the NORTH at latitude 40 — a southern-hemisphere
+        sky. Tonio: "it seems like the sun/moon path has flipped". With the sign
+        right the sun rises east (+X), crosses the SOUTH at noon, sets west, and a
+        negative latitude gives the southern sky honestly.
+        */
+        BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_X, -latitude, this._qLat);
         BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_Z, timeAngle, this._qTime);
         this._qLat.multiplyToRef(this._qTime, this._qTotal);
         const isDay = attrs.timeOfDay > 6 && attrs.timeOfDay < 18;
@@ -1281,18 +1294,20 @@ export class B3dSkybox extends AbstractMesh {
             : 0;
         sunVector.rotateByQuaternionToRef(this._qTotal, sunVector);
         /*
-        THE SUN SHARES THE SKY'S FRAME. `starfieldTilt` reorients the baked sky,
-        and if the sun and moon keep their UNTILTED arc they wheel against the
-        stars at exactly the tilt's angles — the moon races the galaxy over an
-        evening. Tonio's model: the moon is the sun's antipode, so it is a FIXED
-        point of the starfield — stationary against the background. That is only
-        true if every part of the sky shares one orientation. Apply the tilt
-        AFTER the diurnal rotation, the same order the shader applies it to the
-        star cubes (`dir' = tilt · (qTotal · dir)`).
+        THE TILT IS NOT THE SUN'S. `starfieldTilt` orients the galaxy behind the
+        atmosphere — it says where the band lies among the stars, not where noon
+        is. Tonio: "Starfield tilt should not affect noon. It only changes the
+        base starfield behind the atmosphere." The sun's arc is latitude and time,
+        nothing else.
+    
+        This used to tilt the sun too, AFTER the diurnal turn — so with the demos'
+        12,25,58 the noon sun sat ~15° up. The reason was sound and still holds:
+        the moon is the sun's antipode, so it must be a FIXED point of the
+        starfield. That only needs the stars and the sun to turn TOGETHER, which
+        they do if the tilt is applied in the CELESTIAL frame, before the diurnal
+        turn (`dir' = qTotal · (tilt · dir)`, see the dome below). Then everything
+        wheels as one, and the tilt never reaches the sun.
         */
-        if (this._starTilt != null) {
-            BABYLON.Vector3.TransformNormalToRef(sunVector, this._starTilt, sunVector);
-        }
         /*
         VACUUM IS NOT A SKY COLOUR — IT IS THE ABSENCE OF SCATTERING.
     
@@ -1438,20 +1453,40 @@ export class B3dSkybox extends AbstractMesh {
         THE DOME ORIENTS THE WHOLE SKY. Tonio: "The sky itself is little more
         than a gradient with a glowing sun and moon stuck on top of them. It's
         just math. The cubemap of the starfield is the complicated bit that you
-        want to avoid messing with." Exactly — so the dome's rotation (tilt
-        composed with the diurnal turn) carries EVERYTHING in its local frame:
-        the gradient, the sun and moon glows, and the cubemaps (sampled at the
-        plain local direction). Nothing can diverge because there is nothing
-        left to diverge — one rotation, one frame.
+        want to avoid messing with." Exactly — so the dome's rotation (the
+        diurnal turn, with the tilt inside it) carries the BACKDROP in its local
+        frame: the cubemaps (sampled at the plain local direction) and the moon.
+        The gradient and the sun disc read the world sun, which is the same
+        diurnal turn without the tilt — so the backdrop and the sun still wheel as
+        one, and the stars cannot drift against the moon.
         */
         if (this.mesh != null && this._tiltQuat != null) {
-            this._tiltQuat.multiplyToRef(this._qTotal, this._domeQuat);
+            // `a.multiply(b)` applies b FIRST (measured) — so this is the tilt in
+            // the celestial frame, then the diurnal turn.
+            this._qTotal.multiplyToRef(this._tiltQuat, this._domeQuat);
             this.mesh.rotationQuaternion = this._domeQuat;
-            // The moon rides the same fade as the stars — night shows it, day
-            // hides it, and its direction is the local sun's antipode (see the
-            // shader), which is the moonlight direction by definition.
+            /*
+            THE MOON RIDES THE NIGHT ARC. The clock wraps every twelve hours, so at
+            night the "sun" vector is the day arc replayed — 23:00 sits where 11:00
+            did, which is (about) the real sun's antipode: where a full moon is. It
+            is also the direction the night branch lights the scene FROM, so the
+            disc drawn there and the moonlight falling from there agree.
+      
+            In the dome's frame that vector is tilt⁻¹·up — a constant, so the moon
+            never moves against the stars. (Drawing it at the vector's own antipode,
+            as this did briefly, put it below the horizon all night once the tilt
+            stopped reaching the sun.)
+            */
+            if (this._moonLocal != null) {
+                ;
+                material.setVector3?.('b3dMoonDir', this._moonLocal);
+            }
+            // NIGHT ONLY: by day that same vector IS the sun, and a moon fading in
+            // on the setting sun is the one place it must not be.
             const sm = material;
-            sm.setFloat?.('b3dMoon', attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25)));
+            sm.setFloat?.('b3dMoon', isDay
+                ? 0
+                : attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25)));
         }
         if (this._starfieldMesh != null) {
             if (!this._glowExcluded && this.owner?.scene != null) {
@@ -1531,6 +1566,53 @@ export class B3dSkybox extends AbstractMesh {
                 star.z = cam.globalPosition.z + sunVector.z * d;
             }
         }
+        /*
+        THE DOME FOLLOWS THE CLOCK, SUN OR NO SUN.
+    
+        These writes used to sit inside the sun-element branch below, so a skybox
+        with no `<tosi-b3d-sun>` kept `SkyMaterial`'s stock DAYLIGHT whatever the
+        hour — while the backdrop's exposure, computed from `timeOfDay` above,
+        correctly said night. The result was a night-strength starfield showing
+        through a sunlit blue sky (the beacon demo at 21:00, nineteen demos
+        carry a skybox without a sun). The gradient, the scattering and the sun
+        disc are the SKY's business; only the LIGHT needs a light.
+    
+        The GRADIENT lives in the world frame (its horizon is the planet's), so it
+        sees the WORLD sun — whose elevation drives the day/night colours and the
+        sun disc. The backdrop (stars, moon) samples the dome-local direction.
+        */
+        material.sunPosition = sunVector;
+        const intensity = dayBrightness;
+        const lightColor = this._lightColor;
+        if (isDay) {
+            // THE GOLDEN HOUR — two stops. The bulk of the ramp blends the amber
+            // dusk colour toward the sun; the last stretch before the horizon
+            // crossing pushes through a pink-red, then back to amber as the sun
+            // clears it. This colour feeds everything lit by the sun — the deck's
+            // fringe reads the scene light's colour, and the fog (syncSkybox)
+            // tracks the horizon colour derived from it — so the cloudtops, the fog
+            // and the light itself all turn together.
+            BABYLON.Color3.LerpToRef(this.hex(attrs.duskColor), this.hex(attrs.sunColor), intensity, lightColor);
+            const sunset = Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12);
+            BABYLON.Color3.LerpToRef(lightColor, this.hex(attrs.duskColor).scale(0.65), sunset * 0.55, lightColor);
+            material.rayleigh = attrs.rayleigh * airSky;
+            material.turbidity = attrs.turbidity * airSky;
+            material.mieCoefficient = attrs.mieCoefficient;
+            // Horizon: blend light color with sky blue, then brighten toward white
+            // at high sun — written in place into _horizonColor via a scratch.
+            BABYLON.Color3.LerpToRef(lightColor, SKY_BLUE, 0.6, this._horizonScratch);
+            BABYLON.Color3.LerpToRef(this._horizonScratch, HORIZON_WHITE, intensity * 0.4, this._horizonColor);
+        }
+        else {
+            lightColor.copyFrom(this.hex(attrs.moonColor));
+            material.rayleigh = attrs.rayleigh * 0.05 * airSky;
+            material.turbidity = attrs.turbidity * 0.05 * airSky;
+            // The sun's disc must SET — the local sun is fixed, so night kills the
+            // mie term that draws it.
+            material.mieCoefficient = attrs.mieCoefficient * 0.05;
+            // Night horizon: dark desaturated blue
+            this._horizonColor.copyFrom(NIGHT_HORIZON);
+        }
         if (this.owner != null) {
             if (this.sunEl == null) {
                 this.sunEl = this.owner.querySelector('tosi-b3d-sun');
@@ -1547,47 +1629,12 @@ export class B3dSkybox extends AbstractMesh {
                 // underwater dimFactor so the two stay in agreement.
                 sunEl.externallyLit = true;
                 const dim = sunEl.dimFactor ?? 1;
-                // The GRADIENT lives in the world frame (its horizon is the
-                // planet's), so it sees the WORLD sun — whose elevation drives the
-                // day/night colours and the sun disc. The backdrop (stars, moon)
-                // samples the dome-local direction instead.
-                material.sunPosition = sunVector;
                 sunVector.normalizeToRef(this._dir);
                 light.direction.x = -this._dir.x;
                 light.direction.y = -this._dir.y;
                 light.direction.z = -this._dir.z;
-                const intensity = dayBrightness;
-                if (isDay) {
-                    // THE GOLDEN HOUR — two stops. The bulk of the ramp blends the
-                    // amber dusk colour toward the sun; the last stretch before the
-                    // horizon crossing pushes through a pink-red, then back to amber
-                    // as the sun clears it. light.diffuse feeds everything lit by the
-                    // sun — the deck's fringe reads the scene light's colour, and the
-                    // fog (syncSkybox) tracks the horizon colour derived from it — so
-                    // the cloudtops, the fog and the light itself all turn together.
-                    BABYLON.Color3.LerpToRef(this.hex(attrs.duskColor), this.hex(attrs.sunColor), intensity, light.diffuse);
-                    const sunset = Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12);
-                    BABYLON.Color3.LerpToRef(light.diffuse, this.hex(attrs.duskColor).scale(0.65), sunset * 0.55, light.diffuse);
-                    light.intensity = intensity * dim;
-                    material.rayleigh = attrs.rayleigh * airSky;
-                    material.turbidity = attrs.turbidity * airSky;
-                    material.mieCoefficient = attrs.mieCoefficient;
-                    // Horizon: blend light color with sky blue, then brighten toward white
-                    // at high sun — written in place into _horizonColor via a scratch.
-                    BABYLON.Color3.LerpToRef(light.diffuse, SKY_BLUE, 0.6, this._horizonScratch);
-                    BABYLON.Color3.LerpToRef(this._horizonScratch, HORIZON_WHITE, intensity * 0.4, this._horizonColor);
-                }
-                else {
-                    light.diffuse.copyFrom(this.hex(attrs.moonColor));
-                    light.intensity = attrs.moonIntensity * dim;
-                    material.rayleigh = attrs.rayleigh * 0.05 * airSky;
-                    material.turbidity = attrs.turbidity * 0.05 * airSky;
-                    // The sun's disc must SET — the local sun is fixed, so night
-                    // kills the mie term that draws it.
-                    material.mieCoefficient = attrs.mieCoefficient * 0.05;
-                    // Night horizon: dark desaturated blue
-                    this._horizonColor.copyFrom(NIGHT_HORIZON);
-                }
+                light.diffuse.copyFrom(lightColor);
+                light.intensity = (isDay ? intensity : attrs.moonIntensity) * dim;
             }
         }
     }

@@ -14,6 +14,9 @@ export declare class B3dTerrain extends B3dChild {
         biome: "on" | "off";
         biomeSeaLevel: number;
         biomeLapseRate: number;
+        biomeTemperature: number;
+        biomeMoisture: number;
+        biomeVolcanicScale: number;
         normalSmoothing: number;
         seed: number;
         surfaceType: string;
@@ -136,6 +139,13 @@ export declare class B3dTerrain extends B3dChild {
      * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
      * after changing attributes or profiles.
      */
+    /**
+     * Changes whenever the terrain's SHAPE does (a `regenerate()`, or an
+     * attribute that re-cuts the tiles). Compare it to know when anything you
+     * derived from {@link heightSampler} has gone stale — the cloud deck's
+     * orographic field does exactly this.
+     */
+    get generationKey(): string;
     heightSampler(): (x: number, z: number) => number;
     private makeHeightFn;
     /** Metres the hole's rim folds down into a patch opening (see the collar
@@ -292,6 +302,7 @@ export declare class B3dTerrain extends B3dChild {
     render(): void;
     private _syncedSeaLevel;
     private _syncedLapseRate;
+    private _syncedClimate;
     private _syncBiome;
     /** Material tweaks that must never cost a regeneration. */
     private _syncMaterial;

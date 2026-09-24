@@ -14,9 +14,10 @@ export interface CloudFieldOptions {
     /** Amplitude ratio between octaves. */
     persistence?: number;
     /**
-     * `0` rounded cumulus, `1` long wispy cirrus. Two changes at once, because
+     * `0` rounded cumulus, `±1` long wispy cirrus. Two changes at once, because
      * that is what distinguishes the two clouds — see "Cirrus is a shape, not a
-     * texture" below.
+     * texture" below. The SIGN is the axis: positive streaks along `u` (the
+     * wind heading), negative along `v` (across it).
      */
     cirrus?: number;
 }

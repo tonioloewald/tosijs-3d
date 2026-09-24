@@ -284,6 +284,9 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `detailAmplitude` | `3` | Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail |
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
+| `biomeTemperature` | `-1` (auto 0.72) | Sea-level temperature, `0…1` cold → warm. LIVE |
+| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
+| `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
 | `normalSmoothing` | `0.6` | Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag |
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
@@ -407,6 +410,12 @@ export class B3dTerrain extends B3dChild {
         // highest ground lands near the temperature you want up there —
         // 0.5 / amplitude gives temperate valleys and cold summits.
         biomeLapseRate: 0,
+        // Climate and volcanic plate size, LIVE like the two above. -1 = the
+        // plugin's own default (0.72 / 0.45 / 0.09), because 0 is a real value
+        // for all three (a frozen world, the dead row, and no plates at all).
+        biomeTemperature: -1,
+        biomeMoisture: -1,
+        biomeVolcanicScale: -1,
         // 0..1: normals see a tent-filtered height (positions stay crisp) — cliff
         // faces shade smoothly instead of zigzag-banding. 0 restores pre-0.7 look.
         normalSmoothing: 0.6,
@@ -551,6 +560,15 @@ export class B3dTerrain extends B3dChild {
      * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
      * after changing attributes or profiles.
      */
+    /**
+     * Changes whenever the terrain's SHAPE does (a `regenerate()`, or an
+     * attribute that re-cuts the tiles). Compare it to know when anything you
+     * derived from {@link heightSampler} has gone stale — the cloud deck's
+     * orographic field does exactly this.
+     */
+    get generationKey() {
+        return this._genKey;
+    }
     heightSampler() {
         const fn = this.makeHeightFn();
         const offX = this.originOffsetX;
@@ -1694,6 +1712,7 @@ export class B3dTerrain extends B3dChild {
     */
     _syncedSeaLevel = NaN;
     _syncedLapseRate = NaN;
+    _syncedClimate = '';
     _syncBiome() {
         const a = this;
         if (this.material == null)
@@ -1721,6 +1740,23 @@ export class B3dTerrain extends B3dChild {
             this._syncedLapseRate = lapse;
             // 0 is the documented AUTO — the plugin's own default, not a zero.
             this.biomePlugin.params.lapseRate = lapse > 0 ? lapse : 0.004;
+        }
+        // Same memo rule: the attribute wins only when it CHANGES, so a panel
+        // writing params directly is not stomped every frame. Negative = leave
+        // the plugin's own value alone.
+        const t = Number(a.biomeTemperature);
+        const m = Number(a.biomeMoisture);
+        const v = Number(a.biomeVolcanicScale);
+        const climate = `${t}|${m}|${v}`;
+        if (climate !== this._syncedClimate) {
+            this._syncedClimate = climate;
+            const p = this.biomePlugin.params;
+            if (t >= 0)
+                p.baseTemperature = Math.min(1, t);
+            if (m >= 0)
+                p.mapMoisture = Math.min(1, m);
+            if (v >= 0)
+                p.volcanicScale = v;
         }
     }
     /** Material tweaks that must never cost a regeneration. */
