@@ -20,7 +20,7 @@ needed it.
 | | raster | data |
 | --- | --- | --- |
 | VRAM | 96 MiB (2048 cube) | 25 MiB (256 smooth + 1024 data) |
-| on disk | 2.3 MB | 0.4 MB |
+| on disk | 2.3 MB | about a quarter of that (moves with every rebake) |
 | sharpness | fixed pixels — blurs as you zoom | **resolution-independent** |
 
 The third row is the one that matters. A raster star is a smear of pixels baked

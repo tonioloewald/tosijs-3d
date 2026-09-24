@@ -53,19 +53,26 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       and the kitchen sink (world-sim) is where a gas giant hangs in the sky.
 
 - [ ] **0.8.2 GATE FOLLOW-UPS** (from `reviews/0.8.2-pre-tag-gate.md` — filed,
-      none blocking): - `src/mersenne-twister.test.ts` + `galaxy-data.test.ts` — the 72x
-      generator and the shipped sky it baked rest on untested code; pin
-      golden values + determinism. - The galaxy's per-frame billboard pass: `distantStars` ride the
-      billboarded SPS (~0.32 ms at 3k, ~5.6 ms at 50k); state the cost,
-      move to a non-billboarded SPS, or gate `setParticles()` on camera
-      change. - The sky's on-disk figure drifted twice (measured 564 KB; four places
-      say 0.4 MB / 406 KB / 344 KB) — pin it or keep only the ratio. - `static/sky/default_*.png` — 2.4 MB of dead raster, referenced only
-      by a prose comment; move out of `static/`. - `git rm -r undefined/` (a path assembled from a missing value) and
-      make the writer throw. - TODO.md's `png.ts` line still says "CompressionStream" — the code
-      and CHANGELOG say fflate; fix the note before someone follows it. - CLAUDE.md's "~1s" suite figure is ~5x stale; have the test script
-      print the real line. - `skybox-baker` (the shipped sky's provenance) has no behavioural
-      test — the pure siblings do. - Bundle-size row: extend to fflate + the 2.9 MB of new assets. - world-sim's sun shadow path is known-dead (activeDistance 30 vs a
-      12 km ground) — list it on the page or fix it.
+      none blocking). Open:
+
+  - The galaxy's per-frame billboard pass: `distantStars` ride the
+    billboarded SPS (~0.32 ms at 3k, ~5.6 ms at 50k); state the cost, move
+    to a non-billboarded SPS, or gate `setParticles()` on camera change.
+  - `skybox-baker` (the shipped sky's provenance) has no behavioural test —
+    the pure siblings do.
+  - Bundle-size row: extend to fflate + the 2.9 MB of new assets.
+
+  Done: `mersenne-twister.test.ts` (MT19937 + mulberry32 reference values)
+  and `galaxy-data.test.ts` (the shipped sky's `generateGalaxy(1234, 10000)`
+  pinned by digest); sky size figures now state only the ratio (the disk
+  figure moves with every rebake); the 2.4 MB reference raster moved to
+  `reference/sky/`; `undefined/dude-texture.png` removed — its writer is not
+  in the repo (presumably an ad-hoc script from the crowd-bake commit), so there is
+  nothing to make throw; the `png.ts` note and CLAUDE.md's suite timing
+  fixed. The "world-sim sun shadow is dead" item was misattributed:
+  world-sim sets `activeDistance: 80`; the `activeDistance` 30 / 12 km
+  observation is the cloud-deck DEMO, whose only mesh is a flat ground —
+  there is nothing to cast, so no sun shadow is expected there.
 
 - [ ] **GALAXY ARCHITECTURE — the main disc should hold only the bright end.**
       Tonio's long-running idea, now written down: the galaxy MAIN does not
@@ -882,7 +889,8 @@ corrected an assumption:
   and many more scrambled (positions snapped to 0/255) before any compression
   question arose. It shipped that way once and looked fine, because a starfield
   with 20% of its stars silently moved is still a starfield. `png.ts` now
-  writes the bytes directly (zlib via `CompressionStream`, filter 0) and the
+  writes the bytes directly (zlib via `fflate` — Chrome rejects its own
+  `CompressionStream` output — filter 0) and the
   test round-trips through real inflate; the bake is verified byte-identical
   through WebGL readback.
 - **The distant galaxies left the size cut.** They overlap local nebulae in

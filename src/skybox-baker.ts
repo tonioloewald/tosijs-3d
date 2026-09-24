@@ -207,12 +207,14 @@ export interface SkyboxBakeOptions {
    * A face covers 90°, so it is stretched across a large part of a wide
    * viewport — 512 reads as soft the moment the sky fills the screen.
    *
-   * ⚠️ **The shipped sky is no longer one of these.** `/sky/default` is a 2048
-   * raster and is kept for reference, but what the demos load is the PAIR that
-   * {@link bakeSkyPair} produces: a 256 smooth cube for the nebulae and a
-   * 1024 DATA cube for the points. 406 KB and 25 MiB, against 2.3 MB and 96 —
-   * and the stars stay points at any zoom instead of being a smear baked at
-   * one resolution.
+   * ⚠️ **The shipped sky is no longer one of these.** `reference/sky/default`
+   * is a 2048 raster kept for comparison (out of `static/`, so nothing serves
+   * it), but what the demos load is the PAIR that {@link bakeSkyPair}
+   * produces: a 256 smooth cube for the nebulae and a 1024 DATA cube for the
+   * points. About a quarter of the raster's disk and 25 MiB of VRAM against
+   * its 96 (the disk figure moves with every rebake, so only the ratio is
+   * written down) — and the stars stay points at any zoom instead of being a
+   * smear baked at one resolution.
    *
    * Reach for a big raster only when what you are baking is genuinely
    * low-frequency everywhere. The moment it contains points, encode the points.

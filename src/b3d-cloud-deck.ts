@@ -79,7 +79,8 @@ preview.append(
     // THE PAIR, not one raster. Nebulae are low-frequency and live in a 256
     // cube; stars and distant galaxies are POINTS and live in a data cube that
     // the shader decodes — so they stay points at any zoom instead of being a
-    // smear baked at one resolution. 344 KB and 25 MiB against 2.3 MB and 96.
+    // smear baked at one resolution. A quarter of the raster's disk, 25 MiB of
+    // VRAM against its 96.
     b3dSkybox({
       timeOfDay: sky.timeOfDay,
       realtimeScale: 0,
