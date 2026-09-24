@@ -45,14 +45,13 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
 - [ ] **0.8.2 GATE FOLLOW-UPS** (from `reviews/0.8.2-pre-tag-gate.md` — filed,
       none blocking). Open:
 
-  - The galaxy's per-frame billboard pass: `distantStars` ride the
-    billboarded SPS (~0.32 ms at 3k, ~5.6 ms at 50k); state the cost, move
-    to a non-billboarded SPS, or gate `setParticles()` on camera change.
   - `skybox-baker` (the shipped sky's provenance) has no behavioural test —
     the pure siblings do.
   - Bundle-size row: extend to fflate + the 2.9 MB of new assets.
 
-  Done: `mersenne-twister.test.ts` (MT19937 + mulberry32 reference values)
+  Done: the galaxy's per-frame billboard pass is GONE — billboarding moved
+  into the vertex shader (3.19 → ~0.02 ms CPU per render; see CHANGELOG).
+  `mersenne-twister.test.ts` (MT19937 + mulberry32 reference values)
   and `galaxy-data.test.ts` (the shipped sky's `generateGalaxy(1234, 10000)`
   pinned by digest); sky size figures now state only the ratio (the disk
   figure moves with every rebake); the 2.4 MB reference raster moved to

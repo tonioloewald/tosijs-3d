@@ -6,6 +6,38 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Changed
+
+- **`b3d-galaxy` billboards in the vertex shader.** Stars and nebulae are
+  static quads the shader turns to face the viewpoint; the per-frame
+  `setParticles()` that rewrote every vertex whether or not anything moved is
+  gone. Measured on the baker's 10k-star galaxy: **3.19 ms → ~0.02 ms of CPU
+  per render**, and it no longer scales with star count. A sky baked through
+  it is byte-identical in the data cube and differs by 1/255 in 3 of 393,216
+  smooth-cube pixels (GPU float32 vs CPU float64 at a triangle edge).
+  Quads now face the camera's POSITION rather than its view plane, the rule
+  the cube bake already used — one mechanism where there were two that could
+  stack.
+- **`setVisibility()` fades.** A `ShaderMaterial` is never handed
+  `mesh.visibility`, so it used to be all-or-nothing.
+
+### Added
+
+- **`galaxy.pickStar(x, y)`** — the star under a screen point, or `-1`. The
+  nearest star whose DRAWN disc the ray crosses (the old triangle pick also
+  hit a quad's invisible corners), else the nearest within 3 px, so a
+  one-pixel star is clickable.
+- `getStarPoints()` — every point in the star mesh, for bakers.
+
+### Deprecated
+
+- **`getStarSPS()`** returns `null` and warns once — there is no particle
+  system. Use `pickStar`. `getDistantStarParticles()` /
+  `getDistantGalaxyParticles()` now return `GalaxyPoint`s (the
+  `position`/`scaling`/`color` subset of a `SolidParticle` the baker read).
+
 ## 0.8.2
 
 ### Added

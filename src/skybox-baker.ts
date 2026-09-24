@@ -187,6 +187,13 @@ import {
 } from './starfield-codec.js'
 import { pngEncode } from './png.js'
 
+/** A point the baker reads — what `b3d-galaxy`'s point accessors return. */
+export interface SkyPoint {
+  position: { x: number; y: number; z: number }
+  scaling?: { x: number }
+  color?: { r: number; g: number; b: number } | null
+}
+
 /** One baked cube face: a PNG data URL plus the suffix Babylon expects. */
 export interface BakedFace {
   /** `px` | `nx` | `py` | `ny` | `pz` | `nz` — the `CubeTexture` file suffix. */
@@ -353,9 +360,9 @@ export function facesToZip(
  */
 export function starsFromGalaxy(
   galaxy: {
-    starSps?: { particles: BABYLON.SolidParticle[] } | null
-    getDistantGalaxyParticles?: () => BABYLON.SolidParticle[] | null
-    getDistantStarParticles?: () => BABYLON.SolidParticle[] | null
+    getStarPoints?: () => SkyPoint[] | null
+    getDistantGalaxyParticles?: () => SkyPoint[] | null
+    getDistantStarParticles?: () => SkyPoint[] | null
     getGalaxyData?: () => {
       stars: Array<{ spectralType: string; scale: number }>
     } | null
@@ -364,7 +371,7 @@ export function starsFromGalaxy(
   options: { galaxyMaxScale?: number } = {}
 ): SkyObject[] {
   const out: SkyObject[] = []
-  const stars = galaxy.starSps?.particles ?? []
+  const stars = galaxy.getStarPoints?.() ?? []
   const starData = galaxy.getGalaxyData?.()?.stars ?? []
   let maxScale = 0
   for (const s of starData) maxScale = Math.max(maxScale, s.scale || 0)
@@ -483,10 +490,8 @@ export async function facesToPngs(
  */
 export async function bakeSkyPair(
   scene: BABYLON.Scene,
-  galaxy: {
-    starMesh?: BABYLON.AbstractMesh | null
-    starSps?: { particles: BABYLON.SolidParticle[] } | null
-    nebulaSps?: { particles: BABYLON.SolidParticle[] } | null
+  galaxy: Parameters<typeof starsFromGalaxy>[0] & {
+    getStarMesh?: () => BABYLON.AbstractMesh | null
   },
   options: SkyboxBakeOptions & { dataSize?: number; smoothSize?: number }
 ): Promise<{
@@ -500,7 +505,7 @@ export async function bakeSkyPair(
   rendering them into the nebula cube as well would double every one of them,
   and the smeared copy is the thing this whole exercise exists to delete.
   */
-  const mesh = galaxy.starMesh ?? null
+  const mesh = galaxy.getStarMesh?.() ?? null
   const wasVisible = mesh?.isVisible ?? false
   if (mesh != null) mesh.isVisible = false
   let smooth: BakedFace[]
@@ -615,17 +620,18 @@ export async function bakeSkyboxCube(
   cam.maxZ = options.maxZ ?? 5000
 
   /*
-  AIM THE BILLBOARDS AT THE CAMERA — inside the baker, so it cannot be skipped.
+  PIN THE VIEWPOINT — inside the baker, so it cannot be skipped.
 
-  `facePoint` existed for exactly this and NOTHING CALLED IT: the demo's bake
-  button went straight to this function, so every capture ran with the particle
-  systems still billboarding per face. Tonio, from the result: "I think you're
-  pointing the stars at the galactic origin. That makes the coreward render look
-  pretty good but it's terrible for the others" — which is the signature, since
-  a face centred on the core has its billboards nearly right and everything
-  further off-axis progressively worse.
+  `b3d-galaxy` billboards in its vertex shader toward the rendering camera's
+  POSITION, which the six faces share, so the seams agree on their own.
+  `facePoint` still matters: it fixes that viewpoint for the whole capture and
+  switches on the apparent-size clamp, which only means something from one
+  known point.
 
-  A guard that lives in the documentation is not a guard. It belongs here.
+  (It once existed and NOTHING CALLED IT, back when billboarding was per-face
+  on the CPU — Tonio, from the result: "I think you're pointing the stars at
+  the galactic origin." A guard that lives in the documentation is not a guard.
+  It belongs here.)
   */
   const subjects =
     options.subjects ??
@@ -645,18 +651,13 @@ export async function bakeSkyboxCube(
       /*
       RENDER NORMALLY FIRST, so anything camera-dependent settles.
 
-      ⚠️ AND IF THE SUBJECT BILLBOARDS, POINT IT AT THE CAMERA POSITION FIRST —
-      see `B3dGalaxy.facePoint`. Billboards align to the camera's VIEW PLANE,
-      which differs per face, so left alone every particle re-orients between
-      captures and the faces disagree at their seams.
-
-      A `SolidParticleSystem` re-orients its quads toward `scene.activeCamera`
-      from a beforeRender observer — which the screenshot's own render target
-      does not run. So the first face came out correct and the other five were
-      photographed with every star still edge-on to the PREVIOUS direction,
-      which reads as radial streaking rather than as an orientation bug.
-
-      One throwaway frame per face is cheap and it is the whole fix.
+      The screenshot's own render target does not run the scene's beforeRender
+      observers, so anything that updates from one — CPU billboards, as a
+      `SolidParticleSystem` does — would otherwise be photographed still facing
+      the PREVIOUS face (the galaxy did exactly that, as radial streaking,
+      before it moved its billboarding into the vertex shader). One throwaway
+      frame per face is cheap, and keeps the baker honest for subjects that
+      are not the galaxy.
       */
       scene.render()
       const url = await BABYLON.Tools.CreateScreenshotUsingRenderTargetAsync(
