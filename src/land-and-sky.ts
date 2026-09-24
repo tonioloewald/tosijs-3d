@@ -34,7 +34,7 @@ const { demo } = tosi({
     moisture: 0.72,
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
-    volcanicScale: 0.025,
+    volcanicScale: 0.02,
     wireframe: false,
   },
 })

@@ -300,24 +300,26 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     transition from the surrounding terrain to lava seems a bit sudden (we'd
     want to go through say basalt first)". So the tail is two terms: a quick
     cooling (0.35 over 0.12R) and a basalt plateau at 0.15 that holds, then
-    fades between 0.3R and 0.65R past the rim. At the rim they sum to the
-    wall's 0.5, so the join is continuous.
+    fades between 0.35R and 0.75R past the rim. At the rim they sum to the
+    wall's 0.5, so the join is continuous. SLOW on purpose — Tonio, after the
+    first pass: "have it transition through basalt more slowly": the seams
+    cool over 0.3R (it was 0.12R), and the apron fades over 0.4R.
     */
     const past = d - craterRadius
-    const cooling = smooth(1 - past / (radius * 0.12))
-    const apron = smooth(1 - clamp01((past - radius * 0.3) / (radius * 0.35)))
+    const cooling = smooth(1 - past / (radius * 0.3))
+    const apron = smooth(1 - clamp01((past - radius * 0.35) / (radius * 0.4)))
     return glow * (0.35 * cooling + 0.15 * apron)
   }
   return {
     landform: withExtent(landform, circleExtent(cx, cz, radius)),
-    // The basalt apron reaches `craterRadius + radius * 0.65`, NOT `radius`.
-    // With the default crater (0.22 R) that is 0.87 R — inside the cone — but
+    // The basalt apron reaches `craterRadius + radius * 0.75`, NOT `radius`.
+    // With the default crater (0.22 R) that is 0.97 R — inside the cone — but
     // `craterRadius` is an option, and a wide caldera pushes the apron past
     // the edifice. Derived rather than assumed, so it stays right when
     // someone authors a crater that is most of the mountain.
     province: withExtent(
       province,
-      circleExtent(cx, cz, craterRadius + radius * 0.65)
+      circleExtent(cx, cz, craterRadius + radius * 0.75)
     ),
   }
 }
