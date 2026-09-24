@@ -417,7 +417,7 @@ function registerForkedSky(): boolean {
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
       'varying vec3 vSkyLocal;' +
-        'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;' +
+        'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
@@ -450,12 +450,11 @@ function registerForkedSky(): boolean {
         measurements argued for.
         */
         `color.rgb+=b3dDecodeStars(b3dDir);` +
-        // The moon, part of the backdrop: the local antipode — a CONSTANT,
-        // because the dome's rotation is the sun's arc, so the sun's local
-        // direction never moves and neither does its opposite. The disc and
-        // the moonlight are the same direction by definition, and it rides
-        // the dome's rotation with the stars.
-        `{float md=max(0.0,dot(normalize(b3dDir),vec3(0.0,-1.0,0.0)));` +
+        // The moon, part of the backdrop: the sun's local antipode — a
+        // CONSTANT, because the dome's rotation carries the sun's arc, so the
+        // sun's local direction never moves and neither does its opposite.
+        // (Not simply -Y: the tilt sits inside the dome, so it is tilt⁻¹·-Y.)
+        `{float md=max(0.0,dot(normalize(b3dDir),b3dMoonDir));` +
         `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
@@ -507,6 +506,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dStarInfo',
         'b3dVeil',
         'b3dVeilColor',
+        'b3dMoonDir',
       ],
       samplers: ['b3dStars', 'b3dStarData'],
       // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -521,6 +521,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
   mat.setFloat('b3dVeil', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
+  mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, -1, 0))
   const num = (name: string, initial: number) => {
     let v = initial
     mat.setFloat(name, v)
@@ -1025,6 +1026,8 @@ export class B3dSkybox extends AbstractMesh {
   /** The tilt as a quaternion — the dome's rotation is composed from it. */
   private _tiltQuat: BABYLON.Quaternion | null = null
   private _domeQuat = new BABYLON.Quaternion()
+  /** Where the moon sits in the dome's frame — see updateSky. */
+  private _moonLocal: BABYLON.Vector3 | null = null
   private _nebulaMeshes: BABYLON.Mesh[] = []
   private _nebulaMats: BABYLON.StandardMaterial[] = []
   private _nebulaBase: BABYLON.Color3[] = []
@@ -1083,10 +1086,10 @@ export class B3dSkybox extends AbstractMesh {
     /*
     THE AUTHOR'S TILT — parsed once, applied per frame.
 
-    The tilt orients the whole sky — the DOME's rotation carries it (see
-    updateSky), and the sun shares it so the scene lighting agrees with the
-    sky it lights. Two forms of the same rotation: a matrix (for the sun
-    vector) and a quaternion (for the dome).
+    The tilt orients the STARFIELD — the dome's rotation carries it, inside
+    the diurnal turn (see updateSky). It never reaches the sun: noon is
+    latitude and time. Two forms of the same rotation: a quaternion for the
+    dome, and a matrix to place the moon in the dome's frame.
     */
     if (this._starTilt == null) {
       const t = String(attrs.starfieldTilt ?? '0,0,0')
@@ -1101,6 +1104,11 @@ export class B3dSkybox extends AbstractMesh {
         t[1] ?? 0,
         t[0] ?? 0,
         t[2] ?? 0
+      )
+      // tilt⁻¹ · (0,-1,0): the inverse of a rotation is its transpose.
+      this._moonLocal = BABYLON.Vector3.TransformNormal(
+        new BABYLON.Vector3(0, -1, 0),
+        this._starTilt.clone().transpose()
       )
     }
     /*
@@ -1362,18 +1370,20 @@ export class B3dSkybox extends AbstractMesh {
       : 0
     sunVector.rotateByQuaternionToRef(this._qTotal, sunVector)
     /*
-    THE SUN SHARES THE SKY'S FRAME. `starfieldTilt` reorients the baked sky,
-    and if the sun and moon keep their UNTILTED arc they wheel against the
-    stars at exactly the tilt's angles — the moon races the galaxy over an
-    evening. Tonio's model: the moon is the sun's antipode, so it is a FIXED
-    point of the starfield — stationary against the background. That is only
-    true if every part of the sky shares one orientation. Apply the tilt
-    AFTER the diurnal rotation, the same order the shader applies it to the
-    star cubes (`dir' = tilt · (qTotal · dir)`).
+    THE TILT IS NOT THE SUN'S. `starfieldTilt` orients the galaxy behind the
+    atmosphere — it says where the band lies among the stars, not where noon
+    is. Tonio: "Starfield tilt should not affect noon. It only changes the
+    base starfield behind the atmosphere." The sun's arc is latitude and time,
+    nothing else.
+
+    This used to tilt the sun too, AFTER the diurnal turn — so with the demos'
+    12,25,58 the noon sun sat ~15° up. The reason was sound and still holds:
+    the moon is the sun's antipode, so it must be a FIXED point of the
+    starfield. That only needs the stars and the sun to turn TOGETHER, which
+    they do if the tilt is applied in the CELESTIAL frame, before the diurnal
+    turn (`dir' = qTotal · (tilt · dir)`, see the dome below). Then everything
+    wheels as one, and the tilt never reaches the sun.
     */
-    if (this._starTilt != null) {
-      BABYLON.Vector3.TransformNormalToRef(sunVector, this._starTilt, sunVector)
-    }
 
     /*
     VACUUM IS NOT A SKY COLOUR — IT IS THE ABSENCE OF SCATTERING.
@@ -1527,15 +1537,29 @@ export class B3dSkybox extends AbstractMesh {
     THE DOME ORIENTS THE WHOLE SKY. Tonio: "The sky itself is little more
     than a gradient with a glowing sun and moon stuck on top of them. It's
     just math. The cubemap of the starfield is the complicated bit that you
-    want to avoid messing with." Exactly — so the dome's rotation (tilt
-    composed with the diurnal turn) carries EVERYTHING in its local frame:
-    the gradient, the sun and moon glows, and the cubemaps (sampled at the
-    plain local direction). Nothing can diverge because there is nothing
-    left to diverge — one rotation, one frame.
+    want to avoid messing with." Exactly — so the dome's rotation (the
+    diurnal turn, with the tilt inside it) carries the BACKDROP in its local
+    frame: the cubemaps (sampled at the plain local direction) and the moon.
+    The gradient and the sun disc read the world sun, which is the same
+    diurnal turn without the tilt — so the backdrop and the sun still wheel as
+    one, and the stars cannot drift against the moon.
     */
     if (this.mesh != null && this._tiltQuat != null) {
-      this._tiltQuat.multiplyToRef(this._qTotal, this._domeQuat)
+      // `a.multiply(b)` applies b FIRST (measured) — so this is the tilt in
+      // the celestial frame, then the diurnal turn.
+      this._qTotal.multiplyToRef(this._tiltQuat, this._domeQuat)
       this.mesh.rotationQuaternion = this._domeQuat
+      /*
+      The moon is the sun's antipode IN THE DOME'S FRAME: the sun is
+      qTotal·up in the world, so its local direction is tilt⁻¹·up — a
+      constant, so the moon never moves against the stars.
+      */
+      if (this._moonLocal != null) {
+        ;(material as unknown as BABYLON.ShaderMaterial).setVector3?.(
+          'b3dMoonDir',
+          this._moonLocal
+        )
+      }
       // The moon rides the same fade as the stars — night shows it, day
       // hides it, and its direction is the local sun's antipode (see the
       // shader), which is the moonlight direction by definition.

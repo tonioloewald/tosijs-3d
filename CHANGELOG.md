@@ -48,6 +48,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   showing through a sunlit sky. Nineteen demos carry a skybox without a sun;
   the beacon demo (21:00) showed it. Only the light's writes need a light now.
 
+- **`starfieldTilt` no longer moves the sun.** It orients the galaxy
+  behind the atmosphere; noon is latitude and time. The tilt used to be
+  applied to the sun too (after the diurnal turn), so with the demos'
+  `12,25,58` the noon sun sat ~15° up instead of 50°. The tilt now sits in
+  the celestial frame, inside the diurnal turn — sun, moon and stars still
+  wheel as one and the moon stays the sun's exact antipode (measured: dot
+  −1). **Visible:** the same tilt value places the galactic band
+  differently at a given hour, so night framings tuned by eye may want
+  retuning.
+
 ### Added (sky)
 
 - **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
