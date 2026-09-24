@@ -22,16 +22,6 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       `"order"` metadata. The trio now runs clouds (501) → deck (502) →
       fog (503).
 
-- [ ] **`select3d` should open a POPUP above ~6 options, and stay a cycler
-      below.** The last open item of ensemble's #37: `‹ value ›` is right for three
-      options and unusable for twenty-four (choosing a mesh from a library is
-      twenty-three taps). The blocker they named is already gone — a widget gets a
-      `WidgetHost` via `setHost`, so it can `showPopup`/`openMenu3d` from inside a
-      `panel3d`, which is what `button3d({menu})` and the table's button column
-      use. Only `select3d` never adopted it. Same `handleChange`, no call-site
-      change; the threshold is the only judgement call, and ensemble has the dense
-      property panel to check it against.
-
 - [ ] **PLANET CLOUDS — cloud-deck-like rendering in the planetary atmosphere
       shader.** `b3d-planet` renders a bare atmosphere today; the cloud DECK
       (field texture + tiled shader + coverage-driven depth) is the proven

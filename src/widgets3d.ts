@@ -263,7 +263,7 @@ settings into `select3d` cyclers to get discrete values.
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
 | `toggle3d` | `label` / `value` | | |
-| `select3d` | `options` | | cycles; a popup select is coming (#37 item 4) |
+| `select3d` | `options` | | opens a list (downward chevron); steps only with no host |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
 | `list3d` | `items` / `onSelect` | | items may carry `icon` and `disabled` |
