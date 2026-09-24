@@ -76,6 +76,26 @@ versions may carry breaking peer-dependency changes — each is called out in a
   fair-weather sky with cloud sitting on the mountains.
 - **world-sim starts facing east toward the horizon**, not 30° into the
   ground.
+- **Cloud deck: the silver lining pointed the wrong way.** `sunDir` is the
+  light's travel direction, and the forward-scatter term read it unnegated,
+  so fringes blazed with the sun BEHIND the viewer and the clouds in front
+  of a sunset were the darkest in the sky.
+- **Cloud deck: fair-weather cloud is white from below.** The underside lift
+  peaked at 42% toward white on a clear day; it is now ~90% up to coverage
+  0.5, easing onto the storm curve by full cover (it follows the dial, so an
+  orographic cap does not turn fair weather into a slab). Below 0.5 the whole
+  cloud gains a forward-scatter glow in the sun's HUE — golden at golden
+  hour — rather than its full dimming. An explicit `transmission` keeps its
+  authority.
+- **world-sim's defaults** are Tonio's: gross 0.01, h 3.31, v 230, sea 0.64,
+  volcano ON (now applied at startup too), cover 0.10, base 280, cirrus 0.25,
+  18:30, eye 205.
+
+### Changed (clouds)
+
+- **`cirrus` is signed, `-1…1`.** The magnitude is how wispy; the sign is
+  the axis — positive streaks ALONG the wind heading (as before, bit for
+  bit), negative ACROSS it.
 
 ### Added (sky)
 

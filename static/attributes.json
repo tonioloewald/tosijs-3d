@@ -851,7 +851,7 @@
       {
         "name": "cirrus",
         "default": "0",
-        "description": "Rounded heaps `0` → long wispy streaks `1`. Rebakes the field"
+        "description": "Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field"
       },
       {
         "name": "wind",

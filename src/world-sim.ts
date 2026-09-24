@@ -16,16 +16,16 @@ import { tosi } from 'tosijs'
 const { demo } = tosi({
   demo: {
     seed: 111,
-    grossScale: 0.015,
+    grossScale: 0.01,
     detailScale: 0.09,
-    horizScale: 8,
-    grossAmplitude: 250,
+    horizScale: 3.31,
+    grossAmplitude: 230,
     detailAmplitude: 45,
     // Sea level as a FRACTION of v-size, so the ocean scales with the
     // mountains — the same world at any amplitude keeps the same share of
     // land and sea.
-    seaLevel: 0.32,
-    volcano: false,
+    seaLevel: 0.64,
+    volcano: true,
     wireframe: false,
   },
 })
@@ -35,8 +35,17 @@ const { demo } = tosi({
 // cirrus thins it, orographic asks the terrain for its own height sampler so
 // the towers build over the mountains that are actually there.
 const { sky } = tosi({
-  sky: { coverage: 0.55, altitude: 700, timeOfDay: 10, orographic: 0.8, wind: 10, cirrus: 0.3, evolve: 0.5, eye: 220 },
+  sky: { coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205 },
 })
+
+// The volcano is authored ONCE and switched in and out. Applied here as well
+// as from the toggle because it is ON by default, and the toggle's handler only
+// runs when someone flips it.
+const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+function applyVolcano(on) {
+  terrain.landform = on ? theVolcano.landform : null
+  terrain.provinceField = on ? theVolcano.province : null
+}
 
 let water
 const terrain = b3dTerrain({
@@ -65,6 +74,8 @@ const terrain = b3dTerrain({
   biomeLapseRate: 0.5 / demo.grossAmplitude,
 })
 
+applyVolcano(demo.volcano.valueOf())
+
 const scene = b3d(
   {
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
@@ -85,9 +96,7 @@ const scene = b3d(
         label: 'volcano province',
         value: demo.volcano,
         handleChange: (on) => {
-          const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
-          terrain.landform = on ? v.landform : null
-          terrain.provinceField = on ? v.province : null
+          applyVolcano(on)
           terrain.regenerate()
         },
       }),
@@ -96,7 +105,8 @@ const scene = b3d(
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
-      slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
+      // Signed: positive streaks ALONG the wind, negative ACROSS it.
+      slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
       label3d({ text: 'Camera' }),

@@ -224,7 +224,7 @@ b3d-cloud-deck
   subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
   coverage  = 0.5  — Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow
   thickenDepth  = 900  — MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`
-  cirrus  = 0  — Rounded heaps `0` → long wispy streaks `1`. Rebakes the field
+  cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
   wind  = 8  — Metres per second the deck drifts. Nothing rebakes
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
