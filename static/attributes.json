@@ -3020,7 +3020,7 @@
       {
         "name": "azimuth",
         "default": "0",
-        "description": "Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours"
+        "description": "**Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86)"
       },
       {
         "name": "latitude",

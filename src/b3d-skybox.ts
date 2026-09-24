@@ -73,6 +73,27 @@ const scene = b3d(
 preview.append(scene)
 ```
 
+### Pin the shipped sky in a document
+
+`/sky/stars` + `/sky/nebula` are **latest**: what the demos load, and a rebake
+changes them. A document that should keep the sky it was authored against
+points at a **versioned** pair instead, which is never rewritten:
+
+```javascript
+b3dSkybox({
+  starfieldCube: 'https://3d.tosijs.net/sky/0.8.4/nebula',
+  starfieldData: 'https://3d.tosijs.net/sky/0.8.4/stars',
+  starfieldDataSize: 1024, // from the manifest — it must match the data
+  starfieldTilt: '12,25,58',
+})
+```
+
+Each version folder carries a `manifest.json` with the decode parameters
+(`starfieldDataSize`, `starfieldTilt`) and the recipe it was baked from, so a
+consumer can read them from beside the data rather than hard-coding them.
+Versions so far: `0.8.3` (the `generateGalaxy` sky) and `0.8.4` (the voxel
+galaxy — far more stars). tosijs-3d#90.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -80,7 +101,7 @@ preview.append(scene)
 | `timeOfDay` | `6.5` | 0-24 hours |
 | `realtimeScale` | `10` | Realtime speed multiplier |
 | `latitude` | `40` | Geographic latitude in DEGREES (affects the sun's arc) |
-| `azimuth` | `0` | Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours |
+| `azimuth` | `0` | **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86) |
 | `luminance` | `1` | Sky brightness |
 | `turbidity` | `10` | Atmospheric haze |
 | `rayleigh` | `2` | Rayleigh scattering |
@@ -703,10 +724,9 @@ export class B3dSkybox extends AbstractMesh {
      */
     starDistance: 0,
     luminance: 1,
-    // ⚠️ Babylon's SkyMaterial azimuth is a 0–1 FRACTION of a turn, not an
-    // angle. Passed through unchanged rather than converted, because a
-    // half-translated third-party unit is worse than an honest foreign one —
-    // but it is called out in the attribute table so nobody types 90 here.
+    // IGNORED (tosijs-3d#86). Our sky material defines `azimuth` as a no-op —
+    // the sun is placed by latitude and time — so this is accepted for old
+    // markup and does nothing. Not offered in skyboxSchema().
     azimuth: 0,
     latitude: 40,
     realtimeScale: 10,

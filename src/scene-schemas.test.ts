@@ -46,6 +46,7 @@ const SOURCES: Array<[keyof typeof sceneSchemas, string, string]> = [
   ['ground', './b3d-primitives', 'B3dGround'],
   ['terrain', './b3d-terrain', 'B3dTerrain'],
   ['reflections', './b3d-reflections', 'B3dReflections'],
+  ['cloudDeck', './b3d-cloud-deck', 'B3dCloudDeck'],
 ]
 
 const attrsOf = async (mod: string, cls: string) => {
@@ -106,6 +107,50 @@ describe.each(SOURCES)('%s schema matches the component', (key, mod, cls) => {
 })
 
 describe('the shape a generated panel relies on', () => {
+  test('units are spelled x-unit, never bare unit (tosijs-3d#85)', () => {
+    // 0.8.3 shipped three fields saying `unit`, which a consumer reading
+    // `x-unit` silently showed without one.
+    for (const make of Object.values(sceneSchemas)) {
+      for (const [k, spec] of Object.entries<any>((make() as any).properties))
+        expect([k, 'unit' in spec]).toEqual([k, false])
+    }
+  })
+
+  test('every fetched string says so (tosijs-3d#91)', () => {
+    // A consumer applying an https rule needs to know which strings are
+    // fetched without a hand-kept list. These are the ones today; a new URL
+    // field without `format` fails the next test instead of passing silently.
+    const fetched: Record<string, string[]> = {
+      skybox: ['nebulaTexture', 'starfieldCube', 'starfieldData'],
+      water: ['normalMap'],
+      clouds: ['model'],
+      ground: ['texture'],
+    }
+    for (const [key, names] of Object.entries(fetched)) {
+      const props = (sceneSchemas as any)[key]().properties
+      for (const n of names)
+        expect([key, n, props[n].format]).toEqual([key, n, 'uri-reference'])
+    }
+    expect(
+      (sceneSchemas.ground() as any).properties.texture['x-keywords']
+    ).toEqual(['checker', 'noise'])
+  })
+
+  test('no plain string field is left unclassified', () => {
+    // Every string is a colour, an enum, a URL — or on this short list of
+    // strings that are none of those. A new plain string has to be put in
+    // one of the four, which is the point.
+    const plain = new Set(['skybox.starfieldTilt', 'ground.meshName'])
+    for (const [key, make] of Object.entries(sceneSchemas)) {
+      for (const [k, spec] of Object.entries<any>((make() as any).properties)) {
+        if (spec.type !== 'string' || spec.format || spec.enum) continue
+        expect(plain.has(`${key}.${k}`) ? 'listed' : `${key}.${k}`).toBe(
+          'listed'
+        )
+      }
+    }
+  })
+
   test('no x-widget anywhere — these render as ordinary controls', () => {
     // A widget token says "hand the whole value to a custom editor". Correct
     // for a light program; here it would point at an editor that does not

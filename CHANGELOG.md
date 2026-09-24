@@ -10,6 +10,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **`spaceStart`, `spaceFull` and `starDistance` said `unit` where every other
+  schema field says `x-unit`** (tosijs-3d#85). A test now rejects a bare `unit`.
+- **`azimuth` is out of `skyboxSchema()`** (tosijs-3d#86). It has been a no-op
+  since the sky material fork (the sun is placed by `latitude` and
+  `timeOfDay`), and the schema offered it as a 0–360° slider while the docs
+  called it a 0–1 fraction. Still accepted in markup; documented as ignored.
 - **A cloud deck forgot its local weather on a re-parent.** Its bake memo
   survived `sceneDispose`, so the fresh mesh stayed unbaked — orographic cloud
   gone — until some input moved. A deck moved into another `<tosi-b3d>` also
@@ -46,6 +52,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
   whole sky rather than only along the band. The band itself is a little
   broader. `bun bin/bake-stars.ts` with no flags reproduces it byte-for-byte;
   the smooth `nebula_*` half is unchanged.
+- **The shipped sky has pinned, versioned URLs** (tosijs-3d#90):
+  `/sky/0.8.3/…` (the previous sky) and `/sky/0.8.4/…` (this one), each with a
+  `manifest.json` holding the decode parameters and the recipe.
+  `/sky/stars` stays "latest" for the demos; a document should pin a version.
+  `shipped-sky.test.ts` fails if latest drifts from the newest version.
+- **`cloudDeckSchema()`** in `sceneSchemas` (tosijs-3d#87) — the deck was the
+  one scene primitive a schema-driven consumer had to describe by hand.
+- **Fetched strings are marked in the scene schemas** (tosijs-3d#91):
+  `format: 'uri-reference'` on `starfieldData`, `starfieldCube`,
+  `nebulaTexture`, `water.normalMap`, `clouds.model` and `ground.texture`
+  (which also lists its keywords in `x-keywords`). A test fails on any new
+  plain string that is not a colour, enum, URL or deliberately listed.
 - **`bun run sizes`** — the barrel as a consumer bundles it, and the shipped
   `dist/*.js`, against a committed `dist-sizes.json` (0.8.3: 263.1 KB gz).
 

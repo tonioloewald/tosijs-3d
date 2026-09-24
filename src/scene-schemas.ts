@@ -76,6 +76,23 @@ const bool = (def: boolean): Record<string, unknown> => ({
   default: def,
 })
 
+/**
+ * A string that is FETCHED — a URL (relative or absolute), or a base a
+ * consumer's loader appends to. `format: 'uri-reference'` is standard JSON
+ * Schema, so a validator can check every fetched field generically, including
+ * ones a later version adds (tosijs-3d#91). Empty means "none".
+ *
+ * Where the field also takes KEYWORDS (`ground.texture: 'checker'`), they are
+ * listed in `x-keywords`: a keyword is not a URL, and a consumer applying an
+ * https rule must let those through.
+ */
+const url = (keywords?: string[]): Record<string, unknown> => ({
+  type: 'string',
+  default: '',
+  format: 'uri-reference',
+  ...(keywords ? { 'x-keywords': keywords } : {}),
+})
+
 const choice = (def: string, values: string[]): Record<string, unknown> => ({
   type: 'string',
   default: def,
@@ -126,7 +143,6 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
         'x-zero-stop': true,
       }),
       latitude: num(40, { minimum: -90, maximum: 90, ...DEG }),
-      azimuth: num(0, { minimum: 0, maximum: 360, ...DEG }),
       turbidity: num(10, { minimum: 1, maximum: 40 }),
       luminance: num(1, { minimum: 0, maximum: 2 }),
       rayleigh: num(2, { minimum: 0, maximum: 4 }),
@@ -135,24 +151,24 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       // `spaceFull <= spaceStart`, which is why both default to 0 — there is no
       // honest default altitude (the Kármán line is 100 km and no demo climbs
       // it), so the scene that wants the effect states its own dramatic scale.
-      spaceStart: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
-      spaceFull: num(0, { minimum: 0, maximum: 200000, unit: 'm' }),
+      spaceStart: num(0, { minimum: 0, maximum: 200000, ...M }),
+      spaceFull: num(0, { minimum: 0, maximum: 200000, ...M }),
       starfield: num(0, { minimum: 0, maximum: 20000 }),
       nebulae: num(0, { minimum: 0, maximum: 200 }),
       nebulaBrightness: num(1, { minimum: 0, maximum: 3 }),
       nebulaSize: num(0.045, { minimum: 0.02, maximum: 1 }),
       spaceColor: color('#05070f'),
-      nebulaTexture: { type: 'string', default: '' },
-      starfieldCube: { type: 'string', default: '' },
+      nebulaTexture: url(),
+      starfieldCube: url(),
       // A DATA cube, not a picture — see starfield-codec. The three numbers
       // below describe how to decode it and must match what encoded it.
-      starfieldData: { type: 'string', default: '' },
+      starfieldData: url(),
       starfieldDataSize: num(1024, { minimum: 8, maximum: 4096 }),
       starfieldSharpness: num(3, { minimum: 0.1, maximum: 8 }),
       starfieldSizeScale: num(3, { minimum: 1, maximum: 12 }),
       starfieldTilt: { type: 'string', default: '0,0,0' },
       starfieldSeed: num(12345, { minimum: 0, maximum: 999999 }),
-      starDistance: num(0, { minimum: 0, maximum: 100000, unit: 'm' }),
+      starDistance: num(0, { minimum: 0, maximum: 100000, ...M }),
       mieCoefficient: num(0.005, { minimum: 0, maximum: 0.05 }),
       mieDirectionalG: num(0.8, { minimum: 0, maximum: 1 }),
       sunColor: color('#eeeeff'),
@@ -233,7 +249,7 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       waterSize: num(128, { minimum: 1, maximum: 10000, ...M }),
       subdivisions: num(32, { minimum: 1, maximum: 256 }),
       textureSize: num(1024, { minimum: 64, maximum: 4096 }),
-      normalMap: { type: 'string', default: '' },
+      normalMap: url(),
       twoSided: bool(false),
       spherical: bool(false),
       follow: bool(false),
@@ -285,7 +301,7 @@ export function cloudsSchema(extra: Record<string, unknown> = {}) {
       windZ: num(1.5, { minimum: -100, maximum: 100 }),
       wind: choice('scene', ['scene', 'own']),
       seed: num(1, { minimum: 0 }),
-      model: { type: 'string', default: '' },
+      model: url(),
     },
     extra
   )
@@ -362,9 +378,12 @@ export function hemisphericLightSchema(extra: Record<string, unknown> = {}) {
  * schema appears HERE — a forgotten attribute fails, a declined one does not.
  */
 export const SCENE_OMITTED: Record<string, string[]> = {
-  // The sky is centred on the viewer; a position for it is meaningless, and a
-  // rotation is `azimuth`.
-  skybox: ['x', 'y', 'z', 'rx', 'ry', 'rz', 'axes'],
+  // The sky is centred on the viewer; a position for it is meaningless.
+  // `azimuth` is DEAD (tosijs-3d#86): the sky material defines it as a no-op,
+  // because the sun is placed by `latitude` and `timeOfDay`. Offering it would
+  // be a slider that does nothing — which is exactly what shipped for two
+  // releases, with the wrong unit besides.
+  skybox: ['x', 'y', 'z', 'rx', 'ry', 'rz', 'axes', 'azimuth'],
   // A directional light has a DIRECTION (x/y/z, exposed above) and no place,
   // so there is nothing here to decline.
   sun: [],
@@ -384,6 +403,9 @@ export const SCENE_OMITTED: Record<string, string[]> = {
   ground: ['axes'],
   terrain: [],
   reflections: [],
+  // The deck places itself by `altitude` and follows the camera; it has no
+  // transform to decline.
+  cloudDeck: [],
 }
 
 /** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
@@ -396,7 +418,7 @@ export function groundSchema(extra: Record<string, unknown> = {}) {
       // 0 is "not square — use width and height", not "zero-sized".
       size: num(0, { minimum: 0, maximum: 10000, ...M, 'x-scale': 'log' }),
       color: color('#888888'),
-      texture: { type: 'string', default: '' },
+      texture: url(['checker', 'noise']),
       textureTiles: num(8, { minimum: 1, maximum: 200, 'x-scale': 'log' }),
       x: num(0, { ...M }),
       y: num(0, { ...M }),
@@ -603,6 +625,91 @@ export function reflectionsSchema(extra: Record<string, unknown> = {}) {
   )
 }
 
+/**
+ * `b3d-cloud-deck` — the tiled cloud deck: one coverage dial, cirrus, wind,
+ * orographic cloud and the shared cloud shadow (tosijs-3d#87).
+ *
+ * The ranges are the ones the element's own docs state; where they state none
+ * (altitude, wind, the depths) they are generous working bounds, not limits
+ * the element enforces.
+ */
+export function cloudDeckSchema(extra: Record<string, unknown> = {}) {
+  const unit = { minimum: 0, maximum: 1 }
+  return schema(
+    'Cloud deck',
+    {
+      altitude: num(140, { minimum: 0, maximum: 12000, ...M }),
+      size: num(14000, {
+        minimum: 500,
+        maximum: 100000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      subdivisions: num(64, { minimum: 1, maximum: 256 }),
+      // Clear 0 → solid 1 → THICKENING, up to 2.
+      coverage: num(0.5, { minimum: 0, maximum: 2 }),
+      thickenDepth: num(900, { minimum: 0, maximum: 5000, ...M }),
+      seed: num(1337, { minimum: 0 }),
+      frequency: num(3, { minimum: 1, maximum: 16 }),
+      // Rounded heaps 0 → streaks ALONG the wind at +1, ACROSS it at -1.
+      cirrus: num(0, { minimum: -1, maximum: 1 }),
+      wind: num(8, { minimum: 0, maximum: 60, 'x-unit': 'm/s' }),
+      windHeadingDeg: num(0, { minimum: 0, maximum: 360, ...DEG }),
+      evolve: num(0.5, unit),
+      follow: choice('on', ['on', 'off']),
+      localRise: num(1200, { minimum: 0, maximum: 5000, ...M }),
+      localCoverage: num(1, { minimum: 0, maximum: 2 }),
+      // Needs a terrain in the scene.
+      orographic: num(0, unit),
+      orographicPeak: num(260, { minimum: 1, maximum: 5000, ...M }),
+      shadows: choice('on', ['on', 'off']),
+      // 0 is AUTO — resolved against the device tier.
+      shadowResolution: num(0, {
+        minimum: 0,
+        maximum: 2048,
+        'x-scale': 'log2',
+        'x-snap': 1,
+      }),
+      shadowRange: num(6000, {
+        minimum: 500,
+        maximum: 50000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      ambientGloomBelow: num(0.7, unit),
+      ambientGloom: num(0.45, unit),
+      sunGloomBelow: num(0.25, unit),
+      sunGloom: num(0.65, unit),
+      shadowStrength: num(0.75, unit),
+      // -1 is AUTO — derived from coverage.
+      transmission: num(-1, { minimum: -1, maximum: 1 }),
+      thickness: num(180, { minimum: 0, maximum: 2000, ...M }),
+      haze: num(0.6, unit),
+      octaves: num(6, { minimum: 1, maximum: 10 }),
+      fieldSize: num(1024, {
+        minimum: 16,
+        maximum: 4096,
+        'x-scale': 'log2',
+      }),
+      period: num(1800, {
+        minimum: 100,
+        maximum: 20000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      edgeFade: num(0.45, unit),
+      color: color('#ffffff'),
+      underColor: color('#3a4350'),
+      // ADDED to the lit edges, so it can exceed 1.
+      fringe: num(0.9, { minimum: 0, maximum: 3 }),
+      bump: num(34, { minimum: 0, maximum: 100 }),
+      underBump: num(0.85, unit),
+      shade: num(0.22, unit),
+    },
+    extra
+  )
+}
+
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export const sceneSchemas = {
   skybox: skyboxSchema,
@@ -615,4 +722,5 @@ export const sceneSchemas = {
   ground: groundSchema,
   terrain: terrainSchema,
   reflections: reflectionsSchema,
+  cloudDeck: cloudDeckSchema,
 } as const

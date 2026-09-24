@@ -293,6 +293,7 @@ export {
   cloudsSchema,
   ambientSchema,
   hemisphericLightSchema,
+  cloudDeckSchema,
   sceneSchemas,
   SCENE_OMITTED,
 } from './scene-schemas.js'

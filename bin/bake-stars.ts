@@ -16,6 +16,12 @@
  * Exists for the tuning loop (GALAXY-DESIGN.md step 2): run it, reload a demo
  * that loads /sky/stars (Land and Sky, the cloud deck), look, adjust. When a
  * setting is right it belongs in SHIPPED_SKY.
+ *
+ * ⚠️ SHIPPING a rebake also means a new PINNED copy: `static/sky/<version>/`
+ * with the twelve faces and a `manifest.json` (copy the previous one, update
+ * the recipe). `/sky/stars` is "latest"; documents pin a version, and one that
+ * is rewritten in place is no pin at all (tosijs-3d#90). `shipped-sky.test.ts`
+ * fails until latest matches the newest version folder.
  */
 import path from 'path'
 import { writeFileSync, mkdirSync } from 'fs'

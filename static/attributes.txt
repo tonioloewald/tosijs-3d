@@ -796,7 +796,7 @@ b3d-skybox
   starfieldSeed  = 12345  — Seed for the starfield — same seed, same constellations
   starDistance  = 0  — Park a `<tosi-b3d-star>` child this far along the sun vector. `0` = leave it alone
   luminance  = 1  — Sky brightness
-  azimuth  = 0  — Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours
+  azimuth  = 0  — **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86)
   latitude  = 40  — Geographic latitude in DEGREES (affects the sun's arc)
   realtimeScale  = 10  — Realtime speed multiplier
   updateFrequencyMs
