@@ -763,6 +763,8 @@ export class B3dSkybox extends AbstractMesh {
   private _qTime = new BABYLON.Quaternion()
   private _qTotal = new BABYLON.Quaternion()
   private _horizonScratch = new BABYLON.Color3()
+  /** The sun's (or moon's) colour this hour — the light takes it when there is one. */
+  private _lightColor = new BABYLON.Color3(1, 1, 1)
   private _colorCache = new Map<string, BABYLON.Color3>()
 
   /** Approximate horizon color based on current time of day / atmosphere. */
@@ -1628,6 +1630,71 @@ export class B3dSkybox extends AbstractMesh {
       }
     }
 
+    /*
+    THE DOME FOLLOWS THE CLOCK, SUN OR NO SUN.
+
+    These writes used to sit inside the sun-element branch below, so a skybox
+    with no `<tosi-b3d-sun>` kept `SkyMaterial`'s stock DAYLIGHT whatever the
+    hour — while the backdrop's exposure, computed from `timeOfDay` above,
+    correctly said night. The result was a night-strength starfield showing
+    through a sunlit blue sky (the beacon demo at 21:00, nineteen demos
+    carry a skybox without a sun). The gradient, the scattering and the sun
+    disc are the SKY's business; only the LIGHT needs a light.
+
+    The GRADIENT lives in the world frame (its horizon is the planet's), so it
+    sees the WORLD sun — whose elevation drives the day/night colours and the
+    sun disc. The backdrop (stars, moon) samples the dome-local direction.
+    */
+    material.sunPosition = sunVector
+    const intensity = dayBrightness
+    const lightColor = this._lightColor
+    if (isDay) {
+      // THE GOLDEN HOUR — two stops. The bulk of the ramp blends the amber
+      // dusk colour toward the sun; the last stretch before the horizon
+      // crossing pushes through a pink-red, then back to amber as the sun
+      // clears it. This colour feeds everything lit by the sun — the deck's
+      // fringe reads the scene light's colour, and the fog (syncSkybox)
+      // tracks the horizon colour derived from it — so the cloudtops, the fog
+      // and the light itself all turn together.
+      BABYLON.Color3.LerpToRef(
+        this.hex(attrs.duskColor),
+        this.hex(attrs.sunColor),
+        intensity,
+        lightColor
+      )
+      const sunset =
+        Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12)
+      BABYLON.Color3.LerpToRef(
+        lightColor,
+        this.hex(attrs.duskColor).scale(0.65),
+        sunset * 0.55,
+        lightColor
+      )
+      material.rayleigh = attrs.rayleigh * airSky
+      material.turbidity = attrs.turbidity * airSky
+      material.mieCoefficient = attrs.mieCoefficient
+
+      // Horizon: blend light color with sky blue, then brighten toward white
+      // at high sun — written in place into _horizonColor via a scratch.
+      BABYLON.Color3.LerpToRef(lightColor, SKY_BLUE, 0.6, this._horizonScratch)
+      BABYLON.Color3.LerpToRef(
+        this._horizonScratch,
+        HORIZON_WHITE,
+        intensity * 0.4,
+        this._horizonColor
+      )
+    } else {
+      lightColor.copyFrom(this.hex(attrs.moonColor))
+      material.rayleigh = attrs.rayleigh * 0.05 * airSky
+      material.turbidity = attrs.turbidity * 0.05 * airSky
+      // The sun's disc must SET — the local sun is fixed, so night kills the
+      // mie term that draws it.
+      material.mieCoefficient = attrs.mieCoefficient * 0.05
+
+      // Night horizon: dark desaturated blue
+      this._horizonColor.copyFrom(NIGHT_HORIZON)
+    }
+
     if (this.owner != null) {
       if (this.sunEl == null) {
         this.sunEl = this.owner.querySelector(
@@ -1646,69 +1713,12 @@ export class B3dSkybox extends AbstractMesh {
         // underwater dimFactor so the two stay in agreement.
         sunEl.externallyLit = true
         const dim = sunEl.dimFactor ?? 1
-        // The GRADIENT lives in the world frame (its horizon is the
-        // planet's), so it sees the WORLD sun — whose elevation drives the
-        // day/night colours and the sun disc. The backdrop (stars, moon)
-        // samples the dome-local direction instead.
-        material.sunPosition = sunVector
         sunVector.normalizeToRef(this._dir)
         light.direction.x = -this._dir.x
         light.direction.y = -this._dir.y
         light.direction.z = -this._dir.z
-        const intensity = dayBrightness
-        if (isDay) {
-          // THE GOLDEN HOUR — two stops. The bulk of the ramp blends the
-          // amber dusk colour toward the sun; the last stretch before the
-          // horizon crossing pushes through a pink-red, then back to amber
-          // as the sun clears it. light.diffuse feeds everything lit by the
-          // sun — the deck's fringe reads the scene light's colour, and the
-          // fog (syncSkybox) tracks the horizon colour derived from it — so
-          // the cloudtops, the fog and the light itself all turn together.
-          BABYLON.Color3.LerpToRef(
-            this.hex(attrs.duskColor),
-            this.hex(attrs.sunColor),
-            intensity,
-            light.diffuse
-          )
-          const sunset =
-            Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12)
-          BABYLON.Color3.LerpToRef(
-            light.diffuse,
-            this.hex(attrs.duskColor).scale(0.65),
-            sunset * 0.55,
-            light.diffuse
-          )
-          light.intensity = intensity * dim
-          material.rayleigh = attrs.rayleigh * airSky
-          material.turbidity = attrs.turbidity * airSky
-          material.mieCoefficient = attrs.mieCoefficient
-
-          // Horizon: blend light color with sky blue, then brighten toward white
-          // at high sun — written in place into _horizonColor via a scratch.
-          BABYLON.Color3.LerpToRef(
-            light.diffuse,
-            SKY_BLUE,
-            0.6,
-            this._horizonScratch
-          )
-          BABYLON.Color3.LerpToRef(
-            this._horizonScratch,
-            HORIZON_WHITE,
-            intensity * 0.4,
-            this._horizonColor
-          )
-        } else {
-          light.diffuse.copyFrom(this.hex(attrs.moonColor))
-          light.intensity = attrs.moonIntensity * dim
-          material.rayleigh = attrs.rayleigh * 0.05 * airSky
-          material.turbidity = attrs.turbidity * 0.05 * airSky
-          // The sun's disc must SET — the local sun is fixed, so night
-          // kills the mie term that draws it.
-          material.mieCoefficient = attrs.mieCoefficient * 0.05
-
-          // Night horizon: dark desaturated blue
-          this._horizonColor.copyFrom(NIGHT_HORIZON)
-        }
+        light.diffuse.copyFrom(lightColor)
+        light.intensity = (isDay ? intensity : attrs.moonIntensity) * dim
       }
     }
   }

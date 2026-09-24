@@ -41,6 +41,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   nebula faces are unaffected and unchanged). The recipe was first proven by
   reproducing the old faces byte-for-byte with the pre-fix code.
 
+- **A skybox with no `<tosi-b3d-sun>` ignored the clock.** The dome's
+  day/night writes (sun position, scattering, the sun disc) sat inside the
+  sun-element branch, so without a sun it stayed at stock daylight — while
+  the star exposure, driven by `timeOfDay` directly, said night: stars
+  showing through a sunlit sky. Nineteen demos carry a skybox without a sun;
+  the beacon demo (21:00) showed it. Only the light's writes need a light now.
+
 ### Added (sky)
 
 - **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
