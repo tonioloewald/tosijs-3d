@@ -373,9 +373,16 @@ cloud, not a taller lump of it. And it needs no mode switch, because the boost
 cancels itself exactly where it would stop making sense — at full cover the
 threshold is already saturated, so adding to it changes nothing and the field
 goes back to driving height instead.
+
+AND IT RAMPS IN WITH THE DIAL, so coverage 0 is a clear sky. Added flat, the
+boost left cloud standing over every peak at "no cloud" — Tonio: "cloud cover 0
+doesn't get you to 0". It reaches full strength by a quarter cover, so the low
+end of the dial is the classic fair-weather sky: clear over the plain, cloud
+sitting on the mountains.
 */
 float coverageAt(vec2 p) {
-  return coverage + weatherAt(p) * localCoverage;
+  return coverage +
+    weatherAt(p) * localCoverage * clamp(coverage * 4.0, 0.0, 1.0);
 }
 
 vec2 toField(vec2 p) {
@@ -1475,7 +1482,26 @@ export class B3dCloudDeck extends B3dChild {
     const top = this.topMesh
     if (mesh == null || top == null) return
     const field = this._weatherField()
-    const key = field == null ? 'none' : `${mesh.position.x},${mesh.position.z}`
+    /*
+    EVERYTHING THE FIELD DEPENDS ON, not just where the grid sits. The key was
+    the grid position alone, so dragging `orographic` changed the strength and
+    nothing re-sampled it (Tonio: "the orographic slider doesn't seem to
+    work"), and a terrain reshaped under the deck kept the old mountains' cloud
+    until the camera next moved a grid step.
+    */
+    const terrain = this.owner?.querySelector('tosi-b3d-terrain') as {
+      generationKey?: string
+    } | null
+    const key =
+      field == null
+        ? 'none'
+        : [
+            mesh.position.x,
+            mesh.position.z,
+            this.orographic,
+            this.orographicPeak,
+            this.weather == null ? terrain?.generationKey ?? '' : 'custom',
+          ].join('|')
     if (!force && key === this._weatherKey) return
     this._weatherKey = key
 

@@ -104,10 +104,13 @@ const scene = b3d(
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
     ],
     sceneCreated(el, BABYLON) {
+      // FACING EAST, just below the horizon. An ArcRotateCamera looks along
+      // -(cos alpha, 0, sin alpha), so alpha = PI looks down +X, which is east
+      // (+Z is north). The old PI/3 beta looked 30 degrees into the ground.
       const cam = new BABYLON.ArcRotateCamera(
         'orbit',
-        -Math.PI / 2,
-        Math.PI / 3,
+        Math.PI,
+        Math.PI / 2 - 0.08,
         300,
         new BABYLON.Vector3(0, 60, 0),
         el.scene

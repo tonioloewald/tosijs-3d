@@ -631,6 +631,16 @@ export class B3dTerrain extends B3dChild {
    * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
    * after changing attributes or profiles.
    */
+  /**
+   * Changes whenever the terrain's SHAPE does (a `regenerate()`, or an
+   * attribute that re-cuts the tiles). Compare it to know when anything you
+   * derived from {@link heightSampler} has gone stale — the cloud deck's
+   * orographic field does exactly this.
+   */
+  get generationKey(): string {
+    return this._genKey
+  }
+
   heightSampler(): (x: number, z: number) => number {
     const fn = this.makeHeightFn()
     const offX = this.originOffsetX

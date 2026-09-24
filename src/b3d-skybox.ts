@@ -1356,7 +1356,15 @@ export class B3dSkybox extends AbstractMesh {
     const t = (((attrs.timeOfDay + 30) % 12) / 12) * 1.04 - 0.52
     const timeAngle = t * Math.PI
     // Latitude tilts the sun's arc away from vertical; time rotates it east-west.
-    BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_X, latitude, this._qLat)
+    /*
+    NEGATIVE, because north is +Z (headings are atan2(x, z) everywhere) and
+    east is +X. Rotating +Y about +X by a POSITIVE angle leans it toward +Z,
+    which put the noon sun in the NORTH at latitude 40 — a southern-hemisphere
+    sky. Tonio: "it seems like the sun/moon path has flipped". With the sign
+    right the sun rises east (+X), crosses the SOUTH at noon, sets west, and a
+    negative latitude gives the southern sky honestly.
+    */
+    BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_X, -latitude, this._qLat)
     BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_Z, timeAngle, this._qTime)
     this._qLat.multiplyToRef(this._qTime, this._qTotal)
     const isDay = attrs.timeOfDay > 6 && attrs.timeOfDay < 18

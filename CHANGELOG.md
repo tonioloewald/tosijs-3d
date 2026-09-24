@@ -59,6 +59,24 @@ versions may carry breaking peer-dependency changes — each is called out in a
   same tilt value places the galactic band differently at a given hour;
   placement is cosmetic for now.
 
+- **The sun ran a southern-hemisphere arc at a northern latitude.** North
+  is +Z (every heading is `atan2(x, z)`), and the latitude rotation leaned
+  the arc toward +Z — so at latitude 40 the noon sun stood in the NORTH.
+  Now it rises east, crosses the south at noon and sets west (measured:
+  98° / 180° / 262° at 7:00 / 12:00 / 17:00); a negative latitude gives a
+  southern sky.
+- **Cloud deck: `orographic` was not live.** The local-weather field only
+  re-sampled when the grid moved, so dragging `orographic` (or reshaping the
+  terrain under it) changed nothing until the camera travelled a grid step.
+  The field now re-samples on strength, peak and the terrain's new
+  `generationKey`.
+- **Cloud deck: `coverage: 0` is a clear sky.** The orographic boost was
+  added on top of the dial, so zero still left cloud on every peak. It now
+  ramps in over the first quarter of the dial — the low end reads as the
+  fair-weather sky with cloud sitting on the mountains.
+- **world-sim starts facing east toward the horizon**, not 30° into the
+  ground.
+
 ### Added (sky)
 
 - **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
