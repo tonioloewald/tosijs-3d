@@ -68,7 +68,7 @@ preview.append(
       scenePanel: () => [
         label3d({ text: 'Weather' }),
         slider3d({ label: 'coverage', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
-        slider3d({ label: 'cirrus', value: sky.cirrus, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
         slider3d({ label: 'altitude', value: sky.altitude, min: 20, max: 600, step: 10 }),
         slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 3000, step: 25 }),
         slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
@@ -144,7 +144,7 @@ preview.append(
 | `subdivisions` | `64` | Grid resolution — see "A grid, not a quad" |
 | `coverage` | `0.5` | Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow |
 | `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
-| `cirrus` | `0` | Rounded heaps `0` → long wispy streaks `1`. Rebakes the field |
+| `cirrus` | `0` | Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
 | `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
@@ -510,6 +510,8 @@ uniform float fringe;
 uniform float bump;
 uniform float shade;
 uniform float transmission;
+// 1 when transmission follows coverage; 0 when the author pinned it.
+uniform float autoLift;
 uniform vec3 fogColorU;
 // (mode, start, end, density) — Babylon's own vFogInfos, read from the scene.
 uniform vec4 fogInfos;
@@ -679,7 +681,24 @@ void main(void) {
     float relief = mix(1.0, 0.62 + 0.72 * lamUnder, underBump);
     float through = mix(1.0, 0.78 + 0.34 * lamTop, underBump);
 
-    vec3 base = mix(underColor, topColor, transmission * 0.6) * relief * through;
+    /*
+    FAIR-WEATHER CLOUD IS WHITE FROM BELOW. Tonio: "clouds below coverage 0.5
+    [should be] close to white from below and emissive at the edges". A thin,
+    broken deck is sunlit through — its underside is bright, not the grey slab
+    of an overcast. The lift used to be transmission x 0.6, which peaked at 42%
+    toward white on a CLEAR day: every scattered cumulus read as a raincloud.
+
+    So the base is near-white up to coverage 0.5 and eases onto the storm curve
+    by full cover. It reads the DIAL, not the local coverage: tried first, and
+    over hilly ground the orographic boost (+0.5 on average there) turned a
+    0.4 fair-weather sky into a grey slab — the dial said fair, the underside
+    said storm. Orographic cloud still means MORE cloud over the peaks; it just
+    does not repaint fair weather as foul. An explicitly set transmission
+    (autoLift 0) keeps its authority — a pinned storm-dark deck stays dark.
+    */
+    float fair = autoLift * (1.0 - smoothstep(0.5, 1.0, coverage));
+    float lift = max(transmission * 0.6, 0.9 * fair);
+    vec3 base = mix(underColor, topColor, lift) * relief * through;
     // EMISSIVE edges, so they read as lit-from-behind rather than as pale
     // paint: the fringe is ADDED to the base, which is what lets it go brighter
     // than the material's own colour where the cloud is thinnest.
@@ -703,10 +722,37 @@ void main(void) {
     mid-sentence. Fourth time.)
     */
     vec3 viewDir = normalize(vWorld - camPos);
-    float forward = clamp(dot(viewDir, normalize(sunDir)), 0.0, 1.0);
+    // sunDir is the light's DIRECTION — the way it travels, AWAY from the sun
+    // — so looking toward the sun is looking along -sunDir. This read +sunDir
+    // for a long time: the silver lining peaked with the sun BEHIND you, and
+    // the clouds in front of a sunset were the darkest in the sky.
+    float forward = clamp(dot(viewDir, -normalize(sunDir)), 0.0, 1.0);
     float silver = 0.3 + 0.7 * pow(forward, 4.0);
     float glow = fringe * (0.25 + 0.75 * transmission) * silver;
-    vec3 col = (base + topColor * glow * (thin * thin + 0.12 * transmission)) * skyTint;
+    /*
+    AND AS COVER THINS TOWARD NOTHING, THE WHOLE CLOUD GLOWS — not just its
+    edges. The last wisps of a clearing sky are all edge: light passes straight
+    through them. Forward-weighted like the fringe and multiplied by skyTint
+    like everything else, so it is the sun's own colour: golden at golden hour.
+    */
+    float wisps = autoLift * (1.0 - smoothstep(0.0, 0.5, coverage));
+    /*
+    THE GLOW TAKES THE SUN'S HUE, NOT ITS WHOLE DIMMING. skyTint is the sun's
+    colour times its intensity, and at 17:30 the intensity is ~0.4 — so a
+    forward-scattered edge, multiplied by it like everything else, came out
+    DARKER than the bright sky right beside it: sunset clouds as grey
+    silhouettes. But light scattered forward toward you is the sun's own light,
+    and near a low sun it is among the brightest things in the sky. So the
+    emission keeps the tint's hue at full saturation and only the square root
+    of its level: golden at golden hour, and bright where the sun is behind the
+    cloud. The body of the underside still takes the full tint, so a dusk deck
+    still goes dim.
+    */
+    float tintLevel = max(max(skyTint.r, skyTint.g), max(skyTint.b, 0.001));
+    vec3 sunGlow = skyTint / tintLevel * sqrt(tintLevel);
+    vec3 col =
+      base * skyTint +
+      topColor * glow * (thin * thin + 0.12 * transmission + 0.45 * wisps) * sunGlow;
     gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
   }
 }
@@ -751,7 +797,7 @@ export class B3dCloudDeck extends B3dChild {
     thickenDepth: 900,
     seed: 1337,
     frequency: 3,
-    /** Rounded heaps `0` → long wispy streaks `1`. Rebakes the field. */
+    /** Rounded heaps `0` → long wispy streaks at `±1` — positive ALONG the wind heading, negative ACROSS it. Rebakes the field. */
     cirrus: 0,
     /** Metres per second the deck drifts. The whole sky slides; nothing rebakes. */
     wind: 8,
@@ -1086,6 +1132,7 @@ export class B3dCloudDeck extends B3dChild {
           'bump',
           'shade',
           'transmission',
+          'autoLift',
           'underBump',
           'fogColorU',
           'fogInfos',
@@ -1274,6 +1321,7 @@ export class B3dCloudDeck extends B3dChild {
     mat.setFloat('bump', attrs.bump)
     mat.setFloat('shade', attrs.shade)
     mat.setFloat('transmission', this.resolvedTransmission)
+    mat.setFloat('autoLift', this.transmission >= 0 ? 0 : 1)
     mat.setFloat('underBump', Math.min(1, Math.max(0, attrs.underBump)))
     const scene = this.owner?.scene
     if (scene != null) {

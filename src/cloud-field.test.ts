@@ -159,6 +159,9 @@ describe('cirrus — long and wispy vs rounded', () => {
     expect(isotropy(round)).toBeLessThan(1.4)
     // Cirrus does, and it is the one we stretched.
     expect(isotropy(wispy)).toBeLessThan(0.5)
+    // The SIGN is the axis: negative streaks the other way.
+    const across = cloudField({ size, seed: 21, cirrus: -1 })
+    expect(isotropy(across)).toBeGreaterThan(2)
   })
 
   test('WISPY means SPARSE — most of the sky is empty, threads are bright', () => {

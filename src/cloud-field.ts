@@ -72,9 +72,10 @@ export interface CloudFieldOptions {
   /** Amplitude ratio between octaves. */
   persistence?: number
   /**
-   * `0` rounded cumulus, `1` long wispy cirrus. Two changes at once, because
+   * `0` rounded cumulus, `±1` long wispy cirrus. Two changes at once, because
    * that is what distinguishes the two clouds — see "Cirrus is a shape, not a
-   * texture" below.
+   * texture" below. The SIGN is the axis: positive streaks along `u` (the
+   * wind heading), negative along `v` (across it).
    */
   cirrus?: number
 }
@@ -91,7 +92,9 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
   const frequency = options.frequency ?? 3
   const octaves = options.octaves ?? 6
   const persistence = options.persistence ?? 0.58
-  const cirrus = Math.min(1, Math.max(0, options.cirrus ?? 0))
+  const cirrus = Math.min(1, Math.max(-1, options.cirrus ?? 0))
+  // How wispy is the MAGNITUDE; which way the streaks run is the sign.
+  const wisp = Math.abs(cirrus)
   const noise = new PerlinNoise(options.seed ?? 1337)
   /*
   STRETCH THE DOMAIN, not the output. The two torus radii need not match and
@@ -99,7 +102,8 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
   tile. That is what makes anisotropy free here: a stretched cloud is the same
   construction read at two scales, not a resampling that has to be re-seamed.
   */
-  const stretch = 1 + cirrus * 5
+  const stretchU = cirrus > 0 ? 1 + cirrus * 5 : 1
+  const stretchV = cirrus < 0 ? 1 - cirrus * 5 : 1
 
   const out = new Float32Array(size * size)
   let min = Infinity
@@ -122,11 +126,12 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
       for (let o = 0; o < octaves; o++) {
         const r = freq / (Math.PI * 2)
         // Along the streaks the field varies SLOWLY; across them, at full rate.
-        const ru = r / stretch
+        const ru = r / stretchU
+        const rv = r / stretchV
         const n = noise.noise3D(
           ru * Math.cos(u),
           ru * Math.sin(u),
-          r * Math.cos(v) + r * Math.sin(v)
+          rv * Math.cos(v) + rv * Math.sin(v)
         )
         const f = Math.abs(n)
         /*
@@ -167,7 +172,7 @@ export function cloudField(options: CloudFieldOptions = {}): Float32Array {
       it wispy instead of merely elongated.
       */
       const raw = sum / norm
-      const value = cirrus > 0 ? Math.pow(raw, 1 + cirrus * 3.5) : raw
+      const value = wisp > 0 ? Math.pow(raw, 1 + wisp * 3.5) : raw
       out[y * size + x] = value
       if (value < min) min = value
       if (value > max) max = value
