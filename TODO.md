@@ -69,18 +69,12 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
   observation is the cloud-deck DEMO, whose only mesh is a flat ground —
   there is nothing to cast, so no sun shadow is expected there.
 
-- [ ] **GALAXY ARCHITECTURE — the main disc should hold only the bright end.**
-      Tonio's long-running idea, now written down: the galaxy MAIN does not
-      include any G6+/K/M stars — it holds a budget of (say) 50k bright stars
-      — and the K/M mass is generated PER REGION when something renders
-      nearby space. A world ends up with two budgets (50k bright + 50k
-      local) instead of one undifferentiated 100k, and something similar
-      probably applies to nebulae. The encoded-sky work makes this
-      cheaper than it looks: the distant faint mass is already a separate
-      population (`distantStars`), and the bake only ever samples one
-      position — but "nearby space" is a live-rendering problem, not a bake
-      one. Out of scope for now; recorded so the idea stops living in
-      conversation.
+- [ ] **GALAXY ARCHITECTURE — a voxel galaxy with two populations.** Now a
+      design: **`GALAXY-DESIGN.md`** (voxels with derived bright/dim seeds,
+      density sampled from the current generator and propagated so every
+      voxel is non-zero, address-based identity, dim stars and small nebulae
+      generated locally). Also fixes a live bug it measured: 63.4% of stars
+      share a seed with another star, so they share names and planets.
 
 - [ ] **Cloud-deck died ONCE on Quest — noted, not chased.** Measured when it
       was reported: the demo's VRAM is ~27 MiB (25.5 of it the encoded sky pair
