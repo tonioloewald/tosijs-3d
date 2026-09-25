@@ -127,6 +127,13 @@ export interface XrFramesOptions {
   bodyYawDeadband?: number
   /** Eye→neck-pivot offset in head-local space (down + back). */
   neckOffset?: BABYLON.Vector3
+  /**
+   * FLAT mode — no session: the frames are derived from the camera's WORLD
+   * pose, whatever kind of camera it is. See `XrFrames.flat`.
+   */
+  flat?: boolean
+  /** Flat only: how far below the camera the floor (the `body` frame) sits. */
+  eyeHeight?: number
 }
 
 const FORWARD = new BABYLON.Vector3(0, 0, 1)
@@ -135,8 +142,37 @@ const FORWARD = new BABYLON.Vector3(0, 0, 1)
  * Maintains a `TransformNode` per reference frame. Construct once an XR session
  * is live (the camera must be parented to `rig`), call `update(dt)` every XR
  * frame, and `dispose()` on exit. Parent scene UI to `frames.body` etc.
+ *
+ * **Or flat**, with `XrFrames.flat(scene, camera)` (tosijs-3d#81): most of these
+ * frames depend only on a camera's position and orientation, which a flat
+ * camera has. `eye`, `body`, `neck` and `face` follow the view; `world` and
+ * `rig` sit at the origin; the HAND frames stay disabled, because a monitor has
+ * no hands — a panel that wants one declares a flat fallback instead.
  */
 export class XrFrames {
+  /**
+   * Frames for a flat camera — no session, any camera type. The frames are
+   * derived from its world pose each `update`; `setCamera` follows an
+   * active-camera change. The rig is created here and disposed with the rest.
+   */
+  static flat(
+    scene: BABYLON.Scene,
+    camera: BABYLON.Camera,
+    opts: Omit<XrFramesOptions, 'flat'> = {}
+  ): XrFrames {
+    const rig = new BABYLON.TransformNode('xr-frame-flat-rig', scene)
+    const frames = new XrFrames(scene, rig, camera as BABYLON.TargetCamera, {
+      ...opts,
+      flat: true,
+    })
+    frames.ownsRig = true
+    return frames
+  }
+
+  private flatMode: boolean
+  private eyeHeight: number
+  private ownsRig = false
+  private _pos = new BABYLON.Vector3()
   readonly world: BABYLON.TransformNode
   readonly rig: BABYLON.TransformNode
   /** At your actual head POSITION but with RIG yaw (not head rotation). The
@@ -181,6 +217,8 @@ export class XrFrames {
     this.bodyYawRate = opts.bodyYawRate ?? 6
     this.bodyYawDeadband = opts.bodyYawDeadband ?? 0.35 // ~20°
     this.neckOffset = opts.neckOffset ?? new BABYLON.Vector3(0, -0.12, -0.1)
+    this.flatMode = opts.flat === true
+    this.eyeHeight = opts.eyeHeight ?? 1.6
 
     // world: fixed at the play-space origin (scene root, no parent).
     this.world = new BABYLON.TransformNode('xr-frame-world', scene)
@@ -261,6 +299,52 @@ export class XrFrames {
     return this[name]
   }
 
+  /** Follow a different camera (flat: the active camera changed). */
+  setCamera(camera: BABYLON.Camera): void {
+    this.cam = camera as BABYLON.TargetCamera
+    this.face.parent = camera
+  }
+
+  /**
+   * FLAT: every frame from the camera's WORLD pose. `getDirection` and
+   * `globalPosition` work for any camera — an ArcRotate has no
+   * rotationQuaternion, a FreeCamera usually keeps Euler angles — which is why
+   * this cannot share the XR path's local-pose reads.
+   */
+  private updateFlat(): void {
+    const cam = this.cam
+    // This runs BEFORE the render that would refresh the camera's matrix, so
+    // read a current one — otherwise every flat panel trails the view by a
+    // frame. Cached when the camera has not moved.
+    cam.computeWorldMatrix()
+    const p = this._pos.copyFrom(cam.globalPosition)
+    const fwd = cam.getDirection(FORWARD)
+    const yaw = Math.atan2(fwd.x, fwd.z)
+    // Eye: the view's position with its YAW, not its pitch — so a panel at
+    // elevation 0 stays level however far you tilt to look at the ground.
+    this.eye.position.copyFrom(p)
+    BABYLON.Quaternion.RotationYawPitchRollToRef(
+      yaw,
+      0,
+      0,
+      this.eye.rotationQuaternion as BABYLON.Quaternion
+    )
+    this.body.position.set(p.x, p.y - this.eyeHeight, p.z)
+    ;(this.body.rotationQuaternion as BABYLON.Quaternion).copyFrom(
+      this.eye.rotationQuaternion as BABYLON.Quaternion
+    )
+    // Neck: the offset in the view's yaw frame (flat has no head roll to honour).
+    BABYLON.Matrix.FromQuaternionToRef(
+      this.eye.rotationQuaternion as BABYLON.Quaternion,
+      this._m
+    )
+    BABYLON.Vector3.TransformCoordinatesToRef(this.neckOffset, this._m, this._v)
+    this.neck.position.set(p.x + this._v.x, p.y + this._v.y, p.z + this._v.z)
+    ;(this.neck.rotationQuaternion as BABYLON.Quaternion).copyFrom(
+      this.eye.rotationQuaternion as BABYLON.Quaternion
+    )
+  }
+
   /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
   private headLocalYaw(): number {
     const q = this.cam.rotationQuaternion ?? BABYLON.Quaternion.Identity()
@@ -272,6 +356,10 @@ export class XrFrames {
   /** Call once per XR frame. (Hands ride their grips by parenting, not here.) */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(dt: number): void {
+    if (this.flatMode) {
+      this.updateFlat()
+      return
+    }
     const cam = this.cam
     const headYaw = this.headLocalYaw()
 
@@ -319,6 +407,7 @@ export class XrFrames {
     this.face.dispose()
     this.leftHand.dispose()
     this.rightHand.dispose()
+    if (this.ownsRig) this.rig.dispose()
   }
 }
 

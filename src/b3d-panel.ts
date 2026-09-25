@@ -2,19 +2,23 @@
 # b3d-panel
 
 A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
-instead of hard-wiring panels in code. A `<tosi-b3d-panel>` is **VR-only** — it
-anchors to an [XR reference frame](?xr-frames.ts) via [frame-panel](?frame-panel.ts)
-and appears only inside an immersive session, tuned with plain attributes. For a
-panel you also want on a flat screen, use the `scenePanel` hook (dual-presence).
+instead of hard-wiring panels in code. It anchors to an
+[XR reference frame](?xr-frames.ts) via [frame-panel](?frame-panel.ts), tuned with
+plain attributes. By default it is **VR-only**; **`presence: 'both'`** also puts it
+in the flat view, where the frames follow the flat camera — ONE panel, placed
+relative to the viewer in both, rather than a flat overlay plus a VR panel to keep
+in step (tosijs-3d#81). The hand frames have no flat analogue, so a hand panel
+names its flat home with `flatFrame`.
 
 ## Demo
 
-Three ways to show a panel, side by side. The **world panel** (a `b3d-svg-plane`) is
+Four ways to show a panel, side by side. The **world panel** (a `b3d-svg-plane`) is
 a mesh in the scene — it renders in the regular flat view AND in VR, fixed in the
 world. The **Settings** panel (the `scenePanel` hook) is *dual-presence*: a flat ⚙
 overlay (open here) that's also a floating panel in VR — its slider drives the cube in
 both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence — enter VR to see
-it anchored to your view.
+it anchored to your view. The **Flat + VR** panel is the same element with
+`presence: 'both'`: viewer-relative on the monitor AND in the headset, one panel.
 
 ```js
 import { b3d, b3dPanel, b3dSvgPlane, b3dLight, b3dSkybox, b3dGround, b3dBox, label3d, slider3d } from 'tosijs-3d'
@@ -45,6 +49,10 @@ const scene = b3d(
   b3dSvgPlane({ url: '/tosi-test-pattern.svg', x: -2.6, y: 1.6, z: 0, width: 1.6, height: 1.6 }),
   // VR-ONLY: a <tosi-b3d-panel> anchored to the eye frame. No flat presence.
   b3dPanel({ frame: 'eye', azimuth: 45, elevation: 25, title: 'VR only', width: 0.4, reveal: 'always' }),
+  // BOTH: the same kind of panel, viewer-relative in the flat view too. The
+  // eye frame is LEVEL (it takes the view's yaw, not its pitch), and this orbit
+  // camera looks down ~30°, so -38° lands it low in the view.
+  b3dPanel({ frame: 'eye', azimuth: 16, elevation: -38, distance: 1.4, title: 'Flat + VR', width: 0.22, reveal: 'always', presence: 'both' }),
 )
 preview.append(scene)
 ```
@@ -97,6 +105,8 @@ so you have full control:
 | `width` | `0.26` | Panel width (m); height follows aspect |
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
 | `max-distance` | `0` | Hide beyond this distance (m); 0 = no limit |
+| `presence` | `'xr'` | `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera |
+| `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
 */
 /*{ "parent": "UI", "order": 500 }*/
 
@@ -124,6 +134,8 @@ export class B3dPanel extends Component {
     revealStart: 50,
     revealFull: 25,
     maxDistance: 0,
+    presence: 'xr',
+    flatFrame: '',
   }
 
   static shadowStyleSpec = {
@@ -146,6 +158,8 @@ export class B3dPanel extends Component {
   declare revealStart: number
   declare revealFull: number
   declare maxDistance: number
+  declare presence: string
+  declare flatFrame: string
 
   /** Build the FramePanelSpec this element declares. */
   toSpec(): FramePanelSpec {
@@ -183,6 +197,8 @@ export class B3dPanel extends Component {
       url: this.url || undefined,
       width: this.width,
       maxDistance: this.maxDistance > 0 ? this.maxDistance : undefined,
+      presence: this.presence === 'both' ? 'both' : 'xr',
+      flatFrame: (this.flatFrame || undefined) as FrameName | undefined,
     }
   }
 }

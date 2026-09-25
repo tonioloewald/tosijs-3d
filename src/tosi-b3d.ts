@@ -1809,6 +1809,91 @@ export class B3d extends Component {
     return true
   }
 
+  /*
+  VIEWER-RELATIVE PANELS IN THE FLAT VIEW (tosijs-3d#81).
+
+  `<tosi-b3d-panel presence="both">` gets the same frame vocabulary flat as in a
+  headset — the frames just follow the flat camera (`XrFrames.flat`). ONE panel
+  in both, rather than a flat overlay and a VR panel to keep in step.
+
+  Rebuilt when the declared panels or the active camera change (checked every
+  30 ticks — a panel is not something that changes per frame), and dropped the
+  moment XR builds its own frames, so the two sets never coexist.
+  */
+  private _flatFrames: XrFrames | null = null
+  private _flatPanels: Array<{
+    update: (ctx?: { firstPerson?: boolean }) => void
+    dispose: () => void
+  }> = []
+  private _flatSig = ''
+  private _flatCheckIn = 0
+  private _flatHandWarned = new Set<string>()
+
+  private _disposeFlatPanels(): void {
+    for (const p of this._flatPanels) p.dispose()
+    this._flatPanels = []
+    this._flatFrames?.dispose()
+    this._flatFrames = null
+    this._flatSig = ''
+    this._flatCheckIn = 0
+  }
+
+  private _updateFlatPanels(): void {
+    const scene = this.scene
+    const cam = scene?.activeCamera
+    if (scene == null || cam == null || this.xrFrames != null) {
+      if (this._flatFrames != null) this._disposeFlatPanels()
+      return
+    }
+    if (--this._flatCheckIn <= 0) {
+      this._flatCheckIn = 30
+      const specs = Array.from(this.querySelectorAll('tosi-b3d-panel'))
+        .map((el) =>
+          (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.()
+        )
+        .filter((s): s is FramePanelSpec => s != null && s.presence === 'both')
+      const sig = specs.length ? `${cam.uniqueId}|${JSON.stringify(specs)}` : ''
+      if (sig !== this._flatSig) {
+        this._disposeFlatPanels()
+        this._flatSig = sig
+        this._flatCheckIn = 30
+        if (specs.length > 0) {
+          const frames = XrFrames.flat(scene, cam)
+          this._flatFrames = frames
+          for (const spec of specs) {
+            let frame = spec.frame ?? 'body'
+            if (frame === 'left-hand' || frame === 'right-hand') {
+              if (spec.flatFrame == null) {
+                const key = spec.title ?? spec.url ?? frame
+                if (!this._flatHandWarned.has(key)) {
+                  this._flatHandWarned.add(key)
+                  console.warn(
+                    `b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
+                      '(a monitor has no hands), so it is VR-only. Give it a ' +
+                      '`flatFrame` to say where it goes flat.'
+                  )
+                }
+                continue
+              }
+              frame = spec.flatFrame
+            }
+            this._flatPanels.push(
+              attachFramePanel(
+                scene,
+                cam as BABYLON.TargetCamera,
+                frames.get(frame),
+                spec
+              )
+            )
+          }
+        }
+      }
+    }
+    if (this._flatFrames == null) return
+    this._flatFrames.update(0)
+    for (const p of this._flatPanels) p.update()
+  }
+
   private _update = () => {
     this._debugFrame++
     // `_frozen` stops the clock exactly like a pause, but WITHOUT the pause
@@ -1860,6 +1945,7 @@ export class B3d extends Component {
       if (dt > 0) this.combat.tick(dt)
       if (dt > 0) this._updateFog(dt)
       this._ambientWatchdog()
+      this._updateFlatPanels()
       if (this.update !== noop) {
         this.update(this, BABYLON)
       }
@@ -5278,6 +5364,7 @@ export class B3d extends Component {
     }
     this._liveDebug = { flat: [], xr: [] }
     this._debugSources = []
+    this._disposeFlatPanels()
     // Descendant B3dChild components self-dispose via their own
     // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
     this._sceneReady = false

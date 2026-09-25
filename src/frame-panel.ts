@@ -66,6 +66,19 @@ export interface AnchorSpec {
 export interface FramePanelSpec {
   /** Which reference frame to pin to. Default `body`. */
   frame?: FrameName
+  /**
+   * Where the panel exists: `'xr'` (default — only in an immersive session) or
+   * `'both'` (also in the flat view, on frames derived from the flat camera).
+   * tosijs-3d#81.
+   */
+  presence?: 'xr' | 'both'
+  /**
+   * The frame to use FLAT when `frame` has no flat analogue — the hands. A
+   * wrist palette in VR is usually a screen-edge palette flat, and that is the
+   * author's call to write down, not the library's to guess. Without one, a
+   * hand panel stays VR-only and says so once.
+   */
+  flatFrame?: FrameName
   /** A preset, or an explicit anchor. */
   anchor: AnchorPreset | AnchorSpec
   /** `gaze` (default): show as you look toward it. `always`: always visible

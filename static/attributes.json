@@ -2228,6 +2228,14 @@
       },
       {
         "name": "maxDistance"
+      },
+      {
+        "name": "presence",
+        "default": "'xr'",
+        "description": "`'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera"
+      },
+      {
+        "name": "flatFrame"
       }
     ]
   },

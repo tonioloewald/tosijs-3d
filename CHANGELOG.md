@@ -117,6 +117,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   alien sky). Stars and moon are behind the air and stay untinted. Land and
   Sky gains an **Atmosphere** group: a world preset (Earth / Mars / Alien /
   Airless) plus live air, tint, turbidity, rayleigh, mie and luminance.
+- **Viewer-relative panels in the flat view** (tosijs-3d#81).
+  `<tosi-b3d-panel presence="both">` appears on a monitor as well as in a
+  headset, placed with the same frame vocabulary (eye / body / neck / face,
+  azimuth-elevation-distance, presets, gaze reveal). **`XrFrames.flat(scene,
+camera)`** derives the frames from any flat camera's world pose (the eye
+  frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
+  a hand panel declares **`flatFrame`**; without one it stays VR-only and
+  warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
 - **`slider3d({ useful: [lo, hi] })`** (tosijs-3d#83) — a soft band on the
   track where the values anybody wants live; the handle still reaches `min`
   and `max`. It is where a schema's `x-useful` lands.

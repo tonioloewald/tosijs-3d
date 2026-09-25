@@ -581,6 +581,8 @@ b3d-panel
   revealStart
   revealFull
   maxDistance
+  presence  = 'xr'  — `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera
+  flatFrame
 
 ## b3d-particles — <tosi-b3d-particles>
 b3d-particles
