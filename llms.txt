@@ -79,7 +79,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/b3d-fog/ — b3d-fog
   Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
 - https://3d.tosijs.net/b3d-galaxy/ — b3d-galaxy
-  Procedural galaxy renderer. Generates thousands of stars in a spiral arm
+  Procedural galaxy renderer — the [voxel galaxy](/voxel-galaxy/), the one galaxy
 - https://3d.tosijs.net/b3d-hud/ — b3d-hud
   A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus

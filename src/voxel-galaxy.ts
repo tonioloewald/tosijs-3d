@@ -22,8 +22,10 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 
 ## What it guarantees
 
-- **Identity is an address**, `population:voxel:n`, and a star's seed is
-  derived from it — never drawn from a shared range. (`generateGalaxy` draws
+- **Identity is an address**, `seed:population:voxel:n` (galaxy seed,
+  bright/dim, voxel, sequence number), and a star's seed is derived from it —
+  never drawn from a shared range. Star n never depends on the budget, so an
+  address resolves in a galaxy computed with a SMALLER one (`galaxy.star(id)`). (`generateGalaxy` draws
   seeds from `range(1, 100000)`, so at 100k stars 63% of them share one.)
 - **Determinism and locality.** A voxel's stars depend only on the galaxy seed
   and the voxel. Generating one voxel never requires another, and loading them
@@ -122,7 +124,11 @@ export interface GalaxyViewOptions {
 /** A generated star. `position` is in the generator frame (z-up). */
 export interface VoxelStar
   extends Omit<StarData, 'name' | 'position' | 'bestHI' | 'hiComputed'> {
-  /** `population:voxel:n` — permanent, independent of what else is loaded. */
+  /**
+   * `seed:population:voxel:n` — the galaxy, the population, the voxel and the
+   * star's SEQUENCE number in it (not its seed, which is derived). Permanent,
+   * independent of what else is loaded and of the budget. See `starAddress`.
+   */
   id: string
   population: Population
   voxel: number
@@ -155,6 +161,39 @@ export const DEFAULT_DIM_MIX: MixEntry[] = [
   { spectralClass: 'K', minIndex: 0, maxIndex: 9, weight: weightOf('K') },
   { spectralClass: 'M', minIndex: 0, maxIndex: 9, weight: weightOf('M') },
 ]
+
+/**
+ * A star's ADDRESS — `seed:population:voxel:n`. Everything needed to generate
+ * it and nothing derived: the galaxy seed, which population, which voxel, and
+ * its sequence number there. Stable for a given grid; the budget does not
+ * enter into it (Tonio: a star must be findable in a galaxy computed with a
+ * smaller budget).
+ */
+export function starAddress(
+  seed: number,
+  population: Population,
+  voxel: number,
+  n: number
+): string {
+  return `${seed}:${population}:${voxel}:${n}`
+}
+
+/** The parts of a star address, or `null` if it is not one. */
+export function parseStarAddress(id: string): {
+  seed: number
+  population: Population
+  voxel: number
+  n: number
+} | null {
+  const m = /^(\d+):(bright|dim):(\d+):(\d+)$/.exec(id)
+  if (m == null) return null
+  return {
+    seed: Number(m[1]),
+    population: m[2] as Population,
+    voxel: Number(m[3]),
+    n: Number(m[4]),
+  }
+}
 
 /** Stream tags for the per-voxel seeds. */
 const STREAM: Record<Population, number> = { bright: 1, dim: 2 }
@@ -221,6 +260,13 @@ export interface VoxelGalaxy {
    * name derived from their seed, and are sorted by name.
    */
   view(options?: GalaxyViewOptions): GalaxyData
+  /**
+   * ONE star by its address (`seed:population:voxel:n`), generated on its
+   * own — one star, not a voxel or a galaxy. It resolves even when `n` is
+   * beyond what THIS galaxy's budget shows (star n never depends on the
+   * count). `null` if malformed, or for another galaxy's seed.
+   */
+  star(id: string): StarData | null
 }
 
 export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
@@ -418,7 +464,21 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     const rng = new CheapPRNG(voxelSeed)
     const e = expectedCount(v, p)
     const n = Math.floor(e) + (rng.value() < e - Math.floor(e) ? 1 : 0)
-    if (n === 0) return []
+    const out: VoxelStar[] = []
+    for (let k = 0; k < n; k++) out.push(starAt(v, p, k))
+    return out
+  }
+
+  /*
+  STAR k OF A VOXEL, generated on its own. Nothing here reads the COUNT — the
+  seed is hash(voxelSeed, k), placement and class draw from the star's own
+  PRNG — so star k is the same star whatever the budget. That is what makes an
+  address (galaxy seed, population, voxel, n) resolve in a galaxy built with a
+  SMALLER budget, where the voxel would never have generated that many
+  (Tonio). The count only decides how many a galaxy SHOWS.
+  */
+  function starAt(v: number, p: Population, k: number): VoxelStar {
+    const voxelSeed = hash32(o.seed, v, STREAM[p])
     const { x, y, z } = coords(v)
     const x0 = -halfXY + x * cx
     const y0 = -halfXY + y * cy
@@ -426,31 +486,27 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     const limit = bound(v)
     const mix = mixOf(p)
     const weights = mix.map((m) => m.weight)
-    const out: VoxelStar[] = []
-    for (let k = 0; k < n; k++) {
-      const seed = hash32(voxelSeed, k)
-      const prng = new CheapPRNG(seed)
-      let pos: Vec = { x: 0, y: 0, z: 0 }
-      for (let t = 0; t < MAX_TRIES; t++) {
-        pos = {
-          x: x0 + prng.value() * cx,
-          y: y0 + prng.value() * cy,
-          z: z0 + prng.value() * cz,
-        }
-        if (prng.value() * limit <= densityAt(pos)) break
+    const seed = hash32(voxelSeed, k)
+    const prng = new CheapPRNG(seed)
+    let pos: Vec = { x: 0, y: 0, z: 0 }
+    for (let t = 0; t < MAX_TRIES; t++) {
+      pos = {
+        x: x0 + prng.value() * cx,
+        y: y0 + prng.value() * cy,
+        z: z0 + prng.value() * cz,
       }
-      const entry = prng.pick(mix, weights)
-      const index = prng.range(entry.minIndex, entry.maxIndex)
-      out.push({
-        id: `${p}:${v}:${k}`,
-        population: p,
-        voxel: v,
-        n: k,
-        position: pos,
-        ...starDetailFor(prng, seed, entry.spectralClass, index),
-      })
+      if (prng.value() * limit <= densityAt(pos)) break
     }
-    return out
+    const entry = prng.pick(mix, weights)
+    const index = prng.range(entry.minIndex, entry.maxIndex)
+    return {
+      id: starAddress(o.seed, p, v, k),
+      population: p,
+      voxel: v,
+      n: k,
+      position: pos,
+      ...starDetailFor(prng, seed, entry.spectralClass, index),
+    }
   }
 
   let brightCache: VoxelStar[] | null = null
@@ -591,5 +647,10 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     nebulae: () => nebulaPass().nebulae,
     shell,
     view,
+    star(id: string) {
+      const a = parseStarAddress(id)
+      if (a == null || a.seed !== o.seed || a.voxel >= count) return null
+      return toStarData(starAt(a.voxel, a.population, a.n), false)
+    },
   }
 }

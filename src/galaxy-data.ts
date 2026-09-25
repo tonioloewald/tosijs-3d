@@ -687,7 +687,7 @@ export { planetTypeData }
 export interface StarData {
   name: string
   /**
-   * The star's ADDRESS in the voxel galaxy (`population:voxel:n`) — stable,
+   * The star's ADDRESS in the voxel galaxy (`seed:population:voxel:n`) — stable,
    * unlike an array index. Present on every star a voxel galaxy produces.
    */
   id?: string

@@ -382,7 +382,8 @@ b3d-fog
 b3d-galaxy
 
   seed  = 1234  — Galaxy seed
-  starCount  = 10000  — Number of stars
+  starCount  = 10000  — The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet
+  dimBudget  = 95000  — The DIM population's budget — local stars, generated only near a point (the baker's eye). Not drawn by the galaxy yet
   radius  = 100  — Galaxy radius in scene units
   spiralArms  = 4  — Number of spiral arms
   spiralAngle  = 240  — Spiral arm sweep in degrees
@@ -855,8 +856,9 @@ b3d-spawner
 b3d-star-system
 
   galaxySeed  = 1234  — Galaxy seed for deterministic generation
-  starCount  = 10000  — Number of stars in galaxy (needed to regenerate same galaxy)
-  starIndex  = 0  — Which star in the galaxy to render
+  starCount  = 10000  — The galaxy's bright budget (needed to regenerate the same galaxy)
+  starIndex  = 0  — Which star to render, by position in the galaxy's view (moves if `starCount` does)
+  star  = ''  — A star's ADDRESS (`1234:bright:5021:0`, the `id` on every star). Stable, and wins over `starIndex`
   scale  = 5  — Visual scale factor for star/planet sizes
   orbitScale  = 3  — Multiplier for orbital distances
   animate  = 'on'  — Animate planet orbital motion

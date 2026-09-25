@@ -1439,7 +1439,12 @@
       {
         "name": "starCount",
         "default": "10000",
-        "description": "Number of stars"
+        "description": "The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet"
+      },
+      {
+        "name": "dimBudget",
+        "default": "95000",
+        "description": "The DIM population's budget — local stars, generated only near a point (the baker's eye). Not drawn by the galaxy yet"
       },
       {
         "name": "radius",
@@ -3266,12 +3271,17 @@
       {
         "name": "starCount",
         "default": "10000",
-        "description": "Number of stars in galaxy (needed to regenerate same galaxy)"
+        "description": "The galaxy's bright budget (needed to regenerate the same galaxy)"
       },
       {
         "name": "starIndex",
         "default": "0",
-        "description": "Which star in the galaxy to render"
+        "description": "Which star to render, by position in the galaxy's view (moves if `starCount` does)"
+      },
+      {
+        "name": "star",
+        "default": "''",
+        "description": "A star's ADDRESS (`1234:bright:5021:0`, the `id` on every star). Stable, and wins over `starIndex`"
       },
       {
         "name": "scale",

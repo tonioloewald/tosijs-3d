@@ -14,7 +14,7 @@ however pretty.
 ## Demo
 
 ```js
-import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, starsFromVoxelGalaxy, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
@@ -37,6 +37,9 @@ let sceneEl = null
 const galaxy = b3dGalaxy({
   seed: bake.seed,
   starCount: bake.stars,
+  // The shipped sky's dim budget: dim stars only exist near the bake point,
+  // so this costs nothing until the pair bake gathers them.
+  dimBudget: SHIPPED_SKY.voxel.dimBudget,
   particleSize: bake.particleSize,
   coreSize: 0.12,
   radius: 100,
@@ -90,7 +93,7 @@ preview.append(
         // static/sky, so a rebake is one tap here and one tap below. (It used
         // to live only in commit messages; reproducing it took archaeology.)
         button3d({ label: 'use shipped recipe', handleClick: () => {
-          bake.stars = SHIPPED_SKY.stars
+          bake.stars = SHIPPED_SKY.voxel.brightBudget
           bake.particleSize = SHIPPED_SKY.particleSize
           bake.outFraction = SHIPPED_SKY.outFraction
           bake.offPlane = SHIPPED_SKY.offPlane
@@ -99,11 +102,20 @@ preview.append(
         } }),
         button3d({ label: 'bake pair (256 + 1024 data)', handleClick: async () => {
           bake.status = 'baking pair…'
+          const eye = defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf())
+          // THE POINTS come from the voxel galaxy: every bright star, the dim
+          // stars around the eye, the shell — what bin/bake-stars writes too.
+          const sky = starsFromVoxelGalaxy(galaxy.galaxy, undefined, eye, {
+            radius: 100,
+            dimReach: SHIPPED_SKY.voxel.dimReach,
+            floor: SHIPPED_SKY.voxel.floor,
+          })
           const res = await bakeSkyPair(sceneEl.scene, galaxy, {
-            ...defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf()),
+            ...eye,
             roll: bake.roll.valueOf(),
             smoothSize: 256,
             dataSize: 1024,
+            objects: sky.objects,
           })
           const zip = facesToZip(
             [
@@ -171,7 +183,7 @@ The cost used to be generation, and is no longer — planets were 71% of it
 and are now computed on demand, names come from each star's own seed, and a
 cheap PRNG replaced a Mersenne Twister per star (see `galaxy-data`). Measured:
 
-| stars | `generateGalaxy` |
+| stars | `generateGalaxy` (0.8.3) |
 | ----- | ---------------- |
 | 10,000 | ~25 ms |
 | 100,000 | ~200 ms |
@@ -570,10 +582,14 @@ export interface VoxelSkyOptions {
  */
 export function starsFromVoxelGalaxy(
   galaxy: VoxelGalaxy,
-  shell: {
-    distantGalaxies: NebulaData[]
-    distantStars: DistantStarData[]
-  } | null,
+  /** The distant shell; omitted = the galaxy's own, `null` = none. */
+  shell:
+    | {
+        distantGalaxies: NebulaData[]
+        distantStars: DistantStarData[]
+      }
+    | null
+    | undefined,
   eye: { x: number; y: number; z: number },
   options: VoxelSkyOptions = {}
 ): { objects: SkyObject[]; bright: number; dim: number; dimRadius: number } {
@@ -634,6 +650,7 @@ export function starsFromVoxelGalaxy(
     dim++
   }
 
+  if (shell === undefined) shell = galaxy.shell()
   if (shell != null) {
     const point = (
       p: { x: number; y: number; z: number },

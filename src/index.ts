@@ -663,6 +663,7 @@ export {
   bakeSkyboxCube,
   bakeSkyPair,
   starsFromGalaxy,
+  starsFromVoxelGalaxy,
   facesToPngs,
   facesToZip,
   defaultBakePose,
@@ -1244,6 +1245,15 @@ export type {
   StarTypeInfo,
   NebulaData,
 } from './galaxy-data.js'
+// THE galaxy (GALAXY-DESIGN.md) — generateGalaxy above is an adapter over it.
+export { voxelGalaxy } from './voxel-galaxy.js'
+export type {
+  VoxelGalaxy,
+  VoxelStar,
+  VoxelGalaxyOptions,
+  GalaxyViewOptions,
+} from './voxel-galaxy.js'
+export { sampleSpiral, starNameFor } from './galaxy-data.js'
 export type { GradientFilter, ControlPoint } from './gradient-filter.js'
 export {
   PiecewiseLinearFilter,

@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { sampleSpiral, starNameFor } from './galaxy-data.js'
-import { hash32, voxelGalaxy, type VoxelStar } from './voxel-galaxy.js'
+import {
+  hash32,
+  voxelGalaxy,
+  starAddress,
+  parseStarAddress,
+  type VoxelStar,
+} from './voxel-galaxy.js'
 
 // A SMALL galaxy for most tests — the properties are scale-free, and the
 // suite should stay fast (a per-star expect loop once cost a second here).
@@ -243,7 +249,7 @@ describe('view — the GalaxyData every consumer reads (reconciliation)', () => 
     const v = g.view()
     expect(v.stars.length).toBe(g.brightStars().length)
     const s = v.stars[0]
-    expect(s.id).toMatch(/^bright:\d+:\d+$/)
+    expect(s.id).toMatch(/^7:bright:\d+:\d+$/)
     expect(s.name).toBe(starNameFor(s.seed))
     expect(new Set(v.stars.map((x) => x.id)).size).toBe(v.stars.length)
     // Sorted by name, as the old generator's consumers expect.
@@ -257,7 +263,7 @@ describe('view — the GalaxyData every consumer reads (reconciliation)', () => 
     expect(near.stars.length).toBe(
       g.brightStars().length + g.dimStarsNear(eye, 0.1).length
     )
-    expect(near.stars.some((s) => s.id!.startsWith('dim:'))).toBe(true)
+    expect(near.stars.some((s) => s.id!.startsWith('7:dim:'))).toBe(true)
   })
 
   test('nebulae and shell are on their own seeds — the star budget cannot move them', () => {
@@ -273,5 +279,53 @@ describe('view — the GalaxyData every consumer reads (reconciliation)', () => 
     const { distantGalaxies } = g.shell()
     expect(v.nebulae.slice(-distantGalaxies.length)).toEqual(distantGalaxies)
     expect(v.distantStars.length).toBe(3000)
+  })
+})
+
+describe('star(id) — an address resolves without the galaxy', () => {
+  test('finds exactly the star the view has under that id', () => {
+    const eye = { x: 0.5, y: 0, z: 0.01 }
+    const v = g.view({ near: eye, radius: 0.1 })
+    for (const s of [
+      v.stars[0],
+      v.stars.find((x) => x.id!.startsWith('7:dim:'))!,
+    ])
+      expect(g.star(s.id!)).toEqual(s)
+  })
+
+  test('a fresh galaxy resolves it too — identity does not depend on loading', () => {
+    const id = g.view().stars[7].id!
+    expect(voxelGalaxy(SMALL).star(id)).toEqual(g.star(id))
+  })
+
+  test('malformed or vacant addresses are null', () => {
+    expect(g.star('nonsense')).toBeNull()
+    expect(g.star('7:bright:999999999:0')).toBeNull()
+    // Another galaxy's address does not resolve here.
+    expect(g.star('8:bright:0:0')).toBeNull()
+  })
+
+  test('an address resolves in a galaxy computed with a SMALLER budget (Tonio)', () => {
+    const big = voxelGalaxy({ ...SMALL, dimBudget: 60000 })
+    const small = voxelGalaxy({ ...SMALL, dimBudget: 2000 })
+    const eye = { x: 0.5, y: 0, z: 0.01 }
+    // A star the small galaxy never shows: beyond its count in that voxel.
+    const shown = new Set(small.dimStarsNear(eye, 0.1).map((s) => s.id))
+    const extra = big.dimStarsNear(eye, 0.1).find((s) => !shown.has(s.id))!
+    expect(extra).toBeDefined()
+    expect(small.star(extra.id)).toEqual(big.star(extra.id))
+    // …and the stars both show are the same stars.
+    const both = small.dimStarsNear(eye, 0.1)[0]
+    expect(big.star(both.id)).toEqual(small.star(both.id))
+  })
+
+  test('starAddress and parseStarAddress round-trip', () => {
+    expect(parseStarAddress(starAddress(1234, 'dim', 5021, 3))).toEqual({
+      seed: 1234,
+      population: 'dim',
+      voxel: 5021,
+      n: 3,
+    })
+    expect(parseStarAddress('bright:1:2')).toBeNull()
   })
 })

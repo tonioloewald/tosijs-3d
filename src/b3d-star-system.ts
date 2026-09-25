@@ -2,8 +2,8 @@
 # b3d-star-system
 
 Renders an individual star system with a procedural star and its planets.
-Given a `StarData` object (from `generateGalaxy`) or a galaxy seed + star
-index, it creates `b3d-star` and `b3d-planet` child components with
+Given a galaxy seed and a star's ADDRESS (`star`, stable) or index
+(`starIndex`) in the [voxel galaxy](/voxel-galaxy/), it creates `b3d-star` and `b3d-planet` child components with
 deterministic seeds.
 
 Planets orbit at scaled distances and can optionally animate.
@@ -11,11 +11,11 @@ Planets orbit at scaled distances and can optionally animate.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, voxelGalaxy, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p, pre } = elements
 
-const galaxy = generateGalaxy(1234, 1000, { generatePlanets: true })
+const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 1000 }).view({ generatePlanets: true })
 
 const { demo } = tosi({
   demo: {
@@ -143,8 +143,9 @@ tosi-b3d {
 | Attribute | Default | Description |
 | --- | --- | --- |
 | `galaxySeed` | `1234` | Galaxy seed for deterministic generation |
-| `starCount` | `10000` | Number of stars in galaxy (needed to regenerate same galaxy) |
-| `starIndex` | `0` | Which star in the galaxy to render |
+| `starCount` | `10000` | The galaxy's bright budget (needed to regenerate the same galaxy) |
+| `star` | `''` | A star's ADDRESS (`1234:bright:5021:0`, the `id` on every star). Stable, and wins over `starIndex` |
+| `starIndex` | `0` | Which star to render, by position in the galaxy's view (moves if `starCount` does) |
 | `scale` | `5` | Visual scale factor for star/planet sizes |
 | `orbitScale` | `3` | Multiplier for orbital distances |
 | `animate` | `'on'` | Animate planet orbital motion |
@@ -156,11 +157,8 @@ tosi-b3d {
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import {
-  generateGalaxy,
-  generateStarSystem,
-  type StarSystemData,
-} from './galaxy-data.js'
+import { generateStarSystem, type StarSystemData } from './galaxy-data.js'
+import { voxelGalaxy } from './voxel-galaxy.js'
 import { PerlinNoise } from './perlin-noise.js'
 
 export class B3dStarSystem extends B3dChild {
@@ -176,6 +174,8 @@ export class B3dStarSystem extends B3dChild {
     galaxySeed: 1234,
     starCount: 10000,
     starIndex: 0,
+    /** A star's ADDRESS (`1234:bright:5021:0`) — wins over `starIndex` when set. */
+    star: '',
     scale: 5,
     orbitScale: 3,
     // on-by-default toggles: string 'on'|'off' (a boolean can't default true)
@@ -189,6 +189,7 @@ export class B3dStarSystem extends B3dChild {
   declare galaxySeed: number
   declare starCount: number
   declare starIndex: number
+  declare star: string
   declare scale: number
   declare orbitScale: number
   // Shadows HTMLElement.animate (a method on the prototype). tosijs installs
@@ -291,16 +292,22 @@ export class B3dStarSystem extends B3dChild {
     const attrs = this as any
     const scene = this.owner.scene
 
-    // Generate the galaxy (cheap — no bulk planets) and find the star. Only
-    // THE star's system is generated, right below: bulk planet generation
-    // (generatePlanets) was the 71% of generation time this element used to
-    // pay for every star it then threw away.
-    const galaxy = generateGalaxy(attrs.galaxySeed, attrs.starCount)
-    const starIndex = Math.min(
-      Math.max(0, attrs.starIndex),
-      galaxy.stars.length - 1
-    )
-    const star = galaxy.stars[starIndex]
+    /*
+    FIND THE STAR in the one galaxy (GALAXY-DESIGN.md). By ADDRESS when given
+    — resolved from its own voxel, so it costs one voxel and means the same
+    star whatever else changes. Otherwise by index into the galaxy's view,
+    which is a position in a list, and moves if the budget does. Only THE
+    star's system is generated, right below.
+    */
+    const galaxy = voxelGalaxy({
+      seed: attrs.galaxySeed,
+      brightBudget: attrs.starCount,
+    })
+    let star = attrs.star ? galaxy.star(attrs.star) : null
+    if (star == null) {
+      const stars = galaxy.view().stars
+      star = stars[Math.min(Math.max(0, attrs.starIndex), stars.length - 1)]
+    }
     if (!star) return
 
     this.systemData = generateStarSystem(star)

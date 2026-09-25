@@ -1,9 +1,11 @@
 /*#
 # b3d-galaxy
 
-Procedural galaxy renderer. Generates thousands of stars in a spiral arm
-distribution, each colored by spectral class. All generation is seeded — same
-seed always produces the same galaxy.
+Procedural galaxy renderer — the [voxel galaxy](/voxel-galaxy/), the one galaxy
+implementation, drawn: thousands of stars in a spiral arm distribution, each
+coloured by spectral class. All generation is seeded — same seed, same galaxy.
+`el.galaxy` is the galaxy itself; every star carries its address in `id`, and
+`getStar(id)` finds it again (an index only means a position in what is loaded).
 
 Stars and nebulae are billboarded **in the vertex shader**: each is a static
 quad whose corners the shader turns to face the viewpoint, so a galaxy costs
@@ -20,6 +22,9 @@ rendered star system) and `showStarAt(index)` to restore it.
 
 Filter stars by habitability index and/or name using `filterStars({ maxHI, nameSearch })` —
 non-matching stars are dimmed.
+The filter covers the BRIGHT stars. About half the earthlike systems are dim
+(late G and K dwarfs), and those are local: they join as dim voxels stream in
+near the camera, which is not built yet (GALAXY-DESIGN.md).
 
 ## Demo
 
@@ -312,7 +317,8 @@ tosi-b3d {
 | Attribute | Default | Description |
 | --- | --- | --- |
 | `seed` | `1234` | Galaxy seed |
-| `starCount` | `10000` | Number of stars |
+| `dimBudget` | `95000` | The DIM population's budget — local stars, generated only near a point (the baker's eye). Not drawn by the galaxy yet |
+| `starCount` | `10000` | The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet |
 | `radius` | `100` | Galaxy radius in scene units |
 | `spiralArms` | `4` | Number of spiral arms |
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
@@ -330,12 +336,12 @@ import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 import {
-  generateGalaxy,
   generateStarSystem,
   type StarData,
   type GalaxyData,
   type StarSystemData,
 } from './galaxy-data.js'
+import { voxelGalaxy, type VoxelGalaxy } from './voxel-galaxy.js'
 import { b3dBlackHole } from './b3d-black-hole.js'
 
 /**
@@ -459,6 +465,12 @@ export class B3dGalaxy extends B3dChild {
   static initAttributes = {
     seed: 1234,
     starCount: 10000,
+    /**
+     * The DIM population's budget — local stars, generated only near a point
+     * (the baker's eye; the camera, once dim voxels stream). Not drawn by the
+     * galaxy yet; it is part of the galaxy's identity, so a bake reads it.
+     */
+    dimBudget: 95000,
     radius: 100,
     spiralArms: 4,
     spiralAngle: 240,
@@ -502,6 +514,7 @@ export class B3dGalaxy extends B3dChild {
 
   declare seed: number
   declare starCount: number
+  declare dimBudget: number
   declare radius: number
   declare spiralArms: number
   declare spiralAngle: number
@@ -523,6 +536,8 @@ export class B3dGalaxy extends B3dChild {
   private faceTarget: BABYLON.Vector3 | null = null
   private blackHoleEl: HTMLElement | null = null
   private galaxyData: GalaxyData | null = null
+  /** The galaxy itself — `galaxyData` is its view. */
+  galaxy: VoxelGalaxy | null = null
   private originalColors: BABYLON.Color4[] | null = null
   private registered = false
 
@@ -827,13 +842,25 @@ export class B3dGalaxy extends B3dChild {
     const attrs = this as any
     const scene = this.owner.scene
 
-    // Generate galaxy data (includes nebulae)
-    this.galaxyData = generateGalaxy(attrs.seed, attrs.starCount, {
-      spiralArms: attrs.spiralArms,
-      spiralAngleDegrees: attrs.spiralAngle,
-      thickness: attrs.thickness,
-      distantGalaxies: attrs.distantGalaxies,
+    /*
+    ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"): the voxel galaxy, read
+    through its `view`, which is the GalaxyData shape everything below already
+    draws. `starCount` is its BRIGHT budget — the stars you see across the
+    galaxy. The dim population (half the earthlike systems) is local; it joins
+    when dim voxels stream in near the camera, which is later work.
+    */
+    this.galaxy = voxelGalaxy({
+      seed: attrs.seed,
+      brightBudget: attrs.starCount,
+      dimBudget: attrs.dimBudget,
+      galaxyOptions: {
+        spiralArms: attrs.spiralArms,
+        spiralAngleDegrees: attrs.spiralAngle,
+        thickness: attrs.thickness,
+        distantGalaxies: attrs.distantGalaxies,
+      },
     })
+    this.galaxyData = this.galaxy.view()
 
     const { stars, nebulae } = this.galaxyData
     const radius: number = attrs.radius
@@ -935,7 +962,17 @@ export class B3dGalaxy extends B3dChild {
     this.parentElement?.appendChild(this.blackHoleEl)
   }
 
-  /** Get star data at the given index */
+  /**
+   * A star by its ADDRESS (`seed:population:voxel:n`, the `id` on every star) —
+   * stable, unlike an index, which is a position in whatever is loaded.
+   */
+  getStar(id: string): StarData | null {
+    // By address — resolved from its voxel, so a dim star that is not loaded
+    // is still findable.
+    return this.galaxy?.star(id) ?? null
+  }
+
+  /** Get star data at the given index (into the loaded view — see `getStar`). */
   getStarAt(index: number): StarData | null {
     if (!this.galaxyData || index < 0 || index >= this.galaxyData.stars.length)
       return null

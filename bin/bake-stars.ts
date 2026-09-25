@@ -26,7 +26,6 @@
 import path from 'path'
 import { writeFileSync, mkdirSync } from 'fs'
 import { voxelGalaxy } from '../src/voxel-galaxy.js'
-import { generateGalaxy } from '../src/galaxy-data.js'
 import {
   starsFromVoxelGalaxy,
   defaultBakePose,
@@ -57,9 +56,10 @@ const dry = process.argv.includes('--dry')
 
 const t0 = performance.now()
 const galaxy = voxelGalaxy({ seed, brightBudget, dimBudget, nz, halfZ })
-// The distant shell continues the generator's random stream AFTER its stars,
-// so it is generated with the shipped count to stay the shell users know.
-const shell = generateGalaxy(seed, SHIPPED_SKY.stars)
+// The distant shell is the galaxy's own, on its own derived seed — it used to
+// be the tail of the old generator's stream, which meant generating 100k old
+// stars just to reach it (GALAXY-DESIGN.md → "Reconciliation").
+const shell = galaxy.shell()
 const eye = defaultBakePose(
   SHIPPED_SKY.radius,
   SHIPPED_SKY.outFraction,
