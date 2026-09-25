@@ -1364,3 +1364,11 @@ export {
   base64OfBytes,
 } from './embed-font.js'
 export type { EmbeddedFont } from './embed-font.js'
+// Touch on an orbit camera: one finger orbits, two pan, a pinch zooms (#52).
+export { touchOrbit } from './touch-orbit.js'
+export {
+  twoFingerGesture,
+  type TwoFingerGesture,
+  type TwoFingerStep,
+  type TouchPoint,
+} from './touch-gesture.js'

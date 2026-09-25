@@ -339,6 +339,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
+- https://3d.tosijs.net/touch-gesture/ — touch-gesture
+  Pure — no Babylon, no DOM — so the decision is tested without a touchscreen.
+- https://3d.tosijs.net/touch-orbit/ — touch-orbit
+  `touchOrbit(camera)` gives an `ArcRotateCamera` the touch map in
 - https://3d.tosijs.net/ui/ — UI
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/utilities/ — Utilities

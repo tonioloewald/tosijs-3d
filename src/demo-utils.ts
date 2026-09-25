@@ -61,6 +61,7 @@ or omit it for a generated checker that needs no asset at all.
 */
 /*{ "parent": "Utilities" }*/
 
+import { touchOrbit } from './touch-orbit.js'
 import * as BABYLON from '@babylonjs/core'
 import {
   b3dSun,
@@ -215,6 +216,7 @@ export function orbitCam(
     el.scene
   )
   cam.attachControl(el.querySelector('canvas'), true)
+  touchOrbit(cam)
   // beta is measured from straight-up (0) to straight-down (π); π/2 is level.
   // Elevation ABOVE horizontal = π/2 − beta, so a MIN elevation is an UPPER
   // beta limit.

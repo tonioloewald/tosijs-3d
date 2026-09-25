@@ -286,6 +286,7 @@ import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
+import { touchOrbit } from './touch-orbit.js'
 import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
 import {
   fitPanel,
@@ -3317,6 +3318,8 @@ export class B3d extends Component {
         camera.lowerRadiusLimit = this.minDistance
         camera.upperRadiusLimit = this.maxDistance
         camera.attachControl(cnv, false)
+        // Two fingers pan, a pinch zooms, decided per gesture (#52).
+        touchOrbit(camera)
         this.setActiveCamera(camera)
       }
       this.gui = new GUI.GUI3DManager(this.scene)

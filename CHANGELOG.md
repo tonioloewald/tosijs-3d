@@ -10,6 +10,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Touch on the orbit camera: two fingers pan, a pinch zooms** (tosijs-3d#52).
+  Babylon's default does both on every two-finger move, with zoom from the
+  change in SQUARED spacing, so a drag read as "a weird zoom"; its alternative
+  mode turns a slow pinch into a pan for good. New **`touchOrbit(camera)`**
+  (wired into `<tosi-b3d>`'s default camera and `orbitCam`) decides once per
+  gesture from NET spread vs NET centroid travel, then locks. Pan follows the
+  fingers (pixels → world units at the target's depth), and zoom is natural.
+  Pure decision model in **`touch-gesture`**, unit-tested; measured in
+  headless Chrome with emulated touch: a 150 px two-finger drag now moves the
+  target 2.35 m with the radius unchanged, where before it moved 0.76 m and
+  zoomed 8 → 8.68.
 - **Vacuum hid the stars it was supposed to reveal.** The space band's fog
   layer defaulted its sky veil to its weight, so leaving the atmosphere
   painted the sky black OVER the starfield. Vacuum is the absence of a

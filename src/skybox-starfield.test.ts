@@ -130,7 +130,7 @@ describe('atmosphere — the world has its own air (tosijs-3d#89)', () => {
     // The band still works, and multiplies: half the air, half-way up.
     Object.assign(el, { atmosphere: 0.5, spaceStart: 0, spaceFull: 100 })
     cam.position.y = 50
-    cam.computeWorldMatrix(true)
+    cam.computeWorldMatrix()
     expect(el._vacuumNow()).toBeCloseTo(1 - 0.5 * 0.5, 6)
     el.sceneDispose()
   })
