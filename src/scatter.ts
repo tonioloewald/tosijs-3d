@@ -88,7 +88,26 @@ export interface ScatterOptions {
   suppress?: (x: number, z: number, kind: string) => number
   /** Candidates per placement. More = closer to the budget, slower. */
   oversample?: number
+  /**
+   * Evaluated candidates, kept across calls. Candidates are world-anchored
+   * per cell, so after the region moves most cells are ones already
+   * evaluated, and only the newly entered ring samples the terrain. It holds
+   * GROUND only (height + normal), so the caller clears it when the TERRAIN
+   * changes; climate, rules and suppression are re-evaluated every call.
+   * See `pruneScatterCache`.
+   */
+  cache?: Map<number, GroundSample>
 }
+
+/*
+Cache keys are NUMBERS — the two cell indices packed into one (±2^20 cells a
+side) — because string keys were most of the cache's weight. The cell size a
+cache was filled at is remembered beside it, so a budget or radius change
+(which changes the cell grid) clears it instead of misreading it.
+*/
+const CELL_OF = new WeakMap<Map<number, GroundSample>, number>()
+const OFF = 1 << 20
+const packCell = (ix: number, iz: number) => (ix + OFF) * 2 * OFF + (iz + OFF)
 
 export interface Placement {
   rule: number
@@ -170,12 +189,28 @@ export function suitability(
   )
 }
 
+/**
+ * The EXPENSIVE part of a candidate — its ground: height and normal, three
+ * terrain samples. This is all the cache keeps. Climate and suitability are
+ * cheap arithmetic and are recomputed; caching them (a weight array per
+ * point) cost ~50 MB at a 20k budget, this ~a fifth of that.
+ */
+export interface GroundSample {
+  y: number
+  nx: number
+  ny: number
+  nz: number
+}
+
 interface Candidate {
   x: number
   z: number
   y: number
-  normal: { x: number; y: number; z: number }
-  weights: number[]
+  nx: number
+  ny: number
+  nz: number
+  /** Offset of this candidate's rule weights in the shared pool. */
+  w: number
   total: number
   h: number
 }
@@ -188,6 +223,10 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   // power of two so the cell grid is stable as the budget moves a little.
   const raw = Math.sqrt(area / (o.budget * oversample))
   const cell = Math.pow(2, Math.round(Math.log2(raw)))
+  if (o.cache != null && CELL_OF.get(o.cache) !== cell) {
+    o.cache.clear()
+    CELL_OF.set(o.cache, cell)
+  }
   const r2 = o.radius * o.radius
   const x0 = Math.floor((o.center.x - o.radius) / cell)
   const x1 = Math.floor((o.center.x + o.radius) / cell)
@@ -196,6 +235,9 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   const e = Math.max(0.5, cell * 0.25) // finite-difference step for slope
 
   const cands: Candidate[] = []
+  const R = o.rules.length
+  let pool = new Float64Array(4096 * R)
+  let poolUsed = 0
   for (let iz = z0; iz <= z1; iz++) {
     for (let ix = x0; ix <= x1; ix++) {
       const hx = hash(o.seed, ix, iz, 1)
@@ -205,27 +247,50 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
       const dx = x - o.center.x
       const dz = z - o.center.z
       if (dx * dx + dz * dz > r2) continue
-      const y = o.height(x, z)
-      // Ground normal from central differences.
-      const gx = (o.height(x + e, z) - o.height(x - e, z)) / (2 * e)
-      const gz = (o.height(x, z + e) - o.height(x, z - e)) / (2 * e)
-      const len = Math.sqrt(gx * gx + 1 + gz * gz)
-      const normal = { x: -gx / len, y: 1 / len, z: -gz / len }
-      const slopeDeg = (Math.acos(normal.y) * 180) / Math.PI
-      const c = o.climate(x, z, y)
-      const weights = o.rules.map(
-        (r) =>
+      const key = packCell(ix, iz)
+      let g = o.cache?.get(key)
+      if (g == null) {
+        const y = o.height(x, z)
+        /*
+        Ground normal from FORWARD differences: three height samples per
+        candidate, not five. Height sampling is the whole cost of a scatter
+        (~800k samples at 20k items with central differences), and the slope
+        only has to be good to a degree or two.
+        */
+        const gx = (o.height(x + e, z) - y) / e
+        const gz = (o.height(x, z + e) - y) / e
+        const len = Math.sqrt(gx * gx + 1 + gz * gz)
+        g = { y, nx: -gx / len, ny: 1 / len, nz: -gz / len }
+        o.cache?.set(key, g)
+      }
+      const slopeDeg = (Math.acos(g.ny) * 180) / Math.PI
+      const c = o.climate(x, z, g.y)
+      // Weights go into one shared pool, not an array per candidate.
+      if (poolUsed + R > pool.length) {
+        const grown = new Float64Array(pool.length * 2)
+        grown.set(pool)
+        pool = grown
+      }
+      let total = 0
+      for (let ri = 0; ri < R; ri++) {
+        const r = o.rules[ri]
+        const w =
           suitability(r, c, slopeDeg) *
           (o.suppress ? Math.max(0, o.suppress(x, z, r.kind)) : 1)
-      )
-      const total = weights.reduce((a, b) => a + b, 0)
+        pool[poolUsed + ri] = w
+        total += w
+      }
       if (total <= 0) continue
+      const wAt = poolUsed
+      poolUsed += R
       cands.push({
         x,
         z,
-        y,
-        normal,
-        weights,
+        y: g.y,
+        nx: g.nx,
+        ny: g.ny,
+        nz: g.nz,
+        w: wAt,
         total,
         h: hash(o.seed, ix, iz, 3),
       })
@@ -238,12 +303,21 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   and find k so the expected count is the budget. Monotone in k, so bisect.
   If even k → ∞ cannot reach the budget, every suitable candidate is taken.
   */
-  const expected = (k: number) =>
-    cands.reduce((a, c) => a + Math.min(1, k * c.total), 0)
+  const totals = new Float64Array(cands.length)
+  for (let i = 0; i < cands.length; i++) totals[i] = cands[i].total
+  const expected = (k: number) => {
+    let sum = 0
+    for (let i = 0; i < totals.length; i++) {
+      const p = k * totals[i]
+      sum += p < 1 ? p : 1
+    }
+    return sum
+  }
   let lo = 0
   let hi = 1
   while (expected(hi) < o.budget && hi < 1e12) hi *= 2
-  for (let i = 0; i < 40; i++) {
+  // 30 halvings: k to ~1e-9 of its bracket — far past what a count can show.
+  for (let i = 0; i < 30; i++) {
     const mid = (lo + hi) / 2
     if (expected(mid) < o.budget) lo = mid
     else hi = mid
@@ -256,8 +330,8 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
     // Which rule: proportional to its weight here.
     let pick = unit(hash(c.h, 11)) * c.total
     let ri = 0
-    for (; ri < c.weights.length - 1; ri++) {
-      pick -= c.weights[ri]
+    for (; ri < R - 1; ri++) {
+      pick -= pool[c.w + ri]
       if (pick < 0) break
     }
     const rule = o.rules[ri]
@@ -272,7 +346,7 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
       z: c.z,
       yaw: unit(hash(c.h, 13)) * Math.PI * 2,
       scale: s0 + (s1 - s0) * unit(hash(c.h, 14)),
-      normal: c.normal,
+      normal: { x: c.nx, y: c.ny, z: c.nz },
     })
   }
   return out
@@ -445,5 +519,26 @@ export class NearIndex<T extends { x: number; z: number }> {
       }
     out.sort((a, b) => a.d - b.d)
     return out.length > max ? out.slice(0, Math.max(0, Math.floor(max))) : out
+  }
+}
+
+/**
+ * Drop cached candidates more than `keep` from `center`, so a cache that
+ * follows a moving camera stays the size of a neighbourhood, not a journey.
+ */
+export function pruneScatterCache(
+  cache: Map<number, GroundSample>,
+  center: { x: number; z: number },
+  keep: number
+): void {
+  const cell = CELL_OF.get(cache)
+  if (cell == null) return
+  const k2 = keep * keep
+  for (const key of cache.keys()) {
+    const ix = Math.floor(key / (2 * OFF)) - OFF
+    const iz = (key % (2 * OFF)) - OFF
+    const dx = (ix + 0.5) * cell - center.x
+    const dz = (iz + 0.5) * cell - center.z
+    if (dx * dx + dz * dz > k2) cache.delete(key)
   }
 }

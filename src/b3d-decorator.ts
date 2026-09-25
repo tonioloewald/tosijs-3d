@@ -72,6 +72,8 @@ import { mantaAxes } from './biome-chart.js'
 import {
   scatterPlacements,
   NearIndex,
+  pruneScatterCache,
+  type GroundSample,
   NATURE_KIT_RULES,
   type Placement,
   type ScatterRule,
@@ -149,6 +151,14 @@ export class B3dDecorator extends B3dChild {
   private _models = new Map<string, ModelInfo | null>()
   private _drawn: BABYLON.Mesh[] = []
   private _center: { x: number; z: number } | null = null
+  /*
+  Ground samples (height + normal), kept across re-scatters: a move samples
+  only the ring it entered. Cleared when the terrain's shape changes; the
+  climate and rules are re-evaluated every build, so dialling them is cheap
+  too.
+  */
+  private _cache = new Map<number, GroundSample>()
+  private _cacheKey = ''
   private _key = ''
   private _observer: BABYLON.Observer<BABYLON.Scene> | null = null
   private _loadGen = 0
@@ -240,6 +250,8 @@ export class B3dDecorator extends B3dChild {
     this._container = null
     this._models.clear()
     this.placements = []
+    this._cache.clear()
+    this._cacheKey = ''
     this._center = null
     this._key = ''
     super.sceneDispose()
@@ -426,6 +438,12 @@ export class B3dDecorator extends B3dChild {
       lapseRate: 0.004,
       mapMoisture: 0.5,
     }
+    // The cache holds GROUND only, so it is stale only when the terrain is.
+    const groundKey = String(terrain?.generationKey ?? '')
+    if (groundKey !== this._cacheKey) {
+      this._cache.clear()
+      this._cacheKey = groundKey
+    }
     const rules = this.rules.map((r) => ({
       ...r,
       scale: [r.scale[0] * this.scale, r.scale[1] * this.scale] as [
@@ -433,6 +451,9 @@ export class B3dDecorator extends B3dChild {
         number
       ],
     }))
+    let lastX = NaN
+    let lastZ = NaN
+    let lastFactor = 1
     this.placements = scatterPlacements({
       budget: Math.max(0, Math.floor(this.budget)),
       seed: this.seed,
@@ -444,6 +465,7 @@ export class B3dDecorator extends B3dChild {
         return { temperature, moisture, altitude: y - cfg.seaLevel }
       },
       rules,
+      cache: this._cache,
       /*
       THE PROVINCE SAYS WHAT GROWS: volcanism suppresses plants (rocks are
       at home on a lava field), with the same thresholds the biome shader
@@ -454,13 +476,21 @@ export class B3dDecorator extends B3dChild {
         typeof terrain.provinceField === 'function'
           ? (x, z, kind) => {
               if (kind === 'rock' || kind === 'boulder') return 1
-              const v = terrain.provinceField(x, z)
-              const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1))
-              return 1 - t * t * (3 - 2 * t)
+              // Asked once per plant RULE at the same point: evaluate the
+              // province once per point.
+              if (x !== lastX || z !== lastZ) {
+                lastX = x
+                lastZ = z
+                const v = terrain.provinceField(x, z)
+                const t = Math.max(0, Math.min(1, (v - 0.02) / 0.1))
+                lastFactor = 1 - t * t * (3 - 2 * t)
+              }
+              return lastFactor
             }
           : undefined,
     })
     this.near = new NearIndex(this.placements, 32)
+    pruneScatterCache(this._cache, here, this.radius * 1.5)
     this._center = here
     // The root is where render space starts: reset it, and place in render
     // coordinates for the CURRENT origin. Later shifts move the root.

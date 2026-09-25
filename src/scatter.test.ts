@@ -3,6 +3,7 @@ import {
   band,
   scatterPlacements,
   NearIndex,
+  pruneScatterCache,
   NATURE_KIT_RULES,
   type ScatterClimate,
   type ScatterRule,
@@ -211,5 +212,72 @@ describe('NearIndex — the shared near-set', () => {
     expect(near.every((e) => e.item.model === 'a')).toBe(true)
     for (let i = 1; i < near.length; i++)
       expect(near[i].d).toBeGreaterThanOrEqual(near[i - 1].d)
+  })
+})
+
+describe('the candidate cache', () => {
+  const opts = {
+    seed: 5,
+    radius: 400,
+    budget: 3000,
+    height: (x: number, z: number) => Math.sin(x * 0.01) * 30 + z * 0.02,
+    climate: mild,
+    rules: NATURE_KIT_RULES,
+  }
+  test('a cached scatter after a move is exactly the uncached one', () => {
+    const cache = new Map()
+    scatterPlacements({ ...opts, center: { x: 0, z: 0 }, cache })
+    const moved = { x: 100, z: 60 }
+    const cached = scatterPlacements({ ...opts, center: moved, cache })
+    const fresh = scatterPlacements({ ...opts, center: moved })
+    expect(cached).toEqual(fresh)
+  })
+
+  test('it spares the terrain: only the newly entered ring is sampled', () => {
+    let calls = 0
+    const counted = (x: number, z: number) => (calls++, opts.height(x, z))
+    const cache = new Map()
+    scatterPlacements({
+      ...opts,
+      height: counted,
+      center: { x: 0, z: 0 },
+      cache,
+    })
+    const first = calls
+    calls = 0
+    scatterPlacements({
+      ...opts,
+      height: counted,
+      center: { x: 100, z: 0 },
+      cache,
+    })
+    expect(calls).toBeLessThan(first * 0.45) // a quarter-radius move
+  })
+
+  test('pruning keeps a neighbourhood, not a journey', () => {
+    const cache = new Map()
+    scatterPlacements({ ...opts, center: { x: 0, z: 0 }, cache })
+    pruneScatterCache(cache, { x: 5000, z: 0 }, 600)
+    expect(cache.size).toBe(0)
+  })
+})
+
+describe('the cache survives a budget change', () => {
+  test('a new cell grid clears it rather than misreading it', () => {
+    const cache = new Map()
+    const o = {
+      seed: 5,
+      radius: 400,
+      height: (x: number) => x * 0.01,
+      climate: mild,
+      rules: [anywhere],
+      center: { x: 0, z: 0 },
+      cache,
+    }
+    scatterPlacements({ ...o, budget: 3000 })
+    const other = scatterPlacements({ ...o, budget: 12000 })
+    expect(other).toEqual(
+      scatterPlacements({ ...o, budget: 12000, cache: undefined })
+    )
   })
 })
