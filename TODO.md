@@ -76,6 +76,18 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       generated locally). Also fixes a live bug it measured: 63.4% of stars
       share a seed with another star, so they share names and planets.
 
+- [ ] **Several moons / suns are COSMETIC** (Tonio, 2026-09-25, tosijs-3d#89).
+      Authored bodies: where, what colour, how big. No orbits, eclipses or
+      sky-from-a-moon; that is a real orbital system, and a separate, big
+      piece of work that a cosmetic layer must not pretend to be. The same
+      goes for binary stars. Open: whether a cosmetic body lights the scene
+      (more lights, more shadow budget).
+
+- [ ] **ONE galaxy implementation — reconcile around the voxel galaxy**
+      (Tonio, 2026-09-25). `generateGalaxy` and `voxelGalaxy` must not live
+      side by side; see GALAXY-DESIGN.md → "Reconciliation". The columns item
+      below is part of it: with one generator there is one place to look.
+
 - [ ] **"Ellipsoid columns" at 1M stars — this round** (Tonio, 2026-09-25,
       seen in the skybox-baker demo with stars at 1M and particle size at its
       minimum, which is the only way to see past the nebulae and bright
