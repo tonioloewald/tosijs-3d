@@ -120,12 +120,12 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       the terrain. That is `b3d-sun`'s lever (map size, cascade count per
       tier), not the decorator's.
 
-      ONE NEAR-SET (Tonio: "analogous to how we handle collisions"). The
-      collider pool and the shadow twins are the same idea: the placements
-      near the viewer, picked from the same list, costing the same whatever
-      the budget. LOD, interaction ("chop this tree") and sound emitters will
-      want it too, so it should become one shared near-set query, not a third
-      copy.
+      ONE NEAR-SET — DONE (Tonio: "analogous to how we handle collisions").
+      `NearIndex` in scatter.ts, a grid over the placements built once per
+      scatter; `decorator.near` is the one query the collider pool and the
+      shadow twins both use, and the place LOD, interaction ("chop this
+      tree") and sound emitters plug in. Queries touch only the cells in
+      range, so their cost follows the neighbourhood, not the budget.
 
       Open:
       build time at 20k (333 ms on the main thread per re-scatter, so rebuild

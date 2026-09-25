@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   band,
   scatterPlacements,
+  NearIndex,
   NATURE_KIT_RULES,
   type ScatterClimate,
   type ScatterRule,
@@ -175,5 +176,40 @@ describe('scatter', () => {
         (p) => p.x < -5 && NATURE_KIT_RULES[p.rule].kind === 'broadleaf'
       )
     ).toBe(true)
+  })
+})
+
+describe('NearIndex — the shared near-set', () => {
+  const pts = scatterPlacements({
+    seed: 3,
+    center: { x: 0, z: 0 },
+    radius: 800,
+    budget: 5000,
+    height: flat,
+    climate: mild,
+    rules: [anywhere],
+  })
+  const idx = new NearIndex(pts, 32)
+
+  test('exactly the brute-force answer, nearest first', () => {
+    for (const [x, z, r] of [
+      [0, 0, 60],
+      [123, -45, 150],
+      [700, 700, 90],
+    ]) {
+      const brute = pts
+        .map((p) => ({ item: p, d: Math.hypot(p.x - x, p.z - z) }))
+        .filter((e) => e.d <= r)
+        .sort((a, b) => a.d - b.d)
+      expect(idx.near(x, z, r)).toEqual(brute)
+    }
+  })
+
+  test('max and filter', () => {
+    const near = idx.near(0, 0, 200, 10, (p) => p.model === 'a')
+    expect(near.length).toBe(10)
+    expect(near.every((e) => e.item.model === 'a')).toBe(true)
+    for (let i = 1; i < near.length; i++)
+      expect(near[i].d).toBeGreaterThanOrEqual(near[i - 1].d)
   })
 })

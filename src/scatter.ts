@@ -386,3 +386,64 @@ export const NATURE_KIT_RULES: ScatterRule[] = [
     alignToSlope: 0.9,
   },
 ]
+
+/**
+ * THE NEAR-SET — "the placements around this point" as one query, shared by
+ * everything that exists only near the viewer: the decorator's collider pool
+ * and its shadow casters today; detailed models, interaction and sound
+ * emitters when they come (Tonio: "analogous to how we handle collisions").
+ *
+ * A uniform grid over the placements, built once per scatter. A query touches
+ * only the cells within `range`, so its cost is set by the neighbourhood, not
+ * by the budget.
+ */
+export class NearIndex<T extends { x: number; z: number }> {
+  private cells = new Map<string, T[]>()
+
+  constructor(readonly items: T[], readonly cellSize = 32) {
+    for (const p of items) {
+      const key = this.key(
+        Math.floor(p.x / cellSize),
+        Math.floor(p.z / cellSize)
+      )
+      const list = this.cells.get(key)
+      if (list) list.push(p)
+      else this.cells.set(key, [p])
+    }
+  }
+
+  private key(i: number, j: number): string {
+    return `${i},${j}`
+  }
+
+  /**
+   * Up to `max` items within `range` of (x, z), NEAREST FIRST, optionally
+   * filtered. Returns each with its distance.
+   */
+  near(
+    x: number,
+    z: number,
+    range: number,
+    max = Infinity,
+    filter?: (item: T) => boolean
+  ): Array<{ item: T; d: number }> {
+    const c = this.cellSize
+    const i0 = Math.floor((x - range) / c)
+    const i1 = Math.floor((x + range) / c)
+    const j0 = Math.floor((z - range) / c)
+    const j1 = Math.floor((z + range) / c)
+    const out: Array<{ item: T; d: number }> = []
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const list = this.cells.get(this.key(i, j))
+        if (list == null) continue
+        for (const item of list) {
+          if (filter && !filter(item)) continue
+          const d = Math.hypot(item.x - x, item.z - z)
+          if (d <= range) out.push({ item, d })
+        }
+      }
+    out.sort((a, b) => a.d - b.d)
+    return out.length > max ? out.slice(0, Math.max(0, Math.floor(max))) : out
+  }
+}

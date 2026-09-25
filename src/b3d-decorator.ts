@@ -71,6 +71,7 @@ import { assetUrl } from './asset-url.js'
 import { mantaAxes } from './biome-chart.js'
 import {
   scatterPlacements,
+  NearIndex,
   NATURE_KIT_RULES,
   type Placement,
   type ScatterRule,
@@ -135,6 +136,11 @@ export class B3dDecorator extends B3dChild {
   rules: ScatterRule[] = NATURE_KIT_RULES
   /** What was placed last, in LOGICAL world coordinates. */
   placements: Placement[] = []
+  /**
+   * The NEAR-SET over `placements`: the one query everything near the viewer
+   * uses (colliders, shadow casters; LOD, interaction and sound next).
+   */
+  near: NearIndex<Placement> = new NearIndex([])
   /** Milliseconds the last build took (scatter + instance buffers). */
   lastBuildMs = 0
 
@@ -454,6 +460,7 @@ export class B3dDecorator extends B3dChild {
             }
           : undefined,
     })
+    this.near = new NearIndex(this.placements, 32)
     this._center = here
     // The root is where render space starts: reset it, and place in render
     // coordinates for the CURRENT origin. Later shifts move the root.
@@ -554,16 +561,14 @@ export class B3dDecorator extends B3dChild {
     )
       return
     this._shadowFrom = here
-    const range = this.shadowRange
-    const near: Array<{ p: Placement; d: number }> = []
-    for (const p of this.placements) {
-      const d = Math.hypot(p.x - here.x, p.z - here.z)
-      if (d <= range) near.push({ p, d })
-    }
-    near.sort((a, b) => a.d - b.d)
-    const chosen = near.slice(0, Math.max(0, Math.floor(this.shadowBudget)))
+    const chosen = this.near.near(
+      here.x,
+      here.z,
+      this.shadowRange,
+      this.shadowBudget
+    )
     const byModel = new Map<string, Placement[]>()
-    for (const { p } of chosen) {
+    for (const { item: p } of chosen) {
       const list = byModel.get(p.model)
       if (list) list.push(p)
       else byModel.set(p.model, [p])
@@ -595,15 +600,19 @@ export class B3dDecorator extends B3dChild {
     const scene = this.owner?.scene
     if (scene == null || this._root == null) return
     const range = this.colliderRange
-    const near: Array<{ p: Placement; d: number; kind: 'trunk' | 'box' }> = []
-    for (const p of this.placements) {
-      const kind = this.rules[p.rule]?.collider
-      if (kind == null) continue
-      const d = Math.hypot(p.x - here.x, p.z - here.z)
-      if (d <= range) near.push({ p, d, kind })
-    }
-    near.sort((a, b) => a.d - b.d)
-    const want = near.slice(0, Math.max(0, Math.floor(this.colliderPool)))
+    const want = this.near
+      .near(
+        here.x,
+        here.z,
+        range,
+        this.colliderPool,
+        (p) => this.rules[p.rule]?.collider != null
+      )
+      .map(({ item: p, d }) => ({
+        p,
+        d,
+        kind: this.rules[p.rule].collider as 'trunk' | 'box',
+      }))
     // Grow the pool as needed; primitives are unit-sized and scaled per use.
     while (this._pool.length < want.length) {
       const i = this._pool.length

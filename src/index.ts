@@ -636,6 +636,7 @@ export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js'
 export { B3dDecorator, b3dDecorator } from './b3d-decorator.js'
 export {
   scatterPlacements,
+  NearIndex,
   NATURE_KIT_RULES,
   type ScatterRule,
   type ScatterClimate,
