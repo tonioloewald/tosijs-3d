@@ -7,7 +7,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const mount = () => {
   const el: any = b3d({
-    style: 'display:block;width:200px;height:150px',
+    style: { display: 'block', width: '200px', height: '150px' },
     clearColor: '#ff0000',
   })
   document.body.append(el)

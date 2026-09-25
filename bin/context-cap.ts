@@ -29,7 +29,7 @@ if (!built.success) throw new Error(built.logs.join('\n'))
 const js = await built.outputs[0].text()
 const server = Bun.serve({
   port: 0,
-  fetch: (req) =>
+  fetch: (req: Request) =>
     new URL(req.url).pathname === '/page.js'
       ? new Response(js, { headers: { 'content-type': 'text/javascript' } })
       : new Response(
