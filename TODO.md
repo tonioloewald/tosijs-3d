@@ -127,9 +127,17 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       tree") and sound emitters plug in. Queries touch only the cells in
       range, so their cost follows the neighbourhood, not the budget.
 
-      Open:
-      build time at 20k (333 ms on the main thread per re-scatter, so rebuild
-      only the ring that changed, or use a worker); distance LOD or
+      RE-SCATTER at 20k, HALVED (2026-09-25): ground samples (height and
+      normal, the terrain calls) are cached across moves, so a move samples
+      only the ring it entered; the slope uses 3 samples, not 5; the weights
+      live in one pooled buffer. Headless on the real terrain: first build
+      597 → 468 ms, a re-scatter after a move ~600 → ~305 ms (≈170 ms on the
+      M5). The cache is ~22 MB at 20k and scales with the budget. What
+      remains is the scatter's arithmetic over ~160k candidates and the
+      instance-buffer rewrite; a worker (terrain sampler and all) is the next
+      lever if the hitch shows.
+
+      Open: distance LOD or
       impostors, only once a slower device says it hurts; Quest and mid-laptop
       numbers before raising defaults. Beware counters that lie:
       `drawCallsCounter` reads 359 whatever the budget (it does not see thin
