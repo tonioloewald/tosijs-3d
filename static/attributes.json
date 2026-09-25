@@ -1283,7 +1283,7 @@
       {
         "name": "shadows",
         "default": "'off'",
-        "description": "Cast shadows: every copy is a caster, added straight to the sun's generator (its distance gate cannot see thin instances). Copies always RECEIVE shadows. Live"
+        "description": "Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live"
       },
       {
         "name": "colliders",
@@ -1299,6 +1299,16 @@
         "name": "colliderPool",
         "default": "48",
         "description": "How many colliders at most"
+      },
+      {
+        "name": "shadowRange",
+        "default": "200",
+        "description": "Metres around the camera whose copies cast shadows (with `shadows: 'on'`)"
+      },
+      {
+        "name": "shadowBudget",
+        "default": "600",
+        "description": "How many of the nearest copies cast, at most"
       }
     ]
   },

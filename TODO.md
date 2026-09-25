@@ -109,11 +109,23 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       SHADOWS MEASURED (same setup, morning sun): +3.7 ms at 2k, +4.0 ms at
       10k, +6.7 ms at 20k. Roughly 3.7 ms is FIXED, from drawing every part
       into all four cascades whatever the count; the rest grows with the
-      budget. So `shadows` stays OFF by default. The fix is to cast only
-      what can be seen to cast: a second, shadow-only thin-instance buffer
-      per part holding the placements within ~150 m (or the nearest N), so
-      distant copies never enter a shadow map. Far cascades could also skip
-      them entirely.
+      budget. So `shadows` stays OFF by default.
+
+      NEAR-ONLY SHADOWS BUILT (shadow-only twins holding the nearest
+      `shadowBudget` copies within `shadowRange`). Re-measured in one run
+      at 10k: off 21.1 ms, on with 5 casting copies 23.5 ms, on with 600
+      casting copies 23.5 ms. So the copy count no longer matters. The
+      remaining ≈2.4 ms is the SUN's shadow pass switching on at all (Land and
+      Sky has no other casters): four 2048² cascades plus shadow sampling on
+      the terrain. That is `b3d-sun`'s lever (map size, cascade count per
+      tier), not the decorator's.
+
+      ONE NEAR-SET (Tonio: "analogous to how we handle collisions"). The
+      collider pool and the shadow twins are the same idea: the placements
+      near the viewer, picked from the same list, costing the same whatever
+      the budget. LOD, interaction ("chop this tree") and sound emitters will
+      want it too, so it should become one shared near-set query, not a third
+      copy.
 
       Open:
       build time at 20k (333 ms on the main thread per re-scatter, so rebuild

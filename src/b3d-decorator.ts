@@ -25,6 +25,17 @@ The scatter is **world-anchored**, so when the camera moves far enough
 the terrain's floating origin and rebuilds when the terrain's shape or climate
 changes.
 
+## Shadows, where they show
+
+Casting from every copy puts each one into all four shadow cascades:
+measured at +3.7 ms (2k) to +6.7 ms (20k) on an M5 Max, most of it for
+copies too far away for their shadow to be seen. So each part has a
+**shadow-only twin** (on a layer the camera does not draw)
+holding just the nearest `shadowBudget` copies within `shadowRange`, re-picked
+as the camera moves. The visible copies never cast. Measured after: 5 or 600
+casting copies cost the same. What remains (≈2.4 ms there) is the sun's
+shadow pass switching on at all, which the sun's own settings govern.
+
 ## Collision, where it matters
 
 A small POOL of invisible colliders follows the camera: trunks as thin
@@ -44,10 +55,12 @@ biped stops at a trunk and can stand on a boulder.
 | `url` | `''` | The model library; empty = Kenney's Nature Kit on the CDN |
 | `scale` | `1` | Multiplies every rule's scale range |
 | `follow` | `'on'` | Re-scatter as the camera moves |
-| `shadows` | `'off'` | Cast shadows: every copy is a caster, added straight to the sun's generator (its distance gate cannot see thin instances). Copies always RECEIVE shadows. Live |
+| `shadows` | `'off'` | Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live |
 | `colliders` | `'on'` | The nearby collider pool |
 | `colliderRange` | `60` | Metres around the camera that get colliders |
 | `colliderPool` | `48` | How many colliders at most |
+| `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
+| `shadowBudget` | `600` | How many of the nearest copies cast, at most |
 */
 /*{ "parent": "Environment" }*/
 
@@ -63,8 +76,18 @@ import {
   type ScatterRule,
 } from './scatter.js'
 
+/*
+A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
+pass renders its explicit caster list WITHOUT checking layer masks
+(ObjectRenderer.forceLayerMaskCheck is false), so a mesh on this layer casts
+but is never drawn to the screen.
+*/
+const SHADOW_ONLY_LAYER = 0x10000000
+
 interface Part {
   mesh: BABYLON.Mesh
+  /** The same geometry, shadow-only, holding just the NEAR copies. */
+  shadow: BABYLON.Mesh
   /** Part → model-root transform (the model's own offset removed). */
   rel: BABYLON.Matrix
 }
@@ -91,6 +114,8 @@ export class B3dDecorator extends B3dChild {
     colliders: 'on' as 'on' | 'off',
     colliderRange: 60,
     colliderPool: 48,
+    shadowRange: 200,
+    shadowBudget: 600,
   }
 
   declare budget: number
@@ -103,6 +128,8 @@ export class B3dDecorator extends B3dChild {
   declare colliders: 'on' | 'off'
   declare colliderRange: number
   declare colliderPool: number
+  declare shadowRange: number
+  declare shadowBudget: number
 
   /** The rules. Replace before the first build (or call `rebuild()`). */
   rules: ScatterRule[] = NATURE_KIT_RULES
@@ -139,12 +166,15 @@ export class B3dDecorator extends B3dChild {
     const list = gen?.getShadowMap()?.renderList
     if (gen == null || list == null) return
     const on = !isOff(this.shadows)
+    if (!on) this._shadowFrom = null
     for (const info of this._models.values())
       for (const p of info?.parts ?? []) {
-        const has = list.includes(p.mesh)
-        const live = p.mesh.thinInstanceCount > 0
-        if (on && live && !has) gen.addShadowCaster(p.mesh)
-        else if ((!on || !live) && has) gen.removeShadowCaster(p.mesh)
+        // The VISIBLE copies never cast — only their near-only twins do.
+        if (list.includes(p.mesh)) gen.removeShadowCaster(p.mesh)
+        const has = list.includes(p.shadow)
+        const live = p.shadow.isEnabled() && p.shadow.thinInstanceCount > 0
+        if (on && live && !has) gen.addShadowCaster(p.shadow)
+        else if ((!on || !live) && has) gen.removeShadowCaster(p.shadow)
       }
   }
   private _debugOff: (() => void) | null = null
@@ -262,7 +292,8 @@ export class B3dDecorator extends B3dChild {
       this._build(terrain, here, off)
     }
     if (performance.now() >= this._nextShadowCheck) {
-      this._nextShadowCheck = performance.now() + 1000
+      this._nextShadowCheck = performance.now() + 300
+      this._pickShadowCasters(here, off)
       this._syncShadows()
     }
     if (
@@ -336,7 +367,20 @@ export class B3dDecorator extends B3dChild {
         part.checkCollisions = false
         // Trees shade each other, and the terrain's shadows fall on them.
         part.receiveShadows = true
-        parts.push({ mesh: part, rel })
+        const shadow = m.clone(
+          `deco-${name}-shadow`,
+          this._root,
+          true
+        ) as BABYLON.Mesh
+        shadow.position.setAll(0)
+        shadow.rotationQuaternion = BABYLON.Quaternion.Identity()
+        shadow.scaling.setAll(1)
+        shadow.layerMask = SHADOW_ONLY_LAYER
+        shadow.isPickable = false
+        shadow.checkCollisions = false
+        shadow.receiveShadows = false
+        shadow.setEnabled(false)
+        parts.push({ mesh: part, shadow, rel })
         const bb = m.getBoundingInfo().boundingBox
         for (const v of bb.vectorsWorld) {
           const p = BABYLON.Vector3.TransformCoordinates(
@@ -357,6 +401,8 @@ export class B3dDecorator extends B3dChild {
     for (const info of this._models.values())
       for (const p of info?.parts ?? []) {
         p.mesh.thinInstanceCount = 0
+        p.shadow.thinInstanceCount = 0
+        p.shadow.setEnabled(false)
       }
     this._drawn = []
   }
@@ -420,56 +466,122 @@ export class B3dDecorator extends B3dChild {
       else byModel.set(p.model, [p])
     }
     this._clearParts()
-    const up = BABYLON.Vector3.Up()
-    const q = new BABYLON.Quaternion()
-    const tilt = new BABYLON.Quaternion()
-    const yawQ = new BABYLON.Quaternion()
-    const n = new BABYLON.Vector3()
-    const srt = new BABYLON.Matrix()
-    const scl = new BABYLON.Vector3()
-    const pos = new BABYLON.Vector3()
-    const out = new BABYLON.Matrix()
     for (const [name, list] of byModel) {
       const info = this._model(name)
       if (info == null) continue
-      const rule = this.rules[list[0].rule]
-      const align = rule?.alignToSlope ?? 0
-      /*
-      ON THE GROUND, not above it. Two corrections, per placement:
-      - the model's lowest point goes to the ground, whatever its origin;
-      - it SINKS on a slope by footprint radius × tan(the tilt it did not take
-        up by leaning), so the downhill side of the base is not in mid-air.
-        A trunk's footprint is its trunk, not its canopy; a rock's is itself.
-      */
-      const width = Math.min(info.max.x - info.min.x, info.max.z - info.min.z)
-      const footprint = width * (rule?.collider === 'trunk' ? 0.12 : 0.45)
-      const height = info.max.y - info.min.y
-      for (const part of info.parts) {
-        const buf = new Float32Array(list.length * 16)
-        list.forEach((p, i) => {
-          BABYLON.Quaternion.RotationYawPitchRollToRef(p.yaw, 0, 0, yawQ)
-          n.set(p.normal.x, p.normal.y, p.normal.z)
-          BABYLON.Vector3.LerpToRef(up, n, align, n)
-          n.normalize()
-          BABYLON.Quaternion.FromUnitVectorsToRef(up, n, tilt)
-          yawQ.multiplyToRef(tilt, q) // yaw first, then lean to the ground
-          scl.setAll(p.scale)
-          const slope = Math.acos(Math.min(1, Math.max(-1, p.normal.y)))
-          const residual = Math.tan(slope * (1 - align))
-          const sink = p.scale * (footprint * residual + height * 0.02)
-          pos.set(p.x - off.x, p.y - info.min.y * p.scale - sink, p.z - off.z)
-          BABYLON.Matrix.ComposeToRef(scl, q, pos, srt)
-          part.rel.multiplyToRef(srt, out)
-          out.copyToArray(buf, i * 16)
-        })
-        part.mesh.thinInstanceSetBuffer('matrix', buf, 16, true)
-        part.mesh.thinInstanceRefreshBoundingInfo(false)
-        this._drawn.push(part.mesh)
-      }
+      this._writeInstances(list, info, off, false)
+      for (const part of info.parts) this._drawn.push(part.mesh)
     }
+    this._shadowFrom = null // re-pick the near casters for this build
     this._syncShadows()
     this.lastBuildMs = performance.now() - t0
     this._builds++
+  }
+
+  private _scratch = {
+    up: BABYLON.Vector3.Up(),
+    q: new BABYLON.Quaternion(),
+    tilt: new BABYLON.Quaternion(),
+    yawQ: new BABYLON.Quaternion(),
+    n: new BABYLON.Vector3(),
+    srt: new BABYLON.Matrix(),
+    scl: new BABYLON.Vector3(),
+    pos: new BABYLON.Vector3(),
+    out: new BABYLON.Matrix(),
+  }
+
+  /** One model's copies, into each part's VISIBLE mesh or its SHADOW twin. */
+  private _writeInstances(
+    list: Placement[],
+    info: ModelInfo,
+    off: { x: number; z: number },
+    shadow: boolean
+  ): void {
+    const { up, q, tilt, yawQ, n, srt, scl, pos, out } = this._scratch
+    const rule = this.rules[list[0].rule]
+    const align = rule?.alignToSlope ?? 0
+    /*
+    ON THE GROUND, not above it. Two corrections, per placement:
+    - the model's lowest point goes to the ground, whatever its origin;
+    - it SINKS on a slope by footprint radius × tan(the tilt it did not take
+      up by leaning), so the downhill side of the base is not in mid-air.
+      A trunk's footprint is its trunk, not its canopy; a rock's is itself.
+    */
+    const width = Math.min(info.max.x - info.min.x, info.max.z - info.min.z)
+    const footprint = width * (rule?.collider === 'trunk' ? 0.12 : 0.45)
+    const height = info.max.y - info.min.y
+    for (const part of info.parts) {
+      const mesh = shadow ? part.shadow : part.mesh
+      const buf = new Float32Array(list.length * 16)
+      list.forEach((p, i) => {
+        BABYLON.Quaternion.RotationYawPitchRollToRef(p.yaw, 0, 0, yawQ)
+        n.set(p.normal.x, p.normal.y, p.normal.z)
+        BABYLON.Vector3.LerpToRef(up, n, align, n)
+        n.normalize()
+        BABYLON.Quaternion.FromUnitVectorsToRef(up, n, tilt)
+        yawQ.multiplyToRef(tilt, q) // yaw first, then lean to the ground
+        scl.setAll(p.scale)
+        const slope = Math.acos(Math.min(1, Math.max(-1, p.normal.y)))
+        const residual = Math.tan(slope * (1 - align))
+        const sink = p.scale * (footprint * residual + height * 0.02)
+        pos.set(p.x - off.x, p.y - info.min.y * p.scale - sink, p.z - off.z)
+        BABYLON.Matrix.ComposeToRef(scl, q, pos, srt)
+        part.rel.multiplyToRef(srt, out)
+        out.copyToArray(buf, i * 16)
+      })
+      mesh.thinInstanceSetBuffer('matrix', buf, 16, true)
+      mesh.thinInstanceRefreshBoundingInfo(false)
+    }
+  }
+
+  /*
+  NEAR-ONLY SHADOWS. Casting from every copy put each one into all four
+  cascades — measured at +3.7 ms (2k) to +6.7 ms (20k) on an M5 Max, mostly a
+  FIXED cost, and almost all of it for copies too far away for their shadow to
+  be seen. So the casters are a separate, shadow-only twin of each part
+  holding just the nearest \`shadowBudget\` copies within \`shadowRange\`,
+  re-picked when the camera has moved a few metres.
+  */
+  private _shadowFrom: { x: number; z: number } | null = null
+  private _pickShadowCasters(
+    here: { x: number; z: number },
+    off: { x: number; z: number }
+  ): void {
+    if (isOff(this.shadows)) return
+    if (
+      this._shadowFrom != null &&
+      Math.hypot(here.x - this._shadowFrom.x, here.z - this._shadowFrom.z) < 5
+    )
+      return
+    this._shadowFrom = here
+    const range = this.shadowRange
+    const near: Array<{ p: Placement; d: number }> = []
+    for (const p of this.placements) {
+      const d = Math.hypot(p.x - here.x, p.z - here.z)
+      if (d <= range) near.push({ p, d })
+    }
+    near.sort((a, b) => a.d - b.d)
+    const chosen = near.slice(0, Math.max(0, Math.floor(this.shadowBudget)))
+    const byModel = new Map<string, Placement[]>()
+    for (const { p } of chosen) {
+      const list = byModel.get(p.model)
+      if (list) list.push(p)
+      else byModel.set(p.model, [p])
+    }
+    for (const [name, info] of this._models) {
+      if (info == null) continue
+      const list = byModel.get(name)
+      if (list == null) {
+        for (const part of info.parts) {
+          part.shadow.thinInstanceCount = 0
+          part.shadow.setEnabled(false)
+        }
+        continue
+      }
+      this._writeInstances(list, info, off, true)
+      for (const part of info.parts) part.shadow.setEnabled(true)
+    }
+    this._syncShadows()
   }
 
   /*

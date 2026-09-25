@@ -331,10 +331,12 @@ b3d-decorator
   url  = ''  — The model library; empty = Kenney's Nature Kit on the CDN
   scale  = 1  — Multiplies every rule's scale range
   follow  = 'on'  — Re-scatter as the camera moves
-  shadows  = 'off'  — Cast shadows: every copy is a caster, added straight to the sun's generator (its distance gate cannot see thin instances). Copies always RECEIVE shadows. Live
+  shadows  = 'off'  — Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live
   colliders  = 'on'  — The nearby collider pool
   colliderRange  = 60  — Metres around the camera that get colliders
   colliderPool  = 48  — How many colliders at most
+  shadowRange  = 200  — Metres around the camera whose copies cast shadows (with `shadows: 'on'`)
+  shadowBudget  = 600  — How many of the nearest copies cast, at most
 
 ## b3d-destroyable — <tosi-b3d-destroyable>
 b3d-destroyable
