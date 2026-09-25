@@ -68,6 +68,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **Noted late, from 0.8.3: `slider3d`'s `peek` readout appears BESIDE the
+  caption rather than replacing it** (tosijs-3d#84). Deliberate — a label that
+  vanishes the moment you touch the control loses the name of what you are
+  adjusting — but it went unannounced, and a consumer test pinned the old
+  behaviour. Press and drag over the caption also work (the stacked layout made
+  the whole width the track); now pinned by a test.
 - **The shipped sky's stars are rebaked from the voxel galaxy** — 100k bright
   stars plus the dim stars around the bake point (~119k objects, against 100k
   before). Far more stars at night, and a dense local sprinkle across the

@@ -1111,3 +1111,31 @@ describe('a slider keeps a usable track however narrow the row', () => {
     expect(h).toBeLessThan(64)
   })
 })
+
+describe('slider3d — the caption is not a dead zone (tosijs-3d#84)', () => {
+  /*
+  Reported on 0.8.1: over the caption, hover, press and drag all did nothing,
+  while the same gestures 120px right worked. The stacked layout put the
+  caption on its own row and made the whole width the track, and routing is by
+  COORDINATE (hitTest + handle), not by which DOM node is on top. So pressing
+  and dragging over the caption's x must set the value exactly as hover shows
+  it. Pinned for press and drag, the half the addendum could not check.
+  */
+  test('press and drag at the caption x set the value', () => {
+    let v = 50
+    const s = w3d.slider3d({
+      label: 'Gross scale (frequency) (1/m)',
+      value: 50,
+      min: 0,
+      max: 100,
+      handleChange: (n: number) => (v = n),
+    }) as any
+    s.layout(290)
+    const captionX = 20 // inside the caption's box, at the left end
+    expect(s.hitTest(captionX)).toBe(true)
+    s.handle('down', captionX)
+    expect(v).toBeLessThan(5)
+    s.handle('move', captionX + 60)
+    expect(v).toBeGreaterThan(15)
+  })
+})
