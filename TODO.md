@@ -76,6 +76,22 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       generated locally). Also fixes a live bug it measured: 63.4% of stars
       share a seed with another star, so they share names and planets.
 
+- [ ] **Measure the encoded sky, then build a CHEAPER tier of it** (Tonio,
+      2026-09-25: "it looks incredible … RIDICULOUSLY nice", so find out
+      what it costs). What is known, for the measuring to start from: - **Per sky fragment:** a 3×3 texel read (9 `textureCube` fetches, NEAREST,
+      no mips), cube face/uv maths per tap, up to 27 point evaluations where
+      texels are packed (the dense band), a Gaussian and a reach taper per
+      point, and 2 `sin` per star for twinkle. It runs on every sky pixel,
+      and since 0.8.4 at up to 2× device resolution (4× the pixels on
+      Retina). - **Memory:** the data cube is 6 × 1024² RGBA ≈ 25 MB of VRAM, plus the
+      256² nebula cube (≈1.5 MB). - **Measure:** GPU time with the sky on/off (EXT_disjoint_timer_query
+      where available, else frame time at a fixed heavy load). Test at 1×
+      and 2× pixel ratio, by day (`b3dStarDataLevel` 0 skips the decode)
+      and by night, on the M-series Mac, a mid laptop and the Quest. - **The cheap tier:** a per-tier budget (auto, overridable, like
+      `pixelRatioCap`) selecting some of: - a 512 data cube (a quarter the VRAM, more collisions: measure what
+      is lost); - no twinkle; - a smaller neighbourhood (2×2 picked by the fragment's sub-texel
+      quadrant); - skipping packed texels; - the old raster star cube for the low tier. - **Order:** measure first, cut only where the numbers say it hurts.
+
 - [ ] **Several moons / suns are COSMETIC** (Tonio, 2026-09-25, tosijs-3d#89).
       Authored bodies: where, what colour, how big. No orbits, eclipses or
       sky-from-a-moon; that is a real orbital system, and a separate, big
