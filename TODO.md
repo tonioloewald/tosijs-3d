@@ -106,7 +106,16 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       5.9M. Builds take 12 ms at 1k, ~100 ms at 5–10k and 333 ms at 20k. So
       the budget can be generous on desktop.
 
-      Open: shadows (every copy is a caster, so measure `shadows: 'on'`);
+      SHADOWS MEASURED (same setup, morning sun): +3.7 ms at 2k, +4.0 ms at
+      10k, +6.7 ms at 20k. Roughly 3.7 ms is FIXED, from drawing every part
+      into all four cascades whatever the count; the rest grows with the
+      budget. So `shadows` stays OFF by default. The fix is to cast only
+      what can be seen to cast: a second, shadow-only thin-instance buffer
+      per part holding the placements within ~150 m (or the nearest N), so
+      distant copies never enter a shadow map. Far cascades could also skip
+      them entirely.
+
+      Open:
       build time at 20k (333 ms on the main thread per re-scatter, so rebuild
       only the ring that changed, or use a worker); distance LOD or
       impostors, only once a slower device says it hurts; Quest and mid-laptop
