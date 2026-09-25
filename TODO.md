@@ -78,19 +78,43 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
 
 - [ ] **Measure the encoded sky, then build a CHEAPER tier of it** (Tonio,
       2026-09-25: "it looks incredible … RIDICULOUSLY nice", so find out
-      what it costs). What is known, for the measuring to start from: - **Per sky fragment:** a 3×3 texel read (9 `textureCube` fetches, NEAREST,
-      no mips), cube face/uv maths per tap, up to 27 point evaluations where
-      texels are packed (the dense band), a Gaussian and a reach taper per
-      point, and 2 `sin` per star for twinkle. It runs on every sky pixel,
-      and since 0.8.4 at up to 2× device resolution (4× the pixels on
-      Retina). - **Memory:** the data cube is 6 × 1024² RGBA ≈ 25 MB of VRAM, plus the
-      256² nebula cube (≈1.5 MB). - **Measure:** GPU time with the sky on/off (EXT_disjoint_timer_query
-      where available, else frame time at a fixed heavy load). Test at 1×
-      and 2× pixel ratio, by day (`b3dStarDataLevel` 0 skips the decode)
-      and by night, on the M-series Mac, a mid laptop and the Quest. - **The cheap tier:** a per-tier budget (auto, overridable, like
-      `pixelRatioCap`) selecting some of: - a 512 data cube (a quarter the VRAM, more collisions: measure what
-      is lost); - no twinkle; - a smaller neighbourhood (2×2 picked by the fragment's sub-texel
-      quadrant); - skipping packed texels; - the old raster star cube for the low tier. - **Order:** measure first, cut only where the numbers say it hurts.
+      what it costs). Per sky fragment it does a 3×3 texel read (9 NEAREST
+      `textureCube` fetches), cube face/uv maths per tap, up to 27 point
+      evaluations in packed texels (the dense band), a Gaussian and a reach
+      taper per point, and 2 `sin` per star for twinkle. That runs on every
+      sky pixel, at up to 2× device resolution since 0.8.4. Memory: the data
+      cube is 6 × 1024² RGBA ≈ 25 MB, plus the 256² nebula cube (≈1.5 MB).
+
+      FIRST NUMBERS (Land and Sky, M5 Max, Electron, 2×, 1344×640 canvas,
+      uncapped): night 24.3 ms against noon 20.1 ms, so **the star decode
+      costs ≈ 4.2 ms** even at that small size. The cloud deck is ≈ 0.05 ms.
+      **The ~20 ms baseline is elsewhere**: water reflection and refraction
+      (the scene rendered again) and 4 shadow cascades are the suspects, and
+      that is the bigger lever.
+
+      Still to measure: 1× against 2×, full-size windows, a mid laptop, the
+      Quest. The cheap tier is a per-tier budget (auto, overridable, like
+      `pixelRatioCap`) choosing among: a 512 data cube (a quarter the VRAM,
+      more collisions; measure what is lost), no twinkle, a 2×2 read picked by
+      the fragment's sub-texel quadrant, skipping packed texels, or the old
+      raster star cube for the low tier. Measure first; cut only where the
+      numbers say it hurts.
+
+- [ ] **Decorator next steps** (b3d-decorator shipped 2026-09-25). MEASURED
+      on the M5 Max (Land and Sky, 2×, uncapped): frame time is FLAT from 0
+      to 20,000 items (20.70 → 20.69 ms) while active indices grow 1.1M →
+      5.9M. Builds take 12 ms at 1k, ~100 ms at 5–10k and 333 ms at 20k. So
+      the budget can be generous on desktop.
+
+      Open: shadows (every copy is a caster, so measure `shadows: 'on'`);
+      build time at 20k (333 ms on the main thread per re-scatter, so rebuild
+      only the ring that changed, or use a worker); distance LOD or
+      impostors, only once a slower device says it hurts; Quest and mid-laptop
+      numbers before raising defaults. Beware counters that lie:
+      `drawCallsCounter` reads 359 whatever the budget (it does not see thin
+      instances), and the GPU timer query reads more than the frame. Frame
+      time measured uncapped is the honest signal; `measureCost` lifts the
+      `frameRate` throttle for it.
 
 - [ ] **Several moons / suns are COSMETIC** (Tonio, 2026-09-25, tosijs-3d#89).
       Authored bodies: where, what colour, how big. No orbits, eclipses or
