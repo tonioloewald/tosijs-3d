@@ -632,6 +632,16 @@ export {
 } from './camera-fit.js'
 export { playground, type PlaygroundOptions } from './playground.js'
 export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js'
+// Rocks and trees on the terrain, by budget and climate.
+export { B3dDecorator, b3dDecorator } from './b3d-decorator.js'
+export {
+  scatterPlacements,
+  NATURE_KIT_RULES,
+  type ScatterRule,
+  type ScatterClimate,
+  type ScatterOptions,
+  type Placement,
+} from './scatter.js'
 export {
   cloudField,
   cloudOpacity,

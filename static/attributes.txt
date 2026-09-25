@@ -322,6 +322,20 @@ b3d-death
   wreckage  = 'on'  — Explode + leave burning wreckage (`'off'` = just the panel)
   blastRadius  = 6  — Size of the fireball
 
+## b3d-decorator — <tosi-b3d-decorator>
+b3d-decorator
+
+  budget  = 2000  — How many things to place. Performance cares about this, not density
+  radius  = 900  — Metres around the camera to fill
+  seed  = 1  — Same seed, same forest
+  url  = ''  — The model library; empty = Kenney's Nature Kit on the CDN
+  scale  = 1  — Multiplies every rule's scale range
+  follow  = 'on'  — Re-scatter as the camera moves
+  shadows  = 'off'  — Cast shadows (every copy is a caster — costly at high budgets)
+  colliders  = 'on'  — The nearby collider pool
+  colliderRange  = 60  — Metres around the camera that get colliders
+  colliderPool  = 48  — How many colliders at most
+
 ## b3d-destroyable — <tosi-b3d-destroyable>
 b3d-destroyable
 

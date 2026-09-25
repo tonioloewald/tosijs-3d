@@ -1246,6 +1246,63 @@
     ]
   },
   {
+    "module": "b3d-decorator",
+    "tag": "tosi-b3d-decorator",
+    "summary": "b3d-decorator",
+    "attributes": [
+      {
+        "name": "budget",
+        "default": "2000",
+        "description": "How many things to place. Performance cares about this, not density"
+      },
+      {
+        "name": "radius",
+        "default": "900",
+        "description": "Metres around the camera to fill"
+      },
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same forest"
+      },
+      {
+        "name": "url",
+        "default": "''",
+        "description": "The model library; empty = Kenney's Nature Kit on the CDN"
+      },
+      {
+        "name": "scale",
+        "default": "1",
+        "description": "Multiplies every rule's scale range"
+      },
+      {
+        "name": "follow",
+        "default": "'on'",
+        "description": "Re-scatter as the camera moves"
+      },
+      {
+        "name": "shadows",
+        "default": "'off'",
+        "description": "Cast shadows (every copy is a caster — costly at high budgets)"
+      },
+      {
+        "name": "colliders",
+        "default": "'on'",
+        "description": "The nearby collider pool"
+      },
+      {
+        "name": "colliderRange",
+        "default": "60",
+        "description": "Metres around the camera that get colliders"
+      },
+      {
+        "name": "colliderPool",
+        "default": "48",
+        "description": "How many colliders at most"
+      }
+    ]
+  },
+  {
     "module": "b3d-destroyable",
     "tag": "tosi-b3d-destroyable",
     "summary": "b3d-destroyable",

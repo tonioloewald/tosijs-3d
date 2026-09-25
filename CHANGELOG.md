@@ -193,6 +193,18 @@ camera)`** derives the frames from any flat camera's world pose (the eye
   frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
   a hand panel declares **`flatFrame`**; without one it stays VR-only and
   warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
+- **`<tosi-b3d-decorator>` — rocks and trees on the terrain, by budget and
+  by climate.** The pure **`scatterPlacements`** model places a fixed NUMBER of things.
+  Its rules use the biome shader's own axes (temperature, moisture, altitude
+  above sea, slope), so pines grow in the cold, palms on warm shores, cacti in
+  hot dry country, and boulders on the steep. Candidates are world-anchored
+  and deterministic, and an acceptance threshold is solved to hit the budget.
+  Provinces suppress by kind (no plants on a lava field; rocks still). Models
+  come from Kenney's Nature Kit, drawn as thin instances: one draw call per
+  model part, whatever the budget. A small collider pool follows the camera:
+  trunks as posts, boulders as boxes. `measureCost()` steps through budgets
+  and reports frame time, GPU time (where exposed), draw calls and indices.
+  Land and Sky has a Vegetation group (budget 0–20k, reach).
 - **Render resolution follows the display, by device tier.** Scenes rendered
   at CSS resolution, so a 1.25× or 2× display upscaled everything (soft edges,
   soft stars). The render now uses the display's pixel ratio capped by tier:

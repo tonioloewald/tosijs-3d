@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -51,6 +51,7 @@ const { sky } = tosi({
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
+    decoBudget: 2000, decoRadius: 900,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
   },
 })
@@ -168,6 +169,11 @@ const scene = b3d(
       slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
       slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
+      label3d({ text: 'Vegetation' }),
+      // THE BUDGET is the performance dial: a count, not a density. Watch the
+      // Perf Stats panel's decorator row (placed, draw calls, build ms).
+      slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
+      slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
       label3d({ text: 'Camera' }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
@@ -240,6 +246,9 @@ const scene = b3d(
   // The layer case: a cloud DECK over the peaks, orographic so the towers
   // build over the actual mountains. Blob clouds (b3d-clouds) remain the
   // right tool for cloud you fly BETWEEN.
+  // Rocks and trees by climate: pines in the cold, palms on warm shores, cacti
+  // in hot dry country, boulders on the steep. See b3d-decorator.
+  b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius }),
   b3dCloudDeck({
     altitude: sky.altitude,
     coverage: sky.coverage,

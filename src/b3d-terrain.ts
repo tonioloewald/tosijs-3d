@@ -655,6 +655,15 @@ export class B3dTerrain extends B3dChild {
    * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
    * after changing attributes or profiles.
    */
+  /**
+   * The floating-origin offset: LOGICAL world = render position + this. What a
+   * consumer of {@link heightSampler} (which speaks logical coordinates) needs
+   * to place things in the scene it renders into.
+   */
+  get originOffset(): { x: number; z: number } {
+    return { x: this.originOffsetX, z: this.originOffsetZ }
+  }
+
   heightSampler(): (x: number, z: number) => number {
     const fn = this.makeHeightFn()
     const offX = this.originOffsetX
