@@ -784,7 +784,7 @@ b3d-skybox
   turbidity  = 10  — Atmospheric haze
   spaceStart  = 0  — Altitude (m) where the fade to space BEGINS
   spaceFull  = 0  — Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`
-  atmosphere  = 1  — How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Multiplies with the space band — air is `atmosphere × (1 − band)`
+  atmosphere  = 1  — How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band
   zenithTint  = '#ffffff'  — The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted
   horizonTint  = '#ffffff'  — The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars
   tintStrength  = 0  — How much the sky takes the tints, `0` (Earth, untouched) … `1`
@@ -792,6 +792,8 @@ b3d-skybox
   starfieldData  = ''  — Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it
   starfieldDataSize  = 1024  — Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band
   starfieldSharpness  = 3  — How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point
+  starfieldGain  = 0.9  — How bright the decoded stars are — the intensity cap on the whole point sky
+  starfieldFloor  = 0.4  — The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it
   starfieldSizeScale  = 3  — How much bigger a full-size object (a distant galaxy) is than a star
   starfieldTilt  = '0,0,0'  — Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs
   starfield  = 0  — How many background stars to build. `0` = none

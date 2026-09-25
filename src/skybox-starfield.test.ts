@@ -125,13 +125,16 @@ describe('atmosphere — the world has its own air (tosijs-3d#89)', () => {
     expect(el._vacuumNow()).toBe(0) // Earth, sea level
     el.atmosphere = 0
     expect(el._vacuumNow()).toBe(1) // the Moon, without climbing
+    // Steep, nearly binary: 0.95 is Earth, 0.5 still nearly (Tonio).
+    el.atmosphere = 0.95
+    expect(el._vacuumNow()).toBeLessThan(1e-5)
     el.atmosphere = 0.5
-    expect(el._vacuumNow()).toBeCloseTo(0.5, 9)
-    // The band still works, and multiplies: half the air, half-way up.
+    expect(el._vacuumNow()).toBeCloseTo(0.0625, 9)
+    // The band still works, and multiplies with the world's air.
     Object.assign(el, { atmosphere: 0.5, spaceStart: 0, spaceFull: 100 })
     cam.position.y = 50
     cam.computeWorldMatrix()
-    expect(el._vacuumNow()).toBeCloseTo(1 - 0.5 * 0.5, 6)
+    expect(el._vacuumNow()).toBeCloseTo(1 - (1 - 0.0625) * 0.5, 6)
     el.sceneDispose()
   })
 
@@ -149,6 +152,25 @@ describe('atmosphere — the world has its own air (tosijs-3d#89)', () => {
     const h = mat._vectors3.b3dTintH
     expect(z.x).toBeCloseTo(0xe8 / 255, 3)
     expect(h.z).toBeCloseTo(0x60 / 255, 3)
+    el.sceneDispose()
+  })
+})
+
+describe("the stars' look is live and cheap", () => {
+  test('size, brightness and floor update without reloading the cube', () => {
+    const { el } = sky({ starfieldData: '/sky/stars' })
+    const data = el._starData
+    Object.assign(el, {
+      starfieldSharpness: 7,
+      starfieldGain: 1.5,
+      starfieldFloor: 0.2,
+    })
+    el.render()
+    expect(el._starData).toBe(data) // no rebuild, no reload
+    const mat = el.mesh.material
+    expect(mat._vectors4.b3dStarInfo.z).toBe(7)
+    expect(mat._floats.b3dStarGain).toBe(1.5)
+    expect(mat._floats.b3dStarFloor).toBe(0.2)
     el.sceneDispose()
   })
 })

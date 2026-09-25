@@ -2958,7 +2958,7 @@
       {
         "name": "atmosphere",
         "default": "1",
-        "description": "How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Multiplies with the space band — air is `atmosphere × (1 − band)`"
+        "description": "How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band"
       },
       {
         "name": "zenithTint",
@@ -2994,6 +2994,16 @@
         "name": "starfieldSharpness",
         "default": "3",
         "description": "How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point"
+      },
+      {
+        "name": "starfieldGain",
+        "default": "0.9",
+        "description": "How bright the decoded stars are — the intensity cap on the whole point sky"
+      },
+      {
+        "name": "starfieldFloor",
+        "default": "0.4",
+        "description": "The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it"
       },
       {
         "name": "starfieldSizeScale",

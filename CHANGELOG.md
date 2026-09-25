@@ -10,6 +10,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Stars were smeared into soft plus-shaped blobs.** The sky's star decoder
+  placed each star relative to whichever tap fetched its texel, so it moved
+  as the fragment moved and was drawn across the whole texel (sometimes twice,
+  when two rotated taps hit one texel). It now walks the 3×3 neighbourhood in
+  texel space and rebuilds every star from its own texel and sub-texel offset,
+  through an exact GLSL mirror of the codec's cube convention. Also, **the
+  data cube had mipmaps**, despite a comment saying otherwise: a mip of packed
+  fields is data nobody encoded. They are off now.
+- **`atmosphere` just below 1 made the clouds vanish.** 5% vacuum pushed a
+  1–4 km fog out past 50 km, and the haze that hides the cloud deck's rim went
+  with it. The world's air is now steep, nearly binary (vacuum is
+  `(1 − atmosphere)⁴`): 0.95 is Earth, and only the last stretch thins the sky.
 - **Touch on the orbit camera: two fingers pan, a pinch zooms** (tosijs-3d#52).
   Babylon's default does both on every two-finger move, with zoom from the
   change in SQUARED spacing, so a drag read as "a weird zoom"; its alternative
@@ -169,6 +181,11 @@ camera)`** derives the frames from any flat camera's world pose (the eye
   frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
   a hand panel declares **`flatFrame`**; without one it stays VR-only and
   warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
+- **Star look dials on `b3d-skybox`:** **`starfieldGain`** (brightness) and
+  **`starfieldFloor`** (the faint mass) join `starfieldSharpness` (size) and
+  `starfieldSizeScale`. All four are live uniforms, so a slider does not reload
+  the cube. With exact points the defaults moved to gain 0.9 and floor 0.4.
+  Land and Sky has a Stars group (size, brightness, faint stars).
 - **`slider3d({ useful: [lo, hi] })`** (tosijs-3d#83) — a soft band on the
   track where the values anybody wants live; the handle still reaches `min`
   and `max`. It is where a schema's `x-useful` lands.

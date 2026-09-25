@@ -50,6 +50,8 @@ const { sky } = tosi({
     // Moon: black noon, stars out); the tints colour the scattered light only.
     world: 'Earth', atmosphere: 1, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
+    // The stars: size (1 = the default point), brightness, and the faint floor.
+    starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3,
   },
 })
 
@@ -64,6 +66,11 @@ const WORLDS = {
   Alien: { atmosphere: 1, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
   Airless: { atmosphere: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
 }
+// SIZE is the inverse of the shader's sharpness: a gaussian's width goes as
+// 1/sqrt(sharpness), so size 2 is twice the width of the default point.
+sky.starSize.observe(() => {
+  sky.starSharpness.value = 3 / Math.max(0.05, sky.starSize.value) ** 2
+})
 sky.world.observe(() => {
   const w = WORLDS[sky.world.value]
   if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
@@ -155,6 +162,10 @@ const scene = b3d(
       slider3d({ label: 'rayleigh', value: sky.rayleigh, min: 0, max: 4, step: 0.05 }),
       slider3d({ label: 'mie', value: sky.mieCoefficient, min: 0, max: 0.05, step: 0.001 }),
       slider3d({ label: 'luminance', value: sky.luminance, min: 0.1, max: 2, step: 0.05 }),
+      label3d({ text: 'Stars' }),
+      slider3d({ label: 'star size', value: sky.starSize, min: 0.4, max: 3, step: 0.05 }),
+      slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
+      slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
       label3d({ text: 'Camera' }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
@@ -215,6 +226,9 @@ const scene = b3d(
     zenithTint: sky.zenithTint,
     horizonTint: sky.horizonTint,
     tintStrength: sky.tintStrength,
+    starfieldSharpness: sky.starSharpness,
+    starfieldGain: sky.starGain,
+    starfieldFloor: sky.starFloor,
   }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),

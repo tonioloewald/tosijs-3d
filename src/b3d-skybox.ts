@@ -111,7 +111,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `rayleigh` | `2` | Rayleigh scattering |
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
-| `atmosphere` | `1` | How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Multiplies with the space band — air is `atmosphere × (1 − band)` |
+| `atmosphere` | `1` | How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band |
 | `zenithTint` | `'#ffffff'` | The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted |
 | `horizonTint` | `'#ffffff'` | The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars |
 | `tintStrength` | `0` | How much the sky takes the tints, `0` (Earth, untouched) … `1` |
@@ -119,6 +119,8 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `starfieldData` | `''` | Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it |
 | `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
 | `starfieldSharpness` | `3` | How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point |
+| `starfieldGain` | `0.9` | How bright the decoded stars are — the intensity cap on the whole point sky |
+| `starfieldFloor` | `0.4` | The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |
@@ -235,11 +237,13 @@ const B3D_SKY = 'b3dSky'
  * still has to light the fragment next door, or every star would be clipped to
  * its own texel and the sky would be a grid of hard squares.
  *
- * The neighbours are reached by PERTURBING THE DIRECTION rather than by
- * offsetting uv, which costs one normalize per tap and buys the face seams for
- * free — a direction that wanders off the edge of a face is simply a direction,
- * and `textureCube` resolves it. Offsetting uv would need every seam handled by
- * hand, six times, in both axes.
+ * The neighbours are walked in TEXEL space, from the fragment's own texel,
+ * each fetched at its centre, and every star is rebuilt from its own texel and
+ * its encoded sub-texel offset, through an exact GLSL mirror of the codec's
+ * cube convention. (The first version perturbed the view direction instead and
+ * placed stars relative to the tap, which smeared every star across its texel;
+ * see `b3dPoint`.) A neighbour past a face's edge is just a direction past the
+ * edge: `textureCube` resolves it and `b3dFaceUv` names the texel it hit.
  */
 function starDecodeGlsl(palette: string): string {
   return `
@@ -264,15 +268,20 @@ colourful mass survives as a dim sprinkle.
 */
 #define DISPLAY_EXP 2.0
 /*
-STAR GAIN — the intensity cap. The curve alone cannot stop the brightest
+STAR GAIN — the intensity cap (the \`starfieldGain\` attribute; 0.9 since the
+decoder stopped smearing each star over its texel, which had been quietly
+adding light — the tuning history below was against the smeared points). The curve alone cannot stop the brightest
 stars sitting at 1.0 over the band's glow, which reads as white-hot dots no
 matter what tint they carry. The whole contribution scales down so the few
 bright points stay the brightest things in the sky without the blowout.
 Toned: 0.55 was still "a little too bright", 0.45 is where it landed.
 */
-#define STAR_GAIN 0.45
+uniform float b3dStarGain;
+#define STAR_GAIN b3dStarGain
 /*
-DISPLAY FLOOR — the faint mass must stay VISIBLE, and the WARM COLOUR lives
+DISPLAY FLOOR (the \`starfieldFloor\` attribute; 0.4 since exact points — a
+faint star is now one crisp pixel rather than a texel-wide smear, so it needs
+more of its own light to be seen) — the faint mass must stay VISIBLE, and the WARM COLOUR lives
 in the faint mass. The K/M classes are physically the dim ones — they never
 cross BRIGHT_SPECTRAL_FLOOR, so they all render through the warm-yellow
 faint path — and a floor of 0.05 put them at ~10/255, invisible on a real
@@ -280,16 +289,60 @@ screen. Tonio: "zero stars visible in empty regions". 0.1 reads as a dim
 warm sprinkle. Only the very bottom is flattened — everything above the
 floor keeps its relative order.
 */
-#define DISPLAY_FLOOR 0.1
+uniform float b3dStarFloor;
+#define DISPLAY_FLOOR b3dStarFloor
 
-/** One reconstructed point, given its sub-texel position and its look. */
+/*
+THE CUBE CONVENTION, in GLSL — an exact mirror of starfield-codec's dirToFace
+and faceToDir (the OpenGL cube-map convention). The decoder needs it because a
+star is stored as (face, texel, sub-texel u/v), and the ONLY way to put it
+back where it was encoded is to invert exactly that.
+*/
+vec3 b3dFaceUv(vec3 d) {
+  vec3 a = abs(d);
+  float face; float sc; float tc; float ma;
+  if (a.x >= a.y && a.x >= a.z) {
+    ma = a.x;
+    if (d.x > 0.0) { face = 0.0; sc = -d.z; tc = -d.y; }
+    else { face = 1.0; sc = d.z; tc = -d.y; }
+  } else if (a.y >= a.z) {
+    ma = a.y;
+    if (d.y > 0.0) { face = 2.0; sc = d.x; tc = d.z; }
+    else { face = 3.0; sc = d.x; tc = -d.z; }
+  } else {
+    ma = a.z;
+    if (d.z > 0.0) { face = 4.0; sc = d.x; tc = -d.y; }
+    else { face = 5.0; sc = -d.x; tc = -d.y; }
+  }
+  return vec3(face, sc * 0.5 / ma + 0.5, tc * 0.5 / ma + 0.5);
+}
+
+vec3 b3dFaceDir(float face, vec2 uv) {
+  float s = uv.x * 2.0 - 1.0;
+  float t = uv.y * 2.0 - 1.0;
+  if (face < 0.5) return vec3(1.0, -t, -s);
+  if (face < 1.5) return vec3(-1.0, -t, s);
+  if (face < 2.5) return vec3(s, 1.0, t);
+  if (face < 3.5) return vec3(s, -1.0, -t);
+  if (face < 4.5) return vec3(s, -t, 1.0);
+  return vec3(-s, -t, -1.0);
+}
+
+/*
+ONE RECONSTRUCTED POINT, at an exact direction.
+
+It used to be placed relative to the TAP direction — whichever of the nine
+perturbed directions happened to fetch its texel — so as the fragment moved,
+the tap moved, and the star moved with it: every star was smeared across the
+texel it lived in, into a soft plus-shaped blob (seen on a real screen,
+2026-09-25). The note that stood here promised "every fragment reconstructs
+the same position"; that was only true if the tap were the texel's centre,
+and it was not. Now the star's direction comes from its own texel and its
+encoded sub-texel offset, so every fragment agrees to the bit.
+*/
 vec3 b3dPoint(
-  vec2 sub, float brightness, vec3 tint, float radius,
-  vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir
+  vec3 starDir, float brightness, vec3 tint, float radius, vec3 viewDir
 ) {
-  float du = (sub.x - 0.5) * b3dStarInfo.y;
-  float dv = (sub.y - 0.5) * b3dStarInfo.y;
-  vec3 starDir = normalize(tapDir + tangent * du + bitangent * dv);
   float d = length(viewDir - starDir) / b3dStarInfo.y;
   /*
   A GAUSSIAN, not a hard disc. A point source drawn as a circle of pixels reads
@@ -301,6 +354,11 @@ vec3 b3dPoint(
   return tint * brightness * falloff;
 }
 
+/** A texel's star direction: its face, its texel, and a sub-texel offset. */
+vec3 b3dStarDir(float face, vec2 texel, vec2 sub) {
+  return normalize(b3dFaceDir(face, (texel + sub) / b3dStarInfo.x));
+}
+
 /*
 PACKED TEXELS: B == 1.0 marks three crude objects in R, G and A, eight bits
 each — uu(2) vv(2) bbb(3) c(1). It only ever applies where objects are ALREADY
@@ -310,7 +368,7 @@ a blur and what survives is aggregate brightness rather than any one star.
 Without it a real galaxy loses 21% of its stars at 512, because the birthday
 estimate assumes an even sky and a galaxy is the opposite of even. With it, 2%.
 */
-vec3 b3dUnpackOne(float bits, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
+vec3 b3dUnpackOne(float bits, float face, vec2 texel, vec3 viewDir) {
   float v = floor(bits * 255.0 + 0.5);
   if (v <= 0.0) return vec3(0.0);
   float uu = floor(v / 64.0);
@@ -321,35 +379,21 @@ vec3 b3dUnpackOne(float bits, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
     3
   )});
   vec3 tint = c > 0.5 ? STAR_PALETTE[9] : STAR_PALETTE[3];
-  return b3dPoint(
-    vec2((uu + 0.5) / 4.0, (vv + 0.5) / 4.0), brightness, tint, 0.5,
-    tapDir, tangent, bitangent, viewDir
-  );
+  vec3 starDir = b3dStarDir(face, texel, vec2((uu + 0.5) / 4.0, (vv + 0.5) / 4.0));
+  return b3dPoint(starDir, brightness, tint, 0.5, viewDir);
 }
 
-vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
+vec3 b3dDecodeOne(vec4 texel, float face, vec2 cell, vec3 viewDir) {
   // B is zero for an empty texel, which is most of them.
   if (texel.b <= 0.0) return vec3(0.0);
 
   // ...and 255 means packed rather than bright — see above.
   if (texel.b > 0.998) {
-    return b3dUnpackOne(texel.r, tapDir, tangent, bitangent, viewDir)
-      + b3dUnpackOne(texel.g, tapDir, tangent, bitangent, viewDir)
-      + b3dUnpackOne(texel.a, tapDir, tangent, bitangent, viewDir);
+    return b3dUnpackOne(texel.r, face, cell, viewDir)
+      + b3dUnpackOne(texel.g, face, cell, viewDir)
+      + b3dUnpackOne(texel.a, face, cell, viewDir);
   }
 
-  /*
-  The sub-texel offset is stored in the FACE's uv frame and read back here in
-  the TAP's tangent frame. Those differ by a rotation within the tangent plane,
-  so a star lands up to half a texel from where it was encoded.
-
-  That is deliberate. Getting it exact would mean reconstructing the face basis
-  per tap — six branches in the inner loop — to correct an error smaller than
-  the point it is drawing, on a sky where (Tonio) "being subtly wrong is
-  actually fine". Nobody knows the constellations. What must not happen is
-  INCONSISTENCY, and there is none: every fragment that sees this texel
-  reconstructs the same position from the same numbers.
-  */
   /*
   The A byte's layout — see the note in starfield-codec. Precision goes where
   the eye is: faint stars render warm yellow (their colour was never visible
@@ -368,10 +412,11 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
     pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)}) * STAR_GAIN,
     DISPLAY_FLOOR
   );
+  // R and G are the sub-texel position in the FACE's own uv — exactly.
+  vec3 starDir = b3dStarDir(face, cell, texel.rg);
   if (a >= 32.0) {
     return b3dPoint(
-      texel.rg, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5,
-      tapDir, tangent, bitangent, viewDir
+      starDir, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5, viewDir
     );
   }
   if (a >= 2.0) {
@@ -379,35 +424,36 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
     float size = (a - 2.0) / 29.0;
     vec3 tint = mod(a, 2.0) < 1.0 ? STAR_PALETTE[12] : STAR_PALETTE[13];
     return b3dPoint(
-      texel.rg, brightness, tint, 0.5 + size * b3dStarInfo.w,
-      tapDir, tangent, bitangent, viewDir
+      starDir, brightness, tint, 0.5 + size * b3dStarInfo.w, viewDir
     );
   }
   // FAINT: warm yellow, the one colour a faint star visibly has.
-  return b3dPoint(
-    texel.rg, brightness, STAR_PALETTE[6], 0.5,
-    tapDir, tangent, bitangent, viewDir
-  );
+  return b3dPoint(starDir, brightness, STAR_PALETTE[6], 0.5, viewDir);
 }
 
 vec3 b3dDecodeStars(vec3 viewDir) {
   if (b3dStarDataLevel <= 0.0) return vec3(0.0);
 
-  // A tangent frame around the view direction. The reference axis is swapped
-  // near the pole because a cross product with a parallel vector is zero.
-  vec3 ref = abs(viewDir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-  vec3 tangent = normalize(cross(ref, viewDir));
-  vec3 bitangent = cross(viewDir, tangent);
-
+  /*
+  THE 3×3 NEIGHBOURHOOD, walked in TEXEL space — the fragment's own texel and
+  its eight neighbours, each fetched at its centre. Perturbing the view
+  direction by a texel's angle (the old way) is not the same thing: rotated
+  against the face grid, two taps could land in ONE texel (a star drawn twice)
+  and, near the corners where texels are smaller, a neighbour could be
+  skipped. A neighbour past the face's edge is just a direction past the edge;
+  textureCube resolves it, and b3dFaceUv names the texel it actually hit.
+  */
+  float n = b3dStarInfo.x;
+  vec3 home = b3dFaceUv(viewDir);
+  vec2 base = floor(home.yz * n);
   vec3 sum = vec3(0.0);
-  float step = b3dStarInfo.y;
   for (int i = -1; i <= 1; i++) {
     for (int j = -1; j <= 1; j++) {
-      vec3 tapDir = normalize(
-        viewDir + tangent * (float(i) * step) + bitangent * (float(j) * step)
-      );
+      vec2 centre = (base + vec2(float(i), float(j)) + 0.5) / n;
+      vec3 tapDir = normalize(b3dFaceDir(home.x, centre));
+      vec3 hit = b3dFaceUv(tapDir);
       sum += b3dDecodeOne(
-        textureCube(b3dStarData, tapDir), tapDir, tangent, bitangent, viewDir
+        textureCube(b3dStarData, tapDir), hit.x, floor(hit.yz * n), viewDir
       );
     }
   }
@@ -548,6 +594,8 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dStarLevel',
         'b3dStarDataLevel',
         'b3dStarInfo',
+        'b3dStarGain',
+        'b3dStarFloor',
         'b3dVeil',
         'b3dVeilColor',
         'b3dMoonDir',
@@ -567,6 +615,8 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setFloat('b3dStarLevel', 0)
   mat.setFloat('b3dStarDataLevel', 0)
   mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
+  mat.setFloat('b3dStarGain', 0.9)
+  mat.setFloat('b3dStarFloor', 0.4)
   mat.setFloat('b3dVeil', 0)
   mat.setVector3('b3dTintZ', new BABYLON.Vector3(1, 1, 1))
   mat.setVector3('b3dTintH', new BABYLON.Vector3(1, 1, 1))
@@ -709,6 +759,18 @@ export class B3dSkybox extends AbstractMesh {
      * 3 tucks the tail in. At 1 the sky reads soft-focus.
      */
     starfieldSharpness: 3,
+    /**
+     * How bright the decoded stars are — the intensity cap on the whole point
+     * sky. The brightest few stay the brightest things in it without blowing
+     * the band out white.
+     */
+    starfieldGain: 0.9,
+    /**
+     * The FAINT mass's brightness — the floor every decoded star is lifted to.
+     * Most stars sit on it, and the warm colour lives in them; `starfieldGain`
+     * only moves the bright few above it.
+     */
+    starfieldFloor: 0.4,
     /** How much bigger a full-size object (a distant galaxy) is than a star. */
     starfieldSizeScale: 3,
     /**
@@ -1117,8 +1179,6 @@ export class B3dSkybox extends AbstractMesh {
     'starfieldData',
     'starfieldDataSize',
     'starfieldSeed',
-    'starfieldSharpness',
-    'starfieldSizeScale',
     'starfieldTilt',
     'nebulae',
     'nebulaSize',
@@ -1129,6 +1189,34 @@ export class B3dSkybox extends AbstractMesh {
     return B3dSkybox.STARFIELD_KEYS.map((k) => String((this as any)[k])).join(
       '|'
     )
+  }
+
+  /** Texels per face of the loaded data cube — `_applyStarLook` needs it. */
+  private _starTexels = 0
+
+  /*
+  THE STARS' LOOK — size, brightness, faint floor, galaxy size — as UNIFORMS,
+  applied live from render(). Not in STARFIELD_KEYS on purpose: those rebuild
+  the starfield, which reloads twelve PNGs, and a slider drag would do that on
+  every tick.
+  */
+  private _applyStarLook(): void {
+    if (this._starData == null || this._starTexels <= 0) return
+    const mat = this.mesh?.material as unknown as BABYLON.ShaderMaterial
+    if (mat?.setVector4 == null) return
+    const attrs = this as any
+    const n = this._starTexels
+    mat.setVector4(
+      'b3dStarInfo',
+      new BABYLON.Vector4(
+        n,
+        Math.PI / 2 / n,
+        Number(attrs.starfieldSharpness) || 1,
+        Number(attrs.starfieldSizeScale) || 3
+      )
+    )
+    mat.setFloat('b3dStarGain', Number(attrs.starfieldGain) || 0)
+    mat.setFloat('b3dStarFloor', Number(attrs.starfieldFloor) || 0)
   }
 
   /** Everything `_buildStarfield` makes, released — including the tilt cache. */
@@ -1242,14 +1330,21 @@ export class B3dSkybox extends AbstractMesh {
     */
     const dataRoot = String(attrs.starfieldData ?? '')
     if (dataRoot && typeof mat0?.setTexture === 'function') {
-      const data = new BABYLON.CubeTexture(dataRoot, scene, [
-        '_px.png',
-        '_py.png',
-        '_pz.png',
-        '_nx.png',
-        '_ny.png',
-        '_nz.png',
-      ])
+      /*
+      NO MIPMAPS — passed explicitly, because Babylon's default is to build
+      them, and the note below claimed they were off while they were on. A mip
+      of this cube is an average of packed fields: data that was never encoded.
+      It went unnoticed while the decoder's lookup directions were continuous
+      (the GPU chose level 0); the moment taps snapped to texel centres the
+      coordinate jumped at every texel edge, the LOD spiked there, and stars
+      came back as clusters of dots read from coarser levels.
+      */
+      const data = new BABYLON.CubeTexture(
+        dataRoot,
+        scene,
+        ['_px.png', '_py.png', '_pz.png', '_nx.png', '_ny.png', '_nz.png'],
+        true
+      )
       data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE
       /*
       NEAREST, and this is not a quality setting — it is correctness. The texels
@@ -1277,15 +1372,8 @@ export class B3dSkybox extends AbstractMesh {
       reaches the fragment, which is cheaper than being exact about a number
       whose error is smaller than the dot it draws.
       */
-      mat0.setVector4(
-        'b3dStarInfo',
-        new BABYLON.Vector4(
-          n,
-          Math.PI / 2 / n,
-          Number(attrs.starfieldSharpness) || 1,
-          Number(attrs.starfieldSizeScale) || 3
-        )
-      )
+      this._starTexels = n
+      this._applyStarLook()
     }
 
     if (cubeRoot) {
@@ -1447,8 +1535,19 @@ export class B3dSkybox extends AbstractMesh {
     const attrs = this as any
     const full = attrs.spaceFull as number
     const start = attrs.spaceStart as number
-    // The world's own air, then the band multiplies it (see `atmosphere`).
-    const world = Math.min(1, Math.max(0, Number(attrs.atmosphere ?? 1)))
+    /*
+    The world's own air, then the band multiplies it (see `atmosphere`).
+
+    STEEP, nearly binary (Tonio: "air seems like it should be kind of binary,
+    certainly 0.95 air shouldn't suddenly make clouds disappear"). Vacuum is
+    (1 − air)⁴: 0.95 is Earth for every practical purpose, 0.5 still nearly
+    so, and only the last stretch toward 0 thins and darkens the sky. Linear,
+    0.95 air was 5% vacuum, and the space fog layer's pull toward
+    kilometre-scale fog distances pushed a 1–4 km haze out past 50 km, taking
+    the haze that hides the cloud deck's rim with it.
+    */
+    const air = Math.min(1, Math.max(0, Number(attrs.atmosphere ?? 1)))
+    const world = 1 - Math.pow(1 - air, 4)
     let climbed = 0
     const cam = this.owner?.scene?.activeCamera
     if (full > start && cam != null)
@@ -2125,6 +2224,7 @@ export class B3dSkybox extends AbstractMesh {
     ) {
       this._buildStarfield(this.owner.scene)
     }
+    this._applyStarLook()
     this.updateSky()
   }
 }
