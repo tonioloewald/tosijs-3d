@@ -123,6 +123,9 @@ export class B3dDecorator extends B3dChild {
   private _poolKind: Array<'trunk' | 'box'> = []
   private _nextColliderCheck = 0
   private _debugOff: (() => void) | null = null
+  private _measuring = false
+  /** Builds completed — measureCost waits on it. */
+  private _builds = 0
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
@@ -398,6 +401,7 @@ export class B3dDecorator extends B3dChild {
     if (!isOff(this.shadows) === true)
       this.owner?.register({ meshes: this._drawn })
     this.lastBuildMs = performance.now() - t0
+    this._builds++
   }
 
   /*
@@ -502,56 +506,73 @@ export class B3dDecorator extends B3dChild {
   > {
     const scene = this.owner?.scene
     if (scene == null) return []
+    // ONE at a time: two interleaved runs fight over the budget and every
+    // number is garbage (it happened — a timed-out caller's run kept going).
+    if (this._measuring) throw new Error('measureCost is already running')
+    this._measuring = true
+    const owner = this.owner as any
     const engine = scene.getEngine()
-    const sceneI = new BABYLON.SceneInstrumentation(scene)
-    sceneI.captureFrameTime = true
     const engineI = new BABYLON.EngineInstrumentation(engine as BABYLON.Engine)
     engineI.captureGPUFrameTime = true
+    const sceneI = new BABYLON.SceneInstrumentation(scene)
     const original = this.budget
+    /*
+    UNTHROTTLED while measuring. <tosi-b3d>'s `frameRate` paces renders (30 by
+    default), so frame time would read the throttle, not the load. Lifted to
+    whatever the display allows, and restored.
+    */
+    const originalRate = owner.frameRate
+    owner.frameRate = 1000
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
     const results = []
     try {
       for (const budget of budgets) {
         this.budget = budget
         this.rebuild()
-        await wait(1500)
+        // Wait for THIS budget's build to land, then let it settle.
+        const asked = this._builds
+        for (let i = 0; i < 100 && this._builds === asked; i++) await wait(50)
+        await wait(800)
         const frames: number[] = []
         const gpu: number[] = []
+        const draws: number[] = []
         let last = performance.now()
+        let n = 0
         const obs = scene.onAfterRenderObservable.add(() => {
           const now = performance.now()
-          frames.push(now - last)
+          if (n++ > 5) {
+            frames.push(now - last)
+            draws.push(sceneI.drawCallsCounter.current)
+            const g = engineI.gpuFrameTimeCounter.current
+            if (g > 0) gpu.push(g * 1e-6) // ns → ms
+          }
           last = now
-          const g = engineI.gpuFrameTimeCounter.lastSecAverage
-          if (g > 0) gpu.push(g * 1e-6)
         })
         await wait(seconds * 1000)
         scene.onAfterRenderObservable.remove(obs)
-        frames.sort((a, b) => a - b)
-        const mean =
-          frames.reduce((a, b) => a + b, 0) / Math.max(1, frames.length)
+        const mean = (a: number[]) =>
+          a.reduce((x, y) => x + y, 0) / Math.max(1, a.length)
+        const sorted = [...frames].sort((a, b) => a - b)
         results.push({
           budget,
           placed: this.placements.length,
           buildMs: Math.round(this.lastBuildMs),
-          frameMs: Number(mean.toFixed(2)),
+          frameMs: Number(mean(frames).toFixed(2)),
           frameP95Ms: Number(
-            (frames[Math.floor(frames.length * 0.95)] ?? 0).toFixed(2)
+            (sorted[Math.floor(sorted.length * 0.95)] ?? 0).toFixed(2)
           ),
-          // 0 means the timer query is unavailable, not a free frame.
-          gpuMs:
-            gpu.length && gpu[gpu.length - 1] > 0
-              ? Number(gpu[gpu.length - 1].toFixed(2))
-              : null,
-          drawCalls: Math.round(sceneI.drawCallsCounter.lastSecAverage),
+          gpuMs: gpu.length ? Number(mean(gpu).toFixed(2)) : null,
+          drawCalls: Math.round(mean(draws)),
           activeIndices: scene.getActiveIndices(),
         })
       }
     } finally {
       this.budget = original
+      owner.frameRate = originalRate
       this.rebuild()
       sceneI.dispose()
       engineI.dispose()
+      this._measuring = false
     }
     return results
   }
