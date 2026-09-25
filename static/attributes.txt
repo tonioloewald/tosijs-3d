@@ -331,7 +331,7 @@ b3d-decorator
   url  = ''  — The model library; empty = Kenney's Nature Kit on the CDN
   scale  = 1  — Multiplies every rule's scale range
   follow  = 'on'  — Re-scatter as the camera moves
-  shadows  = 'off'  — Cast shadows (every copy is a caster — costly at high budgets)
+  shadows  = 'off'  — Cast shadows: every copy is a caster, added straight to the sun's generator (its distance gate cannot see thin instances). Copies always RECEIVE shadows. Live
   colliders  = 'on'  — The nearby collider pool
   colliderRange  = 60  — Metres around the camera that get colliders
   colliderPool  = 48  — How many colliders at most

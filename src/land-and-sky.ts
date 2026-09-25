@@ -51,7 +51,7 @@ const { sky } = tosi({
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
-    decoBudget: 2000, decoRadius: 900,
+    decoBudget: 2000, decoRadius: 900, decoShadows: false,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
   },
 })
@@ -85,6 +85,12 @@ function applyVolcano(on) {
   terrain.landform = on ? theVolcano.landform : null
   terrain.provinceField = on ? theVolcano.province : null
 }
+
+// 'on'|'off' on the element, a boolean on the toggle — bridged here.
+const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius })
+sky.decoShadows.observe(() => {
+  decorator.shadows = sky.decoShadows.value ? 'on' : 'off'
+})
 
 let water
 const terrain = b3dTerrain({
@@ -174,6 +180,7 @@ const scene = b3d(
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
       slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
       slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
+      toggle3d({ label: 'tree shadows', value: sky.decoShadows }),
       label3d({ text: 'Camera' }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
@@ -248,7 +255,7 @@ const scene = b3d(
   // right tool for cloud you fly BETWEEN.
   // Rocks and trees by climate: pines in the cold, palms on warm shores, cacti
   // in hot dry country, boulders on the steep. See b3d-decorator.
-  b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius }),
+  decorator,
   b3dCloudDeck({
     altitude: sky.altitude,
     coverage: sky.coverage,

@@ -44,7 +44,7 @@ biped stops at a trunk and can stand on a boulder.
 | `url` | `''` | The model library; empty = Kenney's Nature Kit on the CDN |
 | `scale` | `1` | Multiplies every rule's scale range |
 | `follow` | `'on'` | Re-scatter as the camera moves |
-| `shadows` | `'off'` | Cast shadows (every copy is a caster — costly at high budgets) |
+| `shadows` | `'off'` | Cast shadows: every copy is a caster, added straight to the sun's generator (its distance gate cannot see thin instances). Copies always RECEIVE shadows. Live |
 | `colliders` | `'on'` | The nearby collider pool |
 | `colliderRange` | `60` | Metres around the camera that get colliders |
 | `colliderPool` | `48` | How many colliders at most |
@@ -122,6 +122,31 @@ export class B3dDecorator extends B3dChild {
   private _pool: BABYLON.Mesh[] = []
   private _poolKind: Array<'trunk' | 'box'> = []
   private _nextColliderCheck = 0
+  private _nextShadowCheck = 0
+
+  /*
+  SHADOWS, managed HERE rather than through owner.register(). The sun gates
+  its casters by the distance of each mesh's ORIGIN from the camera
+  (\`activeDistance\`, 80 m in Land and Sky), and a thin-instance part's origin
+  is the world origin, not any tree — so the whole set would cast or not by
+  how far the camera happened to be from (0, 0, 0). So each part goes straight
+  into the sun's shadow generator, and stays there while \`shadows\` is on.
+  Re-checked each second: the sun can rebuild its generator.
+  */
+  private _syncShadows(): void {
+    const sun = this.owner?.querySelector('tosi-b3d-sun') as any
+    const gen = sun?.shadowGenerator as BABYLON.ShadowGenerator | undefined
+    const list = gen?.getShadowMap()?.renderList
+    if (gen == null || list == null) return
+    const on = !isOff(this.shadows)
+    for (const info of this._models.values())
+      for (const p of info?.parts ?? []) {
+        const has = list.includes(p.mesh)
+        const live = p.mesh.thinInstanceCount > 0
+        if (on && live && !has) gen.addShadowCaster(p.mesh)
+        else if ((!on || !live) && has) gen.removeShadowCaster(p.mesh)
+      }
+  }
   private _debugOff: (() => void) | null = null
   private _measuring = false
   /** Builds completed — measureCost waits on it. */
@@ -236,6 +261,10 @@ export class B3dDecorator extends B3dChild {
       this._key = key
       this._build(terrain, here, off)
     }
+    if (performance.now() >= this._nextShadowCheck) {
+      this._nextShadowCheck = performance.now() + 1000
+      this._syncShadows()
+    }
     if (
       !isOff(this.colliders) &&
       performance.now() >= this._nextColliderCheck
@@ -284,6 +313,8 @@ export class B3dDecorator extends B3dChild {
         part.setEnabled(true)
         part.isPickable = false
         part.checkCollisions = false
+        // Trees shade each other, and the terrain's shadows fall on them.
+        part.receiveShadows = true
         parts.push({ mesh: part, rel })
         const bb = m.getBoundingInfo().boundingBox
         for (const v of bb.vectorsWorld) {
@@ -398,8 +429,7 @@ export class B3dDecorator extends B3dChild {
         this._drawn.push(part.mesh)
       }
     }
-    if (!isOff(this.shadows) === true)
-      this.owner?.register({ meshes: this._drawn })
+    this._syncShadows()
     this.lastBuildMs = performance.now() - t0
     this._builds++
   }

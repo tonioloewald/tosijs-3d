@@ -1283,7 +1283,7 @@
       {
         "name": "shadows",
         "default": "'off'",
-        "description": "Cast shadows (every copy is a caster — costly at high budgets)"
+        "description": "Cast shadows: every copy is a caster, added straight to the sun's generator (its distance gate cannot see thin instances). Copies always RECEIVE shadows. Live"
       },
       {
         "name": "colliders",
