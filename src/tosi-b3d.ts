@@ -3185,8 +3185,6 @@ export class B3d extends Component {
       return
     }
     // Reconnected after teardown already ran, or connected for the first time.
-    const cnv = this.parts.canvas as HTMLCanvasElement
-    cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
     // Input focus follows the pointer: hovering or pressing anywhere in this scene
     // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
     // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
@@ -3209,7 +3207,9 @@ export class B3d extends Component {
     "should not" is what the old code relied on, and this failure is invisible
     until someone reads it off the GL context. Cheap to make impossible.
     */
-    if (this.engine != null) {
+    // A DISPOSED engine is what a genuine remove-then-re-add leaves behind —
+    // the ordinary case, not this one, so it must not warn or dispose twice.
+    if (this.engine != null && !this.engine.isDisposed) {
       console.warn(
         'b3d: an engine already exists on this element; disposing it before ' +
           'building another. A second WebGL context silently invalidates the ' +
@@ -3218,9 +3218,36 @@ export class B3d extends Component {
       )
       this._teardown()
     }
+    /*
+    A TORN-DOWN CANVAS IS SPENT. Teardown LOSES its context on purpose (see
+    `loseContextOnDispose` below), and a lost context is what `getContext`
+    hands back for that canvas forever after — so an element removed and later
+    re-added would build its engine on a dead context and render nothing.
+    Swap in a fresh canvas; `parts.canvas` re-queries once the old one is
+    disconnected.
+    */
+    let cnv = this.parts.canvas as HTMLCanvasElement
+    if (this._canvasSpent) {
+      const fresh = document.createElement('canvas')
+      for (const a of Array.from(cnv.attributes))
+        fresh.setAttribute(a.name, a.value)
+      cnv.replaceWith(fresh)
+      cnv = fresh
+      this._canvasSpent = false
+    }
+    cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
     this.engine = new BABYLON.Engine(cnv, true, {
       preserveDrawingBuffer: true,
       stencil: true,
+      /*
+      RELEASE THE CONTEXT, don't wait for GC (tosijs-3d#79). Babylon's
+      `dispose()` keeps the WebGL context alive unless told otherwise, so every
+      torn-down scene held one until its canvas was collected — and Chrome caps
+      live contexts per page, so an SPA navigating back and forth stalled after
+      about eight trips. Teardown only runs on a genuine removal (a move
+      cancels it), so there is nothing here to keep.
+      */
+      loseContextOnDispose: true,
       // Babylon 8 makes the legacy audio engine opt-in (older versions
       // defaulted it on). Without this, `new BABYLON.Sound()` silently
       // no-ops — it never even fetches the file. b3d-sound depends on it.
@@ -5216,6 +5243,8 @@ export class B3d extends Component {
   }
 
   private _teardownTimer: number | null = null
+  /** The canvas's context was lost by teardown — see `connectedCallback`. */
+  private _canvasSpent = false
 
   private _teardown(): void {
     // Both presentations' widgets, not just the visible one — an XR panel's
@@ -5300,6 +5329,7 @@ export class B3d extends Component {
       this.engine?.stopRenderLoop()
       this.scene?.dispose()
       this.engine?.dispose()
+      if (this.engine != null) this._canvasSpent = true
     } catch (err) {
       // A half-built scene (disconnected mid-init) can throw on the way down.
       // Never let teardown propagate — the element is going away regardless,

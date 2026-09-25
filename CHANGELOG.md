@@ -10,6 +10,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A page that mounted and removed scenes hit Chrome's WebGL context cap**
+  (tosijs-3d#79). Babylon's `engine.dispose()` keeps the context alive unless
+  `loseContextOnDispose` is set, so every removed scene held one until GC, and
+  Chrome force-loses the OLDEST live context past its cap — the scene you are
+  looking at goes black. Teardown now releases the context, and an element
+  re-added after a removal gets a fresh canvas (a lost context is permanent
+  for its canvas). A genuine re-add no longer warns "an engine already
+  exists". `bun bin/context-cap.ts` checks it in headless Chrome: 50 trips
+  with the removed elements retained; the live scene rendered nothing before
+  the fix and renders now.
 - **Starfield attributes were construction-time only** (tosijs-3d#88). Setting
   `starfieldData`, `starfieldCube`, `starfieldTilt`, `nebulae`, … on an
   existing sky did nothing — no request, no stars, no error. They rebuild the
