@@ -9,3 +9,12 @@ node_modules
 static/jolt-physics.wasm-compat.js
 # retire with tosijs-ui#51
 docs.last-good
+
+# MARKDOWN — prettier does not format it, by request from tosijs (the same rule
+# as tosijs-ui's .prettierignore, which has the full rationale). With proseWrap
+# already `preserve`, all prettier does to a .md file is escape literal
+# characters, pad table cells and rewrite `*` bullets and emphasis — edits to
+# authored PROSE, not layout. Markdown is the product here: src/docs/ and the
+# doc comments' pages are published as the site and llms.txt. This repo missed
+# the rule; `bun format` rewrote every .md file until 2026-09-25.
+*.md
