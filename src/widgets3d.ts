@@ -2922,7 +2922,18 @@ export function panel3d(
   closed over its own index rather than sharing one, which is also what lets
   `showPopup` need no "which widget is calling" argument.
   */
-  const hostFor = (index: number): WidgetHost => ({
+  /*
+  WHERE A ROW IS DRAWN, in the content frame (below the top padding). Body rows
+  sit under the pinned block and move with the scroll; header rows sit at their
+  own offsets and do not. This used to be `offsets[index] - scroll` for both —
+  wrong by `headerH` for every body row once a header existed, and header
+  widgets were never handed a host at all.
+  */
+  const rowY = (index: number, inHeader: boolean): number =>
+    inHeader
+      ? headerLayout.offsets[index] ?? 0
+      : headerH + (offsets[index] ?? 0) - scroll
+  const hostFor = (index: number, inHeader = false): WidgetHost => ({
     /*
     A POPUP IS A POPUP — it prefers a LAYER and only falls back to being bounded
     by the panel when there genuinely is not one.
@@ -2950,14 +2961,13 @@ export function panel3d(
       return this.showLayer!(config, ...items)
     },
     boundedPopup(config, ...items) {
-      const top = offsets[index] ?? 0
       return baseHost.showPopup(
         {
           ...config,
           anchor: {
             ...config.anchor,
             x: config.anchor.x + padding,
-            y: config.anchor.y + paddingTop + top - scroll,
+            y: config.anchor.y + paddingTop + rowY(index, inHeader),
           },
         },
         ...items
@@ -3014,15 +3024,14 @@ export function panel3d(
         //
         // `boundedPopup`, NOT `showPopup`: that now prefers a layer and would
         // call straight back into here.
-        return hostFor(index).boundedPopup!(config, ...items)
+        return hostFor(index, inHeader).boundedPopup!(config, ...items)
       }
-      const top = offsets[index] ?? 0
       const placed = {
         ...config,
         anchor: {
           ...config.anchor,
           x: config.anchor.x + padding,
-          y: config.anchor.y + paddingTop + top - scroll,
+          y: config.anchor.y + paddingTop + rowY(index, inHeader),
         },
       }
       /*
@@ -3101,7 +3110,7 @@ export function panel3d(
       return { width, height }
     },
     get top() {
-      return (offsets[index] ?? 0) + paddingTop - scroll
+      return paddingTop + rowY(index, inHeader)
     },
   })
 
@@ -3166,6 +3175,7 @@ export function panel3d(
   a five-minute detour.
   */
   widgets.forEach((w, i) => w.setHost?.(hostFor(i)))
+  headerWidgets.forEach((w, i) => w.setHost?.(hostFor(i, true)))
 
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
     /*

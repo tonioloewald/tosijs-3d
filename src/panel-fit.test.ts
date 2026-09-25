@@ -760,6 +760,88 @@ describe('panel3d header — pinned rows', () => {
   })
 })
 
+describe('popups anchor where their row is DRAWN', () => {
+  /*
+  The body is drawn `headerH` below the top padding, and a pinned header
+  row is drawn at its own offset with no scroll. `hostFor` knew neither: body
+  popups anchored as if there were no header (too high by exactly its height),
+  and header widgets were never given a host at all — so a `select3d` pinned
+  in a header had a dropdown that could not open.
+  */
+  const hosted = (h: number) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    const box: { host?: any } = {}
+    return {
+      box,
+      w: {
+        el,
+        layout: () => h,
+        handle: () => {},
+        setHost: (host: any) => (box.host = host),
+      } as unknown as import('./widgets3d.js').Widget3d,
+    }
+  }
+  const capture = (panel: any) => {
+    const seen: any[] = []
+    panel.openPopup = (c: any) => {
+      seen.push(c)
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      return { el, x: 0, y: 0, side: 'below', close: () => {} }
+    }
+    return seen
+  }
+  const anchor = { x: 0, y: 0, width: 10, height: 10 }
+
+  test('a body popup is below the header, and follows the scroll', () => {
+    const head = hosted(30)
+    const rows = [
+      hosted(40),
+      hosted(40),
+      ...Array.from({ length: 20 }, () => hosted(40)),
+    ]
+    const panel = w3d.panel3d(
+      {
+        width: 300,
+        height: 200,
+        paddingTop: 12,
+        padding: 12,
+        gap: 6,
+        header: [head.w],
+      },
+      ...rows.map((r) => r.w)
+    ) as any
+    const seen = capture(panel)
+    const headerH = 30 + 6
+    rows[1].box.host.boundedPopup({ anchor })
+    // row 1 is at offset 40 + gap in the body
+    expect(seen[0].anchor.y).toBe(12 + headerH + 46)
+    panel.scrollBy(20)
+    rows[1].box.host.boundedPopup({ anchor })
+    expect(seen[1].anchor.y).toBe(12 + headerH + 46 - 20)
+  })
+
+  test('a HEADER widget gets a host, anchored at its row, unmoved by scroll', () => {
+    const a = hosted(30)
+    const b = hosted(30)
+    const panel = w3d.panel3d(
+      {
+        width: 300,
+        height: 200,
+        paddingTop: 12,
+        padding: 12,
+        gap: 6,
+        header: [a.w, b.w],
+      },
+      ...Array.from({ length: 20 }, () => hosted(40).w)
+    ) as any
+    expect(b.box.host).toBeDefined()
+    const seen = capture(panel)
+    panel.scrollBy(50)
+    b.box.host.boundedPopup({ anchor })
+    expect(seen[0].anchor.y).toBe(12 + 36)
+  })
+})
+
 describe('a pinned header must be VISIBLE, not merely reserved', () => {
   /*
   Found in a headset, on the terrain editor. The Exit VR / Re-seat / Pause bar

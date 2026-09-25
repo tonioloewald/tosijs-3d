@@ -10,6 +10,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Dropdowns in a panel with a pinned header opened over their own
+  control** — body popups were anchored as if there were no header, too high
+  by its height. The in-VR scene panel has one (the transport bar), so this was
+  every select in the headset. Header widgets also get a host now, so a
+  `select3d` pinned in a header can open at all.
 - **`FrameInfo` keeps wall-clock time while paused**, as documented:
   `realDt`, `realElapsed` and `frame` advance on a paused (still rendering)
   frame; `dt` and `elapsed` stay stopped. They used to freeze too, which broke

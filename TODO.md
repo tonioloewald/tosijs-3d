@@ -249,7 +249,7 @@ Deferred with the release; the blockers were fixed before the tag.
       genuinely not applicable — the flight model owns attitude.) Migrating it
       would delete a duplicate policy, which is the whole argument for the
       shared loader.
-- [ ] **Terrain rebuilds unbudgeted on every attribute-change render** (review
+- [x] **Terrain rebuilds unbudgeted on every attribute-change render** (review
       M6). `render()` calls `regenerate()` inline, which clears the pool and
       passes `msBudget = 0` — deliberately unbounded — so a slider drag on the
       `terrainEditor3d` demo is one full rebuild per animation frame, bypassing
@@ -257,6 +257,9 @@ Deferred with the release; the blockers were fixed before the tag.
       tier and ~6.3 ms at the quest tier inside a 13.9 ms VR frame. Keep the
       unbounded path for the explicit `regenerate()` API; budget or debounce the
       render-triggered one.
+      Already fixed (found 2026-09-25): `render()` rebuilds through
+      `_rebuild(false)` → `markPoolStale()` + a budgeted `update()`; only the
+      explicit `regenerate()` API stays unbounded.
 - [ ] **Nine test files import no production module** (review M7). Deleting
       `_applyChaseGeometry` reintroduces #43 with the suite green. Drive
       `loadLibraryMesh` headlessly with a stub `owner.getLibrary`; export
@@ -322,7 +325,7 @@ recorded here rather than dropped.
       and a live VR spinner would have been culled. Six tests, including that
       detached-still-animates case.
 
-- [ ] **`panel3d` never gives `header` widgets a `WidgetHost`.**
+- [x] **`panel3d` never gives `header` widgets a `WidgetHost`.**
       `widgets3d.ts` sets hosts for body widgets only, so a pinned widget needing
       one is inert — `select3d`'s dropdown, `button3d({menu})`, `iconGrid3d` menu
       cells. Latent today: the only in-tree header is `iconBar3d`, which needs no
@@ -330,6 +333,11 @@ recorded here rather than dropped.
       the naive fix anchors header popups at a scrolling row. Needs a
       `headerHostFor` using the header offsets with no `- scroll`. If pinned popups
       are out of scope, say so on the `header` JSDoc rather than failing quietly.
+      Done 2026-09-26, and it uncovered a LIVE twin: body popups were anchored
+      without `headerH` too, so in any panel with a pinned header (the in-VR
+      scene panel has the transport bar) every dropdown opened over its own
+      control. One `rowY(index, inHeader)` now serves popups, layers and
+      `host.top`; rendered flat before/after, pinned in `panel-fit.test.ts`.
 
 - [x] **Three deprecation policies ship in 0.8.0; two disagree with the
       documented one.** `handler-of.ts` states the rule — new name wins, old is NOT
