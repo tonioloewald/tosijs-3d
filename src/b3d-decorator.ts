@@ -282,8 +282,30 @@ export class B3dDecorator extends B3dChild {
     )
     let info: ModelInfo | null = null
     if (node != null) {
+      /*
+      THE glTF ROOT'S FRAME, not the world's. The loader mirrors the whole
+      file on \`__root__\` (glTF is right-handed, Babylon left-handed), and
+      for an ordinary mesh Babylon undoes the mirror's effect on culling by
+      flipping side orientation when the WORLD matrix's determinant is
+      negative. A thin instance never gets that flip — Babylon decides from
+      the MESH's matrix (identity here), not the instance's — so a mirror
+      carried inside the instance matrices rendered every tree inside out.
+      Dropping the mirror AND the flip is the same two reversals removed, so
+      the winding comes out right; the model is mirrored left-to-right, which
+      no tree or rock can show. (canonicalize() strips it for the same
+      reason.)
+      */
+      let top: BABYLON.Node = node
+      while (top.parent != null) top = top.parent
+      const toRoot = (top as BABYLON.TransformNode)
+        .computeWorldMatrix(true)
+        .clone()
+      toRoot.invert()
       node.computeWorldMatrix(true)
-      const origin = node.getAbsolutePosition().clone()
+      const origin = BABYLON.Vector3.TransformCoordinates(
+        node.getAbsolutePosition(),
+        toRoot
+      )
       const unshift = BABYLON.Matrix.Translation(
         -origin.x,
         -origin.y,
@@ -300,12 +322,11 @@ export class B3dDecorator extends B3dChild {
           m instanceof BABYLON.Mesh && m.getTotalVertices() > 0
       )
       for (const m of meshes) {
-        /*
-        THE PART'S FRAME: its world matrix with only the model's position in
-        the library removed. The handedness mirror on `__root__` stays IN,
-        which keeps the winding exactly as a normal load renders it.
-        */
-        const rel = m.computeWorldMatrix(true).multiply(unshift)
+        // The part in root space, the model's own library position removed.
+        const rel = m
+          .computeWorldMatrix(true)
+          .multiply(toRoot)
+          .multiply(unshift)
         const part = m.clone(`deco-${name}`, this._root, true) as BABYLON.Mesh
         part.position.setAll(0)
         part.rotationQuaternion = BABYLON.Quaternion.Identity()
@@ -318,7 +339,10 @@ export class B3dDecorator extends B3dChild {
         parts.push({ mesh: part, rel })
         const bb = m.getBoundingInfo().boundingBox
         for (const v of bb.vectorsWorld) {
-          const p = BABYLON.Vector3.TransformCoordinates(v, unshift)
+          const p = BABYLON.Vector3.TransformCoordinates(
+            BABYLON.Vector3.TransformCoordinates(v, toRoot),
+            unshift
+          )
           min.minimizeInPlace(p)
           max.maximizeInPlace(p)
         }
@@ -408,7 +432,18 @@ export class B3dDecorator extends B3dChild {
     for (const [name, list] of byModel) {
       const info = this._model(name)
       if (info == null) continue
-      const align = this.rules[list[0].rule]?.alignToSlope ?? 0
+      const rule = this.rules[list[0].rule]
+      const align = rule?.alignToSlope ?? 0
+      /*
+      ON THE GROUND, not above it. Two corrections, per placement:
+      - the model's lowest point goes to the ground, whatever its origin;
+      - it SINKS on a slope by footprint radius × tan(the tilt it did not take
+        up by leaning), so the downhill side of the base is not in mid-air.
+        A trunk's footprint is its trunk, not its canopy; a rock's is itself.
+      */
+      const width = Math.min(info.max.x - info.min.x, info.max.z - info.min.z)
+      const footprint = width * (rule?.collider === 'trunk' ? 0.12 : 0.45)
+      const height = info.max.y - info.min.y
       for (const part of info.parts) {
         const buf = new Float32Array(list.length * 16)
         list.forEach((p, i) => {
@@ -419,7 +454,10 @@ export class B3dDecorator extends B3dChild {
           BABYLON.Quaternion.FromUnitVectorsToRef(up, n, tilt)
           yawQ.multiplyToRef(tilt, q) // yaw first, then lean to the ground
           scl.setAll(p.scale)
-          pos.set(p.x - off.x, p.y, p.z - off.z)
+          const slope = Math.acos(Math.min(1, Math.max(-1, p.normal.y)))
+          const residual = Math.tan(slope * (1 - align))
+          const sink = p.scale * (footprint * residual + height * 0.02)
+          pos.set(p.x - off.x, p.y - info.min.y * p.scale - sink, p.z - off.z)
           BABYLON.Matrix.ComposeToRef(scl, q, pos, srt)
           part.rel.multiplyToRef(srt, out)
           out.copyToArray(buf, i * 16)
