@@ -77,11 +77,11 @@ const gizmo = b3dManipulator({
   //
   // The element has already been written by the time this fires, and it holds
   // exactly the numbers the snippet needs. Ask it.
-  handleChange: () => {
+  whenChange: () => {
     fit.x = gun.x; fit.y = gun.y; fit.z = gun.z
     fit.rx = gun.rx; fit.ry = gun.ry; fit.rz = gun.rz
   },
-  handleCommit: () => { scene && scene.refreshScenePanel && scene.refreshScenePanel() },
+  whenCommit: () => { scene && scene.refreshScenePanel && scene.refreshScenePanel() },
 })
 
 const panel = () => [

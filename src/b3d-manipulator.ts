@@ -24,7 +24,7 @@ const gizmo = b3dManipulator({
   turn: 'on',
   gridSnap: 0.25,
   angleSnap: 15,
-  handleChange: (t) => {
+  whenChange: (t) => {
     const n = (v) => Math.round(v * 100) / 100
     readout.textContent =
       `${n(t.position.x)}, ${n(t.position.y)}, ${n(t.position.z)}` +
@@ -115,10 +115,12 @@ preview.append(
 | `size` | `0.13` | apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen |
 | `disabled` | `false` | hide the handles and ignore input |
 
-`handleChange(transform)` fires live during a drag; `handleCommit(transform)`
+`whenChange(transform)` fires live during a drag; `whenCommit(transform)`
 fires once on release, snapped, and only when something actually changed — which
 is your undo step. Both also dispatch a DOM `change` / `commit` event carrying
-the transform in `detail`.
+the transform in `detail`. (`handleChange`/`handleCommit` were the names until
+0.8.4 — they still work, warn once, and go in 0.9: a COMPONENT's callbacks are
+`when*`.)
 
 ## Scale is exclusive of move and turn
 
@@ -173,6 +175,7 @@ coloured debug axes look exactly like one, which is its own small cruelty.
 */
 /*{ "parent": "UI", "order": 275 }*/
 
+import { handlerOf } from './handler-of.js'
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, cameraIsAttached, isOff } from './b3d-utils.js'
 import {
@@ -246,8 +249,12 @@ export class B3dManipulator extends B3dChild {
   declare disabled: boolean
 
   /** Live during a drag; fires again for every frame the pointer moves. */
-  handleChange: ((t: ManipulatorTransform) => void) | null = null
+  whenChange: ((t: ManipulatorTransform) => void) | null = null
   /** Once on release, snapped, and only when something changed. */
+  whenCommit: ((t: ManipulatorTransform) => void) | null = null
+  /** @deprecated use `whenChange` — removed in 0.9. */
+  handleChange: ((t: ManipulatorTransform) => void) | null = null
+  /** @deprecated use `whenCommit` — removed in 0.9. */
   handleCommit: ((t: ManipulatorTransform) => void) | null = null
 
   /** The node being manipulated. Set this directly to skip `target`. */
@@ -505,7 +512,11 @@ export class B3dManipulator extends B3dChild {
     }
     if (!updateDrag(d, ray, composeRotation, options)) return
     this._write(d.current)
-    this.handleChange?.(d.current)
+    handlerOf<(t: ManipulatorTransform) => void>(
+      this as unknown as Record<string, unknown>,
+      'whenChange',
+      'handleChange'
+    )?.(d.current)
     this.dispatchEvent(
       new CustomEvent('change', { detail: d.current, bubbles: true })
     )
@@ -534,7 +545,11 @@ export class B3dManipulator extends B3dChild {
     const committed = commitTransform(d, options)
     if (!dragChanged(d, committed)) return d.moved
     this._write(committed)
-    this.handleCommit?.(committed)
+    handlerOf<(t: ManipulatorTransform) => void>(
+      this as unknown as Record<string, unknown>,
+      'whenCommit',
+      'handleCommit'
+    )?.(committed)
     this.dispatchEvent(
       new CustomEvent('commit', { detail: committed, bubbles: true })
     )

@@ -1048,6 +1048,20 @@ export class AbstractMesh extends B3dChild {
     this.owner = owner
   }
 
+  /**
+   * Apply a uniform `scale` attribute to the mesh (a non-positive or non-finite
+   * value means 1). Not part of the per-render sync, because most subclasses
+   * own `scaling` for their own reasons; elements with a `scale` attribute call
+   * this from their `render()` so a later write takes effect.
+   */
+  protected applyUniformScale(): void {
+    const node = this.mesh as unknown as BABYLON.TransformNode | undefined
+    if (node?.scaling == null) return
+    const s = (this as any).scale
+    const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1
+    node.scaling.set(k, k, k)
+  }
+
   private _originShift: ((dx: number, dz: number) => void) | null = null
 
   /**

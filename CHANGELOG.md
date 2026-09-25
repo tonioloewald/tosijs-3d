@@ -144,6 +144,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **`b3d-manipulator` callbacks are `whenChange` / `whenCommit`** — the
+  component convention. `handleChange`/`handleCommit` still work, warn once,
+  and are removed in 0.9.
+- `AbstractMesh.applyUniformScale()` replaces the identical private copies in
+  `b3d-prop` and `b3d-destroyable`.
 - **ONE galaxy implementation** (GALAXY-DESIGN.md → "Reconciliation").
   The voxel galaxy is the galaxy now. `b3d-galaxy`, `b3d-star-system`, the
   skybox baker and `bin/bake-stars` all read it. Its nebulae and distant shell

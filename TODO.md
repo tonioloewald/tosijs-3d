@@ -272,17 +272,22 @@ Deferred with the release; the blockers were fixed before the tag.
       coordinates and call neither `registerWorldRoot` nor `addOriginListener`,
       so all three drift on a terrain `resetOrigin`.
       Done 2026-09-25: `AbstractMesh.followOrigin(owner)` (shifts the x/z attributes and the node; leaves parented meshes alone) — prop, standalone beacon and destroyable use it; the spawner shifts its anchor.
-- [ ] **`B3dManipulator` uses `handleChange`/`handleCommit`** where the
+- [x] **`B3dManipulator` uses `handleChange`/`handleCommit`** where the
       convention for COMPONENTS is `when*`. Free to change now, breaking later.
+      Done 2026-09-25: `whenChange`/`whenCommit`; the old names warn once
+      through `handlerOf` and go in 0.9. No external users found.
 - [ ] **`FrameInfo.realDt`/`realElapsed`/`frame` freeze while paused**, which is
       the one state they exist for. Doc and behaviour disagree; pick one.
 - [x] **Three copies of the wind resolution rule** — `B3dClouds._wind()` and
       `B3dAmbient._wind()` are byte-identical and `B3dWater._wind()` repeats the
       guard. #73's stated purpose was that these could not silently disagree.
       Done 2026-09-25: `inheritedWind(mode, sceneWind)` in `wind.ts`, used by all three.
-- [ ] **`_applyScale` is duplicated** in `b3d-prop` and `b3d-destroyable`, and
+- [x] **`_applyScale` is duplicated** in `b3d-prop` and `b3d-destroyable`, and
       their `render()` guards already disagree. `scale` is placement — move it
       to `AbstractMesh`.
+      Done 2026-09-25 as a shared `AbstractMesh.applyUniformScale()`, NOT a
+      per-render sync: most subclasses own `scaling`, so each caller keeps
+      its guard (the destroyable's placeholder cube is sized by `size`).
 - [ ] **No bundle-size signal.** This release grew the minified bundle ~10.9%
       (607,680 → 673,827 B; gzip 197,465 → 216,442). All of it is explained,
       but the next unjustified 10% will look identical. Record gzip size in the

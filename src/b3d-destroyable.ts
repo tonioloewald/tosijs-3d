@@ -391,7 +391,7 @@ export class B3dDestroyable extends AbstractMesh {
         getChildMeshes, dispose) is TransformNode-safe.
         */
         this.mesh = node as unknown as BABYLON.Mesh
-        this._applyScale()
+        this.applyUniformScale()
         this.render()
         this._adopt(owner)
       },
@@ -499,20 +499,12 @@ export class B3dDestroyable extends AbstractMesh {
    */
   private _stopLoad: (() => void) | null = null
 
-  private _applyScale(): void {
-    const node = this.mesh as unknown as BABYLON.TransformNode | undefined
-    if (node?.scaling == null) return
-    const s = (this as any).scale
-    const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1
-    node.scaling.set(k, k, k)
-  }
-
   render(): void {
     super.render()
     // Scale is not part of AbstractMesh's per-render sync, so it is applied
     // here — otherwise setting `scale` after load would be another attribute
     // that takes a write and does nothing, which is the bug this fixes.
-    if ((this as any).library) this._applyScale()
+    if ((this as any).library) this.applyUniformScale()
   }
 
   sceneDispose(): void {

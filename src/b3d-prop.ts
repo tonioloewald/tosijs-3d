@@ -204,7 +204,7 @@ export class B3dProp extends AbstractMesh {
         placed model wants.
         */
         this.mesh = node as unknown as BABYLON.Mesh
-        this._applyScale()
+        this.applyUniformScale()
         // The component render that would have synced the transform has already
         // run; run it now that there is something to sync onto.
         this.render()
@@ -239,19 +239,11 @@ export class B3dProp extends AbstractMesh {
     return type
   }
 
-  private _applyScale(): void {
-    const node = this.mesh as unknown as BABYLON.TransformNode | undefined
-    if (node?.scaling == null) return
-    const s = (this as any).scale
-    const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1
-    node.scaling.set(k, k, k)
-  }
-
   render(): void {
     super.render()
     // Scale is not part of AbstractMesh's per-render sync, so a later write
     // would otherwise take and do nothing — the exact shape of #43.
-    if (this.mesh != null) this._applyScale()
+    if (this.mesh != null) this.applyUniformScale()
   }
 
   sceneDispose(): void {
