@@ -3011,6 +3011,11 @@
         "description": "The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it"
       },
       {
+        "name": "starfieldTwinkle",
+        "default": "0.35",
+        "description": "Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon"
+      },
+      {
         "name": "starfieldSizeScale",
         "default": "3",
         "description": "How much bigger a full-size object (a distant galaxy) is than a star"

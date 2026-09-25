@@ -174,3 +174,17 @@ describe("the stars' look is live and cheap", () => {
     el.sceneDispose()
   })
 })
+
+describe('twinkle is the air', () => {
+  test('scaled by the gas: full on Earth, none in vacuum', () => {
+    const { el } = sky({ starfieldData: '/sky/stars', starfieldTwinkle: 0.4 })
+    const mat = el.mesh.material
+    el._gas = 1
+    el._applyVeil()
+    expect(mat._floats.b3dTwinkle).toBeCloseTo(0.4, 9)
+    el._gas = 0
+    el._applyVeil()
+    expect(mat._floats.b3dTwinkle).toBe(0)
+    el.sceneDispose()
+  })
+})

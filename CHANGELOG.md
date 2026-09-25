@@ -18,6 +18,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   through an exact GLSL mirror of the codec's cube convention. Also, **the
   data cube had mipmaps**, despite a comment saying otherwise: a mip of packed
   fields is data nobody encoded. They are off now.
+- **Airless sun and moon vanished** (the moon kept only its glow). The sky
+  model draws both through scattering, so without air there was nothing left.
+  Real half-degree discs now fade in as the air goes, and the glow fades with
+  it: a hard white sun and moon on a black sky. The airless moon is as bright
+  as the moon seen through air.
 - **Big objects in the star sky were clipped square**, and **packed stars sat
   on a lattice.** Objects wider than the decoder's 3×3 reach (distant galaxies
   run to 3.5 texels) were cut at texel edges. Everything now tapers to nothing
@@ -188,6 +193,10 @@ camera)`** derives the frames from any flat camera's world pose (the eye
   frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
   a hand panel declares **`flatFrame`**; without one it stays VR-only and
   warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
+- **Twinkle** (`starfieldTwinkle`, default 0.35): scintillation, which is
+  the air, so it scales with the gas (none on an airless world), is strongest
+  at the horizon, and each star flickers on its own pattern. Land and Sky has
+  a twinkle slider.
 - **`dust` on `b3d-skybox`** separates dust from gas. Gas (`atmosphere`)
   scatters blue; dust scatters a bright grey haze that the tint colours. So
   Mars is almost no air, lots of dust and a butterscotch sky (Land and Sky's

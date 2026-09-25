@@ -180,6 +180,7 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       starfieldSharpness: num(3, { minimum: 0.1, maximum: 8 }),
       starfieldGain: num(0.9, { minimum: 0, maximum: 3 }),
       starfieldFloor: num(0.4, { minimum: 0, maximum: 1 }),
+      starfieldTwinkle: num(0.35, { minimum: 0, maximum: 1 }),
       starfieldSizeScale: num(3, { minimum: 1, maximum: 12 }),
       starfieldTilt: { type: 'string', default: '0,0,0' },
       starfieldSeed: num(12345, { minimum: 0, maximum: 999999 }),

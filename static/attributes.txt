@@ -795,6 +795,7 @@ b3d-skybox
   starfieldSharpness  = 3  — How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point
   starfieldGain  = 0.9  — How bright the decoded stars are — the intensity cap on the whole point sky
   starfieldFloor  = 0.4  — The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it
+  starfieldTwinkle  = 0.35  — Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon
   starfieldSizeScale  = 3  — How much bigger a full-size object (a distant galaxy) is than a star
   starfieldTilt  = '0,0,0'  — Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs
   starfield  = 0  — How many background stars to build. `0` = none

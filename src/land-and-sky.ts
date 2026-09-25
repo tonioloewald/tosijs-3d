@@ -51,7 +51,7 @@ const { sky } = tosi({
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
-    starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3,
+    starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
   },
 })
 
@@ -167,6 +167,7 @@ const scene = b3d(
       slider3d({ label: 'star size', value: sky.starSize, min: 0.4, max: 3, step: 0.05 }),
       slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
+      slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
       label3d({ text: 'Camera' }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
@@ -231,6 +232,7 @@ const scene = b3d(
     starfieldSharpness: sky.starSharpness,
     starfieldGain: sky.starGain,
     starfieldFloor: sky.starFloor,
+    starfieldTwinkle: sky.twinkle,
   }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),

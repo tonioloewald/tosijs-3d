@@ -121,6 +121,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
 | `starfieldSharpness` | `3` | How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point |
 | `starfieldGain` | `0.9` | How bright the decoded stars are — the intensity cap on the whole point sky |
+| `starfieldTwinkle` | `0.35` | Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon |
 | `starfieldFloor` | `0.4` | The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
@@ -278,6 +279,9 @@ bright points stay the brightest things in the sky without the blowout.
 Toned: 0.55 was still "a little too bright", 0.45 is where it landed.
 */
 uniform float b3dStarGain;
+uniform float b3dTwinkle;
+uniform float b3dTime;
+float b3dTwAmp = 0.0;
 #define STAR_GAIN b3dStarGain
 /*
 DISPLAY FLOOR (the \`starfieldFloor\` attribute; 0.4 since exact points — a
@@ -341,6 +345,8 @@ the same position"; that was only true if the tap were the texel's centre,
 and it was not. Now the star's direction comes from its own texel and its
 encoded sub-texel offset, so every fragment agrees to the bit.
 */
+float b3dReach = 1.0;
+
 vec3 b3dPoint(
   vec3 starDir, float brightness, vec3 tint, float radius, vec3 viewDir
 ) {
@@ -356,17 +362,52 @@ vec3 b3dPoint(
   within about a texel of it; anything drawn further out is cut where the
   neighbourhood ends, along texel edges — the squared-off bright shapes in the
   dense core (a distant galaxy can be 3.5 texels in radius). So every object
-  fades to nothing by 0.8 of a (face-centre) texel, which the 3×3 always
-  covers, corners included. Big objects become soft rather than clipped.
+  fades to nothing within ONE of its own face's texels, per axis, which the
+  3×3 always covers (a fragment within ±1 texel of the star on its face has
+  its home texel within ±1 of the star's). Measured in the star's face texels,
+  not in angle: near the cube corners a texel spans less angle, and an angular
+  limit either clips there or shrinks every star everywhere (the first version
+  did the latter). \`b3dReach\` is computed by the caller, which knows both.
   */
-  falloff *= 1.0 - smoothstep(0.45, 0.8, d);
+  falloff *= b3dReach;
   if (falloff < 0.004) return vec3(0.0);
+  /*
+  TWINKLE — scintillation, which IS the air: turbulence refracting starlight.
+  So its amplitude (b3dTwAmp, set per fragment in b3dDecodeStars) scales with
+  the GAS and grows toward the horizon, and is zero in vacuum. Each star
+  flickers on its own two-frequency pattern, seeded by its exact direction,
+  which is stable now that stars no longer drift within their texels.
+  */
+  if (b3dTwAmp > 0.0) {
+    float seed = fract(sin(dot(starDir, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    float n = 0.6 * sin(b3dTime * (5.0 + 4.0 * seed) + seed * 40.0)
+      + 0.4 * sin(b3dTime * (11.0 + 7.0 * fract(seed * 7.31)) + seed * 91.0);
+    brightness *= max(0.0, 1.0 + b3dTwAmp * n);
+  }
   return tint * brightness * falloff;
 }
 
-/** A texel's star direction: its face, its texel, and a sub-texel offset. */
-vec3 b3dStarDir(float face, vec2 texel, vec2 sub) {
-  return normalize(b3dFaceDir(face, (texel + sub) / b3dStarInfo.x));
+/** Where \`dir\` lands on a GIVEN face (not its own), in that face's uv. */
+vec2 b3dUvOn(float face, vec3 d) {
+  if (face < 0.5) return vec2(-d.z, -d.y) / d.x * 0.5 + 0.5;
+  if (face < 1.5) return vec2(d.z, -d.y) / -d.x * 0.5 + 0.5;
+  if (face < 2.5) return vec2(d.x, d.z) / d.y * 0.5 + 0.5;
+  if (face < 3.5) return vec2(d.x, -d.z) / -d.y * 0.5 + 0.5;
+  if (face < 4.5) return vec2(d.x, -d.y) / d.z * 0.5 + 0.5;
+  return vec2(-d.x, -d.y) / -d.z * 0.5 + 0.5;
+}
+
+/*
+A texel's star direction: its face, its texel, and a sub-texel offset. Also
+sets b3dReach — the taper for THIS star seen from THIS fragment, from their
+separation in the star's own face texels (see b3dPoint).
+*/
+vec3 b3dStarDir(float face, vec2 texel, vec2 sub, vec3 viewDir) {
+  vec2 star = texel + sub;
+  vec2 frag = b3dUvOn(face, viewDir) * b3dStarInfo.x;
+  vec2 sep = abs(frag - star);
+  b3dReach = 1.0 - smoothstep(0.7, 1.0, max(sep.x, sep.y));
+  return normalize(b3dFaceDir(face, star / b3dStarInfo.x));
 }
 
 /*
@@ -409,7 +450,9 @@ vec3 b3dUnpackOne(float bits, float slot, float face, vec2 texel, vec3 viewDir) 
   quantisation stays within its bound, and the lattice is gone.
   */
   vec2 j = b3dHash2(texel, face, slot);
-  vec3 starDir = b3dStarDir(face, texel, vec2((uu + j.x) / 4.0, (vv + j.y) / 4.0));
+  vec3 starDir = b3dStarDir(
+    face, texel, vec2((uu + j.x) / 4.0, (vv + j.y) / 4.0), viewDir
+  );
   return b3dPoint(starDir, brightness, tint, 0.5, viewDir);
 }
 
@@ -443,7 +486,7 @@ vec3 b3dDecodeOne(vec4 texel, float face, vec2 cell, vec3 viewDir) {
     DISPLAY_FLOOR
   );
   // R and G are the sub-texel position in the FACE's own uv — exactly.
-  vec3 starDir = b3dStarDir(face, cell, texel.rg);
+  vec3 starDir = b3dStarDir(face, cell, texel.rg, viewDir);
   if (a >= 32.0) {
     return b3dPoint(
       starDir, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5, viewDir
@@ -461,8 +504,11 @@ vec3 b3dDecodeOne(vec4 texel, float face, vec2 cell, vec3 viewDir) {
   return b3dPoint(starDir, brightness, STAR_PALETTE[6], 0.5, viewDir);
 }
 
-vec3 b3dDecodeStars(vec3 viewDir) {
+vec3 b3dDecodeStars(vec3 viewDir, float elevation) {
   if (b3dStarDataLevel <= 0.0) return vec3(0.0);
+  // Strongest at the horizon (the longest path through air), a third of that
+  // above about 30 degrees.
+  b3dTwAmp = b3dTwinkle * mix(1.0, 0.35, clamp(elevation * 2.0, 0.0, 1.0));
 
   /*
   THE 3×3 NEIGHBOURHOOD, walked in TEXEL space — the fragment's own texel and
@@ -523,6 +569,7 @@ function registerForkedSky(): boolean {
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
       'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
+        'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;uniform float b3dDustGrey;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
@@ -574,11 +621,27 @@ function registerForkedSky(): boolean {
         `b3dStars` and its stars in `b3dStarData` — which is the split the
         measurements argued for.
         */
-        `color.rgb+=b3dDecodeStars(b3dDir);` +
+        `color.rgb+=b3dDecodeStars(b3dDir,normalize(vPositionW-cameraPosition).y);` +
         // The moon, part of the backdrop, on the night arc — a CONSTANT in the
         // dome's frame (tilt⁻¹·up, see updateSky), so it rides with the stars.
         `{float md=max(0.0,dot(normalize(b3dDir),b3dMoonDir));` +
-        `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
+        `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);` +
+        /*
+        HARD DISCS for the sun and moon, which is what they are without air
+        (Tonio: "The bright disk should be left, just no glow"). With air, the
+        sky model's own scattering draws both, glow and all, and that is right;
+        it is ALSO all it draws, so in vacuum both vanished while our soft
+        moon glow survived — exactly backwards. These fade IN as the air goes
+        (b3dSunDisc / b3dMoonDisc), while the glow above fades OUT with it.
+        About half a degree across, like the real ones, with a one-texel-ish
+        antialiased edge.
+        */
+        `float b3dMd=smoothstep(0.999965,0.99998,md);` +
+        // As bright as the moon WITH air (which the sky model saturates to
+        // white) — losing the atmosphere must not dim it (Tonio).
+        `color.rgb+=vec3(1.6,1.6,1.65)*b3dMoonDisc*b3dMd;}` +
+        `{float sd=dot(normalize(vPositionW-cameraPosition),b3dSunDir);` +
+        `color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(0.999965,0.99998,sd);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
         light arriving, it is light being blocked. Inside cloud there is white a
@@ -629,10 +692,16 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dStarInfo',
         'b3dStarGain',
         'b3dStarFloor',
+        'b3dTwinkle',
+        'b3dTime',
         'b3dVeil',
         'b3dVeilColor',
         'b3dMoonDir',
         'b3dMoon',
+        'b3dSunDir',
+        'b3dSunDisc',
+        'b3dMoonDisc',
+        'b3dSunDiscColor',
         'b3dTintZ',
         'b3dTintH',
         'b3dTintAmt',
@@ -651,6 +720,8 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
   mat.setFloat('b3dStarGain', 0.9)
   mat.setFloat('b3dStarFloor', 0.4)
+  mat.setFloat('b3dTwinkle', 0)
+  mat.setFloat('b3dTime', 0)
   mat.setFloat('b3dVeil', 0)
   mat.setVector3('b3dTintZ', new BABYLON.Vector3(1, 1, 1))
   mat.setVector3('b3dTintH', new BABYLON.Vector3(1, 1, 1))
@@ -658,6 +729,10 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setFloat('b3dDustGrey', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
   mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0))
+  mat.setVector3('b3dSunDir', new BABYLON.Vector3(0, 1, 0))
+  mat.setFloat('b3dSunDisc', 0)
+  mat.setFloat('b3dMoonDisc', 0)
+  mat.setColor3('b3dSunDiscColor', new BABYLON.Color3(3, 2.9, 2.7))
   const num = (name: string, initial: number) => {
     let v = initial
     mat.setFloat(name, v)
@@ -812,6 +887,12 @@ export class B3dSkybox extends AbstractMesh {
      * only moves the bright few above it.
      */
     starfieldFloor: 0.4,
+    /**
+     * TWINKLE — scintillation strength, 0 for none. Scaled by the GAS (so it
+     * is zero on an airless world and fades as you climb out) and strongest
+     * at the horizon, where the path through the air is longest.
+     */
+    starfieldTwinkle: 0.35,
     /** How much bigger a full-size object (a distant galaxy) is than a star. */
     starfieldSizeScale: 3,
     /**
@@ -1628,6 +1709,14 @@ export class B3dSkybox extends AbstractMesh {
     sm.setFloat('b3dVeil', this.owner.fogVeil)
     this._veilColor.set(fc.r, fc.g, fc.b)
     sm.setColor3('b3dVeilColor', this._veilColor)
+    // TWINKLE runs every frame: its clock, and its strength — which is the
+    // GAS (vacuum and dust do not twinkle stars; turbulent air does).
+    const attrs = this as any
+    sm.setFloat('b3dTime', performance.now() * 0.001)
+    sm.setFloat(
+      'b3dTwinkle',
+      Math.max(0, Number(attrs.starfieldTwinkle) || 0) * this._gas
+    )
   }
 
   private updateSky() {
@@ -1881,12 +1970,20 @@ export class B3dSkybox extends AbstractMesh {
       // NIGHT ONLY: by day that same vector IS the sun, and a moon fading in
       // on the setting sun is the one place it must not be.
       const sm = material as unknown as BABYLON.ShaderMaterial
+      // The soft glow is the AIR's (it fades with it); the disc is the body's
+      // own, and shows as the air goes — see the shader note.
       sm.setFloat?.(
         'b3dMoon',
         isDay
           ? 0
-          : attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25))
+          : attrs.moonIntensity *
+              (1 - Math.pow(dayBrightness * air, 0.25)) *
+              air
       )
+      const bare = 1 - air
+      sm.setFloat?.('b3dMoonDisc', isDay ? 0 : bare)
+      sm.setFloat?.('b3dSunDisc', isDay ? bare : 0)
+      sm.setVector3?.('b3dSunDir', sunVector.clone().normalize())
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {
