@@ -132,7 +132,7 @@ vocabulary anywhere in the sim.
 /*{ "parent": "World Sim" }*/
 
 import { B3dChild, sceneDelta } from './b3d-utils.js'
-import { MersenneTwister } from './mersenne-twister.js'
+import { Xoshiro128 } from './mersenne-twister.js'
 import { spawnPrefab, type Prefab } from './prefab.js'
 import type { B3d } from './tosi-b3d.js'
 
@@ -195,12 +195,12 @@ export class B3dSpawner extends B3dChild {
   }
 
   private _groups: Group[] = []
-  private _rng: MersenneTwister | null = null
+  private _rng: Xoshiro128 | null = null
   private _since = 0
   private _tick = () => this._update()
 
   sceneReady(owner: B3d) {
-    this._rng = new MersenneTwister(this.seed)
+    this._rng = new Xoshiro128(this.seed)
     // First group lands promptly — an empty sky on spawn-in reads as a broken game.
     this._since = this.interval
     owner.scene.registerBeforeRender(this._tick)

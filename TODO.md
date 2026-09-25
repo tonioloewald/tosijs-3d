@@ -147,17 +147,12 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
 - [x] **ONE galaxy implementation** (Tonio, 2026-09-25). Done: the voxel
       galaxy is the galaxy; `generateGalaxy` is a deprecated adapter (removed
       in 0.9). See GALAXY-DESIGN.md → "Reconciliation".
-- [ ] **Migrate the remaining RNG users to the faster engine where
-      convenient** (Tonio, 2026-09-25: "speed is always nice"). `PRNG` runs on
-      `Xoshiro128` since 0.8.4 (MT cost ~13 µs just to construct; xoshiro
-      ~0.2 µs). Still on `MersenneTwister` directly: `b3d-clouds` (layout),
-      `b3d-crowd` (two streams), `b3d-spawner` ("same seed, same battles").
-      Each switch RE-ROLLS that component's seeded output, so do it where a
-      reroll is acceptable (a release that already changes it), and pin the
-      new sequence in that component's tests.
-- [x] **The galaxy's HI filter sees every habitable system** (2026-09-25):
-      interesting dim stars (HI ≤ 2) are global, verified, HI known. Streaming
-      BORING dim voxels near the camera is now only about looks.
+- [x] **Migrate the remaining RNG users to the faster engine** (Tonio,
+      2026-09-25). Done in 0.8.4, which already rerolls every galaxy:
+      `b3d-clouds`, `b3d-crowd` and `b3d-spawner` now use `Xoshiro128`, so
+      their seeded layouts (cloud blobs, crowd placement, spawn rings) reroll
+      once, with the rest. `MersenneTwister` stays exported and unused
+      internally.
 
 - [x] **"Ellipsoid columns" at 1M stars** (Tonio, 2026-09-25). FOUND and
       FIXED: plotted 1M voxel-galaxy stars top-down and edge-on. Top-down was

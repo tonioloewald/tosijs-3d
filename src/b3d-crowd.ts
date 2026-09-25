@@ -741,7 +741,7 @@ it bakes into is already fixed and tested.
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'
-import { MersenneTwister } from './mersenne-twister.js'
+import { Xoshiro128 } from './mersenne-twister.js'
 import type { B3d } from './tosi-b3d.js'
 import {
   framesForClip,
@@ -1954,7 +1954,7 @@ export class B3dCrowd extends B3dChild {
     }
   }
 
-  private _skinnedPrng = new MersenneTwister(7)
+  private _skinnedPrng = new Xoshiro128(7)
 
   /**
    * Spawn N SKINNED clones — the baseline the whole question turns on.
@@ -2387,10 +2387,11 @@ export class B3dCrowd extends B3dChild {
     20,000 or so it doesn't seem to get more crowded", which is exactly what a
     degenerate sequence looks like from outside.
 
-    `MersenneTwister` is already in this repo, is seeded, and does not have that
-    failure. Reaching for it costs an import.
+    A proper seeded generator does not have that failure. It was the Mersenne
+    Twister; since 0.8.4 it is `Xoshiro128`, the engine behind `PRNG`, which is
+    as good statistically and far cheaper to construct.
     */
-    const prng = new MersenneTwister(1)
+    const prng = new Xoshiro128(1)
     const rnd = () => prng.random()
     const side = this.spread
     for (let i = 0; i < n; i++) {

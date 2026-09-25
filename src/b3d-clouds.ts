@@ -117,7 +117,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'
-import { MersenneTwister } from './mersenne-twister.js'
+import { Xoshiro128 } from './mersenne-twister.js'
 import { band } from './atmosphere.js'
 import {
   CloudShadowMap,
@@ -402,7 +402,7 @@ export class B3dClouds extends B3dChild {
   private _lobeBottom = 0
 
   private _buildClouds(owner: B3d, scene: BABYLON.Scene) {
-    const rng = new MersenneTwister(this.seed)
+    const rng = new Xoshiro128(this.seed)
     this._baseColor = BABYLON.Color3.FromHexString(this.color)
     const mat = new BABYLON.StandardMaterial('cloud-mat', scene)
     // FLAT by default — deliberate, not lazy. A cloud is a CLUMP of overlapping opaque blobs; the

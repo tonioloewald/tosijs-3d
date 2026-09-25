@@ -160,8 +160,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
     transcription of the reference C. **Every `PRNG`-seeded output
     re-rolls:** planets, the spiral samples, nebulae, the shell and the
     skybox's point starfield. That is folded into this release, which already
-    changes every galaxy. `MersenneTwister` stays exported, and three
-    components still use it directly (see TODO).
+    changes every galaxy. `b3d-clouds`, `b3d-crowd` and `b3d-spawner` moved
+    too, so their seeded layouts (cloud blobs, crowd placement, spawn rings)
+    reroll once as well. `MersenneTwister` stays exported.
   - **The shipped sky's nebula half is rebaked** with the new nebulae.
     **`bin/bake-nebula.ts`** bakes it in headless Chrome and checks that the
     point half on disk came from the same galaxy.
