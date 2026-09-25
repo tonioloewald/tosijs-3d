@@ -18,7 +18,7 @@ const setup = () => {
     scene
   )
   scene.activeCamera = cam
-  cam.computeWorldMatrix(true)
+  cam.computeWorldMatrix()
   const frames = XrFrames.flat(scene, cam)
   frames.update(0)
   return { scene, cam, frames }
@@ -60,7 +60,7 @@ describe('XrFrames.flat', () => {
   test('it follows the camera as it moves, and setCamera follows a switch', () => {
     const { scene, cam, frames } = setup()
     cam.alpha += 1
-    cam.computeWorldMatrix(true)
+    cam.computeWorldMatrix()
     frames.update(0)
     expect(
       frames.eye.position.subtract(cam.globalPosition).length()
