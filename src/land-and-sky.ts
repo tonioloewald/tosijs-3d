@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -53,6 +53,8 @@ const { sky } = tosi({
     // The stars: size (1 = the default point), brightness, and the faint floor.
     decoBudget: 2000, decoRadius: 900, decoShadows: false,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
+    // Extra (cosmetic) moons: a set, swung round the sky together.
+    moons: 'Big moon', moonAz: 0, moonEl: 0,
   },
 })
 
@@ -72,6 +74,61 @@ const WORLDS = {
 sky.starSize.observe(() => {
   sky.starSharpness.value = 3 / Math.max(0.05, sky.starSize.value) ** 2
 })
+// COSMETIC MOONS — where, how big, what colour. The phase is not a setting:
+// swing them round with the slider and watch it follow from the sun.
+const MOONS = {
+  None: [],
+  'Big moon': [{ azimuth: 0, elevation: 25, size: 4, color: '#d8d4cc' }],
+  'Mars pair': [
+    { azimuth: 0, elevation: 20, size: 0.6, color: '#b09a88' },
+    { azimuth: 40, elevation: 32, size: 0.25, color: '#c8b8a8' },
+  ],
+  'Alien trio': [
+    { azimuth: 0, elevation: 30, size: 6, color: '#e0b090' },
+    { azimuth: 25, elevation: 12, size: 2, color: '#a0c8ff' },
+    { azimuth: -30, elevation: 40, size: 1, color: '#d0ffd0' },
+  ],
+}
+const skybox = b3dSkybox({
+  timeOfDay: sky.timeOfDay,
+  realtimeScale: 0,
+  starfieldCube: '/sky/nebula',
+  starfieldData: '/sky/stars',
+  starfieldTilt: '12,25,58',
+  atmosphere: sky.atmosphere,
+  dust: sky.dust,
+  turbidity: sky.turbidity,
+  rayleigh: sky.rayleigh,
+  mieCoefficient: sky.mieCoefficient,
+  luminance: sky.luminance,
+  zenithTint: sky.zenithTint,
+  horizonTint: sky.horizonTint,
+  tintStrength: sky.tintStrength,
+  starfieldSharpness: sky.starSharpness,
+  starfieldGain: sky.starGain,
+  starfieldFloor: sky.starFloor,
+  starfieldTwinkle: sky.twinkle,
+})
+
+const moonEls = []
+function placeMoons() {
+  const set = MOONS[sky.moons.value] ?? []
+  while (moonEls.length > set.length) moonEls.pop().remove()
+  set.forEach((m, i) => {
+    if (moonEls[i] == null) {
+      moonEls[i] = b3dMoon()
+      skybox.append(moonEls[i])
+    }
+    Object.assign(moonEls[i], m, {
+      azimuth: m.azimuth + sky.moonAz.value,
+      elevation: m.elevation + sky.moonEl.value,
+    })
+  })
+}
+sky.moons.observe(placeMoons)
+sky.moonAz.observe(placeMoons)
+sky.moonEl.observe(placeMoons)
+placeMoons()
 sky.world.observe(() => {
   const w = WORLDS[sky.world.value]
   if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
@@ -175,6 +232,10 @@ const scene = b3d(
       slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
       slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
+      label3d({ text: 'Moons' }),
+      select3d({ label: 'moons', value: sky.moons, options: Object.keys(MOONS) }),
+      slider3d({ label: 'moon azimuth', value: sky.moonAz, min: -180, max: 180, step: 1 }),
+      slider3d({ label: 'moon elevation', value: sky.moonEl, min: -60, max: 60, step: 1 }),
       label3d({ text: 'Vegetation' }),
       // THE BUDGET is the performance dial: a count, not a density. Watch the
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
@@ -229,26 +290,7 @@ const scene = b3d(
   // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.
-  b3dSkybox({
-    timeOfDay: sky.timeOfDay,
-    realtimeScale: 0,
-    starfieldCube: '/sky/nebula',
-    starfieldData: '/sky/stars',
-    starfieldTilt: '12,25,58',
-    atmosphere: sky.atmosphere,
-    dust: sky.dust,
-    turbidity: sky.turbidity,
-    rayleigh: sky.rayleigh,
-    mieCoefficient: sky.mieCoefficient,
-    luminance: sky.luminance,
-    zenithTint: sky.zenithTint,
-    horizonTint: sky.horizonTint,
-    tintStrength: sky.tintStrength,
-    starfieldSharpness: sky.starSharpness,
-    starfieldGain: sky.starGain,
-    starfieldFloor: sky.starFloor,
-    starfieldTwinkle: sky.twinkle,
-  }),
+  skybox,
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
