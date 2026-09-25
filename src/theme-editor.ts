@@ -172,7 +172,11 @@ export interface ThemeEditorOptions {
  * page; a list of `label: control` pairs at natural width does not, and a
  * palette you are comparing values across is exactly where that shows.
  */
-export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
+export function themeEditor(
+  config: ThemeEditorOptions = {}
+): ThemeEditorElement {
+  // What the page looked like before anyone touched a control — see `restore`.
+  const snapshot = { ...w3dTheme }
   const {
     title = 'Theme Editor',
     handleChange,
@@ -396,5 +400,22 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
     )
   )
 
-  return grid as HTMLElement
+  const el = grid as unknown as ThemeEditorElement
+  el.restore = () => {
+    setW3dTheme(snapshot)
+    changed()
+  }
+  return el
 }
+
+/**
+ * The editor element, plus the one thing only the library can do reliably:
+ * **put the palette back.** The editor edits the GLOBAL table (that is how a
+ * whole UI re-themes live), so a settings route that mounts it and is then
+ * left leaves the change behind — which is right for a settings page you
+ * APPLIED and wrong for one you abandoned or previewed. `restore()` returns
+ * the table to how it was when this editor was built, and calls
+ * `handleChange` so you rebuild. When to call it is yours: the editor cannot
+ * tell "left" from "saved".
+ */
+export type ThemeEditorElement = HTMLElement & { restore: () => void }

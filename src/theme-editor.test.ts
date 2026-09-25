@@ -160,3 +160,26 @@ describe('themeEditor — structure', () => {
     ).toBe(null)
   })
 })
+
+describe('themeEditor — restore()', () => {
+  test('puts back the palette it found, and tells the caller to rebuild', () => {
+    theme.setW3dTheme({ spacing: 8 })
+    let rebuilt = 0
+    const el = te.themeEditor({
+      colours: [],
+      metrics: [['spacing', 0, 20, 1]],
+      handleChange: () => rebuilt++,
+    })
+    document.body.append(el)
+    const num = el.querySelector('input[type=number]') as HTMLInputElement
+    num.value = '15'
+    const W = num.ownerDocument.defaultView as any
+    num.dispatchEvent(new W.Event('change'))
+    expect(theme.w3dTheme.spacing).toBe(15)
+    const before = rebuilt
+    el.restore()
+    expect(theme.w3dTheme.spacing).toBe(8)
+    expect(rebuilt).toBe(before + 1)
+    el.remove()
+  })
+})

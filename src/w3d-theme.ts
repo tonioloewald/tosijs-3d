@@ -49,10 +49,10 @@ const { demo } = tosi({ demo: { size: 0.6, sound: false, name: '' } })
 //
 // `withTheme` is the wrong tool here — it restores when its build function
 // RETURNS, and this demo's lifetime is the page's, not a synchronous call.
-const initialTheme = { ...w3dTheme }
+// The editor's own `restore()` puts back what it found; this only decides WHEN.
 const restoreTheme = new MutationObserver(() => {
   if (preview.isConnected) return
-  setW3dTheme(initialTheme)
+  editor.restore()
   restoreTheme.disconnect()
 })
 // The preview's own parent is enough: watching the whole document's subtree
@@ -136,6 +136,8 @@ const build = () => {
 }
 
 build()
+const editor = themeEditor({ colorInput, handleChange: build })
+
 preview.append(div(
   {
     style: {
@@ -153,7 +155,7 @@ preview.append(div(
   // splitting it across a cell boundary would make it scroll twice.
   div(
     { style: { ...cell, gridRow: '1 / 3', gridColumn: '2', alignContent: 'start', justifyItems: 'start' } },
-    themeEditor({ colorInput, handleChange: build })
+    editor
   ),
   stage,
 ))

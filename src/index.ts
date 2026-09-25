@@ -1393,7 +1393,7 @@ export {
   writeNormalMap,
 } from './water-normal.js'
 export { themeEditor, FONT_STACKS } from './theme-editor.js'
-export type { ThemeEditorOptions } from './theme-editor.js'
+export type { ThemeEditorOptions, ThemeEditorElement } from './theme-editor.js'
 export {
   registerSvgFont,
   unregisterSvgFont,

@@ -391,7 +391,7 @@ recorded here rather than dropped.
       transitively loads widgets3d + w3d-theme. Three one-word edits.
       Done 2026-09-25.
 
-- [ ] **`themeEditor()` and `registerIcons` are page-global mutations with no
+- [x] **`themeEditor()` and `registerIcons` are page-global mutations with no
       library-level undo.** The "theme editor infects other demos" fix landed in the
       DEMO, so a consumer putting `themeEditor()` on a settings route gets the
       identical bug and the remedy they will copy is the demo's body-wide
@@ -399,6 +399,9 @@ recorded here rather than dropped.
       snapshots at construction, and rewrite the demo to use it. Same shape for
       `registerIcons` — add `unregisterIcons` or document that registration is
       page-lifetime and irreversible.
+      Done 2026-09-26: the editor element has `restore()` (snapshot at
+      construction, calls `handleChange`), the demo uses it; `registerIcons`
+      returns an undo that brings back what it replaced. Both tested.
 
 - [x] **The `w3d-theme` demo observes the whole document subtree** to detect its
       own unmount. Fix: `observe(preview.parentNode ?? document.body, {childList:

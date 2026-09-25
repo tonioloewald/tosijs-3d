@@ -173,3 +173,15 @@ describe('registerIcons refuses markup that can run', () => {
     ).toBe(false)
   })
 })
+
+describe('registerIcons returns an undo', () => {
+  test('a new name goes, a replaced built-in comes back', () => {
+    const before = m.iconGlyph('camera').outerHTML
+    const undo = m.registerIcons({ routeOnly: ART, camera: ART })
+    expect(m.iconExists('routeOnly')).toBe(true)
+    expect(m.iconGlyph('camera').outerHTML).not.toBe(before)
+    undo()
+    expect(m.iconExists('routeOnly')).toBe(false)
+    expect(m.iconGlyph('camera').outerHTML).toBe(before)
+  })
+})

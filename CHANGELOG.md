@@ -130,6 +130,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Undo for the two page-global mutations.** `themeEditor()`'s element has
+  `restore()` — the palette as it was when the editor was built, then
+  `handleChange` so you rebuild. `registerIcons()` now RETURNS an undo that
+  removes the names it added and brings back any icon it replaced.
 - **`<tosi-b3d-moon>`** — cosmetic extra moons (tosijs-3d#89). Put up to
   four inside a `<tosi-b3d-skybox>`: `azimuth`/`elevation` on the star
   sphere (they ride with the stars), `size` (angular diameter, degrees),

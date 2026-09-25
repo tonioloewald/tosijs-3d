@@ -459,8 +459,15 @@ export function unsafeIconMarkup(value: string): boolean {
  * or a `javascript:` URL — is dropped with a warning rather than stored. That
  * is a guard against accidents, not a sanitiser: an icon has no business
  * containing any of it, so refusing is simpler and stricter than cleaning.
+ *
+ * **Returns an undo.** Registration is otherwise page-lifetime: the map is
+ * global, so a route that registers its icons and is then left would leave
+ * them behind — including any built-in it REPLACED. The returned function puts
+ * back exactly what this call changed (a replaced icon comes back, a new name
+ * goes). Undo in reverse order if calls overlap on a name.
  */
-export function registerIcons(icons: IconMap): void {
+export function registerIcons(icons: IconMap): () => void {
+  const previous: Array<[string, PropertyDescriptor | undefined]> = []
   for (const [name, value] of Object.entries(icons)) {
     if (typeof value !== 'string' || value.trim() === '') continue
     if (unsafeIconMarkup(value)) {
@@ -475,12 +482,19 @@ export function registerIcons(icons: IconMap): void {
     failing. Define the property instead, so a hostile name is stored as data
     like any other.
     */
+    previous.push([name, Object.getOwnPropertyDescriptor(DEFAULT_MAP, name)])
     Object.defineProperty(DEFAULT_MAP, name, {
       value: value.trim(),
       writable: true,
       enumerable: true,
       configurable: true,
     })
+  }
+  return () => {
+    for (const [name, was] of previous.reverse()) {
+      if (was != null) Object.defineProperty(DEFAULT_MAP, name, was)
+      else delete (DEFAULT_MAP as Record<string, string>)[name]
+    }
   }
 }
 
