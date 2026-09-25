@@ -1918,7 +1918,15 @@ export class B3d extends Component {
       moving and aircraft coasting at cruise speed with the stick disconnected.
       Measured at 66 m of travel over a 3-second pause (#30).
       */
-      this.lastRender = Date.now()
+      // The WALL clock keeps running, which is the one state `realDt` exists
+      // for (a spinner on the pause panel). It used to publish 0 here and hold
+      // `realElapsed`/`frame` still, contradicting FrameInfo's own doc.
+      const nowPaused = Date.now()
+      const realPaused =
+        this.lastRender > 0
+          ? Math.min((nowPaused - this.lastRender) / 1000, 0.1)
+          : 0
+      this.lastRender = nowPaused
       // Babylon's own clocks as well — see `_stopEngineTime`. Ours is the
       // smaller half of a pause.
       this._stopEngineTime(true)
@@ -1928,7 +1936,9 @@ export class B3d extends Component {
         this.frameDelta = 0
         // A paused frame still RENDERS, so the package must be present and
         // honest rather than stale: sim stopped, wall clock still running.
-        this._realDelta = 0
+        this._realDelta = realPaused
+        this._realElapsed += realPaused
+        this._frameCount++
         this.scene.metadata.b3dFrame = this.frameInfo()
         /*
         FOG STILL HAS TO BE RIGHT WHILE STOPPED (adopter issue #31).

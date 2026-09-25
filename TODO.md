@@ -276,8 +276,11 @@ Deferred with the release; the blockers were fixed before the tag.
       convention for COMPONENTS is `when*`. Free to change now, breaking later.
       Done 2026-09-25: `whenChange`/`whenCommit`; the old names warn once
       through `handlerOf` and go in 0.9. No external users found.
-- [ ] **`FrameInfo.realDt`/`realElapsed`/`frame` freeze while paused**, which is
+- [x] **`FrameInfo.realDt`/`realElapsed`/`frame` freeze while paused**, which is
       the one state they exist for. Doc and behaviour disagree; pick one.
+      Done 2026-09-25: behaviour now matches the doc (the wall clock runs
+      while paused). Measured headless: 2 s paused → realElapsed +2.03, elapsed
+      +0, 116 frames.
 - [x] **Three copies of the wind resolution rule** — `B3dClouds._wind()` and
       `B3dAmbient._wind()` are byte-identical and `B3dWater._wind()` repeats the
       guard. #73's stated purpose was that these could not silently disagree.

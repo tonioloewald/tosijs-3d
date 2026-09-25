@@ -10,6 +10,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **`FrameInfo` keeps wall-clock time while paused**, as documented:
+  `realDt`, `realElapsed` and `frame` advance on a paused (still rendering)
+  frame; `dt` and `elapsed` stay stopped. They used to freeze too, which broke
+  the one case they exist for — a spinner on the pause panel.
 - **Floating origin reaches the placeables.** `b3d-prop`, a standalone
   `b3d-beacon` and a place-anchored `b3d-spawner` drifted on a terrain rebase;
   they now shift with it. The shared piece is `AbstractMesh.followOrigin()`,
