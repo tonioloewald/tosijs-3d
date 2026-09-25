@@ -515,6 +515,13 @@ export function fieldGroup(config: {
   /** Commit and un-focus whatever is active. */
   blur: () => void
   /**
+   * Join a field created AFTER the group (tosijs-3d#82). Without it, "collect
+   * every field, then build the group" was an ordering the host had to know,
+   * and a field made one step too late could be tapped but never typed into.
+   * Adding one that is already a member does nothing.
+   */
+  add: (field: InputField) => void
+  /**
    * Route real keyboard events from `target` (default `window`). Returns a
    * function that detaches.
    *
@@ -527,6 +534,8 @@ export function fieldGroup(config: {
   attach: (target?: EventTarget) => () => void
 } {
   let active: InputField | null = null
+  // LIVE, so `add` works — the construction-time list was the trap.
+  const fields: InputField[] = []
 
   const focus = (field: InputField | null): void => {
     if (field === active) return
@@ -544,14 +553,16 @@ export function fieldGroup(config: {
     // Settle the outgoing field before the incoming one lights up, so a refused
     // value is restored while the eye is still on it.
     leaving?.commit()
-    for (const f of config.fields) f.setActive(f === field)
+    for (const f of fields) f.setActive(f === field)
     if (field) config.keyboard?.setMode(field.keyboardMode)
   }
 
   // A field can also be focused by being TAPPED, which the field reports and the
   // group must not miss — otherwise a tap and a programmatic focus disagree
   // about who is active, and the keys go to the wrong one.
-  for (const f of config.fields) {
+  const add = (f: InputField): void => {
+    if (fields.includes(f)) return
+    fields.push(f)
     // Wrap whichever spelling the field carries, and write back under the SAME
     // one — moving the callback to `handleFocus` would strand a consumer who
     // still reads `field.onFocus` to detach it later.
@@ -564,20 +575,27 @@ export function fieldGroup(config: {
     if (usesOld) f.onFocus = wrapped
     else f.handleFocus = wrapped
   }
+  for (const f of config.fields) add(f)
+  const member: AttachedGroup = {
+    has: (f) => fields.includes(f),
+    blur: () => focus(null),
+  }
 
   const api = {
     get active() {
       return active
     },
     focus,
+    add,
     blur() {
       focus(null)
     },
     attach(target: EventTarget = globalThis.window) {
-      // Stand the global listener down while a group is attached — a group does
-      // more than type (Tab traversal, mode switching), so it must win, and two
-      // handlers would double every character.
-      groupAttachments += 1
+      // The global listener stands down for THIS group's fields while it is
+      // attached — a group does more than type (Tab traversal, mode switching),
+      // so it must win, and two handlers would double every character. Fields
+      // in NO attached group still reach the global listener (#82).
+      attachedGroups.set(member, (attachedGroups.get(member) ?? 0) + 1)
       const onKey = (evt: Event): void => {
         // Same rule as the global listener: a real input wins. A group attached
         // to `window` is the common case, and it must not eat a nav search.
@@ -597,7 +615,9 @@ export function fieldGroup(config: {
       }
       target.addEventListener('keydown', onKey)
       return () => {
-        groupAttachments = Math.max(0, groupAttachments - 1)
+        const n = (attachedGroups.get(member) ?? 1) - 1
+        if (n > 0) attachedGroups.set(member, n)
+        else attachedGroups.delete(member)
         target.removeEventListener('keydown', onKey)
       }
     },
@@ -677,18 +697,41 @@ So: ONE listener, installed on first focus, routing to whichever field is the
 receiver. Not per field — N fields would mean N listeners all deciding whether a
 key is theirs.
 
-It STANDS DOWN while a `fieldGroup` is attached. A group does more than type (Tab
-traversal, keyboard-mode switching), so it must win; two handlers would double
-every character, which is worse than the bug being fixed.
+It STANDS DOWN for any field an attached `fieldGroup` owns. A group does more
+than type (Tab traversal, keyboard-mode switching), so it must win; two handlers
+would double every character, which is worse than the bug being fixed. Fields
+in NO attached group still type through here — see `attachedGroups`.
 */
 let activeField: InputField | null = null
-let groupAttachments = 0
 let globalKeyListener: ((e: Event) => void) | null = null
+
+/*
+WHICH GROUPS ARE ATTACHED, and who is in them (tosijs-3d#82).
+
+This used to be a bare count, and "any group attached" stood the global
+listener down for EVERY field. So a field outside the group was worse than
+disabled: tapped, it showed a caret, and its keys went to the group's own
+active field — a colour typed into a position — or nowhere. Four bugs in one
+consumer, three shipped, none with a signal.
+
+Now the listener stands down only for a field that some attached group owns,
+and a field outside every group that takes focus makes those groups let go of
+theirs, so exactly one thing is receiving.
+*/
+interface AttachedGroup {
+  has: (f: InputField) => boolean
+  blur: () => void
+}
+const attachedGroups = new Map<AttachedGroup, number>()
+const ownedByAttachedGroup = (f: InputField): boolean => {
+  for (const g of attachedGroups.keys()) if (g.has(f)) return true
+  return false
+}
 
 function ensureGlobalKeyListener(): void {
   if (globalKeyListener != null || globalThis.window == null) return
   globalKeyListener = (evt: Event): void => {
-    if (groupAttachments > 0 || activeField == null) return
+    if (activeField == null || ownedByAttachedGroup(activeField)) return
     /*
     A REAL input wins over an SVG field.
 
@@ -817,6 +860,9 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     // listener above.
     activeField = api
     ensureGlobalKeyListener()
+    // A field outside every attached group took focus: those groups must let
+    // go of theirs, or their listener keeps typing into it (#82).
+    for (const g of attachedGroups.keys()) if (!g.has(api)) g.blur()
     if (focused) return
     focused = true
     paintRef()

@@ -975,6 +975,68 @@ describe('fieldGroup.attach — a field you can actually type into', () => {
   })
 })
 
+describe('a field outside the attached group (tosijs-3d#82)', () => {
+  /*
+  Four bugs in one consumer, three shipped, none observable: attaching a group
+  stood the global listener down for EVERY field, so a field outside the group
+  showed a caret and its keys went to the group's active field (a colour typed
+  into a position) or nowhere. And a field made after the group could never
+  join it.
+  */
+  const tap = (f: any) => {
+    f.layout?.(200)
+    f.handle!('down', 20, 10)
+    f.handle!('up', 20, 10)
+  }
+  const type = (keys: string) => {
+    for (const key of keys)
+      window.dispatchEvent(
+        Object.assign(new (window as any).Event('keydown'), { key })
+      )
+  }
+
+  test('typing into it reaches IT, not the group', () => {
+    const inside = K.inputField({ value: '1' })
+    const outside = K.inputField({})
+    const group = K.fieldGroup({ fields: [inside] })
+    const detach = group.attach(window)
+    group.focus(inside)
+    tap(outside)
+    type('123')
+    expect(outside.value).toBe('123')
+    expect(inside.value).toBe('1') // the position is untouched
+    expect(group.active).toBeNull() // the group let go
+    detach()
+    outside.setActive(false)
+  })
+
+  test('group fields still type exactly once while a group is attached', () => {
+    const a = K.inputField({})
+    const group = K.fieldGroup({ fields: [a] })
+    const detach = group.attach(window)
+    group.focus(a)
+    type('ab')
+    expect(a.value).toBe('ab') // not 'aabb' — the global listener stood down
+    detach()
+    group.blur()
+  })
+
+  test('add() joins a field made after the group', () => {
+    const early = K.inputField({})
+    const group = K.fieldGroup({ fields: [early] })
+    const detach = group.attach(window)
+    const late = K.inputField({})
+    group.add(late)
+    group.add(late) // idempotent
+    tap(late)
+    expect(group.active).toBe(late)
+    type('id')
+    expect(late.value).toBe('id')
+    detach()
+    group.blur()
+  })
+})
+
 describe('caps lock — hold shift', () => {
   const kb = (onKey: (k: string) => void) => {
     const k = K.keyboard({ mode: 'alpha', onKey, holdMs: 10 })

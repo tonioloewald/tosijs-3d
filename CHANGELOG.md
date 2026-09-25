@@ -10,6 +10,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A field outside an attached `fieldGroup` swallowed keystrokes silently**
+  (tosijs-3d#82). Attaching any group stood the global key listener down for
+  EVERY field, so a tapped field outside it showed a caret while its keys went
+  to the group's active field or nowhere. Now the listener stands down only
+  for fields an attached group owns, and a field outside every group that
+  takes focus makes those groups let go. `fieldGroup` gains **`add(field)`**,
+  so a field created after the group can join it rather than depending on
+  construction order.
 - **A page that mounted and removed scenes hit Chrome's WebGL context cap**
   (tosijs-3d#79). Babylon's `engine.dispose()` keeps the context alive unless
   `loseContextOnDispose` is set, so every removed scene held one until GC, and
