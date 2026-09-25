@@ -309,6 +309,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/star-populations/ — star-populations
+  Pure — no Babylon, no DOM.
 - https://3d.tosijs.net/starfield-codec/ — starfield-codec
   faces where the channels are not colour but *position, brightness, colour index
 - https://3d.tosijs.net/surface/ — surface

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { sampleSpiral, starNameFor } from './galaxy-data.js'
+import { bestHIOf } from './star-populations.js'
 import {
   hash32,
   voxelGalaxy,
@@ -23,7 +24,8 @@ const g = voxelGalaxy(SMALL)
 const allDim = (galaxy = g) => {
   const out: VoxelStar[] = []
   for (let v = 0; v < galaxy.voxelCount; v++)
-    for (const s of galaxy.starsInVoxel(v, 'dim')) out.push(s)
+    for (const p of ['interesting', 'boring'] as const)
+      for (const s of galaxy.starsInVoxel(v, p)) out.push(s)
   return out
 }
 
@@ -68,8 +70,8 @@ describe('identity and determinism', () => {
     const fresh = voxelGalaxy(SMALL)
     const v = g.voxelOf({ x: 0.3, y: 0.2, z: 0 })
     // g has generated everything bright already; fresh has generated nothing.
-    const a = fresh.starsInVoxel(v, 'dim')
-    const b = g.starsInVoxel(v, 'dim')
+    const a = fresh.starsInVoxel(v, 'boring')
+    const b = g.starsInVoxel(v, 'boring')
     expect(a).toEqual(b)
   })
 
@@ -139,7 +141,10 @@ describe('the local query the baker needs', () => {
 
   test('dimStarsNear is exactly the dim stars of the voxels near the point', () => {
     const near = g.voxelsNear(eye, 0.15)
-    const expected = near.flatMap((v) => g.starsInVoxel(v, 'dim'))
+    const expected = near.flatMap((v) => [
+      ...g.starsInVoxel(v, 'interesting'),
+      ...g.starsInVoxel(v, 'boring'),
+    ])
     expect(g.dimStarsNear(eye, 0.15)).toEqual(expected)
     // ...and only a small fraction of the galaxy was touched.
     expect(near.length).toBeLessThan(g.voxelCount * 0.05)
@@ -262,9 +267,11 @@ describe('at the default scale', () => {
 describe('view — the GalaxyData every consumer reads (reconciliation)', () => {
   test('every bright star, named from its seed, with its address', () => {
     const v = g.view()
-    expect(v.stars.length).toBe(g.brightStars().length)
+    expect(v.stars.length).toBe(
+      g.brightStars().length + g.interestingStars().length
+    )
     const s = v.stars[0]
-    expect(s.id).toMatch(/^7:bright:\d+:\d+$/)
+    expect(s.id).toMatch(/^7:(bright|interesting):\d+:\d+$/)
     expect(s.name).toBe(starNameFor(s.seed))
     expect(new Set(v.stars.map((x) => x.id)).size).toBe(v.stars.length)
     // Sorted by name, as the old generator's consumers expect.
@@ -272,13 +279,18 @@ describe('view — the GalaxyData every consumer reads (reconciliation)', () => 
       expect(v.stars[i - 1].name <= v.stars[i].name).toBe(true)
   })
 
-  test('dim stars join only near a point', () => {
+  test('boring stars join only near a point', () => {
     const eye = { x: 0.5, y: 0, z: 0.01 }
     const near = g.view({ near: eye, radius: 0.1 })
+    const boringNear = g
+      .voxelsNear(eye, 0.1)
+      .flatMap((v) => g.starsInVoxel(v, 'boring')).length
     expect(near.stars.length).toBe(
-      g.brightStars().length + g.dimStarsNear(eye, 0.1).length
+      g.brightStars().length + g.interestingStars().length + boringNear
     )
-    expect(near.stars.some((s) => s.id!.startsWith('7:dim:'))).toBe(true)
+    expect(near.stars.some((s) => /^7:(interesting|boring):/.test(s.id!))).toBe(
+      true
+    )
   })
 
   test('nebulae and shell are on their own seeds — the star budget cannot move them', () => {
@@ -303,7 +315,7 @@ describe('star(id) — an address resolves without the galaxy', () => {
     const v = g.view({ near: eye, radius: 0.1 })
     for (const s of [
       v.stars[0],
-      v.stars.find((x) => x.id!.startsWith('7:dim:'))!,
+      v.stars.find((x) => /^7:(interesting|boring):/.test(x.id!))!,
     ])
       expect(g.star(s.id!)).toEqual(s)
   })
@@ -335,12 +347,53 @@ describe('star(id) — an address resolves without the galaxy', () => {
   })
 
   test('starAddress and parseStarAddress round-trip', () => {
-    expect(parseStarAddress(starAddress(1234, 'dim', 5021, 3))).toEqual({
+    expect(parseStarAddress(starAddress(1234, 'boring', 5021, 3))).toEqual({
       seed: 1234,
-      population: 'dim',
+      population: 'boring',
       voxel: 5021,
       n: 3,
     })
     expect(parseStarAddress('bright:1:2')).toBeNull()
+  })
+})
+
+describe('interesting and boring — biased, then verified (exact)', () => {
+  test('every interesting star has a planet with HI ≤ 2, by the real rules', () => {
+    const stars = g.interestingStars()
+    expect(stars.length).toBeGreaterThan(0)
+    for (const s of stars.slice(0, 300)) {
+      expect(s.bestHI!).toBeLessThanOrEqual(2)
+      expect(bestHIOf(s)).toBe(s.bestHI!) // recomputed, not trusted
+    }
+  })
+
+  test('every boring star does NOT (exact, not statistical)', () => {
+    const eye = { x: 0.5, y: 0, z: 0.01 }
+    const boring = g
+      .voxelsNear(eye, 0.1)
+      .flatMap((v) => g.starsInVoxel(v, 'boring'))
+    expect(boring.length).toBeGreaterThan(50)
+    for (const s of boring) expect(bestHIOf(s)).toBeGreaterThan(2)
+  })
+
+  test('together they are the old dim population, in size', () => {
+    const n = allDim().length
+    expect(Math.abs(n - SMALL.dimBudget) / SMALL.dimBudget).toBeLessThan(0.03)
+    // ~5% interesting, as measured.
+    const share = g.interestingStars().length / n
+    expect(share).toBeGreaterThan(0.03)
+    expect(share).toBeLessThan(0.08)
+  })
+
+  test('the view carries every interesting star, with its HI already known', () => {
+    const v = g.view()
+    const interesting = v.stars.filter((s) => s.id!.includes(':interesting:'))
+    expect(interesting.length).toBe(g.interestingStars().length)
+    for (const s of interesting) {
+      expect(s.hiComputed).toBe(true)
+      expect(s.bestHI).toBeLessThanOrEqual(2)
+    }
+    // …and no boring star without a point to gather around.
+    expect(v.stars.some((s) => s.id!.includes(':boring:'))).toBe(false)
   })
 })

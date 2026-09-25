@@ -294,7 +294,7 @@ which now has one generator to look in.
 4. Rebake and eyeball the nebula half; update the digests; record in the
    changelog as a visible change (every seeded galaxy looks different).
 
-## Interesting stars — the dim population, filtered for habitability (proposal)
+## Interesting stars — the dim population, filtered for habitability
 
 Tonio (2026-09-25): bias dim-star generation toward systems worth visiting,
 so the galaxy is "an entire galaxy whose stars are EITHER bright OR
@@ -342,12 +342,20 @@ real `generateStarSystem` + HI, and write a GENERATED pass-rate table. A
 freshness test fingerprints HI on a fixed probe set and fails when the
 algorithm has drifted from the table ("rerun the harness").
 
-### Open (Tonio's call)
+### Decided and built (2026-09-25)
 
-- **The boring population, exact or statistical?** Exact verifies every
-  background star fails the rule (~0.1 s per neighbourhood at 6.5 µs).
-  Statistical draws from the boring mix unchecked, so a clicked star might
-  score well.
-- **Address churn.** Refining HI changes which candidates pass, so some
-  interesting addresses will point at different stars. Stars that still pass
-  are unchanged. The alternative is a rule version in the address.
+- **Global = bright ∪ interesting.** Interesting per voxel is
+  `dimBudget × density × measured share` (~5.3%), so the galaxy has exactly
+  as many HI ≤ 2 dim stars as an unfiltered dim population would; the mix
+  bias only changes how fast each is found.
+- **Bias, then verify.** Candidate `c` of star `k` is seeded
+  `hash(voxelSeed, k, c)`, drawn from the pass-weighted mix, and checked with
+  the real rules; the first fit is the star. **Boring is exact too** (Tonio):
+  verified to fail. Both carry their `bestHI`, so a filter needs no system
+  generation.
+- **Address churn is accepted** (Tonio: _"If you change the rules for star
+  system generation expecting things not to change is bizarre."_).
+- Code: `star-populations.ts` (the rules, mixes and fingerprint),
+  `population-table.ts` (GENERATED), `bin/tune-populations.ts` (the harness,
+  ~1 s). The galaxy demo builds 10k bright + 5k interesting in ~0.4 s; the
+  shipped sky's galaxy (100k + 52k) in ~2.2 s.

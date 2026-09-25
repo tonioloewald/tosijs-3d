@@ -383,7 +383,7 @@ b3d-galaxy
 
   seed  = 1234  — Galaxy seed
   starCount  = 10000  — The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet
-  dimBudget  = 95000  — The DIM population's budget — local stars, generated only near a point (the baker's eye). Not drawn by the galaxy yet
+  dimBudget  = 95000  — The DIM population's budget. Its interesting share (~5%, HI ≤ 2) is drawn globally; the boring rest only near a point (the baker's eye)
   radius  = 100  — Galaxy radius in scene units
   spiralArms  = 4  — Number of spiral arms
   spiralAngle  = 240  — Spiral arm sweep in degrees

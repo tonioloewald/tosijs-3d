@@ -39,7 +39,11 @@ function digest(g: ReturnType<typeof generateGalaxy>): string {
 describe('generateGalaxy — the adapter', () => {
   test('is exactly the voxel galaxy’s view', () => {
     const a = generateGalaxy(1234, 2000)
-    const b = voxelGalaxy({ seed: 1234, brightBudget: 2000 }).view()
+    const b = voxelGalaxy({
+      seed: 1234,
+      brightBudget: 2000,
+      dimBudget: 0,
+    }).view()
     expect(digest(a)).toBe(digest(b))
   })
 

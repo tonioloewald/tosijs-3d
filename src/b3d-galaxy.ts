@@ -22,9 +22,11 @@ rendered star system) and `showStarAt(index)` to restore it.
 
 Filter stars by habitability index and/or name using `filterStars({ maxHI, nameSearch })` —
 non-matching stars are dimmed.
-The filter covers the BRIGHT stars. About half the earthlike systems are dim
-(late G and K dwarfs), and those are local: they join as dim voxels stream in
-near the camera, which is not built yet (GALAXY-DESIGN.md).
+The galaxy holds every BRIGHT star and every INTERESTING one: a dim star whose
+system has a planet with HI ≤ 2 (see [star-populations](/star-populations/)).
+So the filter sees every habitable system there is, with its HI already known.
+The boring dim stars (the other ~95%) are only generated locally, as sky
+texture.
 
 ## Demo
 
@@ -318,7 +320,7 @@ tosi-b3d {
 | Attribute | Default | Description |
 | --- | --- | --- |
 | `seed` | `1234` | Galaxy seed |
-| `dimBudget` | `95000` | The DIM population's budget — local stars, generated only near a point (the baker's eye). Not drawn by the galaxy yet |
+| `dimBudget` | `95000` | The DIM population's budget. Its interesting share (~5%, HI ≤ 2) is drawn globally; the boring rest only near a point (the baker's eye) |
 | `starCount` | `10000` | The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet |
 | `radius` | `100` | Galaxy radius in scene units |
 | `spiralArms` | `4` | Number of spiral arms |
@@ -846,9 +848,8 @@ export class B3dGalaxy extends B3dChild {
     /*
     ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"): the voxel galaxy, read
     through its `view`, which is the GalaxyData shape everything below already
-    draws. `starCount` is its BRIGHT budget — the stars you see across the
-    galaxy. The dim population (half the earthlike systems) is local; it joins
-    when dim voxels stream in near the camera, which is later work.
+    draws. `starCount` is its BRIGHT budget; the view also carries every
+    INTERESTING dim star (HI ≤ 2), verified, so the HI filter is complete.
     */
     this.galaxy = voxelGalaxy({
       seed: attrs.seed,

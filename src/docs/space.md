@@ -9,4 +9,5 @@
 - [b3d-star-system](/b3d-star-system/)
 - [galaxy-data](/galaxy-data/)
 - [voxel-galaxy](/voxel-galaxy/)
+- [star-populations](/star-populations/)
 <!-- /toc -->

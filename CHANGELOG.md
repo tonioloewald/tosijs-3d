@@ -111,6 +111,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **New:** `voxelGalaxy().view()`, `.star(id)`, `.nebulae()`, `.shell()`;
     `b3d-galaxy`'s `dimBudget`; `starAddress` / `parseStarAddress`,
     `starNameFor`, `sampleSpiral` and `starsFromVoxelGalaxy` in the barrel.
+  - **Interesting stars.** The dim population splits in two. **Interesting**
+    stars have a planet with HI ≤ 2 (breathable or filterable air, under 2 g,
+    not extreme); they are generated globally, so the galaxy demo's HI filter
+    sees every habitable system with its HI already known. **Boring** stars
+    are generated only locally, as sky texture. Both are exact: candidates are
+    drawn from a spectral mix biased by measured pass rates, then verified with
+    the real HI rules. The rates come from a harness, **`bin/tune-populations.ts`**,
+    which writes `population-table.ts`. A fingerprint test fails when HI
+    changes, and the fix is to rerun it. HI 3 is deliberately not
+    "interesting": it has no air requirement, so the Moon and Mars are HI 3.
+    `generateGalaxy` (deprecated) keeps meaning bright stars only.
   - **`PRNG` runs on xoshiro128\*\*** (new **`Xoshiro128`**, exported). MT
     carried 624 words of state and regenerated them before its first draw,
     so just constructing one cost ~13 µs, and a star system builds one per

@@ -1444,7 +1444,7 @@
       {
         "name": "dimBudget",
         "default": "95000",
-        "description": "The DIM population's budget — local stars, generated only near a point (the baker's eye). Not drawn by the galaxy yet"
+        "description": "The DIM population's budget. Its interesting share (~5%, HI ≤ 2) is drawn globally; the boring rest only near a point (the baker's eye)"
       },
       {
         "name": "radius",

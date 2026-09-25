@@ -76,8 +76,22 @@ import {
   type StarData,
 } from './galaxy-data.js'
 import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js'
+import {
+  bestHIOf,
+  isInteresting,
+  interestingMix,
+  boringMix,
+  interestingShare,
+} from './star-populations.js'
 
-export type Population = 'bright' | 'dim'
+/**
+ * `bright` — global, the stars you see across the galaxy. The DIM stars split in
+ * two (star-populations): `interesting` — a planet with HI ≤ 2, generated
+ * globally so a habitability search sees every one; `boring` — the rest,
+ * generated only locally, as sky texture. Both are VERIFIED with the real HI
+ * rules, so membership is exact.
+ */
+export type Population = 'bright' | 'interesting' | 'boring'
 
 /** One entry of a population's spectral mix. */
 export interface MixEntry {
@@ -134,6 +148,8 @@ export interface VoxelStar
   voxel: number
   n: number
   position: { x: number; y: number; z: number }
+  /** Best planet HI — known for `interesting`/`boring` (it was verified). */
+  bestHI?: number
 }
 
 type Vec = { x: number; y: number; z: number }
@@ -185,7 +201,7 @@ export function parseStarAddress(id: string): {
   voxel: number
   n: number
 } | null {
-  const m = /^(\d+):(bright|dim):(\d+):(\d+)$/.exec(id)
+  const m = /^(\d+):(bright|interesting|boring):(\d+):(\d+)$/.exec(id)
   if (m == null) return null
   return {
     seed: Number(m[1]),
@@ -196,7 +212,11 @@ export function parseStarAddress(id: string): {
 }
 
 /** Stream tags for the per-voxel seeds. */
-const STREAM: Record<Population, number> = { bright: 1, dim: 2 }
+const STREAM: Record<Population, number> = {
+  bright: 1,
+  interesting: 5,
+  boring: 6,
+}
 /** Galaxy-wide streams — each on its own derived seed, so none depends on another's count. */
 const NEBULA_STREAM = 3
 const SHELL_STREAM = 4
@@ -242,11 +262,17 @@ export interface VoxelGalaxy {
   starsInVoxel(v: number, population: Population): VoxelStar[]
   /** Every voxel's bright stars — the global pass. Memoised. */
   brightStars(): VoxelStar[]
+  /**
+   * Every INTERESTING star (a planet with HI ≤ 2) — global too, so a
+   * habitability search sees them all. Memoised.
+   */
+  interestingStars(): VoxelStar[]
   /** The voxels whose box comes within `radius` of `p`. */
   voxelsNear(p: Vec, radius: number): number[]
   /**
-   * The dim stars of every voxel within `radius` of `p` — WHOLE voxels, so a
-   * few may lie slightly beyond `radius`; filter by distance if that matters.
+   * The dim stars (interesting AND boring) of every voxel within `radius` of
+   * `p` — WHOLE voxels, so a few may lie slightly beyond `radius`; filter by
+   * distance if that matters.
    */
   dimStarsNear(p: Vec, radius: number): VoxelStar[]
   /** The galaxy's nebulae, from their own derived seed. Memoised. */
@@ -255,7 +281,7 @@ export interface VoxelGalaxy {
   shell(): { distantGalaxies: NebulaData[]; distantStars: DistantStarData[] }
   /**
    * THE view every consumer reads — `GalaxyData`, as `generateGalaxy` returned
-   * it: every bright star, the dim stars near `near`, the nebulae (with the
+   * it: every bright and every interesting star, the boring stars near `near`, the nebulae (with the
    * distant galaxies appended, as before) and the shell. Stars carry `id` and a
    * name derived from their seed, and are sorted by name.
    */
@@ -446,10 +472,29 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     return m
   }
   const MAX_TRIES = 12
+  /*
+  CANDIDATES per interesting/boring star. Each is verified with the real HI
+  rules and the first that fits is the star. The learned mixes make a pass
+  likely (roughly 1 in 7 for interesting), so 256 misses is ~1e-17 — if it
+  ever happens, the last candidate stands and `bestHI` tells the truth.
+  */
+  const MAX_CANDIDATES = 256
 
+  // The dim budget splits by the table's measured interesting share, so the
+  // two populations together are the old dim population, statistically.
+  const interesting = interestingShare(o.dimMix)
+  const mixes: Record<Population, MixEntry[]> = {
+    bright: o.brightMix,
+    interesting: interestingMix(o.dimMix),
+    boring: boringMix(o.dimMix),
+  }
   const budget = (p: Population) =>
-    p === 'bright' ? o.brightBudget : o.dimBudget
-  const mixOf = (p: Population) => (p === 'bright' ? o.brightMix : o.dimMix)
+    p === 'bright'
+      ? o.brightBudget
+      : p === 'interesting'
+      ? o.dimBudget * interesting
+      : o.dimBudget * (1 - interesting)
+  const mixOf = (p: Population) => mixes[p]
 
   const expectedCount = (v: number, p: Population) => budget(p) * density[v]
 
@@ -486,27 +531,42 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     const limit = bound(v)
     const mix = mixOf(p)
     const weights = mix.map((m) => m.weight)
-    const seed = hash32(voxelSeed, k)
-    const prng = new CheapPRNG(seed)
-    let pos: Vec = { x: 0, y: 0, z: 0 }
-    for (let t = 0; t < MAX_TRIES; t++) {
-      pos = {
-        x: x0 + prng.value() * cx,
-        y: y0 + prng.value() * cy,
-        z: z0 + prng.value() * cz,
+    const candidate = (seed: number) => {
+      const prng = new CheapPRNG(seed)
+      let pos: Vec = { x: 0, y: 0, z: 0 }
+      for (let t = 0; t < MAX_TRIES; t++) {
+        pos = {
+          x: x0 + prng.value() * cx,
+          y: y0 + prng.value() * cy,
+          z: z0 + prng.value() * cz,
+        }
+        if (prng.value() * limit <= densityAt(pos)) break
       }
-      if (prng.value() * limit <= densityAt(pos)) break
+      const entry = prng.pick(mix, weights)
+      const index = prng.range(entry.minIndex, entry.maxIndex)
+      return {
+        id: starAddress(o.seed, p, v, k),
+        population: p,
+        voxel: v,
+        n: k,
+        position: pos,
+        ...starDetailFor(prng, seed, entry.spectralClass, index),
+      } as VoxelStar
     }
-    const entry = prng.pick(mix, weights)
-    const index = prng.range(entry.minIndex, entry.maxIndex)
-    return {
-      id: starAddress(o.seed, p, v, k),
-      population: p,
-      voxel: v,
-      n: k,
-      position: pos,
-      ...starDetailFor(prng, seed, entry.spectralClass, index),
+    if (p === 'bright') return candidate(hash32(voxelSeed, k))
+    /*
+    BIAS, THEN VERIFY. The mix makes a fit likely; the real HI rules decide.
+    Candidate c of star k is seeded hash(voxelSeed, k, c), so the whole search
+    is deterministic and the address still names exactly one star.
+    */
+    const want = p === 'interesting'
+    let star: VoxelStar = candidate(hash32(voxelSeed, k, 0))
+    for (let c = 0; c < MAX_CANDIDATES; c++) {
+      if (c > 0) star = candidate(hash32(voxelSeed, k, c))
+      star.bestHI = bestHIOf(star)
+      if (isInteresting(star.bestHI) === want) break
     }
+    return star
   }
 
   let brightCache: VoxelStar[] | null = null
@@ -562,9 +622,20 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
   const dimStarsNear = (p: Vec, radius: number) => {
     const out: VoxelStar[] = []
     for (const v of voxelsNear(p, radius)) {
-      for (const s of starsInVoxel(v, 'dim')) out.push(s)
+      for (const s of starsInVoxel(v, 'interesting')) out.push(s)
+      for (const s of starsInVoxel(v, 'boring')) out.push(s)
     }
     return out
+  }
+
+  let interestingCache: VoxelStar[] | null = null
+  const interestingStars = () => {
+    if (interestingCache == null) {
+      interestingCache = []
+      for (let v = 0; v < count; v++)
+        for (const s of starsInVoxel(v, 'interesting')) interestingCache.push(s)
+    }
+    return interestingCache
   }
 
   const galaxyOpts = { ...GALAXY_DEFAULTS, ...o.galaxyOptions }
@@ -604,9 +675,11 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     const star: StarData = {
       ...s,
       name: starNameFor(s.seed),
-      bestHI: 5,
+      bestHI: s.bestHI ?? 5,
     }
-    if (planets) {
+    // Verified populations already KNOW their HI — free for a filter.
+    if (s.bestHI != null) star.hiComputed = true
+    else if (planets) {
       const system = generateStarSystem(star)
       for (const p of system.planets) if (p.HI < star.bestHI) star.bestHI = p.HI
       star.hiComputed = true
@@ -616,10 +689,13 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
 
   const view = (v: GalaxyViewOptions = {}): GalaxyData => {
     const planets = v.generatePlanets === true
+    // Bright AND interesting are global; boring only joins near a point.
     const stars: StarData[] = brightStars().map((s) => toStarData(s, planets))
+    for (const s of interestingStars()) stars.push(toStarData(s, planets))
     if (v.near != null && (v.radius ?? 0) > 0)
-      for (const s of dimStarsNear(v.near, v.radius!))
-        stars.push(toStarData(s, planets))
+      for (const vox of voxelsNear(v.near, v.radius!))
+        for (const s of starsInVoxel(vox, 'boring'))
+          stars.push(toStarData(s, planets))
     stars.sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0))
     const { distantGalaxies, distantStars } = shell()
     return {
@@ -642,6 +718,7 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     expectedCount,
     starsInVoxel,
     brightStars,
+    interestingStars,
     voxelsNear,
     dimStarsNear,
     nebulae: () => nebulaPass().nebulae,

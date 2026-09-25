@@ -1082,6 +1082,9 @@ export function generateGalaxy(
   return voxelGalaxy({
     seed,
     brightBudget: numberOfStars,
+    // No dim population: `numberOfStars` stays the whole star count, as it
+    // always was. Interesting stars are the voxel galaxy's to offer.
+    dimBudget: 0,
     galaxyOptions: options,
   }).view({ generatePlanets: options.generatePlanets === true })
 }

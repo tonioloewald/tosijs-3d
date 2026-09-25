@@ -1259,6 +1259,17 @@ export type {
   GalaxyViewOptions,
 } from './voxel-galaxy.js'
 export { sampleSpiral, starNameFor } from './galaxy-data.js'
+// What makes a dim star INTERESTING (HI <= 2) — the harness-learned split.
+export {
+  bestHIOf,
+  isInteresting,
+  interestingMix,
+  boringMix,
+  interestingShare,
+  hiFingerprint,
+  INTERESTING_MAX_HI,
+} from './star-populations.js'
+export { starAddress, parseStarAddress } from './voxel-galaxy.js'
 export type { GradientFilter, ControlPoint } from './gradient-filter.js'
 export {
   PiecewiseLinearFilter,

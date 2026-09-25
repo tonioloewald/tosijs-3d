@@ -94,8 +94,9 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       Each switch RE-ROLLS that component's seeded output, so do it where a
       reroll is acceptable (a release that already changes it), and pin the
       new sequence in that component's tests.
-- [ ] **Stream dim voxels near the camera in `b3d-galaxy`**, so the HI
-      filter reaches the other half of the earthlike systems.
+- [x] **The galaxy's HI filter sees every habitable system** (2026-09-25):
+      interesting dim stars (HI ≤ 2) are global, verified, HI known. Streaming
+      BORING dim voxels near the camera is now only about looks.
 
 - [ ] **"Ellipsoid columns" at 1M stars — this round** (Tonio, 2026-09-25,
       seen in the skybox-baker demo with stars at 1M and particle size at its
