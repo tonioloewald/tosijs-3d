@@ -33,9 +33,13 @@ const starSystem = b3dStarSystem({
   starIndex: demo.starIndex,
   scale: demo.scale,
   orbitScale: demo.orbitScale,
-  animate: demo.animate,
-  showOrbits: demo.showOrbits,
+  // 'on'|'off' attributes, driven from the toggles' booleans below — a
+  // boolean written straight into them warns (and means nothing).
+  animate: 'on',
+  showOrbits: 'on',
 })
+demo.animate.observe(() => (starSystem.animate = demo.animate.value ? 'on' : 'off'))
+demo.showOrbits.observe(() => (starSystem.showOrbits = demo.showOrbits.value ? 'on' : 'off'))
 
 const scene = b3d(
   {

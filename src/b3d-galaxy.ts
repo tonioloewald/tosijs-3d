@@ -214,14 +214,15 @@ function zoomToStar(idx, camera, el) {
   }
 
   // Create star system at origin, full scale, initially invisible
+  // By ADDRESS — the star itself, not its position in a list.
   activeStarSystem = b3dStarSystem({
     galaxySeed: demo.seed.value,
     starCount: demo.starCount.value,
-    starIndex: idx,
+    star: star.id,
     scale: 5,
     orbitScale: 3,
-    animate: true,
-    showOrbits: true,
+    animate: 'on',
+    showOrbits: 'on',
   })
   el.appendChild(activeStarSystem)
   activeStarSystem.setVisibility(0)
@@ -953,8 +954,8 @@ export class B3dGalaxy extends B3dChild {
       diskOuterRadius: 1.6,
       diskBrightness: 0.5,
       rotationSpeed: 0.3,
-      lensing: true,
-      photonRing: true,
+      lensing: 'on',
+      photonRing: 'on',
       photonRingBrightness: 0.7,
       subdivisions: 32,
     })
