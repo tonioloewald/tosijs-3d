@@ -269,6 +269,9 @@ export function table(config: TableOptions): Table {
     handlerOf(cfg, 'handleActivate', 'onActivate')
   const ROW_H = config.rowHeight ?? 28
   const HEAD_H = config.headerHeight ?? 26
+  // Where the body starts. NOT `HEAD_H + GAP` — GAP is the COLUMN gap, and
+  // using it here opened row menus lower the wider the columns were spaced.
+  const BODY_TOP = HEAD_H + 2
   const BODY_H = config.height ?? 180
   const GAP = config.gap ?? 8
   const SEL_W = config.selection ? 26 : 0
@@ -522,7 +525,7 @@ export function table(config: TableOptions): Table {
     cols = resolveColumns(config.columns, { width: width - SEL_W, gap: GAP })
     clipRect.setAttribute('width', String(width))
     clipRect.setAttribute('height', String(BODY_H))
-    bodyLayer.setAttribute('transform', `translate(0 ${HEAD_H + 2})`)
+    bodyLayer.setAttribute('transform', `translate(0 ${BODY_TOP})`)
     // NOT translated to match: a clip-path resolves in the user space of the element
     // that references it, which already includes that element's own transform. Moving
     // the clip too offsets it twice, and the top row is silently clipped away —
@@ -543,7 +546,7 @@ export function table(config: TableOptions): Table {
 
   /** Body-local y for a widget-local y, or null if the point isn't in the body. */
   const bodyY = (y: number): number | null => {
-    const by = y - (HEAD_H + 2)
+    const by = y - BODY_TOP
     return by >= 0 && by <= BODY_H ? by : null
   }
 
@@ -591,7 +594,7 @@ export function table(config: TableOptions): Table {
     layout(w: number) {
       width = w
       relayout()
-      return HEAD_H + 2 + BODY_H
+      return BODY_TOP + BODY_H
     },
     scrollBy(delta: number) {
       const next = clampScroll(scroll + delta)
@@ -746,7 +749,7 @@ export function table(config: TableOptions): Table {
               host,
               {
                 x: SEL_W + btn.x,
-                y: HEAD_H + GAP + i * ROW_H - scroll,
+                y: BODY_TOP + i * ROW_H - scroll,
                 width: btn.width,
                 height: ROW_H,
               },

@@ -422,6 +422,13 @@ const DEFAULT_MAP: IconMap = {
   ...(iconData as unknown as IconMap),
 }
 
+/** Markup that can execute: refused by `registerIcons`. */
+export function unsafeIconMarkup(value: string): boolean {
+  return /<\s*(script|foreignObject|iframe|object|embed)\b|\son[a-z]+\s*=|javascript:/i.test(
+    value
+  )
+}
+
 /**
  * Add icons a consumer owns, so the widgets can resolve them by name.
  *
@@ -445,10 +452,23 @@ const DEFAULT_MAP: IconMap = {
  * Values are TRIMMED, because `icon-data` stores every entry with a trailing
  * space and a redirect is re-parsed as a name where that space is fatal — it
  * silently broke every mirrored icon once already (#54).
+ *
+ * **Trust boundary: artwork reaches `innerHTML`.** Register icons YOU ship, not
+ * markup from users or the network. As a backstop, an entry carrying anything
+ * that can run — `<script>`, `<foreignObject>`, `<iframe>`, an `on*=` handler
+ * or a `javascript:` URL — is dropped with a warning rather than stored. That
+ * is a guard against accidents, not a sanitiser: an icon has no business
+ * containing any of it, so refusing is simpler and stricter than cleaning.
  */
 export function registerIcons(icons: IconMap): void {
   for (const [name, value] of Object.entries(icons)) {
     if (typeof value !== 'string' || value.trim() === '') continue
+    if (unsafeIconMarkup(value)) {
+      console.warn(
+        `tosijs-3d: registerIcons dropped "${name}" — icon markup must not contain scripts, event handlers, foreignObject or javascript: URLs.`
+      )
+      continue
+    }
     /*
     `__proto__` is an ASSIGNMENT, not a key — it would set the map's prototype
     instead of storing an icon, corrupting every later lookup rather than

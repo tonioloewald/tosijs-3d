@@ -37,6 +37,7 @@ instead.
 */
 /*{ "parent": "UI", "order": 270 }*/
 
+import { handlerOf } from './handler-of.js'
 import { elements } from 'tosijs'
 import { setW3dTheme, w3dTheme, type W3dTheme } from './w3d-theme.js'
 
@@ -190,7 +191,12 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
   table, and the callback that rebuilds the panels was simply never called, so
   the controls moved and the thing they were editing did not.
   */
-  const changed = (): void => (handleChange ?? onChange)?.(w3dTheme)
+  const changed = (): void =>
+    handlerOf<(theme: W3dTheme) => void>(
+      { handleChange, onChange },
+      'handleChange',
+      'onChange'
+    )?.(w3dTheme)
 
   /**
    * Accept either a value or a DOM event from an injected control.

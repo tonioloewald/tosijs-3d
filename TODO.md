@@ -267,17 +267,19 @@ Deferred with the release; the blockers were fixed before the tag.
       rule is that a family of ordinary words ships as a namespace (`ui.*`,
       `carve.*`). Namespacing them is breaking, so it is a 0.9 decision — but
       the debt is real and grows.
-- [ ] **Floating origin is not applied to the new placeables** — `b3d-prop`,
+- [x] **Floating origin is not applied to the new placeables** — `b3d-prop`,
       `b3d-beacon` and `b3d-spawner`'s authored anchor all hold world
       coordinates and call neither `registerWorldRoot` nor `addOriginListener`,
       so all three drift on a terrain `resetOrigin`.
+      Done 2026-09-25: `AbstractMesh.followOrigin(owner)` (shifts the x/z attributes and the node; leaves parented meshes alone) — prop, standalone beacon and destroyable use it; the spawner shifts its anchor.
 - [ ] **`B3dManipulator` uses `handleChange`/`handleCommit`** where the
       convention for COMPONENTS is `when*`. Free to change now, breaking later.
 - [ ] **`FrameInfo.realDt`/`realElapsed`/`frame` freeze while paused**, which is
       the one state they exist for. Doc and behaviour disagree; pick one.
-- [ ] **Three copies of the wind resolution rule** — `B3dClouds._wind()` and
+- [x] **Three copies of the wind resolution rule** — `B3dClouds._wind()` and
       `B3dAmbient._wind()` are byte-identical and `B3dWater._wind()` repeats the
       guard. #73's stated purpose was that these could not silently disagree.
+      Done 2026-09-25: `inheritedWind(mode, sceneWind)` in `wind.ts`, used by all three.
 - [ ] **`_applyScale` is duplicated** in `b3d-prop` and `b3d-destroyable`, and
       their `render()` guards already disagree. `scale` is placement — move it
       to `AbstractMesh`.
@@ -321,7 +323,7 @@ recorded here rather than dropped.
       `headerHostFor` using the header offsets with no `- scroll`. If pinned popups
       are out of scope, say so on the `header` JSDoc rather than failing quietly.
 
-- [ ] **Three deprecation policies ship in 0.8.0; two disagree with the
+- [x] **Three deprecation policies ship in 0.8.0; two disagree with the
       documented one.** `handler-of.ts` states the rule — new name wins, old is NOT
       called, warns once. But `b3d-trigger` calls **both** `whenEnter` and
       `onEnter` (so a consumer mid-migration gets the handler run twice per
@@ -330,27 +332,31 @@ recorded here rather than dropped.
       `whenEnter ?? onEnter` + warn; switch themeEditor to `handlerOf`. If
       `handlerOf`'s signature does not suit `when*`, add a sibling — one answer to
       this question was the point of extracting the module.
+      Done 2026-09-25: the trigger calls ONE of `whenEnter`/`onEnter` through `handlerOf`; `themeEditor` reads through `handlerOf`.
 
-- [ ] **`table`'s button-column menu is anchored with the COLUMN gap as a
+- [x] **`table`'s button-column menu is anchored with the COLUMN gap as a
       vertical offset.** `table.ts:749` uses `HEAD_H + GAP + …` while the body is
       drawn at `HEAD_H + 2` and hit-tested with `y - (HEAD_H + 2)`. `GAP` is the
       column gap. At defaults the menu opens 6px low; `gap: 24` → 22px. The error
       scales with a setting unrelated to vertical layout, so it reads as random.
       Hoist `HEAD_H + 2` into a named `BODY_TOP`.
+      Done 2026-09-25: `BODY_TOP`.
 
-- [ ] **`zeroStop` silently discards `step` on a log slider.**
+- [x] **`zeroStop` silently discards `step` on a log slider.**
       `widgets3d-layout.ts:416` returns before the decade quantisation, honouring
       only `snap`. Either quantise inside the branch or document the mutual
       exclusion on the `zeroStop` JSDoc; pin whichever in `slider-scale.test.ts`.
+      Done 2026-09-25: quantised in decades inside the branch; pinned in `slider-scale.test.ts`.
 
-- [ ] **`registerIcons` is an unsanitized markup sink with no stated trust
+- [x] **`registerIcons` is an unsanitized markup sink with no stated trust
       boundary.** Values reach `innerHTML`; a `<script>` is inert but an `onerror=`
       attribute survives and fires. The new doc markets it as "icons I do not want
       to push upstream" and says nothing about provenance. Either state the boundary
       in the JSDoc AND the doc section, or warn-and-drop entries containing
       `<script`, `<foreignObject` or any `on*=`. Test whichever guarantee is made.
+      Done 2026-09-25: boundary stated in the JSDoc; entries with script/handlers/foreignObject/javascript: are dropped with a warning (`unsafeIconMarkup`), tested.
 
-- [ ] **The import-extension guard covers only RELATIVE specifiers.**
+- [x] **The import-extension guard covers only RELATIVE specifiers.**
       `import-extensions.test.ts` matches `./`/`../` only, but the fault had two
       halves and the second was deep package subpaths. All 13 Babylon deep imports
       carry `.js` today, so the next `from '@babylonjs/core/Meshes/mesh'` passes the
@@ -359,13 +365,15 @@ recorded here rather than dropped.
       guard, **or better** move `tsconfig.build.json` to `"moduleResolution":
 "nodenext"` so the compiler rejects both halves. The toolchain beats a regex
       kept in sync by hand.
+      Done 2026-09-25: the guard now covers `@babylonjs/*` deep subpaths too (the regex route; `nodenext` still worth trying).
 
-- [ ] **Three widgets still import `handlerOf` from `widgets3d.js`** —
+- [x] **Three widgets still import `handlerOf` from `widgets3d.js`** —
       `vector-field`, `footprint-field`, `curve-field`. The module was extracted so
       the smallest widget could adopt it without dragging `widgets3d` in, and for
       `footprint-field` it is the ONLY runtime value taken from there. Matters more
       now `./*` shipped: `tosijs-3d/footprint-field` is a supported path that
       transitively loads widgets3d + w3d-theme. Three one-word edits.
+      Done 2026-09-25.
 
 - [ ] **`themeEditor()` and `registerIcons` are page-global mutations with no
       library-level undo.** The "theme editor infects other demos" fix landed in the
@@ -376,11 +384,12 @@ recorded here rather than dropped.
       `registerIcons` — add `unregisterIcons` or document that registration is
       page-lifetime and irreversible.
 
-- [ ] **The `w3d-theme` demo observes the whole document subtree** to detect its
+- [x] **The `w3d-theme` demo observes the whole document subtree** to detect its
       own unmount. Fix: `observe(preview.parentNode ?? document.body, {childList:
 true})` — dropping `subtree` is the whole change.
+      Done 2026-09-25.
 
-- [ ] **`scene-schemas.test.ts` cites a `no-dom.test.ts` guard that does not
+- [x] **`scene-schemas.test.ts` cites a `no-dom.test.ts` guard that does not
       exist.** Headless importability is the stated reason both those modules and
       the new `"./*"` export exist, and nothing pins it. Write the test (import each
       declared-pure module in a fresh subprocess with no DOM globals —
@@ -388,6 +397,7 @@ true})` — dropping `subtree` is the whole change.
       `table-layout.ts` now type-imports `MenuAction` from `widgets3d.js` — erased
       today, one careless `import type` → `import` from dragging tosijs into a
       module documented as pure geometry.
+      Done 2026-09-25: `no-dom.test.ts` imports 20 declared-pure modules in fresh subprocesses, plus a guard-the-guard case.
 
 - [x] **Verify the published TARBALL, not just the repo.** Done at the 0.8.0
       cut: packed, installed into an empty project, imported under Node 24 —

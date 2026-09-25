@@ -199,7 +199,15 @@ export class B3dSpawner extends B3dChild {
   private _since = 0
   private _tick = () => this._update()
 
+  // A placed anchor is a world coordinate, so a rebase must move it too (the
+  // groups it spawned are destroyables, which follow the origin themselves).
+  private _onShift = (dx: number, dz: number) => {
+    this.x -= dx
+    this.z -= dz
+  }
+
   sceneReady(owner: B3d) {
+    owner.addOriginListener(this._onShift)
     this._rng = new Xoshiro128(this.seed)
     // First group lands promptly — an empty sky on spawn-in reads as a broken game.
     this._since = this.interval
@@ -207,6 +215,7 @@ export class B3dSpawner extends B3dChild {
   }
 
   sceneDispose() {
+    this.owner?.removeOriginListener(this._onShift)
     this.owner?.scene.unregisterBeforeRender(this._tick)
     this._groups = []
   }

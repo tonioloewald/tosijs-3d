@@ -127,7 +127,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 It participates in the **floating origin**: because `AbstractMesh` treats the
 `x/y/z` attributes as the source of truth for the mesh position, this uses
-`addOriginListener` to shift BOTH the mesh node and its `x/z` attributes on a rebase
+`AbstractMesh.followOrigin` to shift BOTH the mesh node and its `x/z` attributes on a rebase
 (NOT `registerWorldRoot`, which would leave the attributes stale so a later render
 would un-shift the mesh).
 
@@ -266,7 +266,6 @@ export class B3dDestroyable extends AbstractMesh {
    */
   chain: ChainLink[] = []
   private _behavior?: DestroyableBehavior
-  private _onShift?: (dx: number, dz: number) => void
   /**
    * Optional code-set hook, run once when this target is destroyed (before the
    * visual outcome). The clean seam for putting a linked player/vehicle into a
@@ -472,15 +471,8 @@ export class B3dDestroyable extends AbstractMesh {
     // runs again when it lands — see `_adopt`.
     this._adopt(owner)
 
-    // Floating origin: shift node AND the x/z attributes (see file header).
-    this._onShift = (dx, dz) => {
-      if (this.mesh == null) return
-      this.mesh.position.x -= dx
-      this.mesh.position.z -= dz
-      attrs.x -= dx
-      attrs.z -= dz
-    }
-    owner.addOriginListener(this._onShift)
+    // Floating origin: shift the x/z attributes and the node (see file header).
+    this.followOrigin(owner)
   }
 
   /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
@@ -529,10 +521,6 @@ export class B3dDestroyable extends AbstractMesh {
     this._stopLoad = null
     this._behavior?.dispose()
     this._behavior = undefined
-    if (this._onShift != null) {
-      this.owner?.removeOriginListener(this._onShift)
-      this._onShift = undefined
-    }
     super.sceneDispose()
   }
 }

@@ -491,6 +491,13 @@ export function fractionToValue(
     // Zero is exact and must survive `snap`: rounding it to a multiple would
     // move the OFF position, which is the one value this exists to reach.
     if (out === 0) return 0
+    // `step` is in DECADES here too — it used to be dropped on this branch,
+    // so the same slider quantised with the zero stop off and not with it on.
+    if (step > 0) {
+      const b = logBase(scale)
+      const e = Math.round(Math.log(out) / Math.log(b) / step) * step
+      out = roundTo(b ** e, precision)
+    }
     if (snap > 0) out = Math.round(out / snap) * snap
     return Math.min(max, Math.max(0, out))
   }

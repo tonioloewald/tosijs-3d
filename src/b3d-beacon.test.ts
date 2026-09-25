@@ -169,4 +169,23 @@ describe('and the element actually does it', () => {
     expect(scene.pickWithRay(straightAt())?.pickedMesh).toBe(el.mesh)
     el.sceneDispose()
   })
+
+  test('a standalone beacon follows the floating origin, and stops when gone', () => {
+    const listeners = new Set<(dx: number, dz: number) => void>()
+    const o = {
+      ...owner,
+      addOriginListener: (cb: any) => listeners.add(cb),
+      removeOriginListener: (cb: any) => listeners.delete(cb),
+    }
+    const el = B.b3dBeacon({}) as any
+    Object.assign(el, { follow: 'off', x: 100, z: 20 })
+    el.owner = o
+    el.sceneReady(o, scene)
+    expect(listeners.size).toBe(1)
+    for (const cb of listeners) cb(40, -10)
+    expect([el.x, el.z]).toEqual([60, 30])
+    expect([el.mesh.position.x, el.mesh.position.z]).toEqual([60, 30])
+    el.sceneDispose()
+    expect(listeners.size).toBe(0)
+  })
 })

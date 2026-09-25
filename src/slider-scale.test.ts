@@ -245,3 +245,16 @@ describe('log slider precision', () => {
     expect(fractionToValue(1 / 3, 0, 1, 0, 'linear')).toBe(1 / 3)
   })
 })
+
+describe('zeroStop honours step (it used to drop it)', () => {
+  test('whole decades, off stays exact', () => {
+    const seen = new Set<number>()
+    for (let f = 0; f <= 1.0001; f += 0.01)
+      seen.add(fractionToValue(f, 0.01, 1000, 1, 'log', 0, true))
+    for (const v of seen) {
+      if (v === 0) continue
+      expect([0.01, 0.1, 1, 10, 100, 1000]).toContain(v)
+    }
+    expect(seen.has(0)).toBe(true)
+  })
+})

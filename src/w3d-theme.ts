@@ -55,7 +55,9 @@ const restoreTheme = new MutationObserver(() => {
   setW3dTheme(initialTheme)
   restoreTheme.disconnect()
 })
-restoreTheme.observe(document.body, { childList: true, subtree: true })
+// The preview's own parent is enough: watching the whole document's subtree
+// fired this on every mutation anywhere on the page.
+restoreTheme.observe(preview.parentNode ?? document.body, { childList: true })
 
 // Load a WEB font so the menu's Rosario entry has something to render. A theme
 // names a family; loading it is the host's job, which is exactly the point of

@@ -1048,7 +1048,37 @@ export class AbstractMesh extends B3dChild {
     this.owner = owner
   }
 
+  private _originShift: ((dx: number, dz: number) => void) | null = null
+
+  /**
+   * Opt in to the **floating origin**: on a rebase, shift the `x`/`z`
+   * attributes (the source of truth — the per-render sync then moves the
+   * node). NOT `registerWorldRoot`, which moves only the node, so the next
+   * render would put it back where it was.
+   *
+   * For world-placed things only. A mesh parented to something else holds
+   * LOCAL coordinates and moves with its parent, so it is left alone.
+   */
+  protected followOrigin(owner: B3d): void {
+    if (this._originShift != null) return
+    this._originShift = (dx, dz) => {
+      if (this.mesh?.parent != null) return
+      const attrs = this as any
+      attrs.x -= dx
+      attrs.z -= dz
+      if (this.mesh != null) {
+        this.mesh.position.x = attrs.x
+        this.mesh.position.z = attrs.z
+      }
+    }
+    owner.addOriginListener(this._originShift)
+  }
+
   sceneDispose() {
+    if (this._originShift != null) {
+      this.owner?.removeOriginListener(this._originShift)
+      this._originShift = null
+    }
     // Invalidate any in-flight loadAssetContainer callbacks.
     this.loadGeneration++
     // Dispose the axis gizmo explicitly (it's parented to the mesh, but clear our

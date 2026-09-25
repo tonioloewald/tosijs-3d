@@ -178,6 +178,22 @@ export const scaleWind = (wind: Wind, k: number): Wind => ({
 export const windSpeed = (wind: Wind): number => Math.hypot(wind.x, wind.z)
 
 /**
+ * THE inheritance rule, in one place: an element takes the scene's wind unless
+ * it says `wind="own"`, and a still scene (or none) offers nothing, so the
+ * element's own dials apply. `null` means "use your own".
+ *
+ * Clouds, ambient and water each carried a copy of this, and the point of one
+ * shared wind (#73) was that they could not silently disagree.
+ */
+export function inheritedWind(
+  mode: string | undefined,
+  scene: Wind | null | undefined
+): Wind | null {
+  if (mode === 'own' || scene == null) return null
+  return scene.x !== 0 || scene.z !== 0 ? scene : null
+}
+
+/**
  * A province's wind layer: a contribution, and how far it reaches.
  *
  * The contribution is what this province adds AT ITS CENTRE; `falloff` scales

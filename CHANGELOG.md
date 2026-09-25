@@ -10,6 +10,23 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Floating origin reaches the placeables.** `b3d-prop`, a standalone
+  `b3d-beacon` and a place-anchored `b3d-spawner` drifted on a terrain rebase;
+  they now shift with it. The shared piece is `AbstractMesh.followOrigin()`,
+  which `b3d-destroyable` now uses too.
+- **`b3d-trigger` no longer calls BOTH `whenEnter` and `onEnter`** — the new
+  name wins and the old one warns once, like every other deprecated callback.
+  `themeEditor` reads `handleChange`/`onChange` the same way (it never warned).
+- **A table's row-button menu opened low** by the COLUMN gap; it is now
+  anchored at the row.
+- **A log slider with `zeroStop` ignored `step`**; it quantises in decades
+  like one without.
+- **`registerIcons` refuses markup that can run** (`<script>`, `on*=`
+  handlers, `<foreignObject>`, `javascript:` URLs) with a warning; the trust
+  boundary is now documented.
+- Clouds, ambient and water share one wind-inheritance rule
+  (`inheritedWind`); `vector3d`/`footprint3d`/`curve3d` import `handlerOf`
+  from its own module rather than dragging in `widgets3d`.
 - **Stars were smeared into soft plus-shaped blobs.** The sky's star decoder
   placed each star relative to whichever tap fetched its texel, so it moved
   as the fragment moved and was drawn across the whole texel (sometimes twice,

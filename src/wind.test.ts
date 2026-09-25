@@ -3,6 +3,7 @@ import {
   NO_WIND,
   addWind,
   gustAt,
+  inheritedWind,
   provinceInfluence,
   scaleWind,
   waterWind,
@@ -200,5 +201,17 @@ describe('waterWind', () => {
     const w = waterWind(NO_WIND)
     expect(w.windForce).toBe(0)
     expect(Math.hypot(w.windDirectionX, w.windDirectionY)).toBeCloseTo(1, 9)
+  })
+})
+
+describe('inheritedWind — the one inheritance rule', () => {
+  test('takes a blowing scene wind', () => {
+    expect(inheritedWind(undefined, { x: 3, z: -1 })).toEqual({ x: 3, z: -1 })
+    expect(inheritedWind('scene', { x: 0, z: 2 })).toEqual({ x: 0, z: 2 })
+  })
+  test('own, a still scene, or no scene: use your own', () => {
+    expect(inheritedWind('own', { x: 3, z: 1 })).toBeNull()
+    expect(inheritedWind(undefined, { x: 0, z: 0 })).toBeNull()
+    expect(inheritedWind(undefined, null)).toBeNull()
   })
 })

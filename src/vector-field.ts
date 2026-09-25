@@ -102,7 +102,7 @@ preview.append(
 import { svgElements } from 'tosijs'
 import { inputField, type InputField } from './keyboard.js'
 import { w3dTheme } from './w3d-theme.js'
-import { handlerOf } from './widgets3d.js'
+import { handlerOf } from './handler-of.js'
 import type { PointerKind, Widget3d } from './widgets3d.js'
 // The existing one — structurally identical, and a second `Vec3` in the barrel
 // would be a name collision that says nothing.

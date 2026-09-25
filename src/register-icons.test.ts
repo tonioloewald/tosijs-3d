@@ -144,3 +144,32 @@ describe('icon names that collide with Object.prototype', () => {
     }
   })
 })
+
+describe('registerIcons refuses markup that can run', () => {
+  test('scripts, handlers, foreignObject and javascript: URLs are dropped', () => {
+    const warn = console.warn
+    console.warn = () => {}
+    try {
+      m.registerIcons({
+        badScript: '<svg><script>alert(1)</script></svg>',
+        badHandler: '<svg><image href="x" onerror="alert(1)"/></svg>',
+        badForeign: '<svg><foreignObject><div/></foreignObject></svg>',
+        badLink: '<svg><a href="javascript:alert(1)"><rect/></a></svg>',
+        fineArt: ART,
+      })
+    } finally {
+      console.warn = warn
+    }
+    for (const n of ['badScript', 'badHandler', 'badForeign', 'badLink'])
+      expect(m.iconExists(n)).toBe(false)
+    expect(m.iconExists('fineArt')).toBe(true)
+  })
+  test('ordinary artwork is not mistaken for a handler', () => {
+    // `stroke-linejoin="round"` and `font="..."` contain "on" — not handlers.
+    expect(
+      m.unsafeIconMarkup(
+        '<svg><path stroke-linejoin="round" d="M0 0"/><text font="mono">x</text></svg>'
+      )
+    ).toBe(false)
+  })
+})

@@ -136,6 +136,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 
+import { inheritedWind } from './wind.js'
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'
 import { band } from './atmosphere.js'
@@ -403,13 +404,10 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
 
   /** The drift this frame: the scene's wind, or this element's own. */
   private _wind(): { windX: number; windZ: number } {
-    if (this.wind !== 'own') {
-      const scene = this.owner?.wind
-      if (scene != null && (scene.x !== 0 || scene.z !== 0)) {
-        return { windX: scene.x, windZ: scene.z }
-      }
-    }
-    return { windX: this.windX, windZ: this.windZ }
+    const scene = inheritedWind(this.wind, this.owner?.wind)
+    return scene != null
+      ? { windX: scene.x, windZ: scene.z }
+      : { windX: this.windX, windZ: this.windZ }
   }
   declare disabled: boolean
 

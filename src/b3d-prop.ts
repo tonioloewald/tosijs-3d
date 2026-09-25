@@ -165,6 +165,7 @@ export class B3dProp extends AbstractMesh {
 
   sceneReady(owner: B3d): void {
     const attrs = this as any
+    this.followOrigin(owner)
     const meshName = String(attrs.meshName ?? '')
     if (meshName === '') {
       console.error('b3d-prop: no meshName — nothing to place.')

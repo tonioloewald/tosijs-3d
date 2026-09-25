@@ -209,6 +209,10 @@ export class B3dBeacon extends AbstractMesh {
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
     this.host = isOff(this.follow) ? null : this._findHost()
     this._build(scene)
+    // A beacon on a host is carried by it; a standalone one is a world point.
+    if (this.host == null) {
+      this.followOrigin(owner)
+    }
     if (this.host != null) {
       // Track the host every frame rather than once: a lamp can be moved by a
       // manipulator, an animation or an attribute write, and a hull that stops

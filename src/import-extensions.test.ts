@@ -86,6 +86,32 @@ describe('relative imports carry a .js extension', () => {
     expect(offenders).toEqual([])
   })
 
+  /*
+  THE OTHER HALF: deep package subpaths. A package with no `exports` map for
+  its subpaths (Babylon's) is resolved by Node as plain files, so
+  `@babylonjs/core/Meshes/mesh` fails exactly like `./thing` does — and passes
+  tsc (`moduleResolution: "bundler"`), every bundler and this suite, which is
+  how the original 394 shipped. Packages that DO map their subpaths
+  (`tosijs-ui/site`) are fine without one, so this lists the ones that don't.
+  */
+  test('no extensionless deep import into a package without subpath exports', () => {
+    const offenders: string[] = []
+    for (const file of walk('src')) {
+      const src = readFileSync(file, 'utf8')
+      const ranges = docRanges(src)
+      const re =
+        /\b(?:from\s+|import\(\s*)['"]((?:@babylonjs\/[^/'"]+)\/[^'"]+)['"]/g
+      let m: RegExpExecArray | null
+      while ((m = re.exec(src)) != null) {
+        if (ranges.some(([a, b]) => m!.index >= a && m!.index <= b)) continue
+        if (SKIP_EXT.test(m[1])) continue
+        const line = src.slice(0, m.index).split('\n').length
+        offenders.push(`${file}:${line} → '${m[1]}'`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
   test('the check would actually catch one', () => {
     // Guards the guard: a regex that matched nothing would pass this suite
     // silently, which is exactly the failure mode being defended against.

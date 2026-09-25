@@ -327,7 +327,7 @@ import {
   type CurveKind,
 } from './curve.js'
 import { w3dTheme } from './w3d-theme.js'
-import { handlerOf } from './widgets3d.js'
+import { handlerOf } from './handler-of.js'
 import type { PointerKind, Widget3d } from './widgets3d.js'
 
 const { g, rect, path, circle, text } = svgElements
