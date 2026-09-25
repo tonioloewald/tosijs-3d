@@ -67,14 +67,13 @@ import {
   generateShell,
   generateStarSystem,
   GALAXY_DEFAULTS,
-  SPECTRAL_CLASSES,
-  SPECTRAL_WEIGHTS,
   type GalaxyOptions,
   type GalaxyData,
   type NebulaData,
   type DistantStarData,
   type StarData,
 } from './galaxy-data.js'
+import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js'
 
 export type Population = 'bright' | 'dim'
 

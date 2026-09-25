@@ -5,13 +5,12 @@ import {
   sampleSpiral,
   romanNumeral,
 } from './galaxy-data.js'
-import { SHIPPED_SKY } from './skybox-baker.js'
+import { voxelGalaxy } from './voxel-galaxy.js'
 
-// The galaxy the shipped sky (`static/sky/stars_*`, `nebula_*`) was baked
-// from is `generateGalaxy(1234, 100000)` — `SHIPPED_SKY` in skybox-baker. A
-// change that re-rolls it silently invalidates that bake, so it is pinned by
-// digest: if this fails on purpose, rebake the sky and update the digest.
-// (10k is the baker demo's working size, pinned too.)
+// ONE GALAXY: `generateGalaxy` is a deprecated adapter over the voxel galaxy
+// (GALAXY-DESIGN.md → "Reconciliation"), so these pin THAT — the adapter is
+// the voxel view, and the baker demo's working galaxy is pinned by digest.
+// The shipped sky is pinned separately (sampleSpiral below, shipped-sky.test).
 
 function digest(g: ReturnType<typeof generateGalaxy>): string {
   let h = 0x811c9dc5
@@ -37,27 +36,18 @@ function digest(g: ReturnType<typeof generateGalaxy>): string {
   return h.toString(16)
 }
 
-describe('generateGalaxy', () => {
-  test('the shipped sky galaxy is unchanged', () => {
-    const g = generateGalaxy(SHIPPED_SKY.seed, SHIPPED_SKY.stars)
-    expect(g.stars.length).toBe(100000)
-    expect(g.nebulae.length).toBe(15500)
-    expect(digest(g)).toBe('66092914')
+describe('generateGalaxy — the adapter', () => {
+  test('is exactly the voxel galaxy’s view', () => {
+    const a = generateGalaxy(1234, 2000)
+    const b = voxelGalaxy({ seed: 1234, brightBudget: 2000 }).view()
+    expect(digest(a)).toBe(digest(b))
   })
 
-  test("the baker demo's 10k working galaxy is unchanged", () => {
+  test("the baker demo's 10k working galaxy is pinned", () => {
     const g = generateGalaxy(1234, 10000)
-    expect(g.nebulae.length).toBe(2000)
-    expect(digest(g)).toBe('1247aedc')
-  })
-
-  test('first star of seed 1234 is pinned', () => {
-    const s = generateGalaxy(1234, 1000).stars[0]
-    expect(s.name).toBe('Aames Major')
-    expect(s.spectralType).toBe('K3')
-    expect(s.position.x).toBeCloseTo(-0.5350036933641185, 12)
-    expect(s.position.y).toBeCloseTo(-0.04481487365727095, 12)
-    expect(s.position.z).toBeCloseTo(0.01169347457290404, 12)
+    // A budget, not an exact count: counts are rounded per voxel.
+    expect(Math.abs(g.stars.length - 10000)).toBeLessThan(300)
+    expect(digest(g)).toBe('7ad65fcf')
   })
 
   test('deterministic, and the seed matters', () => {
@@ -68,21 +58,19 @@ describe('generateGalaxy', () => {
   })
 
   test('honours its budgets', () => {
-    const g = generateGalaxy(5, 200, { distantGalaxies: 7, distantStars: 11 })
-    expect(g.stars.length).toBe(200)
+    const g = generateGalaxy(5, 2000, { distantGalaxies: 7, distantStars: 11 })
+    expect(Math.abs(g.stars.length - 2000)).toBeLessThan(150)
     expect(g.distantGalaxies.length).toBe(7)
     expect(g.distantStars.length).toBe(11)
     // distant galaxies are ALSO appended to nebulae, on purpose
     for (const d of g.distantGalaxies) expect(g.nebulae).toContain(d)
   })
 
-  test('no star lands at NaN (the negative-radius gaussian)', () => {
-    // one star in ~100k used to land at (NaN, NaN, z)
-    const g = generateGalaxy(1234, 100000, {
+  test('no star lands at NaN', () => {
+    const g = generateGalaxy(1234, 20000, {
       distantGalaxies: 0,
       distantStars: 0,
     })
-    // One expect over the whole population: 300k per-star expects cost ~1 s.
     const bad = g.stars.filter(
       (s) =>
         !Number.isFinite(s.position.x) ||
@@ -93,12 +81,15 @@ describe('generateGalaxy', () => {
   })
 
   test('planets on demand equal planets generated in bulk', () => {
-    const bulk = generateGalaxy(42, 50, { generatePlanets: true })
-    const lazy = generateGalaxy(42, 50)
+    const bulk = generateGalaxy(42, 200, { generatePlanets: true })
+    const lazy = generateGalaxy(42, 200)
     for (let i = 0; i < 50; i++) {
       const fromBulk = generateStarSystem(bulk.stars[i]).planets
       const fromLazy = generateStarSystem(lazy.stars[i]).planets
       expect(fromLazy).toEqual(fromBulk)
+      expect(bulk.stars[i].bestHI).toBe(
+        Math.min(5, ...fromBulk.map((p) => p.HI))
+      )
     }
   })
 })
@@ -131,20 +122,6 @@ describe('sampleSpiral — the model the voxel galaxy is sampled from', () => {
     }
     return h.toString(16)
   }
-
-  test('draws exactly the positions the old star loop drew', () => {
-    // generateGalaxy sorts by name, so compare as sorted sets.
-    const key = (p: { x: number; y: number; z: number }) =>
-      `${p.x.toFixed(12)},${p.y.toFixed(12)},${p.z.toFixed(12)}`
-    const a = sampleSpiral(1234, 3000).map(key).sort()
-    const b = generateGalaxy(1234, 3000, {
-      distantGalaxies: 0,
-      distantStars: 0,
-    })
-      .stars.map((s) => key(s.position))
-      .sort()
-    expect(a).toEqual(b)
-  })
 
   test('is pinned — the shipped sky’s density comes from it', () => {
     // If this changes on purpose, the shipped sky changes with it: rebake,

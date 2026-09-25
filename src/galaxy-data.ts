@@ -63,6 +63,10 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 /*{ "parent": "Space", "order": 900 }*/
 
 import { PRNG, CheapPRNG, type RandomLike } from './mersenne-twister.js'
+import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js'
+// A CYCLE, deliberately and safely: voxel-galaxy imports this module too, but
+// neither reads the other at module evaluation — see spectral-classes.
+import { voxelGalaxy } from './voxel-galaxy.js'
 
 // --- Utilities ---
 
@@ -712,13 +716,8 @@ export interface StarData {
   hiComputed?: boolean
 }
 
-/** The spectral classes, hot → cool, and their draw weights. */
-export const SPECTRAL_CLASSES = ['O', 'B', 'A', 'F', 'G', 'K', 'M'] as const
-/**
- * Top-heavy ON PURPOSE: with one global population a realistic mix needs an
- * obscene star count before a galaxy looks interesting (see GALAXY-DESIGN.md).
- */
-export const SPECTRAL_WEIGHTS = [0.0001, 0.2, 1, 3, 8, 12, 20]
+// The spectral classes and weights live in a leaf module — see its note.
+export { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS }
 
 function generateStarDetail(
   seed: number
@@ -1060,75 +1059,31 @@ function inSpiralArmFor(starSeed: number): boolean {
   return generateStarDetail(starSeed).inSpiralArm
 }
 
+/**
+ * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.9.
+ *
+ * ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"). This used to be its own
+ * generator: one sequential random stream producing the stars, then the
+ * nebulae, then the distant shell, so nothing could be generated locally and
+ * 63% of stars shared a seed with another. It is now an ADAPTER over the voxel
+ * galaxy: `numberOfStars` is the BRIGHT budget, and the result is that
+ * galaxy's `view()` (every bright star, its nebulae and shell) in the shape
+ * this function always returned. The spiral model it was built on survives as
+ * `sampleSpiral`, which is what the voxel galaxy's density is sampled from.
+ *
+ * A given seed therefore produces a DIFFERENT galaxy from 0.8.3's: same
+ * shape and distributions, different stars.
+ */
 export function generateGalaxy(
   seed: number,
   numberOfStars: number,
   options: GalaxyOptions = {}
 ): GalaxyData {
-  const opts = { ...GALAXY_DEFAULTS, ...options }
-  const sp = spiralParams(opts)
-
-  /*
-  NO NAME TABLE — names are derived per star, so there is nothing to scan
-  and nothing to saturate. (The name table's previous lives: an ARRAY with
-  `includes()` made this O(n²) — 5×10⁹ comparisons at 100k — and the Set that
-  replaced it still cost a collision-retry loop whose draws grew as the name
-  space filled. Both gone.)
-  */
-  const stars: StarData[] = []
-  const prng = new PRNG(seed)
-
-  for (let i = 0; i < numberOfStars; i++) {
-    const starSeed = prng.range(1, 100000)
-    const detail = generateStarDetail(starSeed)
-    /*
-    THE NAME IS DERIVED FROM THE STAR'S OWN SEED — same architecture as
-    planets (see `GalaxyOptions.generatePlanets`). It makes the name a pure
-    function of the star, so generation is O(1) per star: no shared name
-    table, no collision-retry loop whose cost grows as the name space
-    saturates. Duplicates are possible (two stars can draw the same seed)
-    and accepted. The bad-word check still runs, and retries continue on the
-    star's own stream.
-    */
-    const newName = starNameFor(starSeed)
-
-    const star: StarData = {
-      ...detail,
-      name: newName,
-      position: spiralPosition(prng, detail.inSpiralArm, sp),
-      bestHI: 5,
-    }
-    /*
-    Planets are a FILTERING concern, not a generation one — and they are the
-    expensive part (71% of the time at 100k). `generatePlanets` opts back in;
-    everything else gets `bestHI` computed on demand through
-    `generateStarSystem`, which produces the identical number.
-    */
-    if (opts.generatePlanets) {
-      const system = generateStarSystem(star)
-      if (system.planets.length > 0) {
-        let best = star.bestHI
-        for (const p of system.planets) if (p.HI < best) best = p.HI
-        star.bestHI = best
-      }
-    }
-    stars.push(star)
-  }
-
-  // Sort alphabetically by name
-  stars.sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0))
-
-  const nebulaCount = Math.max(50, Math.floor(numberOfStars * 0.15))
-  const { nebulae, densityScale } = generateNebulae(prng, nebulaCount, sp)
-  const { distantGalaxies, distantStars } = generateShell(
-    prng,
-    opts.distantGalaxies,
-    opts.distantStars,
-    sp,
-    densityScale
-  )
-  nebulae.push(...distantGalaxies)
-  return { stars, nebulae, distantGalaxies, distantStars, seed, options: opts }
+  return voxelGalaxy({
+    seed,
+    brightBudget: numberOfStars,
+    galaxyOptions: options,
+  }).view({ generatePlanets: options.generatePlanets === true })
 }
 
 /*

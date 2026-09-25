@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { generateGalaxy, starNameFor } from './galaxy-data.js'
+import { sampleSpiral, starNameFor } from './galaxy-data.js'
 import { hash32, voxelGalaxy, type VoxelStar } from './voxel-galaxy.js'
 
 // A SMALL galaxy for most tests — the properties are scale-free, and the
@@ -176,10 +176,9 @@ describe('the falsifier — it reproduces the galaxy it was sampled from', () =>
   reproduce the sampled distribution within noise. If matching needed a special
   case, that case would name what the model is missing.
   */
-  const sampled = generateGalaxy(SMALL.seed, SMALL.samples, {
-    distantGalaxies: 0,
-    distantStars: 0,
-  }).stars.map((s) => s.position)
+  // The MODEL the density is sampled from (not generateGalaxy, which is now
+  // an adapter over this very galaxy and would make the test circular).
+  const sampled = sampleSpiral(SMALL.seed, SMALL.samples)
   const generated = [...g.brightStars(), ...allDim()].map((s) => s.position)
 
   const hist = (
