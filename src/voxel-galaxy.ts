@@ -42,7 +42,7 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 | `seed` | — | Galaxy seed: shapes the density AND derives every voxel's seeds |
 | `brightBudget` | `5000` | Stars in the global pass |
 | `dimBudget` | `95000` | Stars across all voxels' dim passes — most are never generated |
-| `samples` | `100000` | Samples drawn from `generateGalaxy` to impute the density |
+| `samples` | `100000` | Positions drawn from the spiral model (`sampleSpiral`) to impute the density |
 | `galaxyOptions` | `{}` | Passed to the sampler (`spiralArms`, `thickness`, …) |
 | `nx` | `64` | Grid resolution across the disc (x) |
 | `ny` | `64` | Grid resolution across the disc (y) |
@@ -59,7 +59,7 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 
 import { CheapPRNG } from './mersenne-twister.js'
 import {
-  generateGalaxy,
+  sampleSpiral,
   starDetailFor,
   SPECTRAL_CLASSES,
   SPECTRAL_WEIGHTS,
@@ -217,17 +217,15 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     return { x, y, z }
   }
 
-  // --- 1. SAMPLE the current generator into a histogram -------------------
-  const sampled = generateGalaxy(o.seed, o.samples, {
-    ...o.galaxyOptions,
-    distantGalaxies: 0,
-    distantStars: 0,
-  })
+  // --- 1. SAMPLE the spiral model into a histogram ------------------------
+  // Positions only — the model, not the old generator (GALAXY-DESIGN.md →
+  // "Reconciliation"). Same draws as the old star loop, so the grid is too.
+  const sampled = sampleSpiral(o.seed, o.samples, o.galaxyOptions)
   const hist = new Float64Array(count)
-  for (const s of sampled.stars) {
-    const x = Math.floor((s.position.x + halfXY) / cx)
-    const y = Math.floor((s.position.y + halfXY) / cy)
-    const z = Math.floor((s.position.z + halfZ) / cz)
+  for (const p of sampled) {
+    const x = Math.floor((p.x + halfXY) / cx)
+    const y = Math.floor((p.y + halfXY) / cy)
+    const z = Math.floor((p.z + halfZ) / cz)
     if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz) continue
     hist[at(x, y, z)]++
   }

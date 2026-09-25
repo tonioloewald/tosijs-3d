@@ -1192,7 +1192,7 @@ voxel-galaxy
   seed  = —  — Galaxy seed: shapes the density AND derives every voxel's seeds
   brightBudget  = 5000  — Stars in the global pass
   dimBudget  = 95000  — Stars across all voxels' dim passes — most are never generated
-  samples  = 100000  — Samples drawn from `generateGalaxy` to impute the density
+  samples  = 100000  — Positions drawn from the spiral model (`sampleSpiral`) to impute the density
   galaxyOptions  = {}  — Passed to the sampler (`spiralArms`, `thickness`, …)
   nx  = 64  — Grid resolution across the disc (x)
   ny  = 64  — Grid resolution across the disc (y)

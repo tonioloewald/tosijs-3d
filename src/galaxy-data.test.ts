@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   generateGalaxy,
   generateStarSystem,
+  sampleSpiral,
   romanNumeral,
 } from './galaxy-data.js'
 import { SHIPPED_SKY } from './skybox-baker.js'
@@ -115,5 +116,39 @@ describe('romanNumeral', () => {
     ])
     expect(romanNumeral(0)).toBe('')
     expect(romanNumeral(20)).toBe('20')
+  })
+})
+
+describe('sampleSpiral — the model the voxel galaxy is sampled from', () => {
+  const posDigest = (pts: Array<{ x: number; y: number; z: number }>) => {
+    let h = 0x811c9dc5
+    for (const p of pts) {
+      const s = p.x.toFixed(9) + p.y.toFixed(9) + p.z.toFixed(9)
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 16777619) >>> 0
+      }
+    }
+    return h.toString(16)
+  }
+
+  test('draws exactly the positions the old star loop drew', () => {
+    // generateGalaxy sorts by name, so compare as sorted sets.
+    const key = (p: { x: number; y: number; z: number }) =>
+      `${p.x.toFixed(12)},${p.y.toFixed(12)},${p.z.toFixed(12)}`
+    const a = sampleSpiral(1234, 3000).map(key).sort()
+    const b = generateGalaxy(1234, 3000, {
+      distantGalaxies: 0,
+      distantStars: 0,
+    })
+      .stars.map((s) => key(s.position))
+      .sort()
+    expect(a).toEqual(b)
+  })
+
+  test('is pinned — the shipped sky’s density comes from it', () => {
+    // If this changes on purpose, the shipped sky changes with it: rebake,
+    // add a pinned version folder, and update this digest.
+    expect(posDigest(sampleSpiral(1234, 100000))).toBe('f442e738')
   })
 })

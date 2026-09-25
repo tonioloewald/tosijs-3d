@@ -4516,7 +4516,7 @@
       {
         "name": "samples",
         "default": "100000",
-        "description": "Samples drawn from `generateGalaxy` to impute the density"
+        "description": "Positions drawn from the spiral model (`sampleSpiral`) to impute the density"
       },
       {
         "name": "galaxyOptions",
