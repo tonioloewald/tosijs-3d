@@ -1635,6 +1635,16 @@ export function slider3d(config: {
   showValue?: 'peek' | 'always' | 'never'
   /** Format the readout — units, precision, anything. Defaults to step-derived decimals. */
   format?: (v: number) => string
+  /**
+   * `[lo, hi]` — where the values anybody wants live, drawn as a soft band
+   * behind the track. SOFT bounds: the handle still reaches `min` and `max`.
+   *
+   * The landing spot for a schema's `x-useful` (tosijs-3d#83). Narrowing
+   * `min`/`max` to the band instead would make a documented range
+   * unreachable, which is a decision a panel should not make on the schema's
+   * behalf. Clamped to the track; ignored if it is empty or inverted.
+   */
+  useful?: [number, number]
 }): Widget3d {
   const min = config.min ?? 0
   const max = config.max ?? 1
@@ -1695,6 +1705,18 @@ export function slider3d(config: {
     y: TRACK_Y - 3,
   })
   const knob = circle({ cy: TRACK_Y, r: 10, fill: '#fff' })
+  // Taller than the track so it still reads where the fill covers it.
+  const usefulEl = config.useful
+    ? rect({
+        height: 12,
+        rx: 6,
+        ry: 6,
+        fill: TH.ACCENT,
+        'fill-opacity': 0.22,
+        y: TRACK_Y - 6,
+        'data-part': 'useful',
+      })
+    : null
   // Exact-value readout: shown (in place of the track) while you point at or drag
   // the slider, so the precise number is legible even at low XR texture res. The
   // label stays visible beside it. Decimals follow the step.
@@ -1766,6 +1788,7 @@ export function slider3d(config: {
       { 'data-w3d': 'slider' },
       rowBg,
       ...(lbl ? [labelClipPath, lbl] : []),
+      ...(usefulEl ? [usefulEl] : []),
       trackEl,
       fillEl,
       knob,
@@ -1830,6 +1853,15 @@ export function slider3d(config: {
       trackW = Math.max(20, width - trackX - TH.PAD_X - 10)
       trackEl.setAttribute('x', String(trackX))
       trackEl.setAttribute('width', String(trackW))
+      if (usefulEl && config.useful) {
+        const [lo, hi] = config.useful
+        const f0 = Math.max(0, valueToFraction(lo, min, max, scale, zeroStop))
+        const f1 = Math.min(1, valueToFraction(hi, min, max, scale, zeroStop))
+        const ok = Number.isFinite(f0) && Number.isFinite(f1) && f1 > f0
+        usefulEl.setAttribute('display', ok ? 'inline' : 'none')
+        usefulEl.setAttribute('x', String(trackX + (ok ? f0 : 0) * trackW - 6))
+        usefulEl.setAttribute('width', String(ok ? (f1 - f0) * trackW + 12 : 0))
+      }
       fixedVal.setAttribute('x', String(width - TH.PAD_X))
       valText.setAttribute('x', String(width - TH.PAD_X))
       /*

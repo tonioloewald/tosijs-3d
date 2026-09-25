@@ -85,6 +85,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   `manifest.json` holding the decode parameters and the recipe.
   `/sky/stars` stays "latest" for the demos; a document should pin a version.
   `shipped-sky.test.ts` fails if latest drifts from the newest version.
+- **`slider3d({ useful: [lo, hi] })`** (tosijs-3d#83) — a soft band on the
+  track where the values anybody wants live; the handle still reaches `min`
+  and `max`. It is where a schema's `x-useful` lands.
 - **`cloudDeckSchema()`** in `sceneSchemas` (tosijs-3d#87) — the deck was the
   one scene primitive a schema-driven consumer had to describe by hand.
 - **Fetched strings are marked in the scene schemas** (tosijs-3d#91):

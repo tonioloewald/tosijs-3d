@@ -1139,3 +1139,48 @@ describe('slider3d — the caption is not a dead zone (tosijs-3d#84)', () => {
     expect(v).toBeGreaterThan(15)
   })
 })
+
+describe('slider3d useful band (tosijs-3d#83)', () => {
+  const band = (s: any) => s.el.querySelector('[data-part="useful"]')
+
+  test('draws where the useful values are, and the handle still reaches the ends', () => {
+    let v = 0.01
+    const s = w3d.slider3d({
+      label: 'gross scale',
+      value: 0.01,
+      min: 0.0005,
+      max: 0.5,
+      scale: 'log',
+      useful: [0.002, 0.05],
+      handleChange: (n: number) => (v = n),
+    }) as any
+    s.layout(300)
+    const b = band(s)
+    expect(b.getAttribute('display')).toBe('inline')
+    const x = Number(b.getAttribute('x'))
+    const w = Number(b.getAttribute('width'))
+    // 0.002..0.05 of 0.0005..0.5 on a log track is 20%..66.7% of the travel.
+    const track = s.el.querySelectorAll('rect')[3]
+    const tx = Number(track.getAttribute('x'))
+    const tw = Number(track.getAttribute('width'))
+    expect((x + 6 - tx) / tw).toBeCloseTo(0.2, 2)
+    expect((x + w - 6 - tx) / tw).toBeCloseTo(2 / 3, 2)
+    // Soft bounds: pressing at the far left still reaches min.
+    s.handle('down', tx)
+    expect(v).toBeCloseTo(0.0005, 6)
+  })
+
+  test('no band without useful, and an inverted one is hidden', () => {
+    const plain = w3d.slider3d({ value: 1, min: 0, max: 2 }) as any
+    plain.layout(300)
+    expect(band(plain)).toBeNull()
+    const inv = w3d.slider3d({
+      value: 1,
+      min: 0,
+      max: 2,
+      useful: [1.5, 0.5],
+    }) as any
+    inv.layout(300)
+    expect(band(inv).getAttribute('display')).toBe('none')
+  })
+})

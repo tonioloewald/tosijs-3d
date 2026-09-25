@@ -117,6 +117,12 @@ const MS = { 'x-unit': 'ms' }
  */
 const FREQ = { 'x-unit': '1/m', 'x-scale': 'log', 'x-wavelength': true }
 
+/*
+`x-useful: [lo, hi]` marks where the values anybody wants live, inside a wider
+legal range. It renders as `slider3d({ useful: [lo, hi] })` — a soft band on the
+track, not a narrowed `min`/`max` (tosijs-3d#83).
+*/
+
 const schema = (
   title: string,
   properties: Record<string, unknown>,
