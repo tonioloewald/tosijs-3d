@@ -217,3 +217,65 @@ R)` + the distant shell, with R computed from the brightness falloff and the
 3. **Identity:** address-based lookups; names/details/planets on demand.
 4. **Later:** the live galaxy streaming dim voxels near its camera; nebulae on
    the same scheme; the bulge in the sampler.
+
+## Reconciliation — ONE galaxy (2026-09-25)
+
+Tonio: _"we should use ONE galaxy implementation … reconcile the galaxies
+around the new voxel implementation."_ Today there are two: `generateGalaxy`
+(one sequential stream: stars, then nebulae, then the distant shell) and
+`voxelGalaxy` (which SAMPLES `generateGalaxy` for its density). Every consumer
+but the shipped sky still reads the old one: `b3d-galaxy`, `b3d-star-system`,
+the skybox-baker demo, and `bin/bake-stars`'s shell.
+
+### What survives of the old generator
+
+**The spiral MODEL survives; the sequential GENERATOR does not.** The
+spiral-Gaussian position model is exactly what the density grid is sampled
+from, so it stays as `sampleSpiral(seed, n)`, which returns positions only
+(no names, no details). It consumes the SAME random draws as the old star
+loop, so the density grid, and therefore the shipped sky, is byte-identical
+across the change. That is the check that the refactor moved code rather than
+changed a galaxy.
+
+### What moves onto derived seeds
+
+Nebulae, distant galaxies and the distant-star shell stop being "whatever the
+stream produces after the stars". Each gets its own derived seed
+(`hash32(seed, stream)`), so they no longer depend on the star count, which
+was a latent coupling (`bin/bake-stars` had to regenerate 100k old stars just
+to reach the shell). This DOES change the nebula half of the shipped sky:
+same distributions, different draws. The 0.8.4 pinned folder is unreleased,
+so it is rebaked and eyeballed rather than versioned again.
+
+### One view for every consumer
+
+`galaxy.view({ near?, radius? })` returns the `GalaxyData` shape the
+consumers already read: every bright star, the dim stars within `radius` of
+`near` (none if no point is given), the nebulae and the shell. Stars gain their
+`id` (address) and a name derived from their own seed, as the old generator
+did. Consumers keep working; the source changes underneath them.
+
+- **`generateGalaxy(seed, count, opts)`** becomes a deprecated ADAPTER over
+  the voxel galaxy (`count` is the bright budget), removed in 0.9. There is
+  one implementation behind both names.
+- **`b3d-galaxy`**: `starCount` becomes the bright budget. It gains
+  `getStar(id)`; `getStarAt(index)` stays, as an index into the loaded view.
+  Its HI filter covers what is loaded. Streaming dim voxels near the camera
+  (step 4) is what brings the other half of the earthlike systems in; until
+  then the filter finds the bright half, and the docs say so.
+- **`b3d-star-system`** gains `star` (an address); `starIndex` stays, as an
+  index into the same view.
+- **The baker**: `starsFromGalaxy(GalaxyData)` keeps working, because a view
+  IS `GalaxyData`; the demo page and `bin/bake-stars` read one galaxy.
+- **Tests**: the `galaxy-data` digests pinned the old stream, which no longer
+  produces anything shipped. They are replaced with digests of the new view
+  and `sampleSpiral`.
+
+### Order
+
+1. `sampleSpiral`; the voxel density reads it. Prove the shipped sky is
+   byte-identical.
+2. Nebulae and the shell on derived seeds, inside the voxel galaxy; `view()`.
+3. `generateGalaxy` becomes the adapter; consumers move to the view.
+4. Rebake and eyeball the nebula half; update the digests; record in the
+   changelog as a visible change (every seeded galaxy looks different).
