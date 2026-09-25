@@ -177,7 +177,9 @@ describe('registerIcons refuses markup that can run', () => {
 describe('registerIcons returns an undo', () => {
   test('a new name goes, a replaced built-in comes back', () => {
     const before = m.iconGlyph('camera').outerHTML
-    const undo = m.registerIcons({ routeOnly: ART, camera: ART })
+    // Distinct art: an earlier test may already have replaced `camera`.
+    const mine = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>'
+    const undo = m.registerIcons({ routeOnly: mine, camera: mine })
     expect(m.iconExists('routeOnly')).toBe(true)
     expect(m.iconGlyph('camera').outerHTML).not.toBe(before)
     undo()
