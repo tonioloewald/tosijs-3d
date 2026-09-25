@@ -401,6 +401,7 @@ export {
 } from './frame-panel.js'
 export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js'
+export { B3dMoon, b3dMoon } from './b3d-moon.js'
 
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js'

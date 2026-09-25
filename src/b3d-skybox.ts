@@ -143,6 +143,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 
 import * as BABYLON from '@babylonjs/core'
 import { PRNG } from './mersenne-twister.js'
+import type { B3dMoon } from './b3d-moon.js'
 import { SkyMaterial } from '@babylonjs/materials'
 import { BRIGHT_GAMMA, paletteGlsl, spectralGlsl } from './starfield-codec.js'
 /*
@@ -571,6 +572,8 @@ function registerForkedSky(): boolean {
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
         'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
+        'uniform vec4 b3dMoonsA[4];uniform vec4 b3dMoonsB[4];uniform vec3 b3dSunLocal;' +
+        MOONS_GLSL +
         'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;uniform float b3dDustGrey;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
@@ -612,8 +615,12 @@ function registerForkedSky(): boolean {
         `vec3 b3dC=dot(color.rgb,b3dW)*b3dT/max(dot(b3dT,b3dW),0.001);` +
         `color.rgb=mix(color.rgb,b3dC,b3dTintAmt);}` +
         `vec3 b3dDir=normalize(vSkyLocal);` +
+        // Extra moons (<tosi-b3d-moon>): computed first because a moon is
+        // IN FRONT of the stars — its dark side hides them.
+        `float b3dOcc;vec3 b3dMoonsC=b3dMoonsAt(b3dDir,b3dOcc);` +
+        `vec3 b3dBack=vec3(0.0);` +
         // The RASTER backdrop — a baked cube, still supported.
-        `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
+        `b3dBack+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
         /*
         AND THE DECODED ONE, which is the same light arriving by a better road:
         points reconstructed from data rather than sampled from a picture of
@@ -621,7 +628,8 @@ function registerForkedSky(): boolean {
         `b3dStars` and its stars in `b3dStarData` — which is the split the
         measurements argued for.
         */
-        `color.rgb+=b3dDecodeStars(b3dDir,normalize(vPositionW-cameraPosition).y);` +
+        `b3dBack+=b3dDecodeStars(b3dDir,normalize(vPositionW-cameraPosition).y);` +
+        `color.rgb+=b3dBack*(1.0-b3dOcc)+b3dMoonsC;` +
         // The moon, part of the backdrop, on the night arc — a CONSTANT in the
         // dome's frame (tilt⁻¹·up, see updateSky), so it rides with the stars.
         `{float md=max(0.0,dot(normalize(b3dDir),b3dMoonDir));` +
@@ -667,6 +675,31 @@ function registerForkedSky(): boolean {
  * materials it is holding — so these forward to `setFloat`/`setVector3` and the
  * rest of this element stays written once.
  */
+/*
+COSMETIC MOONS (`<tosi-b3d-moon>`), up to four. `b3dMoonsA[i]` is the moon's
+direction in the dome's frame plus sin(angular radius) (0 = no moon);
+`b3dMoonsB[i]` is its colour and brightness. The PHASE is not an input: each
+pixel of the disc is a point on a sphere, its normal is reconstructed from the
+disc coordinates, and it is lit where that normal faces the sun. A moon near
+the sun is a crescent; one opposite it is full. The dark side keeps a trace of
+light (planetshine), which reads as a body rather than a hole, and hides the
+stars behind it (the returned coverage).
+*/
+const MOONS_GLSL =
+  'vec3 b3dMoonsAt(vec3 d,out float occ){vec3 c=vec3(0.0);occ=0.0;' +
+  'for(int i=0;i<4;i++){vec4 a=b3dMoonsA[i];if(a.w<=0.0)continue;' +
+  'if(dot(d,a.xyz)<=0.0)continue;' +
+  'vec3 t1=normalize(cross(abs(a.y)<0.99?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0),a.xyz));' +
+  'vec3 t2=cross(a.xyz,t1);' +
+  'vec2 p=vec2(dot(d,t1),dot(d,t2))/a.w;float r=length(p);if(r>=1.0)continue;' +
+  // ~one pixel of antialiasing whatever the size
+  'float aa=clamp(0.0007/a.w,0.01,0.4);float cov=1.0-smoothstep(1.0-aa,1.0,r);' +
+  'vec3 n=p.x*t1+p.y*t2-sqrt(max(0.0,1.0-r*r))*a.xyz;' +
+  'float lit=smoothstep(-0.04,0.08,dot(n,b3dSunLocal));' +
+  'vec4 b=b3dMoonsB[i];' +
+  'c=mix(c,b.rgb*(b.w*lit+0.025),cov);occ=max(occ,cov);}' +
+  'return c;}'
+
 function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   const mat = new BABYLON.ShaderMaterial(
     'b3d-skybox',
@@ -706,6 +739,9 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dTintH',
         'b3dTintAmt',
         'b3dDustGrey',
+        'b3dMoonsA',
+        'b3dMoonsB',
+        'b3dSunLocal',
       ],
       samplers: ['b3dStars', 'b3dStarData'],
       // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -732,6 +768,9 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector3('b3dSunDir', new BABYLON.Vector3(0, 1, 0))
   mat.setFloat('b3dSunDisc', 0)
   mat.setFloat('b3dMoonDisc', 0)
+  mat.setArray4('b3dMoonsA', new Array(16).fill(0))
+  mat.setArray4('b3dMoonsB', new Array(16).fill(0))
+  mat.setVector3('b3dSunLocal', new BABYLON.Vector3(0, 1, 0))
   mat.setColor3('b3dSunDiscColor', new BABYLON.Color3(3, 2.9, 2.7))
   const num = (name: string, initial: number) => {
     let v = initial
@@ -1653,6 +1692,55 @@ export class B3dSkybox extends AbstractMesh {
    * which is pinned to the camera anyway. Read live rather than cached because
    * the thing that moves is someone else's mesh.
    */
+  /**
+   * Collect the `<tosi-b3d-moon>` children into the shader's arrays. The sun
+   * direction is the REAL sun: by night `sunVector` is the day arc replayed
+   * (it is where the moonlight comes from), so the real sun is its antipode.
+   */
+  private _applyMoons(
+    sm: BABYLON.ShaderMaterial,
+    isDay: boolean,
+    sunVector: BABYLON.Vector3,
+    daylight: number
+  ) {
+    if (sm.setArray4 == null) return
+    const a = new Array(16).fill(0)
+    const b = new Array(16).fill(0)
+    const moons = Array.from(this.querySelectorAll('tosi-b3d-moon')).slice(
+      0,
+      4
+    ) as unknown as B3dMoon[]
+    // The day moon is real but pale: the sky's own light washes it out.
+    // Not the 1.6 of the built-in disc — a coloured moon must stay below
+    // clipping or every colour reads as white.
+    const exposure = 0.85 * (1 - 0.75 * daylight)
+    moons.forEach((m, i) => {
+      const d = m.direction()
+      const radius = (Math.max(0, m.size) / 2) * DEG_TO_RAD
+      a.splice(i * 4, 4, d.x, d.y, d.z, Math.sin(Math.min(radius, 1.5)))
+      let c: BABYLON.Color3
+      try {
+        c = BABYLON.Color3.FromHexString(
+          String(m.color || '#dddddd').slice(0, 7)
+        )
+      } catch {
+        c = new BABYLON.Color3(0.87, 0.87, 0.87)
+      }
+      b.splice(i * 4, 4, c.r, c.g, c.b, Math.max(0, m.brightness) * exposure)
+    })
+    sm.setArray4('b3dMoonsA', a)
+    sm.setArray4('b3dMoonsB', b)
+    const sun = sunVector.clone().normalize()
+    if (!isDay) sun.scaleInPlace(-1)
+    const inv = BABYLON.Quaternion.Inverse(this._domeQuat)
+    sm.setVector3?.('b3dSunLocal', sun.applyRotationQuaternion(inv))
+  }
+
+  /** A `<tosi-b3d-moon>` changed (or came or went): redraw the moons. */
+  moonsChanged() {
+    this.updateSky()
+  }
+
   private _vacuumNow(): number {
     const attrs = this as any
     const full = attrs.spaceFull as number
@@ -1984,6 +2072,7 @@ export class B3dSkybox extends AbstractMesh {
       sm.setFloat?.('b3dMoonDisc', isDay ? 0 : bare)
       sm.setFloat?.('b3dSunDisc', isDay ? bare : 0)
       sm.setVector3?.('b3dSunDir', sunVector.clone().normalize())
+      this._applyMoons(sm, isDay, sunVector, dayBrightness * air)
     }
     if (this._starfieldMesh != null) {
       if (!this._glowExcluded && this.owner?.scene != null) {

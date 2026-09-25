@@ -579,6 +579,15 @@ b3d-manipulator
   size  = 0.13  — apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen
   disabled  = false  — hide the handles and ignore input
 
+## b3d-moon — <tosi-b3d-moon>
+b3d-moon
+
+  azimuth  = 0  — Degrees AROUND the star sphere. Like right ascension: the moon rides with the stars, rising and setting with them
+  elevation  = 20  — Degrees from the celestial equator (like declination)
+  size  = 0.5  — Angular DIAMETER in degrees (the real moon is about 0.5)
+  color  = '#dddddd'  — Its colour where lit
+  brightness  = 1  — Multiplies the lit side
+
 ## b3d-panel — <tosi-b3d-panel>
 b3d-panel
 

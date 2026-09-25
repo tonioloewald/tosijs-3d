@@ -104,6 +104,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`<tosi-b3d-moon>`** — cosmetic extra moons (tosijs-3d#89). Put up to
+  four inside a `<tosi-b3d-skybox>`: `azimuth`/`elevation` on the star
+  sphere (they ride with the stars), `size` (angular diameter, degrees),
+  `color`, `brightness`. The PHASE is automatic: each disc is shaded as a
+  sphere lit by the real sun, so a moon near the sun is a crescent and one
+  opposite it is full. A moon hides the stars behind it; it casts no light.
 - **`voxel-galaxy`** (`tosijs-3d/voxel-galaxy`) — the first step of
   `GALAXY-DESIGN.md`: a galaxy as voxels, each with a derived bright and dim
   seed. `brightStars()` is the global pass; `dimStarsNear(point, radius)` is

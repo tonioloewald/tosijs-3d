@@ -98,6 +98,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 - https://3d.tosijs.net/b3d-manipulator/ — b3d-manipulator
   a hand in a headset.** The maths is [[manipulator]], the geometry is
+- https://3d.tosijs.net/b3d-moon/ — b3d-moon
+  the star sphere. Its PHASE follows from where it is: the side facing the sun
 - https://3d.tosijs.net/b3d-panel/ — b3d-panel
   A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
 - https://3d.tosijs.net/b3d-particles/ — b3d-particles

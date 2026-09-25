@@ -151,6 +151,12 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       piece of work that a cosmetic layer must not pretend to be. The same
       goes for binary stars. Open: whether a cosmetic body lights the scene
       (more lights, more shadow budget).
+      MOONS DONE (2026-09-25): `<tosi-b3d-moon azimuth elevation size
+      color brightness>` inside the skybox, up to four, riding the stars.
+      The phase is not an input — it is lit where its sphere faces the real
+      sun (Tonio: "where the moon is probably determines its phase"). They
+      light nothing. Still open: extra SUNS (binary stars), and whether the
+      built-in moon should become one of these.
 
 - [x] **ONE galaxy implementation** (Tonio, 2026-09-25). Done: the voxel
       galaxy is the galaxy; `generateGalaxy` is a deprecated adapter (removed

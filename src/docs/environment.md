@@ -9,6 +9,7 @@
 - [b3d-ambient](/b3d-ambient/)
 - [b3d-decorator](/b3d-decorator/)
 - [b3d-light](/b3d-light/)
+- [b3d-moon](/b3d-moon/)
 - [b3d-particles](/b3d-particles/)
 - [b3d-shadows](/b3d-shadows/)
 - [b3d-skybox](/b3d-skybox/)

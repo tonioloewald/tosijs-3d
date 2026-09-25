@@ -2223,6 +2223,38 @@
     ]
   },
   {
+    "module": "b3d-moon",
+    "tag": "tosi-b3d-moon",
+    "summary": "b3d-moon",
+    "attributes": [
+      {
+        "name": "azimuth",
+        "default": "0",
+        "description": "Degrees AROUND the star sphere. Like right ascension: the moon rides with the stars, rising and setting with them"
+      },
+      {
+        "name": "elevation",
+        "default": "20",
+        "description": "Degrees from the celestial equator (like declination)"
+      },
+      {
+        "name": "size",
+        "default": "0.5",
+        "description": "Angular DIAMETER in degrees (the real moon is about 0.5)"
+      },
+      {
+        "name": "color",
+        "default": "'#dddddd'",
+        "description": "Its colour where lit"
+      },
+      {
+        "name": "brightness",
+        "default": "1",
+        "description": "Multiplies the lit side"
+      }
+    ]
+  },
+  {
     "module": "b3d-panel",
     "tag": "tosi-b3d-panel",
     "summary": "b3d-panel",
