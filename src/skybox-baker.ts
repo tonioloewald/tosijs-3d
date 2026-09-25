@@ -322,9 +322,9 @@ export const SHIPPED_SKY = {
   tilt: '12,25,58',
   /**
    * The VOXEL galaxy's dials (GALAXY-DESIGN.md) — used by `bin/bake-stars.ts`.
-   * These are the values `static/sky/stars_*` was baked with (approved by eye,
-   * 2026-09-25): `bun bin/bake-stars.ts` with no flags reproduces it. Re-bake
-   * after changing them. The bright budget is well past GALAXY-DESIGN's ~5k
+   * These are the values `static/sky` was baked with (approved by eye,
+   * 2026-09-25): `bun bin/bake-stars.ts` then `bun bin/bake-nebula.ts`, with
+   * no flags, reproduce both halves. Re-bake after changing them. The bright budget is well past GALAXY-DESIGN's ~5k
    * guess — at 5k the band loses its grain; 100k keeps it.
    */
   voxel: {

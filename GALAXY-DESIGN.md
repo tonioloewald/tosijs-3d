@@ -1,6 +1,7 @@
 # Galaxy design — a voxel galaxy with two populations
 
-> Status: agreed with Tonio (2026-09-24). **Steps 1–2 are built** (the pure
+> Status: agreed with Tonio (2026-09-24). **One galaxy since 2026-09-25**
+> (see "Reconciliation"). **Steps 1–2 are built** (the pure
 > core in `src/voxel-galaxy.ts`, the baker, `bin/bake-stars.ts`) and the
 > shipped sky was rebaked from it on 2026-09-25. Steps 3–4 are not started.
 > Supersedes the "GALAXY ARCHITECTURE" TODO line.
@@ -270,6 +271,19 @@ did. Consumers keep working; the source changes underneath them.
 - **Tests**: the `galaxy-data` digests pinned the old stream, which no longer
   produces anything shipped. They are replaced with digests of the new view
   and `sampleSpiral`.
+
+### Where it stands (2026-09-25)
+
+**Done, steps 1–4.** One implementation; the consumers read the voxel galaxy.
+Addresses became `seed:population:voxel:n` on Tonio's point: galaxy seed,
+population, voxel and SEQUENCE number (not the derived seed). Star _n_ never
+reads the count, so an address resolves in a galaxy computed with a smaller
+budget. The shipped sky was rebaked by `bin/bake-stars` + `bin/bake-nebula`,
+and the two halves are checked to come from the same galaxy.
+
+**Still open:** streaming dim voxels near the camera in `b3d-galaxy` (the
+other half of the earthlike systems), and the "ellipsoid columns" TODO,
+which now has one generator to look in.
 
 ### Order
 

@@ -92,6 +92,28 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **ONE galaxy implementation** (GALAXY-DESIGN.md → "Reconciliation").
+  The voxel galaxy is the galaxy now. `b3d-galaxy`, `b3d-star-system`, the
+  skybox baker and `bin/bake-stars` all read it. Its nebulae and distant shell
+  have their own derived seeds, so they no longer depend on the star count.
+  - **Visible:** a given seed now produces a **different galaxy** from 0.8.3
+    (same shape and distributions, different stars), and `starCount` is the
+    galaxy's **bright budget** (±noise), not an exact count.
+  - **`generateGalaxy` is deprecated** (removed in 0.9). It is now an adapter
+    returning `voxelGalaxy({ seed, brightBudget }).view()`. The spiral model it
+    was built on survives as **`sampleSpiral`**, which the density is sampled
+    from.
+  - **Stars have an address:** `id` is `seed:population:voxel:n`, with a
+    sequence number rather than the derived seed. `galaxy.star(id)`,
+    `b3d-galaxy.getStar(id)` and `b3d-star-system`'s new `star` attribute
+    resolve it. Star _n_ never depends on the budget, so an address resolves
+    even in a galaxy computed with a smaller one.
+  - **New:** `voxelGalaxy().view()`, `.star(id)`, `.nebulae()`, `.shell()`;
+    `b3d-galaxy`'s `dimBudget`; `starAddress` / `parseStarAddress`,
+    `starNameFor`, `sampleSpiral` and `starsFromVoxelGalaxy` in the barrel.
+  - **The shipped sky's nebula half is rebaked** with the new nebulae.
+    **`bin/bake-nebula.ts`** bakes it in headless Chrome and checks that the
+    point half on disk came from the same galaxy.
 - **Noted late, from 0.8.3: `slider3d`'s `peek` readout appears BESIDE the
   caption rather than replacing it** (tosijs-3d#84). Deliberate — a label that
   vanishes the moment you touch the control loses the name of what you are

@@ -5,7 +5,7 @@
   "starfieldDataSize": 1024,
   "starfieldTilt": "12,25,58",
   "recipe": {
-    "source": "voxelGalaxy (stars) + generateGalaxy (nebula, distant shell)",
+    "source": "voxelGalaxy \u2014 one galaxy: stars (bright + dim near the eye), nebulae and the distant shell each on derived seeds. bun bin/bake-stars.ts + bun bin/bake-nebula.ts",
     "seed": 1234,
     "stars": 100000,
     "radius": 100,
@@ -20,6 +20,7 @@
       "dimBudget": 1000000,
       "dimReach": 0.04,
       "floor": 0.02
-    }
+    },
+    "coreSize": 0.12
   }
 }

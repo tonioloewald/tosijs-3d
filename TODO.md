@@ -83,10 +83,11 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       goes for binary stars. Open: whether a cosmetic body lights the scene
       (more lights, more shadow budget).
 
-- [ ] **ONE galaxy implementation — reconcile around the voxel galaxy**
-      (Tonio, 2026-09-25). `generateGalaxy` and `voxelGalaxy` must not live
-      side by side; see GALAXY-DESIGN.md → "Reconciliation". The columns item
-      below is part of it: with one generator there is one place to look.
+- [x] **ONE galaxy implementation** (Tonio, 2026-09-25). Done: the voxel
+      galaxy is the galaxy; `generateGalaxy` is a deprecated adapter (removed
+      in 0.9). See GALAXY-DESIGN.md → "Reconciliation".
+- [ ] **Stream dim voxels near the camera in `b3d-galaxy`**, so the HI
+      filter reaches the other half of the earthlike systems.
 
 - [ ] **"Ellipsoid columns" at 1M stars — this round** (Tonio, 2026-09-25,
       seen in the skybox-baker demo with stars at 1M and particle size at its
