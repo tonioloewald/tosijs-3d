@@ -76,6 +76,21 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       generated locally). Also fixes a live bug it measured: 63.4% of stars
       share a seed with another star, so they share names and planets.
 
+- [ ] **"Ellipsoid columns" at 1M stars — this round** (Tonio, 2026-09-25,
+      seen in the skybox-baker demo with stars at 1M and particle size at its
+      minimum, which is the only way to see past the nebulae and bright
+      stars). The stars clump into vertical ellipsoids. Tonio's read: within a
+      voxel, x/y should be UNIFORM and only the vertical offset gaussian.
+      ⚠️ Check which generator first: the baker DEMO's star slider drives
+      `generateGalaxy`, not `voxelGalaxy` (only `bin/bake-stars.ts` and the
+      shipped sky use voxels). So the candidates are (a) voxel placement, where
+      rejection against trilinear density should already be uniform in x/y, so
+      a column there would be a bug in `densityAt`/`bound`; (b) in
+      `generateGalaxy`, the arm scatter plus `z = gauss(thickness·½·(1−r))`,
+      clumping along the log-spiral; (c) PRNG lattice structure showing up at
+      1M draws. Test: render both generators at 1M side by side, top-down and
+      edge-on; a column must not survive a change of voxel grid.
+
 - [ ] **Cloud-deck died ONCE on Quest — noted, not chased.** Measured when it
       was reported: the demo's VRAM is ~27 MiB (25.5 of it the encoded sky pair
       every demo carries; the deck's own textures are ~1.6 MiB), so it is not a
