@@ -51,7 +51,7 @@ describe('generateGalaxy — the adapter', () => {
     const g = generateGalaxy(1234, 10000)
     // A budget, not an exact count: counts are rounded per voxel.
     expect(Math.abs(g.stars.length - 10000)).toBeLessThan(300)
-    expect(digest(g)).toBe('6c329d41')
+    expect(digest(g)).toBe('2727ed54')
   })
 
   test('deterministic, and the seed matters', () => {

@@ -10,8 +10,8 @@
  * Flags: --seed --bright --dim --reach --floor --nz --halfz --size --out --dry
  *
  * --nz / --halfz set the grid's vertical resolution: cells thicker than the
- * disc smear it (at the default 20 over ±0.3, a cell is 0.03 against a disc
- * ~0.017 thick near the bake point) — a softer, broader band.
+ * disc smear it into slabs. The default 60 over ±0.3 is 0.01 per cell,
+ * thinner than the disc (it was 20, and the band came out in slabs).
  *
  * Exists for the tuning loop (GALAXY-DESIGN.md step 2): run it, reload a demo
  * that loads /sky/stars (Land and Sky, the cloud deck), look, adjust. When a
@@ -49,7 +49,7 @@ const dimBudget = arg('dim', SHIPPED_SKY.voxel.dimBudget)
 const dimReach = arg('reach', SHIPPED_SKY.voxel.dimReach)
 const floor = arg('floor', SHIPPED_SKY.voxel.floor)
 const size = arg('size', SHIPPED_SKY.dataSize)
-const nz = arg('nz', 20)
+const nz = arg('nz', 60)
 const halfZ = arg('halfz', 0.3)
 const out = path.resolve(import.meta.dir, '..', text('out', 'static/sky'))
 const dry = process.argv.includes('--dry')

@@ -23,6 +23,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Real half-degree discs now fade in as the air goes, and the glow fades with
   it: a hard white sun and moon on a black sky. The airless moon is as bright
   as the moon seen through air.
+- **The voxel galaxy's disc was built of slabs** (seen by Tonio as
+  "ellipsoid columns" at 1M stars). Voxel layers (0.03 at `nz` 20) were as
+  thick as the disc, so stars sat in flat slabs with hard edges. `nz` now
+  defaults to 60. Every voxel address changes (0.8.4 already rerolls the
+  galaxy), and the shipped sky is rebaked with a slightly crisper band.
 - **Big objects in the star sky were clipped square**, and **packed stars sat
   on a lattice.** Objects wider than the decoder's 3×3 reach (distant galaxies
   run to 3.5 texels) were cut at texel edges. Everything now tapers to nothing

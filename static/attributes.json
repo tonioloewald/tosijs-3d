@@ -4635,8 +4635,8 @@
       },
       {
         "name": "nz",
-        "default": "20",
-        "description": "Grid resolution through the disc (z)"
+        "default": "60",
+        "description": "Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) was as thick as the disc itself, so stars sat in flat slabs with hard edges, read as columns at 1M stars"
       },
       {
         "name": "halfXY",

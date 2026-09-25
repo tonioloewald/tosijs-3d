@@ -48,7 +48,7 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 | `galaxyOptions` | `{}` | Passed to the sampler (`spiralArms`, `thickness`, …) |
 | `nx` | `64` | Grid resolution across the disc (x) |
 | `ny` | `64` | Grid resolution across the disc (y) |
-| `nz` | `20` | Grid resolution through the disc (z) |
+| `nz` | `60` | Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) was as thick as the disc itself, so stars sat in flat slabs with hard edges, read as columns at 1M stars |
 | `halfXY` | `1.05` | Grid half-extent across the disc |
 | `halfZ` | `0.3` | Grid half-extent through the disc — room for a halo |
 | `smoothPasses` | `1` | Blur passes over the sampled histogram (calms sparse voxels) |
@@ -302,7 +302,11 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     samples: 100000,
     nx: 64,
     ny: 64,
-    nz: 20,
+    // 60, not 20: a layer must be THINNER than the disc (σ ≈ 0.03 at the
+    // centre, less outward). At 20 (0.03 per layer) the density could not
+    // describe the vertical profile, rejection gave up at the disc's edges,
+    // and stars sat in flat slabs — "ellipsoid columns" at 1M stars (Tonio).
+    nz: 60,
     halfXY: 1.05,
     halfZ: 0.3,
     smoothPasses: 1,

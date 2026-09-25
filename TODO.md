@@ -159,20 +159,16 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
       interesting dim stars (HI ≤ 2) are global, verified, HI known. Streaming
       BORING dim voxels near the camera is now only about looks.
 
-- [ ] **"Ellipsoid columns" at 1M stars — this round** (Tonio, 2026-09-25,
-      seen in the skybox-baker demo with stars at 1M and particle size at its
-      minimum, which is the only way to see past the nebulae and bright
-      stars). The stars clump into vertical ellipsoids. Tonio's read: within a
-      voxel, x/y should be UNIFORM and only the vertical offset gaussian.
-      ⚠️ Check which generator first: the baker DEMO's star slider drives
-      `generateGalaxy`, not `voxelGalaxy` (only `bin/bake-stars.ts` and the
-      shipped sky use voxels). So the candidates are (a) voxel placement, where
-      rejection against trilinear density should already be uniform in x/y, so
-      a column there would be a bug in `densityAt`/`bound`; (b) in
-      `generateGalaxy`, the arm scatter plus `z = gauss(thickness·½·(1−r))`,
-      clumping along the log-spiral; (c) PRNG lattice structure showing up at
-      1M draws. Test: render both generators at 1M side by side, top-down and
-      edge-on; a column must not survive a change of voxel grid.
+- [x] **"Ellipsoid columns" at 1M stars** (Tonio, 2026-09-25). FOUND and
+      FIXED: plotted 1M voxel-galaxy stars top-down and edge-on. Top-down was
+      clean; EDGE-ON the disc was flat slabs with hard edges at voxel layers.
+      A layer (0.03 at `nz` 20) was as thick as the disc itself (σ ≈ 0.03 at
+      the centre), so the density could not describe the vertical profile
+      and rejection gave up at the disc's edges. `nz` is now 60 (0.01 per
+      layer): a smooth disc and bulge, and no grid top-down on either a 64 or
+      a 48 grid. A tried alternative (height from the model's Gaussian,
+      truncated to the layer) was worse and reverted: fringe layers crowded
+      onto their edges, and best-candidate x/y showed the grid.
 
 - [ ] **Cloud-deck died ONCE on Quest — noted, not chased.** Measured when it
       was reported: the demo's VRAM is ~27 MiB (25.5 of it the encoded sky pair
