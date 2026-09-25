@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { generateGalaxy } from './galaxy-data.js'
+import { generateGalaxy, starNameFor } from './galaxy-data.js'
 import { hash32, voxelGalaxy, type VoxelStar } from './voxel-galaxy.js'
 
 // A SMALL galaxy for most tests — the properties are scale-free, and the
@@ -236,5 +236,43 @@ describe('at the default scale', () => {
     expect(Math.abs(bright - 5000)).toBeLessThan(150)
     const near = full.voxelsNear({ x: 0.495, y: 0, z: 0.01 }, 0.08)
     expect(near.length).toBeLessThan(full.voxelCount * 0.01)
+  })
+})
+
+describe('view — the GalaxyData every consumer reads (reconciliation)', () => {
+  test('every bright star, named from its seed, with its address', () => {
+    const v = g.view()
+    expect(v.stars.length).toBe(g.brightStars().length)
+    const s = v.stars[0]
+    expect(s.id).toMatch(/^bright:\d+:\d+$/)
+    expect(s.name).toBe(starNameFor(s.seed))
+    expect(new Set(v.stars.map((x) => x.id)).size).toBe(v.stars.length)
+    // Sorted by name, as the old generator's consumers expect.
+    for (let i = 1; i < v.stars.length; i++)
+      expect(v.stars[i - 1].name <= v.stars[i].name).toBe(true)
+  })
+
+  test('dim stars join only near a point', () => {
+    const eye = { x: 0.5, y: 0, z: 0.01 }
+    const near = g.view({ near: eye, radius: 0.1 })
+    expect(near.stars.length).toBe(
+      g.brightStars().length + g.dimStarsNear(eye, 0.1).length
+    )
+    expect(near.stars.some((s) => s.id!.startsWith('dim:'))).toBe(true)
+  })
+
+  test('nebulae and shell are on their own seeds — the star budget cannot move them', () => {
+    const a = voxelGalaxy({ ...SMALL, nebulaBudget: 300 })
+    const b = voxelGalaxy({ ...SMALL, brightBudget: 900, nebulaBudget: 300 })
+    expect(b.nebulae()).toEqual(a.nebulae())
+    expect(b.shell()).toEqual(a.shell())
+    expect(voxelGalaxy({ ...SMALL, seed: 8 }).shell()).not.toEqual(a.shell())
+  })
+
+  test('the distant galaxies are appended to nebulae, as before', () => {
+    const v = g.view()
+    const { distantGalaxies } = g.shell()
+    expect(v.nebulae.slice(-distantGalaxies.length)).toEqual(distantGalaxies)
+    expect(v.distantStars.length).toBe(3000)
   })
 })

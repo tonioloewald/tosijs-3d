@@ -682,6 +682,11 @@ export { planetTypeData }
 
 export interface StarData {
   name: string
+  /**
+   * The star's ADDRESS in the voxel galaxy (`population:voxel:n`) — stable,
+   * unlike an array index. Present on every star a voxel galaxy produces.
+   */
+  id?: string
   seed: number
   position: { x: number; y: number; z: number }
   spectralType: string
@@ -908,7 +913,7 @@ export interface GalaxyOptions {
   generatePlanets?: boolean
 }
 
-const GALAXY_DEFAULTS: Required<GalaxyOptions> = {
+export const GALAXY_DEFAULTS: Required<GalaxyOptions> = {
   spiralArms: 4,
   spiralAngleDegrees: 240,
   minRadius: 0.02,
@@ -958,8 +963,19 @@ export interface GalaxyData {
   options: Required<GalaxyOptions>
 }
 
+/**
+ * A star's NAME, a pure function of its seed — the same derivation the old
+ * generator used, shared so every galaxy names a given seed the same way.
+ */
+export function starNameFor(seed: number): string {
+  const namePrng = new CheapPRNG(seed + 1)
+  let name = randomName(namePrng, namePrng.range(2, 3))
+  while (isBadWord(name)) name = randomName(namePrng, namePrng.range(2, 3))
+  return name
+}
+
 /** The spiral model's derived constants — one place, shared by every draw. */
-interface SpiralParams {
+export interface SpiralParams {
   spiralArms: number
   minRadius: number
   maxRadius: number
@@ -969,7 +985,7 @@ interface SpiralParams {
   spiralB: number
 }
 
-function spiralParams(opts: Required<GalaxyOptions>): SpiralParams {
+export function spiralParams(opts: Required<GalaxyOptions>): SpiralParams {
   const { spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness } =
     opts
   return {
@@ -1074,11 +1090,7 @@ export function generateGalaxy(
     and accepted. The bad-word check still runs, and retries continue on the
     star's own stream.
     */
-    const namePrng = new CheapPRNG(starSeed + 1)
-    let newName = randomName(namePrng, namePrng.range(2, 3))
-    while (isBadWord(newName)) {
-      newName = randomName(namePrng, namePrng.range(2, 3))
-    }
+    const newName = starNameFor(starSeed)
 
     const star: StarData = {
       ...detail,

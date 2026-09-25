@@ -57,13 +57,22 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 */
 /*{ "parent": "Space", "order": 910 }*/
 
-import { CheapPRNG } from './mersenne-twister.js'
+import { CheapPRNG, PRNG } from './mersenne-twister.js'
 import {
   sampleSpiral,
   starDetailFor,
+  starNameFor,
+  spiralParams,
+  generateNebulae,
+  generateShell,
+  generateStarSystem,
+  GALAXY_DEFAULTS,
   SPECTRAL_CLASSES,
   SPECTRAL_WEIGHTS,
   type GalaxyOptions,
+  type GalaxyData,
+  type NebulaData,
+  type DistantStarData,
   type StarData,
 } from './galaxy-data.js'
 
@@ -94,6 +103,21 @@ export interface VoxelGalaxyOptions {
   fringeFalloff?: number
   brightMix?: MixEntry[]
   dimMix?: MixEntry[]
+  /**
+   * How many nebulae. `-1` (default) keeps the old generator's rule — 15% of
+   * the bright budget, at least 50 — so a galaxy's nebulae scale with it.
+   */
+  nebulaBudget?: number
+}
+
+/** What `view` returns: the `GalaxyData` shape every consumer already reads. */
+export interface GalaxyViewOptions {
+  /** Gather the dim stars around this point (generator frame). None if omitted. */
+  near?: { x: number; y: number; z: number }
+  /** How far around `near` to gather dim stars (whole voxels). */
+  radius?: number
+  /** Compute every star's best habitability now (slow); else on demand. */
+  generatePlanets?: boolean
 }
 
 /** A generated star. `position` is in the generator frame (z-up). */
@@ -133,8 +157,11 @@ export const DEFAULT_DIM_MIX: MixEntry[] = [
   { spectralClass: 'M', minIndex: 0, maxIndex: 9, weight: weightOf('M') },
 ]
 
-/** Stream tags for the per-voxel seeds. Nebulae will take 3 and 4. */
+/** Stream tags for the per-voxel seeds. */
 const STREAM: Record<Population, number> = { bright: 1, dim: 2 }
+/** Galaxy-wide streams — each on its own derived seed, so none depends on another's count. */
+const NEBULA_STREAM = 3
+const SHELL_STREAM = 4
 
 /**
  * A 32-bit hash of a list of integers (murmur-style mixing + fmix32). Seeds
@@ -184,6 +211,17 @@ export interface VoxelGalaxy {
    * few may lie slightly beyond `radius`; filter by distance if that matters.
    */
   dimStarsNear(p: Vec, radius: number): VoxelStar[]
+  /** The galaxy's nebulae, from their own derived seed. Memoised. */
+  nebulae(): NebulaData[]
+  /** Other galaxies and dim far-out stars, from their own seed. Memoised. */
+  shell(): { distantGalaxies: NebulaData[]; distantStars: DistantStarData[] }
+  /**
+   * THE view every consumer reads — `GalaxyData`, as `generateGalaxy` returned
+   * it: every bright star, the dim stars near `near`, the nebulae (with the
+   * distant galaxies appended, as before) and the shell. Stars carry `id` and a
+   * name derived from their seed, and are sorted by name.
+   */
+  view(options?: GalaxyViewOptions): GalaxyData
 }
 
 export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
@@ -201,6 +239,7 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     fringeFalloff: 3,
     brightMix: DEFAULT_BRIGHT_MIX,
     dimMix: DEFAULT_DIM_MIX,
+    nebulaBudget: -1,
     ...options,
     galaxyOptions: options.galaxyOptions ?? {},
   }
@@ -473,6 +512,71 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     return out
   }
 
+  const galaxyOpts = { ...GALAXY_DEFAULTS, ...o.galaxyOptions }
+  const sp = spiralParams(galaxyOpts)
+  let nebulaCache: { nebulae: NebulaData[]; densityScale: number } | null = null
+  const nebulaPass = () => {
+    if (nebulaCache == null) {
+      const budget =
+        o.nebulaBudget >= 0
+          ? o.nebulaBudget
+          : Math.max(50, Math.floor(o.brightBudget * 0.15))
+      nebulaCache = generateNebulae(
+        new PRNG(hash32(o.seed, NEBULA_STREAM)),
+        budget,
+        sp
+      )
+    }
+    return nebulaCache
+  }
+  let shellCache: ReturnType<VoxelGalaxy['shell']> | null = null
+  const shell = () => {
+    if (shellCache == null) {
+      shellCache = generateShell(
+        new PRNG(hash32(o.seed, SHELL_STREAM)),
+        galaxyOpts.distantGalaxies,
+        galaxyOpts.distantStars,
+        sp,
+        nebulaPass().densityScale
+      )
+    }
+    return shellCache
+  }
+
+  const toStarData = (s: VoxelStar, planets: boolean): StarData => {
+    // The voxel fields stay on the object (population, voxel, n) — harmless
+    // extras to a StarData reader, and the address is what `id` is for.
+    const star: StarData = {
+      ...s,
+      name: starNameFor(s.seed),
+      bestHI: 5,
+    }
+    if (planets) {
+      const system = generateStarSystem(star)
+      for (const p of system.planets) if (p.HI < star.bestHI) star.bestHI = p.HI
+      star.hiComputed = true
+    }
+    return star
+  }
+
+  const view = (v: GalaxyViewOptions = {}): GalaxyData => {
+    const planets = v.generatePlanets === true
+    const stars: StarData[] = brightStars().map((s) => toStarData(s, planets))
+    if (v.near != null && (v.radius ?? 0) > 0)
+      for (const s of dimStarsNear(v.near, v.radius!))
+        stars.push(toStarData(s, planets))
+    stars.sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0))
+    const { distantGalaxies, distantStars } = shell()
+    return {
+      stars,
+      nebulae: [...nebulaPass().nebulae, ...distantGalaxies],
+      distantGalaxies,
+      distantStars,
+      seed: o.seed,
+      options: { ...galaxyOpts, generatePlanets: planets },
+    }
+  }
+
   return {
     options: o,
     density,
@@ -485,5 +589,8 @@ export function voxelGalaxy(options: VoxelGalaxyOptions): VoxelGalaxy {
     brightStars,
     voxelsNear,
     dimStarsNear,
+    nebulae: () => nebulaPass().nebulae,
+    shell,
+    view,
   }
 }
