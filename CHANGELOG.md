@@ -193,6 +193,15 @@ camera)`** derives the frames from any flat camera's world pose (the eye
   frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
   a hand panel declares **`flatFrame`**; without one it stays VR-only and
   warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
+- **Render resolution follows the display, by device tier.** Scenes rendered
+  at CSS resolution, so a 1.25× or 2× display upscaled everything (soft edges,
+  soft stars). The render now uses the display's pixel ratio capped by tier:
+  high up to 2×, medium up to 1.5×, low at CSS resolution. The new
+  `PerfBudgets.pixelRatioCap` sets the cap, and **`<tosi-b3d pixel-ratio>`**
+  overrides it with an explicit value (`1` = CSS resolution, `2` = full
+  Retina, `0.75` = below CSS for speed). It follows a window moved to another
+  monitor, and XR is unaffected. The rule is `renderScalingLevel` in
+  `b3d-quality`, tested.
 - **Twinkle** (`starfieldTwinkle`, default 0.35): scintillation, which is
   the air, so it scales with the gas (none on an airless world), is strongest
   at the horizon, and each star flickers on its own pattern. Land and Sky has

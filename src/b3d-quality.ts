@@ -104,6 +104,32 @@ export function qualityBudgets(opts: { xr?: boolean } = {}): PerfBudgets {
 }
 
 /**
+ * The engine's hardware-scaling LEVEL for a render — pure, so the rule is
+ * tested without a canvas. Babylon renders `canvas / level` pixels, so
+ * device resolution is `level = 1 / ratio`; the tier's own `hardwareScaling`
+ * (>1 = below native, a fill saving) divides by the ratio on top.
+ *
+ * - XR: the ratio does not apply (the headset has its own framebuffer).
+ * - `explicit > 0` is the author's cap and wins, below 1 included.
+ * - Otherwise the display's ratio, capped by the tier (never below 1).
+ */
+export function renderScalingLevel(
+  tierScaling: number,
+  xr: boolean,
+  explicit: number | null | undefined,
+  tierCap: number | undefined,
+  devicePixelRatio: number
+): number {
+  if (xr) return tierScaling
+  const dpr = devicePixelRatio > 0 ? devicePixelRatio : 1
+  const ratio =
+    explicit != null && explicit > 0
+      ? explicit
+      : Math.max(1, Math.min(dpr, tierCap ?? 1))
+  return tierScaling / ratio
+}
+
+/**
  * Resolve a component attribute: an explicit positive value wins; the `auto`
  * sentinel (0 / null / undefined / negative) falls back to the current tier's
  * budget for `key`. This is how "if you don't set poolSize / hiResSubdivisions /

@@ -4496,6 +4496,9 @@
         "name": "quality"
       },
       {
+        "name": "pixelRatio"
+      },
+      {
         "name": "stats"
       },
       {

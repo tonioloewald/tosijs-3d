@@ -350,6 +350,7 @@ import {
   qualityBudgets,
   onQualityChange,
   effectiveTier,
+  renderScalingLevel,
   type QualitySetting,
 } from './b3d-quality.js'
 import {
@@ -575,6 +576,16 @@ export class B3d extends Component {
     // 'medium' | 'high' force a tier. Drives the `auto` defaults of shadows,
     // reflections, terrain, and the engine render scaling. See b3d-quality.
     quality: 'auto' as QualitySetting,
+    /*
+    Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
+    own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
+    `PerfBudgets.pixelRatioCap`). A positive value is an explicit cap and wins:
+    `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed.
+    Rendering at CSS resolution on a 1.25× display upscaled the whole scene and
+    softened every star (seen 2026-09-25). XR ignores it — a headset has its
+    own framebuffer resolution.
+    */
+    pixelRatio: 0,
     // Add a "Perf stats" section to the scene panel (the ⚙ gear overlay AND the
     // in-VR panel — so it's reachable in a headset). Opt-in per scene; a global
     // `#perf` / `#debug` (or `?perf` / `?debug`) in the page URL, or a host calling
@@ -2125,7 +2136,46 @@ export class B3d extends Component {
 
   private _applyHardwareScaling(xr: boolean): void {
     if (this.engine == null) return
-    this.engine.setHardwareScalingLevel(qualityBudgets({ xr }).hardwareScaling)
+    const b = qualityBudgets({ xr })
+    this.engine.setHardwareScalingLevel(
+      renderScalingLevel(
+        b.hardwareScaling,
+        xr,
+        (this as any).pixelRatio,
+        b.pixelRatioCap,
+        globalThis.window?.devicePixelRatio ?? 1
+      )
+    )
+    this._watchPixelRatio(xr)
+  }
+
+  /*
+  THE DISPLAY'S RATIO CAN CHANGE UNDER US — dragging a window from a Retina
+  screen to an external monitor, or browser zoom. A resolution media query
+  that matches the CURRENT ratio fires once when it stops matching; re-arm it
+  at the new one each time.
+  */
+  private _appliedPixelRatio: unknown = undefined
+  private _pixelRatioQuery: MediaQueryList | null = null
+  private _pixelRatioListener: (() => void) | null = null
+  private _watchPixelRatio(xr: boolean): void {
+    this._unwatchPixelRatio()
+    const w = globalThis.window
+    if (xr || w?.matchMedia == null) return
+    const q = w.matchMedia(`(resolution: ${w.devicePixelRatio ?? 1}dppx)`)
+    const listener = () => this._applyHardwareScaling(this.xrActive)
+    q.addEventListener?.('change', listener)
+    this._pixelRatioQuery = q
+    this._pixelRatioListener = listener
+  }
+  private _unwatchPixelRatio(): void {
+    if (this._pixelRatioQuery != null && this._pixelRatioListener != null)
+      this._pixelRatioQuery.removeEventListener?.(
+        'change',
+        this._pixelRatioListener
+      )
+    this._pixelRatioQuery = null
+    this._pixelRatioListener = null
   }
 
   // ─── Ambient budget ───────────────────────────────────────────────────────
@@ -5365,6 +5415,7 @@ export class B3d extends Component {
     this._liveDebug = { flat: [], xr: [] }
     this._debugSources = []
     this._disposeFlatPanels()
+    this._unwatchPixelRatio()
     // Descendant B3dChild components self-dispose via their own
     // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
     this._sceneReady = false
@@ -5435,6 +5486,12 @@ export class B3d extends Component {
     // GL error from a component that looks fine, which is the failure mode this
     // whole area has been generating.
     if (this.scene == null || this.scene.isDisposed) return
+    // `pixelRatio` is live: an author changing it re-scales the render.
+    const pr = (this as any).pixelRatio
+    if (pr !== this._appliedPixelRatio) {
+      this._appliedPixelRatio = pr
+      this._applyHardwareScaling(this.xrActive)
+    }
     const intensity = (this as any).glowLayerIntensity
     if (intensity > 0) {
       if (!this.glowLayer) {

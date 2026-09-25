@@ -1182,6 +1182,7 @@ b3d
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
   quality
+  pixelRatio
   stats
   pauseWhenHidden
   startPaused
