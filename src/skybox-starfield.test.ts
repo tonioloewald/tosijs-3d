@@ -117,3 +117,38 @@ describe('starfield attributes on a live sky', () => {
     expect(cube).not.toBeNull()
   })
 })
+
+describe('atmosphere — the world has its own air (tosijs-3d#89)', () => {
+  test('air is atmosphere × (1 − band)', () => {
+    const { el, w } = sky()
+    const cam = w.scene.activeCamera!
+    expect(el._vacuumNow()).toBe(0) // Earth, sea level
+    el.atmosphere = 0
+    expect(el._vacuumNow()).toBe(1) // the Moon, without climbing
+    el.atmosphere = 0.5
+    expect(el._vacuumNow()).toBeCloseTo(0.5, 9)
+    // The band still works, and multiplies: half the air, half-way up.
+    Object.assign(el, { atmosphere: 0.5, spaceStart: 0, spaceFull: 100 })
+    cam.position.y = 50
+    cam.computeWorldMatrix(true)
+    expect(el._vacuumNow()).toBeCloseTo(1 - 0.5 * 0.5, 6)
+    el.sceneDispose()
+  })
+
+  test('the tint reaches the sky shader, and white is no change', () => {
+    const { el } = sky()
+    const mat = el.mesh.material
+    expect(mat._vectors3.b3dTintZ.asArray()).toEqual([1, 1, 1])
+    expect(mat._floats.b3dTintAmt).toBe(0)
+    el.zenithTint = '#e8c890'
+    el.horizonTint = '#d09a60'
+    el.tintStrength = 1
+    el.render()
+    expect(mat._floats.b3dTintAmt).toBe(1)
+    const z = mat._vectors3.b3dTintZ
+    const h = mat._vectors3.b3dTintH
+    expect(z.x).toBeCloseTo(0xe8 / 255, 3)
+    expect(h.z).toBeCloseTo(0x60 / 255, 3)
+    el.sceneDispose()
+  })
+})

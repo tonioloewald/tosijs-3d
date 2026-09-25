@@ -781,6 +781,10 @@ b3d-skybox
   turbidity  = 10  — Atmospheric haze
   spaceStart  = 0  — Altitude (m) where the fade to space BEGINS
   spaceFull  = 0  — Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`
+  atmosphere  = 1  — How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Multiplies with the space band — air is `atmosphere × (1 − band)`
+  zenithTint  = '#ffffff'  — The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted
+  horizonTint  = '#ffffff'  — The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars
+  tintStrength  = 0  — How much the sky takes the tints, `0` (Earth, untouched) … `1`
   starfieldCube  = ''  — Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`
   starfieldData  = ''  — Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it
   starfieldDataSize  = 1024  — Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band

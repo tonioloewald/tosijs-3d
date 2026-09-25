@@ -10,6 +10,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Vacuum hid the stars it was supposed to reveal.** The space band's fog
+  layer defaulted its sky veil to its weight, so leaving the atmosphere
+  painted the sky black OVER the starfield. Vacuum is the absence of a
+  medium; it now thins the haze without veiling the sky. Found building
+  `atmosphere: 0`, and it applies to the rocket climb too.
 - **A field outside an attached `fieldGroup` swallowed keystrokes silently**
   (tosijs-3d#82). Attaching any group stood the global key listener down for
   EVERY field, so a tapped field outside it showed a caret while its keys went
@@ -93,6 +98,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   `manifest.json` holding the decode parameters and the recipe.
   `/sky/stars` stays "latest" for the demos; a document should pin a version.
   `shipped-sky.test.ts` fails if latest drifts from the newest version.
+- **A world's own air, and its sky colour** (tosijs-3d#89). `b3d-skybox`
+  gains **`atmosphere`** (1 Earth … 0 the Moon: black noon, stars out, no
+  haze, a hard sun), which multiplies with the space band, and
+  **`zenithTint` / `horizonTint` / `tintStrength`**, which colourize the
+  scattered light only, keeping its brightness (a butterscotch Mars, a green
+  alien sky). Stars and moon are behind the air and stay untinted. Land and
+  Sky gains an **Atmosphere** group: a world preset (Earth / Mars / Alien /
+  Airless) plus live air, tint, turbidity, rayleigh, mie and luminance.
 - **`slider3d({ useful: [lo, hi] })`** (tosijs-3d#83) — a soft band on the
   track where the values anybody wants live; the handle still reaches `min`
   and `max`. It is where a schema's `x-useful` lands.

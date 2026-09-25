@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -44,7 +44,29 @@ const { demo } = tosi({
 // cirrus thins it, orographic asks the terrain for its own height sampler so
 // the towers build over the mountains that are actually there.
 const { sky } = tosi({
-  sky: { coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205 },
+  sky: {
+    coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
+    // Moon: black noon, stars out); the tints colour the scattered light only.
+    world: 'Earth', atmosphere: 1, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
+    zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
+  },
+})
+
+// A world is a few dials at once — the preset writes them, and the sliders
+// stay live afterwards so you can walk away from the preset.
+// Mars keeps FULL air on purpose: its sky is bright because of dust, not
+// density, and `air` below 1 is the thinning you see climbing out of an
+// atmosphere — dark blue, then black.
+const WORLDS = {
+  Earth: { atmosphere: 1, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
+  Mars: { atmosphere: 1, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
+  Alien: { atmosphere: 1, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
+  Airless: { atmosphere: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
+}
+sky.world.observe(() => {
+  const w = WORLDS[sky.world.value]
+  if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
 })
 
 // The volcano is authored ONCE and switched in and out. Applied here as well
@@ -125,6 +147,14 @@ const scene = b3d(
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      label3d({ text: 'Atmosphere' }),
+      select3d({ label: 'world', value: sky.world, options: Object.keys(WORLDS) }),
+      slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'turbidity', value: sky.turbidity, min: 1, max: 40, step: 0.5 }),
+      slider3d({ label: 'rayleigh', value: sky.rayleigh, min: 0, max: 4, step: 0.05 }),
+      slider3d({ label: 'mie', value: sky.mieCoefficient, min: 0, max: 0.05, step: 0.001 }),
+      slider3d({ label: 'luminance', value: sky.luminance, min: 0.1, max: 2, step: 0.05 }),
       label3d({ text: 'Camera' }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
@@ -177,6 +207,14 @@ const scene = b3d(
     starfieldCube: '/sky/nebula',
     starfieldData: '/sky/stars',
     starfieldTilt: '12,25,58',
+    atmosphere: sky.atmosphere,
+    turbidity: sky.turbidity,
+    rayleigh: sky.rayleigh,
+    mieCoefficient: sky.mieCoefficient,
+    luminance: sky.luminance,
+    zenithTint: sky.zenithTint,
+    horizonTint: sky.horizonTint,
+    tintStrength: sky.tintStrength,
   }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),

@@ -159,6 +159,11 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       // it), so the scene that wants the effect states its own dramatic scale.
       spaceStart: num(0, { minimum: 0, maximum: 200000, ...M }),
       spaceFull: num(0, { minimum: 0, maximum: 200000, ...M }),
+      // The WORLD's air (1 Earth, 0 the Moon); multiplies with the band.
+      atmosphere: num(1, { minimum: 0, maximum: 1 }),
+      zenithTint: color('#ffffff'),
+      horizonTint: color('#ffffff'),
+      tintStrength: num(0, { minimum: 0, maximum: 1 }),
       starfield: num(0, { minimum: 0, maximum: 20000 }),
       nebulae: num(0, { minimum: 0, maximum: 200 }),
       nebulaBrightness: num(1, { minimum: 0, maximum: 3 }),

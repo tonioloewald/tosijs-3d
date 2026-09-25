@@ -111,6 +111,10 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `rayleigh` | `2` | Rayleigh scattering |
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
+| `atmosphere` | `1` | How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Multiplies with the space band — air is `atmosphere × (1 − band)` |
+| `zenithTint` | `'#ffffff'` | The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted |
+| `horizonTint` | `'#ffffff'` | The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars |
+| `tintStrength` | `0` | How much the sky takes the tints, `0` (Earth, untouched) … `1` |
 | `starfieldCube` | `''` | Root path of a baked cube (`<root>_px.png` …). Replaces `starfield` |
 | `starfieldData` | `''` | Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it |
 | `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
@@ -444,6 +448,7 @@ function registerForkedSky(): boolean {
       'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
+        'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
     // The GRADIENT keeps the WORLD direction — its horizon must stay aligned
@@ -464,7 +469,23 @@ function registerForkedSky(): boolean {
       // ONE frame, everything in it: the dome's own rotation orients the
       // whole sky, so the backdrop samples the same local direction the sky
       // math above already used. No per-star rotation, no second channel.
-      `vec3 b3dDir=normalize(vSkyLocal);` +
+      /*
+      THE TINT, and it goes FIRST — onto the scattered light only, before any
+      backdrop is added. A butterscotch Martian noon is the AIR's colour; the
+      stars behind it are not butterscotch, and at night (no scatter left) the
+      tint has nothing to act on and vanishes by itself. Zenith to horizon by
+      the world view direction, so it stays level with the planet.
+
+      COLOURIZE, not multiply: the sky's own brightness in the tint's hue. A
+      multiply was the first version and it cannot work — blue light times
+      butterscotch is TEAL, because there is no red in the sky to keep.
+      */
+      `{vec3 b3dV=normalize(vPositionW-cameraPosition);` +
+        `vec3 b3dT=mix(b3dTintH,b3dTintZ,sqrt(clamp(b3dV.y,0.0,1.0)));` +
+        `const vec3 b3dW=vec3(0.2126,0.7152,0.0722);` +
+        `vec3 b3dC=dot(color.rgb,b3dW)*b3dT/max(dot(b3dT,b3dW),0.001);` +
+        `color.rgb=mix(color.rgb,b3dC,b3dTintAmt);}` +
+        `vec3 b3dDir=normalize(vSkyLocal);` +
         // The RASTER backdrop — a baked cube, still supported.
         `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
         /*
@@ -530,6 +551,10 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dVeil',
         'b3dVeilColor',
         'b3dMoonDir',
+        'b3dMoon',
+        'b3dTintZ',
+        'b3dTintH',
+        'b3dTintAmt',
       ],
       samplers: ['b3dStars', 'b3dStarData'],
       // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -543,6 +568,9 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setFloat('b3dStarDataLevel', 0)
   mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3))
   mat.setFloat('b3dVeil', 0)
+  mat.setVector3('b3dTintZ', new BABYLON.Vector3(1, 1, 1))
+  mat.setVector3('b3dTintH', new BABYLON.Vector3(1, 1, 1))
+  mat.setFloat('b3dTintAmt', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
   mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0))
   const num = (name: string, initial: number) => {
@@ -615,6 +643,25 @@ export class B3dSkybox extends AbstractMesh {
     */
     spaceStart: 0,
     spaceFull: 0,
+    /*
+    HOW MUCH AIR THIS WORLD HAS — 1 is Earth, 0 is the Moon (tosijs-3d#89).
+
+    A property of the WORLD, where the space band is a property of ALTITUDE, so
+    the two multiply: the air you have is `atmosphere × (1 − band)`. At 0 the
+    sky is black at noon, the stars are out, the haze is gone and the sun is a
+    hard disc — the vacuum model this element already has, reached without
+    climbing. In between is a thin, dark-blue sky.
+    */
+    atmosphere: 1,
+    /*
+    THE SKY'S COLOUR, directly: the scattered light's own brightness in these
+    hues, zenith to horizon, by `tintStrength` (0 = Earth, untouched). For a
+    butterscotch Mars or a green alien sky, which the scattering dials cannot
+    reach by hand. Stars and moon are behind the air and are not tinted.
+    */
+    zenithTint: '#ffffff',
+    horizonTint: '#ffffff',
+    tintStrength: 0,
     /*
     A STARFIELD BEHIND THE DOME — a count, 0 = none.
 
@@ -1400,10 +1447,13 @@ export class B3dSkybox extends AbstractMesh {
     const attrs = this as any
     const full = attrs.spaceFull as number
     const start = attrs.spaceStart as number
-    if (!(full > start)) return 0
+    // The world's own air, then the band multiplies it (see `atmosphere`).
+    const world = Math.min(1, Math.max(0, Number(attrs.atmosphere ?? 1)))
+    let climbed = 0
     const cam = this.owner?.scene?.activeCamera
-    if (cam == null) return 0
-    return band(cam.globalPosition.y, start, full)
+    if (full > start && cam != null)
+      climbed = band(cam.globalPosition.y, start, full)
+    return 1 - world * (1 - climbed)
   }
 
   /**
@@ -1562,6 +1612,15 @@ export class B3dSkybox extends AbstractMesh {
     )
     material.needAlphaBlending = () => air < 0.999
     material.luminance = attrs.luminance
+    if (this._forkedSky) {
+      const sm = material as unknown as BABYLON.ShaderMaterial
+      const z = this.hex(attrs.zenithTint || '#ffffff')
+      const h = this.hex(attrs.horizonTint || '#ffffff')
+      sm.setVector3?.('b3dTintZ', new BABYLON.Vector3(z.r, z.g, z.b))
+      sm.setVector3?.('b3dTintH', new BABYLON.Vector3(h.r, h.g, h.b))
+      const k = Math.min(1, Math.max(0, Number(attrs.tintStrength) || 0))
+      sm.setFloat?.('b3dTintAmt', k)
+    }
 
     /*
     EXPOSURE FADES THE BACKDROP. SCATTER IS NOT THE MECHANISM.
@@ -2017,6 +2076,14 @@ export class B3dSkybox extends AbstractMesh {
             density: 0,
             start: 1e6,
             end: 1e7,
+            /*
+            NO VEIL. Vacuum is the ABSENCE of a medium, not one in front of the
+            sky: its weight still pulls the haze to nothing, but defaulting the
+            veil to that weight painted the sky black over the stars — a black
+            noon with no stars on an airless world, and the rocket climbing
+            into a starless dark (tosijs-3d#89).
+            */
+            veil: 0,
           }
     })
     this._buildStarfield(scene)

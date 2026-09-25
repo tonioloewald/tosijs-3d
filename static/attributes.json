@@ -2943,6 +2943,26 @@
         "description": "Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`"
       },
       {
+        "name": "atmosphere",
+        "default": "1",
+        "description": "How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Multiplies with the space band — air is `atmosphere × (1 − band)`"
+      },
+      {
+        "name": "zenithTint",
+        "default": "'#ffffff'",
+        "description": "The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted"
+      },
+      {
+        "name": "horizonTint",
+        "default": "'#ffffff'",
+        "description": "The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars"
+      },
+      {
+        "name": "tintStrength",
+        "default": "0",
+        "description": "How much the sky takes the tints, `0` (Earth, untouched) … `1`"
+      },
+      {
         "name": "starfieldCube",
         "default": "''",
         "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
