@@ -111,6 +111,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **New:** `voxelGalaxy().view()`, `.star(id)`, `.nebulae()`, `.shell()`;
     `b3d-galaxy`'s `dimBudget`; `starAddress` / `parseStarAddress`,
     `starNameFor`, `sampleSpiral` and `starsFromVoxelGalaxy` in the barrel.
+  - **`PRNG` runs on xoshiro128\*\*** (new **`Xoshiro128`**, exported). MT
+    carried 624 words of state and regenerated them before its first draw,
+    so just constructing one cost ~13 µs, and a star system builds one per
+    planet. xoshiro has 4 words: 30–75× faster to construct and draw, and it
+    passes BigCrush and PractRand, which MT fails. A star system now costs
+    6.5 µs, down from 70. It is checked against an independent BigInt
+    transcription of the reference C. **Every `PRNG`-seeded output
+    re-rolls:** planets, the spiral samples, nebulae, the shell and the
+    skybox's point starfield. That is folded into this release, which already
+    changes every galaxy. `MersenneTwister` stays exported, and three
+    components still use it directly (see TODO).
   - **The shipped sky's nebula half is rebaked** with the new nebulae.
     **`bin/bake-nebula.ts`** bakes it in headless Chrome and checks that the
     point half on disk came from the same galaxy.

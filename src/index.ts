@@ -1221,7 +1221,12 @@ export type { ExplodeOptions } from './b3d-exploder.js'
 
 // Procedural
 export { PerlinNoise } from './perlin-noise.js'
-export { MersenneTwister, PRNG } from './mersenne-twister.js'
+export {
+  MersenneTwister,
+  PRNG,
+  Xoshiro128,
+  CheapPRNG,
+} from './mersenne-twister.js'
 export { B3dTerrain, b3dTerrain } from './b3d-terrain.js'
 export { B3dPlanet, b3dPlanet } from './b3d-planet.js'
 export { B3dStar, b3dStar } from './b3d-star.js'

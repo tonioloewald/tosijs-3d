@@ -293,3 +293,61 @@ which now has one generator to look in.
 3. `generateGalaxy` becomes the adapter; consumers move to the view.
 4. Rebake and eyeball the nebula half; update the digests; record in the
    changelog as a visible change (every seeded galaxy looks different).
+
+## Interesting stars — the dim population, filtered for habitability (proposal)
+
+Tonio (2026-09-25): bias dim-star generation toward systems worth visiting,
+so the galaxy is "an entire galaxy whose stars are EITHER bright OR
+interesting", and generate the BORING ones locally, purely as background, by
+flipping the rule. A HARNESS learns the bias from the real generation rules
+and the real HI algorithm, so refining HI (geological age, weather, radiation)
+means rerunning the harness, not rebuilding the galaxy.
+
+### The threshold is HI ≤ 2
+
+HI 3 ("EVA possible") has no atmosphere requirement. It is anything not
+crushing, not over 3 g, and between −150 and 150 °C, which includes the Moon
+and Mars. Tonio: _"Almost any star system with planets, especially if we start
+generating moons, is going to have a ball of rock someone can plant a flag
+on."_ HI ≤ 3 covered 94% of G5–9 systems, so it measures "has somewhere to
+stand", not "interesting". **Interesting = HI ≤ 2** (a breathable or filterable
+atmosphere, under 2 g, not extreme).
+
+### Measured (60k dim stars, 2026-09-25)
+
+| class | HI ≤ 2 | HI ≤ 3 |
+| ----- | ------ | ------ |
+| G5–9  | 20.8%  | 94.1%  |
+| K0–4  | 12.9%  | 82.1%  |
+| K5–9  | 6.6%   | 66.5%  |
+| M     | 0%     | ~0.5%  |
+| all   | 5.2%   | 34.2%  |
+
+**Class sets the odds; nothing finishes the job.** Within a class, HI does not
+depend on planet count (K: ~74% at every count from 1 to 9). It is the system's
+own draw. So the learned bias is a spectral MIX weighted by pass rate, and
+each interesting star is still VERIFIED: candidate `c` of star `k` is seeded
+`hash(voxelSeed, k, c)`, drawn from the mix, and the first that passes is the
+star. That is deterministic, so addresses survive.
+
+**Cost.** Scoring a system took 70 µs, almost all Mersenne Twister
+construction (one per planet). PRNG now runs on xoshiro128\*\*: **6.5 µs**. At
+roughly 8 candidates per interesting star, 20k interesting stars take about a
+second, so the global pass can be eager again.
+
+### The harness
+
+`bin/tune-populations.ts`: build a corpus per spectral cell, score it with the
+real `generateStarSystem` + HI, and write a GENERATED pass-rate table. A
+freshness test fingerprints HI on a fixed probe set and fails when the
+algorithm has drifted from the table ("rerun the harness").
+
+### Open (Tonio's call)
+
+- **The boring population, exact or statistical?** Exact verifies every
+  background star fails the rule (~0.1 s per neighbourhood at 6.5 µs).
+  Statistical draws from the boring mix unchecked, so a clicked star might
+  score well.
+- **Address churn.** Refining HI changes which candidates pass, so some
+  interesting addresses will point at different stars. Stars that still pass
+  are unchanged. The alternative is a rule version in the address.

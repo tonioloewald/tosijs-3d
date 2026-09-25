@@ -212,25 +212,40 @@ describe('the falsifier — it reproduces the galaxy it was sampled from', () =>
   })
 
   test('the ARMS survive — the angular pattern at mid radius correlates', () => {
+    /*
+    OVER THREE SEEDS, not one. At this small test scale the correlation is
+    NOISE-limited: seeds land between 0.79 and 0.89 (0.98 at the shipped
+    scale), and a single seed sat right on the old 0.8 bar — it moved to 0.79
+    when PRNG's engine changed, with nothing wrong. Picking a seed that passes
+    would hide that; averaging does not. The margin is still wide: a BLURRED
+    density (the thing this guards against) scores ~0.39.
+    */
     const angle = (p: { x: number; y: number }) => {
       const r = Math.hypot(p.x, p.y)
       if (r < 0.35 || r > 0.7) return null
       return (Math.atan2(p.y, p.x) + Math.PI) / (2 * Math.PI)
     }
-    const a = hist(sampled, angle, 36)
-    const b = hist(generated, angle, 36)
-    const mean = (x: number[]) => x.reduce((s, v) => s + v, 0) / x.length
-    const ma = mean(a)
-    const mb = mean(b)
-    let num = 0
-    let da = 0
-    let db = 0
-    for (let i = 0; i < a.length; i++) {
-      num += (a[i] - ma) * (b[i] - mb)
-      da += (a[i] - ma) ** 2
-      db += (b[i] - mb) ** 2
+    const correlation = (seed: number) => {
+      const gs = seed === SMALL.seed ? g : voxelGalaxy({ ...SMALL, seed })
+      const pts = [...gs.brightStars(), ...allDim(gs)].map((s) => s.position)
+      const a = hist(sampleSpiral(seed, SMALL.samples), angle, 36)
+      const b = hist(pts, angle, 36)
+      const mean = (x: number[]) => x.reduce((s, v) => s + v, 0) / x.length
+      const ma = mean(a)
+      const mb = mean(b)
+      let num = 0
+      let da = 0
+      let db = 0
+      for (let i = 0; i < a.length; i++) {
+        num += (a[i] - ma) * (b[i] - mb)
+        da += (a[i] - ma) ** 2
+        db += (b[i] - mb) ** 2
+      }
+      return num / Math.sqrt(da * db)
     }
-    expect(num / Math.sqrt(da * db)).toBeGreaterThan(0.8)
+    const cs = [SMALL.seed, 8, 9].map(correlation)
+    for (const c of cs) expect(c).toBeGreaterThan(0.75)
+    expect(cs.reduce((s, c) => s + c, 0) / cs.length).toBeGreaterThan(0.8)
   })
 })
 

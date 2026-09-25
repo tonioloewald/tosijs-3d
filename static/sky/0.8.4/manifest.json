@@ -21,6 +21,7 @@
       "dimReach": 0.04,
       "floor": 0.02
     },
-    "coreSize": 0.12
+    "coreSize": 0.12,
+    "prng": "xoshiro128** (PRNG since 0.8.4)"
   }
 }

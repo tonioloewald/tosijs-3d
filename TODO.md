@@ -86,6 +86,14 @@ tex)`. (The demo's sun `activeDistance` 30 vs a 12 km ground is a
 - [x] **ONE galaxy implementation** (Tonio, 2026-09-25). Done: the voxel
       galaxy is the galaxy; `generateGalaxy` is a deprecated adapter (removed
       in 0.9). See GALAXY-DESIGN.md → "Reconciliation".
+- [ ] **Migrate the remaining RNG users to the faster engine where
+      convenient** (Tonio, 2026-09-25: "speed is always nice"). `PRNG` runs on
+      `Xoshiro128` since 0.8.4 (MT cost ~13 µs just to construct; xoshiro
+      ~0.2 µs). Still on `MersenneTwister` directly: `b3d-clouds` (layout),
+      `b3d-crowd` (two streams), `b3d-spawner` ("same seed, same battles").
+      Each switch RE-ROLLS that component's seeded output, so do it where a
+      reroll is acceptable (a release that already changes it), and pin the
+      new sequence in that component's tests.
 - [ ] **Stream dim voxels near the camera in `b3d-galaxy`**, so the HI
       filter reaches the other half of the earthlike systems.
 

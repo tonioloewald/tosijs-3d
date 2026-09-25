@@ -47,7 +47,7 @@ describe('generateGalaxy — the adapter', () => {
     const g = generateGalaxy(1234, 10000)
     // A budget, not an exact count: counts are rounded per voxel.
     expect(Math.abs(g.stars.length - 10000)).toBeLessThan(300)
-    expect(digest(g)).toBe('7ad65fcf')
+    expect(digest(g)).toBe('6c329d41')
   })
 
   test('deterministic, and the seed matters', () => {
@@ -126,6 +126,6 @@ describe('sampleSpiral — the model the voxel galaxy is sampled from', () => {
   test('is pinned — the shipped sky’s density comes from it', () => {
     // If this changes on purpose, the shipped sky changes with it: rebake,
     // add a pinned version folder, and update this digest.
-    expect(posDigest(sampleSpiral(1234, 100000))).toBe('f442e738')
+    expect(posDigest(sampleSpiral(1234, 100000))).toBe('893440d7')
   })
 })
