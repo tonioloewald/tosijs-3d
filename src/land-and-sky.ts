@@ -223,7 +223,9 @@ const scene = b3d(
       })
     },
   },
-  b3dSun({ activeDistance: 80 }),
+  // shadowMaxZ: the cascades must reach the ground from the eye, which starts
+  // ~200 m up — at the 100 m default nothing in view casts or receives.
+  b3dSun({ activeDistance: 80, shadowMaxZ: 1200 }),
   // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.

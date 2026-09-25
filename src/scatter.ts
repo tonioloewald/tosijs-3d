@@ -137,6 +137,24 @@ export function band(
   return rise * fall
 }
 
+/*
+ALTITUDE's lower edge is a HARD FLOOR that eases INWARD. With the ordinary
+outward ease, a palm with a 0.5 m minimum grew down to −3.5 m and rocks to
+−4 m: trees standing in the sea (Tonio). Nothing may start below its minimum,
+so the ramp runs from lo up to lo + soft instead; the upper edge still eases
+outward like every other band.
+*/
+function floorBand(
+  x: number,
+  range: [number, number] | undefined,
+  soft: number
+): number {
+  if (range == null) return 1
+  const [lo, hi] = range
+  if (x < lo) return 0
+  return band(x, [lo + soft, hi], soft)
+}
+
 /** How suitable a point is for a rule — its density times every band. */
 export function suitability(
   rule: ScatterRule,
@@ -147,7 +165,7 @@ export function suitability(
     rule.density *
     band(c.temperature, rule.temperature, 0.08) *
     band(c.moisture, rule.moisture, 0.08) *
-    band(c.altitude, rule.altitude, 4) *
+    floorBand(c.altitude, rule.altitude, 4) *
     band(slopeDeg, rule.slope, 5)
   )
 }

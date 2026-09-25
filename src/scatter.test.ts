@@ -121,6 +121,20 @@ describe('scatter', () => {
     expect([...kinds].every((k) => k === 'boulder' || k === 'rock')).toBe(true)
   })
 
+  test('nothing grows even JUST below sea level (the soft edge is inward)', () => {
+    for (const altitude of [-0.3, -2]) {
+      const shallow = () => ({ temperature: 0.8, moisture: 0.6, altitude })
+      expect(
+        scatterPlacements({
+          ...base,
+          budget: 500,
+          climate: shallow,
+          rules: NATURE_KIT_RULES,
+        }).length
+      ).toBe(0)
+    }
+  })
+
   test('below sea level nothing grows', () => {
     const sunk = () => ({ temperature: 0.6, moisture: 0.6, altitude: -5 })
     expect(
