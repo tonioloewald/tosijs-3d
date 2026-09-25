@@ -48,7 +48,7 @@ const { sky } = tosi({
     coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
     // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
     // Moon: black noon, stars out); the tints colour the scattered light only.
-    world: 'Earth', atmosphere: 1, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
+    world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3,
@@ -57,14 +57,14 @@ const { sky } = tosi({
 
 // A world is a few dials at once — the preset writes them, and the sliders
 // stay live afterwards so you can walk away from the preset.
-// Mars keeps FULL air on purpose: its sky is bright because of dust, not
-// density, and `air` below 1 is the thinning you see climbing out of an
-// atmosphere — dark blue, then black.
+// Mars is almost no AIR and a lot of DUST: its sky is bright because of the
+// dust, not the gas (under 1% of Earth's). Gas scatters blue; dust scatters a
+// bright haze the tint colours.
 const WORLDS = {
-  Earth: { atmosphere: 1, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
-  Mars: { atmosphere: 1, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
-  Alien: { atmosphere: 1, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
-  Airless: { atmosphere: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
+  Earth: { atmosphere: 1, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
+  Mars: { atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
+  Alien: { atmosphere: 1, dust: 0, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
+  Airless: { atmosphere: 0, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
 }
 // SIZE is the inverse of the shader's sharpness: a gaussian's width goes as
 // 1/sqrt(sharpness), so size 2 is twice the width of the default point.
@@ -157,6 +157,7 @@ const scene = b3d(
       label3d({ text: 'Atmosphere' }),
       select3d({ label: 'world', value: sky.world, options: Object.keys(WORLDS) }),
       slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'turbidity', value: sky.turbidity, min: 1, max: 40, step: 0.5 }),
       slider3d({ label: 'rayleigh', value: sky.rayleigh, min: 0, max: 4, step: 0.05 }),
@@ -219,6 +220,7 @@ const scene = b3d(
     starfieldData: '/sky/stars',
     starfieldTilt: '12,25,58',
     atmosphere: sky.atmosphere,
+    dust: sky.dust,
     turbidity: sky.turbidity,
     rayleigh: sky.rayleigh,
     mieCoefficient: sky.mieCoefficient,

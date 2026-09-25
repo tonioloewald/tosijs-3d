@@ -161,6 +161,8 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       spaceFull: num(0, { minimum: 0, maximum: 200000, ...M }),
       // The WORLD's air (1 Earth, 0 the Moon); multiplies with the band.
       atmosphere: num(1, { minimum: 0, maximum: 1 }),
+      // Dust: bright coloured haze, never blue — Mars is little air, much dust.
+      dust: num(0, { minimum: 0, maximum: 1 }),
       zenithTint: color('#ffffff'),
       horizonTint: color('#ffffff'),
       tintStrength: num(0, { minimum: 0, maximum: 1 }),

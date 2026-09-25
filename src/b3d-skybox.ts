@@ -112,6 +112,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
 | `atmosphere` | `1` | How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band |
+| `dust` | `0` | Suspended dust, 0…1: bright, coloured haze that is never blue. Independent of `atmosphere`, so Mars is almost no air and lots of dust, and the Moon is neither |
 | `zenithTint` | `'#ffffff'` | The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted |
 | `horizonTint` | `'#ffffff'` | The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars |
 | `tintStrength` | `0` | How much the sky takes the tints, `0` (Earth, untouched) … `1` |
@@ -350,6 +351,15 @@ vec3 b3dPoint(
   at every zoom — which is the entire reason for doing this rather than baking.
   */
   float falloff = exp(-(d * d) / (radius * radius) * b3dStarInfo.z);
+  /*
+  THE REACH TAPER. The 3×3 read only guarantees a star is seen by fragments
+  within about a texel of it; anything drawn further out is cut where the
+  neighbourhood ends, along texel edges — the squared-off bright shapes in the
+  dense core (a distant galaxy can be 3.5 texels in radius). So every object
+  fades to nothing by 0.8 of a (face-centre) texel, which the 3×3 always
+  covers, corners included. Big objects become soft rather than clipped.
+  */
+  falloff *= 1.0 - smoothstep(0.45, 0.8, d);
   if (falloff < 0.004) return vec3(0.0);
   return tint * brightness * falloff;
 }
@@ -368,7 +378,18 @@ a blur and what survives is aggregate brightness rather than any one star.
 Without it a real galaxy loses 21% of its stars at 512, because the birthday
 estimate assumes an even sky and a galaxy is the opposite of even. With it, 2%.
 */
-vec3 b3dUnpackOne(float bits, float face, vec2 texel, vec3 viewDir) {
+/*
+A deterministic hash in [0,1)² of a texel and a slot — the same answer for
+every fragment, so a jittered star stays put.
+*/
+vec2 b3dHash2(vec2 cell, float face, float slot) {
+  vec3 p = vec3(cell + face * 1031.0, slot * 17.0 + face);
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.xx + p.yz) * p.zy);
+}
+
+vec3 b3dUnpackOne(float bits, float slot, float face, vec2 texel, vec3 viewDir) {
   float v = floor(bits * 255.0 + 0.5);
   if (v <= 0.0) return vec3(0.0);
   float uu = floor(v / 64.0);
@@ -379,7 +400,16 @@ vec3 b3dUnpackOne(float bits, float face, vec2 texel, vec3 viewDir) {
     3
   )});
   vec3 tint = c > 0.5 ? STAR_PALETTE[9] : STAR_PALETTE[3];
-  vec3 starDir = b3dStarDir(face, texel, vec2((uu + 0.5) / 4.0, (vv + 0.5) / 4.0));
+  /*
+  JITTER WITHIN THE QUARTER-TEXEL CELL. A packed star's position is only
+  known to a quarter of a texel, and drawing it at the cell's centre puts every
+  packed star in the dense core on a 4×4-per-texel LATTICE — which the cube's
+  projection bends into curves across the sky (Tonio: "weird curve patterns").
+  A deterministic offset inside the cell is error diffusion for position: the
+  quantisation stays within its bound, and the lattice is gone.
+  */
+  vec2 j = b3dHash2(texel, face, slot);
+  vec3 starDir = b3dStarDir(face, texel, vec2((uu + j.x) / 4.0, (vv + j.y) / 4.0));
   return b3dPoint(starDir, brightness, tint, 0.5, viewDir);
 }
 
@@ -389,9 +419,9 @@ vec3 b3dDecodeOne(vec4 texel, float face, vec2 cell, vec3 viewDir) {
 
   // ...and 255 means packed rather than bright — see above.
   if (texel.b > 0.998) {
-    return b3dUnpackOne(texel.r, face, cell, viewDir)
-      + b3dUnpackOne(texel.g, face, cell, viewDir)
-      + b3dUnpackOne(texel.a, face, cell, viewDir);
+    return b3dUnpackOne(texel.r, 0.0, face, cell, viewDir)
+      + b3dUnpackOne(texel.g, 1.0, face, cell, viewDir)
+      + b3dUnpackOne(texel.a, 2.0, face, cell, viewDir);
   }
 
   /*
@@ -494,7 +524,7 @@ function registerForkedSky(): boolean {
       'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
-        'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;' +
+        'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;uniform float b3dDustGrey;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl())
     )
     // The GRADIENT keeps the WORLD direction — its horizon must stay aligned
@@ -526,7 +556,10 @@ function registerForkedSky(): boolean {
       multiply was the first version and it cannot work — blue light times
       butterscotch is TEAL, because there is no red in the sky to keep.
       */
-      `{vec3 b3dV=normalize(vPositionW-cameraPosition);` +
+      // DUST scatters grey: desaturate the dust's share of the scattered
+      // light before the tint colours it.
+      `color.rgb=mix(color.rgb,vec3(dot(color.rgb,vec3(0.2126,0.7152,0.0722))),b3dDustGrey);` +
+        `{vec3 b3dV=normalize(vPositionW-cameraPosition);` +
         `vec3 b3dT=mix(b3dTintH,b3dTintZ,sqrt(clamp(b3dV.y,0.0,1.0)));` +
         `const vec3 b3dW=vec3(0.2126,0.7152,0.0722);` +
         `vec3 b3dC=dot(color.rgb,b3dW)*b3dT/max(dot(b3dT,b3dW),0.001);` +
@@ -603,6 +636,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dTintZ',
         'b3dTintH',
         'b3dTintAmt',
+        'b3dDustGrey',
       ],
       samplers: ['b3dStars', 'b3dStarData'],
       // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -621,6 +655,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector3('b3dTintZ', new BABYLON.Vector3(1, 1, 1))
   mat.setVector3('b3dTintH', new BABYLON.Vector3(1, 1, 1))
   mat.setFloat('b3dTintAmt', 0)
+  mat.setFloat('b3dDustGrey', 0)
   mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1))
   mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0))
   const num = (name: string, initial: number) => {
@@ -703,6 +738,12 @@ export class B3dSkybox extends AbstractMesh {
     climbing. In between is a thin, dark-blue sky.
     */
     atmosphere: 1,
+    /*
+    DUST, 0…1 — suspended particles: bright, coloured Mie haze, never blue.
+    Independent of the gas, so a world can have almost no air and a bright
+    sky (Mars), or neither (the Moon). The sky is present wherever either is.
+    */
+    dust: 0,
     /*
     THE SKY'S COLOUR, directly: the scattered light's own brightness in these
     hues, zenith to horizon, by `tintStrength` (0 = Earth, untouched). For a
@@ -1552,8 +1593,24 @@ export class B3dSkybox extends AbstractMesh {
     const cam = this.owner?.scene?.activeCamera
     if (full > start && cam != null)
       climbed = band(cam.globalPosition.y, start, full)
-    return 1 - world * (1 - climbed)
+    /*
+    GAS AND DUST, which scatter differently (Tonio: "Mars should have almost
+    no air"). Gas (`atmosphere`) is Rayleigh scattering, the blue; dust
+    (`dust`) is Mie haze, bright and coloured but never blue. Mars has under 1%
+    of Earth's air and a bright butterscotch sky, and one number could not say
+    both. The SKY is present wherever either one is, so vacuum is what remains
+    when both are gone; `_gas` is kept apart for the Rayleigh term alone.
+    */
+    const gas = world * (1 - climbed)
+    const dust =
+      Math.min(1, Math.max(0, Number(attrs.dust ?? 0))) * (1 - climbed)
+    this._gasNow = gas
+    return 1 - (1 - (1 - gas) * (1 - dust))
   }
+
+  /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
+  private _gasNow = 1
+  private _gas = 1
 
   /**
    * Hide the sky behind whatever medium you are standing in.
@@ -1682,6 +1739,18 @@ export class B3dSkybox extends AbstractMesh {
     space by two-thirds.
     */
     const airSky = air * air * air
+    /*
+    HOW MUCH OF THE SKY IS DUST rather than gas — the share whose scattered
+    light is grey, not blue. The tint then colours it (butterscotch Mars).
+    */
+    const presence = 1 - this._vacuum
+    const dustGrey =
+      presence > 0.001 ? Math.max(0, Math.min(1, 1 - this._gas / presence)) : 0
+    if (this._forkedSky)
+      (material as unknown as BABYLON.ShaderMaterial).setFloat?.(
+        'b3dDustGrey',
+        dustGrey
+      )
 
     /*
     AND THE SKY OWNS WHAT IS BEHIND IT.
@@ -1944,6 +2013,12 @@ export class B3dSkybox extends AbstractMesh {
         sunset * 0.55,
         lightColor
       )
+      /*
+      The scattered LIGHT comes from whatever is up there — gas or dust — so
+      Rayleigh keeps the full sky (`airSky`); the model has no other source of
+      daylight, and a Mars with gas-only Rayleigh rendered BLACK. What dust
+      changes is the COLOUR: it scatters grey, not blue — see b3dDustGrey.
+      */
       material.rayleigh = attrs.rayleigh * airSky
       material.turbidity = attrs.turbidity * airSky
       material.mieCoefficient = attrs.mieCoefficient
@@ -2134,8 +2209,13 @@ export class B3dSkybox extends AbstractMesh {
       const vac = this._vacuumNow()
       // Quantised, not compared raw: a float that drifts by 1e-7 every frame
       // would refresh the sky every frame and the gate would be decorative.
-      const moved = Math.abs(vac - this._vacuum) > 0.002
-      if (moved) this._vacuum = vac
+      const moved =
+        Math.abs(vac - this._vacuum) > 0.002 ||
+        Math.abs(this._gasNow - this._gas) > 0.002
+      if (moved) {
+        this._vacuum = vac
+        this._gas = this._gasNow
+      }
       const waiting = !this._sunApplied && this._sunWaitFrames < 300
       if (waiting) this._sunWaitFrames++
       if (attrs.timeOfDay !== this._lastSkyTime || moved || waiting) {
@@ -2207,6 +2287,8 @@ export class B3dSkybox extends AbstractMesh {
     this._removeFogLayer?.()
     this._removeFogLayer = null
     this._vacuum = 0
+    this._gas = 1
+    this._gasNow = 1
     // Hand intensity ownership back to the sun before we let go of it.
     if (this.sunEl != null) this.sunEl.externallyLit = false
     this.sunEl = null

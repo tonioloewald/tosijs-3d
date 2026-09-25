@@ -2961,6 +2961,11 @@
         "description": "How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band"
       },
       {
+        "name": "dust",
+        "default": "0",
+        "description": "Suspended dust, 0…1: bright, coloured haze that is never blue. Independent of `atmosphere`, so Mars is almost no air and lots of dust, and the Moon is neither"
+      },
+      {
         "name": "zenithTint",
         "default": "'#ffffff'",
         "description": "The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted"

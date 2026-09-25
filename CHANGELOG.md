@@ -18,6 +18,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   through an exact GLSL mirror of the codec's cube convention. Also, **the
   data cube had mipmaps**, despite a comment saying otherwise: a mip of packed
   fields is data nobody encoded. They are off now.
+- **Big objects in the star sky were clipped square**, and **packed stars sat
+  on a lattice.** Objects wider than the decoder's 3×3 reach (distant galaxies
+  run to 3.5 texels) were cut at texel edges. Everything now tapers to nothing
+  within a texel. Packed stars in the dense core, known only to a quarter
+  texel, were drawn at their cells' centres, which formed a lattice the cube
+  projection bends into curves. They now get a deterministic jitter within the
+  cell (error diffusion for position).
 - **`atmosphere` just below 1 made the clouds vanish.** 5% vacuum pushed a
   1–4 km fog out past 50 km, and the haze that hides the cloud deck's rim went
   with it. The world's air is now steep, nearly binary (vacuum is
@@ -181,6 +188,11 @@ camera)`** derives the frames from any flat camera's world pose (the eye
   frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
   a hand panel declares **`flatFrame`**; without one it stays VR-only and
   warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
+- **`dust` on `b3d-skybox`** separates dust from gas. Gas (`atmosphere`)
+  scatters blue; dust scatters a bright grey haze that the tint colours. So
+  Mars is almost no air, lots of dust and a butterscotch sky (Land and Sky's
+  preset: air 0.03, dust 0.85), and the Moon is neither. The previous Mars
+  needed full air to be bright at all.
 - **Star look dials on `b3d-skybox`:** **`starfieldGain`** (brightness) and
   **`starfieldFloor`** (the faint mass) join `starfieldSharpness` (size) and
   `starfieldSizeScale`. All four are live uniforms, so a slider does not reload
