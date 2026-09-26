@@ -978,6 +978,19 @@ b3d-terrain
   maxTravelDistance  = 5000  — Distance before firing recenter-needed event
   wireframe  = false  — Debug: render terrain as wireframe
 
+## b3d-trail — <tosi-b3d-trail>
+b3d-trail
+
+  x  = 0  — Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)
+  y  = 0  — Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)
+  z  = 0  — Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)
+  diameter  = 0.06  — Ribbon width (m)
+  length  = 45  — Ribbon length, in segments (one a frame, so length ≈ how many frames of history)
+  color  = '#ffffff'  — Its colour (emissive, unlit)
+  underwaterColor  = ''  — The colour below a `<tosi-b3d-water>` surface; empty = same as `color`
+  alpha  = 0.16  — Opacity. Low on purpose: you should see through a contrail
+  minSpeed  = 8  — Below this speed (m/s, measured at the emitter) the ribbon fades out, so a hover does not smear
+
 ## b3d-trigger — <tosi-b3d-trigger>
 b3d-trigger
 

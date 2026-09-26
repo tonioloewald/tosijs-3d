@@ -10,6 +10,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`<tosi-b3d-trail>`** — a ribbon behind anything that moves (contrails,
+  missile smoke, a fast enemy's wake), lifted from manta-recon's engine
+  contrails (tosijs-3d#4, board #186). Nest it in the mover, give it a local
+  offset; it measures speed at its own emitter (so it works on anything),
+  fades below `minSpeed`, takes `underwaterColor` below a `<tosi-b3d-water>`,
+  re-attaches when the host's mesh is replaced (respawn, async load), and
+  resets on a floating-origin shift. **`attachTrail(node, scene, options)`**
+  is the same for a node you hold, such as a spawned missile.
 - **Frame panels are usable as menus** (board #768, tosijs-3d#92, from
   manta-recon moving its outer game to viewer-relative panels):
   - **They route pointers.** A `panel3d` on a frame panel now takes presses,

@@ -136,6 +136,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A plane mesh textured with SVG content. Supports static SVG from a URL or
 - https://3d.tosijs.net/b3d-terrain/ — b3d-terrain
   Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
+- https://3d.tosijs.net/b3d-trail/ — b3d-trail
+  wake of a fast enemy. Nest it in the thing that moves; it attaches to that
 - https://3d.tosijs.net/b3d-trigger/ — b3d-trigger
   Invisible proximity zone that fires callbacks and dispatches events when
 - https://3d.tosijs.net/b3d-turret/ — b3d-turret

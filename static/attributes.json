@@ -3783,6 +3783,58 @@
     ]
   },
   {
+    "module": "b3d-trail",
+    "tag": "tosi-b3d-trail",
+    "summary": "b3d-trail",
+    "attributes": [
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)"
+      },
+      {
+        "name": "diameter",
+        "default": "0.06",
+        "description": "Ribbon width (m)"
+      },
+      {
+        "name": "length",
+        "default": "45",
+        "description": "Ribbon length, in segments (one a frame, so length ≈ how many frames of history)"
+      },
+      {
+        "name": "color",
+        "default": "'#ffffff'",
+        "description": "Its colour (emissive, unlit)"
+      },
+      {
+        "name": "underwaterColor",
+        "default": "''",
+        "description": "The colour below a `<tosi-b3d-water>` surface; empty = same as `color`"
+      },
+      {
+        "name": "alpha",
+        "default": "0.16",
+        "description": "Opacity. Low on purpose: you should see through a contrail"
+      },
+      {
+        "name": "minSpeed",
+        "default": "8",
+        "description": "Below this speed (m/s, measured at the emitter) the ribbon fades out, so a hover does not smear"
+      }
+    ]
+  },
+  {
     "module": "b3d-trigger",
     "tag": "tosi-b3d-trigger",
     "summary": "b3d-trigger",

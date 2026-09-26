@@ -598,6 +598,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/ambient-leaves.ts` | `LeafField` — tumbling two-sided quads (`SolidParticleSystem`), the one ambient effect that isn't a billboard |
 | `src/ambient-budget.ts` | Pure ambient-budget allocator (`allocateAmbient`/`fillWeight`/`ratchetPool`), unit-tested |
 | `src/b3d-particles.ts` | Particle effect system |
+| `src/b3d-trail.ts` | `<tosi-b3d-trail>` + `attachTrail()` — a `TrailMesh` ribbon behind whatever it is nested in (contrails, missile smoke); speed measured at its own emitter, fades below `minSpeed`, underwater tint, re-attaches on respawn, resets on origin shift. From manta-recon (tosijs-3d#4) |
 | `src/b3d-sound.ts` | Positional 3D audio |
 | `src/b3d-terrain.ts` | Terrain generation (+ `biome="on"` — the procedural biome shader on its material) |
 | `src/b3d-decorator.ts` | `<tosi-b3d-decorator>` — rocks and trees on the terrain by BUDGET (a count, not a density) and biome rules; thin instances per part, shadow-only twins so only NEAR items cast, colliders from a pool near the viewer, `measureCost()` |
