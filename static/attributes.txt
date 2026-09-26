@@ -44,8 +44,8 @@ b3d-aircraft
   afterburnerSpeed  = 75  — Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner.
   acceleration  = 12  — Throttle / lean authority (speed change rate)
   vtolSpeed  = 6  — Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.
-  reverseSpeed
-  throttleRate
+  reverseSpeed  = 5  — How fast the craft may back up in a hover (m/s); nose up to reverse
+  throttleRate  = 0.8  — How fast the trigger moves the throttle LEVER (full travel per second)
   autoGear  = 'on'  — Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`)
   gearAltitude  = 40  — Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis)
   gearSound  = ''  — Optional URL played spatially at the airframe on each gear transition

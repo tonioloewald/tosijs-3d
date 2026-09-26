@@ -3,6 +3,8 @@ import {
   latticeHash,
   latticePoint,
   extractChunk,
+  assertLatticesWeld,
+  latticeIdentity,
   type SdfField,
   type LatticeConfig,
 } from './sdf-lattice.js'
@@ -223,5 +225,29 @@ describe('chunk-weld proof', () => {
       checked++
     }
     expect(checked).toBeGreaterThan(50)
+  })
+})
+
+describe('one lattice per world (board #257, tosijs-3d#75)', () => {
+  const chunk = { ix: -4, iy: -4, iz: -4, nx: 8, ny: 8, nz: 8 }
+  test('every chunk carries the identity of the lattice it was cut from', () => {
+    const cfg: LatticeConfig = { spacing: 0.5, jitter: 0.25, seed: 3 }
+    expect(extractChunk(sphere(2), chunk, cfg).lattice).toBe(
+      latticeIdentity(cfg)
+    )
+  })
+  test('clip divides WORK, not content, so it is not part of the identity', () => {
+    const a = latticeIdentity({ spacing: 1, seed: 2 })
+    expect(latticeIdentity({ spacing: 1, seed: 2, clip: () => true })).toBe(a)
+  })
+  test('chunks on one lattice pass; a mismatch names both lattices', () => {
+    const cfg: LatticeConfig = { spacing: 0.5, jitter: 0.25, seed: 3 }
+    const a = extractChunk(sphere(2), chunk, cfg)
+    const b = extractChunk(sphere(2), { ...chunk, ix: 4 }, cfg)
+    expect(() => assertLatticesWeld([a, b])).not.toThrow()
+    const odd = extractChunk(sphere(2), chunk, { ...cfg, spacing: 0.25 })
+    expect(() => assertLatticesWeld([a, odd])).toThrow(
+      /0\.5\|0\.25\|3 vs 0\.25\|0\.25\|3/
+    )
   })
 })

@@ -10,6 +10,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **One lattice per world, enforced where code can** (board #257,
+  tosijs-3d#75): every `extractChunk` result carries its `lattice` identity
+  (`latticeIdentity(cfg)`), and `assertLatticesWeld(chunks)` throws on a
+  mismatch instead of leaving a crack. TUNNEL-DESIGN.md records the decision
+  that carves are world-level objects provinces declare but don't own, so a
+  tunnel between provinces is just a carve in the field.
 - **Snell's window: the water's underside** (board #197, tosijs-3d#15). Looking
   up from under a `twoSided` `b3d-water` used to show flat dark blue. Now
   (`underside`, `'auto'` = on whenever `twoSided`) it is a bright window onto

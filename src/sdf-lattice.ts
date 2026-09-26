@@ -277,6 +277,21 @@ real corners.
 /** Signed distance/density field: negative inside solid, 0 at the surface. */
 export type SdfField = (x: number, y: number, z: number) => number
 
+/**
+ * **ONE LATTICE PER WORLD.** Two chunks weld bit-identically only if they were
+ * extracted with the same `spacing`, `jitter` and `seed`. Extract neighbours
+ * on different lattices and the result is a CRACK along their shared edge:
+ * the one bug class this deterministic design exists to rule out. Nothing
+ * stops you, which is why every `ExtractedMesh` carries its `lattice` identity
+ * and `assertLatticesWeld` checks a set of them (tosijs-3d#75, board #257).
+ *
+ * So resolution is a WORLD decision, set by the smallest passage anywhere in
+ * it ("a feature has to be bigger than the lattice"), and it is a design-time
+ * commitment, not a per-province tuning knob. A province that wants a finer
+ * bore than the world's lattice allows is a world with a finer lattice.
+ * (`clip` is different: it divides extraction WORK, never content, so it may
+ * differ per chunk freely.)
+ */
 export interface LatticeConfig {
   /** Lattice spacing in world units. */
   spacing: number
@@ -314,6 +329,29 @@ export interface ExtractedMesh {
   indices: Uint32Array
   vertexCount: number
   triangleCount: number
+  /** The lattice this chunk was cut from (`latticeIdentity`). Chunks weld only
+   * when these are equal. */
+  lattice: string
+}
+
+/** A lattice's identity: what two chunks must share to weld. `clip` is not
+ * part of it; clipping divides work, not content. */
+export function latticeIdentity(cfg: LatticeConfig): string {
+  return `${cfg.spacing}|${cfg.jitter ?? 0}|${cfg.seed ?? 0}`
+}
+
+/**
+ * Throw if these chunks cannot weld, naming the lattices. For development: a
+ * mismatch is an obvious error here rather than a crack at 200 m.
+ */
+export function assertLatticesWeld(chunks: ExtractedMesh[]): void {
+  const ids = [...new Set(chunks.map((c) => c.lattice))]
+  if (ids.length > 1)
+    throw new Error(
+      `sdf-lattice: chunks cut from ${ids.length} different lattices ` +
+        `(${ids.join(' vs ')}) will not weld — one lattice per world ` +
+        `(spacing|jitter|seed).`
+    )
 }
 
 /**
@@ -570,5 +608,6 @@ export function extractChunk(
     indices: new Uint32Array(indices),
     vertexCount: positions.length / 3,
     triangleCount: indices.length / 3,
+    lattice: latticeIdentity(cfg),
   }
 }

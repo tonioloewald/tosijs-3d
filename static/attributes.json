@@ -136,10 +136,14 @@
         "description": "Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime."
       },
       {
-        "name": "reverseSpeed"
+        "name": "reverseSpeed",
+        "default": "5",
+        "description": "How fast the craft may back up in a hover (m/s); nose up to reverse"
       },
       {
-        "name": "throttleRate"
+        "name": "throttleRate",
+        "default": "0.8",
+        "description": "How fast the trigger moves the throttle LEVER (full travel per second)"
       },
       {
         "name": "autoGear",

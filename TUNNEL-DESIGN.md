@@ -475,6 +475,34 @@ What that buys, in order of importance:
 It also means the terrain's existing `patchMask` / `patches` hooks have a natural
 owner: a province emits them, rather than a consumer wiring them by hand.
 
+### DECIDED: provinces DECLARE carves; the WORLD owns them (2026-09-26)
+
+"Cavities come from provinces" holds while a cavity sits inside one province.
+A passage from A to B breaks it three ways (manta-recon, tosijs-3d#75, board
+#257): in the gap between provinces you are inside neither, so nothing owns the
+geometry you stand in; where they abut, whichever province declares the carve
+owns a passage half outside its bounds; and residency flickers mid-tunnel,
+the worst moment to re-evaluate it. And the dramatic tunnels are exactly the
+ones that run BETWEEN authored regions: out of a canyon, through a ridge, into
+a facility.
+
+So, as manta proposed and Tonio agreed ("provinces own lattices but they apply
+in the world"): **a carve is a world-level object that provinces may declare
+but do not own.** Provinces stay the OPT-IN that makes the default world pay
+zero, which is the property worth keeping; they gate whether cavities exist in a
+region, not which geometry belongs to whom. The lattice already extracts one
+world density field, and `clip` already divides extraction WORK rather than
+content, so a cross-province tunnel is just a carve in the field.
+
+**Residency** then keys off the union of a carve's own bounds with the provinces
+that declare it: a slightly bigger box, and no new concept.
+
+**One lattice per world**, which this depends on: two chunks weld only if cut
+with the same `spacing`, `jitter` and `seed`. Resolution is therefore a world
+decision, set by the smallest passage anywhere in it, not a per-province knob.
+Enforced as far as code can: every extracted chunk carries its `lattice`
+identity, and `assertLatticesWeld` fails loudly on a mismatch (`sdf-lattice`).
+
 ### The vocabulary this leaves: add a shape, subtract some volumes
 
 A province turns out to be two things we have already built and tested:
