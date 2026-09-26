@@ -560,11 +560,6 @@ export class B3d extends Component {
     xrReticle: 'off' as 'on' | 'off',
     // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
     scenePanelOpen: false,
-    // When present, mount the split on-screen "glass" gamepad and feed it into
-    // the active input system (the unified touch control surface). The value
-    // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
-    // an empty value shows the full default layout. Absent → no gamepad.
-    gamepad: false as boolean | string,
     // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
     // wildly across devices, so this is exposed for tuning per scene/device.
     gamepadScale: 1,
@@ -1032,6 +1027,20 @@ export class B3d extends Component {
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
+  /**
+   * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
+   * string = the full default layout; any other string selects and positions
+   * controls (`'a,b,right_stick(40,0),menu'`). Markup: `gamepad` or
+   * `gamepad="…"`.
+   *
+   * A PLAIN property, deliberately not in `initAttributes`: it is read once,
+   * at setup (property or attribute), and it is genuinely `boolean | string`.
+   * As an attribute tosijs typed it by its `false` default and warned on
+   * every string layout: one console error per demo, of the kind that means
+   * a call site was left behind by a type change. That trains people to
+   * ignore that warning.
+   */
+  gamepad: boolean | string = false
   declare stats: boolean
   declare pauseWhenHidden: 'on' | 'off'
   declare startPaused: boolean

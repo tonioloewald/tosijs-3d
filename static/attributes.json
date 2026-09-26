@@ -4577,11 +4577,6 @@
         "name": "scenePanelOpen"
       },
       {
-        "name": "gamepad",
-        "default": "absent",
-        "description": "When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `\"a,b,left_stick\"` selects controls"
-      },
-      {
         "name": "gamepadScale",
         "default": "1",
         "description": "Scale factor for the glass gamepad clusters"

@@ -10,6 +10,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Every scene with a glass gamepad logged a type warning** (`gamepad is
+  declared boolean … but was written string`). `gamepad` is genuinely
+  `boolean | string` (`true` = the default layout, a string = a layout), so
+  it is now a plain property read once at setup rather than a typed attribute.
+  Markup (`gamepad`, `gamepad="…"`) and `b3d({ gamepad })` are unchanged.
 - **`b3d-terrain.recenter()` threw away an authored `worldU`/`worldV`** (board
   #458), resetting them to the defaults. It now clears the travel (the
   floating-origin offset) and leaves the placement alone.
