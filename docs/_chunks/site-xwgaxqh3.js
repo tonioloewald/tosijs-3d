@@ -1,5 +1,0 @@
-import{m}from"./site-pey1240t.js";class D{}D.POINTERDOWN=1;D.POINTERUP=2;D.POINTERMOVE=4;D.POINTERWHEEL=8;D.POINTERPICK=16;D.POINTERTAP=32;D.POINTERDOUBLETAP=64;class $g{constructor(s,t){this.type=s,this.event=t}}class $h extends $g{constructor(s,t,i,e){super(s,t);this.ray=null,this.originalPickingInfo=null,this.skipOnPointerObservable=!1,this.localPosition=new m(i,e)}}class ms extends $g{get pickInfo(){if(!this._pickInfo)this._generatePickInfo();return this._pickInfo}constructor(s,t,i,e=null){super(s,t);this._pickInfo=i,this._inputManager=e}_generatePickInfo(){if(this._inputManager)this._pickInfo=this._inputManager._pickMove(this.event),this._inputManager._setRayOnPointerInfo(this._pickInfo,this.event),this._inputManager=null}}class sr{}sr.KEYDOWN=1;sr.KEYUP=2;class Xl{constructor(s,t){this.type=s,this.event=t}}class qc extends Xl{get skipOnPointerObservable(){return this.skipOnKeyboardObservable}set skipOnPointerObservable(s){this.skipOnKeyboardObservable=s}constructor(s,t){super(s,t);this.type=s,this.event=t,this.skipOnKeyboardObservable=!1}}
-export{D,$g,$h,ms,sr,Xl,qc};
-
-//# debugId=3929AF4EDE81D63A64756E2164756E21
-//# sourceMappingURL=site-xwgaxqh3.js.map

@@ -1,0 +1,5 @@
+function y(t){return Math.floor(t/8)}function l(t){return 1<<t%8}class dv{constructor(t){this.size=t,this._byteArray=new Uint8Array(Math.ceil(this.size/8))}get(t){if(t>=this.size)throw RangeError("Bit index out of range");let r=y(t),o=l(t);return(this._byteArray[r]&o)!==0}set(t,r){if(t>=this.size)throw RangeError("Bit index out of range");let o=y(t),s=l(t);if(r)this._byteArray[o]|=s;else this._byteArray[o]&=~s}}function $C(t){let r=[],o=t.length/3;for(let e=0;e<o;e++)r.push([t[e*3],t[e*3+1],t[e*3+2]]);let s=new Map;for(let e=0;e<r.length;e++){let c=r[e];for(let n of c){let a=s.get(n);if(!a)s.set(n,a=[]);a.push(e)}}let f=new dv(o),h=[],p=(e)=>{let c=[e];while(c.length>0){let n=c.pop();if(f.get(n))continue;f.set(n,!0),h.push(r[n]);for(let a of r[n]){let u=s.get(a);if(!u)return;for(let g of u)if(!f.get(g))c.push(g)}}};for(let e=0;e<o;e++)if(!f.get(e))p(e);let i=0;for(let e of h)t[i++]=e[0],t[i++]=e[1],t[i++]=e[2]}
+export{dv,$C};
+
+//# debugId=F404BC9A9EE6CF5864756E2164756E21
+//# sourceMappingURL=site-9rd7mpae.js.map

@@ -2,7 +2,13 @@
 // Registers the doc-system and seeds it with the modules live examples may
 // `import`, so an inline `import { b3dAircraft } from 'tosijs-3d'` resolves.
 
-import 'tosijs-ui' // registers <tosi-doc-system> and the tosi-* element family
+import 'tosijs-ui' // the tosi-* element family
+// Since tosijs-ui 1.15 the barrel NO LONGER registers the doc-authoring
+// elements — they are opt-in subpaths. Without these two the site renders its
+// prerendered markup and nothing else (no nav, no live examples, no console
+// error). Caught by the 0.8.4 publish dry run's build warning.
+import 'tosijs-ui/doc-browser'
+import 'tosijs-ui/live-example'
 import * as tosijs from 'tosijs'
 import * as tosijs3d from '../src/index'
 import * as tosijsui from 'tosijs-ui'

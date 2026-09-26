@@ -1,0 +1,5 @@
+import{m}from"./site-2e9r9891.js";class L{}L.POINTERDOWN=1;L.POINTERUP=2;L.POINTERMOVE=4;L.POINTERWHEEL=8;L.POINTERPICK=16;L.POINTERTAP=32;L.POINTERDOUBLETAP=64;class lv{constructor(s,t){this.type=s,this.event=t}}class Zf extends lv{constructor(s,t,i,e){super(s,t);this.ray=null,this.originalPickingInfo=null,this.skipOnPointerObservable=!1,this.localPosition=new m(i,e)}}class Bs extends lv{get pickInfo(){if(!this._pickInfo)this._generatePickInfo();return this._pickInfo}constructor(s,t,i,e=null){super(s,t);this._pickInfo=i,this._inputManager=e}_generatePickInfo(){if(this._inputManager)this._pickInfo=this._inputManager._pickMove(this.event),this._inputManager._setRayOnPointerInfo(this._pickInfo,this.event),this._inputManager=null}}class vr{}vr.KEYDOWN=1;vr.KEYUP=2;class Gc{constructor(s,t){this.type=s,this.event=t}}class $u extends Gc{get skipOnPointerObservable(){return this.skipOnKeyboardObservable}set skipOnPointerObservable(s){this.skipOnKeyboardObservable=s}constructor(s,t){super(s,t);this.type=s,this.event=t,this.skipOnKeyboardObservable=!1}}
+export{L,lv,Zf,Bs,vr,Gc,$u};
+
+//# debugId=B15CC2DD9A5ED77364756E2164756E21
+//# sourceMappingURL=site-n9gnravy.js.map

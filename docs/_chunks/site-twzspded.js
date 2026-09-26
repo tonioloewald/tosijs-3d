@@ -1,0 +1,5 @@
+import{Ye}from"./site-5tw2831p.js";import{I,k,qs}from"./site-a5xw8xz8.js";import{Bl}from"./site-a5e01mrk.js";import{a}from"./site-2e9r9891.js";class Qm extends Ye{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",k,0),this.controlPoint1=this.registerDataInput("controlPoint1",qs),this.controlPoint2=this.registerDataInput("controlPoint2",qs),this.easingFunction=this.registerDataOutput("easingFunction",I)}_updateOutputs(t){let o=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(o===void 0)return;let r=`${o}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[r]){let s=new Bl(e.x,e.y,i.x,i.y);s.setEasingMode(o),this._easingFunctions[r]=s}this.easingFunction.setValue(this._easingFunctions[r],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var n=!1;function qm(){if(n)return;n=!0,a("FlowGraphBezierCurveEasing",Qm)}qm();
+export{Qm,qm};
+
+//# debugId=D9ADC80E48C4D61F64756E2164756E21
+//# sourceMappingURL=site-twzspded.js.map
