@@ -10,6 +10,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).
+  `b3d-ambient` gains `weather: 'rain' | 'snow'`: emission follows the
+  PRECIPITATION where the viewer is, so a storm brings its own rain and it
+  eases in and out as the storm passes; the local temperature splits rain
+  from snow (sleet between). Rain now draws as STREAKS stretched along its
+  velocity, so the wind visibly slants it. Land and Sky's storm rains.
 - **Lightning and thunder** (WEATHER-DESIGN stage 3, board #1123):
   **`<tosi-b3d-lightning>`** strikes under every weather cell with
   `storminess`, seeded (same seed, same storm; frame rate cannot change it).
@@ -115,6 +121,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Ambient wind accumulated every frame and flung particles away**: the
+  preset's direction vectors were assigned by reference, and the per-frame
+  `direction.set(preset + wind)` wrote into the preset, so the wind grew frame
+  on frame (drops at kilometres a second, never seen). Cloned now, and the
+  particles take the INHERITED wind (scene and weather cells), not only the
+  element's own `windX`/`windZ`.
 - **Flat eye-anchored panels trailed a moving camera by one frame** (board
   #767, found by manta-recon at 2.15 m per frame behind b3d-aircraft's follow
   camera). The flat frames are now posed on `onBeforeCameraRenderObservable`,

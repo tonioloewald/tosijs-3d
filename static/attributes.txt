@@ -112,6 +112,7 @@ b3d-ambient
   windZ  = 0
   wind
   disabled  = false  — Stop emitting
+  weather  = 'off'  — `'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on
 
 ## b3d-beacon — <tosi-b3d-beacon>
 b3d-beacon

@@ -119,6 +119,7 @@ tosi-b3d { width: 100%; height: 100%; }
 |-----------|---------|-------------|
 | `preset` | `'motes'` | `motes` / `bubbles` / `rain` / `snow` / `dust` / `leaves` |
 | `where` | `'always'` | `always` / `underwater` / `above` — emission ramps with depth, it doesn't switch |
+| `weather` | `'off'` | `'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on |
 | `count` | `auto` | Capacity to ASK for (`auto` = what the preset's look needs). You may not get it — the scene divides a shared pool |
 | `minCount` | `auto` | Below this the effect is a lie, so it switches **off** instead. `auto` = the preset's floor (rain needs density; a few motes still read fine as motes) |
 | `minTier` | `'low'` | Never run below this device tier, at any budget |
@@ -386,6 +387,15 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     */
     wind: 'scene' as 'scene' | 'own',
     disabled: false,
+    /*
+    DRIVEN BY THE WEATHER (WEATHER-DESIGN stage 5, board #1124). 'rain' or
+    'snow' multiplies the emission by the PRECIPITATION where the viewer is
+    (`b3d.weatherHere()`), so walking into a storm cell starts the rain and
+    leaving it stops it, eased rather than switched. The local temperature
+    splits the two: rain above about -1°, snow below about -5° (offsets from
+    the base), sleet between. 'off' (default) = always on, as before.
+    */
+    weather: 'off' as 'off' | 'rain' | 'snow',
   }
 
   declare preset: string
@@ -410,6 +420,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
       : { windX: this.windX, windZ: this.windZ }
   }
   declare disabled: boolean
+  declare weather: 'off' | 'rain' | 'snow'
 
   /** 0…1 — how strongly this is emitting right now (ramps, never switches). */
   get intensity(): number {
@@ -516,6 +527,16 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     )
     ps.particleTexture = dotTexture(scene)
     ps.emitter = this._emitter // a WORLD point we move to the camera each frame
+    if (this.preset === 'rain') {
+      /*
+      RAIN IS STREAKS. A falling drop is a blur along its path, so the sprite
+      is stretched along its velocity, which is also what makes the wind
+      visible in it: a squall slants the rain. Round dots read as hail.
+      */
+      ps.billboardMode = BABYLON.ParticleSystem.BILLBOARDMODE_STRETCHED
+      ps.minScaleY = 10
+      ps.maxScaleY = 16
+    }
 
     // The box, MINUS a sphere around the eye. Without the hole, particles are born on your
     // face: a sprite a few centimetres wide at half a metre is a big soft blob filling a chunk
@@ -602,8 +623,15 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     ps.minLifeTime = p.life[0]
     ps.maxLifeTime = p.life[1]
     ps.gravity = p.gravity
-    ps.direction1 = p.dir1
-    ps.direction2 = p.dir2
+    /*
+    CLONED, never the preset's own vectors. The wind below does
+    \`ps.direction1.set(p.dir1.x + wind…)\` every frame; with the preset's
+    vector assigned by reference that wrote INTO the preset, so the wind
+    accumulated frame on frame: rain left at kilometres a second and was never
+    seen (found when the scene's wind first reached the particles).
+    */
+    ps.direction1 = p.dir1.clone()
+    ps.direction2 = p.dir2.clone()
     ps.blendMode = p.additive
       ? BABYLON.ParticleSystem.BLENDMODE_ADD
       : BABYLON.ParticleSystem.BLENDMODE_STANDARD
@@ -702,7 +730,9 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     // The box rides with you; the particles, once born, do NOT (Babylon particles live in
     // world space unless you ask otherwise). That's the whole illusion.
     const eye = cam.globalPosition
-    this._intensity = this.disabled ? 0 : this._whereWeight(eye.y)
+    this._intensity = this.disabled
+      ? 0
+      : this._whereWeight(eye.y) * this._weatherWeight()
     this._clipSpawnBox()
 
     // Quad (leaf) path: population the budget×gaze allow, eased in `LeafField`.
@@ -753,11 +783,24 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
 
     ps.emitRate = this._fillRate(ps)
 
-    // Wind is world-space drift, applied to the emission cone rather than to each particle.
-    if (this.windX !== 0 || this.windZ !== 0) {
+    /*
+    Wind is world-space drift, applied to the emission cone rather than to
+    each particle. The INHERITED wind (the scene's, and the weather cells'),
+    not just this element's own attributes: it only ever read its own, so a
+    squall moved the spawn box upwind and then emitted straight down.
+    */
+    if (blowing.windX !== 0 || blowing.windZ !== 0) {
       const p = PRESETS[this.preset] ?? PRESETS.motes
-      ps.direction1.set(p.dir1.x + this.windX, p.dir1.y, p.dir1.z + this.windZ)
-      ps.direction2.set(p.dir2.x + this.windX, p.dir2.y, p.dir2.z + this.windZ)
+      ps.direction1.set(
+        p.dir1.x + blowing.windX,
+        p.dir1.y,
+        p.dir1.z + blowing.windZ
+      )
+      ps.direction2.set(
+        p.dir2.x + blowing.windX,
+        p.dir2.y,
+        p.dir2.z + blowing.windZ
+      )
     }
   }
 
@@ -819,6 +862,17 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     // Fully on the wrong side: leave a degenerate sliver rather than an
     // inverted box. Intensity is ~0 here anyway, so nothing is born.
     if (this._spawnLoY > this._spawnHiY) this._spawnLoY = this._spawnHiY
+  }
+
+  /** Precipitation where the viewer is, split into rain and snow by the
+   * local temperature. 1 when not weather-driven. */
+  private _weatherWeight(): number {
+    const mode = this.weather
+    if (mode !== 'rain' && mode !== 'snow') return 1
+    const w = this.owner?.weatherHere()
+    if (w == null) return 0
+    const snow = Math.min(1, Math.max(0, (-1 - w.temperature) / 4))
+    return w.precipitation * (mode === 'snow' ? snow : 1 - snow)
   }
 
   private _whereWeight(eyeY: number): number {

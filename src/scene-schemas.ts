@@ -351,6 +351,8 @@ export function ambientSchema(extra: Record<string, unknown> = {}) {
         'leaves',
       ]),
       where: choice('always', ['always', 'underwater', 'above']),
+      // Driven by precipitation at the viewer (board #1124).
+      weather: choice('off', ['off', 'rain', 'snow']),
       disabled: bool(false),
       radius: num(18, { minimum: 0, maximum: 500, ...M, 'x-scale': 'log' }),
       // 0 is AUTO for both — the device tier decides.

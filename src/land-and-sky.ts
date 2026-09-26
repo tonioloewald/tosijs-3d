@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -191,7 +191,7 @@ sky.storm.observe(() => {
   storm?.remove()
   storm = null
   if (sky.storm.value) {
-    storm = b3dWeatherCell({ x: -1200, z: 0, radius: 1000, coverage: 1.7, storminess: 0.8, drift: 'wind', grow: 60 })
+    storm = b3dWeatherCell({ x: -1200, z: 0, radius: 1000, coverage: 1.7, storminess: 0.8, precipitation: 0.9, drift: 'wind', grow: 60 })
     scene.append(storm)
   }
 })
@@ -313,6 +313,10 @@ const scene = b3d(
   // low-frequency and one is not — and the points stay points at any zoom.
   skybox,
   b3dLightning({ seed: 3 }),
+  // Rain and snow come from the WEATHER: nothing falls until a storm is
+  // overhead, and it eases in and out as the storm passes.
+  b3dAmbient({ preset: 'rain', weather: 'rain', radius: 14 }),
+  b3dAmbient({ preset: 'snow', weather: 'snow', radius: 14 }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,

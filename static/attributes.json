@@ -450,6 +450,11 @@
         "name": "disabled",
         "default": "false",
         "description": "Stop emitting"
+      },
+      {
+        "name": "weather",
+        "default": "'off'",
+        "description": "`'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on"
       }
     ]
   },
