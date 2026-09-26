@@ -18,6 +18,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   re-attaches when the host's mesh is replaced (respawn, async load), and
   resets on a floating-origin shift. **`attachTrail(node, scene, options)`**
   is the same for a node you hold, such as a spawned missile.
+  Missiles get it for free: `<tosi-b3d-launcher missile-trail="on">`, or
+  `trail` on `spawnProjectile`/`spawnMissile` for your own rounds.
 - **Frame panels are usable as menus** (board #768, tosijs-3d#92, from
   manta-recon moving its outer game to viewer-relative panels):
   - **They route pointers.** A `panel3d` on a frame panel now takes presses,

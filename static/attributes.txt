@@ -526,6 +526,7 @@ b3d-launcher
   missileSpeed  = 22  — Cruise speed of a guided shot (`fireAt`)
   turnRate  = 3  — Guided-missile agility (rad/sec)
   projRadius  = 0.12  — Shell visual radius
+  missileTrail  = 'off'  — `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`
   projColor  = '#ffdd55'  — Shell emissive colour
   maxLifetime  = 6  — Seconds before an un-impacted shell self-disposes
   damage  = 20  — Warhead full damage (see b3d-warhead)

@@ -2023,6 +2023,11 @@
         "description": "Shell visual radius"
       },
       {
+        "name": "missileTrail",
+        "default": "'off'",
+        "description": "`'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`"
+      },
+      {
         "name": "projColor",
         "default": "'#ffdd55'",
         "description": "Shell emissive colour"
