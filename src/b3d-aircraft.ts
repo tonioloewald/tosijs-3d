@@ -196,6 +196,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
+| `reverseSpeed` | `5` | How fast the craft may back up in a hover (m/s); nose up to reverse |
+| `throttleRate` | `0.8` | How fast the trigger moves the throttle LEVER (full travel per second) |
 | `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees) |
 | `maxDive` | `0` | Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch` |
 | `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
