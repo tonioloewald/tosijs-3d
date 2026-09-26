@@ -4094,6 +4094,21 @@
         "name": "fogTransition"
       },
       {
+        "name": "underside",
+        "default": "'auto'",
+        "description": "Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog"
+      },
+      {
+        "name": "undersideColor",
+        "default": "'#9fdcf0'",
+        "description": "The window: the sky's light, looking up"
+      },
+      {
+        "name": "undersideDepthColor",
+        "default": "'#06283a'",
+        "description": "The mirror: the dark water, at grazing angles"
+      },
+      {
         "name": "spherical",
         "default": "false",
         "description": "Use a sphere instead of a plane"

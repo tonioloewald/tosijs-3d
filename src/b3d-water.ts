@@ -47,6 +47,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
+| `underside` | `'auto'` | Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog |
+| `undersideColor` | `'#9fdcf0'` | The window: the sky's light, looking up |
+| `undersideDepthColor` | `'#06283a'` | The mirror: the dark water, at grazing angles |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -78,7 +81,7 @@ import { plane as mediumPlane, type PlaneMedium } from './medium.js'
 import * as BABYLON from '@babylonjs/core'
 import { waterNormalTexture } from './water-normal.js'
 import { WaterMaterial } from '@babylonjs/materials'
-import { AbstractMesh, markCollisionGroup } from './b3d-utils.js'
+import { AbstractMesh, markCollisionGroup, sceneDelta } from './b3d-utils.js'
 import { inheritedWind, waterWind } from './wind.js'
 import { band } from './atmosphere.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
@@ -93,6 +96,16 @@ export class B3dWater extends AbstractMesh {
     underwaterFog: 0.12, // density the moment you're under
     underwaterMurk: 0.08, // extra density at 30m down (the sea thickens with depth)
     fogTransition: 0.2, // metres below the surface to reach FULL underwater fog
+    /*
+    THE UNDERSIDE — what the surface looks like from BELOW (board #197,
+    tosijs-3d#15). 'auto' = on whenever `twoSided` (the only time you can see
+    the underside at all). Snell's window: straight up, the surface is a
+    bright window onto the sky (`undersideColor`); toward grazing angles it
+    becomes a mirror of the dark water (`undersideDepthColor`).
+    */
+    underside: 'auto' as 'auto' | 'on' | 'off',
+    undersideColor: '#9fdcf0',
+    undersideDepthColor: '#06283a',
     ...AbstractMesh.initAttributes,
     spherical: false,
     waterSize: 128,
@@ -155,6 +168,14 @@ export class B3dWater extends AbstractMesh {
   /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
   private _skyWasFogged = new WeakMap<BABYLON.AbstractMesh, boolean>()
   private _followTick?: () => void
+  private _ceilingTick?: () => void
+  private _ceiling: BABYLON.Mesh | null = null
+  private _ceilingBump: BABYLON.Texture | null = null
+  /** The fog layer's crossing weight (0 in air, 1 fully under) — ONE value,
+   * so the underside fades in exactly as the fog does. */
+  private _underW = 0
+  private _shimmer = 0
+  private _ceilingKey = ''
   private _windTick?: () => void
   private _wasUnderwater = false
 
@@ -324,6 +345,9 @@ export class B3dWater extends AbstractMesh {
     }
     scene.registerBeforeRender(this._windTick)
 
+    this._ceilingTick = () => this._updateCeiling(scene)
+    scene.registerBeforeRender(this._ceilingTick)
+
     if (attrs.follow) {
       // Run it on beforeRender (authoritative, right before the scene draws) AND re-run it from
       // render() below — because AbstractMesh.render() rewrites the mesh position from the x/z
@@ -399,6 +423,7 @@ export class B3dWater extends AbstractMesh {
       // should be obvious the moment you're out. Fast, but continuous.
       const attrs = this as any
       const w = band(depth, -0.05, Math.max(0.02, attrs.fogTransition))
+      this._underW = w
       this._fogTheSky(w > 0)
       if (w <= 0) return null
       // Murk with depth is both true and useful — it hides what's below you.
@@ -500,6 +525,128 @@ export class B3dWater extends AbstractMesh {
     return out
   }
 
+  /*
+  SNELL'S WINDOW. From below, `WaterMaterial` has nothing to say: it is built
+  for the view from above, so a `twoSided` underside was flat dark blue.
+
+  One opaque plane just under the surface, riding the camera in x/z, shaded
+  by EMISSIVE FRESNEL: near-perpendicular it is the window (bright, sky
+  coloured), at grazing angles the mirror of the depths. No shader, no extra
+  render target, one draw call, and only while submerged. Its shimmer comes
+  from a clone of the water's own normal map, so the window's edge and the
+  surface's ripples are the same motion.
+
+  OPAQUE, and the sky stays fogged. manta-recon's prototype made the ceiling
+  see-through and un-fogged the skybox so the window showed the real sky, but
+  then a horizontal look under water also sees an un-fogged sky, which is
+  wrong. Here the window's light is the ceiling's own emissive, and the scene
+  fog dims it with distance, which is physically right: far overhead water
+  is murk.
+  */
+  private _hexOr(v: string, d: string): BABYLON.Color3 {
+    try {
+      return BABYLON.Color3.FromHexString((v || d).slice(0, 7))
+    } catch {
+      return BABYLON.Color3.FromHexString(d)
+    }
+  }
+
+  private _undersideOn(): boolean {
+    const u = (this as any).underside
+    if (u === 'off') return false
+    if (u === 'on') return true
+    return (this as any).twoSided === true
+  }
+
+  private _updateCeiling(scene: BABYLON.Scene): void {
+    try {
+      const cam = scene.activeCamera
+      const w = this._underW
+      if (!this._undersideOn() || cam == null || this.mesh == null || w <= 0) {
+        this._ceiling?.setEnabled(false)
+        return
+      }
+      if (this._ceiling == null) this._ceiling = this._buildCeiling(scene)
+      const waterY = this.mesh.absolutePosition.y
+      const c = cam.globalPosition
+      this._ceiling.setEnabled(true)
+      this._ceiling.position.set(c.x, waterY - 0.08, c.z)
+      this._ceiling.visibility = w
+      const bump = this._ceilingBump
+      if (bump != null) {
+        // Anchored to the WORLD (not the camera the plane rides with), and
+        // drifting slowly so the window's edge shimmers.
+        this._shimmer += sceneDelta(scene) * 0.03
+        const cell = 2000 / bump.uScale
+        bump.uOffset = c.x / cell + this._shimmer
+        bump.vOffset = c.z / cell + this._shimmer * 0.6
+      }
+      // Live colours: a slider on either should move the window now.
+      const key = `${(this as any).undersideColor}|${
+        (this as any).undersideDepthColor
+      }`
+      if (key !== this._ceilingKey) {
+        this._ceilingKey = key
+        const f = (this._ceiling.material as BABYLON.StandardMaterial)
+          .emissiveFresnelParameters
+        if (f != null) {
+          f.leftColor = this._hexOr(
+            (this as any).undersideDepthColor,
+            '#06283a'
+          )
+          f.rightColor = this._hexOr((this as any).undersideColor, '#9fdcf0')
+        }
+      }
+    } catch {
+      /* never throw in the render loop — it skips every observer after this */
+    }
+  }
+
+  private _buildCeiling(scene: BABYLON.Scene): BABYLON.Mesh {
+    const size = 2000
+    const ceiling = BABYLON.MeshBuilder.CreateGround(
+      'water-underside_nocast',
+      { width: size, height: size, subdivisions: 1 },
+      scene
+    )
+    ceiling.isPickable = false
+    ceiling.receiveShadows = false
+    // FACE DOWN, toward the swimmer. A ground's normal points up, so from below
+    // every pixel is its BACK face, and Fresnel reads a back face as fully
+    // grazing: the whole ceiling came out the dark mirror colour, identical to
+    // the fog, as if it were not there.
+    ceiling.rotation.x = Math.PI
+    const mat = new BABYLON.StandardMaterial('water-underside-mat', scene)
+    mat.disableLighting = true
+    mat.backFaceCulling = false
+    mat.diffuseColor = BABYLON.Color3.Black()
+    mat.emissiveColor = BABYLON.Color3.White()
+    const f = new BABYLON.FresnelParameters()
+    // Babylon's Fresnel: `leftColor` at grazing angles, `rightColor` facing.
+    f.leftColor = this._hexOr((this as any).undersideDepthColor, '#06283a')
+    f.rightColor = this._hexOr((this as any).undersideColor, '#9fdcf0')
+    f.power = 2.4
+    f.bias = 0.1
+    mat.emissiveFresnelParameters = f
+    /*
+    ITS OWN normal map, the same one the water uses, built fresh. Not a
+    `clone()`: a cloned DynamicTexture never reports ready, so the material
+    never became ready and the ceiling was silently never drawn (found with a
+    debug fog colour; the pixels were fog and sky, never the ceiling). Not
+    the water's own instance either: `follow` moves that one's offsets.
+    */
+    const url = (this as any).normalMap as string
+    const b: BABYLON.Texture = url
+      ? new BABYLON.Texture(url, scene)
+      : waterNormalTexture(scene)
+    b.uScale = size / 24
+    b.vScale = size / 24
+    mat.bumpTexture = b
+    this._ceilingBump = b
+    ceiling.material = mat
+    return ceiling
+  }
+
   sceneDispose(): void {
     this._removeMedium?.()
     this._removeMedium = undefined
@@ -514,6 +661,16 @@ export class B3dWater extends AbstractMesh {
       this.owner?.scene.unregisterBeforeRender(this._followTick)
       this._followTick = undefined
     }
+    if (this._ceilingTick) {
+      this.owner?.scene.unregisterBeforeRender(this._ceilingTick)
+      this._ceilingTick = undefined
+    }
+    this._ceiling?.material?.dispose(true, true)
+    this._ceiling?.dispose()
+    this._ceiling = null
+    this._ceilingBump = null
+    this._ceilingKey = ''
+    this._underW = 0
     if (this._windTick) {
       this.owner?.scene.unregisterBeforeRender(this._windTick)
       this._windTick = undefined

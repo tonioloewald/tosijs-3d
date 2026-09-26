@@ -2494,6 +2494,17 @@ export class B3d extends Component {
   private _fogVeil = 0
   private _fogBase: FogState | null = null
   private _fogNow: FogState | null = null
+  /**
+   * **Paint the fog a colour nothing else is** (`'#ff00ff'`), to see what is
+   * fog and what is surface. Composited fog in a murky scene is the same hue
+   * as half the things in it, so "I can't see X" cannot be told apart from
+   * "X is fogged out", "X is not drawn" or "that's the sky". Tonio suggested
+   * it mid-hunt for a missing water underside, and it answered the question
+   * in one screenshot. Also a toggle in the Perf Stats panel's Fog row, for
+   * a headset. Empty = the real fog.
+   */
+  debugFogColor = ''
+  private _fogDebugOff: (() => void) | null = null
 
   /**
    * Contribute a fog layer — underwater, inside a cloud, out in space. Return `null` (or
@@ -2636,7 +2647,39 @@ export class B3d extends Component {
     const k = 1 - Math.exp(-dt / 0.07)
     this._fogVeil += (veil - this._fogVeil) * k
     const f = this._fogNow
-    scene.fogColor.set(f.color.r, f.color.g, f.color.b)
+    if (this._fogDebugOff == null) {
+      this._fogDebugOff = this.addDebugSource({
+        name: 'Fog',
+        lines: () => {
+          const n = this._fogNow
+          return n == null
+            ? ['off']
+            : [
+                `density=${n.density.toFixed(3)} end=${n.end.toFixed(
+                  0
+                )}m veil=${this._fogVeil.toFixed(2)}`,
+              ]
+        },
+        actions: [
+          {
+            label: () =>
+              this.debugFogColor ? 'Debug colour ON' : 'Debug colour',
+            handleClick: () => {
+              this.debugFogColor = this.debugFogColor ? '' : '#ff00ff'
+            },
+          },
+        ],
+      })
+    }
+    if (this.debugFogColor) {
+      try {
+        scene.fogColor.copyFrom(
+          BABYLON.Color3.FromHexString(this.debugFogColor)
+        )
+      } catch {
+        scene.fogColor.set(1, 0, 1)
+      }
+    } else scene.fogColor.set(f.color.r, f.color.g, f.color.b)
     scene.fogDensity = f.density
     scene.fogStart = f.start
     scene.fogEnd = f.end

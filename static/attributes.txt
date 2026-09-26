@@ -1061,6 +1061,9 @@ b3d-water
   underwaterFog
   underwaterMurk
   fogTransition
+  underside  = 'auto'  — Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog
+  undersideColor  = '#9fdcf0'  — The window: the sky's light, looking up
+  undersideDepthColor  = '#06283a'  — The mirror: the dark water, at grazing angles
   spherical  = false  — Use a sphere instead of a plane
   waterSize  = 128  — Size of the water plane
   subdivisions  = 32  — Mesh subdivisions

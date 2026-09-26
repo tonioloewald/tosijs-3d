@@ -10,6 +10,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Snell's window: the water's underside** (board #197, tosijs-3d#15). Looking
+  up from under a `twoSided` `b3d-water` used to show flat dark blue. Now
+  (`underside`, `'auto'` = on whenever `twoSided`) it is a bright window onto
+  the sky overhead, darkening to a mirror of the depths toward grazing angles,
+  rippling with the same normal map as the surface, and fading in with the
+  underwater fog's own band weight. One plane, one draw call, only while
+  submerged. `undersideColor` / `undersideDepthColor` tune the two ends. It
+  stays OPAQUE and the sky stays fogged, unlike the prototype, so a level look
+  under water still sees murk rather than sky.
+- **`b3d.debugFogColor`** (`'#ff00ff'`) paints the composited fog a colour
+  nothing else is, to tell fog from surface from sky; also a toggle on the
+  Perf Stats panel's new Fog row (with density, end and veil), for a headset.
 - **`<tosi-b3d-trail>`** — a ribbon behind anything that moves (contrails,
   missile smoke, a fast enemy's wake), lifted from manta-recon's engine
   contrails (tosijs-3d#4, board #186). Nest it in the mover, give it a local

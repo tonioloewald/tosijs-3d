@@ -267,6 +267,10 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       textureSize: num(1024, { minimum: 64, maximum: 4096 }),
       normalMap: url(),
       twoSided: bool(false),
+      // Snell's window from below; 'auto' = on whenever twoSided (board #197).
+      underside: choice('auto', ['auto', 'on', 'off']),
+      undersideColor: color('#9fdcf0'),
+      undersideDepthColor: color('#06283a'),
       spherical: bool(false),
       follow: bool(false),
     },
