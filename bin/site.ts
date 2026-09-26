@@ -12,6 +12,29 @@ import config from '../site.config'
 const buildOnly = process.argv.includes('--build')
 
 /*
+THE BUILD IS PINNED TO ONE BUN. We commit `dist/`, and CI's publish run
+rebuilds it and refuses to stage if any shipped file differs — and Bun
+versions bundle differently (tosijs-ui measured 1.4.0 vs 1.4.2 producing
+different output from one lockfile). So a release build on the wrong Bun would
+fail at publish time, an hour and a staged approval later; fail it here
+instead. The dev server only warns: it never produces what ships.
+(practices/publishing-via-oidc.md)
+*/
+{
+  const pinned = (
+    await Bun.file(new URL('../.bun-version', import.meta.url)).text()
+  ).trim()
+  if (pinned !== Bun.version) {
+    const msg = `Bun ${Bun.version} is not the pinned ${pinned} (.bun-version) — a build from it will not reproduce the committed dist/.`
+    if (buildOnly) {
+      console.error(`✗ ${msg} Install it: bun upgrade --version ${pinned}`)
+      process.exit(1)
+    }
+    console.warn(`⚠️ ${msg}`)
+  }
+}
+
+/*
 `--stop` — stop THIS project's dev server, and nothing else.
 
 The point of it (tosijs-ui#117, which we filed after losing a server five times
