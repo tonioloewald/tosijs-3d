@@ -913,6 +913,11 @@
         "description": "How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note"
       },
       {
+        "name": "stormRise",
+        "default": "1500",
+        "description": "How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says)"
+      },
+      {
         "name": "localCoverage",
         "default": "1",
         "description": "How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast"
@@ -4230,7 +4235,7 @@
       {
         "name": "coverage",
         "default": "0",
-        "description": "Cloud cover it adds (−1…1; summed, clamped). `0` = no opinion"
+        "description": "Cloud cover it adds (summed, clamped 0–2). PAST 1 IS A STORM TOWER: the cloud deck lifts its top there (`stormRise`), darker and thicker, which is what lightning lights from inside. `0` = no opinion"
       },
       {
         "name": "precipitation",
@@ -4893,8 +4898,8 @@
       },
       {
         "name": "coverage",
-        "default": "SUM, clamped 0–1",
-        "description": "a storm thickens the sky, a clear cell thins it"
+        "default": "SUM, clamped 0–2",
+        "description": "a storm thickens the sky, a clear cell thins it; past 1 is THICKNESS (a storm tower), as on the deck's own dial"
       },
       {
         "name": "precipitation",

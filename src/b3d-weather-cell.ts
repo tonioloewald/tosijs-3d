@@ -62,7 +62,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `x` `z` | `0` | Centre, world XZ |
 | `radius` | `200` | Reach (m); influence eases to nothing at the rim |
 | `windSpeed` / `windBearingDeg` | `0` / `0` | Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's |
-| `coverage` | `0` | Cloud cover it adds (−1…1; summed, clamped). `0` = no opinion |
+| `coverage` | `0` | Cloud cover it adds (summed, clamped 0–2). PAST 1 IS A STORM TOWER: the cloud deck lifts its top there (`stormRise`), darker and thicker, which is what lightning lights from inside. `0` = no opinion |
 | `precipitation` | `0` | Rain/snow 0–1 (the max of overlapping cells wins) |
 | `storminess` | `0` | Lightning likelihood 0–1 (max wins) |
 | `temperature` | `0` | Temperature offset in degrees (summed) |

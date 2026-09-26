@@ -24,6 +24,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   builds rather than appearing; the deck re-bakes in 1% strength steps as it
   does. Across SPACE a cell was already gradual: a smoothstep over its whole
   radius, smoothed again by the deck.
+  **Storm towers:** cell coverage now runs to 2, and past 1 is THICKNESS,
+  as on the deck's own dial: the deck lifts its top skin there by up to
+  `stormRise` (1,500 m), whatever the global dial says, so a storm is a dark
+  heavy base from below and a bright tower from above, and the thing
+  lightning will light from inside. The cell channels get one smoothing pass,
+  not the orographic field's four (which flattened a storm's excess from 0.7
+  to 0.18). Land and Sky's storm is coverage 1.7.
 - **Weather, stage 1: the weather where you are** (WEATHER-DESIGN.md, board
   #255). `b3d.weatherAt(x, z)` (and `weatherHere()`) answers what every
   weather consumer asks: the scene's base wind plus every

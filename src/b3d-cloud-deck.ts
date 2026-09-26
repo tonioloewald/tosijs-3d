@@ -154,6 +154,7 @@ preview.append(
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
 | `localRise` | `1200` | How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note |
+| `stormRise` | `1500` | How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says) |
 | `localCoverage` | `1` | How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast |
 | `orographic` | `0` | Cloud gathers over high ground, `0…1`. Needs a terrain in the scene |
 | `orographicPeak` | `260` | Terrain height at which `orographic` is at full strength |
@@ -268,6 +269,9 @@ uniform mat4 world;
 uniform mat4 view;
 // x = how far the BASE bulges, y = how far the TOP does. See the note below.
 uniform vec2 localScale;
+// Storm towers: color.b is weather-cell coverage PAST 1 (0..1), lifting the TOP
+// skin by this many metres. Independent of the global dial.
+uniform float stormRise;
 varying vec3 vWorld;
 varying vec4 vChannel;
 varying vec2 vLocal;
@@ -297,6 +301,7 @@ void main(void) {
   */
   vec3 pos = position;
   pos.y += color.r * (color.g > 0.5 ? localScale.y : localScale.x);
+  if (color.g > 0.5) pos.y += color.b * stormRise;
   vec4 wp = world * vec4(pos, 1.0);
   vWorld = wp.xyz;
   /*
@@ -516,6 +521,7 @@ uniform float underBump;
 uniform float globalRise;
 // How much further the TOP bulges than the base, per unit of the weather field.
 uniform float localDelta;
+uniform float stormRise;
 uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
@@ -603,7 +609,7 @@ void main(void) {
   meet one of them: the top from above, the base from below, and whiteout in
   between if you are inside.
   */
-  float separation = globalRise + vChannel.r * localDelta;
+  float separation = globalRise + vChannel.r * localDelta + vChannel.b * stormRise;
   if (vChannel.g > 0.5 && separation < 4.0) discard;
 
   float a = opacityAt(d, coverageAt(p)) * vChannel.a * rim;
@@ -816,10 +822,10 @@ type WeatherTarget = {
 
 /** Four box passes over an n×n grid (see `_bakeWeather`: it turns a
  * mountain into weather, and a storm cell into a soft-edged one). */
-function smoothGrid(input: Float32Array, n: number): Float32Array {
+function smoothGrid(input: Float32Array, n: number, passes = 4): Float32Array {
   let src: Float32Array = input
   let dst: Float32Array = new Float32Array(input.length)
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < passes; pass++) {
     for (let z = 0; z < n; z++) {
       for (let x = 0; x < n; x++) {
         const i = z * n + x
@@ -937,6 +943,13 @@ export class B3dCloudDeck extends B3dChild {
      * province returning 1 gets the full height.
      */
     localRise: 1200,
+    /**
+     * How far a STORM TOWER stands above the deck at a weather cell's full
+     * coverage 2, in metres (cells past coverage 1 lift the top skin there,
+     * whatever the global dial says). Towers are what make lightning read as
+     * light INSIDE cloud.
+     */
+    stormRise: 1500,
     /**
      * How much a unit of local weather adds to `coverage`.
      *
@@ -1065,6 +1078,7 @@ export class B3dCloudDeck extends B3dChild {
   declare evolve: number
   declare follow: string
   declare localRise: number
+  declare stormRise: number
   declare localCoverage: number
   declare orographic: number
   declare orographicPeak: number
@@ -1130,6 +1144,8 @@ export class B3dCloudDeck extends B3dChild {
     return this._terrain as any
   }
   private _weatherMax = 0
+  /** Largest storm excess in the baked grid (0 = no tower anywhere). */
+  private _stormMax = 0
   private _weatherTex: BABYLON.RawTexture | null = null
   private _weatherTexSize = 0
   /*
@@ -1248,6 +1264,7 @@ export class B3dCloudDeck extends B3dChild {
           'evolve',
           'globalRise',
           'localDelta',
+          'stormRise',
           'localScale',
           'localCoverage',
           'weatherWindow',
@@ -1412,6 +1429,7 @@ export class B3dCloudDeck extends B3dChild {
     mat.setVector2('localScale', new BABYLON.Vector2(scale.base, scale.top))
     mat.setFloat('globalRise', rise)
     mat.setFloat('localDelta', scale.top - scale.base)
+    mat.setFloat('stormRise', Math.max(0, attrs.stormRise ?? 0))
     this._bindWeather(mat)
 
     if (top != null) {
@@ -1422,7 +1440,9 @@ export class B3dCloudDeck extends B3dChild {
       the top where the two would coincide, which covers the first hair of the
       dial where nothing has separated them yet.
       */
-      top.isVisible = attrs.coverage >= 1
+      // ...or wherever a STORM goes past full cover: its tower is the top skin
+      // lifted there, and the shader discards the rest (nothing separates it).
+      top.isVisible = attrs.coverage >= 1 || this._stormMax > 0
       top.position.set(
         this.mesh.position.x,
         attrs.altitude + rise,
@@ -1646,7 +1666,7 @@ export class B3dCloudDeck extends B3dChild {
     if (owner == null || !this._coverageCells()) return null
     return (x, z) =>
       Math.min(
-        1,
+        2,
         Math.max(
           0,
           owner.weatherAt(x + this._originX, z + this._originZ).coverage ?? 0
@@ -1776,12 +1796,17 @@ export class B3dCloudDeck extends B3dChild {
     const n = Math.max(1, Math.floor(this.subdivisions)) + 1
     const raw = new Float32Array(n * n)
     const rawGloom = new Float32Array(n * n)
+    const rawStorm = new Float32Array(n * n)
     for (let k = 0, i = 0; k < raw.length; k++, i += 3) {
       const x = positions[i] + ox
       const z = positions[i + 2] + oz
       const w = field == null ? 0 : field(x, z)
       raw[k] = w < 0 ? 0 : w > 1 ? 1 : w
-      if (gloomField != null) rawGloom[k] = gloomField(x, z)
+      if (gloomField != null) {
+        const g = gloomField(x, z) // 0..2: a cell past full cover is a storm
+        rawGloom[k] = Math.min(1, g)
+        rawStorm[k] = Math.max(0, g - 1)
+      }
     }
 
     /*
@@ -1800,11 +1825,25 @@ export class B3dCloudDeck extends B3dChild {
     grid snaps, and it turns a mountain into weather.
     */
     const src = smoothGrid(raw, n)
-    const gloom = gloomField != null ? smoothGrid(rawGloom, n) : null
+    /*
+    ONE PASS for the cell channels, not four. The four passes turn a faceted
+    ridge into weather; a weather cell is already smooth (a smoothstep over
+    its radius), and four more passes flattened a 700 m storm's excess from
+    0.7 to 0.18, so the tower stood 270 m instead of a kilometre. One pass
+    only takes the edge off the grid.
+    */
+    const gloom = gloomField != null ? smoothGrid(rawGloom, n, 1) : null
+    const stormy = gloomField != null ? smoothGrid(rawStorm, n, 1) : null
+    let stormMax = 0
+    if (stormy != null) for (const v of stormy) if (v > stormMax) stormMax = v
+    this._stormMax = stormMax
 
     for (let k = 0, v = 0; k < src.length; k++, v += 4) {
       colors[v] = src[k]
       topColors[v] = src[k]
+      const b = stormy == null ? 0 : stormy[k]
+      colors[v + 2] = b
+      topColors[v + 2] = b
     }
     mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors)
     top.updateVerticesData(BABYLON.VertexBuffer.ColorKind, topColors)

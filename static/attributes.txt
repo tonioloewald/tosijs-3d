@@ -236,6 +236,7 @@ b3d-cloud-deck
   sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
   sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
+  stormRise  = 1500  — How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says)
   localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
   orographic  = 0  — Cloud gathers over high ground, `0…1`. Needs a terrain in the scene
   orographicPeak  = 260  — Terrain height at which `orographic` is at full strength
@@ -1092,7 +1093,7 @@ b3d-weather-cell
   radius  = 200  — Reach (m); influence eases to nothing at the rim
   windSpeed  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
   windBearingDeg  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
-  coverage  = 0  — Cloud cover it adds (−1…1; summed, clamped). `0` = no opinion
+  coverage  = 0  — Cloud cover it adds (summed, clamped 0–2). PAST 1 IS A STORM TOWER: the cloud deck lifts its top there (`stormRise`), darker and thicker, which is what lightning lights from inside. `0` = no opinion
   precipitation  = 0  — Rain/snow 0–1 (the max of overlapping cells wins)
   storminess  = 0  — Lightning likelihood 0–1 (max wins)
   temperature  = 0  — Temperature offset in degrees (summed)
@@ -1280,7 +1281,7 @@ weather
 
   wind  = vector SUM  — a lee subtracts, a gust adds
   temperature  = signed SUM  — a cold cell beside a warm one cancels
-  coverage  = SUM, clamped 0–1  — a storm thickens the sky, a clear cell thins it
+  coverage  = SUM, clamped 0–2  — a storm thickens the sky, a clear cell thins it; past 1 is THICKNESS (a storm tower), as on the deck's own dial
   precipitation  = MAX  — two storms overlapping do not rain twice as hard
   storminess  = MAX  — like volcanism: the worst one wins
 

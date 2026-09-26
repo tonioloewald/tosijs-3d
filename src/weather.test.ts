@@ -47,8 +47,13 @@ describe('weatherAt — the base, plus every cell that reaches the point', () =>
 
   test('coverage sums and clamps; with no opinion anywhere it stays null', () => {
     const storm = { at: { x: 0, z: 0 }, radius: 10, coverage: 0.8 }
-    expect(weatherAt({ ...CALM, coverage: 0.5 }, [storm], 0, 0).coverage).toBe(
-      1
+    expect(
+      weatherAt({ ...CALM, coverage: 0.5 }, [storm], 0, 0).coverage
+    ).toBeCloseTo(1.3, 6)
+    // Past 1 is THICKNESS (a storm tower), capped at 2 like the deck's dial.
+    const tower = { at: { x: 0, z: 0 }, radius: 10, coverage: 1.8 }
+    expect(weatherAt({ ...CALM, coverage: 0.9 }, [tower], 0, 0).coverage).toBe(
+      2
     )
     expect(weatherAt(CALM, [], 0, 0).coverage).toBeNull()
     expect(weatherAt(CALM, [storm], 0, 0).coverage).toBeCloseTo(0.8, 6)

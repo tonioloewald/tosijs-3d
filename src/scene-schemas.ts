@@ -682,6 +682,8 @@ export function cloudDeckSchema(extra: Record<string, unknown> = {}) {
       evolve: num(0.5, unit),
       follow: choice('on', ['on', 'off']),
       localRise: num(1200, { minimum: 0, maximum: 5000, ...M }),
+      // Storm towers from weather cells past coverage 1 (board #1122).
+      stormRise: num(1500, { minimum: 0, maximum: 5000, ...M }),
       localCoverage: num(1, { minimum: 0, maximum: 2 }),
       // Needs a terrain in the scene.
       orographic: num(0, unit),

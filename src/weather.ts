@@ -14,7 +14,7 @@ ways of combining regions can never disagree at a boundary:
 | --- | --- | --- |
 | `wind` | vector SUM | a lee subtracts, a gust adds |
 | `temperature` | signed SUM | a cold cell beside a warm one cancels |
-| `coverage` | SUM, clamped 0–1 | a storm thickens the sky, a clear cell thins it |
+| `coverage` | SUM, clamped 0–2 | a storm thickens the sky, a clear cell thins it; past 1 is THICKNESS (a storm tower), as on the deck's own dial |
 | `precipitation` | MAX | two storms overlapping do not rain twice as hard |
 | `storminess` | MAX | like volcanism: the worst one wins |
 
@@ -28,7 +28,7 @@ import { addWind, NO_WIND, scaleWind, type Wind } from './wind.js'
 /** The weather at one point. */
 export interface WeatherSample {
   wind: Wind
-  /** Cloud cover 0–1, or `null` when nothing has an opinion (consumers keep
+  /** Cloud cover 0–2 (past 1 is thickness, as on the deck's dial), or `null` when nothing has an opinion (consumers keep
    * their own dial). */
   coverage: number | null
   /** Rain/snow intensity 0–1. */
@@ -108,7 +108,7 @@ export function weatherAt(
       storminess = Math.max(storminess, c.storminess * k)
   }
   if (coverageTouched && coverage != null)
-    coverage = Math.min(1, Math.max(0, coverage))
+    coverage = Math.min(2, Math.max(0, coverage))
   return {
     wind,
     coverage,
