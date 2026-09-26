@@ -10,6 +10,19 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Frame panels are usable as menus** (board #768, tosijs-3d#92, from
+  manta-recon moving its outer game to viewer-relative panels):
+  - **They route pointers.** A `panel3d` on a frame panel now takes presses,
+    drags and hover from mouse, touch and XR rays (the same routing
+    `b3d-svg-plane` has), and repaints immediately on press and release rather
+    than on the texture's 400 ms timer. Before, the buttons drew and ignored
+    every click, with no error.
+  - `attachFramePanel` returns its **`mesh`**.
+  - **`resolution`** on `FramePanelSpec` (and `<tosi-b3d-panel resolution>`):
+    384 suits a reticle, not a menu of text.
+  - **`flatFrame` applies to any panel**, not only hand panels, so
+    `flatFrame: 'face'` measures a flat panel's elevation from the VIEW rather
+    than the off-screen horizon of a pitched camera.
 - **Flying under water feels like water** (board #185, manta's #3). A
   `submersible` aircraft now meets a thicker MEDIUM below the surface:
   `waterDrag` (×10 by default, the 2010 Manta's air:water ratio) multiplies

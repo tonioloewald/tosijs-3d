@@ -73,10 +73,17 @@ export interface FramePanelSpec {
    */
   presence?: 'xr' | 'both'
   /**
-   * The frame to use FLAT when `frame` has no flat analogue — the hands. A
-   * wrist palette in VR is usually a screen-edge palette flat, and that is the
-   * author's call to write down, not the library's to guess. Without one, a
-   * hand panel stays VR-only and says so once.
+   * The frame to use in the FLAT view, when it should differ from `frame`.
+   *
+   * Two jobs. The HANDS have no flat analogue: a wrist palette in VR is
+   * usually a screen-edge palette flat, which is the author's call to write
+   * down, not the library's to guess (without one, a hand panel stays VR-only
+   * and says so once). And on a monitor the camera's PITCH is the designer's,
+   * not the viewer's: the flat `eye` frame takes only the view's yaw, so
+   * elevation is measured from the horizon, and under the default 30°-down
+   * orbit camera elevation 0 is off the top of the screen. `flatFrame:
+   * 'face'` measures from the view itself, so a menu at elevation 0 is
+   * centred (tosijs-3d#92).
    */
   flatFrame?: FrameName
   /** A preset, or an explicit anchor. */
@@ -133,6 +140,14 @@ export interface FramePanelSpec {
   aspect?: number
   /** Panel width in metres (height follows the aspect). Default 0.26. */
   width?: number
+  /**
+   * Texture resolution in pixels (square). Default 384, which suits a
+   * reticle, the job frame panels were first built for. A MENU wants more:
+   * a ~1100 device-px panel on a 2× display at 384 upscales text ~2.9× and
+   * reads soft (tosijs-3d#92). Costs VRAM as the square, so ask for what the
+   * panel's on-screen size needs.
+   */
+  resolution?: number
 }
 
 // Angular presets measured from the mean-eye point, all at the same comfortable
@@ -253,6 +268,9 @@ export function attachFramePanel(
 ): {
   update: (ctx?: { firstPerson?: boolean }) => void
   dispose: () => void
+  /** The plane itself — so a consumer never has to find it by diffing the
+   * frame's children around the call (tosijs-3d#92). */
+  readonly mesh: BABYLON.Mesh
   /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
    * the ONLY way to see why a panel is (or isn't) revealing. */
   readonly debug: {
@@ -333,10 +351,14 @@ export function attachFramePanel(
     ? new SvgTexture({
         scene,
         element: el,
-        resolution: 384,
+        resolution: spec.resolution ?? 384,
         updateInterval: 400,
       })
-    : new SvgTexture({ scene, url: spec.url, resolution: 384 })
+    : new SvgTexture({
+        scene,
+        url: spec.url,
+        resolution: spec.resolution ?? 384,
+      })
   const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene)
   mat.backFaceCulling = false
   mat.emissiveTexture = tex.texture
@@ -380,8 +402,92 @@ export function attachFramePanel(
     camera: '—',
   }
 
+  /*
+  POINTERS, so a panel of controls is a panel you can USE (tosijs-3d#92).
+
+  A `panel3d` SVG exposes `handlePointer(kind, x, y)` in viewBox coordinates,
+  and b3d-svg-plane has always routed scene picks into it — mouse, touch and
+  XR rays alike, through the one scene pointer observable. This marked its
+  plane pickable and routed nothing, so a menu here drew working-looking
+  buttons that ignored every click, with no error: the worst failure a menu
+  can have. Same routing as b3d-svg-plane: a press must land ON the plane, and
+  once pressed the panel owns the gesture until release (so a slider drag
+  survives leaving the track).
+
+  A gaze-hidden panel does not take presses: it is not there for the user.
+
+  And REPAINT NOW on a press or release, instead of waiting for the texture's
+  400 ms timer. Otherwise a button's pressed state lags by up to that, which
+  does not matter for a reticle and matters a lot for a menu. A move repaints
+  at most once per frame.
+  */
+  const target = el as unknown as {
+    handlePointer?: (k: string, x: number, y: number) => void
+  } | null
+  let pointerObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.PointerInfo>> = null
+  if (target != null && typeof target.handlePointer === 'function' && el) {
+    scene.constantlyUpdateMeshUnderPointer = true
+    const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes
+    let pressing = false
+    let hovering = false
+    let lastX = 0
+    let lastY = 0
+    let repaintQueued = false
+    const repaint = (now: boolean) => {
+      if (now) return tex.render()
+      if (repaintQueued) return
+      repaintQueued = true
+      scene.onAfterRenderObservable.addOnce(() => {
+        repaintQueued = false
+        tex.render()
+      })
+    }
+    pointerObs = scene.onPointerObservable.add((info) => {
+      const kind =
+        info.type === POINTERDOWN
+          ? 'down'
+          : info.type === POINTERUP
+          ? 'up'
+          : info.type === POINTERMOVE
+          ? 'move'
+          : ''
+      if (!kind) return
+      const pick = info.pickInfo
+      const onPlane =
+        !!pick?.hit && pick.pickedMesh === plane && plane.visibility > 0.5
+      const uv = onPlane && pick ? pick.getTextureCoordinates() : null
+      if (uv) {
+        const vb = el.viewBox.baseVal
+        lastX = uv.x * (vb.width || 1)
+        lastY = (1 - uv.y) * (vb.height || 1)
+      }
+      if (kind === 'down') {
+        if (!uv) return
+        pressing = true
+        target.handlePointer!('down', lastX, lastY)
+        repaint(true)
+      } else if (kind === 'move') {
+        if (pressing || uv) {
+          hovering = true
+          target.handlePointer!('move', lastX, lastY)
+          repaint(false)
+        } else if (hovering) {
+          // Off the plane: clear the hover, or a highlighted row stays lit.
+          hovering = false
+          target.handlePointer!('leave', 0, 0)
+          repaint(false)
+        }
+      } else if (pressing) {
+        pressing = false
+        target.handlePointer!('up', lastX, lastY)
+        repaint(true)
+      }
+    })
+  }
+
   return {
     debug,
+    mesh: plane,
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
@@ -433,6 +539,7 @@ export function attachFramePanel(
       debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl)
     },
     dispose() {
+      if (pointerObs != null) scene.onPointerObservable.remove(pointerObs)
       tex.dispose()
       mat.dispose()
       plane.dispose()

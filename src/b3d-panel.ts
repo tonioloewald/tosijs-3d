@@ -106,6 +106,8 @@ so you have full control:
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
 | `max-distance` | `0` | Hide beyond this distance (m); 0 = no limit |
 | `presence` | `'xr'` | `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera |
+| `flatFrame` | `''` | The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera |
+| `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
 | `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
 */
 /*{ "parent": "UI", "order": 500 }*/
@@ -136,6 +138,8 @@ export class B3dPanel extends Component {
     maxDistance: 0,
     presence: 'xr',
     flatFrame: '',
+    /** Texture px (square); 0 = the default 384 — see FramePanelSpec.resolution. */
+    resolution: 0,
   }
 
   static shadowStyleSpec = {
@@ -160,6 +164,7 @@ export class B3dPanel extends Component {
   declare maxDistance: number
   declare presence: string
   declare flatFrame: string
+  declare resolution: number
 
   /** Build the FramePanelSpec this element declares. */
   toSpec(): FramePanelSpec {
@@ -199,6 +204,7 @@ export class B3dPanel extends Component {
       maxDistance: this.maxDistance > 0 ? this.maxDistance : undefined,
       presence: this.presence === 'both' ? 'both' : 'xr',
       flatFrame: (this.flatFrame || undefined) as FrameName | undefined,
+      resolution: this.resolution > 0 ? this.resolution : undefined,
     }
   }
 }

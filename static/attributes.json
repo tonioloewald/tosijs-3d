@@ -2349,7 +2349,14 @@
         "description": "`'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera"
       },
       {
-        "name": "flatFrame"
+        "name": "flatFrame",
+        "default": "''",
+        "description": "The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera"
+      },
+      {
+        "name": "resolution",
+        "default": "0",
+        "description": "Texture size in px (square); `0` = 384. Raise it for a menu with text"
       }
     ]
   },

@@ -1848,9 +1848,8 @@ export class B3d extends Component {
   private _flatSig = ''
   private _flatCheckIn = 0
   private _flatHandWarned = new Set<string>()
-  private _flatPoseObs: BABYLON.Nullable<
-    BABYLON.Observer<BABYLON.Camera>
-  > = null
+  private _flatPoseObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>> =
+    null
 
   private _disposeFlatPanels(): void {
     if (this._flatPoseObs != null) {
@@ -1908,21 +1907,21 @@ export class B3d extends Component {
             }
           )
           for (const spec of specs) {
+            // `flatFrame` wins whenever it is given (the hands need it; a
+            // pitched flat camera wants 'face'), and is required for a hand.
             let frame = spec.frame ?? 'body'
-            if (frame === 'left-hand' || frame === 'right-hand') {
-              if (spec.flatFrame == null) {
-                const key = spec.title ?? spec.url ?? frame
-                if (!this._flatHandWarned.has(key)) {
-                  this._flatHandWarned.add(key)
-                  console.warn(
-                    `b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
-                      '(a monitor has no hands), so it is VR-only. Give it a ' +
-                      '`flatFrame` to say where it goes flat.'
-                  )
-                }
-                continue
+            if (spec.flatFrame != null) frame = spec.flatFrame
+            else if (frame === 'left-hand' || frame === 'right-hand') {
+              const key = spec.title ?? spec.url ?? frame
+              if (!this._flatHandWarned.has(key)) {
+                this._flatHandWarned.add(key)
+                console.warn(
+                  `b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
+                    '(a monitor has no hands), so it is VR-only. Give it a ' +
+                    '`flatFrame` to say where it goes flat.'
+                )
               }
-              frame = spec.flatFrame
+              continue
             }
             this._flatPanels.push(
               attachFramePanel(
