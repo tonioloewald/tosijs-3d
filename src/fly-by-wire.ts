@@ -433,3 +433,41 @@ export function equilibriumSpeed(
     cfg.accel * clamp(throttle, 0, 1) + reheatAccel * clamp(afterburner, 0, 1)
   return Math.sqrt(Math.max(0, thrust / dragK))
 }
+
+/**
+ * **Turbulence**: smooth, seeded disturbance for an airframe, as RATES
+ * (pitch and roll in rad/s, heave in m/s²) to add to the state each step.
+ * The attitude controller then pulls the craft back toward what the stick
+ * commands, and the fight between the two is what a buffet feels like.
+ *
+ * Deterministic (a sum of incommensurate sines with seeded phases), so the
+ * same flight through the same storm bumps the same way; zero when `level`
+ * is 0; mean zero, so it shakes without pushing. `level` 0–1 comes from the
+ * weather (storminess, wind); see `b3d-aircraft`.
+ */
+export function turbulence(
+  t: number,
+  seed: number,
+  level: number
+): { pitchRate: number; rollRate: number; heave: number } {
+  if (!(level > 0)) return { pitchRate: 0, rollRate: 0, heave: 0 }
+  const k = Math.min(1, level)
+  // Seeded phases, one per term, from a small integer hash.
+  const ph = (i: number) => {
+    let h = (seed | 0) ^ Math.imul(i + 1, 0x9e3779b1)
+    h = Math.imul(h ^ (h >>> 15), 0x85ebca77)
+    h ^= h >>> 13
+    return ((h >>> 0) / 4294967296) * Math.PI * 2
+  }
+  // Three frequencies per channel, incommensurate so it never repeats
+  // visibly: a slow wallow, a mid bump, a quick chop.
+  const ch = (base: number, o: number) =>
+    Math.sin(t * base + ph(o)) * 0.55 +
+    Math.sin(t * base * 2.713 + ph(o + 1)) * 0.3 +
+    Math.sin(t * base * 6.271 + ph(o + 2)) * 0.15
+  return {
+    pitchRate: ch(1.3, 0) * 0.35 * k,
+    rollRate: ch(1.7, 3) * 0.6 * k,
+    heave: ch(1.1, 6) * 6 * k,
+  }
+}

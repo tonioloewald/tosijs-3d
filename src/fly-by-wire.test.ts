@@ -13,6 +13,7 @@ import {
   equilibriumSpeed,
   type FlyByWireConfig,
   type FlyByWireState,
+  turbulence,
 } from './fly-by-wire.js'
 
 const DEG = Math.PI / 180
@@ -636,5 +637,38 @@ describe('the medium (#185): water is thicker, the controls are the same', () =>
     const s = state({ speed: 5 })
     flyByWireStep(s, NO_INPUT, 5, 0, { ...CFG, mediumDrag: 1000 }, 0.5, false)
     expect(s.speed).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('turbulence (#1125): a buffet, not a push', () => {
+  test('calm is calm', () => {
+    expect(turbulence(3.2, 7, 0)).toEqual({
+      pitchRate: 0,
+      rollRate: 0,
+      heave: 0,
+    })
+  })
+  test('seeded: the same storm bumps the same way', () => {
+    expect(turbulence(12.5, 7, 0.8)).toEqual(turbulence(12.5, 7, 0.8))
+    expect(turbulence(12.5, 7, 0.8)).not.toEqual(turbulence(12.5, 8, 0.8))
+  })
+  test('mean ≈ 0 (it shakes, it does not steer), bounded, and scales with level', () => {
+    let sum = 0
+    let maxAbs = 0
+    let sumSq1 = 0
+    let sumSq05 = 0
+    const N = 20000
+    for (let i = 0; i < N; i++) {
+      const t = i * 0.05
+      const a = turbulence(t, 3, 1)
+      sum += a.rollRate
+      maxAbs = Math.max(maxAbs, Math.abs(a.rollRate), Math.abs(a.pitchRate))
+      sumSq1 += a.heave * a.heave
+      const b = turbulence(t, 3, 0.5)
+      sumSq05 += b.heave * b.heave
+    }
+    expect(Math.abs(sum / N)).toBeLessThan(0.02)
+    expect(maxAbs).toBeLessThanOrEqual(0.61)
+    expect(Math.sqrt(sumSq05 / sumSq1)).toBeCloseTo(0.5, 2)
   })
 })

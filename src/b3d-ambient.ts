@@ -414,7 +414,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
 
   /** The drift this frame: the scene's wind, or this element's own. */
   private _wind(): { windX: number; windZ: number } {
-    const scene = inheritedWind(this.wind, this.owner?.weatherHere().wind)
+    const scene = inheritedWind(this.wind, this.owner?.weatherHere?.().wind)
     return scene != null
       ? { windX: scene.x, windZ: scene.z }
       : { windX: this.windX, windZ: this.windZ }
@@ -869,7 +869,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   private _weatherWeight(): number {
     const mode = this.weather
     if (mode !== 'rain' && mode !== 'snow') return 1
-    const w = this.owner?.weatherHere()
+    const w = this.owner?.weatherHere?.()
     if (w == null) return 0
     const snow = Math.min(1, Math.max(0, (-1 - w.temperature) / 4))
     return w.precipitation * (mode === 'snow' ? snow : 1 - snow)

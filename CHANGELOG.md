@@ -10,6 +10,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Weather reaches the airframe** (board #1125). `<tosi-b3d-aircraft>` asks
+  the scene for the weather where it is: the WIND carries it (it chases an
+  air-relative velocity, so a crosswind crabs it downwind), and a STORM
+  buffets it — seeded disturbance on pitch, roll and climb that the attitude
+  controller fights back toward the stick. Strong wind alone adds a little.
+  New attributes **`turbulence`** (`'on'`/`'off'`, default on) and
+  **`turbulenceScale`** (default `1`), and a read-only **`turbulenceLevel`**
+  (0–1) for a HUD or a debug readout. The disturbance is the pure, seeded
+  **`turbulence(t, seed, level)`** in `fly-by-wire`. Nothing happens on the
+  ground or in an owner without the weather service.
 - **Light shafts** (WEATHER-DESIGN stage 4, board #1084):
   **`<tosi-b3d-light-shafts>`** finds the gaps in the cloud deck beside
   thicker cloud near you and hangs a soft shaft of sunlight from each, slanted

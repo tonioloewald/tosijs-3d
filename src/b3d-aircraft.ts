@@ -216,6 +216,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `submersible` | `false` | Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash |
 | `waterDrag` | `10` | Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater |
 | `waterTransition` | `2` | Metres over which drag blends from air to water across the surface |
+| `turbulence` | `'on'` | The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather |
+| `turbulenceScale` | `1` | Scales the buffeting |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 | `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
@@ -379,6 +381,7 @@ import {
   equilibriumSpeed,
   flyByWireStep,
   targetVelocity,
+  turbulence,
   chaseVelocity,
   type FlyByWireConfig,
   type FlyByWireState,
@@ -458,6 +461,8 @@ type HudSink = {
   ): void
   setInSceneVisible?(visible: boolean): void
 }
+
+let nextTurbulenceSeed = 1
 
 export class B3dAircraft extends B3dControllable {
   static preferredTagName = 'tosi-b3d-aircraft'
@@ -566,6 +571,14 @@ export class B3dAircraft extends B3dControllable {
      * underwater and the controls feel the same, just heavier.
      */
     waterDrag: 10,
+    /**
+     * `'off'` ignores the weather: no wind drift, no buffeting. On by default
+     * because a calm scene has no weather to feel, so it changes nothing
+     * until a wind or a storm is declared.
+     */
+    turbulence: 'on' as 'on' | 'off',
+    /** Scales the buffeting (1 = as the weather says). */
+    turbulenceScale: 1,
     /** Metres over which the drag blends from air to water across the surface. */
     waterTransition: 2,
     // Vertical impact speed (m/s) above which a ground contact is a crash, not
@@ -637,6 +650,11 @@ export class B3dAircraft extends B3dControllable {
   // Read-only flight state
   airspeed = 0
   altitude = 0
+  /** Current turbulence 0–1 from the weather here (a HUD or audio can read it). */
+  turbulenceLevel = 0
+  // Creation order, not Math.random: the same flight through the same storm
+  // must bump the same way.
+  private _turbulenceSeed = nextTurbulenceSeed++
   /**
    * How far under the water the airframe is, 0 (air) … 1 (fully submerged),
    * blended over `waterTransition`. 0 whenever the scene has no water or the
@@ -982,6 +1000,36 @@ export class B3dAircraft extends B3dControllable {
       this.grounded
     )
 
+    /*
+    THE WEATHER REACHES THE AIRFRAME (WEATHER-DESIGN, board #1125). Where the
+    craft is: the wind makes it DRIFT (it chases an air-relative velocity,
+    so a crosswind crabs it), and a storm BUFFETS it: seeded disturbance
+    added to the attitude and to the climb, which the attitude controller
+    then fights back toward the stick. Not on the ground, and off with
+    turbulence="off".
+    */
+    const weather =
+      this.grounded || isOff(attrs.turbulence)
+        ? null
+        : this.owner?.weatherAt?.(node.position.x, node.position.z) ?? null
+    if (weather != null) {
+      const windSpeed = Math.hypot(weather.wind.x, weather.wind.z)
+      const level =
+        Math.min(1, weather.storminess + (windSpeed / 40) * 0.5) *
+        Math.max(0, attrs.turbulenceScale ?? 1)
+      this.turbulenceLevel = level
+      if (level > 0) {
+        const tb = turbulence(
+          this.owner?.frameInfo?.().elapsed ?? 0,
+          this._turbulenceSeed,
+          level
+        )
+        this.fbw.pitch += tb.pitchRate * dt
+        this.fbw.bank += tb.rollRate * dt
+        vel.y += tb.heave * dt
+      }
+    } else this.turbulenceLevel = 0
+
     // Realise the attitude as a quaternion. Babylon's +pitch(X) drops the nose
     // and +roll(Z) banks left, so negate both (our state: +pitch = nose up,
     // +bank = right). Verified through the rig test.
@@ -1004,6 +1052,12 @@ export class B3dAircraft extends B3dControllable {
       heightAboveGround,
       cfg
     )
+    // The air moves: what the craft chases is its air-relative velocity plus
+    // the wind, so it drifts downwind and crabs across a crosswind.
+    if (weather != null) {
+      tv.x += weather.wind.x
+      tv.z += weather.wind.z
+    }
     chaseVelocity(vel, tv, cfg.velChase, dt)
 
     // Read-only flight state for the HUD / XR rig.

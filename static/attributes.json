@@ -226,6 +226,16 @@
         "description": "Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater"
       },
       {
+        "name": "turbulence",
+        "default": "'on'",
+        "description": "The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather"
+      },
+      {
+        "name": "turbulenceScale",
+        "default": "1",
+        "description": "Scales the buffeting"
+      },
+      {
         "name": "waterTransition",
         "default": "2",
         "description": "Metres over which drag blends from air to water across the surface"
