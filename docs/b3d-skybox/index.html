@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-skybox — tosijs-3d</title>
   <meta name="description" content="Procedural sky with sun/moon cycle driven by time of day. Automatically controls a b3dSun sibling&#39;s direction, intensity, and color." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-skybox/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-skybox</h1>
 <p>Procedural sky with sun/moon cycle driven by time of day. Automatically controls
@@ -110,6 +110,25 @@ const scene = b3d(
 )
 preview.append(scene)
 </code></pre>
+<h3>Pin the shipped sky in a document</h3>
+<p><code>/sky/stars</code> + <code>/sky/nebula</code> are <strong>latest</strong>: what the demos load, and a rebake
+changes them. A document that should keep the sky it was authored against
+points at a <strong>versioned</strong> pair instead, which is never rewritten:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">b3dSkybox</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">starfieldCube</span><span class="token operator">:</span> <span class="token string">'https://3d.tosijs.net/sky/0.8.4/nebula'</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">starfieldData</span><span class="token operator">:</span> <span class="token string">'https://3d.tosijs.net/sky/0.8.4/stars'</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">starfieldDataSize</span><span class="token operator">:</span> <span class="token number">1024</span><span class="token punctuation">,</span> <span class="token comment">// from the manifest — it must match the data</span>
+  <span class="token literal-property property">starfieldTilt</span><span class="token operator">:</span> <span class="token string">'12,25,58'</span><span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>Each version folder carries a <code>manifest.json</code> with the decode parameters
+(<code>starfieldDataSize</code>, <code>starfieldTilt</code>) and the recipe it was baked from, so a
+consumer can read them from beside the data rather than hard-coding them.
+Versions so far: <code>0.8.3</code> (the <code>generateGalaxy</code> sky) and <code>0.8.4</code> (the voxel
+galaxy — far more stars). tosijs-3d#90.</p>
+<p>The starfield attributes (<code>starfield*</code>, <code>nebula*</code>) are <strong>live</strong>: changing one
+on an existing sky rebuilds the starfield, so applying a document to a sky
+that is already up works. <code>skyboxSize</code> is the one that is still read once.</p>
 <h2>Attributes</h2>
 <table>
 <thead>
@@ -137,7 +156,7 @@ preview.append(scene)
 <tr>
 <td><code>azimuth</code></td>
 <td><code>0</code></td>
-<td>Sun&#39;s compass bearing as Babylon&#39;s <strong>0–1 fraction of a full turn</strong>, not degrees — it goes straight to <code>SkyMaterial.azimuth</code>. The one angle here that isn&#39;t degrees, because it isn&#39;t ours</td>
+<td><strong>Ignored</strong> — the sun is placed by <code>latitude</code> and <code>timeOfDay</code>, and the sky material accepts this and discards it. Kept so old markup doesn&#39;t break; not in <code>skyboxSchema()</code> (tosijs-3d#86)</td>
 </tr>
 <tr>
 <td><code>luminance</code></td>
@@ -165,6 +184,31 @@ preview.append(scene)
 <td>Altitude (m) of full vacuum. Feature is off unless this exceeds <code>spaceStart</code></td>
 </tr>
 <tr>
+<td><code>atmosphere</code></td>
+<td><code>1</code></td>
+<td>How much air this WORLD has: <code>1</code> Earth, <code>0</code> the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is <code>(1 − atmosphere)⁴</code>) — and it multiplies with the space band</td>
+</tr>
+<tr>
+<td><code>dust</code></td>
+<td><code>0</code></td>
+<td>Suspended dust, 0…1: bright, coloured haze that is never blue. Independent of <code>atmosphere</code>, so Mars is almost no air and lots of dust, and the Moon is neither</td>
+</tr>
+<tr>
+<td><code>zenithTint</code></td>
+<td><code>&#39;#ffffff&#39;</code></td>
+<td>The sky&#39;s colour overhead — the scattered light&#39;s own brightness in this hue, by <code>tintStrength</code>. Stars and moon are behind the air and untinted</td>
+</tr>
+<tr>
+<td><code>horizonTint</code></td>
+<td><code>&#39;#ffffff&#39;</code></td>
+<td>The same at the horizon. <code>zenithTint: &#39;#c8a070&#39;, horizonTint: &#39;#e0b080&#39;, tintStrength: 1</code> is a butterscotch Mars</td>
+</tr>
+<tr>
+<td><code>tintStrength</code></td>
+<td><code>0</code></td>
+<td>How much the sky takes the tints, <code>0</code> (Earth, untouched) … <code>1</code></td>
+</tr>
+<tr>
 <td><code>starfieldCube</code></td>
 <td><code>&#39;&#39;</code></td>
 <td>Root path of a baked cube (<code>&lt;root&gt;_px.png</code> …). Replaces <code>starfield</code></td>
@@ -183,6 +227,21 @@ preview.append(scene)
 <td><code>starfieldSharpness</code></td>
 <td><code>3</code></td>
 <td>How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point</td>
+</tr>
+<tr>
+<td><code>starfieldGain</code></td>
+<td><code>0.9</code></td>
+<td>How bright the decoded stars are — the intensity cap on the whole point sky</td>
+</tr>
+<tr>
+<td><code>starfieldTwinkle</code></td>
+<td><code>0.35</code></td>
+<td>Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon</td>
+</tr>
+<tr>
+<td><code>starfieldFloor</code></td>
+<td><code>0.4</code></td>
+<td>The faint mass&#39;s brightness — most stars sit on it; <code>starfieldGain</code> only moves the bright few above it</td>
 </tr>
 <tr>
 <td><code>starfieldSizeScale</code></td>
@@ -329,7 +388,9 @@ preview.append(scene)
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link current" href="../b3d-skybox/" aria-current="page">b3d-skybox</a></li>
@@ -338,6 +399,7 @@ preview.append(scene)
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -359,6 +421,8 @@ preview.append(scene)
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -388,6 +452,8 @@ preview.append(scene)
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -487,6 +553,6 @@ preview.append(scene)
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

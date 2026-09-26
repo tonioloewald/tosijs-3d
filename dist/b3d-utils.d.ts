@@ -403,6 +403,24 @@ export declare class AbstractMesh extends B3dChild {
     get yaw(): number;
     set yaw(v: number);
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
+    /**
+     * Apply a uniform `scale` attribute to the mesh (a non-positive or non-finite
+     * value means 1). Not part of the per-render sync, because most subclasses
+     * own `scaling` for their own reasons; elements with a `scale` attribute call
+     * this from their `render()` so a later write takes effect.
+     */
+    protected applyUniformScale(): void;
+    private _originShift;
+    /**
+     * Opt in to the **floating origin**: on a rebase, shift the `x`/`z`
+     * attributes (the source of truth — the per-render sync then moves the
+     * node). NOT `registerWorldRoot`, which moves only the node, so the next
+     * render would put it back where it was.
+     *
+     * For world-placed things only. A mesh parented to something else holds
+     * LOCAL coordinates and moves with its parent, so it is left alone.
+     */
+    protected followOrigin(owner: B3d): void;
     sceneDispose(): void;
     /** Attach/detach the debug axis gizmo to track the `axes` attribute. */
     private _updateAxes;

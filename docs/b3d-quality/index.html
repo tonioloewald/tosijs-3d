@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-quality — tosijs-3d</title>
   <meta name="description" content="The system quality proxy — the single place that vends device-appropriate defaults. The probe measures the device and feeds a PerfProfile in here; components…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-quality/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-quality</h1>
 <p>The <strong>system quality proxy</strong> — the single place that vends device-appropriate
@@ -57,9 +57,9 @@ rest of the framework follows.</p>
 <h2>The <code>auto</code> default convention</h2>
 <p>Components declare performance-sensitive attributes with an <strong><code>auto</code> sentinel</strong>
 (<code>0</code> for numbers) instead of a hard-wired number, and resolve them here:</p>
-<pre><code class="language-typescript">// in a component&#39;s setup:
-const subs = resolveBudget(this.hiResSubdivisions, &#39;hiResSubdivisions&#39;, { xr })
-//           explicit author value wins; 0 (auto) → the tier&#39;s budget
+<pre><code class="language-typescript" data-highlighted><span class="token comment">// in a component's setup:</span>
+<span class="token keyword">const</span> subs <span class="token operator">=</span> <span class="token function">resolveBudget</span><span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">.</span>hiResSubdivisions<span class="token punctuation">,</span> <span class="token string">'hiResSubdivisions'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span> xr <span class="token punctuation">}</span><span class="token punctuation">)</span>
+<span class="token comment">//           explicit author value wins; 0 (auto) → the tier's budget</span>
 </code></pre>
 <p>So an author who sets a value gets exactly that; everything left unset adapts to
 the measured device. <strong>This is the pattern to reach for wherever you find a
@@ -67,11 +67,11 @@ hard-wired default that affects performance</strong> (terrain detail, shadow map
 reflection resolution, render scaling…): make the default <code>auto</code> and resolve it,
 rather than baking one number that&#39;s wrong for both a phone and a workstation.</p>
 <h2>Global override</h2>
-<pre><code class="language-javascript">import { setQuality, getQuality } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> setQuality<span class="token punctuation">,</span> getQuality <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 
-setQuality(&#39;low&#39;)            // force low everywhere
-setQuality(&#39;auto&#39;)           // back to the measured profile (default)
-// a settings &lt;select&gt; calls setQuality(e.target.value) and reads getQuality()
+<span class="token function">setQuality</span><span class="token punctuation">(</span><span class="token string">'low'</span><span class="token punctuation">)</span>            <span class="token comment">// force low everywhere</span>
+<span class="token function">setQuality</span><span class="token punctuation">(</span><span class="token string">'auto'</span><span class="token punctuation">)</span>           <span class="token comment">// back to the measured profile (default)</span>
+<span class="token comment">// a settings &lt;select> calls setQuality(e.target.value) and reads getQuality()</span>
 </code></pre>
 
   </article>
@@ -142,7 +142,9 @@ setQuality(&#39;auto&#39;)           // back to the measured profile (default)
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -151,6 +153,7 @@ setQuality(&#39;auto&#39;)           // back to the measured profile (default)
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -172,6 +175,8 @@ setQuality(&#39;auto&#39;)           // back to the measured profile (default)
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -201,6 +206,8 @@ setQuality(&#39;auto&#39;)           // back to the measured profile (default)
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -300,6 +307,6 @@ setQuality(&#39;auto&#39;)           // back to the measured profile (default)
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

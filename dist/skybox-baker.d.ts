@@ -1,5 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { type SkyObject } from './starfield-codec.js';
+import { type DistantStarData, type NebulaData } from './galaxy-data.js';
+import type { VoxelGalaxy } from './voxel-galaxy.js';
 /** A point the baker reads — what `b3d-galaxy`'s point accessors return. */
 export interface SkyPoint {
     position: {
@@ -112,6 +114,21 @@ export declare const SHIPPED_SKY: {
     readonly smoothSize: 256;
     readonly dataSize: 1024;
     readonly tilt: "12,25,58";
+    /**
+     * The VOXEL galaxy's dials (GALAXY-DESIGN.md) — used by `bin/bake-stars.ts`.
+     * These are the values `static/sky` was baked with (approved by eye,
+     * 2026-09-25): `bun bin/bake-stars.ts` then `bun bin/bake-nebula.ts`, with
+     * no flags, reproduce both halves. Re-bake after changing them. The bright budget is well past GALAXY-DESIGN's ~5k
+     * guess — at 5k the band loses its grain; 100k keeps it.
+     */
+    readonly voxel: {
+        readonly brightBudget: 100000;
+        readonly dimBudget: 1000000;
+        /** Generator units (disc radius 0.9) at which a dim star is at full brightness. */
+        readonly dimReach: 0.04;
+        /** Faintest encoded dim star — also sets the gather radius. */
+        readonly floor: 0.02;
+    };
 };
 /**
  * Where to stand, given a galaxy's radius.
@@ -208,6 +225,66 @@ export declare function starsFromGalaxy(galaxy: {
     galaxyMaxScale?: number;
 }): SkyObject[];
 /**
+ * The shell OUTSIDE the disc — distant galaxies (small discs) and the dim
+ * far-out stars — as sky objects. Shared by both star sources, so the rules
+ * live once.
+ */
+export declare function distantShellObjects(galaxies: SkyPoint[], stars: SkyPoint[], eye: {
+    x: number;
+    y: number;
+    z: number;
+}, galaxyMaxScale?: number): SkyObject[];
+/** Options for {@link starsFromVoxelGalaxy}. */
+export interface VoxelSkyOptions {
+    /**
+     * The galaxy's radius in scene units — what `b3dGalaxy({ radius })` uses.
+     * The generator's disc (radius 0.9) is scaled by `radius / 0.9` and turned
+     * y-up, exactly as the live galaxy does, so a bake point means the same
+     * place in both.
+     */
+    radius?: number;
+    /**
+     * The distance, in GENERATOR units (disc radius 0.9), at which a dim star
+     * shows its full intrinsic brightness. Nearer is clamped; farther falls off
+     * with the square of distance.
+     */
+    dimReach?: number;
+    /**
+     * The faintest a dim star may be and still be encoded. It also SETS the
+     * gather radius: the distance at which the brightest dim star falls to it.
+     */
+    floor?: number;
+}
+/**
+ * The point sky from a {@link VoxelGalaxy}: every BRIGHT star, the DIM stars
+ * near the eye, and the distant shell. (GALAXY-DESIGN.md, build step 2.)
+ *
+ * **Bright stars keep the rule the shipped sky was tuned with** — brightness
+ * from the star's own scale, not its distance — so the look carries over.
+ * **Dim stars fall off with distance**: a K or M dwarf is only visible nearby,
+ * which is the whole point of generating them locally. The gather radius is
+ * not a guess: it is where the BRIGHTEST dim star falls to `floor`, so nothing
+ * that could clear the floor is left ungenerated.
+ *
+ * Brightness is normalised to the hottest star either mix CAN produce, not the
+ * hottest one this seed happened to draw, so it cannot drift between galaxies.
+ */
+export declare function starsFromVoxelGalaxy(galaxy: VoxelGalaxy, 
+/** The distant shell; omitted = the galaxy's own, `null` = none. */
+shell: {
+    distantGalaxies: NebulaData[];
+    distantStars: DistantStarData[];
+} | null | undefined, eye: {
+    x: number;
+    y: number;
+    z: number;
+}, options?: VoxelSkyOptions): {
+    objects: SkyObject[];
+    bright: number;
+    dim: number;
+    dimRadius: number;
+};
+/**
  * Encoded faces → PNG data URLs, ready to save beside a skybox.
  *
  * ⚠️ **PNG, and it must stay PNG — but that is only half the rule.** These are
@@ -239,6 +316,11 @@ export declare function bakeSkyPair(scene: BABYLON.Scene, galaxy: Parameters<typ
 }, options: SkyboxBakeOptions & {
     dataSize?: number;
     smoothSize?: number;
+    /**
+     * The point sky, precomputed — e.g. from {@link starsFromVoxelGalaxy}.
+     * Omitted, it is read from the live galaxy's particles as before.
+     */
+    objects?: SkyObject[];
 }): Promise<{
     smooth: BakedFace[];
     data: BakedFace[];

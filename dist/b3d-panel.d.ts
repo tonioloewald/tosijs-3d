@@ -19,6 +19,8 @@ export declare class B3dPanel extends Component {
         revealStart: number;
         revealFull: number;
         maxDistance: number;
+        presence: string;
+        flatFrame: string;
     };
     static shadowStyleSpec: {
         ':host': {
@@ -41,6 +43,8 @@ export declare class B3dPanel extends Component {
     revealStart: number;
     revealFull: number;
     maxDistance: number;
+    presence: string;
+    flatFrame: string;
     /** Build the FramePanelSpec this element declares. */
     toSpec(): FramePanelSpec;
 }

@@ -60,6 +60,7 @@ publishing them would have been a broken promise in your project. Pass your own,
 or omit it for a generated checker that needs no asset at all.
 */
 /*{ "parent": "Utilities" }*/
+import { touchOrbit } from './touch-orbit.js';
 import * as BABYLON from '@babylonjs/core';
 import { b3dSun, b3dSkybox, b3dLight, b3dGround, b3dFog, b3dLibrary, b3dDeath, inputFocus, gameController, } from './index.js';
 const DEG = Math.PI / 180;
@@ -130,6 +131,7 @@ export function orbitCam(el, opts = {}) {
     const beta = opts.beta ?? (opts.betaDeg ?? 60) * DEG;
     const cam = new BABYLON.ArcRotateCamera('demo-cam', alpha, beta, radius, new BABYLON.Vector3(target[0], target[1], target[2]), el.scene);
     cam.attachControl(el.querySelector('canvas'), true);
+    touchOrbit(cam);
     // beta is measured from straight-up (0) to straight-down (π); π/2 is level.
     // Elevation ABOVE horizontal = π/2 − beta, so a MIN elevation is an UPPER
     // beta limit.

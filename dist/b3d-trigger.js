@@ -148,6 +148,7 @@ preview.append(
 */
 /*{ "parent": "Core" }*/
 import { B3dChild } from './b3d-utils.js';
+import { handlerOf } from './handler-of.js';
 import * as BABYLON from '@babylonjs/core';
 export class B3dTrigger extends B3dChild {
     static preferredTagName = 'tosi-b3d-trigger';
@@ -250,8 +251,8 @@ export class B3dTrigger extends B3dChild {
         const dist = BABYLON.Vector3.Distance(targetPos, triggerPos);
         if (dist < attrs.radius && !this._inside) {
             this._inside = true;
-            this.whenEnter?.(this);
-            this.onEnter?.(this);
+            // ONE of them — new name wins, and the old one warns once (handler-of).
+            handlerOf(this, 'whenEnter', 'onEnter')?.(this);
             this.dispatchEvent(new CustomEvent('enter', { detail: { trigger: this }, bubbles: true }));
             if (attrs.once) {
                 ;
@@ -260,8 +261,8 @@ export class B3dTrigger extends B3dChild {
         }
         else if (dist >= attrs.radius && this._inside) {
             this._inside = false;
-            this.whenExit?.(this);
-            this.onExit?.(this);
+            // ONE of them — new name wins, and the old one warns once (handler-of).
+            handlerOf(this, 'whenExit', 'onExit')?.(this);
             this.dispatchEvent(new CustomEvent('exit', { detail: { trigger: this }, bubbles: true }));
         }
     }

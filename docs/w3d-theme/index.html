@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>w3d-theme — tosijs-3d</title>
   <meta name="description" content="The one place the --w3d-* theme variables are read. Every SVG-UI module (widgets3d, keyboard, table, …) draws from this table instead of re-typing the variable…" />
   <link rel="canonical" href="https://3d.tosijs.net/w3d-theme/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>w3d-theme</h1>
 <p>The <strong>one</strong> place the <code>--w3d-*</code> theme variables are read. Every SVG-UI module
@@ -88,13 +88,15 @@ const { demo } = tosi({ demo: { size: 0.6, sound: false, name: &#39;&#39; } })
 //
 // `withTheme` is the wrong tool here — it restores when its build function
 // RETURNS, and this demo&#39;s lifetime is the page&#39;s, not a synchronous call.
-const initialTheme = { ...w3dTheme }
+// The editor&#39;s own `restore()` puts back what it found; this only decides WHEN.
 const restoreTheme = new MutationObserver(() =&gt; {
   if (preview.isConnected) return
-  setW3dTheme(initialTheme)
+  editor.restore()
   restoreTheme.disconnect()
 })
-restoreTheme.observe(document.body, { childList: true, subtree: true })
+// The preview&#39;s own parent is enough: watching the whole document&#39;s subtree
+// fired this on every mutation anywhere on the page.
+restoreTheme.observe(preview.parentNode ?? document.body, { childList: true })
 
 // Load a WEB font so the menu&#39;s Rosario entry has something to render. A theme
 // names a family; loading it is the host&#39;s job, which is exactly the point of
@@ -173,6 +175,8 @@ const build = () =&gt; {
 }
 
 build()
+const editor = themeEditor({ colorInput, handleChange: build })
+
 preview.append(div(
   {
     style: {
@@ -190,7 +194,7 @@ preview.append(div(
   // splitting it across a cell boundary would make it scroll twice.
   div(
     { style: { ...cell, gridRow: &#39;1 / 3&#39;, gridColumn: &#39;2&#39;, alignContent: &#39;start&#39;, justifyItems: &#39;start&#39; } },
-    themeEditor({ colorInput, handleChange: build })
+    editor
   ),
   stage,
 ))
@@ -267,7 +271,9 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -276,6 +282,7 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -297,6 +304,8 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -326,6 +335,8 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -425,6 +436,6 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

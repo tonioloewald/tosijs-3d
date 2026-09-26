@@ -36,6 +36,7 @@ what it costs. When the SVG UI grows its own picker this defaults to that
 instead.
 */
 /*{ "parent": "UI", "order": 270 }*/
+import { handlerOf } from './handler-of.js';
 import { elements } from 'tosijs';
 import { setW3dTheme, w3dTheme } from './w3d-theme.js';
 const { div, label, select, option, span, input, h3 } = elements;
@@ -140,6 +141,8 @@ const FONT_LABELS = {
  * palette you are comparing values across is exactly where that shows.
  */
 export function themeEditor(config = {}) {
+    // What the page looked like before anyone touched a control — see `restore`.
+    const snapshot = { ...w3dTheme };
     const { title = 'Theme Editor', handleChange, onChange, colours = COLOURS, metrics = METRICS, } = config;
     /*
     `handleChange` FIRST, `onChange` only as the deprecated alias.
@@ -151,7 +154,7 @@ export function themeEditor(config = {}) {
     table, and the callback that rebuilds the panels was simply never called, so
     the controls moved and the thing they were editing did not.
     */
-    const changed = () => (handleChange ?? onChange)?.(w3dTheme);
+    const changed = () => handlerOf({ handleChange, onChange }, 'handleChange', 'onChange')?.(w3dTheme);
     /**
      * Accept either a value or a DOM event from an injected control.
      *
@@ -317,6 +320,11 @@ export function themeEditor(config = {}) {
             changed();
         },
     }, ...FONT_STACKS.map((f) => option({ value: f, style: { fontFamily: f } }, FONT_LABELS[f] ?? f.split(',')[0].replace(/"/g, '')))));
-    return grid;
+    const el = grid;
+    el.restore = () => {
+        setW3dTheme(snapshot);
+        changed();
+    };
+    return el;
 }
 //# sourceMappingURL=theme-editor.js.map

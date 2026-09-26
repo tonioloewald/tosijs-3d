@@ -127,7 +127,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 It participates in the **floating origin**: because `AbstractMesh` treats the
 `x/y/z` attributes as the source of truth for the mesh position, this uses
-`addOriginListener` to shift BOTH the mesh node and its `x/z` attributes on a rebase
+`AbstractMesh.followOrigin` to shift BOTH the mesh node and its `x/z` attributes on a rebase
 (NOT `registerWorldRoot`, which would leave the attributes stale so a later render
 would un-shift the mesh).
 
@@ -242,7 +242,6 @@ export class B3dDestroyable extends AbstractMesh {
      */
     chain = [];
     _behavior;
-    _onShift;
     /**
      * Optional code-set hook, run once when this target is destroyed (before the
      * visual outcome). The clean seam for putting a linked player/vehicle into a
@@ -355,7 +354,7 @@ export class B3dDestroyable extends AbstractMesh {
                 getChildMeshes, dispose) is TransformNode-safe.
                 */
                 this.mesh = node;
-                this._applyScale();
+                this.applyUniformScale();
                 this.render();
                 this._adopt(owner);
             },
@@ -423,16 +422,8 @@ export class B3dDestroyable extends AbstractMesh {
         // register whatever we ended up with. A library model arrives ASYNC, so this
         // runs again when it lands — see `_adopt`.
         this._adopt(owner);
-        // Floating origin: shift node AND the x/z attributes (see file header).
-        this._onShift = (dx, dz) => {
-            if (this.mesh == null)
-                return;
-            this.mesh.position.x -= dx;
-            this.mesh.position.z -= dz;
-            attrs.x -= dx;
-            attrs.z -= dz;
-        };
-        owner.addOriginListener(this._onShift);
+        // Floating origin: shift the x/z attributes and the node (see file header).
+        this.followOrigin(owner);
     }
     /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
     damage(amount, cause) {
@@ -455,21 +446,13 @@ export class B3dDestroyable extends AbstractMesh {
      * decision, not a placement one, and it breaks normals.
      */
     _stopLoad = null;
-    _applyScale() {
-        const node = this.mesh;
-        if (node?.scaling == null)
-            return;
-        const s = this.scale;
-        const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1;
-        node.scaling.set(k, k, k);
-    }
     render() {
         super.render();
         // Scale is not part of AbstractMesh's per-render sync, so it is applied
         // here — otherwise setting `scale` after load would be another attribute
         // that takes a write and does nothing, which is the bug this fixes.
         if (this.library)
-            this._applyScale();
+            this.applyUniformScale();
     }
     sceneDispose() {
         // Stop a retry that would otherwise outlive this element.
@@ -477,10 +460,6 @@ export class B3dDestroyable extends AbstractMesh {
         this._stopLoad = null;
         this._behavior?.dispose();
         this._behavior = undefined;
-        if (this._onShift != null) {
-            this.owner?.removeOriginListener(this._onShift);
-            this._onShift = undefined;
-        }
         super.sceneDispose();
     }
 }

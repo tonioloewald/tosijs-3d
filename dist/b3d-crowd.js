@@ -358,7 +358,7 @@ because a display can change under you.
 The readings that will actually settle the budget are a **headset** and a
 **Raspberry Pi**: the first has the tightest frame budget we ship against (13.9ms,
 twice, one per eye) and the second is the floor of the hardware range. Both are
-in `TODO.md`.
+in `DECISIONS.md`.
 
 Read them together and the tidy story I had written — *cost is vertices* — is
 only half right. Rows one and two are the same number of vertices and differ by
@@ -740,7 +740,7 @@ it bakes into is already fixed and tested.
 /*{ "parent": "Performance", "order": 119 }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, sceneDelta } from './b3d-utils.js';
-import { MersenneTwister } from './mersenne-twister.js';
+import { Xoshiro128 } from './mersenne-twister.js';
 import { framesForClip, vatBytes, vatLayout, vatTexel, } from './vertex-animation.js';
 /**
  * Write a bake into two float textures.
@@ -1786,7 +1786,7 @@ export class B3dCrowd extends B3dChild {
             this._frames = 0;
         }
     }
-    _skinnedPrng = new MersenneTwister(7);
+    _skinnedPrng = new Xoshiro128(7);
     /**
      * Spawn N SKINNED clones — the baseline the whole question turns on.
      *
@@ -2191,10 +2191,11 @@ export class B3dCrowd extends B3dChild {
         20,000 or so it doesn't seem to get more crowded", which is exactly what a
         degenerate sequence looks like from outside.
     
-        `MersenneTwister` is already in this repo, is seeded, and does not have that
-        failure. Reaching for it costs an import.
+        A proper seeded generator does not have that failure. It was the Mersenne
+        Twister; since 0.8.4 it is `Xoshiro128`, the engine behind `PRNG`, which is
+        as good statistically and far cheaper to construct.
         */
-        const prng = new MersenneTwister(1);
+        const prng = new Xoshiro128(1);
         const rnd = () => prng.random();
         const side = this.spread;
         for (let i = 0; i < n; i++) {

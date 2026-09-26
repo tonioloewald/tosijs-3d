@@ -161,6 +161,19 @@ export const scaleWind = (wind, k) => ({
     z: wind.z * k,
 });
 export const windSpeed = (wind) => Math.hypot(wind.x, wind.z);
+/**
+ * THE inheritance rule, in one place: an element takes the scene's wind unless
+ * it says `wind="own"`, and a still scene (or none) offers nothing, so the
+ * element's own dials apply. `null` means "use your own".
+ *
+ * Clouds, ambient and water each carried a copy of this, and the point of one
+ * shared wind (#73) was that they could not silently disagree.
+ */
+export function inheritedWind(mode, scene) {
+    if (mode === 'own' || scene == null)
+        return null;
+    return scene.x !== 0 || scene.z !== 0 ? scene : null;
+}
 /** Smooth shoulder: full at the centre, zero at the rim, no hard edge. */
 const smoothFalloff = (t) => {
     const u = 1 - Math.min(1, Math.max(0, t));

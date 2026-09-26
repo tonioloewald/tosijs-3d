@@ -25,6 +25,14 @@ export interface PerfMeasurements {
 export interface PerfBudgets {
     /** engine.setHardwareScalingLevel — >1 renders below native res (cheap fill win). */
     hardwareScaling: number;
+    /**
+     * The most device pixels per CSS pixel to render at (flat only). A 2×
+     * display rendered at CSS resolution is upscaled 2× and every edge and star
+     * goes soft; rendered at full resolution it costs 4× the fill. So the tier
+     * decides: high renders natively up to 2×, medium up to 1.5×, low at CSS
+     * resolution. `<tosi-b3d pixel-ratio>` overrides.
+     */
+    pixelRatioCap: number;
     hiResSubdivisions: number;
     poolSize: number;
     reach: number;

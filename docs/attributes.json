@@ -1246,6 +1246,73 @@
     ]
   },
   {
+    "module": "b3d-decorator",
+    "tag": "tosi-b3d-decorator",
+    "summary": "b3d-decorator",
+    "attributes": [
+      {
+        "name": "budget",
+        "default": "2000",
+        "description": "How many things to place. Performance cares about this, not density"
+      },
+      {
+        "name": "radius",
+        "default": "900",
+        "description": "Metres around the camera to fill"
+      },
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same forest"
+      },
+      {
+        "name": "url",
+        "default": "''",
+        "description": "The model library; empty = Kenney's Nature Kit on the CDN"
+      },
+      {
+        "name": "scale",
+        "default": "1",
+        "description": "Multiplies every rule's scale range"
+      },
+      {
+        "name": "follow",
+        "default": "'on'",
+        "description": "Re-scatter as the camera moves"
+      },
+      {
+        "name": "shadows",
+        "default": "'off'",
+        "description": "Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live"
+      },
+      {
+        "name": "colliders",
+        "default": "'on'",
+        "description": "The nearby collider pool"
+      },
+      {
+        "name": "colliderRange",
+        "default": "60",
+        "description": "Metres around the camera that get colliders"
+      },
+      {
+        "name": "colliderPool",
+        "default": "48",
+        "description": "How many colliders at most"
+      },
+      {
+        "name": "shadowRange",
+        "default": "200",
+        "description": "Metres around the camera whose copies cast shadows (with `shadows: 'on'`)"
+      },
+      {
+        "name": "shadowBudget",
+        "default": "600",
+        "description": "How many of the nearest copies cast, at most"
+      }
+    ]
+  },
+  {
     "module": "b3d-destroyable",
     "tag": "tosi-b3d-destroyable",
     "summary": "b3d-destroyable",
@@ -1439,7 +1506,12 @@
       {
         "name": "starCount",
         "default": "10000",
-        "description": "Number of stars"
+        "description": "The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet"
+      },
+      {
+        "name": "dimBudget",
+        "default": "95000",
+        "description": "The DIM population's budget. Its interesting share (~5%, HI ≤ 2) is drawn globally; the boring rest only near a point (the baker's eye)"
       },
       {
         "name": "radius",
@@ -2151,6 +2223,38 @@
     ]
   },
   {
+    "module": "b3d-moon",
+    "tag": "tosi-b3d-moon",
+    "summary": "b3d-moon",
+    "attributes": [
+      {
+        "name": "azimuth",
+        "default": "0",
+        "description": "Degrees AROUND the star sphere. Like right ascension: the moon rides with the stars, rising and setting with them"
+      },
+      {
+        "name": "elevation",
+        "default": "20",
+        "description": "Degrees from the celestial equator (like declination)"
+      },
+      {
+        "name": "size",
+        "default": "0.5",
+        "description": "Angular DIAMETER in degrees (the real moon is about 0.5)"
+      },
+      {
+        "name": "color",
+        "default": "'#dddddd'",
+        "description": "Its colour where lit"
+      },
+      {
+        "name": "brightness",
+        "default": "1",
+        "description": "Multiplies the lit side"
+      }
+    ]
+  },
+  {
     "module": "b3d-panel",
     "tag": "tosi-b3d-panel",
     "summary": "b3d-panel",
@@ -2228,6 +2332,14 @@
       },
       {
         "name": "maxDistance"
+      },
+      {
+        "name": "presence",
+        "default": "'xr'",
+        "description": "`'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera"
+      },
+      {
+        "name": "flatFrame"
       }
     ]
   },
@@ -2943,6 +3055,31 @@
         "description": "Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart`"
       },
       {
+        "name": "atmosphere",
+        "default": "1",
+        "description": "How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band"
+      },
+      {
+        "name": "dust",
+        "default": "0",
+        "description": "Suspended dust, 0…1: bright, coloured haze that is never blue. Independent of `atmosphere`, so Mars is almost no air and lots of dust, and the Moon is neither"
+      },
+      {
+        "name": "zenithTint",
+        "default": "'#ffffff'",
+        "description": "The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted"
+      },
+      {
+        "name": "horizonTint",
+        "default": "'#ffffff'",
+        "description": "The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars"
+      },
+      {
+        "name": "tintStrength",
+        "default": "0",
+        "description": "How much the sky takes the tints, `0` (Earth, untouched) … `1`"
+      },
+      {
         "name": "starfieldCube",
         "default": "''",
         "description": "Root path of a baked cube (`<root>_px.png` …). Replaces `starfield`"
@@ -2961,6 +3098,21 @@
         "name": "starfieldSharpness",
         "default": "3",
         "description": "How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point"
+      },
+      {
+        "name": "starfieldGain",
+        "default": "0.9",
+        "description": "How bright the decoded stars are — the intensity cap on the whole point sky"
+      },
+      {
+        "name": "starfieldFloor",
+        "default": "0.4",
+        "description": "The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it"
+      },
+      {
+        "name": "starfieldTwinkle",
+        "default": "0.35",
+        "description": "Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon"
       },
       {
         "name": "starfieldSizeScale",
@@ -3020,7 +3172,7 @@
       {
         "name": "azimuth",
         "default": "0",
-        "description": "Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours"
+        "description": "**Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86)"
       },
       {
         "name": "latitude",
@@ -3238,12 +3390,17 @@
       {
         "name": "starCount",
         "default": "10000",
-        "description": "Number of stars in galaxy (needed to regenerate same galaxy)"
+        "description": "The galaxy's bright budget (needed to regenerate the same galaxy)"
       },
       {
         "name": "starIndex",
         "default": "0",
-        "description": "Which star in the galaxy to render"
+        "description": "Which star to render, by position in the galaxy's view (moves if `starCount` does)"
+      },
+      {
+        "name": "star",
+        "default": "''",
+        "description": "A star's ADDRESS (`1234:bright:5021:0`, the `id` on every star). Stable, and wins over `starIndex`"
       },
       {
         "name": "scale",
@@ -4438,6 +4595,9 @@
         "name": "quality"
       },
       {
+        "name": "pixelRatio"
+      },
+      {
         "name": "stats"
       },
       {
@@ -4463,6 +4623,87 @@
       },
       {
         "name": "enterXrOnResume"
+      }
+    ]
+  },
+  {
+    "module": "voxel-galaxy",
+    "summary": "voxel-galaxy",
+    "attributes": [
+      {
+        "name": "seed",
+        "default": "—",
+        "description": "Galaxy seed: shapes the density AND derives every voxel's seeds"
+      },
+      {
+        "name": "brightBudget",
+        "default": "5000",
+        "description": "Stars in the global pass"
+      },
+      {
+        "name": "dimBudget",
+        "default": "95000",
+        "description": "Stars across all voxels' dim passes — most are never generated"
+      },
+      {
+        "name": "samples",
+        "default": "100000",
+        "description": "Positions drawn from the spiral model (`sampleSpiral`) to impute the density"
+      },
+      {
+        "name": "galaxyOptions",
+        "default": "{}",
+        "description": "Passed to the sampler (`spiralArms`, `thickness`, …)"
+      },
+      {
+        "name": "nx",
+        "default": "64",
+        "description": "Grid resolution across the disc (x)"
+      },
+      {
+        "name": "ny",
+        "default": "64",
+        "description": "Grid resolution across the disc (y)"
+      },
+      {
+        "name": "nz",
+        "default": "60",
+        "description": "Grid resolution through the disc (z). Must resolve the disc's thickness: at 20 a layer (0.03) was as thick as the disc itself, so stars sat in flat slabs with hard edges, read as columns at 1M stars"
+      },
+      {
+        "name": "halfXY",
+        "default": "1.05",
+        "description": "Grid half-extent across the disc"
+      },
+      {
+        "name": "halfZ",
+        "default": "0.3",
+        "description": "Grid half-extent through the disc — room for a halo"
+      },
+      {
+        "name": "smoothPasses",
+        "default": "1",
+        "description": "Blur passes over the sampled histogram (calms sparse voxels)"
+      },
+      {
+        "name": "fringeShare",
+        "default": "0.02",
+        "description": "Share of the budget spread across EMPTY voxels"
+      },
+      {
+        "name": "fringeFalloff",
+        "default": "3",
+        "description": "Falloff length for the fringe, in voxels"
+      },
+      {
+        "name": "brightMix",
+        "default": "O–G5",
+        "description": "The bright population's spectral mix — the bright/dim cut is here"
+      },
+      {
+        "name": "dimMix",
+        "default": "G6–M",
+        "description": "The dim population's spectral mix — underweight late M freely"
       }
     ]
   },

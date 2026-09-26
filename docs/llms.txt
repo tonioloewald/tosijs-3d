@@ -1,4 +1,4 @@
-# tosijs-3d v0.8.3
+# tosijs-3d v0.8.4
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -70,6 +70,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   vertex shader, and thin instances so the CPU does nothing per figure per frame.
 - https://3d.tosijs.net/b3d-death/ — b3d-death
   to the wreck, you go on "flying" a corpse, and the game is stuck. (`b3d-aircraft` used to
+- https://3d.tosijs.net/b3d-decorator/ — b3d-decorator
+  scene with a `<tosi-b3d-terrain>`. It scatters a fixed NUMBER of things around
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
   A thing that can take damage and be destroyed — the scene-side bridge to the pure
 - https://3d.tosijs.net/b3d-elevator/ — b3d-elevator
@@ -79,7 +81,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/b3d-fog/ — b3d-fog
   Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
 - https://3d.tosijs.net/b3d-galaxy/ — b3d-galaxy
-  Procedural galaxy renderer. Generates thousands of stars in a spiral arm
+  Procedural galaxy renderer — the [voxel galaxy](/voxel-galaxy/), the one galaxy
 - https://3d.tosijs.net/b3d-hud/ — b3d-hud
   A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
@@ -96,6 +98,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 - https://3d.tosijs.net/b3d-manipulator/ — b3d-manipulator
   a hand in a headset.** The maths is [[manipulator]], the geometry is
+- https://3d.tosijs.net/b3d-moon/ — b3d-moon
+  the star sphere. Its PHASE follows from where it is: the side facing the sun
 - https://3d.tosijs.net/b3d-panel/ — b3d-panel
   A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
 - https://3d.tosijs.net/b3d-particles/ — b3d-particles
@@ -296,6 +300,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   through the cloud deck, and keeps going until the air runs out and the stars
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
+- https://3d.tosijs.net/scatter/ — scatter
+  climate.** The function is `scatterPlacements` (a bare `scatter` would leak a
 - https://3d.tosijs.net/scene-schemas/ — Scene schemas
   attributes.** No DOM, no Babylon — importable from a headless runner.
 - https://3d.tosijs.net/selection/ — selection
@@ -309,6 +315,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/star-populations/ — star-populations
+  Pure — no Babylon, no DOM.
 - https://3d.tosijs.net/starfield-codec/ — starfield-codec
   faces where the channels are not colour but *position, brightness, colour index
 - https://3d.tosijs.net/surface/ — surface
@@ -339,6 +347,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
+- https://3d.tosijs.net/touch-gesture/ — touch-gesture
+  Pure — no Babylon, no DOM — so the decision is tested without a touchscreen.
+- https://3d.tosijs.net/touch-orbit/ — touch-orbit
+  `touchOrbit(camera)` gives an `ArcRotateCamera` the touch map in
 - https://3d.tosijs.net/ui/ — UI
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/utilities/ — Utilities
@@ -347,6 +359,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
+- https://3d.tosijs.net/voxel-galaxy/ — voxel-galaxy
+  BRIGHT stars, one for its DIM stars. The bright pass is global (the stars you
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 - https://3d.tosijs.net/water-normal/ — water-normal

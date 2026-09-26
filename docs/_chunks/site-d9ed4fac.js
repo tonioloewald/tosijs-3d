@@ -1,0 +1,5 @@
+import{ze}from"./site-z8mqhr1b.js";import{R,B,Es}from"./site-b66xxmk6.js";import{Yo}from"./site-paba9p6a.js";import{a}from"./site-pey1240t.js";class Lp extends ze{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",B,0),this.controlPoint1=this.registerDataInput("controlPoint1",Es),this.controlPoint2=this.registerDataInput("controlPoint2",Es),this.easingFunction=this.registerDataOutput("easingFunction",R)}_updateOutputs(t){let o=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(o===void 0)return;let r=`${o}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[r]){let s=new Yo(e.x,e.y,i.x,i.y);s.setEasingMode(o),this._easingFunctions[r]=s}this.easingFunction.setValue(this._easingFunctions[r],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var n=!1;function Fp(){if(n)return;n=!0,a("FlowGraphBezierCurveEasing",Lp)}Fp();
+export{Lp,Fp};
+
+//# debugId=07EAAF618B271F5C64756E2164756E21
+//# sourceMappingURL=site-d9ed4fac.js.map

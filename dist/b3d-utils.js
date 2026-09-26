@@ -967,7 +967,51 @@ export class AbstractMesh extends B3dChild {
     sceneReady(owner, _scene) {
         this.owner = owner;
     }
+    /**
+     * Apply a uniform `scale` attribute to the mesh (a non-positive or non-finite
+     * value means 1). Not part of the per-render sync, because most subclasses
+     * own `scaling` for their own reasons; elements with a `scale` attribute call
+     * this from their `render()` so a later write takes effect.
+     */
+    applyUniformScale() {
+        const node = this.mesh;
+        if (node?.scaling == null)
+            return;
+        const s = this.scale;
+        const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1;
+        node.scaling.set(k, k, k);
+    }
+    _originShift = null;
+    /**
+     * Opt in to the **floating origin**: on a rebase, shift the `x`/`z`
+     * attributes (the source of truth — the per-render sync then moves the
+     * node). NOT `registerWorldRoot`, which moves only the node, so the next
+     * render would put it back where it was.
+     *
+     * For world-placed things only. A mesh parented to something else holds
+     * LOCAL coordinates and moves with its parent, so it is left alone.
+     */
+    followOrigin(owner) {
+        if (this._originShift != null)
+            return;
+        this._originShift = (dx, dz) => {
+            if (this.mesh?.parent != null)
+                return;
+            const attrs = this;
+            attrs.x -= dx;
+            attrs.z -= dz;
+            if (this.mesh != null) {
+                this.mesh.position.x = attrs.x;
+                this.mesh.position.z = attrs.z;
+            }
+        };
+        owner.addOriginListener(this._originShift);
+    }
     sceneDispose() {
+        if (this._originShift != null) {
+            this.owner?.removeOriginListener(this._originShift);
+            this._originShift = null;
+        }
         // Invalidate any in-flight loadAssetContainer callbacks.
         this.loadGeneration++;
         // Dispose the axis gizmo explicitly (it's parented to the mesh, but clear our

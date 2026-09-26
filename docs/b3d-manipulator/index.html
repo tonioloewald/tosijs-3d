@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-manipulator — tosijs-3d</title>
   <meta name="description" content="Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-manipulator/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-manipulator</h1>
 <p><strong>Translate, rotate and scale handles you can grab — with a mouse, a finger, or
@@ -65,7 +65,7 @@ const gizmo = b3dManipulator({
   turn: &#39;on&#39;,
   gridSnap: 0.25,
   angleSnap: 15,
-  handleChange: (t) =&gt; {
+  whenChange: (t) =&gt; {
     const n = (v) =&gt; Math.round(v * 100) / 100
     readout.textContent =
       `${n(t.position.x)}, ${n(t.position.y)}, ${n(t.position.z)}` +
@@ -195,10 +195,12 @@ preview.append(
 <td>hide the handles and ignore input</td>
 </tr>
 </tbody></table>
-<p><code>handleChange(transform)</code> fires live during a drag; <code>handleCommit(transform)</code>
+<p><code>whenChange(transform)</code> fires live during a drag; <code>whenCommit(transform)</code>
 fires once on release, snapped, and only when something actually changed — which
 is your undo step. Both also dispatch a DOM <code>change</code> / <code>commit</code> event carrying
-the transform in <code>detail</code>.</p>
+the transform in <code>detail</code>. (<code>handleChange</code>/<code>handleCommit</code> were the names until
+0.8.4 — they still work, warn once, and go in 0.9: a COMPONENT&#39;s callbacks are
+<code>when*</code>.)</p>
 <h2>Scale is exclusive of move and turn</h2>
 <p><code>node.scaling</code> is local, so scale grips ride the object&#39;s own axes while move
 rides the world&#39;s. A widget showing both draws two frames at once and can only
@@ -239,9 +241,9 @@ made it look wired up.</p>
 <h2>Driving it from XR, or from anything else</h2>
 <p>The flat pointer is wired for you. Everything else goes through three methods
 that take world rays, so a controller, a hand or a script drives the same code:</p>
-<pre><code class="language-javascript">const grabbed = el.grab({ origin, direction }, { secondary: false })
-el.drag({ origin, direction })
-el.release()
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> grabbed <span class="token operator">=</span> el<span class="token punctuation">.</span><span class="token function">grab</span><span class="token punctuation">(</span><span class="token punctuation">{</span> origin<span class="token punctuation">,</span> direction <span class="token punctuation">}</span><span class="token punctuation">,</span> <span class="token punctuation">{</span> <span class="token literal-property property">secondary</span><span class="token operator">:</span> <span class="token boolean">false</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+el<span class="token punctuation">.</span><span class="token function">drag</span><span class="token punctuation">(</span><span class="token punctuation">{</span> origin<span class="token punctuation">,</span> direction <span class="token punctuation">}</span><span class="token punctuation">)</span>
+el<span class="token punctuation">.</span><span class="token function">release</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
 </code></pre>
 <p><code>grabNear({x, y, z})</code> is the near-interaction form: a hand inside a handle grabs
 it directly, which beats whatever the same controller&#39;s ray happens to be
@@ -320,7 +322,9 @@ coloured debug axes look exactly like one, which is its own small cruelty.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -329,6 +333,7 @@ coloured debug axes look exactly like one, which is its own small cruelty.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -350,6 +355,8 @@ coloured debug axes look exactly like one, which is its own small cruelty.</p>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -379,6 +386,8 @@ coloured debug axes look exactly like one, which is its own small cruelty.</p>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -478,6 +487,6 @@ coloured debug axes look exactly like one, which is its own small cruelty.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

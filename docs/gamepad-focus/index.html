@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>gamepad-focus — tosijs-3d</title>
   <meta name="description" content="Drives an SVG UI&#39;s focus traversal from a [[virtual-gamepad|VirtualGamepad]] — the missing wire between &quot;the D-pad registers&quot; and &quot;the D-pad moves the…" />
   <link rel="canonical" href="https://3d.tosijs.net/gamepad-focus/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>gamepad-focus</h1>
 <p>Drives an SVG UI&#39;s <strong>focus traversal</strong> from a <a href="/virtual-gamepad/" class="wikilink">VirtualGamepad</a> — the
@@ -52,13 +52,13 @@ missing wire between &quot;the D-pad registers&quot; and &quot;the D-pad moves t
 <code>focusMove</code> / <code>focusActivate</code> / <code>focusBack</code>, and <code>HardwareGamepadSource</code> /
 <code>XrGamepadSource</code> produce a <code>VirtualGamepad</code> each frame. Nothing polled one and called
 the other, so a gamepad could light up the on-screen pad and still not touch the UI.</p>
-<pre><code class="language-javascript">import { HardwareGamepadSource, ui } from &#39;tosijs-3d&#39;
-const { gamepadFocus } = ui
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> HardwareGamepadSource<span class="token punctuation">,</span> ui <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
+<span class="token keyword">const</span> <span class="token punctuation">{</span> gamepadFocus <span class="token punctuation">}</span> <span class="token operator">=</span> ui
 
-const pad = new HardwareGamepadSource()
-const stop = gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: panelRootEl })
-// …later
-stop()
+<span class="token keyword">const</span> pad <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">HardwareGamepadSource</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token keyword">const</span> stop <span class="token operator">=</span> <span class="token function">gamepadFocus</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token function-variable function">poll</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> pad<span class="token punctuation">.</span><span class="token function">poll</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token literal-property property">target</span><span class="token operator">:</span> panel<span class="token punctuation">,</span> <span class="token literal-property property">claim</span><span class="token operator">:</span> panelRootEl <span class="token punctuation">}</span><span class="token punctuation">)</span>
+<span class="token comment">// …later</span>
+<span class="token function">stop</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
 </code></pre>
 <h2>One pad, several UIs — <code>claim</code></h2>
 <p>With more than one gamepad-driven UI live on a page (two doc demos, say), a single
@@ -167,7 +167,9 @@ deterministic and testable — same discipline as the rest of the pure models he
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -176,6 +178,7 @@ deterministic and testable — same discipline as the rest of the pure models he
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -197,6 +200,8 @@ deterministic and testable — same discipline as the rest of the pure models he
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link current" href="../gamepad-focus/" aria-current="page">gamepad-focus</a></li>
@@ -226,6 +231,8 @@ deterministic and testable — same discipline as the rest of the pure models he
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -325,6 +332,6 @@ deterministic and testable — same discipline as the rest of the pure models he
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

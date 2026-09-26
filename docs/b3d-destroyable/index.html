@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-destroyable — tosijs-3d</title>
   <meta name="description" content="A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a &lt;tosi-b3d&gt;" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-destroyable/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-destroyable</h1>
 <p>A thing that can take damage and be destroyed — the scene-side bridge to the pure
@@ -160,7 +160,7 @@ preview.append(scene)
 </code></pre>
 <p>It participates in the <strong>floating origin</strong>: because <code>AbstractMesh</code> treats the
 <code>x/y/z</code> attributes as the source of truth for the mesh position, this uses
-<code>addOriginListener</code> to shift BOTH the mesh node and its <code>x/z</code> attributes on a rebase
+<code>AbstractMesh.followOrigin</code> to shift BOTH the mesh node and its <code>x/z</code> attributes on a rebase
 (NOT <code>registerWorldRoot</code>, which would leave the attributes stale so a later render
 would un-shift the mesh).</p>
 <p>Attributes: <code>capacity</code>, <code>armor</code>, <code>regenRate</code>, <code>regenDelay</code>, <code>protectedBy</code>,
@@ -174,12 +174,12 @@ in code for direct-transfer chain reactions, or <code>whenDestroyed</code> for a
 cascade: a drum that goes up because your bomb got its neighbour is still
 attributed to <strong>you</strong>, with <code>via</code> naming the neighbour and <code>hops</code> counting the
 distance.</p>
-<pre><code class="language-javascript">target.damage(40, { by: &#39;player&#39;, kind: &#39;blast&#39; })
+<pre><code class="language-javascript" data-highlighted>target<span class="token punctuation">.</span><span class="token function">damage</span><span class="token punctuation">(</span><span class="token number">40</span><span class="token punctuation">,</span> <span class="token punctuation">{</span> <span class="token literal-property property">by</span><span class="token operator">:</span> <span class="token string">'player'</span><span class="token punctuation">,</span> <span class="token literal-property property">kind</span><span class="token operator">:</span> <span class="token string">'blast'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 
-target.whenDestroyed = ({ id, cause }) =&gt; {
-  // cause: { by: &#39;player&#39;, kind: &#39;chain&#39;, via: &#39;drum-17&#39;, hops: 2 }
-  ledger.record(id, cause?.by)
-}
+target<span class="token punctuation">.</span><span class="token function-variable function">whenDestroyed</span> <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token parameter"><span class="token punctuation">{</span> id<span class="token punctuation">,</span> cause <span class="token punctuation">}</span></span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token comment">// cause: { by: 'player', kind: 'chain', via: 'drum-17', hops: 2 }</span>
+  ledger<span class="token punctuation">.</span><span class="token function">record</span><span class="token punctuation">(</span>id<span class="token punctuation">,</span> cause<span class="token operator">?.</span>by<span class="token punctuation">)</span>
+<span class="token punctuation">}</span>
 </code></pre>
 <p><code>&lt;tosi-b3d-warhead by=&quot;player&quot;&gt;</code> credits everything its blast destroys, however
 many hops away. Requested by manta-recon (#8) for a mission layer that resolves
@@ -257,7 +257,9 @@ happened, and the ledger should say so.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -266,6 +268,7 @@ happened, and the ledger should say so.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -287,6 +290,8 @@ happened, and the ledger should say so.</p>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -316,6 +321,8 @@ happened, and the ledger should say so.</p>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -415,6 +422,6 @@ happened, and the ledger should say so.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

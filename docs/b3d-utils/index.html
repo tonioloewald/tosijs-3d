@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>Material Conventions — tosijs-3d</title>
   <meta name="description" content="These conventions apply to all meshes entering the scene — via b3d-loader, b3d-library, or any component that calls register()." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-utils/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Material Conventions</h1>
 <p>These conventions apply to all meshes entering the scene — via
@@ -53,11 +53,11 @@ component that calls <code>register()</code>.</p>
 <p>Material <em>appearance</em> (metallic, roughness, alpha, emissive) comes through glTF automatically.
 <em>Behaviour</em> that can&#39;t be inferred from a material is driven by <strong>name suffixes</strong> on the mesh
 (set in Blender, by a loader, or in code):</p>
-<pre><code class="language-javascript">// glass_mirror        → gets a dynamic reflection probe
-// floor_noshadow      → does not receive shadows
-// lamp_nocast         → does not cast shadows
-// crate_collideBox    → box collider (also _collide / _collideSphere / _collideCylinder / _collideMesh)
-// debug-ignore        → disposed on load (filtered out)
+<pre><code class="language-javascript" data-highlighted><span class="token comment">// glass_mirror        → gets a dynamic reflection probe</span>
+<span class="token comment">// floor_noshadow      → does not receive shadows</span>
+<span class="token comment">// lamp_nocast         → does not cast shadows</span>
+<span class="token comment">// crate_collideBox    → box collider (also _collide / _collideSphere / _collideCylinder / _collideMesh)</span>
+<span class="token comment">// debug-ignore        → disposed on load (filtered out)</span>
 </code></pre>
 <h2>Property-Based (automatic from Blender materials)</h2>
 <table>
@@ -182,26 +182,26 @@ owner via <a href="../b3d-utils/">findB3dOwner</a> and asks to attach: <code>own
 The parent never <em>pushes</em> <code>sceneReady</code> at a guessed moment, so <code>sceneReady</code> fires only
 when the child is genuinely ready AND the scene exists — no races against tosijs&#39;s
 deferred attribute application.</p>
-<pre><code class="language-javascript">import { B3dChild } from &#39;tosijs-3d&#39;
-import * as BABYLON from &#39;@babylonjs/core&#39;
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> B3dChild <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
+<span class="token keyword">import</span> <span class="token operator">*</span> <span class="token keyword">as</span> <span class="token constant">BABYLON</span> <span class="token keyword">from</span> <span class="token string">'@babylonjs/core'</span>
 
-class MyThing extends B3dChild {
-  static preferredTagName = &#39;my-thing&#39;
-  static initAttributes = { color: &#39;#ff8800&#39; }
-  declare color: string
-  mesh?: BABYLON.Mesh
+<span class="token keyword">class</span> <span class="token class-name">MyThing</span> <span class="token keyword">extends</span> <span class="token class-name">B3dChild</span> <span class="token punctuation">{</span>
+  <span class="token keyword">static</span> preferredTagName <span class="token operator">=</span> <span class="token string">'my-thing'</span>
+  <span class="token keyword">static</span> initAttributes <span class="token operator">=</span> <span class="token punctuation">{</span> <span class="token literal-property property">color</span><span class="token operator">:</span> <span class="token string">'#ff8800'</span> <span class="token punctuation">}</span>
+  declare color<span class="token operator">:</span> string
+  mesh<span class="token operator">?</span><span class="token operator">:</span> <span class="token constant">BABYLON</span><span class="token punctuation">.</span>Mesh
 
-  sceneReady(owner, scene) {
-    this.mesh = BABYLON.MeshBuilder.CreateBox(&#39;mything&#39;, {}, scene)
-    owner.register({ meshes: [this.mesh] })
-  }
+  <span class="token function">sceneReady</span><span class="token punctuation">(</span><span class="token parameter">owner<span class="token punctuation">,</span> scene</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token keyword">this</span><span class="token punctuation">.</span>mesh <span class="token operator">=</span> <span class="token constant">BABYLON</span><span class="token punctuation">.</span>MeshBuilder<span class="token punctuation">.</span><span class="token function">CreateBox</span><span class="token punctuation">(</span><span class="token string">'mything'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">,</span> scene<span class="token punctuation">)</span>
+    owner<span class="token punctuation">.</span><span class="token function">register</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">meshes</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token keyword">this</span><span class="token punctuation">.</span>mesh<span class="token punctuation">]</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+  <span class="token punctuation">}</span>
 
-  sceneDispose() {
-    this.mesh?.dispose()
-    this.mesh = undefined
-  }
-}
-export const myThing = MyThing.elementCreator()
+  <span class="token function">sceneDispose</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token keyword">this</span><span class="token punctuation">.</span>mesh<span class="token operator">?.</span><span class="token function">dispose</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token keyword">this</span><span class="token punctuation">.</span>mesh <span class="token operator">=</span> <span class="token keyword">undefined</span>
+  <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+<span class="token keyword">export</span> <span class="token keyword">const</span> myThing <span class="token operator">=</span> MyThing<span class="token punctuation">.</span><span class="token function">elementCreator</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
 </code></pre>
 
   </article>
@@ -272,7 +272,9 @@ export const myThing = MyThing.elementCreator()
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -281,6 +283,7 @@ export const myThing = MyThing.elementCreator()
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -302,6 +305,8 @@ export const myThing = MyThing.elementCreator()
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -331,6 +336,8 @@ export const myThing = MyThing.elementCreator()
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -430,6 +437,6 @@ export const myThing = MyThing.elementCreator()
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

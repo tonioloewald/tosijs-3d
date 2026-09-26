@@ -390,6 +390,10 @@ const DEFAULT_MAP = {
     ...iconAliases,
     ...iconData,
 };
+/** Markup that can execute: refused by `registerIcons`. */
+export function unsafeIconMarkup(value) {
+    return /<\s*(script|foreignObject|iframe|object|embed)\b|\son[a-z]+\s*=|javascript:/i.test(value);
+}
 /**
  * Add icons a consumer owns, so the widgets can resolve them by name.
  *
@@ -413,17 +417,36 @@ const DEFAULT_MAP = {
  * Values are TRIMMED, because `icon-data` stores every entry with a trailing
  * space and a redirect is re-parsed as a name where that space is fatal — it
  * silently broke every mirrored icon once already (#54).
+ *
+ * **Trust boundary: artwork reaches `innerHTML`.** Register icons YOU ship, not
+ * markup from users or the network. As a backstop, an entry carrying anything
+ * that can run — `<script>`, `<foreignObject>`, `<iframe>`, an `on*=` handler
+ * or a `javascript:` URL — is dropped with a warning rather than stored. That
+ * is a guard against accidents, not a sanitiser: an icon has no business
+ * containing any of it, so refusing is simpler and stricter than cleaning.
+ *
+ * **Returns an undo.** Registration is otherwise page-lifetime: the map is
+ * global, so a route that registers its icons and is then left would leave
+ * them behind — including any built-in it REPLACED. The returned function puts
+ * back exactly what this call changed (a replaced icon comes back, a new name
+ * goes). Undo in reverse order if calls overlap on a name.
  */
 export function registerIcons(icons) {
+    const previous = [];
     for (const [name, value] of Object.entries(icons)) {
         if (typeof value !== 'string' || value.trim() === '')
             continue;
+        if (unsafeIconMarkup(value)) {
+            console.warn(`tosijs-3d: registerIcons dropped "${name}" — icon markup must not contain scripts, event handlers, foreignObject or javascript: URLs.`);
+            continue;
+        }
         /*
         `__proto__` is an ASSIGNMENT, not a key — it would set the map's prototype
         instead of storing an icon, corrupting every later lookup rather than
         failing. Define the property instead, so a hostile name is stored as data
         like any other.
         */
+        previous.push([name, Object.getOwnPropertyDescriptor(DEFAULT_MAP, name)]);
         Object.defineProperty(DEFAULT_MAP, name, {
             value: value.trim(),
             writable: true,
@@ -431,6 +454,14 @@ export function registerIcons(icons) {
             configurable: true,
         });
     }
+    return () => {
+        for (const [name, was] of previous.reverse()) {
+            if (was != null)
+                Object.defineProperty(DEFAULT_MAP, name, was);
+            else
+                delete DEFAULT_MAP[name];
+        }
+    };
 }
 /** Is this a name a consumer registered, rather than one we shipped? */
 export function isRegisteredIcon(name) {

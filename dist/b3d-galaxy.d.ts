@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d.js';
 import { type StarData, type GalaxyData, type StarSystemData } from './galaxy-data.js';
+import { type VoxelGalaxy } from './voxel-galaxy.js';
 /**
  * A particle as the baker and the picker see it. The field names are the
  * `SolidParticle` subset those consumers always read (`scaling`, not
@@ -26,6 +27,12 @@ export declare class B3dGalaxy extends B3dChild {
     static initAttributes: {
         seed: number;
         starCount: number;
+        /**
+         * The DIM population's budget — local stars, generated only near a point
+         * (the baker's eye; the camera, once dim voxels stream). Not drawn by the
+         * galaxy yet; it is part of the galaxy's identity, so a bake reads it.
+         */
+        dimBudget: number;
         radius: number;
         spiralArms: number;
         spiralAngle: number;
@@ -38,6 +45,7 @@ export declare class B3dGalaxy extends B3dChild {
     };
     seed: number;
     starCount: number;
+    dimBudget: number;
     radius: number;
     spiralArms: number;
     spiralAngle: number;
@@ -57,6 +65,8 @@ export declare class B3dGalaxy extends B3dChild {
     private faceTarget;
     private blackHoleEl;
     private galaxyData;
+    /** The galaxy itself — `galaxyData` is its view. */
+    galaxy: VoxelGalaxy | null;
     private originalColors;
     private registered;
     content: () => string;
@@ -91,7 +101,12 @@ export declare class B3dGalaxy extends B3dChild {
     private createShaderMaterial;
     private buildGalaxy;
     private buildBlackHole;
-    /** Get star data at the given index */
+    /**
+     * A star by its ADDRESS (`seed:population:voxel:n`, the `id` on every star) —
+     * stable, unlike an index, which is a position in whatever is loaded.
+     */
+    getStar(id: string): StarData | null;
+    /** Get star data at the given index (into the loaded view — see `getStar`). */
     getStarAt(index: number): StarData | null;
     /** Get full star system (star + planets) at the given index */
     getStarSystem(index: number): StarSystemData | null;

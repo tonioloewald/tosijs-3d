@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-terrain — tosijs-3d</title>
   <meta name="description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-terrain/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-terrain</h1>
 <p>Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
@@ -485,11 +485,11 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <h2>Profiling tile builds</h2>
 <p>Terrain is the only place this library does <em>bulk</em> numeric work in a burst, so it&#39;s the
 only real candidate for a worker or wasm. Before moving anything, measure it:</p>
-<pre><code class="language-javascript">terrain.setProfiling(true)   // or the `profile` attribute
-// …fly around for a bit, then:
-terrain.resetProfile()       // drop the first-load burst
-// …fly some more:
-console.table(terrain.debugState)
+<pre><code class="language-javascript" data-highlighted>terrain<span class="token punctuation">.</span><span class="token function">setProfiling</span><span class="token punctuation">(</span><span class="token boolean">true</span><span class="token punctuation">)</span>   <span class="token comment">// or the `profile` attribute</span>
+<span class="token comment">// …fly around for a bit, then:</span>
+terrain<span class="token punctuation">.</span><span class="token function">resetProfile</span><span class="token punctuation">(</span><span class="token punctuation">)</span>       <span class="token comment">// drop the first-load burst</span>
+<span class="token comment">// …fly some more:</span>
+console<span class="token punctuation">.</span><span class="token function">table</span><span class="token punctuation">(</span>terrain<span class="token punctuation">.</span>debugState<span class="token punctuation">)</span>
 </code></pre>
 <p><code>debugState</code> splits the cost where it actually matters — <strong>not</strong> into &quot;fast&quot; and &quot;slow&quot;,
 but into <strong>movable</strong> and <strong>immovable</strong>:</p>
@@ -536,20 +536,20 @@ that ~4–5× <strong>in plain JS</strong>, before any new technology. And a big
 <em>felt</em> win if it moves off-thread: making a blocking 20ms burst into a blocking 5ms burst
 still drops frames (and in XR a dropped frame is nausea, not jank).</p>
 <h2>Usage</h2>
-<pre><code class="language-javascript">import { b3d, b3dTerrain, plateauFilter } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> b3d<span class="token punctuation">,</span> b3dTerrain<span class="token punctuation">,</span> plateauFilter <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 
-const terrain = b3dTerrain({
-  seed: 42,
-  surfaceType: &#39;cylinder&#39;,
-  grossScale: 0.02,
-  grossAmplitude: 10,
-})
+<span class="token keyword">const</span> terrain <span class="token operator">=</span> <span class="token function">b3dTerrain</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">seed</span><span class="token operator">:</span> <span class="token number">42</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">surfaceType</span><span class="token operator">:</span> <span class="token string">'cylinder'</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">grossScale</span><span class="token operator">:</span> <span class="token number">0.02</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">grossAmplitude</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
 
-// Apply a plateau gradient filter for stepped terrain
-terrain.grossFilter = plateauFilter(5)
-terrain.regenerate()
+<span class="token comment">// Apply a plateau gradient filter for stepped terrain</span>
+terrain<span class="token punctuation">.</span>grossFilter <span class="token operator">=</span> <span class="token function">plateauFilter</span><span class="token punctuation">(</span><span class="token number">5</span><span class="token punctuation">)</span>
+terrain<span class="token punctuation">.</span><span class="token function">regenerate</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
 
-document.body.append(b3d({}, terrain))
+document<span class="token punctuation">.</span>body<span class="token punctuation">.</span><span class="token function">append</span><span class="token punctuation">(</span><span class="token function">b3d</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">,</span> terrain<span class="token punctuation">)</span><span class="token punctuation">)</span>
 </code></pre>
 
   </article>
@@ -620,7 +620,9 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -629,6 +631,7 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -650,6 +653,8 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -679,6 +684,8 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -778,6 +785,6 @@ document.body.append(b3d({}, terrain))
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

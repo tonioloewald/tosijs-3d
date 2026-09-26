@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-radar-blip — tosijs-3d</title>
   <meta name="description" content="Tags something as detectable on radar — a target, a landmark, a waypoint. It has no geometry of its own; it just contributes a blip that a radar platform (the…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-radar-blip/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-radar-blip</h1>
 <p>Tags something as <strong>detectable on radar</strong> — a target, a landmark, a waypoint. It has
@@ -86,14 +86,14 @@ Duplicating it here would be two scenes to keep in step and one idea.</p>
 <td>World position when standalone (ignored while following a target&#39;s mesh).</td>
 </tr>
 </tbody></table>
-<pre><code class="language-javascript">import { b3d, b3dRadarBlip, b3dDestroyable } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> b3d<span class="token punctuation">,</span> b3dRadarBlip<span class="token punctuation">,</span> b3dDestroyable <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 
-// A hostile target that shows on radar (blip follows the cube):
-b3dDestroyable({ x: 0, y: 1, z: 40, capacity: 6 },
-  b3dRadarBlip({ faction: &#39;hostile&#39;, profile: 1 }))
+<span class="token comment">// A hostile target that shows on radar (blip follows the cube):</span>
+<span class="token function">b3dDestroyable</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">x</span><span class="token operator">:</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token literal-property property">y</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span> <span class="token literal-property property">z</span><span class="token operator">:</span> <span class="token number">40</span><span class="token punctuation">,</span> <span class="token literal-property property">capacity</span><span class="token operator">:</span> <span class="token number">6</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+  <span class="token function">b3dRadarBlip</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">faction</span><span class="token operator">:</span> <span class="token string">'hostile'</span><span class="token punctuation">,</span> <span class="token literal-property property">profile</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
 
-// A waypoint: no mesh, always detectable, shown as a waypoint trace:
-b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 0, z: 200 })
+<span class="token comment">// A waypoint: no mesh, always detectable, shown as a waypoint trace:</span>
+<span class="token function">b3dRadarBlip</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">faction</span><span class="token operator">:</span> <span class="token string">'waypoint'</span><span class="token punctuation">,</span> <span class="token literal-property property">profile</span><span class="token operator">:</span> <span class="token operator">-</span><span class="token number">1</span><span class="token punctuation">,</span> <span class="token literal-property property">x</span><span class="token operator">:</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token literal-property property">y</span><span class="token operator">:</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token literal-property property">z</span><span class="token operator">:</span> <span class="token number">200</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
 <h1></h1>
 
@@ -165,7 +165,9 @@ b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 0, z: 200 })
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -174,6 +176,7 @@ b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 0, z: 200 })
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -195,6 +198,8 @@ b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 0, z: 200 })
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -224,6 +229,8 @@ b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 0, z: 200 })
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -323,6 +330,6 @@ b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 0, z: 200 })
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

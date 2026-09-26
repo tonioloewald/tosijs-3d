@@ -1,4 +1,5 @@
 import { PRNG, type RandomLike } from './mersenne-twister.js';
+import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js';
 export declare function capitalize(s: string): string;
 export declare function romanNumeral(n: number): string;
 export declare function randomName(prng: RandomLike, numberOfSyllables: number, allowSecondName?: boolean, allowSecondary?: boolean): string;
@@ -24,6 +25,11 @@ declare const planetTypeData: PlanetTemplate[];
 export { planetTypeData };
 export interface StarData {
     name: string;
+    /**
+     * The star's ADDRESS in the voxel galaxy (`seed:population:voxel:n`) — stable,
+     * unlike an array index. Present on every star a voxel galaxy produces.
+     */
+    id?: string;
     seed: number;
     position: {
         x: number;
@@ -52,6 +58,16 @@ export interface StarData {
     /** Set once `bestHI` has been computed on demand. */
     hiComputed?: boolean;
 }
+export { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS };
+/**
+ * Everything a star's CLASS implies, drawn from `prng` in a fixed order.
+ *
+ * Split out of `generateStarDetail` so a generator that chooses the class
+ * itself (the voxel galaxy picks from a bright or a dim mix) shares the one
+ * definition instead of a copy. The draw order is unchanged, so every existing
+ * galaxy is byte-identical (galaxy-data.test pins it by digest).
+ */
+export declare function starDetailFor(prng: RandomLike, seed: number, spectralClass: string, spectralIndex: number): Omit<StarData, 'name' | 'position' | 'bestHI'>;
 export interface PlanetData {
     name: string;
     seed: number;
@@ -106,6 +122,7 @@ export interface GalaxyOptions {
      */
     generatePlanets?: boolean;
 }
+export declare const GALAXY_DEFAULTS: Required<GalaxyOptions>;
 /** A dim far-out star: a point, nothing more. */
 export interface DistantStarData {
     position: {
@@ -148,5 +165,67 @@ export interface GalaxyData {
     seed: number;
     options: Required<GalaxyOptions>;
 }
+/**
+ * A star's NAME, a pure function of its seed — the same derivation the old
+ * generator used, shared so every galaxy names a given seed the same way.
+ */
+export declare function starNameFor(seed: number): string;
+/** The spiral model's derived constants — one place, shared by every draw. */
+export interface SpiralParams {
+    spiralArms: number;
+    minRadius: number;
+    maxRadius: number;
+    thickness: number;
+    scatterTheta: number;
+    scatterRadius: number;
+    spiralB: number;
+}
+export declare function spiralParams(opts: Required<GalaxyOptions>): SpiralParams;
+/**
+ * `n` positions drawn from the spiral model — POSITIONS ONLY: no names, no
+ * star details beyond the one bit that picks arm or disc. This is what the
+ * voxel galaxy's density grid is sampled from (GALAXY-DESIGN.md →
+ * "Reconciliation"): the MODEL survives, the sequential generator does not.
+ *
+ * It consumes exactly the draws the old star loop did, so a density sampled
+ * here is byte-identical to one sampled from `generateGalaxy`'s stars.
+ */
+export declare function sampleSpiral(seed: number, n: number, options?: GalaxyOptions): Array<{
+    x: number;
+    y: number;
+    z: number;
+}>;
+/**
+ * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.9.
+ *
+ * ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"). This used to be its own
+ * generator: one sequential random stream producing the stars, then the
+ * nebulae, then the distant shell, so nothing could be generated locally and
+ * 63% of stars shared a seed with another. It is now an ADAPTER over the voxel
+ * galaxy: `numberOfStars` is the BRIGHT budget, and the result is that
+ * galaxy's `view()` (every bright star, its nebulae and shell) in the shape
+ * this function always returned. The spiral model it was built on survives as
+ * `sampleSpiral`, which is what the voxel galaxy's density is sampled from.
+ *
+ * A given seed therefore produces a DIFFERENT galaxy from 0.8.3's: same
+ * shape and distributions, different stars.
+ */
 export declare function generateGalaxy(seed: number, numberOfStars: number, options?: GalaxyOptions): GalaxyData;
+/**
+ * The galaxy's NEBULAE on the spiral model, drawn from `prng`. Split out so the
+ * voxel galaxy draws them from its own derived seed (GALAXY-DESIGN.md →
+ * "Reconciliation") while the old stream keeps its order.
+ */
+export declare function generateNebulae(prng: PRNG, nebulaCount: number, sp: SpiralParams): {
+    nebulae: NebulaData[];
+    densityScale: number;
+};
+/**
+ * The DISTANT SHELL — other galaxies and dim far-out stars, isotropic, outside
+ * the disc. Drawn from `prng`, like `generateNebulae`.
+ */
+export declare function generateShell(prng: PRNG, galaxyBudget: number, starBudget: number, sp: SpiralParams, densityScale: number): {
+    distantGalaxies: NebulaData[];
+    distantStars: DistantStarData[];
+};
 //# sourceMappingURL=galaxy-data.d.ts.map

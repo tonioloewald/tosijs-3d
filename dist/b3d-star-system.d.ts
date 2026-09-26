@@ -13,6 +13,8 @@ export declare class B3dStarSystem extends B3dChild {
         galaxySeed: number;
         starCount: number;
         starIndex: number;
+        /** A star's ADDRESS (`1234:bright:5021:0`) — wins over `starIndex` when set. */
+        star: string;
         scale: number;
         orbitScale: number;
         animate: "on" | "off";
@@ -24,9 +26,20 @@ export declare class B3dStarSystem extends B3dChild {
     galaxySeed: number;
     starCount: number;
     starIndex: number;
+    star: string;
     scale: number;
     orbitScale: number;
-    animate: 'on' | 'off';
+    /**
+     * `'on'` | `'off'` — whether the planets orbit.
+     *
+     * Typed `any` ON PURPOSE. The name shadows `HTMLElement.animate` (a method),
+     * and renaming the attribute would break markup. The source used to override
+     * it with `@ts-expect-error`, but that directive does not survive into the
+     * published `.d.ts`: every consumer compiling with `skipLibCheck` off got
+     * TS2416 from OUR types (found by bin/smoke-consumer.ts, the publish flow's
+     * consumer check). `any` is the one type assignable to both.
+     */
+    animate: any;
     showOrbits: 'on' | 'off';
     x: number;
     y: number;

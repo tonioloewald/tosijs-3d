@@ -28,27 +28,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-galaxy — tosijs-3d</title>
-  <meta name="description" content="Procedural galaxy renderer. Generates thousands of stars in a spiral arm distribution, each colored by spectral class." />
+  <meta name="description" content="Procedural galaxy renderer — the voxel galaxy, the one galaxy implementation, drawn: thousands of stars in a spiral arm distribution, each coloured by spectral…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-galaxy/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="b3d-galaxy — tosijs-3d" />
-  <meta property="og:description" content="Procedural galaxy renderer. Generates thousands of stars in a spiral arm distribution, each colored by spectral class." />
+  <meta property="og:description" content="Procedural galaxy renderer — the voxel galaxy, the one galaxy implementation, drawn: thousands of stars in a spiral arm distribution, each coloured by spectral…" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-galaxy/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-galaxy","description":"Procedural galaxy renderer. Generates thousands of stars in a spiral arm distribution, each colored by spectral class.","url":"https://3d.tosijs.net/b3d-galaxy/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-galaxy","description":"Procedural galaxy renderer — the voxel galaxy, the one galaxy implementation, drawn: thousands of stars in a spiral arm distribution, each coloured by spectral…","url":"https://3d.tosijs.net/b3d-galaxy/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-galaxy</h1>
-<p>Procedural galaxy renderer. Generates thousands of stars in a spiral arm
-distribution, each colored by spectral class. All generation is seeded — same
-seed always produces the same galaxy.</p>
+<p>Procedural galaxy renderer — the <a href="/voxel-galaxy/">voxel galaxy</a>, the one galaxy
+implementation, drawn: thousands of stars in a spiral arm distribution, each
+coloured by spectral class. All generation is seeded — same seed, same galaxy.
+<code>el.galaxy</code> is the galaxy itself; every star carries its address in <code>id</code>, and
+<code>getStar(id)</code> finds it again (an index only means a position in what is loaded).</p>
 <p>Stars and nebulae are billboarded <strong>in the vertex shader</strong>: each is a static
 quad whose corners the shader turns to face the viewpoint, so a galaxy costs
 nothing per frame on the CPU however many stars it holds.</p>
@@ -60,7 +62,12 @@ in detail. Use <code>getStarAt(index)</code> to retrieve star data and
 Use <code>hideStarAt(index)</code> to hide a star (e.g. when replacing it with a
 rendered star system) and <code>showStarAt(index)</code> to restore it.</p>
 <p>Filter stars by habitability index and/or name using <code>filterStars({ maxHI, nameSearch })</code> —
-non-matching stars are dimmed.</p>
+non-matching stars are dimmed.
+The galaxy holds every BRIGHT star and every INTERESTING one: a dim star whose
+system has a planet with HI ≤ 2 (see <a href="/star-populations/">star-populations</a>).
+So the filter sees every habitable system there is, with its HI already known.
+The boring dim stars (the other ~95%) are only generated locally, as sky
+texture.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dLight, b3dGalaxy, b3dStarSystem, label3d, slider3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
@@ -247,14 +254,15 @@ function zoomToStar(idx, camera, el) {
   }
 
   // Create star system at origin, full scale, initially invisible
+  // By ADDRESS — the star itself, not its position in a list.
   activeStarSystem = b3dStarSystem({
     galaxySeed: demo.seed.value,
     starCount: demo.starCount.value,
-    starIndex: idx,
+    star: star.id,
     scale: 5,
     orbitScale: 3,
-    animate: true,
-    showOrbits: true,
+    animate: &#39;on&#39;,
+    showOrbits: &#39;on&#39;,
   })
   el.appendChild(activeStarSystem)
   activeStarSystem.setVisibility(0)
@@ -358,9 +366,14 @@ demo.nameSearch.observe(applyFilter)
 <td>Galaxy seed</td>
 </tr>
 <tr>
+<td><code>dimBudget</code></td>
+<td><code>95000</code></td>
+<td>The DIM population&#39;s budget. Its interesting share (~5%, HI ≤ 2) is drawn globally; the boring rest only near a point (the baker&#39;s eye)</td>
+</tr>
+<tr>
 <td><code>starCount</code></td>
 <td><code>10000</code></td>
-<td>Number of stars</td>
+<td>The galaxy&#39;s BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet</td>
 </tr>
 <tr>
 <td><code>radius</code></td>
@@ -477,7 +490,9 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -486,6 +501,7 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -507,6 +523,8 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -536,6 +554,8 @@ demo.nameSearch.observe(applyFilter)
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -635,6 +655,6 @@ demo.nameSearch.observe(applyFilter)
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

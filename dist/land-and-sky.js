@@ -11,7 +11,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dCloudDeck, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -45,7 +45,94 @@ const { demo } = tosi({
 // cirrus thins it, orographic asks the terrain for its own height sampler so
 // the towers build over the mountains that are actually there.
 const { sky } = tosi({
-  sky: { coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205 },
+  sky: {
+    coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
+    // Moon: black noon, stars out); the tints colour the scattered light only.
+    world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
+    zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
+    // The stars: size (1 = the default point), brightness, and the faint floor.
+    decoBudget: 2000, decoRadius: 900, decoShadows: false,
+    starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
+    // Extra (cosmetic) moons: a set, swung round the sky together.
+    moons: 'Big moon', moonAz: 0, moonEl: 0,
+  },
+})
+
+// A world is a few dials at once — the preset writes them, and the sliders
+// stay live afterwards so you can walk away from the preset.
+// Mars is almost no AIR and a lot of DUST: its sky is bright because of the
+// dust, not the gas (under 1% of Earth's). Gas scatters blue; dust scatters a
+// bright haze the tint colours.
+const WORLDS = {
+  Earth: { atmosphere: 1, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
+  Mars: { atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
+  Alien: { atmosphere: 1, dust: 0, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
+  Airless: { atmosphere: 0, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
+}
+// SIZE is the inverse of the shader's sharpness: a gaussian's width goes as
+// 1/sqrt(sharpness), so size 2 is twice the width of the default point.
+sky.starSize.observe(() => {
+  sky.starSharpness.value = 3 / Math.max(0.05, sky.starSize.value) ** 2
+})
+// COSMETIC MOONS — where, how big, what colour. The phase is not a setting:
+// swing them round with the slider and watch it follow from the sun.
+const MOONS = {
+  None: [],
+  'Big moon': [{ azimuth: 0, elevation: 25, size: 4, color: '#d8d4cc' }],
+  'Mars pair': [
+    { azimuth: 0, elevation: 20, size: 0.6, color: '#b09a88' },
+    { azimuth: 40, elevation: 32, size: 0.25, color: '#c8b8a8' },
+  ],
+  'Alien trio': [
+    { azimuth: 0, elevation: 30, size: 6, color: '#e0b090' },
+    { azimuth: 25, elevation: 12, size: 2, color: '#a0c8ff' },
+    { azimuth: -30, elevation: 40, size: 1, color: '#d0ffd0' },
+  ],
+}
+const skybox = b3dSkybox({
+  timeOfDay: sky.timeOfDay,
+  realtimeScale: 0,
+  starfieldCube: '/sky/nebula',
+  starfieldData: '/sky/stars',
+  starfieldTilt: '12,25,58',
+  atmosphere: sky.atmosphere,
+  dust: sky.dust,
+  turbidity: sky.turbidity,
+  rayleigh: sky.rayleigh,
+  mieCoefficient: sky.mieCoefficient,
+  luminance: sky.luminance,
+  zenithTint: sky.zenithTint,
+  horizonTint: sky.horizonTint,
+  tintStrength: sky.tintStrength,
+  starfieldSharpness: sky.starSharpness,
+  starfieldGain: sky.starGain,
+  starfieldFloor: sky.starFloor,
+  starfieldTwinkle: sky.twinkle,
+})
+
+const moonEls = []
+function placeMoons() {
+  const set = MOONS[sky.moons.value] ?? []
+  while (moonEls.length > set.length) moonEls.pop().remove()
+  set.forEach((m, i) => {
+    if (moonEls[i] == null) {
+      moonEls[i] = b3dMoon()
+      skybox.append(moonEls[i])
+    }
+    Object.assign(moonEls[i], m, {
+      azimuth: m.azimuth + sky.moonAz.value,
+      elevation: m.elevation + sky.moonEl.value,
+    })
+  })
+}
+sky.moons.observe(placeMoons)
+sky.moonAz.observe(placeMoons)
+sky.moonEl.observe(placeMoons)
+placeMoons()
+sky.world.observe(() => {
+  const w = WORLDS[sky.world.value]
+  if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
 })
 
 // The volcano is authored ONCE and switched in and out. Applied here as well
@@ -56,6 +143,12 @@ function applyVolcano(on) {
   terrain.landform = on ? theVolcano.landform : null
   terrain.provinceField = on ? theVolcano.province : null
 }
+
+// 'on'|'off' on the element, a boolean on the toggle — bridged here.
+const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius })
+sky.decoShadows.observe(() => {
+  decorator.shadows = sky.decoShadows.value ? 'on' : 'off'
+})
 
 let water
 const terrain = b3dTerrain({
@@ -126,6 +219,30 @@ const scene = b3d(
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      label3d({ text: 'Atmosphere' }),
+      select3d({ label: 'world', value: sky.world, options: Object.keys(WORLDS) }),
+      slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'turbidity', value: sky.turbidity, min: 1, max: 40, step: 0.5 }),
+      slider3d({ label: 'rayleigh', value: sky.rayleigh, min: 0, max: 4, step: 0.05 }),
+      slider3d({ label: 'mie', value: sky.mieCoefficient, min: 0, max: 0.05, step: 0.001 }),
+      slider3d({ label: 'luminance', value: sky.luminance, min: 0.1, max: 2, step: 0.05 }),
+      label3d({ text: 'Stars' }),
+      slider3d({ label: 'star size', value: sky.starSize, min: 0.4, max: 3, step: 0.05 }),
+      slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
+      slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
+      slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
+      label3d({ text: 'Moons' }),
+      select3d({ label: 'moons', value: sky.moons, options: Object.keys(MOONS) }),
+      slider3d({ label: 'moon azimuth', value: sky.moonAz, min: -180, max: 180, step: 1 }),
+      slider3d({ label: 'moon elevation', value: sky.moonEl, min: -60, max: 60, step: 1 }),
+      label3d({ text: 'Vegetation' }),
+      // THE BUDGET is the performance dial: a count, not a density. Watch the
+      // Perf Stats panel's decorator row (placed, draw calls, build ms).
+      slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
+      slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
+      toggle3d({ label: 'tree shadows', value: sky.decoShadows }),
       label3d({ text: 'Camera' }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
@@ -168,23 +285,22 @@ const scene = b3d(
       })
     },
   },
-  b3dSun({ activeDistance: 80 }),
+  // shadowMaxZ: the cascades must reach the ground from the eye, which starts
+  // ~200 m up — at the 100 m default nothing in view casts or receives.
+  b3dSun({ activeDistance: 80, shadowMaxZ: 1200 }),
   // THE PAIR: a 256 cube for the nebulae, a data cube the shader decodes into
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.
-  b3dSkybox({
-    timeOfDay: sky.timeOfDay,
-    realtimeScale: 0,
-    starfieldCube: '/sky/nebula',
-    starfieldData: '/sky/stars',
-    starfieldTilt: '12,25,58',
-  }),
+  skybox,
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
   // The layer case: a cloud DECK over the peaks, orographic so the towers
   // build over the actual mountains. Blob clouds (b3d-clouds) remain the
   // right tool for cloud you fly BETWEEN.
+  // Rocks and trees by climate: pines in the cold, palms on warm shores, cacti
+  // in hot dry country, boulders on the steep. See b3d-decorator.
+  decorator,
   b3dCloudDeck({
     altitude: sky.altitude,
     coverage: sky.coverage,

@@ -94,6 +94,19 @@ export declare function reflectionsSchema(extra?: Record<string, unknown>): {
     title: string;
     properties: Record<string, unknown>;
 };
+/**
+ * `b3d-cloud-deck` — the tiled cloud deck: one coverage dial, cirrus, wind,
+ * orographic cloud and the shared cloud shadow (tosijs-3d#87).
+ *
+ * The ranges are the ones the element's own docs state; where they state none
+ * (altitude, wind, the depths) they are generous working bounds, not limits
+ * the element enforces.
+ */
+export declare function cloudDeckSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export declare const sceneSchemas: {
     readonly skybox: typeof skyboxSchema;
@@ -106,5 +119,6 @@ export declare const sceneSchemas: {
     readonly ground: typeof groundSchema;
     readonly terrain: typeof terrainSchema;
     readonly reflections: typeof reflectionsSchema;
+    readonly cloudDeck: typeof cloudDeckSchema;
 };
 //# sourceMappingURL=scene-schemas.d.ts.map

@@ -123,6 +123,7 @@ export declare class B3d extends Component {
          * used (see b3d-gamepad's `fade`). */
         gamepadFade: "on" | "off";
         quality: QualitySetting;
+        pixelRatio: number;
         stats: boolean;
         /** Pause automatically when the tab/window goes to the background.
          * ⚠️ EXPERIMENTAL — see the pause demo; the VR path is unvalidated. */
@@ -654,6 +655,13 @@ export declare class B3d extends Component {
         attach?: boolean;
         preventDefault?: boolean;
     }): boolean;
+    private _flatFrames;
+    private _flatPanels;
+    private _flatSig;
+    private _flatCheckIn;
+    private _flatHandWarned;
+    private _disposeFlatPanels;
+    private _updateFlatPanels;
     private _update;
     private _resizing;
     _resizeCount: number;
@@ -690,10 +698,15 @@ export declare class B3d extends Component {
      * holding 120fps.) Measuring an idle machine is the entire point of measuring.
      *
      * A spin-up sequence would let us measure a KNOWN workload during load instead
-     * of waiting for quiet — see TODO.md. This is the fix that doesn't need one.
+     * of waiting for quiet — see DECISIONS.md. This is the fix that doesn't need one.
      */
     private _probeWhenIdle;
     private _applyHardwareScaling;
+    private _appliedPixelRatio;
+    private _pixelRatioQuery;
+    private _pixelRatioListener;
+    private _watchPixelRatio;
+    private _unwatchPixelRatio;
     private _ambient;
     /** Rationed by the watchdog: shed fast (`ratchetPool`), recovered slowly
      * (`recoverPool`) once the machine has held a good frame rate for 20 settled
@@ -969,6 +982,8 @@ export declare class B3d extends Component {
     private _attachXrPanel;
     disconnectedCallback(): void;
     private _teardownTimer;
+    /** The canvas's context was lost by teardown — see `connectedCallback`. */
+    private _canvasSpent;
     private _teardown;
     render(): void;
 }

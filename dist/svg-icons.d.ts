@@ -22,6 +22,8 @@ export declare const iconAliases: IconMap;
 export declare function createSvgIcons(data?: IconMap, aliases?: IconMap): Record<string, SvgIconCreator>;
 /** Names of the icons with real artwork (excludes pure redirect entries). */
 export declare function iconNames(data?: IconMap): string[];
+/** Markup that can execute: refused by `registerIcons`. */
+export declare function unsafeIconMarkup(value: string): boolean;
 /**
  * Add icons a consumer owns, so the widgets can resolve them by name.
  *
@@ -45,8 +47,21 @@ export declare function iconNames(data?: IconMap): string[];
  * Values are TRIMMED, because `icon-data` stores every entry with a trailing
  * space and a redirect is re-parsed as a name where that space is fatal — it
  * silently broke every mirrored icon once already (#54).
+ *
+ * **Trust boundary: artwork reaches `innerHTML`.** Register icons YOU ship, not
+ * markup from users or the network. As a backstop, an entry carrying anything
+ * that can run — `<script>`, `<foreignObject>`, `<iframe>`, an `on*=` handler
+ * or a `javascript:` URL — is dropped with a warning rather than stored. That
+ * is a guard against accidents, not a sanitiser: an icon has no business
+ * containing any of it, so refusing is simpler and stricter than cleaning.
+ *
+ * **Returns an undo.** Registration is otherwise page-lifetime: the map is
+ * global, so a route that registers its icons and is then left would leave
+ * them behind — including any built-in it REPLACED. The returned function puts
+ * back exactly what this call changed (a replaced icon comes back, a new name
+ * goes). Undo in reverse order if calls overlap on a name.
  */
-export declare function registerIcons(icons: IconMap): void;
+export declare function registerIcons(icons: IconMap): () => void;
 /** Is this a name a consumer registered, rather than one we shipped? */
 export declare function isRegisteredIcon(name: string): boolean;
 /**

@@ -325,6 +325,8 @@ const SCRUB_SLOP = 3;
  */
 export function fieldGroup(config) {
     let active = null;
+    // LIVE, so `add` works — the construction-time list was the trap.
+    const fields = [];
     const focus = (field) => {
         if (field === active)
             return;
@@ -342,7 +344,7 @@ export function fieldGroup(config) {
         // Settle the outgoing field before the incoming one lights up, so a refused
         // value is restored while the eye is still on it.
         leaving?.commit();
-        for (const f of config.fields)
+        for (const f of fields)
             f.setActive(f === field);
         if (field)
             config.keyboard?.setMode(field.keyboardMode);
@@ -350,7 +352,10 @@ export function fieldGroup(config) {
     // A field can also be focused by being TAPPED, which the field reports and the
     // group must not miss — otherwise a tap and a programmatic focus disagree
     // about who is active, and the keys go to the wrong one.
-    for (const f of config.fields) {
+    const add = (f) => {
+        if (fields.includes(f))
+            return;
+        fields.push(f);
         // Wrap whichever spelling the field carries, and write back under the SAME
         // one — moving the callback to `handleFocus` would strand a consumer who
         // still reads `field.onFocus` to detach it later.
@@ -364,20 +369,28 @@ export function fieldGroup(config) {
             f.onFocus = wrapped;
         else
             f.handleFocus = wrapped;
-    }
+    };
+    for (const f of config.fields)
+        add(f);
+    const member = {
+        has: (f) => fields.includes(f),
+        blur: () => focus(null),
+    };
     const api = {
         get active() {
             return active;
         },
         focus,
+        add,
         blur() {
             focus(null);
         },
         attach(target = globalThis.window) {
-            // Stand the global listener down while a group is attached — a group does
-            // more than type (Tab traversal, mode switching), so it must win, and two
-            // handlers would double every character.
-            groupAttachments += 1;
+            // The global listener stands down for THIS group's fields while it is
+            // attached — a group does more than type (Tab traversal, mode switching),
+            // so it must win, and two handlers would double every character. Fields
+            // in NO attached group still reach the global listener (#82).
+            attachedGroups.set(member, (attachedGroups.get(member) ?? 0) + 1);
             const onKey = (evt) => {
                 // Same rule as the global listener: a real input wins. A group attached
                 // to `window` is the common case, and it must not eat a nav search.
@@ -399,7 +412,11 @@ export function fieldGroup(config) {
             };
             target.addEventListener('keydown', onKey);
             return () => {
-                groupAttachments = Math.max(0, groupAttachments - 1);
+                const n = (attachedGroups.get(member) ?? 1) - 1;
+                if (n > 0)
+                    attachedGroups.set(member, n);
+                else
+                    attachedGroups.delete(member);
                 target.removeEventListener('keydown', onKey);
             };
         },
@@ -478,18 +495,25 @@ So: ONE listener, installed on first focus, routing to whichever field is the
 receiver. Not per field — N fields would mean N listeners all deciding whether a
 key is theirs.
 
-It STANDS DOWN while a `fieldGroup` is attached. A group does more than type (Tab
-traversal, keyboard-mode switching), so it must win; two handlers would double
-every character, which is worse than the bug being fixed.
+It STANDS DOWN for any field an attached `fieldGroup` owns. A group does more
+than type (Tab traversal, keyboard-mode switching), so it must win; two handlers
+would double every character, which is worse than the bug being fixed. Fields
+in NO attached group still type through here — see `attachedGroups`.
 */
 let activeField = null;
-let groupAttachments = 0;
 let globalKeyListener = null;
+const attachedGroups = new Map();
+const ownedByAttachedGroup = (f) => {
+    for (const g of attachedGroups.keys())
+        if (g.has(f))
+            return true;
+    return false;
+};
 function ensureGlobalKeyListener() {
     if (globalKeyListener != null || globalThis.window == null)
         return;
     globalKeyListener = (evt) => {
-        if (groupAttachments > 0 || activeField == null)
+        if (activeField == null || ownedByAttachedGroup(activeField))
             return;
         /*
         A REAL input wins over an SVG field.
@@ -623,6 +647,11 @@ export function inputField(config = {}) {
         // listener above.
         activeField = api;
         ensureGlobalKeyListener();
+        // A field outside every attached group took focus: those groups must let
+        // go of theirs, or their listener keeps typing into it (#82).
+        for (const g of attachedGroups.keys())
+            if (!g.has(api))
+                g.blur();
         if (focused)
             return;
         focused = true;

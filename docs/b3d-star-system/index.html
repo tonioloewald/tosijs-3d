@@ -28,35 +28,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>b3d-star-system — tosijs-3d</title>
-  <meta name="description" content="Renders an individual star system with a procedural star and its planets. Given a StarData object (from generateGalaxy) or a galaxy seed + star index, it…" />
+  <meta name="description" content="Renders an individual star system with a procedural star and its planets. Given a galaxy seed and a star&#39;s ADDRESS (star, stable) or index (starIndex) in the…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-star-system/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="b3d-star-system — tosijs-3d" />
-  <meta property="og:description" content="Renders an individual star system with a procedural star and its planets. Given a StarData object (from generateGalaxy) or a galaxy seed + star index, it…" />
+  <meta property="og:description" content="Renders an individual star system with a procedural star and its planets. Given a galaxy seed and a star&#39;s ADDRESS (star, stable) or index (starIndex) in the…" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-star-system/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-star-system","description":"Renders an individual star system with a procedural star and its planets. Given a StarData object (from generateGalaxy) or a galaxy seed + star index, it…","url":"https://3d.tosijs.net/b3d-star-system/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-star-system","description":"Renders an individual star system with a procedural star and its planets. Given a galaxy seed and a star's ADDRESS (star, stable) or index (starIndex) in the…","url":"https://3d.tosijs.net/b3d-star-system/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-star-system</h1>
 <p>Renders an individual star system with a procedural star and its planets.
-Given a <code>StarData</code> object (from <code>generateGalaxy</code>) or a galaxy seed + star
-index, it creates <code>b3d-star</code> and <code>b3d-planet</code> child components with
+Given a galaxy seed and a star&#39;s ADDRESS (<code>star</code>, stable) or index
+(<code>starIndex</code>) in the <a href="/voxel-galaxy/">voxel galaxy</a>, it creates <code>b3d-star</code> and <code>b3d-planet</code> child components with
 deterministic seeds.</p>
 <p>Planets orbit at scaled distances and can optionally animate.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, voxelGalaxy, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, p, pre } = elements
 
-const galaxy = generateGalaxy(1234, 1000, { generatePlanets: true })
+const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 1000 }).view({ generatePlanets: true })
 
 const { demo } = tosi({
   demo: {
@@ -74,9 +74,13 @@ const starSystem = b3dStarSystem({
   starIndex: demo.starIndex,
   scale: demo.scale,
   orbitScale: demo.orbitScale,
-  animate: demo.animate,
-  showOrbits: demo.showOrbits,
+  // &#39;on&#39;|&#39;off&#39; attributes, driven from the toggles&#39; booleans below — a
+  // boolean written straight into them warns (and means nothing).
+  animate: &#39;on&#39;,
+  showOrbits: &#39;on&#39;,
 })
+demo.animate.observe(() =&gt; (starSystem.animate = demo.animate.value ? &#39;on&#39; : &#39;off&#39;))
+demo.showOrbits.observe(() =&gt; (starSystem.showOrbits = demo.showOrbits.value ? &#39;on&#39; : &#39;off&#39;))
 
 const scene = b3d(
   {
@@ -195,12 +199,17 @@ invisible.</p>
 <tr>
 <td><code>starCount</code></td>
 <td><code>10000</code></td>
-<td>Number of stars in galaxy (needed to regenerate same galaxy)</td>
+<td>The galaxy&#39;s bright budget (needed to regenerate the same galaxy)</td>
+</tr>
+<tr>
+<td><code>star</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>A star&#39;s ADDRESS (<code>1234:bright:5021:0</code>, the <code>id</code> on every star). Stable, and wins over <code>starIndex</code></td>
 </tr>
 <tr>
 <td><code>starIndex</code></td>
 <td><code>0</code></td>
-<td>Which star in the galaxy to render</td>
+<td>Which star to render, by position in the galaxy&#39;s view (moves if <code>starCount</code> does)</td>
 </tr>
 <tr>
 <td><code>scale</code></td>
@@ -292,7 +301,9 @@ invisible.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -301,6 +312,7 @@ invisible.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -322,6 +334,8 @@ invisible.</p>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -351,6 +365,8 @@ invisible.</p>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link current" href="../b3d-star-system/" aria-current="page">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -450,6 +466,6 @@ invisible.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

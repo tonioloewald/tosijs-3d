@@ -78,7 +78,7 @@ import * as BABYLON from '@babylonjs/core';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
 import { AbstractMesh, markCollisionGroup } from './b3d-utils.js';
-import { waterWind } from './wind.js';
+import { inheritedWind, waterWind } from './wind.js';
 import { band } from './atmosphere.js';
 export class B3dWater extends AbstractMesh {
     static preferredTagName = 'tosi-b3d-water';
@@ -170,12 +170,9 @@ export class B3dWater extends AbstractMesh {
      */
     _wind() {
         const attrs = this;
-        if (attrs.wind !== 'own') {
-            const scene = this.owner?.wind;
-            if (scene != null && (scene.x !== 0 || scene.z !== 0)) {
-                return waterWind(scene);
-            }
-        }
+        const scene = inheritedWind(attrs.wind, this.owner?.wind);
+        if (scene != null)
+            return waterWind(scene);
         return {
             windForce: attrs.windForce,
             windDirectionX: attrs.windDirectionX,

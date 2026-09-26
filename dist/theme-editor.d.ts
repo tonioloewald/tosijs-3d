@@ -39,5 +39,18 @@ export interface ThemeEditorOptions {
  * page; a list of `label: control` pairs at natural width does not, and a
  * palette you are comparing values across is exactly where that shows.
  */
-export declare function themeEditor(config?: ThemeEditorOptions): HTMLElement;
+export declare function themeEditor(config?: ThemeEditorOptions): ThemeEditorElement;
+/**
+ * The editor element, plus the one thing only the library can do reliably:
+ * **put the palette back.** The editor edits the GLOBAL table (that is how a
+ * whole UI re-themes live), so a settings route that mounts it and is then
+ * left leaves the change behind — which is right for a settings page you
+ * APPLIED and wrong for one you abandoned or previewed. `restore()` returns
+ * the table to how it was when this editor was built, and calls
+ * `handleChange` so you rebuild. When to call it is yours: the editor cannot
+ * tell "left" from "saved".
+ */
+export type ThemeEditorElement = HTMLElement & {
+    restore: () => void;
+};
 //# sourceMappingURL=theme-editor.d.ts.map

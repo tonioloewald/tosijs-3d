@@ -6,7 +6,29 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.4
+
+**A sky you can actually see the stars in, and a world with things growing on
+it.** The encoded sky is decoded exactly (sharp points, not smeared blobs),
+twinkles, and is rebaked from the new voxel galaxy — one galaxy implementation
+now, with stable star addresses and a biased "interesting stars" population.
+Worlds get their own air and dust (a black noon on the Moon, a butterscotch
+Mars), cosmetic extra moons whose phase follows the sun, and render resolution
+follows the display by device tier. `<tosi-b3d-decorator>` scatters rocks and
+trees by budget and biome, with near-only shadows and colliders. Plus a
+batch of adopter fixes (ensemble's #76–#91, touch-orbit #52) and review
+follow-ups, and the first release through the OIDC + staged publish flow.
+
+Size: barrel 837.8 KB min (+5.6%) · **279.6 KB gz (+6.3%)**; dist total 1.30 MB gz (+4.3%).
+
+> **Visible, not breaking:** every `PRNG`-seeded output re-rolls (xoshiro128\*\*
+> replaces the Mersenne Twister), so a given seed produces a different galaxy,
+> star system, cloud field, crowd and spawn sequence from 0.8.3 — "same seed,
+> same battles" holds within 0.8.4, not across the upgrade. The shipped sky is
+> rebaked (and now served from a versioned URL). Deprecated names still work
+> and warn once: `generateGalaxy` (use `voxelGalaxy`), `onEnter`/`onExit` on
+> the trigger, `handleChange`/`handleCommit` on the manipulator
+> (`whenChange`/`whenCommit`). `registerIcons` now refuses markup that can run.
 
 ### Fixed
 

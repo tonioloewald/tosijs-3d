@@ -78,7 +78,7 @@ headless runner can read them. Exists so nobody hand-copies our attributes:
 ensemble's hand-written skybox schema carried 6 of 16 and disagreed on a
 default (#63). Drift is caught by a test, not promised.
 */
-export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
+export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
 export { B3dFog, b3dFog } from './b3d-fog.js';
 export { B3dClouds, b3dClouds } from './b3d-clouds.js';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal.js';
@@ -111,6 +111,7 @@ export { XrGamepadSource } from './xr-gamepad.js';
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
 export { attachFramePanel, placeholderPanelSvg, excludeFromGlow, } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
+export { B3dMoon, b3dMoon } from './b3d-moon.js';
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js';
 // Clip-name map for Quaternius UAL rigs — see b3d-biped.
@@ -171,11 +172,14 @@ export { boneHierarchy, layerGroups, layerOnUpperBody, } from './animation-layer
 export { clearOfBand, easeDistance, fitChase, fitDistance, forceFirstPerson, } from './camera-fit.js';
 export { playground } from './playground.js';
 export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js';
+// Rocks and trees on the terrain, by budget and climate.
+export { B3dDecorator, b3dDecorator } from './b3d-decorator.js';
+export { scatterPlacements, NearIndex, NATURE_KIT_RULES, } from './scatter.js';
 export { cloudField, cloudOpacity, } from './cloud-field.js';
 export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, } from './starfield-codec.js';
 export { rocketAscent } from './rocket-ascent.js';
 export { pngEncode, crc32, adler32 } from './png.js';
-export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, facesToPngs, facesToZip, defaultBakePose, SHIPPED_SKY, } from './skybox-baker.js';
+export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, starsFromVoxelGalaxy, facesToPngs, facesToZip, defaultBakePose, SHIPPED_SKY, } from './skybox-baker.js';
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, } from './surroundings-probe.js';
 export { DEFAULT_HEIGHTS, bearingIndex, exposure, inShelter, makeSurroundings, muzzleClearance, peekSide, sampleAt, setSample, shelterFrom, shuffleToward, stanceFor, } from './surroundings.js';
 export { DEFAULT_AIM_LIMITS, aimAuthority, aimDirection, aimPoseWeights, aimToward, aimWobble, bodyCatchUp, clampAim2, relaxAim, stepAim, wrapDeg, } from './aim.js';
@@ -363,7 +367,7 @@ export { definePrefab, getPrefab, prefabNames, spawnPrefab } from './prefab.js';
 export { explodeMesh } from './b3d-exploder.js';
 // Procedural
 export { PerlinNoise } from './perlin-noise.js';
-export { MersenneTwister, PRNG } from './mersenne-twister.js';
+export { MersenneTwister, PRNG, Xoshiro128, CheapPRNG, } from './mersenne-twister.js';
 export { B3dTerrain, b3dTerrain } from './b3d-terrain.js';
 export { B3dPlanet, b3dPlanet } from './b3d-planet.js';
 export { B3dStar, b3dStar } from './b3d-star.js';
@@ -371,6 +375,12 @@ export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole.js';
 export { B3dGalaxy, b3dGalaxy } from './b3d-galaxy.js';
 export { B3dStarSystem, b3dStarSystem } from './b3d-star-system.js';
 export { generateGalaxy, generateStarSystem, starTypeData, randomName, capitalize, romanNumeral, } from './galaxy-data.js';
+// THE galaxy (GALAXY-DESIGN.md) — generateGalaxy above is an adapter over it.
+export { voxelGalaxy } from './voxel-galaxy.js';
+export { sampleSpiral, starNameFor } from './galaxy-data.js';
+// What makes a dim star INTERESTING (HI <= 2) — the harness-learned split.
+export { bestHIOf, isInteresting, interestingMix, boringMix, interestingShare, hiFingerprint, INTERESTING_MAX_HI, } from './star-populations.js';
+export { starAddress, parseStarAddress } from './voxel-galaxy.js';
 export { PiecewiseLinearFilter, identityFilter, plateauFilter, } from './gradient-filter.js';
 export { GradientEditor, gradientEditor } from './gradient-editor.js';
 export { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler.js';
@@ -399,4 +409,7 @@ export { w3dTheme, setW3dTheme, withTheme } from './w3d-theme.js';
 export { waterNormalTexture, tileHeight, writeNormalMap, } from './water-normal.js';
 export { themeEditor, FONT_STACKS } from './theme-editor.js';
 export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64OfBytes, } from './embed-font.js';
+// Touch on an orbit camera: one finger orbits, two pan, a pinch zooms (#52).
+export { touchOrbit } from './touch-orbit.js';
+export { twoFingerGesture, } from './touch-gesture.js';
 //# sourceMappingURL=index.js.map

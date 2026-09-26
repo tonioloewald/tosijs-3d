@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>asset-url — tosijs-3d</title>
   <meta name="description" content="A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a LOGICAL path, so demos/consumers aren&#39;t littered with a hostname and can…" />
   <link rel="canonical" href="https://3d.tosijs.net/asset-url/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>asset-url</h1>
 <p>A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
@@ -52,10 +52,10 @@ host in one place. <code>assetUrl(&#39;kenney/vehicles/car.glb&#39;)</code> reso
 once via <code>setAssetBase(...)</code>; the base defaults to empty, so paths resolve locally
 (served from <code>static/</code>) for tests and offline dev. Already-absolute URLs
 (<code>http(s)://</code>, <code>data:</code>, <code>blob:</code>) pass through untouched.</p>
-<pre><code class="language-javascript">import { setAssetBase, assetUrl, b3dLoader } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> setAssetBase<span class="token punctuation">,</span> assetUrl<span class="token punctuation">,</span> b3dLoader <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 
-setAssetBase(&#39;https://cdn.tosijs.net&#39;)          // once, e.g. in demo/site.ts
-b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })
+<span class="token function">setAssetBase</span><span class="token punctuation">(</span><span class="token string">'https://cdn.tosijs.net'</span><span class="token punctuation">)</span>          <span class="token comment">// once, e.g. in demo/site.ts</span>
+<span class="token function">b3dLoader</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token function">assetUrl</span><span class="token punctuation">(</span><span class="token string">'kenney/vehicles/car.glb'</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
 
   </article>
@@ -126,7 +126,9 @@ b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -135,6 +137,7 @@ b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -156,6 +159,8 @@ b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -185,6 +190,8 @@ b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -284,6 +291,6 @@ b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

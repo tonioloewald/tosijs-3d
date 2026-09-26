@@ -62,6 +62,10 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 */
 /*{ "parent": "Space", "order": 900 }*/
 import { PRNG, CheapPRNG } from './mersenne-twister.js';
+import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js';
+// A CYCLE, deliberately and safely: voxel-galaxy imports this module too, but
+// neither reads the other at module evaluation — see spectral-classes.
+import { voxelGalaxy } from './voxel-galaxy.js';
 // --- Utilities ---
 export function capitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -584,19 +588,32 @@ const planetTypeData = [
     },
 ];
 export { planetTypeData };
+// The spectral classes and weights live in a leaf module — see its note.
+export { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS };
 function generateStarDetail(seed) {
     // A CHEAP prng: detail is derived data, a pure function of the star's seed,
     // and MT construction (~14 µs) × 100k stars is a second and a half of doing
     // nothing. Quality is irrelevant here — determinism is what matters.
     const prng = new CheapPRNG(seed);
-    const spectralClass = prng.pick(['O', 'B', 'A', 'F', 'G', 'K', 'M'], [0.0001, 0.2, 1, 3, 8, 12, 20]);
+    const spectralClass = prng.pick([...SPECTRAL_CLASSES], SPECTRAL_WEIGHTS);
     const spectralIndex = prng.range(0, 9);
+    return starDetailFor(prng, seed, spectralClass, spectralIndex);
+}
+/**
+ * Everything a star's CLASS implies, drawn from `prng` in a fixed order.
+ *
+ * Split out of `generateStarDetail` so a generator that chooses the class
+ * itself (the voxel galaxy picks from a bright or a dim mix) shares the one
+ * definition instead of a copy. The draw order is unchanged, so every existing
+ * galaxy is byte-identical (galaxy-data.test pins it by digest).
+ */
+export function starDetailFor(prng, seed, spectralClass, spectralIndex) {
     const template = starTypeData[spectralClass];
     const luminosity = (template.luminosity * 3) / (spectralIndex + 2);
     const mass = (template.mass * 5) / (spectralIndex + 2);
     const numberOfPlanets = prng.range(template.planets[0], template.planets[1]);
     const planetSeed = prng.range(0, 1000000);
-    const inSpiralArm = prng.probability(template.inSpiralArm);
+    const inSpiralArm = prng.value() < template.inSpiralArm;
     let s = Math.log(luminosity) + 4;
     s = Math.max(Math.min(s, 20), 2) * 0.5;
     return {
@@ -665,7 +682,7 @@ export function generateStarSystem(star) {
     }
     return { star, planets };
 }
-const GALAXY_DEFAULTS = {
+export const GALAXY_DEFAULTS = {
     spiralArms: 4,
     spiralAngleDegrees: 240,
     minRadius: 0.02,
@@ -677,85 +694,124 @@ const GALAXY_DEFAULTS = {
     distantStars: 3000,
     generatePlanets: false,
 };
-export function generateGalaxy(seed, numberOfStars, options = {}) {
-    const opts = { ...GALAXY_DEFAULTS, ...options };
+/**
+ * A star's NAME, a pure function of its seed — the same derivation the old
+ * generator used, shared so every galaxy names a given seed the same way.
+ */
+export function starNameFor(seed) {
+    const namePrng = new CheapPRNG(seed + 1);
+    let name = randomName(namePrng, namePrng.range(2, 3));
+    while (isBadWord(name))
+        name = randomName(namePrng, namePrng.range(2, 3));
+    return name;
+}
+export function spiralParams(opts) {
     const { spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness } = opts;
-    const scatterTheta = (Math.PI / spiralArms) * 0.2;
-    const scatterRadius = minRadius * 0.4;
-    const spiralB = ((spiralAngleDegrees / Math.PI) * minRadius) / maxRadius;
-    /*
-    NO NAME TABLE — names are derived per star, so there is nothing to scan
-    and nothing to saturate. (The name table's previous lives: an ARRAY with
-    `includes()` made this O(n²) — 5×10⁹ comparisons at 100k — and the Set that
-    replaced it still cost a collision-retry loop whose draws grew as the name
-    space filled. Both gone.)
-    */
-    const stars = [];
-    const prng = new PRNG(seed);
-    for (let i = 0; i < numberOfStars; i++) {
-        const starSeed = prng.range(1, 100000);
-        const detail = generateStarDetail(starSeed);
-        /*
-        THE NAME IS DERIVED FROM THE STAR'S OWN SEED — same architecture as
-        planets (see `GalaxyOptions.generatePlanets`). It makes the name a pure
-        function of the star, so generation is O(1) per star: no shared name
-        table, no collision-retry loop whose cost grows as the name space
-        saturates. Duplicates are possible (two stars can draw the same seed)
-        and accepted. The bad-word check still runs, and retries continue on the
-        star's own stream.
-        */
-        const namePrng = new CheapPRNG(starSeed + 1);
-        let newName = randomName(namePrng, namePrng.range(2, 3));
-        while (isBadWord(newName)) {
-            newName = randomName(namePrng, namePrng.range(2, 3));
-        }
-        // Position in galaxy
-        let x, y;
-        let r = prng.realRange(minRadius, maxRadius);
-        if (detail.inSpiralArm) {
-            // The gaussian can swing r NEGATIVE, and Math.log of a negative is NaN
-            // — one star in ~100k landed at (NaN, NaN, z). Clamp to the disc.
-            r = Math.max(1e-6, r + prng.gaussrandom(scatterRadius));
-            let theta = spiralB * Math.log(r / maxRadius) + prng.gaussrandom(scatterTheta);
-            theta += (prng.range(0, spiralArms - 1) * Math.PI * 2) / spiralArms;
-            x = Math.cos(theta) * r;
-            y = Math.sin(theta) * r;
-        }
-        else {
-            r *= prng.realRange(1, 1.1);
-            const theta = prng.realRange(0, Math.PI * 2);
-            x = Math.cos(theta) * r;
-            y = Math.sin(theta) * r;
-        }
-        const z = prng.gaussrandom(thickness * 0.5 * (1 - r));
-        const star = {
-            ...detail,
-            name: newName,
-            position: { x, y, z },
-            bestHI: 5,
-        };
-        /*
-        Planets are a FILTERING concern, not a generation one — and they are the
-        expensive part (71% of the time at 100k). `generatePlanets` opts back in;
-        everything else gets `bestHI` computed on demand through
-        `generateStarSystem`, which produces the identical number.
-        */
-        if (opts.generatePlanets) {
-            const system = generateStarSystem(star);
-            if (system.planets.length > 0) {
-                let best = star.bestHI;
-                for (const p of system.planets)
-                    if (p.HI < best)
-                        best = p.HI;
-                star.bestHI = best;
-            }
-        }
-        stars.push(star);
+    return {
+        spiralArms,
+        minRadius,
+        maxRadius,
+        thickness,
+        scatterTheta: (Math.PI / spiralArms) * 0.2,
+        scatterRadius: minRadius * 0.4,
+        spiralB: ((spiralAngleDegrees / Math.PI) * minRadius) / maxRadius,
+    };
+}
+/**
+ * THE SPIRAL MODEL — where one star of this galaxy lands. The draws are in a
+ * fixed order on `prng`, which is what lets `sampleSpiral` and the old star loop
+ * agree to the last bit.
+ */
+function spiralPosition(prng, inSpiralArm, sp) {
+    let x, y;
+    let r = prng.realRange(sp.minRadius, sp.maxRadius);
+    if (inSpiralArm) {
+        // The gaussian can swing r NEGATIVE, and Math.log of a negative is NaN
+        // — one star in ~100k landed at (NaN, NaN, z). Clamp to the disc.
+        r = Math.max(1e-6, r + prng.gaussrandom(sp.scatterRadius));
+        let theta = sp.spiralB * Math.log(r / sp.maxRadius) +
+            prng.gaussrandom(sp.scatterTheta);
+        theta += (prng.range(0, sp.spiralArms - 1) * Math.PI * 2) / sp.spiralArms;
+        x = Math.cos(theta) * r;
+        y = Math.sin(theta) * r;
     }
-    // Sort alphabetically by name
-    stars.sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
-    // Generate nebulae using same spiral arm positioning
-    const nebulaCount = Math.max(50, Math.floor(numberOfStars * 0.15));
+    else {
+        r *= prng.realRange(1, 1.1);
+        const theta = prng.realRange(0, Math.PI * 2);
+        x = Math.cos(theta) * r;
+        y = Math.sin(theta) * r;
+    }
+    const z = prng.gaussrandom(sp.thickness * 0.5 * (1 - r));
+    return { x, y, z };
+}
+/**
+ * `n` positions drawn from the spiral model — POSITIONS ONLY: no names, no
+ * star details beyond the one bit that picks arm or disc. This is what the
+ * voxel galaxy's density grid is sampled from (GALAXY-DESIGN.md →
+ * "Reconciliation"): the MODEL survives, the sequential generator does not.
+ *
+ * It consumes exactly the draws the old star loop did, so a density sampled
+ * here is byte-identical to one sampled from `generateGalaxy`'s stars.
+ */
+export function sampleSpiral(seed, n, options = {}) {
+    const sp = spiralParams({ ...GALAXY_DEFAULTS, ...options });
+    const prng = new PRNG(seed);
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) {
+        const starSeed = prng.range(1, 100000);
+        out[i] = spiralPosition(prng, inSpiralArmFor(starSeed), sp);
+    }
+    return out;
+}
+/** The one detail the position needs, without building the rest. */
+function inSpiralArmFor(starSeed) {
+    return generateStarDetail(starSeed).inSpiralArm;
+}
+/**
+ * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.9.
+ *
+ * ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"). This used to be its own
+ * generator: one sequential random stream producing the stars, then the
+ * nebulae, then the distant shell, so nothing could be generated locally and
+ * 63% of stars shared a seed with another. It is now an ADAPTER over the voxel
+ * galaxy: `numberOfStars` is the BRIGHT budget, and the result is that
+ * galaxy's `view()` (every bright star, its nebulae and shell) in the shape
+ * this function always returned. The spiral model it was built on survives as
+ * `sampleSpiral`, which is what the voxel galaxy's density is sampled from.
+ *
+ * A given seed therefore produces a DIFFERENT galaxy from 0.8.3's: same
+ * shape and distributions, different stars.
+ */
+export function generateGalaxy(seed, numberOfStars, options = {}) {
+    return voxelGalaxy({
+        seed,
+        brightBudget: numberOfStars,
+        // No dim population: `numberOfStars` stays the whole star count, as it
+        // always was. Interesting stars are the voxel galaxy's to offer.
+        dimBudget: 0,
+        galaxyOptions: options,
+    }).view({ generatePlanets: options.generatePlanets === true });
+}
+/*
+OTHER GALAXIES — pale yellow through orange, and the colour is not a taste.
+
+They read warm because they are OLD stellar populations, reddened further by
+redshift. Nothing out there is blue at that distance, and nothing is white,
+so this palette deliberately shares no range with the foreground stars.
+*/
+function distantGalaxyColor(t) {
+    return [
+        255,
+        Math.round(236 - t * 60), // 236 → 176
+        Math.round(198 - t * 96), // 198 → 102
+    ];
+}
+/**
+ * The galaxy's NEBULAE on the spiral model, drawn from `prng`. Split out so the
+ * voxel galaxy draws them from its own derived seed (GALAXY-DESIGN.md →
+ * "Reconciliation") while the old stream keeps its order.
+ */
+export function generateNebulae(prng, nebulaCount, sp) {
     /*
     OPACITY FALLS AS THE COUNT RISES, because they ADD.
   
@@ -796,20 +852,6 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
                 Math.round(180 - s * 100), // 180 → 80
             ];
         }
-    }
-    /*
-    OTHER GALAXIES — pale yellow through orange, and the colour is not a taste.
-  
-    They read warm because they are OLD stellar populations, reddened further by
-    redshift. Nothing out there is blue at that distance, and nothing is white,
-    so this palette deliberately shares no range with the foreground stars.
-    */
-    function distantGalaxyColor(t) {
-        return [
-            255,
-            Math.round(236 - t * 60), // 236 → 176
-            Math.round(198 - t * 96), // 198 → 102
-        ];
     }
     /** Dust vs glow. One number, applied everywhere — see the note at the draw. */
     const DARK_FRACTION = 0.5;
@@ -857,13 +899,14 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
         */
         const isDark = prng.probability(DARK_FRACTION);
         let r = inCore
-            ? prng.realRange(0, minRadius * 1.3)
-            : prng.realRange(minRadius * 0.5, maxRadius);
+            ? prng.realRange(0, sp.minRadius * 1.3)
+            : prng.realRange(sp.minRadius * 0.5, sp.maxRadius);
         // Nebulae follow spiral arms more strongly
         // Same NaN clamp as the star loop: the gaussian can swing r negative.
-        r = Math.max(1e-6, r + prng.gaussrandom(scatterRadius * (inCore ? 0.6 : 2)));
-        let theta = spiralB * Math.log(r / maxRadius) + prng.gaussrandom(scatterTheta * 1.5);
-        theta += (prng.range(0, spiralArms - 1) * Math.PI * 2) / spiralArms;
+        r = Math.max(1e-6, r + prng.gaussrandom(sp.scatterRadius * (inCore ? 0.6 : 2)));
+        let theta = sp.spiralB * Math.log(r / sp.maxRadius) +
+            prng.gaussrandom(sp.scatterTheta * 1.5);
+        theta += (prng.range(0, sp.spiralArms - 1) * Math.PI * 2) / sp.spiralArms;
         const x = Math.cos(theta) * r;
         const y = Math.sin(theta) * r;
         /*
@@ -873,7 +916,7 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
         here — Tonio: "too vertically distributed" — because a veil wants to lie
         across the centre, not stand up through it.
         */
-        const z = prng.gaussrandom(thickness * 0.3 * (1 - r) * (inCore ? 0.28 : 1));
+        const z = prng.gaussrandom(sp.thickness * 0.3 * (1 - r) * (inCore ? 0.28 : 1));
         // 50% bigger than the first pass, judged against the live galaxy: at the
         // old size they read as separate puffs rather than as a continuous medium.
         const scale = prng.realRange(2.25, 7.5);
@@ -898,6 +941,13 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
             });
         }
     }
+    return { nebulae, densityScale };
+}
+/**
+ * The DISTANT SHELL — other galaxies and dim far-out stars, isotropic, outside
+ * the disc. Drawn from `prng`, like `generateNebulae`.
+ */
+export function generateShell(prng, galaxyBudget, starBudget, sp, densityScale) {
     /*
     A BUDGET FOR OTHER GALAXIES, which is what actually fills an empty sky.
   
@@ -919,11 +969,11 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
     - **SMALL and FAINT.** Their whole job is texture where there is none;
       anything big enough to read as a subject is a different feature.
   
-    They are appended to `nebulae` on purpose — the emission path already draws
+    The caller appends them to `nebulae` on purpose — the emission path already draws
     exactly this, so a whole rendering path is saved by placing them differently
     rather than by inventing them.
     */
-    const galaxyCount = Math.max(0, Math.round(opts.distantGalaxies));
+    const galaxyCount = Math.max(0, Math.round(galaxyBudget));
     const distantGalaxies = [];
     for (let i = 0; i < galaxyCount; i++) {
         // Uniform on the sphere: z uniform, NOT latitude uniform, or they bunch at
@@ -931,8 +981,8 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
         const u = prng.realRange(-1, 1);
         const theta = prng.realRange(0, Math.PI * 2);
         const r = Math.sqrt(Math.max(0, 1 - u * u));
-        const dist = maxRadius * prng.realRange(1.35, 2.9);
-        nebulae.push({
+        const dist = sp.maxRadius * prng.realRange(1.35, 2.9);
+        distantGalaxies.push({
             position: {
                 x: dist * r * Math.cos(theta),
                 y: dist * r * Math.sin(theta),
@@ -958,7 +1008,6 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
             // them without hunting.
             opacity: prng.realRange(0.5, 0.85) * densityScale,
         });
-        distantGalaxies.push(nebulae[nebulae.length - 1]);
     }
     /*
     DIM FAR-OUT STARS — the same emptiness argument as the distant galaxies,
@@ -968,13 +1017,13 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
     warm — they are the faintest stars in the sky and their whole job is to
     keep the off-band sky from reading as blank.
     */
-    const distantStarCount = Math.max(0, Math.round(opts.distantStars));
+    const distantStarCount = Math.max(0, Math.round(starBudget));
     const distantStars = [];
     for (let i = 0; i < distantStarCount; i++) {
         const u = prng.realRange(-1, 1);
         const theta = prng.realRange(0, Math.PI * 2);
         const r = Math.sqrt(Math.max(0, 1 - u * u));
-        const dist = maxRadius * prng.realRange(1.35, 2.9);
+        const dist = sp.maxRadius * prng.realRange(1.35, 2.9);
         distantStars.push({
             position: {
                 x: dist * r * Math.cos(theta),
@@ -989,6 +1038,6 @@ export function generateGalaxy(seed, numberOfStars, options = {}) {
             ],
         });
     }
-    return { stars, nebulae, distantGalaxies, distantStars, seed, options: opts };
+    return { distantGalaxies, distantStars };
 }
 //# sourceMappingURL=galaxy-data.js.map

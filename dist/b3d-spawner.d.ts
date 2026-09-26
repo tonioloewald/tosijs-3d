@@ -54,6 +54,7 @@ export declare class B3dSpawner extends B3dChild {
     private _rng;
     private _since;
     private _tick;
+    private _onShift;
     sceneReady(owner: B3d): void;
     sceneDispose(): void;
     private _update;

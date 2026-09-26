@@ -312,7 +312,7 @@ preview.append(
 import { svgElements } from 'tosijs';
 import { deletePoint, evaluateCurve, insertPoint, linear, movePoint, moveMarker, normalizeMarkers, normalizeCurve, canonicalCurve, presetsFor, falloffDefault, } from './curve.js';
 import { w3dTheme } from './w3d-theme.js';
-import { handlerOf } from './widgets3d.js';
+import { handlerOf } from './handler-of.js';
 const { g, rect, path, circle, text } = svgElements;
 /**
  * Make a shared marker set.

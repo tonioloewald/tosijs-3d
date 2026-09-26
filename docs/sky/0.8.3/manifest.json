@@ -1,0 +1,19 @@
+{
+  "version": "0.8.3",
+  "stars": "stars",
+  "nebula": "nebula",
+  "starfieldDataSize": 1024,
+  "starfieldTilt": "12,25,58",
+  "recipe": {
+    "source": "generateGalaxy",
+    "seed": 1234,
+    "stars": 100000,
+    "radius": 100,
+    "particleSize": 0.7,
+    "outFraction": 0.42,
+    "offPlane": 1,
+    "roll": 0,
+    "smoothSize": 256,
+    "dataSize": 1024
+  }
+}

@@ -148,6 +148,7 @@ export class B3dProp extends AbstractMesh {
     _stopLoad = null;
     sceneReady(owner) {
         const attrs = this;
+        this.followOrigin(owner);
         const meshName = String(attrs.meshName ?? '');
         if (meshName === '') {
             console.error('b3d-prop: no meshName — nothing to place.');
@@ -182,7 +183,7 @@ export class B3dProp extends AbstractMesh {
                 placed model wants.
                 */
                 this.mesh = node;
-                this._applyScale();
+                this.applyUniformScale();
                 // The component render that would have synced the transform has already
                 // run; run it now that there is something to sync onto.
                 this.render();
@@ -217,20 +218,12 @@ export class B3dProp extends AbstractMesh {
         perScene.set(url, { type, el });
         return type;
     }
-    _applyScale() {
-        const node = this.mesh;
-        if (node?.scaling == null)
-            return;
-        const s = this.scale;
-        const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1;
-        node.scaling.set(k, k, k);
-    }
     render() {
         super.render();
         // Scale is not part of AbstractMesh's per-render sync, so a later write
         // would otherwise take and do nothing — the exact shape of #43.
         if (this.mesh != null)
-            this._applyScale();
+            this.applyUniformScale();
     }
     sceneDispose() {
         this._stopLoad?.();

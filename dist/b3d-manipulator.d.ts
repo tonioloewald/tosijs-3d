@@ -25,8 +25,12 @@ export declare class B3dManipulator extends B3dChild {
     size: number;
     disabled: boolean;
     /** Live during a drag; fires again for every frame the pointer moves. */
-    handleChange: ((t: ManipulatorTransform) => void) | null;
+    whenChange: ((t: ManipulatorTransform) => void) | null;
     /** Once on release, snapped, and only when something changed. */
+    whenCommit: ((t: ManipulatorTransform) => void) | null;
+    /** @deprecated use `whenChange` — removed in 0.9. */
+    handleChange: ((t: ManipulatorTransform) => void) | null;
+    /** @deprecated use `whenCommit` — removed in 0.9. */
     handleCommit: ((t: ManipulatorTransform) => void) | null;
     /** The node being manipulated. Set this directly to skip `target`. */
     node: BABYLON.TransformNode | null;

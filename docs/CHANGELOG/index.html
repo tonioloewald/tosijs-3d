@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,308 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.4</h2>
+<p><strong>A sky you can actually see the stars in, and a world with things growing on
+it.</strong> The encoded sky is decoded exactly (sharp points, not smeared blobs),
+twinkles, and is rebaked from the new voxel galaxy — one galaxy implementation
+now, with stable star addresses and a biased &quot;interesting stars&quot; population.
+Worlds get their own air and dust (a black noon on the Moon, a butterscotch
+Mars), cosmetic extra moons whose phase follows the sun, and render resolution
+follows the display by device tier. <code>&lt;tosi-b3d-decorator&gt;</code> scatters rocks and
+trees by budget and biome, with near-only shadows and colliders. Plus a
+batch of adopter fixes (ensemble&#39;s #76–#91, touch-orbit #52) and review
+follow-ups, and the first release through the OIDC + staged publish flow.</p>
+<blockquote>
+<p><strong>Visible, not breaking:</strong> every <code>PRNG</code>-seeded output re-rolls (xoshiro128**
+replaces the Mersenne Twister), so a given seed produces a different galaxy,
+star system, cloud field, crowd and spawn sequence from 0.8.3 — &quot;same seed,
+same battles&quot; holds within 0.8.4, not across the upgrade. The shipped sky is
+rebaked (and now served from a versioned URL). Deprecated names still work
+and warn once: <code>generateGalaxy</code> (use <code>voxelGalaxy</code>), <code>onEnter</code>/<code>onExit</code> on
+the trigger, <code>handleChange</code>/<code>handleCommit</code> on the manipulator
+(<code>whenChange</code>/<code>whenCommit</code>). <code>registerIcons</code> now refuses markup that can run.</p>
+</blockquote>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Dropdowns in a panel with a pinned header opened over their own
+control</strong> — body popups were anchored as if there were no header, too high
+by its height. The in-VR scene panel has one (the transport bar), so this was
+every select in the headset. Header widgets also get a host now, so a
+<code>select3d</code> pinned in a header can open at all.</li>
+<li><strong><code>FrameInfo</code> keeps wall-clock time while paused</strong>, as documented:
+<code>realDt</code>, <code>realElapsed</code> and <code>frame</code> advance on a paused (still rendering)
+frame; <code>dt</code> and <code>elapsed</code> stay stopped. They used to freeze too, which broke
+the one case they exist for — a spinner on the pause panel.</li>
+<li><strong>Floating origin reaches the placeables.</strong> <code>b3d-prop</code>, a standalone
+<code>b3d-beacon</code> and a place-anchored <code>b3d-spawner</code> drifted on a terrain rebase;
+they now shift with it. The shared piece is <code>AbstractMesh.followOrigin()</code>,
+which <code>b3d-destroyable</code> now uses too.</li>
+<li><strong><code>b3d-trigger</code> no longer calls BOTH <code>whenEnter</code> and <code>onEnter</code></strong> — the new
+name wins and the old one warns once, like every other deprecated callback.
+<code>themeEditor</code> reads <code>handleChange</code>/<code>onChange</code> the same way (it never warned).</li>
+<li><strong>A table&#39;s row-button menu opened low</strong> by the COLUMN gap; it is now
+anchored at the row.</li>
+<li><strong>A log slider with <code>zeroStop</code> ignored <code>step</code></strong>; it quantises in decades
+like one without.</li>
+<li><strong><code>registerIcons</code> refuses markup that can run</strong> (<code>&lt;script&gt;</code>, <code>on*=</code>
+handlers, <code>&lt;foreignObject&gt;</code>, <code>javascript:</code> URLs) with a warning; the trust
+boundary is now documented.</li>
+<li>Clouds, ambient and water share one wind-inheritance rule
+(<code>inheritedWind</code>); <code>vector3d</code>/<code>footprint3d</code>/<code>curve3d</code> import <code>handlerOf</code>
+from its own module rather than dragging in <code>widgets3d</code>.</li>
+<li><strong>Stars were smeared into soft plus-shaped blobs.</strong> The sky&#39;s star decoder
+placed each star relative to whichever tap fetched its texel, so it moved
+as the fragment moved and was drawn across the whole texel (sometimes twice,
+when two rotated taps hit one texel). It now walks the 3×3 neighbourhood in
+texel space and rebuilds every star from its own texel and sub-texel offset,
+through an exact GLSL mirror of the codec&#39;s cube convention. Also, <strong>the
+data cube had mipmaps</strong>, despite a comment saying otherwise: a mip of packed
+fields is data nobody encoded. They are off now.</li>
+<li><strong>Airless sun and moon vanished</strong> (the moon kept only its glow). The sky
+model draws both through scattering, so without air there was nothing left.
+Real half-degree discs now fade in as the air goes, and the glow fades with
+it: a hard white sun and moon on a black sky. The airless moon is as bright
+as the moon seen through air.</li>
+<li><strong>The voxel galaxy&#39;s disc was built of slabs</strong> (seen by Tonio as
+&quot;ellipsoid columns&quot; at 1M stars). Voxel layers (0.03 at <code>nz</code> 20) were as
+thick as the disc, so stars sat in flat slabs with hard edges. <code>nz</code> now
+defaults to 60. Every voxel address changes (0.8.4 already rerolls the
+galaxy), and the shipped sky is rebaked with a slightly crisper band.</li>
+<li><strong>Big objects in the star sky were clipped square</strong>, and <strong>packed stars sat
+on a lattice.</strong> Objects wider than the decoder&#39;s 3×3 reach (distant galaxies
+run to 3.5 texels) were cut at texel edges. Everything now tapers to nothing
+within a texel. Packed stars in the dense core, known only to a quarter
+texel, were drawn at their cells&#39; centres, which formed a lattice the cube
+projection bends into curves. They now get a deterministic jitter within the
+cell (error diffusion for position).</li>
+<li><strong><code>atmosphere</code> just below 1 made the clouds vanish.</strong> 5% vacuum pushed a
+1–4 km fog out past 50 km, and the haze that hides the cloud deck&#39;s rim went
+with it. The world&#39;s air is now steep, nearly binary (vacuum is
+<code>(1 − atmosphere)⁴</code>): 0.95 is Earth, and only the last stretch thins the sky.</li>
+<li><strong>Touch on the orbit camera: two fingers pan, a pinch zooms</strong> (tosijs-3d#52).
+Babylon&#39;s default does both on every two-finger move, with zoom from the
+change in SQUARED spacing, so a drag read as &quot;a weird zoom&quot;; its alternative
+mode turns a slow pinch into a pan for good. New <strong><code>touchOrbit(camera)</code></strong>
+(wired into <code>&lt;tosi-b3d&gt;</code>&#39;s default camera and <code>orbitCam</code>) decides once per
+gesture from NET spread vs NET centroid travel, then locks. Pan follows the
+fingers (pixels → world units at the target&#39;s depth), and zoom is natural.
+Pure decision model in <strong><code>touch-gesture</code></strong>, unit-tested; measured in
+headless Chrome with emulated touch: a 150 px two-finger drag now moves the
+target 2.35 m with the radius unchanged, where before it moved 0.76 m and
+zoomed 8 → 8.68.</li>
+<li><strong>Vacuum hid the stars it was supposed to reveal.</strong> The space band&#39;s fog
+layer defaulted its sky veil to its weight, so leaving the atmosphere
+painted the sky black OVER the starfield. Vacuum is the absence of a
+medium; it now thins the haze without veiling the sky. Found building
+<code>atmosphere: 0</code>, and it applies to the rocket climb too.</li>
+<li><strong>A field outside an attached <code>fieldGroup</code> swallowed keystrokes silently</strong>
+(tosijs-3d#82). Attaching any group stood the global key listener down for
+EVERY field, so a tapped field outside it showed a caret while its keys went
+to the group&#39;s active field or nowhere. Now the listener stands down only
+for fields an attached group owns, and a field outside every group that
+takes focus makes those groups let go. <code>fieldGroup</code> gains <strong><code>add(field)</code></strong>,
+so a field created after the group can join it rather than depending on
+construction order.</li>
+<li><strong>A page that mounted and removed scenes hit Chrome&#39;s WebGL context cap</strong>
+(tosijs-3d#79). Babylon&#39;s <code>engine.dispose()</code> keeps the context alive unless
+<code>loseContextOnDispose</code> is set, so every removed scene held one until GC, and
+Chrome force-loses the OLDEST live context past its cap — the scene you are
+looking at goes black. Teardown now releases the context, and an element
+re-added after a removal gets a fresh canvas (a lost context is permanent
+for its canvas). A genuine re-add no longer warns &quot;an engine already
+exists&quot;. <code>bun bin/context-cap.ts</code> checks it in headless Chrome: 50 trips
+with the removed elements retained; the live scene rendered nothing before
+the fix and renders now.</li>
+<li><strong>Starfield attributes were construction-time only</strong> (tosijs-3d#88). Setting
+<code>starfieldData</code>, <code>starfieldCube</code>, <code>starfieldTilt</code>, <code>nebulae</code>, … on an
+existing sky did nothing — no request, no stars, no error. They rebuild the
+starfield now; the dome is untouched. A dispose also releases the cube
+textures (a moved sky used to leave them behind).</li>
+<li><strong>A sky given <code>starfieldData</code> alone drew no stars.</strong> The build returned
+early unless <code>starfield</code> or <code>starfieldCube</code> was set, although the data cube
+stands on its own.</li>
+<li><strong><code>slider3d</code>, <code>toggle3d</code> and <code>select3d</code> rejected the reactive boxes they
+are designed to bind</strong> (tosijs-3d#76) — 24 false type errors in one
+consumer panel. <code>value</code> is <code>Bindable&lt;T&gt;</code> now (exported): a <code>T</code> or anything
+with <code>.value</code> and <code>.observe</code>.</li>
+<li><strong><code>spaceStart</code>, <code>spaceFull</code> and <code>starDistance</code> said <code>unit</code> where every other
+schema field says <code>x-unit</code></strong> (tosijs-3d#85). A test now rejects a bare <code>unit</code>.</li>
+<li><strong><code>azimuth</code> is out of <code>skyboxSchema()</code></strong> (tosijs-3d#86). It has been a no-op
+since the sky material fork (the sun is placed by <code>latitude</code> and
+<code>timeOfDay</code>), and the schema offered it as a 0–360° slider while the docs
+called it a 0–1 fraction. Still accepted in markup; documented as ignored.</li>
+<li><strong>A cloud deck forgot its local weather on a re-parent.</strong> Its bake memo
+survived <code>sceneDispose</code>, so the fresh mesh stayed unbaked — orographic cloud
+gone — until some input moved. A deck moved into another <code>&lt;tosi-b3d&gt;</code> also
+kept sampling the OLD scene&#39;s terrain (a narrow regression from 0.8.3&#39;s
+cached lookup). Both reset on dispose now.</li>
+<li><strong>The deck did per-frame work it did not need.</strong> With no field in force
+(orographic 0, no <code>weather</code>) it re-baked zeros on every grid snap and every
+terrain rebuild; and the fly-into-cloud whiteout rebuilt the whole weather
+field — a fresh terrain height sampler — every frame to sample one point.
+The first bakes once; the second samples the field the bake already built.</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong>Undo for the two page-global mutations.</strong> <code>themeEditor()</code>&#39;s element has
+<code>restore()</code> — the palette as it was when the editor was built, then
+<code>handleChange</code> so you rebuild. <code>registerIcons()</code> now RETURNS an undo that
+removes the names it added and brings back any icon it replaced.</li>
+<li><strong><code>&lt;tosi-b3d-moon&gt;</code></strong> — cosmetic extra moons (tosijs-3d#89). Put up to
+four inside a <code>&lt;tosi-b3d-skybox&gt;</code>: <code>azimuth</code>/<code>elevation</code> on the star
+sphere (they ride with the stars), <code>size</code> (angular diameter, degrees),
+<code>color</code>, <code>brightness</code>. The PHASE is automatic: each disc is shaded as a
+sphere lit by the real sun, so a moon near the sun is a crescent and one
+opposite it is full. A moon hides the stars behind it; it casts no light.</li>
+<li><strong><code>voxel-galaxy</code></strong> (<code>tosijs-3d/voxel-galaxy</code>) — the first step of
+<code>GALAXY-DESIGN.md</code>: a galaxy as voxels, each with a derived bright and dim
+seed. <code>brightStars()</code> is the global pass; <code>dimStarsNear(point, radius)</code> is
+the local one the skybox baker will use. Density is sampled from
+<code>generateGalaxy</code> and propagated so no voxel is empty; stars are addressed
+<code>population:voxel:n</code> (no shared-seed clones). <code>galaxy-data</code> exports <code>starDetailFor</code>, <code>SPECTRAL_CLASSES</code>
+and <code>SPECTRAL_WEIGHTS</code>, split out so both generators share one definition.</li>
+<li><strong>The baker reads the voxel galaxy</strong> (<code>GALAXY-DESIGN.md</code> step 2):
+<code>starsFromVoxelGalaxy(galaxy, shell, eye, { dimReach, floor })</code> gives every
+bright star (today&#39;s rule — intrinsic brightness), the dim stars near the
+eye falling off with distance (the gather radius computed from the floor,
+not guessed), and the distant shell. <code>bakeSkyPair</code> takes precomputed
+<code>objects</code>; <code>bin/bake-stars.ts</code> rebakes <code>static/sky/stars_*</code> without a
+browser in ~1 s for the tuning loop; <code>SHIPPED_SKY.voxel</code> holds the dials.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong><code>b3d-manipulator</code> callbacks are <code>whenChange</code> / <code>whenCommit</code></strong> — the
+component convention. <code>handleChange</code>/<code>handleCommit</code> still work, warn once,
+and are removed in 0.9.</li>
+<li><code>AbstractMesh.applyUniformScale()</code> replaces the identical private copies in
+<code>b3d-prop</code> and <code>b3d-destroyable</code>.</li>
+<li><strong>ONE galaxy implementation</strong> (GALAXY-DESIGN.md → &quot;Reconciliation&quot;).
+The voxel galaxy is the galaxy now. <code>b3d-galaxy</code>, <code>b3d-star-system</code>, the
+skybox baker and <code>bin/bake-stars</code> all read it. Its nebulae and distant shell
+have their own derived seeds, so they no longer depend on the star count.<ul>
+<li><strong>Visible:</strong> a given seed now produces a <strong>different galaxy</strong> from 0.8.3
+(same shape and distributions, different stars), and <code>starCount</code> is the
+galaxy&#39;s <strong>bright budget</strong> (±noise), not an exact count.</li>
+<li><strong><code>generateGalaxy</code> is deprecated</strong> (removed in 0.9). It is now an adapter
+returning <code>voxelGalaxy({ seed, brightBudget }).view()</code>. The spiral model it
+was built on survives as <strong><code>sampleSpiral</code></strong>, which the density is sampled
+from.</li>
+<li><strong>Stars have an address:</strong> <code>id</code> is <code>seed:population:voxel:n</code>, with a
+sequence number rather than the derived seed. <code>galaxy.star(id)</code>,
+<code>b3d-galaxy.getStar(id)</code> and <code>b3d-star-system</code>&#39;s new <code>star</code> attribute
+resolve it. Star <em>n</em> never depends on the budget, so an address resolves
+even in a galaxy computed with a smaller one.</li>
+<li><strong>New:</strong> <code>voxelGalaxy().view()</code>, <code>.star(id)</code>, <code>.nebulae()</code>, <code>.shell()</code>;
+<code>b3d-galaxy</code>&#39;s <code>dimBudget</code>; <code>starAddress</code> / <code>parseStarAddress</code>,
+<code>starNameFor</code>, <code>sampleSpiral</code> and <code>starsFromVoxelGalaxy</code> in the barrel.</li>
+<li><strong>Interesting stars.</strong> The dim population splits in two. <strong>Interesting</strong>
+stars have a planet with HI ≤ 2 (breathable or filterable air, under 2 g,
+not extreme); they are generated globally, so the galaxy demo&#39;s HI filter
+sees every habitable system with its HI already known. <strong>Boring</strong> stars
+are generated only locally, as sky texture. Both are exact: candidates are
+drawn from a spectral mix biased by measured pass rates, then verified with
+the real HI rules. The rates come from a harness, <strong><code>bin/tune-populations.ts</code></strong>,
+which writes <code>population-table.ts</code>. A fingerprint test fails when HI
+changes, and the fix is to rerun it. HI 3 is deliberately not
+&quot;interesting&quot;: it has no air requirement, so the Moon and Mars are HI 3.
+<code>generateGalaxy</code> (deprecated) keeps meaning bright stars only.</li>
+<li><strong><code>PRNG</code> runs on xoshiro128**</strong> (new <strong><code>Xoshiro128</code></strong>, exported). MT
+carried 624 words of state and regenerated them before its first draw,
+so just constructing one cost ~13 µs, and a star system builds one per
+planet. xoshiro has 4 words: 30–75× faster to construct and draw, and it
+passes BigCrush and PractRand, which MT fails. A star system now costs
+6.5 µs, down from 70. It is checked against an independent BigInt
+transcription of the reference C. <strong>Every <code>PRNG</code>-seeded output
+re-rolls:</strong> planets, the spiral samples, nebulae, the shell and the
+skybox&#39;s point starfield. That is folded into this release, which already
+changes every galaxy. <code>b3d-clouds</code>, <code>b3d-crowd</code> and <code>b3d-spawner</code> moved
+too, so their seeded layouts (cloud blobs, crowd placement, spawn rings)
+reroll once as well. <code>MersenneTwister</code> stays exported.</li>
+<li><strong>The shipped sky&#39;s nebula half is rebaked</strong> with the new nebulae.
+<strong><code>bin/bake-nebula.ts</code></strong> bakes it in headless Chrome and checks that the
+point half on disk came from the same galaxy.</li>
+</ul>
+</li>
+<li><strong>Noted late, from 0.8.3: <code>slider3d</code>&#39;s <code>peek</code> readout appears BESIDE the
+caption rather than replacing it</strong> (tosijs-3d#84). Deliberate — a label that
+vanishes the moment you touch the control loses the name of what you are
+adjusting — but it went unannounced, and a consumer test pinned the old
+behaviour. Press and drag over the caption also work (the stacked layout made
+the whole width the track); now pinned by a test.</li>
+<li><strong>The shipped sky&#39;s stars are rebaked from the voxel galaxy</strong> — 100k bright
+stars plus the dim stars around the bake point (~119k objects, against 100k
+before). Far more stars at night, and a dense local sprinkle across the
+whole sky rather than only along the band. The band itself is a little
+broader. <code>bun bin/bake-stars.ts</code> with no flags reproduces it byte-for-byte;
+the smooth <code>nebula_*</code> half is unchanged.</li>
+<li><strong>The shipped sky has pinned, versioned URLs</strong> (tosijs-3d#90):
+<code>/sky/0.8.3/…</code> (the previous sky) and <code>/sky/0.8.4/…</code> (this one), each with a
+<code>manifest.json</code> holding the decode parameters and the recipe.
+<code>/sky/stars</code> stays &quot;latest&quot; for the demos; a document should pin a version.
+<code>shipped-sky.test.ts</code> fails if latest drifts from the newest version.</li>
+<li><strong>A world&#39;s own air, and its sky colour</strong> (tosijs-3d#89). <code>b3d-skybox</code>
+gains <strong><code>atmosphere</code></strong> (1 Earth … 0 the Moon: black noon, stars out, no
+haze, a hard sun), which multiplies with the space band, and
+<strong><code>zenithTint</code> / <code>horizonTint</code> / <code>tintStrength</code></strong>, which colourize the
+scattered light only, keeping its brightness (a butterscotch Mars, a green
+alien sky). Stars and moon are behind the air and stay untinted. Land and
+Sky gains an <strong>Atmosphere</strong> group: a world preset (Earth / Mars / Alien /
+Airless) plus live air, tint, turbidity, rayleigh, mie and luminance.</li>
+<li><strong>Viewer-relative panels in the flat view</strong> (tosijs-3d#81).
+<code>&lt;tosi-b3d-panel presence=&quot;both&quot;&gt;</code> appears on a monitor as well as in a
+headset, placed with the same frame vocabulary (eye / body / neck / face,
+azimuth-elevation-distance, presets, gaze reveal). <strong><code>XrFrames.flat(scene, camera)</code></strong> derives the frames from any flat camera&#39;s world pose (the eye
+frame takes the view&#39;s yaw, not its pitch). Hands have no flat analogue, so
+a hand panel declares <strong><code>flatFrame</code></strong>; without one it stays VR-only and
+warns once. <code>presence</code> defaults to <code>&#39;xr&#39;</code>, so existing panels are unchanged.</li>
+<li><strong><code>&lt;tosi-b3d-decorator&gt;</code> — rocks and trees on the terrain, by budget and
+by climate.</strong> The pure <strong><code>scatterPlacements</code></strong> model places a fixed NUMBER of things.
+Its rules use the biome shader&#39;s own axes (temperature, moisture, altitude
+above sea, slope), so pines grow in the cold, palms on warm shores, cacti in
+hot dry country, and boulders on the steep. Candidates are world-anchored
+and deterministic, and an acceptance threshold is solved to hit the budget.
+Provinces suppress by kind (no plants on a lava field; rocks still). Models
+come from Kenney&#39;s Nature Kit, drawn as thin instances: one draw call per
+model part, whatever the budget. A small collider pool follows the camera:
+trunks as posts, boulders as boxes. <code>measureCost()</code> steps through budgets
+and reports frame time, GPU time (where exposed), draw calls and indices.
+Land and Sky has a Vegetation group (budget 0–20k, reach).</li>
+<li><strong>Render resolution follows the display, by device tier.</strong> Scenes rendered
+at CSS resolution, so a 1.25× or 2× display upscaled everything (soft edges,
+soft stars). The render now uses the display&#39;s pixel ratio capped by tier:
+high up to 2×, medium up to 1.5×, low at CSS resolution. The new
+<code>PerfBudgets.pixelRatioCap</code> sets the cap, and <strong><code>&lt;tosi-b3d pixel-ratio&gt;</code></strong>
+overrides it with an explicit value (<code>1</code> = CSS resolution, <code>2</code> = full
+Retina, <code>0.75</code> = below CSS for speed). It follows a window moved to another
+monitor, and XR is unaffected. The rule is <code>renderScalingLevel</code> in
+<code>b3d-quality</code>, tested.</li>
+<li><strong>Twinkle</strong> (<code>starfieldTwinkle</code>, default 0.35): scintillation, which is
+the air, so it scales with the gas (none on an airless world), is strongest
+at the horizon, and each star flickers on its own pattern. Land and Sky has
+a twinkle slider.</li>
+<li><strong><code>dust</code> on <code>b3d-skybox</code></strong> separates dust from gas. Gas (<code>atmosphere</code>)
+scatters blue; dust scatters a bright grey haze that the tint colours. So
+Mars is almost no air, lots of dust and a butterscotch sky (Land and Sky&#39;s
+preset: air 0.03, dust 0.85), and the Moon is neither. The previous Mars
+needed full air to be bright at all.</li>
+<li><strong>Star look dials on <code>b3d-skybox</code>:</strong> <strong><code>starfieldGain</code></strong> (brightness) and
+<strong><code>starfieldFloor</code></strong> (the faint mass) join <code>starfieldSharpness</code> (size) and
+<code>starfieldSizeScale</code>. All four are live uniforms, so a slider does not reload
+the cube. With exact points the defaults moved to gain 0.9 and floor 0.4.
+Land and Sky has a Stars group (size, brightness, faint stars).</li>
+<li><strong><code>slider3d({ useful: [lo, hi] })</code></strong> (tosijs-3d#83) — a soft band on the
+track where the values anybody wants live; the handle still reaches <code>min</code>
+and <code>max</code>. It is where a schema&#39;s <code>x-useful</code> lands.</li>
+<li><strong><code>cloudDeckSchema()</code></strong> in <code>sceneSchemas</code> (tosijs-3d#87) — the deck was the
+one scene primitive a schema-driven consumer had to describe by hand.</li>
+<li><strong>Fetched strings are marked in the scene schemas</strong> (tosijs-3d#91):
+<code>format: &#39;uri-reference&#39;</code> on <code>starfieldData</code>, <code>starfieldCube</code>,
+<code>nebulaTexture</code>, <code>water.normalMap</code>, <code>clouds.model</code> and <code>ground.texture</code>
+(which also lists its keywords in <code>x-keywords</code>). A test fails on any new
+plain string that is not a colour, enum, URL or deliberately listed.</li>
+<li><strong><code>bun run sizes</code></strong> — the barrel as a consumer bundles it, and the shipped
+<code>dist/*.js</code>, against a committed <code>dist-sizes.json</code> (0.8.3: 263.1 KB gz).</li>
+</ul>
 <h2>0.8.3</h2>
 <p><strong>A galaxy that costs nothing per frame, a sky that keeps the right time, and
 clouds that light like clouds.</strong> Galaxy billboarding moved into the vertex
@@ -3457,7 +3759,9 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -3466,6 +3770,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -3487,6 +3792,8 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -3516,6 +3823,8 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -3615,6 +3924,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

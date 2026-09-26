@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>make-mesh — tosijs-3d</title>
   <meta name="description" content="El.make.box({ y: 1, color: &#39;#c33&#39;, glow: 0.3 }) — Babylon primitives with the four things everyone forgets already done." />
   <link rel="canonical" href="https://3d.tosijs.net/make-mesh/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>make-mesh</h1>
 <p><strong><code>el.make.box({ y: 1, color: &#39;#c33&#39;, glow: 0.3 })</code></strong> — Babylon primitives with
@@ -75,13 +75,13 @@ preview.append(scene)
 <p><code>b3dBox</code>/<code>b3dSphere</code>/<code>b3dGround</code> cover the DECLARATIVE case. But plenty of scene
 code is imperative — inside <code>sceneCreated</code>, in a spawner, in a demo — and there
 the honest version of &quot;add a cube&quot; is:</p>
-<pre><code class="language-javascript">const box = BABYLON.MeshBuilder.CreateBox(&#39;box&#39;, { size: 1 }, el.scene)
-box.position.set(0, 1, 0)
-const mat = new BABYLON.StandardMaterial(&#39;box-mat&#39;, el.scene)
-mat.diffuseColor = BABYLON.Color3.FromHexString(&#39;#c33&#39;)
-box.material = mat
-el.register({ meshes: [box] }) // or it casts no shadow
-box.computeWorldMatrix(true) // or a ray this frame misses it
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> box <span class="token operator">=</span> <span class="token constant">BABYLON</span><span class="token punctuation">.</span>MeshBuilder<span class="token punctuation">.</span><span class="token function">CreateBox</span><span class="token punctuation">(</span><span class="token string">'box'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span> <span class="token literal-property property">size</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">,</span> el<span class="token punctuation">.</span>scene<span class="token punctuation">)</span>
+box<span class="token punctuation">.</span>position<span class="token punctuation">.</span><span class="token function">set</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">1</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">)</span>
+<span class="token keyword">const</span> mat <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">BABYLON<span class="token punctuation">.</span>StandardMaterial</span><span class="token punctuation">(</span><span class="token string">'box-mat'</span><span class="token punctuation">,</span> el<span class="token punctuation">.</span>scene<span class="token punctuation">)</span>
+mat<span class="token punctuation">.</span>diffuseColor <span class="token operator">=</span> <span class="token constant">BABYLON</span><span class="token punctuation">.</span>Color3<span class="token punctuation">.</span><span class="token function">FromHexString</span><span class="token punctuation">(</span><span class="token string">'#c33'</span><span class="token punctuation">)</span>
+box<span class="token punctuation">.</span>material <span class="token operator">=</span> mat
+el<span class="token punctuation">.</span><span class="token function">register</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">meshes</span><span class="token operator">:</span> <span class="token punctuation">[</span>box<span class="token punctuation">]</span> <span class="token punctuation">}</span><span class="token punctuation">)</span> <span class="token comment">// or it casts no shadow</span>
+box<span class="token punctuation">.</span><span class="token function">computeWorldMatrix</span><span class="token punctuation">(</span><span class="token boolean">true</span><span class="token punctuation">)</span> <span class="token comment">// or a ray this frame misses it</span>
 </code></pre>
 <p>Six lines, of which the last two are invisible until something is subtly wrong.
 This is the same shape <code>b3d-library</code> grew for content (<code>lib.make.scout()</code>), and
@@ -203,7 +203,9 @@ want to skip the work.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -212,6 +214,7 @@ want to skip the work.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -233,6 +236,8 @@ want to skip the work.</p>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -262,6 +267,8 @@ want to skip the work.</p>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -361,6 +368,6 @@ want to skip the work.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

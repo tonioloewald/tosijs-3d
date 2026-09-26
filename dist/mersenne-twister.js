@@ -5,7 +5,8 @@ Seeded pseudo-random number generator based on the Mersenne Twister
 (MT19937) algorithm. Provides deterministic random sequences from a
 numeric seed — same seed always produces the same sequence.
 
-The `PRNG` class wraps `MersenneTwister` with convenience methods for
+The `PRNG` class wraps **`Xoshiro128`** (xoshiro128\*\*, since 0.8.4 — see
+its note for why it replaced the Mersenne Twister) with convenience methods for
 common random operations: integer/float ranges, gaussian distribution,
 weighted selection, and probability checks.
 
@@ -132,11 +133,67 @@ export class MersenneTwister {
  * Seeded pseudo-random number generator with convenience methods.
  * Wraps MersenneTwister for deterministic random sequences.
  */
+/**
+ * xoshiro128** (Blackman & Vigna), seeded by splitmix32 — the engine behind
+ * `PRNG` since 0.8.4.
+ *
+ * WHY NOT THE MERSENNE TWISTER. MT keeps what we like — deterministic
+ * everywhere, seeded by one integer — but carries 624 words of state and
+ * regenerates all of them before its first draw, so merely CONSTRUCTING one
+ * cost ~13 µs. A star system builds one per planet, and scoring candidate
+ * systems (GALAXY-DESIGN.md → interesting stars) builds thousands. This has 4
+ * words of state: ~0.17 µs to construct and draw 8 (75× faster), and it
+ * passes BigCrush and PractRand, which MT does not (it fails the
+ * linear-complexity tests). Period 2¹²⁸, far past anything drawn here.
+ *
+ * Pure 32-bit integer maths (`Math.imul`, shifts), so the sequence is
+ * identical in every JS engine. `MersenneTwister` stays exported for anyone
+ * who needs the old sequences.
+ */
+export class Xoshiro128 {
+    a;
+    b;
+    c;
+    d;
+    constructor(seed) {
+        // splitmix32 spreads one integer across the four words, and never
+        // produces the all-zero state xoshiro cannot leave.
+        let s = seed >>> 0;
+        const next = () => {
+            s = (s + 0x9e3779b9) >>> 0;
+            let z = s;
+            z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+            z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+            return (z ^ (z >>> 16)) >>> 0;
+        };
+        this.a = next();
+        this.b = next();
+        this.c = next();
+        this.d = next();
+    }
+    /** The next 32-bit unsigned integer — the reference `next()`. */
+    int32() {
+        const m = Math.imul(this.b, 5);
+        const result = Math.imul((m << 7) | (m >>> 25), 9) >>> 0;
+        const t = this.b << 9;
+        this.c ^= this.a;
+        this.d ^= this.b;
+        this.b ^= this.c;
+        this.a ^= this.d;
+        this.c ^= t;
+        this.d = (this.d << 11) | (this.d >>> 21);
+        return result;
+    }
+    /** Random float in [0, 1) — the same 32-bit resolution MT's `random()` had. */
+    random() {
+        return this.int32() * (1.0 / 4294967296.0);
+    }
+}
 export class PRNG {
     mt;
     gaussContext;
     constructor(seed) {
-        this.mt = new MersenneTwister(seed);
+        this.mt = new Xoshiro128(seed);
         this.gaussContext = { phase: 0, V1: 0, V2: 0, S: 0 };
     }
     /** Random float in [0, 1) */

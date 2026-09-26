@@ -59,6 +59,7 @@ const MEDIUM_SCORE = 0.6; // ≥ → medium, else low
 const BUDGETS = {
     high: {
         hardwareScaling: 1,
+        pixelRatioCap: 2,
         hiResSubdivisions: 24,
         poolSize: 120,
         reach: 6000,
@@ -73,6 +74,7 @@ const BUDGETS = {
     },
     medium: {
         hardwareScaling: 1,
+        pixelRatioCap: 1.5,
         hiResSubdivisions: 16,
         poolSize: 80,
         reach: 5000,
@@ -87,6 +89,7 @@ const BUDGETS = {
     },
     low: {
         hardwareScaling: 1.5,
+        pixelRatioCap: 1,
         hiResSubdivisions: 12,
         poolSize: 56,
         reach: 3500,

@@ -73,6 +73,31 @@ const scene = b3d(
 preview.append(scene)
 ```
 
+### Pin the shipped sky in a document
+
+`/sky/stars` + `/sky/nebula` are **latest**: what the demos load, and a rebake
+changes them. A document that should keep the sky it was authored against
+points at a **versioned** pair instead, which is never rewritten:
+
+```javascript
+b3dSkybox({
+  starfieldCube: 'https://3d.tosijs.net/sky/0.8.4/nebula',
+  starfieldData: 'https://3d.tosijs.net/sky/0.8.4/stars',
+  starfieldDataSize: 1024, // from the manifest — it must match the data
+  starfieldTilt: '12,25,58',
+})
+```
+
+Each version folder carries a `manifest.json` with the decode parameters
+(`starfieldDataSize`, `starfieldTilt`) and the recipe it was baked from, so a
+consumer can read them from beside the data rather than hard-coding them.
+Versions so far: `0.8.3` (the `generateGalaxy` sky) and `0.8.4` (the voxel
+galaxy — far more stars). tosijs-3d#90.
+
+The starfield attributes (`starfield*`, `nebula*`) are **live**: changing one
+on an existing sky rebuilds the starfield, so applying a document to a sky
+that is already up works. `skyboxSize` is the one that is still read once.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -80,16 +105,24 @@ preview.append(scene)
 | `timeOfDay` | `6.5` | 0-24 hours |
 | `realtimeScale` | `10` | Realtime speed multiplier |
 | `latitude` | `40` | Geographic latitude in DEGREES (affects the sun's arc) |
-| `azimuth` | `0` | Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours |
+| `azimuth` | `0` | **Ignored** — the sun is placed by `latitude` and `timeOfDay`, and the sky material accepts this and discards it. Kept so old markup doesn't break; not in `skyboxSchema()` (tosijs-3d#86) |
 | `luminance` | `1` | Sky brightness |
 | `turbidity` | `10` | Atmospheric haze |
 | `rayleigh` | `2` | Rayleigh scattering |
 | `spaceStart` | `0` | Altitude (m) where the fade to space BEGINS |
 | `spaceFull` | `0` | Altitude (m) of full vacuum. Feature is off unless this exceeds `spaceStart` |
+| `atmosphere` | `1` | How much air this WORLD has: `1` Earth, `0` the Moon (black sky at noon, stars out, no haze, a hard sun). Deliberately steep — only the last stretch toward 0 thins the sky (vacuum is `(1 − atmosphere)⁴`) — and it multiplies with the space band |
+| `dust` | `0` | Suspended dust, 0…1: bright, coloured haze that is never blue. Independent of `atmosphere`, so Mars is almost no air and lots of dust, and the Moon is neither |
+| `zenithTint` | `'#ffffff'` | The sky's colour overhead — the scattered light's own brightness in this hue, by `tintStrength`. Stars and moon are behind the air and untinted |
+| `horizonTint` | `'#ffffff'` | The same at the horizon. `zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1` is a butterscotch Mars |
+| `tintStrength` | `0` | How much the sky takes the tints, `0` (Earth, untouched) … `1` |
 | `starfieldCube` | `''` | Root path of a baked cube (`<root>_px.png` …). Replaces `starfield` |
 | `starfieldData` | `''` | Root path of a DATA cube (`<root>_px.png` …) encoded by `starfield-codec`. Not a picture of a starfield — a table of stars the shader decodes into points that stay sharp at any zoom. Composes with `starfieldCube` rather than replacing it |
 | `starfieldDataSize` | `1024` | Texels per face of `starfieldData`. Must match what encoded it. 1024 is the size to ship — at 512 a packed texel reads as a lattice through the dense band |
 | `starfieldSharpness` | `3` | How sharp a decoded point is — higher is tighter. 3 tucks the gaussian tail in so a star reads as a point |
+| `starfieldGain` | `0.9` | How bright the decoded stars are — the intensity cap on the whole point sky |
+| `starfieldTwinkle` | `0.35` | Scintillation strength. Scaled by the gas (none in vacuum), strongest at the horizon |
+| `starfieldFloor` | `0.4` | The faint mass's brightness — most stars sit on it; `starfieldGain` only moves the bright few above it |
 | `starfieldSizeScale` | `3` | How much bigger a full-size object (a distant galaxy) is than a star |
 | `starfieldTilt` | `'0,0,0'` | Degrees `rx,ry,rz` rotating the sampling direction — both cubes — where a galactic tilt belongs |
 | `starfield` | `0` | How many background stars to build. `0` = none |
@@ -193,11 +226,13 @@ const B3D_SKY = 'b3dSky';
  * still has to light the fragment next door, or every star would be clipped to
  * its own texel and the sky would be a grid of hard squares.
  *
- * The neighbours are reached by PERTURBING THE DIRECTION rather than by
- * offsetting uv, which costs one normalize per tap and buys the face seams for
- * free — a direction that wanders off the edge of a face is simply a direction,
- * and `textureCube` resolves it. Offsetting uv would need every seam handled by
- * hand, six times, in both axes.
+ * The neighbours are walked in TEXEL space, from the fragment's own texel,
+ * each fetched at its centre, and every star is rebuilt from its own texel and
+ * its encoded sub-texel offset, through an exact GLSL mirror of the codec's
+ * cube convention. (The first version perturbed the view direction instead and
+ * placed stars relative to the tap, which smeared every star across its texel;
+ * see `b3dPoint`.) A neighbour past a face's edge is just a direction past the
+ * edge: `textureCube` resolves it and `b3dFaceUv` names the texel it hit.
  */
 function starDecodeGlsl(palette) {
     return `
@@ -222,15 +257,23 @@ colourful mass survives as a dim sprinkle.
 */
 #define DISPLAY_EXP 2.0
 /*
-STAR GAIN — the intensity cap. The curve alone cannot stop the brightest
+STAR GAIN — the intensity cap (the \`starfieldGain\` attribute; 0.9 since the
+decoder stopped smearing each star over its texel, which had been quietly
+adding light — the tuning history below was against the smeared points). The curve alone cannot stop the brightest
 stars sitting at 1.0 over the band's glow, which reads as white-hot dots no
 matter what tint they carry. The whole contribution scales down so the few
 bright points stay the brightest things in the sky without the blowout.
 Toned: 0.55 was still "a little too bright", 0.45 is where it landed.
 */
-#define STAR_GAIN 0.45
+uniform float b3dStarGain;
+uniform float b3dTwinkle;
+uniform float b3dTime;
+float b3dTwAmp = 0.0;
+#define STAR_GAIN b3dStarGain
 /*
-DISPLAY FLOOR — the faint mass must stay VISIBLE, and the WARM COLOUR lives
+DISPLAY FLOOR (the \`starfieldFloor\` attribute; 0.4 since exact points — a
+faint star is now one crisp pixel rather than a texel-wide smear, so it needs
+more of its own light to be seen) — the faint mass must stay VISIBLE, and the WARM COLOUR lives
 in the faint mass. The K/M classes are physically the dim ones — they never
 cross BRIGHT_SPECTRAL_FLOOR, so they all render through the warm-yellow
 faint path — and a floor of 0.05 put them at ~10/255, invisible on a real
@@ -238,16 +281,62 @@ screen. Tonio: "zero stars visible in empty regions". 0.1 reads as a dim
 warm sprinkle. Only the very bottom is flattened — everything above the
 floor keeps its relative order.
 */
-#define DISPLAY_FLOOR 0.1
+uniform float b3dStarFloor;
+#define DISPLAY_FLOOR b3dStarFloor
 
-/** One reconstructed point, given its sub-texel position and its look. */
+/*
+THE CUBE CONVENTION, in GLSL — an exact mirror of starfield-codec's dirToFace
+and faceToDir (the OpenGL cube-map convention). The decoder needs it because a
+star is stored as (face, texel, sub-texel u/v), and the ONLY way to put it
+back where it was encoded is to invert exactly that.
+*/
+vec3 b3dFaceUv(vec3 d) {
+  vec3 a = abs(d);
+  float face; float sc; float tc; float ma;
+  if (a.x >= a.y && a.x >= a.z) {
+    ma = a.x;
+    if (d.x > 0.0) { face = 0.0; sc = -d.z; tc = -d.y; }
+    else { face = 1.0; sc = d.z; tc = -d.y; }
+  } else if (a.y >= a.z) {
+    ma = a.y;
+    if (d.y > 0.0) { face = 2.0; sc = d.x; tc = d.z; }
+    else { face = 3.0; sc = d.x; tc = -d.z; }
+  } else {
+    ma = a.z;
+    if (d.z > 0.0) { face = 4.0; sc = d.x; tc = -d.y; }
+    else { face = 5.0; sc = -d.x; tc = -d.y; }
+  }
+  return vec3(face, sc * 0.5 / ma + 0.5, tc * 0.5 / ma + 0.5);
+}
+
+vec3 b3dFaceDir(float face, vec2 uv) {
+  float s = uv.x * 2.0 - 1.0;
+  float t = uv.y * 2.0 - 1.0;
+  if (face < 0.5) return vec3(1.0, -t, -s);
+  if (face < 1.5) return vec3(-1.0, -t, s);
+  if (face < 2.5) return vec3(s, 1.0, t);
+  if (face < 3.5) return vec3(s, -1.0, -t);
+  if (face < 4.5) return vec3(s, -t, 1.0);
+  return vec3(-s, -t, -1.0);
+}
+
+/*
+ONE RECONSTRUCTED POINT, at an exact direction.
+
+It used to be placed relative to the TAP direction — whichever of the nine
+perturbed directions happened to fetch its texel — so as the fragment moved,
+the tap moved, and the star moved with it: every star was smeared across the
+texel it lived in, into a soft plus-shaped blob (seen on a real screen,
+2026-09-25). The note that stood here promised "every fragment reconstructs
+the same position"; that was only true if the tap were the texel's centre,
+and it was not. Now the star's direction comes from its own texel and its
+encoded sub-texel offset, so every fragment agrees to the bit.
+*/
+float b3dReach = 1.0;
+
 vec3 b3dPoint(
-  vec2 sub, float brightness, vec3 tint, float radius,
-  vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir
+  vec3 starDir, float brightness, vec3 tint, float radius, vec3 viewDir
 ) {
-  float du = (sub.x - 0.5) * b3dStarInfo.y;
-  float dv = (sub.y - 0.5) * b3dStarInfo.y;
-  vec3 starDir = normalize(tapDir + tangent * du + bitangent * dv);
   float d = length(viewDir - starDir) / b3dStarInfo.y;
   /*
   A GAUSSIAN, not a hard disc. A point source drawn as a circle of pixels reads
@@ -255,8 +344,57 @@ vec3 b3dPoint(
   at every zoom — which is the entire reason for doing this rather than baking.
   */
   float falloff = exp(-(d * d) / (radius * radius) * b3dStarInfo.z);
+  /*
+  THE REACH TAPER. The 3×3 read only guarantees a star is seen by fragments
+  within about a texel of it; anything drawn further out is cut where the
+  neighbourhood ends, along texel edges — the squared-off bright shapes in the
+  dense core (a distant galaxy can be 3.5 texels in radius). So every object
+  fades to nothing within ONE of its own face's texels, per axis, which the
+  3×3 always covers (a fragment within ±1 texel of the star on its face has
+  its home texel within ±1 of the star's). Measured in the star's face texels,
+  not in angle: near the cube corners a texel spans less angle, and an angular
+  limit either clips there or shrinks every star everywhere (the first version
+  did the latter). \`b3dReach\` is computed by the caller, which knows both.
+  */
+  falloff *= b3dReach;
   if (falloff < 0.004) return vec3(0.0);
+  /*
+  TWINKLE — scintillation, which IS the air: turbulence refracting starlight.
+  So its amplitude (b3dTwAmp, set per fragment in b3dDecodeStars) scales with
+  the GAS and grows toward the horizon, and is zero in vacuum. Each star
+  flickers on its own two-frequency pattern, seeded by its exact direction,
+  which is stable now that stars no longer drift within their texels.
+  */
+  if (b3dTwAmp > 0.0) {
+    float seed = fract(sin(dot(starDir, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    float n = 0.6 * sin(b3dTime * (5.0 + 4.0 * seed) + seed * 40.0)
+      + 0.4 * sin(b3dTime * (11.0 + 7.0 * fract(seed * 7.31)) + seed * 91.0);
+    brightness *= max(0.0, 1.0 + b3dTwAmp * n);
+  }
   return tint * brightness * falloff;
+}
+
+/** Where \`dir\` lands on a GIVEN face (not its own), in that face's uv. */
+vec2 b3dUvOn(float face, vec3 d) {
+  if (face < 0.5) return vec2(-d.z, -d.y) / d.x * 0.5 + 0.5;
+  if (face < 1.5) return vec2(d.z, -d.y) / -d.x * 0.5 + 0.5;
+  if (face < 2.5) return vec2(d.x, d.z) / d.y * 0.5 + 0.5;
+  if (face < 3.5) return vec2(d.x, -d.z) / -d.y * 0.5 + 0.5;
+  if (face < 4.5) return vec2(d.x, -d.y) / d.z * 0.5 + 0.5;
+  return vec2(-d.x, -d.y) / -d.z * 0.5 + 0.5;
+}
+
+/*
+A texel's star direction: its face, its texel, and a sub-texel offset. Also
+sets b3dReach — the taper for THIS star seen from THIS fragment, from their
+separation in the star's own face texels (see b3dPoint).
+*/
+vec3 b3dStarDir(float face, vec2 texel, vec2 sub, vec3 viewDir) {
+  vec2 star = texel + sub;
+  vec2 frag = b3dUvOn(face, viewDir) * b3dStarInfo.x;
+  vec2 sep = abs(frag - star);
+  b3dReach = 1.0 - smoothstep(0.7, 1.0, max(sep.x, sep.y));
+  return normalize(b3dFaceDir(face, star / b3dStarInfo.x));
 }
 
 /*
@@ -268,7 +406,18 @@ a blur and what survives is aggregate brightness rather than any one star.
 Without it a real galaxy loses 21% of its stars at 512, because the birthday
 estimate assumes an even sky and a galaxy is the opposite of even. With it, 2%.
 */
-vec3 b3dUnpackOne(float bits, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
+/*
+A deterministic hash in [0,1)² of a texel and a slot — the same answer for
+every fragment, so a jittered star stays put.
+*/
+vec2 b3dHash2(vec2 cell, float face, float slot) {
+  vec3 p = vec3(cell + face * 1031.0, slot * 17.0 + face);
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.xx + p.yz) * p.zy);
+}
+
+vec3 b3dUnpackOne(float bits, float slot, float face, vec2 texel, vec3 viewDir) {
   float v = floor(bits * 255.0 + 0.5);
   if (v <= 0.0) return vec3(0.0);
   float uu = floor(v / 64.0);
@@ -277,35 +426,32 @@ vec3 b3dUnpackOne(float bits, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
   float c = mod(v, 2.0);
   float brightness = pow((bb + 1.0) / 8.0, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)});
   vec3 tint = c > 0.5 ? STAR_PALETTE[9] : STAR_PALETTE[3];
-  return b3dPoint(
-    vec2((uu + 0.5) / 4.0, (vv + 0.5) / 4.0), brightness, tint, 0.5,
-    tapDir, tangent, bitangent, viewDir
+  /*
+  JITTER WITHIN THE QUARTER-TEXEL CELL. A packed star's position is only
+  known to a quarter of a texel, and drawing it at the cell's centre puts every
+  packed star in the dense core on a 4×4-per-texel LATTICE — which the cube's
+  projection bends into curves across the sky (Tonio: "weird curve patterns").
+  A deterministic offset inside the cell is error diffusion for position: the
+  quantisation stays within its bound, and the lattice is gone.
+  */
+  vec2 j = b3dHash2(texel, face, slot);
+  vec3 starDir = b3dStarDir(
+    face, texel, vec2((uu + j.x) / 4.0, (vv + j.y) / 4.0), viewDir
   );
+  return b3dPoint(starDir, brightness, tint, 0.5, viewDir);
 }
 
-vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 viewDir) {
+vec3 b3dDecodeOne(vec4 texel, float face, vec2 cell, vec3 viewDir) {
   // B is zero for an empty texel, which is most of them.
   if (texel.b <= 0.0) return vec3(0.0);
 
   // ...and 255 means packed rather than bright — see above.
   if (texel.b > 0.998) {
-    return b3dUnpackOne(texel.r, tapDir, tangent, bitangent, viewDir)
-      + b3dUnpackOne(texel.g, tapDir, tangent, bitangent, viewDir)
-      + b3dUnpackOne(texel.a, tapDir, tangent, bitangent, viewDir);
+    return b3dUnpackOne(texel.r, 0.0, face, cell, viewDir)
+      + b3dUnpackOne(texel.g, 1.0, face, cell, viewDir)
+      + b3dUnpackOne(texel.a, 2.0, face, cell, viewDir);
   }
 
-  /*
-  The sub-texel offset is stored in the FACE's uv frame and read back here in
-  the TAP's tangent frame. Those differ by a rotation within the tangent plane,
-  so a star lands up to half a texel from where it was encoded.
-
-  That is deliberate. Getting it exact would mean reconstructing the face basis
-  per tap — six branches in the inner loop — to correct an error smaller than
-  the point it is drawing, on a sky where (Tonio) "being subtly wrong is
-  actually fine". Nobody knows the constellations. What must not happen is
-  INCONSISTENCY, and there is none: every fragment that sees this texel
-  reconstructs the same position from the same numbers.
-  */
   /*
   The A byte's layout — see the note in starfield-codec. Precision goes where
   the eye is: faint stars render warm yellow (their colour was never visible
@@ -324,10 +470,11 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
     pow(texel.b, DISPLAY_EXP / ${BRIGHT_GAMMA.toFixed(3)}) * STAR_GAIN,
     DISPLAY_FLOOR
   );
+  // R and G are the sub-texel position in the FACE's own uv — exactly.
+  vec3 starDir = b3dStarDir(face, cell, texel.rg, viewDir);
   if (a >= 32.0) {
     return b3dPoint(
-      texel.rg, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5,
-      tapDir, tangent, bitangent, viewDir
+      starDir, brightness, b3dSpectral((a - 32.0) / 223.0), 0.5, viewDir
     );
   }
   if (a >= 2.0) {
@@ -335,35 +482,39 @@ vec3 b3dDecodeOne(vec4 texel, vec3 tapDir, vec3 tangent, vec3 bitangent, vec3 vi
     float size = (a - 2.0) / 29.0;
     vec3 tint = mod(a, 2.0) < 1.0 ? STAR_PALETTE[12] : STAR_PALETTE[13];
     return b3dPoint(
-      texel.rg, brightness, tint, 0.5 + size * b3dStarInfo.w,
-      tapDir, tangent, bitangent, viewDir
+      starDir, brightness, tint, 0.5 + size * b3dStarInfo.w, viewDir
     );
   }
   // FAINT: warm yellow, the one colour a faint star visibly has.
-  return b3dPoint(
-    texel.rg, brightness, STAR_PALETTE[6], 0.5,
-    tapDir, tangent, bitangent, viewDir
-  );
+  return b3dPoint(starDir, brightness, STAR_PALETTE[6], 0.5, viewDir);
 }
 
-vec3 b3dDecodeStars(vec3 viewDir) {
+vec3 b3dDecodeStars(vec3 viewDir, float elevation) {
   if (b3dStarDataLevel <= 0.0) return vec3(0.0);
+  // Strongest at the horizon (the longest path through air), a third of that
+  // above about 30 degrees.
+  b3dTwAmp = b3dTwinkle * mix(1.0, 0.35, clamp(elevation * 2.0, 0.0, 1.0));
 
-  // A tangent frame around the view direction. The reference axis is swapped
-  // near the pole because a cross product with a parallel vector is zero.
-  vec3 ref = abs(viewDir.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-  vec3 tangent = normalize(cross(ref, viewDir));
-  vec3 bitangent = cross(viewDir, tangent);
-
+  /*
+  THE 3×3 NEIGHBOURHOOD, walked in TEXEL space — the fragment's own texel and
+  its eight neighbours, each fetched at its centre. Perturbing the view
+  direction by a texel's angle (the old way) is not the same thing: rotated
+  against the face grid, two taps could land in ONE texel (a star drawn twice)
+  and, near the corners where texels are smaller, a neighbour could be
+  skipped. A neighbour past the face's edge is just a direction past the edge;
+  textureCube resolves it, and b3dFaceUv names the texel it actually hit.
+  */
+  float n = b3dStarInfo.x;
+  vec3 home = b3dFaceUv(viewDir);
+  vec2 base = floor(home.yz * n);
   vec3 sum = vec3(0.0);
-  float step = b3dStarInfo.y;
   for (int i = -1; i <= 1; i++) {
     for (int j = -1; j <= 1; j++) {
-      vec3 tapDir = normalize(
-        viewDir + tangent * (float(i) * step) + bitangent * (float(j) * step)
-      );
+      vec2 centre = (base + vec2(float(i), float(j)) + 0.5) / n;
+      vec3 tapDir = normalize(b3dFaceDir(home.x, centre));
+      vec3 hit = b3dFaceUv(tapDir);
       sum += b3dDecodeOne(
-        textureCube(b3dStarData, tapDir), tapDir, tangent, bitangent, viewDir
+        textureCube(b3dStarData, tapDir), hit.x, floor(hit.yz * n), viewDir
       );
     }
   }
@@ -394,7 +545,11 @@ function registerForkedSky() {
     store[`${B3D_SKY}PixelShader`] = src
         .replace('#define CUSTOM_FRAGMENT_DEFINITIONS', 'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
+        'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
+        'uniform vec4 b3dMoonsA[4];uniform vec4 b3dMoonsB[4];uniform vec3 b3dSunLocal;' +
+        MOONS_GLSL +
+        'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;uniform float b3dDustGrey;' +
         starDecodeGlsl(paletteGlsl() + spectralGlsl()))
         // The GRADIENT keeps the WORLD direction — its horizon must stay aligned
         // with the planet, not with the stars (the dome's rotation would turn
@@ -413,9 +568,32 @@ function registerForkedSky() {
     // ONE frame, everything in it: the dome's own rotation orients the
     // whole sky, so the backdrop samples the same local direction the sky
     // math above already used. No per-star rotation, no second channel.
-    `vec3 b3dDir=normalize(vSkyLocal);` +
+    /*
+    THE TINT, and it goes FIRST — onto the scattered light only, before any
+    backdrop is added. A butterscotch Martian noon is the AIR's colour; the
+    stars behind it are not butterscotch, and at night (no scatter left) the
+    tint has nothing to act on and vanishes by itself. Zenith to horizon by
+    the world view direction, so it stays level with the planet.
+
+    COLOURIZE, not multiply: the sky's own brightness in the tint's hue. A
+    multiply was the first version and it cannot work — blue light times
+    butterscotch is TEAL, because there is no red in the sky to keep.
+    */
+    // DUST scatters grey: desaturate the dust's share of the scattered
+    // light before the tint colours it.
+    `color.rgb=mix(color.rgb,vec3(dot(color.rgb,vec3(0.2126,0.7152,0.0722))),b3dDustGrey);` +
+        `{vec3 b3dV=normalize(vPositionW-cameraPosition);` +
+        `vec3 b3dT=mix(b3dTintH,b3dTintZ,sqrt(clamp(b3dV.y,0.0,1.0)));` +
+        `const vec3 b3dW=vec3(0.2126,0.7152,0.0722);` +
+        `vec3 b3dC=dot(color.rgb,b3dW)*b3dT/max(dot(b3dT,b3dW),0.001);` +
+        `color.rgb=mix(color.rgb,b3dC,b3dTintAmt);}` +
+        `vec3 b3dDir=normalize(vSkyLocal);` +
+        // Extra moons (<tosi-b3d-moon>): computed first because a moon is
+        // IN FRONT of the stars — its dark side hides them.
+        `float b3dOcc;vec3 b3dMoonsC=b3dMoonsAt(b3dDir,b3dOcc);` +
+        `vec3 b3dBack=vec3(0.0);` +
         // The RASTER backdrop — a baked cube, still supported.
-        `color.rgb+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
+        `b3dBack+=textureCube(b3dStars,b3dDir).rgb*b3dStarLevel;` +
         /*
         AND THE DECODED ONE, which is the same light arriving by a better road:
         points reconstructed from data rather than sampled from a picture of
@@ -423,11 +601,28 @@ function registerForkedSky() {
         `b3dStars` and its stars in `b3dStarData` — which is the split the
         measurements argued for.
         */
-        `color.rgb+=b3dDecodeStars(b3dDir);` +
+        `b3dBack+=b3dDecodeStars(b3dDir,normalize(vPositionW-cameraPosition).y);` +
+        `color.rgb+=b3dBack*(1.0-b3dOcc)+b3dMoonsC;` +
         // The moon, part of the backdrop, on the night arc — a CONSTANT in the
         // dome's frame (tilt⁻¹·up, see updateSky), so it rides with the stars.
         `{float md=max(0.0,dot(normalize(b3dDir),b3dMoonDir));` +
-        `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);}` +
+        `color.rgb+=vec3(0.72,0.8,0.95)*b3dMoon*exp(-(1.0-md)*(1.0-md)*1200.0);` +
+        /*
+        HARD DISCS for the sun and moon, which is what they are without air
+        (Tonio: "The bright disk should be left, just no glow"). With air, the
+        sky model's own scattering draws both, glow and all, and that is right;
+        it is ALSO all it draws, so in vacuum both vanished while our soft
+        moon glow survived — exactly backwards. These fade IN as the air goes
+        (b3dSunDisc / b3dMoonDisc), while the glow above fades OUT with it.
+        About half a degree across, like the real ones, with a one-texel-ish
+        antialiased edge.
+        */
+        `float b3dMd=smoothstep(0.999965,0.99998,md);` +
+        // As bright as the moon WITH air (which the sky model saturates to
+        // white) — losing the atmosphere must not dim it (Tonio).
+        `color.rgb+=vec3(1.6,1.6,1.65)*b3dMoonDisc*b3dMd;}` +
+        `{float sd=dot(normalize(vPositionW-cameraPosition),b3dSunDir);` +
+        `color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(0.999965,0.99998,sd);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
         light arriving, it is light being blocked. Inside cloud there is white a
@@ -451,6 +646,29 @@ function registerForkedSky() {
  * materials it is holding — so these forward to `setFloat`/`setVector3` and the
  * rest of this element stays written once.
  */
+/*
+COSMETIC MOONS (`<tosi-b3d-moon>`), up to four. `b3dMoonsA[i]` is the moon's
+direction in the dome's frame plus sin(angular radius) (0 = no moon);
+`b3dMoonsB[i]` is its colour and brightness. The PHASE is not an input: each
+pixel of the disc is a point on a sphere, its normal is reconstructed from the
+disc coordinates, and it is lit where that normal faces the sun. A moon near
+the sun is a crescent; one opposite it is full. The dark side keeps a trace of
+light (planetshine), which reads as a body rather than a hole, and hides the
+stars behind it (the returned coverage).
+*/
+const MOONS_GLSL = 'vec3 b3dMoonsAt(vec3 d,out float occ){vec3 c=vec3(0.0);occ=0.0;' +
+    'for(int i=0;i<4;i++){vec4 a=b3dMoonsA[i];if(a.w<=0.0)continue;' +
+    'if(dot(d,a.xyz)<=0.0)continue;' +
+    'vec3 t1=normalize(cross(abs(a.y)<0.99?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0),a.xyz));' +
+    'vec3 t2=cross(a.xyz,t1);' +
+    'vec2 p=vec2(dot(d,t1),dot(d,t2))/a.w;float r=length(p);if(r>=1.0)continue;' +
+    // ~one pixel of antialiasing whatever the size
+    'float aa=clamp(0.0007/a.w,0.01,0.4);float cov=1.0-smoothstep(1.0-aa,1.0,r);' +
+    'vec3 n=p.x*t1+p.y*t2-sqrt(max(0.0,1.0-r*r))*a.xyz;' +
+    'float lit=smoothstep(-0.04,0.08,dot(n,b3dSunLocal));' +
+    'vec4 b=b3dMoonsB[i];' +
+    'c=mix(c,b.rgb*(b.w*lit+0.025),cov);occ=max(occ,cov);}' +
+    'return c;}';
 function makeForkedSkyMaterial(scene) {
     const mat = new BABYLON.ShaderMaterial('b3d-skybox', scene, { vertex: B3D_SKY, fragment: B3D_SKY }, {
         attributes: ['position'],
@@ -470,9 +688,25 @@ function makeForkedSkyMaterial(scene) {
             'b3dStarLevel',
             'b3dStarDataLevel',
             'b3dStarInfo',
+            'b3dStarGain',
+            'b3dStarFloor',
+            'b3dTwinkle',
+            'b3dTime',
             'b3dVeil',
             'b3dVeilColor',
             'b3dMoonDir',
+            'b3dMoon',
+            'b3dSunDir',
+            'b3dSunDisc',
+            'b3dMoonDisc',
+            'b3dSunDiscColor',
+            'b3dTintZ',
+            'b3dTintH',
+            'b3dTintAmt',
+            'b3dDustGrey',
+            'b3dMoonsA',
+            'b3dMoonsB',
+            'b3dSunLocal',
         ],
         samplers: ['b3dStars', 'b3dStarData'],
         // DITHER is `#if`, not `#ifdef`, so it must exist or the shader will not
@@ -484,9 +718,24 @@ function makeForkedSkyMaterial(scene) {
     mat.setFloat('b3dStarLevel', 0);
     mat.setFloat('b3dStarDataLevel', 0);
     mat.setVector4('b3dStarInfo', new BABYLON.Vector4(512, 0.003, 1, 3));
+    mat.setFloat('b3dStarGain', 0.9);
+    mat.setFloat('b3dStarFloor', 0.4);
+    mat.setFloat('b3dTwinkle', 0);
+    mat.setFloat('b3dTime', 0);
     mat.setFloat('b3dVeil', 0);
+    mat.setVector3('b3dTintZ', new BABYLON.Vector3(1, 1, 1));
+    mat.setVector3('b3dTintH', new BABYLON.Vector3(1, 1, 1));
+    mat.setFloat('b3dTintAmt', 0);
+    mat.setFloat('b3dDustGrey', 0);
     mat.setColor3('b3dVeilColor', new BABYLON.Color3(1, 1, 1));
     mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0));
+    mat.setVector3('b3dSunDir', new BABYLON.Vector3(0, 1, 0));
+    mat.setFloat('b3dSunDisc', 0);
+    mat.setFloat('b3dMoonDisc', 0);
+    mat.setArray4('b3dMoonsA', new Array(16).fill(0));
+    mat.setArray4('b3dMoonsB', new Array(16).fill(0));
+    mat.setVector3('b3dSunLocal', new BABYLON.Vector3(0, 1, 0));
+    mat.setColor3('b3dSunDiscColor', new BABYLON.Color3(3, 2.9, 2.7));
     const num = (name, initial) => {
         let v = initial;
         mat.setFloat(name, v);
@@ -554,6 +803,31 @@ export class B3dSkybox extends AbstractMesh {
         spaceStart: 0,
         spaceFull: 0,
         /*
+        HOW MUCH AIR THIS WORLD HAS — 1 is Earth, 0 is the Moon (tosijs-3d#89).
+    
+        A property of the WORLD, where the space band is a property of ALTITUDE, so
+        the two multiply: the air you have is `atmosphere × (1 − band)`. At 0 the
+        sky is black at noon, the stars are out, the haze is gone and the sun is a
+        hard disc — the vacuum model this element already has, reached without
+        climbing. In between is a thin, dark-blue sky.
+        */
+        atmosphere: 1,
+        /*
+        DUST, 0…1 — suspended particles: bright, coloured Mie haze, never blue.
+        Independent of the gas, so a world can have almost no air and a bright
+        sky (Mars), or neither (the Moon). The sky is present wherever either is.
+        */
+        dust: 0,
+        /*
+        THE SKY'S COLOUR, directly: the scattered light's own brightness in these
+        hues, zenith to horizon, by `tintStrength` (0 = Earth, untouched). For a
+        butterscotch Mars or a green alien sky, which the scattering dials cannot
+        reach by hand. Stars and moon are behind the air and are not tinted.
+        */
+        zenithTint: '#ffffff',
+        horizonTint: '#ffffff',
+        tintStrength: 0,
+        /*
         A STARFIELD BEHIND THE DOME — a count, 0 = none.
     
         Not the real galaxy: this is the "we just want a nice night sky" case, which
@@ -600,6 +874,24 @@ export class B3dSkybox extends AbstractMesh {
          * 3 tucks the tail in. At 1 the sky reads soft-focus.
          */
         starfieldSharpness: 3,
+        /**
+         * How bright the decoded stars are — the intensity cap on the whole point
+         * sky. The brightest few stay the brightest things in it without blowing
+         * the band out white.
+         */
+        starfieldGain: 0.9,
+        /**
+         * The FAINT mass's brightness — the floor every decoded star is lifted to.
+         * Most stars sit on it, and the warm colour lives in them; `starfieldGain`
+         * only moves the bright few above it.
+         */
+        starfieldFloor: 0.4,
+        /**
+         * TWINKLE — scintillation strength, 0 for none. Scaled by the GAS (so it
+         * is zero on an airless world and fades as you climb out) and strongest
+         * at the horizon, where the path through the air is longest.
+         */
+        starfieldTwinkle: 0.35,
         /** How much bigger a full-size object (a distant galaxy) is than a star. */
         starfieldSizeScale: 3,
         /**
@@ -666,10 +958,9 @@ export class B3dSkybox extends AbstractMesh {
          */
         starDistance: 0,
         luminance: 1,
-        // ⚠️ Babylon's SkyMaterial azimuth is a 0–1 FRACTION of a turn, not an
-        // angle. Passed through unchanged rather than converted, because a
-        // half-translated third-party unit is worse than an honest foreign one —
-        // but it is called out in the attribute table so nobody types 90 here.
+        // IGNORED (tosijs-3d#86). Our sky material defines `azimuth` as a no-op —
+        // the sun is placed by latitude and time — so this is accepted for old
+        // markup and does nothing. Not offered in skyboxSchema().
         azimuth: 0,
         latitude: 40,
         realtimeScale: 10,
@@ -971,6 +1262,72 @@ export class B3dSkybox extends AbstractMesh {
     _nebulaBase = [];
     starEl = null;
     /**
+     * Every attribute `_buildStarfield` reads. Changing one on a LIVE sky
+     * rebuilds the starfield (see `render`) — they were construction-time only,
+     * so a document applied to an existing sky got no stars and no error
+     * (tosijs-3d#88). `skyboxSize` is not here: it sizes the dome itself.
+     */
+    static STARFIELD_KEYS = [
+        'starfield',
+        'starfieldCube',
+        'starfieldData',
+        'starfieldDataSize',
+        'starfieldSeed',
+        'starfieldTilt',
+        'nebulae',
+        'nebulaSize',
+        'nebulaTexture',
+    ];
+    _builtStarfieldKey = '';
+    _starfieldKey() {
+        return B3dSkybox.STARFIELD_KEYS.map((k) => String(this[k])).join('|');
+    }
+    /** Texels per face of the loaded data cube — `_applyStarLook` needs it. */
+    _starTexels = 0;
+    /*
+    THE STARS' LOOK — size, brightness, faint floor, galaxy size — as UNIFORMS,
+    applied live from render(). Not in STARFIELD_KEYS on purpose: those rebuild
+    the starfield, which reloads twelve PNGs, and a slider drag would do that on
+    every tick.
+    */
+    _applyStarLook() {
+        if (this._starData == null || this._starTexels <= 0)
+            return;
+        const mat = this.mesh?.material;
+        if (mat?.setVector4 == null)
+            return;
+        const attrs = this;
+        const n = this._starTexels;
+        mat.setVector4('b3dStarInfo', new BABYLON.Vector4(n, Math.PI / 2 / n, Number(attrs.starfieldSharpness) || 1, Number(attrs.starfieldSizeScale) || 3));
+        mat.setFloat('b3dStarGain', Number(attrs.starfieldGain) || 0);
+        mat.setFloat('b3dStarFloor', Number(attrs.starfieldFloor) || 0);
+    }
+    /** Everything `_buildStarfield` makes, released — including the tilt cache. */
+    _disposeStarfield() {
+        const mat = this.mesh?.material;
+        // The shader samples whatever is bound while its level is non-zero, so a
+        // disposed cube must be switched off, not merely released.
+        mat?.setFloat?.('b3dStarLevel', 0);
+        mat?.setFloat?.('b3dStarDataLevel', 0);
+        this._starCube?.dispose();
+        this._starCube = null;
+        this._starData?.dispose();
+        this._starData = null;
+        for (const q of this._nebulaMeshes)
+            q.dispose();
+        this._nebulaMeshes = [];
+        for (const nm of this._nebulaMats)
+            nm.dispose();
+        this._nebulaMats = [];
+        this._nebulaBase = [];
+        this._starfieldMesh?.dispose();
+        this._starfieldMesh = null;
+        this._starTilt = null;
+        this._tiltQuat = null;
+        this._moonLocal = null;
+        this._glowExcluded = false;
+    }
+    /**
      * The background starfield — built ONCE, then never touched.
      *
      * Points, not billboards: a star is a point source and there is nothing to
@@ -987,15 +1344,14 @@ export class B3dSkybox extends AbstractMesh {
     _buildStarfield(scene) {
         const attrs = this;
         const count = Math.floor(attrs.starfield) || 0;
-        this._starCube?.dispose();
-        this._starCube = null;
-        this._starData?.dispose();
-        this._starData = null;
-        this._starfieldMesh?.dispose();
-        this._starfieldMesh = null;
+        this._builtStarfieldKey = this._starfieldKey();
+        this._disposeStarfield();
         if (this.mesh == null)
             return;
-        if (count <= 0 && !this.starfieldCube)
+        // The data cube stands on its own — it ADDS to the raster one rather than
+        // needing it — so it must not be gated on `starfieldCube` too. It was,
+        // and a sky given only `starfieldData` drew no stars and said nothing.
+        if (count <= 0 && !attrs.starfieldCube && !attrs.starfieldData)
             return;
         /*
         A BAKED CUBE WINS, and it is one mesh instead of thousands of points.
@@ -1046,14 +1402,16 @@ export class B3dSkybox extends AbstractMesh {
         */
         const dataRoot = String(attrs.starfieldData ?? '');
         if (dataRoot && typeof mat0?.setTexture === 'function') {
-            const data = new BABYLON.CubeTexture(dataRoot, scene, [
-                '_px.png',
-                '_py.png',
-                '_pz.png',
-                '_nx.png',
-                '_ny.png',
-                '_nz.png',
-            ]);
+            /*
+            NO MIPMAPS — passed explicitly, because Babylon's default is to build
+            them, and the note below claimed they were off while they were on. A mip
+            of this cube is an average of packed fields: data that was never encoded.
+            It went unnoticed while the decoder's lookup directions were continuous
+            (the GPU chose level 0); the moment taps snapped to texel centres the
+            coordinate jumped at every texel edge, the LOD spiked there, and stars
+            came back as clusters of dots read from coarser levels.
+            */
+            const data = new BABYLON.CubeTexture(dataRoot, scene, ['_px.png', '_py.png', '_pz.png', '_nx.png', '_ny.png', '_nz.png'], true);
             data.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
             /*
             NEAREST, and this is not a quality setting — it is correctness. The texels
@@ -1081,7 +1439,8 @@ export class B3dSkybox extends AbstractMesh {
             reaches the fragment, which is cheaper than being exact about a number
             whose error is smaller than the dot it draws.
             */
-            mat0.setVector4('b3dStarInfo', new BABYLON.Vector4(n, Math.PI / 2 / n, Number(attrs.starfieldSharpness) || 1, Number(attrs.starfieldSizeScale) || 3));
+            this._starTexels = n;
+            this._applyStarLook();
         }
         if (cubeRoot) {
             const mat = this.mesh.material;
@@ -1236,17 +1595,83 @@ export class B3dSkybox extends AbstractMesh {
      * which is pinned to the camera anyway. Read live rather than cached because
      * the thing that moves is someone else's mesh.
      */
+    /**
+     * Collect the `<tosi-b3d-moon>` children into the shader's arrays. The sun
+     * direction is the REAL sun: by night `sunVector` is the day arc replayed
+     * (it is where the moonlight comes from), so the real sun is its antipode.
+     */
+    _applyMoons(sm, isDay, sunVector, daylight) {
+        if (sm.setArray4 == null)
+            return;
+        const a = new Array(16).fill(0);
+        const b = new Array(16).fill(0);
+        const moons = Array.from(this.querySelectorAll('tosi-b3d-moon')).slice(0, 4);
+        // The day moon is real but pale: the sky's own light washes it out.
+        // Not the 1.6 of the built-in disc — a coloured moon must stay below
+        // clipping or every colour reads as white.
+        const exposure = 0.85 * (1 - 0.75 * daylight);
+        moons.forEach((m, i) => {
+            const d = m.direction();
+            const radius = (Math.max(0, m.size) / 2) * DEG_TO_RAD;
+            a.splice(i * 4, 4, d.x, d.y, d.z, Math.sin(Math.min(radius, 1.5)));
+            let c;
+            try {
+                c = BABYLON.Color3.FromHexString(String(m.color || '#dddddd').slice(0, 7));
+            }
+            catch {
+                c = new BABYLON.Color3(0.87, 0.87, 0.87);
+            }
+            b.splice(i * 4, 4, c.r, c.g, c.b, Math.max(0, m.brightness) * exposure);
+        });
+        sm.setArray4('b3dMoonsA', a);
+        sm.setArray4('b3dMoonsB', b);
+        const sun = sunVector.clone().normalize();
+        if (!isDay)
+            sun.scaleInPlace(-1);
+        const inv = BABYLON.Quaternion.Inverse(this._domeQuat);
+        sm.setVector3?.('b3dSunLocal', sun.applyRotationQuaternion(inv));
+    }
+    /** A `<tosi-b3d-moon>` changed (or came or went): redraw the moons. */
+    moonsChanged() {
+        this.updateSky();
+    }
     _vacuumNow() {
         const attrs = this;
         const full = attrs.spaceFull;
         const start = attrs.spaceStart;
-        if (!(full > start))
-            return 0;
+        /*
+        The world's own air, then the band multiplies it (see `atmosphere`).
+    
+        STEEP, nearly binary (Tonio: "air seems like it should be kind of binary,
+        certainly 0.95 air shouldn't suddenly make clouds disappear"). Vacuum is
+        (1 − air)⁴: 0.95 is Earth for every practical purpose, 0.5 still nearly
+        so, and only the last stretch toward 0 thins and darkens the sky. Linear,
+        0.95 air was 5% vacuum, and the space fog layer's pull toward
+        kilometre-scale fog distances pushed a 1–4 km haze out past 50 km, taking
+        the haze that hides the cloud deck's rim with it.
+        */
+        const air = Math.min(1, Math.max(0, Number(attrs.atmosphere ?? 1)));
+        const world = 1 - Math.pow(1 - air, 4);
+        let climbed = 0;
         const cam = this.owner?.scene?.activeCamera;
-        if (cam == null)
-            return 0;
-        return band(cam.globalPosition.y, start, full);
+        if (full > start && cam != null)
+            climbed = band(cam.globalPosition.y, start, full);
+        /*
+        GAS AND DUST, which scatter differently (Tonio: "Mars should have almost
+        no air"). Gas (`atmosphere`) is Rayleigh scattering, the blue; dust
+        (`dust`) is Mie haze, bright and coloured but never blue. Mars has under 1%
+        of Earth's air and a bright butterscotch sky, and one number could not say
+        both. The SKY is present wherever either one is, so vacuum is what remains
+        when both are gone; `_gas` is kept apart for the Rayleigh term alone.
+        */
+        const gas = world * (1 - climbed);
+        const dust = Math.min(1, Math.max(0, Number(attrs.dust ?? 0))) * (1 - climbed);
+        this._gasNow = gas;
+        return 1 - (1 - (1 - gas) * (1 - dust));
     }
+    /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
+    _gasNow = 1;
+    _gas = 1;
     /**
      * Hide the sky behind whatever medium you are standing in.
      *
@@ -1265,6 +1690,11 @@ export class B3dSkybox extends AbstractMesh {
         sm.setFloat('b3dVeil', this.owner.fogVeil);
         this._veilColor.set(fc.r, fc.g, fc.b);
         sm.setColor3('b3dVeilColor', this._veilColor);
+        // TWINKLE runs every frame: its clock, and its strength — which is the
+        // GAS (vacuum and dust do not twinkle stars; turbulent air does).
+        const attrs = this;
+        sm.setFloat('b3dTime', performance.now() * 0.001);
+        sm.setFloat('b3dTwinkle', Math.max(0, Number(attrs.starfieldTwinkle) || 0) * this._gas);
     }
     updateSky() {
         if (this.mesh?.material == null)
@@ -1375,6 +1805,14 @@ export class B3dSkybox extends AbstractMesh {
         */
         const airSky = air * air * air;
         /*
+        HOW MUCH OF THE SKY IS DUST rather than gas — the share whose scattered
+        light is grey, not blue. The tint then colours it (butterscotch Mars).
+        */
+        const presence = 1 - this._vacuum;
+        const dustGrey = presence > 0.001 ? Math.max(0, Math.min(1, 1 - this._gas / presence)) : 0;
+        if (this._forkedSky)
+            material.setFloat?.('b3dDustGrey', dustGrey);
+        /*
         AND THE SKY OWNS WHAT IS BEHIND IT.
     
         Fading the dome revealed the scene's clear colour, which is a mid grey by
@@ -1398,6 +1836,15 @@ export class B3dSkybox extends AbstractMesh {
         sceneNow.clearColor.set(this._clearBase.r + (sc.r - this._clearBase.r) * v, this._clearBase.g + (sc.g - this._clearBase.g) * v, this._clearBase.b + (sc.b - this._clearBase.b) * v, 1);
         material.needAlphaBlending = () => air < 0.999;
         material.luminance = attrs.luminance;
+        if (this._forkedSky) {
+            const sm = material;
+            const z = this.hex(attrs.zenithTint || '#ffffff');
+            const h = this.hex(attrs.horizonTint || '#ffffff');
+            sm.setVector3?.('b3dTintZ', new BABYLON.Vector3(z.r, z.g, z.b));
+            sm.setVector3?.('b3dTintH', new BABYLON.Vector3(h.r, h.g, h.b));
+            const k = Math.min(1, Math.max(0, Number(attrs.tintStrength) || 0));
+            sm.setFloat?.('b3dTintAmt', k);
+        }
         /*
         EXPOSURE FADES THE BACKDROP. SCATTER IS NOT THE MECHANISM.
     
@@ -1487,9 +1934,18 @@ export class B3dSkybox extends AbstractMesh {
             // NIGHT ONLY: by day that same vector IS the sun, and a moon fading in
             // on the setting sun is the one place it must not be.
             const sm = material;
+            // The soft glow is the AIR's (it fades with it); the disc is the body's
+            // own, and shows as the air goes — see the shader note.
             sm.setFloat?.('b3dMoon', isDay
                 ? 0
-                : attrs.moonIntensity * (1 - Math.pow(dayBrightness * air, 0.25)));
+                : attrs.moonIntensity *
+                    (1 - Math.pow(dayBrightness * air, 0.25)) *
+                    air);
+            const bare = 1 - air;
+            sm.setFloat?.('b3dMoonDisc', isDay ? 0 : bare);
+            sm.setFloat?.('b3dSunDisc', isDay ? bare : 0);
+            sm.setVector3?.('b3dSunDir', sunVector.clone().normalize());
+            this._applyMoons(sm, isDay, sunVector, dayBrightness * air);
         }
         if (this._starfieldMesh != null) {
             if (!this._glowExcluded && this.owner?.scene != null) {
@@ -1598,6 +2054,12 @@ export class B3dSkybox extends AbstractMesh {
             BABYLON.Color3.LerpToRef(this.hex(attrs.duskColor), this.hex(attrs.sunColor), intensity, lightColor);
             const sunset = Math.min(1, intensity / 0.35) * Math.max(0, 1 - intensity / 0.12);
             BABYLON.Color3.LerpToRef(lightColor, this.hex(attrs.duskColor).scaleToRef(0.65, this._duskScratch), sunset * 0.55, lightColor);
+            /*
+            The scattered LIGHT comes from whatever is up there — gas or dust — so
+            Rayleigh keeps the full sky (`airSky`); the model has no other source of
+            daylight, and a Mars with gas-only Rayleigh rendered BLACK. What dust
+            changes is the COLOUR: it scatters grey, not blue — see b3dDustGrey.
+            */
             material.rayleigh = attrs.rayleigh * airSky;
             material.turbidity = attrs.turbidity * airSky;
             material.mieCoefficient = attrs.mieCoefficient;
@@ -1771,9 +2233,12 @@ export class B3dSkybox extends AbstractMesh {
             const vac = this._vacuumNow();
             // Quantised, not compared raw: a float that drifts by 1e-7 every frame
             // would refresh the sky every frame and the gate would be decorative.
-            const moved = Math.abs(vac - this._vacuum) > 0.002;
-            if (moved)
+            const moved = Math.abs(vac - this._vacuum) > 0.002 ||
+                Math.abs(this._gasNow - this._gas) > 0.002;
+            if (moved) {
                 this._vacuum = vac;
+                this._gas = this._gasNow;
+            }
             const waiting = !this._sunApplied && this._sunWaitFrames < 300;
             if (waiting)
                 this._sunWaitFrames++;
@@ -1814,6 +2279,14 @@ export class B3dSkybox extends AbstractMesh {
                     density: 0,
                     start: 1e6,
                     end: 1e7,
+                    /*
+                    NO VEIL. Vacuum is the ABSENCE of a medium, not one in front of the
+                    sky: its weight still pulls the haze to nothing, but defaulting the
+                    veil to that weight painted the sky black over the stars — a black
+                    noon with no stars on an airless world, and the rocket climbing
+                    into a starless dark (tosijs-3d#89).
+                    */
+                    veil: 0,
                 };
         });
         this._buildStarfield(scene);
@@ -1830,21 +2303,15 @@ export class B3dSkybox extends AbstractMesh {
             this.owner.scene.unregisterBeforeRender(this._sizeToCamera);
             this._sizeToCamera = null;
         }
-        for (const q of this._nebulaMeshes)
-            q.dispose();
-        this._nebulaMeshes = [];
-        for (const nm of this._nebulaMats)
-            nm.dispose();
-        this._nebulaMats = [];
-        this._nebulaBase = [];
-        this._starfieldMesh?.dispose();
-        this._starfieldMesh = null;
-        this._glowExcluded = false;
+        this._disposeStarfield();
+        this._builtStarfieldKey = '';
         this._clearBase = null;
         this.starEl = null;
         this._removeFogLayer?.();
         this._removeFogLayer = null;
         this._vacuum = 0;
+        this._gas = 1;
+        this._gasNow = 1;
         // Hand intensity ownership back to the sun before we let go of it.
         if (this.sunEl != null)
             this.sunEl.externallyLit = false;
@@ -1853,6 +2320,14 @@ export class B3dSkybox extends AbstractMesh {
     }
     render() {
         super.render();
+        // A starfield attribute changed on a live sky: rebuild just the starfield.
+        if (this.mesh != null &&
+            this.owner != null &&
+            this._builtStarfieldKey !== '' &&
+            this._starfieldKey() !== this._builtStarfieldKey) {
+            this._buildStarfield(this.owner.scene);
+        }
+        this._applyStarLook();
         this.updateSky();
     }
 }

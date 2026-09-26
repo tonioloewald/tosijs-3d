@@ -1,0 +1,5 @@
+import{Gf,ci}from"./site-z8mqhr1b.js";import{_r,nt}from"./site-b66xxmk6.js";class Wo extends ci{constructor(t){super(t);this.key=this.registerDataInput("key",_r),this.keyCode=this.registerDataOutput("keyCode",_r),this.keyValue=this.registerDataOutput("keyValue",_r),this.shiftKey=this.registerDataOutput("shiftKey",nt),this.ctrlKey=this.registerDataOutput("ctrlKey",nt),this.altKey=this.registerDataOutput("altKey",nt),this.metaKey=this.registerDataOutput("metaKey",nt),this.commandOrCtrl=this.registerDataOutput("commandOrCtrl",nt)}_executeEvent(t,a){let e=a.event,s=this.key.getValue(t);if(s&&s!==e.code)return!0;return this.keyCode.setValue(e.code,t),this.keyValue.setValue(e.key,t),this.shiftKey.setValue(e.shiftKey,t),this.ctrlKey.setValue(e.ctrlKey,t),this.altKey.setValue(e.altKey,t),this.metaKey.setValue(e.metaKey,t),this.commandOrCtrl.setValue(Gf?e.metaKey:e.ctrlKey,t),this._execute(t),!this.config?.stopPropagation}_preparePendingTasks(t){}_cancelPendingTasks(t){}}
+export{Wo};
+
+//# debugId=45416FAE3A60176C64756E2164756E21
+//# sourceMappingURL=site-w0c0qv0j.js.map

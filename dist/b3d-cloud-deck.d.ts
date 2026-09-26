@@ -226,6 +226,8 @@ export declare class B3dCloudDeck extends B3dChild {
     private _bakeKey;
     private _elapsed;
     private _weatherKey;
+    /** The field the last bake built — what `_immersionAt` samples. */
+    private _liveWeather;
     private _terrain;
     /** The scene's terrain, looked up once — re-queried only while absent or gone. */
     private _terrainEl;

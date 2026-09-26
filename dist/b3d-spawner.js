@@ -131,7 +131,7 @@ vocabulary anywhere in the sim.
 */
 /*{ "parent": "World Sim" }*/
 import { B3dChild, sceneDelta } from './b3d-utils.js';
-import { MersenneTwister } from './mersenne-twister.js';
+import { Xoshiro128 } from './mersenne-twister.js';
 import { spawnPrefab } from './prefab.js';
 export class B3dSpawner extends B3dChild {
     static preferredTagName = 'tosi-b3d-spawner';
@@ -176,13 +176,21 @@ export class B3dSpawner extends B3dChild {
     _rng = null;
     _since = 0;
     _tick = () => this._update();
+    // A placed anchor is a world coordinate, so a rebase must move it too (the
+    // groups it spawned are destroyables, which follow the origin themselves).
+    _onShift = (dx, dz) => {
+        this.x -= dx;
+        this.z -= dz;
+    };
     sceneReady(owner) {
-        this._rng = new MersenneTwister(this.seed);
+        owner.addOriginListener(this._onShift);
+        this._rng = new Xoshiro128(this.seed);
         // First group lands promptly — an empty sky on spawn-in reads as a broken game.
         this._since = this.interval;
         owner.scene.registerBeforeRender(this._tick);
     }
     sceneDispose() {
+        this.owner?.removeOriginListener(this._onShift);
         this.owner?.scene.unregisterBeforeRender(this._tick);
         this._groups = [];
     }

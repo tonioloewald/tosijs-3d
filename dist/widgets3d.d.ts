@@ -290,6 +290,18 @@ export interface WidgetHost {
     };
 }
 /**
+ * A widget value: a plain `T`, or a tosijs reactive box of one (a
+ * `BoxedScalar<T>` — anything with `.value` and `.observe`). Passing the BOX is
+ * the supported, two-way usage: the control moves the value and the value moves
+ * the control. Typed structurally so this module needs no tosijs types, and so
+ * a correct call no longer fails the typecheck (tosijs-3d#76 — 24 false errors
+ * in one consumer panel, and every cast to silence them also silenced `min`).
+ */
+export type Bindable<T> = T | {
+    value: T;
+    observe(cb: (...args: any[]) => void): unknown;
+};
+/**
  * A static caption row. `color` overrides the default text colour (e.g. an
  * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
  * is set). `compact` shrinks the row to one text line instead of a full
@@ -405,7 +417,7 @@ export declare function iconBar3d(config: {
 /** A labelled on/off switch bound to a boolean. */
 export declare function toggle3d(config: {
     label: string;
-    value: boolean;
+    value: Bindable<boolean>;
     /** Fired as the value changes. */
     handleChange?: (v: boolean) => void;
     /** @deprecated use `handleChange` — removed in 0.9. */
@@ -414,7 +426,7 @@ export declare function toggle3d(config: {
 /** A horizontal slider bound to a number in [min, max], optionally stepped. */
 export declare function slider3d(config: {
     label?: string;
-    value: number;
+    value: Bindable<number>;
     min?: number;
     max?: number;
     /** On a `log` scale this is in DECADES, not units. */
@@ -493,6 +505,16 @@ export declare function slider3d(config: {
     showValue?: 'peek' | 'always' | 'never';
     /** Format the readout — units, precision, anything. Defaults to step-derived decimals. */
     format?: (v: number) => string;
+    /**
+     * `[lo, hi]` — where the values anybody wants live, drawn as a soft band
+     * behind the track. SOFT bounds: the handle still reaches `min` and `max`.
+     *
+     * The landing spot for a schema's `x-useful` (tosijs-3d#83). Narrowing
+     * `min`/`max` to the band instead would make a documented range
+     * unreachable, which is a decision a panel should not make on the schema's
+     * behalf. Clamped to the track; ignored if it is empty or inverted.
+     */
+    useful?: [number, number];
 }): Widget3d;
 /**
  * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
@@ -502,7 +524,7 @@ export declare function slider3d(config: {
  */
 export declare function select3d(config: {
     label?: string;
-    value: string | number;
+    value: Bindable<string | number>;
     options: Array<string | number | {
         label: string;
         value: string | number;

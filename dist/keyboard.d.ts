@@ -184,6 +184,13 @@ export declare function fieldGroup(config: {
     /** Commit and un-focus whatever is active. */
     blur: () => void;
     /**
+     * Join a field created AFTER the group (tosijs-3d#82). Without it, "collect
+     * every field, then build the group" was an ordering the host had to know,
+     * and a field made one step too late could be tapped but never typed into.
+     * Adding one that is already a member does nothing.
+     */
+    add: (field: InputField) => void;
+    /**
      * Route real keyboard events from `target` (default `window`). Returns a
      * function that detaches.
      *

@@ -1,9 +1,11 @@
 /*#
 # b3d-galaxy
 
-Procedural galaxy renderer. Generates thousands of stars in a spiral arm
-distribution, each colored by spectral class. All generation is seeded — same
-seed always produces the same galaxy.
+Procedural galaxy renderer — the [voxel galaxy](/voxel-galaxy/), the one galaxy
+implementation, drawn: thousands of stars in a spiral arm distribution, each
+coloured by spectral class. All generation is seeded — same seed, same galaxy.
+`el.galaxy` is the galaxy itself; every star carries its address in `id`, and
+`getStar(id)` finds it again (an index only means a position in what is loaded).
 
 Stars and nebulae are billboarded **in the vertex shader**: each is a static
 quad whose corners the shader turns to face the viewpoint, so a galaxy costs
@@ -20,6 +22,11 @@ rendered star system) and `showStarAt(index)` to restore it.
 
 Filter stars by habitability index and/or name using `filterStars({ maxHI, nameSearch })` —
 non-matching stars are dimmed.
+The galaxy holds every BRIGHT star and every INTERESTING one: a dim star whose
+system has a planet with HI ≤ 2 (see [star-populations](/star-populations/)).
+So the filter sees every habitable system there is, with its HI already known.
+The boring dim stars (the other ~95%) are only generated locally, as sky
+texture.
 
 ## Demo
 
@@ -209,14 +216,15 @@ function zoomToStar(idx, camera, el) {
   }
 
   // Create star system at origin, full scale, initially invisible
+  // By ADDRESS — the star itself, not its position in a list.
   activeStarSystem = b3dStarSystem({
     galaxySeed: demo.seed.value,
     starCount: demo.starCount.value,
-    starIndex: idx,
+    star: star.id,
     scale: 5,
     orbitScale: 3,
-    animate: true,
-    showOrbits: true,
+    animate: 'on',
+    showOrbits: 'on',
   })
   el.appendChild(activeStarSystem)
   activeStarSystem.setVisibility(0)
@@ -312,7 +320,8 @@ tosi-b3d {
 | Attribute | Default | Description |
 | --- | --- | --- |
 | `seed` | `1234` | Galaxy seed |
-| `starCount` | `10000` | Number of stars |
+| `dimBudget` | `95000` | The DIM population's budget. Its interesting share (~5%, HI ≤ 2) is drawn globally; the boring rest only near a point (the baker's eye) |
+| `starCount` | `10000` | The galaxy's BRIGHT budget — the stars visible across it (±noise; counts round per voxel). The dim population is local and not loaded here yet |
 | `radius` | `100` | Galaxy radius in scene units |
 | `spiralArms` | `4` | Number of spiral arms |
 | `spiralAngle` | `240` | Spiral arm sweep in degrees |
@@ -327,7 +336,8 @@ tosi-b3d {
 /*{ "parent": "Space" }*/
 import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { generateGalaxy, generateStarSystem, } from './galaxy-data.js';
+import { generateStarSystem, } from './galaxy-data.js';
+import { voxelGalaxy } from './voxel-galaxy.js';
 import { b3dBlackHole } from './b3d-black-hole.js';
 /** The per-vertex size attribute the vertex shader expands quads by. */
 const QUAD_SCALE = 'quadScale';
@@ -419,6 +429,12 @@ export class B3dGalaxy extends B3dChild {
     static initAttributes = {
         seed: 1234,
         starCount: 10000,
+        /**
+         * The DIM population's budget — local stars, generated only near a point
+         * (the baker's eye; the camera, once dim voxels stream). Not drawn by the
+         * galaxy yet; it is part of the galaxy's identity, so a bake reads it.
+         */
+        dimBudget: 95000,
         radius: 100,
         spiralArms: 4,
         spiralAngle: 240,
@@ -469,6 +485,8 @@ export class B3dGalaxy extends B3dChild {
     faceTarget = null;
     blackHoleEl = null;
     galaxyData = null;
+    /** The galaxy itself — `galaxyData` is its view. */
+    galaxy = null;
     originalColors = null;
     registered = false;
     content = () => '';
@@ -752,13 +770,24 @@ export class B3dGalaxy extends B3dChild {
             return;
         const attrs = this;
         const scene = this.owner.scene;
-        // Generate galaxy data (includes nebulae)
-        this.galaxyData = generateGalaxy(attrs.seed, attrs.starCount, {
-            spiralArms: attrs.spiralArms,
-            spiralAngleDegrees: attrs.spiralAngle,
-            thickness: attrs.thickness,
-            distantGalaxies: attrs.distantGalaxies,
+        /*
+        ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"): the voxel galaxy, read
+        through its `view`, which is the GalaxyData shape everything below already
+        draws. `starCount` is its BRIGHT budget; the view also carries every
+        INTERESTING dim star (HI ≤ 2), verified, so the HI filter is complete.
+        */
+        this.galaxy = voxelGalaxy({
+            seed: attrs.seed,
+            brightBudget: attrs.starCount,
+            dimBudget: attrs.dimBudget,
+            galaxyOptions: {
+                spiralArms: attrs.spiralArms,
+                spiralAngleDegrees: attrs.spiralAngle,
+                thickness: attrs.thickness,
+                distantGalaxies: attrs.distantGalaxies,
+            },
         });
+        this.galaxyData = this.galaxy.view();
         const { stars, nebulae } = this.galaxyData;
         const radius = attrs.radius;
         const scaleFactor = radius / 0.9;
@@ -830,15 +859,24 @@ export class B3dGalaxy extends B3dChild {
             diskOuterRadius: 1.6,
             diskBrightness: 0.5,
             rotationSpeed: 0.3,
-            lensing: true,
-            photonRing: true,
+            lensing: 'on',
+            photonRing: 'on',
             photonRingBrightness: 0.7,
             subdivisions: 32,
         });
         // Append to galaxy's parent (inside the b3d element)
         this.parentElement?.appendChild(this.blackHoleEl);
     }
-    /** Get star data at the given index */
+    /**
+     * A star by its ADDRESS (`seed:population:voxel:n`, the `id` on every star) —
+     * stable, unlike an index, which is a position in whatever is loaded.
+     */
+    getStar(id) {
+        // By address — resolved from its voxel, so a dim star that is not loaded
+        // is still findable.
+        return this.galaxy?.star(id) ?? null;
+    }
+    /** Get star data at the given index (into the loaded view — see `getStar`). */
     getStarAt(index) {
         if (!this.galaxyData || index < 0 || index >= this.galaxyData.stars.length)
             return null;

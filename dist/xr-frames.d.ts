@@ -29,13 +29,36 @@ export interface XrFramesOptions {
     bodyYawDeadband?: number;
     /** Eye→neck-pivot offset in head-local space (down + back). */
     neckOffset?: BABYLON.Vector3;
+    /**
+     * FLAT mode — no session: the frames are derived from the camera's WORLD
+     * pose, whatever kind of camera it is. See `XrFrames.flat`.
+     */
+    flat?: boolean;
+    /** Flat only: how far below the camera the floor (the `body` frame) sits. */
+    eyeHeight?: number;
 }
 /**
  * Maintains a `TransformNode` per reference frame. Construct once an XR session
  * is live (the camera must be parented to `rig`), call `update(dt)` every XR
  * frame, and `dispose()` on exit. Parent scene UI to `frames.body` etc.
+ *
+ * **Or flat**, with `XrFrames.flat(scene, camera)` (tosijs-3d#81): most of these
+ * frames depend only on a camera's position and orientation, which a flat
+ * camera has. `eye`, `body`, `neck` and `face` follow the view; `world` and
+ * `rig` sit at the origin; the HAND frames stay disabled, because a monitor has
+ * no hands — a panel that wants one declares a flat fallback instead.
  */
 export declare class XrFrames {
+    /**
+     * Frames for a flat camera — no session, any camera type. The frames are
+     * derived from its world pose each `update`; `setCamera` follows an
+     * active-camera change. The rig is created here and disposed with the rest.
+     */
+    static flat(scene: BABYLON.Scene, camera: BABYLON.Camera, opts?: Omit<XrFramesOptions, 'flat'>): XrFrames;
+    private flatMode;
+    private eyeHeight;
+    private ownsRig;
+    private _pos;
     readonly world: BABYLON.TransformNode;
     readonly rig: BABYLON.TransformNode;
     /** At your actual head POSITION but with RIG yaw (not head rotation). The
@@ -71,6 +94,15 @@ export declare class XrFrames {
     attachInput(input: any): void;
     /** Resolve a frame node by name (for config that names a frame as a string). */
     get(name: FrameName): BABYLON.TransformNode;
+    /** Follow a different camera (flat: the active camera changed). */
+    setCamera(camera: BABYLON.Camera): void;
+    /**
+     * FLAT: every frame from the camera's WORLD pose. `getDirection` and
+     * `globalPosition` work for any camera — an ArcRotate has no
+     * rotationQuaternion, a FreeCamera usually keeps Euler angles — which is why
+     * this cannot share the XR path's local-pose reads.
+     */
+    private updateFlat;
     /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
     private headLocalYaw;
     /** Call once per XR frame. (Hands ride their grips by parenting, not here.) */

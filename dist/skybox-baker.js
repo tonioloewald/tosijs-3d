@@ -14,7 +14,7 @@ however pretty.
 ## Demo
 
 ```js
-import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, starsFromVoxelGalaxy, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { bake } = tosi({
@@ -37,6 +37,9 @@ let sceneEl = null
 const galaxy = b3dGalaxy({
   seed: bake.seed,
   starCount: bake.stars,
+  // The shipped sky's dim budget: dim stars only exist near the bake point,
+  // so this costs nothing until the pair bake gathers them.
+  dimBudget: SHIPPED_SKY.voxel.dimBudget,
   particleSize: bake.particleSize,
   coreSize: 0.12,
   radius: 100,
@@ -90,7 +93,7 @@ preview.append(
         // static/sky, so a rebake is one tap here and one tap below. (It used
         // to live only in commit messages; reproducing it took archaeology.)
         button3d({ label: 'use shipped recipe', handleClick: () => {
-          bake.stars = SHIPPED_SKY.stars
+          bake.stars = SHIPPED_SKY.voxel.brightBudget
           bake.particleSize = SHIPPED_SKY.particleSize
           bake.outFraction = SHIPPED_SKY.outFraction
           bake.offPlane = SHIPPED_SKY.offPlane
@@ -99,11 +102,20 @@ preview.append(
         } }),
         button3d({ label: 'bake pair (256 + 1024 data)', handleClick: async () => {
           bake.status = 'baking pair…'
+          const eye = defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf())
+          // THE POINTS come from the voxel galaxy: every bright star, the dim
+          // stars around the eye, the shell — what bin/bake-stars writes too.
+          const sky = starsFromVoxelGalaxy(galaxy.galaxy, undefined, eye, {
+            radius: 100,
+            dimReach: SHIPPED_SKY.voxel.dimReach,
+            floor: SHIPPED_SKY.voxel.floor,
+          })
           const res = await bakeSkyPair(sceneEl.scene, galaxy, {
-            ...defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf()),
+            ...eye,
             roll: bake.roll.valueOf(),
             smoothSize: 256,
             dataSize: 1024,
+            objects: sky.objects,
           })
           const zip = facesToZip(
             [
@@ -171,7 +183,7 @@ The cost used to be generation, and is no longer — planets were 71% of it
 and are now computed on demand, names come from each star's own seed, and a
 cheap PRNG replaced a Mersenne Twister per star (see `galaxy-data`). Measured:
 
-| stars | `generateGalaxy` |
+| stars | `generateGalaxy` (0.8.3) |
 | ----- | ---------------- |
 | 10,000 | ~25 ms |
 | 100,000 | ~200 ms |
@@ -191,6 +203,8 @@ import * as BABYLON from '@babylonjs/core';
 import { zipSync } from 'fflate';
 import { FACE_NAMES, encodeStarfield, spectralValue, } from './starfield-codec.js';
 import { pngEncode } from './png.js';
+import { CheapPRNG } from './mersenne-twister.js';
+import { starDetailFor, } from './galaxy-data.js';
 /**
  * THE RECIPE FOR `static/sky` — the pair every demo loads as
  * `/sky/nebula` + `/sky/stars`.
@@ -216,6 +230,21 @@ export const SHIPPED_SKY = {
     smoothSize: 256,
     dataSize: 1024,
     tilt: '12,25,58',
+    /**
+     * The VOXEL galaxy's dials (GALAXY-DESIGN.md) — used by `bin/bake-stars.ts`.
+     * These are the values `static/sky` was baked with (approved by eye,
+     * 2026-09-25): `bun bin/bake-stars.ts` then `bun bin/bake-nebula.ts`, with
+     * no flags, reproduce both halves. Re-bake after changing them. The bright budget is well past GALAXY-DESIGN's ~5k
+     * guess — at 5k the band loses its grain; 100k keeps it.
+     */
+    voxel: {
+        brightBudget: 100000,
+        dimBudget: 1000000,
+        /** Generator units (disc radius 0.9) at which a dim star is at full brightness. */
+        dimReach: 0.04,
+        /** Faintest encoded dim star — also sets the gather radius. */
+        floor: 0.02,
+    },
 };
 /**
  * Where to stand, given a galaxy's radius.
@@ -336,12 +365,23 @@ export function starsFromGalaxy(galaxy, eye, options = {}) {
             spectral: data != null ? spectralValue(data.spectralType) : undefined,
         });
     }
+    for (const o of distantShellObjects(galaxy.getDistantGalaxyParticles?.() ?? [], galaxy.getDistantStarParticles?.() ?? [], eye, options.galaxyMaxScale))
+        out.push(o);
+    return out;
+}
+/**
+ * The shell OUTSIDE the disc — distant galaxies (small discs) and the dim
+ * far-out stars — as sky objects. Shared by both star sources, so the rules
+ * live once.
+ */
+export function distantShellObjects(galaxies, stars, eye, galaxyMaxScale) {
+    const out = [];
     /*
     The galaxies are the faintest things in the sky, and small discs rather than
     points — which is the whole reason the `size` field exists.
     */
-    const cut = options.galaxyMaxScale ?? 9;
-    for (const p of galaxy.getDistantGalaxyParticles?.() ?? []) {
+    const cut = galaxyMaxScale ?? 9;
+    for (const p of galaxies) {
         const s = p.scaling?.x ?? 0;
         if (s <= 0)
             continue;
@@ -364,8 +404,8 @@ export function starsFromGalaxy(galaxy, eye, options = {}) {
     faint default rather than spending spectral precision on points the eye
     cannot read colour on anyway.
     */
-    const dimCut = options.galaxyMaxScale != null ? options.galaxyMaxScale * 3.6 : 9;
-    for (const p of galaxy.getDistantStarParticles?.() ?? []) {
+    const dimCut = galaxyMaxScale != null ? galaxyMaxScale * 3.6 : 9;
+    for (const p of stars) {
         const s = p.scaling?.x ?? 0;
         if (s <= 0)
             continue;
@@ -381,6 +421,79 @@ export function starsFromGalaxy(galaxy, eye, options = {}) {
         });
     }
     return out;
+}
+/**
+ * The point sky from a {@link VoxelGalaxy}: every BRIGHT star, the DIM stars
+ * near the eye, and the distant shell. (GALAXY-DESIGN.md, build step 2.)
+ *
+ * **Bright stars keep the rule the shipped sky was tuned with** — brightness
+ * from the star's own scale, not its distance — so the look carries over.
+ * **Dim stars fall off with distance**: a K or M dwarf is only visible nearby,
+ * which is the whole point of generating them locally. The gather radius is
+ * not a guess: it is where the BRIGHTEST dim star falls to `floor`, so nothing
+ * that could clear the floor is left ungenerated.
+ *
+ * Brightness is normalised to the hottest star either mix CAN produce, not the
+ * hottest one this seed happened to draw, so it cannot drift between galaxies.
+ */
+export function starsFromVoxelGalaxy(galaxy, 
+/** The distant shell; omitted = the galaxy's own, `null` = none. */
+shell, eye, options = {}) {
+    const radius = options.radius ?? 100;
+    const reach = options.dimReach ?? 0.03;
+    const floor = options.floor ?? 0.02;
+    const sf = radius / 0.9;
+    // generator frame (z-up, unit-ish) ↔ scene frame (y-up, scaled)
+    const toScene = (p) => ({
+        x: p.x * sf,
+        y: p.z * sf,
+        z: p.y * sf,
+    });
+    const eyeGen = { x: eye.x / sf, y: eye.z / sf, z: eye.y / sf };
+    const hottest = (mix) => Math.max(...mix.map((m) => starDetailFor(new CheapPRNG(0), 0, m.spectralClass, m.minIndex).scale));
+    const norm = 1 / hottest(galaxy.options.brightMix);
+    const dimMax = Math.min(1, hottest(galaxy.options.dimMix) * norm);
+    const dimRadius = reach * Math.sqrt(dimMax / floor);
+    const out = [];
+    const push = (s, brightness) => {
+        const p = toScene(s.position);
+        out.push({
+            x: p.x - eye.x,
+            y: p.y - eye.y,
+            z: p.z - eye.z,
+            brightness,
+            r: s.rgb[0] / 255,
+            g: s.rgb[1] / 255,
+            b: s.rgb[2] / 255,
+            spectral: spectralValue(s.spectralType),
+        });
+    };
+    const bright = galaxy.brightStars();
+    for (const s of bright) {
+        push(s, Math.max(floor, Math.min(1, s.scale * norm)));
+    }
+    let dim = 0;
+    for (const s of galaxy.dimStarsNear(eyeGen, dimRadius)) {
+        const d = Math.hypot(s.position.x - eyeGen.x, s.position.y - eyeGen.y, s.position.z - eyeGen.z);
+        const falloff = d <= reach ? 1 : (reach / d) ** 2;
+        const b = Math.min(1, s.scale * norm) * falloff;
+        if (b < floor)
+            continue;
+        push(s, b);
+        dim++;
+    }
+    if (shell === undefined)
+        shell = galaxy.shell();
+    if (shell != null) {
+        const point = (p, scale, rgb) => ({
+            position: toScene(p),
+            scaling: { x: scale },
+            color: { r: rgb[0] / 255, g: rgb[1] / 255, b: rgb[2] / 255 },
+        });
+        for (const o of distantShellObjects(shell.distantGalaxies.map((g) => point(g.position, g.scale, g.rgb)), shell.distantStars.map((d) => point(d.position, d.scale, d.rgb)), eye))
+            out.push(o);
+    }
+    return { objects: out, bright: bright.length, dim, dimRadius };
 }
 /**
  * Encoded faces → PNG data URLs, ready to save beside a skybox.
@@ -446,11 +559,12 @@ export async function bakeSkyPair(scene, galaxy, options) {
         if (mesh != null)
             mesh.isVisible = wasVisible;
     }
-    const objects = starsFromGalaxy(galaxy, {
-        x: options.x,
-        y: options.y,
-        z: options.z,
-    });
+    const objects = options.objects ??
+        starsFromGalaxy(galaxy, {
+            x: options.x,
+            y: options.y,
+            z: options.z,
+        });
     const size = options.dataSize ?? 1024;
     const enc = encodeStarfield(objects, size);
     return {

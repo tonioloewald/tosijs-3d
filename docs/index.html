@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>tosijs-3d</title>
   <meta name="description" content="Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB for…" />
   <link rel="canonical" href="https://3d.tosijs.net/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>tosijs-3d</h1>
 <p><a href="https://github.com/tonioloewald/tosijs-3d/">github</a> | <a href="https://3d.tosijs.net">live demo</a> | <a href="https://www.npmjs.com/package/tosijs-3d">npm</a></p>
@@ -58,12 +58,12 @@ for models and the usual bitmap formats for textures — but it also leans on
 <p>Free and open source, and light for what it is (Babylon is not small; this
 adds little to it). Scenes are composed from <strong>web components</strong>, so a world is
 markup you can read:</p>
-<pre><code class="language-javascript">b3d(
-  b3dSun({ shadowCascading: true }),
-  b3dSkybox({ timeOfDay: 6 }),
-  b3dLoader({ url: &#39;./scene.glb&#39; }),
-  b3dWater({ y: -0.2 })
-)
+<pre><code class="language-javascript" data-highlighted><span class="token function">b3d</span><span class="token punctuation">(</span>
+  <span class="token function">b3dSun</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">shadowCascading</span><span class="token operator">:</span> <span class="token boolean">true</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+  <span class="token function">b3dSkybox</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">timeOfDay</span><span class="token operator">:</span> <span class="token number">6</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+  <span class="token function">b3dLoader</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token string">'./scene.glb'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+  <span class="token function">b3dWater</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">y</span><span class="token operator">:</span> <span class="token operator">-</span><span class="token number">0.2</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span>
 </code></pre>
 <p>See the <a href="tosi-b3d/">b3d</a> page for that running, and every page here carries a
 live demo you can edit in place.</p>
@@ -97,25 +97,25 @@ week turned out to be capability that was already there. One <code>grep water</c
 <p><strong>Upgrading?</strong> See <a href="./Migration.md">Migration.md</a> for the breaking changes and
 what to do about them, and <a href="./CHANGELOG.md">CHANGELOG.md</a> for the full detail.
 Both ship inside the package, so they work from <code>node_modules</code> too.</p>
-<pre><code class="language-javascript">import {
-  b3d,
-  b3dSun,
-  b3dSkybox,
-  b3dLoader,
-  b3dWater,
-  b3dReflections,
-} from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span>
+  b3d<span class="token punctuation">,</span>
+  b3dSun<span class="token punctuation">,</span>
+  b3dSkybox<span class="token punctuation">,</span>
+  b3dLoader<span class="token punctuation">,</span>
+  b3dWater<span class="token punctuation">,</span>
+  b3dReflections<span class="token punctuation">,</span>
+<span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 
-document.body.append(
-  b3d(
-    { glowLayerIntensity: 1 },
-    b3dSun({ shadowCascading: true }),
-    b3dSkybox({ timeOfDay: 6, realtimeScale: 100 }),
-    b3dLoader({ url: &#39;./scene.glb&#39; }),
-    b3dWater({ y: -0.2 }),
-    b3dReflections()
-  )
-)
+document<span class="token punctuation">.</span>body<span class="token punctuation">.</span><span class="token function">append</span><span class="token punctuation">(</span>
+  <span class="token function">b3d</span><span class="token punctuation">(</span>
+    <span class="token punctuation">{</span> <span class="token literal-property property">glowLayerIntensity</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token function">b3dSun</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">shadowCascading</span><span class="token operator">:</span> <span class="token boolean">true</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token function">b3dSkybox</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">timeOfDay</span><span class="token operator">:</span> <span class="token number">6</span><span class="token punctuation">,</span> <span class="token literal-property property">realtimeScale</span><span class="token operator">:</span> <span class="token number">100</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token function">b3dLoader</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token string">'./scene.glb'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token function">b3dWater</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">y</span><span class="token operator">:</span> <span class="token operator">-</span><span class="token number">0.2</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token function">b3dReflections</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+  <span class="token punctuation">)</span>
+<span class="token punctuation">)</span>
 </code></pre>
 <h2>Highlights</h2>
 <p><strong>Procedural astronomical objects</strong> — <a href="https://3d.tosijs.net/b3d-planet/">planets</a>,
@@ -159,7 +159,7 @@ classification, layout and text editing are engine-free and unit-tested (1000+
 assertions run in ~2s with no GPU). If it can be a function of its inputs, it is.</p>
 <h2>Development</h2>
 <p>Requires <a href="https://bun.sh">Bun</a>.</p>
-<pre><code class="language-bash">bun install
+<pre><code class="language-bash" data-highlighted>bun <span class="token function">install</span>
 bun start
 </code></pre>
 <p>Dev server runs on <a href="https://localhost:8030">https://localhost:8030</a> with auto-rebuild on file changes.</p>
@@ -233,7 +233,9 @@ bun start
       <li><a class="doc-link" href="terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="wind/">wind</a></li>
       <li><a class="doc-link" href="b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="b3d-skybox/">b3d-skybox</a></li>
@@ -242,6 +244,7 @@ bun start
       <li><a class="doc-link" href="carve/">carve</a></li>
       <li><a class="doc-link" href="sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="landform/">landform</a></li>
+      <li><a class="doc-link" href="scatter/">scatter</a></li>
       <li><a class="doc-link" href="water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -263,6 +266,8 @@ bun start
       <li><a class="doc-link" href="game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="control-input/">control-input</a></li>
       <li><a class="doc-link" href="gamepad-focus/">gamepad-focus</a></li>
@@ -292,6 +297,8 @@ bun start
       <li><a class="doc-link" href="b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="ui/">UI</a></summary>
@@ -391,6 +398,6 @@ bun start
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="hydrate.js?v=0.8.3"></script>
+  <script type="module" src="hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

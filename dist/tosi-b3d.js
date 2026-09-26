@@ -285,6 +285,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
+import { touchOrbit } from './touch-orbit.js';
 import { xrControllers } from './gamepad.js';
 import { fitPanel, panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d.js';
 import { handlerOf } from './handler-of.js';
@@ -307,7 +308,7 @@ import { XrFrames, EntityFrame } from './xr-frames.js';
 import { attachFramePanel, placeholderPanelSvg, } from './frame-panel.js';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js';
 import { compositeFog, approachFog, } from './atmosphere.js';
-import { setQuality, qualityBudgets, onQualityChange, effectiveTier, } from './b3d-quality.js';
+import { setQuality, qualityBudgets, onQualityChange, effectiveTier, renderScalingLevel, } from './b3d-quality.js';
 import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget.js';
 const { canvas, div, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
@@ -397,6 +398,16 @@ export class B3d extends Component {
         // 'medium' | 'high' force a tier. Drives the `auto` defaults of shadows,
         // reflections, terrain, and the engine render scaling. See b3d-quality.
         quality: 'auto',
+        /*
+        Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
+        own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
+        `PerfBudgets.pixelRatioCap`). A positive value is an explicit cap and wins:
+        `1` renders at CSS resolution, `2` full Retina, `0.75` below CSS for speed.
+        Rendering at CSS resolution on a 1.25× display upscaled the whole scene and
+        softened every star (seen 2026-09-25). XR ignores it — a headset has its
+        own framebuffer resolution.
+        */
+        pixelRatio: 0,
         // Add a "Perf stats" section to the scene panel (the ⚙ gear overlay AND the
         // in-VR panel — so it's reachable in a headset). Opt-in per scene; a global
         // `#perf` / `#debug` (or `?perf` / `?debug`) in the page URL, or a host calling
@@ -1554,6 +1565,78 @@ export class B3d extends Component {
         this.setActiveCamera(camera, options);
         return true;
     }
+    /*
+    VIEWER-RELATIVE PANELS IN THE FLAT VIEW (tosijs-3d#81).
+  
+    `<tosi-b3d-panel presence="both">` gets the same frame vocabulary flat as in a
+    headset — the frames just follow the flat camera (`XrFrames.flat`). ONE panel
+    in both, rather than a flat overlay and a VR panel to keep in step.
+  
+    Rebuilt when the declared panels or the active camera change (checked every
+    30 ticks — a panel is not something that changes per frame), and dropped the
+    moment XR builds its own frames, so the two sets never coexist.
+    */
+    _flatFrames = null;
+    _flatPanels = [];
+    _flatSig = '';
+    _flatCheckIn = 0;
+    _flatHandWarned = new Set();
+    _disposeFlatPanels() {
+        for (const p of this._flatPanels)
+            p.dispose();
+        this._flatPanels = [];
+        this._flatFrames?.dispose();
+        this._flatFrames = null;
+        this._flatSig = '';
+        this._flatCheckIn = 0;
+    }
+    _updateFlatPanels() {
+        const scene = this.scene;
+        const cam = scene?.activeCamera;
+        if (scene == null || cam == null || this.xrFrames != null) {
+            if (this._flatFrames != null)
+                this._disposeFlatPanels();
+            return;
+        }
+        if (--this._flatCheckIn <= 0) {
+            this._flatCheckIn = 30;
+            const specs = Array.from(this.querySelectorAll('tosi-b3d-panel'))
+                .map((el) => el.toSpec?.())
+                .filter((s) => s != null && s.presence === 'both');
+            const sig = specs.length ? `${cam.uniqueId}|${JSON.stringify(specs)}` : '';
+            if (sig !== this._flatSig) {
+                this._disposeFlatPanels();
+                this._flatSig = sig;
+                this._flatCheckIn = 30;
+                if (specs.length > 0) {
+                    const frames = XrFrames.flat(scene, cam);
+                    this._flatFrames = frames;
+                    for (const spec of specs) {
+                        let frame = spec.frame ?? 'body';
+                        if (frame === 'left-hand' || frame === 'right-hand') {
+                            if (spec.flatFrame == null) {
+                                const key = spec.title ?? spec.url ?? frame;
+                                if (!this._flatHandWarned.has(key)) {
+                                    this._flatHandWarned.add(key);
+                                    console.warn(`b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
+                                        '(a monitor has no hands), so it is VR-only. Give it a ' +
+                                        '`flatFrame` to say where it goes flat.');
+                                }
+                                continue;
+                            }
+                            frame = spec.flatFrame;
+                        }
+                        this._flatPanels.push(attachFramePanel(scene, cam, frames.get(frame), spec));
+                    }
+                }
+            }
+        }
+        if (this._flatFrames == null)
+            return;
+        this._flatFrames.update(0);
+        for (const p of this._flatPanels)
+            p.update();
+    }
     _update = () => {
         this._debugFrame++;
         // `_frozen` stops the clock exactly like a pause, but WITHOUT the pause
@@ -1567,7 +1650,14 @@ export class B3d extends Component {
             moving and aircraft coasting at cruise speed with the stick disconnected.
             Measured at 66 m of travel over a 3-second pause (#30).
             */
-            this.lastRender = Date.now();
+            // The WALL clock keeps running, which is the one state `realDt` exists
+            // for (a spinner on the pause panel). It used to publish 0 here and hold
+            // `realElapsed`/`frame` still, contradicting FrameInfo's own doc.
+            const nowPaused = Date.now();
+            const realPaused = this.lastRender > 0
+                ? Math.min((nowPaused - this.lastRender) / 1000, 0.1)
+                : 0;
+            this.lastRender = nowPaused;
             // Babylon's own clocks as well — see `_stopEngineTime`. Ours is the
             // smaller half of a pause.
             this._stopEngineTime(true);
@@ -1578,7 +1668,9 @@ export class B3d extends Component {
                 this.frameDelta = 0;
                 // A paused frame still RENDERS, so the package must be present and
                 // honest rather than stale: sim stopped, wall clock still running.
-                this._realDelta = 0;
+                this._realDelta = realPaused;
+                this._realElapsed += realPaused;
+                this._frameCount++;
                 this.scene.metadata.b3dFrame = this.frameInfo();
                 /*
                 FOG STILL HAS TO BE RIGHT WHILE STOPPED (adopter issue #31).
@@ -1609,6 +1701,7 @@ export class B3d extends Component {
             if (dt > 0)
                 this._updateFog(dt);
             this._ambientWatchdog();
+            this._updateFlatPanels();
             if (this.update !== noop) {
                 this.update(this, BABYLON);
             }
@@ -1746,7 +1839,7 @@ export class B3d extends Component {
      * holding 120fps.) Measuring an idle machine is the entire point of measuring.
      *
      * A spin-up sequence would let us measure a KNOWN workload during load instead
-     * of waiting for quiet — see TODO.md. This is the fix that doesn't need one.
+     * of waiting for quiet — see DECISIONS.md. This is the fix that doesn't need one.
      */
     _probeWhenIdle() {
         const start = Date.now();
@@ -1773,7 +1866,35 @@ export class B3d extends Component {
     _applyHardwareScaling(xr) {
         if (this.engine == null)
             return;
-        this.engine.setHardwareScalingLevel(qualityBudgets({ xr }).hardwareScaling);
+        const b = qualityBudgets({ xr });
+        this.engine.setHardwareScalingLevel(renderScalingLevel(b.hardwareScaling, xr, this.pixelRatio, b.pixelRatioCap, globalThis.window?.devicePixelRatio ?? 1));
+        this._watchPixelRatio(xr);
+    }
+    /*
+    THE DISPLAY'S RATIO CAN CHANGE UNDER US — dragging a window from a Retina
+    screen to an external monitor, or browser zoom. A resolution media query
+    that matches the CURRENT ratio fires once when it stops matching; re-arm it
+    at the new one each time.
+    */
+    _appliedPixelRatio = undefined;
+    _pixelRatioQuery = null;
+    _pixelRatioListener = null;
+    _watchPixelRatio(xr) {
+        this._unwatchPixelRatio();
+        const w = globalThis.window;
+        if (xr || w?.matchMedia == null)
+            return;
+        const q = w.matchMedia(`(resolution: ${w.devicePixelRatio ?? 1}dppx)`);
+        const listener = () => this._applyHardwareScaling(this.xrActive);
+        q.addEventListener?.('change', listener);
+        this._pixelRatioQuery = q;
+        this._pixelRatioListener = listener;
+    }
+    _unwatchPixelRatio() {
+        if (this._pixelRatioQuery != null && this._pixelRatioListener != null)
+            this._pixelRatioQuery.removeEventListener?.('change', this._pixelRatioListener);
+        this._pixelRatioQuery = null;
+        this._pixelRatioListener = null;
     }
     // ─── Ambient budget ───────────────────────────────────────────────────────
     // Ambient effects (rain, motes, bubbles — and one day footprints and bullet holes) are
@@ -2849,8 +2970,6 @@ export class B3d extends Component {
             return;
         }
         // Reconnected after teardown already ran, or connected for the first time.
-        const cnv = this.parts.canvas;
-        cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
         // Input focus follows the pointer: hovering or pressing anywhere in this scene
         // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
         // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
@@ -2873,16 +2992,45 @@ export class B3d extends Component {
         "should not" is what the old code relied on, and this failure is invisible
         until someone reads it off the GL context. Cheap to make impossible.
         */
-        if (this.engine != null) {
+        // A DISPOSED engine is what a genuine remove-then-re-add leaves behind —
+        // the ordinary case, not this one, so it must not warn or dispose twice.
+        if (this.engine != null && !this.engine.isDisposed) {
             console.warn('b3d: an engine already exists on this element; disposing it before ' +
                 'building another. A second WebGL context silently invalidates the ' +
                 "first one's shader programs — white meshes, dark sky, or a " +
                 'half-loaded scene.');
             this._teardown();
         }
+        /*
+        A TORN-DOWN CANVAS IS SPENT. Teardown LOSES its context on purpose (see
+        `loseContextOnDispose` below), and a lost context is what `getContext`
+        hands back for that canvas forever after — so an element removed and later
+        re-added would build its engine on a dead context and render nothing.
+        Swap in a fresh canvas; `parts.canvas` re-queries once the old one is
+        disconnected.
+        */
+        let cnv = this.parts.canvas;
+        if (this._canvasSpent) {
+            const fresh = document.createElement('canvas');
+            for (const a of Array.from(cnv.attributes))
+                fresh.setAttribute(a.name, a.value);
+            cnv.replaceWith(fresh);
+            cnv = fresh;
+            this._canvasSpent = false;
+        }
+        cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
         this.engine = new BABYLON.Engine(cnv, true, {
             preserveDrawingBuffer: true,
             stencil: true,
+            /*
+            RELEASE THE CONTEXT, don't wait for GC (tosijs-3d#79). Babylon's
+            `dispose()` keeps the WebGL context alive unless told otherwise, so every
+            torn-down scene held one until its canvas was collected — and Chrome caps
+            live contexts per page, so an SPA navigating back and forth stalled after
+            about eight trips. Teardown only runs on a genuine removal (a move
+            cancels it), so there is nothing here to keep.
+            */
+            loseContextOnDispose: true,
             // Babylon 8 makes the legacy audio engine opt-in (older versions
             // defaulted it on). Without this, `new BABYLON.Sound()` silently
             // no-ops — it never even fetches the file. b3d-sound depends on it.
@@ -2944,6 +3092,8 @@ export class B3d extends Component {
                 camera.lowerRadiusLimit = this.minDistance;
                 camera.upperRadiusLimit = this.maxDistance;
                 camera.attachControl(cnv, false);
+                // Two fingers pan, a pinch zooms, decided per gesture (#52).
+                touchOrbit(camera);
                 this.setActiveCamera(camera);
             }
             this.gui = new GUI.GUI3DManager(this.scene);
@@ -4710,6 +4860,8 @@ export class B3d extends Component {
         }, 0);
     }
     _teardownTimer = null;
+    /** The canvas's context was lost by teardown — see `connectedCallback`. */
+    _canvasSpent = false;
     _teardown() {
         // Both presentations' widgets, not just the visible one — an XR panel's
         // rows outlive the session that built them otherwise.
@@ -4740,6 +4892,8 @@ export class B3d extends Component {
         }
         this._liveDebug = { flat: [], xr: [] };
         this._debugSources = [];
+        this._disposeFlatPanels();
+        this._unwatchPixelRatio();
         // Descendant B3dChild components self-dispose via their own
         // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
         this._sceneReady = false;
@@ -4793,6 +4947,8 @@ export class B3d extends Component {
             this.engine?.stopRenderLoop();
             this.scene?.dispose();
             this.engine?.dispose();
+            if (this.engine != null)
+                this._canvasSpent = true;
         }
         catch (err) {
             // A half-built scene (disconnected mid-init) can throw on the way down.
@@ -4809,6 +4965,12 @@ export class B3d extends Component {
         // whole area has been generating.
         if (this.scene == null || this.scene.isDisposed)
             return;
+        // `pixelRatio` is live: an author changing it re-scales the render.
+        const pr = this.pixelRatio;
+        if (pr !== this._appliedPixelRatio) {
+            this._appliedPixelRatio = pr;
+            this._applyHardwareScaling(this.xrActive);
+        }
         const intensity = this.glowLayerIntensity;
         if (intensity > 0) {
             if (!this.glowLayer) {

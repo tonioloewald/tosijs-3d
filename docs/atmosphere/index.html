@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>atmosphere — tosijs-3d</title>
   <meta name="description" content="Fog is never switched on. It is always on, and systems _lean_ on it." />
   <link rel="canonical" href="https://3d.tosijs.net/atmosphere/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>atmosphere</h1>
 <p><strong>Fog is never switched on. It is always on, and systems <em>lean</em> on it.</strong></p>
@@ -54,7 +54,7 @@ over time. Nothing ever toggles.</p>
 <p>Fog used to be snapped on at the water&#39;s surface (illustrative — NOT runnable, which is
 why this block is <code>javascript</code> not <code>js</code>: the doc system SMOKE-TESTS every <code>js</code> example, and
 this pseudocode&#39;s identifiers are all undefined):</p>
-<pre><code class="language-javascript">if (underwater &amp;&amp; !wasUnderwater) { scene.fogMode = EXP2; fogColor = blue; fogDensity = 0.12 }
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">if</span> <span class="token punctuation">(</span>underwater <span class="token operator">&amp;&amp;</span> <span class="token operator">!</span>wasUnderwater<span class="token punctuation">)</span> <span class="token punctuation">{</span> scene<span class="token punctuation">.</span>fogMode <span class="token operator">=</span> <span class="token constant">EXP2</span><span class="token punctuation">;</span> fogColor <span class="token operator">=</span> blue<span class="token punctuation">;</span> fogDensity <span class="token operator">=</span> <span class="token number">0.12</span> <span class="token punctuation">}</span>
 </code></pre>
 <p>That&#39;s <strong>two</strong> discontinuities in one line:</p>
 <ol>
@@ -161,7 +161,9 @@ a transition <em>feel</em> right, and feel is worth pinning down.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -170,6 +172,7 @@ a transition <em>feel</em> right, and feel is worth pinning down.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -191,6 +194,8 @@ a transition <em>feel</em> right, and feel is worth pinning down.</p>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -220,6 +225,8 @@ a transition <em>feel</em> right, and feel is worth pinning down.</p>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -319,6 +326,6 @@ a transition <em>feel</em> right, and feel is worth pinning down.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

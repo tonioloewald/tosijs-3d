@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>virtual-gamepad — tosijs-3d</title>
   <meta name="description" content="Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad, XR controllers, touch) produce a VirtualGamepad, and each entity type…" />
   <link rel="canonical" href="https://3d.tosijs.net/virtual-gamepad/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>virtual-gamepad</h1>
 <p>Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
@@ -60,13 +60,13 @@ XR controllers, touch) produce a <code>VirtualGamepad</code>, and each entity ty
 <p>Every input source produces a standardized <code>VirtualGamepad</code>. The provider merges
 them all (max-abs for sticks, max for buttons) and runs your mapping. Plug in a
 gamepad mid-game, touch the SVG overlay, or enter XR — it all composes automatically.</p>
-<pre><code class="language-typescript">const provider = new MappedInputProvider(
-  bipedMapping,          // how gamepad maps to player actions
-  keyboardSource,        // WASD/Space/etc.
-  hardwareSource,        // any connected gamepad
-  touchSource,           // SVG touch overlay
-)
-entity.inputProvider = provider
+<pre><code class="language-typescript" data-highlighted><span class="token keyword">const</span> provider <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">MappedInputProvider</span><span class="token punctuation">(</span>
+  bipedMapping<span class="token punctuation">,</span>          <span class="token comment">// how gamepad maps to player actions</span>
+  keyboardSource<span class="token punctuation">,</span>        <span class="token comment">// WASD/Space/etc.</span>
+  hardwareSource<span class="token punctuation">,</span>        <span class="token comment">// any connected gamepad</span>
+  touchSource<span class="token punctuation">,</span>           <span class="token comment">// SVG touch overlay</span>
+<span class="token punctuation">)</span>
+entity<span class="token punctuation">.</span>inputProvider <span class="token operator">=</span> provider
 </code></pre>
 <h2>VirtualGamepad</h2>
 <p>Two sticks + buttons, matching a standard controller layout:</p>
@@ -115,8 +115,8 @@ controls. Can be a closure with persistent state (e.g. throttle accumulator for 
 <p>Built-in presets: <code>bipedMapping</code>, <code>carMapping</code>, <code>aircraftMapping()</code>.</p>
 <p>Each preset has a matching descriptor (e.g. <code>bipedMappingDescriptor</code>) that pairs
 the mapping function with human-readable labels for UI visualizers:</p>
-<pre><code class="language-typescript">bipedMappingDescriptor.labels
-// { leftStickY: &#39;move&#39;, buttonA: &#39;jump&#39;, leftBumper: &#39;sprint&#39;, ... }
+<pre><code class="language-typescript" data-highlighted>bipedMappingDescriptor<span class="token punctuation">.</span>labels
+<span class="token comment">// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sprint', ... }</span>
 </code></pre>
 <h2>MappedInputProvider</h2>
 <p>Bridges gamepad sources to the <code>InputProvider</code> interface. Merges multiple sources,
@@ -329,7 +329,9 @@ preview.append(div(
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -338,6 +340,7 @@ preview.append(div(
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -359,6 +362,8 @@ preview.append(div(
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -388,6 +393,8 @@ preview.append(div(
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -487,6 +494,6 @@ preview.append(div(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

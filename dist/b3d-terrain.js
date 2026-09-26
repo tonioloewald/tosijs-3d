@@ -569,6 +569,14 @@ export class B3dTerrain extends B3dChild {
      * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
      * after changing attributes or profiles.
      */
+    /**
+     * The floating-origin offset: LOGICAL world = render position + this. What a
+     * consumer of {@link heightSampler} (which speaks logical coordinates) needs
+     * to place things in the scene it renders into.
+     */
+    get originOffset() {
+        return { x: this.originOffsetX, z: this.originOffsetZ };
+    }
     heightSampler() {
         const fn = this.makeHeightFn();
         const offX = this.originOffsetX;
@@ -1763,8 +1771,7 @@ export class B3dTerrain extends B3dChild {
             this.biomePlugin.params.lapseRate = lapse > 0 ? lapse : 0.004;
         }
         // Same memo rule: the attribute wins only when it CHANGES, so a panel
-        // writing params directly is not stomped every frame. Negative = leave
-        // the plugin's own value alone.
+        // writing params directly is not stomped every frame.
         const t = Number(a.biomeTemperature);
         const m = Number(a.biomeMoisture);
         const v = Number(a.biomeVolcanicScale);

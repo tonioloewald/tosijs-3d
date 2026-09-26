@@ -12,6 +12,11 @@ export declare class B3dSkybox extends AbstractMesh {
         turbidity: number;
         spaceStart: number;
         spaceFull: number;
+        atmosphere: number;
+        dust: number;
+        zenithTint: string;
+        horizonTint: string;
+        tintStrength: number;
         /**
          * A BAKED cube map behind the sky — the root path of six files named
          * `<root>_px.png` … `<root>_nz.png` (see [skybox-baker](?skybox-baker.ts)).
@@ -51,6 +56,24 @@ export declare class B3dSkybox extends AbstractMesh {
          * 3 tucks the tail in. At 1 the sky reads soft-focus.
          */
         starfieldSharpness: number;
+        /**
+         * How bright the decoded stars are — the intensity cap on the whole point
+         * sky. The brightest few stay the brightest things in it without blowing
+         * the band out white.
+         */
+        starfieldGain: number;
+        /**
+         * The FAINT mass's brightness — the floor every decoded star is lifted to.
+         * Most stars sit on it, and the warm colour lives in them; `starfieldGain`
+         * only moves the bright few above it.
+         */
+        starfieldFloor: number;
+        /**
+         * TWINKLE — scintillation strength, 0 for none. Scaled by the GAS (so it
+         * is zero on an airless world and fades as you climb out) and strongest
+         * at the horizon, where the path through the air is longest.
+         */
+        starfieldTwinkle: number;
         /** How much bigger a full-size object (a distant galaxy) is than a star. */
         starfieldSizeScale: number;
         /**
@@ -188,6 +211,20 @@ export declare class B3dSkybox extends AbstractMesh {
     private _nebulaBase;
     private starEl;
     /**
+     * Every attribute `_buildStarfield` reads. Changing one on a LIVE sky
+     * rebuilds the starfield (see `render`) — they were construction-time only,
+     * so a document applied to an existing sky got no stars and no error
+     * (tosijs-3d#88). `skyboxSize` is not here: it sizes the dome itself.
+     */
+    private static STARFIELD_KEYS;
+    private _builtStarfieldKey;
+    private _starfieldKey;
+    /** Texels per face of the loaded data cube — `_applyStarLook` needs it. */
+    private _starTexels;
+    private _applyStarLook;
+    /** Everything `_buildStarfield` makes, released — including the tilt cache. */
+    private _disposeStarfield;
+    /**
      * The background starfield — built ONCE, then never touched.
      *
      * Points, not billboards: a star is a point source and there is nothing to
@@ -208,7 +245,18 @@ export declare class B3dSkybox extends AbstractMesh {
      * which is pinned to the camera anyway. Read live rather than cached because
      * the thing that moves is someone else's mesh.
      */
+    /**
+     * Collect the `<tosi-b3d-moon>` children into the shader's arrays. The sun
+     * direction is the REAL sun: by night `sunVector` is the day arc replayed
+     * (it is where the moonlight comes from), so the real sun is its antipode.
+     */
+    private _applyMoons;
+    /** A `<tosi-b3d-moon>` changed (or came or went): redraw the moons. */
+    moonsChanged(): void;
     private _vacuumNow;
+    /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
+    private _gasNow;
+    private _gas;
     /**
      * Hide the sky behind whatever medium you are standing in.
      *

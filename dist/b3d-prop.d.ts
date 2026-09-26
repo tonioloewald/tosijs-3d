@@ -23,7 +23,6 @@ export declare class B3dProp extends AbstractMesh {
     sceneReady(owner: B3d): void;
     /** The library `type` to load from, mounting one for `libraryUrl` if needed. */
     private _resolveLibrary;
-    private _applyScale;
     render(): void;
     sceneDispose(): void;
 }

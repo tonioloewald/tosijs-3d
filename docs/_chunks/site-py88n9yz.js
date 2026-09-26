@@ -1,0 +1,5 @@
+import{Ve,B,nt,Vt}from"./site-b66xxmk6.js";import{wt}from"./site-0fv73r5j.js";import{a}from"./site-pey1240t.js";class Ep extends wt{constructor(r){super(nt,B,(o)=>+o,"FlowGraphBooleanToFloat",r)}}class Ap extends wt{constructor(r){super(nt,Vt,(o)=>Ve.FromValue(+o),"FlowGraphBooleanToInt",r)}}class Rp extends wt{constructor(r){super(B,nt,(o)=>!!o,"FlowGraphFloatToBoolean",r)}}class Ip extends wt{constructor(r){super(Vt,nt,(o)=>!!o.value,"FlowGraphIntToBoolean",r)}}class Pp extends wt{constructor(r){super(Vt,B,(o)=>o.value,"FlowGraphIntToFloat",r)}}class Mp extends wt{constructor(r){super(B,Vt,(o)=>{switch(r?.roundingMode){case"floor":return Ve.FromValue(Math.floor(o));case"ceil":return Ve.FromValue(Math.ceil(o));case"round":return Ve.FromValue(Math.round(o));default:return Ve.FromValue(o)}},"FlowGraphFloatToInt",r)}}var e=!1;function wp(){if(e)return;e=!0,a("FlowGraphBooleanToFloat",Ep),a("FlowGraphBooleanToInt",Ap),a("FlowGraphFloatToBoolean",Rp),a("FlowGraphIntToBoolean",Ip),a("FlowGraphIntToFloat",Pp),a("FlowGraphFloatToInt",Mp)}wp();
+export{Ep,Ap,Rp,Ip,Pp,Mp,wp};
+
+//# debugId=F01FFD56BFC5DACF64756E2164756E21
+//# sourceMappingURL=site-py88n9yz.js.map

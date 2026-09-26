@@ -101,7 +101,7 @@ preview.append(
 import { svgElements } from 'tosijs';
 import { inputField } from './keyboard.js';
 import { w3dTheme } from './w3d-theme.js';
-import { handlerOf } from './widgets3d.js';
+import { handlerOf } from './handler-of.js';
 const { g, text } = svgElements;
 /** Trim to `precision`, then drop trailing zeros: `1.500` reads as `1.5`. */
 function show(n, precision) {

@@ -1190,6 +1190,18 @@ export function slider3d(config) {
         y: TRACK_Y - 3,
     });
     const knob = circle({ cy: TRACK_Y, r: 10, fill: '#fff' });
+    // Taller than the track so it still reads where the fill covers it.
+    const usefulEl = config.useful
+        ? rect({
+            height: 12,
+            rx: 6,
+            ry: 6,
+            fill: TH.ACCENT,
+            'fill-opacity': 0.22,
+            y: TRACK_Y - 6,
+            'data-part': 'useful',
+        })
+        : null;
     // Exact-value readout: shown (in place of the track) while you point at or drag
     // the slider, so the precise number is legible even at low XR texture res. The
     // label stays visible beside it. Decimals follow the step.
@@ -1248,7 +1260,7 @@ export function slider3d(config) {
         rx: 6,
         fill: 'transparent',
     });
-    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [labelClipPath, lbl] : []), trackEl, fillEl, knob, valText, fixedVal), 'cursor:pointer');
+    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [labelClipPath, lbl] : []), ...(usefulEl ? [usefulEl] : []), trackEl, fillEl, knob, valText, fixedVal), 'cursor:pointer');
     let trackX = 0;
     let trackW = 0;
     const reflect = () => {
@@ -1304,6 +1316,15 @@ export function slider3d(config) {
             trackW = Math.max(20, width - trackX - TH.PAD_X - 10);
             trackEl.setAttribute('x', String(trackX));
             trackEl.setAttribute('width', String(trackW));
+            if (usefulEl && config.useful) {
+                const [lo, hi] = config.useful;
+                const f0 = Math.max(0, valueToFraction(lo, min, max, scale, zeroStop));
+                const f1 = Math.min(1, valueToFraction(hi, min, max, scale, zeroStop));
+                const ok = Number.isFinite(f0) && Number.isFinite(f1) && f1 > f0;
+                usefulEl.setAttribute('display', ok ? 'inline' : 'none');
+                usefulEl.setAttribute('x', String(trackX + (ok ? f0 : 0) * trackW - 6));
+                usefulEl.setAttribute('width', String(ok ? (f1 - f0) * trackW + 12 : 0));
+            }
             fixedVal.setAttribute('x', String(width - TH.PAD_X));
             valText.setAttribute('x', String(width - TH.PAD_X));
             /*
@@ -2137,7 +2158,17 @@ export function panel3d(config, ...widgets) {
     closed over its own index rather than sharing one, which is also what lets
     `showPopup` need no "which widget is calling" argument.
     */
-    const hostFor = (index) => ({
+    /*
+    WHERE A ROW IS DRAWN, in the content frame (below the top padding). Body rows
+    sit under the pinned block and move with the scroll; header rows sit at their
+    own offsets and do not. This used to be `offsets[index] - scroll` for both —
+    wrong by `headerH` for every body row once a header existed, and header
+    widgets were never handed a host at all.
+    */
+    const rowY = (index, inHeader) => inHeader
+        ? headerLayout.offsets[index] ?? 0
+        : headerH + (offsets[index] ?? 0) - scroll;
+    const hostFor = (index, inHeader = false) => ({
         /*
         A POPUP IS A POPUP — it prefers a LAYER and only falls back to being bounded
         by the panel when there genuinely is not one.
@@ -2165,13 +2196,12 @@ export function panel3d(config, ...widgets) {
             return this.showLayer(config, ...items);
         },
         boundedPopup(config, ...items) {
-            const top = offsets[index] ?? 0;
             return baseHost.showPopup({
                 ...config,
                 anchor: {
                     ...config.anchor,
                     x: config.anchor.x + padding,
-                    y: config.anchor.y + paddingTop + top - scroll,
+                    y: config.anchor.y + paddingTop + rowY(index, inHeader),
                 },
             }, ...items);
         },
@@ -2222,15 +2252,14 @@ export function panel3d(config, ...widgets) {
                 //
                 // `boundedPopup`, NOT `showPopup`: that now prefers a layer and would
                 // call straight back into here.
-                return hostFor(index).boundedPopup(config, ...items);
+                return hostFor(index, inHeader).boundedPopup(config, ...items);
             }
-            const top = offsets[index] ?? 0;
             const placed = {
                 ...config,
                 anchor: {
                     ...config.anchor,
                     x: config.anchor.x + padding,
-                    y: config.anchor.y + paddingTop + top - scroll,
+                    y: config.anchor.y + paddingTop + rowY(index, inHeader),
                 },
             };
             /*
@@ -2305,7 +2334,7 @@ export function panel3d(config, ...widgets) {
             return { width, height };
         },
         get top() {
-            return (offsets[index] ?? 0) + paddingTop - scroll;
+            return paddingTop + rowY(index, inHeader);
         },
     });
     // `showLayer` is per-widget (it needs the widget's offset), so the shared base
@@ -2350,6 +2379,7 @@ export function panel3d(config, ...widgets) {
     a five-minute detour.
     */
     widgets.forEach((w, i) => w.setHost?.(hostFor(i)));
+    headerWidgets.forEach((w, i) => w.setHost?.(hostFor(i, true)));
     const handlePointer = (kind, x, y) => {
         /*
         THE OVERLAY WINS, and an outside press dismisses.

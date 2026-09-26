@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=028a111225fb" data-tosi-doc-system />
   <title>Skybox Baker — tosijs-3d</title>
   <meta name="description" content="Stand inside a galaxy and photograph the sky. Six 90° renders from one point become a cube map — a starfield with real structure, for the cost of a texture…" />
   <link rel="canonical" href="https://3d.tosijs.net/skybox-baker/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=212f70522ead" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Skybox Baker</h1>
 <p><strong>Stand inside a galaxy and photograph the sky.</strong> Six 90° renders from one point
@@ -55,7 +55,7 @@ an actual system, so the constellations a character sees from the ground are the
 same objects on the navigation chart. A decorative starfield can never be that,
 however pretty.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dGalaxy, bakeSkyboxCube, bakeSkyPair, starsFromVoxelGalaxy, facesToZip, defaultBakePose, SHIPPED_SKY, button3d, label3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { bake } = tosi({
@@ -78,6 +78,9 @@ let sceneEl = null
 const galaxy = b3dGalaxy({
   seed: bake.seed,
   starCount: bake.stars,
+  // The shipped sky&#39;s dim budget: dim stars only exist near the bake point,
+  // so this costs nothing until the pair bake gathers them.
+  dimBudget: SHIPPED_SKY.voxel.dimBudget,
   particleSize: bake.particleSize,
   coreSize: 0.12,
   radius: 100,
@@ -131,7 +134,7 @@ preview.append(
         // static/sky, so a rebake is one tap here and one tap below. (It used
         // to live only in commit messages; reproducing it took archaeology.)
         button3d({ label: &#39;use shipped recipe&#39;, handleClick: () =&gt; {
-          bake.stars = SHIPPED_SKY.stars
+          bake.stars = SHIPPED_SKY.voxel.brightBudget
           bake.particleSize = SHIPPED_SKY.particleSize
           bake.outFraction = SHIPPED_SKY.outFraction
           bake.offPlane = SHIPPED_SKY.offPlane
@@ -140,11 +143,20 @@ preview.append(
         } }),
         button3d({ label: &#39;bake pair (256 + 1024 data)&#39;, handleClick: async () =&gt; {
           bake.status = &#39;baking pair…&#39;
+          const eye = defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf())
+          // THE POINTS come from the voxel galaxy: every bright star, the dim
+          // stars around the eye, the shell — what bin/bake-stars writes too.
+          const sky = starsFromVoxelGalaxy(galaxy.galaxy, undefined, eye, {
+            radius: 100,
+            dimReach: SHIPPED_SKY.voxel.dimReach,
+            floor: SHIPPED_SKY.voxel.floor,
+          })
           const res = await bakeSkyPair(sceneEl.scene, galaxy, {
-            ...defaultBakePose(100, bake.outFraction.valueOf(), bake.offPlane.valueOf()),
+            ...eye,
             roll: bake.roll.valueOf(),
             smoothSize: 256,
             dataSize: 1024,
+            objects: sky.objects,
           })
           const zip = facesToZip(
             [
@@ -219,7 +231,7 @@ cheap PRNG replaced a Mersenne Twister per star (see <code>galaxy-data</code>). 
 <thead>
 <tr>
 <th>stars</th>
-<th><code>generateGalaxy</code></th>
+<th><code>generateGalaxy</code> (0.8.3)</th>
 </tr>
 </thead>
 <tbody><tr>
@@ -308,7 +320,9 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
       <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
       <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
@@ -317,6 +331,7 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -338,6 +353,8 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
@@ -367,6 +384,8 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
@@ -466,6 +485,6 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.3"></script>
+  <script type="module" src="../hydrate.js?v=028a111225fb"></script>
 </body>
 </html>

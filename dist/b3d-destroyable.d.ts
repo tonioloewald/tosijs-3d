@@ -93,7 +93,6 @@ export declare class B3dDestroyable extends AbstractMesh {
      */
     chain: ChainLink[];
     private _behavior?;
-    private _onShift?;
     /**
      * Optional code-set hook, run once when this target is destroyed (before the
      * visual outcome). The clean seam for putting a linked player/vehicle into a
@@ -144,7 +143,6 @@ export declare class B3dDestroyable extends AbstractMesh {
      * decision, not a placement one, and it breaks normals.
      */
     private _stopLoad;
-    private _applyScale;
     render(): void;
     sceneDispose(): void;
 }

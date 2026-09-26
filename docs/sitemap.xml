@@ -75,6 +75,7 @@
   <url><loc>https://3d.tosijs.net/b3d-car/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-collisions/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-death/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-decorator/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-exploder/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-galaxy/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-input-focus/</loc></url>
@@ -83,6 +84,7 @@
   <url><loc>https://3d.tosijs.net/b3d-library/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-light/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-loader/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-moon/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-particles/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-physics/</loc></url>
@@ -119,9 +121,12 @@
   <url><loc>https://3d.tosijs.net/medium/</loc></url>
   <url><loc>https://3d.tosijs.net/performance/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
+  <url><loc>https://3d.tosijs.net/scatter/</loc></url>
   <url><loc>https://3d.tosijs.net/shadow-decal/</loc></url>
   <url><loc>https://3d.tosijs.net/space/</loc></url>
   <url><loc>https://3d.tosijs.net/swim-aim/</loc></url>
+  <url><loc>https://3d.tosijs.net/touch-gesture/</loc></url>
+  <url><loc>https://3d.tosijs.net/touch-orbit/</loc></url>
   <url><loc>https://3d.tosijs.net/ui/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/vehicles/</loc></url>
@@ -178,5 +183,7 @@
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>
   <url><loc>https://3d.tosijs.net/world-topology/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/voxel-galaxy/</loc></url>
+  <url><loc>https://3d.tosijs.net/star-populations/</loc></url>
   <url><loc>https://3d.tosijs.net/cloud-field/</loc></url>
 </urlset>

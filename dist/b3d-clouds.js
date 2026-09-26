@@ -114,9 +114,10 @@ tosi-b3d { width: 100%; height: 100%; }
 | `seed` | `1` | Deterministic layout — same seed, same sky |
 */
 /*{ "parent": "Environment", "order": 501 }*/
+import { inheritedWind } from './wind.js';
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, sceneDelta } from './b3d-utils.js';
-import { MersenneTwister } from './mersenne-twister.js';
+import { Xoshiro128 } from './mersenne-twister.js';
 import { band } from './atmosphere.js';
 import { CloudShadowMap, projectShadowXZ, } from './cloud-shadows.js';
 const DOWN = { x: 0, y: -1, z: 0 };
@@ -246,13 +247,10 @@ export class B3dClouds extends B3dChild {
      * a scene that never sets `windSpeed` behaves exactly as it did.
      */
     _wind() {
-        if (this.wind !== 'own') {
-            const scene = this.owner?.wind;
-            if (scene != null && (scene.x !== 0 || scene.z !== 0)) {
-                return { windX: scene.x, windZ: scene.z };
-            }
-        }
-        return { windX: this.windX, windZ: this.windZ };
+        const scene = inheritedWind(this.wind, this.owner?.wind);
+        return scene != null
+            ? { windX: scene.x, windZ: scene.z }
+            : { windX: this.windX, windZ: this.windZ };
     }
     /**
      * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
@@ -343,7 +341,7 @@ export class B3dClouds extends B3dChild {
     _lobeScale = 1;
     _lobeBottom = 0;
     _buildClouds(owner, scene) {
-        const rng = new MersenneTwister(this.seed);
+        const rng = new Xoshiro128(this.seed);
         this._baseColor = BABYLON.Color3.FromHexString(this.color);
         const mat = new BABYLON.StandardMaterial('cloud-mat', scene);
         // FLAT by default — deliberate, not lazy. A cloud is a CLUMP of overlapping opaque blobs; the

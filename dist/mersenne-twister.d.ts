@@ -24,6 +24,34 @@ export declare class MersenneTwister {
  * Seeded pseudo-random number generator with convenience methods.
  * Wraps MersenneTwister for deterministic random sequences.
  */
+/**
+ * xoshiro128** (Blackman & Vigna), seeded by splitmix32 — the engine behind
+ * `PRNG` since 0.8.4.
+ *
+ * WHY NOT THE MERSENNE TWISTER. MT keeps what we like — deterministic
+ * everywhere, seeded by one integer — but carries 624 words of state and
+ * regenerates all of them before its first draw, so merely CONSTRUCTING one
+ * cost ~13 µs. A star system builds one per planet, and scoring candidate
+ * systems (GALAXY-DESIGN.md → interesting stars) builds thousands. This has 4
+ * words of state: ~0.17 µs to construct and draw 8 (75× faster), and it
+ * passes BigCrush and PractRand, which MT does not (it fails the
+ * linear-complexity tests). Period 2¹²⁸, far past anything drawn here.
+ *
+ * Pure 32-bit integer maths (`Math.imul`, shifts), so the sequence is
+ * identical in every JS engine. `MersenneTwister` stays exported for anyone
+ * who needs the old sequences.
+ */
+export declare class Xoshiro128 {
+    private a;
+    private b;
+    private c;
+    private d;
+    constructor(seed: number);
+    /** The next 32-bit unsigned integer — the reference `next()`. */
+    int32(): number;
+    /** Random float in [0, 1) — the same 32-bit resolution MT's `random()` had. */
+    random(): number;
+}
 export declare class PRNG {
     private mt;
     private gaussContext;
