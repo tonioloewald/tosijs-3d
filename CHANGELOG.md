@@ -17,6 +17,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   foul), the storm's shadow on the ground beneath (the shadow reads the same
   field), and full strength even when the global dial says clear. A drifting
   cell re-bakes about once per 10 m of travel.
+  Land and Sky has a **storm** toggle in its Weather group: a storm drifting
+  with the wind (the scene's wind now matches the deck's) that passes over
+  you and recedes into view.
 - **Weather, stage 1: the weather where you are** (WEATHER-DESIGN.md, board
   #255). `b3d.weatherAt(x, z)` (and `weatherHere()`) answers what every
   weather consumer asks: the scene's base wind plus every

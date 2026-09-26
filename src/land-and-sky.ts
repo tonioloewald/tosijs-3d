@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -46,6 +46,7 @@ const { demo } = tosi({
 const { sky } = tosi({
   sky: {
     coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    storm: false,
     // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
     // Moon: black noon, stars out); the tints colour the scattered light only.
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
@@ -181,8 +182,26 @@ const terrain = b3dTerrain({
 
 applyVolcano(demo.volcano.valueOf())
 
+// A STORM, as weather rather than scenery (WEATHER-DESIGN stage 2): a cell
+// with coverage, drifting with the wind. It starts just behind you, passes
+// overhead (the light goes, its shadow crosses the valley) and then recedes
+// into view to the east. Toggling it on again starts a new one.
+let storm = null
+sky.storm.observe(() => {
+  storm?.remove()
+  storm = null
+  if (sky.storm.value) {
+    storm = b3dWeatherCell({ x: -1200, z: 0, radius: 1000, coverage: 0.9, drift: 'wind' })
+    scene.append(storm)
+  }
+})
+
 const scene = b3d(
   {
+    // The SCENE's wind matches the deck's (toward +X), so a drifting storm
+    // travels with the clouds it is made of.
+    windSpeed: sky.wind,
+    windBearingDeg: 90,
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
@@ -214,6 +233,7 @@ const scene = b3d(
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
+      toggle3d({ label: 'storm', value: sky.storm }),
       // Signed: positive streaks ALONG the wind, negative ACROSS it.
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
