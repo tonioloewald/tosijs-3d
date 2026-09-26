@@ -74,7 +74,8 @@
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "stop": "bun bin/site.ts --stop",
     "sizes": "bun bin/sizes.ts",
-    "keep": "bun bin/keep.ts"
+    "keep": "bun bin/keep.ts",
+    "test-consumer": "bun bin/smoke-consumer.ts"
   },
   "peerDependencies": {
     "@babylonjs/core": "^9.0.0",

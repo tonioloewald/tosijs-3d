@@ -196,11 +196,17 @@ export class B3dStarSystem extends B3dChild {
   declare star: string
   declare scale: number
   declare orbitScale: number
-  // Shadows HTMLElement.animate (a method on the prototype). tosijs installs
-  // this as a string-typed reactive attribute; renaming would be a breaking
-  // public API change so we just override the inherited type.
-  // @ts-expect-error -- intentional override of HTMLElement.animate
-  declare animate: 'on' | 'off'
+  /**
+   * `'on'` | `'off'` — whether the planets orbit.
+   *
+   * Typed `any` ON PURPOSE. The name shadows `HTMLElement.animate` (a method),
+   * and renaming the attribute would break markup. The source used to override
+   * it with `@ts-expect-error`, but that directive does not survive into the
+   * published `.d.ts`: every consumer compiling with `skipLibCheck` off got
+   * TS2416 from OUR types (found by bin/smoke-consumer.ts, the publish flow's
+   * consumer check). `any` is the one type assignable to both.
+   */
+  declare animate: any
   declare showOrbits: 'on' | 'off'
   declare x: number
   declare y: number
