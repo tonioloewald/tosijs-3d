@@ -24,7 +24,7 @@ CONTRACT with publish-smoke: print the tarball's path, and test THAT file.
 */
 
 import { $ } from 'bun'
-import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'fs'
+import { copyFileSync, mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import * as path from 'path'
 
