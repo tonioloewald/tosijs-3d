@@ -257,7 +257,7 @@ export class B3dWater extends AbstractMesh {
     windDirectionY: number
   } {
     const attrs = this as any
-    const scene = inheritedWind(attrs.wind, this.owner?.wind)
+    const scene = inheritedWind(attrs.wind, this.owner?.weatherHere().wind)
     if (scene != null) return waterWind(scene)
     return {
       windForce: attrs.windForce,

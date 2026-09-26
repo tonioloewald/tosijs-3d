@@ -404,7 +404,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
 
   /** The drift this frame: the scene's wind, or this element's own. */
   private _wind(): { windX: number; windZ: number } {
-    const scene = inheritedWind(this.wind, this.owner?.wind)
+    const scene = inheritedWind(this.wind, this.owner?.weatherHere().wind)
     return scene != null
       ? { windX: scene.x, windZ: scene.z }
       : { windX: this.windX, windZ: this.windZ }

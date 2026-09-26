@@ -4198,6 +4198,68 @@
     ]
   },
   {
+    "module": "b3d-weather-cell",
+    "tag": "tosi-b3d-weather-cell",
+    "summary": "b3d-weather-cell",
+    "attributes": [
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Centre, world XZ"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Centre, world XZ"
+      },
+      {
+        "name": "radius",
+        "default": "200",
+        "description": "Reach (m); influence eases to nothing at the rim"
+      },
+      {
+        "name": "windSpeed",
+        "default": "0",
+        "description": "Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's"
+      },
+      {
+        "name": "windBearingDeg",
+        "default": "0",
+        "description": "Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's"
+      },
+      {
+        "name": "coverage",
+        "default": "0",
+        "description": "Cloud cover it adds (−1…1; summed, clamped). `0` = no opinion"
+      },
+      {
+        "name": "precipitation",
+        "default": "0",
+        "description": "Rain/snow 0–1 (the max of overlapping cells wins)"
+      },
+      {
+        "name": "storminess",
+        "default": "0",
+        "description": "Lightning likelihood 0–1 (max wins)"
+      },
+      {
+        "name": "temperature",
+        "default": "0",
+        "description": "Temperature offset in degrees (summed)"
+      },
+      {
+        "name": "drift",
+        "default": "'off'",
+        "description": "`'wind'` = a weather system: it travels with the scene's wind"
+      },
+      {
+        "name": "lifetime",
+        "default": "0",
+        "description": "Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`"
+      }
+    ]
+  },
+  {
     "module": "control-input",
     "summary": "control-input",
     "attributes": [
@@ -4807,6 +4869,37 @@
         "name": "dimMix",
         "default": "G6–M",
         "description": "The dim population's spectral mix — underweight late M freely"
+      }
+    ]
+  },
+  {
+    "module": "weather",
+    "summary": "weather",
+    "attributes": [
+      {
+        "name": "wind",
+        "default": "vector SUM",
+        "description": "a lee subtracts, a gust adds"
+      },
+      {
+        "name": "temperature",
+        "default": "signed SUM",
+        "description": "a cold cell beside a warm one cancels"
+      },
+      {
+        "name": "coverage",
+        "default": "SUM, clamped 0–1",
+        "description": "a storm thickens the sky, a clear cell thins it"
+      },
+      {
+        "name": "precipitation",
+        "default": "MAX",
+        "description": "two storms overlapping do not rain twice as hard"
+      },
+      {
+        "name": "storminess",
+        "default": "MAX",
+        "description": "like volcanism: the worst one wins"
       }
     ]
   },

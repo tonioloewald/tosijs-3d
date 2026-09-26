@@ -1084,6 +1084,21 @@ b3d-water
   windDirectionY
   wind
 
+## b3d-weather-cell — <tosi-b3d-weather-cell>
+b3d-weather-cell
+
+  x  = 0  — Centre, world XZ
+  z  = 0  — Centre, world XZ
+  radius  = 200  — Reach (m); influence eases to nothing at the rim
+  windSpeed  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
+  windBearingDeg  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
+  coverage  = 0  — Cloud cover it adds (−1…1; summed, clamped). `0` = no opinion
+  precipitation  = 0  — Rain/snow 0–1 (the max of overlapping cells wins)
+  storminess  = 0  — Lightning likelihood 0–1 (max wins)
+  temperature  = 0  — Temperature offset in degrees (summed)
+  drift  = 'off'  — `'wind'` = a weather system: it travels with the scene's wind
+  lifetime  = 0  — Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`
+
 ## control-input
 control-input
 
@@ -1258,6 +1273,15 @@ voxel-galaxy
   fringeFalloff  = 3  — Falloff length for the fringe, in voxels
   brightMix  = O–G5  — The bright population's spectral mix — the bright/dim cut is here
   dimMix  = G6–M  — The dim population's spectral mix — underweight late M freely
+
+## weather
+weather
+
+  wind  = vector SUM  — a lee subtracts, a gust adds
+  temperature  = signed SUM  — a cold cell beside a warm one cancels
+  coverage  = SUM, clamped 0–1  — a storm thickens the sky, a clear cell thins it
+  precipitation  = MAX  — two storms overlapping do not rain twice as hard
+  storminess  = MAX  — like volcanism: the worst one wins
 
 ## widgets3d
 widgets3d

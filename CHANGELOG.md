@@ -10,6 +10,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Weather, stage 1: the weather where you are** (WEATHER-DESIGN.md, board
+  #255). `b3d.weatherAt(x, z)` (and `weatherHere()`) answers what every
+  weather consumer asks: the scene's base wind plus every
+  **`<tosi-b3d-weather-cell>`** that reaches the point, composed per quantity
+  (wind and temperature sum, coverage sums clamped, precipitation and
+  storminess take the max). Clouds, water and ambient now read the wind AT
+  THE VIEWER rather than one scene-wide value, so a lee is calm and a squall
+  is local. A cell with `drift="wind"` travels with the wind (a weather
+  system), and `lifetime` grows, holds and ends it. The pure model is
+  `weather.ts`. Measured on the new page: leaves' wind 12 → 0.96 m/s crossing
+  a lee's centre.
 - **Caustics** (board #198, tosijs-3d#16): light through the moving surface,
   dancing on whatever is beneath a `twoSided` `b3d-water` (`caustics`,
   `'auto'` = on whenever `twoSided`; `causticsStrength`, `causticsScale`).

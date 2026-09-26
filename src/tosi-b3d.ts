@@ -317,6 +317,12 @@ import {
   replaceKeepingLayers,
 } from './b3d-utils.js'
 import { NO_WIND, gustAt, windFromPolar, type Wind } from './wind.js'
+import {
+  CALM,
+  weatherAt as composeWeather,
+  type WeatherCell,
+  type WeatherSample,
+} from './weather.js'
 import { faceViewer } from './dialog-placement.js'
 import { attachSceneLayer, type PopupOwner } from './panel-layer.js'
 import {
@@ -1531,6 +1537,56 @@ export class B3d extends Component {
     return gust > 0
       ? gustAt(base, this.frameInfo().elapsed, { amount: gust })
       : base
+  }
+
+  private _weatherCells: WeatherCell[] = []
+  private _weatherDebugOff: (() => void) | null = null
+
+  /**
+   * **The weather at (x, z), now** — the scene's base (its wind, gusts
+   * included) plus every weather cell that reaches the point. The one
+   * question every weather consumer asks; see [[weather]] and
+   * WEATHER-DESIGN.md. Consumers read it at THEIR position, which is what
+   * makes a lee calm and a storm local.
+   */
+  weatherAt(x: number, z: number): WeatherSample {
+    return composeWeather(
+      { ...CALM, wind: this.wind },
+      this._weatherCells,
+      x,
+      z
+    )
+  }
+
+  /** The weather where the viewer is (the active camera). */
+  weatherHere(): WeatherSample {
+    const c = this.scene?.activeCamera?.globalPosition
+    return c ? this.weatherAt(c.x, c.z) : { ...CALM, wind: this.wind }
+  }
+
+  /** A region whose weather differs (`<tosi-b3d-weather-cell>` uses this).
+   * The cell is read live, so moving it moves its weather. Returns a remover. */
+  addWeatherCell(cell: WeatherCell): () => void {
+    this._weatherCells.push(cell)
+    if (this._weatherDebugOff == null) {
+      this._weatherDebugOff = this.addDebugSource({
+        name: 'Weather',
+        lines: () => {
+          const w = this.weatherHere()
+          return [
+            `wind ${Math.hypot(w.wind.x, w.wind.z).toFixed(1)}m/s cover=${
+              w.coverage == null ? '-' : w.coverage.toFixed(2)
+            } rain=${w.precipitation.toFixed(2)} storm=${w.storminess.toFixed(
+              2
+            )} cells=${this._weatherCells.length}`,
+          ]
+        },
+      })
+    }
+    return () => {
+      const i = this._weatherCells.indexOf(cell)
+      if (i >= 0) this._weatherCells.splice(i, 1)
+    }
   }
 
   frameInfo(): FrameInfo {

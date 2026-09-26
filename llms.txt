@@ -146,6 +146,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
 - https://3d.tosijs.net/b3d-water/ — b3d-water
   Water plane with reflections, waves, and underwater fog effect.
+- https://3d.tosijs.net/b3d-weather-cell/ — b3d-weather-cell
+  declared as a circle on the map with what it adds at its centre. Weather
 - https://3d.tosijs.net/biome-chart/ — biome-chart
   The **pure biome-classification model** under the procedural terrain shader
 - https://3d.tosijs.net/biome-plugin/ — biome-plugin
@@ -371,6 +373,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
 - https://3d.tosijs.net/weapon-fit/ — Weapon Fit
   weapon library, and a panel of coordinates wired to the thing you are looking
+- https://3d.tosijs.net/weather/ — weather
+  now?** `weatherAt(base, cells, x, z)` answers it from the scene's base weather
 - https://3d.tosijs.net/widgets3d-layout/ — Widget layout maths
   Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 - https://3d.tosijs.net/widget-box/ — widget-box

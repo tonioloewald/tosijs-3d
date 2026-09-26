@@ -287,7 +287,7 @@ export class B3dClouds extends B3dChild {
    * a scene that never sets `windSpeed` behaves exactly as it did.
    */
   private _wind(): { windX: number; windZ: number } {
-    const scene = inheritedWind(this.wind, this.owner?.wind)
+    const scene = inheritedWind(this.wind, this.owner?.weatherHere().wind)
     return scene != null
       ? { windX: scene.x, windZ: scene.z }
       : { windX: this.windX, windZ: this.windZ }

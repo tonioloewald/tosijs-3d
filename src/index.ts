@@ -403,6 +403,8 @@ export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js'
 export { B3dMoon, b3dMoon } from './b3d-moon.js'
 export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js'
+export { B3dWeatherCell, b3dWeatherCell } from './b3d-weather-cell.js'
+export type { WeatherSample, WeatherCell } from './weather.js'
 export type { Trail, TrailOptions } from './b3d-trail.js'
 
 // Character & input
