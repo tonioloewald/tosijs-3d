@@ -221,28 +221,19 @@ last **stable** tag, not the last rc.)
    ```
 
 7. **Tag** the release (annotated) — `vX.Y.Z`, matching the existing tag history
-   (`v0.3.0`, `v0.4.0`, …):
+   (`v0.3.0`, `v0.4.0`, …) — **locally, and push it only in step 9**, after the
+   dry run is green:
 
    ```sh
    git tag -a vX.Y.Z -m "vX.Y.Z"
    ```
 
-   **The tag is not the artifact until step 8 runs.** Publishing happens from a
-   specific machine, so a tag can sit unpublished for days while work continues
-   on `main` (0.7.0 did). While that window is open:
-
-   - Keep landing work normally — there is nothing to protect yet.
-   - The version's CHANGELOG section stays **editable**. The freeze rule binds on
-     PUBLICATION, not on tagging: once a version exists under any dist-tag its
-     notes must describe that tarball, but an unpublished section is still a
-     draft of what will ship.
-   - **Re-point the tag at HEAD immediately before publishing**
-     (`git tag -f -a vX.Y.Z … && git push --force origin vX.Y.Z`), or the
-     published tarball won't match the tag. This is safe precisely because
-     nothing has been published under it; it stops being safe the moment step 8
-     runs.
-   - If something breaking lands in that window, say so — the section may now be
-     titled for a smaller bump than it deserves.
+   A tag that has been pushed should never have to move. That is why the dry run
+   (step 8) comes before the tag is pushed: tosijs-ui's pilot moved its tag five
+   times. If the dry run finds something, fix it, amend the release commit, and
+   re-tag locally (`git tag -f -a vX.Y.Z …`); nothing outside this machine has
+   seen the tag yet. The version's CHANGELOG section stays editable until the
+   approval: the freeze binds on PUBLICATION, not on tagging.
 
 7a. **If it is a prerelease an adopter needs, drop the tarball where they can
 find it** — `../local-packages/`, not a scratchpad, not loose in `/tmp`:
@@ -262,47 +253,60 @@ The rule and its traps live in `tosijs-coding-practices/practices/releasing.md`
 ("Bypassing the publish loop") — written by an adopter who could not find
 tarballs packed into a session scratchpad.
 
-8. **Publish to npm** — **manual, done by a human** (not automated here):
+8. **Dry-run the publish, THEN tag.** The publish runs in GitHub Actions
+   (`.github/workflows/publish.yml`, the shared template —
+   `tosijs-coding-practices/practices/publishing-via-oidc.md`). Before the tag
+   exists, push the release commit and run every check up to staging:
 
    ```sh
-   npm publish        # publishes ./dist per package.json "main"/"exports"/"types" + "files"
+   git push
+   gh workflow run publish.yml -f tag=main -f dry_run=true
+   gh run watch "$(gh run list --workflow publish.yml -L 1 --json databaseId -q '.[0].databaseId')" --exit-status
    ```
 
-   Confirm afterwards: `npm view tosijs-3d version`.
+   It rebuilds from the frozen lockfile with the pinned Bun (`.bun-version`)
+   and **fails if any committed build file differs**, packs, runs
+   `bun run test-consumer` (`bin/smoke-consumer.ts`: the tarball installed by
+   npm with its peers, a strict typecheck of our `.d.ts`, the pure subpaths
+   under plain Node), then `release-doctor`. A failure here costs nothing: no
+   tag to move, no version number burned.
 
-   ### ⚠️ Prereleases (`-rc.N`, `-beta.N`)
+   ⚠️ `docs/` and `dist/` are only committed in the release commit, so a dry run
+   on `main` between releases fails the reproduce check by design. To rehearse
+   mid-cycle, use a throwaway branch in a `git worktree` (build, commit both,
+   dry-run the branch, delete it); that keeps the dev server untouched.
 
-   A bare `npm publish` sets npm's **`latest`** dist-tag — every plain
-   `npm i tosijs-3d` would then install the rc. For any `X.Y.Z-rc.N` version:
+9. **Tag, push the tag, and dispatch the real run:**
 
    ```sh
-   npm publish --tag next          # rc installs via `npm i tosijs-3d@next` only
+   git push origin vX.Y.Z
+   gh workflow run publish.yml -f tag=vX.Y.Z
    ```
 
-   Tag format matches the release tags with the prerelease suffix
-   (`v0.6.0-rc.1`). Mark the GitHub release as a prerelease if you cut one
-   (`gh release create vX.Y.Z-rc.N --prerelease`). The final release then
-   publishes normally — its bare `npm publish` takes `latest` and supersedes
-   the rc. If a bare publish of an rc ever happens by accident, repoint the
-   tag rather than unpublishing:
+   The run checks the tag matches `package.json`, repeats every check, then
+   **stages** the tarball (`npm stage publish`); it cannot publish on its own.
+   **Tonio approves it with 2FA**: npmjs.com → tosijs-3d → *Staged Packages*
+   (it works from a phone). The run waits up to an hour, then verifies that
+   the published bytes equal the staged tarball, the dist-tag is right, and the
+   consumer smoke passes on the registry's copy. **A green run is the statement
+   that it is published.** If the approval came after the hour, re-run with
+   `-f verify_only=true`.
 
-   ```sh
-   npm dist-tag add tosijs-3d@<last-stable> latest
-   npm dist-tag add tosijs-3d@<rc-version> next
-   ```
+   **The dist-tag is derived, not chosen:** `-rc.N` → `rc`, `-beta.N` → `beta`,
+   `-alpha.N` → `alpha`, otherwise `latest`. A prerelease can never take
+   `latest`, and the run fails if one would. (Before this flow, rcs went out
+   by hand under `next`.) Mark a prerelease's GitHub release as one if you cut
+   it (`gh release create vX.Y.Z-rc.N --prerelease`).
 
-   (Shared process: `tosijs-coding-practices/practices/releasing.md` §
-   prerelease tagging — this section is the project-local restatement at the
-   load-bearing step.)
-
-9. **Push** `main` + tags (Claude waits for an explicit nudge before any push):
-   ```sh
-   git push && git push --tags
-   ```
-   GitHub Pages redeploys from `main`'s `/docs` folder automatically.
+   GitHub Pages redeploys from `main`'s `/docs` folder automatically. At a
+   release, `virta githubPush tosijs-3d` closes the GitHub issues whose cards
+   were closed as fixed for this version.
 
 ## What Claude does vs. what you do
 
-By standing request, Claude runs steps **1–7** (stop server → bump → build → verify →
-commit → tag) and **stops before publish**. Steps **8 (npm publish)** and **9 (push)**
-are yours — Claude won't publish, and won't push without an explicit go-ahead.
+Claude runs steps **1–9**: stop the server, bump, build, verify, commit, dry-run,
+tag, and dispatch the real run. **Tonio's 2FA approval on npmjs.com is the go.**
+Nothing is public until he approves, so dispatching is safe. There is no stored
+npm token and CI cannot publish on its own (the Trusted Publisher entry allows
+staging only). For a minor or major, step 5a's human pass through every demo
+still happens before the tag.
