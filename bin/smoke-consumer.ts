@@ -159,13 +159,38 @@ try {
         .cwd(proj)
         .nothrow()
         .quiet()
-    const errors = tsc.stdout.toString().trim().split('\n').filter(Boolean)
-    const ours = errors.filter((l) => l.includes('node_modules/tosijs-3d/'))
+    /*
+    ATTRIBUTE, then judge. Only errors in OUR declarations (or the import
+    file itself: a subpath that does not resolve) fail this. Peers fight each
+    other on their own schedule — the first CI run installed a newer
+    @webgpu/types than Babylon 9's own augmentations agree with, and 16
+    errors landed in node_modules/@babylonjs and @webgpu, none of them
+    reachable from anything we ship. Those are printed, not failed, so a peer
+    regression stays visible without blocking our release on it.
+    */
+    const errors = tsc.stdout
+      .toString()
+      .trim()
+      .split('\n')
+      .filter((l) => /\(\d+,\d+\): error TS/.test(l))
+    const ours = errors.filter(
+      (l) => l.includes('node_modules/tosijs-3d/') || l.startsWith('smoke.ts')
+    )
     check(
       `our .d.ts compile for a strict consumer (skipLibCheck off; ${specs.length} entries)`,
-      tsc.exitCode === 0,
-      (ours.length ? ours : errors).slice(0, 12).join('\n       ')
+      ours.length === 0,
+      ours.slice(0, 12).join('\n       ')
     )
+    if (errors.length > ours.length) {
+      const peer = errors.length - ours.length
+      console.log(
+        `⚠️ ${peer} error(s) in PEER declarations (not ours, not failing):\n  ` +
+          errors
+            .filter((l) => !ours.includes(l))
+            .slice(0, 4)
+            .join('\n  ')
+      )
+    }
   }
 } finally {
   rmSync(work, { recursive: true, force: true })
