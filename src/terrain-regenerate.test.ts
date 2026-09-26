@@ -535,3 +535,23 @@ describe('generationKey changes whenever the SHAPE does (0.8.3 gate B2)', () => 
     expect(t.el.generationKey).toBe(before)
   })
 })
+
+describe('recenter() clears travel, not placement (board #458)', () => {
+  test('an authored worldU/worldV survives a recenter', () => {
+    const t = terrain()
+    t.el.worldU = 0.6
+    t.el.worldV = 0.3
+    t.el.originOffsetX = 5000
+    t.el.originOffsetZ = -2000
+    t.el.recenter()
+    expect(t.el.originOffsetX).toBe(0)
+    expect(t.el.originOffsetZ).toBe(0)
+    expect(t.el.worldU).toBe(0.6)
+    expect(t.el.worldV).toBe(0.3)
+  })
+  test('and the mirror-safe default is still the default', () => {
+    const t = terrain()
+    t.el.recenter()
+    expect(t.el.worldV).toBe(0.25)
+  })
+})

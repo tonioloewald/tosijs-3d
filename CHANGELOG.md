@@ -6,6 +6,14 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **`b3d-terrain.recenter()` threw away an authored `worldU`/`worldV`** (board
+  #458), resetting them to the defaults. It now clears the travel (the
+  floating-origin offset) and leaves the placement alone.
+
 ## 0.8.4
 
 **A sky you can actually see the stars in, and a world with things growing on

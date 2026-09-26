@@ -1825,14 +1825,18 @@ export class B3dTerrain extends B3dChild {
     this.lastCamX = NaN // travel term is meaningless across the discontinuity
   }
 
-  // Reset sample origin — call after a visual discontinuity
+  /*
+  Reset the sample origin — call after a visual discontinuity. It clears the
+  TRAVEL (the floating-origin offset) and leaves the PLACEMENT alone.
+
+  It used to reset `worldU`/`worldV` to the module defaults too. Nothing but
+  the author ever writes those, so that reset could only ever throw away an
+  authored placement: a terrain placed at (0.6, 0.3) came back from a recenter
+  somewhere else (0.7.0 review; board #458). An earlier version had reset v to
+  a bare 0, the mirror plane; both bugs came from recenter touching a value that
+  was never its to reset.
+  */
   recenter() {
-    this.worldU = 0
-    // NOT 0 — that is the mirror plane. Resetting to a bare zero silently
-    // undid the default and put the world back on the seam, which is the
-    // failure the default exists to prevent (and it would only show up after
-    // a recenter, i.e. hours into a session).
-    this.worldV = MIRROR_SAFE_V
     this.originOffsetX = 0
     this.originOffsetZ = 0
     this.clearPool()
