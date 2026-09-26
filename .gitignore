@@ -216,3 +216,6 @@ docs.last-good
 
 # macOS Spotlight marker the build drops into dist/ — zero bytes, never ours
 .metadata_never_index
+
+# the publish workflow's checkout of tosijs-coding-practices
+.practices/
