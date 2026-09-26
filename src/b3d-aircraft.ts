@@ -212,6 +212,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `submersible` | `false` | Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash |
+| `waterDrag` | `10` | Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater |
+| `waterTransition` | `2` | Metres over which drag blends from air to water across the surface |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 | `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
@@ -308,6 +310,26 @@ serves both directions — there's no second one to author or keep in sync.
 On the ground the wings hold level and the turn stick taxi-steers; pulling back
 rotates for takeoff (or a VTOL lifts straight up on the right trigger). A contact
 faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
+## Under water (`submersible`)
+
+A `submersible` craft passes through the water surface instead of crashing on
+it, and flies in a thicker MEDIUM once below: drag is multiplied by
+`waterDrag` (default ×10, the 2010 Manta's ratio), blended across
+`waterTransition` metres of the surface. The controls do not change; the
+craft just gets heavier, and full throttle settles at about 32% of
+`maxSpeed`. `submerged` reads 0 in air and 1 fully under.
+
+Crossing the surface dispatches **`surface-crossed`** (bubbling), with
+`detail: { entering, point, speed, aircraft }`: `entering` is true going
+down, and `point` is on the surface. Splash, wake, audio and camera cues are
+yours; the event only reports the moment.
+
+```js
+craft.addEventListener('surface-crossed', ({ detail }) => {
+  if (detail.speed > 8) splashAt(detail.point, detail.entering)
+})
+```
+
 ## Combat: three things that used to fail by doing nothing
 
 Reported together by manta-recon (#23), because they compound — an AI aircraft
@@ -535,6 +557,15 @@ export class B3dAircraft extends B3dControllable {
      * (or `groundY`) beneath it.
      */
     submersible: false,
+    /**
+     * How much thicker water is than air, as a drag multiplier (submersible
+     * only). The 2010 Manta ran identical thrust at drag 0.1 above water and
+     * 1.0 below, so ×10: full throttle settles at ~32% of `maxSpeed`
+     * underwater and the controls feel the same, just heavier.
+     */
+    waterDrag: 10,
+    /** Metres over which the drag blends from air to water across the surface. */
+    waterTransition: 2,
     // Vertical impact speed (m/s) above which a ground contact is a crash, not
     // a landing.
     crashSpeed: 8,
@@ -604,6 +635,15 @@ export class B3dAircraft extends B3dControllable {
   // Read-only flight state
   airspeed = 0
   altitude = 0
+  /**
+   * How far under the water the airframe is, 0 (air) … 1 (fully submerged),
+   * blended over `waterTransition`. 0 whenever the scene has no water or the
+   * craft is not `submersible`. Read it for camera, audio or HUD cues.
+   */
+  submerged = 0
+  private _waterEl: { mesh?: BABYLON.TransformNode } | null | undefined =
+    undefined
+  private _wasUnder: boolean | null = null
   throttleLevel = 0
   vtolActive = false
   stalling = false
@@ -909,6 +949,7 @@ export class B3dAircraft extends B3dControllable {
       offLevelSink: attrs.maxSpeed * 0.12,
       diveBoost: attrs.maxSpeed * 0.4,
       velChase: VEL_CHASE,
+      mediumDrag: 1 + Math.max(0, attrs.waterDrag - 1) * this._medium(node),
     }
 
     // Regime is picked by forward GROUND speed OR height above ground: you take
@@ -1458,6 +1499,55 @@ export class B3dAircraft extends B3dControllable {
    * Water is ground to something that cannot go under it, and scenery to
    * something that can. That is one rule, so it lives in one place.
    */
+  /**
+   * THE MEDIUM, sampled at the airframe: 0 in air, 1 underwater, blended
+   * across `waterTransition` so the drag change is felt as a thickening
+   * rather than a wall. Also the one place that notices the surface being
+   * CROSSED, and says so with a `surface-crossed` event (splash, wake, audio,
+   * camera cues are the game's; this only reports the moment).
+   *
+   * The water level is read from the MESH, like the biped's: water is
+   * viewer-centred and not origin-shifted, so the mesh is the honest answer.
+   * Looked up once and cached; a scene with no water costs nothing per frame.
+   */
+  private _medium(node: BABYLON.TransformNode): number {
+    if ((this as any).submersible !== true) {
+      this.submerged = 0
+      return 0
+    }
+    if (this._waterEl === undefined) {
+      this._waterEl =
+        (this.owner?.querySelector('tosi-b3d-water') as {
+          mesh?: BABYLON.TransformNode
+        } | null) ?? null
+    }
+    const mesh = this._waterEl?.mesh
+    if (mesh == null) {
+      this.submerged = 0
+      return 0
+    }
+    const waterY = mesh.absolutePosition.y
+    const y = node.position.y
+    const band = Math.max(1e-3, (this as any).waterTransition ?? 2)
+    this.submerged = Math.min(1, Math.max(0, (waterY - y) / band + 0.5))
+    const under = y < waterY
+    if (this._wasUnder !== null && under !== this._wasUnder) {
+      this.dispatchEvent(
+        new CustomEvent('surface-crossed', {
+          bubbles: true,
+          detail: {
+            entering: under,
+            point: { x: node.position.x, y: waterY, z: node.position.z },
+            speed: this.velocity.length(),
+            aircraft: this,
+          },
+        })
+      )
+    }
+    this._wasUnder = under
+    return this.submerged
+  }
+
   private skipForCollision(): (m: BABYLON.AbstractMesh) => boolean {
     const own = this.ownMeshes()
     const submersible = (this as any).submersible === true
@@ -2280,6 +2370,10 @@ export class B3dAircraft extends B3dControllable {
   }
 
   sceneDispose() {
+    // The water element belongs to the old scene; the next one may have none.
+    this._waterEl = undefined
+    this._wasUnder = null
+    this.submerged = 0
     // Stop waiting for a library that may never come — see `loadFromLibrary`.
     this._stopLibraryWait?.()
     this._groundDbgOff?.()

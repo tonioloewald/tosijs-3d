@@ -8,6 +8,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+### Added
+
+- **Flying under water feels like water** (board #185, manta's #3). A
+  `submersible` aircraft now meets a thicker MEDIUM below the surface:
+  `waterDrag` (×10 by default, the 2010 Manta's air:water ratio) multiplies
+  drag, blended over `waterTransition` metres. The controls are unchanged; full
+  throttle settles at ~32% of `maxSpeed`. **`surface-crossed`** fires on each
+  crossing with `{ entering, point, speed, aircraft }` for splash, wake and
+  audio cues, and **`submerged`** (0–1) is readable. In the pure model:
+  `FlyByWireConfig.mediumDrag`, and drag now clamps at rest instead of
+  overshooting into reverse on a long frame.
+
 ### Fixed
 
 - **Every scene with a glass gamepad logged a type warning** (`gamepad is

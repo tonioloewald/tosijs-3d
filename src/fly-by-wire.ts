@@ -96,6 +96,14 @@ export interface FlyByWireConfig {
   diveBoost: number
   /** How fast the velocity vector chases its target (1/s) — the forgiveness knob. */
   velChase: number
+  /**
+   * The MEDIUM, as a drag multiplier: 1 is air, and water is thicker (the 2010
+   * Manta ran identical thrust at drag 0.1 above water and 1.0 below — ×10).
+   * Scales plane-regime drag AND hover damping, so terminal speed at a given
+   * throttle falls by √mediumDrag (≈ 32% at ×10) while the controls stay the
+   * same. Optional: omitted means 1.
+   */
+  mediumDrag?: number
 }
 
 export interface FlyByWireCommand {
@@ -239,7 +247,9 @@ export function flyByWireStep(
   and it removes the oddity Tonio hit: a resting setting that quietly kept
   accelerating past the aircraft's advertised top speed.
   */
-  const dragK = cfg.maxSpeed > 0 ? cfg.accel / (cfg.maxSpeed * cfg.maxSpeed) : 0
+  const medium = Math.max(1e-3, cfg.mediumDrag ?? 1)
+  const dragK =
+    (cfg.maxSpeed > 0 ? cfg.accel / (cfg.maxSpeed * cfg.maxSpeed) : 0) * medium
   const detent = cfg.afterburnerDetent ?? 0.9
   const reheat =
     setting >= 0.999 && lift > detent
@@ -256,13 +266,16 @@ export function flyByWireStep(
   // decelerate into a hover.
   const airbrake =
     setting <= 1e-6 && lift < 0 ? -lift * (cfg.brakeAccel ?? cfg.accel) : 0
+  // Drag is applied separately and CLAMPED: it can bring speed to rest but
+  // never reverse it. Unclamped, a thick medium (water, `mediumDrag` ≈ 10) over
+  // one long frame overshot zero and threw the craft backwards.
+  const dragLoss = Math.min(
+    Math.abs(state.speed),
+    t * dragK * state.speed * state.speed * dt
+  )
   state.speed +=
-    t *
-    (cfg.accel * setting +
-      reheatAccel * reheat -
-      dragK * state.speed * state.speed -
-      airbrake) *
-    dt
+    t * (cfg.accel * setting + reheatAccel * reheat - airbrake) * dt -
+    Math.sign(state.speed) * dragLoss
   // DRONE FORE/AFT IS THE LEAN, AND IT IS SYMMETRIC. Nose down accelerates,
   // nose UP decelerates and — past zero — walks you backwards. This used to be
   // `max(0, -pitch)`: leaning back did nothing, so a hovering craft had no way
@@ -286,7 +299,10 @@ export function flyByWireStep(
     if (state.speed > 0) state.speed = Math.max(0, state.speed - brake)
     else if (state.speed < 0) state.speed = Math.min(0, state.speed + brake)
   }
-  state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt
+  // Clamped to one step's worth: a thick medium × a long frame must decay
+  // speed to zero, never overshoot it into reverse.
+  state.speed -=
+    (1 - t) * Math.min(1, cfg.hoverDamp * medium * dt) * state.speed
   state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt)
   // Reverse is a HOVER-ONLY privilege, and it fades out as the craft becomes a
   // plane: at t = 0 you may back up to `reverseSpeed`, by t = 1 the floor is
@@ -408,7 +424,9 @@ export function equilibriumSpeed(
   afterburner = 0
 ): number {
   if (cfg.maxSpeed <= 0 || cfg.accel <= 0) return 0
-  const dragK = cfg.accel / (cfg.maxSpeed * cfg.maxSpeed)
+  const dragK =
+    (cfg.accel / (cfg.maxSpeed * cfg.maxSpeed)) *
+    Math.max(1e-3, cfg.mediumDrag ?? 1)
   const abRatio = cfg.afterburnerSpeed / cfg.maxSpeed
   const reheatAccel = cfg.accel * Math.max(0, abRatio * abRatio - 1)
   const thrust =

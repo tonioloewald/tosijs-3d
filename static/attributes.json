@@ -217,6 +217,16 @@
         "description": "Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash"
       },
       {
+        "name": "waterDrag",
+        "default": "10",
+        "description": "Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater"
+      },
+      {
+        "name": "waterTransition",
+        "default": "2",
+        "description": "Metres over which drag blends from air to water across the surface"
+      },
+      {
         "name": "crashSpeed",
         "default": "8",
         "description": "Vertical impact speed (m/s) above which a ground contact is a crash"

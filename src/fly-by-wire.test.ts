@@ -608,3 +608,33 @@ describe('asymmetric pitch authority (#26)', () => {
     expect(Math.abs(settled(sym, -1))).toBeCloseTo(settled(sym, 1), 2)
   })
 })
+
+describe('the medium (#185): water is thicker, the controls are the same', () => {
+  const WATER: FlyByWireConfig = { ...CFG, mediumDrag: 10 }
+  const settleIn = (cfg: FlyByWireConfig, throttle: number) => {
+    const s = state({ speed: 10, throttle })
+    for (let i = 0; i < 8000; i++)
+      flyByWireStep(s, NO_INPUT, s.speed, 200, cfg, DT, false)
+    return s.speed
+  }
+
+  test('terminal speed falls by √mediumDrag (≈32% at ×10)', () => {
+    const air = settleIn(CFG, 1)
+    const water = settleIn(WATER, 1)
+    expect(air).toBeCloseTo(CFG.maxSpeed, 0)
+    expect(water / air).toBeCloseTo(1 / Math.sqrt(10), 2)
+    expect(equilibriumSpeed(WATER, 1, 0)).toBeCloseTo(water, 0)
+  })
+
+  test('omitted means air — nothing changes for an existing config', () => {
+    expect(equilibriumSpeed({ ...CFG, mediumDrag: undefined }, 0.6, 0)).toBe(
+      equilibriumSpeed(CFG, 0.6, 0)
+    )
+  })
+
+  test('a thick medium on a long frame decays hover speed to zero, never past it', () => {
+    const s = state({ speed: 5 })
+    flyByWireStep(s, NO_INPUT, 5, 0, { ...CFG, mediumDrag: 1000 }, 0.5, false)
+    expect(s.speed).toBeGreaterThanOrEqual(0)
+  })
+})
