@@ -68,6 +68,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `temperature` | `0` | Temperature offset in degrees (summed) |
 | `drift` | `'off'` | `'wind'` = a weather system: it travels with the scene's wind |
 | `lifetime` | `0` | Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended` |
+| `grow` | `0` | Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime |
 */
 /*{ "parent": "Environment" }*/
 
@@ -92,6 +93,9 @@ export class B3dWeatherCell extends B3dChild {
     temperature: 0,
     drift: 'off' as 'off' | 'wind',
     lifetime: 0,
+    /** Seconds to build from nothing to full (0 = at once). Independent of
+     * `lifetime`, so a permanent storm can still gather. */
+    grow: 0,
   }
 
   declare x: number
@@ -105,6 +109,7 @@ export class B3dWeatherCell extends B3dChild {
   declare temperature: number
   declare drift: 'off' | 'wind'
   declare lifetime: number
+  declare grow: number
 
   /** Seconds since it entered the scene (drives `lifetime`). */
   age = 0
@@ -134,7 +139,12 @@ export class B3dWeatherCell extends B3dChild {
     c.precipitation = this.precipitation > 0 ? this.precipitation : undefined
     c.storminess = this.storminess > 0 ? this.storminess : undefined
     c.temperature = this.temperature !== 0 ? this.temperature : undefined
-    c.strength = this.lifetime > 0 ? lifeEnvelope(this.age, this.lifetime) : 1
+    const life = this.lifetime > 0 ? lifeEnvelope(this.age, this.lifetime) : 1
+    // GATHERING: a smoothstep from nothing to full over `grow` seconds, so a
+    // storm builds rather than appearing. Multiplies the life envelope, so a
+    // cell can gather slowly and still end on its lifetime.
+    const g = this.grow > 0 ? Math.min(1, Math.max(0, this.age / this.grow)) : 1
+    c.strength = life * g * g * (3 - 2 * g)
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {

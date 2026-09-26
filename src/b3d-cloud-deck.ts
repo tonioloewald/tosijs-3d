@@ -1668,9 +1668,11 @@ export class B3dCloudDeck extends B3dChild {
       .filter((c) => c.coverage != null)
       .map(
         (c) =>
+          // Strength in 1% steps: a gathering storm re-bakes as it builds,
+          // fine enough that the build reads as gradual rather than stepped.
           `${Math.round(c.at.x / 10)},${Math.round(c.at.z / 10)},${Math.round(
             c.radius
-          )},${c.coverage!.toFixed(2)},${(c.strength ?? 1).toFixed(2)}`
+          )},${c.coverage!.toFixed(2)},${Math.round((c.strength ?? 1) * 100)}`
       )
       .join(';')
   }

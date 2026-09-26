@@ -20,6 +20,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Land and Sky has a **storm** toggle in its Weather group: a storm drifting
   with the wind (the scene's wind now matches the deck's) that passes over
   you and recedes into view.
+  Cells gain **`grow`** (seconds to gather from nothing to full), so a storm
+  builds rather than appearing; the deck re-bakes in 1% strength steps as it
+  does. Across SPACE a cell was already gradual: a smoothstep over its whole
+  radius, smoothed again by the deck.
 - **Weather, stage 1: the weather where you are** (WEATHER-DESIGN.md, board
   #255). `b3d.weatherAt(x, z)` (and `weatherHere()`) answers what every
   weather consumer asks: the scene's base wind plus every

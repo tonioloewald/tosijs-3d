@@ -191,7 +191,7 @@ sky.storm.observe(() => {
   storm?.remove()
   storm = null
   if (sky.storm.value) {
-    storm = b3dWeatherCell({ x: -1200, z: 0, radius: 1000, coverage: 0.9, drift: 'wind' })
+    storm = b3dWeatherCell({ x: -1200, z: 0, radius: 1000, coverage: 0.9, drift: 'wind', grow: 60 })
     scene.append(storm)
   }
 })

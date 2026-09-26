@@ -4256,6 +4256,11 @@
         "name": "lifetime",
         "default": "0",
         "description": "Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`"
+      },
+      {
+        "name": "grow",
+        "default": "0",
+        "description": "Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime"
       }
     ]
   },

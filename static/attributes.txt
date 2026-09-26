@@ -1098,6 +1098,7 @@ b3d-weather-cell
   temperature  = 0  — Temperature offset in degrees (summed)
   drift  = 'off'  — `'wind'` = a weather system: it travels with the scene's wind
   lifetime  = 0  — Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`
+  grow  = 0  — Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime
 
 ## control-input
 control-input
