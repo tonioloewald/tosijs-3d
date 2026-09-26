@@ -102,3 +102,29 @@ describe('inputFocus wires itself', () => {
     el.remove()
   })
 })
+
+describe('replacing the player hands the seat over (board #2421)', () => {
+  test('remove the focused entity, append a new player: the new one is adopted', async () => {
+    const ctrlMod = await import('./b3d-controller.js')
+    const { el } = mount()
+    await settle()
+    const first = ctrlMod.b3dController({}) as any
+    first.player = true
+    el.append(first)
+    await settle()
+    expect(el.focused).toBe(first)
+
+    // manta's respawn: remove the driven craft, append its replacement.
+    first.remove()
+    await settle()
+    expect(el.focused).toBe(null)
+
+    const second = ctrlMod.b3dController({}) as any
+    second.player = true
+    el.append(second)
+    await settle()
+    expect(el.focused).toBe(second)
+    expect(second.inputProvider).not.toBe(null)
+    el.remove()
+  })
+})

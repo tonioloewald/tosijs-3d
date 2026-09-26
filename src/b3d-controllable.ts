@@ -44,6 +44,12 @@ import { emptyInput } from './control-input.js'
 import type { ControlInput, InputProvider } from './control-input.js'
 import type { InputMapping } from './virtual-gamepad.js'
 
+type FocusManager = {
+  adoptIfVacant?: (e: B3dControllable) => void
+  releaseFocus?: () => void
+  focused?: B3dControllable | null
+}
+
 export class B3dControllable extends AbstractMesh {
   inputProvider: InputProvider | null = null
   inputMapping?: InputMapping
@@ -66,13 +72,27 @@ export class B3dControllable extends AbstractMesh {
     //
     // The manager only takes us if it's driving NOBODY — so this never steals the camera
     // from a live player; it only fills a vacancy, which is precisely the respawn case.
-    const focus = this.closest('tosi-b3d-input-focus') as {
-      adoptIfVacant?: (e: B3dControllable) => void
-    } | null
+    const focus = this.closest('tosi-b3d-input-focus') as FocusManager | null
+    this._focus = focus
     focus?.adoptIfVacant?.(this)
   }
 
+  /** The focus manager we announced ourselves to (kept: once we are removed,
+   * `closest()` can no longer find it). */
+  private _focus: FocusManager | null = null
+
   sceneDispose() {
+    /*
+    A REMOVED ENTITY GIVES ITS SEAT BACK. Replacing the player (remove the
+    old craft, append a new one) is the ordinary respawn shape, and focus used
+    to keep holding the removed one: the new craft's adoptIfVacant saw an
+    occupied seat, got no input, and b3d-death ignored its crash because death
+    only mourns what focus drives (manta-recon; board #2421). The workaround
+    was calling releaseFocus() first, which nobody would guess.
+    */
+    const focus = this._focus
+    this._focus = null
+    if (focus?.focused === this) focus.releaseFocus?.()
     this.inputProvider = null
     super.sceneDispose()
   }

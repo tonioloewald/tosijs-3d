@@ -121,6 +121,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Replacing the player left input focus on the removed one** (board #2421,
+  from manta-recon's respawn): the new craft got no input and its crash was
+  ignored by `b3d-death`. A controllable now releases focus when it is
+  disposed, and `adoptIfVacant` treats a disconnected focused entity as a
+  vacant seat. No more `releaseFocus()` before the swap.
 - **Ambient wind accumulated every frame and flung particles away**: the
   preset's direction vectors were assigned by reference, and the per-frame
   `direction.set(preset + wind)` wrote into the preset, so the wind grew frame
