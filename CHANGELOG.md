@@ -10,6 +10,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Lightning and thunder** (WEATHER-DESIGN stage 3, board #1123):
+  **`<tosi-b3d-lightning>`** strikes under every weather cell with
+  `storminess`, seeded (same seed, same storm; frame rate cannot change it).
+  Cloud-to-ground strikes draw a jagged, branching bolt that flickers through
+  its re-strokes and light the ground; every strike lights the cloud deck from
+  INSIDE around it (`deck.flash()`, a new hook: why storms want coverage past
+  1); thunder is procedural and arrives at the speed of sound, so you can
+  count the distance; and over strong storms, rarely, **sprites**: brief
+  red-pink crowns with purple tendrils high above the tower. Each strike
+  dispatches `strike` with `{ kind, x, z, t, distance }`. The pure model is
+  `lightning.ts` (`strikesBetween`, `boltPath`, `flashAt`, `thunderDelay`).
+  Land and Sky's storm now brings lightning.
 - **Weather, stage 2: a storm you can see** (board #1122). A
   `<tosi-b3d-weather-cell>` with `coverage` joins the cloud deck's local
   weather field: denser cloud over it, a greyer, heavier underside (its own

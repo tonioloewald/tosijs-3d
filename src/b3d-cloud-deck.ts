@@ -522,6 +522,9 @@ uniform float globalRise;
 // How much further the TOP bulges than the base, per unit of the weather field.
 uniform float localDelta;
 uniform float stormRise;
+// LIGHTNING inside the cloud: xy = strike (world XZ), z = reach (m), w = level.
+uniform vec4 flashInfo;
+uniform vec3 flashColor;
 uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
@@ -804,7 +807,16 @@ void main(void) {
     */
     float fa = fogAmount(vWorld);
     vec3 body = mix(fogColorU, base * skyTint, fa);
-    gl_FragColor = vec4(body + emit * (0.4 + 0.6 * fa), a);
+    /*
+    LIT FROM INSIDE (board #1123). A strike lights the cloud around it, not
+    the sky: strongest where the cloud is thick (a storm tower glows, a wisp
+    barely does) and falling off with distance from the channel. Added after
+    the fog, like the fringe glow, so a flash in a far storm still reads.
+    */
+    float fd = distance(p, flashInfo.xy);
+    float fr = max(1.0, flashInfo.z);
+    float lit = flashInfo.w * exp(-(fd * fd) / (fr * fr)) * (0.35 + 0.65 * a);
+    gl_FragColor = vec4(body + emit * (0.4 + 0.6 * fa) + flashColor * lit, a);
   }
 }
 `
@@ -1146,6 +1158,21 @@ export class B3dCloudDeck extends B3dChild {
   private _weatherMax = 0
   /** Largest storm excess in the baked grid (0 = no tower anywhere). */
   private _stormMax = 0
+  private _flash = { x: 0, z: 0, r: 1, level: 0 }
+  private _flashColor = new BABYLON.Color3(0.85, 0.88, 1)
+
+  /**
+   * **Light the cloud from inside**, around (x, z) in world XZ, out to about
+   * `radius` metres, at `level` (0 = off; ~1.5 is a strong strike). Lightning
+   * calls this every frame of a flash; it is the deck's own light, because a
+   * point light cannot reach a cloud drawn by its own shader.
+   */
+  flash(x: number, z: number, level: number, radius = 900): void {
+    this._flash.x = x
+    this._flash.z = z
+    this._flash.r = radius
+    this._flash.level = Math.max(0, level)
+  }
   private _weatherTex: BABYLON.RawTexture | null = null
   private _weatherTexSize = 0
   /*
@@ -1265,6 +1292,8 @@ export class B3dCloudDeck extends B3dChild {
           'globalRise',
           'localDelta',
           'stormRise',
+          'flashInfo',
+          'flashColor',
           'localScale',
           'localCoverage',
           'weatherWindow',
@@ -1430,6 +1459,16 @@ export class B3dCloudDeck extends B3dChild {
     mat.setFloat('globalRise', rise)
     mat.setFloat('localDelta', scale.top - scale.base)
     mat.setFloat('stormRise', Math.max(0, attrs.stormRise ?? 0))
+    mat.setVector4(
+      'flashInfo',
+      new BABYLON.Vector4(
+        this._flash.x,
+        this._flash.z,
+        this._flash.r,
+        this._flash.level
+      )
+    )
+    mat.setColor3('flashColor', this._flashColor)
     this._bindWeather(mat)
 
     if (top != null) {

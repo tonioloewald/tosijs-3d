@@ -2128,6 +2128,48 @@
     ]
   },
   {
+    "module": "b3d-lightning",
+    "tag": "tosi-b3d-lightning",
+    "summary": "b3d-lightning",
+    "attributes": [
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same storm"
+      },
+      {
+        "name": "bolts",
+        "default": "'on'",
+        "description": "Draw the bolt for cloud-to-ground strikes"
+      },
+      {
+        "name": "sprites",
+        "default": "'on'",
+        "description": "Red-pink sprites above strong storms"
+      },
+      {
+        "name": "thunder",
+        "default": "'on'",
+        "description": "Procedural thunder, delayed by distance"
+      },
+      {
+        "name": "volume",
+        "default": "0.8",
+        "description": "Thunder loudness"
+      },
+      {
+        "name": "groundLight",
+        "default": "2.5",
+        "description": "How hard a ground strike lights the ground beneath (point-light intensity at peak)"
+      },
+      {
+        "name": "color",
+        "default": "'#dce4ff'",
+        "description": "The flash's colour"
+      }
+    ]
+  },
+  {
     "module": "b3d-loader",
     "tag": "tosi-b3d-loader",
     "summary": "b3d-loader",
@@ -4558,6 +4600,27 @@
         "name": "hue",
         "default": "**shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg",
         "description": "hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose"
+      }
+    ]
+  },
+  {
+    "module": "lightning",
+    "summary": "lightning",
+    "attributes": [
+      {
+        "name": "ground",
+        "default": "cloud to ground: a bolt, the brightest flash, thunder",
+        "description": "most"
+      },
+      {
+        "name": "cloud",
+        "default": "inside the cloud: the tower lit from within, no bolt",
+        "description": "many"
+      },
+      {
+        "name": "sprite",
+        "default": "ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms",
+        "description": "rare"
       }
     ]
   },

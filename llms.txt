@@ -94,6 +94,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Asset library component. Loads a GLB file via `LoadAssetContainer` and holds
 - https://3d.tosijs.net/b3d-light/ — b3d-light
   Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
+- https://3d.tosijs.net/b3d-lightning/ — b3d-lightning
+  under them, seeded, so the same seed gives the same storm.
 - https://3d.tosijs.net/b3d-loader/ — b3d-loader
   Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 - https://3d.tosijs.net/b3d-manipulator/ — b3d-manipulator
@@ -261,6 +263,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
 - https://3d.tosijs.net/light-settings/ — Light settings (data)
   and its validator. No DOM, no Babylon, no widget.
+- https://3d.tosijs.net/lightning/ — lightning
+  The pure half of lightning (WEATHER-DESIGN stage 3, board #1123): WHEN and
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
 - https://3d.tosijs.net/manipulator/ — manipulator
