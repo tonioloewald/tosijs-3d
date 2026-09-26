@@ -364,6 +364,13 @@ float weatherAt(vec2 p) {
   return texture2D(weatherTex, clamp(uv, 0.0, 1.0)).r;
 }
 
+// GLOOM: the storm share of the field, weather cells only (never orographic
+// lift). See the fair-weather note below for why it is its own channel.
+float gloomAt(vec2 p) {
+  vec2 uv = (p - weatherWindow.xy) * weatherWindow.z + 0.5;
+  return texture2D(weatherTex, clamp(uv, 0.0, 1.0)).g;
+}
+
 /*
 COVERAGE IS LOCAL. Tonio: "if coverage isn't near full the cloud shouldn't
 necessarily get too thick so much as just more coverage near high ground."
@@ -380,9 +387,17 @@ doesn't get you to 0". It reaches full strength by a quarter cover, so the low
 end of the dial is the classic fair-weather sky: clear over the plain, cloud
 sitting on the mountains.
 */
+float gloomAt(vec2 p);
 float coverageAt(vec2 p) {
-  return coverage +
-    weatherAt(p) * localCoverage * clamp(coverage * 4.0, 0.0, 1.0);
+  float ramp = clamp(coverage * 4.0, 0.0, 1.0);
+  /*
+  A STORM IGNORES THE RAMP. The local field fades in with the dial so that
+  coverage 0 is a clear sky over the mountains too, but a weather cell is a
+  storm someone put there: on a clear day it should still be a storm. The
+  field already carries the cells (ramped); the gloom channel is exactly the
+  cells, so it tops them up to full as the ramp falls away.
+  */
+  return coverage + weatherAt(p) * localCoverage * ramp + gloomAt(p) * (1.0 - ramp);
 }
 
 vec2 toField(vec2 p) {
@@ -696,9 +711,22 @@ void main(void) {
     does not repaint fair weather as foul. An explicitly set transmission
     (autoLift 0) keeps its authority — a pinned storm-dark deck stays dark.
     */
-    float fair = autoLift * (1.0 - smoothstep(0.5, 1.0, coverage));
-    float lift = max(transmission * 0.6, 0.9 * fair);
+    /*
+    A STORM CELL IS THE EXCEPTION, and says so on its own channel. Orographic
+    lift must not repaint fair weather as foul (above), but a weather cell
+    with coverage IS foul weather: it is a storm the author asked to see
+    (WEATHER-DESIGN stage 2, board #1122). So cells bake into a separate
+    gloom channel, and only gloom moves the underside toward the storm
+    curve: the dial reads fair everywhere else, and dark under the storm.
+    */
+    float gloom = gloomAt(p);
+    // Everything below that reads how thin the cloud is reads it LOCALLY
+    // under a storm: less light through, no wispy glow, a darker base.
+    float gTrans = transmission * (1.0 - 0.7 * gloom);
+    float fair = autoLift * (1.0 - smoothstep(0.5, 1.0, coverage + gloom));
+    float lift = max(gTrans * 0.6, 0.9 * fair);
     vec3 base = mix(underColor, topColor, lift) * relief * through;
+    base *= 1.0 - 0.55 * gloom;
     // EMISSIVE edges, so they read as lit-from-behind rather than as pale
     // paint: the fringe is ADDED to the base, which is what lets it go brighter
     // than the material's own colour where the cloud is thinnest.
@@ -728,14 +756,14 @@ void main(void) {
     // the clouds in front of a sunset were the darkest in the sky.
     float forward = clamp(dot(viewDir, -normalize(sunDir)), 0.0, 1.0);
     float silver = 0.3 + 0.7 * pow(forward, 4.0);
-    float glow = fringe * (0.25 + 0.75 * transmission) * silver;
+    float glow = fringe * (0.25 + 0.75 * gTrans) * silver;
     /*
     AND AS COVER THINS TOWARD NOTHING, THE WHOLE CLOUD GLOWS — not just its
     edges. The last wisps of a clearing sky are all edge: light passes straight
     through them. Forward-weighted like the fringe and multiplied by skyTint
     like everything else, so it is the sun's own colour: golden at golden hour.
     */
-    float wisps = autoLift * (1.0 - smoothstep(0.0, 0.5, coverage));
+    float wisps = autoLift * (1.0 - smoothstep(0.0, 0.5, coverage + gloom));
     /*
     THE GLOW TAKES THE SUN'S HUE, NOT ITS WHOLE DIMMING. skyTint is the sun's
     colour times its intensity, and at 17:30 the intensity is ~0.4 — so a
@@ -761,7 +789,7 @@ void main(void) {
     float bright = 1.0 + 2.0 * wisps;
     vec3 emit =
       topColor * glow * bright *
-      (thin * thin + 0.12 * transmission + 0.45 * wisps) * sunGlow;
+      (thin * thin + 0.12 * gTrans + 0.45 * wisps) * sunGlow;
     /*
     AND THE GLOW MOSTLY SURVIVES THE DISTANCE FOG. The brightest thin cloud at
     sunset sits near the horizon, exactly where the fog was mixing it down to
@@ -786,6 +814,43 @@ type WeatherTarget = {
   setFloat(name: string, value: number): unknown
 }
 
+/** Four box passes over an n×n grid (see `_bakeWeather`: it turns a
+ * mountain into weather, and a storm cell into a soft-edged one). */
+function smoothGrid(input: Float32Array, n: number): Float32Array {
+  let src: Float32Array = input
+  let dst: Float32Array = new Float32Array(input.length)
+  for (let pass = 0; pass < 4; pass++) {
+    for (let z = 0; z < n; z++) {
+      for (let x = 0; x < n; x++) {
+        const i = z * n + x
+        let sum = src[i] * 2
+        let count = 2
+        if (x > 0) {
+          sum += src[i - 1]
+          count++
+        }
+        if (x < n - 1) {
+          sum += src[i + 1]
+          count++
+        }
+        if (z > 0) {
+          sum += src[i - n]
+          count++
+        }
+        if (z < n - 1) {
+          sum += src[i + n]
+          count++
+        }
+        dst[i] = sum / count
+      }
+    }
+    const swap = src
+    src = dst
+    dst = swap
+  }
+  return src
+}
+
 /** What the weather channel was last baked for — see `_bakeWeather`. */
 function freshWeatherKey(): {
   inactive: boolean
@@ -795,6 +860,7 @@ function freshWeatherKey(): {
   peak: number
   weather: ((x: number, z: number) => number) | null
   gen: string
+  cells: string
 } {
   return {
     inactive: false,
@@ -802,6 +868,7 @@ function freshWeatherKey(): {
     z: NaN,
     orographic: NaN,
     peak: NaN,
+    cells: '',
     weather: null,
     gen: '',
   }
@@ -1553,6 +1620,62 @@ export class B3dCloudDeck extends B3dChild {
    * from the terrain for `orographic`, or nothing.
    */
   private _weatherField(): ((x: number, z: number) => number) | null {
+    const own = this._ownWeatherField()
+    /*
+    WEATHER CELLS JOIN THE FIELD (WEATHER-DESIGN stage 2, board #1122). A
+    `<tosi-b3d-weather-cell>` with `coverage` is a storm the deck should
+    SHOW: its coverage sums into the field (clamped, the coverage rule), and
+    because the shadow reads this same field, the storm's shadow travels with
+    it for free. Cells live in RENDER space; this field is sampled in
+    origin-stable coordinates, and render = field + the deck's origin offset
+    (the inverse of `ox` in `_bakeWeather`).
+    */
+    const owner = this.owner
+    if (owner == null || !this._coverageCells()) return own
+    return (x, z) => {
+      const base = own == null ? 0 : own(x, z)
+      const c =
+        owner.weatherAt(x + this._originX, z + this._originZ).coverage ?? 0
+      return Math.min(1, Math.max(0, base + c))
+    }
+  }
+
+  /** The storm share only: weather-cell coverage, no orographic lift. */
+  private _gloomField(): ((x: number, z: number) => number) | null {
+    const owner = this.owner
+    if (owner == null || !this._coverageCells()) return null
+    return (x, z) =>
+      Math.min(
+        1,
+        Math.max(
+          0,
+          owner.weatherAt(x + this._originX, z + this._originZ).coverage ?? 0
+        )
+      )
+  }
+
+  /** Is any weather cell asking for coverage? */
+  private _coverageCells(): boolean {
+    return (this.owner?.weatherCells ?? []).some(
+      (c) => c.coverage != null && (c.strength ?? 1) > 0
+    )
+  }
+
+  /** A coarse signature of the coverage cells: a drifting storm re-bakes
+   * about once per 10 m of travel, not every frame. */
+  private _cellsKey(): string {
+    return (this.owner?.weatherCells ?? [])
+      .filter((c) => c.coverage != null)
+      .map(
+        (c) =>
+          `${Math.round(c.at.x / 10)},${Math.round(c.at.z / 10)},${Math.round(
+            c.radius
+          )},${c.coverage!.toFixed(2)},${(c.strength ?? 1).toFixed(2)}`
+      )
+      .join(';')
+  }
+
+  private _ownWeatherField(): ((x: number, z: number) => number) | null {
     if (this.weather != null) return this.weather
     const strength = Math.min(1, Math.max(0, this.orographic))
     if (strength <= 0) return null
@@ -1607,7 +1730,9 @@ export class B3dCloudDeck extends B3dChild {
     every terrain rebuild — once a frame during a terrain slider drag (0.8.3
     re-review).
     */
-    const inactive = this.weather == null && !(this.orographic > 0)
+    const cells = this._cellsKey()
+    const inactive =
+      this.weather == null && !(this.orographic > 0) && cells === ''
     if (inactive) {
       if (!force && k.inactive) return
       k.inactive = true
@@ -1622,7 +1747,8 @@ export class B3dCloudDeck extends B3dChild {
         k.orographic === this.orographic &&
         k.peak === this.orographicPeak &&
         k.weather === this.weather &&
-        k.gen === gen
+        k.gen === gen &&
+        k.cells === cells
       ) {
         return
       }
@@ -1633,8 +1759,10 @@ export class B3dCloudDeck extends B3dChild {
       k.peak = this.orographicPeak
       k.weather = this.weather
       k.gen = gen
+      k.cells = cells
     }
     const field = this._weatherField()
+    const gloomField = this._gloomField()
     this._liveWeather = field
 
     const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
@@ -1645,10 +1773,13 @@ export class B3dCloudDeck extends B3dChild {
     const oz = mesh.position.z - this._originZ
     const n = Math.max(1, Math.floor(this.subdivisions)) + 1
     const raw = new Float32Array(n * n)
+    const rawGloom = new Float32Array(n * n)
     for (let k = 0, i = 0; k < raw.length; k++, i += 3) {
-      const w =
-        field == null ? 0 : field(positions[i] + ox, positions[i + 2] + oz)
+      const x = positions[i] + ox
+      const z = positions[i + 2] + oz
+      const w = field == null ? 0 : field(x, z)
       raw[k] = w < 0 ? 0 : w > 1 ? 1 : w
+      if (gloomField != null) rawGloom[k] = gloomField(x, z)
     }
 
     /*
@@ -1666,38 +1797,8 @@ export class B3dCloudDeck extends B3dChild {
     Four box passes over 65x65 is a few thousand adds, it runs only when the
     grid snaps, and it turns a mountain into weather.
     */
-    const smooth = new Float32Array(raw.length)
-    let src = raw
-    let dst = smooth
-    for (let pass = 0; pass < 4; pass++) {
-      for (let z = 0; z < n; z++) {
-        for (let x = 0; x < n; x++) {
-          const i = z * n + x
-          let sum = src[i] * 2
-          let count = 2
-          if (x > 0) {
-            sum += src[i - 1]
-            count++
-          }
-          if (x < n - 1) {
-            sum += src[i + 1]
-            count++
-          }
-          if (z > 0) {
-            sum += src[i - n]
-            count++
-          }
-          if (z < n - 1) {
-            sum += src[i + n]
-            count++
-          }
-          dst[i] = sum / count
-        }
-      }
-      const swap = src
-      src = dst
-      dst = swap
-    }
+    const src = smoothGrid(raw, n)
+    const gloom = gloomField != null ? smoothGrid(rawGloom, n) : null
 
     for (let k = 0, v = 0; k < src.length; k++, v += 4) {
       colors[v] = src[k]
@@ -1713,8 +1814,13 @@ export class B3dCloudDeck extends B3dChild {
     same numbers, no second sampling of the field — the texture IS the vertex
     data, uploaded.
     */
-    const bytes = new Uint8Array(src.length)
-    for (let k = 0; k < src.length; k++) bytes[k] = Math.round(src[k] * 255)
+    // Two channels: R = the whole field (coverage and rise), G = gloom
+    // (storm cells only, for the underside's darkness).
+    const bytes = new Uint8Array(src.length * 2)
+    for (let k = 0; k < src.length; k++) {
+      bytes[k * 2] = Math.round(src[k] * 255)
+      bytes[k * 2 + 1] = gloom == null ? 0 : Math.round(gloom[k] * 255)
+    }
     if (this._weatherTex == null || this._weatherTexSize !== n) {
       this._weatherTex?.dispose()
       this._weatherTexSize = n
@@ -1724,7 +1830,7 @@ export class B3dCloudDeck extends B3dChild {
         bytes,
         n,
         n,
-        BABYLON.Constants.TEXTUREFORMAT_R,
+        BABYLON.Constants.TEXTUREFORMAT_RG,
         scene,
         false,
         false,

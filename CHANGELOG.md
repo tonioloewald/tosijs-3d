@@ -10,6 +10,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Weather, stage 2: a storm you can see** (board #1122). A
+  `<tosi-b3d-weather-cell>` with `coverage` joins the cloud deck's local
+  weather field: denser cloud over it, a greyer, heavier underside (its own
+  "gloom" channel, so orographic cloud still never repaints fair weather as
+  foul), the storm's shadow on the ground beneath (the shadow reads the same
+  field), and full strength even when the global dial says clear. A drifting
+  cell re-bakes about once per 10 m of travel.
 - **Weather, stage 1: the weather where you are** (WEATHER-DESIGN.md, board
   #255). `b3d.weatherAt(x, z)` (and `weatherHere()`) answers what every
   weather consumer asks: the scene's base wind plus every

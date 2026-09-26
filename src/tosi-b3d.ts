@@ -1558,6 +1558,11 @@ export class B3d extends Component {
     )
   }
 
+  /** The weather cells in force (read-only; add with `addWeatherCell`). */
+  get weatherCells(): readonly WeatherCell[] {
+    return this._weatherCells
+  }
+
   /** The weather where the viewer is (the active camera). */
   weatherHere(): WeatherSample {
     const c = this.scene?.activeCamera?.globalPosition
