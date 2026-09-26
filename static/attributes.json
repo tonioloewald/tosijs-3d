@@ -2091,6 +2091,38 @@
     ]
   },
   {
+    "module": "b3d-light-shafts",
+    "tag": "tosi-b3d-light-shafts",
+    "summary": "b3d-light-shafts",
+    "attributes": [
+      {
+        "name": "count",
+        "default": "10",
+        "description": "How many shafts at most (the budget). `0` = off"
+      },
+      {
+        "name": "radius",
+        "default": "900",
+        "description": "How far from you (m) to look for gaps"
+      },
+      {
+        "name": "width",
+        "default": "90",
+        "description": "Shaft width (m)"
+      },
+      {
+        "name": "strength",
+        "default": "0.2",
+        "description": "Brightness in clear air; rain adds to it"
+      },
+      {
+        "name": "rainBoost",
+        "default": "1.5",
+        "description": "How much precipitation at the viewer multiplies the strength"
+      }
+    ]
+  },
+  {
     "module": "b3d-light",
     "tag": "tosi-b3d-light",
     "summary": "b3d-light",

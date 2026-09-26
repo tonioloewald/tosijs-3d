@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -313,6 +313,8 @@ const scene = b3d(
   // low-frequency and one is not — and the points stay points at any zoom.
   skybox,
   b3dLightning({ seed: 3 }),
+  // Sunlight breaking through gaps in the deck; strongest in the rain.
+  b3dLightShafts({}),
   // Rain and snow come from the WEATHER: nothing falls until a storm is
   // overhead, and it eases in and out as the storm passes.
   b3dAmbient({ preset: 'rain', weather: 'rain', radius: 14 }),

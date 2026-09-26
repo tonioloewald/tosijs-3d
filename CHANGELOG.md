@@ -10,6 +10,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Light shafts** (WEATHER-DESIGN stage 4, board #1084):
+  **`<tosi-b3d-light-shafts>`** finds the gaps in the cloud deck beside
+  thicker cloud near you and hangs a soft shaft of sunlight from each, slanted
+  along the sun's direction to the ground, fading in and out as the gaps
+  drift. Brighter in rain, because rain is what scatters it (Tonio's point).
+  Camera-facing quads per MEDIUM-DESIGN §4; `count` is the budget. The deck
+  gains **`opacityAbove(x, z)`**, a CPU read of its own baked field for
+  placement. First cut, in Land and Sky, for tuning by eye.
 - **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).
   `b3d-ambient` gains `weather: 'rain' | 'snow'`: emission follows the
   PRECIPITATION where the viewer is, so a storm brings its own rain and it

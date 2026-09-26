@@ -542,6 +542,15 @@ b3d-library
   url  = ''  — GLB/glTF file URL
   type  = ''  — Library type for scene registry lookup
 
+## b3d-light-shafts — <tosi-b3d-light-shafts>
+b3d-light-shafts
+
+  count  = 10  — How many shafts at most (the budget). `0` = off
+  radius  = 900  — How far from you (m) to look for gaps
+  width  = 90  — Shaft width (m)
+  strength  = 0.2  — Brightness in clear air; rain adds to it
+  rainBoost  = 1.5  — How much precipitation at the viewer multiplies the strength
+
 ## b3d-light — <tosi-b3d-light>
 b3d-light
 

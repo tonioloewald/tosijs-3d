@@ -257,7 +257,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
 import { resolveBudget } from './b3d-quality.js'
 import type { B3d } from './tosi-b3d.js'
-import { cloudField } from './cloud-field.js'
+import { cloudField, cloudOpacity } from './cloud-field.js'
 import { CloudShadowMap } from './cloud-shadows.js'
 
 const DECK_VERT = `
@@ -1160,6 +1160,63 @@ export class B3dCloudDeck extends B3dChild {
   private _stormMax = 0
   private _flash = { x: 0, z: 0, r: 1, level: 0 }
   private _flashColor = new BABYLON.Color3(0.85, 0.88, 1)
+
+  /**
+   * **How opaque the deck is straight above (x, z)**, 0 (a gap) to 1 (solid),
+   * in world XZ. For PLACEMENT (light shafts go where the sun breaks through
+   * a gap beside cloud), not for drawing: it reads the SAME baked field the
+   * shader does, through the same two drifting layers and the shared
+   * `cloudOpacity` threshold, so it cannot disagree about the noise. Only the
+   * sampling is mirrored, which the rule about noise in two languages allows.
+   * Cheap enough for a few dozen calls a second.
+   */
+  opacityAbove(x: number, z: number): number {
+    const f = this._field
+    const n = this._fieldSize
+    if (f == null || n <= 0) return 0
+    const h = ((this as any).windHeadingDeg ?? 0) * (Math.PI / 180)
+    const ax = Math.cos(h)
+    const ay = Math.sin(h)
+    const inv = 1 / ((this as any).period || 1)
+    const toField = (vx: number, vy: number): [number, number] => [
+      vx * ax - vy * ay,
+      vx * ay + vy * ax,
+    ]
+    // Bilinear, wrapping, like the field texture (WRAP, u → column).
+    const sample = (u: number, v: number): number => {
+      const fx = (u - Math.floor(u)) * n - 0.5
+      const fy = (v - Math.floor(v)) * n - 0.5
+      const x0 = Math.floor(fx)
+      const y0 = Math.floor(fy)
+      const tx = fx - x0
+      const ty = fy - y0
+      const at = (i: number, j: number) =>
+        f[(((j % n) + n) % n) * n + (((i % n) + n) % n)]
+      const top = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx
+      const bot = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx
+      return top * (1 - ty) + bot * ty
+    }
+    const [u1, v1] = toField(x + this._driftX, z + this._driftZ)
+    const a = sample(u1 * inv, v1 * inv)
+    const [u2, v2] = toField(x + this._driftX2, z + this._driftZ2)
+    const k = inv * 1.6180339
+    const b = sample(u2 * k + 0.37, v2 * k + 0.11)
+    const d = Math.sqrt(Math.max(a * b, 0)) * 1.15
+    // Local coverage as the shader has it (the dial, the local field, storms).
+    const cov0 = Math.max(0, this.coverage)
+    const ramp = Math.min(1, Math.max(0, cov0 * 4))
+    const lw = this._liveWeather
+    const fieldHere =
+      lw == null
+        ? 0
+        : Math.min(1, Math.max(0, lw(x - this._originX, z - this._originZ)))
+    const storm = Math.min(1, this.owner?.weatherAt(x, z).coverage ?? 0)
+    const cov =
+      cov0 +
+      fieldHere * ((this as any).localCoverage ?? 1) * ramp +
+      storm * (1 - ramp)
+    return cloudOpacity(d, cov)
+  }
 
   /**
    * **Light the cloud from inside**, around (x, z) in world XZ, out to about
