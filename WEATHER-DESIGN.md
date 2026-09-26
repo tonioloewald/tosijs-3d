@@ -107,7 +107,37 @@ something is an event with a position, which gameplay may react to. A driver
 5. **Precipitation** as its own look (streaks aligned with wind), if ambient's
    first cut does not already carry it.
 
+## DECIDED (Tonio, 2026-09-26)
+
+**What a storm does, in order:** VISUAL first (steps 2–4 above); then
+**turbulence** for aircraft; then **difficulty walking** (wind as a force on a
+biped's footing). Visibility comes with the visuals.
+
+**Bodies in water are their own piece of work**, and weather leans on it: a
+floating object should bob, be blown about by the wind, and tip over in a
+storm. `buoyancy.ts` is vertical only today (submerged fraction → lift), so
+drift and capsize want a floating-body model first (buoyancy at several hull
+points gives both pitch/roll and a righting moment; wind on the exposed area
+gives drift and heel). Board card: floating bodies.
+
+**A back-burner game that makes wind load-bearing:** Tonio's pirate ship idea,
+simplified sailing and gunnery where the wind actually matters. Not this
+repo's game (like MINIATURES-DESIGN, the game is its own project), but it names
+the framework capabilities weather should be built to serve:
+- sail force from the APPARENT wind (true wind minus the ship's own velocity)
+  and the sail's angle to it, so a ship can beat upwind slowly and run fast;
+- floating bodies that heel under that force and are righted by buoyancy;
+- broadside gunnery, which `ballistics.ts` (drop, drag, `ballisticAim`)
+  already supplies, from a platform that rolls;
+- `weatherAt` wind that varies over the sea (gusts, lees behind islands), so
+  reading the wind is a skill.
+
+The staging above holds; the pirate game is the reason step 1 (wind wired at
+each consumer's position) must be exact, not decorative.
+
 ## Open questions (for Tonio)
+
+*(Unanswered as of 2026-09-26; proceeding on the leans stated in each.)*
 
 1. **Where does a system live?** A `<tosi-b3d-weather>` element holding the base
    and spawning systems (seeded, like the spawner), or systems as ordinary
