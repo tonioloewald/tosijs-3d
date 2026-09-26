@@ -1848,8 +1848,15 @@ export class B3d extends Component {
   private _flatSig = ''
   private _flatCheckIn = 0
   private _flatHandWarned = new Set<string>()
+  private _flatPoseObs: BABYLON.Nullable<
+    BABYLON.Observer<BABYLON.Camera>
+  > = null
 
   private _disposeFlatPanels(): void {
+    if (this._flatPoseObs != null) {
+      this.scene?.onBeforeCameraRenderObservable.remove(this._flatPoseObs)
+      this._flatPoseObs = null
+    }
     for (const p of this._flatPanels) p.dispose()
     this._flatPanels = []
     this._flatFrames?.dispose()
@@ -1880,6 +1887,26 @@ export class B3d extends Component {
         if (specs.length > 0) {
           const frames = XrFrames.flat(scene, cam)
           this._flatFrames = frames
+          /*
+          POSE THE FRAMES WHEN THE CAMERA IS FINAL, not when this loop runs.
+          This used to happen here, before `scene.render()`, and anything that
+          moves the camera during the render (b3d-aircraft's follow camera
+          writes its position in its own before-render update) had not run
+          yet. So every flat eye-anchored panel trailed the view by exactly
+          one frame, measured by manta-recon at 2.151 m at speed (board #767).
+          `computeWorldMatrix()` in `updateFlat` refreshed a stale MATRIX; it
+          could not see a position nobody had written yet.
+          `onBeforeCameraRenderObservable` fires after every before-render
+          observer, once per camera, so the pose is whatever the frame
+          actually renders.
+          */
+          this._flatPoseObs = scene.onBeforeCameraRenderObservable.add(
+            (rendering) => {
+              if (rendering !== cam || this._flatFrames == null) return
+              this._flatFrames.update(0)
+              for (const p of this._flatPanels) p.update()
+            }
+          )
           for (const spec of specs) {
             let frame = spec.frame ?? 'body'
             if (frame === 'left-hand' || frame === 'right-hand') {
@@ -1909,9 +1936,7 @@ export class B3d extends Component {
         }
       }
     }
-    if (this._flatFrames == null) return
-    this._flatFrames.update(0)
-    for (const p of this._flatPanels) p.update()
+    // Posed in onBeforeCameraRenderObservable (above), when the view is final.
   }
 
   private _update = () => {

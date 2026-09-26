@@ -22,6 +22,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Flat eye-anchored panels trailed a moving camera by one frame** (board
+  #767, found by manta-recon at 2.15 m per frame behind b3d-aircraft's follow
+  camera). The flat frames are now posed on `onBeforeCameraRenderObservable`,
+  after anything that moves the camera during the render. Measured: 0.000 m
+  gap over 64 frames of a camera moving 2 m per frame.
 - **Every scene with a glass gamepad logged a type warning** (`gamepad is
   declared boolean … but was written string`). `gamepad` is genuinely
   `boolean | string` (`true` = the default layout, a string = a layout), so
