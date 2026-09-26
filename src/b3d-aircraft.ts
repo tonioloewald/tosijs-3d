@@ -324,7 +324,7 @@ Crossing the surface dispatches **`surface-crossed`** (bubbling), with
 down, and `point` is on the surface. Splash, wake, audio and camera cues are
 yours; the event only reports the moment.
 
-```js
+```javascript
 craft.addEventListener('surface-crossed', ({ detail }) => {
   if (detail.speed > 8) splashAt(detail.point, detail.entering)
 })
