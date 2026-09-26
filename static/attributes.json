@@ -4113,6 +4113,21 @@
         "description": "The mirror: the dark water, at grazing angles"
       },
       {
+        "name": "caustics",
+        "default": "'auto'",
+        "description": "Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun"
+      },
+      {
+        "name": "causticsStrength",
+        "default": "0.6",
+        "description": "How bright the web gets"
+      },
+      {
+        "name": "causticsScale",
+        "default": "6",
+        "description": "Metres per caustic cell: bigger is coarser and calmer"
+      },
+      {
         "name": "spherical",
         "default": "false",
         "description": "Use a sphere instead of a plane"

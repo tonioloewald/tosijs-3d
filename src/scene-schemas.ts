@@ -271,6 +271,10 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       underside: choice('auto', ['auto', 'on', 'off']),
       undersideColor: color('#9fdcf0'),
       undersideDepthColor: color('#06283a'),
+      // Light through the surface onto what is beneath (board #198).
+      caustics: choice('auto', ['auto', 'on', 'off']),
+      causticsStrength: num(0.6, { minimum: 0, maximum: 2 }),
+      causticsScale: num(6, { minimum: 0.5, maximum: 50, ...M }),
       spherical: bool(false),
       follow: bool(false),
     },

@@ -8,6 +8,7 @@
 - [b3d-reflections](/b3d-reflections/)
 - [b3d-trail](/b3d-trail/)
 - [buoyancy](/buoyancy/)
+- [caustics](/caustics/)
 - [cloud-shadows](/cloud-shadows/)
 - [shadow-decal](/shadow-decal/)
 - [swim-aim](/swim-aim/)

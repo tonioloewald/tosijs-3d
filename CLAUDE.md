@@ -583,6 +583,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-moon.ts` | `<tosi-b3d-moon>` — cosmetic extra moons inside a skybox (up to four): place on the star sphere, size, colour; the PHASE is shaded from the real sun, never an input. Lights nothing |
 | `src/b3d-water.ts` | Water surface using WaterMaterial with waves/wind |
 | `src/water-normal.ts` | Procedural water normal map from our own Perlin — tiles by construction (sampled on a torus), so `b3dWater` needs no file, no network and no URL that must resolve in someone else's app |
+| `src/caustics.ts` | Underwater caustics: `CausticsMap` + a material plugin projecting a tiling caustic web by world position (the cloud-shadow technique), below the water only, slanted by the sun, fading with depth and fog. `causticPattern` is the pure seeded Worley-edge pattern (tiles on a torus). `b3d-water` owns it (`caustics`) |
 | `src/b3d-reflections.ts` | Automatic reflection probes for `_mirror` meshes |
 | `src/b3d-light.ts` | Hemispheric ambient light |
 | `src/b3d-lamp.ts` | **Lights you can see** — `b3dPointLight`/`b3dSpotLight`/`b3dAreaLight`: a placed light WITH its fixture geometry (toggle it, scale it, or bring a GLB / parent to `node`). Shadows where Babylon allows (point/spot; `RectAreaLight` is not a `ShadowLight`), **gels** where it allows (spot only — `projectionTexture`, bitmap or SVG via `SvgTexture`). The two ❌ cases warn once rather than being faked |

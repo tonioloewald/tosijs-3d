@@ -164,6 +164,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/sdf-lattice/ — Carved landforms
   mine shafts — everything a heightfield cannot say, because a heightfield has one
+- https://3d.tosijs.net/caustics/ — caustics
+  strongest "this is underwater" cue after the colour (tosijs-3d#16, board
 - https://3d.tosijs.net/CHANGELOG/ — Changelog
   All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 - https://3d.tosijs.net/cloud-field/ — cloud-field

@@ -50,6 +50,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `underside` | `'auto'` | Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog |
 | `undersideColor` | `'#9fdcf0'` | The window: the sky's light, looking up |
 | `undersideDepthColor` | `'#06283a'` | The mirror: the dark water, at grazing angles |
+| `caustics` | `'auto'` | Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun |
+| `causticsStrength` | `0.6` | How bright the web gets |
+| `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -84,6 +87,7 @@ import { WaterMaterial } from '@babylonjs/materials'
 import { AbstractMesh, markCollisionGroup, sceneDelta } from './b3d-utils.js'
 import { inheritedWind, waterWind } from './wind.js'
 import { band } from './atmosphere.js'
+import { CausticsMap } from './caustics.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dWater extends AbstractMesh {
@@ -106,6 +110,16 @@ export class B3dWater extends AbstractMesh {
     underside: 'auto' as 'auto' | 'on' | 'off',
     undersideColor: '#9fdcf0',
     undersideDepthColor: '#06283a',
+    /*
+    CAUSTICS — light through the moving surface, dancing on whatever is
+    beneath (board #198, tosijs-3d#16). 'auto' = on whenever `twoSided` (a
+    sea you go under). Projected by world position, so terrain, hulls and the
+    player all get it with no per-mesh setup; see `caustics`.
+    */
+    caustics: 'auto' as 'auto' | 'on' | 'off',
+    causticsStrength: 0.6,
+    /** Metres per caustic cell: bigger = a coarser, calmer web. */
+    causticsScale: 6,
     ...AbstractMesh.initAttributes,
     spherical: false,
     waterSize: 128,
@@ -169,6 +183,7 @@ export class B3dWater extends AbstractMesh {
   private _skyWasFogged = new WeakMap<BABYLON.AbstractMesh, boolean>()
   private _followTick?: () => void
   private _ceilingTick?: () => void
+  private _caustics: CausticsMap | null = null
   private _ceiling: BABYLON.Mesh | null = null
   private _ceilingBump: BABYLON.Texture | null = null
   /** The fog layer's crossing weight (0 in air, 1 fully under) — ONE value,
@@ -185,7 +200,48 @@ export class B3dWater extends AbstractMesh {
     for (const mesh of meshes) {
       if (!mesh.name.includes('water')) {
         this.waterMaterial!.addToRenderList(mesh)
+        // Caustics on everything that could be under the surface; the shader
+        // itself does nothing above it, so there is no need to be choosy.
+        if (
+          this._caustics != null &&
+          mesh.material != null &&
+          !/sky/i.test(mesh.name)
+        )
+          this._caustics.attachTo(mesh.material)
       }
+    }
+  }
+
+  private _causticsOn(): boolean {
+    const c = (this as any).caustics
+    if (c === 'off') return false
+    if (c === 'on') return true
+    return (this as any).twoSided === true
+  }
+
+  private _updateCaustics(scene: BABYLON.Scene): void {
+    const map = this._caustics
+    if (map == null || this.mesh == null) return
+    try {
+      map.waterY = this.mesh.absolutePosition.y
+      map.time += sceneDelta(scene)
+      map.strength = Math.max(0, (this as any).causticsStrength ?? 0.6)
+      map.cellSize = Math.max(0.5, (this as any).causticsScale ?? 6)
+      // The sun: the first directional light, which is what b3d-sun makes.
+      const sun = scene.lights.find(
+        (l) => l instanceof BABYLON.DirectionalLight
+      ) as BABYLON.DirectionalLight | undefined
+      if (sun != null) {
+        const d = sun.direction
+        const len = Math.hypot(d.x, d.y, d.z) || 1
+        map.sunX = d.x / len
+        map.sunY = d.y / len
+        map.sunZ = d.z / len
+        // No sun, no caustics: they are the sun's light, focused.
+        map.strength *= Math.min(1, Math.max(0, sun.intensity))
+      }
+    } catch {
+      /* never throw in the render loop */
     }
   }
 
@@ -309,6 +365,7 @@ export class B3dWater extends AbstractMesh {
     this.updateWater()
     this.mesh.material = this.waterMaterial
 
+    if (this._causticsOn()) this._caustics = new CausticsMap(scene)
     this._callback = this.waterCallback.bind(this)
     owner.addSceneListener(this._callback)
 
@@ -345,7 +402,10 @@ export class B3dWater extends AbstractMesh {
     }
     scene.registerBeforeRender(this._windTick)
 
-    this._ceilingTick = () => this._updateCeiling(scene)
+    this._ceilingTick = () => {
+      this._updateCeiling(scene)
+      this._updateCaustics(scene)
+    }
     scene.registerBeforeRender(this._ceilingTick)
 
     if (attrs.follow) {
@@ -665,6 +725,8 @@ export class B3dWater extends AbstractMesh {
       this.owner?.scene.unregisterBeforeRender(this._ceilingTick)
       this._ceilingTick = undefined
     }
+    this._caustics?.dispose()
+    this._caustics = null
     this._ceiling?.material?.dispose(true, true)
     this._ceiling?.dispose()
     this._ceiling = null

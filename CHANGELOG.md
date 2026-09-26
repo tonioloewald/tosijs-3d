@@ -10,6 +10,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Caustics** (board #198, tosijs-3d#16): light through the moving surface,
+  dancing on whatever is beneath a `twoSided` `b3d-water` (`caustics`,
+  `'auto'` = on whenever `twoSided`; `causticsStrength`, `causticsScale`).
+  Projected by world position through a material plugin (the cloud-shadow
+  technique), so terrain, hulls and the player all get it with no per-mesh
+  setup; slants with the sun, shimmers (two moving layers, combined with
+  `min`), fades with depth and fog, and goes with the sun. The pattern is a
+  seeded, tiling cellular web (`causticPattern`), with no file to fetch.
 - **One lattice per world, enforced where code can** (board #257,
   tosijs-3d#75): every `extractChunk` result carries its `lattice` identity
   (`latticeIdentity(cfg)`), and `assertLatticesWeld(chunks)` throws on a

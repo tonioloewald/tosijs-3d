@@ -1064,6 +1064,9 @@ b3d-water
   underside  = 'auto'  — Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog
   undersideColor  = '#9fdcf0'  — The window: the sky's light, looking up
   undersideDepthColor  = '#06283a'  — The mirror: the dark water, at grazing angles
+  caustics  = 'auto'  — Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun
+  causticsStrength  = 0.6  — How bright the web gets
+  causticsScale  = 6  — Metres per caustic cell: bigger is coarser and calmer
   spherical  = false  — Use a sphere instead of a plane
   waterSize  = 128  — Size of the water plane
   subdivisions  = 32  — Mesh subdivisions
