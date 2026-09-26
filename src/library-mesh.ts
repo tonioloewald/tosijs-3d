@@ -28,7 +28,7 @@ same bug: an aircraft's attitude comes from the flight model every frame
 (`fly-by-wire` writes `rotationQuaternion` in `_update`), so authored
 `rx`/`ry`/`rz` could not survive on it whatever the loader did — a flying craft
 is oriented by flight, not by an attribute. What it does still lack is `scale`,
-a bounded wait and a missing-library error; those are in `TODO.md` under
+a bounded wait and a missing-library error; those are in `DECISIONS.md` under
 "aircraft library loader", and its `library-changed` listener is now removed on
 disposal rather than only on success.
 

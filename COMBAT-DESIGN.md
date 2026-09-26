@@ -3,7 +3,7 @@
 Living spec for the weapons/combat system: warheads, destroyables, shields,
 projectiles (ballistic + guided), launchers, turrets, flame/melee, and the
 targeting side (Sensorium / Detectable). Specs are captured here as they're
-agreed; `TODO.md` (Combat) holds the actionable checklist.
+agreed; the virta board holds the actionable checklist (the old `TODO.md` Combat section is in `DECISIONS.md`).
 
 ## Architectural commitments
 

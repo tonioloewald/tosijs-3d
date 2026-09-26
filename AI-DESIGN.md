@@ -122,7 +122,7 @@ run is reproducible from its seed, drives the AI(s), and overlays each AI's `deb
 seeds/configs. This makes AI behaviour **observable, reproducible, and regression-testable**
 — you can replay the exact scenario that exposed a bug.
 
-Ties into the **MVP** (aircraft combat vertical slice — see TODO.md): the AI-aircraft
+Ties into the **MVP** (aircraft combat vertical slice — see DECISIONS.md): the AI-aircraft
 scenario playground _is_ how we'll verify fly/target/shoot/avoid before wiring enemies
 into the game. Likely leans on the world-sim scenario layer
 ([world-store](src/world-store.ts) is deterministic + seedable by design).

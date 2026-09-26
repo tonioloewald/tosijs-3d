@@ -295,7 +295,7 @@ _2026-07-11_
 
 _2026-07-02_
 
-- **Panel placement + reticle behavior queued** (TODO.md → _XR spatial panels_).
+- **Panel placement + reticle behavior queued** (DECISIONS.md → _XR spatial panels_).
   Headset finding: body-anchored panels clip into scenery (quick-access panel
   often below ground). Direction: closer + smaller panels to reduce clipping;
   strict-overlay mode only when needed (higher `renderingGroupId` + depth clear ≈
@@ -304,7 +304,7 @@ _2026-07-02_
   scale down non-linearly (~½ at max range) so it stays legible. DECIDED: reticle
   billboards toward the eye by default, with align-to-surface-normal and
   distance-from-hit as configurable attributes.
-- **Notification/toast system queued** (TODO.md → _Notification / toast system_).
+- **Notification/toast system queued** (DECISIONS.md → _Notification / toast system_).
   Panel-based transient message: appears slightly BELOW center view, dismissed by
   the user GAZING at it (reuse `gazeReveal`/facing math), then fades. Keep it a
   UX-layer concern (`notify(msg, opts)`), decoupled from narrative — the sim
@@ -679,7 +679,7 @@ floating above the first, rather than being laid out inside the opener's SVG.
 
 ### What this retires
 
-`TODO.md`'s `select3d` entry said a dropdown "**MUST** grow the panel's layout
+`DECISIONS.md`'s `select3d` entry said a dropdown "**MUST** grow the panel's layout
 (stackLayout re-flows) rather than a DOM-style absolute popover — a popover
 won't rasterize into the VR texture."
 

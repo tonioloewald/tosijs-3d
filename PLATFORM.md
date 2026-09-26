@@ -212,7 +212,7 @@ store path exists exactly on the platform whose commitment is weakest. On vision
 WebXR app is (as far as anyone could verify) **a URL**. So **treat the URL as the product**: fast
 load, no install, deep-linkable. Store distribution is an opportunistic extra, not the plan.
 
-See `TODO.md` → XR for the live items, and `UI-DESIGN-NOTES.md` for the running UX log.
+See the virta board for the live XR items (`DECISIONS.md` → XR for their history), and `UI-DESIGN-NOTES.md` for the running UX log.
 
 ## 8. Baselines and known quirks
 

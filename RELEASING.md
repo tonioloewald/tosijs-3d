@@ -189,10 +189,10 @@ The 0.7.0 cycle in one session, all found this way and none by the suite:
 enter and leave VR. Not "does it load".
 
 Log what you find rather than fixing in place — a list at the end beats six
-half-finished fixes — and put anything not fixed this cycle in TODO.md under
-"Needs validation" with the platform it was seen on.
+half-finished fixes — and file anything not fixed this cycle on the board
+(`virta create … --tags kind:bug,area:xr`) with the platform it was seen on.
 
-5a0. **Re-check `UPSTREAM.md`'s Open rows** — `gh issue view` each one. Upstream
+5a0. **Re-check the open upstream cards** (`virta ls "project:tosijs-3d notes:upstream"`) — `gh issue view` each one. Upstream
 issues get fixed while we're not looking, and a stale Open row is worse than no
 row: it asserts a workaround is still needed. (`tosijs-ui#63` sat in Open for a
 release after being closed.)

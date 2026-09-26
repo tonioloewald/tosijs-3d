@@ -358,7 +358,7 @@ because a display can change under you.
 The readings that will actually settle the budget are a **headset** and a
 **Raspberry Pi**: the first has the tightest frame budget we ship against (13.9ms,
 twice, one per eye) and the second is the floor of the hardware range. Both are
-in `TODO.md`.
+in `DECISIONS.md`.
 
 Read them together and the tidy story I had written — *cost is vertices* — is
 only half right. Rows one and two are the same number of vertices and differ by

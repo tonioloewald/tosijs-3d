@@ -2120,7 +2120,7 @@ export class B3d extends Component {
    * holding 120fps.) Measuring an idle machine is the entire point of measuring.
    *
    * A spin-up sequence would let us measure a KNOWN workload during load instead
-   * of waiting for quiet — see TODO.md. This is the fix that doesn't need one.
+   * of waiting for quiet — see DECISIONS.md. This is the fix that doesn't need one.
    */
   private _probeWhenIdle(): void {
     const start = Date.now()

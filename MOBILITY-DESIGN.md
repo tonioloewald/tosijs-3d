@@ -395,5 +395,5 @@ angle limit; grabbables get a yes.
 `AI-DESIGN.md` (the skill dial, and why the low end is the interesting one),
 `COLLISION-DESIGN.md` (probes take a pose source — what an affordance query would
 be built on), `src/b3d-interactive.ts` (the use/veto seam), `src/buoyancy.ts`
-(derivation over modes, already shipped and working), `TODO.md` → the locomotion
+(derivation over modes, already shipped and working), `DECISIONS.md` → the locomotion
 entry.

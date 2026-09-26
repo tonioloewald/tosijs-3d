@@ -56,7 +56,7 @@ It shows the caption and, once the line is "somewhat complete," the terse respon
 (`widgets3d` `button3d`s). Gesture clips (`b3d-biped`) fire at conversation beats — before a line,
 after it, or at an audio timing-mark — blended over the chatting idle. **Gesture-at-beat is MVP**
 (just an animation trigger); facial lip-sync from visemes is the deferred future direction (see
-`TODO.md` → Speech).
+`DECISIONS.md` → Speech).
 
 ## Voiced player, terse options
 
