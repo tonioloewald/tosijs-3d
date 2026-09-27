@@ -20,14 +20,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
   (0–1) for a HUD or a debug readout. The disturbance is the pure, seeded
   **`turbulence(t, seed, level)`** in `fly-by-wire`. Nothing happens on the
   ground or in an owner without the weather service.
-- **Light shafts** (WEATHER-DESIGN stage 4, board #1084):
-  **`<tosi-b3d-light-shafts>`** finds the gaps in the cloud deck beside
-  thicker cloud near you and hangs a soft shaft of sunlight from each, slanted
-  along the sun's direction to the ground, fading in and out as the gaps
-  drift. Brighter in rain, because rain is what scatters it (Tonio's point).
-  Camera-facing quads per MEDIUM-DESIGN §4; `count` is the budget. The deck
-  gains **`opacityAbove(x, z)`**, a CPU read of its own baked field for
-  placement. First cut, in Land and Sky, for tuning by eye.
+- **Light shafts** (WEATHER-DESIGN stage 4, board #1084), to Tonio's model
+  (pure half: **`light-rays`**): **`<tosi-b3d-light-shafts>`** hangs shafts
+  from the gaps in the cloud deck, BELOW it, running along the sun and
+  widening slightly (`spread`). An additive, flat fill of the sun's colour —
+  `strength` 0.25 at the cloud, linear to 0 — most prominent looking toward
+  the sun (a forward-scatter phase, per pixel), and only where the local
+  cover is broken: 0.8 up to (not including) 1. The same model runs UNDER
+  THE WATER: shafts from the surface, bent by Snell's law, sunlight tinted
+  by the water's fog, shimmering as cells come and go (`underwater`,
+  `underwaterCount`). Rain adds to the strength. The deck gains
+  **`opacityAbove(x, z)`** and **`coverageAt(x, z)`**, CPU reads of its own
+  field for placement.
 - **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).
   `b3d-ambient` gains `weather: 'rain' | 'snow'`: emission follows the
   PRECIPITATION where the viewer is, so a storm brings its own rain and it

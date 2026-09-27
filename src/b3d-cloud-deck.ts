@@ -1202,7 +1202,16 @@ export class B3dCloudDeck extends B3dChild {
     const k = inv * 1.6180339
     const b = sample(u2 * k + 0.37, v2 * k + 0.11)
     const d = Math.sqrt(Math.max(a * b, 0)) * 1.15
-    // Local coverage as the shader has it (the dial, the local field, storms).
+    return cloudOpacity(d, this.coverageAt(x, z))
+  }
+
+  /**
+   * **The cloud cover over (x, z)** as the shader has it: the dial, the local
+   * field and storms, in world XZ. Not clamped at 1 by the dial alone (a dial
+   * of 1.4 reads 1.4). Light shafts gate on it: they only make sense under a
+   * broken-but-not-closed sky.
+   */
+  coverageAt(x: number, z: number): number {
     const cov0 = Math.max(0, this.coverage)
     const ramp = Math.min(1, Math.max(0, cov0 * 4))
     const lw = this._liveWeather
@@ -1210,12 +1219,12 @@ export class B3dCloudDeck extends B3dChild {
       lw == null
         ? 0
         : Math.min(1, Math.max(0, lw(x - this._originX, z - this._originZ)))
-    const storm = Math.min(1, this.owner?.weatherAt(x, z).coverage ?? 0)
-    const cov =
+    const storm = Math.min(1, this.owner?.weatherAt?.(x, z).coverage ?? 0)
+    return (
       cov0 +
       fieldHere * ((this as any).localCoverage ?? 1) * ramp +
       storm * (1 - ramp)
-    return cloudOpacity(d, cov)
+    )
   }
 
   /**

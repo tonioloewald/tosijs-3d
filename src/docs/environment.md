@@ -21,6 +21,7 @@
 - [carve](/carve/)
 - [Carved landforms](/sdf-lattice/)
 - [landform](/landform/)
+- [light-rays](/light-rays/)
 - [lightning](/lightning/)
 - [scatter](/scatter/)
 - [water-normal](/water-normal/)

@@ -547,11 +547,15 @@ b3d-library
 ## b3d-light-shafts — <tosi-b3d-light-shafts>
 b3d-light-shafts
 
-  count  = 10  — How many shafts at most (the budget). `0` = off
-  radius  = 900  — How far from you (m) to look for gaps
-  width  = 90  — Shaft width (m)
-  strength  = 0.2  — Brightness in clear air; rain adds to it
-  rainBoost  = 1.5  — How much precipitation at the viewer multiplies the strength
+  count  = 10  — How many sky shafts at most (the budget). `0` = off
+  radius  = 3000  — How far from you (m) to look for gaps. Shafts read best from a distance
+  width  = 120  — Sky shaft width at the cloud (m)
+  spread  = 0.04  — How much wider per metre of length
+  strength  = 0.25  — Brightness at the edge the light comes through; it falls linearly to 0
+  rainBoost  = 0.5  — How much precipitation where you are multiplies the strength
+  color  = ''  — The light's colour; empty = the sun's (whitish by day)
+  underwater  = 'on'  — Shafts under the water surface too
+  underwaterCount  = 16  — Their budget
 
 ## b3d-light — <tosi-b3d-light>
 b3d-light

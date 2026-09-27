@@ -2108,27 +2108,47 @@
       {
         "name": "count",
         "default": "10",
-        "description": "How many shafts at most (the budget). `0` = off"
+        "description": "How many sky shafts at most (the budget). `0` = off"
       },
       {
         "name": "radius",
-        "default": "900",
-        "description": "How far from you (m) to look for gaps"
+        "default": "3000",
+        "description": "How far from you (m) to look for gaps. Shafts read best from a distance"
       },
       {
         "name": "width",
-        "default": "90",
-        "description": "Shaft width (m)"
+        "default": "120",
+        "description": "Sky shaft width at the cloud (m)"
+      },
+      {
+        "name": "spread",
+        "default": "0.04",
+        "description": "How much wider per metre of length"
       },
       {
         "name": "strength",
-        "default": "0.2",
-        "description": "Brightness in clear air; rain adds to it"
+        "default": "0.25",
+        "description": "Brightness at the edge the light comes through; it falls linearly to 0"
       },
       {
         "name": "rainBoost",
-        "default": "1.5",
-        "description": "How much precipitation at the viewer multiplies the strength"
+        "default": "0.5",
+        "description": "How much precipitation where you are multiplies the strength"
+      },
+      {
+        "name": "color",
+        "default": "''",
+        "description": "The light's colour; empty = the sun's (whitish by day)"
+      },
+      {
+        "name": "underwater",
+        "default": "'on'",
+        "description": "Shafts under the water surface too"
+      },
+      {
+        "name": "underwaterCount",
+        "default": "16",
+        "description": "Their budget"
       }
     ]
   },
