@@ -2107,7 +2107,7 @@
     "attributes": [
       {
         "name": "count",
-        "default": "10",
+        "default": "14",
         "description": "How many sky shafts at most (the budget). `0` = off"
       },
       {
@@ -2122,8 +2122,8 @@
       },
       {
         "name": "spread",
-        "default": "0.04",
-        "description": "How much wider per metre of length"
+        "default": "0",
+        "description": "Extra width per metre of length. `0`: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light"
       },
       {
         "name": "strength",
@@ -4225,6 +4225,11 @@
         "name": "undersideDepthColor",
         "default": "'#06283a'",
         "description": "The mirror: the dark water, at grazing angles"
+      },
+      {
+        "name": "sunGlare",
+        "default": "1",
+        "description": "The SUN seen from below: a shimmering glare inside Snell's window, where the refracted sun meets the surface (higher than in the sky, since light bends toward vertical entering water). Dimmed by the sun's intensity and the water between. `0` = off"
       },
       {
         "name": "caustics",

@@ -46,7 +46,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   water, its `waveHeight` and `bumpHeight`): calm water gives a few broad,
   slow rays, choppy water many narrow ones that flicker (`waterRoughness`,
   `waterRayShape`; `waterRoughness` on the element reads it back). The doc
-  page has an underwater demo. Rain adds to the strength. The deck gains
+  page has an underwater demo. Shafts are RECTANGULAR (`spread` 0), so
+  perspective alone makes them radiate from the sun; sky placement is
+  weighted hard toward the sun's position in view, and underwater rays are
+  biased toward the viewer so the middle of the view is not empty. Rain adds
+  to the strength.
+- **The sun through the water, from below** (`b3d-water` `sunGlare`, default
+  1): a shimmering glare inside Snell's window where the REFRACTED sun meets
+  the surface (higher than in the sky), dimmed by the sun's intensity and the
+  water between. The underwater rays radiate from it. The deck gains
   **`opacityAbove(x, z)`** and **`coverageAt(x, z)`**, CPU reads of its own
   field for placement.
 - **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).

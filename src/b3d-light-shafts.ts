@@ -6,8 +6,9 @@ cloud deck and under the water, from one model ([[light-rays]]):
 
 - A shaft **starts at the edge the light comes through** — the underside of
   the [`<tosi-b3d-cloud-deck>`](/b3d-cloud-deck/), the underside of the
-  [water](/b3d-water/) — and runs away from it along the light, widening
-  slightly with distance.
+  [water](/b3d-water/) — and runs away from it along the light. They are
+  **rectangular**: parallel to the sun's light, so perspective alone makes
+  them radiate from the sun and widen toward you.
 - It is an **additive, flat fill of the light's colour**, not a blur:
   `strength` (0.35) at the edge, falling linearly to nothing.
 - It is **most prominent looking toward the sun** (light scattered forward),
@@ -156,10 +157,10 @@ tosi-b3d { width: 100%; height: 100%; }
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `count` | `10` | How many sky shafts at most (the budget). `0` = off |
+| `count` | `14` | How many sky shafts at most (the budget). `0` = off |
 | `radius` | `3000` | How far from you (m) to look for gaps. Shafts read best from a distance |
 | `width` | `200` | The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.75); narrower as the cover closes, down to 10% of this near 1 |
-| `spread` | `0.04` | How much wider per metre of length |
+| `spread` | `0` | Extra width per metre of length. `0`: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light |
 | `strength` | `0.35` | Brightness at the edge the light comes through; it falls linearly to 0 |
 | `rainBoost` | `0.5` | How much precipitation where you are multiplies the strength |
 | `color` | `''` | The light's colour; empty = the sun's (whitish by day) |
@@ -257,10 +258,10 @@ export class B3dLightShafts extends B3dChild {
   static preferredTagName = 'tosi-b3d-light-shafts'
 
   static initAttributes = {
-    count: 10,
+    count: 14,
     radius: 3000,
     width: 200,
-    spread: 0.04,
+    spread: 0,
     strength: 0.35,
     rainBoost: 0.5,
     color: '',
@@ -516,7 +517,8 @@ export class B3dLightShafts extends B3dChild {
           op(x, z - d)
         )
         // Prefer shafts you would see toward the sun: they are the ones
-        // that show (forward scatter), radiating from where it is.
+        // that show (forward scatter), radiating from where it is. Weighted
+        // hard: most of the budget goes near the sun's position in view.
         const mx = x + sunDir.x * midLen - eye.x
         const my = base + sunDir.y * midLen - eye.y
         const mz = z + sunDir.z * midLen - eye.z
@@ -524,7 +526,7 @@ export class B3dLightShafts extends B3dChild {
           -(mx * sunDir.x + my * sunDir.y + mz * sunDir.z) /
           Math.max(1e-6, Math.hypot(mx, my, mz))
         const score =
-          (1 - here) * around * gate * (0.25 + sunPhase(cosSun, 3, 0))
+          (1 - here) * around * gate * (0.05 + 2 * sunPhase(cosSun, 8, 0))
         if (score > 0.1) scored.push({ x, z, score, gate, c })
       }
     }
@@ -575,18 +577,25 @@ export class B3dLightShafts extends B3dChild {
         const iz = iz0 + j
         // Each cell has its own slow clock, so they don't all change at once.
         const epoch = Math.floor(this._time / shape.period + hash01(ix, iz, 5))
-        if (hash01(ix, iz, epoch, 9) > shape.presence) continue
         const x = (ix + hash01(ix, iz, epoch, 1)) * cell
         const z = (iz + hash01(ix, iz, epoch, 2)) * cell
         const dist = Math.hypot(x - cx, z - cz)
         if (dist > R) continue
-        // Not through your face: a shaft you are inside is a flat wash.
-        // Not through your face, measured where the ray passes at YOUR
-        // depth (it slants), and scaled with the ray: a broad calm-water ray
-        // beside you is a slab, not a ray.
+        /*
+        BIASED TOWARD YOU (Tonio: "very few rays in the center of the view").
+        The rays in the middle of the view looking at the sun are the ones
+        whose light comes down NEAR you, so cells close to the line from you
+        to the sun are likelier to carry one.
+        */
+        const near = 1 + 2.2 * Math.exp(-((dist / 7) ** 2))
+        if (hash01(ix, iz, epoch, 9) > Math.min(0.9, shape.presence * near))
+          continue
+        // Not THROUGH your face (a ray you are inside is a flat wash):
+        // measured where the slanted ray passes at your depth, kept small so
+        // the centre of the view is not emptied.
         if (
           Math.hypot(x + d.x * up - eye.x, z + d.z * up - eye.z) <
-          1.5 + shape.width * 1.5
+          0.3 + shape.width * 0.6
         )
           continue
         cands.push({ x, z, key: `w:${ix},${iz},${epoch}`, dist })
@@ -677,7 +686,8 @@ export class B3dLightShafts extends B3dChild {
 
   /**
    * The shaft's shape this frame: a trapezoid hanging from its source along
-   * the light, widening with distance, turned about its own axis to face you.
+   * the light (widening only if `spread` asks), turned about its own axis to
+   * face you.
    */
   private _shape(
     s: Shaft,
@@ -700,7 +710,7 @@ export class B3dLightShafts extends B3dChild {
     s.mesh.position.copyFrom(top)
     const w0 = s.width / 2
     const w1 =
-      shaftWidthAt(len, s.width, s.kind === 'water' ? 0.02 : this.spread) / 2
+      shaftWidthAt(len, s.width, s.kind === 'water' ? 0 : this.spread) / 2
     s.mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, [
       -w0,
       0,

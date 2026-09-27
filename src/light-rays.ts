@@ -13,7 +13,9 @@ the SAME model.
   cloud, the underside of the water) and runs away from it along the light.
 - It is an additive fill of the light's colour, flat across and NOT blurred:
   `edge` (0.35) at the source, falling linearly to 0 at its far end.
-- It widens slightly with distance (`spread` metres per metre).
+- It is RECTANGULAR by default (`spread` 0): parallel to the sun's light,
+  so perspective alone makes a set of them radiate from the sun and widen
+  toward you. `spread` adds real widening if wanted.
 - It is most prominent looking TOWARD the sun: light scattered forward by
   the medium, a phase term on the angle between your view and the sun.
 - Under cloud it only makes sense for a broken sky: coverage 0.8 or more, but

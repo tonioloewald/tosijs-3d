@@ -50,6 +50,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `underside` | `'auto'` | Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog |
 | `undersideColor` | `'#9fdcf0'` | The window: the sky's light, looking up |
 | `undersideDepthColor` | `'#06283a'` | The mirror: the dark water, at grazing angles |
+| `sunGlare` | `1` | The SUN seen from below: a shimmering glare inside Snell's window, where the refracted sun meets the surface (higher than in the sky, since light bends toward vertical entering water). Dimmed by the sun's intensity and the water between. `0` = off |
 | `caustics` | `'auto'` | Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun |
 | `causticsStrength` | `0.6` | How bright the web gets |
 | `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
@@ -88,6 +89,7 @@ import { AbstractMesh, markCollisionGroup, sceneDelta } from './b3d-utils.js'
 import { inheritedWind, waterWind } from './wind.js'
 import { band } from './atmosphere.js'
 import { CausticsMap } from './caustics.js'
+import { refractDown } from './light-rays.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dWater extends AbstractMesh {
@@ -110,6 +112,11 @@ export class B3dWater extends AbstractMesh {
     underside: 'auto' as 'auto' | 'on' | 'off',
     undersideColor: '#9fdcf0',
     undersideDepthColor: '#06283a',
+    /*
+    THE SUN THROUGH THE SURFACE, seen from below: a glare where the refracted
+    sun meets the underside, shimmering with the waves. Strength; 0 = off.
+    */
+    sunGlare: 1,
     /*
     CAUSTICS — light through the moving surface, dancing on whatever is
     beneath (board #198, tosijs-3d#16). 'auto' = on whenever `twoSided` (a
@@ -624,12 +631,14 @@ export class B3dWater extends AbstractMesh {
       const w = this._underW
       if (!this._undersideOn() || cam == null || this.mesh == null || w <= 0) {
         this._ceiling?.setEnabled(false)
+        this._glare?.setEnabled(false)
         return
       }
       if (this._ceiling == null) this._ceiling = this._buildCeiling(scene)
       const waterY = this.mesh.absolutePosition.y
       const c = cam.globalPosition
       this._ceiling.setEnabled(true)
+      this._updateGlare(scene, waterY, c, w)
       this._ceiling.position.set(c.x, waterY - 0.08, c.z)
       this._ceiling.visibility = w
       const bump = this._ceilingBump
@@ -660,6 +669,111 @@ export class B3dWater extends AbstractMesh {
     } catch {
       /* never throw in the render loop — it skips every observer after this */
     }
+  }
+
+  /*
+  THE SUN, SEEN FROM BELOW (Tonio: "I'd hope some glare comes through from
+  the sun through the fresnel"). Light entering the water bends toward the
+  vertical (Snell), so from below the sun sits INSIDE the window, higher
+  than it is in the sky: along the refracted direction, reversed. An
+  additive glow on the ceiling there, sized by angle (so it is the same size
+  on screen at any depth), dimmed by the sun's own intensity (a clouded sun
+  glares less) and by the water between, and shimmering with the waves.
+  */
+  private _glare: BABYLON.Mesh | null = null
+  private _glareT = 0
+
+  private _updateGlare(
+    scene: BABYLON.Scene,
+    waterY: number,
+    eye: BABYLON.Vector3,
+    w: number
+  ): void {
+    const strength = Math.max(0, Number((this as any).sunGlare) || 0)
+    const sun = scene.lights.find(
+      (l) => l instanceof BABYLON.DirectionalLight
+    ) as BABYLON.DirectionalLight | undefined
+    const dir = sun?.direction.clone().normalize()
+    if (strength <= 0 || sun == null || dir == null || dir.y > -0.02) {
+      this._glare?.setEnabled(false)
+      return
+    }
+    const r = refractDown({ x: dir.x, y: dir.y, z: dir.z })
+    const toSun = new BABYLON.Vector3(-r.x, -r.y, -r.z)
+    const t = (waterY - 0.12 - eye.y) / Math.max(0.05, toSun.y)
+    if (!(t > 0)) {
+      this._glare?.setEnabled(false)
+      return
+    }
+    if (this._glare == null) this._glare = this._buildGlare(scene)
+    const g = this._glare
+    g.setEnabled(true)
+    g.position.copyFrom(eye.add(toSun.scale(t)))
+    this._glareT += sceneDelta(scene)
+    const tt = this._glareT
+    // Two incommensurate wobbles: the waves focusing and scattering it.
+    const shimmer = 0.78 + 0.22 * Math.sin(tt * 7.3) * Math.sin(tt * 3.1 + 1.3)
+    const size = t * 0.9 * (0.92 + 0.16 * Math.sin(tt * 5.7 + 0.4))
+    g.scaling.set(size, size, 1)
+    const density = Number((this as any).underwaterFog) || 0.12
+    const through = Math.exp(-t * density * 0.5)
+    const d = sun.diffuse
+    const m = Math.max(d.r, d.g, d.b, 1e-3)
+    const k = strength * Math.min(1.2, sun.intensity) * shimmer * through * w
+    ;(g.material as BABYLON.StandardMaterial).emissiveColor.set(
+      (d.r / m) * k,
+      (d.g / m) * k,
+      (d.b / m) * k
+    )
+  }
+
+  private _buildGlare(scene: BABYLON.Scene): BABYLON.Mesh {
+    const g = BABYLON.MeshBuilder.CreatePlane(
+      'water-sun-glare_nocast',
+      { size: 1 },
+      scene
+    )
+    g.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
+    g.isPickable = false
+    g.applyFog = false
+    // After every other transparent thing (Babylon's default alphaIndex is
+    // Number.MAX_VALUE, so only Infinity sorts later).
+    g.alphaIndex = Infinity
+    const n = 128
+    const tex = new BABYLON.DynamicTexture('water-sun-glare', n, scene, false)
+    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D
+    const img = ctx.createImageData(n, n)
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const rr = Math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2) / (n / 2)
+        // A hot core (the sun's disc, smeared by the waves) in a wide halo.
+        const core = Math.pow(Math.max(0, 1 - rr / 0.1), 0.5)
+        const halo = Math.pow(Math.max(0, 1 - rr), 2.2) * 0.7
+        const v = Math.round(255 * Math.min(1, core + halo))
+        const i = (y * n + x) * 4
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = img.data[i + 3] = v
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+    tex.update()
+    const mat = new BABYLON.StandardMaterial('water-sun-glare-mat', scene)
+    mat.disableLighting = true
+    mat.diffuseColor = BABYLON.Color3.Black()
+    mat.emissiveTexture = tex
+    mat.opacityTexture = tex
+    mat.emissiveColor = BABYLON.Color3.White()
+    mat.alphaMode = BABYLON.Constants.ALPHA_ADD
+    mat.disableDepthWrite = true
+    mat.backFaceCulling = false
+    /*
+    NO DEPTH TEST. It faces the camera, so half of it stands above the
+    ceiling plane it sits under, and the opaque ceiling clipped it to a flat
+    half-disc. The sun is by definition seen THROUGH the surface; a rock
+    overhead hiding it is the case given up.
+    */
+    mat.depthFunction = BABYLON.Constants.ALWAYS
+    g.material = mat
+    return g
   }
 
   private _buildCeiling(scene: BABYLON.Scene): BABYLON.Mesh {
@@ -727,6 +841,9 @@ export class B3dWater extends AbstractMesh {
     }
     this._caustics?.dispose()
     this._caustics = null
+    this._glare?.material?.dispose(true, true)
+    this._glare?.dispose()
+    this._glare = null
     this._ceiling?.material?.dispose(true, true)
     this._ceiling?.dispose()
     this._ceiling = null
