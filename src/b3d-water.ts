@@ -702,7 +702,15 @@ export class B3dWater extends AbstractMesh {
       return
     }
     if (this._skyProbe == null) {
-      const probe = new BABYLON.ReflectionProbe('water-window-sky', 128, scene)
+      // HALF-FLOAT: the sun is captured far above 1 (b3dSunHdr) so it can
+      // still blaze after the surface transmits only part of it.
+      const probe = new BABYLON.ReflectionProbe(
+        'water-window-sky',
+        128,
+        scene,
+        true,
+        true
+      )
       for (const sky of skies) probe.renderList!.push(sky)
       // Photograph the sky UNFOGGED, then put the underwater fog back.
       /*
@@ -712,22 +720,24 @@ export class B3dWater extends AbstractMesh {
       after; the first version lifted only the fog and photographed a flat
       fog-blue cube.
       */
-      const veil = (v: number) => {
+      const veil = (v: number, sunHdr: number) => {
         for (const sky of skies) {
           const m = sky.material as {
             setFloat?: (n: string, x: number) => void
           }
           m?.setFloat?.('b3dVeil', v)
+          m?.setFloat?.('b3dSunHdr', sunHdr)
         }
       }
       probe.cubeTexture.onBeforeRenderObservable.add(() => {
         for (const sky of skies)
           sky.applyFog = this._skyWasFogged.get(sky) ?? false
-        veil(0)
+        // The sun only exists above the horizon, and dims with the day.
+        veil(0, 20 * Math.min(1, this._sunUp(scene)))
       })
       probe.cubeTexture.onAfterRenderObservable.add(() => {
         if (this._skyFogged) for (const sky of skies) sky.applyFog = true
-        veil((this.owner as any)?.fogVeil ?? 0)
+        veil((this.owner as any)?.fogVeil ?? 0, 0)
       })
       this._skyProbe = probe
     }
@@ -736,7 +746,7 @@ export class B3dWater extends AbstractMesh {
     if (probe.refreshRate !== 6) probe.refreshRate = 6
     // Clearest in the shallows: the light has less water to cross.
     const depth = Math.max(0, waterY - eye.y)
-    const level = want * Math.exp(-depth / 12)
+    const level = want * 3 * Math.exp(-depth / 15)
     const tex = probe.cubeTexture
     if (mat.refractionTexture !== tex) mat.refractionTexture = tex
     tex.level = level
@@ -746,6 +756,16 @@ export class B3dWater extends AbstractMesh {
       const win = this._hexOr((this as any).undersideColor, '#9fdcf0')
       f.rightColor = win.scale(Math.max(0, 1 - level))
     }
+  }
+
+  /** How much sun there is to blaze through: its light's intensity, 0 when
+   * it is below the horizon. */
+  private _sunUp(scene: BABYLON.Scene): number {
+    const sun = scene.lights.find(
+      (l) => l instanceof BABYLON.DirectionalLight
+    ) as BABYLON.DirectionalLight | undefined
+    if (sun == null || sun.direction.y > -0.02) return 0
+    return Math.max(0, sun.intensity)
   }
 
   /** Stop photographing the sky while there is no window to show it in. */
@@ -793,6 +813,10 @@ export class B3dWater extends AbstractMesh {
     hands those angles to the mirror of the depths.
     */
     mat.indexOfRefraction = 1.33
+    // A probe's cube comes out Y-flipped for refraction lookups: without this
+    // the window showed the horizon haze and the sun sat in the -Y face
+    // (read off the probe's pixels: 68x in face 3, nothing overhead).
+    mat.invertRefractionY = true
     const rf = new BABYLON.FresnelParameters()
     rf.leftColor = BABYLON.Color3.Black() // grazing: no sky, the mirror
     rf.rightColor = BABYLON.Color3.White() // straight up: the sky

@@ -62,8 +62,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   reflection probe photographs the sky with its fog and veil OFF, and the
   underside refracts it through the water's own ripples, so the sky and the
   sun arrive bent and moving. Clearest in the shallows, fading with depth,
-  giving way to the dark mirror at grazing angles. (It replaces a glare
-  sprite that looked fake.) Underwater rays are fewer (`underwaterCount`
+  giving way to the dark mirror at grazing angles. The probe is HALF-FLOAT
+  and captures the sun as HDR (a new skybox uniform, `b3dSunHdr`, 0 in
+  normal rendering), so the sun still punches through the partial
+  transmission of the surface (Tonio: "our skybox isn't HDR so its glare
+  doesn't punch through"). (It replaces a glare sprite that looked fake.) Underwater rays are fewer (`underwaterCount`
   12, lower presence).
 - **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).
   `b3d-ambient` gains `weather: 'rain' | 'snow'`: emission follows the
