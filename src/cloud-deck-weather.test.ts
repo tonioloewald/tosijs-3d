@@ -1,4 +1,8 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
+import { PLATEAU_SHARE } from './cloud-field.js'
+
+/** What orographic 0.8 gives over a high flat plateau. */
+const PLATEAU_LIFT = 0.8 * PLATEAU_SHARE
 
 /*
 THE CLOUD DECK'S LOCAL WEATHER CHANNEL, driven for real.
@@ -120,22 +124,24 @@ const deck = (attrs: Record<string, unknown>, w: ReturnType<typeof world>) => {
 
 describe('the weather channel survives a lifecycle event', () => {
   test('dispose + re-attach bakes the NEW mesh, not a memo of the old one', () => {
-    const w = world(fakeTerrain(1000)) // far above orographicPeak: full lift
+    // A flat terrain far above orographicPeak: a PLATEAU, so the lift is
+    // PLATEAU_SHARE of 0.8 (orographicLift) — a ridge would give the rest.
+    const w = world(fakeTerrain(1000))
     const d = deck({ orographic: 0.8 }, w)
     d.frame()
-    expect(d.weather).toBeGreaterThan(0.5)
+    expect(d.weather).toBeCloseTo(PLATEAU_LIFT, 3)
     d.el.sceneDispose()
     attach(d.el, w)
     d.frame()
     // Fresh meshes start at zero; only a real re-bake puts the lift back.
-    expect(d.weather).toBeGreaterThan(0.5)
+    expect(d.weather).toBeCloseTo(PLATEAU_LIFT, 3)
   })
 
   test("a deck moved into another scene reads THAT scene's terrain", () => {
     const mountains = world(fakeTerrain(1000))
     const d = deck({ orographic: 0.8 }, mountains)
     d.frame()
-    expect(d.weather).toBeGreaterThan(0.5)
+    expect(d.weather).toBeCloseTo(PLATEAU_LIFT, 3)
     // Re-parent into a flat world. The old terrain is still "connected",
     // which is exactly when a stale cached lookup would keep answering.
     // Its own shape key, so a stale memo cannot mask the bug by skipping the
@@ -206,6 +212,6 @@ describe('the field is built only when something it depends on moved', () => {
     d.el.orographic = 0.8
     d.frame()
     expect(d.builds).toBe(1)
-    expect(d.weather).toBeGreaterThan(0.5)
+    expect(d.weather).toBeCloseTo(PLATEAU_LIFT, 3)
   })
 })

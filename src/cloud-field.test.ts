@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { cloudField, cloudOpacity } from './cloud-field.js'
+import {
+  cloudField,
+  cloudOpacity,
+  orographicLift,
+  PLATEAU_SHARE,
+} from './cloud-field.js'
 
 /*
 ONE FIELD, SAMPLED BY EVERYTHING — so the properties that matter are the ones
@@ -238,5 +243,23 @@ describe('cirrus — long and wispy vs rounded', () => {
       expect(Math.abs(m - last)).toBeLessThan(0.12)
       last = m
     }
+  })
+})
+
+describe('orographic lift (Land and Sky: the whole landmass read as mountain)', () => {
+  test('measured from the SEA: land just above a high sea lifts almost nothing', () => {
+    // Sea at 147 m, land at 170 m: 23 m above the sea, not 170.
+    expect(orographicLift(170, 170, 147, 260, 0.8)).toBeLessThan(0.02)
+    // The old rule (from y = 0) would have given ~0.8 × smoothstep(0.65).
+  })
+  test('a ridge lifts fully; a plateau at the same height only partly', () => {
+    const ridge = orographicLift(407, 300, 147, 260, 1)
+    const plateau = orographicLift(407, 407, 147, 260, 1)
+    expect(ridge).toBeCloseTo(1, 6)
+    expect(plateau).toBeCloseTo(PLATEAU_SHARE, 6)
+  })
+  test('nothing below the sea, nothing at strength 0', () => {
+    expect(orographicLift(100, 50, 147, 260, 1)).toBe(0)
+    expect(orographicLift(400, 100, 0, 260, 0)).toBe(0)
   })
 })

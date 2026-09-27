@@ -940,12 +940,12 @@
       {
         "name": "orographic",
         "default": "0",
-        "description": "Cloud gathers over high ground, `0…1`. Needs a terrain in the scene"
+        "description": "Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene"
       },
       {
         "name": "orographicPeak",
         "default": "260",
-        "description": "Terrain height at which `orographic` is at full strength"
+        "description": "Height ABOVE THE SEA at which `orographic` is at full strength"
       },
       {
         "name": "shadows",
@@ -2147,7 +2147,7 @@
       },
       {
         "name": "underwaterCount",
-        "default": "16",
+        "default": "24",
         "description": "Their budget"
       }
     ]

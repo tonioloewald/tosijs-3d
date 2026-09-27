@@ -97,3 +97,42 @@ export function refractDown(dir: V3, n = 1.33): V3 {
   const cosW = Math.sqrt(1 - sinW * sinW)
   return { x: (dir.x / h) * sinW, y: -cosW, z: (dir.z / h) * sinW }
 }
+
+/**
+ * How rough the water surface is, 0 (glass) to 1 (choppy), from the wind
+ * over it and the water's own wave settings. Waves FOCUS sunlight: that is
+ * what makes rays underwater at all, so this drives them.
+ */
+export function waterRoughness(
+  windSpeed: number,
+  waveHeight = 0,
+  bumpHeight = 0.1
+): number {
+  const x =
+    Math.max(0, windSpeed) / 12 +
+    Math.max(0, waveHeight) / 0.6 +
+    Math.max(0, bumpHeight) / 0.4
+  return 1 - Math.exp(-x)
+}
+
+/**
+ * Underwater rays from a surface this rough (Tonio: "surface turbulence would
+ * drive width and number of rays"). Calm water focuses light into a few broad,
+ * slow rays; choppy water into many narrow ones that flicker.
+ *
+ * - `presence`: the chance a surface cell carries a ray (the NUMBER).
+ * - `width`: a typical ray's width in metres at the surface.
+ * - `period`: seconds a ray lives before its cell re-rolls (the flicker).
+ */
+export function waterRayShape(roughness: number): {
+  presence: number
+  width: number
+  period: number
+} {
+  const r = Math.min(1, Math.max(0, roughness))
+  return {
+    presence: 0.05 + 0.4 * r,
+    width: 2.2 - 1.9 * r,
+    period: 6 - 4.8 * r,
+  }
+}

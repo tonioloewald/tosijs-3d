@@ -17,7 +17,10 @@ cloud deck and under the water, from one model ([[light-rays]]):
   the **width**: broad from a ragged sky, slits as it closes toward 1.
 - Under water, the light is the sun's **tinted by the water's fog**, bent by
   Snell's law so the shafts lean toward vertical, and they shimmer as the
-  surface moves. Only when the sun is reaching the water.
+  surface moves. Only when the sun is reaching the water. **Surface
+  turbulence** (the wind over the water, its `waveHeight` and `bumpHeight`)
+  drives them: calm water focuses a few broad, slow rays; choppy water many
+  narrow ones that flicker (`waterRoughness` reads it back).
 
 Rain helps (it scatters the light): the strength rises with the
 precipitation where you are.
@@ -90,6 +93,65 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## Under the water
+
+The same shafts from the underside of the sea. You are a few metres down,
+looking up toward the sun. Open the ⚙ menu: raise `wind` or `wave height`
+and the rays multiply, narrow and flicker; calm it and a few broad ones
+drift slowly. `depth` takes you down into the murk.
+
+```js
+import { b3d, b3dSun, b3dLight, b3dSkybox, b3dWater, b3dLightShafts, b3dGround, slider3d, label3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { sea } = tosi({
+  sea: { depth: 6, wind: 4, waveHeight: 0.1, timeOfDay: 13 },
+})
+
+preview.append(
+  b3d(
+    {
+      windSpeed: sea.wind,
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, -6, 0), el.scene)
+        cam.minZ = 0.1
+        cam.fov = 1.1
+        cam.attachControl(el.parts.canvas, true)
+        el.setActiveCamera(cam)
+        let aimed = false
+        el.scene.onBeforeRenderObservable.add(() => {
+          cam.position.y = -sea.depth.valueOf()
+          const sun = el.scene.lights.find((l) => l.getClassName() === 'DirectionalLight')
+          if (aimed || !sun || sun.direction.y > -0.05) return
+          aimed = true
+          // Toward the sun, and up at it: the rays fan down from there.
+          const t = sun.direction.clone().normalize().scale(-1)
+          t.y = 0.3
+          cam.setTarget(cam.position.add(t.normalize().scale(10)))
+        })
+      },
+      scenePanel: () => [
+        label3d({ text: 'Under the water' }),
+        slider3d({ label: 'depth', value: sea.depth, min: 1, max: 30, step: 0.5 }),
+        slider3d({ label: 'wind', value: sea.wind, min: 0, max: 25, step: 0.5 }),
+        slider3d({ label: 'wave height', value: sea.waveHeight, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'time of day', value: sea.timeOfDay, min: 7, max: 18, step: 0.1 }),
+      ],
+    },
+    b3dSun({}),
+    b3dSkybox({ timeOfDay: sea.timeOfDay, realtimeScale: 0 }),
+    b3dLight({ intensity: 0.6 }),
+    b3dGround({ size: 400, y: -25, color: '#8a8060', texture: 'noise' }),
+    b3dWater({ y: 0, twoSided: true, waterSize: 400, waveHeight: sea.waveHeight }),
+    b3dLightShafts({}),
+  )
+)
+```
+```css
+.preview { height: 100%; }
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -102,7 +164,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `rainBoost` | `0.5` | How much precipitation where you are multiplies the strength |
 | `color` | `''` | The light's colour; empty = the sun's (whitish by day) |
 | `underwater` | `'on'` | Shafts under the water surface too |
-| `underwaterCount` | `16` | Their budget |
+| `underwaterCount` | `24` | Their budget |
 */
 /*{ "parent": "Environment" }*/
 
@@ -115,6 +177,8 @@ import {
   refractDown,
   shaftCoverageGate,
   shaftWidthForCoverage,
+  waterRayShape,
+  waterRoughness,
   shaftWidthAt,
   sunPhase,
 } from './light-rays.js'
@@ -201,7 +265,7 @@ export class B3dLightShafts extends B3dChild {
     rainBoost: 0.5,
     color: '',
     underwater: 'on' as 'on' | 'off',
-    underwaterCount: 16,
+    underwaterCount: 24,
   }
 
   declare count: number
@@ -214,11 +278,16 @@ export class B3dLightShafts extends B3dChild {
   declare underwater: 'on' | 'off'
   declare underwaterCount: number
 
+  /** Read-only: how rough the water above you is (0–1), last time rays were
+   * placed. Drives their number, width and flicker. */
+  waterRoughness = 0
+
   private _shafts: Shaft[] = []
   private _mats: Partial<Record<Kind, BABYLON.ShaderMaterial>> = {}
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   private _since = 1e9
   private _seq = 0
+  private _pool: Record<Kind, BABYLON.Mesh[]> = { sky: [], water: [] }
   private _time = 0
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -354,7 +423,10 @@ export class B3dLightShafts extends B3dChild {
       )
     }
     for (const s of this._shafts) {
-      s.level += Math.max(-1, Math.min(1, (s.target - s.level) * dt * 1.2))
+      // Water rays live for about a flicker period, so they must fade on
+      // that scale too, or fast flicker piles up half-faded rays.
+      const rate = s.kind === 'water' ? 4 : 1.2
+      s.level += Math.max(-1, Math.min(1, (s.target - s.level) * dt * rate))
       s.level = Math.max(0, Math.min(1, s.level))
       const d = s.kind === 'water' ? wDir : dir
       const len =
@@ -384,7 +456,11 @@ export class B3dLightShafts extends B3dChild {
   private _sweep(): void {
     this._shafts = this._shafts.filter((s) => {
       if (s.target === 0 && s.level <= 0.001) {
-        s.mesh.dispose()
+        // POOLED, not disposed: choppy water re-rolls its rays every second
+        // or so, and a mesh per ray per roll is dozens of allocations a
+        // second for a quad.
+        s.mesh.isVisible = false
+        this._pool[s.kind].push(s.mesh)
         return false
       }
       return true
@@ -483,7 +559,11 @@ export class B3dLightShafts extends B3dChild {
     const up = (water.y - eye.y) / Math.max(0.1, -d.y)
     const cx = eye.x - d.x * up
     const cz = eye.z - d.z * up
-    const cell = 3
+    // Surface turbulence drives the rays: rough water, many narrow ones that
+    // flicker; calm water, a few broad slow ones.
+    const shape = waterRayShape(water.roughness)
+    this.waterRoughness = water.roughness
+    const cell = Math.max(1.2, shape.width * 1.6)
     const R = Math.min(30, water.reach)
     const n = Math.ceil(R / cell)
     const ix0 = Math.floor(cx / cell)
@@ -494,14 +574,21 @@ export class B3dLightShafts extends B3dChild {
         const ix = ix0 + i
         const iz = iz0 + j
         // Each cell has its own slow clock, so they don't all change at once.
-        const epoch = Math.floor(this._time / 3 + hash01(ix, iz, 5))
-        if (hash01(ix, iz, epoch, 9) > 0.22) continue
+        const epoch = Math.floor(this._time / shape.period + hash01(ix, iz, 5))
+        if (hash01(ix, iz, epoch, 9) > shape.presence) continue
         const x = (ix + hash01(ix, iz, epoch, 1)) * cell
         const z = (iz + hash01(ix, iz, epoch, 2)) * cell
         const dist = Math.hypot(x - cx, z - cz)
         if (dist > R) continue
         // Not through your face: a shaft you are inside is a flat wash.
-        if (Math.hypot(x - eye.x, z - eye.z) < 2.5) continue
+        // Not through your face, measured where the ray passes at YOUR
+        // depth (it slants), and scaled with the ray: a broad calm-water ray
+        // beside you is a slab, not a ray.
+        if (
+          Math.hypot(x + d.x * up - eye.x, z + d.z * up - eye.z) <
+          1.5 + shape.width * 1.5
+        )
+          continue
         cands.push({ x, z, key: `w:${ix},${iz},${epoch}`, dist })
       }
     }
@@ -517,9 +604,23 @@ export class B3dLightShafts extends B3dChild {
         y: water.y,
         z: c.z,
         gate: sky,
-        width: 0.25 + hash01(Math.round(c.x), Math.round(c.z), 3) * 0.6,
+        width:
+          shape.width *
+          (0.6 + 0.8 * hash01(Math.round(c.x), Math.round(c.z), 3)),
       })
     }
+  }
+
+  /** How rough the water is here: the wind over it plus the water element's
+   * own wave settings. */
+  private _roughness(owner: B3d): number {
+    const el = owner.querySelector('tosi-b3d-water') as {
+      waveHeight?: number
+      bumpHeight?: number
+    } | null
+    const w = owner.weatherHere?.().wind
+    const speed = w == null ? 0 : Math.hypot(w.x, w.z)
+    return waterRoughness(speed, el?.waveHeight ?? 0, el?.bumpHeight ?? 0.1)
   }
 
   /** The water medium you are under, if any, with how far light carries. */
@@ -533,6 +634,7 @@ export class B3dLightShafts extends B3dChild {
         y: m.y,
         color: m.optics.color ?? { r: 0, g: 0.15, b: 0.3 },
         reach: Math.max(8, Math.min(60, fog?.end ?? 25)),
+        roughness: this._roughness(owner),
       }
     }
     return null
@@ -548,6 +650,8 @@ export class B3dLightShafts extends B3dChild {
   }
 
   private _makeMesh(scene: BABYLON.Scene, kind: Kind): BABYLON.Mesh {
+    const pooled = this._pool[kind].pop()
+    if (pooled != null) return pooled
     const mesh = new BABYLON.Mesh(`shaft-${kind}-${this._seq++}`, scene)
     const vd = new BABYLON.VertexData()
     vd.positions = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -619,6 +723,10 @@ export class B3dLightShafts extends B3dChild {
     if (this._obs) this.owner?.scene.onBeforeRenderObservable.remove(this._obs)
     this._obs = null
     for (const s of this._shafts) s.mesh.dispose()
+    for (const k of ['sky', 'water'] as Kind[]) {
+      for (const m of this._pool[k]) m.dispose()
+      this._pool[k] = []
+    }
     this._shafts = []
     for (const m of Object.values(this._mats)) m?.dispose()
     this._mats = {}
@@ -630,6 +738,8 @@ interface WaterHere {
   color: { r: number; g: number; b: number }
   /** How far light carries (m): the shafts' length. */
   reach: number
+  /** 0 glass – 1 choppy: drives the rays' number, width and flicker. */
+  roughness: number
 }
 
 /** Where a sky shaft ends: the sea surface if there is one, else 0. */

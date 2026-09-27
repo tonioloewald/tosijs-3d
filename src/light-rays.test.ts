@@ -6,6 +6,8 @@ import {
   shaftWidthAt,
   sunPhase,
   refractDown,
+  waterRoughness,
+  waterRayShape,
 } from './light-rays.js'
 
 describe('light rays (#1084)', () => {
@@ -56,5 +58,15 @@ describe('light rays (#1084)', () => {
     expect(fromVertical).toBeGreaterThan(45)
     // Straight down stays straight down.
     expect(refractDown({ x: 0, y: -1, z: 0 }).y).toBe(-1)
+  })
+
+  test('surface turbulence drives the rays: calm = few and broad, choppy = many and narrow', () => {
+    const calm = waterRayShape(waterRoughness(0, 0, 0.02))
+    const choppy = waterRayShape(waterRoughness(15, 0.8, 0.3))
+    expect(choppy.presence).toBeGreaterThan(calm.presence * 3)
+    expect(choppy.width).toBeLessThan(calm.width / 2)
+    expect(choppy.period).toBeLessThan(calm.period)
+    expect(waterRoughness(0, 0, 0)).toBe(0)
+    expect(waterRoughness(1e6)).toBeLessThanOrEqual(1)
   })
 })

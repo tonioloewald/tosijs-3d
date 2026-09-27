@@ -156,8 +156,8 @@ preview.append(
 | `localRise` | `1200` | How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note |
 | `stormRise` | `1500` | How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says) |
 | `localCoverage` | `1` | How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast |
-| `orographic` | `0` | Cloud gathers over high ground, `0…1`. Needs a terrain in the scene |
-| `orographicPeak` | `260` | Terrain height at which `orographic` is at full strength |
+| `orographic` | `0` | Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene |
+| `orographicPeak` | `260` | Height ABOVE THE SEA at which `orographic` is at full strength |
 | `shadows` | `'on'` | Cloud shadows on the ground |
 | `shadowResolution` | `0` (auto) | Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail |
 | `shadowRange` | `6000` | Width in metres of the shadow window, centred on the camera |
@@ -257,7 +257,12 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
 import { resolveBudget } from './b3d-quality.js'
 import type { B3d } from './tosi-b3d.js'
-import { cloudField, cloudOpacity } from './cloud-field.js'
+import {
+  cloudField,
+  cloudOpacity,
+  orographicLift,
+  OROGRAPHIC_REACH,
+} from './cloud-field.js'
 import { CloudShadowMap } from './cloud-shadows.js'
 
 const DECK_VERT = `
@@ -876,6 +881,7 @@ function freshWeatherKey(): {
   z: number
   orographic: number
   peak: number
+  sea: number
   weather: ((x: number, z: number) => number) | null
   gen: string
   cells: string
@@ -885,6 +891,7 @@ function freshWeatherKey(): {
     x: NaN,
     z: NaN,
     orographic: NaN,
+    sea: NaN,
     peak: NaN,
     cells: '',
     weather: null,
@@ -1802,6 +1809,16 @@ export class B3dCloudDeck extends B3dChild {
       .join(';')
   }
 
+  /** Sea level for orographic lift: the scene's water surface, else 0. */
+  private _seaLevel(): number {
+    const media = ((this.owner as any)?.media ?? []) as Array<{
+      kind: string
+      y?: number
+    }>
+    const water = media.find((m) => m.kind === 'plane')
+    return water?.y ?? 0
+  }
+
   private _ownWeatherField(): ((x: number, z: number) => number) | null {
     if (this.weather != null) return this.weather
     const strength = Math.min(1, Math.max(0, this.orographic))
@@ -1809,17 +1826,24 @@ export class B3dCloudDeck extends B3dChild {
     const height = this._terrainEl()?.heightSampler?.()
     if (height == null) return null
     const peak = Math.max(1, this.orographicPeak)
+    const sea = this._seaLevel()
     /*
-    A RIDGE, not a height map. What makes orographic cloud is air being pushed
-    UP, so the interesting thing is elevation relative to what is around it —
-    but a first pass on absolute height already puts the towers over the
-    mountains and the clear air over the sea, which is the effect being asked
-    for. Smoothstepped so a coastal plain contributes nothing rather than a
-    little of everything.
+    A RIDGE ABOVE THE SEA (cloud-field's orographicLift). The first pass used
+    ABSOLUTE height, which only worked while the sea sat at 0: with Land and
+    Sky's sea at 147 m, all the land lifted, and a 0.3 sky rendered as a
+    solid sheet (Tonio). Five height samples a vertex, only when the grid
+    moves or the terrain changes.
     */
+    const R = OROGRAPHIC_REACH
     return (x, z) => {
-      const t = Math.min(1, Math.max(0, height(x, z) / peak))
-      return strength * t * t * (3 - 2 * t)
+      const h = height(x, z)
+      const around =
+        (height(x + R, z) +
+          height(x - R, z) +
+          height(x, z + R) +
+          height(x, z - R)) /
+        4
+      return orographicLift(h, around, sea, peak, strength)
     }
   }
 
@@ -1873,6 +1897,7 @@ export class B3dCloudDeck extends B3dChild {
         k.z === mesh.position.z &&
         k.orographic === this.orographic &&
         k.peak === this.orographicPeak &&
+        k.sea === this._seaLevel() &&
         k.weather === this.weather &&
         k.gen === gen &&
         k.cells === cells
@@ -1884,6 +1909,7 @@ export class B3dCloudDeck extends B3dChild {
       k.z = mesh.position.z
       k.orographic = this.orographic
       k.peak = this.orographicPeak
+      k.sea = this._seaLevel()
       k.weather = this.weather
       k.gen = gen
       k.cells = cells

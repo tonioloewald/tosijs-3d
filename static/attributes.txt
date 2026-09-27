@@ -241,8 +241,8 @@ b3d-cloud-deck
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
   stormRise  = 1500  — How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says)
   localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
-  orographic  = 0  — Cloud gathers over high ground, `0…1`. Needs a terrain in the scene
-  orographicPeak  = 260  — Terrain height at which `orographic` is at full strength
+  orographic  = 0  — Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene
+  orographicPeak  = 260  — Height ABOVE THE SEA at which `orographic` is at full strength
   shadows  = 'on'  — Cloud shadows on the ground
   shadowResolution  = 0  — Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail
   shadowRange  = 6000  — Width in metres of the shadow window, centred on the camera
@@ -555,7 +555,7 @@ b3d-light-shafts
   rainBoost  = 0.5  — How much precipitation where you are multiplies the strength
   color  = ''  — The light's colour; empty = the sun's (whitish by day)
   underwater  = 'on'  — Shafts under the water surface too
-  underwaterCount  = 16  — Their budget
+  underwaterCount  = 24  — Their budget
 
 ## b3d-light — <tosi-b3d-light>
 b3d-light

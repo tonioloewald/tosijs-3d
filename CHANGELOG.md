@@ -8,6 +8,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+### Fixed
+
+- **Orographic cloud filled the whole sky over land** (Tonio: "orographic is
+  the problem. It fills the transparent areas without changing apparent
+  cloud coverage"). The lift was measured from ABSOLUTE height, so with Land
+  and Sky's sea at 147 m every bit of land counted as mountain and added
+  +0.5 to +0.75 coverage: a 0.3 sky rendered as a solid grey sheet. It is
+  now measured from the SEA (the scene's water surface) and weighted to
+  RIDGES (ground above its surroundings); a high flat plateau keeps 35% of
+  it. Pure: `cloud-field`'s `orographicLift`, tested. `orographicPeak` is now
+  the height above the sea.
+
 ### Added
 
 - **Weather reaches the airframe** (board #1125). `<tosi-b3d-aircraft>` asks
@@ -30,7 +42,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   cover is broken: 0.8 up to (not including) 1. The same model runs UNDER
   THE WATER: shafts from the surface, bent by Snell's law, sunlight tinted
   by the water's fog, shimmering as cells come and go (`underwater`,
-  `underwaterCount`). Rain adds to the strength. The deck gains
+  `underwaterCount`). SURFACE TURBULENCE drives them (the wind over the
+  water, its `waveHeight` and `bumpHeight`): calm water gives a few broad,
+  slow rays, choppy water many narrow ones that flicker (`waterRoughness`,
+  `waterRayShape`; `waterRoughness` on the element reads it back). The doc
+  page has an underwater demo. Rain adds to the strength. The deck gains
   **`opacityAbove(x, z)`** and **`coverageAt(x, z)`**, CPU reads of its own
   field for placement.
 - **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).

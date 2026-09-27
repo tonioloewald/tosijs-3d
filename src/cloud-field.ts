@@ -262,3 +262,43 @@ export function cloudOpacity(density: number, coverage: number): number {
   const t = (density - threshold + softness) / (softness * 2)
   return t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t)
 }
+
+/**
+ * **Orographic lift at one point**, 0–`strength`: how much MORE cloud high
+ * ground makes here. `h` is the terrain height, `around` the mean height a
+ * little way off, `sea` the sea level, `peak` the height ABOVE THE SEA at which
+ * the lift is full.
+ *
+ * Two things make it, and both used to be missing:
+ *
+ * - **Height above the SEA, not above y = 0.** Measured from zero, a world
+ *   whose sea sits at 147 m (Land and Sky) counted its entire landmass as
+ *   mountain: every bit of land lifted +0.5 to +0.75 coverage, so a dial of
+ *   0.3 rendered as a solid grey sheet with the gaps filled in (Tonio:
+ *   "orographic is the problem. It fills the transparent areas without
+ *   changing apparent cloud coverage").
+ * - **A RIDGE, not a plateau.** What makes orographic cloud is air being
+ *   pushed UP, so ground that stands above its surroundings lifts most; a high
+ *   flat plain lifts a little (`PLATEAU_SHARE`), not fully.
+ */
+export function orographicLift(
+  h: number,
+  around: number,
+  sea: number,
+  peak: number,
+  strength: number
+): number {
+  const s = Math.min(1, Math.max(0, strength))
+  if (s <= 0) return 0
+  const p = Math.max(1, peak)
+  const e = Math.min(1, Math.max(0, (h - sea) / p))
+  const elevation = e * e * (3 - 2 * e)
+  const ridge = Math.min(1, Math.max(0, (h - around) / (p * 0.25)))
+  return s * elevation * (PLATEAU_SHARE + (1 - PLATEAU_SHARE) * ridge)
+}
+
+/** How much of the lift a high but FLAT plateau keeps (the rest is ridge). */
+export const PLATEAU_SHARE = 0.35
+
+/** How far off (m) "around" is sampled for the ridge test. */
+export const OROGRAPHIC_REACH = 900
