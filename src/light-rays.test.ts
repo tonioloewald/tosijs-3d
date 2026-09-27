@@ -2,6 +2,7 @@ import { describe, test, expect } from 'bun:test'
 import {
   shaftCoverageGate,
   shaftAlong,
+  shaftWidthForCoverage,
   shaftWidthAt,
   sunPhase,
   refractDown,
@@ -17,12 +18,21 @@ describe('light rays (#1084)', () => {
     expect(shaftCoverageGate(1.4)).toBe(0)
   })
 
-  test('brightness is 0.25 at the source, linear to 0 at the far end', () => {
-    expect(shaftAlong(0)).toBeCloseTo(0.25, 9)
-    expect(shaftAlong(0.5)).toBeCloseTo(0.125, 9)
+  test('brightness is 0.35 at the source, linear to 0 at the far end', () => {
+    expect(shaftAlong(0)).toBeCloseTo(0.35, 9)
+    expect(shaftAlong(0.5)).toBeCloseTo(0.175, 9)
     expect(shaftAlong(1)).toBe(0)
     expect(shaftAlong(2)).toBe(0)
     expect(shaftAlong(0, 0.4)).toBeCloseTo(0.4, 9)
+  })
+
+  test('the gaps set the width: broad at the threshold, slits near closed', () => {
+    expect(shaftWidthForCoverage(0.75, 200)).toBeCloseTo(200, 9)
+    expect(shaftWidthForCoverage(0.5, 200)).toBeCloseTo(200, 9)
+    expect(shaftWidthForCoverage(1, 200)).toBeCloseTo(20, 9)
+    const a = shaftWidthForCoverage(0.85, 200)
+    const b = shaftWidthForCoverage(0.95, 200)
+    expect(a).toBeGreaterThan(b)
   })
 
   test('a shaft widens slightly with distance', () => {

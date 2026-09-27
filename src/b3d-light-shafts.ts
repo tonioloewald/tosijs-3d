@@ -9,11 +9,12 @@ cloud deck and under the water, from one model ([[light-rays]]):
   [water](/b3d-water/) — and runs away from it along the light, widening
   slightly with distance.
 - It is an **additive, flat fill of the light's colour**, not a blur:
-  `strength` (0.25) at the edge, falling linearly to nothing.
+  `strength` (0.35) at the edge, falling linearly to nothing.
 - It is **most prominent looking toward the sun** (light scattered forward),
   and faint looking away.
 - Under cloud, only where the sky is **broken but not closed**: local
-  coverage 0.8 up to 1. Clear skies and overcast have none.
+  coverage 0.8 up to 1. Clear skies and overcast have none. The cover sets
+  the **width**: broad from a ragged sky, slits as it closes toward 1.
 - Under water, the light is the sun's **tinted by the water's fog**, bent by
   Snell's law so the shafts lean toward vertical, and they shimmer as the
   surface moves. Only when the sun is reaching the water.
@@ -26,32 +27,66 @@ the water ones.
 
 ## Demo
 
-Late afternoon under a broken deck. Shafts hang from the gaps, brightest
-toward the sun; drag to look away from it and they fade.
+Afternoon under a broken deck, looking toward the sun. Open the ⚙ menu:
+`cloud cover` below 0.75 has no shafts, near 1 only slits; `time of day`
+moves the sun (and the shafts with it). Drag to look away from the sun and
+they fade. The full weather, terrain and all, is in
+[Land and Sky](/land-and-sky/): set its cloud cover to about 0.85.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dCloudDeck, b3dLightShafts, b3dGround } from 'tosijs-3d'
+import { b3d, b3dSun, b3dLight, b3dSkybox, b3dCloudDeck, b3dLightShafts, b3dGround, slider3d, label3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { shafts } = tosi({
+  shafts: { coverage: 0.85, timeOfDay: 15.2, altitude: 450, strength: 0.35, width: 200, count: 10 },
+})
 
 preview.append(
   b3d(
     {
       sceneCreated(el, BABYLON) {
-        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, 40, 0), el.scene)
-        cam.setTarget(new BABYLON.Vector3(-1000, 250, 0))
+        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, 60, 0), el.scene)
         cam.maxZ = 20000
-        cam.attachControl(el.querySelector('canvas'), true)
+        cam.fov = 1.1
+        cam.attachControl(el.parts.canvas, true)
         el.setActiveCamera(cam)
+        // Start looking TOWARD the sun (once), where the shafts show.
+        let aimed = false
+        el.scene.onBeforeRenderObservable.add(() => {
+          const sun = el.scene.lights.find((l) => l.getClassName() === 'DirectionalLight')
+          if (aimed || !sun || sun.direction.y > -0.05) return
+          aimed = true
+          const t = sun.direction.clone().normalize().scale(-1)
+          t.y *= 0.8
+          cam.setTarget(cam.position.add(t.scale(1000)))
+        })
       },
+      scenePanel: () => [
+        label3d({ text: 'Light shafts' }),
+        slider3d({ label: 'cloud cover', value: shafts.coverage, min: 0.5, max: 1.2, step: 0.01 }),
+        slider3d({ label: 'time of day', value: shafts.timeOfDay, min: 6, max: 19, step: 0.1 }),
+        slider3d({ label: 'cloud base', value: shafts.altitude, min: 150, max: 1200, step: 10 }),
+        slider3d({ label: 'strength', value: shafts.strength, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: 'width', value: shafts.width, min: 20, max: 500, step: 10 }),
+        slider3d({ label: 'count', value: shafts.count, min: 0, max: 30, step: 1 }),
+      ],
     },
     b3dSun({}),
-    b3dSkybox({ timeOfDay: 16.5, realtimeScale: 0 }),
-    b3dGround({ width: 12000, height: 12000, color: '#4a5a44' }),
-    b3dCloudDeck({ altitude: 450, coverage: 0.85 }),
-    b3dLightShafts({}),
+    b3dSkybox({ timeOfDay: shafts.timeOfDay, realtimeScale: 0 }),
+    // A fill, so the ground under an overcast is not simply black.
+    b3dLight({ intensity: 0.6 }),
+    b3dGround({ size: 12000, color: '#5d6b4a', texture: 'noise', receiveShadows: true }),
+    b3dCloudDeck({ altitude: shafts.altitude, coverage: shafts.coverage }),
+    b3dLightShafts({
+      strength: shafts.strength,
+      width: shafts.width,
+      count: shafts.count,
+    }),
   )
 )
 ```
 ```css
+.preview { height: 100%; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
@@ -61,9 +96,9 @@ tosi-b3d { width: 100%; height: 100%; }
 |-----------|---------|-------------|
 | `count` | `10` | How many sky shafts at most (the budget). `0` = off |
 | `radius` | `3000` | How far from you (m) to look for gaps. Shafts read best from a distance |
-| `width` | `120` | Sky shaft width at the cloud (m) |
+| `width` | `200` | The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.75); narrower as the cover closes, down to 10% of this near 1 |
 | `spread` | `0.04` | How much wider per metre of length |
-| `strength` | `0.25` | Brightness at the edge the light comes through; it falls linearly to 0 |
+| `strength` | `0.35` | Brightness at the edge the light comes through; it falls linearly to 0 |
 | `rainBoost` | `0.5` | How much precipitation where you are multiplies the strength |
 | `color` | `''` | The light's colour; empty = the sun's (whitish by day) |
 | `underwater` | `'on'` | Shafts under the water surface too |
@@ -79,6 +114,7 @@ import { fogLayerFor, type Medium } from './medium.js'
 import {
   refractDown,
   shaftCoverageGate,
+  shaftWidthForCoverage,
   shaftWidthAt,
   sunPhase,
 } from './light-rays.js'
@@ -159,9 +195,9 @@ export class B3dLightShafts extends B3dChild {
   static initAttributes = {
     count: 10,
     radius: 3000,
-    width: 120,
+    width: 200,
     spread: 0.04,
-    strength: 0.25,
+    strength: 0.35,
     rainBoost: 0.5,
     color: '',
     underwater: 'on' as 'on' | 'off',
@@ -275,7 +311,10 @@ export class B3dLightShafts extends B3dChild {
       for (const s of this._shafts) {
         const w = want.get(s.key)
         s.target = w != null ? 1 : 0
-        if (w != null) s.gate = w.gate
+        if (w != null) {
+          s.gate = w.gate
+          s.width = w.width
+        }
         want.delete(s.key)
       }
       for (const [key, w] of want) {
@@ -372,8 +411,13 @@ export class B3dLightShafts extends B3dChild {
     const r = Math.max(100, this.radius)
     const N = 16
     const step = (2 * r) / N
-    const scored: Array<{ x: number; z: number; score: number; gate: number }> =
-      []
+    const scored: Array<{
+      x: number
+      z: number
+      score: number
+      gate: number
+      c: number
+    }> = []
     const gx0 = Math.floor((eye.x - r) / step)
     const gz0 = Math.floor((eye.z - r) / step)
     for (let i = 0; i <= N; i++) {
@@ -383,7 +427,8 @@ export class B3dLightShafts extends B3dChild {
         const away = Math.hypot(x - eye.x, z - eye.z)
         // Seen from the side, at a distance: a shaft you stand in is a wall.
         if (away > r || away < r * 0.12) continue
-        const gate = cov == null ? 1 : shaftCoverageGate(cov(x, z))
+        const c = cov == null ? 0.85 : cov(x, z)
+        const gate = shaftCoverageGate(c)
         if (gate <= 0) continue
         const here = op(x, z)
         if (here > 0.4) continue // not a gap
@@ -404,7 +449,7 @@ export class B3dLightShafts extends B3dChild {
           Math.max(1e-6, Math.hypot(mx, my, mz))
         const score =
           (1 - here) * around * gate * (0.25 + sunPhase(cosSun, 3, 0))
-        if (score > 0.1) scored.push({ x, z, score, gate })
+        if (score > 0.1) scored.push({ x, z, score, gate, c })
       }
     }
     scored.sort((a, b) => b.score - a.score)
@@ -415,7 +460,7 @@ export class B3dLightShafts extends B3dChild {
         y: base,
         z: c.z,
         gate: c.gate,
-        width: Math.max(1, this.width),
+        width: Math.max(1, shaftWidthForCoverage(c.c, this.width)),
       })
     }
   }

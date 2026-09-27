@@ -23,8 +23,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Light shafts** (WEATHER-DESIGN stage 4, board #1084), to Tonio's model
   (pure half: **`light-rays`**): **`<tosi-b3d-light-shafts>`** hangs shafts
   from the gaps in the cloud deck, BELOW it, running along the sun and
-  widening slightly (`spread`). An additive, flat fill of the sun's colour —
-  `strength` 0.25 at the cloud, linear to 0 — most prominent looking toward
+  widening slightly (`spread`), and as broad as the gaps: `width` at the
+  0.75 threshold down to slits as the cover closes toward 1. An additive,
+  flat fill of the sun's colour — `strength` 0.35 at the cloud, linear to 0 — most prominent looking toward
   the sun (a forward-scatter phase, per pixel), and only where the local
   cover is broken: 0.8 up to (not including) 1. The same model runs UNDER
   THE WATER: shafts from the surface, bent by Snell's law, sunlight tinted

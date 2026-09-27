@@ -12,12 +12,13 @@ the SAME model.
 - A shaft STARTS at the edge the light comes through (the underside of the
   cloud, the underside of the water) and runs away from it along the light.
 - It is an additive fill of the light's colour, flat across and NOT blurred:
-  `edge` (0.25) at the source, falling linearly to 0 at its far end.
+  `edge` (0.35) at the source, falling linearly to 0 at its far end.
 - It widens slightly with distance (`spread` metres per metre).
 - It is most prominent looking TOWARD the sun: light scattered forward by
   the medium, a phase term on the angle between your view and the sun.
 - Under cloud it only makes sense for a broken sky: coverage 0.8 or more, but
-  not closed (1+).
+  not closed (1+). And the gaps set the width: broad shafts from the ragged
+  sky at the threshold, very narrow ones as the cover closes toward 1.
 */
 /*{ "parent": "Environment" }*/
 
@@ -34,12 +35,33 @@ const smooth = (a: number, b: number, x: number): number => {
  * from popping as a drifting field crosses a threshold.
  */
 export function shaftCoverageGate(coverage: number): number {
-  return smooth(0.75, 0.8, coverage) * (1 - smooth(0.96, 1, coverage))
+  return (
+    smooth(SHAFT_MIN_COVERAGE, SHAFT_MIN_COVERAGE + 0.05, coverage) *
+    (1 - smooth(0.96, 1, coverage))
+  )
+}
+
+/** Below this cover there are no shafts. */
+export const SHAFT_MIN_COVERAGE = 0.75
+/** How narrow a shaft gets as the cover closes, as a fraction of `width`. */
+export const SHAFT_NARROWEST = 0.1
+
+/**
+ * A shaft's width at the cloud for this cover: `width` (the broadest) at the
+ * threshold, narrowing to `SHAFT_NARROWEST` of it as the sky closes toward
+ * 1 — a nearly closed sky only lets light through slits.
+ */
+export function shaftWidthForCoverage(coverage: number, width: number): number {
+  const t = Math.min(
+    1,
+    Math.max(0, (coverage - SHAFT_MIN_COVERAGE) / (1 - SHAFT_MIN_COVERAGE))
+  )
+  return width * (1 - (1 - SHAFT_NARROWEST) * t)
 }
 
 /** Brightness at `t` (0 at the source edge, 1 at the far end): linear from
  * `edge` down to 0. Flat across, so this is the whole profile. */
-export function shaftAlong(t: number, edge = 0.25): number {
+export function shaftAlong(t: number, edge = 0.35): number {
   return edge * Math.min(1, Math.max(0, 1 - t))
 }
 

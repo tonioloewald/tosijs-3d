@@ -549,9 +549,9 @@ b3d-light-shafts
 
   count  = 10  — How many sky shafts at most (the budget). `0` = off
   radius  = 3000  — How far from you (m) to look for gaps. Shafts read best from a distance
-  width  = 120  — Sky shaft width at the cloud (m)
+  width  = 200  — The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.75); narrower as the cover closes, down to 10% of this near 1
   spread  = 0.04  — How much wider per metre of length
-  strength  = 0.25  — Brightness at the edge the light comes through; it falls linearly to 0
+  strength  = 0.35  — Brightness at the edge the light comes through; it falls linearly to 0
   rainBoost  = 0.5  — How much precipitation where you are multiplies the strength
   color  = ''  — The light's colour; empty = the sun's (whitish by day)
   underwater  = 'on'  — Shafts under the water surface too

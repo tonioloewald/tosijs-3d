@@ -2117,8 +2117,8 @@
       },
       {
         "name": "width",
-        "default": "120",
-        "description": "Sky shaft width at the cloud (m)"
+        "default": "200",
+        "description": "The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.75); narrower as the cover closes, down to 10% of this near 1"
       },
       {
         "name": "spread",
@@ -2127,7 +2127,7 @@
       },
       {
         "name": "strength",
-        "default": "0.25",
+        "default": "0.35",
         "description": "Brightness at the edge the light comes through; it falls linearly to 0"
       },
       {
