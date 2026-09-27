@@ -1,33 +1,11 @@
 /*#
 # b3d-light-shafts
 
-**Shafts of sunlight** (WEATHER-DESIGN stage 4, board #1084), under a broken
-cloud deck and under the water, from one model ([[light-rays]]):
-
-- A shaft **starts at the edge the light comes through** — the underside of
-  the [`<tosi-b3d-cloud-deck>`](/b3d-cloud-deck/), the underside of the
-  [water](/b3d-water/) — and runs away from it along the light. They are
-  **rectangular**: parallel to the sun's light, so perspective alone makes
-  them radiate from the sun and widen toward you.
-- It is an **additive, flat fill of the light's colour**, not a blur:
-  `strength` (0.35) at the edge, falling linearly to nothing.
-- It is **most prominent looking toward the sun** (light scattered forward),
-  and faint looking away.
-- Under cloud, only where the sky is **broken but not closed**: local
-  coverage 0.8 up to 1. Clear skies and overcast have none. The cover sets
-  the **width**: broad from a ragged sky, slits as it closes toward 1.
-- Under water, the light is the sun's **tinted by the water's fog**, bent by
-  Snell's law so the shafts lean toward vertical, and they shimmer as the
-  surface moves. Only when the sun is reaching the water. **Surface
-  turbulence** (the wind over the water, its `waveHeight` and `bumpHeight`)
-  drives them: calm water focuses a few broad, slow rays; choppy water many
-  narrow ones that flicker (`waterRoughness` reads it back).
-
-Rain helps (it scatters the light): the strength rises with the
-precipitation where you are.
-
-`count` is the budget; `0` switches the sky shafts off, `underwater="off"`
-the water ones.
+**Light you can see**: shafts of sun breaking through a broken sky, and rays
+fanning down from the surface when you are under the water. They are what
+make a gap in the clouds, or the shallows of a sea, read as a PLACE with a
+sun in it rather than a lit backdrop. Drop one into a scene with a
+[cloud deck](/b3d-cloud-deck/) or [water](/b3d-water/); it needs no setup.
 
 ## Demo
 
@@ -97,7 +75,8 @@ tosi-b3d { width: 100%; height: 100%; }
 ## Under the water
 
 The same shafts from the underside of the sea. You are a few metres down,
-looking up at the sun's glare through the surface. Open the ⚙ menu: raise `wind` or `wave height`
+looking up at the sky and the sun through the surface, bent and rippled by
+it (the water's `undersideSky`), with the rays fanning down from the sun. Open the ⚙ menu: raise `wind` or `wave height`
 and the rays multiply, narrow and flicker; calm it and a few broad ones
 drift slowly. `depth` takes you down into the murk.
 
@@ -159,6 +138,36 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## How it works
+
+One model for both ([[light-rays]], WEATHER-DESIGN stage 4, board #1084):
+
+- A shaft **starts at the edge the light comes through** — the underside of
+  the [`<tosi-b3d-cloud-deck>`](/b3d-cloud-deck/), the underside of the
+  [water](/b3d-water/) — and runs away from it along the light. They are
+  **rectangular**: parallel to the sun's light, so perspective alone makes
+  them radiate from the sun and widen toward you.
+- It is an **additive, flat fill of the light's colour**, not a blur:
+  `strength` (0.35) at the edge, falling linearly to nothing.
+- It is **most prominent looking toward the sun** (light scattered forward),
+  and faint looking away.
+- Under cloud, only where the sky is **broken but not closed**: local
+  coverage 0.8 up to 1. Clear skies and overcast have none. The cover sets
+  the **width**: broad from a ragged sky, slits as it closes toward 1.
+- Under water, the light is the sun's **tinted by the water's fog**, bent by
+  Snell's law so the shafts lean toward vertical, and they shimmer as the
+  surface moves. Only when the sun is reaching the water. **Surface
+  turbulence** (the wind over the water, its `waveHeight` and `bumpHeight`)
+  drives them: calm water focuses a few broad, slow rays; choppy water many
+  narrow ones that flicker (`waterRoughness` reads it back).
+
+Rain helps (it scatters the light): the strength rises with the
+precipitation where you are.
+
+`count` is the budget; `0` switches the sky shafts off, `underwater="off"`
+the water ones.
+
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -171,7 +180,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `rainBoost` | `0.5` | How much precipitation where you are multiplies the strength |
 | `color` | `''` | The light's colour; empty = the sun's (whitish by day) |
 | `underwater` | `'on'` | Shafts under the water surface too |
-| `underwaterCount` | `24` | Their budget |
+| `underwaterCount` | `12` | Their budget |
 */
 /*{ "parent": "Environment" }*/
 
@@ -272,7 +281,7 @@ export class B3dLightShafts extends B3dChild {
     rainBoost: 0.5,
     color: '',
     underwater: 'on' as 'on' | 'off',
-    underwaterCount: 24,
+    underwaterCount: 12,
   }
 
   declare count: number
@@ -593,7 +602,7 @@ export class B3dLightShafts extends B3dChild {
         whose light comes down NEAR you, so cells close to the line from you
         to the sun are likelier to carry one.
         */
-        const near = 1 + 2.2 * Math.exp(-((dist / 7) ** 2))
+        const near = 1 + 1.2 * Math.exp(-((dist / 7) ** 2))
         if (hash01(ix, iz, epoch, 9) > Math.min(0.9, shape.presence * near))
           continue
         // Not THROUGH your face (a ray you are inside is a flat wash):

@@ -133,7 +133,7 @@ export function waterRayShape(roughness: number): {
 } {
   const r = Math.min(1, Math.max(0, roughness))
   return {
-    presence: 0.05 + 0.4 * r,
+    presence: 0.03 + 0.17 * r,
     width: 2.2 - 1.9 * r,
     period: 6 - 4.8 * r,
   }

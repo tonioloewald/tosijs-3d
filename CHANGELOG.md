@@ -56,12 +56,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   flagpoles you fly past, each flag showing the wind WHERE IT STANDS
   (streaming downwind, limp in the lee), and the lee's edge drawn as a ring
   on the water.
-- **The sun through the water, from below** (`b3d-water` `sunGlare`, default
-  1): a shimmering glare inside Snell's window where the REFRACTED sun meets
-  the surface (higher than in the sky), dimmed by the sun's intensity and the
-  water between. The underwater rays radiate from it. The deck gains
-  **`opacityAbove(x, z)`** and **`coverageAt(x, z)`**, CPU reads of its own
-  field for placement.
+- **The sky through the water, from below** (`b3d-water` `undersideSky`,
+  default 1; Tonio: "we want to see the sky and sun through and distorted by
+  the water surface"). The window no longer shows a flat colour: a small
+  reflection probe photographs the sky with its fog and veil OFF, and the
+  underside refracts it through the water's own ripples, so the sky and the
+  sun arrive bent and moving. Clearest in the shallows, fading with depth,
+  giving way to the dark mirror at grazing angles. (It replaces a glare
+  sprite that looked fake.) Underwater rays are fewer (`underwaterCount`
+  12, lower presence).
 - **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).
   `b3d-ambient` gains `weather: 'rain' | 'snow'`: emission follows the
   PRECIPITATION where the viewer is, so a storm brings its own rain and it

@@ -6,22 +6,6 @@
 [`<tosi-b3d-weather-cell>`](/b3d-weather-cell/) with `storminess` and strikes
 under them, seeded, so the same seed gives the same storm.
 
-- **The flash** lights the cloud deck from INSIDE around the strike (a storm
-  tower glows, which is why storms want coverage past 1), and throws a brief
-  light on the ground below.
-- **The bolt** is a jagged, branching channel from the cloud base to the
-  ground, flickering through its re-strokes.
-- **Thunder** arrives at the speed of sound: a flash a kilometre away rumbles
-  about three seconds later, so you can count how far away the storm is.
-- **Sprites**: over strong storms, rarely, a brief red-pink crown with
-  tendrils high ABOVE the tower. Real ones stand 50–90 km up; here they are
-  placed within the far plane.
-
-Every strike dispatches **`strike`** (bubbling) with `{ kind, x, z, t,
-distance }`, where `kind` is `'ground'`, `'cloud'` or `'sprite'`, so gameplay can react.
-The pure half (when, where, bolt shape, flicker, thunder delay) is
-[[lightning]].
-
 ## Demo
 
 A storm tower with lightning. Watch the tower light from inside and count the
@@ -54,6 +38,24 @@ preview.append(
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+## What it does
+
+- **The flash** lights the cloud deck from INSIDE around the strike (a storm
+  tower glows, which is why storms want coverage past 1), and throws a brief
+  light on the ground below.
+- **The bolt** is a jagged, branching channel from the cloud base to the
+  ground, flickering through its re-strokes.
+- **Thunder** arrives at the speed of sound: a flash a kilometre away rumbles
+  about three seconds later, so you can count how far away the storm is.
+- **Sprites**: over strong storms, rarely, a brief red-pink crown with
+  tendrils high ABOVE the tower. Real ones stand 50–90 km up; here they are
+  placed within the far plane.
+
+Every strike dispatches **`strike`** (bubbling) with `{ kind, x, z, t,
+distance }`, where `kind` is `'ground'`, `'cloud'` or `'sprite'`, so gameplay can react.
+The pure half (when, where, bolt shape, flicker, thunder delay) is
+[[lightning]].
 
 ## Attributes
 

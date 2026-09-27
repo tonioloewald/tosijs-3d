@@ -2147,7 +2147,7 @@
       },
       {
         "name": "underwaterCount",
-        "default": "24",
+        "default": "12",
         "description": "Their budget"
       }
     ]
@@ -4227,9 +4227,9 @@
         "description": "The mirror: the dark water, at grazing angles"
       },
       {
-        "name": "sunGlare",
+        "name": "undersideSky",
         "default": "1",
-        "description": "The SUN seen from below: a shimmering glare inside Snell's window, where the refracted sun meets the surface (higher than in the sky, since light bends toward vertical entering water). Dimmed by the sun's intensity and the water between. `0` = off"
+        "description": "From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. `0` = the flat `undersideColor` only"
       },
       {
         "name": "caustics",

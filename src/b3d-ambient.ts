@@ -4,52 +4,6 @@
 The stuff in the air, or in the water. **Bubbles and motes when you're under; rain, snow,
 dust or drifting seeds when you're not.**
 
-One component, several presets, and one trick that makes all of them work:
-
-> **The emitter box follows the camera. The particles do not.**
-
-Particles are spawned in a box around your head and then live in **world space** — so rain
-falls *past* you, motes drift *by* you, bubbles rise *away* from you. Emit them in your local
-frame instead and they travel with you like dandruff on the lens, which is the single most
-common way ambient particles are got wrong.
-
-The box has a **hole in the middle**, and it matters: a box centred on the camera will happily
-give birth to a particle *on your face*, and a few-centimetre sprite half a metre from the lens
-is a big soft blob covering a chunk of the screen. That's not a mote, that's a smudge. Nothing
-spawns inside the preset's `near` radius (drifting in close later is fine — it's being *born*
-there that reads as dirt on the lens). Particles also **fade in**, not just out: born at full
-alpha they blink into existence, which reads as sensor noise rather than as dust.
-
-Because the box follows you, an endless snowstorm costs a **fixed** number of particles no
-matter how big the world is. Nothing grows, nothing allocates.
-
-## It switches off rather than thinning out
-
-An ambient effect is **garnish**, and garnish plays by one rule:
-
-> **An effect that can't be itself switches OFF. It does not thin out.**
-
-Forty raindrops is not light rain — it's a rendering bug wearing rain's clothes. So you don't
-set a `count`; you *ask*. Each effect asks for the capacity its look needs and declares a
-`minCount` below which it would be **a lie**, and the scene divides one shared pool
-([ambient-budget](?ambient-budget.ts), sized from the measured device tier) between everyone who
-wants some. Effects thin together while they can all stay honest; the moment someone would drop
-under its floor, that one is switched off (lowest `priority` first) and its budget goes to the
-survivors. **Better honest rain and no motes than two half-truths.**
-
-The pool is shared because ambient effects *compete* — rain, dust and motes can each be
-individually affordable and still cook the frame together. And if the frame stays over budget
-anyway, the scene shrinks the pool and effects drop out on their own. That ratchet is **one-way**:
-ambient that pops back in the moment the frame recovers, then out again at the next tree, is its
-own broken promise.
-
-## It arrives with the water, not on top of it
-
-`where: 'underwater'` doesn't switch on at the surface — its emission **ramps with depth**
-using the same `band()` the fog uses (see [atmosphere](?atmosphere.ts)). Submerge and the
-bubbles arrive *as the water does*. Popping a cloud of bubbles into existence at a plane is
-the particle version of the fog "thunk", and we already fixed that once.
-
 ## Demo — dive under
 
 **Fly down into the sea** (W/S pitch, R/Q throttle). The fog closes in, the light dims, and
@@ -101,6 +55,54 @@ preview.append(scene)
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```
+
+## How it works
+
+One component, several presets, and one trick that makes all of them work:
+
+> **The emitter box follows the camera. The particles do not.**
+
+Particles are spawned in a box around your head and then live in **world space** — so rain
+falls *past* you, motes drift *by* you, bubbles rise *away* from you. Emit them in your local
+frame instead and they travel with you like dandruff on the lens, which is the single most
+common way ambient particles are got wrong.
+
+The box has a **hole in the middle**, and it matters: a box centred on the camera will happily
+give birth to a particle *on your face*, and a few-centimetre sprite half a metre from the lens
+is a big soft blob covering a chunk of the screen. That's not a mote, that's a smudge. Nothing
+spawns inside the preset's `near` radius (drifting in close later is fine — it's being *born*
+there that reads as dirt on the lens). Particles also **fade in**, not just out: born at full
+alpha they blink into existence, which reads as sensor noise rather than as dust.
+
+Because the box follows you, an endless snowstorm costs a **fixed** number of particles no
+matter how big the world is. Nothing grows, nothing allocates.
+
+## It switches off rather than thinning out
+
+An ambient effect is **garnish**, and garnish plays by one rule:
+
+> **An effect that can't be itself switches OFF. It does not thin out.**
+
+Forty raindrops is not light rain — it's a rendering bug wearing rain's clothes. So you don't
+set a `count`; you *ask*. Each effect asks for the capacity its look needs and declares a
+`minCount` below which it would be **a lie**, and the scene divides one shared pool
+([ambient-budget](?ambient-budget.ts), sized from the measured device tier) between everyone who
+wants some. Effects thin together while they can all stay honest; the moment someone would drop
+under its floor, that one is switched off (lowest `priority` first) and its budget goes to the
+survivors. **Better honest rain and no motes than two half-truths.**
+
+The pool is shared because ambient effects *compete* — rain, dust and motes can each be
+individually affordable and still cook the frame together. And if the frame stays over budget
+anyway, the scene shrinks the pool and effects drop out on their own. That ratchet is **one-way**:
+ambient that pops back in the moment the frame recovers, then out again at the next tree, is its
+own broken promise.
+
+## It arrives with the water, not on top of it
+
+`where: 'underwater'` doesn't switch on at the surface — its emission **ramps with depth**
+using the same `band()` the fog uses (see [atmosphere](?atmosphere.ts)). Submerge and the
+bubbles arrive *as the water does*. Popping a cloud of bubbles into existence at a plane is
+the particle version of the fog "thunk", and we already fixed that once.
 
 ## Presets
 
