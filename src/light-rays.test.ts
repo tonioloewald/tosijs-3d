@@ -11,9 +11,10 @@ import {
 } from './light-rays.js'
 
 describe('light rays (#1084)', () => {
-  test('only a broken sky makes shafts: 0.8 up to (not including) closed', () => {
+  test('only a broken sky makes shafts: 0.5 up to (not including) closed', () => {
+    expect(shaftCoverageGate(0.3)).toBe(0)
     expect(shaftCoverageGate(0.5)).toBe(0)
-    expect(shaftCoverageGate(0.74)).toBe(0)
+    expect(shaftCoverageGate(0.55)).toBe(1)
     expect(shaftCoverageGate(0.8)).toBe(1)
     expect(shaftCoverageGate(0.9)).toBe(1)
     expect(shaftCoverageGate(1)).toBe(0)
@@ -29,8 +30,8 @@ describe('light rays (#1084)', () => {
   })
 
   test('the gaps set the width: broad at the threshold, slits near closed', () => {
-    expect(shaftWidthForCoverage(0.75, 200)).toBeCloseTo(200, 9)
     expect(shaftWidthForCoverage(0.5, 200)).toBeCloseTo(200, 9)
+    expect(shaftWidthForCoverage(0.3, 200)).toBeCloseTo(200, 9)
     expect(shaftWidthForCoverage(1, 200)).toBeCloseTo(20, 9)
     const a = shaftWidthForCoverage(0.85, 200)
     const b = shaftWidthForCoverage(0.95, 200)

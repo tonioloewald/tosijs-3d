@@ -10,7 +10,7 @@ sun in it rather than a lit backdrop. Drop one into a scene with a
 ## Demo
 
 Afternoon under a broken deck, looking toward the sun. Open the ⚙ menu:
-`cloud cover` below 0.75 has no shafts, near 1 only slits; `time of day`
+`cloud cover` below 0.5 has no shafts, near 1 only slits; `time of day`
 moves the sun (and the shafts with it). Drag to look away from the sun and
 they fade. The full weather, terrain and all, is in
 [Land and Sky](/land-and-sky/): set its cloud cover to about 0.85.
@@ -152,7 +152,7 @@ One model for both ([[light-rays]], WEATHER-DESIGN stage 4, board #1084):
 - It is **most prominent looking toward the sun** (light scattered forward),
   and faint looking away.
 - Under cloud, only where the sky is **broken but not closed**: local
-  coverage 0.8 up to 1. Clear skies and overcast have none. The cover sets
+  coverage 0.5 up to 1. Clear skies and overcast have none. The cover sets
   the **width**: broad from a ragged sky, slits as it closes toward 1.
 - Under water, the light is the sun's **tinted by the water's fog**, bent by
   Snell's law so the shafts lean toward vertical, and they shimmer as the
@@ -174,7 +174,7 @@ the water ones.
 |-----------|---------|-------------|
 | `count` | `14` | How many sky shafts at most (the budget). `0` = off |
 | `radius` | `3000` | How far from you (m) to look for gaps. Shafts read best from a distance |
-| `width` | `200` | The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.75); narrower as the cover closes, down to 10% of this near 1 |
+| `width` | `200` | The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1 |
 | `spread` | `0` | Extra width per metre of length. `0`: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light |
 | `strength` | `0.35` | Brightness at the edge the light comes through; it falls linearly to 0 |
 | `rainBoost` | `0.5` | How much precipitation where you are multiplies the strength |
@@ -358,7 +358,7 @@ export class B3dLightShafts extends B3dChild {
     // The light's TRAVEL direction; shafts need it pointing down.
     const dir = sun?.direction.clone().normalize()
     const sunUp =
-      sun != null && dir != null && dir.y < -0.08 && sun.intensity > 0.05
+      sun != null && dir != null && dir.y < -0.03 && sun.intensity > 0.05
     const deck = owner.querySelector(
       'tosi-b3d-cloud-deck'
     ) as unknown as Deck | null
@@ -486,7 +486,7 @@ export class B3dLightShafts extends B3dChild {
   /**
    * Under the deck: score a world-anchored grid around you. A GAP (low
    * opacity) beside CLOUD is where the sun breaks through, and only where the
-   * local cover is broken (0.8 up to 1). Keep the best `count`.
+   * local cover is broken (0.5 up to 1). Keep the best `count`.
    */
   private _placeSky(
     deck: Deck,
@@ -501,8 +501,6 @@ export class B3dLightShafts extends B3dChild {
     const cov = deck.coverageAt?.bind(deck)
     const midLen = (base - groundY) / 2 / Math.max(0.1, -sunDir.y)
     const r = Math.max(100, this.radius)
-    const N = 16
-    const step = (2 * r) / N
     const scored: Array<{
       x: number
       z: number
@@ -510,43 +508,86 @@ export class B3dLightShafts extends B3dChild {
       gate: number
       c: number
     }> = []
-    const gx0 = Math.floor((eye.x - r) / step)
-    const gz0 = Math.floor((eye.z - r) / step)
-    for (let i = 0; i <= N; i++) {
-      for (let j = 0; j <= N; j++) {
-        const x = (gx0 + i) * step
-        const z = (gz0 + j) * step
-        const away = Math.hypot(x - eye.x, z - eye.z)
-        // Seen from the side, at a distance: a shaft you stand in is a wall.
-        if (away > r || away < r * 0.12) continue
-        const c = cov == null ? 0.85 : cov(x, z)
-        const gate = shaftCoverageGate(c)
-        if (gate <= 0) continue
-        const here = op(x, z)
-        if (here > 0.4) continue // not a gap
-        const d = step * 0.5
-        const around = Math.max(
-          op(x + d, z),
-          op(x - d, z),
-          op(x, z + d),
-          op(x, z - d)
-        )
-        // Prefer shafts you would see toward the sun: they are the ones
-        // that show (forward scatter), radiating from where it is. Weighted
-        // hard: most of the budget goes near the sun's position in view.
-        const mx = x + sunDir.x * midLen - eye.x
-        const my = base + sunDir.y * midLen - eye.y
-        const mz = z + sunDir.z * midLen - eye.z
-        const cosSun =
-          -(mx * sunDir.x + my * sunDir.y + mz * sunDir.z) /
-          Math.max(1e-6, Math.hypot(mx, my, mz))
-        const score =
-          (1 - here) * around * gate * (0.05 + 2 * sunPhase(cosSun, 8, 0))
-        if (score > 0.1) scored.push({ x, z, score, gate, c })
+    const seen = new Set<string>()
+    /*
+    TWO PASSES: a fine grid near you and a coarse one far out. With a deck
+    only a little above your eye (Land and Sky: 75 m) and a high sun, the
+    shafts you see TOWARD the sun hang close by; a single coarse grid that
+    also skipped everything within 360 m found them nowhere (Tonio: "I'm not
+    seeing any shafts in the land and sky demo").
+    */
+    const pass = (radius: number, N: number) => {
+      const step = (2 * radius) / N
+      const gx0 = Math.floor((eye.x - radius) / step)
+      const gz0 = Math.floor((eye.z - radius) / step)
+      for (let i = 0; i <= N; i++) {
+        for (let j = 0; j <= N; j++) {
+          const x = (gx0 + i) * step
+          const z = (gz0 + j) * step
+          const key = `${Math.round(x)},${Math.round(z)}`
+          if (seen.has(key)) continue
+          seen.add(key)
+          if (Math.hypot(x - eye.x, z - eye.z) > radius) continue
+          /*
+          Not THROUGH you: where the shaft crosses your eye height, it must
+          clear you by its own width. A shaft you stand in is a wash, not a
+          ray. (This replaces a flat 360 m exclusion that emptied the near
+          sky.)
+          */
+          const down = (base - eye.y) / Math.max(0.05, -sunDir.y)
+          if (
+            down > 0 &&
+            Math.hypot(
+              x + sunDir.x * down - eye.x,
+              z + sunDir.z * down - eye.z
+            ) <
+              this.width * 0.6
+          )
+            continue
+          const c = cov == null ? 0.85 : cov(x, z)
+          const gate = shaftCoverageGate(c)
+          if (gate <= 0) continue
+          const here = op(x, z)
+          if (here > 0.4) continue // not a gap
+          const d = step * 0.5
+          const around = Math.max(
+            op(x + d, z),
+            op(x - d, z),
+            op(x, z + d),
+            op(x, z - d)
+          )
+          // Prefer shafts you would see toward the sun: they are the ones
+          // that show (forward scatter), radiating from where it is.
+          // Weighted hard: most of the budget goes near the sun in view.
+          const mx = x + sunDir.x * midLen - eye.x
+          const my = base + sunDir.y * midLen - eye.y
+          const mz = z + sunDir.z * midLen - eye.z
+          const cosSun =
+            -(mx * sunDir.x + my * sunDir.y + mz * sunDir.z) /
+            Math.max(1e-6, Math.hypot(mx, my, mz))
+          const score =
+            (1 - here) * around * gate * (0.05 + 2 * sunPhase(cosSun, 8, 0))
+          if (score > 0.1) scored.push({ x, z, score, gate, c })
+        }
       }
     }
+    pass(Math.min(800, r), 20)
+    pass(r, 16)
     scored.sort((a, b) => b.score - a.score)
-    for (const c of scored.slice(0, Math.floor(this.count))) {
+    /*
+    ONE SHAFT PER GAP. Neighbouring grid cells find the same gap, and taking
+    each of them stacked overlapping shafts into tents; keep the best and
+    skip anything within about a shaft width of one already chosen.
+    */
+    const chosen: typeof scored = []
+    for (const c of scored) {
+      if (chosen.length >= Math.floor(this.count)) break
+      const w = shaftWidthForCoverage(c.c, this.width)
+      if (chosen.some((k) => Math.hypot(k.x - c.x, k.z - c.z) < w * 1.4))
+        continue
+      chosen.push(c)
+    }
+    for (const c of chosen) {
       want.set(`s:${Math.round(c.x)},${Math.round(c.z)}`, {
         kind: 'sky',
         x: c.x,

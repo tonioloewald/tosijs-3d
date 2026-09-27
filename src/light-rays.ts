@@ -18,7 +18,7 @@ the SAME model.
   toward you. `spread` adds real widening if wanted.
 - It is most prominent looking TOWARD the sun: light scattered forward by
   the medium, a phase term on the angle between your view and the sun.
-- Under cloud it only makes sense for a broken sky: coverage 0.8 or more, but
+- Under cloud it only makes sense for a broken sky: coverage 0.5 or more, but
   not closed (1+). And the gaps set the width: broad shafts from the ragged
   sky at the threshold, very narrow ones as the cover closes toward 1.
 */
@@ -32,7 +32,7 @@ const smooth = (a: number, b: number, x: number): number => {
 }
 
 /**
- * How much the sky allows shafts at this cloud cover, 0–1: none below 0.75,
+ * How much the sky allows shafts at this cloud cover, 0–1: none below 0.5,
  * full from 0.8, gone again by a closed sky (1). The short ramps keep a shaft
  * from popping as a drifting field crosses a threshold.
  */
@@ -44,7 +44,7 @@ export function shaftCoverageGate(coverage: number): number {
 }
 
 /** Below this cover there are no shafts. */
-export const SHAFT_MIN_COVERAGE = 0.75
+export const SHAFT_MIN_COVERAGE = 0.5
 /** How narrow a shaft gets as the cover closes, as a fraction of `width`. */
 export const SHAFT_NARROWEST = 0.1
 
