@@ -51,6 +51,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   weighted hard toward the sun's position in view, and underwater rays are
   biased toward the viewer so the middle of the view is not empty. Rain adds
   to the strength.
+- **The weather-cell demo has a frame of reference** (Tonio: "it has no
+  frame of reference so it just looks like leaves blowing around"): a row of
+  flagpoles you fly past, each flag showing the wind WHERE IT STANDS
+  (streaming downwind, limp in the lee), and the lee's edge drawn as a ring
+  on the water.
 - **The sun through the water, from below** (`b3d-water` `sunGlare`, default
   1): a shimmering glare inside Snell's window where the REFRACTED sun meets
   the surface (higher than in the sky), dimmed by the sun's intensity and the

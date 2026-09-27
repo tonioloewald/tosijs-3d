@@ -97,7 +97,7 @@ tosi-b3d { width: 100%; height: 100%; }
 ## Under the water
 
 The same shafts from the underside of the sea. You are a few metres down,
-looking up toward the sun. Open the ⚙ menu: raise `wind` or `wave height`
+looking up at the sun's glare through the surface. Open the ⚙ menu: raise `wind` or `wave height`
 and the rays multiply, narrow and flicker; calm it and a few broad ones
 drift slowly. `depth` takes you down into the murk.
 
@@ -106,7 +106,7 @@ import { b3d, b3dSun, b3dLight, b3dSkybox, b3dWater, b3dLightShafts, b3dGround, 
 import { tosi } from 'tosijs'
 
 const { sea } = tosi({
-  sea: { depth: 6, wind: 4, waveHeight: 0.1, timeOfDay: 13 },
+  sea: { depth: 6, wind: 4, waveHeight: 0.1, timeOfDay: 9 },
 })
 
 preview.append(
@@ -125,9 +125,15 @@ preview.append(
           const sun = el.scene.lights.find((l) => l.getClassName() === 'DirectionalLight')
           if (aimed || !sun || sun.direction.y > -0.05) return
           aimed = true
-          // Toward the sun, and up at it: the rays fan down from there.
+          // At the sun AS SEEN FROM BELOW: light bends toward vertical
+          // entering water, so it sits higher than in the sky (a little
+          // below it here, so the rays fan down into view from its glare).
           const t = sun.direction.clone().normalize().scale(-1)
-          t.y = 0.3
+          const h = Math.hypot(t.x, t.z)
+          const sw = h / 1.33
+          t.x *= sw / h
+          t.z *= sw / h
+          t.y = Math.sqrt(1 - sw * sw) * 0.75
           cam.setTarget(cam.position.add(t.normalize().scale(10)))
         })
       },
