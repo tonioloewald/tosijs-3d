@@ -56,7 +56,11 @@ const scene = b3d(
   b3dController({
     mapping: 'biped',
     drive(input, dt) {
-      launcher.ry += input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
+      // Steer on EITHER stick: the biped mapping sends A/D and the left
+      // stick to strafe (move) and only the right stick to turn, so reading
+      // turn alone left the glass pad's stick and A/D dead (board #2434).
+      const steer = Math.max(-1, Math.min(1, input.turn + input.strafe))
+      launcher.ry += steer * dt * 70 // steer azimuth (A/D · either stick · VR)
       if (input.shoot > 0.5 || input.sprint > 0.5) {
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
@@ -97,7 +101,7 @@ const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnR
 // projRadius 0.35, not the 0.12 default: this camera sits 30 units back and the
 // missile flies 30 more, where a 0.12 sphere is about two pixels. "The launcher
 // works now but I can't see the missile."
-const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: '#ffe066' })
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: '#ffe066', missileTrail: 'on' })
 
 // Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
 const state = { target: null }
@@ -216,6 +220,7 @@ that assumes one orients its effect off nothing.
 | `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
 | `projRadius` | `0.12` | Shell visual radius |
 | `projColor` | `'#ffdd55'` | Shell emissive colour |
+| `missileTrail` | `'off'` | `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile` |
 | `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
 | `damage` | `20` | Warhead full damage (see b3d-warhead) |
 | `fullRadius` | `1` | Warhead full-damage radius |
@@ -336,6 +341,7 @@ import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from '.
 import { makeResource, drain, regenTick, isEmpty, } from './resource.js';
 import { detonateWarhead } from './b3d-warhead.js';
 import { destroyableAt } from './destroyable-behavior.js';
+import { attachTrail } from './b3d-trail.js';
 /*
 One place that fires both callbacks, so the deprecated spelling cannot drift
 away from the current one — that drift is exactly how `b3d-destroyable`'s
@@ -369,6 +375,7 @@ export function spawnProjectile(owner, opts) {
     const mesh = (opts.mesh ??
         BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: r * 2, segments: 6 }, scene));
     mesh.position.copyFrom(opts.origin);
+    const trail = opts.trail ? attachTrail(mesh, scene, opts.trail) : null;
     // Both paths: never pick yourself, or you occlude your own blast's LOS. An
     // authored model has children, so this has to reach all of them — a supplied
     // mesh that intercepts the damage ray makes a target look hit and never die.
@@ -392,6 +399,7 @@ export function spawnProjectile(owner, opts) {
         state.pos.z -= dz;
         mesh.position.x -= dx;
         mesh.position.z -= dz;
+        trail?.reset();
     };
     owner.addOriginListener(onShift);
     // Optional radar signature: a blip that tracks this shell's mesh while it lives.
@@ -415,6 +423,7 @@ export function spawnProjectile(owner, opts) {
         if (blip != null)
             owner.unregisterRadarBlip(blip);
         scene.onBeforeRenderObservable.remove(obs);
+        trail?.dispose();
         mesh.dispose();
         mat.dispose();
     };
@@ -423,6 +432,7 @@ export function spawnProjectile(owner, opts) {
             return;
         const dt = sceneDelta(scene);
         life += dt;
+        trail?.update(dt);
         opts.guide?.(state, dt); // home/steer before integrating
         const fromX = state.pos.x;
         const fromY = state.pos.y;
@@ -630,6 +640,7 @@ export function spawnMissile(owner, opts) {
         onImpact: opts.onImpact,
         ignore: opts.ignore,
         radar: opts.radar,
+        trail: opts.trail,
         guide: (state, dt) => {
             seek(state, dt);
             // The caller LAST, so it sees what the seeker decided and can constrain it:
@@ -717,6 +728,8 @@ export class B3dLauncher extends AbstractMesh {
         missileSpeed: 22, // cruise speed of a guided shot (fireAt)
         turnRate: 3, // guided-missile agility (rad/sec)
         projRadius: 0.12,
+        /** `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`). */
+        missileTrail: 'off',
         projColor: '#ffdd55',
         maxLifetime: 6,
         damage: 20,
@@ -1296,6 +1309,15 @@ export class B3dLauncher extends AbstractMesh {
             maxLifetime: this.maxLifetime + 4, // missiles loiter a bit longer
             useLos: !isOff(this.los),
             ignore: (m) => this._selfHit(m),
+            trail: isOff(this.missileTrail)
+                ? undefined
+                : {
+                    diameter: Math.max(0.05, this.projRadius * 0.9),
+                    length: 40,
+                    color: '#e8e8e8',
+                    alpha: 0.4,
+                    minSpeed: 1,
+                },
         });
         return true;
     }

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=f7de993b5a55" data-tosi-doc-system />
+  <title>b3d-light-shafts — tosijs-3d</title>
+  <meta name="description" content="Light you can see: shafts of sun breaking through a broken sky, and rays fanning down from the surface when you are under the water." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-light-shafts/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-light-shafts — tosijs-3d" />
+  <meta property="og:description" content="Light you can see: shafts of sun breaking through a broken sky, and rays fanning down from the surface when you are under the water." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-light-shafts/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-light-shafts","description":"Light you can see: shafts of sun breaking through a broken sky, and rays fanning down from the surface when you are under the water.","url":"https://3d.tosijs.net/b3d-light-shafts/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=d424236c37d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>b3d-light-shafts</h1>
+<p><strong>Light you can see</strong>: shafts of sun breaking through a broken sky, and rays
+fanning down from the surface when you are under the water. They are what
+make a gap in the clouds, or the shallows of a sea, read as a PLACE with a
+sun in it rather than a lit backdrop. Drop one into a scene with a
+<a href="/b3d-cloud-deck/">cloud deck</a> or <a href="/b3d-water/">water</a>; it needs no setup.</p>
+<h2>Demo</h2>
+<p>Afternoon under a broken deck, looking toward the sun. Open the ⚙ menu:
+<code>cloud cover</code> below 0.5 has no shafts, near 1 only slits; <code>time of day</code>
+moves the sun (and the shafts with it). Drag to look away from the sun and
+they fade. The full weather, terrain and all, is in
+<a href="/land-and-sky/">Land and Sky</a>: set its cloud cover to about 0.85.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, b3dSkybox, b3dCloudDeck, b3dLightShafts, b3dGround, slider3d, label3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { shafts } = tosi({
+  shafts: { coverage: 0.85, timeOfDay: 15.2, altitude: 450, strength: 0.35, width: 40, count: 14 },
+})
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera(&#39;c&#39;, new BABYLON.Vector3(0, 60, 0), el.scene)
+        cam.maxZ = 20000
+        cam.fov = 1.1
+        cam.attachControl(el.parts.canvas, true)
+        el.setActiveCamera(cam)
+        // Start looking TOWARD the sun (once), where the shafts show.
+        let aimed = false
+        el.scene.onBeforeRenderObservable.add(() =&gt; {
+          const sun = el.scene.lights.find((l) =&gt; l.getClassName() === &#39;DirectionalLight&#39;)
+          if (aimed || !sun || sun.direction.y &gt; -0.05) return
+          aimed = true
+          const t = sun.direction.clone().normalize().scale(-1)
+          t.y *= 0.8
+          cam.setTarget(cam.position.add(t.scale(1000)))
+        })
+      },
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Light shafts&#39; }),
+        slider3d({ label: &#39;cloud cover&#39;, value: shafts.coverage, min: 0.5, max: 1.2, step: 0.01 }),
+        slider3d({ label: &#39;time of day&#39;, value: shafts.timeOfDay, min: 6, max: 19, step: 0.1 }),
+        slider3d({ label: &#39;cloud base&#39;, value: shafts.altitude, min: 150, max: 1200, step: 10 }),
+        slider3d({ label: &#39;strength&#39;, value: shafts.strength, min: 0, max: 1, step: 0.01 }),
+        slider3d({ label: &#39;width&#39;, value: shafts.width, min: 5, max: 200, step: 5 }),
+        slider3d({ label: &#39;count&#39;, value: shafts.count, min: 0, max: 30, step: 1 }),
+      ],
+    },
+    b3dSun({}),
+    b3dSkybox({ timeOfDay: shafts.timeOfDay, realtimeScale: 0 }),
+    // A fill, so the ground under an overcast is not simply black.
+    b3dLight({ intensity: 0.6 }),
+    b3dGround({ size: 12000, color: &#39;#5d6b4a&#39;, texture: &#39;noise&#39;, receiveShadows: true }),
+    b3dCloudDeck({ altitude: shafts.altitude, coverage: shafts.coverage }),
+    b3dLightShafts({
+      strength: shafts.strength,
+      width: shafts.width,
+      count: shafts.count,
+    }),
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>Under the water</h2>
+<p>The same shafts from the underside of the sea. You are a few metres down,
+looking up at the sky and the sun through the surface, bent and rippled by
+it (the water&#39;s <code>undersideSky</code>), with the rays fanning down from the sun. Open the ⚙ menu: raise <code>wind</code> or <code>wave height</code>
+and the rays multiply, narrow and flicker; calm it and a few broad ones
+drift slowly. <code>depth</code> takes you down into the murk.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, b3dSkybox, b3dWater, b3dLightShafts, b3dGround, slider3d, label3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { sea } = tosi({
+  sea: { depth: 6, wind: 4, waveHeight: 0.1, timeOfDay: 9 },
+})
+
+preview.append(
+  b3d(
+    {
+      windSpeed: sea.wind,
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera(&#39;c&#39;, new BABYLON.Vector3(0, -6, 0), el.scene)
+        cam.minZ = 0.1
+        cam.fov = 1.1
+        cam.attachControl(el.parts.canvas, true)
+        el.setActiveCamera(cam)
+        let aimed = false
+        el.scene.onBeforeRenderObservable.add(() =&gt; {
+          cam.position.y = -sea.depth.valueOf()
+          const sun = el.scene.lights.find((l) =&gt; l.getClassName() === &#39;DirectionalLight&#39;)
+          if (aimed || !sun || sun.direction.y &gt; -0.05) return
+          aimed = true
+          // At the sun AS SEEN FROM BELOW: light bends toward vertical
+          // entering water, so it sits higher than in the sky (a little
+          // below it here, so the rays fan down into view from its glare).
+          const t = sun.direction.clone().normalize().scale(-1)
+          const h = Math.hypot(t.x, t.z)
+          const sw = h / 1.33
+          t.x *= sw / h
+          t.z *= sw / h
+          t.y = Math.sqrt(1 - sw * sw) * 0.75
+          cam.setTarget(cam.position.add(t.normalize().scale(10)))
+        })
+      },
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Under the water&#39; }),
+        slider3d({ label: &#39;depth&#39;, value: sea.depth, min: 1, max: 30, step: 0.5 }),
+        slider3d({ label: &#39;wind&#39;, value: sea.wind, min: 0, max: 25, step: 0.5 }),
+        slider3d({ label: &#39;wave height&#39;, value: sea.waveHeight, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: &#39;time of day&#39;, value: sea.timeOfDay, min: 7, max: 18, step: 0.1 }),
+      ],
+    },
+    b3dSun({}),
+    b3dSkybox({ timeOfDay: sea.timeOfDay, realtimeScale: 0 }),
+    b3dLight({ intensity: 0.6 }),
+    b3dGround({ size: 400, y: -25, color: &#39;#8a8060&#39;, texture: &#39;noise&#39; }),
+    b3dWater({ y: 0, twoSided: true, waterSize: 400, waveHeight: sea.waveHeight }),
+    b3dLightShafts({}),
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>How it works</h2>
+<p>One model for both (<a href="/light-rays/" class="wikilink">light-rays</a>, WEATHER-DESIGN stage 4, board #1084):</p>
+<ul>
+<li>A shaft <strong>starts at the edge the light comes through</strong> — the underside of
+the <a href="/b3d-cloud-deck/"><code>&lt;tosi-b3d-cloud-deck&gt;</code></a>, the underside of the
+<a href="/b3d-water/">water</a> — and runs away from it along the light. They are
+<strong>rectangular</strong>: parallel to the sun&#39;s light, so perspective alone makes
+them radiate from the sun and widen toward you.</li>
+<li>It is an <strong>additive, flat fill of the light&#39;s colour</strong>, not a blur:
+<code>strength</code> (0.35) at the edge, falling linearly to nothing.</li>
+<li>It is <strong>most prominent looking toward the sun</strong> (light scattered forward),
+and faint looking away.</li>
+<li>Under cloud, only where the sky is <strong>broken but not closed</strong>: local
+coverage 0.5 up to 1. Clear skies and overcast have none. The cover sets
+the <strong>width</strong>: broad from a ragged sky, slits as it closes toward 1.</li>
+<li>Under water, the light is the sun&#39;s <strong>tinted by the water&#39;s fog</strong>, bent by
+Snell&#39;s law so the shafts lean toward vertical, and they shimmer as the
+surface moves. Only when the sun is reaching the water. <strong>Surface
+turbulence</strong> (the wind over the water, its <code>waveHeight</code> and <code>bumpHeight</code>)
+drives them: calm water focuses a few broad, slow rays; choppy water many
+narrow ones that flicker (<code>waterRoughness</code> reads it back).</li>
+</ul>
+<p>Rain helps (it scatters the light): the strength rises with the
+precipitation where you are.</p>
+<p><code>count</code> is the budget; <code>0</code> switches the sky shafts off, <code>underwater=&quot;off&quot;</code>
+the water ones.</p>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>count</code></td>
+<td><code>14</code></td>
+<td>How many sky shafts at most (the budget). <code>0</code> = off</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td><code>3000</code></td>
+<td>How far from you (m) to look for gaps. Shafts read best from a distance</td>
+</tr>
+<tr>
+<td><code>width</code></td>
+<td><code>40</code></td>
+<td>The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1. Kept SMALL on purpose: the wider a shaft, the more obvious any mismatch with the gap it comes from</td>
+</tr>
+<tr>
+<td><code>spread</code></td>
+<td><code>0</code></td>
+<td>Extra width per metre of length. <code>0</code>: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light</td>
+</tr>
+<tr>
+<td><code>strength</code></td>
+<td><code>0.35</code></td>
+<td>Brightness at the edge the light comes through; it falls linearly to 0</td>
+</tr>
+<tr>
+<td><code>rainBoost</code></td>
+<td><code>0.5</code></td>
+<td>How much precipitation where you are multiplies the strength</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>The light&#39;s colour; empty = the sun&#39;s (whitish by day)</td>
+</tr>
+<tr>
+<td><code>underwater</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td>Shafts under the water surface too</td>
+</tr>
+<tr>
+<td><code>underwaterCount</code></td>
+<td><code>12</code></td>
+<td>Their budget</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../caustics/">caustics</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link current" href="../b3d-light-shafts/" aria-current="page">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
+      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      <li><a class="doc-link" href="../scatter/">scatter</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../weather/">weather</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      <li><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+      <li><a class="doc-link" href="../aim/">aim</a></li>
+      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js?v=f7de993b5a55"></script>
+</body>
+</html>

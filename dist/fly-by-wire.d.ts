@@ -95,6 +95,14 @@ export interface FlyByWireConfig {
     diveBoost: number;
     /** How fast the velocity vector chases its target (1/s) — the forgiveness knob. */
     velChase: number;
+    /**
+     * The MEDIUM, as a drag multiplier: 1 is air, and water is thicker (the 2010
+     * Manta ran identical thrust at drag 0.1 above water and 1.0 below — ×10).
+     * Scales plane-regime drag AND hover damping, so terminal speed at a given
+     * throttle falls by √mediumDrag (≈ 32% at ×10) while the controls stay the
+     * same. Optional: omitted means 1.
+     */
+    mediumDrag?: number;
 }
 export interface FlyByWireCommand {
     /** -1..1, + = nose up. */
@@ -172,4 +180,20 @@ export declare function chaseVelocity(vel: Vec3, target: Vec3, velChase: number,
  * rather than sitting on it, and a gauge that doesn't show it looks broken.
  */
 export declare function equilibriumSpeed(cfg: FlyByWireConfig, throttle: number, afterburner?: number): number;
+/**
+ * **Turbulence**: smooth, seeded disturbance for an airframe, as RATES
+ * (pitch and roll in rad/s, heave in m/s²) to add to the state each step.
+ * The attitude controller then pulls the craft back toward what the stick
+ * commands, and the fight between the two is what a buffet feels like.
+ *
+ * Deterministic (a sum of incommensurate sines with seeded phases), so the
+ * same flight through the same storm bumps the same way; zero when `level`
+ * is 0; mean zero, so it shakes without pushing. `level` 0–1 comes from the
+ * weather (storminess, wind); see `b3d-aircraft`.
+ */
+export declare function turbulence(t: number, seed: number, level: number): {
+    pitchRate: number;
+    rollRate: number;
+    heave: number;
+};
 //# sourceMappingURL=fly-by-wire.d.ts.map

@@ -136,10 +136,14 @@
         "description": "Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime."
       },
       {
-        "name": "reverseSpeed"
+        "name": "reverseSpeed",
+        "default": "5",
+        "description": "How fast the craft may back up in a hover (m/s); nose up to reverse"
       },
       {
-        "name": "throttleRate"
+        "name": "throttleRate",
+        "default": "0.8",
+        "description": "How fast the trigger moves the throttle LEVER (full travel per second)"
       },
       {
         "name": "autoGear",
@@ -215,6 +219,26 @@
         "name": "submersible",
         "default": "false",
         "description": "Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash"
+      },
+      {
+        "name": "waterDrag",
+        "default": "10",
+        "description": "Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater"
+      },
+      {
+        "name": "turbulence",
+        "default": "'on'",
+        "description": "The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather"
+      },
+      {
+        "name": "turbulenceScale",
+        "default": "1",
+        "description": "Scales the buffeting"
+      },
+      {
+        "name": "waterTransition",
+        "default": "2",
+        "description": "Metres over which drag blends from air to water across the surface"
       },
       {
         "name": "crashSpeed",
@@ -436,6 +460,11 @@
         "name": "disabled",
         "default": "false",
         "description": "Stop emitting"
+      },
+      {
+        "name": "weather",
+        "default": "'off'",
+        "description": "`'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on"
       }
     ]
   },
@@ -899,6 +928,11 @@
         "description": "How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note"
       },
       {
+        "name": "stormRise",
+        "default": "0",
+        "description": "Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above"
+      },
+      {
         "name": "localCoverage",
         "default": "1",
         "description": "How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast"
@@ -906,12 +940,12 @@
       {
         "name": "orographic",
         "default": "0",
-        "description": "Cloud gathers over high ground, `0…1`. Needs a terrain in the scene"
+        "description": "Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene"
       },
       {
         "name": "orographicPeak",
         "default": "260",
-        "description": "Terrain height at which `orographic` is at full strength"
+        "description": "Height ABOVE THE SEA at which `orographic` is at full strength"
       },
       {
         "name": "shadows",
@@ -2013,6 +2047,11 @@
         "description": "Shell visual radius"
       },
       {
+        "name": "missileTrail",
+        "default": "'off'",
+        "description": "`'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`"
+      },
+      {
         "name": "projColor",
         "default": "'#ffdd55'",
         "description": "Shell emissive colour"
@@ -2062,6 +2101,58 @@
     ]
   },
   {
+    "module": "b3d-light-shafts",
+    "tag": "tosi-b3d-light-shafts",
+    "summary": "b3d-light-shafts",
+    "attributes": [
+      {
+        "name": "count",
+        "default": "14",
+        "description": "How many sky shafts at most (the budget). `0` = off"
+      },
+      {
+        "name": "radius",
+        "default": "3000",
+        "description": "How far from you (m) to look for gaps. Shafts read best from a distance"
+      },
+      {
+        "name": "width",
+        "default": "40",
+        "description": "The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1. Kept SMALL on purpose: the wider a shaft, the more obvious any mismatch with the gap it comes from"
+      },
+      {
+        "name": "spread",
+        "default": "0",
+        "description": "Extra width per metre of length. `0`: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light"
+      },
+      {
+        "name": "strength",
+        "default": "0.35",
+        "description": "Brightness at the edge the light comes through; it falls linearly to 0"
+      },
+      {
+        "name": "rainBoost",
+        "default": "0.5",
+        "description": "How much precipitation where you are multiplies the strength"
+      },
+      {
+        "name": "color",
+        "default": "''",
+        "description": "The light's colour; empty = the sun's (whitish by day)"
+      },
+      {
+        "name": "underwater",
+        "default": "'on'",
+        "description": "Shafts under the water surface too"
+      },
+      {
+        "name": "underwaterCount",
+        "default": "12",
+        "description": "Their budget"
+      }
+    ]
+  },
+  {
     "module": "b3d-light",
     "tag": "tosi-b3d-light",
     "summary": "b3d-light",
@@ -2100,6 +2191,83 @@
         "name": "groundColor",
         "default": "'#000000'",
         "description": "Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour"
+      }
+    ]
+  },
+  {
+    "module": "b3d-lightning",
+    "tag": "tosi-b3d-lightning",
+    "summary": "b3d-lightning",
+    "attributes": [
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same storm"
+      },
+      {
+        "name": "bolts",
+        "default": "'on'",
+        "description": "Draw the bolt for cloud-to-ground strikes"
+      },
+      {
+        "name": "sprites",
+        "default": "'on'",
+        "description": "Red-pink sprites above strong storms"
+      },
+      {
+        "name": "thunder",
+        "default": "'on'",
+        "description": "Procedural thunder, delayed by distance"
+      },
+      {
+        "name": "volume",
+        "default": "0.8",
+        "description": "Thunder loudness"
+      },
+      {
+        "name": "groundLight",
+        "default": "2.5",
+        "description": "How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate)"
+      },
+      {
+        "name": "darken",
+        "default": "0.5",
+        "description": "How much a storm near you takes from the sun AND the ambient light (half, at full storm, easing with distance), so the flashes stand out. Applied through the cloud deck, which owns those lights"
+      },
+      {
+        "name": "shadows",
+        "default": "'on'",
+        "description": "Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame)"
+      },
+      {
+        "name": "shadowSize",
+        "default": "1024",
+        "description": "Its resolution"
+      },
+      {
+        "name": "shadowRange",
+        "default": "600",
+        "description": "How far from you (m) things cast them: the shadows you can see, and a tight set keeps the map sharp"
+      },
+      {
+        "name": "flashLight",
+        "default": "'point'",
+        "description": "The strike's shadowed light. `'point'`: shadows radiate from the bolt in every direction (a cube map: six shadow renders, once per new strike). `'directional'`: one render, correct looking toward the strike; the cheap choice for low-end devices"
+      },
+      {
+        "name": "color",
+        "default": "'#dce4ff'",
+        "description": "The flash's colour"
+      },
+      {
+        "name": "rate",
+        "default": "1",
+        "description": "How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4)"
+      },
+      {
+        "name": "brightness",
+        "default": "1",
+        "description": "How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together"
       }
     ]
   },
@@ -2339,7 +2507,14 @@
         "description": "`'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera"
       },
       {
-        "name": "flatFrame"
+        "name": "flatFrame",
+        "default": "''",
+        "description": "The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera"
+      },
+      {
+        "name": "resolution",
+        "default": "0",
+        "description": "Texture size in px (square); `0` = 384. Raise it for a menu with text"
       }
     ]
   },
@@ -3766,6 +3941,58 @@
     ]
   },
   {
+    "module": "b3d-trail",
+    "tag": "tosi-b3d-trail",
+    "summary": "b3d-trail",
+    "attributes": [
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)"
+      },
+      {
+        "name": "diameter",
+        "default": "0.06",
+        "description": "Ribbon width (m)"
+      },
+      {
+        "name": "length",
+        "default": "45",
+        "description": "Ribbon length, in segments (one a frame, so length ≈ how many frames of history)"
+      },
+      {
+        "name": "color",
+        "default": "'#ffffff'",
+        "description": "Its colour (emissive, unlit)"
+      },
+      {
+        "name": "underwaterColor",
+        "default": "''",
+        "description": "The colour below a `<tosi-b3d-water>` surface; empty = same as `color`"
+      },
+      {
+        "name": "alpha",
+        "default": "0.16",
+        "description": "Opacity. Low on purpose: you should see through a contrail"
+      },
+      {
+        "name": "minSpeed",
+        "default": "8",
+        "description": "Below this speed (m/s, measured at the emitter) the ribbon fades out, so a hover does not smear"
+      }
+    ]
+  },
+  {
     "module": "b3d-trigger",
     "tag": "tosi-b3d-trigger",
     "summary": "b3d-trigger",
@@ -4020,6 +4247,41 @@
         "name": "fogTransition"
       },
       {
+        "name": "underside",
+        "default": "'auto'",
+        "description": "Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog"
+      },
+      {
+        "name": "undersideColor",
+        "default": "'#9fdcf0'",
+        "description": "The window: the sky's light, looking up"
+      },
+      {
+        "name": "undersideDepthColor",
+        "default": "'#06283a'",
+        "description": "The mirror: the dark water, at grazing angles"
+      },
+      {
+        "name": "undersideSky",
+        "default": "1",
+        "description": "From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. `0` = the flat `undersideColor` only"
+      },
+      {
+        "name": "caustics",
+        "default": "'auto'",
+        "description": "Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun"
+      },
+      {
+        "name": "causticsStrength",
+        "default": "0.6",
+        "description": "How bright the web gets"
+      },
+      {
+        "name": "causticsScale",
+        "default": "6",
+        "description": "Metres per caustic cell: bigger is coarser and calmer"
+      },
+      {
         "name": "spherical",
         "default": "false",
         "description": "Use a sphere instead of a plane"
@@ -4086,6 +4348,73 @@
       },
       {
         "name": "wind"
+      }
+    ]
+  },
+  {
+    "module": "b3d-weather-cell",
+    "tag": "tosi-b3d-weather-cell",
+    "summary": "b3d-weather-cell",
+    "attributes": [
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Centre, world XZ"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Centre, world XZ"
+      },
+      {
+        "name": "radius",
+        "default": "200",
+        "description": "Reach (m); influence eases to nothing at the rim"
+      },
+      {
+        "name": "windSpeed",
+        "default": "0",
+        "description": "Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's"
+      },
+      {
+        "name": "windBearingDeg",
+        "default": "0",
+        "description": "Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's"
+      },
+      {
+        "name": "coverage",
+        "default": "0",
+        "description": "Cloud cover it adds (summed, clamped 0–2). A storm counts IN FULL, so a cell past 1 closes the sky over its inner part; past 1 it is also darker underneath. (A tower rising out of the deck is opt-in, the deck's `stormRise`.) `0` = no opinion"
+      },
+      {
+        "name": "precipitation",
+        "default": "0",
+        "description": "Rain/snow 0–1 (the max of overlapping cells wins)"
+      },
+      {
+        "name": "storminess",
+        "default": "0",
+        "description": "Lightning likelihood 0–1 (max wins)"
+      },
+      {
+        "name": "temperature",
+        "default": "0",
+        "description": "Temperature offset in degrees (summed)"
+      },
+      {
+        "name": "drift",
+        "default": "'off'",
+        "description": "`'wind'` = a weather system: it travels with the scene's wind"
+      },
+      {
+        "name": "lifetime",
+        "default": "0",
+        "description": "Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`"
+      },
+      {
+        "name": "grow",
+        "default": "0",
+        "description": "Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime"
       }
     ]
   },
@@ -4382,6 +4711,27 @@
     ]
   },
   {
+    "module": "lightning",
+    "summary": "lightning",
+    "attributes": [
+      {
+        "name": "ground",
+        "default": "cloud to ground: a bolt, the brightest flash, thunder",
+        "description": "most"
+      },
+      {
+        "name": "cloud",
+        "default": "inside the cloud: the tower lit from within, no bolt",
+        "description": "many"
+      },
+      {
+        "name": "sprite",
+        "default": "ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms",
+        "description": "rare"
+      }
+    ]
+  },
+  {
     "module": "manipulator",
     "summary": "manipulator",
     "attributes": [
@@ -4577,11 +4927,6 @@
         "name": "scenePanelOpen"
       },
       {
-        "name": "gamepad",
-        "default": "absent",
-        "description": "When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `\"a,b,left_stick\"` selects controls"
-      },
-      {
         "name": "gamepadScale",
         "default": "1",
         "description": "Scale factor for the glass gamepad clusters"
@@ -4704,6 +5049,37 @@
         "name": "dimMix",
         "default": "G6–M",
         "description": "The dim population's spectral mix — underweight late M freely"
+      }
+    ]
+  },
+  {
+    "module": "weather",
+    "summary": "weather",
+    "attributes": [
+      {
+        "name": "wind",
+        "default": "vector SUM",
+        "description": "a lee subtracts, a gust adds"
+      },
+      {
+        "name": "temperature",
+        "default": "signed SUM",
+        "description": "a cold cell beside a warm one cancels"
+      },
+      {
+        "name": "coverage",
+        "default": "SUM, clamped 0–2",
+        "description": "a storm thickens the sky, a clear cell thins it; past 1 is THICKNESS (a storm tower), as on the deck's own dial"
+      },
+      {
+        "name": "precipitation",
+        "default": "MAX",
+        "description": "two storms overlapping do not rain twice as hard"
+      },
+      {
+        "name": "storminess",
+        "default": "MAX",
+        "description": "like volcanism: the worst one wins"
       }
     ]
   },

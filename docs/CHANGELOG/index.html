@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=6c338a3a1348" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f7de993b5a55" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=fd6ca3d0d2d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d424236c37d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,309 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.5</h2>
+<p><strong>Weather you can watch.</strong> Storms that darken the day and strike: lightning
+that lights the cloud from below, inside and above, lights the landscape and
+throws shadows, with thunder at the speed of sound. Shafts of sun through a
+broken sky, and the sky and sun seen through the water from below, with rays
+fanning down from them. Rain and snow from the weather, the wind carrying
+aircraft and buffeting them in a storm. And two long-hidden bugs: the cloud
+deck&#39;s local weather was mirrored north-south, and on the doc site no shadow
+map had rendered at all.</p>
+<p>Size: barrel (min, packages external) 883.2 KB raw / 295.6 KB gz (+5.7% gz),
+for lightning, light shafts, weather cells, trails and caustics.</p>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>Lightning lit the land through cloud-shaped shadows</strong> (Tonio: &quot;the
+directional light seems to be coming from above the cloud layer ... the
+shadows are mostly cloud&quot;). The projected cloud shadow multiplied the
+whole lit colour, flash included; a flash starts BELOW the cloud, so the
+cloud shadow now fades while the deck is flashing (<code>strengthSource</code>, read
+at draw time).</p>
+</li>
+<li><p><strong>Moonlight made shafts as bright as noon.</strong> The shafts&#39; colour was
+normalised and never scaled by the light&#39;s intensity; the skybox puts the
+moon in the same light at night. They now scale with it (moon shafts are
+real, and faint).</p>
+</li>
+<li><p><strong>Shafts are SMALL where they leave the deck or the surface</strong> (Tonio: the
+wider they are, the more obvious any mismatch with the gap): sky <code>width</code>
+200 -&gt; 40 m (4 m near closed cover), underwater rays 0.2-0.8 m.</p>
+</li>
+<li><p><strong>No shadow map rendered on the doc site, the sun&#39;s included.</strong> Babylon&#39;s
+shadow generators lazy-load their shaders from code-split chunks, and each
+chunk loaded a second copy of the site bundle (tosijs-ui#191), which threw,
+so the shaders never loaded and every <code>isReady()</code> stayed false. The site
+entry now imports the shadow shaders statically and tells the generators
+they are loaded (site-only workaround; the library is unaffected).</p>
+</li>
+<li><p><strong>Thunder kept playing after leaving the page</strong> (Tonio). Thunder is
+scheduled ahead on the audio clock (a storm 2 km off rumbles 6 s after its
+flash, for 4 s), and disposing <code>&lt;tosi-b3d-lightning&gt;</code> neither stopped it
+nor closed the context. It now closes its AudioContext, silencing
+anything queued at once and no longer leaking a context per visit.</p>
+</li>
+<li><p><strong>The cloud deck&#39;s local-weather texture was MIRRORED north-south.</strong>
+Babylon&#39;s ground rows run from +Z to -Z; the texture&#39;s rows the other way.
+Everything reading the texture (local coverage, storm gloom, the cloud
+shadow) put storms and orographic cloud at the mirror image of where they
+were, invisible when a storm sat near the deck&#39;s centre. The lightning
+demo&#39;s storm, 1.3 km off-centre, was drawn 1.3 km the other way, so every
+strike lit empty sky. Pure <code>packWeatherTexture</code> flips the rows, tested.</p>
+</li>
+<li><p><strong>A storm&#39;s sky only closed at its very core</strong>, so from below you looked
+up through gaps at the inside of the tower, which read as the deck&#39;s
+BOTTOM bowing upward (Tonio). A storm now counts in full in the coverage
+(its share is taken out of the ramped field and added back whole): a cell
+of 1.8 closes the sky over the inner half of its radius, the base stays
+flat, and only the top skin rises into the tower. From above the ceiling
+bulges up; from below it is a flat, solid underside.</p>
+</li>
+<li><p><strong>A strike lit the cloud one frame late</strong> (the deck pushed its flash before
+lightning set it); the flash is now written at draw time. It also lights
+the TOP skin, so a tower seen from the side glows, and the ground light
+sits halfway between the cloud base and the terrain under the strike.</p>
+</li>
+<li><p><strong>The launcher demo&#39;s left stick did nothing</strong> (board #2434). Since the
+GTA-style remap the biped mapping sends A/D and left-stick X to <code>strafe</code>
+and only the right stick to <code>turn</code>; three doc demos (launcher, warhead,
+the controller&#39;s rover) still steered on <code>turn</code> alone, so the glass
+pad&#39;s stick and A/D were dead. They now steer on either.</p>
+</li>
+<li><p><strong>Orographic cloud filled the whole sky over land</strong> (Tonio: &quot;orographic is
+the problem. It fills the transparent areas without changing apparent
+cloud coverage&quot;). The lift was measured from ABSOLUTE height, so with Land
+and Sky&#39;s sea at 147 m every bit of land counted as mountain and added
++0.5 to +0.75 coverage: a 0.3 sky rendered as a solid grey sheet. It is
+now measured from the SEA (the scene&#39;s water surface) and weighted to
+RIDGES (ground above its surroundings); a high flat plateau keeps 35% of
+it. Pure: <code>cloud-field</code>&#39;s <code>orographicLift</code>, tested. <code>orographicPeak</code> is now
+the height above the sea.</p>
+</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong>Lightning casts shadows</strong> (Tonio: &quot;spin up a shadow map and retain it
+between strokes and just use it for the brightest strike&quot;). ONE shadow map,
+kept; re-rendered once per new brightest ground strike, never per frame.
+The strike&#39;s light is a POINT light by default (<code>flashLight</code>), from the
+middle of the channel, so shadows radiate from the bolt (a cube map: six
+renders per strike); <code>&#39;directional&#39;</code> is the one-render option for low-end
+devices. Casters within <code>shadowRange</code> of you (and of the strike, for a
+point light); <code>shadows</code>, <code>shadowSize</code>. It replaces the old point light, so
+the scene stays within a material&#39;s 4-light budget. The lightning demo now
+has hills, trees and a hamlet under the storm.</li>
+<li><strong>A storm darkens the day around it</strong> (Tonio: &quot;cut ambient and even sun
+brightness somewhat when lightning is flashing ... by half&quot;): new
+<code>darken</code> on <code>&lt;tosi-b3d-lightning&gt;</code> (0.5) takes the sun and the ambient
+fill down by half at full storm, easing with distance and strength,
+through the cloud deck&#39;s own light handling (<code>deck.stormDim</code>) so the two
+cannot compound. The deck&#39;s gloom no longer dims lightning&#39;s own lights
+(it was cutting the landscape flash by up to 90% under cover).</li>
+<li><strong>Land and Sky: a &quot;lightning storm&quot; toggle</strong> beside the volcano: the storm
+gathers in front of you over 20 s, strikes, rains and throws strike
+shadows, then drifts away east.</li>
+<li><strong>Lightning is dramatic</strong> (Tonio: &quot;having the lightning be dramatically
+bright&quot;): each strike lights the WHOLE landscape from above (falling off
+with the storm&#39;s distance), the tower from inside, harder, and the bolt
+carries an additive halo. New <code>brightness</code> (the drama) and <code>rate</code> (how
+often, a multiple of the natural rate; pure <code>strikesBetween</code> takes it,
+tested) on <code>&lt;tosi-b3d-lightning&gt;</code>; <code>groundLight</code> default 2.5 -&gt; 6. Storm
+lightning also brightens the WHITEOUT when you are inside the cloud. The
+landscape flash is strong enough for a dark ground to read as lit (peak
+3.5, halving at 6 km; the ground light reaches 6 km). The
+demo has a scene panel: storm size,
+how often, cloud cover, brightness, time of day. A storm is no longer a
+TOWER by default (Tonio: &quot;it basically looks terrible&quot;): the deck&#39;s
+<code>stormRise</code> defaults to 0 (opt-in, domed when on), so a storm is more
+cover and lightning. From below the flash lights the underside and the
+ground, inside it the whiteout, above it the top.</li>
+<li><strong>Weather reaches the airframe</strong> (board #1125). <code>&lt;tosi-b3d-aircraft&gt;</code> asks
+the scene for the weather where it is: the WIND carries it (it chases an
+air-relative velocity, so a crosswind crabs it downwind), and a STORM
+buffets it — seeded disturbance on pitch, roll and climb that the attitude
+controller fights back toward the stick. Strong wind alone adds a little.
+New attributes <strong><code>turbulence</code></strong> (<code>&#39;on&#39;</code>/<code>&#39;off&#39;</code>, default on) and
+<strong><code>turbulenceScale</code></strong> (default <code>1</code>), and a read-only <strong><code>turbulenceLevel</code></strong>
+(0–1) for a HUD or a debug readout. The disturbance is the pure, seeded
+<strong><code>turbulence(t, seed, level)</code></strong> in <code>fly-by-wire</code>. Nothing happens on the
+ground or in an owner without the weather service.</li>
+<li><strong>Light shafts</strong> (WEATHER-DESIGN stage 4, board #1084), to Tonio&#39;s model
+(pure half: <strong><code>light-rays</code></strong>): <strong><code>&lt;tosi-b3d-light-shafts&gt;</code></strong> hangs shafts
+from the gaps in the cloud deck, BELOW it, running along the sun and
+widening slightly (<code>spread</code>), and as broad as the gaps: <code>width</code> at the
+0.5 threshold down to slits as the cover closes toward 1. An additive,
+flat fill of the sun&#39;s colour — <code>strength</code> 0.35 at the cloud, linear to 0 — most prominent looking toward
+the sun (a forward-scatter phase, per pixel), and only where the local
+cover is broken: 0.5 up to (not including) 1. Placement searches a fine
+grid near you as well as a coarse one far out, keeps one shaft per gap,
+and only refuses a shaft that would pass through you, so a deck just
+above your head (Land and Sky) gets shafts too. The same model runs UNDER
+THE WATER: shafts from the surface, bent by Snell&#39;s law, sunlight tinted
+by the water&#39;s fog, shimmering as cells come and go (<code>underwater</code>,
+<code>underwaterCount</code>). SURFACE TURBULENCE drives them (the wind over the
+water, its <code>waveHeight</code> and <code>bumpHeight</code>): calm water gives a few broad,
+slow rays, choppy water many narrow ones that flicker (<code>waterRoughness</code>,
+<code>waterRayShape</code>; <code>waterRoughness</code> on the element reads it back). The doc
+page has an underwater demo. Shafts are RECTANGULAR (<code>spread</code> 0), so
+perspective alone makes them radiate from the sun; sky placement is
+weighted hard toward the sun&#39;s position in view, and underwater rays are
+biased toward the viewer so the middle of the view is not empty. Rain adds
+to the strength.</li>
+<li><strong>The weather-cell demo has a frame of reference</strong> (Tonio: &quot;it has no
+frame of reference so it just looks like leaves blowing around&quot;): a row of
+flagpoles you fly past, each flag showing the wind WHERE IT STANDS
+(streaming downwind, limp in the lee), and the lee&#39;s edge drawn as a ring
+on the water.</li>
+<li><strong>The sky through the water, from below</strong> (<code>b3d-water</code> <code>undersideSky</code>,
+default 1; Tonio: &quot;we want to see the sky and sun through and distorted by
+the water surface&quot;). The window no longer shows a flat colour: a small
+reflection probe photographs the sky with its fog and veil OFF, and the
+underside refracts it through the water&#39;s own ripples, so the sky and the
+sun arrive bent and moving. Clearest in the shallows, fading with depth,
+giving way to the dark mirror at grazing angles. The probe is HALF-FLOAT
+and captures the sun as HDR (a new skybox uniform, <code>b3dSunHdr</code>, 0 in
+normal rendering), so the sun still punches through the partial
+transmission of the surface (Tonio: &quot;our skybox isn&#39;t HDR so its glare
+doesn&#39;t punch through&quot;). (It replaces a glare sprite that looked fake.) Underwater rays are fewer (<code>underwaterCount</code>
+12, lower presence).</li>
+<li><strong>Rain and snow from the weather</strong> (WEATHER-DESIGN stage 5, board #1124).
+<code>b3d-ambient</code> gains <code>weather: &#39;rain&#39; | &#39;snow&#39;</code>: emission follows the
+PRECIPITATION where the viewer is, so a storm brings its own rain and it
+eases in and out as the storm passes; the local temperature splits rain
+from snow (sleet between). Rain now draws as STREAKS stretched along its
+velocity, so the wind visibly slants it. Land and Sky&#39;s storm rains.</li>
+<li><strong>Lightning and thunder</strong> (WEATHER-DESIGN stage 3, board #1123):
+<strong><code>&lt;tosi-b3d-lightning&gt;</code></strong> strikes under every weather cell with
+<code>storminess</code>, seeded (same seed, same storm; frame rate cannot change it).
+Cloud-to-ground strikes draw a jagged, branching bolt that flickers through
+its re-strokes and light the ground; every strike lights the cloud deck from
+INSIDE around it (<code>deck.flash()</code>, a new hook: why storms want coverage past
+1); thunder is procedural and arrives at the speed of sound, so you can
+count the distance; and over strong storms, rarely, <strong>sprites</strong>: brief
+red-pink crowns with purple tendrils high above the tower. Each strike
+dispatches <code>strike</code> with <code>{ kind, x, z, t, distance }</code>. The pure model is
+<code>lightning.ts</code> (<code>strikesBetween</code>, <code>boltPath</code>, <code>flashAt</code>, <code>thunderDelay</code>).
+Land and Sky&#39;s storm now brings lightning.</li>
+<li><strong>Weather, stage 2: a storm you can see</strong> (board #1122). A
+<code>&lt;tosi-b3d-weather-cell&gt;</code> with <code>coverage</code> joins the cloud deck&#39;s local
+weather field: denser cloud over it, a greyer, heavier underside (its own
+&quot;gloom&quot; channel, so orographic cloud still never repaints fair weather as
+foul), the storm&#39;s shadow on the ground beneath (the shadow reads the same
+field), and full strength even when the global dial says clear. A drifting
+cell re-bakes about once per 10 m of travel.
+Land and Sky has a <strong>storm</strong> toggle in its Weather group: a storm drifting
+with the wind (the scene&#39;s wind now matches the deck&#39;s) that passes over
+you and recedes into view.
+Cells gain <strong><code>grow</code></strong> (seconds to gather from nothing to full), so a storm
+builds rather than appearing; the deck re-bakes in 1% strength steps as it
+does. Across SPACE a cell was already gradual: a smoothstep over its whole
+radius, smoothed again by the deck.
+<strong>Storm towers:</strong> cell coverage now runs to 2, and past 1 is THICKNESS,
+as on the deck&#39;s own dial: the deck lifts its top skin there by up to
+<code>stormRise</code> (1,500 m), whatever the global dial says, so a storm is a dark
+heavy base from below and a bright tower from above, and the thing
+lightning will light from inside. The cell channels get one smoothing pass,
+not the orographic field&#39;s four (which flattened a storm&#39;s excess from 0.7
+to 0.18). Land and Sky&#39;s storm is coverage 1.7.</li>
+<li><strong>Weather, stage 1: the weather where you are</strong> (WEATHER-DESIGN.md, board
+#255). <code>b3d.weatherAt(x, z)</code> (and <code>weatherHere()</code>) answers what every
+weather consumer asks: the scene&#39;s base wind plus every
+<strong><code>&lt;tosi-b3d-weather-cell&gt;</code></strong> that reaches the point, composed per quantity
+(wind and temperature sum, coverage sums clamped, precipitation and
+storminess take the max). Clouds, water and ambient now read the wind AT
+THE VIEWER rather than one scene-wide value, so a lee is calm and a squall
+is local. A cell with <code>drift=&quot;wind&quot;</code> travels with the wind (a weather
+system), and <code>lifetime</code> grows, holds and ends it. The pure model is
+<code>weather.ts</code>. Measured on the new page: leaves&#39; wind 12 → 0.96 m/s crossing
+a lee&#39;s centre.</li>
+<li><strong>Caustics</strong> (board #198, tosijs-3d#16): light through the moving surface,
+dancing on whatever is beneath a <code>twoSided</code> <code>b3d-water</code> (<code>caustics</code>,
+<code>&#39;auto&#39;</code> = on whenever <code>twoSided</code>; <code>causticsStrength</code>, <code>causticsScale</code>).
+Projected by world position through a material plugin (the cloud-shadow
+technique), so terrain, hulls and the player all get it with no per-mesh
+setup; slants with the sun, shimmers (two moving layers, combined with
+<code>min</code>), fades with depth and fog, and goes with the sun. The pattern is a
+seeded, tiling cellular web (<code>causticPattern</code>), with no file to fetch.</li>
+<li><strong>One lattice per world, enforced where code can</strong> (board #257,
+tosijs-3d#75): every <code>extractChunk</code> result carries its <code>lattice</code> identity
+(<code>latticeIdentity(cfg)</code>), and <code>assertLatticesWeld(chunks)</code> throws on a
+mismatch instead of leaving a crack. TUNNEL-DESIGN.md records the decision
+that carves are world-level objects provinces declare but don&#39;t own, so a
+tunnel between provinces is just a carve in the field.</li>
+<li><strong>Snell&#39;s window: the water&#39;s underside</strong> (board #197, tosijs-3d#15). Looking
+up from under a <code>twoSided</code> <code>b3d-water</code> used to show flat dark blue. Now
+(<code>underside</code>, <code>&#39;auto&#39;</code> = on whenever <code>twoSided</code>) it is a bright window onto
+the sky overhead, darkening to a mirror of the depths toward grazing angles,
+rippling with the same normal map as the surface, and fading in with the
+underwater fog&#39;s own band weight. One plane, one draw call, only while
+submerged. <code>undersideColor</code> / <code>undersideDepthColor</code> tune the two ends. It
+stays OPAQUE and the sky stays fogged, unlike the prototype, so a level look
+under water still sees murk rather than sky.</li>
+<li><strong><code>b3d.debugFogColor</code></strong> (<code>&#39;#ff00ff&#39;</code>) paints the composited fog a colour
+nothing else is, to tell fog from surface from sky; also a toggle on the
+Perf Stats panel&#39;s new Fog row (with density, end and veil), for a headset.</li>
+<li><strong><code>&lt;tosi-b3d-trail&gt;</code></strong> — a ribbon behind anything that moves (contrails,
+missile smoke, a fast enemy&#39;s wake), lifted from manta-recon&#39;s engine
+contrails (tosijs-3d#4, board #186). Nest it in the mover, give it a local
+offset; it measures speed at its own emitter (so it works on anything),
+fades below <code>minSpeed</code>, takes <code>underwaterColor</code> below a <code>&lt;tosi-b3d-water&gt;</code>,
+re-attaches when the host&#39;s mesh is replaced (respawn, async load), and
+resets on a floating-origin shift. <strong><code>attachTrail(node, scene, options)</code></strong>
+is the same for a node you hold, such as a spawned missile.
+Missiles get it for free: <code>&lt;tosi-b3d-launcher missile-trail=&quot;on&quot;&gt;</code>, or
+<code>trail</code> on <code>spawnProjectile</code>/<code>spawnMissile</code> for your own rounds.</li>
+<li><strong>Frame panels are usable as menus</strong> (board #768, tosijs-3d#92, from
+manta-recon moving its outer game to viewer-relative panels):<ul>
+<li><strong>They route pointers.</strong> A <code>panel3d</code> on a frame panel now takes presses,
+drags and hover from mouse, touch and XR rays (the same routing
+<code>b3d-svg-plane</code> has), and repaints immediately on press and release rather
+than on the texture&#39;s 400 ms timer. Before, the buttons drew and ignored
+every click, with no error.</li>
+<li><code>attachFramePanel</code> returns its <strong><code>mesh</code></strong>.</li>
+<li><strong><code>resolution</code></strong> on <code>FramePanelSpec</code> (and <code>&lt;tosi-b3d-panel resolution&gt;</code>):
+384 suits a reticle, not a menu of text.</li>
+<li><strong><code>flatFrame</code> applies to any panel</strong>, not only hand panels, so
+<code>flatFrame: &#39;face&#39;</code> measures a flat panel&#39;s elevation from the VIEW rather
+than the off-screen horizon of a pitched camera.</li>
+</ul>
+</li>
+<li><strong>Flying under water feels like water</strong> (board #185, manta&#39;s #3). A
+<code>submersible</code> aircraft now meets a thicker MEDIUM below the surface:
+<code>waterDrag</code> (×10 by default, the 2010 Manta&#39;s air:water ratio) multiplies
+drag, blended over <code>waterTransition</code> metres. The controls are unchanged; full
+throttle settles at ~32% of <code>maxSpeed</code>. <strong><code>surface-crossed</code></strong> fires on each
+crossing with <code>{ entering, point, speed, aircraft }</code> for splash, wake and
+audio cues, and <strong><code>submerged</code></strong> (0–1) is readable. In the pure model:
+<code>FlyByWireConfig.mediumDrag</code>, and drag now clamps at rest instead of
+overshooting into reverse on a long frame.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Replacing the player left input focus on the removed one</strong> (board #2421,
+from manta-recon&#39;s respawn): the new craft got no input and its crash was
+ignored by <code>b3d-death</code>. A controllable now releases focus when it is
+disposed, and <code>adoptIfVacant</code> treats a disconnected focused entity as a
+vacant seat. No more <code>releaseFocus()</code> before the swap.</li>
+<li><strong>Ambient wind accumulated every frame and flung particles away</strong>: the
+preset&#39;s direction vectors were assigned by reference, and the per-frame
+<code>direction.set(preset + wind)</code> wrote into the preset, so the wind grew frame
+on frame (drops at kilometres a second, never seen). Cloned now, and the
+particles take the INHERITED wind (scene and weather cells), not only the
+element&#39;s own <code>windX</code>/<code>windZ</code>.</li>
+<li><strong>Flat eye-anchored panels trailed a moving camera by one frame</strong> (board
+#767, found by manta-recon at 2.15 m per frame behind b3d-aircraft&#39;s follow
+camera). The flat frames are now posed on <code>onBeforeCameraRenderObservable</code>,
+after anything that moves the camera during the render. Measured: 0.000 m
+gap over 64 frames of a camera moving 2 m per frame.</li>
+<li><strong>Every scene with a glass gamepad logged a type warning</strong> (<code>gamepad is declared boolean … but was written string</code>). <code>gamepad</code> is genuinely
+<code>boolean | string</code> (<code>true</code> = the default layout, a string = a layout), so
+it is now a plain property read once at setup rather than a typed attribute.
+Markup (<code>gamepad</code>, <code>gamepad=&quot;…&quot;</code>) and <code>b3d({ gamepad })</code> are unchanged.</li>
+<li><strong><code>b3d-terrain.recenter()</code> threw away an authored <code>worldU</code>/<code>worldV</code></strong> (board
+#458), resetting them to the defaults. It now clears the travel (the
+floating-origin offset) and leaves the placement alone.</li>
+</ul>
 <h2>0.8.4</h2>
 <p><strong>A sky you can actually see the stars in, and a world with things growing on
 it.</strong> The encoded sky is decoded exactly (sharp points, not smeared blobs),
@@ -3733,7 +4036,9 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../caustics/">caustics</a></li>
       <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
       <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
@@ -3762,17 +4067,23 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
       <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      <li><a class="doc-link" href="../lightning/">lightning</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -3925,6 +4236,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=6c338a3a1348"></script>
+  <script type="module" src="../hydrate.js?v=f7de993b5a55"></script>
 </body>
 </html>

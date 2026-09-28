@@ -4,52 +4,6 @@
 The stuff in the air, or in the water. **Bubbles and motes when you're under; rain, snow,
 dust or drifting seeds when you're not.**
 
-One component, several presets, and one trick that makes all of them work:
-
-> **The emitter box follows the camera. The particles do not.**
-
-Particles are spawned in a box around your head and then live in **world space** — so rain
-falls *past* you, motes drift *by* you, bubbles rise *away* from you. Emit them in your local
-frame instead and they travel with you like dandruff on the lens, which is the single most
-common way ambient particles are got wrong.
-
-The box has a **hole in the middle**, and it matters: a box centred on the camera will happily
-give birth to a particle *on your face*, and a few-centimetre sprite half a metre from the lens
-is a big soft blob covering a chunk of the screen. That's not a mote, that's a smudge. Nothing
-spawns inside the preset's `near` radius (drifting in close later is fine — it's being *born*
-there that reads as dirt on the lens). Particles also **fade in**, not just out: born at full
-alpha they blink into existence, which reads as sensor noise rather than as dust.
-
-Because the box follows you, an endless snowstorm costs a **fixed** number of particles no
-matter how big the world is. Nothing grows, nothing allocates.
-
-## It switches off rather than thinning out
-
-An ambient effect is **garnish**, and garnish plays by one rule:
-
-> **An effect that can't be itself switches OFF. It does not thin out.**
-
-Forty raindrops is not light rain — it's a rendering bug wearing rain's clothes. So you don't
-set a `count`; you *ask*. Each effect asks for the capacity its look needs and declares a
-`minCount` below which it would be **a lie**, and the scene divides one shared pool
-([ambient-budget](?ambient-budget.ts), sized from the measured device tier) between everyone who
-wants some. Effects thin together while they can all stay honest; the moment someone would drop
-under its floor, that one is switched off (lowest `priority` first) and its budget goes to the
-survivors. **Better honest rain and no motes than two half-truths.**
-
-The pool is shared because ambient effects *compete* — rain, dust and motes can each be
-individually affordable and still cook the frame together. And if the frame stays over budget
-anyway, the scene shrinks the pool and effects drop out on their own. That ratchet is **one-way**:
-ambient that pops back in the moment the frame recovers, then out again at the next tree, is its
-own broken promise.
-
-## It arrives with the water, not on top of it
-
-`where: 'underwater'` doesn't switch on at the surface — its emission **ramps with depth**
-using the same `band()` the fog uses (see [atmosphere](?atmosphere.ts)). Submerge and the
-bubbles arrive *as the water does*. Popping a cloud of bubbles into existence at a plane is
-the particle version of the fog "thunk", and we already fixed that once.
-
 ## Demo — dive under
 
 **Fly down into the sea** (W/S pitch, R/Q throttle). The fog closes in, the light dims, and
@@ -102,6 +56,54 @@ preview.append(scene)
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## How it works
+
+One component, several presets, and one trick that makes all of them work:
+
+> **The emitter box follows the camera. The particles do not.**
+
+Particles are spawned in a box around your head and then live in **world space** — so rain
+falls *past* you, motes drift *by* you, bubbles rise *away* from you. Emit them in your local
+frame instead and they travel with you like dandruff on the lens, which is the single most
+common way ambient particles are got wrong.
+
+The box has a **hole in the middle**, and it matters: a box centred on the camera will happily
+give birth to a particle *on your face*, and a few-centimetre sprite half a metre from the lens
+is a big soft blob covering a chunk of the screen. That's not a mote, that's a smudge. Nothing
+spawns inside the preset's `near` radius (drifting in close later is fine — it's being *born*
+there that reads as dirt on the lens). Particles also **fade in**, not just out: born at full
+alpha they blink into existence, which reads as sensor noise rather than as dust.
+
+Because the box follows you, an endless snowstorm costs a **fixed** number of particles no
+matter how big the world is. Nothing grows, nothing allocates.
+
+## It switches off rather than thinning out
+
+An ambient effect is **garnish**, and garnish plays by one rule:
+
+> **An effect that can't be itself switches OFF. It does not thin out.**
+
+Forty raindrops is not light rain — it's a rendering bug wearing rain's clothes. So you don't
+set a `count`; you *ask*. Each effect asks for the capacity its look needs and declares a
+`minCount` below which it would be **a lie**, and the scene divides one shared pool
+([ambient-budget](?ambient-budget.ts), sized from the measured device tier) between everyone who
+wants some. Effects thin together while they can all stay honest; the moment someone would drop
+under its floor, that one is switched off (lowest `priority` first) and its budget goes to the
+survivors. **Better honest rain and no motes than two half-truths.**
+
+The pool is shared because ambient effects *compete* — rain, dust and motes can each be
+individually affordable and still cook the frame together. And if the frame stays over budget
+anyway, the scene shrinks the pool and effects drop out on their own. That ratchet is **one-way**:
+ambient that pops back in the moment the frame recovers, then out again at the next tree, is its
+own broken promise.
+
+## It arrives with the water, not on top of it
+
+`where: 'underwater'` doesn't switch on at the surface — its emission **ramps with depth**
+using the same `band()` the fog uses (see [atmosphere](?atmosphere.ts)). Submerge and the
+bubbles arrive *as the water does*. Popping a cloud of bubbles into existence at a plane is
+the particle version of the fog "thunk", and we already fixed that once.
+
 ## Presets
 
 | preset | what it is |
@@ -119,6 +121,7 @@ tosi-b3d { width: 100%; height: 100%; }
 |-----------|---------|-------------|
 | `preset` | `'motes'` | `motes` / `bubbles` / `rain` / `snow` / `dust` / `leaves` |
 | `where` | `'always'` | `always` / `underwater` / `above` — emission ramps with depth, it doesn't switch |
+| `weather` | `'off'` | `'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on |
 | `count` | `auto` | Capacity to ASK for (`auto` = what the preset's look needs). You may not get it — the scene divides a shared pool |
 | `minCount` | `auto` | Below this the effect is a lie, so it switches **off** instead. `auto` = the preset's floor (rain needs density; a few motes still read fine as motes) |
 | `minTier` | `'low'` | Never run below this device tier, at any budget |
@@ -338,10 +341,19 @@ export class B3dAmbient extends B3dChild {
         */
         wind: 'scene',
         disabled: false,
+        /*
+        DRIVEN BY THE WEATHER (WEATHER-DESIGN stage 5, board #1124). 'rain' or
+        'snow' multiplies the emission by the PRECIPITATION where the viewer is
+        (`b3d.weatherHere()`), so walking into a storm cell starts the rain and
+        leaving it stops it, eased rather than switched. The local temperature
+        splits the two: rain above about -1°, snow below about -5° (offsets from
+        the base), sleet between. 'off' (default) = always on, as before.
+        */
+        weather: 'off',
     };
     /** The drift this frame: the scene's wind, or this element's own. */
     _wind() {
-        const scene = inheritedWind(this.wind, this.owner?.wind);
+        const scene = inheritedWind(this.wind, this.owner?.weatherHere?.().wind);
         return scene != null
             ? { windX: scene.x, windZ: scene.z }
             : { windX: this.windX, windZ: this.windZ };
@@ -437,6 +449,16 @@ export class B3dAmbient extends B3dChild {
         const ps = new BABYLON.ParticleSystem(`ambient-${this.preset}`, Math.max(1, capacity), scene);
         ps.particleTexture = dotTexture(scene);
         ps.emitter = this._emitter; // a WORLD point we move to the camera each frame
+        if (this.preset === 'rain') {
+            /*
+            RAIN IS STREAKS. A falling drop is a blur along its path, so the sprite
+            is stretched along its velocity, which is also what makes the wind
+            visible in it: a squall slants the rain. Round dots read as hail.
+            */
+            ps.billboardMode = BABYLON.ParticleSystem.BILLBOARDMODE_STRETCHED;
+            ps.minScaleY = 10;
+            ps.maxScaleY = 16;
+        }
         // The box, MINUS a sphere around the eye. Without the hole, particles are born on your
         // face: a sprite a few centimetres wide at half a metre is a big soft blob filling a chunk
         // of the screen — the "bright blurry circle" failure. Anything that drifts in close later
@@ -508,8 +530,15 @@ export class B3dAmbient extends B3dChild {
         ps.minLifeTime = p.life[0];
         ps.maxLifeTime = p.life[1];
         ps.gravity = p.gravity;
-        ps.direction1 = p.dir1;
-        ps.direction2 = p.dir2;
+        /*
+        CLONED, never the preset's own vectors. The wind below does
+        \`ps.direction1.set(p.dir1.x + wind…)\` every frame; with the preset's
+        vector assigned by reference that wrote INTO the preset, so the wind
+        accumulated frame on frame: rain left at kilometres a second and was never
+        seen (found when the scene's wind first reached the particles).
+        */
+        ps.direction1 = p.dir1.clone();
+        ps.direction2 = p.dir2.clone();
         ps.blendMode = p.additive
             ? BABYLON.ParticleSystem.BLENDMODE_ADD
             : BABYLON.ParticleSystem.BLENDMODE_STANDARD;
@@ -600,7 +629,9 @@ export class B3dAmbient extends B3dChild {
         // The box rides with you; the particles, once born, do NOT (Babylon particles live in
         // world space unless you ask otherwise). That's the whole illusion.
         const eye = cam.globalPosition;
-        this._intensity = this.disabled ? 0 : this._whereWeight(eye.y);
+        this._intensity = this.disabled
+            ? 0
+            : this._whereWeight(eye.y) * this._weatherWeight();
         this._clipSpawnBox();
         // Quad (leaf) path: population the budget×gaze allow, eased in `LeafField`.
         if (this._isQuad) {
@@ -648,11 +679,16 @@ export class B3dAmbient extends B3dChild {
         this._emitter.y += bias.y;
         this._emitter.z += bias.z;
         ps.emitRate = this._fillRate(ps);
-        // Wind is world-space drift, applied to the emission cone rather than to each particle.
-        if (this.windX !== 0 || this.windZ !== 0) {
+        /*
+        Wind is world-space drift, applied to the emission cone rather than to
+        each particle. The INHERITED wind (the scene's, and the weather cells'),
+        not just this element's own attributes: it only ever read its own, so a
+        squall moved the spawn box upwind and then emitted straight down.
+        */
+        if (blowing.windX !== 0 || blowing.windZ !== 0) {
             const p = PRESETS[this.preset] ?? PRESETS.motes;
-            ps.direction1.set(p.dir1.x + this.windX, p.dir1.y, p.dir1.z + this.windZ);
-            ps.direction2.set(p.dir2.x + this.windX, p.dir2.y, p.dir2.z + this.windZ);
+            ps.direction1.set(p.dir1.x + blowing.windX, p.dir1.y, p.dir1.z + blowing.windZ);
+            ps.direction2.set(p.dir2.x + blowing.windX, p.dir2.y, p.dir2.z + blowing.windZ);
         }
     }
     /**
@@ -719,6 +755,18 @@ export class B3dAmbient extends B3dChild {
         // inverted box. Intensity is ~0 here anyway, so nothing is born.
         if (this._spawnLoY > this._spawnHiY)
             this._spawnLoY = this._spawnHiY;
+    }
+    /** Precipitation where the viewer is, split into rain and snow by the
+     * local temperature. 1 when not weather-driven. */
+    _weatherWeight() {
+        const mode = this.weather;
+        if (mode !== 'rain' && mode !== 'snow')
+            return 1;
+        const w = this.owner?.weatherHere?.();
+        if (w == null)
+            return 0;
+        const snow = Math.min(1, Math.max(0, (-1 - w.temperature) / 4));
+        return w.precipitation * (mode === 'snow' ? snow : 1 - snow);
     }
     _whereWeight(eyeY) {
         if (this.where === 'always')

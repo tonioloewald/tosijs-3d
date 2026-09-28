@@ -11,7 +11,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -47,6 +47,7 @@ const { demo } = tosi({
 const { sky } = tosi({
   sky: {
     coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    storm: false,
     // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
     // Moon: black noon, stars out); the tints colour the scattered light only.
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
@@ -182,8 +183,28 @@ const terrain = b3dTerrain({
 
 applyVolcano(demo.volcano.valueOf())
 
+// A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
+// with coverage and storminess, drifting with the wind. It gathers IN FRONT
+// of you (the view faces east) over twenty seconds, so switching it on shows
+// you a storm, then drifts away east. Lightning, thunder, rain and strike
+// shadows all come from the cell. Toggling it on again starts a new one.
+let storm = null
+sky.storm.observe(() => {
+  storm?.remove()
+  storm = null
+  if (sky.storm.value) {
+    storm = b3dWeatherCell({ x: 1600, z: 300, radius: 900, coverage: 1.7, storminess: 1, precipitation: 0.9, drift: 'wind', grow: 20 })
+    scene.append(storm)
+  }
+})
+
 const scene = b3d(
   {
+    // The SCENE's wind matches the deck's (toward +X), so a drifting storm
+    // travels with the clouds it is made of.
+    windSpeed: sky.wind,
+    windBearingDeg: 90,
+    // Lightning strikes wherever a weather cell is stormy (the storm toggle).
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
@@ -206,6 +227,8 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      // Beside the volcano: the other thing you switch on to watch happen.
+      toggle3d({ label: 'lightning storm', value: sky.storm }),
       label3d({ text: 'Climate' }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
@@ -292,6 +315,13 @@ const scene = b3d(
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.
   skybox,
+  b3dLightning({ seed: 3 }),
+  // Sunlight breaking through gaps in the deck; strongest in the rain.
+  b3dLightShafts({}),
+  // Rain and snow come from the WEATHER: nothing falls until a storm is
+  // overhead, and it eases in and out as the storm passes.
+  b3dAmbient({ preset: 'rain', weather: 'rain', radius: 14 }),
+  b3dAmbient({ preset: 'snow', weather: 'snow', radius: 14 }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,

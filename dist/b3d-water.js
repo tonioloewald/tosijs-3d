@@ -47,6 +47,13 @@ tosi-b3d { width: 100%; height: 100%; }
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
+| `underside` | `'auto'` | Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog |
+| `undersideColor` | `'#9fdcf0'` | The window: the sky's light, looking up |
+| `undersideDepthColor` | `'#06283a'` | The mirror: the dark water, at grazing angles |
+| `undersideSky` | `1` | From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. `0` = the flat `undersideColor` only |
+| `caustics` | `'auto'` | Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun |
+| `causticsStrength` | `0.6` | How bright the web gets |
+| `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -77,9 +84,10 @@ import { plane as mediumPlane } from './medium.js';
 import * as BABYLON from '@babylonjs/core';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
-import { AbstractMesh, markCollisionGroup } from './b3d-utils.js';
+import { AbstractMesh, markCollisionGroup, sceneDelta } from './b3d-utils.js';
 import { inheritedWind, waterWind } from './wind.js';
 import { band } from './atmosphere.js';
+import { CausticsMap } from './caustics.js';
 export class B3dWater extends AbstractMesh {
     static preferredTagName = 'tosi-b3d-water';
     static initAttributes = {
@@ -89,6 +97,32 @@ export class B3dWater extends AbstractMesh {
         underwaterFog: 0.12, // density the moment you're under
         underwaterMurk: 0.08, // extra density at 30m down (the sea thickens with depth)
         fogTransition: 0.2, // metres below the surface to reach FULL underwater fog
+        /*
+        THE UNDERSIDE — what the surface looks like from BELOW (board #197,
+        tosijs-3d#15). 'auto' = on whenever `twoSided` (the only time you can see
+        the underside at all). Snell's window: straight up, the surface is a
+        bright window onto the sky (`undersideColor`); toward grazing angles it
+        becomes a mirror of the dark water (`undersideDepthColor`).
+        */
+        underside: 'auto',
+        undersideColor: '#9fdcf0',
+        undersideDepthColor: '#06283a',
+        /*
+        THE WINDOW SHOWS THE REAL SKY: from below, looking up, the surface
+        refracts the actual sky (sun included), rippled by the waves; clearest
+        in the shallows. 0 = the flat window colour only.
+        */
+        undersideSky: 1,
+        /*
+        CAUSTICS — light through the moving surface, dancing on whatever is
+        beneath (board #198, tosijs-3d#16). 'auto' = on whenever `twoSided` (a
+        sea you go under). Projected by world position, so terrain, hulls and the
+        player all get it with no per-mesh setup; see `caustics`.
+        */
+        caustics: 'auto',
+        causticsStrength: 0.6,
+        /** Metres per caustic cell: bigger = a coarser, calmer web. */
+        causticsScale: 6,
         ...AbstractMesh.initAttributes,
         spherical: false,
         waterSize: 128,
@@ -150,6 +184,15 @@ export class B3dWater extends AbstractMesh {
     /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
     _skyWasFogged = new WeakMap();
     _followTick;
+    _ceilingTick;
+    _caustics = null;
+    _ceiling = null;
+    _ceilingBump = null;
+    /** The fog layer's crossing weight (0 in air, 1 fully under) — ONE value,
+     * so the underside fades in exactly as the fog does. */
+    _underW = 0;
+    _shimmer = 0;
+    _ceilingKey = '';
     _windTick;
     _wasUnderwater = false;
     waterCallback(additions) {
@@ -159,7 +202,46 @@ export class B3dWater extends AbstractMesh {
         for (const mesh of meshes) {
             if (!mesh.name.includes('water')) {
                 this.waterMaterial.addToRenderList(mesh);
+                // Caustics on everything that could be under the surface; the shader
+                // itself does nothing above it, so there is no need to be choosy.
+                if (this._caustics != null &&
+                    mesh.material != null &&
+                    !/sky/i.test(mesh.name))
+                    this._caustics.attachTo(mesh.material);
             }
+        }
+    }
+    _causticsOn() {
+        const c = this.caustics;
+        if (c === 'off')
+            return false;
+        if (c === 'on')
+            return true;
+        return this.twoSided === true;
+    }
+    _updateCaustics(scene) {
+        const map = this._caustics;
+        if (map == null || this.mesh == null)
+            return;
+        try {
+            map.waterY = this.mesh.absolutePosition.y;
+            map.time += sceneDelta(scene);
+            map.strength = Math.max(0, this.causticsStrength ?? 0.6);
+            map.cellSize = Math.max(0.5, this.causticsScale ?? 6);
+            // The sun: the first directional light, which is what b3d-sun makes.
+            const sun = scene.lights.find((l) => l instanceof BABYLON.DirectionalLight);
+            if (sun != null) {
+                const d = sun.direction;
+                const len = Math.hypot(d.x, d.y, d.z) || 1;
+                map.sunX = d.x / len;
+                map.sunY = d.y / len;
+                map.sunZ = d.z / len;
+                // No sun, no caustics: they are the sun's light, focused.
+                map.strength *= Math.min(1, Math.max(0, sun.intensity));
+            }
+        }
+        catch {
+            /* never throw in the render loop */
         }
     }
     /**
@@ -170,7 +252,7 @@ export class B3dWater extends AbstractMesh {
      */
     _wind() {
         const attrs = this;
-        const scene = inheritedWind(attrs.wind, this.owner?.wind);
+        const scene = inheritedWind(attrs.wind, this.owner?.weatherHere?.().wind);
         if (scene != null)
             return waterWind(scene);
         return {
@@ -251,6 +333,8 @@ export class B3dWater extends AbstractMesh {
             : waterNormalTexture(scene);
         this.updateWater();
         this.mesh.material = this.waterMaterial;
+        if (this._causticsOn())
+            this._caustics = new CausticsMap(scene);
         this._callback = this.waterCallback.bind(this);
         owner.addSceneListener(this._callback);
         // FOLLOW: ride the camera in x/z so the finite plane always surrounds you (an endless sea),
@@ -281,6 +365,11 @@ export class B3dWater extends AbstractMesh {
             mat.windDirection = new BABYLON.Vector2(next.windDirectionX, next.windDirectionY);
         };
         scene.registerBeforeRender(this._windTick);
+        this._ceilingTick = () => {
+            this._updateCeiling(scene);
+            this._updateCaustics(scene);
+        };
+        scene.registerBeforeRender(this._ceilingTick);
         if (attrs.follow) {
             // Run it on beforeRender (authoritative, right before the scene draws) AND re-run it from
             // render() below — because AbstractMesh.render() rewrites the mesh position from the x/z
@@ -355,6 +444,7 @@ export class B3dWater extends AbstractMesh {
             // should be obvious the moment you're out. Fast, but continuous.
             const attrs = this;
             const w = band(depth, -0.05, Math.max(0.02, attrs.fogTransition));
+            this._underW = w;
             this._fogTheSky(w > 0);
             if (w <= 0)
                 return null;
@@ -460,6 +550,238 @@ export class B3dWater extends AbstractMesh {
         }
         return out;
     }
+    /*
+    SNELL'S WINDOW. From below, `WaterMaterial` has nothing to say: it is built
+    for the view from above, so a `twoSided` underside was flat dark blue.
+  
+    One opaque plane just under the surface, riding the camera in x/z, shaded
+    by EMISSIVE FRESNEL: near-perpendicular it is the window (bright, sky
+    coloured), at grazing angles the mirror of the depths. No shader, no extra
+    render target, one draw call, and only while submerged. Its shimmer comes
+    from a clone of the water's own normal map, so the window's edge and the
+    surface's ripples are the same motion.
+  
+    OPAQUE, and the sky stays fogged. manta-recon's prototype made the ceiling
+    see-through and un-fogged the skybox so the window showed the real sky, but
+    then a horizontal look under water also sees an un-fogged sky, which is
+    wrong. Here the window's light is the ceiling's own emissive, and the scene
+    fog dims it with distance, which is physically right: far overhead water
+    is murk.
+    */
+    _hexOr(v, d) {
+        try {
+            return BABYLON.Color3.FromHexString((v || d).slice(0, 7));
+        }
+        catch {
+            return BABYLON.Color3.FromHexString(d);
+        }
+    }
+    _undersideOn() {
+        const u = this.underside;
+        if (u === 'off')
+            return false;
+        if (u === 'on')
+            return true;
+        return this.twoSided === true;
+    }
+    _updateCeiling(scene) {
+        try {
+            const cam = scene.activeCamera;
+            const w = this._underW;
+            if (!this._undersideOn() || cam == null || this.mesh == null || w <= 0) {
+                this._ceiling?.setEnabled(false);
+                this._pauseWindow();
+                return;
+            }
+            if (this._ceiling == null)
+                this._ceiling = this._buildCeiling(scene);
+            const waterY = this.mesh.absolutePosition.y;
+            const c = cam.globalPosition;
+            this._ceiling.setEnabled(true);
+            this._updateWindow(scene, waterY, c);
+            this._ceiling.position.set(c.x, waterY - 0.08, c.z);
+            this._ceiling.visibility = w;
+            const bump = this._ceilingBump;
+            if (bump != null) {
+                // Anchored to the WORLD (not the camera the plane rides with), and
+                // drifting slowly so the window's edge shimmers.
+                this._shimmer += sceneDelta(scene) * 0.03;
+                const cell = 2000 / bump.uScale;
+                bump.uOffset = c.x / cell + this._shimmer;
+                bump.vOffset = c.z / cell + this._shimmer * 0.6;
+            }
+            // Live colours: a slider on either should move the window now.
+            const key = `${this.undersideColor}|${this.undersideDepthColor}`;
+            if (key !== this._ceilingKey) {
+                this._ceilingKey = key;
+                const f = this._ceiling.material
+                    .emissiveFresnelParameters;
+                if (f != null) {
+                    f.leftColor = this._hexOr(this.undersideDepthColor, '#06283a');
+                    f.rightColor = this._hexOr(this.undersideColor, '#9fdcf0');
+                }
+            }
+        }
+        catch {
+            /* never throw in the render loop — it skips every observer after this */
+        }
+    }
+    /*
+    THE WINDOW SHOWS THE SKY (Tonio: "more transparent looking straight up (at
+    low depths) to show the distorted sky rather than have this weird throbbing
+    circle" — the glare sprite that preceded this).
+  
+    The ceiling cannot simply be see-through: underwater the sky is FOGGED (a
+    horizontal look must not see blue sky), so looking through would show fog.
+    Instead a small reflection probe photographs the sky with its fog OFF, and
+    the ceiling REFRACTS that cube through the water's own normal map. So the
+    sky, and the sun in it, arrive bent and rippled, which is what the window
+    is; the fresnel still turns it to the dark mirror at grazing angles, and it
+    fades with depth. Sky only, 128 px a face, every few frames, and only
+    while you are under: the sky changes slowly.
+    */
+    _skyProbe = null;
+    _updateWindow(scene, waterY, eye) {
+        const mat = this._ceiling?.material;
+        if (mat == null)
+            return;
+        const want = Math.max(0, Number(this.undersideSky) || 0);
+        const skies = this._skyMeshes();
+        if (want <= 0 || skies.length === 0) {
+            this._pauseWindow();
+            mat.refractionTexture = null;
+            return;
+        }
+        if (this._skyProbe == null) {
+            // HALF-FLOAT: the sun is captured far above 1 (b3dSunHdr) so it can
+            // still blaze after the surface transmits only part of it.
+            const probe = new BABYLON.ReflectionProbe('water-window-sky', 128, scene, true, true);
+            for (const sky of skies)
+                probe.renderList.push(sky);
+            // Photograph the sky UNFOGGED, then put the underwater fog back.
+            /*
+            The sky hides itself underwater TWICE: Babylon fog (applyFog), and the
+            skybox's own VEIL (b3dVeil = the scene's fogVeil, 1 when submerged),
+            which paints it the fog colour. Both off for the photograph, both back
+            after; the first version lifted only the fog and photographed a flat
+            fog-blue cube.
+            */
+            const veil = (v, sunHdr) => {
+                for (const sky of skies) {
+                    const m = sky.material;
+                    m?.setFloat?.('b3dVeil', v);
+                    m?.setFloat?.('b3dSunHdr', sunHdr);
+                }
+            };
+            probe.cubeTexture.onBeforeRenderObservable.add(() => {
+                for (const sky of skies)
+                    sky.applyFog = this._skyWasFogged.get(sky) ?? false;
+                // The sun only exists above the horizon, and dims with the day.
+                veil(0, 20 * Math.min(1, this._sunUp(scene)));
+            });
+            probe.cubeTexture.onAfterRenderObservable.add(() => {
+                if (this._skyFogged)
+                    for (const sky of skies)
+                        sky.applyFog = true;
+                veil(this.owner?.fogVeil ?? 0, 0);
+            });
+            this._skyProbe = probe;
+        }
+        const probe = this._skyProbe;
+        probe.position.copyFrom(eye);
+        if (probe.refreshRate !== 6)
+            probe.refreshRate = 6;
+        // Clearest in the shallows: the light has less water to cross.
+        const depth = Math.max(0, waterY - eye.y);
+        const level = want * 3 * Math.exp(-depth / 15);
+        const tex = probe.cubeTexture;
+        if (mat.refractionTexture !== tex)
+            mat.refractionTexture = tex;
+        tex.level = level;
+        // The flat window colour gives way to the real sky as it clears.
+        const f = mat.emissiveFresnelParameters;
+        if (f != null) {
+            const win = this._hexOr(this.undersideColor, '#9fdcf0');
+            f.rightColor = win.scale(Math.max(0, 1 - level));
+        }
+    }
+    /** How much sun there is to blaze through: its light's intensity, 0 when
+     * it is below the horizon. */
+    _sunUp(scene) {
+        const sun = scene.lights.find((l) => l instanceof BABYLON.DirectionalLight);
+        if (sun == null || sun.direction.y > -0.02)
+            return 0;
+        return Math.max(0, sun.intensity);
+    }
+    /** Stop photographing the sky while there is no window to show it in. */
+    _pauseWindow() {
+        const p = this._skyProbe;
+        if (p != null && p.refreshRate !== 0)
+            p.refreshRate = 0;
+    }
+    _buildCeiling(scene) {
+        const size = 2000;
+        const ceiling = BABYLON.MeshBuilder.CreateGround('water-underside_nocast', { width: size, height: size, subdivisions: 1 }, scene);
+        ceiling.isPickable = false;
+        ceiling.receiveShadows = false;
+        /*
+        UNFOGGED: the fog washed the refracted sky out to a smudge. Distance is
+        handled anyway: the far ceiling is seen at grazing angles, which the
+        fresnel already turns to the dark mirror, and depth dims the window
+        (_updateWindow).
+        */
+        ceiling.applyFog = false;
+        // FACE DOWN, toward the swimmer. A ground's normal points up, so from below
+        // every pixel is its BACK face, and Fresnel reads a back face as fully
+        // grazing: the whole ceiling came out the dark mirror colour, identical to
+        // the fog, as if it were not there.
+        ceiling.rotation.x = Math.PI;
+        const mat = new BABYLON.StandardMaterial('water-underside-mat', scene);
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        mat.diffuseColor = BABYLON.Color3.Black();
+        mat.emissiveColor = BABYLON.Color3.White();
+        const f = new BABYLON.FresnelParameters();
+        // Babylon's Fresnel: `leftColor` at grazing angles, `rightColor` facing.
+        f.leftColor = this._hexOr(this.undersideDepthColor, '#06283a');
+        f.rightColor = this._hexOr(this.undersideColor, '#9fdcf0');
+        f.power = 2.4;
+        f.bias = 0.1;
+        mat.emissiveFresnelParameters = f;
+        /*
+        Looking UP out of water, light bends away from the vertical (n 1.33 to
+        1), and past the critical angle there is no window at all: the fresnel
+        hands those angles to the mirror of the depths.
+        */
+        mat.indexOfRefraction = 1.33;
+        // A probe's cube comes out Y-flipped for refraction lookups: without this
+        // the window showed the horizon haze and the sun sat in the -Y face
+        // (read off the probe's pixels: 68x in face 3, nothing overhead).
+        mat.invertRefractionY = true;
+        const rf = new BABYLON.FresnelParameters();
+        rf.leftColor = BABYLON.Color3.Black(); // grazing: no sky, the mirror
+        rf.rightColor = BABYLON.Color3.White(); // straight up: the sky
+        rf.power = 3;
+        rf.bias = 0.05;
+        mat.refractionFresnelParameters = rf;
+        /*
+        ITS OWN normal map, the same one the water uses, built fresh. Not a
+        `clone()`: a cloned DynamicTexture never reports ready, so the material
+        never became ready and the ceiling was silently never drawn (found with a
+        debug fog colour; the pixels were fog and sky, never the ceiling). Not
+        the water's own instance either: `follow` moves that one's offsets.
+        */
+        const url = this.normalMap;
+        const b = url
+            ? new BABYLON.Texture(url, scene)
+            : waterNormalTexture(scene);
+        b.uScale = size / 24;
+        b.vScale = size / 24;
+        mat.bumpTexture = b;
+        this._ceilingBump = b;
+        ceiling.material = mat;
+        return ceiling;
+    }
     sceneDispose() {
         this._removeMedium?.();
         this._removeMedium = undefined;
@@ -474,6 +796,20 @@ export class B3dWater extends AbstractMesh {
             this.owner?.scene.unregisterBeforeRender(this._followTick);
             this._followTick = undefined;
         }
+        if (this._ceilingTick) {
+            this.owner?.scene.unregisterBeforeRender(this._ceilingTick);
+            this._ceilingTick = undefined;
+        }
+        this._caustics?.dispose();
+        this._caustics = null;
+        this._skyProbe?.dispose();
+        this._skyProbe = null;
+        this._ceiling?.material?.dispose(true, true);
+        this._ceiling?.dispose();
+        this._ceiling = null;
+        this._ceilingBump = null;
+        this._ceilingKey = '';
+        this._underW = 0;
         if (this._windTick) {
             this.owner?.scene.unregisterBeforeRender(this._windTick);
             this._windTick = undefined;

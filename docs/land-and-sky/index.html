@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=6c338a3a1348" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f7de993b5a55" data-tosi-doc-system />
   <title>Land and Sky — tosijs-3d</title>
   <meta name="description" content="THE KITCHEN SINK — one world that grows with the world-sim layer. Terrain (with live dials), a sea, weather over both, and the encoded sky behind." />
   <link rel="canonical" href="https://3d.tosijs.net/land-and-sky/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=fd6ca3d0d2d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d424236c37d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Land and Sky</h1>
 <p><strong>THE KITCHEN SINK</strong> — one world that grows with the world-sim layer. Terrain
@@ -52,7 +52,7 @@ provinces, weather systems and the simulation land, they land HERE first: this
 page is where the pieces meet, so it is also where their disagreements show
 first — which is the point.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { demo } = tosi({
@@ -88,6 +88,7 @@ const { demo } = tosi({
 const { sky } = tosi({
   sky: {
     coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    storm: false,
     // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
     // Moon: black noon, stars out); the tints colour the scattered light only.
     world: &#39;Earth&#39;, atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
@@ -223,8 +224,28 @@ const terrain = b3dTerrain({
 
 applyVolcano(demo.volcano.valueOf())
 
+// A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
+// with coverage and storminess, drifting with the wind. It gathers IN FRONT
+// of you (the view faces east) over twenty seconds, so switching it on shows
+// you a storm, then drifts away east. Lightning, thunder, rain and strike
+// shadows all come from the cell. Toggling it on again starts a new one.
+let storm = null
+sky.storm.observe(() =&gt; {
+  storm?.remove()
+  storm = null
+  if (sky.storm.value) {
+    storm = b3dWeatherCell({ x: 1600, z: 300, radius: 900, coverage: 1.7, storminess: 1, precipitation: 0.9, drift: &#39;wind&#39;, grow: 20 })
+    scene.append(storm)
+  }
+})
+
 const scene = b3d(
   {
+    // The SCENE&#39;s wind matches the deck&#39;s (toward +X), so a drifting storm
+    // travels with the clouds it is made of.
+    windSpeed: sky.wind,
+    windBearingDeg: 90,
+    // Lightning strikes wherever a weather cell is stormy (the storm toggle).
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () =&gt; [
@@ -247,6 +268,8 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      // Beside the volcano: the other thing you switch on to watch happen.
+      toggle3d({ label: &#39;lightning storm&#39;, value: sky.storm }),
       label3d({ text: &#39;Climate&#39; }),
       slider3d({ label: &#39;temperature&#39;, value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: &#39;moisture&#39;, value: demo.moisture, min: 0, max: 1, step: 0.01 }),
@@ -333,6 +356,13 @@ const scene = b3d(
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.
   skybox,
+  b3dLightning({ seed: 3 }),
+  // Sunlight breaking through gaps in the deck; strongest in the rain.
+  b3dLightShafts({}),
+  // Rain and snow come from the WEATHER: nothing falls until a storm is
+  // overhead, and it eases in and out as the storm passes.
+  b3dAmbient({ preset: &#39;rain&#39;, weather: &#39;rain&#39;, radius: 14 }),
+  b3dAmbient({ preset: &#39;snow&#39;, weather: &#39;snow&#39;, radius: 14 }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
@@ -430,7 +460,9 @@ to populate — the same one a visitor just reshaped.</li>
       <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../caustics/">caustics</a></li>
       <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
       <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
@@ -459,17 +491,23 @@ to populate — the same one a visitor just reshaped.</li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
       <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      <li><a class="doc-link" href="../lightning/">lightning</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -622,6 +660,6 @@ to populate — the same one a visitor just reshaped.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=6c338a3a1348"></script>
+  <script type="module" src="../hydrate.js?v=f7de993b5a55"></script>
 </body>
 </html>

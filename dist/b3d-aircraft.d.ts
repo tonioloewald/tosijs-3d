@@ -78,6 +78,23 @@ export declare class B3dAircraft extends B3dControllable {
          * (or `groundY`) beneath it.
          */
         submersible: boolean;
+        /**
+         * How much thicker water is than air, as a drag multiplier (submersible
+         * only). The 2010 Manta ran identical thrust at drag 0.1 above water and
+         * 1.0 below, so ×10: full throttle settles at ~32% of `maxSpeed`
+         * underwater and the controls feel the same, just heavier.
+         */
+        waterDrag: number;
+        /**
+         * `'off'` ignores the weather: no wind drift, no buffeting. On by default
+         * because a calm scene has no weather to feel, so it changes nothing
+         * until a wind or a storm is declared.
+         */
+        turbulence: "on" | "off";
+        /** Scales the buffeting (1 = as the weather says). */
+        turbulenceScale: number;
+        /** Metres over which the drag blends from air to water across the surface. */
+        waterTransition: number;
         crashSpeed: number;
         weapons: string;
         gunRate: number;
@@ -116,6 +133,17 @@ export declare class B3dAircraft extends B3dControllable {
     };
     airspeed: number;
     altitude: number;
+    /** Current turbulence 0–1 from the weather here (a HUD or audio can read it). */
+    turbulenceLevel: number;
+    private _turbulenceSeed;
+    /**
+     * How far under the water the airframe is, 0 (air) … 1 (fully submerged),
+     * blended over `waterTransition`. 0 whenever the scene has no water or the
+     * craft is not `submersible`. Read it for camera, audio or HUD cues.
+     */
+    submerged: number;
+    private _waterEl;
+    private _wasUnder;
     throttleLevel: number;
     vtolActive: boolean;
     stalling: boolean;
@@ -270,6 +298,18 @@ export declare class B3dAircraft extends B3dControllable {
      * Water is ground to something that cannot go under it, and scenery to
      * something that can. That is one rule, so it lives in one place.
      */
+    /**
+     * THE MEDIUM, sampled at the airframe: 0 in air, 1 underwater, blended
+     * across `waterTransition` so the drag change is felt as a thickening
+     * rather than a wall. Also the one place that notices the surface being
+     * CROSSED, and says so with a `surface-crossed` event (splash, wake, audio,
+     * camera cues are the game's; this only reports the moment).
+     *
+     * The water level is read from the MESH, like the biped's: water is
+     * viewer-centred and not origin-shifted, so the mesh is the honest answer.
+     * Looked up once and cached; a scene with no water costs nothing per frame.
+     */
+    private _medium;
     private skipForCollision;
     /** World nose direction (unit) and a muzzle point `ahead` metres in front.
      * Computed through the WORLD matrix, never node.position: with a

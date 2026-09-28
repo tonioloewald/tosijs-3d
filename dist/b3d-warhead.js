@@ -94,8 +94,11 @@ const scene = b3d(
       const fx = -Math.cos(a), fz = -Math.sin(a)
       const sx = -Math.sin(a), sz = Math.cos(a)
       const step = 7 * dt
-      state.rx = Math.max(-6, Math.min(6, state.rx + (sx * input.turn + fx * input.forward) * step)) // A/D + W/S
-      state.rz = Math.max(-5, Math.min(5, state.rz + (sz * input.turn + fz * input.forward) * step))
+      // Sideways is STRAFE (A/D, left stick X) in the biped mapping; the right
+      // stick's turn is folded in too so either stick moves the reticle.
+      const side = Math.max(-1, Math.min(1, input.strafe + input.turn))
+      state.rx = Math.max(-6, Math.min(6, state.rx + (sx * side + fx * input.forward) * step)) // A/D + W/S
+      state.rz = Math.max(-5, Math.min(5, state.rz + (sz * side + fz * input.forward) * step))
       const shoot = input.shoot > 0.5 || input.sprint > 0.5
       if (shoot && !state.shootWas) {
         warhead.damage = s.damage.value

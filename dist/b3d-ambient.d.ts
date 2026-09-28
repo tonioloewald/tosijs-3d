@@ -23,6 +23,7 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
         windZ: number;
         wind: "scene" | "own";
         disabled: boolean;
+        weather: "off" | "rain" | "snow";
     };
     preset: string;
     where: 'always' | 'underwater' | 'above';
@@ -40,6 +41,7 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     /** The drift this frame: the scene's wind, or this element's own. */
     private _wind;
     disabled: boolean;
+    weather: 'off' | 'rain' | 'snow';
     /** 0…1 — how strongly this is emitting right now (ramps, never switches). */
     get intensity(): number;
     /** Capacity the scene actually granted. **0 = switched off** (couldn't be honest). */
@@ -122,6 +124,9 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
      * look-ahead and wind bias, which is exactly the amount that would leak.
      */
     private _clipSpawnBox;
+    /** Precipitation where the viewer is, split into rain and snow by the
+     * local temperature. 1 when not weather-driven. */
+    private _weatherWeight;
     private _whereWeight;
     private _waterY;
 }

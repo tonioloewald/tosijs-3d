@@ -57,6 +57,15 @@ export declare class CloudShadowMap {
      * Whatever is set here must carry OPACITY, not density: white is lit.
      */
     sourceTexture: BABYLON.BaseTexture | null;
+    /**
+     * How much of the shadow applies, 0-1, asked at DRAW time. The shadow
+     * multiplies the whole lit colour, so while light that starts BELOW the
+     * cloud dominates (a lightning flash) it must fade, or the flash lights
+     * the land through cloud-shaped shadows (Tonio: "the directional light
+     * seems to be coming from above the cloud layer ... so the shadows are
+     * mostly cloud").
+     */
+    strengthSource: (() => number) | null;
     private _plugins;
     /** How many blobs the last {@link paint} stamped — a debug readout. */
     lastPaintCount: number;

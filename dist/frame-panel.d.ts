@@ -30,10 +30,17 @@ export interface FramePanelSpec {
      */
     presence?: 'xr' | 'both';
     /**
-     * The frame to use FLAT when `frame` has no flat analogue — the hands. A
-     * wrist palette in VR is usually a screen-edge palette flat, and that is the
-     * author's call to write down, not the library's to guess. Without one, a
-     * hand panel stays VR-only and says so once.
+     * The frame to use in the FLAT view, when it should differ from `frame`.
+     *
+     * Two jobs. The HANDS have no flat analogue: a wrist palette in VR is
+     * usually a screen-edge palette flat, which is the author's call to write
+     * down, not the library's to guess (without one, a hand panel stays VR-only
+     * and says so once). And on a monitor the camera's PITCH is the designer's,
+     * not the viewer's: the flat `eye` frame takes only the view's yaw, so
+     * elevation is measured from the horizon, and under the default 30°-down
+     * orbit camera elevation 0 is off the top of the screen. `flatFrame:
+     * 'face'` measures from the view itself, so a menu at elevation 0 is
+     * centred (tosijs-3d#92).
      */
     flatFrame?: FrameName;
     /** A preset, or an explicit anchor. */
@@ -90,6 +97,14 @@ export interface FramePanelSpec {
     aspect?: number;
     /** Panel width in metres (height follows the aspect). Default 0.26. */
     width?: number;
+    /**
+     * Texture resolution in pixels (square). Default 384, which suits a
+     * reticle, the job frame panels were first built for. A MENU wants more:
+     * a ~1100 device-px panel on a 2× display at 384 upscales text ~2.9× and
+     * reads soft (tosijs-3d#92). Costs VRAM as the square, so ask for what the
+     * panel's on-screen size needs.
+     */
+    resolution?: number;
 }
 /** A simple titled placeholder panel SVG (rounded card + centred label). */
 export declare function placeholderPanelSvg(title: string, w?: number, h?: number): SVGSVGElement;
@@ -113,6 +128,9 @@ export declare function attachFramePanel(scene: BABYLON.Scene, cam: BABYLON.Targ
         firstPerson?: boolean;
     }) => void;
     dispose: () => void;
+    /** The plane itself — so a consumer never has to find it by diffing the
+     * frame's children around the call (tosijs-3d#92). */
+    readonly mesh: BABYLON.Mesh;
     /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
      * the ONLY way to see why a panel is (or isn't) revealing. */
     readonly debug: {

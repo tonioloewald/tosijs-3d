@@ -44,8 +44,8 @@ b3d-aircraft
   afterburnerSpeed  = 75  — Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner.
   acceleration  = 12  — Throttle / lean authority (speed change rate)
   vtolSpeed  = 6  — Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.
-  reverseSpeed
-  throttleRate
+  reverseSpeed  = 5  — How fast the craft may back up in a hover (m/s); nose up to reverse
+  throttleRate  = 0.8  — How fast the trigger moves the throttle LEVER (full travel per second)
   autoGear  = 'on'  — Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`)
   gearAltitude  = 40  — Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis)
   gearSound  = ''  — Optional URL played spatially at the airframe on each gear transition
@@ -61,6 +61,10 @@ b3d-aircraft
   hoverCeiling  = 140  — Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off.
   groundY  = 0  — Assumed ground-plane height (a floor in addition to any terrain colliders)
   submersible  = false  — Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash
+  waterDrag  = 10  — Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater
+  turbulence  = 'on'  — The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather
+  turbulenceScale  = 1  — Scales the buffeting
+  waterTransition  = 2  — Metres over which drag blends from air to water across the surface
   crashSpeed  = 8  — Vertical impact speed (m/s) above which a ground contact is a crash
   weapons  = 'on'  — `'off'` disarms all weapons
   gunRate  = 9  — Cannon shots/sec while `shoot` is held
@@ -110,6 +114,7 @@ b3d-ambient
   windZ  = 0
   wind
   disabled  = false  — Stop emitting
+  weather  = 'off'  — `'rain'` / `'snow'`: emission follows the PRECIPITATION where the viewer is (weather cells), so a storm brings its own rain; the local temperature splits rain from snow (sleet between). `'off'` = always on
 
 ## b3d-beacon — <tosi-b3d-beacon>
 b3d-beacon
@@ -234,9 +239,10 @@ b3d-cloud-deck
   sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
   sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
+  stormRise  = 0  — Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above
   localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
-  orographic  = 0  — Cloud gathers over high ground, `0…1`. Needs a terrain in the scene
-  orographicPeak  = 260  — Terrain height at which `orographic` is at full strength
+  orographic  = 0  — Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene
+  orographicPeak  = 260  — Height ABOVE THE SEA at which `orographic` is at full strength
   shadows  = 'on'  — Cloud shadows on the ground
   shadowResolution  = 0  — Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail
   shadowRange  = 6000  — Width in metres of the shadow window, centred on the camera
@@ -524,6 +530,7 @@ b3d-launcher
   missileSpeed  = 22  — Cruise speed of a guided shot (`fireAt`)
   turnRate  = 3  — Guided-missile agility (rad/sec)
   projRadius  = 0.12  — Shell visual radius
+  missileTrail  = 'off'  — `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`); see [b3d-trail](/b3d-trail/). For your own rounds, pass `trail` to `spawnProjectile`/`spawnMissile`
   projColor  = '#ffdd55'  — Shell emissive colour
   maxLifetime  = 6  — Seconds before an un-impacted shell self-disposes
   damage  = 20  — Warhead full damage (see b3d-warhead)
@@ -537,6 +544,19 @@ b3d-library
   url  = ''  — GLB/glTF file URL
   type  = ''  — Library type for scene registry lookup
 
+## b3d-light-shafts — <tosi-b3d-light-shafts>
+b3d-light-shafts
+
+  count  = 14  — How many sky shafts at most (the budget). `0` = off
+  radius  = 3000  — How far from you (m) to look for gaps. Shafts read best from a distance
+  width  = 40  — The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1. Kept SMALL on purpose: the wider a shaft, the more obvious any mismatch with the gap it comes from
+  spread  = 0  — Extra width per metre of length. `0`: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light
+  strength  = 0.35  — Brightness at the edge the light comes through; it falls linearly to 0
+  rainBoost  = 0.5  — How much precipitation where you are multiplies the strength
+  color  = ''  — The light's colour; empty = the sun's (whitish by day)
+  underwater  = 'on'  — Shafts under the water surface too
+  underwaterCount  = 12  — Their budget
+
 ## b3d-light — <tosi-b3d-light>
 b3d-light
 
@@ -547,6 +567,24 @@ b3d-light
   diffuse  = '#ffffff'  — Diffuse color (hex)
   specular  = '#808080'  — Specular color (hex)
   groundColor  = '#000000'  — Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour
+
+## b3d-lightning — <tosi-b3d-lightning>
+b3d-lightning
+
+  seed  = 1  — Same seed, same storm
+  bolts  = 'on'  — Draw the bolt for cloud-to-ground strikes
+  sprites  = 'on'  — Red-pink sprites above strong storms
+  thunder  = 'on'  — Procedural thunder, delayed by distance
+  volume  = 0.8  — Thunder loudness
+  groundLight  = 2.5  — How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate)
+  darken  = 0.5  — How much a storm near you takes from the sun AND the ambient light (half, at full storm, easing with distance), so the flashes stand out. Applied through the cloud deck, which owns those lights
+  shadows  = 'on'  — Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame)
+  shadowSize  = 1024  — Its resolution
+  shadowRange  = 600  — How far from you (m) things cast them: the shadows you can see, and a tight set keeps the map sharp
+  flashLight  = 'point'  — The strike's shadowed light. `'point'`: shadows radiate from the bolt in every direction (a cube map: six shadow renders, once per new strike). `'directional'`: one render, correct looking toward the strike; the cheap choice for low-end devices
+  color  = '#dce4ff'  — The flash's colour
+  rate  = 1  — How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4)
+  brightness  = 1  — How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together
 
 ## b3d-loader — <tosi-b3d-loader>
 b3d-loader
@@ -608,7 +646,8 @@ b3d-panel
   revealFull
   maxDistance
   presence  = 'xr'  — `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera
-  flatFrame
+  flatFrame  = ''  — The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera
+  resolution  = 0  — Texture size in px (square); `0` = 384. Raise it for a menu with text
 
 ## b3d-particles — <tosi-b3d-particles>
 b3d-particles
@@ -975,6 +1014,19 @@ b3d-terrain
   maxTravelDistance  = 5000  — Distance before firing recenter-needed event
   wireframe  = false  — Debug: render terrain as wireframe
 
+## b3d-trail — <tosi-b3d-trail>
+b3d-trail
+
+  x  = 0  — Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)
+  y  = 0  — Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)
+  z  = 0  — Where the ribbon starts, in the HOST's local space (an engine pod, a nozzle)
+  diameter  = 0.06  — Ribbon width (m)
+  length  = 45  — Ribbon length, in segments (one a frame, so length ≈ how many frames of history)
+  color  = '#ffffff'  — Its colour (emissive, unlit)
+  underwaterColor  = ''  — The colour below a `<tosi-b3d-water>` surface; empty = same as `color`
+  alpha  = 0.16  — Opacity. Low on purpose: you should see through a contrail
+  minSpeed  = 8  — Below this speed (m/s, measured at the emitter) the ribbon fades out, so a hover does not smear
+
 ## b3d-trigger — <tosi-b3d-trigger>
 b3d-trigger
 
@@ -1044,6 +1096,13 @@ b3d-water
   underwaterFog
   underwaterMurk
   fogTransition
+  underside  = 'auto'  — Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog
+  undersideColor  = '#9fdcf0'  — The window: the sky's light, looking up
+  undersideDepthColor  = '#06283a'  — The mirror: the dark water, at grazing angles
+  undersideSky  = 1  — From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. `0` = the flat `undersideColor` only
+  caustics  = 'auto'  — Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun
+  causticsStrength  = 0.6  — How bright the web gets
+  causticsScale  = 6  — Metres per caustic cell: bigger is coarser and calmer
   spherical  = false  — Use a sphere instead of a plane
   waterSize  = 128  — Size of the water plane
   subdivisions  = 32  — Mesh subdivisions
@@ -1060,6 +1119,22 @@ b3d-water
   windDirectionX
   windDirectionY
   wind
+
+## b3d-weather-cell — <tosi-b3d-weather-cell>
+b3d-weather-cell
+
+  x  = 0  — Centre, world XZ
+  z  = 0  — Centre, world XZ
+  radius  = 200  — Reach (m); influence eases to nothing at the rim
+  windSpeed  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
+  windBearingDeg  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
+  coverage  = 0  — Cloud cover it adds (summed, clamped 0–2). A storm counts IN FULL, so a cell past 1 closes the sky over its inner part; past 1 it is also darker underneath. (A tower rising out of the deck is opt-in, the deck's `stormRise`.) `0` = no opinion
+  precipitation  = 0  — Rain/snow 0–1 (the max of overlapping cells wins)
+  storminess  = 0  — Lightning likelihood 0–1 (max wins)
+  temperature  = 0  — Temperature offset in degrees (summed)
+  drift  = 'off'  — `'wind'` = a weather system: it travels with the scene's wind
+  lifetime  = 0  — Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`
+  grow  = 0  — Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime
 
 ## control-input
 control-input
@@ -1148,6 +1223,13 @@ Light programs
   saturation  = **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means  — saturation has a meaningful zero and reaching it is the point
   hue  = **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg  — hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose
 
+## lightning
+lightning
+
+  ground  = cloud to ground: a bolt, the brightest flash, thunder  — most
+  cloud  = inside the cloud: the tower lit from within, no bolt  — many
+  sprite  = ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms  — rare
+
 ## manipulator
 manipulator
 
@@ -1203,7 +1285,6 @@ b3d
   xrGrid
   xrReticle
   scenePanelOpen
-  gamepad  = absent  — When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
   quality
@@ -1236,6 +1317,15 @@ voxel-galaxy
   fringeFalloff  = 3  — Falloff length for the fringe, in voxels
   brightMix  = O–G5  — The bright population's spectral mix — the bright/dim cut is here
   dimMix  = G6–M  — The dim population's spectral mix — underweight late M freely
+
+## weather
+weather
+
+  wind  = vector SUM  — a lee subtracts, a gust adds
+  temperature  = signed SUM  — a cold cell beside a warm one cancels
+  coverage  = SUM, clamped 0–2  — a storm thickens the sky, a clear cell thins it; past 1 is THICKNESS (a storm tower), as on the deck's own dial
+  precipitation  = MAX  — two storms overlapping do not rain twice as hard
+  storminess  = MAX  — like volcanism: the worst one wins
 
 ## widgets3d
 widgets3d

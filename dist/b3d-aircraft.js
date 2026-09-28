@@ -196,6 +196,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
+| `reverseSpeed` | `5` | How fast the craft may back up in a hover (m/s); nose up to reverse |
+| `throttleRate` | `0.8` | How fast the trigger moves the throttle LEVER (full travel per second) |
 | `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees) |
 | `maxDive` | `0` | Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch` |
 | `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
@@ -212,6 +214,10 @@ turns the pilot's head in the cockpit, springs back on release).
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `submersible` | `false` | Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash |
+| `waterDrag` | `10` | Submersible only: how much thicker water is than air, as a drag multiplier. At ×10, full throttle settles at ~32% of `maxSpeed` underwater |
+| `waterTransition` | `2` | Metres over which drag blends from air to water across the surface |
+| `turbulence` | `'on'` | The weather reaches the airframe: wind makes it drift and crab, storms (storminess) and strong wind buffet it. Changes nothing in a calm scene; `'off'` ignores the weather |
+| `turbulenceScale` | `1` | Scales the buffeting |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 | `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
@@ -308,6 +314,26 @@ serves both directions — there's no second one to author or keep in sync.
 On the ground the wings hold level and the turn stick taxi-steers; pulling back
 rotates for takeoff (or a VTOL lifts straight up on the right trigger). A contact
 faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
+## Under water (`submersible`)
+
+A `submersible` craft passes through the water surface instead of crashing on
+it, and flies in a thicker MEDIUM once below: drag is multiplied by
+`waterDrag` (default ×10, the 2010 Manta's ratio), blended across
+`waterTransition` metres of the surface. The controls do not change; the
+craft just gets heavier, and full throttle settles at about 32% of
+`maxSpeed`. `submerged` reads 0 in air and 1 fully under.
+
+Crossing the surface dispatches **`surface-crossed`** (bubbling), with
+`detail: { entering, point, speed, aircraft }`: `entering` is true going
+down, and `point` is on the surface. Splash, wake, audio and camera cues are
+yours; the event only reports the moment.
+
+```javascript
+craft.addEventListener('surface-crossed', ({ detail }) => {
+  if (detail.speed > 8) splashAt(detail.point, detail.entering)
+})
+```
+
 ## Combat: three things that used to fail by doing nothing
 
 Reported together by manta-recon (#23), because they compound — an AI aircraft
@@ -348,7 +374,7 @@ import * as BABYLON from '@babylonjs/core';
 import { canonicalize, applyCenterOfGravity } from './model-transform.js';
 import { B3dControllable } from './b3d-controllable.js';
 import { aircraftMapping } from './virtual-gamepad.js';
-import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire.js';
+import { equilibriumSpeed, flyByWireStep, targetVelocity, turbulence, chaseVelocity, } from './fly-by-wire.js';
 import { placeOnSurface, boundingBottomOffset, hierarchyExtents, isOff, collidable, } from './b3d-utils.js';
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js';
 import { DestroyableBehavior } from './destroyable-behavior.js';
@@ -388,6 +414,7 @@ const GROUND_FRICTION = 1.2;
 // You must climb this far above the pad before a touchdown can register as a crash. Keeps a
 // wobbly VTOL liftoff (rise a little, tip, settle back) from exploding on takeoff.
 const TAKEOFF_MARGIN = 2.5;
+let nextTurbulenceSeed = 1;
 export class B3dAircraft extends B3dControllable {
     static preferredTagName = 'tosi-b3d-aircraft';
     inputMapping = aircraftMapping();
@@ -486,6 +513,23 @@ export class B3dAircraft extends B3dControllable {
          * (or `groundY`) beneath it.
          */
         submersible: false,
+        /**
+         * How much thicker water is than air, as a drag multiplier (submersible
+         * only). The 2010 Manta ran identical thrust at drag 0.1 above water and
+         * 1.0 below, so ×10: full throttle settles at ~32% of `maxSpeed`
+         * underwater and the controls feel the same, just heavier.
+         */
+        waterDrag: 10,
+        /**
+         * `'off'` ignores the weather: no wind drift, no buffeting. On by default
+         * because a calm scene has no weather to feel, so it changes nothing
+         * until a wind or a storm is declared.
+         */
+        turbulence: 'on',
+        /** Scales the buffeting (1 = as the weather says). */
+        turbulenceScale: 1,
+        /** Metres over which the drag blends from air to water across the surface. */
+        waterTransition: 2,
         // Vertical impact speed (m/s) above which a ground contact is a crash, not
         // a landing.
         crashSpeed: 8,
@@ -553,6 +597,19 @@ export class B3dAircraft extends B3dControllable {
     // Read-only flight state
     airspeed = 0;
     altitude = 0;
+    /** Current turbulence 0–1 from the weather here (a HUD or audio can read it). */
+    turbulenceLevel = 0;
+    // Creation order, not Math.random: the same flight through the same storm
+    // must bump the same way.
+    _turbulenceSeed = nextTurbulenceSeed++;
+    /**
+     * How far under the water the airframe is, 0 (air) … 1 (fully submerged),
+     * blended over `waterTransition`. 0 whenever the scene has no water or the
+     * craft is not `submersible`. Read it for camera, audio or HUD cues.
+     */
+    submerged = 0;
+    _waterEl = undefined;
+    _wasUnder = null;
     throttleLevel = 0;
     vtolActive = false;
     stalling = false;
@@ -824,6 +881,7 @@ export class B3dAircraft extends B3dControllable {
             offLevelSink: attrs.maxSpeed * 0.12,
             diveBoost: attrs.maxSpeed * 0.4,
             velChase: VEL_CHASE,
+            mediumDrag: 1 + Math.max(0, attrs.waterDrag - 1) * this._medium(node),
         };
         // Regime is picked by forward GROUND speed OR height above ground: you take
         // off vertically, then the trigger converts to forward thrust once you clear
@@ -844,6 +902,31 @@ export class B3dAircraft extends B3dControllable {
             ? Number.POSITIVE_INFINITY
             : this._lastGroundDist - this.groundClearance;
         flyByWireStep(this.fbw, cmd, fwdSpeed, heightAboveGround, cfg, dt, this.grounded);
+        /*
+        THE WEATHER REACHES THE AIRFRAME (WEATHER-DESIGN, board #1125). Where the
+        craft is: the wind makes it DRIFT (it chases an air-relative velocity,
+        so a crosswind crabs it), and a storm BUFFETS it: seeded disturbance
+        added to the attitude and to the climb, which the attitude controller
+        then fights back toward the stick. Not on the ground, and off with
+        turbulence="off".
+        */
+        const weather = this.grounded || isOff(attrs.turbulence)
+            ? null
+            : this.owner?.weatherAt?.(node.position.x, node.position.z) ?? null;
+        if (weather != null) {
+            const windSpeed = Math.hypot(weather.wind.x, weather.wind.z);
+            const level = Math.min(1, weather.storminess + (windSpeed / 40) * 0.5) *
+                Math.max(0, attrs.turbulenceScale ?? 1);
+            this.turbulenceLevel = level;
+            if (level > 0) {
+                const tb = turbulence(this.owner?.frameInfo?.().elapsed ?? 0, this._turbulenceSeed, level);
+                this.fbw.pitch += tb.pitchRate * dt;
+                this.fbw.bank += tb.rollRate * dt;
+                vel.y += tb.heave * dt;
+            }
+        }
+        else
+            this.turbulenceLevel = 0;
         // Realise the attitude as a quaternion. Babylon's +pitch(X) drops the nose
         // and +roll(Z) banks left, so negate both (our state: +pitch = nose up,
         // +bank = right). Verified through the rig test.
@@ -854,6 +937,12 @@ export class B3dAircraft extends B3dControllable {
         // Velocity eases toward where the nose points (the "go where you're pointing"
         // chase) — this is what makes it forgiving instead of a skiddy simulation.
         const tv = targetVelocity(this.fbw, cmd, { x: this._fwd.x, y: this._fwd.y, z: this._fwd.z }, fwdSpeed, heightAboveGround, cfg);
+        // The air moves: what the craft chases is its air-relative velocity plus
+        // the wind, so it drifts downwind and crabs across a crosswind.
+        if (weather != null) {
+            tv.x += weather.wind.x;
+            tv.z += weather.wind.z;
+        }
         chaseVelocity(vel, tv, cfg.velChase, dt);
         // Read-only flight state for the HUD / XR rig.
         this.airspeed = this.fbw.speed;
@@ -1304,6 +1393,50 @@ export class B3dAircraft extends B3dControllable {
      * Water is ground to something that cannot go under it, and scenery to
      * something that can. That is one rule, so it lives in one place.
      */
+    /**
+     * THE MEDIUM, sampled at the airframe: 0 in air, 1 underwater, blended
+     * across `waterTransition` so the drag change is felt as a thickening
+     * rather than a wall. Also the one place that notices the surface being
+     * CROSSED, and says so with a `surface-crossed` event (splash, wake, audio,
+     * camera cues are the game's; this only reports the moment).
+     *
+     * The water level is read from the MESH, like the biped's: water is
+     * viewer-centred and not origin-shifted, so the mesh is the honest answer.
+     * Looked up once and cached; a scene with no water costs nothing per frame.
+     */
+    _medium(node) {
+        if (this.submersible !== true) {
+            this.submerged = 0;
+            return 0;
+        }
+        if (this._waterEl === undefined) {
+            this._waterEl =
+                this.owner?.querySelector('tosi-b3d-water') ?? null;
+        }
+        const mesh = this._waterEl?.mesh;
+        if (mesh == null) {
+            this.submerged = 0;
+            return 0;
+        }
+        const waterY = mesh.absolutePosition.y;
+        const y = node.position.y;
+        const band = Math.max(1e-3, this.waterTransition ?? 2);
+        this.submerged = Math.min(1, Math.max(0, (waterY - y) / band + 0.5));
+        const under = y < waterY;
+        if (this._wasUnder !== null && under !== this._wasUnder) {
+            this.dispatchEvent(new CustomEvent('surface-crossed', {
+                bubbles: true,
+                detail: {
+                    entering: under,
+                    point: { x: node.position.x, y: waterY, z: node.position.z },
+                    speed: this.velocity.length(),
+                    aircraft: this,
+                },
+            }));
+        }
+        this._wasUnder = under;
+        return this.submerged;
+    }
     skipForCollision() {
         const own = this.ownMeshes();
         const submersible = this.submersible === true;
@@ -2045,6 +2178,10 @@ export class B3dAircraft extends B3dControllable {
         }
     }
     sceneDispose() {
+        // The water element belongs to the old scene; the next one may have none.
+        this._waterEl = undefined;
+        this._wasUnder = null;
+        this.submerged = 0;
         // Stop waiting for a library that may never come — see `loadFromLibrary`.
         this._stopLibraryWait?.();
         this._groundDbgOff?.();

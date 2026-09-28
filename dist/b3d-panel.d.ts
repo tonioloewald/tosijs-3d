@@ -21,6 +21,8 @@ export declare class B3dPanel extends Component {
         maxDistance: number;
         presence: string;
         flatFrame: string;
+        /** Texture px (square); 0 = the default 384 — see FramePanelSpec.resolution. */
+        resolution: number;
     };
     static shadowStyleSpec: {
         ':host': {
@@ -45,6 +47,7 @@ export declare class B3dPanel extends Component {
     maxDistance: number;
     presence: string;
     flatFrame: string;
+    resolution: number;
     /** Build the FramePanelSpec this element declares. */
     toSpec(): FramePanelSpec;
 }

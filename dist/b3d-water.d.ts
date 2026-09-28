@@ -31,6 +31,14 @@ export declare class B3dWater extends AbstractMesh {
         underwaterFog: number;
         underwaterMurk: number;
         fogTransition: number;
+        underside: "auto" | "on" | "off";
+        undersideColor: string;
+        undersideDepthColor: string;
+        undersideSky: number;
+        caustics: "auto" | "on" | "off";
+        causticsStrength: number;
+        /** Metres per caustic cell: bigger = a coarser, calmer web. */
+        causticsScale: number;
     };
     waterMaterial?: WaterMaterial;
     private _callback?;
@@ -43,9 +51,20 @@ export declare class B3dWater extends AbstractMesh {
     /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
     private _skyWasFogged;
     private _followTick?;
+    private _ceilingTick?;
+    private _caustics;
+    private _ceiling;
+    private _ceilingBump;
+    /** The fog layer's crossing weight (0 in air, 1 fully under) — ONE value,
+     * so the underside fades in exactly as the fog does. */
+    private _underW;
+    private _shimmer;
+    private _ceilingKey;
     private _windTick?;
     private _wasUnderwater;
     private waterCallback;
+    private _causticsOn;
+    private _updateCaustics;
     /**
      * Wave wind: the scene's, or this element's own.
      *
@@ -86,6 +105,17 @@ export declare class B3dWater extends AbstractMesh {
      * a named element beats a name match — and falls back to the naming convention
      * so a hand-built or GLB skybox still works. */
     private _skyMeshes;
+    private _hexOr;
+    private _undersideOn;
+    private _updateCeiling;
+    private _skyProbe;
+    private _updateWindow;
+    /** How much sun there is to blaze through: its light's intensity, 0 when
+     * it is below the horizon. */
+    private _sunUp;
+    /** Stop photographing the sky while there is no window to show it in. */
+    private _pauseWindow;
+    private _buildCeiling;
     sceneDispose(): void;
     /** Reposition the plane under the camera — but SNAPPED to a coarse grid, so it moves
      * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.

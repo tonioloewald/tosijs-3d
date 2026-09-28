@@ -10,6 +10,9 @@ export declare class B3dControllable extends AbstractMesh {
     lastInput: ControlInput | null;
     protected lastUpdate: number;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /** The focus manager we announced ourselves to (kept: once we are removed,
+     * `closest()` can no longer find it). */
+    private _focus;
     sceneDispose(): void;
     applyInput(input: ControlInput, dt: number): void;
     getCameraTarget(): BABYLON.Node | null;

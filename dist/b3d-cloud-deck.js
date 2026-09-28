@@ -154,9 +154,10 @@ preview.append(
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
 | `localRise` | `1200` | How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note |
+| `stormRise` | `0` | Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above |
 | `localCoverage` | `1` | How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast |
-| `orographic` | `0` | Cloud gathers over high ground, `0…1`. Needs a terrain in the scene |
-| `orographicPeak` | `260` | Terrain height at which `orographic` is at full strength |
+| `orographic` | `0` | Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene |
+| `orographicPeak` | `260` | Height ABOVE THE SEA at which `orographic` is at full strength |
 | `shadows` | `'on'` | Cloud shadows on the ground |
 | `shadowResolution` | `0` (auto) | Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail |
 | `shadowRange` | `6000` | Width in metres of the shadow window, centred on the camera |
@@ -254,7 +255,7 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js';
 import { resolveBudget } from './b3d-quality.js';
-import { cloudField } from './cloud-field.js';
+import { cloudField, cloudOpacity, orographicLift, OROGRAPHIC_REACH, packWeatherTexture, } from './cloud-field.js';
 import { CloudShadowMap } from './cloud-shadows.js';
 const DECK_VERT = `
 precision highp float;
@@ -265,6 +266,9 @@ uniform mat4 world;
 uniform mat4 view;
 // x = how far the BASE bulges, y = how far the TOP does. See the note below.
 uniform vec2 localScale;
+// Storm towers: color.b is weather-cell coverage PAST 1 (0..1), lifting the TOP
+// skin by this many metres. Independent of the global dial.
+uniform float stormRise;
 varying vec3 vWorld;
 varying vec4 vChannel;
 varying vec2 vLocal;
@@ -294,6 +298,14 @@ void main(void) {
   */
   vec3 pos = position;
   pos.y += color.r * (color.g > 0.5 ? localScale.y : localScale.x);
+  /*
+  A DOME, not a cone. The storm excess falls off linearly from the cell's
+  centre, and lifting by it directly built a sharp pyramid; a thunderhead
+  rises steeply from its edge and rounds over on top. The same curve is in
+  the fragment shader's skin-separation test.
+  */
+  float towerE = 1.0 - min(1.0, color.b * 1.6);
+  if (color.g > 0.5) pos.y += (1.0 - towerE * towerE * towerE) * stormRise;
   vec4 wp = world * vec4(pos, 1.0);
   vWorld = wp.xyz;
   /*
@@ -360,6 +372,13 @@ float weatherAt(vec2 p) {
   return texture2D(weatherTex, clamp(uv, 0.0, 1.0)).r;
 }
 
+// GLOOM: the storm share of the field, weather cells only (never orographic
+// lift). See the fair-weather note below for why it is its own channel.
+float gloomAt(vec2 p) {
+  vec2 uv = (p - weatherWindow.xy) * weatherWindow.z + 0.5;
+  return texture2D(weatherTex, clamp(uv, 0.0, 1.0)).g;
+}
+
 /*
 COVERAGE IS LOCAL. Tonio: "if coverage isn't near full the cloud shouldn't
 necessarily get too thick so much as just more coverage near high ground."
@@ -376,9 +395,25 @@ doesn't get you to 0". It reaches full strength by a quarter cover, so the low
 end of the dial is the classic fair-weather sky: clear over the plain, cloud
 sitting on the mountains.
 */
+float gloomAt(vec2 p);
 float coverageAt(vec2 p) {
-  return coverage +
-    weatherAt(p) * localCoverage * clamp(coverage * 4.0, 0.0, 1.0);
+  float ramp = clamp(coverage * 4.0, 0.0, 1.0);
+  /*
+  A STORM IGNORES THE RAMP. The local field fades in with the dial so that
+  coverage 0 is a clear sky over the mountains too, but a weather cell is a
+  storm someone put there: on a clear day it should still be a storm. The
+  field already carries the cells (ramped); the gloom channel is exactly the
+  cells, so it tops them up to full as the ramp falls away.
+  */
+  /*
+  AND A STORM COUNTS IN FULL (Tonio: "the cover [should] hit 100 before you
+  get to the core of the storm"). The field carries the storm too, so its
+  share is taken out of the ramped part and added back whole: split between
+  the two it only summed to full at the very core, and the storm's inner
+  half was still broken sky.
+  */
+  float storm = gloomAt(p);
+  return coverage + max(0.0, weatherAt(p) - storm) * localCoverage * ramp + storm;
 }
 
 vec2 toField(vec2 p) {
@@ -495,6 +530,10 @@ uniform float underBump;
 uniform float globalRise;
 // How much further the TOP bulges than the base, per unit of the weather field.
 uniform float localDelta;
+uniform float stormRise;
+// LIGHTNING inside the cloud: xy = strike (world XZ), z = reach (m), w = level.
+uniform vec4 flashInfo;
+uniform vec3 flashColor;
 uniform float edgeFade;
 uniform vec3 topColor;
 uniform vec3 underColor;
@@ -582,7 +621,8 @@ void main(void) {
   meet one of them: the top from above, the base from below, and whiteout in
   between if you are inside.
   */
-  float separation = globalRise + vChannel.r * localDelta;
+  float towerE = 1.0 - min(1.0, vChannel.b * 1.6);
+  float separation = globalRise + vChannel.r * localDelta + (1.0 - towerE * towerE * towerE) * stormRise;
   if (vChannel.g > 0.5 && separation < 4.0) discard;
 
   float a = opacityAt(d, coverageAt(p)) * vChannel.a * rim;
@@ -624,7 +664,12 @@ void main(void) {
     */
     float lam = clamp(dot(n, normalize(-sunDir)), 0.0, 1.0);
     vec3 col = topColor * (1.0 - shade + shade * lam) * skyTint;
-    gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
+    // LIT FROM INSIDE from above too: a storm tower seen from the side or
+    // from an aircraft glows with the strike, not only its base.
+    float tfd = distance(p, flashInfo.xy);
+    float tfr = max(1.0, flashInfo.z);
+    float tlit = flashInfo.w * exp(-(tfd * tfd) / (tfr * tfr)) * (0.35 + 0.65 * a);
+    gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)) + flashColor * tlit, a);
   } else {
     /*
     UNDERSIDE: dark, with BRIGHT FRINGES.
@@ -690,9 +735,22 @@ void main(void) {
     does not repaint fair weather as foul. An explicitly set transmission
     (autoLift 0) keeps its authority — a pinned storm-dark deck stays dark.
     */
-    float fair = autoLift * (1.0 - smoothstep(0.5, 1.0, coverage));
-    float lift = max(transmission * 0.6, 0.9 * fair);
+    /*
+    A STORM CELL IS THE EXCEPTION, and says so on its own channel. Orographic
+    lift must not repaint fair weather as foul (above), but a weather cell
+    with coverage IS foul weather: it is a storm the author asked to see
+    (WEATHER-DESIGN stage 2, board #1122). So cells bake into a separate
+    gloom channel, and only gloom moves the underside toward the storm
+    curve: the dial reads fair everywhere else, and dark under the storm.
+    */
+    float gloom = gloomAt(p);
+    // Everything below that reads how thin the cloud is reads it LOCALLY
+    // under a storm: less light through, no wispy glow, a darker base.
+    float gTrans = transmission * (1.0 - 0.7 * gloom);
+    float fair = autoLift * (1.0 - smoothstep(0.5, 1.0, coverage + gloom));
+    float lift = max(gTrans * 0.6, 0.9 * fair);
     vec3 base = mix(underColor, topColor, lift) * relief * through;
+    base *= 1.0 - 0.55 * gloom;
     // EMISSIVE edges, so they read as lit-from-behind rather than as pale
     // paint: the fringe is ADDED to the base, which is what lets it go brighter
     // than the material's own colour where the cloud is thinnest.
@@ -722,14 +780,14 @@ void main(void) {
     // the clouds in front of a sunset were the darkest in the sky.
     float forward = clamp(dot(viewDir, -normalize(sunDir)), 0.0, 1.0);
     float silver = 0.3 + 0.7 * pow(forward, 4.0);
-    float glow = fringe * (0.25 + 0.75 * transmission) * silver;
+    float glow = fringe * (0.25 + 0.75 * gTrans) * silver;
     /*
     AND AS COVER THINS TOWARD NOTHING, THE WHOLE CLOUD GLOWS — not just its
     edges. The last wisps of a clearing sky are all edge: light passes straight
     through them. Forward-weighted like the fringe and multiplied by skyTint
     like everything else, so it is the sun's own colour: golden at golden hour.
     */
-    float wisps = autoLift * (1.0 - smoothstep(0.0, 0.5, coverage));
+    float wisps = autoLift * (1.0 - smoothstep(0.0, 0.5, coverage + gloom));
     /*
     THE GLOW TAKES THE SUN'S HUE, NOT ITS WHOLE DIMMING. skyTint is the sun's
     colour times its intensity, and at 17:30 the intensity is ~0.4 — so a
@@ -755,7 +813,7 @@ void main(void) {
     float bright = 1.0 + 2.0 * wisps;
     vec3 emit =
       topColor * glow * bright *
-      (thin * thin + 0.12 * transmission + 0.45 * wisps) * sunGlow;
+      (thin * thin + 0.12 * gTrans + 0.45 * wisps) * sunGlow;
     /*
     AND THE GLOW MOSTLY SURVIVES THE DISTANCE FOG. The brightest thin cloud at
     sunset sits near the horizon, exactly where the fog was mixing it down to
@@ -764,10 +822,55 @@ void main(void) {
     */
     float fa = fogAmount(vWorld);
     vec3 body = mix(fogColorU, base * skyTint, fa);
-    gl_FragColor = vec4(body + emit * (0.4 + 0.6 * fa), a);
+    /*
+    LIT FROM INSIDE (board #1123). A strike lights the cloud around it, not
+    the sky: strongest where the cloud is thick (a storm tower glows, a wisp
+    barely does) and falling off with distance from the channel. Added after
+    the fog, like the fringe glow, so a flash in a far storm still reads.
+    */
+    float fd = distance(p, flashInfo.xy);
+    float fr = max(1.0, flashInfo.z);
+    float lit = flashInfo.w * exp(-(fd * fd) / (fr * fr)) * (0.35 + 0.65 * a);
+    gl_FragColor = vec4(body + emit * (0.4 + 0.6 * fa) + flashColor * lit, a);
   }
 }
 `;
+/** Four box passes over an n×n grid (see `_bakeWeather`: it turns a
+ * mountain into weather, and a storm cell into a soft-edged one). */
+function smoothGrid(input, n, passes = 4) {
+    let src = input;
+    let dst = new Float32Array(input.length);
+    for (let pass = 0; pass < passes; pass++) {
+        for (let z = 0; z < n; z++) {
+            for (let x = 0; x < n; x++) {
+                const i = z * n + x;
+                let sum = src[i] * 2;
+                let count = 2;
+                if (x > 0) {
+                    sum += src[i - 1];
+                    count++;
+                }
+                if (x < n - 1) {
+                    sum += src[i + 1];
+                    count++;
+                }
+                if (z > 0) {
+                    sum += src[i - n];
+                    count++;
+                }
+                if (z < n - 1) {
+                    sum += src[i + n];
+                    count++;
+                }
+                dst[i] = sum / count;
+            }
+        }
+        const swap = src;
+        src = dst;
+        dst = swap;
+    }
+    return src;
+}
 /** What the weather channel was last baked for — see `_bakeWeather`. */
 function freshWeatherKey() {
     return {
@@ -775,7 +878,9 @@ function freshWeatherKey() {
         x: NaN,
         z: NaN,
         orographic: NaN,
+        sea: NaN,
         peak: NaN,
+        cells: '',
         weather: null,
         gen: '',
     };
@@ -843,6 +948,13 @@ export class B3dCloudDeck extends B3dChild {
          * province returning 1 gets the full height.
          */
         localRise: 1200,
+        /**
+         * How far a STORM TOWER stands above the deck at a weather cell's full
+         * coverage 2, in metres (cells past coverage 1 lift the top skin there,
+         * whatever the global dial says). Towers are what make lightning read as
+         * light INSIDE cloud.
+         */
+        stormRise: 0,
         /**
          * How much a unit of local weather adds to `coverage`.
          *
@@ -993,6 +1105,86 @@ export class B3dCloudDeck extends B3dChild {
         return this._terrain;
     }
     _weatherMax = 0;
+    /** Largest storm excess in the baked grid (0 = no tower anywhere). */
+    _stormMax = 0;
+    _flash = { x: 0, z: 0, r: 1, level: 0 };
+    _flashColor = new BABYLON.Color3(0.85, 0.88, 1);
+    /**
+     * **How opaque the deck is straight above (x, z)**, 0 (a gap) to 1 (solid),
+     * in world XZ. For PLACEMENT (light shafts go where the sun breaks through
+     * a gap beside cloud), not for drawing: it reads the SAME baked field the
+     * shader does, through the same two drifting layers and the shared
+     * `cloudOpacity` threshold, so it cannot disagree about the noise. Only the
+     * sampling is mirrored, which the rule about noise in two languages allows.
+     * Cheap enough for a few dozen calls a second.
+     */
+    opacityAbove(x, z) {
+        const f = this._field;
+        const n = this._fieldSize;
+        if (f == null || n <= 0)
+            return 0;
+        const h = (this.windHeadingDeg ?? 0) * (Math.PI / 180);
+        const ax = Math.cos(h);
+        const ay = Math.sin(h);
+        const inv = 1 / (this.period || 1);
+        const toField = (vx, vy) => [
+            vx * ax - vy * ay,
+            vx * ay + vy * ax,
+        ];
+        // Bilinear, wrapping, like the field texture (WRAP, u → column).
+        const sample = (u, v) => {
+            const fx = (u - Math.floor(u)) * n - 0.5;
+            const fy = (v - Math.floor(v)) * n - 0.5;
+            const x0 = Math.floor(fx);
+            const y0 = Math.floor(fy);
+            const tx = fx - x0;
+            const ty = fy - y0;
+            const at = (i, j) => f[(((j % n) + n) % n) * n + (((i % n) + n) % n)];
+            const top = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx;
+            const bot = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
+            return top * (1 - ty) + bot * ty;
+        };
+        const [u1, v1] = toField(x + this._driftX, z + this._driftZ);
+        const a = sample(u1 * inv, v1 * inv);
+        const [u2, v2] = toField(x + this._driftX2, z + this._driftZ2);
+        const k = inv * 1.6180339;
+        const b = sample(u2 * k + 0.37, v2 * k + 0.11);
+        const d = Math.sqrt(Math.max(a * b, 0)) * 1.15;
+        return cloudOpacity(d, this.coverageAt(x, z));
+    }
+    /**
+     * **The cloud cover over (x, z)** as the shader has it: the dial, the local
+     * field and storms, in world XZ. Not clamped at 1 by the dial alone (a dial
+     * of 1.4 reads 1.4). Light shafts gate on it: they only make sense under a
+     * broken-but-not-closed sky.
+     */
+    coverageAt(x, z) {
+        const cov0 = Math.max(0, this.coverage);
+        const ramp = Math.min(1, Math.max(0, cov0 * 4));
+        const lw = this._liveWeather;
+        const fieldHere = lw == null
+            ? 0
+            : Math.min(1, Math.max(0, lw(x - this._originX, z - this._originZ)));
+        // Mirrors the shader: the storm counts once, in full (see coverageAt).
+        const storm = Math.min(1, this.owner?.weatherAt?.(x, z).coverage ?? 0);
+        return (cov0 +
+            Math.max(0, fieldHere - storm) *
+                (this.localCoverage ?? 1) *
+                ramp +
+            storm);
+    }
+    /**
+     * **Light the cloud from inside**, around (x, z) in world XZ, out to about
+     * `radius` metres, at `level` (0 = off; ~1.5 is a strong strike). Lightning
+     * calls this every frame of a flash; it is the deck's own light, because a
+     * point light cannot reach a cloud drawn by its own shader.
+     */
+    flash(x, z, level, radius = 900) {
+        this._flash.x = x;
+        this._flash.z = z;
+        this._flash.r = radius;
+        this._flash.level = Math.max(0, level);
+    }
     _weatherTex = null;
     _weatherTexSize = 0;
     /*
@@ -1100,6 +1292,9 @@ export class B3dCloudDeck extends B3dChild {
                 'evolve',
                 'globalRise',
                 'localDelta',
+                'stormRise',
+                'flashInfo',
+                'flashColor',
                 'localScale',
                 'localCoverage',
                 'weatherWindow',
@@ -1132,6 +1327,17 @@ export class B3dCloudDeck extends B3dChild {
             mat.setTexture('cloudField', this.fieldTexture);
         mesh.material = mat;
         this.mesh = mesh;
+        /*
+        THE FLASH IS WRITTEN AT DRAW TIME. Lightning sets it in its own
+        before-render step; pushed from ours, it depended on which observer ran
+        first, and the cloud lit a frame AFTER the ground and the bolt. Read at
+        bind, it is whatever the strike says this frame.
+        */
+        mat.onBindObservable.add(() => {
+            mat
+                .getEffect()
+                ?.setFloat4('flashInfo', this._flash.x, this._flash.z, this._flash.r, this._flash.level);
+        });
         /*
         A SECOND SKIN FOR THE TOP, so a thick deck has a top you fly over and a
         base you fly under, with nothing but whiteout between them.
@@ -1256,6 +1462,10 @@ export class B3dCloudDeck extends B3dChild {
         mat.setVector2('localScale', new BABYLON.Vector2(scale.base, scale.top));
         mat.setFloat('globalRise', rise);
         mat.setFloat('localDelta', scale.top - scale.base);
+        mat.setFloat('stormRise', Math.max(0, attrs.stormRise ?? 0));
+        // (flashInfo is written at DRAW time, in the material's onBind: see
+        // sceneReady.)
+        mat.setColor3('flashColor', this._flashColor);
         this._bindWeather(mat);
         if (top != null) {
             /*
@@ -1265,7 +1475,9 @@ export class B3dCloudDeck extends B3dChild {
             the top where the two would coincide, which covers the first hair of the
             dial where nothing has separated them yet.
             */
-            top.isVisible = attrs.coverage >= 1;
+            // ...or wherever a STORM goes past full cover: its tower is the top skin
+            // lifted there, and the shader discards the rest (nothing separates it).
+            top.isVisible = attrs.coverage >= 1 || this._stormMax > 0;
             top.position.set(this.mesh.position.x, attrs.altitude + rise, this.mesh.position.z);
         }
         const t = this._elapsed;
@@ -1428,6 +1640,54 @@ export class B3dCloudDeck extends B3dChild {
      * from the terrain for `orographic`, or nothing.
      */
     _weatherField() {
+        const own = this._ownWeatherField();
+        /*
+        WEATHER CELLS JOIN THE FIELD (WEATHER-DESIGN stage 2, board #1122). A
+        `<tosi-b3d-weather-cell>` with `coverage` is a storm the deck should
+        SHOW: its coverage sums into the field (clamped, the coverage rule), and
+        because the shadow reads this same field, the storm's shadow travels with
+        it for free. Cells live in RENDER space; this field is sampled in
+        origin-stable coordinates, and render = field + the deck's origin offset
+        (the inverse of `ox` in `_bakeWeather`).
+        */
+        const owner = this.owner;
+        if (owner == null || !this._coverageCells())
+            return own;
+        return (x, z) => {
+            const base = own == null ? 0 : own(x, z);
+            const c = owner.weatherAt(x + this._originX, z + this._originZ).coverage ?? 0;
+            return Math.min(1, Math.max(0, base + c));
+        };
+    }
+    /** The storm share only: weather-cell coverage, no orographic lift. */
+    _gloomField() {
+        const owner = this.owner;
+        if (owner == null || !this._coverageCells())
+            return null;
+        return (x, z) => Math.min(2, Math.max(0, owner.weatherAt(x + this._originX, z + this._originZ).coverage ?? 0));
+    }
+    /** Is any weather cell asking for coverage? */
+    _coverageCells() {
+        return (this.owner?.weatherCells ?? []).some((c) => c.coverage != null && (c.strength ?? 1) > 0);
+    }
+    /** A coarse signature of the coverage cells: a drifting storm re-bakes
+     * about once per 10 m of travel, not every frame. */
+    _cellsKey() {
+        return (this.owner?.weatherCells ?? [])
+            .filter((c) => c.coverage != null)
+            .map((c) => 
+        // Strength in 1% steps: a gathering storm re-bakes as it builds,
+        // fine enough that the build reads as gradual rather than stepped.
+        `${Math.round(c.at.x / 10)},${Math.round(c.at.z / 10)},${Math.round(c.radius)},${c.coverage.toFixed(2)},${Math.round((c.strength ?? 1) * 100)}`)
+            .join(';');
+    }
+    /** Sea level for orographic lift: the scene's water surface, else 0. */
+    _seaLevel() {
+        const media = (this.owner?.media ?? []);
+        const water = media.find((m) => m.kind === 'plane');
+        return water?.y ?? 0;
+    }
+    _ownWeatherField() {
         if (this.weather != null)
             return this.weather;
         const strength = Math.min(1, Math.max(0, this.orographic));
@@ -1437,17 +1697,23 @@ export class B3dCloudDeck extends B3dChild {
         if (height == null)
             return null;
         const peak = Math.max(1, this.orographicPeak);
+        const sea = this._seaLevel();
         /*
-        A RIDGE, not a height map. What makes orographic cloud is air being pushed
-        UP, so the interesting thing is elevation relative to what is around it —
-        but a first pass on absolute height already puts the towers over the
-        mountains and the clear air over the sea, which is the effect being asked
-        for. Smoothstepped so a coastal plain contributes nothing rather than a
-        little of everything.
+        A RIDGE ABOVE THE SEA (cloud-field's orographicLift). The first pass used
+        ABSOLUTE height, which only worked while the sea sat at 0: with Land and
+        Sky's sea at 147 m, all the land lifted, and a 0.3 sky rendered as a
+        solid sheet (Tonio). Five height samples a vertex, only when the grid
+        moves or the terrain changes.
         */
+        const R = OROGRAPHIC_REACH;
         return (x, z) => {
-            const t = Math.min(1, Math.max(0, height(x, z) / peak));
-            return strength * t * t * (3 - 2 * t);
+            const h = height(x, z);
+            const around = (height(x + R, z) +
+                height(x - R, z) +
+                height(x, z + R) +
+                height(x, z - R)) /
+                4;
+            return orographicLift(h, around, sea, peak, strength);
         };
     }
     /**
@@ -1485,7 +1751,8 @@ export class B3dCloudDeck extends B3dChild {
         every terrain rebuild — once a frame during a terrain slider drag (0.8.3
         re-review).
         */
-        const inactive = this.weather == null && !(this.orographic > 0);
+        const cells = this._cellsKey();
+        const inactive = this.weather == null && !(this.orographic > 0) && cells === '';
         if (inactive) {
             if (!force && k.inactive)
                 return;
@@ -1500,8 +1767,10 @@ export class B3dCloudDeck extends B3dChild {
                 k.z === mesh.position.z &&
                 k.orographic === this.orographic &&
                 k.peak === this.orographicPeak &&
+                k.sea === this._seaLevel() &&
                 k.weather === this.weather &&
-                k.gen === gen) {
+                k.gen === gen &&
+                k.cells === cells) {
                 return;
             }
             k.inactive = false;
@@ -1509,10 +1778,13 @@ export class B3dCloudDeck extends B3dChild {
             k.z = mesh.position.z;
             k.orographic = this.orographic;
             k.peak = this.orographicPeak;
+            k.sea = this._seaLevel();
             k.weather = this.weather;
             k.gen = gen;
+            k.cells = cells;
         }
         const field = this._weatherField();
+        const gloomField = this._gloomField();
         this._liveWeather = field;
         const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
         const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind);
@@ -1523,9 +1795,18 @@ export class B3dCloudDeck extends B3dChild {
         const oz = mesh.position.z - this._originZ;
         const n = Math.max(1, Math.floor(this.subdivisions)) + 1;
         const raw = new Float32Array(n * n);
+        const rawGloom = new Float32Array(n * n);
+        const rawStorm = new Float32Array(n * n);
         for (let k = 0, i = 0; k < raw.length; k++, i += 3) {
-            const w = field == null ? 0 : field(positions[i] + ox, positions[i + 2] + oz);
+            const x = positions[i] + ox;
+            const z = positions[i + 2] + oz;
+            const w = field == null ? 0 : field(x, z);
             raw[k] = w < 0 ? 0 : w > 1 ? 1 : w;
+            if (gloomField != null) {
+                const g = gloomField(x, z); // 0..2: a cell past full cover is a storm
+                rawGloom[k] = Math.min(1, g);
+                rawStorm[k] = Math.max(0, g - 1);
+            }
         }
         /*
         SMOOTHED ACROSS THE GRID, and this is the difference between cloud and a
@@ -1542,41 +1823,28 @@ export class B3dCloudDeck extends B3dChild {
         Four box passes over 65x65 is a few thousand adds, it runs only when the
         grid snaps, and it turns a mountain into weather.
         */
-        const smooth = new Float32Array(raw.length);
-        let src = raw;
-        let dst = smooth;
-        for (let pass = 0; pass < 4; pass++) {
-            for (let z = 0; z < n; z++) {
-                for (let x = 0; x < n; x++) {
-                    const i = z * n + x;
-                    let sum = src[i] * 2;
-                    let count = 2;
-                    if (x > 0) {
-                        sum += src[i - 1];
-                        count++;
-                    }
-                    if (x < n - 1) {
-                        sum += src[i + 1];
-                        count++;
-                    }
-                    if (z > 0) {
-                        sum += src[i - n];
-                        count++;
-                    }
-                    if (z < n - 1) {
-                        sum += src[i + n];
-                        count++;
-                    }
-                    dst[i] = sum / count;
-                }
-            }
-            const swap = src;
-            src = dst;
-            dst = swap;
-        }
+        const src = smoothGrid(raw, n);
+        /*
+        ONE PASS for the cell channels, not four. The four passes turn a faceted
+        ridge into weather; a weather cell is already smooth (a smoothstep over
+        its radius), and four more passes flattened a 700 m storm's excess from
+        0.7 to 0.18, so the tower stood 270 m instead of a kilometre. One pass
+        only takes the edge off the grid.
+        */
+        const gloom = gloomField != null ? smoothGrid(rawGloom, n, 1) : null;
+        const stormy = gloomField != null ? smoothGrid(rawStorm, n, 1) : null;
+        let stormMax = 0;
+        if (stormy != null)
+            for (const v of stormy)
+                if (v > stormMax)
+                    stormMax = v;
+        this._stormMax = stormMax;
         for (let k = 0, v = 0; k < src.length; k++, v += 4) {
             colors[v] = src[k];
             topColors[v] = src[k];
+            const b = stormy == null ? 0 : stormy[k];
+            colors[v + 2] = b;
+            topColors[v + 2] = b;
         }
         mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
         top.updateVerticesData(BABYLON.VertexBuffer.ColorKind, topColors);
@@ -1587,16 +1855,26 @@ export class B3dCloudDeck extends B3dChild {
         same numbers, no second sampling of the field — the texture IS the vertex
         data, uploaded.
         */
-        const bytes = new Uint8Array(src.length);
-        for (let k = 0; k < src.length; k++)
-            bytes[k] = Math.round(src[k] * 255);
+        // Two channels: R = the whole field (coverage and rise), G = gloom
+        // (storm cells only, for the underside's darkness).
+        /*
+        ROWS FLIPPED. The ground's vertex rows run from +Z down to -Z (row 0 is
+        z = +size/2), but a texture's row 0 is v = 0, which the shader's window
+        maps to -Z. Copied straight across, the whole local field was MIRRORED
+        north-south in everything that reads the texture: coverage, the storm's
+        gloom, the cloud shadow. A storm near the deck's centre looked nearly
+        right; the lightning demo's, 1.3 km off-centre, was drawn 1.3 km on the
+        other side, and every strike lit empty sky (found reading the deck's own
+        vertex positions against its texture window).
+        */
+        const bytes = packWeatherTexture(src, gloom, n);
         if (this._weatherTex == null || this._weatherTexSize !== n) {
             this._weatherTex?.dispose();
             this._weatherTexSize = n;
             const scene = this.owner?.scene;
             if (scene == null)
                 return;
-            const tex = new BABYLON.RawTexture(bytes, n, n, BABYLON.Constants.TEXTUREFORMAT_R, scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+            const tex = new BABYLON.RawTexture(bytes, n, n, BABYLON.Constants.TEXTUREFORMAT_RG, scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE);
             tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
             tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
             this._weatherTex = tex;
@@ -1947,6 +2225,21 @@ export class B3dCloudDeck extends B3dChild {
         c.r *= this._tint.r;
         c.g *= this._tint.g;
         c.b *= this._tint.b;
+        /*
+        LIGHTNING INSIDE THE CLOUD (Tonio: "inside the whiteout it changes the
+        whiteout brightness"). The flash lights the fog you are in, as deep as
+        you are in it, falling off with distance from the strike like the deck's
+        own flash.
+        */
+        const f = this._flash;
+        if (f.level > 0 && optical > 0 && p != null) {
+            const fd = Math.hypot(p.x - f.x, p.z - f.z);
+            const r = Math.max(1, f.r);
+            const k = f.level * optical * Math.exp(-(fd * fd) / (r * r));
+            c.r = Math.min(1, c.r + this._flashColor.r * k);
+            c.g = Math.min(1, c.g + this._flashColor.g * k);
+            c.b = Math.min(1, c.b + this._flashColor.b * k);
+        }
         return {
             weight,
             /*
@@ -2037,6 +2330,9 @@ export class B3dCloudDeck extends B3dChild {
     _setupShadows(owner, scene) {
         const map = new CloudShadowMap(scene, this.shadowRange);
         this._shadowMap = map;
+        // A lightning flash comes from BELOW the cloud: its light is not
+        // cloud-shadowed, so the shadow fades while the deck is flashing.
+        map.strengthSource = () => 1 - Math.min(1, this._flash.level);
         const res = resolveBudget(this.shadowResolution, 'cloudShadowSize');
         const tex = new BABYLON.ProceduralTexture('cloud-deck-shadow', res, { fragmentSource: SHADOW_FRAG }, scene, undefined, false, false);
         /*
@@ -2127,6 +2423,9 @@ export class B3dCloudDeck extends B3dChild {
      * Both are gated on being BELOW the layer. Above it nothing is obstructed,
      * and climbing out into the light should be dramatic.
      */
+    /** Multiplies the sun and the ambient fill (1 = no effect). Set by
+     * `<tosi-b3d-lightning>` while a storm is near. */
+    stormDim = 1;
     _applyGloom(sun) {
         const scene = this.owner?.scene;
         if (scene == null)
@@ -2172,12 +2471,25 @@ export class B3dCloudDeck extends B3dChild {
         */
         const ambientDepth = num(this.ambientGloom, 0) + (0.9 - num(this.ambientGloom, 0)) * th;
         const sunDepth = num(this.sunGloom, 0) + (1 - num(this.sunGloom, 0)) * th;
-        const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth;
-        const key = 1 - ramp(num(this.sunGloomBelow, 0)) * sunDepth;
+        /*
+        A LIGHTNING STORM DARKENS THE DAY (Tonio: "cut ambient and even sun
+        brightness somewhat when lightning is flashing ... reduce both by half").
+        <tosi-b3d-lightning> sets stormDim from how stormy it is near you; it goes
+        through HERE, the one owner of these lights, so the two cannot compound.
+        */
+        const storm = Number.isFinite(this.stormDim)
+            ? Math.max(0, Math.min(1, this.stormDim))
+            : 1;
+        const ambient = (1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth) * storm;
+        const key = (1 - ramp(num(this.sunGloomBelow, 0)) * sunDepth) * storm;
         for (const light of scene.lights) {
             const isSun = light === sun;
             const isFill = light.getClassName() === 'HemisphericLight';
             if (!isSun && !isFill)
+                continue;
+            // Lightning's own lights are the FLASH, not the day: dimming them with
+            // the day cut a strike's landscape light by up to 90% under cover.
+            if (light.name.startsWith('lightning-'))
                 continue;
             this._dim(light, isSun ? key : ambient);
         }

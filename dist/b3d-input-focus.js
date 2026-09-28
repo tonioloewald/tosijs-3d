@@ -118,6 +118,10 @@ export class B3dInputFocus extends B3dChild {
      * Only fills a VACANCY, so it can never steal the camera from a live player.
      */
     adoptIfVacant(entity) {
+        // A DISCONNECTED focused entity is a vacant seat (board #2421): the belt
+        // to the controllable's own release-on-dispose braces.
+        if (this.focusedEntity != null && !this.focusedEntity.isConnected)
+            this.releaseFocus();
         if (this.focusedEntity != null)
             return;
         const e = entity;

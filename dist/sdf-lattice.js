@@ -273,6 +273,22 @@ the neighbouring cells' vertices (the one-cell apron) so the boundary quad has
 real corners.
 */
 /*{ "parent": "environment" }*/
+/** A lattice's identity: what two chunks must share to weld. `clip` is not
+ * part of it; clipping divides work, not content. */
+export function latticeIdentity(cfg) {
+    return `${cfg.spacing}|${cfg.jitter ?? 0}|${cfg.seed ?? 0}`;
+}
+/**
+ * Throw if these chunks cannot weld, naming the lattices. For development: a
+ * mismatch is an obvious error here rather than a crack at 200 m.
+ */
+export function assertLatticesWeld(chunks) {
+    const ids = [...new Set(chunks.map((c) => c.lattice))];
+    if (ids.length > 1)
+        throw new Error(`sdf-lattice: chunks cut from ${ids.length} different lattices ` +
+            `(${ids.join(' vs ')}) will not weld — one lattice per world ` +
+            `(spacing|jitter|seed).`);
+}
 /**
  * Deterministic hash of an integer lattice coordinate → [0, 1). Integer mixing
  * (no `Math.random`, no float accumulation), so it's identical on every machine
@@ -480,6 +496,7 @@ export function extractChunk(field, chunk, cfg) {
         indices: new Uint32Array(indices),
         vertexCount: positions.length / 3,
         triangleCount: indices.length / 3,
+        lattice: latticeIdentity(cfg),
     };
 }
 //# sourceMappingURL=sdf-lattice.js.map

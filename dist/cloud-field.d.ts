@@ -38,4 +38,37 @@ export declare function cloudField(options?: CloudFieldOptions): Float32Array;
  * has no visible edges because there is nothing left to be the edge of.
  */
 export declare function cloudOpacity(density: number, coverage: number): number;
+/**
+ * **Orographic lift at one point**, 0–`strength`: how much MORE cloud high
+ * ground makes here. `h` is the terrain height, `around` the mean height a
+ * little way off, `sea` the sea level, `peak` the height ABOVE THE SEA at which
+ * the lift is full.
+ *
+ * Two things make it, and both used to be missing:
+ *
+ * - **Height above the SEA, not above y = 0.** Measured from zero, a world
+ *   whose sea sits at 147 m (Land and Sky) counted its entire landmass as
+ *   mountain: every bit of land lifted +0.5 to +0.75 coverage, so a dial of
+ *   0.3 rendered as a solid grey sheet with the gaps filled in (Tonio:
+ *   "orographic is the problem. It fills the transparent areas without
+ *   changing apparent cloud coverage").
+ * - **A RIDGE, not a plateau.** What makes orographic cloud is air being
+ *   pushed UP, so ground that stands above its surroundings lifts most; a high
+ *   flat plain lifts a little (`PLATEAU_SHARE`), not fully.
+ */
+export declare function orographicLift(h: number, around: number, sea: number, peak: number, strength: number): number;
+/** How much of the lift a high but FLAT plateau keeps (the rest is ridge). */
+export declare const PLATEAU_SHARE = 0.35;
+/** How far off (m) "around" is sampled for the ridge test. */
+export declare const OROGRAPHIC_REACH = 900;
+/**
+ * **The deck's weather grid as texture bytes** (RG: field, gloom), rows
+ * FLIPPED. The ground's vertex rows run from +Z down to -Z (row 0 is
+ * z = +size/2), while a texture's row 0 is v = 0, which the deck shader's
+ * window (`uv = (p - centre) / size + 0.5`) maps to -Z. Copied straight
+ * across, the local field was mirrored north-south in everything that reads
+ * the texture (coverage, storm gloom, cloud shadow): the lightning demo's
+ * storm, 1.3 km off the deck's centre, was drawn 1.3 km the other way.
+ */
+export declare function packWeatherTexture(field: ArrayLike<number>, gloom: ArrayLike<number> | null, n: number): Uint8Array;
 //# sourceMappingURL=cloud-field.d.ts.map

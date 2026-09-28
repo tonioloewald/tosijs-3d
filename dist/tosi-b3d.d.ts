@@ -7,6 +7,7 @@ import type { Medium } from './medium.js';
 import { type Makers } from './make-mesh.js';
 import { type PopupSurface, type PopupSurfaceOptions } from './popup-surface.js';
 import { type Wind } from './wind.js';
+import { type WeatherCell, type WeatherSample } from './weather.js';
 import { CombatWorld } from './destroyable.js';
 import { XrFrames } from './xr-frames.js';
 import { type FramePanelSpec } from './frame-panel.js';
@@ -117,7 +118,6 @@ export declare class B3d extends Component {
         xrGrid: "on" | "off" | "auto";
         xrReticle: "on" | "off";
         scenePanelOpen: boolean;
-        gamepad: boolean | string;
         gamepadScale: number;
         /** `'off'` stops the glass gamepad fading when a mouse/keyboard/pad is
          * used (see b3d-gamepad's `fade`). */
@@ -394,6 +394,20 @@ export declare class B3d extends Component {
     xrGrid: 'on' | 'off' | 'auto';
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
+    /**
+     * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
+     * string = the full default layout; any other string selects and positions
+     * controls (`'a,b,right_stick(40,0),menu'`). Markup: `gamepad` or
+     * `gamepad="…"`.
+     *
+     * A PLAIN property, deliberately not in `initAttributes`: it is read once,
+     * at setup (property or attribute), and it is genuinely `boolean | string`.
+     * As an attribute tosijs typed it by its `false` default and warned on
+     * every string layout: one console error per demo, of the kind that means
+     * a call site was left behind by a type change. That trains people to
+     * ignore that warning.
+     */
+    gamepad: boolean | string;
     stats: boolean;
     pauseWhenHidden: 'on' | 'off';
     startPaused: boolean;
@@ -550,6 +564,23 @@ export declare class B3d extends Component {
      * attributes — which is what makes this additive rather than a migration.
      */
     get wind(): Wind;
+    private _weatherCells;
+    private _weatherDebugOff;
+    /**
+     * **The weather at (x, z), now** — the scene's base (its wind, gusts
+     * included) plus every weather cell that reaches the point. The one
+     * question every weather consumer asks; see [[weather]] and
+     * WEATHER-DESIGN.md. Consumers read it at THEIR position, which is what
+     * makes a lee calm and a storm local.
+     */
+    weatherAt(x: number, z: number): WeatherSample;
+    /** The weather cells in force (read-only; add with `addWeatherCell`). */
+    get weatherCells(): readonly WeatherCell[];
+    /** The weather where the viewer is (the active camera). */
+    weatherHere(): WeatherSample;
+    /** A region whose weather differs (`<tosi-b3d-weather-cell>` uses this).
+     * The cell is read live, so moving it moves its weather. Returns a remover. */
+    addWeatherCell(cell: WeatherCell): () => void;
     frameInfo(): FrameInfo;
     private sceneListeners;
     private pastAdditions;
@@ -660,6 +691,7 @@ export declare class B3d extends Component {
     private _flatSig;
     private _flatCheckIn;
     private _flatHandWarned;
+    private _flatPoseObs;
     private _disposeFlatPanels;
     private _updateFlatPanels;
     private _update;
@@ -794,6 +826,17 @@ export declare class B3d extends Component {
     private _fogVeil;
     private _fogBase;
     private _fogNow;
+    /**
+     * **Paint the fog a colour nothing else is** (`'#ff00ff'`), to see what is
+     * fog and what is surface. Composited fog in a murky scene is the same hue
+     * as half the things in it, so "I can't see X" cannot be told apart from
+     * "X is fogged out", "X is not drawn" or "that's the sky". Tonio suggested
+     * it mid-hunt for a missing water underside, and it answered the question
+     * in one screenshot. Also a toggle in the Perf Stats panel's Fog row, for
+     * a headset. Empty = the real fog.
+     */
+    debugFogColor: string;
+    private _fogDebugOff;
     /**
      * Contribute a fog layer — underwater, inside a cloud, out in space. Return `null` (or
      * `weight: 0`) when you're not contributing. Returns an unregister function.

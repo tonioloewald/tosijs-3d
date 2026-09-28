@@ -6,7 +6,19 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.5
+
+**Weather you can watch.** Storms that darken the day and strike: lightning
+that lights the cloud from below, inside and above, lights the landscape and
+throws shadows, with thunder at the speed of sound. Shafts of sun through a
+broken sky, and the sky and sun seen through the water from below, with rays
+fanning down from them. Rain and snow from the weather, the wind carrying
+aircraft and buffeting them in a storm. And two long-hidden bugs: the cloud
+deck's local weather was mirrored north-south, and on the doc site no shadow
+map had rendered at all.
+
+Size: barrel (min, packages external) 883.2 KB raw / 295.6 KB gz (+5.7% gz),
+for lightning, light shafts, weather cells, trails and caustics.
 
 ### Fixed
 

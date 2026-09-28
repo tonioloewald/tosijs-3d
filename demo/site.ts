@@ -31,11 +31,12 @@ import '@babylonjs/core/Shaders/shadowMap.vertex.js'
 import '@babylonjs/core/Shaders/depthBoxBlur.fragment.js'
 import '@babylonjs/core/Shaders/ShadersInclude/shadowMapFragmentSoftTransparentShadow.js'
 import { ShadowGenerator } from '@babylonjs/core'
-;(ShadowGenerator.prototype as any)._initShaderSourceAsync =
-  async function (this: any) {
-    this._shaderLanguage = 0 // GLSL
-    this._shadersLoaded = true
-  }
+;(ShadowGenerator.prototype as any)._initShaderSourceAsync = async function (
+  this: any
+) {
+  this._shaderLanguage = 0 // GLSL
+  this._shadersLoaded = true
+}
 
 // Point live examples' asset lookups (assetUrl) at the shared CDN.
 tosijs3d.setAssetBase('https://cdn.tosijs.net')

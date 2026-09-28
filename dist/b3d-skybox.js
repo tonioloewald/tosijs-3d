@@ -545,7 +545,7 @@ function registerForkedSky() {
     store[`${B3D_SKY}PixelShader`] = src
         .replace('#define CUSTOM_FRAGMENT_DEFINITIONS', 'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
-        'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;' +
+        'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;uniform float b3dSunHdr;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         'uniform vec4 b3dMoonsA[4];uniform vec4 b3dMoonsB[4];uniform vec3 b3dSunLocal;' +
         MOONS_GLSL +
@@ -622,7 +622,19 @@ function registerForkedSky() {
         // white) — losing the atmosphere must not dim it (Tonio).
         `color.rgb+=vec3(1.6,1.6,1.65)*b3dMoonDisc*b3dMd;}` +
         `{float sd=dot(normalize(vPositionW-cameraPosition),b3dSunDir);` +
-        `color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(0.999965,0.99998,sd);}` +
+        `color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(0.999965,0.99998,sd);` +
+        /*
+        THE SUN AS HDR, for a photograph of the sky rather than for the
+        screen: 0 in normal rendering. The sky is LDR, so the sun is a 1.0
+        like any bright cloud, and seen through something that transmits a
+        fraction of it (the water's window) it cannot blaze. b3d-water raises
+        this only while its probe captures into a half-float cube, so the sun
+        punches through the rippled surface as a sun (Tonio: "our skybox isn't
+        HDR so its glare doesn't pinch through"). A few degrees wide, because
+        the probe's texels are nearly a degree and a half-degree disc would
+        fall between them.
+        */
+        `color.rgb+=b3dSunDiscColor*b3dSunHdr*pow(max(sd,0.0),1000.0);}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
         light arriving, it is light being blocked. Inside cloud there is white a
@@ -700,6 +712,7 @@ function makeForkedSkyMaterial(scene) {
             'b3dSunDisc',
             'b3dMoonDisc',
             'b3dSunDiscColor',
+            'b3dSunHdr',
             'b3dTintZ',
             'b3dTintH',
             'b3dTintAmt',
@@ -731,6 +744,7 @@ function makeForkedSkyMaterial(scene) {
     mat.setVector3('b3dMoonDir', new BABYLON.Vector3(0, 1, 0));
     mat.setVector3('b3dSunDir', new BABYLON.Vector3(0, 1, 0));
     mat.setFloat('b3dSunDisc', 0);
+    mat.setFloat('b3dSunHdr', 0);
     mat.setFloat('b3dMoonDisc', 0);
     mat.setArray4('b3dMoonsA', new Array(16).fill(0));
     mat.setArray4('b3dMoonsB', new Array(16).fill(0));

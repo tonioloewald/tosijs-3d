@@ -116,10 +116,12 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
             ubo: [
                 { name: 'cloudShadowWindow', size: 4, type: 'vec4' },
                 { name: 'cloudShadowSun', size: 4, type: 'vec4' },
+                { name: 'cloudShadowStrength', size: 1, type: 'float' },
             ],
             fragment: `#ifdef CLOUDSHADOW
         uniform vec4 cloudShadowWindow;
         uniform vec4 cloudShadowSun;
+        uniform float cloudShadowStrength;
       #endif`,
         };
     }
@@ -144,6 +146,8 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
         share the plugin rather than growing a second one, and the window math is
         identical either way.
         */
+        const st = map.strengthSource?.() ?? 1;
+        uniformBuffer.updateFloat('cloudShadowStrength', Number.isFinite(st) ? Math.max(0, Math.min(1, st)) : 1);
         uniformBuffer.setTexture('cloudShadowSampler', map.sourceTexture ?? map.texture);
     }
     getCustomCode(shaderType) {
@@ -170,6 +174,7 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
             // Fade the shadow out with the fog: a fully-fogged fragment must stay fog-coloured.
             csShadow = mix(csShadow, 1.0, clamp(1.0 - CalcFogFactor(), 0.0, 1.0));
           #endif
+          csShadow = mix(1.0, csShadow, cloudShadowStrength);
           gl_FragColor.rgb *= csShadow;
         }
       }
@@ -214,6 +219,15 @@ export class CloudShadowMap {
      * Whatever is set here must carry OPACITY, not density: white is lit.
      */
     sourceTexture = null;
+    /**
+     * How much of the shadow applies, 0-1, asked at DRAW time. The shadow
+     * multiplies the whole lit colour, so while light that starts BELOW the
+     * cloud dominates (a lightning flash) it must fade, or the flash lights
+     * the land through cloud-shaped shadows (Tonio: "the directional light
+     * seems to be coming from above the cloud layer ... so the shadows are
+     * mostly cloud").
+     */
+    strengthSource = null;
     _plugins = [];
     /** How many blobs the last {@link paint} stamped — a debug readout. */
     lastPaintCount = 0;

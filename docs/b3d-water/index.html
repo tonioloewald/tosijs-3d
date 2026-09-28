@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=6c338a3a1348" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=f7de993b5a55" data-tosi-doc-system />
   <title>b3d-water — tosijs-3d</title>
   <meta name="description" content="Water plane with reflections, waves, and underwater fog effect." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-water/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=fd6ca3d0d2d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d424236c37d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-water</h1>
 <p>Water plane with reflections, waves, and underwater fog effect.</p>
@@ -102,6 +102,41 @@ preview.append(scene)
 <td><code>twoSided</code></td>
 <td><code>false</code></td>
 <td>Render both sides</td>
+</tr>
+<tr>
+<td><code>underside</code></td>
+<td><code>&#39;auto&#39;</code></td>
+<td>Snell&#39;s window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. <code>&#39;auto&#39;</code> = on whenever <code>twoSided</code>; <code>&#39;on&#39;</code>/<code>&#39;off&#39;</code> force it. Fades in with the underwater fog</td>
+</tr>
+<tr>
+<td><code>undersideColor</code></td>
+<td><code>&#39;#9fdcf0&#39;</code></td>
+<td>The window: the sky&#39;s light, looking up</td>
+</tr>
+<tr>
+<td><code>undersideDepthColor</code></td>
+<td><code>&#39;#06283a&#39;</code></td>
+<td>The mirror: the dark water, at grazing angles</td>
+</tr>
+<tr>
+<td><code>undersideSky</code></td>
+<td><code>1</code></td>
+<td>From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. <code>0</code> = the flat <code>undersideColor</code> only</td>
+</tr>
+<tr>
+<td><code>caustics</code></td>
+<td><code>&#39;auto&#39;</code></td>
+<td>Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). <code>&#39;auto&#39;</code> = on whenever <code>twoSided</code>. Fades with depth and fog; follows the sun</td>
+</tr>
+<tr>
+<td><code>causticsStrength</code></td>
+<td><code>0.6</code></td>
+<td>How bright the web gets</td>
+</tr>
+<tr>
+<td><code>causticsScale</code></td>
+<td><code>6</code></td>
+<td>Metres per caustic cell: bigger is coarser and calmer</td>
 </tr>
 <tr>
 <td><code>follow</code></td>
@@ -194,7 +229,9 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../caustics/">caustics</a></li>
       <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
       <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
@@ -223,17 +260,23 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
+      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
       <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
       <li><a class="doc-link current" href="../b3d-water/" aria-current="page">b3d-water</a></li>
+      <li><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      <li><a class="doc-link" href="../lightning/">lightning</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -386,6 +429,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=6c338a3a1348"></script>
+  <script type="module" src="../hydrate.js?v=f7de993b5a55"></script>
 </body>
 </html>

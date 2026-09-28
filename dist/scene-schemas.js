@@ -239,6 +239,15 @@ export function waterSchema(extra = {}) {
         textureSize: num(1024, { minimum: 64, maximum: 4096 }),
         normalMap: url(),
         twoSided: bool(false),
+        // Snell's window from below; 'auto' = on whenever twoSided (board #197).
+        underside: choice('auto', ['auto', 'on', 'off']),
+        undersideColor: color('#9fdcf0'),
+        undersideDepthColor: color('#06283a'),
+        undersideSky: num(1, { minimum: 0, maximum: 2 }),
+        // Light through the surface onto what is beneath (board #198).
+        caustics: choice('auto', ['auto', 'on', 'off']),
+        causticsStrength: num(0.6, { minimum: 0, maximum: 2 }),
+        causticsScale: num(6, { minimum: 0.5, maximum: 50, ...M }),
         spherical: bool(false),
         follow: bool(false),
     }, extra);
@@ -300,6 +309,8 @@ export function ambientSchema(extra = {}) {
             'leaves',
         ]),
         where: choice('always', ['always', 'underwater', 'above']),
+        // Driven by precipitation at the viewer (board #1124).
+        weather: choice('off', ['off', 'rain', 'snow']),
         disabled: bool(false),
         radius: num(18, { minimum: 0, maximum: 500, ...M, 'x-scale': 'log' }),
         // 0 is AUTO for both — the device tier decides.
@@ -600,6 +611,8 @@ export function cloudDeckSchema(extra = {}) {
         evolve: num(0.5, unit),
         follow: choice('on', ['on', 'off']),
         localRise: num(1200, { minimum: 0, maximum: 5000, ...M }),
+        // Storm towers from weather cells past coverage 1 (board #1122).
+        stormRise: num(0, { minimum: 0, maximum: 5000, ...M }),
         localCoverage: num(1, { minimum: 0, maximum: 2 }),
         // Needs a terrain in the scene.
         orographic: num(0, unit),

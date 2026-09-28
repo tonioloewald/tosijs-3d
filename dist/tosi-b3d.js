@@ -297,6 +297,7 @@ import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
 import { cameraIsAttached, isNoCollide, isOff, markUiMesh, replaceKeepingLayers, } from './b3d-utils.js';
 import { NO_WIND, gustAt, windFromPolar } from './wind.js';
+import { CALM, weatherAt as composeWeather, } from './weather.js';
 import { faceViewer } from './dialog-placement.js';
 import { attachSceneLayer } from './panel-layer.js';
 import { angularHeight, bandOrbit, clampOrbit, orbitCentre, orbitFromAim, orbitPosition, } from './panel-orbit.js';
@@ -382,11 +383,6 @@ export class B3d extends Component {
         xrReticle: 'off',
         // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
         scenePanelOpen: false,
-        // When present, mount the split on-screen "glass" gamepad and feed it into
-        // the active input system (the unified touch control surface). The value
-        // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
-        // an empty value shows the full default layout. Absent → no gamepad.
-        gamepad: false,
         // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
         // wildly across devices, so this is exposed for tuning per scene/device.
         gamepadScale: 1,
@@ -828,6 +824,20 @@ export class B3d extends Component {
     openPopup(opts) {
         return openPopup(this, opts);
     }
+    /**
+     * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
+     * string = the full default layout; any other string selects and positions
+     * controls (`'a,b,right_stick(40,0),menu'`). Markup: `gamepad` or
+     * `gamepad="…"`.
+     *
+     * A PLAIN property, deliberately not in `initAttributes`: it is read once,
+     * at setup (property or attribute), and it is genuinely `boolean | string`.
+     * As an attribute tosijs typed it by its `false` default and warned on
+     * every string layout: one console error per demo, of the kind that means
+     * a call site was left behind by a type change. That trains people to
+     * ignore that warning.
+     */
+    gamepad = false;
     // ─── Pause ────────────────────────────────────────────────────────────────
     _paused = false;
     _pausePanel = null;
@@ -1296,6 +1306,48 @@ export class B3d extends Component {
             ? gustAt(base, this.frameInfo().elapsed, { amount: gust })
             : base;
     }
+    _weatherCells = [];
+    _weatherDebugOff = null;
+    /**
+     * **The weather at (x, z), now** — the scene's base (its wind, gusts
+     * included) plus every weather cell that reaches the point. The one
+     * question every weather consumer asks; see [[weather]] and
+     * WEATHER-DESIGN.md. Consumers read it at THEIR position, which is what
+     * makes a lee calm and a storm local.
+     */
+    weatherAt(x, z) {
+        return composeWeather({ ...CALM, wind: this.wind }, this._weatherCells, x, z);
+    }
+    /** The weather cells in force (read-only; add with `addWeatherCell`). */
+    get weatherCells() {
+        return this._weatherCells;
+    }
+    /** The weather where the viewer is (the active camera). */
+    weatherHere() {
+        const c = this.scene?.activeCamera?.globalPosition;
+        return c ? this.weatherAt(c.x, c.z) : { ...CALM, wind: this.wind };
+    }
+    /** A region whose weather differs (`<tosi-b3d-weather-cell>` uses this).
+     * The cell is read live, so moving it moves its weather. Returns a remover. */
+    addWeatherCell(cell) {
+        this._weatherCells.push(cell);
+        if (this._weatherDebugOff == null) {
+            this._weatherDebugOff = this.addDebugSource({
+                name: 'Weather',
+                lines: () => {
+                    const w = this.weatherHere();
+                    return [
+                        `wind ${Math.hypot(w.wind.x, w.wind.z).toFixed(1)}m/s cover=${w.coverage == null ? '-' : w.coverage.toFixed(2)} rain=${w.precipitation.toFixed(2)} storm=${w.storminess.toFixed(2)} cells=${this._weatherCells.length}`,
+                    ];
+                },
+            });
+        }
+        return () => {
+            const i = this._weatherCells.indexOf(cell);
+            if (i >= 0)
+                this._weatherCells.splice(i, 1);
+        };
+    }
     frameInfo() {
         return {
             dt: this.frameDelta,
@@ -1581,7 +1633,12 @@ export class B3d extends Component {
     _flatSig = '';
     _flatCheckIn = 0;
     _flatHandWarned = new Set();
+    _flatPoseObs = null;
     _disposeFlatPanels() {
+        if (this._flatPoseObs != null) {
+            this.scene?.onBeforeCameraRenderObservable.remove(this._flatPoseObs);
+            this._flatPoseObs = null;
+        }
         for (const p of this._flatPanels)
             p.dispose();
         this._flatPanels = [];
@@ -1611,31 +1668,48 @@ export class B3d extends Component {
                 if (specs.length > 0) {
                     const frames = XrFrames.flat(scene, cam);
                     this._flatFrames = frames;
+                    /*
+                    POSE THE FRAMES WHEN THE CAMERA IS FINAL, not when this loop runs.
+                    This used to happen here, before `scene.render()`, and anything that
+                    moves the camera during the render (b3d-aircraft's follow camera
+                    writes its position in its own before-render update) had not run
+                    yet. So every flat eye-anchored panel trailed the view by exactly
+                    one frame, measured by manta-recon at 2.151 m at speed (board #767).
+                    `computeWorldMatrix()` in `updateFlat` refreshed a stale MATRIX; it
+                    could not see a position nobody had written yet.
+                    `onBeforeCameraRenderObservable` fires after every before-render
+                    observer, once per camera, so the pose is whatever the frame
+                    actually renders.
+                    */
+                    this._flatPoseObs = scene.onBeforeCameraRenderObservable.add((rendering) => {
+                        if (rendering !== cam || this._flatFrames == null)
+                            return;
+                        this._flatFrames.update(0);
+                        for (const p of this._flatPanels)
+                            p.update();
+                    });
                     for (const spec of specs) {
+                        // `flatFrame` wins whenever it is given (the hands need it; a
+                        // pitched flat camera wants 'face'), and is required for a hand.
                         let frame = spec.frame ?? 'body';
-                        if (frame === 'left-hand' || frame === 'right-hand') {
-                            if (spec.flatFrame == null) {
-                                const key = spec.title ?? spec.url ?? frame;
-                                if (!this._flatHandWarned.has(key)) {
-                                    this._flatHandWarned.add(key);
-                                    console.warn(`b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
-                                        '(a monitor has no hands), so it is VR-only. Give it a ' +
-                                        '`flatFrame` to say where it goes flat.');
-                                }
-                                continue;
-                            }
+                        if (spec.flatFrame != null)
                             frame = spec.flatFrame;
+                        else if (frame === 'left-hand' || frame === 'right-hand') {
+                            const key = spec.title ?? spec.url ?? frame;
+                            if (!this._flatHandWarned.has(key)) {
+                                this._flatHandWarned.add(key);
+                                console.warn(`b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
+                                    '(a monitor has no hands), so it is VR-only. Give it a ' +
+                                    '`flatFrame` to say where it goes flat.');
+                            }
+                            continue;
                         }
                         this._flatPanels.push(attachFramePanel(scene, cam, frames.get(frame), spec));
                     }
                 }
             }
         }
-        if (this._flatFrames == null)
-            return;
-        this._flatFrames.update(0);
-        for (const p of this._flatPanels)
-            p.update();
+        // Posed in onBeforeCameraRenderObservable (above), when the view is final.
     }
     _update = () => {
         this._debugFrame++;
@@ -2154,6 +2228,17 @@ export class B3d extends Component {
     _fogBase = null;
     _fogNow = null;
     /**
+     * **Paint the fog a colour nothing else is** (`'#ff00ff'`), to see what is
+     * fog and what is surface. Composited fog in a murky scene is the same hue
+     * as half the things in it, so "I can't see X" cannot be told apart from
+     * "X is fogged out", "X is not drawn" or "that's the sky". Tonio suggested
+     * it mid-hunt for a missing water underside, and it answered the question
+     * in one screenshot. Also a toggle in the Perf Stats panel's Fog row, for
+     * a headset. Empty = the real fog.
+     */
+    debugFogColor = '';
+    _fogDebugOff = null;
+    /**
      * Contribute a fog layer — underwater, inside a cloud, out in space. Return `null` (or
      * `weight: 0`) when you're not contributing. Returns an unregister function.
      *
@@ -2294,7 +2379,37 @@ export class B3d extends Component {
         const k = 1 - Math.exp(-dt / 0.07);
         this._fogVeil += (veil - this._fogVeil) * k;
         const f = this._fogNow;
-        scene.fogColor.set(f.color.r, f.color.g, f.color.b);
+        if (this._fogDebugOff == null) {
+            this._fogDebugOff = this.addDebugSource({
+                name: 'Fog',
+                lines: () => {
+                    const n = this._fogNow;
+                    return n == null
+                        ? ['off']
+                        : [
+                            `density=${n.density.toFixed(3)} end=${n.end.toFixed(0)}m veil=${this._fogVeil.toFixed(2)}`,
+                        ];
+                },
+                actions: [
+                    {
+                        label: () => this.debugFogColor ? 'Debug colour ON' : 'Debug colour',
+                        handleClick: () => {
+                            this.debugFogColor = this.debugFogColor ? '' : '#ff00ff';
+                        },
+                    },
+                ],
+            });
+        }
+        if (this.debugFogColor) {
+            try {
+                scene.fogColor.copyFrom(BABYLON.Color3.FromHexString(this.debugFogColor));
+            }
+            catch {
+                scene.fogColor.set(1, 0, 1);
+            }
+        }
+        else
+            scene.fogColor.set(f.color.r, f.color.g, f.color.b);
         scene.fogDensity = f.density;
         scene.fogStart = f.start;
         scene.fogEnd = f.end;

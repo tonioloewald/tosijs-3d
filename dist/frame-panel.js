@@ -185,10 +185,14 @@ export function attachFramePanel(scene, cam, frame, spec) {
         ? new SvgTexture({
             scene,
             element: el,
-            resolution: 384,
+            resolution: spec.resolution ?? 384,
             updateInterval: 400,
         })
-        : new SvgTexture({ scene, url: spec.url, resolution: 384 });
+        : new SvgTexture({
+            scene,
+            url: spec.url,
+            resolution: spec.resolution ?? 384,
+        });
     const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene);
     mat.backFaceCulling = false;
     mat.emissiveTexture = tex.texture;
@@ -230,8 +234,94 @@ export function attachFramePanel(scene, cam, frame, spec) {
         updates: 0,
         camera: '—',
     };
+    /*
+    POINTERS, so a panel of controls is a panel you can USE (tosijs-3d#92).
+  
+    A `panel3d` SVG exposes `handlePointer(kind, x, y)` in viewBox coordinates,
+    and b3d-svg-plane has always routed scene picks into it — mouse, touch and
+    XR rays alike, through the one scene pointer observable. This marked its
+    plane pickable and routed nothing, so a menu here drew working-looking
+    buttons that ignored every click, with no error: the worst failure a menu
+    can have. Same routing as b3d-svg-plane: a press must land ON the plane, and
+    once pressed the panel owns the gesture until release (so a slider drag
+    survives leaving the track).
+  
+    A gaze-hidden panel does not take presses: it is not there for the user.
+  
+    And REPAINT NOW on a press or release, instead of waiting for the texture's
+    400 ms timer. Otherwise a button's pressed state lags by up to that, which
+    does not matter for a reticle and matters a lot for a menu. A move repaints
+    at most once per frame.
+    */
+    const target = el;
+    let pointerObs = null;
+    if (target != null && typeof target.handlePointer === 'function' && el) {
+        scene.constantlyUpdateMeshUnderPointer = true;
+        const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes;
+        let pressing = false;
+        let hovering = false;
+        let lastX = 0;
+        let lastY = 0;
+        let repaintQueued = false;
+        const repaint = (now) => {
+            if (now)
+                return tex.render();
+            if (repaintQueued)
+                return;
+            repaintQueued = true;
+            scene.onAfterRenderObservable.addOnce(() => {
+                repaintQueued = false;
+                tex.render();
+            });
+        };
+        pointerObs = scene.onPointerObservable.add((info) => {
+            const kind = info.type === POINTERDOWN
+                ? 'down'
+                : info.type === POINTERUP
+                    ? 'up'
+                    : info.type === POINTERMOVE
+                        ? 'move'
+                        : '';
+            if (!kind)
+                return;
+            const pick = info.pickInfo;
+            const onPlane = !!pick?.hit && pick.pickedMesh === plane && plane.visibility > 0.5;
+            const uv = onPlane && pick ? pick.getTextureCoordinates() : null;
+            if (uv) {
+                const vb = el.viewBox.baseVal;
+                lastX = uv.x * (vb.width || 1);
+                lastY = (1 - uv.y) * (vb.height || 1);
+            }
+            if (kind === 'down') {
+                if (!uv)
+                    return;
+                pressing = true;
+                target.handlePointer('down', lastX, lastY);
+                repaint(true);
+            }
+            else if (kind === 'move') {
+                if (pressing || uv) {
+                    hovering = true;
+                    target.handlePointer('move', lastX, lastY);
+                    repaint(false);
+                }
+                else if (hovering) {
+                    // Off the plane: clear the hover, or a highlighted row stays lit.
+                    hovering = false;
+                    target.handlePointer('leave', 0, 0);
+                    repaint(false);
+                }
+            }
+            else if (pressing) {
+                pressing = false;
+                target.handlePointer('up', lastX, lastY);
+                repaint(true);
+            }
+        });
+    }
     return {
         debug,
+        mesh: plane,
         // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
         // panel can be limited to one. Defaults to visible if no context is given.
         update(ctx) {
@@ -282,6 +372,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
             debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl);
         },
         dispose() {
+            if (pointerObs != null)
+                scene.onPointerObservable.remove(pointerObs);
             tex.dispose();
             mat.dispose();
             plane.dispose();

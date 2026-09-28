@@ -233,4 +233,58 @@ export function cloudOpacity(density, coverage) {
     const t = (density - threshold + softness) / (softness * 2);
     return t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
 }
+/**
+ * **Orographic lift at one point**, 0–`strength`: how much MORE cloud high
+ * ground makes here. `h` is the terrain height, `around` the mean height a
+ * little way off, `sea` the sea level, `peak` the height ABOVE THE SEA at which
+ * the lift is full.
+ *
+ * Two things make it, and both used to be missing:
+ *
+ * - **Height above the SEA, not above y = 0.** Measured from zero, a world
+ *   whose sea sits at 147 m (Land and Sky) counted its entire landmass as
+ *   mountain: every bit of land lifted +0.5 to +0.75 coverage, so a dial of
+ *   0.3 rendered as a solid grey sheet with the gaps filled in (Tonio:
+ *   "orographic is the problem. It fills the transparent areas without
+ *   changing apparent cloud coverage").
+ * - **A RIDGE, not a plateau.** What makes orographic cloud is air being
+ *   pushed UP, so ground that stands above its surroundings lifts most; a high
+ *   flat plain lifts a little (`PLATEAU_SHARE`), not fully.
+ */
+export function orographicLift(h, around, sea, peak, strength) {
+    const s = Math.min(1, Math.max(0, strength));
+    if (s <= 0)
+        return 0;
+    const p = Math.max(1, peak);
+    const e = Math.min(1, Math.max(0, (h - sea) / p));
+    const elevation = e * e * (3 - 2 * e);
+    const ridge = Math.min(1, Math.max(0, (h - around) / (p * 0.25)));
+    return s * elevation * (PLATEAU_SHARE + (1 - PLATEAU_SHARE) * ridge);
+}
+/** How much of the lift a high but FLAT plateau keeps (the rest is ridge). */
+export const PLATEAU_SHARE = 0.35;
+/** How far off (m) "around" is sampled for the ridge test. */
+export const OROGRAPHIC_REACH = 900;
+/**
+ * **The deck's weather grid as texture bytes** (RG: field, gloom), rows
+ * FLIPPED. The ground's vertex rows run from +Z down to -Z (row 0 is
+ * z = +size/2), while a texture's row 0 is v = 0, which the deck shader's
+ * window (`uv = (p - centre) / size + 0.5`) maps to -Z. Copied straight
+ * across, the local field was mirrored north-south in everything that reads
+ * the texture (coverage, storm gloom, cloud shadow): the lightning demo's
+ * storm, 1.3 km off the deck's centre, was drawn 1.3 km the other way.
+ */
+export function packWeatherTexture(field, gloom, n) {
+    const bytes = new Uint8Array(n * n * 2);
+    for (let row = 0; row < n; row++) {
+        const flipped = n - 1 - row;
+        for (let col = 0; col < n; col++) {
+            const k = row * n + col;
+            const t = (flipped * n + col) * 2;
+            bytes[t] = Math.round(field[k] * 255);
+            bytes[t + 1] = gloom == null ? 0 : Math.round(gloom[k] * 255);
+        }
+    }
+    return bytes;
+}
 //# sourceMappingURL=cloud-field.js.map

@@ -94,7 +94,8 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
     and it removes the oddity Tonio hit: a resting setting that quietly kept
     accelerating past the aircraft's advertised top speed.
     */
-    const dragK = cfg.maxSpeed > 0 ? cfg.accel / (cfg.maxSpeed * cfg.maxSpeed) : 0;
+    const medium = Math.max(1e-3, cfg.mediumDrag ?? 1);
+    const dragK = (cfg.maxSpeed > 0 ? cfg.accel / (cfg.maxSpeed * cfg.maxSpeed) : 0) * medium;
     const detent = cfg.afterburnerDetent ?? 0.9;
     const reheat = setting >= 0.999 && lift > detent
         ? (lift - detent) / Math.max(1e-3, 1 - detent)
@@ -109,13 +110,13 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
     // pilot who wants to come down NOW, and it silently removed the ability to
     // decelerate into a hover.
     const airbrake = setting <= 1e-6 && lift < 0 ? -lift * (cfg.brakeAccel ?? cfg.accel) : 0;
+    // Drag is applied separately and CLAMPED: it can bring speed to rest but
+    // never reverse it. Unclamped, a thick medium (water, `mediumDrag` ≈ 10) over
+    // one long frame overshot zero and threw the craft backwards.
+    const dragLoss = Math.min(Math.abs(state.speed), t * dragK * state.speed * state.speed * dt);
     state.speed +=
-        t *
-            (cfg.accel * setting +
-                reheatAccel * reheat -
-                dragK * state.speed * state.speed -
-                airbrake) *
-            dt;
+        t * (cfg.accel * setting + reheatAccel * reheat - airbrake) * dt -
+            Math.sign(state.speed) * dragLoss;
     // DRONE FORE/AFT IS THE LEAN, AND IT IS SYMMETRIC. Nose down accelerates,
     // nose UP decelerates and — past zero — walks you backwards. This used to be
     // `max(0, -pitch)`: leaning back did nothing, so a hovering craft had no way
@@ -141,7 +142,10 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
         else if (state.speed < 0)
             state.speed = Math.min(0, state.speed + brake);
     }
-    state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt;
+    // Clamped to one step's worth: a thick medium × a long frame must decay
+    // speed to zero, never overshoot it into reverse.
+    state.speed -=
+        (1 - t) * Math.min(1, cfg.hoverDamp * medium * dt) * state.speed;
     state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt);
     // Reverse is a HOVER-ONLY privilege, and it fades out as the craft becomes a
     // plane: at t = 0 you may back up to `reverseSpeed`, by t = 1 the floor is
@@ -236,10 +240,44 @@ export function chaseVelocity(vel, target, velChase, dt) {
 export function equilibriumSpeed(cfg, throttle, afterburner = 0) {
     if (cfg.maxSpeed <= 0 || cfg.accel <= 0)
         return 0;
-    const dragK = cfg.accel / (cfg.maxSpeed * cfg.maxSpeed);
+    const dragK = (cfg.accel / (cfg.maxSpeed * cfg.maxSpeed)) *
+        Math.max(1e-3, cfg.mediumDrag ?? 1);
     const abRatio = cfg.afterburnerSpeed / cfg.maxSpeed;
     const reheatAccel = cfg.accel * Math.max(0, abRatio * abRatio - 1);
     const thrust = cfg.accel * clamp(throttle, 0, 1) + reheatAccel * clamp(afterburner, 0, 1);
     return Math.sqrt(Math.max(0, thrust / dragK));
+}
+/**
+ * **Turbulence**: smooth, seeded disturbance for an airframe, as RATES
+ * (pitch and roll in rad/s, heave in m/s²) to add to the state each step.
+ * The attitude controller then pulls the craft back toward what the stick
+ * commands, and the fight between the two is what a buffet feels like.
+ *
+ * Deterministic (a sum of incommensurate sines with seeded phases), so the
+ * same flight through the same storm bumps the same way; zero when `level`
+ * is 0; mean zero, so it shakes without pushing. `level` 0–1 comes from the
+ * weather (storminess, wind); see `b3d-aircraft`.
+ */
+export function turbulence(t, seed, level) {
+    if (!(level > 0))
+        return { pitchRate: 0, rollRate: 0, heave: 0 };
+    const k = Math.min(1, level);
+    // Seeded phases, one per term, from a small integer hash.
+    const ph = (i) => {
+        let h = (seed | 0) ^ Math.imul(i + 1, 0x9e3779b1);
+        h = Math.imul(h ^ (h >>> 15), 0x85ebca77);
+        h ^= h >>> 13;
+        return ((h >>> 0) / 4294967296) * Math.PI * 2;
+    };
+    // Three frequencies per channel, incommensurate so it never repeats
+    // visibly: a slow wallow, a mid bump, a quick chop.
+    const ch = (base, o) => Math.sin(t * base + ph(o)) * 0.55 +
+        Math.sin(t * base * 2.713 + ph(o + 1)) * 0.3 +
+        Math.sin(t * base * 6.271 + ph(o + 2)) * 0.15;
+    return {
+        pitchRate: ch(1.3, 0) * 0.35 * k,
+        rollRate: ch(1.7, 3) * 0.6 * k,
+        heave: ch(1.1, 6) * 6 * k,
+    };
 }
 //# sourceMappingURL=fly-by-wire.js.map

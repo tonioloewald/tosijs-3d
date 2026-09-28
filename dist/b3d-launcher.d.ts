@@ -5,6 +5,7 @@ import { type BallisticParams, type Vec3 } from './ballistics.js';
 import { type Medium, type MediumCrossing } from './medium.js';
 import type { WarheadSpec } from './warhead.js';
 import type { Cause } from './destroyable.js';
+import { type TrailOptions } from './b3d-trail.js';
 /**
  * WHERE a round stopped, and what it stopped against.
  *
@@ -97,6 +98,9 @@ export interface ProjectileOpts {
      * picks itself blocks the blast's own line of sight.
      */
     mesh?: BABYLON.TransformNode;
+    /** A ribbon behind the round (smoke, a contrail) — see `attachTrail`. It
+     * rides the round's mesh, resets on an origin shift, and goes with it. */
+    trail?: TrailOptions;
     /** React to a medium boundary: the entry splash, the breakout plume, the
      * audio. Called with which way it went and which medium it was. */
     whenCrossing?: (kind: MediumCrossing, medium: Medium, at: {
@@ -202,6 +206,8 @@ export interface MissileOpts {
         profile: number;
         faction: RadarFaction;
     };
+    /** A smoke ribbon behind it (see ProjectileOpts.trail). */
+    trail?: TrailOptions;
 }
 /**
  * Spawn a **guided missile** that homes on `target`: each frame it leads the target
@@ -247,6 +253,8 @@ export declare class B3dLauncher extends AbstractMesh {
         missileSpeed: number;
         turnRate: number;
         projRadius: number;
+        /** `'on'` leaves a smoke ribbon behind each guided missile (`fireAt`). */
+        missileTrail: "on" | "off";
         projColor: string;
         maxLifetime: number;
         damage: number;
@@ -293,6 +301,7 @@ export declare class B3dLauncher extends AbstractMesh {
     get turnRateDeg(): number;
     set turnRateDeg(v: number);
     projRadius: number;
+    missileTrail: 'on' | 'off';
     projColor: string;
     maxLifetime: number;
     damage: number;

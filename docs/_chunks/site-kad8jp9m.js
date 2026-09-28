@@ -1,0 +1,5 @@
+import{Ye}from"./site-c6g1b76s.js";import{I,pt}from"./site-wsw4wdqb.js";import{a,e,o}from"./site-3ge18yeb.js";class l_ extends Ye{constructor(t){super(t);this.sourceSystem=this.registerDataInput("sourceSystem",I),this.destinationSystem=this.registerDataInput("destinationSystem",I),this.inputCoordinates=this.registerDataInput("inputCoordinates",pt),this.outputCoordinates=this.registerDataOutput("outputCoordinates",pt)}_updateOutputs(t){let n=this.sourceSystem.getValue(t),u=this.destinationSystem.getValue(t),p=this.inputCoordinates.getValue(t),m=n.getWorldMatrix(),l=u.getWorldMatrix(),s=o.Matrix[0].copyFrom(l);s.invert();let r=o.Matrix[1];s.multiplyToRef(m,r);let d=this.outputCoordinates.getValue(t);e.TransformCoordinatesToRef(p,r,d)}getClassName(){return"FlowGraphTransformCoordinatesSystemBlock"}}var i=!1;function c_(){if(i)return;i=!0,a("FlowGraphTransformCoordinatesSystemBlock",l_)}c_();
+export{l_,c_};
+
+//# debugId=924D26A7ADCAE25164756E2164756E21
+//# sourceMappingURL=site-kad8jp9m.js.map

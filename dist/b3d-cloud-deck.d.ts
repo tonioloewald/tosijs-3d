@@ -65,6 +65,13 @@ export declare class B3dCloudDeck extends B3dChild {
          */
         localRise: number;
         /**
+         * How far a STORM TOWER stands above the deck at a weather cell's full
+         * coverage 2, in metres (cells past coverage 1 lift the top skin there,
+         * whatever the global dial says). Towers are what make lightning read as
+         * light INSIDE cloud.
+         */
+        stormRise: number;
+        /**
          * How much a unit of local weather adds to `coverage`.
          *
          * This is what the field does BELOW an overcast: high ground makes more
@@ -191,6 +198,7 @@ export declare class B3dCloudDeck extends B3dChild {
     evolve: number;
     follow: string;
     localRise: number;
+    stormRise: number;
     localCoverage: number;
     orographic: number;
     orographicPeak: number;
@@ -232,6 +240,34 @@ export declare class B3dCloudDeck extends B3dChild {
     /** The scene's terrain, looked up once — re-queried only while absent or gone. */
     private _terrainEl;
     private _weatherMax;
+    /** Largest storm excess in the baked grid (0 = no tower anywhere). */
+    private _stormMax;
+    private _flash;
+    private _flashColor;
+    /**
+     * **How opaque the deck is straight above (x, z)**, 0 (a gap) to 1 (solid),
+     * in world XZ. For PLACEMENT (light shafts go where the sun breaks through
+     * a gap beside cloud), not for drawing: it reads the SAME baked field the
+     * shader does, through the same two drifting layers and the shared
+     * `cloudOpacity` threshold, so it cannot disagree about the noise. Only the
+     * sampling is mirrored, which the rule about noise in two languages allows.
+     * Cheap enough for a few dozen calls a second.
+     */
+    opacityAbove(x: number, z: number): number;
+    /**
+     * **The cloud cover over (x, z)** as the shader has it: the dial, the local
+     * field and storms, in world XZ. Not clamped at 1 by the dial alone (a dial
+     * of 1.4 reads 1.4). Light shafts gate on it: they only make sense under a
+     * broken-but-not-closed sky.
+     */
+    coverageAt(x: number, z: number): number;
+    /**
+     * **Light the cloud from inside**, around (x, z) in world XZ, out to about
+     * `radius` metres, at `level` (0 = off; ~1.5 is a strong strike). Lightning
+     * calls this every frame of a flash; it is the deck's own light, because a
+     * point light cannot reach a cloud drawn by its own shader.
+     */
+    flash(x: number, z: number, level: number, radius?: number): void;
     private _weatherTex;
     private _weatherTexSize;
     private _originX;
@@ -313,6 +349,16 @@ export declare class B3dCloudDeck extends B3dChild {
      * from the terrain for `orographic`, or nothing.
      */
     private _weatherField;
+    /** The storm share only: weather-cell coverage, no orographic lift. */
+    private _gloomField;
+    /** Is any weather cell asking for coverage? */
+    private _coverageCells;
+    /** A coarse signature of the coverage cells: a drifting storm re-bakes
+     * about once per 10 m of travel, not every frame. */
+    private _cellsKey;
+    /** Sea level for orographic lift: the scene's water surface, else 0. */
+    private _seaLevel;
+    private _ownWeatherField;
     /**
      * Write the local weather field into the vertex channel.
      *
@@ -521,6 +567,9 @@ export declare class B3dCloudDeck extends B3dChild {
      * Both are gated on being BELOW the layer. Above it nothing is obstructed,
      * and climbing out into the light should be dramatic.
      */
+    /** Multiplies the sun and the ambient fill (1 = no effect). Set by
+     * `<tosi-b3d-lightning>` while a storm is near. */
+    stormDim: number;
     private _applyGloom;
     /**
      * Scale a light's intensity, BORROWING rather than taking it.
