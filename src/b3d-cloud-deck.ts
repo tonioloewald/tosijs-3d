@@ -2534,6 +2534,9 @@ export class B3dCloudDeck extends B3dChild {
   private _setupShadows(owner: B3d, scene: BABYLON.Scene): void {
     const map = new CloudShadowMap(scene, this.shadowRange)
     this._shadowMap = map
+    // A lightning flash comes from BELOW the cloud: its light is not
+    // cloud-shadowed, so the shadow fades while the deck is flashing.
+    map.strengthSource = () => 1 - Math.min(1, this._flash.level)
     const res = resolveBudget(this.shadowResolution, 'cloudShadowSize')
     const tex = new BABYLON.ProceduralTexture(
       'cloud-deck-shadow',

@@ -2117,8 +2117,8 @@
       },
       {
         "name": "width",
-        "default": "200",
-        "description": "The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1"
+        "default": "40",
+        "description": "The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1. Kept SMALL on purpose: the wider a shaft, the more obvious any mismatch with the gap it comes from"
       },
       {
         "name": "spread",

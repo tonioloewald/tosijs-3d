@@ -20,7 +20,7 @@ import { b3d, b3dSun, b3dLight, b3dSkybox, b3dCloudDeck, b3dLightShafts, b3dGrou
 import { tosi } from 'tosijs'
 
 const { shafts } = tosi({
-  shafts: { coverage: 0.85, timeOfDay: 15.2, altitude: 450, strength: 0.35, width: 200, count: 10 },
+  shafts: { coverage: 0.85, timeOfDay: 15.2, altitude: 450, strength: 0.35, width: 40, count: 14 },
 })
 
 preview.append(
@@ -49,7 +49,7 @@ preview.append(
         slider3d({ label: 'time of day', value: shafts.timeOfDay, min: 6, max: 19, step: 0.1 }),
         slider3d({ label: 'cloud base', value: shafts.altitude, min: 150, max: 1200, step: 10 }),
         slider3d({ label: 'strength', value: shafts.strength, min: 0, max: 1, step: 0.01 }),
-        slider3d({ label: 'width', value: shafts.width, min: 20, max: 500, step: 10 }),
+        slider3d({ label: 'width', value: shafts.width, min: 5, max: 200, step: 5 }),
         slider3d({ label: 'count', value: shafts.count, min: 0, max: 30, step: 1 }),
       ],
     },
@@ -174,7 +174,7 @@ the water ones.
 |-----------|---------|-------------|
 | `count` | `14` | How many sky shafts at most (the budget). `0` = off |
 | `radius` | `3000` | How far from you (m) to look for gaps. Shafts read best from a distance |
-| `width` | `200` | The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1 |
+| `width` | `40` | The BROADEST sky shaft at the cloud (m), at the coverage threshold (0.5); narrower as the cover closes, down to 10% of this near 1. Kept SMALL on purpose: the wider a shaft, the more obvious any mismatch with the gap it comes from |
 | `spread` | `0` | Extra width per metre of length. `0`: RECTANGULAR shafts, so all the apparent widening is perspective, and they radiate from the sun because they are parallel to its light |
 | `strength` | `0.35` | Brightness at the edge the light comes through; it falls linearly to 0 |
 | `rainBoost` | `0.5` | How much precipitation where you are multiplies the strength |
@@ -275,7 +275,7 @@ export class B3dLightShafts extends B3dChild {
   static initAttributes = {
     count: 14,
     radius: 3000,
-    width: 200,
+    width: 40,
     spread: 0,
     strength: 0.35,
     rainBoost: 0.5,
@@ -417,7 +417,13 @@ export class B3dLightShafts extends B3dChild {
       this._sweep()
       return
     }
-    const light = this._lightColor(sun)
+    /*
+    AS BRIGHT AS THE LIGHT IS. The colour is normalised (a hue), so without
+    this the MOON, which the skybox puts in the same light at night, made
+    shafts as bright as noon's (Tonio: "huge and very prominent light shafts
+    from the MOON"). Moonlight shafts are real, and faint.
+    */
+    const light = this._lightColor(sun).scale(Math.min(1, sun.intensity))
     const rain = owner.weatherHere?.().precipitation ?? 0
     const boost = 1 + Math.max(0, this.rainBoost) * rain
     const waterDir =

@@ -134,7 +134,8 @@ export function waterRayShape(roughness: number): {
   const r = Math.min(1, Math.max(0, roughness))
   return {
     presence: 0.03 + 0.17 * r,
-    width: 2.2 - 1.9 * r,
+    // Small: a broad ray makes any mismatch with the surface obvious.
+    width: 0.8 - 0.6 * r,
     period: 6 - 4.8 * r,
   }
 }

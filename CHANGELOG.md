@@ -10,6 +10,20 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Lightning lit the land through cloud-shaped shadows** (Tonio: "the
+  directional light seems to be coming from above the cloud layer ... the
+  shadows are mostly cloud"). The projected cloud shadow multiplied the
+  whole lit colour, flash included; a flash starts BELOW the cloud, so the
+  cloud shadow now fades while the deck is flashing (`strengthSource`, read
+  at draw time).
+- **Moonlight made shafts as bright as noon.** The shafts' colour was
+  normalised and never scaled by the light's intensity; the skybox puts the
+  moon in the same light at night. They now scale with it (moon shafts are
+  real, and faint).
+- **Shafts are SMALL where they leave the deck or the surface** (Tonio: the
+  wider they are, the more obvious any mismatch with the gap): sky `width`
+  200 -> 40 m (4 m near closed cover), underwater rays 0.2-0.8 m.
+
 - **No shadow map rendered on the doc site, the sun's included.** Babylon's
   shadow generators lazy-load their shaders from code-split chunks, and each
   chunk loaded a second copy of the site bundle (tosijs-ui#191), which threw,
