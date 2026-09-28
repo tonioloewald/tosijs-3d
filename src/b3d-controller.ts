@@ -29,7 +29,10 @@ const controller = b3dController({
   mapping: 'biped',
   drive(input, dt) {
     if (!rover) return
-    rover.rotation.y += input.turn * dt * 2.4 // turn (A/D · left stick X)
+    // The biped mapping sends A/D and left-stick X to STRAFE and the right
+    // stick to TURN; a rover has no sideways, so either one steers it.
+    const steer = Math.max(-1, Math.min(1, input.turn + input.strafe))
+    rover.rotation.y += steer * dt * 2.4 // turn (A/D · either stick)
     const step = input.forward * dt * 7 // drive (W/S · left stick Y)
     rover.position.x += Math.sin(rover.rotation.y) * step
     rover.position.z += Math.cos(rover.rotation.y) * step

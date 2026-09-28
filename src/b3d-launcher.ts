@@ -56,7 +56,11 @@ const scene = b3d(
   b3dController({
     mapping: 'biped',
     drive(input, dt) {
-      launcher.ry += input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
+      // Steer on EITHER stick: the biped mapping sends A/D and the left
+      // stick to strafe (move) and only the right stick to turn, so reading
+      // turn alone left the glass pad's stick and A/D dead (board #2434).
+      const steer = Math.max(-1, Math.min(1, input.turn + input.strafe))
+      launcher.ry += steer * dt * 70 // steer azimuth (A/D · either stick · VR)
       if (input.shoot > 0.5 || input.sprint > 0.5) {
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value

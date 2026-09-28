@@ -10,6 +10,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **The launcher demo's left stick did nothing** (board #2434). Since the
+  GTA-style remap the biped mapping sends A/D and left-stick X to `strafe`
+  and only the right stick to `turn`; three doc demos (launcher, warhead,
+  the controller's rover) still steered on `turn` alone, so the glass
+  pad's stick and A/D were dead. They now steer on either.
+
 - **Orographic cloud filled the whole sky over land** (Tonio: "orographic is
   the problem. It fills the transparent areas without changing apparent
   cloud coverage"). The lift was measured from ABSOLUTE height, so with Land
