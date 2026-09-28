@@ -215,8 +215,11 @@
       </ol>
     </div>
 
-    <script src="/iife.js"></script>
-    <script>
+    <!-- The doc site's own ES module (registers every tosi-b3d element). The
+         page used the IIFE, the site's only other consumer; modules run in
+         order, so the script below still sees the elements defined. -->
+    <script type="module" src="/hydrate.js"></script>
+    <script type="module">
       // Everything the test needs is on the page: an iOS Safari console is
       // painful to reach, and the console warning IS half of what #9 asked for.
       const line = (el, msg, cls) => {

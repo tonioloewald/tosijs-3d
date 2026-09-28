@@ -97,10 +97,9 @@ export default defineSiteConfig({
   emitLibrary: true,
   libraryTsconfig: 'tsconfig.build.json',
 
-  // Importmap so the IIFE's runtime `import('jolt-physics')` resolves to the
-  // ESM loader copied into static/ by prebuild. Dynamic `import()` in a
-  // classic `<script>` consults the page's importmap, so this works without
-  // having to load iife.js as a module.
+  // Importmap so the bundle's runtime `import('jolt-physics')` resolves to
+  // the ESM loader copied into static/ by prebuild. (Pages load hydrate.js
+  // as a module; nothing of ours loads iife.js any more.)
   // Two head injections: the jolt importmap, and a project-wide override that drops the
   // live-example preview inset. tosijs-ui's `tosi-example` is a LIGHT-DOM component whose
   // `.preview` container carries `padding: var(--spacing)` (~10px breathing room) — sensible

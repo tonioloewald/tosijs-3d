@@ -138,8 +138,11 @@
 
     <div id="pad"><tosi-b3d-gamepad id="glass"></tosi-b3d-gamepad></div>
 
-    <script src="/iife.js"></script>
-    <script>
+    <!-- The doc site's own ES module (registers every tosi-b3d element). The
+         page used the IIFE, the site's only other consumer; modules run in
+         order, so the script below still sees the elements defined. -->
+    <script type="module" src="/hydrate.js"></script>
+    <script type="module">
       // Deliberately NO aircraftMapping and no ControlInput: the question is
       // whether the SOURCES agree, so anything downstream would only add a place
       // for the answer to change on the way here. (#14)
