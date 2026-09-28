@@ -2649,6 +2649,10 @@ export class B3dCloudDeck extends B3dChild {
    * Both are gated on being BELOW the layer. Above it nothing is obstructed,
    * and climbing out into the light should be dramatic.
    */
+  /** Multiplies the sun and the ambient fill (1 = no effect). Set by
+   * `<tosi-b3d-lightning>` while a storm is near. */
+  stormDim = 1
+
   private _applyGloom(sun: BABYLON.DirectionalLight | null): void {
     const scene = this.owner?.scene
     if (scene == null) return
@@ -2699,13 +2703,26 @@ export class B3dCloudDeck extends B3dChild {
       num(this.ambientGloom, 0) + (0.9 - num(this.ambientGloom, 0)) * th
     const sunDepth = num(this.sunGloom, 0) + (1 - num(this.sunGloom, 0)) * th
 
-    const ambient = 1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth
-    const key = 1 - ramp(num(this.sunGloomBelow, 0)) * sunDepth
+    /*
+    A LIGHTNING STORM DARKENS THE DAY (Tonio: "cut ambient and even sun
+    brightness somewhat when lightning is flashing ... reduce both by half").
+    <tosi-b3d-lightning> sets stormDim from how stormy it is near you; it goes
+    through HERE, the one owner of these lights, so the two cannot compound.
+    */
+    const storm = Number.isFinite(this.stormDim)
+      ? Math.max(0, Math.min(1, this.stormDim))
+      : 1
+    const ambient =
+      (1 - ramp(num(this.ambientGloomBelow, 0)) * ambientDepth) * storm
+    const key = (1 - ramp(num(this.sunGloomBelow, 0)) * sunDepth) * storm
 
     for (const light of scene.lights) {
       const isSun = light === sun
       const isFill = light.getClassName() === 'HemisphericLight'
       if (!isSun && !isFill) continue
+      // Lightning's own lights are the FLASH, not the day: dimming them with
+      // the day cut a strike's landscape light by up to 90% under cover.
+      if (light.name.startsWith('lightning-')) continue
       this._dim(light, isSun ? key : ambient)
     }
     // Anything that left the scene, or stopped qualifying, gets itself back.

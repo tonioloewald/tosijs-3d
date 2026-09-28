@@ -132,6 +132,7 @@ The pure half (when, where, bolt shape, flicker, thunder delay) is
 | `thunder` | `'on'` | Procedural thunder, delayed by distance |
 | `volume` | `0.8` | Thunder loudness |
 | `groundLight` | `2.5` | How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate) |
+| `darken` | `0.5` | How much a storm near you takes from the sun AND the ambient light (half, at full storm, easing with distance), so the flashes stand out. Applied through the cloud deck, which owns those lights |
 | `shadows` | `'on'` | Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame) |
 | `shadowSize` | `1024` | Its resolution |
 | `flashLight` | `'point'` | The strike's shadowed light. `'point'`: shadows radiate from the bolt in every direction (a cube map: six shadow renders, once per new strike). `'directional'`: one render, correct looking toward the strike; the cheap choice for low-end devices |
@@ -143,7 +144,7 @@ The pure half (when, where, bolt shape, flicker, thunder delay) is
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, isOff } from './b3d-utils.js'
+import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
 import {
   boltPath,
   flashAt,
@@ -160,6 +161,7 @@ type Deck = {
   flash?: (x: number, z: number, level: number, radius?: number) => void
   altitude?: number
   stormRise?: number
+  stormDim?: number
 }
 type TerrainLike = {
   heightSampler?: () => (x: number, z: number) => number
@@ -186,6 +188,9 @@ export class B3dLightning extends B3dChild {
     thunder: 'on' as 'on' | 'off',
     volume: 0.8,
     groundLight: 2.5,
+    /** How much a nearby storm takes from the sun and the ambient light
+     * (0.5 = half), so the flashes stand out. */
+    darken: 0.5,
     /** Shadows from the strike's light: 'on' | 'off'. */
     shadows: 'on' as 'on' | 'off',
     shadowSize: 1024,
@@ -209,6 +214,7 @@ export class B3dLightning extends B3dChild {
   declare thunder: 'on' | 'off'
   declare volume: number
   declare groundLight: number
+  declare darken: number
   declare shadows: 'on' | 'off'
   declare shadowSize: number
   declare shadowRange: number
@@ -237,6 +243,7 @@ export class B3dLightning extends B3dChild {
   above, spiking with the flash and falling off with the storm's distance.
   */
   private _sky: BABYLON.HemisphericLight | null = null
+  private _activity = 0
   private _glowMat: BABYLON.StandardMaterial | null = null
   private _boltMat: BABYLON.StandardMaterial | null = null
   private _spriteMat: BABYLON.StandardMaterial | null = null
@@ -322,6 +329,31 @@ export class B3dLightning extends B3dChild {
     }
     const deck = this._deck(owner)
     const drama = Math.max(0, this.brightness)
+    /*
+    THE STORM DARKENS THE DAY around you, so its flashes pop: the sun and
+    the ambient fill go down by `darken` (half) at full storm, easing with
+    the storm's distance from you (gone 3 km past its edge) and its
+    strength. Through the deck, which owns those lights.
+    */
+    if (deck != null) {
+      const cam = scene.activeCamera?.globalPosition
+      let activity = 0
+      if (cam != null)
+        for (const st of storms) {
+          const out = Math.max(
+            0,
+            Math.hypot(st.at.x - cam.x, st.at.z - cam.z) - st.radius
+          )
+          activity = Math.max(
+            activity,
+            Math.min(1, st.storminess) * Math.max(0, 1 - out / 3000)
+          )
+        }
+      // Eased, so a storm arriving or a toggle does not snap the light.
+      this._activity +=
+        (activity - this._activity) * Math.min(1, sceneDelta(scene) * 0.5)
+      deck.stormDim = 1 - Math.max(0, Math.min(1, this.darken)) * this._activity
+    }
     if (best != null) {
       const k = best.strike
       deck?.flash?.(
@@ -808,6 +840,7 @@ export class B3dLightning extends B3dChild {
     this._spriteMat = null
     const deck = this.owner ? this._deck(this.owner) : null
     deck?.flash?.(0, 0, 0)
+    if (deck != null) deck.stormDim = 1
     /*
     SILENCE, AT ONCE. Thunder is scheduled ahead on the audio clock (a storm
     2 km off rumbles 6 s after its flash, for 4 s), so leaving the page left

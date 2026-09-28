@@ -2230,6 +2230,11 @@
         "description": "How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate)"
       },
       {
+        "name": "darken",
+        "default": "0.5",
+        "description": "How much a storm near you takes from the sun AND the ambient light (half, at full storm, easing with distance), so the flashes stand out. Applied through the cloud deck, which owns those lights"
+      },
+      {
         "name": "shadows",
         "default": "'on'",
         "description": "Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame)"

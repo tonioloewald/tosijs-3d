@@ -182,16 +182,17 @@ const terrain = b3dTerrain({
 
 applyVolcano(demo.volcano.valueOf())
 
-// A STORM, as weather rather than scenery (WEATHER-DESIGN stage 2): a cell
-// with coverage, drifting with the wind. It starts just behind you, passes
-// overhead (the light goes, its shadow crosses the valley) and then recedes
-// into view to the east. Toggling it on again starts a new one.
+// A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
+// with coverage and storminess, drifting with the wind. It gathers IN FRONT
+// of you (the view faces east) over twenty seconds, so switching it on shows
+// you a storm, then drifts away east. Lightning, thunder, rain and strike
+// shadows all come from the cell. Toggling it on again starts a new one.
 let storm = null
 sky.storm.observe(() => {
   storm?.remove()
   storm = null
   if (sky.storm.value) {
-    storm = b3dWeatherCell({ x: -1200, z: 0, radius: 1000, coverage: 1.7, storminess: 0.8, precipitation: 0.9, drift: 'wind', grow: 60 })
+    storm = b3dWeatherCell({ x: 1600, z: 300, radius: 900, coverage: 1.7, storminess: 1, precipitation: 0.9, drift: 'wind', grow: 20 })
     scene.append(storm)
   }
 })
@@ -225,6 +226,8 @@ const scene = b3d(
           terrain.regenerate()
         },
       }),
+      // Beside the volcano: the other thing you switch on to watch happen.
+      toggle3d({ label: 'lightning storm', value: sky.storm }),
       label3d({ text: 'Climate' }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
@@ -234,7 +237,6 @@ const scene = b3d(
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'wind', value: sky.wind, min: 0, max: 40, step: 1 }),
-      toggle3d({ label: 'storm', value: sky.storm }),
       // Signed: positive streaks ALONG the wind, negative ACROSS it.
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),

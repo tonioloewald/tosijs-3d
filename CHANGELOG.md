@@ -70,6 +70,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   point light); `shadows`, `shadowSize`. It replaces the old point light, so
   the scene stays within a material's 4-light budget. The lightning demo now
   has hills, trees and a hamlet under the storm.
+- **A storm darkens the day around it** (Tonio: "cut ambient and even sun
+  brightness somewhat when lightning is flashing ... by half"): new
+  `darken` on `<tosi-b3d-lightning>` (0.5) takes the sun and the ambient
+  fill down by half at full storm, easing with distance and strength,
+  through the cloud deck's own light handling (`deck.stormDim`) so the two
+  cannot compound. The deck's gloom no longer dims lightning's own lights
+  (it was cutting the landscape flash by up to 90% under cover).
+- **Land and Sky: a "lightning storm" toggle** beside the volcano: the storm
+  gathers in front of you over 20 s, strikes, rains and throws strike
+  shadows, then drifts away east.
 - **Lightning is dramatic** (Tonio: "having the lightning be dramatically
   bright"): each strike lights the WHOLE landscape from above (falling off
   with the storm's distance), the tower from inside, harder, and the bolt
