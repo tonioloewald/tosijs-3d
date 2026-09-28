@@ -279,7 +279,12 @@ export class B3dLightning extends B3dChild {
         const cam = scene.activeCamera?.globalPosition
         const d = cam ? Math.hypot(k.x - cam.x, k.z - cam.z) : 0
         const kind = k.kind === 'ground' ? 1 : k.kind === 'cloud' ? 0.55 : 0
-        this._sky.intensity = (bestLevel * kind * 1.4 * drama) / (1 + d / 3000)
+        // Strong enough that a DARK ground (albedo ~0.3) reads as lit, not a
+        // dim olive (Tonio: "why is the cloud lighting up but the ground
+        // doesn't seem to be nearly as lit up?"). The cloud's flash is added
+        // light and whites out; the ground only has what it reflects.
+        this._sky.intensity =
+          (bestLevel * kind * 3.5 * drama) / (1 + d / 6000)
       }
     } else {
       deck?.flash?.(0, 0, 0)
@@ -310,7 +315,7 @@ export class B3dLightning extends B3dChild {
         new BABYLON.Vector3(0, base, 0),
         scene
       )
-      this._light.range = 3000
+      this._light.range = 6000
       // Diffuse only: a specular highlight on flat ground read as a searchlight
       // beam, not a flash.
       this._light.specular = BABYLON.Color3.Black()

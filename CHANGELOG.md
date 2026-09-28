@@ -60,6 +60,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   often, a multiple of the natural rate; pure `strikesBetween` takes it,
   tested) on `<tosi-b3d-lightning>`; `groundLight` default 2.5 -> 6. Storm
   lightning also brightens the WHITEOUT when you are inside the cloud. The
+  landscape flash is strong enough for a dark ground to read as lit (peak
+  3.5, halving at 6 km; the ground light reaches 6 km). The
   demo has a scene panel: storm size,
   how often, cloud cover, brightness, time of day. A storm is no longer a
   TOWER by default (Tonio: "it basically looks terrible"): the deck's
