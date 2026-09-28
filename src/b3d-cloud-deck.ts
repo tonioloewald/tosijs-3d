@@ -415,7 +415,15 @@ float coverageAt(vec2 p) {
   field already carries the cells (ramped); the gloom channel is exactly the
   cells, so it tops them up to full as the ramp falls away.
   */
-  return coverage + weatherAt(p) * localCoverage * ramp + gloomAt(p) * (1.0 - ramp);
+  /*
+  AND A STORM COUNTS IN FULL (Tonio: "the cover [should] hit 100 before you
+  get to the core of the storm"). The field carries the storm too, so its
+  share is taken out of the ramped part and added back whole: split between
+  the two it only summed to full at the very core, and the storm's inner
+  half was still broken sky.
+  */
+  float storm = gloomAt(p);
+  return coverage + max(0.0, weatherAt(p) - storm) * localCoverage * ramp + storm;
 }
 
 vec2 toField(vec2 p) {
@@ -1240,11 +1248,14 @@ export class B3dCloudDeck extends B3dChild {
       lw == null
         ? 0
         : Math.min(1, Math.max(0, lw(x - this._originX, z - this._originZ)))
+    // Mirrors the shader: the storm counts once, in full (see coverageAt).
     const storm = Math.min(1, this.owner?.weatherAt?.(x, z).coverage ?? 0)
     return (
       cov0 +
-      fieldHere * ((this as any).localCoverage ?? 1) * ramp +
-      storm * (1 - ramp)
+      Math.max(0, fieldHere - storm) *
+        ((this as any).localCoverage ?? 1) *
+        ramp +
+      storm
     )
   }
 

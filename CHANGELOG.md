@@ -17,6 +17,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   were, invisible when a storm sat near the deck's centre. The lightning
   demo's storm, 1.3 km off-centre, was drawn 1.3 km the other way, so every
   strike lit empty sky. Pure `packWeatherTexture` flips the rows, tested.
+- **A storm's sky only closed at its very core**, so from below you looked
+  up through gaps at the inside of the tower, which read as the deck's
+  BOTTOM bowing upward (Tonio). A storm now counts in full in the coverage
+  (its share is taken out of the ramped field and added back whole): a cell
+  of 1.8 closes the sky over the inner half of its radius, the base stays
+  flat, and only the top skin rises into the tower. From above the ceiling
+  bulges up; from below it is a flat, solid underside.
 - **A strike lit the cloud one frame late** (the deck pushed its flash before
   lightning set it); the flash is now written at draw time. It also lights
   the TOP skin, so a tower seen from the side glows, and the ground light
