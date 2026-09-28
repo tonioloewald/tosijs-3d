@@ -8,12 +8,19 @@ under them, seeded, so the same seed gives the same storm.
 
 ## Demo
 
-A storm tower with lightning. Watch the tower light from inside and count the
-seconds to the thunder (click the scene first, since browsers only play sound
-after a gesture).
+A storm tower at night. Watch the landscape jump out of the dark with each
+strike, the tower light from inside, and count the seconds to the thunder
+(click the scene first; browsers only play sound after a gesture). Open the
+⚙ menu for the storm's size, how often it strikes, the cloud cover around it
+and how dramatic the flash is.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dCloudDeck, b3dWeatherCell, b3dLightning, b3dGround } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dCloudDeck, b3dWeatherCell, b3dLightning, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { lightningDemo: s } = tosi({
+  lightningDemo: { radius: 900, rate: 1, coverage: 0.15, brightness: 1, timeOfDay: 20.2 },
+})
 
 preview.append(
   b3d(
@@ -22,20 +29,29 @@ preview.append(
         const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(-1800, 60, -1400), el.scene)
         cam.setTarget(new BABYLON.Vector3(0, 500, 0))
         cam.maxZ = 20000
-        cam.attachControl(el.querySelector('canvas'), true)
+        cam.attachControl(el.parts.canvas, true)
         el.setActiveCamera(cam)
       },
+      scenePanel: () => [
+        label3d({ text: 'Lightning' }),
+        slider3d({ label: 'storm size (m)', value: s.radius, min: 200, max: 3000, step: 50 }),
+        slider3d({ label: 'how often', value: s.rate, min: 0, max: 5, step: 0.1 }),
+        slider3d({ label: 'cloud cover', value: s.coverage, min: 0, max: 1.2, step: 0.05 }),
+        slider3d({ label: 'brightness', value: s.brightness, min: 0, max: 3, step: 0.1 }),
+        slider3d({ label: 'time of day', value: s.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      ],
     },
     b3dSun({}),
-    b3dSkybox({ timeOfDay: 20.2, realtimeScale: 0 }),
-    b3dGround({ width: 8000, height: 8000, color: '#4a5a44' }),
-    b3dCloudDeck({ altitude: 320, coverage: 0.15 }),
-    b3dWeatherCell({ x: 0, z: 0, radius: 900, coverage: 1.8, storminess: 1 }),
-    b3dLightning({ seed: 4 }),
+    b3dSkybox({ timeOfDay: s.timeOfDay, realtimeScale: 0 }),
+    b3dGround({ size: 8000, color: '#4a5a44', texture: 'noise' }),
+    b3dCloudDeck({ altitude: 320, coverage: s.coverage }),
+    b3dWeatherCell({ x: 0, z: 0, radius: s.radius, coverage: 1.8, storminess: 1 }),
+    b3dLightning({ seed: 4, rate: s.rate, brightness: s.brightness }),
   )
 )
 ```
 ```css
+.preview { height: 100%; }
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
@@ -66,7 +82,9 @@ The pure half (when, where, bolt shape, flicker, thunder delay) is
 | `sprites` | `'on'` | Red-pink sprites above strong storms |
 | `thunder` | `'on'` | Procedural thunder, delayed by distance |
 | `volume` | `0.8` | Thunder loudness |
-| `groundLight` | `2.5` | How hard a ground strike lights the ground beneath (point-light intensity at peak) |
+| `groundLight` | `6` | How hard a ground strike lights the ground beneath (point-light intensity at peak) |
+| `rate` | `1` | How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4) |
+| `brightness` | `1` | How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together |
 | `color` | `'#dce4ff'` | The flash's colour |
 */
 /*{ "parent": "Environment" }*/
@@ -76,6 +94,7 @@ import { B3dChild, isOff } from './b3d-utils.js'
 import {
   boltPath,
   flashAt,
+  MAX_RATE,
   strikesBetween,
   thunderDelay,
   type Strike,
@@ -113,8 +132,14 @@ export class B3dLightning extends B3dChild {
     sprites: 'on' as 'on' | 'off',
     thunder: 'on' as 'on' | 'off',
     volume: 0.8,
-    groundLight: 2.5,
+    groundLight: 6,
     color: '#dce4ff',
+    /** How often, as a multiple of the natural rate (storminess sets the
+     * rest). */
+    rate: 1,
+    /** How dramatic a flash is: the whole landscape, the cloud and the bolt
+     * together. */
+    brightness: 1,
   }
 
   declare seed: number
@@ -123,6 +148,8 @@ export class B3dLightning extends B3dChild {
   declare thunder: 'on' | 'off'
   declare volume: number
   declare groundLight: number
+  declare rate: number
+  declare brightness: number
   declare color: string
 
   /** Strikes so far (a debug readout, and a test hook). */
@@ -133,6 +160,14 @@ export class B3dLightning extends B3dChild {
   private _live: Live[] = []
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   private _light: BABYLON.PointLight | null = null
+  /*
+  THE WHOLE LANDSCAPE LIGHTS UP. A point light under the strike lights the
+  ground there; a real flash lights EVERYTHING, which is the drama (Tonio:
+  "having the lightning be dramatically bright"). A hemispheric light from
+  above, spiking with the flash and falling off with the storm's distance.
+  */
+  private _sky: BABYLON.HemisphericLight | null = null
+  private _glowMat: BABYLON.StandardMaterial | null = null
   private _boltMat: BABYLON.StandardMaterial | null = null
   private _spriteMat: BABYLON.StandardMaterial | null = null
   private _audio: AudioContext | null = null
@@ -188,7 +223,13 @@ export class B3dLightning extends B3dChild {
     if (t < this._lastT) this._lastT = t
     const storms = this._storms(owner)
     if (storms.length > 0) {
-      for (const s of strikesBetween(storms, this._lastT, t, this.seed)) {
+      for (const s of strikesBetween(
+        storms,
+        this._lastT,
+        t,
+        this.seed,
+        MAX_RATE * Math.max(0, this.rate)
+      )) {
         this._start(owner, scene, s)
       }
     }
@@ -210,18 +251,39 @@ export class B3dLightning extends B3dChild {
       }
     }
     const deck = this._deck(owner)
+    const drama = Math.max(0, this.brightness)
     if (best != null) {
       const k = best.strike
-      deck?.flash?.(k.x, k.z, bestLevel * 1.6, k.kind === 'cloud' ? 1200 : 800)
+      deck?.flash?.(
+        k.x,
+        k.z,
+        bestLevel * 2.6 * drama,
+        k.kind === 'cloud' ? 1600 : 1100
+      )
       const light = this._light
       if (light != null) {
         light.intensity =
-          k.kind === 'ground' ? bestLevel * Math.max(0, this.groundLight) : 0
-        light.position.set(k.x, (deck?.altitude ?? 300) * 0.6, k.z)
+          k.kind === 'ground'
+            ? bestLevel * Math.max(0, this.groundLight) * drama
+            : 0
+        // HALFWAY between the cloud base and the ground UNDER THE STRIKE
+        // (Tonio): the channel's middle, and the terrain need not be flat.
+        const cloudBase = deck?.altitude ?? 300
+        const ground = this._groundY(owner, k.x, k.z)
+        light.position.set(k.x, (cloudBase + ground) / 2, k.z)
+      }
+      // The whole scene, falling off with the storm's distance (half at
+      // 3 km), weaker for an in-cloud flash, nothing for a sprite.
+      if (this._sky != null) {
+        const cam = scene.activeCamera?.globalPosition
+        const d = cam ? Math.hypot(k.x - cam.x, k.z - cam.z) : 0
+        const kind = k.kind === 'ground' ? 1 : k.kind === 'cloud' ? 0.55 : 0
+        this._sky.intensity = (bestLevel * kind * 1.4 * drama) / (1 + d / 3000)
       }
     } else {
       deck?.flash?.(0, 0, 0)
       if (this._light) this._light.intensity = 0
+      if (this._sky) this._sky.intensity = 0
     }
     // Retire finished strikes.
     this._live = this._live.filter((l) => {
@@ -254,6 +316,17 @@ export class B3dLightning extends B3dChild {
       this._light.intensity = 0
     }
     this._light.diffuse = color
+    if (this._sky == null) {
+      this._sky = new BABYLON.HemisphericLight(
+        'lightning-sky',
+        new BABYLON.Vector3(0, 1, 0),
+        scene
+      )
+      this._sky.specular = BABYLON.Color3.Black()
+      this._sky.groundColor = new BABYLON.Color3(0.15, 0.16, 0.2)
+      this._sky.intensity = 0
+    }
+    this._sky.diffuse = color
 
     const live: Live = {
       strike,
@@ -270,6 +343,25 @@ export class B3dLightning extends B3dChild {
         { branches: 3 }
       )
       const mat = this._boltMaterial(scene)
+      const glow = this._glowMaterial(scene)
+      /*
+      A HALO around the main channel: the bolt itself tops out at white on
+      an LDR screen, so what reads as BLINDING is the air glowing around it.
+      Additive, several times the channel's width.
+      */
+      const halo = BABYLON.MeshBuilder.CreateTube(
+        'lightning-halo',
+        {
+          path: paths[0].map((p) => new BABYLON.Vector3(p.x, p.y, p.z)),
+          radius: 9,
+          tessellation: 6,
+        },
+        scene
+      )
+      halo.material = glow
+      halo.isPickable = false
+      halo.visibility = 0
+      live.bolt.push(halo)
       paths.forEach((path, i) => {
         const tube = BABYLON.MeshBuilder.CreateTube(
           'lightning-bolt',
@@ -312,6 +404,21 @@ export class B3dLightning extends B3dChild {
     } catch {
       return new BABYLON.Color3(0.86, 0.9, 1)
     }
+  }
+
+  private _glowMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+    if (this._glowMat == null) {
+      const m = new BABYLON.StandardMaterial('lightning-halo-mat', scene)
+      m.disableLighting = true
+      m.emissiveColor = this._color().scale(0.45)
+      m.diffuseColor = BABYLON.Color3.Black()
+      m.alphaMode = BABYLON.Constants.ALPHA_ADD
+      m.alpha = 0.99
+      m.disableDepthWrite = true
+      m.backFaceCulling = false
+      this._glowMat = m
+    }
+    return this._glowMat
   }
 
   private _boltMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
@@ -492,6 +599,10 @@ export class B3dLightning extends B3dChild {
     this._light = null
     this._boltMat?.dispose()
     this._boltMat = null
+    this._glowMat?.dispose()
+    this._glowMat = null
+    this._sky?.dispose()
+    this._sky = null
     this._spriteMat?.dispose(true, true)
     this._spriteMat = null
     const deck = this.owner ? this._deck(this.owner) : null

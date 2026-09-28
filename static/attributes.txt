@@ -239,7 +239,7 @@ b3d-cloud-deck
   sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
   sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
-  stormRise  = 1500  — How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says)
+  stormRise  = 1500  — How far a STORM TOWER stands above the deck (cells past coverage 1 lift the top skin locally, whatever the global dial says). Domed: it rises steeply from the storm's edge and rounds over, full height from a cell coverage of about 1.6
   localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
   orographic  = 0  — Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene
   orographicPeak  = 260  — Height ABOVE THE SEA at which `orographic` is at full strength
@@ -576,8 +576,10 @@ b3d-lightning
   sprites  = 'on'  — Red-pink sprites above strong storms
   thunder  = 'on'  — Procedural thunder, delayed by distance
   volume  = 0.8  — Thunder loudness
-  groundLight  = 2.5  — How hard a ground strike lights the ground beneath (point-light intensity at peak)
+  groundLight  = 6  — How hard a ground strike lights the ground beneath (point-light intensity at peak)
   color  = '#dce4ff'  — The flash's colour
+  rate  = 1  — How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4)
+  brightness  = 1  — How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together
 
 ## b3d-loader — <tosi-b3d-loader>
 b3d-loader

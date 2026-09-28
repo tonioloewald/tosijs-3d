@@ -930,7 +930,7 @@
       {
         "name": "stormRise",
         "default": "1500",
-        "description": "How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says)"
+        "description": "How far a STORM TOWER stands above the deck (cells past coverage 1 lift the top skin locally, whatever the global dial says). Domed: it rises steeply from the storm's edge and rounds over, full height from a cell coverage of about 1.6"
       },
       {
         "name": "localCoverage",
@@ -2226,13 +2226,23 @@
       },
       {
         "name": "groundLight",
-        "default": "2.5",
+        "default": "6",
         "description": "How hard a ground strike lights the ground beneath (point-light intensity at peak)"
       },
       {
         "name": "color",
         "default": "'#dce4ff'",
         "description": "The flash's colour"
+      },
+      {
+        "name": "rate",
+        "default": "1",
+        "description": "How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4)"
+      },
+      {
+        "name": "brightness",
+        "default": "1",
+        "description": "How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together"
       }
     ]
   },

@@ -80,15 +80,22 @@ export function strikesBetween(
   storms: readonly StormSource[],
   t0: number,
   t1: number,
-  seed = 1
+  seed = 1,
+  /** Strikes per second over a storm at storminess 1. */
+  rate = MAX_RATE
 ): Strike[] {
   const out: Strike[] = []
   if (!(t1 > t0)) return out
   const s0 = Math.floor(t0 / STRIKE_SLOT)
   const s1 = Math.ceil(t1 / STRIKE_SLOT)
   for (const storm of storms) {
-    const p =
-      Math.min(1, Math.max(0, storm.storminess)) * MAX_RATE * STRIKE_SLOT
+    // At most one strike per slot (4 a second per storm).
+    const p = Math.min(
+      1,
+      Math.min(1, Math.max(0, storm.storminess)) *
+        Math.max(0, rate) *
+        STRIKE_SLOT
+    )
     if (p <= 0) continue
     for (let slot = s0; slot < s1; slot++) {
       if (hash01(seed, storm.id, slot, 1) >= p) continue

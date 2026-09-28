@@ -10,6 +10,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **The cloud deck's local-weather texture was MIRRORED north-south.**
+  Babylon's ground rows run from +Z to -Z; the texture's rows the other way.
+  Everything reading the texture (local coverage, storm gloom, the cloud
+  shadow) put storms and orographic cloud at the mirror image of where they
+  were, invisible when a storm sat near the deck's centre. The lightning
+  demo's storm, 1.3 km off-centre, was drawn 1.3 km the other way, so every
+  strike lit empty sky. Pure `packWeatherTexture` flips the rows, tested.
+- **A strike lit the cloud one frame late** (the deck pushed its flash before
+  lightning set it); the flash is now written at draw time. It also lights
+  the TOP skin, so a tower seen from the side glows, and the ground light
+  sits halfway between the cloud base and the terrain under the strike.
+
 - **The launcher demo's left stick did nothing** (board #2434). Since the
   GTA-style remap the biped mapping sends A/D and left-stick X to `strafe`
   and only the right stick to `turn`; three doc demos (launcher, warhead,
@@ -28,6 +40,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Lightning is dramatic** (Tonio: "having the lightning be dramatically
+  bright"): each strike lights the WHOLE landscape from above (falling off
+  with the storm's distance), the tower from inside, harder, and the bolt
+  carries an additive halo. New `brightness` (the drama) and `rate` (how
+  often, a multiple of the natural rate; pure `strikesBetween` takes it,
+  tested) on `<tosi-b3d-lightning>`; `groundLight` default 2.5 -> 6. Storm
+  towers are DOMED, not pyramids. The demo has a scene panel: storm size,
+  how often, cloud cover, brightness, time of day.
 - **Weather reaches the airframe** (board #1125). `<tosi-b3d-aircraft>` asks
   the scene for the weather where it is: the WIND carries it (it chases an
   air-relative velocity, so a crosswind crabs it downwind), and a STORM

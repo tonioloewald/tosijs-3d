@@ -3,6 +3,7 @@ import {
   cloudField,
   cloudOpacity,
   orographicLift,
+  packWeatherTexture,
   PLATEAU_SHARE,
 } from './cloud-field.js'
 
@@ -261,5 +262,27 @@ describe('orographic lift (Land and Sky: the whole landmass read as mountain)', 
   test('nothing below the sea, nothing at strength 0', () => {
     expect(orographicLift(100, 50, 147, 260, 1)).toBe(0)
     expect(orographicLift(400, 100, 0, 260, 0)).toBe(0)
+  })
+})
+
+describe('the weather texture is not mirrored (the lightning demo lit empty sky)', () => {
+  test('a field at +Z lands where the shader window reads +Z', () => {
+    const n = 5
+    // Grid row 0 is z = +half (Babylon's ground), so put the storm in row 0.
+    const field = new Array(n * n).fill(0)
+    for (let c = 0; c < n; c++) field[c] = 1
+    const bytes = packWeatherTexture(field, null, n)
+    // The shader: v = (z - centre) / size + 0.5, so z = +half is v = 1, the
+    // LAST texture row.
+    const lastRow = (n - 1) * n
+    for (let c = 0; c < n; c++) expect(bytes[(lastRow + c) * 2]).toBe(255)
+    for (let c = 0; c < n; c++) expect(bytes[c * 2]).toBe(0)
+  })
+  test('gloom rides in G, flipped the same way', () => {
+    const n = 3
+    const gloom = [0, 0, 0, 0, 0, 0, 1, 1, 1] // last grid row = -Z
+    const bytes = packWeatherTexture(new Array(9).fill(0), gloom, n)
+    expect(bytes[1]).toBe(255) // texture row 0 = v 0 = -Z
+    expect(bytes[2 * n * 2 + 1]).toBe(0)
   })
 })

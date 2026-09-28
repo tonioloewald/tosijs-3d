@@ -154,7 +154,7 @@ preview.append(
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
 | `localRise` | `1200` | How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note |
-| `stormRise` | `1500` | How far a STORM TOWER stands above the deck where a weather cell's coverage reaches 2 (cells past 1 lift the top skin locally, whatever the global dial says) |
+| `stormRise` | `1500` | How far a STORM TOWER stands above the deck (cells past coverage 1 lift the top skin locally, whatever the global dial says). Domed: it rises steeply from the storm's edge and rounds over, full height from a cell coverage of about 1.6 |
 | `localCoverage` | `1` | How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast |
 | `orographic` | `0` | Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene |
 | `orographicPeak` | `260` | Height ABOVE THE SEA at which `orographic` is at full strength |
@@ -262,6 +262,7 @@ import {
   cloudOpacity,
   orographicLift,
   OROGRAPHIC_REACH,
+  packWeatherTexture,
 } from './cloud-field.js'
 import { CloudShadowMap } from './cloud-shadows.js'
 
@@ -306,7 +307,14 @@ void main(void) {
   */
   vec3 pos = position;
   pos.y += color.r * (color.g > 0.5 ? localScale.y : localScale.x);
-  if (color.g > 0.5) pos.y += color.b * stormRise;
+  /*
+  A DOME, not a cone. The storm excess falls off linearly from the cell's
+  centre, and lifting by it directly built a sharp pyramid; a thunderhead
+  rises steeply from its edge and rounds over on top. The same curve is in
+  the fragment shader's skin-separation test.
+  */
+  float towerE = 1.0 - min(1.0, color.b * 1.6);
+  if (color.g > 0.5) pos.y += (1.0 - towerE * towerE * towerE) * stormRise;
   vec4 wp = world * vec4(pos, 1.0);
   vWorld = wp.xyz;
   /*
@@ -617,7 +625,8 @@ void main(void) {
   meet one of them: the top from above, the base from below, and whiteout in
   between if you are inside.
   */
-  float separation = globalRise + vChannel.r * localDelta + vChannel.b * stormRise;
+  float towerE = 1.0 - min(1.0, vChannel.b * 1.6);
+  float separation = globalRise + vChannel.r * localDelta + (1.0 - towerE * towerE * towerE) * stormRise;
   if (vChannel.g > 0.5 && separation < 4.0) discard;
 
   float a = opacityAt(d, coverageAt(p)) * vChannel.a * rim;
@@ -659,7 +668,12 @@ void main(void) {
     */
     float lam = clamp(dot(n, normalize(-sunDir)), 0.0, 1.0);
     vec3 col = topColor * (1.0 - shade + shade * lam) * skyTint;
-    gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)), a);
+    // LIT FROM INSIDE from above too: a storm tower seen from the side or
+    // from an aircraft glows with the strike, not only its base.
+    float tfd = distance(p, flashInfo.xy);
+    float tfr = max(1.0, flashInfo.z);
+    float tlit = flashInfo.w * exp(-(tfd * tfd) / (tfr * tfr)) * (0.35 + 0.65 * a);
+    gl_FragColor = vec4(mix(fogColorU, col, fogAmount(vWorld)) + flashColor * tlit, a);
   } else {
     /*
     UNDERSIDE: dark, with BRIGHT FRINGES.
@@ -1400,6 +1414,23 @@ export class B3dCloudDeck extends B3dChild {
       mat.setTexture('cloudField', this.fieldTexture)
     mesh.material = mat
     this.mesh = mesh
+    /*
+    THE FLASH IS WRITTEN AT DRAW TIME. Lightning sets it in its own
+    before-render step; pushed from ours, it depended on which observer ran
+    first, and the cloud lit a frame AFTER the ground and the bolt. Read at
+    bind, it is whatever the strike says this frame.
+    */
+    mat.onBindObservable.add(() => {
+      mat
+        .getEffect()
+        ?.setFloat4(
+          'flashInfo',
+          this._flash.x,
+          this._flash.z,
+          this._flash.r,
+          this._flash.level
+        )
+    })
 
     /*
     A SECOND SKIN FOR THE TOP, so a thick deck has a top you fly over and a
@@ -1532,15 +1563,8 @@ export class B3dCloudDeck extends B3dChild {
     mat.setFloat('globalRise', rise)
     mat.setFloat('localDelta', scale.top - scale.base)
     mat.setFloat('stormRise', Math.max(0, attrs.stormRise ?? 0))
-    mat.setVector4(
-      'flashInfo',
-      new BABYLON.Vector4(
-        this._flash.x,
-        this._flash.z,
-        this._flash.r,
-        this._flash.level
-      )
-    )
+    // (flashInfo is written at DRAW time, in the material's onBind: see
+    // sceneReady.)
     mat.setColor3('flashColor', this._flashColor)
     this._bindWeather(mat)
 
@@ -1988,11 +2012,17 @@ export class B3dCloudDeck extends B3dChild {
     */
     // Two channels: R = the whole field (coverage and rise), G = gloom
     // (storm cells only, for the underside's darkness).
-    const bytes = new Uint8Array(src.length * 2)
-    for (let k = 0; k < src.length; k++) {
-      bytes[k * 2] = Math.round(src[k] * 255)
-      bytes[k * 2 + 1] = gloom == null ? 0 : Math.round(gloom[k] * 255)
-    }
+    /*
+    ROWS FLIPPED. The ground's vertex rows run from +Z down to -Z (row 0 is
+    z = +size/2), but a texture's row 0 is v = 0, which the shader's window
+    maps to -Z. Copied straight across, the whole local field was MIRRORED
+    north-south in everything that reads the texture: coverage, the storm's
+    gloom, the cloud shadow. A storm near the deck's centre looked nearly
+    right; the lightning demo's, 1.3 km off-centre, was drawn 1.3 km on the
+    other side, and every strike lit empty sky (found reading the deck's own
+    vertex positions against its texture window).
+    */
+    const bytes = packWeatherTexture(src, gloom, n)
     if (this._weatherTex == null || this._weatherTexSize !== n) {
       this._weatherTex?.dispose()
       this._weatherTexSize = n

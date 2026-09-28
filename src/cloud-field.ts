@@ -302,3 +302,30 @@ export const PLATEAU_SHARE = 0.35
 
 /** How far off (m) "around" is sampled for the ridge test. */
 export const OROGRAPHIC_REACH = 900
+
+/**
+ * **The deck's weather grid as texture bytes** (RG: field, gloom), rows
+ * FLIPPED. The ground's vertex rows run from +Z down to -Z (row 0 is
+ * z = +size/2), while a texture's row 0 is v = 0, which the deck shader's
+ * window (`uv = (p - centre) / size + 0.5`) maps to -Z. Copied straight
+ * across, the local field was mirrored north-south in everything that reads
+ * the texture (coverage, storm gloom, cloud shadow): the lightning demo's
+ * storm, 1.3 km off the deck's centre, was drawn 1.3 km the other way.
+ */
+export function packWeatherTexture(
+  field: ArrayLike<number>,
+  gloom: ArrayLike<number> | null,
+  n: number
+): Uint8Array {
+  const bytes = new Uint8Array(n * n * 2)
+  for (let row = 0; row < n; row++) {
+    const flipped = n - 1 - row
+    for (let col = 0; col < n; col++) {
+      const k = row * n + col
+      const t = (flipped * n + col) * 2
+      bytes[t] = Math.round(field[k] * 255)
+      bytes[t + 1] = gloom == null ? 0 : Math.round(gloom[k] * 255)
+    }
+  }
+  return bytes
+}

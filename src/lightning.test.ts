@@ -47,6 +47,18 @@ describe('strikesBetween — seeded strikes (board #1123)', () => {
     expect(strikesBetween([{ ...storm, storminess: 0 }], 0, 600, 3)).toEqual([])
   })
 
+  test('the rate dial scales how often, capped at one strike a slot', () => {
+    const base = strikesBetween([storm], 0, 600, 3).length
+    const double = strikesBetween([storm], 0, 600, 3, 1.2).length
+    expect(double / base).toBeGreaterThan(1.7)
+    expect(double / base).toBeLessThan(2.3)
+    // Four slots a second: never more than that, however hard it is pushed.
+    expect(strikesBetween([storm], 0, 100, 3, 1000).length).toBeLessThanOrEqual(
+      400
+    )
+    expect(strikesBetween([storm], 0, 100, 3, 0)).toEqual([])
+  })
+
   test('strikes land inside the storm, and sprites only over strong ones', () => {
     const s = strikesBetween([storm], 0, 600, 3)
     for (const k of s)
