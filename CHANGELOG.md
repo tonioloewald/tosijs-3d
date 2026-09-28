@@ -10,6 +10,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **No shadow map rendered on the doc site, the sun's included.** Babylon's
+  shadow generators lazy-load their shaders from code-split chunks, and each
+  chunk loaded a second copy of the site bundle (tosijs-ui#191), which threw,
+  so the shaders never loaded and every `isReady()` stayed false. The site
+  entry now imports the shadow shaders statically and tells the generators
+  they are loaded (site-only workaround; the library is unaffected).
+
 - **Thunder kept playing after leaving the page** (Tonio). Thunder is
   scheduled ahead on the audio clock (a storm 2 km off rumbles 6 s after its
   flash, for 4 s), and disposing `<tosi-b3d-lightning>` neither stopped it
@@ -53,6 +60,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Lightning casts shadows** (Tonio: "spin up a shadow map and retain it
+  between strokes and just use it for the brightest strike"). ONE shadow map,
+  kept; re-rendered once per new brightest ground strike, never per frame.
+  The strike's light is a POINT light by default (`flashLight`), from the
+  middle of the channel, so shadows radiate from the bolt (a cube map: six
+  renders per strike); `'directional'` is the one-render option for low-end
+  devices. Casters within `shadowRange` of you (and of the strike, for a
+  point light); `shadows`, `shadowSize`. It replaces the old point light, so
+  the scene stays within a material's 4-light budget. The lightning demo now
+  has hills, trees and a hamlet under the storm.
 - **Lightning is dramatic** (Tonio: "having the lightning be dramatically
   bright"): each strike lights the WHOLE landscape from above (falling off
   with the storm's distance), the tower from inside, harder, and the bolt

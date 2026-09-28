@@ -61,6 +61,9 @@ export default defineSiteConfig({
   // `./Migration.md` un-rewritten). Shipped inside the package too, so they
   // work from node_modules as well.
   docPaths: ['src', 'README.md', 'Migration.md', 'CHANGELOG.md'],
+  // The bundle entry's folder is documented as watched, but an edit to
+  // demo/site.ts rebuilt nothing (twice, 2026-09-28): watch it explicitly.
+  watchPaths: ['demo'],
   staticDirs: ['static'],
   port: 8030,
 

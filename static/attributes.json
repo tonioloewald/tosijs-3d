@@ -2226,8 +2226,28 @@
       },
       {
         "name": "groundLight",
-        "default": "6",
-        "description": "How hard a ground strike lights the ground beneath (point-light intensity at peak)"
+        "default": "2.5",
+        "description": "How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate)"
+      },
+      {
+        "name": "shadows",
+        "default": "'on'",
+        "description": "Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame)"
+      },
+      {
+        "name": "shadowSize",
+        "default": "1024",
+        "description": "Its resolution"
+      },
+      {
+        "name": "shadowRange",
+        "default": "600",
+        "description": "How far from you (m) things cast them: the shadows you can see, and a tight set keeps the map sharp"
+      },
+      {
+        "name": "flashLight",
+        "default": "'point'",
+        "description": "The strike's shadowed light. `'point'`: shadows radiate from the bolt in every direction (a cube map: six shadow renders, once per new strike). `'directional'`: one render, correct looking toward the strike; the cheap choice for low-end devices"
       },
       {
         "name": "color",

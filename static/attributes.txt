@@ -576,7 +576,11 @@ b3d-lightning
   sprites  = 'on'  — Red-pink sprites above strong storms
   thunder  = 'on'  — Procedural thunder, delayed by distance
   volume  = 0.8  — Thunder loudness
-  groundLight  = 6  — How hard a ground strike lights the ground beneath (point-light intensity at peak)
+  groundLight  = 2.5  — How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate)
+  shadows  = 'on'  — Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame)
+  shadowSize  = 1024  — Its resolution
+  shadowRange  = 600  — How far from you (m) things cast them: the shadows you can see, and a tight set keeps the map sharp
+  flashLight  = 'point'  — The strike's shadowed light. `'point'`: shadows radiate from the bolt in every direction (a cube map: six shadow renders, once per new strike). `'directional'`: one render, correct looking toward the strike; the cheap choice for low-end devices
   color  = '#dce4ff'  — The flash's colour
   rate  = 1  — How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4)
   brightness  = 1  — How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together

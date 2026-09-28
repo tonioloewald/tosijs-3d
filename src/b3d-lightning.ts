@@ -15,22 +15,69 @@ strike, the cloud light from inside, and count the seconds to the thunder
 and how dramatic the flash is.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dCloudDeck, b3dWeatherCell, b3dLightning, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dCloudDeck, b3dWeatherCell, b3dLightning, b3dTerrain, b3dDecorator, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { lightningDemo: s } = tosi({
-  lightningDemo: { radius: 900, rate: 1, coverage: 0.15, brightness: 1, timeOfDay: 20.2 },
+  lightningDemo: { radius: 600, rate: 1, coverage: 0.15, brightness: 1, timeOfDay: 20.2 },
+})
+
+// Hills, trees and a hamlet between you and the storm, so each strike has
+// something to light and to throw shadows from.
+const terrain = b3dTerrain({
+  seed: 7,
+  biome: 'on',
+  surfaceType: 'cylinder',
+  radius: 1000,
+  cylinderHeight: 1000,
+  tileSize: 128,
+  lodLevels: 3,
+  splitFactor: 2,
+  reach: 5000,
+  grossScale: 0.01,
+  detailScale: 0.09,
+  horizScale: 3.31,
+  grossAmplitude: 60,
+  detailAmplitude: 10,
+  biomeSeaLevel: 0,
+  biomeLapseRate: 0.15 / 60,
+  biomeTemperature: 0.6,
+  biomeMoisture: 0.75,
 })
 
 preview.append(
   b3d(
     {
       sceneCreated(el, BABYLON) {
-        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(-1800, 60, -1400), el.scene)
-        cam.setTarget(new BABYLON.Vector3(0, 500, 0))
+        // You stand at the ORIGIN (far from it the terrain would rebase the
+        // world under the camera) and the storm is over the hamlet, a
+        // kilometre off: close strikes light from ABOVE and throw hard
+        // shadows; a distant one only rakes the slopes facing it.
+        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, 60, 0), el.scene)
+        cam.setTarget(new BABYLON.Vector3(800, 300, 650))
         cam.maxZ = 20000
         cam.attachControl(el.parts.canvas, true)
         el.setActiveCamera(cam)
+        // Once the terrain can say how high the ground is: stand on it, and
+        // build the hamlet on it, between you and the storm.
+        const mat = new BABYLON.StandardMaterial('house', el.scene)
+        mat.diffuseColor = new BABYLON.Color3(0.75, 0.72, 0.66)
+        let built = false
+        el.scene.onBeforeRenderObservable.add(() => {
+          const h = terrain.heightSampler?.()
+          if (built || !h) return
+          built = true
+          cam.position.y = h(cam.position.x, cam.position.z) + 25
+          for (let i = 0; i < 18; i++) {
+            const x = 300 + (i % 6) * 70 + (i * 37) % 23
+            const z = 250 + Math.floor(i / 6) * 70 + (i * 53) % 19
+            const tall = 8 + (i * 7) % 14
+            const house = BABYLON.MeshBuilder.CreateBox('house', { width: 14, depth: 18, height: tall }, el.scene)
+            house.position.set(x, h(x, z) + tall / 2 - 1, z)
+            house.material = mat
+            house.receiveShadows = true
+          }
+        })
       },
       scenePanel: () => [
         label3d({ text: 'Lightning' }),
@@ -43,9 +90,10 @@ preview.append(
     },
     b3dSun({}),
     b3dSkybox({ timeOfDay: s.timeOfDay, realtimeScale: 0 }),
-    b3dGround({ size: 8000, color: '#4a5a44', texture: 'noise' }),
-    b3dCloudDeck({ altitude: 320, coverage: s.coverage }),
-    b3dWeatherCell({ x: 0, z: 0, radius: s.radius, coverage: 1.8, storminess: 1 }),
+    terrain,
+    b3dDecorator({ budget: 3000, radius: 1200 }),
+    b3dCloudDeck({ altitude: 380, coverage: s.coverage }),
+    b3dWeatherCell({ x: 800, z: 650, radius: s.radius, coverage: 1.8, storminess: 1 }),
     b3dLightning({ seed: 4, rate: s.rate, brightness: s.brightness }),
   )
 )
@@ -83,7 +131,11 @@ The pure half (when, where, bolt shape, flicker, thunder delay) is
 | `sprites` | `'on'` | Red-pink sprites above strong storms |
 | `thunder` | `'on'` | Procedural thunder, delayed by distance |
 | `volume` | `0.8` | Thunder loudness |
-| `groundLight` | `6` | How hard a ground strike lights the ground beneath (point-light intensity at peak) |
+| `groundLight` | `2.5` | How hard a ground strike's own light hits the scene: from the middle of the channel (halfway between the cloud base and the ground under the strike), the one that casts the shadows (the whole-sky fill is separate) |
+| `shadows` | `'on'` | Hard shadows from the strike. ONE shadow map, kept, re-rendered once per new brightest ground strike (never per frame) |
+| `shadowSize` | `1024` | Its resolution |
+| `flashLight` | `'point'` | The strike's shadowed light. `'point'`: shadows radiate from the bolt in every direction (a cube map: six shadow renders, once per new strike). `'directional'`: one render, correct looking toward the strike; the cheap choice for low-end devices |
+| `shadowRange` | `600` | How far from you (m) things cast them: the shadows you can see, and a tight set keeps the map sharp |
 | `rate` | `1` | How OFTEN, as a multiple of the natural rate (about 0.6 strikes a second over a storm at storminess 1; at most 4) |
 | `brightness` | `1` | How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together |
 | `color` | `'#dce4ff'` | The flash's colour |
@@ -133,7 +185,15 @@ export class B3dLightning extends B3dChild {
     sprites: 'on' as 'on' | 'off',
     thunder: 'on' as 'on' | 'off',
     volume: 0.8,
-    groundLight: 6,
+    groundLight: 2.5,
+    /** Shadows from the strike's light: 'on' | 'off'. */
+    shadows: 'on' as 'on' | 'off',
+    shadowSize: 1024,
+    /** How far from you (m) things cast strike shadows. */
+    shadowRange: 600,
+    /** 'point' (shadows radiate from the bolt; 6 shadow renders per strike)
+     * or 'directional' (1 render; right looking toward the strike). */
+    flashLight: 'point' as 'point' | 'directional',
     color: '#dce4ff',
     /** How often, as a multiple of the natural rate (storminess sets the
      * rest). */
@@ -149,6 +209,10 @@ export class B3dLightning extends B3dChild {
   declare thunder: 'on' | 'off'
   declare volume: number
   declare groundLight: number
+  declare shadows: 'on' | 'off'
+  declare shadowSize: number
+  declare shadowRange: number
+  declare flashLight: 'point' | 'directional'
   declare rate: number
   declare brightness: number
   declare color: string
@@ -160,7 +224,12 @@ export class B3dLightning extends B3dChild {
   private _lastT = 0
   private _live: Live[] = []
   private _obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
-  private _light: BABYLON.PointLight | null = null
+  /** The strike's own (shadowed) light; replaces a point light so the scene
+   * stays inside a material's 4-light budget. */
+  private _dir: BABYLON.DirectionalLight | BABYLON.PointLight | null = null
+  private _shadows: BABYLON.ShadowGenerator | null = null
+  /** The strike the shadow map was last rendered for. */
+  private _shadowStrike: Strike | null = null
   /*
   THE WHOLE LANDSCAPE LIGHTS UP. A point light under the strike lights the
   ground there; a real flash lights EVERYTHING, which is the drama (Tonio:
@@ -261,34 +330,40 @@ export class B3dLightning extends B3dChild {
         bestLevel * 2.6 * drama,
         k.kind === 'cloud' ? 1600 : 1100
       )
-      const light = this._light
+      const cam = scene.activeCamera?.globalPosition
+      const d = cam ? Math.hypot(k.x - cam.x, k.z - cam.z) : 0
+      const fall = 1 / (1 + d / 6000)
+      /*
+      THE STRIKE'S OWN LIGHT, with SHADOWS: a directional light from the
+      middle of the channel (halfway between the cloud base and the ground
+      under the strike, Tonio) toward you. Parallel is a fair approximation at
+      these distances, and it costs ONE shadow render, done once per new
+      brightest ground strike (see _shadowFor), not six a frame as a point
+      light's cube would.
+      */
+      const light = this._dir
       if (light != null) {
         light.intensity =
           k.kind === 'ground'
-            ? bestLevel * Math.max(0, this.groundLight) * drama
+            ? bestLevel * Math.max(0, this.groundLight) * drama * fall
             : 0
-        // HALFWAY between the cloud base and the ground UNDER THE STRIKE
-        // (Tonio): the channel's middle, and the terrain need not be flat.
-        const cloudBase = deck?.altitude ?? 300
-        const ground = this._groundY(owner, k.x, k.z)
-        light.position.set(k.x, (cloudBase + ground) / 2, k.z)
+        if (k.kind === 'ground' && best.strike !== this._shadowStrike) {
+          this._aim(owner, scene, k, deck)
+        }
       }
-      // The whole scene, falling off with the storm's distance (half at
-      // 3 km), weaker for an in-cloud flash, nothing for a sprite.
+      // The whole scene, unshadowed fill, falling off with the storm's
+      // distance, weaker for an in-cloud flash, nothing for a sprite. Strong
+      // enough that a DARK ground (albedo ~0.3) reads as lit rather than a
+      // dim olive (Tonio: "why is the cloud lighting up but the ground
+      // doesn't seem to be nearly as lit up?"); the shadowed light above
+      // carries the rest, so shadows read.
       if (this._sky != null) {
-        const cam = scene.activeCamera?.globalPosition
-        const d = cam ? Math.hypot(k.x - cam.x, k.z - cam.z) : 0
         const kind = k.kind === 'ground' ? 1 : k.kind === 'cloud' ? 0.55 : 0
-        // Strong enough that a DARK ground (albedo ~0.3) reads as lit, not a
-        // dim olive (Tonio: "why is the cloud lighting up but the ground
-        // doesn't seem to be nearly as lit up?"). The cloud's flash is added
-        // light and whites out; the ground only has what it reflects.
-        this._sky.intensity =
-          (bestLevel * kind * 3.5 * drama) / (1 + d / 6000)
+        this._sky.intensity = bestLevel * kind * 1.6 * drama * fall
       }
     } else {
       deck?.flash?.(0, 0, 0)
-      if (this._light) this._light.intensity = 0
+      if (this._dir) this._dir.intensity = 0
       if (this._sky) this._sky.intensity = 0
     }
     // Retire finished strikes.
@@ -300,6 +375,108 @@ export class B3dLightning extends B3dChild {
     })
   }
 
+  /*
+  ONE SHADOW MAP, KEPT (Tonio: "spin up a shadow map and retain it between
+  strokes and just use it for the brightest strike"). Made the first time,
+  re-rendered ONCE when a new ground strike becomes the brightest, reused by
+  its re-strokes and by anything flashing alongside it. Casters are what is
+  near YOU (within shadowRange), because those are the shadows you can see,
+  and a tight set keeps the map sharp.
+  */
+  private _aim(
+    owner: B3d,
+    scene: BABYLON.Scene,
+    k: Strike,
+    deck: Deck | null
+  ): void {
+    const light = this._dir!
+    this._shadowStrike = k
+    const cloudBase = deck?.altitude ?? 300
+    const ground = this._groundY(owner, k.x, k.z)
+    const from = new BABYLON.Vector3(k.x, (cloudBase + ground) / 2, k.z)
+    const cam = scene.activeCamera?.globalPosition ?? BABYLON.Vector3.Zero()
+    const to = new BABYLON.Vector3(
+      cam.x,
+      this._groundY(owner, cam.x, cam.z),
+      cam.z
+    )
+    light.position.copyFrom(from)
+    /*
+    DEPTH FITTED TO THIS STRIKE. A point light's shadow depth spans its
+    min..max Z, which defaulted to the camera's (kilometres), so the bias
+    became tens of metres and every shadow vanished (found: 142 casters in
+    the map, no shadow on the ground). From the channel to past the viewer,
+    and no further.
+    */
+    if (light instanceof BABYLON.PointLight) {
+      const reach =
+        Math.hypot(cam.x - from.x, cam.y - from.y, cam.z - from.z) +
+        Math.max(10, this.shadowRange)
+      light.shadowMinZ = 1
+      light.shadowMaxZ = reach
+    }
+    if (light instanceof BABYLON.DirectionalLight) {
+      const dir = to.subtract(from)
+      if (dir.lengthSquared() < 1) return
+      dir.normalize()
+      light.direction.copyFrom(dir)
+    }
+    if (isOff(this.shadows)) return
+    if (this._shadows == null) {
+      const size = Math.max(256, Math.floor(this.shadowSize))
+      const gen = new BABYLON.ShadowGenerator(size, light)
+      gen.bias = 0.0004
+      gen.normalBias = 0.01
+      gen.getShadowMap()!.refreshRate =
+        BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE
+      if (light instanceof BABYLON.DirectionalLight)
+        light.autoCalcShadowZBounds = true
+      this._shadows = gen
+    }
+    const range = Math.max(10, this.shadowRange)
+    const casters = scene.meshes.filter(
+      (m) =>
+        m.isEnabled() &&
+        m.isVisible &&
+        m.getTotalVertices() > 0 &&
+        !/cloud|sky|water|lightning|shaft|terrain|ground|underside/i.test(
+          m.name
+        ) &&
+        // Thin instances (the decorator's trees) keep their mesh at the
+        // origin and their copies wherever, so position says nothing.
+        // Near YOU (the shadows you can see) or, for a point light, near
+        // the STRIKE, where its shadows radiate in every direction.
+        ((m as BABYLON.Mesh).hasThinInstances ||
+          Math.hypot(
+            m.getAbsolutePosition().x - cam.x,
+            m.getAbsolutePosition().z - cam.z
+          ) < range ||
+          (light instanceof BABYLON.PointLight &&
+            Math.hypot(
+              m.getAbsolutePosition().x - k.x,
+              m.getAbsolutePosition().z - k.z
+            ) < range))
+    )
+    const map = this._shadows.getShadowMap()!
+    map.renderList = casters
+    /*
+    COMPILE, THEN RENDER. A render-once pass SKIPS any caster whose shadow
+    depth shader is not compiled yet, and never retries: the first version
+    rendered one pass with nothing ready and the map stayed empty (read off
+    its pixels: all six faces at the clear value, 142 casters listed).
+    Render what is ready now, and again once everything has compiled.
+    */
+    map.resetRefreshCounter()
+    const gen = this._shadows
+    gen
+      .forceCompilationAsync()
+      .then(() => {
+        if (this._shadows === gen && this._shadowStrike === k)
+          map.resetRefreshCounter()
+      })
+      .catch(() => {})
+  }
+
   private _start(owner: B3d, scene: BABYLON.Scene, strike: Strike): void {
     this.strikeCount++
     const deck = this._deck(owner)
@@ -309,19 +486,33 @@ export class B3dLightning extends B3dChild {
       ? Math.hypot(strike.x - cam.x, base * 0.5 - cam.y, strike.z - cam.z)
       : 0
     const color = this._color()
-    if (this._light == null) {
-      this._light = new BABYLON.PointLight(
-        'lightning-flash',
-        new BABYLON.Vector3(0, base, 0),
-        scene
-      )
-      this._light.range = 6000
-      // Diffuse only: a specular highlight on flat ground read as a searchlight
-      // beam, not a flash.
-      this._light.specular = BABYLON.Color3.Black()
-      this._light.intensity = 0
+    if (this._dir == null) {
+      /*
+      POINT by default: its shadows radiate from the channel in every
+      direction, which is right all round the strike (Tonio thought it would
+      look better, and it does). The cost is a CUBE shadow map, six renders,
+      but only once per new brightest strike, never per frame. 'directional'
+      is the cheap one: a single render, and right looking TOWARD the strike.
+      */
+      this._dir =
+        this.flashLight === 'directional'
+          ? new BABYLON.DirectionalLight(
+              'lightning-flash',
+              new BABYLON.Vector3(0, -1, 0),
+              scene
+            )
+          : new BABYLON.PointLight(
+              'lightning-flash',
+              new BABYLON.Vector3(0, base, 0),
+              scene
+            )
+      if (this._dir instanceof BABYLON.PointLight) this._dir.range = 8000
+      // Diffuse only: a specular highlight on flat ground read as a
+      // searchlight beam, not a flash.
+      this._dir.specular = BABYLON.Color3.Black()
+      this._dir.intensity = 0
     }
-    this._light.diffuse = color
+    this._dir.diffuse = color
     if (this._sky == null) {
       this._sky = new BABYLON.HemisphericLight(
         'lightning-sky',
@@ -602,8 +793,11 @@ export class B3dLightning extends B3dChild {
       l.sprite?.dispose()
     }
     this._live = []
-    this._light?.dispose()
-    this._light = null
+    this._shadows?.dispose()
+    this._shadows = null
+    this._shadowStrike = null
+    this._dir?.dispose()
+    this._dir = null
     this._boltMat?.dispose()
     this._boltMat = null
     this._glowMat?.dispose()
