@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta, slider3d } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, b3dWeatherCell, gameController, inputFocus, sceneDelta, slider3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div } = elements
 
@@ -58,6 +58,11 @@ const ground = Array.from({ length: 8 }, () => scatter(false))
 const targets = [...air, ...ground]
 
 const kills = div({ class: 'kills' }, `Targets down: 0 / ${targets.length}`)
+// WEATHER, to fly in: a storm cell over the whole arena (storminess shakes
+// the airframe) and the scene's wind (it carries you; blowing east, across
+// your starting heading, so you crab). Both on the ⚙ panel.
+const storm = b3dWeatherCell({ x: 0, z: 0, radius: 3000, storminess: 0 })
+const turb = div({ class: 'turb' }, 'turbulence 0.00')
 let down = 0
 
 const scene = b3d(
@@ -68,7 +73,12 @@ const scene = b3d(
     // 1 = as if the camera were bolted to the airframe, so a climb aims the view
     // up. It's a slider because the right answer is a matter of taste and you can
     // only judge it while flying — in the headset as much as flat.
+    windBearingDeg: 90,
     scenePanel: (el) => [
+      slider3d({ label: 'wind (m/s)', min: 0, max: 30, step: 1, value: 0,
+        handleChange(v) { el.windSpeed = v } }),
+      slider3d({ label: 'storminess', min: 0, max: 1, step: 0.05, value: 0,
+        handleChange(v) { storm.storminess = v } }),
       slider3d({ label: 'chase pitch follow', min: 0, max: 1, step: 0.05, value: 0,
         onChange(v) {
           el.querySelectorAll('tosi-b3d-aircraft').forEach((a) => { a.chasePitchFollow = v })
@@ -87,6 +97,8 @@ const scene = b3d(
       let t = 0
       el.scene.onBeforeRenderObservable.add(() => {
         t += sceneDelta(el.scene)
+        const a = el.querySelector('tosi-b3d-aircraft')
+        if (a) turb.textContent = `turbulence ${(a.turbulenceLevel ?? 0).toFixed(2)}`
         air.forEach((d, i) => {
           if (d.dead) return
           d.x += Math.sin(t * 0.3 + i) * 0.02
@@ -106,16 +118,22 @@ const scene = b3d(
   b3dHud({}),
   // A nav waypoint far ahead: a positional blip (no mesh), always detectable (profile -1).
   b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
+  storm,
   ...targets,
   // DEATH NEEDS AN EXIT: fly into the ground (or get caught in a blast) and it burns, releases
   // input, orbits the wreck, then floats a Respawn panel — which appends a fresh aircraft.
   b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
   focus,
 )
-preview.append(scene, kills)
+preview.append(scene, kills, turb)
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
+.turb {
+  position: absolute; top: 44px; right: 10px; z-index: 10;
+  padding: 6px 12px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55); color: #9fdcf0; font: 14px monospace;
+}
 .kills {
   position: absolute; top: 10px; right: 10px; z-index: 10;
   padding: 6px 12px; border-radius: 4px;
