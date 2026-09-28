@@ -239,7 +239,7 @@ b3d-cloud-deck
   sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
   sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
-  stormRise  = 1500  — How far a STORM TOWER stands above the deck (cells past coverage 1 lift the top skin locally, whatever the global dial says). Domed: it rises steeply from the storm's edge and rounds over, full height from a cell coverage of about 1.6
+  stormRise  = 0  — Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above
   localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
   orographic  = 0  — Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene
   orographicPeak  = 260  — Height ABOVE THE SEA at which `orographic` is at full strength
@@ -1123,7 +1123,7 @@ b3d-weather-cell
   radius  = 200  — Reach (m); influence eases to nothing at the rim
   windSpeed  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
   windBearingDeg  = 0  — Wind this cell ADDS at its centre (bearing: where it goes, north-up, clockwise). A lee adds the opposite of the scene's
-  coverage  = 0  — Cloud cover it adds (summed, clamped 0–2). PAST 1 IS A STORM TOWER: the cloud deck lifts its top there (`stormRise`), darker and thicker, which is what lightning lights from inside. `0` = no opinion
+  coverage  = 0  — Cloud cover it adds (summed, clamped 0–2). A storm counts IN FULL, so a cell past 1 closes the sky over its inner part; past 1 it is also darker underneath. (A tower rising out of the deck is opt-in, the deck's `stormRise`.) `0` = no opinion
   precipitation  = 0  — Rain/snow 0–1 (the max of overlapping cells wins)
   storminess  = 0  — Lightning likelihood 0–1 (max wins)
   temperature  = 0  — Temperature offset in degrees (summed)

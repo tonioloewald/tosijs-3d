@@ -10,6 +10,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Thunder kept playing after leaving the page** (Tonio). Thunder is
+  scheduled ahead on the audio clock (a storm 2 km off rumbles 6 s after its
+  flash, for 4 s), and disposing `<tosi-b3d-lightning>` neither stopped it
+  nor closed the context. It now closes its AudioContext, silencing
+  anything queued at once and no longer leaking a context per visit.
+
 - **The cloud deck's local-weather texture was MIRRORED north-south.**
   Babylon's ground rows run from +Z to -Z; the texture's rows the other way.
   Everything reading the texture (local coverage, storm gloom, the cloud
@@ -53,8 +59,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   carries an additive halo. New `brightness` (the drama) and `rate` (how
   often, a multiple of the natural rate; pure `strikesBetween` takes it,
   tested) on `<tosi-b3d-lightning>`; `groundLight` default 2.5 -> 6. Storm
-  towers are DOMED, not pyramids. The demo has a scene panel: storm size,
-  how often, cloud cover, brightness, time of day.
+  lightning also brightens the WHITEOUT when you are inside the cloud. The
+  demo has a scene panel: storm size,
+  how often, cloud cover, brightness, time of day. A storm is no longer a
+  TOWER by default (Tonio: "it basically looks terrible"): the deck's
+  `stormRise` defaults to 0 (opt-in, domed when on), so a storm is more
+  cover and lightning. From below the flash lights the underside and the
+  ground, inside it the whiteout, above it the top.
 - **Weather reaches the airframe** (board #1125). `<tosi-b3d-aircraft>` asks
   the scene for the weather where it is: the WIND carries it (it chases an
   air-relative velocity, so a crosswind crabs it downwind), and a STORM

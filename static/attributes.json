@@ -929,8 +929,8 @@
       },
       {
         "name": "stormRise",
-        "default": "1500",
-        "description": "How far a STORM TOWER stands above the deck (cells past coverage 1 lift the top skin locally, whatever the global dial says). Domed: it rises steeply from the storm's edge and rounds over, full height from a cell coverage of about 1.6"
+        "default": "0",
+        "description": "Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above"
       },
       {
         "name": "localCoverage",
@@ -4359,7 +4359,7 @@
       {
         "name": "coverage",
         "default": "0",
-        "description": "Cloud cover it adds (summed, clamped 0–2). PAST 1 IS A STORM TOWER: the cloud deck lifts its top there (`stormRise`), darker and thicker, which is what lightning lights from inside. `0` = no opinion"
+        "description": "Cloud cover it adds (summed, clamped 0–2). A storm counts IN FULL, so a cell past 1 closes the sky over its inner part; past 1 it is also darker underneath. (A tower rising out of the deck is opt-in, the deck's `stormRise`.) `0` = no opinion"
       },
       {
         "name": "precipitation",

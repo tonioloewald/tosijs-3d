@@ -154,7 +154,7 @@ preview.append(
 | `sunGloomBelow` | `0.25` | `transmission` below which the SUN starts to go — later than the ambient, on purpose |
 | `sunGloom` | `0.65` | How far the sun may be taken down at zero transmission |
 | `localRise` | `1200` | How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note |
-| `stormRise` | `1500` | How far a STORM TOWER stands above the deck (cells past coverage 1 lift the top skin locally, whatever the global dial says). Domed: it rises steeply from the storm's edge and rounds over, full height from a cell coverage of about 1.6 |
+| `stormRise` | `0` | Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above |
 | `localCoverage` | `1` | How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast |
 | `orographic` | `0` | Cloud gathers over high ground, `0…1`: most over RIDGES (ground above its surroundings), some over high plateaus, measured from the SEA (the scene's water surface), so a high sea does not make all land a mountain. Needs a terrain in the scene |
 | `orographicPeak` | `260` | Height ABOVE THE SEA at which `orographic` is at full strength |
@@ -990,7 +990,7 @@ export class B3dCloudDeck extends B3dChild {
      * whatever the global dial says). Towers are what make lightning read as
      * light INSIDE cloud.
      */
-    stormRise: 1500,
+    stormRise: 0,
     /**
      * How much a unit of local weather adds to `coverage`.
      *
@@ -2427,6 +2427,21 @@ export class B3dCloudDeck extends B3dChild {
     c.r *= this._tint.r
     c.g *= this._tint.g
     c.b *= this._tint.b
+    /*
+    LIGHTNING INSIDE THE CLOUD (Tonio: "inside the whiteout it changes the
+    whiteout brightness"). The flash lights the fog you are in, as deep as
+    you are in it, falling off with distance from the strike like the deck's
+    own flash.
+    */
+    const f = this._flash
+    if (f.level > 0 && optical > 0 && p != null) {
+      const fd = Math.hypot(p.x - f.x, p.z - f.z)
+      const r = Math.max(1, f.r)
+      const k = f.level * optical * Math.exp(-(fd * fd) / (r * r))
+      c.r = Math.min(1, c.r + this._flashColor.r * k)
+      c.g = Math.min(1, c.g + this._flashColor.g * k)
+      c.b = Math.min(1, c.b + this._flashColor.b * k)
+    }
 
     return {
       weight,

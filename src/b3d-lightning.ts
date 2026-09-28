@@ -8,8 +8,8 @@ under them, seeded, so the same seed gives the same storm.
 
 ## Demo
 
-A storm tower at night. Watch the landscape jump out of the dark with each
-strike, the tower light from inside, and count the seconds to the thunder
+A storm at night. Watch the landscape jump out of the dark with each
+strike, the cloud light from inside, and count the seconds to the thunder
 (click the scene first; browsers only play sound after a gesture). Open the
 ⚙ menu for the storm's size, how often it strikes, the cloud cover around it
 and how dramatic the flash is.
@@ -57,15 +57,16 @@ tosi-b3d { width: 100%; height: 100%; }
 
 ## What it does
 
-- **The flash** lights the cloud deck from INSIDE around the strike (a storm
-  tower glows, which is why storms want coverage past 1), and throws a brief
-  light on the ground below.
+- **The flash** lights the cloud around the strike from inside: its
+  underside from below, the whiteout when you are IN the cloud, its top from
+  above. And it lights the whole landscape from above, falling off with the
+  storm's distance, with a harder light on the ground under the strike.
 - **The bolt** is a jagged, branching channel from the cloud base to the
   ground, flickering through its re-strokes.
 - **Thunder** arrives at the speed of sound: a flash a kilometre away rumbles
   about three seconds later, so you can count how far away the storm is.
 - **Sprites**: over strong storms, rarely, a brief red-pink crown with
-  tendrils high ABOVE the tower. Real ones stand 50–90 km up; here they are
+  tendrils high ABOVE the storm. Real ones stand 50–90 km up; here they are
   placed within the far plane.
 
 Every strike dispatches **`strike`** (bubbling) with `{ kind, x, z, t,
@@ -518,7 +519,8 @@ export class B3dLightning extends B3dChild {
       m.backFaceCulling = false
       this._spriteMat = m
     }
-    const top = (deck?.altitude ?? 300) + (deck?.stormRise ?? 1500)
+    // Well above the deck, tower or not (real ones are 50-90 km up).
+    const top = (deck?.altitude ?? 300) + Math.max(1500, deck?.stormRise ?? 0)
     const plane = BABYLON.MeshBuilder.CreatePlane(
       'lightning-sprite',
       { width: 2600, height: 3400 },
@@ -607,6 +609,17 @@ export class B3dLightning extends B3dChild {
     this._spriteMat = null
     const deck = this.owner ? this._deck(this.owner) : null
     deck?.flash?.(0, 0, 0)
+    /*
+    SILENCE, AT ONCE. Thunder is scheduled ahead on the audio clock (a storm
+    2 km off rumbles 6 s after its flash, for 4 s), so leaving the page left
+    ten seconds of queued thunder playing (Tonio: "When I navigate to another
+    page, the system keeps running and generating sounds"). Closing the
+    context drops everything queued, and does not leak a context per visit
+    (browsers cap how many a page may hold).
+    */
+    const ac = this._audio
+    this._audio = null
+    if (ac != null && ac.state !== 'closed') void ac.close().catch(() => {})
   }
 }
 
