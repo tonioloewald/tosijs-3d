@@ -229,7 +229,9 @@ Object.assign(BUILT_IN, {
   // Earth in the sky. (Lava tubes to come.)
   Moon: {
     name: 'Moon',
-    demo: { sea: false, volcano: false, craters: 0.9, temperature: 0, moisture: 0 },
+    // FLATTISH, so the craters carry the shape (Earth's 230 m relief buried
+    // them). Jagged highlands would be a mountain province on top.
+    demo: { sea: false, volcano: false, craters: 0.9, temperature: 0, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
     sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: 'Earth', decoBudget: 0, wind: 0 },
   },
   // Sulfur and fire: yellow, orange and white ground, black lava, a field of
