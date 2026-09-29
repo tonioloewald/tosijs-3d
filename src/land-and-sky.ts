@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, volcano, craterField, composeLandforms } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -35,6 +35,11 @@ const { demo } = tosi({
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,
+    // How cratered the ground is (0 = none; a preset sets it: Mars, the Moon).
+    craters: 0,
+    // Is there a sea at all? A dry world (Mars, Venus) has none: no water
+    // plane, and no shoreline or seafloor colours.
+    sea: true,
     wireframe: false,
   },
 })
@@ -157,7 +162,7 @@ sky.world.observe(() => {
 // 300 times brighter than the full moon. So its disc shrinks for real (1 /
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
-  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'volcano', 'temperature', 'moisture', 'volcanicScale'],
+  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'volcano', 'craters', 'temperature', 'moisture', 'volcanicScale'],
   sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate',
     // LAST: switching the storm on builds it from the values above.
     'storm'],
@@ -190,7 +195,7 @@ const BUILT_IN = {
     // row, and temperature falls with altitude, so a cooler Mars went grey.
     // (No volcano for now: Earth's province, a stand-in until each world
     // gets its own landforms.)
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, volcano: false },
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.35 },
     sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 0 },
   },
   // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
@@ -199,7 +204,8 @@ const BUILT_IN = {
   // there.
   Venus: {
     name: 'Venus',
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, volcano: false },
+    // Venus's surface is YOUNG (resurfaced by volcanism): few craters.
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.06 },
     sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
   },
 }
@@ -230,10 +236,42 @@ sky.preset.observe(() => {
 // as from the toggle because it is ON by default, and the toggle's handler only
 // runs when someone flips it.
 const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+// Where the sea is: a FRACTION of the terrain's height, or, on a world
+// with no sea, far below everything (no water to see).
+function seaY() {
+  return demo.sea.valueOf() ? demo.seaLevel * demo.grossAmplitude : -10000
+}
+// The BIOME's datum is separate: it also classifies by altitude above it, so
+// on a dry world it sits just under the deepest crater floors (no shore, no
+// seafloor colours) rather than kilometres down (which read as bare peaks).
+function biomeSea() {
+  return demo.sea.valueOf() ? demo.seaLevel * demo.grossAmplitude : -250
+}
+
+// Temperature falls with height above the SEA; with no sea there is no
+// datum, so a dry world keeps its preset temperature at every height.
+function lapse() {
+  // (Not 0: the terrain reads 0 as UNSET and falls back to its 0.004, an
+  // arctic world. And not 1e-6, which the attribute path rounds to 0.)
+  return demo.sea.valueOf() ? 0.5 / demo.grossAmplitude : 0.0002
+}
+
+// Landforms COMPOSE: the craters, then the volcano on top of them.
 function applyVolcano(on) {
-  terrain.landform = on ? theVolcano.landform : null
+  const parts = []
+  const density = demo.craters.valueOf()
+  if (density > 0) parts.push(craterField({ seed: demo.seed.valueOf(), density, maxRadius: 500 }))
+  if (on) parts.push(theVolcano.landform)
+  terrain.landform = parts.length === 0 ? null : parts.length === 1 ? parts[0] : composeLandforms(...parts)
   terrain.provinceField = on ? theVolcano.province : null
 }
+demo.craters.observe(() => {
+  applyVolcano(demo.volcano.valueOf())
+  terrain.regenerate()
+})
+// A new seed re-rolls the craters too (registered before the terrain's own
+// seed observer below, so the landform is current when it regenerates).
+demo.seed.observe(() => applyVolcano(demo.volcano.valueOf()))
 
 // 'on'|'off' on the element, a boolean on the toggle — bridged here.
 const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius })
@@ -264,8 +302,8 @@ const terrain = b3dTerrain({
   // vertical range (0.5 / amplitude gives temperate valleys and cold
   // summits — the element's own attribute note): the 0.004 default assumes
   // a small world, and at v-size 400 every peak would still read as snow.
-  biomeSeaLevel: demo.seaLevel * demo.grossAmplitude,
-  biomeLapseRate: 0.5 / demo.grossAmplitude,
+  biomeSeaLevel: biomeSea(),
+  biomeLapseRate: lapse(),
   biomeTemperature: demo.temperature,
   biomeMoisture: demo.moisture,
   biomeVolcanicScale: demo.volcanicScale,
@@ -345,6 +383,7 @@ const scene = b3d(
       // terrain, with the volcanism field that makes it glow. The kitchen
       // sink grows from here.
       toggle3d({ label: 'volcano province', value: demo.volcano }),
+      slider3d({ label: 'craters', value: demo.craters, min: 0, max: 1, step: 0.05 }),
       // Beside the volcano: the other thing you switch on to watch happen.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
       label3d({ text: 'Climate' }),
@@ -462,23 +501,23 @@ const scene = b3d(
   // ocean scales with the mountains instead of sitting at a fixed height
   // while the world reshapes around it. `follow` keeps it under the camera;
   // the ripples stay anchored in world space.
-  water = b3dWater({ y: demo.seaLevel * demo.grossAmplitude, waterSize: 8000, follow: true, twoSided: true }),
+  water = b3dWater({ y: seaY(), waterSize: 8000, follow: true, twoSided: true }),
 )
 
 preview.append(scene)
 
 // Regenerate the terrain when its dials move, and keep the sea at the same
 // FRACTION of the terrain's height.
-for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel']) {
+for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel', 'sea']) {
   demo[key].observe(() => {
     // The biome's sea level is a LIVE dial on the terrain — write it BEFORE
     // regenerate() so the adopted generation key is the one the rebuild
     // satisfies (the reverse order cost a second full pool re-cut per step,
     // found by the 0.8.2 review gate).
-    terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
-    terrain.biomeLapseRate = 0.5 / demo.grossAmplitude
+    terrain.biomeSeaLevel = biomeSea()
+    terrain.biomeLapseRate = lapse()
     terrain.regenerate()
-    water.y = demo.seaLevel * demo.grossAmplitude
+    water.y = seaY()
   })
 }
 ```

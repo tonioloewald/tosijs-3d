@@ -5,6 +5,7 @@ import {
   pad,
   composeLandforms,
   mergeProvinces,
+  craterField,
 } from './landform.js'
 
 const FLAT = 5 // pretend the noise terrain is a plain at 5m
@@ -438,3 +439,75 @@ describe('extent — where a field stops', () => {
 })
 
 const bare2 = (x: number, _z: number, h: number) => (x > 500 ? 0 : h)
+
+describe('craterField — a cratered surface (board #2442)', () => {
+  const field = craterField({
+    seed: 7,
+    minRadius: 10,
+    maxRadius: 160,
+    density: 0.8,
+    wear: 0,
+  })
+  test('deterministic: the same seed, the same ground', () => {
+    const again = craterField({
+      seed: 7,
+      minRadius: 10,
+      maxRadius: 160,
+      density: 0.8,
+      wear: 0,
+    })
+    for (const [x, z] of [
+      [3, 4],
+      [120, -80],
+      [-900, 333],
+    ])
+      expect(again(x, z, FLAT)).toBe(field(x, z, FLAT))
+  })
+  test('density 0 leaves the ground alone', () => {
+    const none = craterField({ seed: 7, density: 0 })
+    expect(none(10, 20, FLAT)).toBe(FLAT)
+  })
+  test('it digs: over an area, bowls below the plain and rims above it', () => {
+    let below = 0
+    let above = 0
+    for (let x = -1000; x < 1000; x += 13)
+      for (let z = -1000; z < 1000; z += 13) {
+        const h = field(x, z, FLAT)
+        if (h < FLAT - 1) below++
+        if (h > FLAT + 0.2) above++
+      }
+    expect(below).toBeGreaterThan(200)
+    expect(above).toBeGreaterThan(50)
+  })
+  test('more density, more craters', () => {
+    const count = (d: number) => {
+      const f = craterField({
+        seed: 3,
+        minRadius: 10,
+        maxRadius: 80,
+        density: d,
+      })
+      let n = 0
+      for (let x = -800; x < 800; x += 11)
+        for (let z = -800; z < 800; z += 11) if (f(x, z, FLAT) < FLAT - 0.5) n++
+      return n
+    }
+    expect(count(0.8)).toBeGreaterThan(count(0.2) * 2)
+  })
+  test('wear softens: a fully worn field is shallower than a fresh one', () => {
+    const depthOf = (wear: number) => {
+      const f = craterField({
+        seed: 5,
+        minRadius: 20,
+        maxRadius: 80,
+        density: 1,
+        wear,
+      })
+      let low = 0
+      for (let x = -600; x < 600; x += 9)
+        for (let z = -600; z < 600; z += 9) low = Math.min(low, f(x, z, 0))
+      return -low
+    }
+    expect(depthOf(1)).toBeLessThan(depthOf(0))
+  })
+})

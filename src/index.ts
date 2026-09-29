@@ -1087,6 +1087,7 @@ export type { LocalizedFilter } from './slope-profile.js'
 export {
   volcano,
   impactCrater,
+  craterField,
   pad,
   gulley,
   cover,
@@ -1162,6 +1163,7 @@ export type {
   ProvinceFn,
   VolcanoOptions,
   CraterOptions,
+  CraterFieldOptions,
   PadOptions,
   GulleyOptions,
   CoverOptions,

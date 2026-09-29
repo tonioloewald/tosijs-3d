@@ -25,6 +25,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   how often it strikes). **Mars is red**: hot and bone-dry, so the palette's
   red dust (temperature falls with altitude; a cooler Mars went grey). The
   volcano is off for both until each world has its own landforms.
+- **`craterField`** (landform): a whole cratered surface, seeded and
+  unbounded. Sizes in doubling classes, one grid per class sized to its
+  craters, so a real 1/size-squared population is one presence roll per
+  cell and a terrain sample checks one cell per class. Big (old) craters
+  first, small ones punch into them; each worn to its own age; complex
+  craters (flat floor, central peak) past `complexRadius`. Land and Sky has
+  a **craters** slider; Mars 0.35, Venus 0.06 (its surface is young). Dry
+  worlds have **no sea** (`sea: false`): no water plane, no shore colours.
 - **The aircraft demo has weather to fly in**: ⚙ sliders for wind (blowing
   across your starting heading, so you crab) and storminess (a storm cell
   over the whole arena), and a live turbulence readout.
