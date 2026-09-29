@@ -43,6 +43,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   ground (Tonio: "I see flashes but never seem to see lightning strokes"):
   under a closed deck the scene fog swallowed the bolt meshes. Bolts ignore
   fog now; they are far brighter than anything it hides.
+- **Distant lightning strokes did not render**: a 1.6 m channel is a small
+  fraction of a pixel a few kilometres off, so under a big storm most bolts
+  vanished while their flash lit everything. Bolts (and their glow) now
+  scale with distance, never thinner than about a pixel and a half.
 
 ## 0.8.5
 

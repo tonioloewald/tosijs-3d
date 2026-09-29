@@ -574,6 +574,18 @@ export class B3dLightning extends B3dChild {
       const mat = this._boltMaterial(scene)
       const glow = this._glowMaterial(scene)
       /*
+      NEVER THINNER THAN A PIXEL OR SO. A 1.6 m channel is a small fraction
+      of a pixel a few kilometres off, so under a big storm most strokes never
+      rendered while their flash still lit everything (Tonio: "still not
+      seeing many lightning strokes even when the cloud and land being lit
+      are clearly visible"). Scaled by distance so a far bolt is a thin bright
+      line and a near one is the real thing: ~1.5 px at a 1 rad view on a
+      1000 px screen.
+      */
+      const px = distance * 0.0015
+      const core = Math.max(1.6, px)
+      const haloR = Math.max(9, px * 4)
+      /*
       A HALO around the main channel: the bolt itself tops out at white on
       an LDR screen, so what reads as BLINDING is the air glowing around it.
       Additive, several times the channel's width.
@@ -582,7 +594,7 @@ export class B3dLightning extends B3dChild {
         'lightning-halo',
         {
           path: paths[0].map((p) => new BABYLON.Vector3(p.x, p.y, p.z)),
-          radius: 9,
+          radius: haloR,
           tessellation: 6,
         },
         scene
@@ -601,7 +613,7 @@ export class B3dLightning extends B3dChild {
           'lightning-bolt',
           {
             path: path.map((p) => new BABYLON.Vector3(p.x, p.y, p.z)),
-            radius: i === 0 ? 1.6 : 0.8,
+            radius: i === 0 ? core : core * 0.5,
             tessellation: 4,
           },
           scene
