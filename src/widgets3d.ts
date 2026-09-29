@@ -252,6 +252,8 @@ settings into `select3d` cyclers to get discrete values.
 | | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
 | | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
 | | `background` | theme `panelBg` | |
+| `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. In a `<tosi-b3d>` `scenePanel`, flat and VR alike; the open set is remembered in the browser |
+| | `open` | first section only | whether a collapsible section starts open |
 | `row3d` | `weights` | equal | proportional shares of the post-gap width |
 | | `align` | `'middle'` | `top` / `middle` / `bottom` |
 | | `gap` | `8` | |
@@ -761,6 +763,63 @@ function panelPopupSheet(
   return panel3d({ width, height: 'fit', paddingTop: chromeBand }, ...items)
 }
 
+/**
+ * A collapsible section header: bold caption, a chevron (open / closed), and
+ * a tap that asks the host to fold or unfold. `section.toggle` and
+ * `section.isOpen` are wired by the host before layout.
+ */
+function sectionLabel(
+  config: { text: string; open?: boolean; color?: string },
+  fill: string
+): Widget3d & {
+  section: {
+    title: string
+    open?: boolean
+    isOpen: boolean
+    toggle?: () => void
+  }
+} {
+  const section = {
+    title: config.text,
+    open: config.open,
+    isOpen: config.open ?? false,
+    toggle: undefined as undefined | (() => void),
+  }
+  const t = baseText(config.text, fill, true)
+  const chevron = baseText('', TH.MUTED, true)
+  const bg = rect({
+    x: 0,
+    y: 2,
+    rx: 6,
+    ry: 6,
+    height: TH.ROW - 4,
+    fill: 'transparent',
+  })
+  const h = TH.ROW
+  t.setAttribute('x', String(TH.PAD_X + 16))
+  t.setAttribute('y', String(h / 2))
+  chevron.setAttribute('x', String(TH.PAD_X))
+  chevron.setAttribute('y', String(h / 2))
+  return {
+    el: g({ 'data-w3d': 'section' }, bg, chevron, t),
+    section,
+    layout(width) {
+      bg.setAttribute('width', String(width))
+      chevron.textContent = section.isOpen ? '▾' : '▸'
+      t.textContent = ellipsize(
+        config.text,
+        width - TH.PAD_X * 2 - 16,
+        TH.BOLD_FONT
+      )
+      return h
+    },
+    handle(kind) {
+      bg.setAttribute('fill', kind === 'leave' ? 'transparent' : TH.BTN_HOVER)
+      if (kind === 'up') section.toggle?.()
+    },
+  }
+}
+
 /** What a panel offers the widgets inside it. */
 /**
  * A host translated by a child's offset inside its container.
@@ -1091,8 +1150,25 @@ export function label3d(config: {
   bold?: boolean
   color?: string
   compact?: boolean
-}): Widget3d {
+  /**
+   * A SECTION HEADER: tap it to fold away everything below it, up to the next
+   * collapsible label (board #2466). The host panel (a `<tosi-b3d>`
+   * `scenePanel`) does the folding and remembers what is open; the label only
+   * draws its chevron and asks. A plain label is unchanged.
+   */
+  collapsible?: boolean
+  /** Whether a collapsible section starts open. Default: only the first. */
+  open?: boolean
+}): Widget3d & {
+  section?: {
+    title: string
+    open?: boolean
+    isOpen: boolean
+    toggle?: () => void
+  }
+} {
   const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT)
+  if (config.collapsible) return sectionLabel(config, fill)
   const t = baseText(config.text, fill, config.bold)
   const h = config.compact ? TH.LINE_H : TH.ROW
   t.setAttribute('x', String(TH.PAD_X))

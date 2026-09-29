@@ -433,7 +433,7 @@ const scene = b3d(
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
-      label3d({ text: 'World' }),
+      label3d({ text: 'World', collapsible: true, open: true }),
       select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
       button3d({
         label: 'save as new preset',
@@ -462,7 +462,7 @@ const scene = b3d(
           }
         },
       }),
-      label3d({ text: 'Terrain' }),
+      label3d({ text: 'Terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
       slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, scale: 'log2' }),
@@ -479,11 +479,11 @@ const scene = b3d(
       select3d({ label: 'ground palette', value: demo.palette, options: ['earth', ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
-      label3d({ text: 'Climate' }),
+      label3d({ text: 'Climate', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
-      label3d({ text: 'Weather' }),
+      label3d({ text: 'Weather', collapsible: true }),
       slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
@@ -492,7 +492,7 @@ const scene = b3d(
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
-      label3d({ text: 'Atmosphere' }),
+      label3d({ text: 'Atmosphere', collapsible: true }),
       slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
@@ -500,22 +500,22 @@ const scene = b3d(
       slider3d({ label: 'rayleigh', value: sky.rayleigh, min: 0, max: 4, step: 0.05 }),
       slider3d({ label: 'mie', value: sky.mieCoefficient, min: 0, max: 0.05, step: 0.001 }),
       slider3d({ label: 'luminance', value: sky.luminance, min: 0.1, max: 2, step: 0.05 }),
-      label3d({ text: 'Stars' }),
+      label3d({ text: 'Stars', collapsible: true }),
       slider3d({ label: 'star size', value: sky.starSize, min: 0.4, max: 3, step: 0.05 }),
       slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
       slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
-      label3d({ text: 'Moons' }),
+      label3d({ text: 'Moons', collapsible: true }),
       select3d({ label: 'moons', value: sky.moons, options: Object.keys(MOONS) }),
       slider3d({ label: 'moon azimuth', value: sky.moonAz, min: -180, max: 180, step: 1 }),
       slider3d({ label: 'moon elevation', value: sky.moonEl, min: -60, max: 60, step: 1 }),
-      label3d({ text: 'Vegetation' }),
+      label3d({ text: 'Vegetation', collapsible: true }),
       // THE BUDGET is the performance dial: a count, not a density. Watch the
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
       slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
       slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
       toggle3d({ label: 'tree shadows', value: sky.decoShadows }),
-      label3d({ text: 'Camera' }),
+      label3d({ text: 'Camera', collapsible: true }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
     ],

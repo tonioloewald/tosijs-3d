@@ -1334,6 +1334,7 @@ weather
 widgets3d
 
   panel3d  = width  — `360`
+  label3d  = collapsible  — `false`
   row3d  = weights  — equal
   slider3d  = min` / `max  — `0` / `1`
   toggle3d  = label` / `value

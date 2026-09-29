@@ -2124,6 +2124,19 @@ export class B3d extends Component {
   // LISTENER), so a component callback named that way collides with it. tosijs warns
   // and points here — the same footgun as tosijs#22, now with a migration path.
   handleResize() {
+    // An open flat panel re-fits to the new height, once the resize settles.
+    const host = this.parts?.scenePanelHost as HTMLElement | undefined
+    if (
+      host != null &&
+      !host.hasAttribute('hidden') &&
+      this.clientHeight !== this._panelHeightKey
+    ) {
+      if (this._panelResizeTimer != null) clearTimeout(this._panelResizeTimer)
+      this._panelResizeTimer = setTimeout(() => {
+        this._panelResizeTimer = null
+        this.refreshScenePanel()
+      }, 150)
+    }
     if (this.engine && !this._resizing) {
       this._resizing = true
       this.engine.resize()
@@ -3364,15 +3377,80 @@ export class B3d extends Component {
     xr: [],
   }
 
+  /*
+  COLLAPSIBLE SECTIONS (board #2466). A `label3d({ collapsible: true })` heads
+  a section: every row after it, up to the next one, belongs to it. Folded
+  sections' rows are simply LEFT OUT here, the one place both presentations
+  get their rows, so flat and XR fold identically. The open set persists per
+  page, in the browser (a private window just starts from the defaults).
+  */
+  private _sectionOpen: Map<string, boolean> | null = null
+  private _sectionKey(): string {
+    return `tosi-b3d:sections:${location.pathname}`
+  }
+  private _sectionsOpen(): Map<string, boolean> {
+    if (this._sectionOpen == null) {
+      this._sectionOpen = new Map()
+      try {
+        const raw = localStorage.getItem(this._sectionKey())
+        for (const [k, v] of Object.entries(JSON.parse(raw || '{}')))
+          this._sectionOpen.set(k, !!v)
+      } catch {
+        /* no storage: defaults */
+      }
+    }
+    return this._sectionOpen
+  }
+  private _foldSections(rows: Widget3d[]): Widget3d[] {
+    const open = this._sectionsOpen()
+    const out: Widget3d[] = []
+    let showing = true
+    let first = true
+    for (const row of rows) {
+      const sec = (row as any).section as
+        | {
+            title: string
+            open?: boolean
+            isOpen: boolean
+            toggle?: () => void
+          }
+        | undefined
+      if (sec == null) {
+        if (showing) out.push(row)
+        continue
+      }
+      const isOpen = open.get(sec.title) ?? sec.open ?? first
+      first = false
+      sec.isOpen = isOpen
+      sec.toggle = () => {
+        open.set(sec.title, !isOpen)
+        try {
+          localStorage.setItem(
+            this._sectionKey(),
+            JSON.stringify(Object.fromEntries(open))
+          )
+        } catch {
+          /* no storage: it still toggles for this visit */
+        }
+        this._repaintPanels()
+      }
+      out.push(row)
+      showing = isOpen
+    }
+    return out
+  }
+
   private _panelWidgets(xr = false): Widget3d[] {
     const key = xr ? 'xr' : 'flat'
     this._disposeWidgets(key)
-    const rows = this.scenePanel(this)
+    const all = this.scenePanel(this)
+    const rows = this._foldSections(all)
     const items = this._barItems()
     if (items.length === 0) {
       // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
       this._liveDebug[key] = []
-      this._builtWidgets[key] = rows
+      // ALL of them, folded ones included: they were built, so they dispose.
+      this._builtWidgets[key] = all
       return rows
     }
     /*
@@ -3393,7 +3471,7 @@ export class B3d extends Component {
     rendered. `_syncDebugPopups` opens and closes them against that set, so the
     icon bar's active state and the popup cannot disagree.
     */
-    this._builtWidgets[key] = rows
+    this._builtWidgets[key] = all
     return rows
   }
 
@@ -4759,13 +4837,14 @@ export class B3d extends Component {
   private _makePanel(
     rows: Widget3d[],
     header: Widget3d[] = [],
-    grip = false
+    grip = false,
+    maxHeight = 620
   ): SVGSVGElement {
     return panel3d(
       {
         width: 320,
         height: 'fit',
-        maxHeight: 620,
+        maxHeight,
         // Only the in-scene panel is draggable — the flat one is a DOM overlay
         // the page already positions, and a grab bar there would do nothing.
         grip,
@@ -4998,9 +5077,26 @@ export class B3d extends Component {
     replaceKeepingLayers(
       host,
       div({ class: 'scene-panel-head' }, ...buttons),
-      this._makePanel(this._panelWidgets())
+      this._makePanel(this._panelWidgets(), [], false, this._flatPanelMax())
     )
     host.removeAttribute('hidden')
+    this._panelHeightKey = this.clientHeight
+  }
+
+  /*
+  THE FLAT PANEL FITS THE SPACE IT HAS (board #2466). It draws one viewBox
+  unit per CSS pixel, and was capped at a fixed 620: on a short window or a
+  phone a long panel (Land and Sky) ran off the bottom. Capped at the scene's
+  height less the overlay's 12 px inset top and bottom, its own scrolling
+  takes over. Re-measured when the scene resizes (see handleResize). The XR
+  panel keeps 620: in a headset there is no window to fit.
+  */
+  private _panelHeightKey = 0
+  private _panelResizeTimer: ReturnType<typeof setTimeout> | null = null
+  private _flatPanelMax(): number {
+    const h = this.clientHeight
+    if (!(h > 0)) return 620
+    return Math.max(160, Math.min(620, h - 24))
   }
 
   private _closeScenePanel(): void {

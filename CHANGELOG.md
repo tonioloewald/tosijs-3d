@@ -6,6 +6,19 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **Scene panels fit the space they have** (board #2466). The flat ⚙ panel
+  is capped at the scene's height (it was a fixed 620 px, and ran off the
+  bottom of a short window or a phone), re-fitted when the scene resizes;
+  its own scrolling takes over. And **collapsible sections**:
+  `label3d({ text, collapsible: true, open? })` heads a section that folds
+  everything below it up to the next one, flat and in VR alike, with the
+  open set remembered in the browser. Land and Sky's 50-odd rows fold into
+  nine sections.
+
 ## 0.8.6
 
 **Other worlds.** Land and Sky becomes a world builder: presets you pick,

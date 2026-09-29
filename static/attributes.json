@@ -5108,6 +5108,11 @@
         "description": "`360`"
       },
       {
+        "name": "label3d",
+        "default": "collapsible",
+        "description": "`false`"
+      },
+      {
         "name": "row3d",
         "default": "weights",
         "description": "equal"
