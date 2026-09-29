@@ -787,15 +787,18 @@ function sectionLabel(
   }
   const t = baseText(config.text, fill, true)
   const chevron = baseText('', TH.MUTED, true)
+  // COMPACT (Tonio: "the collapsed sections could be a little more compact"):
+  // a caption line, not a control row, so a panel of folded sections reads as
+  // a tight table of contents. Still a comfortable target in a headset.
+  const h = Math.max(TH.LINE_H + 8, 28)
   const bg = rect({
     x: 0,
-    y: 2,
+    y: 1,
     rx: 6,
     ry: 6,
-    height: TH.ROW - 4,
+    height: h - 2,
     fill: 'transparent',
   })
-  const h = TH.ROW
   t.setAttribute('x', String(TH.PAD_X + 16))
   t.setAttribute('y', String(h / 2))
   chevron.setAttribute('x', String(TH.PAD_X))

@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -434,34 +434,46 @@ const scene = b3d(
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
       label3d({ text: 'World', collapsible: true, open: true }),
-      select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
-      button3d({
-        label: 'save as new preset',
-        handleClick: () => {
-          const name = `Custom ${Object.keys(loadCustom()).length + 1}`
-          saveCustom(capturePreset(name))
-          sky.preset.value = name
-          scene.refreshScenePanel?.()
-        },
-      }),
-      button3d({
-        label: 'copy preset (JSON)',
-        handleClick: () => navigator.clipboard?.writeText(JSON.stringify(capturePreset(sky.preset.value), null, 2)),
-      }),
-      button3d({
-        label: 'paste preset (JSON)',
-        handleClick: async () => {
-          try {
-            const p = JSON.parse(await navigator.clipboard.readText())
-            p.name = p.name || 'Pasted'
-            saveCustom(p)
-            sky.preset.value = p.name
-            scene.refreshScenePanel?.()
-          } catch {
-            // not a preset on the clipboard
-          }
-        },
-      }),
+      // Pick a world; everything you DO with presets is one menu.
+      row3d(
+        { weights: [4, 1] },
+        select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
+        button3d({
+          label: '⋯',
+          menu: [
+            {
+              label: 'Save as new preset',
+              icon: 'plus',
+              handleSelect: () => {
+                const name = `Custom ${Object.keys(loadCustom()).length + 1}`
+                saveCustom(capturePreset(name))
+                sky.preset.value = name
+                scene.refreshScenePanel?.()
+              },
+            },
+            {
+              label: 'Copy preset (JSON)',
+              icon: 'uploadCloud',
+              handleSelect: () => navigator.clipboard?.writeText(JSON.stringify(capturePreset(sky.preset.value), null, 2)),
+            },
+            {
+              label: 'Paste preset (JSON)',
+              icon: 'downloadCloud',
+              handleSelect: async () => {
+                try {
+                  const p = JSON.parse(await navigator.clipboard.readText())
+                  p.name = p.name || 'Pasted'
+                  saveCustom(p)
+                  sky.preset.value = p.name
+                  scene.refreshScenePanel?.()
+                } catch {
+                  // not a preset on the clipboard
+                }
+              },
+            },
+          ],
+        })
+      ),
       label3d({ text: 'Terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),

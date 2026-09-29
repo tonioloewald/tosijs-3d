@@ -18,6 +18,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   everything below it up to the next one, flat and in VR alike, with the
   open set remembered in the browser. Land and Sky's 50-odd rows fold into
   nine sections.
+  Section headers are compact (a caption line, not a control row), and
+  Land and Sky's preset actions (save, copy, paste) moved into a ⋯ menu
+  beside the preset picker.
 
 ## 0.8.6
 
