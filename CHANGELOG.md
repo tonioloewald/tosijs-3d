@@ -41,6 +41,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   palette** (swapped on the biome shader) and sea colours. `b3d-water`
   gains **`fogColor`**: the colour of the water you are in, which the
   underwater fog, the medium and the light shafts all read.
+- **Venus: no rain, gentler relief.** Its sulfuric acid rain evaporates
+  before reaching the ground, and the surface is mostly smooth lava plains;
+  the storm's rain is now a preset setting (`stormRain`).
 - **The aircraft demo has weather to fly in**: ⚙ sliders for wind (blowing
   across your starting heading, so you crab) and storminess (a storm cell
   over the whole arena), and a live turbulence readout.

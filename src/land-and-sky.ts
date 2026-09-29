@@ -73,7 +73,7 @@ const { sky } = tosi({
     deckColor: '#ffffff', deckUnderColor: '#3a4350', sunSize: 1, sunBrightness: 1,
     // The lightning storm: where it forms, how big, the cover it adds and how
     // often it strikes (a multiple of the natural rate). Presets set these.
-    stormX: 1600, stormZ: 300, stormRadius: 900, stormCoverage: 1.7, lightningRate: 1,
+    stormX: 1600, stormZ: 300, stormRadius: 900, stormCoverage: 1.7, lightningRate: 1, stormRain: 0.9,
     // The world preset in force (see PRESETS below).
     preset: 'Earth',
   },
@@ -174,7 +174,7 @@ sky.world.observe(() => {
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
   demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale'],
-  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate',
+  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
     // LAST: switching the storm on builds it from the values above.
     'storm'],
 }
@@ -216,8 +216,10 @@ const BUILT_IN = {
   Venus: {
     name: 'Venus',
     // Venus's surface is YOUNG (resurfaced by volcanism): few craters.
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.06 },
-    sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
+    // Mostly smooth lava plains (Magellan radar): gentle relief. And no rain:
+    // Venus's sulfuric acid evaporates long before it reaches the ground.
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.06, grossAmplitude: 90, detailAmplitude: 8 },
+    sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, stormRain: 0, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
   },
 }
 // Presets for the outer worlds sit below BUILT_IN's literal so they can use
@@ -414,7 +416,7 @@ sky.storm.observe(() => {
   storm?.remove()
   storm = null
   if (sky.storm.value) {
-    storm = b3dWeatherCell({ x: sky.stormX.value, z: sky.stormZ.value, radius: sky.stormRadius.value, coverage: sky.stormCoverage.value, storminess: 1, precipitation: 0.9, drift: 'wind', grow: 20 })
+    storm = b3dWeatherCell({ x: sky.stormX.value, z: sky.stormZ.value, radius: sky.stormRadius.value, coverage: sky.stormCoverage.value, storminess: 1, precipitation: sky.stormRain.value, drift: 'wind', grow: 20 })
     scene.append(storm)
   }
 })
