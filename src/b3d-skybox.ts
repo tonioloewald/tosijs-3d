@@ -137,6 +137,8 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `duskColor` | `'#ffaa22'` | Dawn/dusk sun color |
 | `moonColor` | `'#6688cc'` | Night light color |
 | `moonIntensity` | `0.15` | Night light intensity |
+| `sunSize` | `1` | The sun's apparent size, 1 = as seen from Earth. Mars 0.66, Venus 1.39, Io 0.19, Titan 0.11 (it goes as 1/distance from the star) |
+| `sunBrightness` | `1` | Multiplies the sun's light. A distant world gets less light, but the eye adapts, so set it by how it looks rather than by the inverse square |
 | `applyFog` | `false` | Whether scene fog affects the skybox |
 */
 /*{ "parent": "Environment" }*/
@@ -565,12 +567,27 @@ function registerForkedSky(): boolean {
       'vPositionW=vec3(worldPos);',
       'vPositionW=vec3(worldPos);vSkyLocal=position.xyz;'
     )
-  store[`${B3D_SKY}PixelShader`] = src
+  /*
+  THE SUN'S SIZE is a constant in the sky model (sunAngularDiameterCos).
+  Scaled here by b3dSunSize: angular AREA goes with size squared, and so does
+  1 - cos for a small angle. A world further out sees a smaller sun (Mars
+  0.66, Io 0.19), a nearer one a bigger sun (Venus 1.39). If the sky model
+  changes its disc line, the sun simply keeps Earth's size.
+  */
+  const SUNDISK =
+    'float sundisk=smoothstep(sunAngularDiameterCos,sunAngularDiameterCos+0.00002,cosTheta);'
+  const sizedSrc = src.includes(SUNDISK)
+    ? src.replace(
+        SUNDISK,
+        'float b3dSunK=b3dSunSize*b3dSunSize;float b3dSunCos=1.0-(1.0-sunAngularDiameterCos)*b3dSunK;float sundisk=smoothstep(b3dSunCos,b3dSunCos+0.00002*b3dSunK,cosTheta);'
+      )
+    : src
+  store[`${B3D_SKY}PixelShader`] = sizedSrc
     .replace(
       '#define CUSTOM_FRAGMENT_DEFINITIONS',
       'varying vec3 vSkyLocal;' +
         'uniform samplerCube b3dStars;uniform float b3dStarLevel;uniform float b3dMoon;uniform vec3 b3dMoonDir;' +
-        'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;uniform float b3dSunHdr;' +
+        'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;uniform float b3dSunHdr;uniform float b3dSunSize;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         'uniform vec4 b3dMoonsA[4];uniform vec4 b3dMoonsB[4];uniform vec3 b3dSunLocal;' +
         MOONS_GLSL +
@@ -649,7 +666,7 @@ function registerForkedSky(): boolean {
         // white) — losing the atmosphere must not dim it (Tonio).
         `color.rgb+=vec3(1.6,1.6,1.65)*b3dMoonDisc*b3dMd;}` +
         `{float sd=dot(normalize(vPositionW-cameraPosition),b3dSunDir);` +
-        `color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(0.999965,0.99998,sd);` +
+        `float b3dSk=b3dSunSize*b3dSunSize;color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(1.0-0.000035*b3dSk,1.0-0.00002*b3dSk,sd);` +
         /*
         THE SUN AS HDR, for a photograph of the sky rather than for the
         screen: 0 in normal rendering. The sky is LDR, so the sun is a 1.0
@@ -661,7 +678,7 @@ function registerForkedSky(): boolean {
         the probe's texels are nearly a degree and a half-degree disc would
         fall between them.
         */
-        `color.rgb+=b3dSunDiscColor*b3dSunHdr*pow(max(sd,0.0),1000.0);}` +
+        `color.rgb+=b3dSunDiscColor*b3dSunHdr*pow(max(sd,0.0),1000.0/max(0.01,b3dSk));}` +
         /*
         THE MEDIUM VEIL, and it MIXES where the stars ADD — because it is not
         light arriving, it is light being blocked. Inside cloud there is white a
@@ -748,6 +765,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
         'b3dMoonDisc',
         'b3dSunDiscColor',
         'b3dSunHdr',
+        'b3dSunSize',
         'b3dTintZ',
         'b3dTintH',
         'b3dTintAmt',
@@ -781,6 +799,7 @@ function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {
   mat.setVector3('b3dSunDir', new BABYLON.Vector3(0, 1, 0))
   mat.setFloat('b3dSunDisc', 0)
   mat.setFloat('b3dSunHdr', 0)
+  mat.setFloat('b3dSunSize', 1)
   mat.setFloat('b3dMoonDisc', 0)
   mat.setArray4('b3dMoonsA', new Array(16).fill(0))
   mat.setArray4('b3dMoonsB', new Array(16).fill(0))
@@ -1023,6 +1042,12 @@ export class B3dSkybox extends AbstractMesh {
     duskColor: '#ffaa22',
     moonColor: '#6688cc',
     moonIntensity: 0.15,
+    /** The sun's apparent size, 1 = as seen from Earth (Mars 0.66, Venus
+     * 1.39, Io 0.19, Titan 0.11). */
+    sunSize: 1,
+    /** Multiplies the sun's light. For a distant world, set it by how it
+     * LOOKS (the eye adapts), not by the inverse square. */
+    sunBrightness: 1,
     timeOfDay: 6.5,
     rayleigh: 2,
     mieDirectionalG: 0.8,
@@ -2085,6 +2110,7 @@ export class B3dSkybox extends AbstractMesh {
       const bare = 1 - air
       sm.setFloat?.('b3dMoonDisc', isDay ? 0 : bare)
       sm.setFloat?.('b3dSunDisc', isDay ? bare : 0)
+      sm.setFloat?.('b3dSunSize', Math.max(0.01, Number(attrs.sunSize) || 1))
       sm.setVector3?.('b3dSunDir', sunVector.clone().normalize())
       this._applyMoons(sm, isDay, sunVector, dayBrightness * air)
     }
@@ -2267,7 +2293,12 @@ export class B3dSkybox extends AbstractMesh {
         light.direction.y = -this._dir.y
         light.direction.z = -this._dir.z
         light.diffuse.copyFrom(lightColor)
-        light.intensity = (isDay ? intensity : attrs.moonIntensity) * dim
+        // sunBrightness: a world further from its star is dimmer, but the
+        // eye adapts, so presets set it PERCEPTUALLY (a log curve), not by
+        // the inverse square (#2442).
+        const sunB = Math.max(0, Number(attrs.sunBrightness ?? 1))
+        light.intensity =
+          (isDay ? intensity * sunB : attrs.moonIntensity) * dim
       }
     }
   }

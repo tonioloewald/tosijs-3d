@@ -191,6 +191,9 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       duskColor: color('#ffaa22'),
       moonColor: color('#6688cc'),
       moonIntensity: num(0.15, { minimum: 0, maximum: 1 }),
+      // 1/distance from the star: Venus 1.39, Mars 0.66, Io 0.19, Titan 0.11.
+      sunSize: num(1, { minimum: 0.02, maximum: 5 }),
+      sunBrightness: num(1, { minimum: 0, maximum: 3 }),
       skyboxSize: num(1000, {
         minimum: 100,
         maximum: 20000,

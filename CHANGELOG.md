@@ -10,6 +10,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Land and Sky presets** (board #2442, stage 1): a whole world as data
+  (terrain, sea, climate, weather, atmosphere, stars, moons, cloud colours,
+  sun) you pick from the ⚙ panel's new **World** section, save as a new
+  preset (kept in your browser) or copy and paste as JSON. Built in: Earth,
+  Mars and Venus. A preset lists only what it changes, over Earth.
+- **The sun's size and brightness per world** (`b3d-skybox` `sunSize`,
+  `sunBrightness`): the disc (and its glow in vacuum and in the water
+  window's HDR capture) scales with 1/distance (Venus 1.39, Mars 0.66, Io
+  0.19, Titan 0.11); its light is set by how it LOOKS (a log curve), not by
+  the inverse square, because the eye adapts.
 - **The aircraft demo has weather to fly in**: ⚙ sliders for wind (blowing
   across your starting heading, so you crab) and storminess (a storm cell
   over the whole arena), and a live turbulence readout.

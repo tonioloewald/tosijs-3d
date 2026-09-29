@@ -3383,6 +3383,16 @@
         "description": "Night light intensity"
       },
       {
+        "name": "sunSize",
+        "default": "1",
+        "description": "The sun's apparent size, 1 = as seen from Earth. Mars 0.66, Venus 1.39, Io 0.19, Titan 0.11 (it goes as 1/distance from the star)"
+      },
+      {
+        "name": "sunBrightness",
+        "default": "1",
+        "description": "Multiplies the sun's light. A distant world gets less light, but the eye adapts, so set it by how it looks rather than by the inverse square"
+      },
+      {
         "name": "timeOfDay",
         "default": "6.5",
         "description": "0-24 hours"

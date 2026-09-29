@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, volcano } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -56,6 +56,11 @@ const { sky } = tosi({
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
     // Extra (cosmetic) moons: a set, swung round the sky together.
     moons: 'Big moon', moonAz: 0, moonEl: 0,
+    // The cloud deck's colours (a Venus deck is sulfur-yellow), and the sun:
+    // its apparent size and how bright its light looks.
+    deckColor: '#ffffff', deckUnderColor: '#3a4350', sunSize: 1, sunBrightness: 1,
+    // The world preset in force (see PRESETS below).
+    preset: 'Earth',
   },
 })
 
@@ -109,6 +114,8 @@ const skybox = b3dSkybox({
   starfieldGain: sky.starGain,
   starfieldFloor: sky.starFloor,
   starfieldTwinkle: sky.twinkle,
+  sunSize: sky.sunSize,
+  sunBrightness: sky.sunBrightness,
 })
 
 const moonEls = []
@@ -133,6 +140,80 @@ placeMoons()
 sky.world.observe(() => {
   const w = WORLDS[sky.world.value]
   if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
+})
+
+// PRESETS: A WHOLE WORLD AS DATA (board #2442). Terrain, sea, climate,
+// weather, atmosphere, stars, moons, the cloud deck's colour and the sun, as
+// one plain object you can pick, save and share. A preset only lists what it
+// changes; applying one resets everything else to Earth first, so nothing
+// leaks from the last world.
+//
+// THE SUN'S BRIGHTNESS FOLLOWS THE EYE, not the inverse square. A world
+// further from its star gets far less light (Titan about 1/90 of Earth's),
+// but vision is logarithmic and adapts, and even from Pluto the sun is some
+// 300 times brighter than the full moon. So its disc shrinks for real (1 /
+// distance) while its light only dims gently, on a log curve.
+const PRESET_KEYS = {
+  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'volcano', 'temperature', 'moisture', 'volcanicScale'],
+  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget'],
+}
+const STATE = { demo, sky }
+function capturePreset(name) {
+  const p = { name }
+  for (const [group, keys] of Object.entries(PRESET_KEYS)) {
+    p[group] = {}
+    for (const k of keys) p[group][k] = STATE[group][k].value
+  }
+  return p
+}
+function applyPreset(p) {
+  for (const [group, keys] of Object.entries(PRESET_KEYS)) {
+    const vals = p[group] ?? {}
+    for (const k of keys) if (k in vals) STATE[group][k].value = vals[k]
+  }
+}
+// How bright a sun LOOKS from `au` astronomical units (1 = Earth).
+const sunLight = (au) => Math.max(0.35, 1 - 0.3 * Math.log10(au * au))
+const EARTH = capturePreset('Earth') // the defaults above
+const BUILT_IN = {
+  Earth: EARTH,
+  // Thin, dusty air (its sky is bright from DUST, not gas), red desert, no
+  // seas, a smaller sun, two little moons, and Olympus Mons for the volcano.
+  Mars: {
+    name: 'Mars',
+    demo: { seaLevel: 0, temperature: 0.62, moisture: 0.05, volcano: true },
+    sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 0 },
+  },
+  // A closed deck of sulfur-yellow cloud: from below, a hot, dim, yellow
+  // world (dim, not night: past about 1.5 the deck is as dark as night by
+  // design); climb out through the whiteout and the bigger sun is there.
+  Venus: {
+    name: 'Venus',
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, volcano: true },
+    sky: { coverage: 1.25, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
+  },
+}
+const CUSTOM_KEY = 'land-and-sky:presets'
+function loadCustom() {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '{}') || {}
+  } catch {
+    return {}
+  }
+}
+function saveCustom(p) {
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify({ ...loadCustom(), [p.name]: p }))
+  } catch {
+    // private window: the preset still applies, it just is not kept
+  }
+}
+const presetNames = () => [...Object.keys(BUILT_IN), ...Object.keys(loadCustom())]
+sky.preset.observe(() => {
+  const p = BUILT_IN[sky.preset.value] ?? loadCustom()[sky.preset.value]
+  if (p == null) return
+  applyPreset(EARTH)
+  applyPreset(p)
 })
 
 // The volcano is authored ONCE and switched in and out. Applied here as well
@@ -181,6 +262,12 @@ const terrain = b3dTerrain({
 })
 
 applyVolcano(demo.volcano.valueOf())
+// Observed rather than handled on the toggle, so a PRESET switching the
+// volcano regenerates the terrain too.
+demo.volcano.observe(() => {
+  applyVolcano(demo.volcano.valueOf())
+  terrain.regenerate()
+})
 
 // A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
 // with coverage and storminess, drifting with the wind. It gathers IN FRONT
@@ -207,6 +294,35 @@ const scene = b3d(
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
+      label3d({ text: 'World' }),
+      select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
+      button3d({
+        label: 'save as new preset',
+        handleClick: () => {
+          const name = `Custom ${Object.keys(loadCustom()).length + 1}`
+          saveCustom(capturePreset(name))
+          sky.preset.value = name
+          scene.refreshScenePanel?.()
+        },
+      }),
+      button3d({
+        label: 'copy preset (JSON)',
+        handleClick: () => navigator.clipboard?.writeText(JSON.stringify(capturePreset(sky.preset.value), null, 2)),
+      }),
+      button3d({
+        label: 'paste preset (JSON)',
+        handleClick: async () => {
+          try {
+            const p = JSON.parse(await navigator.clipboard.readText())
+            p.name = p.name || 'Pasted'
+            saveCustom(p)
+            sky.preset.value = p.name
+            scene.refreshScenePanel?.()
+          } catch {
+            // not a preset on the clipboard
+          }
+        },
+      }),
       label3d({ text: 'Terrain' }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
@@ -218,14 +334,7 @@ const scene = b3d(
       // THE FIRST PROVINCE — an authored volcano forced through the live
       // terrain, with the volcanism field that makes it glow. The kitchen
       // sink grows from here.
-      toggle3d({
-        label: 'volcano province',
-        value: demo.volcano,
-        handleChange: (on) => {
-          applyVolcano(on)
-          terrain.regenerate()
-        },
-      }),
+      toggle3d({ label: 'volcano province', value: demo.volcano }),
       // Beside the volcano: the other thing you switch on to watch happen.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
       label3d({ text: 'Climate' }),
@@ -242,7 +351,6 @@ const scene = b3d(
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
       label3d({ text: 'Atmosphere' }),
-      select3d({ label: 'world', value: sky.world, options: Object.keys(WORLDS) }),
       slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
@@ -337,6 +445,8 @@ const scene = b3d(
     wind: sky.wind,
     cirrus: sky.cirrus,
     evolve: sky.evolve,
+    color: sky.deckColor,
+    underColor: sky.deckUnderColor,
   }),
   // The sea follows BOTH dials: seaLevel (a fraction) times v-size, so the
   // ocean scales with the mountains instead of sitting at a fixed height
