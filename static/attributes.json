@@ -4251,6 +4251,11 @@
         "name": "underwaterFog"
       },
       {
+        "name": "fogColor",
+        "default": "'#00264d'",
+        "description": "The colour of the water you are IN (the underwater fog). Sea blue by default; a methane sea (Titan) is dark amber"
+      },
+      {
         "name": "underwaterMurk"
       },
       {

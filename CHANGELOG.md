@@ -33,6 +33,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   craters (flat floor, central peak) past `complexRadius`. Land and Sky has
   a **craters** slider; Mars 0.35, Venus 0.06 (its surface is young). Dry
   worlds have **no sea** (`sea: false`): no water plane, no shore colours.
+- **Moon, Io and Titan presets.** The Moon: airless, saturated craters, grey
+  regolith, stars at noon, Earth in its sky. Io: a sulfur palette (frost,
+  yellow, orange-red, black lava), a field of hot volcanoes, a tiny sun.
+  Titan: orange haze and cloud over dark amber methane seas, a tiny, dim
+  sun. Land and Sky gains **volcanoes** (a seeded field), a **ground
+  palette** (swapped on the biome shader) and sea colours. `b3d-water`
+  gains **`fogColor`**: the colour of the water you are in, which the
+  underwater fog, the medium and the light shafts all read.
 - **The aircraft demo has weather to fly in**: ⚙ sliders for wind (blowing
   across your starting heading, so you crab) and storminess (a storm cell
   over the whole arena), and a live turbulence readout.

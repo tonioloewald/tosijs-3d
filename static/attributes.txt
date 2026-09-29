@@ -1096,6 +1096,7 @@ b3d-water
   rz
   axes
   underwaterFog
+  fogColor  = '#00264d'  — The colour of the water you are IN (the underwater fog). Sea blue by default; a methane sea (Titan) is dark amber
   underwaterMurk
   fogTransition
   underside  = 'auto'  — Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog

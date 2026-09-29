@@ -258,6 +258,7 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       windDirectionY: num(0.8, { minimum: -1, maximum: 1 }),
       wind: choice('scene', ['scene', 'own']),
       underwaterFog: num(0.12, { minimum: 0, maximum: 1 }),
+      fogColor: color('#00264d'),
       underwaterMurk: num(0.08, { minimum: 0, maximum: 1 }),
       fogTransition: num(0.2, { minimum: 0, maximum: 5, ...M }),
       // The WATER LEVEL, and the reason water's transform is exposed where the
