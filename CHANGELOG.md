@@ -20,9 +20,21 @@ versions may carry breaking peer-dependency changes — each is called out in a
   window's HDR capture) scales with 1/distance (Venus 1.39, Mars 0.66, Io
   0.19, Titan 0.11); its light is set by how it LOOKS (a log curve), not by
   the inverse square, because the eye adapts.
+- **Venus is one giant lightning storm** under a maxed, sulfur-yellow deck;
+  Land and Sky's storm is preset-able (where, how big, the cover it adds,
+  how often it strikes). **Mars is red**: hot and bone-dry, so the palette's
+  red dust (temperature falls with altitude; a cooler Mars went grey). The
+  volcano is off for both until each world has its own landforms.
 - **The aircraft demo has weather to fly in**: ⚙ sliders for wind (blowing
   across your starting heading, so you crab) and storminess (a storm cell
   over the whole arena), and a live turbulence readout.
+
+### Fixed
+
+- **Lightning bolts vanished into haze** while their light still lit the
+  ground (Tonio: "I see flashes but never seem to see lightning strokes"):
+  under a closed deck the scene fog swallowed the bolt meshes. Bolts ignore
+  fog now; they are far brighter than anything it hides.
 
 ## 0.8.5
 

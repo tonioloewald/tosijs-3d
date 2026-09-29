@@ -589,6 +589,11 @@ export class B3dLightning extends B3dChild {
       )
       halo.material = glow
       halo.isPickable = false
+      // A bolt is far brighter than anything the haze is hiding: under a
+      // closed deck the scene's fog swallowed every bolt while their light
+      // still reached the ground (Tonio: "I see flashes but never seem to
+      // see lightning strokes").
+      halo.applyFog = false
       halo.visibility = 0
       live.bolt.push(halo)
       paths.forEach((path, i) => {
@@ -603,6 +608,7 @@ export class B3dLightning extends B3dChild {
         )
         tube.material = mat
         tube.isPickable = false
+        tube.applyFog = false
         tube.visibility = 0
         live.bolt.push(tube)
       })

@@ -59,6 +59,9 @@ const { sky } = tosi({
     // The cloud deck's colours (a Venus deck is sulfur-yellow), and the sun:
     // its apparent size and how bright its light looks.
     deckColor: '#ffffff', deckUnderColor: '#3a4350', sunSize: 1, sunBrightness: 1,
+    // The lightning storm: where it forms, how big, the cover it adds and how
+    // often it strikes (a multiple of the natural rate). Presets set these.
+    stormX: 1600, stormZ: 300, stormRadius: 900, stormCoverage: 1.7, lightningRate: 1,
     // The world preset in force (see PRESETS below).
     preset: 'Earth',
   },
@@ -71,7 +74,7 @@ const { sky } = tosi({
 // bright haze the tint colours.
 const WORLDS = {
   Earth: { atmosphere: 1, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
-  Mars: { atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
+  Mars: { atmosphere: 0.15, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
   Alien: { atmosphere: 1, dust: 0, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
   Airless: { atmosphere: 0, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
 }
@@ -155,7 +158,9 @@ sky.world.observe(() => {
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
   demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'volcano', 'temperature', 'moisture', 'volcanicScale'],
-  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget'],
+  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate',
+    // LAST: switching the storm on builds it from the values above.
+    'storm'],
 }
 const STATE = { demo, sky }
 function capturePreset(name) {
@@ -181,16 +186,21 @@ const BUILT_IN = {
   // seas, a smaller sun, two little moons, and Olympus Mons for the volcano.
   Mars: {
     name: 'Mars',
-    demo: { seaLevel: 0, temperature: 0.62, moisture: 0.05, volcano: true },
+    // HOT and bone-dry: the palette's red dust is the warm end of its driest
+    // row, and temperature falls with altitude, so a cooler Mars went grey.
+    // (No volcano for now: Earth's province, a stand-in until each world
+    // gets its own landforms.)
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, volcano: false },
     sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 0 },
   },
-  // A closed deck of sulfur-yellow cloud: from below, a hot, dim, yellow
-  // world (dim, not night: past about 1.5 the deck is as dark as night by
-  // design); climb out through the whiteout and the bigger sun is there.
+  // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
+  // cover maxed: a storm 8 km across centred on you, striking four times as
+  // often, dark between flashes. Climb out through the whiteout and the bigger sun is
+  // there.
   Venus: {
     name: 'Venus',
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, volcano: true },
-    sky: { coverage: 1.25, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, volcano: false },
+    sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
   },
 }
 const CUSTOM_KEY = 'land-and-sky:presets'
@@ -279,7 +289,7 @@ sky.storm.observe(() => {
   storm?.remove()
   storm = null
   if (sky.storm.value) {
-    storm = b3dWeatherCell({ x: 1600, z: 300, radius: 900, coverage: 1.7, storminess: 1, precipitation: 0.9, drift: 'wind', grow: 20 })
+    storm = b3dWeatherCell({ x: sky.stormX.value, z: sky.stormZ.value, radius: sky.stormRadius.value, coverage: sky.stormCoverage.value, storminess: 1, precipitation: 0.9, drift: 'wind', grow: 20 })
     scene.append(storm)
   }
 })
@@ -422,7 +432,7 @@ const scene = b3d(
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.
   skybox,
-  b3dLightning({ seed: 3 }),
+  b3dLightning({ seed: 3, rate: sky.lightningRate }),
   // Sunlight breaking through gaps in the deck; strongest in the rain.
   b3dLightShafts({}),
   // Rain and snow come from the WEATHER: nothing falls until a storm is
