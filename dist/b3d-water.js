@@ -48,6 +48,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
 | `underside` | `'auto'` | Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog |
+| `fogColor` | `'#00264d'` | The colour of the water you are IN (the underwater fog). Sea blue by default; a methane sea (Titan) is dark amber |
 | `undersideColor` | `'#9fdcf0'` | The window: the sky's light, looking up |
 | `undersideDepthColor` | `'#06283a'` | The mirror: the dark water, at grazing angles |
 | `undersideSky` | `1` | From below, the window REFRACTS THE REAL SKY (the sun included), distorted by the ripples — clearest in the shallows, fading with depth, giving way to the dark mirror toward grazing angles. `0` = the flat `undersideColor` only |
@@ -95,6 +96,10 @@ export class B3dWater extends AbstractMesh {
         // The transition is deliberately TIGHT (see the fog layer below): killing the "thunk"
         // meant killing the discontinuity, not the contrast.
         underwaterFog: 0.12, // density the moment you're under
+        /** The colour of the water you are IN: sea blue by default; a methane sea
+         * (Titan) is dark amber. The fog, the medium's optics and the light
+         * shafts all read it. */
+        fogColor: '#00264d',
         underwaterMurk: 0.08, // extra density at 30m down (the sea thickens with depth)
         fogTransition: 0.2, // metres below the surface to reach FULL underwater fog
         /*
@@ -419,7 +424,7 @@ export class B3dWater extends AbstractMesh {
             it — see MEDIUM-DESIGN.md §7 step 1.
             */
             optics: {
-                color: { r: 0, g: 0.15, b: 0.3 },
+                color: this._fogRgb(),
                 density: this.underwaterFog,
                 murk: this.underwaterMurk,
                 murkDepth: 30,
@@ -474,9 +479,13 @@ export class B3dWater extends AbstractMesh {
             const lit = Math.min(1, Math.max(0, depth / SHALLOW_DEPTH));
             const nearSurface = SHALLOW_EASE + (1 - SHALLOW_EASE) * lit;
             const density = attrs.underwaterFog * nearSurface + attrs.underwaterMurk * deeper;
+            const fogRgb = this._fogRgb();
+            // The medium's optics follow a live colour change too.
+            if (this._medium?.optics != null)
+                this._medium.optics.color = fogRgb;
             return {
                 weight: w,
-                color: { r: 0, g: 0.15, b: 0.3 },
+                color: fogRgb,
                 density,
                 // b3d-fog defaults to LINEAR, which IGNORES density and uses start/end — so contribute a
                 // short `end` too (as clouds do), else underwater tints but never thickens. Visibility
@@ -568,6 +577,18 @@ export class B3dWater extends AbstractMesh {
     fog dims it with distance, which is physically right: far overhead water
     is murk.
     */
+    _fogKey = '';
+    _fogCache = { r: 0, g: 0.15, b: 0.3 };
+    /** `fogColor` as {r,g,b}, parsed only when it changes. */
+    _fogRgb() {
+        const v = String(this.fogColor ?? '');
+        if (v !== this._fogKey) {
+            this._fogKey = v;
+            const c = this._hexOr(v, '#00264d');
+            this._fogCache = { r: c.r, g: c.g, b: c.b };
+        }
+        return this._fogCache;
+    }
     _hexOr(v, d) {
         try {
             return BABYLON.Color3.FromHexString((v || d).slice(0, 7));

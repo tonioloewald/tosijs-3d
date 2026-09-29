@@ -6,7 +6,16 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.6
+
+**Other worlds.** Land and Sky becomes a world builder: presets you pick,
+save and share, with Earth, Mars, Venus, the Moon, Io and Titan built in.
+A crater field landform, volcano fields, ground palettes, sea colours, and
+a sun whose size and brightness follow the world. Lightning casts shadows
+and darkens the day, and the aircraft demo has weather to fly in.
+
+Size: barrel (min, packages external) 885.2 KB raw / 296.3 KB gz, about
++0.3% on 0.8.5.
 
 ### Added
 

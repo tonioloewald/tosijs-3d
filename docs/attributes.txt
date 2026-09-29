@@ -879,6 +879,8 @@ b3d-skybox
   duskColor  = '#ffaa22'  — Dawn/dusk sun color
   moonColor  = '#6688cc'  — Night light color
   moonIntensity  = 0.15  — Night light intensity
+  sunSize  = 1  — The sun's apparent size, 1 = as seen from Earth. Mars 0.66, Venus 1.39, Io 0.19, Titan 0.11 (it goes as 1/distance from the star)
+  sunBrightness  = 1  — Multiplies the sun's light. A distant world gets less light, but the eye adapts, so set it by how it looks rather than by the inverse square
   timeOfDay  = 6.5  — 0-24 hours
   rayleigh  = 2  — Rayleigh scattering
   mieDirectionalG
@@ -1094,6 +1096,7 @@ b3d-water
   rz
   axes
   underwaterFog
+  fogColor  = '#00264d'  — The colour of the water you are IN (the underwater fog). Sea blue by default; a methane sea (Titan) is dark amber
   underwaterMurk
   fogTransition
   underside  = 'auto'  — Snell's window from below: straight up, a bright window onto the sky; toward grazing angles, a mirror of the depths. `'auto'` = on whenever `twoSided`; `'on'`/`'off'` force it. Fades in with the underwater fog

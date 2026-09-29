@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=f7de993b5a55" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d17c48faa6c8" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=d424236c37d4" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=20721aadf67e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,65 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.6</h2>
+<p><strong>Other worlds.</strong> Land and Sky becomes a world builder: presets you pick,
+save and share, with Earth, Mars, Venus, the Moon, Io and Titan built in.
+A crater field landform, volcano fields, ground palettes, sea colours, and
+a sun whose size and brightness follow the world. Lightning casts shadows
+and darkens the day, and the aircraft demo has weather to fly in.</p>
+<p>Size: barrel (min, packages external) 885.2 KB raw / 296.3 KB gz, about
++0.3% on 0.8.5.</p>
+<h3>Added</h3>
+<ul>
+<li><strong>Land and Sky presets</strong> (board #2442, stage 1): a whole world as data
+(terrain, sea, climate, weather, atmosphere, stars, moons, cloud colours,
+sun) you pick from the ⚙ panel&#39;s new <strong>World</strong> section, save as a new
+preset (kept in your browser) or copy and paste as JSON. Built in: Earth,
+Mars and Venus. A preset lists only what it changes, over Earth.</li>
+<li><strong>The sun&#39;s size and brightness per world</strong> (<code>b3d-skybox</code> <code>sunSize</code>,
+<code>sunBrightness</code>): the disc (and its glow in vacuum and in the water
+window&#39;s HDR capture) scales with 1/distance (Venus 1.39, Mars 0.66, Io
+0.19, Titan 0.11); its light is set by how it LOOKS (a log curve), not by
+the inverse square, because the eye adapts.</li>
+<li><strong>Venus is one giant lightning storm</strong> under a maxed, sulfur-yellow deck;
+Land and Sky&#39;s storm is preset-able (where, how big, the cover it adds,
+how often it strikes). <strong>Mars is red</strong>: hot and bone-dry, so the palette&#39;s
+red dust (temperature falls with altitude; a cooler Mars went grey). The
+volcano is off for both until each world has its own landforms.</li>
+<li><strong><code>craterField</code></strong> (landform): a whole cratered surface, seeded and
+unbounded. Sizes in doubling classes, one grid per class sized to its
+craters, so a real 1/size-squared population is one presence roll per
+cell and a terrain sample checks one cell per class. Big (old) craters
+first, small ones punch into them; each worn to its own age; complex
+craters (flat floor, central peak) past <code>complexRadius</code>. Land and Sky has
+a <strong>craters</strong> slider; Mars 0.35, Venus 0.06 (its surface is young). Dry
+worlds have <strong>no sea</strong> (<code>sea: false</code>): no water plane, no shore colours.</li>
+<li><strong>Moon, Io and Titan presets.</strong> The Moon: airless, saturated craters, grey
+regolith, stars at noon, Earth in its sky. Io: a sulfur palette (frost,
+yellow, orange-red, black lava), a field of hot volcanoes, a tiny sun.
+Titan: orange haze and cloud over dark amber methane seas, a tiny, dim
+sun. Land and Sky gains <strong>volcanoes</strong> (a seeded field), a <strong>ground
+palette</strong> (swapped on the biome shader) and sea colours. <code>b3d-water</code>
+gains <strong><code>fogColor</code></strong>: the colour of the water you are in, which the
+underwater fog, the medium and the light shafts all read.</li>
+<li><strong>Venus: no rain, gentler relief.</strong> Its sulfuric acid rain evaporates
+before reaching the ground, and the surface is mostly smooth lava plains;
+the storm&#39;s rain is now a preset setting (<code>stormRain</code>).</li>
+<li><strong>The aircraft demo has weather to fly in</strong>: ⚙ sliders for wind (blowing
+across your starting heading, so you crab) and storminess (a storm cell
+over the whole arena), and a live turbulence readout.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Lightning bolts vanished into haze</strong> while their light still lit the
+ground (Tonio: &quot;I see flashes but never seem to see lightning strokes&quot;):
+under a closed deck the scene fog swallowed the bolt meshes. Bolts ignore
+fog now; they are far brighter than anything it hides.</li>
+<li><strong>Distant lightning strokes did not render</strong>: a 1.6 m channel is a small
+fraction of a pixel a few kilometres off, so under a big storm most bolts
+vanished while their flash lit everything. Bolts (and their glow) now
+scale with distance, never thinner than about a pixel and a half.</li>
+</ul>
 <h2>0.8.5</h2>
 <p><strong>Weather you can watch.</strong> Storms that darken the day and strike: lightning
 that lights the cloud from below, inside and above, lights the landscape and
@@ -4236,6 +4295,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=f7de993b5a55"></script>
+  <script type="module" src="../hydrate.js?v=d17c48faa6c8"></script>
 </body>
 </html>

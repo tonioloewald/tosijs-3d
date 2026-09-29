@@ -11,7 +11,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, volcano } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -36,6 +36,18 @@ const { demo } = tosi({
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,
+    // How cratered the ground is (0 = none; a preset sets it: Mars, the Moon).
+    craters: 0,
+    // A field of volcanoes (Io): how many, 0 = none.
+    volcanoes: 0,
+    // The ground's palette: 'earth' (the biome chart's own) or 'sulfur' (Io).
+    palette: 'earth',
+    // The sea's colours: its surface tint and the fog you see from inside it
+    // (a methane sea, Titan, is dark amber).
+    waterColor: '#0066cc', waterFog: '#00264d', waterTint: 0.1,
+    // Is there a sea at all? A dry world (Mars, Venus) has none: no water
+    // plane, and no shoreline or seafloor colours.
+    sea: true,
     wireframe: false,
   },
 })
@@ -57,6 +69,14 @@ const { sky } = tosi({
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
     // Extra (cosmetic) moons: a set, swung round the sky together.
     moons: 'Big moon', moonAz: 0, moonEl: 0,
+    // The cloud deck's colours (a Venus deck is sulfur-yellow), and the sun:
+    // its apparent size and how bright its light looks.
+    deckColor: '#ffffff', deckUnderColor: '#3a4350', sunSize: 1, sunBrightness: 1,
+    // The lightning storm: where it forms, how big, the cover it adds and how
+    // often it strikes (a multiple of the natural rate). Presets set these.
+    stormX: 1600, stormZ: 300, stormRadius: 900, stormCoverage: 1.7, lightningRate: 1, stormRain: 0.9,
+    // The world preset in force (see PRESETS below).
+    preset: 'Earth',
   },
 })
 
@@ -67,7 +87,7 @@ const { sky } = tosi({
 // bright haze the tint colours.
 const WORLDS = {
   Earth: { atmosphere: 1, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
-  Mars: { atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
+  Mars: { atmosphere: 0.15, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1 },
   Alien: { atmosphere: 1, dust: 0, zenithTint: '#60c080', horizonTint: '#b0e0a0', tintStrength: 0.7 },
   Airless: { atmosphere: 0, dust: 0, zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0 },
 }
@@ -85,6 +105,10 @@ const MOONS = {
     { azimuth: 0, elevation: 20, size: 0.6, color: '#b09a88' },
     { azimuth: 40, elevation: 32, size: 0.25, color: '#c8b8a8' },
   ],
+  // The Moon's sky: Earth, about 3.7 times the size our Moon looks from here.
+  // (Moons ride the star sphere; this sits up ahead of the default view in
+  // the morning.)
+  Earth: [{ azimuth: 60, elevation: 22, size: 3.7, color: '#6f9ad8' }],
   'Alien trio': [
     { azimuth: 0, elevation: 30, size: 6, color: '#e0b090' },
     { azimuth: 25, elevation: 12, size: 2, color: '#a0c8ff' },
@@ -110,6 +134,8 @@ const skybox = b3dSkybox({
   starfieldGain: sky.starGain,
   starfieldFloor: sky.starFloor,
   starfieldTwinkle: sky.twinkle,
+  sunSize: sky.sunSize,
+  sunBrightness: sky.sunBrightness,
 })
 
 const moonEls = []
@@ -136,14 +162,208 @@ sky.world.observe(() => {
   if (w) for (const k of Object.keys(w)) sky[k].value = w[k]
 })
 
+// PRESETS: A WHOLE WORLD AS DATA (board #2442). Terrain, sea, climate,
+// weather, atmosphere, stars, moons, the cloud deck's colour and the sun, as
+// one plain object you can pick, save and share. A preset only lists what it
+// changes; applying one resets everything else to Earth first, so nothing
+// leaks from the last world.
+//
+// THE SUN'S BRIGHTNESS FOLLOWS THE EYE, not the inverse square. A world
+// further from its star gets far less light (Titan about 1/90 of Earth's),
+// but vision is logarithmic and adapts, and even from Pluto the sun is some
+// 300 times brighter than the full moon. So its disc shrinks for real (1 /
+// distance) while its light only dims gently, on a log curve.
+const PRESET_KEYS = {
+  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale'],
+  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
+    // LAST: switching the storm on builds it from the values above.
+    'storm'],
+}
+const STATE = { demo, sky }
+function capturePreset(name) {
+  const p = { name }
+  for (const [group, keys] of Object.entries(PRESET_KEYS)) {
+    p[group] = {}
+    for (const k of keys) p[group][k] = STATE[group][k].value
+  }
+  return p
+}
+function applyPreset(p) {
+  for (const [group, keys] of Object.entries(PRESET_KEYS)) {
+    const vals = p[group] ?? {}
+    for (const k of keys) if (k in vals) STATE[group][k].value = vals[k]
+  }
+}
+// How bright a sun LOOKS from `au` astronomical units (1 = Earth).
+const sunLight = (au) => Math.max(0.35, 1 - 0.3 * Math.log10(au * au))
+const EARTH = capturePreset('Earth') // the defaults above
+const BUILT_IN = {
+  Earth: EARTH,
+  // Thin, dusty air (its sky is bright from DUST, not gas), red desert, no
+  // seas, a smaller sun, two little moons, and Olympus Mons for the volcano.
+  Mars: {
+    name: 'Mars',
+    // HOT and bone-dry: the palette's red dust is the warm end of its driest
+    // row, and temperature falls with altitude, so a cooler Mars went grey.
+    // (No volcano for now: Earth's province, a stand-in until each world
+    // gets its own landforms.)
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.35 },
+    sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 0 },
+  },
+  // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
+  // cover maxed: a storm 8 km across centred on you, striking four times as
+  // often, dark between flashes. Climb out through the whiteout and the bigger sun is
+  // there.
+  Venus: {
+    name: 'Venus',
+    // Venus's surface is YOUNG (resurfaced by volcanism): few craters.
+    // Mostly smooth lava plains (Magellan radar): gentle relief. And no rain:
+    // Venus's sulfuric acid evaporates long before it reaches the ground.
+    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.06, grossAmplitude: 90, detailAmplitude: 8 },
+    sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, stormRain: 0, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
+  },
+}
+// Presets for the outer worlds sit below BUILT_IN's literal so they can use
+// sunLight; they are added to it here.
+Object.assign(BUILT_IN, {
+  // Airless, saturated with craters, cold grey regolith, stars at noon, and
+  // Earth in the sky. (Lava tubes to come.)
+  Moon: {
+    name: 'Moon',
+    // FLATTISH, so the craters carry the shape (Earth's 230 m relief buried
+    // them). Jagged highlands would be a mountain province on top.
+    demo: { sea: false, volcano: false, craters: 0.9, temperature: 0, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: 'Earth', decoBudget: 0, wind: 0 },
+  },
+  // Sulfur and fire: yellow, orange and white ground, black lava, a field of
+  // hot volcanoes, a tiny sun. No air to speak of. (Plumes, and Jupiter in
+  // the sky, to come.)
+  Io: {
+    name: 'Io',
+    demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.5, moisture: 0, palette: 'sulfur' },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: 'None', decoBudget: 0, wind: 0 },
+  },
+  // Thick orange haze over dark methane seas, a tiny, dim sun barely there.
+  Titan: {
+    name: 'Titan',
+    // (Temperature is the biome's, not Titan's -180 C: cold enough reads as
+    // ice everywhere, so the ground is its dry, dark row instead.)
+    demo: { sea: true, seaLevel: 0.45, volcano: false, craters: 0.05, temperature: 0.62, moisture: 0.02, waterColor: '#1a0e04', waterTint: 0.75, waterFog: '#2a1a08' },
+    sky: { atmosphere: 1, dust: 1, zenithTint: '#b87830', horizonTint: '#d09040', tintStrength: 1, coverage: 0.5, cirrus: 0.3, orographic: 0.2, deckColor: '#d8a060', deckUnderColor: '#806030', sunSize: 0.11, sunBrightness: sunLight(9.5), moons: 'None', decoBudget: 0, wind: 2 },
+  },
+})
+
+const CUSTOM_KEY = 'land-and-sky:presets'
+function loadCustom() {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '{}') || {}
+  } catch {
+    return {}
+  }
+}
+function saveCustom(p) {
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify({ ...loadCustom(), [p.name]: p }))
+  } catch {
+    // private window: the preset still applies, it just is not kept
+  }
+}
+const presetNames = () => [...Object.keys(BUILT_IN), ...Object.keys(loadCustom())]
+sky.preset.observe(() => {
+  const p = BUILT_IN[sky.preset.value] ?? loadCustom()[sky.preset.value]
+  if (p == null) return
+  applyPreset(EARTH)
+  applyPreset(p)
+})
+
 // The volcano is authored ONCE and switched in and out. Applied here as well
 // as from the toggle because it is ON by default, and the toggle's handler only
 // runs when someone flips it.
 const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
-function applyVolcano(on) {
-  terrain.landform = on ? theVolcano.landform : null
-  terrain.provinceField = on ? theVolcano.province : null
+// Where the sea is: a FRACTION of the terrain's height, or, on a world
+// with no sea, far below everything (no water to see).
+function seaY() {
+  return demo.sea.valueOf() ? demo.seaLevel * demo.grossAmplitude : -10000
 }
+// The BIOME's datum is separate: it also classifies by altitude above it, so
+// on a dry world it sits just under the deepest crater floors (no shore, no
+// seafloor colours) rather than kilometres down (which read as bare peaks).
+function biomeSea() {
+  return demo.sea.valueOf() ? demo.seaLevel * demo.grossAmplitude : -250
+}
+
+// Temperature falls with height above the SEA; with no sea there is no
+// datum, so a dry world keeps its preset temperature at every height.
+function lapse() {
+  // (Not 0: the terrain reads 0 as UNSET and falls back to its 0.004, an
+  // arctic world. And not 1e-6, which the attribute path rounds to 0.)
+  return demo.sea.valueOf() ? 0.5 / demo.grossAmplitude : 0.0002
+}
+
+// A FIELD of volcanoes (Io): seeded positions around you, small paterae
+// with hot floors. Each is the ordinary volcano landform.
+function volcanoField(n, seed) {
+  const out = []
+  let s = seed * 9301 + 49297
+  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280)
+  for (let i = 0; i < n; i++) {
+    const a = rnd() * Math.PI * 2
+    const d = 250 + rnd() * 1600
+    out.push(volcano({ x: Math.cos(a) * d, z: Math.sin(a) * d, radius: 160 + rnd() * 220, height: 30 + rnd() * 90, craterRadius: 50 + rnd() * 60, craterDepth: 20 + rnd() * 30 }))
+  }
+  return out
+}
+
+// Landforms COMPOSE: the craters, then the volcanoes on top of them.
+function applyVolcano(on) {
+  const parts = []
+  const provinces = []
+  const density = demo.craters.valueOf()
+  if (density > 0) parts.push(craterField({ seed: demo.seed.valueOf(), density, maxRadius: 500 }))
+  for (const v of volcanoField(demo.volcanoes.valueOf(), demo.seed.valueOf())) {
+    parts.push(v.landform)
+    provinces.push(v.province)
+  }
+  if (on) {
+    parts.push(theVolcano.landform)
+    provinces.push(theVolcano.province)
+  }
+  terrain.landform = parts.length === 0 ? null : parts.length === 1 ? parts[0] : composeLandforms(...parts)
+  terrain.provinceField = provinces.length === 0 ? null : provinces.length === 1 ? provinces[0] : mergeProvinces(...provinces)
+}
+demo.volcanoes.observe(() => {
+  applyVolcano(demo.volcano.valueOf())
+  terrain.regenerate()
+})
+
+// THE GROUND'S PALETTE, swapped on the terrain's biome shader (it reads its
+// palette every frame). Io's sulfur: frost white, pale and deep yellow,
+// orange-red, and black lava for the variation.
+const PALETTES = {
+  sulfur: {
+    a: [[0.92, 0.9, 0.82], [0.9, 0.84, 0.42], [0.86, 0.68, 0.18], [0.74, 0.38, 0.14]],
+    b: [[0.8, 0.78, 0.7], [0.14, 0.12, 0.1], [0.7, 0.55, 0.15], [0.3, 0.14, 0.06]],
+  },
+}
+let earthPalette = null
+function applyPalette() {
+  const plugin = terrain.biomePlugin
+  if (plugin == null) return false
+  if (earthPalette == null) earthPalette = { a: plugin.palette, b: plugin.paletteB }
+  const p = PALETTES[demo.palette.valueOf()]
+  // One row of four, repeated for every moisture row (Io has no weather).
+  plugin.palette = p ? Array.from({ length: 5 }, () => p.a).flat() : earthPalette.a
+  plugin.paletteB = p ? Array.from({ length: 5 }, () => p.b).flat() : earthPalette.b
+  return true
+}
+demo.palette.observe(applyPalette)
+demo.craters.observe(() => {
+  applyVolcano(demo.volcano.valueOf())
+  terrain.regenerate()
+})
+// A new seed re-rolls the craters too (registered before the terrain's own
+// seed observer below, so the landform is current when it regenerates).
+demo.seed.observe(() => applyVolcano(demo.volcano.valueOf()))
 
 // 'on'|'off' on the element, a boolean on the toggle — bridged here.
 const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius })
@@ -174,14 +394,20 @@ const terrain = b3dTerrain({
   // vertical range (0.5 / amplitude gives temperate valleys and cold
   // summits — the element's own attribute note): the 0.004 default assumes
   // a small world, and at v-size 400 every peak would still read as snow.
-  biomeSeaLevel: demo.seaLevel * demo.grossAmplitude,
-  biomeLapseRate: 0.5 / demo.grossAmplitude,
+  biomeSeaLevel: biomeSea(),
+  biomeLapseRate: lapse(),
   biomeTemperature: demo.temperature,
   biomeMoisture: demo.moisture,
   biomeVolcanicScale: demo.volcanicScale,
 })
 
 applyVolcano(demo.volcano.valueOf())
+// Observed rather than handled on the toggle, so a PRESET switching the
+// volcano regenerates the terrain too.
+demo.volcano.observe(() => {
+  applyVolcano(demo.volcano.valueOf())
+  terrain.regenerate()
+})
 
 // A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
 // with coverage and storminess, drifting with the wind. It gathers IN FRONT
@@ -193,7 +419,7 @@ sky.storm.observe(() => {
   storm?.remove()
   storm = null
   if (sky.storm.value) {
-    storm = b3dWeatherCell({ x: 1600, z: 300, radius: 900, coverage: 1.7, storminess: 1, precipitation: 0.9, drift: 'wind', grow: 20 })
+    storm = b3dWeatherCell({ x: sky.stormX.value, z: sky.stormZ.value, radius: sky.stormRadius.value, coverage: sky.stormCoverage.value, storminess: 1, precipitation: sky.stormRain.value, drift: 'wind', grow: 20 })
     scene.append(storm)
   }
 })
@@ -208,6 +434,35 @@ const scene = b3d(
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
+      label3d({ text: 'World' }),
+      select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
+      button3d({
+        label: 'save as new preset',
+        handleClick: () => {
+          const name = `Custom ${Object.keys(loadCustom()).length + 1}`
+          saveCustom(capturePreset(name))
+          sky.preset.value = name
+          scene.refreshScenePanel?.()
+        },
+      }),
+      button3d({
+        label: 'copy preset (JSON)',
+        handleClick: () => navigator.clipboard?.writeText(JSON.stringify(capturePreset(sky.preset.value), null, 2)),
+      }),
+      button3d({
+        label: 'paste preset (JSON)',
+        handleClick: async () => {
+          try {
+            const p = JSON.parse(await navigator.clipboard.readText())
+            p.name = p.name || 'Pasted'
+            saveCustom(p)
+            sky.preset.value = p.name
+            scene.refreshScenePanel?.()
+          } catch {
+            // not a preset on the clipboard
+          }
+        },
+      }),
       label3d({ text: 'Terrain' }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
@@ -219,14 +474,10 @@ const scene = b3d(
       // THE FIRST PROVINCE — an authored volcano forced through the live
       // terrain, with the volcanism field that makes it glow. The kitchen
       // sink grows from here.
-      toggle3d({
-        label: 'volcano province',
-        value: demo.volcano,
-        handleChange: (on) => {
-          applyVolcano(on)
-          terrain.regenerate()
-        },
-      }),
+      toggle3d({ label: 'volcano province', value: demo.volcano }),
+      slider3d({ label: 'craters', value: demo.craters, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'volcanoes', value: demo.volcanoes, min: 0, max: 16, step: 1 }),
+      select3d({ label: 'ground palette', value: demo.palette, options: ['earth', ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
       label3d({ text: 'Climate' }),
@@ -243,7 +494,6 @@ const scene = b3d(
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
       label3d({ text: 'Atmosphere' }),
-      select3d({ label: 'world', value: sky.world, options: Object.keys(WORLDS) }),
       slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
@@ -271,6 +521,11 @@ const scene = b3d(
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
     ],
     sceneCreated(el, BABYLON) {
+      // The terrain's biome shader exists only once it has built: apply the
+      // preset's palette as soon as it does.
+      const paletteWait = el.scene.onBeforeRenderObservable.add(() => {
+        if (applyPalette()) el.scene.onBeforeRenderObservable.remove(paletteWait)
+      })
       // A LOOK-AROUND CAMERA: you stand at eye height and turn in place.
       //
       // This was an ArcRotateCamera orbiting a target 300 m ahead, with the eye
@@ -315,7 +570,7 @@ const scene = b3d(
   // points. Split because they are different KINDS of thing — one is
   // low-frequency and one is not — and the points stay points at any zoom.
   skybox,
-  b3dLightning({ seed: 3 }),
+  b3dLightning({ seed: 3, rate: sky.lightningRate }),
   // Sunlight breaking through gaps in the deck; strongest in the rain.
   b3dLightShafts({}),
   // Rain and snow come from the WEATHER: nothing falls until a storm is
@@ -338,28 +593,30 @@ const scene = b3d(
     wind: sky.wind,
     cirrus: sky.cirrus,
     evolve: sky.evolve,
+    color: sky.deckColor,
+    underColor: sky.deckUnderColor,
   }),
   // The sea follows BOTH dials: seaLevel (a fraction) times v-size, so the
   // ocean scales with the mountains instead of sitting at a fixed height
   // while the world reshapes around it. `follow` keeps it under the camera;
   // the ripples stay anchored in world space.
-  water = b3dWater({ y: demo.seaLevel * demo.grossAmplitude, waterSize: 8000, follow: true, twoSided: true }),
+  water = b3dWater({ y: seaY(), waterSize: 8000, follow: true, twoSided: true, waterColor: demo.waterColor, colorBlendFactor: demo.waterTint, fogColor: demo.waterFog }),
 )
 
 preview.append(scene)
 
 // Regenerate the terrain when its dials move, and keep the sea at the same
 // FRACTION of the terrain's height.
-for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel']) {
+for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'seaLevel', 'sea']) {
   demo[key].observe(() => {
     // The biome's sea level is a LIVE dial on the terrain — write it BEFORE
     // regenerate() so the adopted generation key is the one the rebuild
     // satisfies (the reverse order cost a second full pool re-cut per step,
     // found by the 0.8.2 review gate).
-    terrain.biomeSeaLevel = demo.seaLevel * demo.grossAmplitude
-    terrain.biomeLapseRate = 0.5 / demo.grossAmplitude
+    terrain.biomeSeaLevel = biomeSea()
+    terrain.biomeLapseRate = lapse()
     terrain.regenerate()
-    water.y = demo.seaLevel * demo.grossAmplitude
+    water.y = seaY()
   })
 }
 ```

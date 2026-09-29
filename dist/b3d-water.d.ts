@@ -29,6 +29,10 @@ export declare class B3dWater extends AbstractMesh {
         rz: number;
         axes: boolean;
         underwaterFog: number;
+        /** The colour of the water you are IN: sea blue by default; a methane sea
+         * (Titan) is dark amber. The fog, the medium's optics and the light
+         * shafts all read it. */
+        fogColor: string;
         underwaterMurk: number;
         fogTransition: number;
         underside: "auto" | "on" | "off";
@@ -105,6 +109,10 @@ export declare class B3dWater extends AbstractMesh {
      * a named element beats a name match — and falls back to the naming convention
      * so a hand-built or GLB skybox still works. */
     private _skyMeshes;
+    private _fogKey;
+    private _fogCache;
+    /** `fogColor` as {r,g,b}, parsed only when it changes. */
+    private _fogRgb;
     private _hexOr;
     private _undersideOn;
     private _updateCeiling;

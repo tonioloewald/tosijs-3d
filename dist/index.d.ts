@@ -241,7 +241,7 @@ export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, 
 export type { BiomeChartConfig } from './biome-chart.js';
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
 export type { LocalizedFilter } from './slope-profile.js';
-export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
+export { volcano, impactCrater, craterField, pad, gulley, cover, composeLandforms, mergeProvinces, withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js';
 import { applyCarve, sphere, capsule, tube, box as carveBox, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft } from './carve.js';
 export declare const carve: {
@@ -263,7 +263,7 @@ export type { Carve, NoiseOptions, Vec3Like } from './carve.js';
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field.js';
 export type { PatchField, Footprint } from './patch-field.js';
 export type { SdfField, LatticeConfig, ChunkSpec, ExtractedMesh, } from './sdf-lattice.js';
-export type { AuthoredLandform, Extent, Bounded, LandformFn, ProvinceFn, VolcanoOptions, CraterOptions, PadOptions, GulleyOptions, CoverOptions, } from './landform.js';
+export type { AuthoredLandform, Extent, Bounded, LandformFn, ProvinceFn, VolcanoOptions, CraterOptions, CraterFieldOptions, PadOptions, GulleyOptions, CoverOptions, } from './landform.js';
 export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin.js';
 export type { BiomeParams } from './biome-plugin.js';
 export { B3dParticles, b3dParticles } from './b3d-particles.js';

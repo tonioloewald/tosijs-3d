@@ -314,7 +314,7 @@ export const ui = {
 export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, } from './biome-chart.js';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
-export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, 
+export { volcano, impactCrater, craterField, pad, gulley, cover, composeLandforms, mergeProvinces, 
 // A field knows where it stops — see landform's "A field knows where it stops".
 withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)

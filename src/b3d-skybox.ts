@@ -2297,8 +2297,7 @@ export class B3dSkybox extends AbstractMesh {
         // eye adapts, so presets set it PERCEPTUALLY (a log curve), not by
         // the inverse square (#2442).
         const sunB = Math.max(0, Number(attrs.sunBrightness ?? 1))
-        light.intensity =
-          (isDay ? intensity * sunB : attrs.moonIntensity) * dim
+        light.intensity = (isDay ? intensity * sunB : attrs.moonIntensity) * dim
       }
     }
   }

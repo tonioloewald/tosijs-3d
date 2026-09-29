@@ -120,6 +120,12 @@ export declare class B3dSkybox extends AbstractMesh {
         duskColor: string;
         moonColor: string;
         moonIntensity: number;
+        /** The sun's apparent size, 1 = as seen from Earth (Mars 0.66, Venus
+         * 1.39, Io 0.19, Titan 0.11). */
+        sunSize: number;
+        /** Multiplies the sun's light. For a distant world, set it by how it
+         * LOOKS (the eye adapts), not by the inverse square. */
+        sunBrightness: number;
         timeOfDay: number;
         rayleigh: number;
         mieDirectionalG: number;

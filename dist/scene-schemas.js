@@ -173,6 +173,9 @@ export function skyboxSchema(extra = {}) {
         duskColor: color('#ffaa22'),
         moonColor: color('#6688cc'),
         moonIntensity: num(0.15, { minimum: 0, maximum: 1 }),
+        // 1/distance from the star: Venus 1.39, Mars 0.66, Io 0.19, Titan 0.11.
+        sunSize: num(1, { minimum: 0.02, maximum: 5 }),
+        sunBrightness: num(1, { minimum: 0, maximum: 3 }),
         skyboxSize: num(1000, {
             minimum: 100,
             maximum: 20000,
@@ -227,6 +230,7 @@ export function waterSchema(extra = {}) {
         windDirectionY: num(0.8, { minimum: -1, maximum: 1 }),
         wind: choice('scene', ['scene', 'own']),
         underwaterFog: num(0.12, { minimum: 0, maximum: 1 }),
+        fogColor: color('#00264d'),
         underwaterMurk: num(0.08, { minimum: 0, maximum: 1 }),
         fogTransition: num(0.2, { minimum: 0, maximum: 5, ...M }),
         // The WATER LEVEL, and the reason water's transform is exposed where the

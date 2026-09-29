@@ -126,6 +126,45 @@ export interface CraterOptions {
  * and `regenerate()` — the aftermath is two field functions.
  */
 export declare function impactCrater(opts: CraterOptions): AuthoredLandform;
+export interface CraterFieldOptions {
+    /** Same seed, same craters. */
+    seed?: number;
+    /** Smallest and largest crater RADIUS (m). Sizes come in doubling classes
+     * between them. */
+    minRadius?: number;
+    maxRadius?: number;
+    /** How cratered, 0-1: the chance a class's cell holds a crater. 0 = none,
+     * ~0.3 Mars, ~0.9 the Moon's highlands (saturated: craters on craters). */
+    density?: number;
+    /** Bowl depth as a fraction of the radius. Fresh simple craters are about
+     * 0.4 (depth/diameter ~0.2). */
+    depthRatio?: number;
+    /** How worn, 0-1: 0 = every crater fresh, 1 = old ones nearly erased.
+     * Each crater gets its own age up to this. */
+    wear?: number;
+    /** Above this radius (m) a crater is COMPLEX: a flat floor and a central
+     * peak, as real ones are past a few km. */
+    complexRadius?: number;
+}
+/**
+ * **A crater FIELD**: a whole cratered surface, seeded and unbounded, for
+ * Mars, the Moon, Mercury (board #2442). Where `impactCrater` is one scar at a
+ * point, this is a population.
+ *
+ * - **Sizes in doubling classes**, and a real population's count goes as
+ *   1/size squared. Each class has its own grid, cells sized to its craters,
+ *   so the EXPECTED count per cell is the same in every class: one presence
+ *   roll per cell does it, and a crater sits wholly inside its own cell. A
+ *   sample therefore checks ONE cell per class, a handful of craters per
+ *   terrain vertex, not a search.
+ * - **Big first, small last.** Big craters are old; small, young ones punch
+ *   into them, which is how real cratered ground overlaps.
+ * - **Each crater is worn to its own age** (up to `wear`): shallower, softer
+ *   rim. And past `complexRadius` it has a flat floor and a central peak.
+ *
+ * Returns a landform (no province: craters do not glow), unbounded.
+ */
+export declare function craterField(opts?: CraterFieldOptions): LandformFn;
 export interface PadOptions {
     /** Pad centre (world coords). */
     x: number;

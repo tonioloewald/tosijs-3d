@@ -248,6 +248,83 @@ export function impactCrater(opts) {
         province: withExtent(province, circleExtent(cx, cz, radius * 0.85)),
     };
 }
+/** Integer hash to [0, 1), deterministic everywhere. */
+function hash01i(a, b, c, d) {
+    let h = Math.imul(a | 0, 0x9e3779b1) ^ Math.imul(b | 0, 0x85ebca77);
+    h = Math.imul(h ^ (h >>> 15), 0xc2b2ae3d) ^ Math.imul(c | 0, 0x27d4eb2f);
+    h = Math.imul(h ^ (h >>> 13), 0x165667b1) ^ Math.imul(d | 0, 0x61c88647);
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x85ebca77);
+    h ^= h >>> 13;
+    return (h >>> 0) / 4294967296;
+}
+/**
+ * **A crater FIELD**: a whole cratered surface, seeded and unbounded, for
+ * Mars, the Moon, Mercury (board #2442). Where `impactCrater` is one scar at a
+ * point, this is a population.
+ *
+ * - **Sizes in doubling classes**, and a real population's count goes as
+ *   1/size squared. Each class has its own grid, cells sized to its craters,
+ *   so the EXPECTED count per cell is the same in every class: one presence
+ *   roll per cell does it, and a crater sits wholly inside its own cell. A
+ *   sample therefore checks ONE cell per class, a handful of craters per
+ *   terrain vertex, not a search.
+ * - **Big first, small last.** Big craters are old; small, young ones punch
+ *   into them, which is how real cratered ground overlaps.
+ * - **Each crater is worn to its own age** (up to `wear`): shallower, softer
+ *   rim. And past `complexRadius` it has a flat floor and a central peak.
+ *
+ * Returns a landform (no province: craters do not glow), unbounded.
+ */
+export function craterField(opts = {}) {
+    const { seed = 1, minRadius = 12, maxRadius = 600, density = 0.3, depthRatio = 0.4, wear = 0.6, complexRadius = 250, } = opts;
+    const p = Math.max(0, Math.min(1, density));
+    const classes = [];
+    for (let r = Math.max(1, minRadius); r <= maxRadius * 1.0001; r *= 2)
+        classes.push(r);
+    // Biggest (oldest) first.
+    classes.reverse();
+    // Cell size in crater radii: a crater of radius up to 2r (the class spans
+    // r..2r) plus its 1.25 rim must fit inside with room to jitter.
+    const CELL = 7;
+    return (x, z, h) => {
+        if (p <= 0)
+            return h;
+        let acc = h;
+        for (let k = 0; k < classes.length; k++) {
+            const r0 = classes[k];
+            const cell = r0 * CELL;
+            const ix = Math.floor(x / cell);
+            const iz = Math.floor(z / cell);
+            if (hash01i(seed, ix, iz, k * 7 + 1) >= p)
+                continue;
+            const radius = r0 * (1 + hash01i(seed, ix, iz, k * 7 + 2));
+            const reach = radius * 1.25;
+            // Jitter the centre within the cell so the whole crater stays inside.
+            const span = cell - 2 * reach;
+            const cx = ix * cell + reach + hash01i(seed, ix, iz, k * 7 + 3) * span;
+            const cz = iz * cell + reach + hash01i(seed, ix, iz, k * 7 + 4) * span;
+            const dx = x - cx;
+            const dz = z - cz;
+            const d = Math.sqrt(dx * dx + dz * dz);
+            if (d >= reach)
+                continue;
+            const age = hash01i(seed, ix, iz, k * 7 + 5) * Math.max(0, Math.min(1, wear));
+            const depth = radius * depthRatio * (1 - 0.75 * age);
+            const rimHeight = depth * 0.3 * (1 - 0.8 * age);
+            let bowl = Math.pow(smooth(1 - d / radius), 1.4);
+            if (radius > complexRadius) {
+                // COMPLEX: a flat floor (the bowl saturates) and a central peak.
+                bowl = Math.min(1, bowl * 1.6);
+                const peak = smooth(1 - d / (radius * 0.18));
+                acc += depth * 0.35 * peak;
+            }
+            const rt = 1 - Math.abs(d - radius * 0.9) / (radius * 0.35);
+            acc += -depth * bowl + rimHeight * smooth(rt);
+        }
+        return acc;
+    };
+}
 /**
  * A construction pad: dead-flat at `level` across the interior, a smooth
  * cut-and-fill skirt tying into the noise terrain beyond — how cities and
