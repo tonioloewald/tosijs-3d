@@ -35,6 +35,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   section one, which tab mode shows instead of the caption: icon tabs are
   narrow, so they sit side by side and nothing moves when you switch. Land
   and Sky uses icon tabs.
+  `tabs3d` is exported (with `Tab3d`), and the widgets page has a live
+  **Tabs** demo: nine captions overlapping, three side by side, icons.
 
 ## 0.8.6
 

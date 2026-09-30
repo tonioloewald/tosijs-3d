@@ -273,6 +273,7 @@ settings into `select3d` cyclers to get discrete values.
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
 
@@ -328,6 +329,53 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
 several of them — exclusivity, commit-on-leave and keyboard layout.
+
+## Tabs
+
+`tabs3d` is a strip of FILE TABS: pick one of several pages. Each tab is at
+most half the strip wide, its caption ellipsized. When they fit, they sit
+side by side; when they don't, they OVERLAP around the active tab, those to
+its left sharing the space before it and those to its right the space after,
+stacked toward it, so every tab stays reachable. Pick one on the left and one
+on the right and watch the strip re-spread. A tab can be an icon instead
+(`{ icon, title }`); icons are narrow, so an icon strip rarely overlaps.
+
+In a `<tosi-b3d>` scene panel you do not build the strip yourself:
+`panelSections="tabs"` turns `label3d({ collapsible: true })` sections into
+tabs, and a section's `icon` becomes its tab.
+
+```js
+import { elements } from 'tosijs'
+import { panel3d, tabs3d, label3d } from 'tosijs-3d'
+
+const { div } = elements
+const readout = div({ style: { padding: '0 16px 12px', font: '13px system-ui', opacity: '0.75' } }, 'Pick a tab.')
+const say = (strip) => (i) => (readout.textContent = `${strip}: ${i}`)
+
+const SECTIONS = ['World', 'Terrain', 'Climate', 'Weather', 'Atmosphere', 'Stars', 'Moons', 'Vegetation', 'Camera']
+const FEW = ['General', 'Graphics', 'Audio']
+const ICONS = [
+  { icon: 'earth', title: 'World' },
+  { icon: 'terrain', title: 'Terrain' },
+  { icon: 'thermometer', title: 'Climate' },
+  { icon: 'cloud', title: 'Weather' },
+  { icon: 'moon', title: 'Moons' },
+  { icon: 'tree', title: 'Vegetation' },
+]
+
+preview.append(
+  div(
+    { style: { display: 'flex', flexDirection: 'column', gap: 16, padding: 16 } },
+    panel3d({ width: 320 }, label3d({ text: 'Nine captions: they overlap', muted: true }),
+      tabs3d({ tabs: SECTIONS, active: 3, handleSelect: (i) => say('captions')(SECTIONS[i]) })),
+    panel3d({ width: 320 }, label3d({ text: 'Three captions: side by side', muted: true }),
+      tabs3d({ tabs: FEW, handleSelect: (i) => say('few')(FEW[i]) })),
+    panel3d({ width: 320 }, label3d({ text: 'Icons', muted: true }),
+      tabs3d({ tabs: ICONS, active: 3, handleSelect: (i) => say('icons')(ICONS[i].title) })),
+    readout
+  )
+)
+```
 
 ## Saying that something is HAPPENING
 
@@ -916,6 +964,7 @@ export function tabs3d(config: {
       const [v0, v1] = L.visible[i]
       const room = (on ? L.w : v1 - v0) - 12
       label.setAttribute('x', String((on ? x : v0) + (on ? TH.PAD_X : 6)))
+      label.setAttribute('y', String(H / 2 + 1))
       const font = on ? TH.BOLD_FONT : TH.TEXT_FONT
       let shown = ellipsize(item, Math.max(1, room), font)
       if (shown === '…' || shown === '') shown = item.slice(0, 1)

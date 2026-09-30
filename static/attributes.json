@@ -5155,6 +5155,11 @@
         "default": "items"
       },
       {
+        "name": "tabs3d",
+        "default": "tabs` / `active` / `handleSelect",
+        "description": "`0`"
+      },
+      {
         "name": "spinner3d",
         "default": "label` / `size"
       },
