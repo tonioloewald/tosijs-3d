@@ -3453,10 +3453,13 @@ export class B3d extends Component {
   */
   private _tabSections(rows: Widget3d[]): Widget3d[] {
     const head: Widget3d[] = []
-    const sections: { title: string; rows: Widget3d[] }[] = []
+    const sections: { title: string; icon?: string; rows: Widget3d[] }[] = []
     for (const row of rows) {
-      const sec = (row as any).section as { title: string } | undefined
-      if (sec != null) sections.push({ title: sec.title, rows: [] })
+      const sec = (row as any).section as
+        | { title: string; icon?: string }
+        | undefined
+      if (sec != null)
+        sections.push({ title: sec.title, icon: sec.icon, rows: [] })
       else if (sections.length === 0) head.push(row)
       else sections[sections.length - 1].rows.push(row)
     }
@@ -3473,7 +3476,9 @@ export class B3d extends Component {
     let active = sections.findIndex((s) => s.title === (this as any)._activeTab)
     if (active < 0) active = 0
     const strip = tabs3d({
-      tabs: sections.map((s) => s.title),
+      tabs: sections.map((s) =>
+        s.icon ? { icon: s.icon, title: s.title } : s.title
+      ),
       active,
       handleSelect: (i) => {
         ;(this as any)._activeTab = sections[i].title

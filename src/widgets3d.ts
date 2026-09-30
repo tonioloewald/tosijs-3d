@@ -452,6 +452,7 @@ import {
   measureTextWidth,
   tabLayout,
   tabAt,
+  tabOrder,
 } from './widgets3d-layout.js'
 import { handlerOf, resetHandlerWarnings } from './handler-of.js'
 import { w3dTheme } from './w3d-theme.js'
@@ -771,11 +772,12 @@ function panelPopupSheet(
  * `section.isOpen` are wired by the host before layout.
  */
 function sectionLabel(
-  config: { text: string; open?: boolean; color?: string },
+  config: { text: string; open?: boolean; color?: string; icon?: string },
   fill: string
 ): Widget3d & {
   section: {
     title: string
+    icon?: string
     open?: boolean
     isOpen: boolean
     toggle?: () => void
@@ -783,6 +785,7 @@ function sectionLabel(
 } {
   const section = {
     title: config.text,
+    icon: config.icon,
     open: config.open,
     isOpen: config.open ?? false,
     toggle: undefined as undefined | (() => void),
@@ -833,14 +836,18 @@ function sectionLabel(
  * to whatever tab is visibly on top there. Geometry is `tabLayout` / `tabAt`
  * (pure, tested).
  */
+/** A tab: a caption, or an ICON (with an optional title for its name). */
+export type Tab3d = string | { icon: string; title?: string }
+
 export function tabs3d(config: {
-  tabs: string[]
+  tabs: Tab3d[]
   /** Index of the active tab. */
   active?: number
   handleSelect?: (index: number) => void
 }): Widget3d {
   const H = 30
   const R = 7
+  const TAB_ICON = 18
   let active = Math.max(0, Math.min(config.tabs.length - 1, config.active ?? 0))
   let layoutW = 0
   const root = g({ 'data-w3d': 'tabs' })
@@ -852,18 +859,22 @@ export function tabs3d(config: {
     root.replaceChildren()
     const n = config.tabs.length
     // Side by side when the labels allow, at most half the strip each.
-    const natural =
-      Math.max(...config.tabs.map((t) => measureTextWidth(t, TH.BOLD_FONT))) +
-      TH.PAD_X * 2
-    const L = tabLayout(n, layoutW, 0.5, natural)
+    // ICON tabs are narrow, so a strip of them rarely overlaps (and so does
+    // not move when the active tab changes).
+    const natural = Math.max(
+      ...config.tabs.map((t) =>
+        typeof t !== 'string'
+          ? TAB_ICON + TH.PAD_X * 2
+          : measureTextWidth(t, TH.BOLD_FONT) + TH.PAD_X * 2
+      )
+    )
+    const L = tabLayout(n, layoutW, 0.5, natural, active)
     ;(root as any).__layout = L
     // The line the active tab joins: the strip's floor.
     root.appendChild(
       rect({ x: 0, y: H - 1, width: layoutW, height: 1, fill: TH.BTN_BG })
     )
-    const order = [...Array(n).keys()].filter((i) => i !== active)
-    order.push(active)
-    for (const i of order) {
+    for (const i of tabOrder(n, active)) {
       const on = i === active
       const x = L.x[i]
       // OPAQUE: the theme's fills are translucent, and a tab must hide the
@@ -876,14 +887,39 @@ export function tabs3d(config: {
         stroke: TH.PANEL_BG,
         'stroke-width': 1.5,
       })
+      const item = config.tabs[i]
+      if (typeof item !== 'string') {
+        const [v0, v1] = L.visible[i]
+        const cx = on ? x + L.w / 2 : (v0 + v1) / 2
+        root.appendChild(
+          g(
+            {},
+            under,
+            tab,
+            iconGlyph(item.icon, {
+              color: on ? TH.TEXT : TH.MUTED,
+              size: TAB_ICON,
+              x: cx - TAB_ICON / 2,
+              y: (H - TAB_ICON) / 2,
+            })
+          )
+        )
+        continue
+      }
       const label = baseText('', on ? TH.TEXT : TH.MUTED, on)
-      label.setAttribute('x', String(x + TH.PAD_X))
-      label.setAttribute('y', String(H / 2 + 1))
-      label.textContent = ellipsize(
-        config.tabs[i],
-        L.w - TH.PAD_X * 2,
-        on ? TH.BOLD_FONT : TH.TEXT_FONT
-      )
+      /*
+      THE LABEL SITS IN THE VISIBLE SLICE. Left of the active tab the slice
+      is the tab's left end (later tabs cover the rest); right of it, its
+      right end. The active tab gets its whole width. A slice too narrow for
+      an ellipsis shows the name's first letter.
+      */
+      const [v0, v1] = L.visible[i]
+      const room = (on ? L.w : v1 - v0) - 12
+      label.setAttribute('x', String((on ? x : v0) + (on ? TH.PAD_X : 6)))
+      const font = on ? TH.BOLD_FONT : TH.TEXT_FONT
+      let shown = ellipsize(item, Math.max(1, room), font)
+      if (shown === '…' || shown === '') shown = item.slice(0, 1)
+      label.textContent = shown
       root.appendChild(g({}, under, tab, label))
     }
   }
@@ -1244,9 +1280,13 @@ export function label3d(config: {
   collapsible?: boolean
   /** Whether a collapsible section starts open. Default: only the first. */
   open?: boolean
+  /** An icon for the section: as TABS (`panelSections="tabs"`) it replaces
+   * the caption, so the strip stays narrow and does not overlap. */
+  icon?: string
 }): Widget3d & {
   section?: {
     title: string
+    icon?: string
     open?: boolean
     isOpen: boolean
     toggle?: () => void

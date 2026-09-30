@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { tabLayout, tabAt } from './widgets3d-layout.js'
+import { tabLayout, tabAt, tabOrder } from './widgets3d-layout.js'
 
 describe('file tabs (board #2466)', () => {
   test('a tab is at most half the strip', () => {
@@ -11,21 +11,38 @@ describe('file tabs (board #2466)', () => {
     expect(l.w).toBe(80)
     expect(l.x).toEqual([0, 80, 160])
   })
-  test('too many OVERLAP, spread so the last ends at the right edge', () => {
-    const l = tabLayout(9, 320)
-    expect(l.x[0]).toBe(0)
+  test('too many OVERLAP around the active tab: left ones before it, right ones after', () => {
+    const l = tabLayout(9, 320, 0.5, Infinity, 4) // w 160, active x 80..240
+    expect(l.x[4]).toBe(80)
+    // the left four share 0..80, the right four share 240..320
+    expect(l.visible.slice(0, 4)).toEqual([
+      [0, 20],
+      [20, 40],
+      [40, 60],
+      [60, 80],
+    ])
+    expect(l.visible[8]).toEqual([300, 320])
     expect(l.x[8] + l.w).toBeCloseTo(320, 9)
-    // evenly stepped, each later one further right
-    for (let i = 1; i < 9; i++) expect(l.x[i]).toBeGreaterThan(l.x[i - 1])
+    expect(l.visible[5]).toEqual([240, 260])
   })
-  test('the ACTIVE tab wins where it covers; otherwise the topmost (latest)', () => {
-    const l = tabLayout(9, 320) // w 160, step 20
-    // x = 30 is under tabs 0 and 1: tab 1 is on top of tab 0
-    expect(tabAt(30, l, -1)).toBe(1)
-    // but if tab 0 is active it is in front
-    expect(tabAt(30, l, 0)).toBe(0)
-    // well right of the active tab, the topmost there wins
-    expect(tabAt(300, l, 0)).toBe(8)
-    expect(tabAt(-5, l, 0)).toBe(-1)
+  test('stacking goes TOWARD the active tab, active on top', () => {
+    expect(tabOrder(5, 2)).toEqual([0, 1, 4, 3, 2])
+    expect(tabOrder(3, 0)).toEqual([2, 1, 0])
+  })
+  test('every tab stays reachable, whichever is active', () => {
+    for (let active = 0; active < 9; active++) {
+      const l = tabLayout(9, 320, 0.5, Infinity, active)
+      const hit = new Set<number>()
+      for (let px = 0; px < 320; px++) hit.add(tabAt(px, l, active))
+      for (let i = 0; i < 9; i++) expect(hit.has(i)).toBe(true)
+    }
+  })
+  test('left of the active tab the later one is on top; right of it, the earlier', () => {
+    const l = tabLayout(9, 320, 0.5, Infinity, 4)
+    // active 4 (x 80..240): at px 30, tabs 0 and 1 overlap; 1 is on top
+    expect(tabAt(30, l, 4)).toBe(1)
+    // at px 250, right of the active one: tabs 5..8 overlap; 5 is on top
+    expect(tabAt(250, l, 4)).toBe(5)
+    expect(tabAt(-5, l, 4)).toBe(-1)
   })
 })

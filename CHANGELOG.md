@@ -27,7 +27,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   its left edge), and the active one sits in front, joined to the panel
   below. Pure geometry: `tabLayout` / `tabAt`, tested. `<tosi-b3d>
   panelSections="tabs"` shows collapsible sections as tabs, one at a time
-  (the chosen tab is remembered); the default stays `'fold'`.
+  (the chosen tab is remembered); the default stays `'fold'`. Overlapping
+  tabs spread AROUND the active one: those left of it share the space
+  before it (each showing its left slice), those right of it the space
+  after (each its right slice), labels in the visible slice. A tab can be an
+  ICON (`{ icon, title }`), and `label3d({ collapsible, icon })` gives a
+  section one, which tab mode shows instead of the caption: icon tabs are
+  narrow, so they sit side by side and nothing moves when you switch. Land
+  and Sky uses icon tabs.
 
 ## 0.8.6
 

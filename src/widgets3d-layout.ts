@@ -580,31 +580,76 @@ export function tabLayout(
   n: number,
   width: number,
   maxFrac = 0.5,
-  natural = Infinity
-): { w: number; x: number[] } {
-  if (n <= 0) return { w: 0, x: [] }
+  natural = Infinity,
+  active = -1
+): { w: number; x: number[]; visible: [number, number][] } {
+  if (n <= 0) return { w: 0, x: [], visible: [] }
   const w = Math.min(width * maxFrac, natural, n === 1 ? width : Infinity)
   const x: number[] = []
+  const visible: [number, number][] = []
   if (n * w <= width) {
-    for (let i = 0; i < n; i++) x.push(i * w)
-  } else {
-    const step = (width - w) / (n - 1)
-    for (let i = 0; i < n; i++) x.push(i * step)
+    for (let i = 0; i < n; i++) {
+      x.push(i * w)
+      visible.push([i * w, i * w + w])
+    }
+    return { w, x, visible }
   }
-  return { w, x }
+  /*
+  THEY OVERLAP, AROUND THE ACTIVE TAB (Tonio: "the tabs left of the active
+  tab need to be spread between its left and the left edge and the tabs to
+  the right between its right and the right edge"). The active tab keeps an
+  even-share position; the tabs on its left share the space before it (each
+  showing its LEFT slice), those on its right the space after it (each
+  showing its RIGHT slice).
+  */
+  const a = active >= 0 && active < n ? active : 0
+  const xa = (a * (width - w)) / (n - 1)
+  for (let i = 0; i < n; i++) {
+    if (i < a) {
+      const step = xa / a
+      x.push(i * step)
+      visible.push([i * step, (i + 1) * step])
+    } else if (i === a) {
+      x.push(xa)
+      visible.push([xa, xa + w])
+    } else {
+      const step = (width - (xa + w)) / (n - 1 - a)
+      const right = xa + w + (i - a) * step
+      x.push(right - w)
+      visible.push([right - step, right])
+    }
+  }
+  return { w, x, visible }
 }
 
-/** Which tab is VISIBLY under `px`: the active one if it covers it, else
- * the topmost (latest) one that does. -1 if none. */
+/**
+ * The STACKING ORDER (back to front), the way file tabs stack: toward the
+ * active tab. Tabs to its left overlap rightward (each shows its LEFT edge),
+ * tabs to its right overlap leftward (each shows its RIGHT edge), and the
+ * active one is on top. Stacking every later tab on top instead buried
+ * every tab between the active one and the last (first render).
+ */
+export function tabOrder(n: number, active: number): number[] {
+  const left: number[] = []
+  for (let i = 0; i < Math.min(active, n); i++) left.push(i)
+  const right: number[] = []
+  for (let i = n - 1; i > active; i--) right.push(i)
+  return active >= 0 && active < n
+    ? [...left, ...right, active]
+    : [...left, ...right]
+}
+
+/** Which tab is VISIBLY under `px`: the topmost one there in `tabOrder`.
+ * -1 if none. */
 export function tabAt(
   px: number,
   layout: { w: number; x: number[] },
   active: number
 ): number {
   const { w, x } = layout
-  if (active >= 0 && active < x.length && px >= x[active] && px < x[active] + w)
-    return active
-  for (let i = x.length - 1; i >= 0; i--) {
+  const order = tabOrder(x.length, active)
+  for (let k = order.length - 1; k >= 0; k--) {
+    const i = order[k]
     if (px >= x[i] && px < x[i] + w) return i
   }
   return -1
