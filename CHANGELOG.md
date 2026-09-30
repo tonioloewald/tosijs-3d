@@ -21,6 +21,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Section headers are compact (a caption line, not a control row), and
   Land and Sky's preset actions (save, copy, paste) moved into a ⋯ menu
   beside the preset picker.
+- **File tabs**: `tabs3d({ tabs, active, handleSelect })`, a strip where
+  each tab is at most half the width with an ellipsized label; when they do
+  not fit they overlap (each later tab on the one before, so every tab keeps
+  its left edge), and the active one sits in front, joined to the panel
+  below. Pure geometry: `tabLayout` / `tabAt`, tested. `<tosi-b3d>
+  panelSections="tabs"` shows collapsible sections as tabs, one at a time
+  (the chosen tab is remembered); the default stays `'fold'`.
 
 ## 0.8.6
 

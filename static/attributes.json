@@ -4942,6 +4942,9 @@
         "name": "scenePanelOpen"
       },
       {
+        "name": "panelSections"
+      },
+      {
         "name": "gamepadScale",
         "default": "1",
         "description": "Scale factor for the glass gamepad clusters"

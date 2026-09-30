@@ -564,3 +564,48 @@ export function panelFitWidth(
   const visibleHeight = 2 * z * Math.tan(fov / 2)
   return Math.min(want, visibleHeight * aspect * fill)
 }
+
+/**
+ * **File-tab geometry** (board #2466): where each of `n` tabs sits in a strip
+ * `width` wide, and which one is under a point.
+ *
+ * Each tab is at most `maxFrac` of the strip (half, by default: its label
+ * ellipsizes to fit). When they fit side by side they do; when they don't
+ * they OVERLAP, spread evenly so the last one ends at the right edge, and
+ * each LATER tab sits on top of the one before, so every tab keeps its left
+ * edge (and the start of its name) showing. The ACTIVE tab is drawn last,
+ * wholly in front, the way file tabs work.
+ */
+export function tabLayout(
+  n: number,
+  width: number,
+  maxFrac = 0.5,
+  natural = Infinity
+): { w: number; x: number[] } {
+  if (n <= 0) return { w: 0, x: [] }
+  const w = Math.min(width * maxFrac, natural, n === 1 ? width : Infinity)
+  const x: number[] = []
+  if (n * w <= width) {
+    for (let i = 0; i < n; i++) x.push(i * w)
+  } else {
+    const step = (width - w) / (n - 1)
+    for (let i = 0; i < n; i++) x.push(i * step)
+  }
+  return { w, x }
+}
+
+/** Which tab is VISIBLY under `px`: the active one if it covers it, else
+ * the topmost (latest) one that does. -1 if none. */
+export function tabAt(
+  px: number,
+  layout: { w: number; x: number[] },
+  active: number
+): number {
+  const { w, x } = layout
+  if (active >= 0 && active < x.length && px >= x[active] && px < x[active] + w)
+    return active
+  for (let i = x.length - 1; i >= 0; i--) {
+    if (px >= x[i] && px < x[i] + w) return i
+  }
+  return -1
+}

@@ -450,6 +450,8 @@ import {
   type FontSpec,
   ellipsize,
   measureTextWidth,
+  tabLayout,
+  tabAt,
 } from './widgets3d-layout.js'
 import { handlerOf, resetHandlerWarnings } from './handler-of.js'
 import { w3dTheme } from './w3d-theme.js'
@@ -819,6 +821,86 @@ function sectionLabel(
     handle(kind) {
       bg.setAttribute('fill', kind === 'leave' ? 'transparent' : TH.BTN_HOVER)
       if (kind === 'up') section.toggle?.()
+    },
+  }
+}
+
+/**
+ * **A strip of FILE TABS** (board #2466): pick one of several named pages.
+ * Each tab is at most half the strip wide with its label ellipsized; when
+ * they do not fit they overlap, each later tab on top of the one before, and
+ * the ACTIVE tab sits wholly in front, joined to what is below it. A tap goes
+ * to whatever tab is visibly on top there. Geometry is `tabLayout` / `tabAt`
+ * (pure, tested).
+ */
+export function tabs3d(config: {
+  tabs: string[]
+  /** Index of the active tab. */
+  active?: number
+  handleSelect?: (index: number) => void
+}): Widget3d {
+  const H = 30
+  const R = 7
+  let active = Math.max(0, Math.min(config.tabs.length - 1, config.active ?? 0))
+  let layoutW = 0
+  const root = g({ 'data-w3d': 'tabs' })
+  const tabPath = (x: number, w: number) =>
+    `M${x},${H} L${x},${R} Q${x},0 ${x + R},0 L${x + w - R},0 Q${x + w},0 ${
+      x + w
+    },${R} L${x + w},${H} Z`
+  const draw = () => {
+    root.replaceChildren()
+    const n = config.tabs.length
+    // Side by side when the labels allow, at most half the strip each.
+    const natural =
+      Math.max(...config.tabs.map((t) => measureTextWidth(t, TH.BOLD_FONT))) +
+      TH.PAD_X * 2
+    const L = tabLayout(n, layoutW, 0.5, natural)
+    ;(root as any).__layout = L
+    // The line the active tab joins: the strip's floor.
+    root.appendChild(
+      rect({ x: 0, y: H - 1, width: layoutW, height: 1, fill: TH.BTN_BG })
+    )
+    const order = [...Array(n).keys()].filter((i) => i !== active)
+    order.push(active)
+    for (const i of order) {
+      const on = i === active
+      const x = L.x[i]
+      // OPAQUE: the theme's fills are translucent, and a tab must hide the
+      // label of the one it covers. The panel colour underneath, the tint on
+      // top.
+      const under = svgElements.path({ d: tabPath(x, L.w), fill: TH.PANEL_BG })
+      const tab = svgElements.path({
+        d: tabPath(x, L.w),
+        fill: on ? TH.BTN_BG : TH.ROW_BG,
+        stroke: TH.PANEL_BG,
+        'stroke-width': 1.5,
+      })
+      const label = baseText('', on ? TH.TEXT : TH.MUTED, on)
+      label.setAttribute('x', String(x + TH.PAD_X))
+      label.setAttribute('y', String(H / 2 + 1))
+      label.textContent = ellipsize(
+        config.tabs[i],
+        L.w - TH.PAD_X * 2,
+        on ? TH.BOLD_FONT : TH.TEXT_FONT
+      )
+      root.appendChild(g({}, under, tab, label))
+    }
+  }
+  return {
+    el: root,
+    layout(width) {
+      layoutW = width
+      draw()
+      return H + 4
+    },
+    handle(kind, x) {
+      if (kind !== 'up') return
+      const i = tabAt(x, (root as any).__layout, active)
+      if (i < 0 || i === active) return
+      active = i
+      draw()
+      config.handleSelect?.(i)
     },
   }
 }

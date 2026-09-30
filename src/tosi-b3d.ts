@@ -295,6 +295,7 @@ import {
   iconBar3d,
   label3d,
   textBlock3d,
+  tabs3d,
   type Widget3d,
 } from './widgets3d.js'
 import { handlerOf } from './handler-of.js'
@@ -566,6 +567,9 @@ export class B3d extends Component {
     xrReticle: 'off' as 'on' | 'off',
     // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
     scenePanelOpen: false,
+    /** How collapsible sections present: 'fold' (headers you open and close)
+     * or 'tabs' (file tabs, one section at a time). */
+    panelSections: 'fold' as 'fold' | 'tabs',
     // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
     // wildly across devices, so this is exposed for tuning per scene/device.
     gamepadScale: 1,
@@ -1033,6 +1037,7 @@ export class B3d extends Component {
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
+  declare panelSections: 'fold' | 'tabs'
   /**
    * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
    * string = the full default layout; any other string selects and positions
@@ -3402,6 +3407,7 @@ export class B3d extends Component {
     return this._sectionOpen
   }
   private _foldSections(rows: Widget3d[]): Widget3d[] {
+    if (this.panelSections === 'tabs') return this._tabSections(rows)
     const open = this._sectionsOpen()
     const out: Widget3d[] = []
     let showing = true
@@ -3438,6 +3444,48 @@ export class B3d extends Component {
       showing = isOpen
     }
     return out
+  }
+
+  /*
+  TABS: the same sections, one at a time, behind a strip of file tabs. Rows
+  before the first section stay above the strip. The chosen tab is kept like
+  the open set.
+  */
+  private _tabSections(rows: Widget3d[]): Widget3d[] {
+    const head: Widget3d[] = []
+    const sections: { title: string; rows: Widget3d[] }[] = []
+    for (const row of rows) {
+      const sec = (row as any).section as { title: string } | undefined
+      if (sec != null) sections.push({ title: sec.title, rows: [] })
+      else if (sections.length === 0) head.push(row)
+      else sections[sections.length - 1].rows.push(row)
+    }
+    if (sections.length === 0) return rows
+    if ((this as any)._activeTab == null) {
+      try {
+        ;(this as any)._activeTab = localStorage.getItem(
+          this._sectionKey() + ':tab'
+        )
+      } catch {
+        /* no storage: the first tab */
+      }
+    }
+    let active = sections.findIndex((s) => s.title === (this as any)._activeTab)
+    if (active < 0) active = 0
+    const strip = tabs3d({
+      tabs: sections.map((s) => s.title),
+      active,
+      handleSelect: (i) => {
+        ;(this as any)._activeTab = sections[i].title
+        try {
+          localStorage.setItem(this._sectionKey() + ':tab', sections[i].title)
+        } catch {
+          /* no storage: it still switches for this visit */
+        }
+        this._repaintPanels()
+      },
+    })
+    return [...head, strip, ...sections[active].rows]
   }
 
   private _panelWidgets(xr = false): Widget3d[] {
