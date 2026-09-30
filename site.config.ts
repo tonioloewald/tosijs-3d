@@ -63,7 +63,9 @@ export default defineSiteConfig({
   docPaths: ['src', 'README.md', 'Migration.md', 'CHANGELOG.md'],
   // The bundle entry's folder is documented as watched, but an edit to
   // demo/site.ts rebuilt nothing (twice, 2026-09-28): watch it explicitly.
-  watchPaths: ['demo'],
+  // The FILES, not the folder: the build writes demo/docs.json, so watching
+  // 'demo' rebuilt forever (the dev server's loop guard stopped it).
+  watchPaths: ['demo/site.ts', 'demo/demo-utils.ts'],
   staticDirs: ['static'],
   port: 8030,
 
