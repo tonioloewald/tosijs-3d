@@ -493,7 +493,7 @@ const scene = b3d(
       select3d({ label: 'ground palette', value: demo.palette, options: ['earth', ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
-      label3d({ text: 'Climate', icon: 'sun', collapsible: true }),
+      label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
@@ -519,11 +519,11 @@ const scene = b3d(
       slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
       slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
-      label3d({ text: 'Moons', icon: 'circle', collapsible: true }),
+      label3d({ text: 'Moons', icon: 'moon', collapsible: true }),
       select3d({ label: 'moons', value: sky.moons, options: Object.keys(MOONS) }),
       slider3d({ label: 'moon azimuth', value: sky.moonAz, min: -180, max: 180, step: 1 }),
       slider3d({ label: 'moon elevation', value: sky.moonEl, min: -60, max: 60, step: 1 }),
-      label3d({ text: 'Vegetation', icon: 'decor', collapsible: true }),
+      label3d({ text: 'Vegetation', icon: 'tree', collapsible: true }),
       // THE BUDGET is the performance dial: a count, not a density. Watch the
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
       slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
