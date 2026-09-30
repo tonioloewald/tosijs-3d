@@ -4942,6 +4942,9 @@
         "name": "scenePanelOpen"
       },
       {
+        "name": "panelSections"
+      },
+      {
         "name": "gamepadScale",
         "default": "1",
         "description": "Scale factor for the glass gamepad clusters"
@@ -5108,6 +5111,11 @@
         "description": "`360`"
       },
       {
+        "name": "label3d",
+        "default": "collapsible",
+        "description": "`false`"
+      },
+      {
         "name": "row3d",
         "default": "weights",
         "description": "equal"
@@ -5145,6 +5153,11 @@
       {
         "name": "iconBar3d",
         "default": "items"
+      },
+      {
+        "name": "tabs3d",
+        "default": "tabs` / `active` / `handleSelect",
+        "description": "`0`"
       },
       {
         "name": "spinner3d",

@@ -287,7 +287,7 @@ import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
 import { touchOrbit } from './touch-orbit.js';
 import { xrControllers } from './gamepad.js';
-import { fitPanel, panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d.js';
+import { fitPanel, panel3d, button3d, iconBar3d, label3d, textBlock3d, tabs3d, } from './widgets3d.js';
 import { handlerOf } from './handler-of.js';
 import { panelFitWidth } from './widgets3d-layout.js';
 import { w3dTheme } from './w3d-theme.js';
@@ -383,6 +383,9 @@ export class B3d extends Component {
         xrReticle: 'off',
         // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
         scenePanelOpen: false,
+        /** How collapsible sections present: 'fold' (headers you open and close)
+         * or 'tabs' (file tabs, one section at a time). */
+        panelSections: 'fold',
         // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
         // wildly across devices, so this is exposed for tuning per scene/device.
         gamepadScale: 1,
@@ -1836,6 +1839,18 @@ export class B3d extends Component {
     // LISTENER), so a component callback named that way collides with it. tosijs warns
     // and points here — the same footgun as tosijs#22, now with a migration path.
     handleResize() {
+        // An open flat panel re-fits to the new height, once the resize settles.
+        const host = this.parts?.scenePanelHost;
+        if (host != null &&
+            !host.hasAttribute('hidden') &&
+            this.clientHeight !== this._panelHeightKey) {
+            if (this._panelResizeTimer != null)
+                clearTimeout(this._panelResizeTimer);
+            this._panelResizeTimer = setTimeout(() => {
+                this._panelResizeTimer = null;
+                this.refreshScenePanel();
+            }, 150);
+        }
         if (this.engine && !this._resizing) {
             this._resizing = true;
             this.engine.resize();
@@ -2980,15 +2995,122 @@ export class B3d extends Component {
         flat: [],
         xr: [],
     };
+    /*
+    COLLAPSIBLE SECTIONS (board #2466). A `label3d({ collapsible: true })` heads
+    a section: every row after it, up to the next one, belongs to it. Folded
+    sections' rows are simply LEFT OUT here, the one place both presentations
+    get their rows, so flat and XR fold identically. The open set persists per
+    page, in the browser (a private window just starts from the defaults).
+    */
+    _sectionOpen = null;
+    _sectionKey() {
+        return `tosi-b3d:sections:${location.pathname}`;
+    }
+    _sectionsOpen() {
+        if (this._sectionOpen == null) {
+            this._sectionOpen = new Map();
+            try {
+                const raw = localStorage.getItem(this._sectionKey());
+                for (const [k, v] of Object.entries(JSON.parse(raw || '{}')))
+                    this._sectionOpen.set(k, !!v);
+            }
+            catch {
+                /* no storage: defaults */
+            }
+        }
+        return this._sectionOpen;
+    }
+    _foldSections(rows) {
+        if (this.panelSections === 'tabs')
+            return this._tabSections(rows);
+        const open = this._sectionsOpen();
+        const out = [];
+        let showing = true;
+        let first = true;
+        for (const row of rows) {
+            const sec = row.section;
+            if (sec == null) {
+                if (showing)
+                    out.push(row);
+                continue;
+            }
+            const isOpen = open.get(sec.title) ?? sec.open ?? first;
+            first = false;
+            sec.isOpen = isOpen;
+            sec.toggle = () => {
+                open.set(sec.title, !isOpen);
+                try {
+                    localStorage.setItem(this._sectionKey(), JSON.stringify(Object.fromEntries(open)));
+                }
+                catch {
+                    /* no storage: it still toggles for this visit */
+                }
+                this._repaintPanels();
+            };
+            out.push(row);
+            showing = isOpen;
+        }
+        return out;
+    }
+    /*
+    TABS: the same sections, one at a time, behind a strip of file tabs. Rows
+    before the first section stay above the strip. The chosen tab is kept like
+    the open set.
+    */
+    _tabSections(rows) {
+        const head = [];
+        const sections = [];
+        for (const row of rows) {
+            const sec = row.section;
+            if (sec != null)
+                sections.push({ title: sec.title, icon: sec.icon, rows: [] });
+            else if (sections.length === 0)
+                head.push(row);
+            else
+                sections[sections.length - 1].rows.push(row);
+        }
+        if (sections.length === 0)
+            return rows;
+        if (this._activeTab == null) {
+            try {
+                ;
+                this._activeTab = localStorage.getItem(this._sectionKey() + ':tab');
+            }
+            catch {
+                /* no storage: the first tab */
+            }
+        }
+        let active = sections.findIndex((s) => s.title === this._activeTab);
+        if (active < 0)
+            active = 0;
+        const strip = tabs3d({
+            tabs: sections.map((s) => s.icon ? { icon: s.icon, title: s.title } : s.title),
+            active,
+            handleSelect: (i) => {
+                ;
+                this._activeTab = sections[i].title;
+                try {
+                    localStorage.setItem(this._sectionKey() + ':tab', sections[i].title);
+                }
+                catch {
+                    /* no storage: it still switches for this visit */
+                }
+                this._repaintPanels();
+            },
+        });
+        return [...head, strip, ...sections[active].rows];
+    }
     _panelWidgets(xr = false) {
         const key = xr ? 'xr' : 'flat';
         this._disposeWidgets(key);
-        const rows = this.scenePanel(this);
+        const all = this.scenePanel(this);
+        const rows = this._foldSections(all);
         const items = this._barItems();
         if (items.length === 0) {
             // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
             this._liveDebug[key] = [];
-            this._builtWidgets[key] = rows;
+            // ALL of them, folded ones included: they were built, so they dispose.
+            this._builtWidgets[key] = all;
             return rows;
         }
         /*
@@ -3009,7 +3131,7 @@ export class B3d extends Component {
         rendered. `_syncDebugPopups` opens and closes them against that set, so the
         icon bar's active state and the popup cannot disagree.
         */
-        this._builtWidgets[key] = rows;
+        this._builtWidgets[key] = all;
         return rows;
     }
     // window.requestAnimationFrame stops firing during an immersive XR session (the
@@ -4272,11 +4394,11 @@ export class B3d extends Component {
     `header` keeps the icon bar out of that scroll. It carries Exit VR, and a
     control you need in order to LEAVE must not be the one that scrolls away.
     */
-    _makePanel(rows, header = [], grip = false) {
+    _makePanel(rows, header = [], grip = false, maxHeight = 620) {
         return panel3d({
             width: 320,
             height: 'fit',
-            maxHeight: 620,
+            maxHeight,
             // Only the in-scene panel is draggable — the flat one is a DOM overlay
             // the page already positions, and a grab bar there would do nothing.
             grip,
@@ -4486,8 +4608,25 @@ export class B3d extends Component {
         that a rebuild has no business touching — where they were dragged to, how
         far they were scrolled, and the live rows already ticking inside them.
         */
-        replaceKeepingLayers(host, div({ class: 'scene-panel-head' }, ...buttons), this._makePanel(this._panelWidgets()));
+        replaceKeepingLayers(host, div({ class: 'scene-panel-head' }, ...buttons), this._makePanel(this._panelWidgets(), [], false, this._flatPanelMax()));
         host.removeAttribute('hidden');
+        this._panelHeightKey = this.clientHeight;
+    }
+    /*
+    THE FLAT PANEL FITS THE SPACE IT HAS (board #2466). It draws one viewBox
+    unit per CSS pixel, and was capped at a fixed 620: on a short window or a
+    phone a long panel (Land and Sky) ran off the bottom. Capped at the scene's
+    height less the overlay's 12 px inset top and bottom, its own scrolling
+    takes over. Re-measured when the scene resizes (see handleResize). The XR
+    panel keeps 620: in a headset there is no window to fit.
+    */
+    _panelHeightKey = 0;
+    _panelResizeTimer = null;
+    _flatPanelMax() {
+        const h = this.clientHeight;
+        if (!(h > 0))
+            return 620;
+        return Math.max(160, Math.min(620, h - 24));
     }
     _closeScenePanel() {
         ;

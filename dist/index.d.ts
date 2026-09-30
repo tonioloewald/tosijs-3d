@@ -120,7 +120,7 @@ export { NO_WIND, addWind, scaleWind, windSpeed, windFromPolar, windToPolar, win
 export type { Wind, ProvinceWind } from './wind.js';
 export type { Picker, PickerOption, Picker3dOptions } from './picker.js';
 export type { AngleField, ArcField, Angle3dOptions, Arc3dOptions, } from './angle-field.js';
-export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
+export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, tabs3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve.js';
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
 export { isTextEntry } from './text-entry.js';
@@ -158,7 +158,7 @@ export { footprint3d } from './footprint-field.js';
 export type { Footprint3dOptions, FootprintField } from './footprint-field.js';
 export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field.js';
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js';
-export type { Widget3d, WidgetHost, MenuAction, Dynamic, Spinner3d, Progress3d, Bindable, } from './widgets3d.js';
+export type { Widget3d, WidgetHost, MenuAction, Tab3d, Dynamic, Spinner3d, Progress3d, Bindable, } from './widgets3d.js';
 export { panelFitWidth, panelFit, panelHeight, rowColumns, alignOffset, stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout.js';
 export type { StackLayout, FontSpec, PanelFit, RowColumn, } from './widgets3d-layout.js';
 export { SvgTexture } from './svg-texture.js';

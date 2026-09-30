@@ -156,6 +156,25 @@ sheet: SVGSVGElement, config: {
 }) => {
     close: () => void;
 };
+/**
+ * **A strip of FILE TABS** (board #2466): pick one of several named pages.
+ * Each tab is at most half the strip wide with its label ellipsized; when
+ * they do not fit they overlap, each later tab on top of the one before, and
+ * the ACTIVE tab sits wholly in front, joined to what is below it. A tap goes
+ * to whatever tab is visibly on top there. Geometry is `tabLayout` / `tabAt`
+ * (pure, tested).
+ */
+/** A tab: a caption, or an ICON (with an optional title for its name). */
+export type Tab3d = string | {
+    icon: string;
+    title?: string;
+};
+export declare function tabs3d(config: {
+    tabs: Tab3d[];
+    /** Index of the active tab. */
+    active?: number;
+    handleSelect?: (index: number) => void;
+}): Widget3d;
 /** What a panel offers the widgets inside it. */
 /**
  * A host translated by a child's offset inside its container.
@@ -338,7 +357,27 @@ export declare function label3d(config: {
     bold?: boolean;
     color?: string;
     compact?: boolean;
-}): Widget3d;
+    /**
+     * A SECTION HEADER: tap it to fold away everything below it, up to the next
+     * collapsible label (board #2466). The host panel (a `<tosi-b3d>`
+     * `scenePanel`) does the folding and remembers what is open; the label only
+     * draws its chevron and asks. A plain label is unchanged.
+     */
+    collapsible?: boolean;
+    /** Whether a collapsible section starts open. Default: only the first. */
+    open?: boolean;
+    /** An icon for the section: as TABS (`panelSections="tabs"`) it replaces
+     * the caption, so the strip stays narrow and does not overlap. */
+    icon?: string;
+}): Widget3d & {
+    section?: {
+        title: string;
+        icon?: string;
+        open?: boolean;
+        isOpen: boolean;
+        toggle?: () => void;
+    };
+};
 /**
  * A wrapped, multi-line text block — the honest way to render prose in an SVG
  * panel (NPC dialogue, a paragraph of help). Lines are broken by real glyph

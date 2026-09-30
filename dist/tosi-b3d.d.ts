@@ -118,6 +118,9 @@ export declare class B3d extends Component {
         xrGrid: "on" | "off" | "auto";
         xrReticle: "on" | "off";
         scenePanelOpen: boolean;
+        /** How collapsible sections present: 'fold' (headers you open and close)
+         * or 'tabs' (file tabs, one section at a time). */
+        panelSections: "fold" | "tabs";
         gamepadScale: number;
         /** `'off'` stops the glass gamepad fading when a mouse/keyboard/pad is
          * used (see b3d-gamepad's `fade`). */
@@ -394,6 +397,7 @@ export declare class B3d extends Component {
     xrGrid: 'on' | 'off' | 'auto';
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
+    panelSections: 'fold' | 'tabs';
     /**
      * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
      * string = the full default layout; any other string selects and positions
@@ -998,6 +1002,11 @@ export declare class B3d extends Component {
     private _barItems;
     private _disposeWidgets;
     private _builtWidgets;
+    private _sectionOpen;
+    private _sectionKey;
+    private _sectionsOpen;
+    private _foldSections;
+    private _tabSections;
     private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;
@@ -1016,6 +1025,9 @@ export declare class B3d extends Component {
      * same items either way (`_barItems`); only the flat LAYOUT changed.
      */
     private _openScenePanel;
+    private _panelHeightKey;
+    private _panelResizeTimer;
+    private _flatPanelMax;
     private _closeScenePanel;
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,

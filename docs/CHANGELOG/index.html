@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=d17c48faa6c8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=fe44cce61703" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=20721aadf67e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=177d3044de22" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,40 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.7</h2>
+<p><strong>Panels that fit.</strong> The scene panel caps itself to the space it has, and
+its sections can fold or become file tabs, captions or icons, with the
+overlap and stacking of real file tabs. Land and Sky uses icon tabs and a
+preset menu. Also: a security pin for a build-only dependency.</p>
+<h3>Added</h3>
+<ul>
+<li><strong>Scene panels fit the space they have</strong> (board #2466). The flat ⚙ panel
+is capped at the scene&#39;s height (it was a fixed 620 px, and ran off the
+bottom of a short window or a phone), re-fitted when the scene resizes;
+its own scrolling takes over. And <strong>collapsible sections</strong>:
+<code>label3d({ text, collapsible: true, open? })</code> heads a section that folds
+everything below it up to the next one, flat and in VR alike, with the
+open set remembered in the browser. Land and Sky&#39;s 50-odd rows fold into
+nine sections.
+Section headers are compact (a caption line, not a control row), and
+Land and Sky&#39;s preset actions (save, copy, paste) moved into a ⋯ menu
+beside the preset picker.</li>
+<li><strong>File tabs</strong>: <code>tabs3d({ tabs, active, handleSelect })</code>, a strip where
+each tab is at most half the width with an ellipsized label; when they do
+not fit they overlap (each later tab on the one before, so every tab keeps
+its left edge), and the active one sits in front, joined to the panel
+below. Pure geometry: <code>tabLayout</code> / <code>tabAt</code>, tested. <code>&lt;tosi-b3d&gt; panelSections=&quot;tabs&quot;</code> shows collapsible sections as tabs, one at a time
+(the chosen tab is remembered); the default stays <code>&#39;fold&#39;</code>. Overlapping
+tabs spread AROUND the active one: those left of it share the space
+before it (each showing its left slice), those right of it the space
+after (each its right slice), labels in the visible slice. A tab can be an
+ICON (<code>{ icon, title }</code>), and <code>label3d({ collapsible, icon })</code> gives a
+section one, which tab mode shows instead of the caption: icon tabs are
+narrow, so they sit side by side and nothing moves when you switch. Land
+and Sky uses icon tabs.
+<code>tabs3d</code> is exported (with <code>Tab3d</code>), and the widgets page has a live
+<strong>Tabs</strong> demo: nine captions overlapping, three side by side, icons.</li>
+</ul>
 <h2>0.8.6</h2>
 <p><strong>Other worlds.</strong> Land and Sky becomes a world builder: presets you pick,
 save and share, with Earth, Mars, Venus, the Moon, Io and Titan built in.
@@ -4295,6 +4329,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=d17c48faa6c8"></script>
+  <script type="module" src="../hydrate.js?v=fe44cce61703"></script>
 </body>
 </html>

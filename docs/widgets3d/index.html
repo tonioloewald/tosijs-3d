@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=d17c48faa6c8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=fe44cce61703" data-tosi-doc-system />
   <title>widgets3d — tosijs-3d</title>
   <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
   <link rel="canonical" href="https://3d.tosijs.net/widgets3d/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=20721aadf67e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=177d3044de22" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>widgets3d</h1>
 <p>A small collection of <strong>SVG-native</strong> UI widgets with element-creator ergonomics
@@ -310,6 +310,18 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <td></td>
 </tr>
 <tr>
+<td><code>label3d</code></td>
+<td><strong><code>collapsible</code></strong></td>
+<td><code>false</code></td>
+<td>a SECTION header: tap to fold everything below it, up to the next collapsible label. In a <code>&lt;tosi-b3d&gt;</code> <code>scenePanel</code>, flat and VR alike; the open set is remembered in the browser</td>
+</tr>
+<tr>
+<td></td>
+<td><code>open</code></td>
+<td>first section only</td>
+<td>whether a collapsible section starts open</td>
+</tr>
+<tr>
 <td><code>row3d</code></td>
 <td><code>weights</code></td>
 <td>equal</td>
@@ -424,6 +436,12 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <td><code>{icon, handleClick}</code></td>
 </tr>
 <tr>
+<td><code>tabs3d</code></td>
+<td><code>tabs</code> / <code>active</code> / <code>handleSelect</code></td>
+<td><code>0</code></td>
+<td>file tabs; a tab is a caption or <code>{ icon, title }</code>; at most half the strip each, overlapping around the active one when they don&#39;t fit</td>
+</tr>
+<tr>
 <td><code>spinner3d</code></td>
 <td><code>label</code> / <code>size</code></td>
 <td></td>
@@ -481,6 +499,48 @@ about which tool is live.</li>
 <p><strong>On a field</strong>: <code>type</code>, <code>keyboardMode</code>, <code>isValid()</code>, <code>commit()</code>, plus the edit
 protocol (<code>insert</code>, <code>action</code>, <code>setValue</code>, <code>moveCaret</code>). <code>fieldGroup</code> manages
 several of them — exclusivity, commit-on-leave and keyboard layout.</p>
+<h2>Tabs</h2>
+<p><code>tabs3d</code> is a strip of FILE TABS: pick one of several pages. Each tab is at
+most half the strip wide, its caption ellipsized. When they fit, they sit
+side by side; when they don&#39;t, they OVERLAP around the active tab, those to
+its left sharing the space before it and those to its right the space after,
+stacked toward it, so every tab stays reachable. Pick one on the left and one
+on the right and watch the strip re-spread. A tab can be an icon instead
+(<code>{ icon, title }</code>); icons are narrow, so an icon strip rarely overlaps.</p>
+<p>In a <code>&lt;tosi-b3d&gt;</code> scene panel you do not build the strip yourself:
+<code>panelSections=&quot;tabs&quot;</code> turns <code>label3d({ collapsible: true })</code> sections into
+tabs, and a section&#39;s <code>icon</code> becomes its tab.</p>
+<pre><code class="language-js">import { elements } from &#39;tosijs&#39;
+import { panel3d, tabs3d, label3d } from &#39;tosijs-3d&#39;
+
+const { div } = elements
+const readout = div({ style: { padding: &#39;0 16px 12px&#39;, font: &#39;13px system-ui&#39;, opacity: &#39;0.75&#39; } }, &#39;Pick a tab.&#39;)
+const say = (strip) =&gt; (i) =&gt; (readout.textContent = `${strip}: ${i}`)
+
+const SECTIONS = [&#39;World&#39;, &#39;Terrain&#39;, &#39;Climate&#39;, &#39;Weather&#39;, &#39;Atmosphere&#39;, &#39;Stars&#39;, &#39;Moons&#39;, &#39;Vegetation&#39;, &#39;Camera&#39;]
+const FEW = [&#39;General&#39;, &#39;Graphics&#39;, &#39;Audio&#39;]
+const ICONS = [
+  { icon: &#39;earth&#39;, title: &#39;World&#39; },
+  { icon: &#39;terrain&#39;, title: &#39;Terrain&#39; },
+  { icon: &#39;thermometer&#39;, title: &#39;Climate&#39; },
+  { icon: &#39;cloud&#39;, title: &#39;Weather&#39; },
+  { icon: &#39;moon&#39;, title: &#39;Moons&#39; },
+  { icon: &#39;tree&#39;, title: &#39;Vegetation&#39; },
+]
+
+preview.append(
+  div(
+    { style: { display: &#39;flex&#39;, flexDirection: &#39;column&#39;, gap: 16, padding: 16 } },
+    panel3d({ width: 320 }, label3d({ text: &#39;Nine captions: they overlap&#39;, muted: true }),
+      tabs3d({ tabs: SECTIONS, active: 3, handleSelect: (i) =&gt; say(&#39;captions&#39;)(SECTIONS[i]) })),
+    panel3d({ width: 320 }, label3d({ text: &#39;Three captions: side by side&#39;, muted: true }),
+      tabs3d({ tabs: FEW, handleSelect: (i) =&gt; say(&#39;few&#39;)(FEW[i]) })),
+    panel3d({ width: 320 }, label3d({ text: &#39;Icons&#39;, muted: true }),
+      tabs3d({ tabs: ICONS, active: 3, handleSelect: (i) =&gt; say(&#39;icons&#39;)(ICONS[i].title) })),
+    readout
+  )
+)
+</code></pre>
 <h2>Saying that something is HAPPENING</h2>
 <p><code>spinner3d</code> for &quot;working, duration unknown&quot;; <code>progress3d(fraction)</code> when the
 total is genuinely known. Both are <code>Widget3d</code>s, so the thing that is loading is
@@ -855,6 +915,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=d17c48faa6c8"></script>
+  <script type="module" src="../hydrate.js?v=fe44cce61703"></script>
 </body>
 </html>

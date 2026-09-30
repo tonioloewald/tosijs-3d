@@ -456,4 +456,87 @@ export function panelFitWidth(fov, aspect, z, want, fill = 0.8) {
     const visibleHeight = 2 * z * Math.tan(fov / 2);
     return Math.min(want, visibleHeight * aspect * fill);
 }
+/**
+ * **File-tab geometry** (board #2466): where each of `n` tabs sits in a strip
+ * `width` wide, and which one is under a point.
+ *
+ * Each tab is at most `maxFrac` of the strip (half, by default: its label
+ * ellipsizes to fit). When they fit side by side they do; when they don't
+ * they OVERLAP, spread evenly so the last one ends at the right edge, and
+ * each LATER tab sits on top of the one before, so every tab keeps its left
+ * edge (and the start of its name) showing. The ACTIVE tab is drawn last,
+ * wholly in front, the way file tabs work.
+ */
+export function tabLayout(n, width, maxFrac = 0.5, natural = Infinity, active = -1) {
+    if (n <= 0)
+        return { w: 0, x: [], visible: [] };
+    const w = Math.min(width * maxFrac, natural, n === 1 ? width : Infinity);
+    const x = [];
+    const visible = [];
+    if (n * w <= width) {
+        for (let i = 0; i < n; i++) {
+            x.push(i * w);
+            visible.push([i * w, i * w + w]);
+        }
+        return { w, x, visible };
+    }
+    /*
+    THEY OVERLAP, AROUND THE ACTIVE TAB (Tonio: "the tabs left of the active
+    tab need to be spread between its left and the left edge and the tabs to
+    the right between its right and the right edge"). The active tab keeps an
+    even-share position; the tabs on its left share the space before it (each
+    showing its LEFT slice), those on its right the space after it (each
+    showing its RIGHT slice).
+    */
+    const a = active >= 0 && active < n ? active : 0;
+    const xa = (a * (width - w)) / (n - 1);
+    for (let i = 0; i < n; i++) {
+        if (i < a) {
+            const step = xa / a;
+            x.push(i * step);
+            visible.push([i * step, (i + 1) * step]);
+        }
+        else if (i === a) {
+            x.push(xa);
+            visible.push([xa, xa + w]);
+        }
+        else {
+            const step = (width - (xa + w)) / (n - 1 - a);
+            const right = xa + w + (i - a) * step;
+            x.push(right - w);
+            visible.push([right - step, right]);
+        }
+    }
+    return { w, x, visible };
+}
+/**
+ * The STACKING ORDER (back to front), the way file tabs stack: toward the
+ * active tab. Tabs to its left overlap rightward (each shows its LEFT edge),
+ * tabs to its right overlap leftward (each shows its RIGHT edge), and the
+ * active one is on top. Stacking every later tab on top instead buried
+ * every tab between the active one and the last (first render).
+ */
+export function tabOrder(n, active) {
+    const left = [];
+    for (let i = 0; i < Math.min(active, n); i++)
+        left.push(i);
+    const right = [];
+    for (let i = n - 1; i > active; i--)
+        right.push(i);
+    return active >= 0 && active < n
+        ? [...left, ...right, active]
+        : [...left, ...right];
+}
+/** Which tab is VISIBLY under `px`: the topmost one there in `tabOrder`.
+ * -1 if none. */
+export function tabAt(px, layout, active) {
+    const { w, x } = layout;
+    const order = tabOrder(x.length, active);
+    for (let k = order.length - 1; k >= 0; k--) {
+        const i = order[k];
+        if (px >= x[i] && px < x[i] + w)
+            return i;
+    }
+    return -1;
+}
 //# sourceMappingURL=widgets3d-layout.js.map

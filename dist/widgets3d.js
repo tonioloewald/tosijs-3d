@@ -252,6 +252,8 @@ settings into `select3d` cyclers to get discrete values.
 | | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
 | | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
 | | `background` | theme `panelBg` | |
+| `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. In a `<tosi-b3d>` `scenePanel`, flat and VR alike; the open set is remembered in the browser |
+| | `open` | first section only | whether a collapsible section starts open |
 | `row3d` | `weights` | equal | proportional shares of the post-gap width |
 | | `align` | `'middle'` | `top` / `middle` / `bottom` |
 | | `gap` | `8` | |
@@ -271,6 +273,7 @@ settings into `select3d` cyclers to get discrete values.
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
 
@@ -326,6 +329,53 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
 several of them — exclusivity, commit-on-leave and keyboard layout.
+
+## Tabs
+
+`tabs3d` is a strip of FILE TABS: pick one of several pages. Each tab is at
+most half the strip wide, its caption ellipsized. When they fit, they sit
+side by side; when they don't, they OVERLAP around the active tab, those to
+its left sharing the space before it and those to its right the space after,
+stacked toward it, so every tab stays reachable. Pick one on the left and one
+on the right and watch the strip re-spread. A tab can be an icon instead
+(`{ icon, title }`); icons are narrow, so an icon strip rarely overlaps.
+
+In a `<tosi-b3d>` scene panel you do not build the strip yourself:
+`panelSections="tabs"` turns `label3d({ collapsible: true })` sections into
+tabs, and a section's `icon` becomes its tab.
+
+```js
+import { elements } from 'tosijs'
+import { panel3d, tabs3d, label3d } from 'tosijs-3d'
+
+const { div } = elements
+const readout = div({ style: { padding: '0 16px 12px', font: '13px system-ui', opacity: '0.75' } }, 'Pick a tab.')
+const say = (strip) => (i) => (readout.textContent = `${strip}: ${i}`)
+
+const SECTIONS = ['World', 'Terrain', 'Climate', 'Weather', 'Atmosphere', 'Stars', 'Moons', 'Vegetation', 'Camera']
+const FEW = ['General', 'Graphics', 'Audio']
+const ICONS = [
+  { icon: 'earth', title: 'World' },
+  { icon: 'terrain', title: 'Terrain' },
+  { icon: 'thermometer', title: 'Climate' },
+  { icon: 'cloud', title: 'Weather' },
+  { icon: 'moon', title: 'Moons' },
+  { icon: 'tree', title: 'Vegetation' },
+]
+
+preview.append(
+  div(
+    { style: { display: 'flex', flexDirection: 'column', gap: 16, padding: 16 } },
+    panel3d({ width: 320 }, label3d({ text: 'Nine captions: they overlap', muted: true }),
+      tabs3d({ tabs: SECTIONS, active: 3, handleSelect: (i) => say('captions')(SECTIONS[i]) })),
+    panel3d({ width: 320 }, label3d({ text: 'Three captions: side by side', muted: true }),
+      tabs3d({ tabs: FEW, handleSelect: (i) => say('few')(FEW[i]) })),
+    panel3d({ width: 320 }, label3d({ text: 'Icons', muted: true }),
+      tabs3d({ tabs: ICONS, active: 3, handleSelect: (i) => say('icons')(ICONS[i].title) })),
+    readout
+  )
+)
+```
 
 ## Saying that something is HAPPENING
 
@@ -430,7 +480,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 /*{ "parent": "UI", "order": 100 }*/
 import { svgElements, StyleSheet } from 'tosijs';
 import { placePopup } from './flow-layout.js';
-import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, DEFAULT_SLIDER_PRECISION, ellipsize, measureTextWidth, } from './widgets3d-layout.js';
+import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, DEFAULT_SLIDER_PRECISION, ellipsize, measureTextWidth, tabLayout, tabAt, tabOrder, } from './widgets3d-layout.js';
 import { handlerOf, resetHandlerWarnings } from './handler-of.js';
 import { w3dTheme } from './w3d-theme.js';
 import { iconGlyph } from './svg-icons.js';
@@ -574,6 +624,137 @@ const POPUP_CHROME_BAND = 30;
  */
 function panelPopupSheet(width, items, chromeBand = POPUP_CHROME_BAND) {
     return panel3d({ width, height: 'fit', paddingTop: chromeBand }, ...items);
+}
+/**
+ * A collapsible section header: bold caption, a chevron (open / closed), and
+ * a tap that asks the host to fold or unfold. `section.toggle` and
+ * `section.isOpen` are wired by the host before layout.
+ */
+function sectionLabel(config, fill) {
+    const section = {
+        title: config.text,
+        icon: config.icon,
+        open: config.open,
+        isOpen: config.open ?? false,
+        toggle: undefined,
+    };
+    const t = baseText(config.text, fill, true);
+    const chevron = baseText('', TH.MUTED, true);
+    // COMPACT (Tonio: "the collapsed sections could be a little more compact"):
+    // a caption line, not a control row, so a panel of folded sections reads as
+    // a tight table of contents. Still a comfortable target in a headset.
+    const h = Math.max(TH.LINE_H + 8, 28);
+    const bg = rect({
+        x: 0,
+        y: 1,
+        rx: 6,
+        ry: 6,
+        height: h - 2,
+        fill: 'transparent',
+    });
+    t.setAttribute('x', String(TH.PAD_X + 16));
+    t.setAttribute('y', String(h / 2));
+    chevron.setAttribute('x', String(TH.PAD_X));
+    chevron.setAttribute('y', String(h / 2));
+    return {
+        el: g({ 'data-w3d': 'section' }, bg, chevron, t),
+        section,
+        layout(width) {
+            bg.setAttribute('width', String(width));
+            chevron.textContent = section.isOpen ? '▾' : '▸';
+            t.textContent = ellipsize(config.text, width - TH.PAD_X * 2 - 16, TH.BOLD_FONT);
+            return h;
+        },
+        handle(kind) {
+            bg.setAttribute('fill', kind === 'leave' ? 'transparent' : TH.BTN_HOVER);
+            if (kind === 'up')
+                section.toggle?.();
+        },
+    };
+}
+export function tabs3d(config) {
+    const H = 30;
+    const R = 7;
+    const TAB_ICON = 18;
+    let active = Math.max(0, Math.min(config.tabs.length - 1, config.active ?? 0));
+    let layoutW = 0;
+    const root = g({ 'data-w3d': 'tabs' });
+    const tabPath = (x, w) => `M${x},${H} L${x},${R} Q${x},0 ${x + R},0 L${x + w - R},0 Q${x + w},0 ${x + w},${R} L${x + w},${H} Z`;
+    const draw = () => {
+        root.replaceChildren();
+        const n = config.tabs.length;
+        // Side by side when the labels allow, at most half the strip each.
+        // ICON tabs are narrow, so a strip of them rarely overlaps (and so does
+        // not move when the active tab changes).
+        const natural = Math.max(...config.tabs.map((t) => typeof t !== 'string'
+            ? TAB_ICON + TH.PAD_X * 2
+            : measureTextWidth(t, TH.BOLD_FONT) + TH.PAD_X * 2));
+        const L = tabLayout(n, layoutW, 0.5, natural, active);
+        root.__layout = L;
+        // The line the active tab joins: the strip's floor.
+        root.appendChild(rect({ x: 0, y: H - 1, width: layoutW, height: 1, fill: TH.BTN_BG }));
+        for (const i of tabOrder(n, active)) {
+            const on = i === active;
+            const x = L.x[i];
+            // OPAQUE: the theme's fills are translucent, and a tab must hide the
+            // label of the one it covers. The panel colour underneath, the tint on
+            // top.
+            const under = svgElements.path({ d: tabPath(x, L.w), fill: TH.PANEL_BG });
+            const tab = svgElements.path({
+                d: tabPath(x, L.w),
+                fill: on ? TH.BTN_BG : TH.ROW_BG,
+                stroke: TH.PANEL_BG,
+                'stroke-width': 1.5,
+            });
+            const item = config.tabs[i];
+            if (typeof item !== 'string') {
+                const [v0, v1] = L.visible[i];
+                const cx = on ? x + L.w / 2 : (v0 + v1) / 2;
+                root.appendChild(g({}, under, tab, iconGlyph(item.icon, {
+                    color: on ? TH.TEXT : TH.MUTED,
+                    size: TAB_ICON,
+                    x: cx - TAB_ICON / 2,
+                    y: (H - TAB_ICON) / 2,
+                })));
+                continue;
+            }
+            const label = baseText('', on ? TH.TEXT : TH.MUTED, on);
+            /*
+            THE LABEL SITS IN THE VISIBLE SLICE. Left of the active tab the slice
+            is the tab's left end (later tabs cover the rest); right of it, its
+            right end. The active tab gets its whole width. A slice too narrow for
+            an ellipsis shows the name's first letter.
+            */
+            const [v0, v1] = L.visible[i];
+            const room = (on ? L.w : v1 - v0) - 12;
+            label.setAttribute('x', String((on ? x : v0) + (on ? TH.PAD_X : 6)));
+            label.setAttribute('y', String(H / 2 + 1));
+            const font = on ? TH.BOLD_FONT : TH.TEXT_FONT;
+            let shown = ellipsize(item, Math.max(1, room), font);
+            if (shown === '…' || shown === '')
+                shown = item.slice(0, 1);
+            label.textContent = shown;
+            root.appendChild(g({}, under, tab, label));
+        }
+    };
+    return {
+        el: root,
+        layout(width) {
+            layoutW = width;
+            draw();
+            return H + 4;
+        },
+        handle(kind, x) {
+            if (kind !== 'up')
+                return;
+            const i = tabAt(x, root.__layout, active);
+            if (i < 0 || i === active)
+                return;
+            active = i;
+            draw();
+            config.handleSelect?.(i);
+        },
+    };
 }
 /** What a panel offers the widgets inside it. */
 /**
@@ -748,6 +929,8 @@ export function row3d(config, ...children) {
 }
 export function label3d(config) {
     const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT);
+    if (config.collapsible)
+        return sectionLabel(config, fill);
     const t = baseText(config.text, fill, config.bold);
     const h = config.compact ? TH.LINE_H : TH.ROW;
     t.setAttribute('x', String(TH.PAD_X));

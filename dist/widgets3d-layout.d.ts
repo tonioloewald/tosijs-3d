@@ -197,4 +197,34 @@ export declare function fractionToValue(fraction: number, min: number, max: numb
  * @param fill fraction of the visible width to occupy
  */
 export declare function panelFitWidth(fov: number, aspect: number, z: number, want: number, fill?: number): number;
+/**
+ * **File-tab geometry** (board #2466): where each of `n` tabs sits in a strip
+ * `width` wide, and which one is under a point.
+ *
+ * Each tab is at most `maxFrac` of the strip (half, by default: its label
+ * ellipsizes to fit). When they fit side by side they do; when they don't
+ * they OVERLAP, spread evenly so the last one ends at the right edge, and
+ * each LATER tab sits on top of the one before, so every tab keeps its left
+ * edge (and the start of its name) showing. The ACTIVE tab is drawn last,
+ * wholly in front, the way file tabs work.
+ */
+export declare function tabLayout(n: number, width: number, maxFrac?: number, natural?: number, active?: number): {
+    w: number;
+    x: number[];
+    visible: [number, number][];
+};
+/**
+ * The STACKING ORDER (back to front), the way file tabs stack: toward the
+ * active tab. Tabs to its left overlap rightward (each shows its LEFT edge),
+ * tabs to its right overlap leftward (each shows its RIGHT edge), and the
+ * active one is on top. Stacking every later tab on top instead buried
+ * every tab between the active one and the last (first render).
+ */
+export declare function tabOrder(n: number, active: number): number[];
+/** Which tab is VISIBLY under `px`: the topmost one there in `tabOrder`.
+ * -1 if none. */
+export declare function tabAt(px: number, layout: {
+    w: number;
+    x: number[];
+}, active: number): number;
 //# sourceMappingURL=widgets3d-layout.d.ts.map

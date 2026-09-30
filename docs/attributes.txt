@@ -1288,6 +1288,7 @@ b3d
   xrGrid
   xrReticle
   scenePanelOpen
+  panelSections
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
   quality
@@ -1334,6 +1335,7 @@ weather
 widgets3d
 
   panel3d  = width  — `360`
+  label3d  = collapsible  — `false`
   row3d  = weights  — equal
   slider3d  = min` / `max  — `0` / `1`
   toggle3d  = label` / `value
@@ -1343,6 +1345,7 @@ widgets3d
   button3d  = label` / `onClick
   menu3d  = items` / `handleSelect
   iconBar3d  = items
+  tabs3d  = tabs` / `active` / `handleSelect  — `0`
   spinner3d  = label` / `size
   progress3d  = label` / `value` / `showValue
 

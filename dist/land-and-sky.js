@@ -11,7 +11,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -430,40 +430,54 @@ const scene = b3d(
     // travels with the clouds it is made of.
     windSpeed: sky.wind,
     windBearingDeg: 90,
+    // Sections as icon TABS (one at a time); 'fold' shows them as headers.
+    panelSections: 'tabs',
     // Lightning strikes wherever a weather cell is stormy (the storm toggle).
     // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
     // screens, and the SAME panel floats in front of you in VR.
     scenePanel: () => [
-      label3d({ text: 'World' }),
-      select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
-      button3d({
-        label: 'save as new preset',
-        handleClick: () => {
-          const name = `Custom ${Object.keys(loadCustom()).length + 1}`
-          saveCustom(capturePreset(name))
-          sky.preset.value = name
-          scene.refreshScenePanel?.()
-        },
-      }),
-      button3d({
-        label: 'copy preset (JSON)',
-        handleClick: () => navigator.clipboard?.writeText(JSON.stringify(capturePreset(sky.preset.value), null, 2)),
-      }),
-      button3d({
-        label: 'paste preset (JSON)',
-        handleClick: async () => {
-          try {
-            const p = JSON.parse(await navigator.clipboard.readText())
-            p.name = p.name || 'Pasted'
-            saveCustom(p)
-            sky.preset.value = p.name
-            scene.refreshScenePanel?.()
-          } catch {
-            // not a preset on the clipboard
-          }
-        },
-      }),
-      label3d({ text: 'Terrain' }),
+      label3d({ text: 'World', icon: 'earth', collapsible: true, open: true }),
+      // Pick a world; everything you DO with presets is one menu.
+      row3d(
+        { weights: [4, 1] },
+        select3d({ label: 'preset', value: sky.preset, options: presetNames() }),
+        button3d({
+          label: '⋯',
+          menu: [
+            {
+              label: 'Save as new preset',
+              icon: 'plus',
+              handleSelect: () => {
+                const name = `Custom ${Object.keys(loadCustom()).length + 1}`
+                saveCustom(capturePreset(name))
+                sky.preset.value = name
+                scene.refreshScenePanel?.()
+              },
+            },
+            {
+              label: 'Copy preset (JSON)',
+              icon: 'uploadCloud',
+              handleSelect: () => navigator.clipboard?.writeText(JSON.stringify(capturePreset(sky.preset.value), null, 2)),
+            },
+            {
+              label: 'Paste preset (JSON)',
+              icon: 'downloadCloud',
+              handleSelect: async () => {
+                try {
+                  const p = JSON.parse(await navigator.clipboard.readText())
+                  p.name = p.name || 'Pasted'
+                  saveCustom(p)
+                  sky.preset.value = p.name
+                  scene.refreshScenePanel?.()
+                } catch {
+                  // not a preset on the clipboard
+                }
+              },
+            },
+          ],
+        })
+      ),
+      label3d({ text: 'Terrain', icon: 'terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
       slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, scale: 'log2' }),
@@ -480,11 +494,11 @@ const scene = b3d(
       select3d({ label: 'ground palette', value: demo.palette, options: ['earth', ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       toggle3d({ label: 'lightning storm', value: sky.storm }),
-      label3d({ text: 'Climate' }),
+      label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
-      label3d({ text: 'Weather' }),
+      label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
       slider3d({ label: 'cloud cover', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       slider3d({ label: 'cloud base', value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: 'orographic', value: sky.orographic, min: 0, max: 1, step: 0.05 }),
@@ -493,7 +507,7 @@ const scene = b3d(
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
-      label3d({ text: 'Atmosphere' }),
+      label3d({ text: 'Atmosphere', icon: 'sky', collapsible: true }),
       slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'tint', value: sky.tintStrength, min: 0, max: 1, step: 0.05 }),
@@ -501,22 +515,22 @@ const scene = b3d(
       slider3d({ label: 'rayleigh', value: sky.rayleigh, min: 0, max: 4, step: 0.05 }),
       slider3d({ label: 'mie', value: sky.mieCoefficient, min: 0, max: 0.05, step: 0.001 }),
       slider3d({ label: 'luminance', value: sky.luminance, min: 0.1, max: 2, step: 0.05 }),
-      label3d({ text: 'Stars' }),
+      label3d({ text: 'Stars', icon: 'star', collapsible: true }),
       slider3d({ label: 'star size', value: sky.starSize, min: 0.4, max: 3, step: 0.05 }),
       slider3d({ label: 'star brightness', value: sky.starGain, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'faint stars', value: sky.starFloor, min: 0, max: 1, step: 0.02 }),
       slider3d({ label: 'twinkle', value: sky.twinkle, min: 0, max: 1, step: 0.05 }),
-      label3d({ text: 'Moons' }),
+      label3d({ text: 'Moons', icon: 'moon', collapsible: true }),
       select3d({ label: 'moons', value: sky.moons, options: Object.keys(MOONS) }),
       slider3d({ label: 'moon azimuth', value: sky.moonAz, min: -180, max: 180, step: 1 }),
       slider3d({ label: 'moon elevation', value: sky.moonEl, min: -60, max: 60, step: 1 }),
-      label3d({ text: 'Vegetation' }),
+      label3d({ text: 'Vegetation', icon: 'tree', collapsible: true }),
       // THE BUDGET is the performance dial: a count, not a density. Watch the
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
       slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
       slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
       toggle3d({ label: 'tree shadows', value: sky.decoShadows }),
-      label3d({ text: 'Camera' }),
+      label3d({ text: 'Camera', icon: 'camera', collapsible: true }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
     ],

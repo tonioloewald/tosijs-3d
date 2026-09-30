@@ -6,7 +6,15 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.7
+
+**Panels that fit.** The scene panel caps itself to the space it has, and
+its sections can fold or become file tabs, captions or icons, with the
+overlap and stacking of real file tabs. Land and Sky uses icon tabs and a
+preset menu. Also: a security pin for a build-only dependency.
+
+Size: barrel (min, packages external) 891.2 KB raw / 298.3 KB gz, +0.7% on
+0.8.6.
 
 ### Added
 
