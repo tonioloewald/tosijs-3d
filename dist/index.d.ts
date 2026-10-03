@@ -120,7 +120,7 @@ export { NO_WIND, addWind, scaleWind, windSpeed, windFromPolar, windToPolar, win
 export type { Wind, ProvinceWind } from './wind.js';
 export type { Picker, PickerOption, Picker3dOptions } from './picker.js';
 export type { AngleField, ArcField, Angle3dOptions, Arc3dOptions, } from './angle-field.js';
-export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, tabs3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
+export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, tabs3d, foldSections, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve.js';
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
 export { isTextEntry } from './text-entry.js';

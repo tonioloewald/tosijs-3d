@@ -119,6 +119,10 @@ export declare class B3dAircraft extends B3dControllable {
         missileTurnRate: number;
         missileDamage: number;
         bombDamage: number;
+        missileFullRadius: number;
+        missileBlastRadius: number;
+        bombFullRadius: number;
+        bombBlastRadius: number;
         lockRange: number;
         lockConeDeg: number;
         reticle: string;

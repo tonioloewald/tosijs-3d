@@ -89,6 +89,10 @@ b3d-aircraft
   missileTurnRate  = 3  — Guided-missile agility (rad/sec)
   missileDamage  = 30  — Missile warhead full damage
   bombDamage  = 45  — Bomb warhead full damage
+  missileFullRadius  = 1.5  — Missile blast: full damage within the first, falling to nothing at the second (m). Size them to your world, as `gunFullRadius`/`gunBlastRadius`
+  missileBlastRadius  = 4  — Missile blast: full damage within the first, falling to nothing at the second (m). Size them to your world, as `gunFullRadius`/`gunBlastRadius`
+  bombFullRadius  = 2  — Bomb blast, likewise
+  bombBlastRadius  = 6  — Bomb blast, likewise
   lockRange  = 140  — Max range to acquire a missile target
   lockConeDeg  = 35  — Half-angle of the forward cone missiles lock within
   reticle
@@ -1345,6 +1349,7 @@ widgets3d
   button3d  = label` / `onClick
   menu3d  = items` / `handleSelect
   iconBar3d  = items
+  foldSections  = key` / `mode` / `repaint  — `'fold'`
   tabs3d  = tabs` / `active` / `handleSelect  — `0`
   spinner3d  = label` / `size
   progress3d  = label` / `value` / `showValue

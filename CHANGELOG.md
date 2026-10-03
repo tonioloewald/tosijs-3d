@@ -6,7 +6,16 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.8
+
+**Adopter fixes and folding everywhere.** Aircraft no longer crash into
+explosion debris, `b3d-planet` survives high detail, and bomb and missile
+blasts can be sized to a game's world (all from manta-recon). Any panel can
+now fold or tab its sections (`foldSections`, from ensemble), and tabs fit
+better when space is tight.
+
+Size: barrel (min, packages external) 891.7 KB raw / 298.6 KB gz, +0.1% on
+0.8.7.
 
 ### Added
 

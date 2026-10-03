@@ -208,9 +208,15 @@ export declare function panelFitWidth(fov: number, aspect: number, z: number, wa
  * edge (and the start of its name) showing. The ACTIVE tab is drawn last,
  * wholly in front, the way file tabs work.
  */
-export declare function tabLayout(n: number, width: number, maxFrac?: number, natural?: number, active?: number): {
+export declare function tabLayout(n: number, width: number, maxFrac?: number, natural?: number, active?: number, 
+/** The ACTIVE tab's own natural width, if it needs less than the rest. */
+activeNatural?: number): {
     w: number;
+    /** The active tab's width: its own, when space is tight (see below). */
+    wActive: number;
     x: number[];
+    /** Each tab's drawn width (see "EACH SIDE STAYS ON ITS SIDE"). */
+    ws: number[];
     visible: [number, number][];
 };
 /**
@@ -225,6 +231,8 @@ export declare function tabOrder(n: number, active: number): number[];
  * -1 if none. */
 export declare function tabAt(px: number, layout: {
     w: number;
+    wActive?: number;
+    ws?: number[];
     x: number[];
 }, active: number): number;
 //# sourceMappingURL=widgets3d-layout.d.ts.map

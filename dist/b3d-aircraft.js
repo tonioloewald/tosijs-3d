@@ -255,6 +255,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `missileTurnRate` | `3` | Guided-missile agility (rad/sec) |
 | `missileDamage` | `30` | Missile warhead full damage |
 | `bombDamage` | `45` | Bomb warhead full damage |
+| `missileFullRadius` / `missileBlastRadius` | `1.5` / `4` | Missile blast: full damage within the first, falling to nothing at the second (m). Size them to your world, as `gunFullRadius`/`gunBlastRadius` |
+| `bombFullRadius` / `bombBlastRadius` | `2` / `6` | Bomb blast, likewise |
 | `lockRange` | `140` | Max range to acquire a missile target |
 | `lockConeDeg` | `35` | Half-angle of the forward cone missiles lock within |
 
@@ -605,6 +607,16 @@ export class B3dAircraft extends B3dControllable {
         missileTurnRate: 3, // guided-missile agility (rad/sec)
         missileDamage: 30,
         bombDamage: 45,
+        /*
+        BLAST RADII, sizable like the gun's (board #2808, manta-recon): a game
+        whose craft are not human-scale (manta renders at 4x) has to size blasts
+        to its world, and a missile that fuses ~5 m from a big hull with a 4 m
+        blast reaches nothing. Defaults are the old built-in numbers.
+        */
+        missileFullRadius: 1.5,
+        missileBlastRadius: 4,
+        bombFullRadius: 2,
+        bombBlastRadius: 6,
         lockRange: 140, // max range to acquire a missile target (fallback when no radar)
         lockConeDeg: 35, // half-angle of the forward cone missiles can lock within
         // Gun-aiming reticle: a bore-line ring parented to the airframe you look THROUGH
@@ -1508,7 +1520,11 @@ export class B3dAircraft extends B3dControllable {
         spawnProjectile(this.owner, {
             origin: this.muzzle(0, 1.2), // clear of the belly
             velocity: this._worldVel.clone(),
-            warhead: { damage: attrs.bombDamage, fullRadius: 2, blastRadius: 6 },
+            warhead: {
+                damage: attrs.bombDamage,
+                fullRadius: attrs.bombFullRadius,
+                blastRadius: attrs.bombBlastRadius,
+            },
             params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.002, mass: 4 },
             radius: 0.25,
             color: '#404040',
@@ -1531,8 +1547,8 @@ export class B3dAircraft extends B3dControllable {
         const dir = this._fwd.clone().normalize();
         const spec = {
             damage: attrs.missileDamage,
-            fullRadius: 1.5,
-            blastRadius: 4,
+            fullRadius: attrs.missileFullRadius,
+            blastRadius: attrs.missileBlastRadius,
         };
         const ignore = (m) => this.ownMeshes().has(m);
         // Prefer the radar's nearest lock; else fall back to the cone acquire (no radar).

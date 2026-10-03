@@ -175,6 +175,30 @@ export declare function tabs3d(config: {
     active?: number;
     handleSelect?: (index: number) => void;
 }): Widget3d;
+/**
+ * **Fold or tab a panel's sections** (board #2805, tosijs-3d#99). A
+ * `label3d({ collapsible: true })` heads a section: every row after it, up to
+ * the next one, belongs to it. This returns the rows to SHOW:
+ *
+ * - `mode: 'fold'` (the default): every header, plus the rows of open sections.
+ * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
+ *   sections (a section's `icon` becomes its tab), and the active section's rows.
+ *
+ * A panel is laid out once when built, so folding means REBUILDING: a header's
+ * tap or a tab's pick calls `repaint`, and you build the panel again from the
+ * same row list. Pass `key` to remember the open set and the active tab across
+ * visits (localStorage; a private window just starts from the defaults).
+ * `<tosi-b3d>`'s scene panel is built on this.
+ *
+ * ```javascript
+ * const build = () => panel3d({ width: 320 }, ...foldSections(rows(), { key: 'sky', repaint: rebuild }))
+ * ```
+ */
+export declare function foldSections(rows: Widget3d[], opts: {
+    key?: string;
+    mode?: 'fold' | 'tabs';
+    repaint: () => void;
+}): Widget3d[];
 /** What a panel offers the widgets inside it. */
 /**
  * A host translated by a child's offset inside its container.

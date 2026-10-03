@@ -85,7 +85,7 @@ preview.append(scene)
 */
 /*{ "parent": "Effects" }*/
 import * as BABYLON from '@babylonjs/core';
-import { sceneDelta } from './b3d-utils.js';
+import { markCollisionGroup, markUiMesh, sceneDelta } from './b3d-utils.js';
 /**
  * Shatter a mesh into fragments and animate them flying apart.
  * The original mesh is hidden (or disposed). Fragments are automatically
@@ -266,6 +266,15 @@ function explodeGeometry(mesh, scene, options = {}) {
         if (material) {
             fragMesh.material = material;
         }
+        /*
+        DEBRIS IS NOT GROUND. An aircraft's sweep ray treated fragments as solid,
+        so flying through the remains of an explosion crashed you, in clear air
+        hundreds of metres up (manta-recon, board #2803). No probe collides with
+        a fragment; it also carries the 'debris' group, for a game that wants
+        debris that damages on contact to opt back in deliberately.
+        */
+        markUiMesh(fragMesh);
+        markCollisionGroup(fragMesh, 'debris');
         // Outward direction from explosion center
         const dir = fragCenter.subtract(explosionCenter);
         if (dir.lengthSquared() < 0.0001) {

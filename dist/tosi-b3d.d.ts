@@ -1002,11 +1002,7 @@ export declare class B3d extends Component {
     private _barItems;
     private _disposeWidgets;
     private _builtWidgets;
-    private _sectionOpen;
-    private _sectionKey;
-    private _sectionsOpen;
     private _foldSections;
-    private _tabSections;
     private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;
