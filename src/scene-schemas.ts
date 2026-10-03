@@ -136,6 +136,18 @@ const schema = (
   extra: Record<string, unknown>
 ) => ({ type: 'object', title, properties, ...extra })
 
+/*
+`x-sections: [{ title, icon, keys }]` — how the element's properties GROUP, in
+order (tosijs-3d#98). Knowledge about the element, so it lives here rather
+than in each demo: a panel builder emits a collapsible `label3d({ text: title,
+icon, collapsible: true })` before each section's rows, and `foldSections`
+(or a `<tosi-b3d panelSections="tabs">`) does the rest. Keys a section does
+not list fall at the end. `scene-schemas.test.ts` checks every key exists and
+none appears twice.
+*/
+type Section = { title: string; icon?: string; keys: string[] }
+const sections = (list: Section[]) => ({ 'x-sections': list })
+
 /**
  * `b3d-skybox` — the procedural sky and its day/night cycle.
  *
@@ -210,7 +222,82 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       updateFrequencyMs: num(100, { minimum: 16, maximum: 2000, ...MS }),
       applyFog: bool(false),
     },
-    extra
+    {
+      ...sections([
+        {
+          title: 'Sky',
+          icon: 'sky',
+          keys: [
+            'timeOfDay',
+            'realtimeScale',
+            'latitude',
+            'turbidity',
+            'luminance',
+            'rayleigh',
+            'mieCoefficient',
+            'mieDirectionalG',
+            'atmosphere',
+            'dust',
+          ],
+        },
+        {
+          title: 'Tint',
+          icon: 'sky',
+          keys: ['zenithTint', 'horizonTint', 'tintStrength'],
+        },
+        {
+          title: 'Sun & moon',
+          icon: 'sun',
+          keys: [
+            'sunColor',
+            'duskColor',
+            'sunSize',
+            'sunBrightness',
+            'moonColor',
+            'moonIntensity',
+          ],
+        },
+        {
+          title: 'Stars',
+          icon: 'star',
+          keys: [
+            'starfield',
+            'nebulae',
+            'nebulaBrightness',
+            'nebulaSize',
+            'starfieldGain',
+            'starfieldFloor',
+            'starfieldTwinkle',
+            'starfieldSeed',
+            'starDistance',
+            'starfieldTilt',
+          ],
+        },
+        {
+          title: 'Space',
+          icon: 'earth',
+          keys: ['spaceStart', 'spaceFull', 'spaceColor'],
+        },
+        {
+          title: 'Assets',
+          icon: 'downloadCloud',
+          keys: [
+            'nebulaTexture',
+            'starfieldCube',
+            'starfieldData',
+            'starfieldDataSize',
+            'starfieldSharpness',
+            'starfieldSizeScale',
+          ],
+        },
+        {
+          title: 'Advanced',
+          icon: 'settings',
+          keys: ['skyboxSize', 'updateFrequencyMs', 'applyFog'],
+        },
+      ]),
+      ...extra,
+    }
   )
 }
 
@@ -290,7 +377,59 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       spherical: bool(false),
       follow: bool(false),
     },
-    extra
+    {
+      ...sections([
+        {
+          title: 'Surface',
+          icon: 'water',
+          keys: [
+            'waterColor',
+            'colorBlendFactor',
+            'waveHeight',
+            'waveLength',
+            'bumpHeight',
+            'windForce',
+            'windDirectionX',
+            'windDirectionY',
+            'wind',
+          ],
+        },
+        {
+          title: 'Under water',
+          icon: 'fog',
+          keys: [
+            'underwaterFog',
+            'fogColor',
+            'underwaterMurk',
+            'fogTransition',
+            'underside',
+            'undersideColor',
+            'undersideDepthColor',
+            'undersideSky',
+            'caustics',
+            'causticsStrength',
+            'causticsScale',
+          ],
+        },
+        {
+          title: 'Placement',
+          icon: 'settings',
+          keys: [
+            'y',
+            'x',
+            'z',
+            'waterSize',
+            'subdivisions',
+            'textureSize',
+            'normalMap',
+            'twoSided',
+            'spherical',
+            'follow',
+          ],
+        },
+      ]),
+      ...extra,
+    }
   )
 }
 
@@ -450,6 +589,7 @@ export const SCENE_OMITTED: Record<string, string[]> = {
   lightShafts: [],
   decorator: [],
   trail: [],
+  sound: [],
 }
 
 /** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
@@ -691,12 +831,22 @@ export function cloudDeckSchema(extra: Record<string, unknown> = {}) {
       }),
       subdivisions: num(64, { minimum: 1, maximum: 256 }),
       // Clear 0 → solid 1 → THICKENING, up to 2.
-      coverage: num(0.5, { minimum: 0, maximum: 2 }),
+      coverage: num(0.5, {
+        minimum: 0,
+        maximum: 2,
+        description:
+          '0 clear, 1 solid. PAST 1 is a different quantity: there is no sky left to cover, so the surplus thickens the cloud downward (a thunderhead), up to thickenDepth.',
+      }),
       thickenDepth: num(900, { minimum: 0, maximum: 5000, ...M }),
       seed: num(1337, { minimum: 0 }),
       frequency: num(3, { minimum: 1, maximum: 16 }),
       // Rounded heaps 0 → streaks ALONG the wind at +1, ACROSS it at -1.
-      cirrus: num(0, { minimum: -1, maximum: 1 }),
+      cirrus: num(0, {
+        minimum: -1,
+        maximum: 1,
+        description:
+          'SIGNED: the magnitude is how wispy, the sign picks the axis. Positive streaks along the wind, negative across it, so -0.4 is perpendicular cirrus, not less of it.',
+      }),
       wind: num(8, { minimum: 0, maximum: 60, 'x-unit': 'm/s' }),
       windHeadingDeg: num(0, { minimum: 0, maximum: 360, ...DEG }),
       evolve: num(0.5, unit),
@@ -752,7 +902,73 @@ export function cloudDeckSchema(extra: Record<string, unknown> = {}) {
       underBump: num(0.85, unit),
       shade: num(0.22, unit),
     },
-    extra
+    {
+      ...sections([
+        {
+          title: 'Cover',
+          icon: 'cloud',
+          keys: [
+            'coverage',
+            'cirrus',
+            'thickenDepth',
+            'haze',
+            'thickness',
+            'transmission',
+          ],
+        },
+        {
+          title: 'Motion',
+          icon: 'move',
+          keys: ['wind', 'windHeadingDeg', 'evolve', 'follow'],
+        },
+        {
+          title: 'Local weather',
+          icon: 'terrain',
+          keys: [
+            'localRise',
+            'stormRise',
+            'localCoverage',
+            'orographic',
+            'orographicPeak',
+          ],
+        },
+        {
+          title: 'Light & shadow',
+          icon: 'sun',
+          keys: [
+            'shadows',
+            'shadowResolution',
+            'shadowRange',
+            'shadowStrength',
+            'ambientGloomBelow',
+            'ambientGloom',
+            'sunGloomBelow',
+            'sunGloom',
+          ],
+        },
+        {
+          title: 'Look',
+          icon: 'sky',
+          keys: ['color', 'underColor', 'fringe', 'bump', 'underBump', 'shade'],
+        },
+        {
+          title: 'Placement',
+          icon: 'settings',
+          keys: [
+            'altitude',
+            'size',
+            'subdivisions',
+            'seed',
+            'frequency',
+            'octaves',
+            'fieldSize',
+            'period',
+            'edgeFade',
+          ],
+        },
+      ]),
+      ...extra,
+    }
   )
 }
 
@@ -929,6 +1145,34 @@ export function trailSchema(extra: Record<string, unknown> = {}) {
   )
 }
 
+/**
+ * `b3d-sound` — positional audio (tosijs-3d#95). `url` is FETCHED, so it is a
+ * `uri-reference` like every other fetched field, where a URL rule can see it.
+ */
+export function soundSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Sound',
+    {
+      url: url(),
+      volume: num(1, { minimum: 0, maximum: 2 }),
+      loop: bool(false),
+      autoplay: bool(false),
+      spatialSound: bool(false),
+      x: num(0, M),
+      y: num(0, M),
+      z: num(0, M),
+      refDistance: num(1, { minimum: 0, maximum: 1000, ...M }),
+      rolloffFactor: num(1, { minimum: 0, maximum: 10 }),
+      maxDistance: num(100, { minimum: 0, maximum: 10000, ...M }),
+      distanceModel: choice('linear', ['linear', 'inverse', 'exponential']),
+      // The name of a mesh to follow.
+      attachTo: { type: 'string', default: '' },
+      playbackRate: num(1, { minimum: 0.1, maximum: 4 }),
+    },
+    extra
+  )
+}
+
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export const sceneSchemas = {
   skybox: skyboxSchema,
@@ -948,4 +1192,5 @@ export const sceneSchemas = {
   lightShafts: lightShaftsSchema,
   decorator: decoratorSchema,
   trail: trailSchema,
+  sound: soundSchema,
 } as const

@@ -1187,3 +1187,27 @@ export class AbstractMesh extends B3dChild {
 export const cameraIsAttached = (
   cam: { inputs?: { attachedToElement?: boolean } } | null | undefined
 ): boolean => cam?.inputs?.attachedToElement === true
+
+const warnedFetch = new Set<string>()
+/**
+ * A FETCHED attribute's value, or '' if it is not a string (tosijs-3d#95,
+ * from ensemble). `String(value)` turned a JSON array like
+ * `["http://evil…"]` into the URL inside it and fetched that, past any
+ * consumer's URL rule that only looked at strings. Anything that is not a
+ * string is REFUSED (once-per-field warning), never coerced.
+ *
+ * This is not a URL policy: the element still fetches whatever string it is
+ * given, and validating that is the embedder's job (see the `uri-reference`
+ * fields in `sceneSchemas`).
+ */
+export function fetchedUrl(value: unknown, where: string): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') return value
+  if (!warnedFetch.has(where)) {
+    warnedFetch.add(where)
+    console.warn(
+      `${where}: refusing a non-string URL (${typeof value}); a fetched attribute must be a string.`
+    )
+  }
+  return ''
+}

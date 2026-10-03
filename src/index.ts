@@ -300,6 +300,7 @@ export {
   lightShaftsSchema,
   decoratorSchema,
   trailSchema,
+  soundSchema,
   sceneSchemas,
   SCENE_OMITTED,
 } from './scene-schemas.js'

@@ -117,7 +117,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 import { inheritedWind } from './wind.js'
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, sceneDelta } from './b3d-utils.js'
+import { B3dChild, fetchedUrl, sceneDelta } from './b3d-utils.js'
 import { Xoshiro128 } from './mersenne-twister.js'
 import { band } from './atmosphere.js'
 import {
@@ -354,8 +354,9 @@ export class B3dClouds extends B3dChild {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     // An authored lobe (`model`) loads first — the blob build needs its
     // geometry — then everything downstream is identical. No model: build now.
-    if (this.model) {
-      BABYLON.SceneLoader.LoadAssetContainerAsync('', this.model, scene).then(
+    const model = fetchedUrl(this.model, 'b3d-clouds model')
+    if (model) {
+      BABYLON.SceneLoader.LoadAssetContainerAsync('', model, scene).then(
         (container) => {
           if (this.owner == null) return // torn down mid-load
           const src = container.meshes.find(

@@ -78,7 +78,7 @@ preview.append(
 */
 /*{ "parent": "Environment" }*/
 
-import { B3dChild } from './b3d-utils.js'
+import { B3dChild, fetchedUrl } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 
@@ -132,11 +132,12 @@ export class B3dSound extends B3dChild {
     this.owner = owner
 
     const attrs = this as any
-    if (!attrs.url) return
+    const url = fetchedUrl(attrs.url, 'b3d-sound url')
+    if (!url) return
 
     this.sound = new BABYLON.Sound(
       'sound',
-      attrs.url,
+      url,
       this.owner.scene,
       () => {
         this.dispatchEvent(new CustomEvent('loaded', { bubbles: true }))

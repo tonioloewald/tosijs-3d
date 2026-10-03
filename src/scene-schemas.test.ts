@@ -53,6 +53,7 @@ const SOURCES: Array<[keyof typeof sceneSchemas, string, string]> = [
   ['lightShafts', './b3d-light-shafts', 'B3dLightShafts'],
   ['decorator', './b3d-decorator', 'B3dDecorator'],
   ['trail', './b3d-trail', 'B3dTrail'],
+  ['sound', './b3d-sound', 'B3dSound'],
 ]
 
 const attrsOf = async (mod: string, cls: string) => {
@@ -146,7 +147,12 @@ describe('the shape a generated panel relies on', () => {
     // Every string is a colour, an enum, a URL — or on this short list of
     // strings that are none of those. A new plain string has to be put in
     // one of the four, which is the point.
-    const plain = new Set(['skybox.starfieldTilt', 'ground.meshName'])
+    const plain = new Set([
+      'skybox.starfieldTilt',
+      'ground.meshName',
+      // the NAME of a mesh to follow, like ground.meshName
+      'sound.attachTo',
+    ])
     for (const [key, make] of Object.entries(sceneSchemas)) {
       for (const [k, spec] of Object.entries<any>((make() as any).properties)) {
         if (spec.type !== 'string' || spec.format || spec.enum) continue
@@ -251,4 +257,24 @@ describe('terrain metadata carries what the name hides', () => {
     // picker and users silently got a cylinder.
     expect(props.surfaceType.enum).toEqual(['cylinder', 'torus', 'sphere'])
   })
+})
+
+describe('x-sections (tosijs-3d#98)', () => {
+  for (const [name, make] of Object.entries(sceneSchemas)) {
+    const sch = (make as () => any)()
+    const secs = sch['x-sections'] as
+      | { title: string; keys: string[] }[]
+      | undefined
+    if (secs == null) continue
+    test(`${name}: every section key exists, and none appears twice`, () => {
+      const seen = new Set<string>()
+      for (const sec of secs) {
+        for (const k of sec.keys) {
+          expect(Object.keys(sch.properties)).toContain(k)
+          expect(seen.has(k)).toBe(false)
+          seen.add(k)
+        }
+      }
+    })
+  }
 })
