@@ -5175,6 +5175,11 @@
         "default": "items"
       },
       {
+        "name": "foldSections",
+        "default": "key` / `mode` / `repaint",
+        "description": "`'fold'`"
+      },
+      {
         "name": "tabs3d",
         "default": "tabs` / `active` / `handleSelect",
         "description": "`0`"

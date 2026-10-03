@@ -1349,6 +1349,7 @@ widgets3d
   button3d  = label` / `onClick
   menu3d  = items` / `handleSelect
   iconBar3d  = items
+  foldSections  = key` / `mode` / `repaint  — `'fold'`
   tabs3d  = tabs` / `active` / `handleSelect  — `0`
   spinner3d  = label` / `size
   progress3d  = label` / `value` / `showValue
