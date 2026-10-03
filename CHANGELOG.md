@@ -19,6 +19,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   emissive by `alpha × visibility`. Opaque, visible meshes glow exactly as before.
   A mesh hidden with `visibility = 0` no longer glows, so `excludeFromGlow` is
   needed only for emissive things that are not light sources.
+- **The skybox no longer overwrites the scene's clear colour for a camera that
+  cannot see it** (board #2865, from manta-recon). A camera whose `layerMask`
+  excludes the dome is looking at another stage, which owns its own backdrop.
+  The sky used to reset it to Babylon's default grey on every refresh, so
+  manta's orbit view re-set black every frame. The sky re-applies its backdrop
+  when the active camera changes back.
 
 ### Added
 

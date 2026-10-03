@@ -1061,6 +1061,8 @@ export class B3dSkybox extends AbstractMesh {
   // Last timeOfDay the sky material was rendered for. The per-frame observer
   // re-runs updateSky when this drifts — see the note on _sizeToCamera.
   private _lastSkyTime = NaN
+  /** The camera the backdrop was last written for — see `_sizeToCamera`. */
+  private _skyCamera: BABYLON.Camera | null = null
   /*
   DID THE SUN BRANCH ACTUALLY RUN?
 
@@ -1983,17 +1985,31 @@ export class B3dSkybox extends AbstractMesh {
     */
     const sceneNow = this.owner?.scene
     if (sceneNow == null) return
-    if (this._clearBase == null) {
-      this._clearBase = sceneNow.clearColor.clone()
+    /*
+    ONLY FOR A CAMERA THAT CAN SEE THE SKY. A camera whose layerMask excludes
+    the dome is looking at a different stage (manta-recon's orbit view, black
+    space), and that stage owns its own backdrop. Writing anyway reset it to
+    the captured base every refresh, which the stage then had to re-set every
+    frame (board #2865).
+    */
+    const viewer = sceneNow.activeCamera
+    const seesSky =
+      viewer == null ||
+      this.mesh == null ||
+      (this.mesh.layerMask & viewer.layerMask) !== 0
+    if (seesSky) {
+      if (this._clearBase == null) {
+        this._clearBase = sceneNow.clearColor.clone()
+      }
+      const sc = this.hex(attrs.spaceColor)
+      const v = this._vacuum
+      sceneNow.clearColor.set(
+        this._clearBase.r + (sc.r - this._clearBase.r) * v,
+        this._clearBase.g + (sc.g - this._clearBase.g) * v,
+        this._clearBase.b + (sc.b - this._clearBase.b) * v,
+        1
+      )
     }
-    const sc = this.hex(attrs.spaceColor)
-    const v = this._vacuum
-    sceneNow.clearColor.set(
-      this._clearBase.r + (sc.r - this._clearBase.r) * v,
-      this._clearBase.g + (sc.g - this._clearBase.g) * v,
-      this._clearBase.b + (sc.b - this._clearBase.b) * v,
-      1
-    )
     material.needAlphaBlending = () => air < 0.999
     material.luminance = attrs.luminance
     if (this._forkedSky) {
@@ -2448,7 +2464,17 @@ export class B3dSkybox extends AbstractMesh {
       }
       const waiting = !this._sunApplied && this._sunWaitFrames < 300
       if (waiting) this._sunWaitFrames++
-      if (attrs.timeOfDay !== this._lastSkyTime || moved || waiting) {
+      // A camera switch re-applies the backdrop: the clear colour is written only
+      // for a camera that can see the dome (see updateSky), so one that can't
+      // left it to someone else, and switching back has to take it again.
+      const camChanged = cam !== this._skyCamera
+      this._skyCamera = cam
+      if (
+        attrs.timeOfDay !== this._lastSkyTime ||
+        moved ||
+        waiting ||
+        camChanged
+      ) {
         this._lastSkyTime = attrs.timeOfDay
         this.updateSky()
       }
