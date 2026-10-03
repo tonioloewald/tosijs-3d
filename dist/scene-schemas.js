@@ -85,6 +85,12 @@ const url = (keywords) => ({
     format: 'uri-reference',
     ...(keywords ? { 'x-keywords': keywords } : {}),
 });
+/** A NUMBER that takes only these values (texture sizes and the like). */
+const choice2 = (def, values) => ({
+    type: 'number',
+    default: def,
+    enum: values,
+});
 const choice = (def, values) => ({
     type: 'string',
     default: def,
@@ -113,6 +119,7 @@ legal range. It renders as `slider3d({ useful: [lo, hi] })` — a soft band on t
 track, not a narrowed `min`/`max` (tosijs-3d#83).
 */
 const schema = (title, properties, extra) => ({ type: 'object', title, properties, ...extra });
+const sections = (list) => ({ 'x-sections': list });
 /**
  * `b3d-skybox` — the procedural sky and its day/night cycle.
  *
@@ -184,7 +191,82 @@ export function skyboxSchema(extra = {}) {
         }),
         updateFrequencyMs: num(100, { minimum: 16, maximum: 2000, ...MS }),
         applyFog: bool(false),
-    }, extra);
+    }, {
+        ...sections([
+            {
+                title: 'Sky',
+                icon: 'sky',
+                keys: [
+                    'timeOfDay',
+                    'realtimeScale',
+                    'latitude',
+                    'turbidity',
+                    'luminance',
+                    'rayleigh',
+                    'mieCoefficient',
+                    'mieDirectionalG',
+                    'atmosphere',
+                    'dust',
+                ],
+            },
+            {
+                title: 'Tint',
+                icon: 'sky',
+                keys: ['zenithTint', 'horizonTint', 'tintStrength'],
+            },
+            {
+                title: 'Sun & moon',
+                icon: 'sun',
+                keys: [
+                    'sunColor',
+                    'duskColor',
+                    'sunSize',
+                    'sunBrightness',
+                    'moonColor',
+                    'moonIntensity',
+                ],
+            },
+            {
+                title: 'Stars',
+                icon: 'star',
+                keys: [
+                    'starfield',
+                    'nebulae',
+                    'nebulaBrightness',
+                    'nebulaSize',
+                    'starfieldGain',
+                    'starfieldFloor',
+                    'starfieldTwinkle',
+                    'starfieldSeed',
+                    'starDistance',
+                    'starfieldTilt',
+                ],
+            },
+            {
+                title: 'Space',
+                icon: 'earth',
+                keys: ['spaceStart', 'spaceFull', 'spaceColor'],
+            },
+            {
+                title: 'Assets',
+                icon: 'downloadCloud',
+                keys: [
+                    'nebulaTexture',
+                    'starfieldCube',
+                    'starfieldData',
+                    'starfieldDataSize',
+                    'starfieldSharpness',
+                    'starfieldSizeScale',
+                ],
+            },
+            {
+                title: 'Advanced',
+                icon: 'settings',
+                keys: ['skyboxSize', 'updateFrequencyMs', 'applyFog'],
+            },
+        ]),
+        ...extra,
+    });
 }
 /** `b3d-sun` — the directional light and its cascaded shadow maps. */
 export function sunSchema(extra = {}) {
@@ -254,7 +336,59 @@ export function waterSchema(extra = {}) {
         causticsScale: num(6, { minimum: 0.5, maximum: 50, ...M }),
         spherical: bool(false),
         follow: bool(false),
-    }, extra);
+    }, {
+        ...sections([
+            {
+                title: 'Surface',
+                icon: 'water',
+                keys: [
+                    'waterColor',
+                    'colorBlendFactor',
+                    'waveHeight',
+                    'waveLength',
+                    'bumpHeight',
+                    'windForce',
+                    'windDirectionX',
+                    'windDirectionY',
+                    'wind',
+                ],
+            },
+            {
+                title: 'Under water',
+                icon: 'fog',
+                keys: [
+                    'underwaterFog',
+                    'fogColor',
+                    'underwaterMurk',
+                    'fogTransition',
+                    'underside',
+                    'undersideColor',
+                    'undersideDepthColor',
+                    'undersideSky',
+                    'caustics',
+                    'causticsStrength',
+                    'causticsScale',
+                ],
+            },
+            {
+                title: 'Placement',
+                icon: 'settings',
+                keys: [
+                    'y',
+                    'x',
+                    'z',
+                    'waterSize',
+                    'subdivisions',
+                    'textureSize',
+                    'normalMap',
+                    'twoSided',
+                    'spherical',
+                    'follow',
+                ],
+            },
+        ]),
+        ...extra,
+    });
 }
 /** `b3d-fog` — scene fog. `syncSkybox` ties its colour to the sky. */
 export function fogSchema(extra = {}) {
@@ -386,6 +520,13 @@ export const SCENE_OMITTED = {
     // The deck places itself by `altitude` and follows the camera; it has no
     // transform to decline.
     cloudDeck: [],
+    moon: [],
+    weatherCell: [],
+    lightning: [],
+    lightShafts: [],
+    decorator: [],
+    trail: [],
+    sound: [],
 };
 /** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
 export function groundSchema(extra = {}) {
@@ -604,12 +745,20 @@ export function cloudDeckSchema(extra = {}) {
         }),
         subdivisions: num(64, { minimum: 1, maximum: 256 }),
         // Clear 0 → solid 1 → THICKENING, up to 2.
-        coverage: num(0.5, { minimum: 0, maximum: 2 }),
+        coverage: num(0.5, {
+            minimum: 0,
+            maximum: 2,
+            description: '0 clear, 1 solid. PAST 1 is a different quantity: there is no sky left to cover, so the surplus thickens the cloud downward (a thunderhead), up to thickenDepth.',
+        }),
         thickenDepth: num(900, { minimum: 0, maximum: 5000, ...M }),
         seed: num(1337, { minimum: 0 }),
         frequency: num(3, { minimum: 1, maximum: 16 }),
         // Rounded heaps 0 → streaks ALONG the wind at +1, ACROSS it at -1.
-        cirrus: num(0, { minimum: -1, maximum: 1 }),
+        cirrus: num(0, {
+            minimum: -1,
+            maximum: 1,
+            description: 'SIGNED: the magnitude is how wispy, the sign picks the axis. Positive streaks along the wind, negative across it, so -0.4 is perpendicular cirrus, not less of it.',
+        }),
         wind: num(8, { minimum: 0, maximum: 60, 'x-unit': 'm/s' }),
         windHeadingDeg: num(0, { minimum: 0, maximum: 360, ...DEG }),
         evolve: num(0.5, unit),
@@ -664,6 +813,238 @@ export function cloudDeckSchema(extra = {}) {
         bump: num(34, { minimum: 0, maximum: 100 }),
         underBump: num(0.85, unit),
         shade: num(0.22, unit),
+    }, {
+        ...sections([
+            {
+                title: 'Cover',
+                icon: 'cloud',
+                keys: [
+                    'coverage',
+                    'cirrus',
+                    'thickenDepth',
+                    'haze',
+                    'thickness',
+                    'transmission',
+                ],
+            },
+            {
+                title: 'Motion',
+                icon: 'move',
+                keys: ['wind', 'windHeadingDeg', 'evolve', 'follow'],
+            },
+            {
+                title: 'Local weather',
+                icon: 'terrain',
+                keys: [
+                    'localRise',
+                    'stormRise',
+                    'localCoverage',
+                    'orographic',
+                    'orographicPeak',
+                ],
+            },
+            {
+                title: 'Light & shadow',
+                icon: 'sun',
+                keys: [
+                    'shadows',
+                    'shadowResolution',
+                    'shadowRange',
+                    'shadowStrength',
+                    'ambientGloomBelow',
+                    'ambientGloom',
+                    'sunGloomBelow',
+                    'sunGloom',
+                ],
+            },
+            {
+                title: 'Look',
+                icon: 'sky',
+                keys: ['color', 'underColor', 'fringe', 'bump', 'underBump', 'shade'],
+            },
+            {
+                title: 'Placement',
+                icon: 'settings',
+                keys: [
+                    'altitude',
+                    'size',
+                    'subdivisions',
+                    'seed',
+                    'frequency',
+                    'octaves',
+                    'fieldSize',
+                    'period',
+                    'edgeFade',
+                ],
+            },
+        ]),
+        ...extra,
+    });
+}
+/**
+ * `b3d-moon` — a cosmetic moon in the skybox (tosijs-3d#93). Its PHASE is
+ * shaded from the real sun, so it is not a setting.
+ */
+export function moonSchema(extra = {}) {
+    return schema('Moon', {
+        azimuth: num(0, { minimum: 0, maximum: 360, ...DEG }),
+        elevation: num(20, { minimum: -90, maximum: 90, ...DEG }),
+        // Angular size; the real moon is about half a degree.
+        size: num(0.5, {
+            minimum: 0.05,
+            maximum: 20,
+            'x-useful': [0.2, 6],
+            ...DEG,
+        }),
+        color: color('#dddddd'),
+        brightness: num(1, { minimum: 0, maximum: 3 }),
+    }, extra);
+}
+/**
+ * `b3d-weather-cell` — a region whose weather differs (tosijs-3d#97). What it
+ * ADDS at its centre, easing to nothing at the rim. Coverage past 1 closes the
+ * sky over its inner part (a storm).
+ */
+export function weatherCellSchema(extra = {}) {
+    return schema('Weather cell', {
+        x: num(0, M),
+        z: num(0, M),
+        radius: num(200, {
+            minimum: 1,
+            maximum: 20000,
+            'x-useful': [100, 8000],
+            'x-scale': 'log',
+            ...M,
+        }),
+        windSpeed: num(0, {
+            minimum: 0,
+            maximum: 60,
+            'x-useful': [0, 30],
+            'x-unit': 'm/s',
+        }),
+        windBearingDeg: num(0, { minimum: 0, maximum: 360, ...DEG }),
+        coverage: num(0, { minimum: -1, maximum: 2, 'x-useful': [0, 1.8] }),
+        precipitation: num(0, { minimum: 0, maximum: 1 }),
+        storminess: num(0, { minimum: 0, maximum: 1 }),
+        temperature: num(0, { minimum: -40, maximum: 40, 'x-unit': 'degC' }),
+        drift: choice('off', ['off', 'wind']),
+        // 0 = permanent.
+        lifetime: num(0, { minimum: 0, maximum: 3600, 'x-unit': 's' }),
+        // Seconds to gather from nothing; 0 = at once.
+        grow: num(0, {
+            minimum: 0,
+            maximum: 600,
+            'x-useful': [0, 120],
+            'x-unit': 's',
+        }),
+    }, extra);
+}
+/** `b3d-lightning` — strikes under stormy weather cells (tosijs-3d#97). */
+export function lightningSchema(extra = {}) {
+    return schema('Lightning', {
+        seed: num(1, { minimum: 0, maximum: 9999, multipleOf: 1 }),
+        bolts: choice('on', ['on', 'off']),
+        sprites: choice('on', ['on', 'off']),
+        thunder: choice('on', ['on', 'off']),
+        volume: num(0.8, { minimum: 0, maximum: 1 }),
+        groundLight: num(2.5, { minimum: 0, maximum: 10 }),
+        darken: num(0.5, { minimum: 0, maximum: 1 }),
+        shadows: choice('on', ['on', 'off']),
+        shadowSize: choice2(1024, [256, 512, 1024, 2048]),
+        shadowRange: num(600, { minimum: 10, maximum: 3000, ...M }),
+        flashLight: choice('point', ['point', 'directional']),
+        color: color('#dce4ff'),
+        // A multiple of the natural rate (about 0.6 a second at storminess 1).
+        rate: num(1, { minimum: 0, maximum: 6, 'x-useful': [0, 5] }),
+        brightness: num(1, { minimum: 0, maximum: 3 }),
+    }, extra);
+}
+/** `b3d-light-shafts` — sun shafts under broken cloud and under water
+ * (tosijs-3d#97). */
+export function lightShaftsSchema(extra = {}) {
+    return schema('Light shafts', {
+        count: num(14, { minimum: 0, maximum: 40, multipleOf: 1 }),
+        radius: num(3000, { minimum: 100, maximum: 10000, ...M }),
+        width: num(40, { minimum: 1, maximum: 400, 'x-useful': [5, 200], ...M }),
+        spread: num(0, { minimum: 0, maximum: 0.2 }),
+        strength: num(0.35, { minimum: 0, maximum: 1 }),
+        rainBoost: num(0.5, { minimum: 0, maximum: 3 }),
+        // Empty = the sun's own colour.
+        color: color(''),
+        underwater: choice('on', ['on', 'off']),
+        underwaterCount: num(12, { minimum: 0, maximum: 60, multipleOf: 1 }),
+    }, extra);
+}
+/** `b3d-decorator` — rocks and trees on the terrain, by budget
+ * (tosijs-3d#97). `url` is FETCHED. */
+export function decoratorSchema(extra = {}) {
+    return schema('Decorator', {
+        budget: num(2000, {
+            minimum: 0,
+            maximum: 20000,
+            multipleOf: 1,
+            'x-useful': [0, 20000],
+        }),
+        radius: num(900, {
+            minimum: 50,
+            maximum: 5000,
+            'x-useful': [200, 3000],
+            ...M,
+        }),
+        seed: num(1, { minimum: 0, maximum: 9999, multipleOf: 1 }),
+        url: url(),
+        scale: num(1, { minimum: 0.1, maximum: 10, 'x-scale': 'log' }),
+        follow: choice('on', ['on', 'off']),
+        shadows: choice('off', ['on', 'off']),
+        colliders: choice('on', ['on', 'off']),
+        colliderRange: num(60, { minimum: 0, maximum: 500, ...M }),
+        colliderPool: num(48, { minimum: 0, maximum: 500, multipleOf: 1 }),
+        shadowRange: num(200, { minimum: 0, maximum: 2000, ...M }),
+        shadowBudget: num(600, { minimum: 0, maximum: 5000, multipleOf: 1 }),
+    }, extra);
+}
+/** `b3d-trail` — a ribbon behind whatever it is nested in (tosijs-3d#97). */
+export function trailSchema(extra = {}) {
+    return schema('Trail', {
+        // Offset from what it is nested in.
+        x: num(0, M),
+        y: num(0, M),
+        z: num(0, M),
+        diameter: num(0.06, {
+            minimum: 0.001,
+            maximum: 10,
+            'x-scale': 'log',
+            ...M,
+        }),
+        length: num(45, { minimum: 1, maximum: 500, multipleOf: 1 }),
+        color: color('#ffffff'),
+        // Empty = the same colour under water.
+        underwaterColor: color(''),
+        alpha: num(0.16, { minimum: 0, maximum: 1 }),
+        minSpeed: num(8, { minimum: 0, maximum: 100, 'x-unit': 'm/s' }),
+    }, extra);
+}
+/**
+ * `b3d-sound` — positional audio (tosijs-3d#95). `url` is FETCHED, so it is a
+ * `uri-reference` like every other fetched field, where a URL rule can see it.
+ */
+export function soundSchema(extra = {}) {
+    return schema('Sound', {
+        url: url(),
+        volume: num(1, { minimum: 0, maximum: 2 }),
+        loop: bool(false),
+        autoplay: bool(false),
+        spatialSound: bool(false),
+        x: num(0, M),
+        y: num(0, M),
+        z: num(0, M),
+        refDistance: num(1, { minimum: 0, maximum: 1000, ...M }),
+        rolloffFactor: num(1, { minimum: 0, maximum: 10 }),
+        maxDistance: num(100, { minimum: 0, maximum: 10000, ...M }),
+        distanceModel: choice('linear', ['linear', 'inverse', 'exponential']),
+        // The name of a mesh to follow.
+        attachTo: { type: 'string', default: '' },
+        playbackRate: num(1, { minimum: 0.1, maximum: 4 }),
     }, extra);
 }
 /** Every scene-primitive schema, by the element name a consumer would use. */
@@ -679,5 +1060,12 @@ export const sceneSchemas = {
     terrain: terrainSchema,
     reflections: reflectionsSchema,
     cloudDeck: cloudDeckSchema,
+    moon: moonSchema,
+    weatherCell: weatherCellSchema,
+    lightning: lightningSchema,
+    lightShafts: lightShaftsSchema,
+    decorator: decoratorSchema,
+    trail: trailSchema,
+    sound: soundSchema,
 };
 //# sourceMappingURL=scene-schemas.js.map

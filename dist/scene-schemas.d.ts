@@ -107,6 +107,60 @@ export declare function cloudDeckSchema(extra?: Record<string, unknown>): {
     title: string;
     properties: Record<string, unknown>;
 };
+/**
+ * `b3d-moon` — a cosmetic moon in the skybox (tosijs-3d#93). Its PHASE is
+ * shaded from the real sun, so it is not a setting.
+ */
+export declare function moonSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/**
+ * `b3d-weather-cell` — a region whose weather differs (tosijs-3d#97). What it
+ * ADDS at its centre, easing to nothing at the rim. Coverage past 1 closes the
+ * sky over its inner part (a storm).
+ */
+export declare function weatherCellSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/** `b3d-lightning` — strikes under stormy weather cells (tosijs-3d#97). */
+export declare function lightningSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/** `b3d-light-shafts` — sun shafts under broken cloud and under water
+ * (tosijs-3d#97). */
+export declare function lightShaftsSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/** `b3d-decorator` — rocks and trees on the terrain, by budget
+ * (tosijs-3d#97). `url` is FETCHED. */
+export declare function decoratorSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/** `b3d-trail` — a ribbon behind whatever it is nested in (tosijs-3d#97). */
+export declare function trailSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/**
+ * `b3d-sound` — positional audio (tosijs-3d#95). `url` is FETCHED, so it is a
+ * `uri-reference` like every other fetched field, where a URL rule can see it.
+ */
+export declare function soundSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export declare const sceneSchemas: {
     readonly skybox: typeof skyboxSchema;
@@ -120,5 +174,12 @@ export declare const sceneSchemas: {
     readonly terrain: typeof terrainSchema;
     readonly reflections: typeof reflectionsSchema;
     readonly cloudDeck: typeof cloudDeckSchema;
+    readonly moon: typeof moonSchema;
+    readonly weatherCell: typeof weatherCellSchema;
+    readonly lightning: typeof lightningSchema;
+    readonly lightShafts: typeof lightShaftsSchema;
+    readonly decorator: typeof decoratorSchema;
+    readonly trail: typeof trailSchema;
+    readonly sound: typeof soundSchema;
 };
 //# sourceMappingURL=scene-schemas.d.ts.map

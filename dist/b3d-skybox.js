@@ -154,7 +154,7 @@ and derive our own from it.
 */
 import '@babylonjs/materials/sky/sky.vertex.js';
 import '@babylonjs/materials/sky/sky.fragment.js';
-import { AbstractMesh } from './b3d-utils.js';
+import { AbstractMesh, fetchedUrl } from './b3d-utils.js';
 import { band } from './atmosphere.js';
 const DEG_TO_RAD = Math.PI / 180;
 function hexToColor3(hex) {
@@ -1149,7 +1149,7 @@ export class B3dSkybox extends AbstractMesh {
         and under additive blending black adds exactly nothing. The silhouette comes
         free from the pixels rather than from a second sampler.
         */
-        const src = attrs.nebulaTexture || '';
+        const src = fetchedUrl(attrs.nebulaTexture, 'b3d-skybox nebulaTexture');
         const tex = src
             ? new BABYLON.Texture(src, scene)
             : proceduralNebula(scene);
@@ -1410,7 +1410,7 @@ export class B3dSkybox extends AbstractMesh {
         the dome by immersion, now fades the stars with it — the other bug reported
         in the same breath.
         */
-        const cubeRoot = attrs.starfieldCube || '';
+        const cubeRoot = fetchedUrl(attrs.starfieldCube, 'b3d-skybox starfieldCube');
         const mat0 = this.mesh.material;
         /*
         THE AUTHOR'S TILT — parsed once, applied per frame.
@@ -1435,7 +1435,7 @@ export class B3dSkybox extends AbstractMesh {
         picture and its stars as a table — which is what the measurements argued
         for, and why this is not an either/or attribute.
         */
-        const dataRoot = String(attrs.starfieldData ?? '');
+        const dataRoot = fetchedUrl(attrs.starfieldData, 'b3d-skybox starfieldData');
         if (dataRoot && typeof mat0?.setTexture === 'function') {
             /*
             NO MIPMAPS — passed explicitly, because Babylon's default is to build

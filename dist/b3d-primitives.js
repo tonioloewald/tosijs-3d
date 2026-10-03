@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff } from './b3d-utils.js';
+import { AbstractMesh, fetchedUrl, isOff } from './b3d-utils.js';
 import { PerlinNoise } from './perlin-noise.js';
 /**
  * The shortest collider Babylon's swept ellipsoid reliably notices.
@@ -305,14 +305,15 @@ export class B3dGround extends AbstractMesh {
         }, scene);
         const material = new BABYLON.StandardMaterial(meshName + '-mat', scene);
         material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
-        if (attrs.texture) {
+        const texture = fetchedUrl(attrs.texture, 'b3d-ground texture');
+        if (texture) {
             const tiles = Math.max(1, attrs.textureTiles);
-            const noise = attrs.texture === 'noise';
+            const noise = texture === 'noise';
             const tex = noise
                 ? makeNoiseTexture(meshName + '-tex', scene, attrs.color, tiles)
-                : attrs.texture === 'checker'
+                : texture === 'checker'
                     ? makeCheckerTexture(meshName + '-tex', scene, attrs.color)
-                    : new BABYLON.Texture(attrs.texture, scene);
+                    : new BABYLON.Texture(texture, scene);
             // The noise texture already spans the plane — repeating it would put back
             // exactly the period it exists to avoid.
             tex.uScale = noise ? 1 : tiles;

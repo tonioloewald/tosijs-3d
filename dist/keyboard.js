@@ -457,6 +457,15 @@ own sessions is a decision for the app, not for a text field. `setAutoKeyboard`
 is exported so an app that wants to remember it can.
 */
 let autoKeyboard = null;
+/*
+HELD WEAKLY (tosijs-3d#96, from ensemble). A plain Set of every field's
+repaint closure was never pruned, and each closure reaches its field's SVG,
+the component hosting it, and that component's <tosi-b3d>, scene and engine:
+every field ever made stayed reachable for the life of the page (ensemble
+measured +4000 DOM nodes per editor visit). Each field now keeps its own
+repaint closure alive (on the field object), so the WeakRef here dies with
+the field, and dead entries are pruned whenever the set is walked.
+*/
 const autoKeyboardListeners = new Set();
 /*
 ONE on-screen keyboard, and it FOLLOWS focus.
@@ -567,8 +576,13 @@ export function autoKeyboardEnabled() {
 /** Turn the on-screen keyboard on or off for every field at once. */
 export function setAutoKeyboard(on) {
     autoKeyboard = on;
-    for (const fn of autoKeyboardListeners)
-        fn();
+    for (const ref of autoKeyboardListeners) {
+        const fn = ref.deref();
+        if (fn == null)
+            autoKeyboardListeners.delete(ref);
+        else
+            fn();
+    }
 }
 export function inputField(config = {}) {
     // Both spellings, from BOTH sources: these callbacks are settable on the
@@ -843,7 +857,7 @@ export function inputField(config = {}) {
     };
     paintGlyph();
     if (kbGlyph)
-        autoKeyboardListeners.add(paintGlyph);
+        autoKeyboardListeners.add(new WeakRef(paintGlyph));
     /** A keyboard needs about this much room, or it is not a keyboard. */
     const KB_MIN_HEIGHT = 150;
     /**
@@ -985,6 +999,9 @@ export function inputField(config = {}) {
         liveKeyboard = mine;
     };
     const api = {
+        // Keeps paintGlyph alive exactly as long as this field (see
+        // autoKeyboardListeners): the shared set only holds it weakly.
+        _keepGlyphPainter: paintGlyph,
         el,
         setHost(h) {
             host = h;

@@ -452,4 +452,16 @@ export declare const cameraIsAttached: (cam: {
         attachedToElement?: boolean;
     };
 } | null | undefined) => boolean;
+/**
+ * A FETCHED attribute's value, or '' if it is not a string (tosijs-3d#95,
+ * from ensemble). `String(value)` turned a JSON array like
+ * `["http://evil…"]` into the URL inside it and fetched that, past any
+ * consumer's URL rule that only looked at strings. Anything that is not a
+ * string is REFUSED (once-per-field warning), never coerced.
+ *
+ * This is not a URL policy: the element still fetches whatever string it is
+ * given, and validating that is the embedder's job (see the `uri-reference`
+ * fields in `sceneSchemas`).
+ */
+export declare function fetchedUrl(value: unknown, where: string): string;
 //# sourceMappingURL=b3d-utils.d.ts.map

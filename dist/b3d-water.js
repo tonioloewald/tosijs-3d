@@ -85,7 +85,7 @@ import { plane as mediumPlane } from './medium.js';
 import * as BABYLON from '@babylonjs/core';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
-import { AbstractMesh, markCollisionGroup, sceneDelta } from './b3d-utils.js';
+import { AbstractMesh, fetchedUrl, markCollisionGroup, sceneDelta, } from './b3d-utils.js';
 import { inheritedWind, waterWind } from './wind.js';
 import { band } from './atmosphere.js';
 import { CausticsMap } from './caustics.js';
@@ -327,11 +327,12 @@ export class B3dWater extends AbstractMesh {
         */
         markCollisionGroup(this.mesh, 'water');
         this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(attrs.textureSize, attrs.textureSize));
-        this.waterMaterial.bumpTexture = attrs.normalMap
+        const normalMap = fetchedUrl(attrs.normalMap, 'b3d-water normalMap');
+        this.waterMaterial.bumpTexture = normalMap
             ? // An explicit path: load it, but SAY SO if it fails. The checkerboard
                 // fallback is indistinguishable from a style choice, so silence here is
                 // what cost ensemble the confusion in the first place.
-                new BABYLON.Texture(attrs.normalMap, scene, undefined, undefined, undefined, undefined, () => {
+                new BABYLON.Texture(normalMap, scene, undefined, undefined, undefined, undefined, () => {
                     console.error(`b3d-water: normalMap "${attrs.normalMap}" failed to load — the sea will render as a checkerboard. ` +
                         `Leave normalMap unset for the built-in procedural map.`);
                 })
@@ -792,7 +793,7 @@ export class B3dWater extends AbstractMesh {
         debug fog colour; the pixels were fog and sky, never the ceiling). Not
         the water's own instance either: `follow` moves that one's offsets.
         */
-        const url = this.normalMap;
+        const url = fetchedUrl(this.normalMap, 'b3d-water normalMap');
         const b = url
             ? new BABYLON.Texture(url, scene)
             : waterNormalTexture(scene);

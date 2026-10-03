@@ -6,7 +6,16 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.9
+
+**What ensemble was waiting on, and a safer publish.** Schemas for the moon,
+the weather and decoration elements and sound, with sections, so a schema-
+driven editor can offer the weather; `inputField` no longer leaks; fetched
+attributes refuse anything but a string. And the publish now runs under the
+practices template where only a code-free job can hold the npm credential.
+
+Size: barrel (min, packages external) 898.1 KB raw / 300.5 KB gz, +0.6% on
+0.8.8.
 
 ### Added
 

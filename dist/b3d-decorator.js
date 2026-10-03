@@ -64,7 +64,7 @@ biped stops at a trunk and can stand on a boulder.
 */
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, isOff, publicName } from './b3d-utils.js';
+import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js';
 import { assetUrl } from './asset-url.js';
 import { mantaAxes } from './biome-chart.js';
 import { scatterPlacements, NearIndex, pruneScatterCache, NATURE_KIT_RULES, } from './scatter.js';
@@ -163,7 +163,8 @@ export class B3dDecorator extends B3dChild {
         this._root = new BABYLON.TransformNode('decorator', scene);
         owner.registerWorldRoot(this._root);
         const gen = ++this._loadGen;
-        const url = this.url || assetUrl('kenney/libraries/nature-kit.glb');
+        const url = fetchedUrl(this.url, 'b3d-decorator url') ||
+            assetUrl('kenney/libraries/nature-kit.glb');
         BABYLON.SceneLoader.LoadAssetContainerAsync(url, '', scene)
             .then((c) => {
             if (gen !== this._loadGen) {

@@ -42,7 +42,7 @@ export { segmentTimes, lightPreset, lightPresets, DEFAULT_PROGRAM, lightProgramS
 export type { LightPreset, LightProgram, LightPhase, ChannelCurves, ModulationCurve, ModulationSample, } from './light-modulation.js';
 export { sampleClimate, composeClimate, applyClimate, provinceClimateSchema, canonicalClimate, validateClimate, DEFAULT_AMOUNTS, NO_CLIMATE, } from './province-climate.js';
 export type { ProvinceClimate, ClimateSample, ClimateCurve, ClimateAmounts, } from './province-climate.js';
-export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
+export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, moonSchema, weatherCellSchema, lightningSchema, lightShaftsSchema, decoratorSchema, trailSchema, soundSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
 export { B3dFog, b3dFog } from './b3d-fog.js';
 export { B3dClouds, b3dClouds } from './b3d-clouds.js';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal.js';

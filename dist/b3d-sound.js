@@ -77,7 +77,7 @@ preview.append(
 | `playbackRate` | `1` | Playback speed |
 */
 /*{ "parent": "Environment" }*/
-import { B3dChild } from './b3d-utils.js';
+import { B3dChild, fetchedUrl } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 export class B3dSound extends B3dChild {
     static preferredTagName = 'tosi-b3d-sound';
@@ -108,9 +108,10 @@ export class B3dSound extends B3dChild {
     sceneReady(owner, _scene) {
         this.owner = owner;
         const attrs = this;
-        if (!attrs.url)
+        const url = fetchedUrl(attrs.url, 'b3d-sound url');
+        if (!url)
             return;
-        this.sound = new BABYLON.Sound('sound', attrs.url, this.owner.scene, () => {
+        this.sound = new BABYLON.Sound('sound', url, this.owner.scene, () => {
             this.dispatchEvent(new CustomEvent('loaded', { bubbles: true }));
             // Attach to mesh after loading if specified
             if (attrs.attachTo && attrs.spatialSound && this.sound) {
