@@ -47,6 +47,12 @@ const SOURCES: Array<[keyof typeof sceneSchemas, string, string]> = [
   ['terrain', './b3d-terrain', 'B3dTerrain'],
   ['reflections', './b3d-reflections', 'B3dReflections'],
   ['cloudDeck', './b3d-cloud-deck', 'B3dCloudDeck'],
+  ['moon', './b3d-moon', 'B3dMoon'],
+  ['weatherCell', './b3d-weather-cell', 'B3dWeatherCell'],
+  ['lightning', './b3d-lightning', 'B3dLightning'],
+  ['lightShafts', './b3d-light-shafts', 'B3dLightShafts'],
+  ['decorator', './b3d-decorator', 'B3dDecorator'],
+  ['trail', './b3d-trail', 'B3dTrail'],
 ]
 
 const attrsOf = async (mod: string, cls: string) => {

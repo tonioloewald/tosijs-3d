@@ -294,6 +294,12 @@ export {
   ambientSchema,
   hemisphericLightSchema,
   cloudDeckSchema,
+  moonSchema,
+  weatherCellSchema,
+  lightningSchema,
+  lightShaftsSchema,
+  decoratorSchema,
+  trailSchema,
   sceneSchemas,
   SCENE_OMITTED,
 } from './scene-schemas.js'

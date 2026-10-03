@@ -93,6 +93,13 @@ const url = (keywords?: string[]): Record<string, unknown> => ({
   ...(keywords ? { 'x-keywords': keywords } : {}),
 })
 
+/** A NUMBER that takes only these values (texture sizes and the like). */
+const choice2 = (def: number, values: number[]): Record<string, unknown> => ({
+  type: 'number',
+  default: def,
+  enum: values,
+})
+
 const choice = (def: string, values: string[]): Record<string, unknown> => ({
   type: 'string',
   default: def,
@@ -437,6 +444,12 @@ export const SCENE_OMITTED: Record<string, string[]> = {
   // The deck places itself by `altitude` and follows the camera; it has no
   // transform to decline.
   cloudDeck: [],
+  moon: [],
+  weatherCell: [],
+  lightning: [],
+  lightShafts: [],
+  decorator: [],
+  trail: [],
 }
 
 /** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
@@ -743,6 +756,179 @@ export function cloudDeckSchema(extra: Record<string, unknown> = {}) {
   )
 }
 
+/**
+ * `b3d-moon` — a cosmetic moon in the skybox (tosijs-3d#93). Its PHASE is
+ * shaded from the real sun, so it is not a setting.
+ */
+export function moonSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Moon',
+    {
+      azimuth: num(0, { minimum: 0, maximum: 360, ...DEG }),
+      elevation: num(20, { minimum: -90, maximum: 90, ...DEG }),
+      // Angular size; the real moon is about half a degree.
+      size: num(0.5, {
+        minimum: 0.05,
+        maximum: 20,
+        'x-useful': [0.2, 6],
+        ...DEG,
+      }),
+      color: color('#dddddd'),
+      brightness: num(1, { minimum: 0, maximum: 3 }),
+    },
+    extra
+  )
+}
+
+/**
+ * `b3d-weather-cell` — a region whose weather differs (tosijs-3d#97). What it
+ * ADDS at its centre, easing to nothing at the rim. Coverage past 1 closes the
+ * sky over its inner part (a storm).
+ */
+export function weatherCellSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Weather cell',
+    {
+      x: num(0, M),
+      z: num(0, M),
+      radius: num(200, {
+        minimum: 1,
+        maximum: 20000,
+        'x-useful': [100, 8000],
+        'x-scale': 'log',
+        ...M,
+      }),
+      windSpeed: num(0, {
+        minimum: 0,
+        maximum: 60,
+        'x-useful': [0, 30],
+        'x-unit': 'm/s',
+      }),
+      windBearingDeg: num(0, { minimum: 0, maximum: 360, ...DEG }),
+      coverage: num(0, { minimum: -1, maximum: 2, 'x-useful': [0, 1.8] }),
+      precipitation: num(0, { minimum: 0, maximum: 1 }),
+      storminess: num(0, { minimum: 0, maximum: 1 }),
+      temperature: num(0, { minimum: -40, maximum: 40, 'x-unit': 'degC' }),
+      drift: choice('off', ['off', 'wind']),
+      // 0 = permanent.
+      lifetime: num(0, { minimum: 0, maximum: 3600, 'x-unit': 's' }),
+      // Seconds to gather from nothing; 0 = at once.
+      grow: num(0, {
+        minimum: 0,
+        maximum: 600,
+        'x-useful': [0, 120],
+        'x-unit': 's',
+      }),
+    },
+    extra
+  )
+}
+
+/** `b3d-lightning` — strikes under stormy weather cells (tosijs-3d#97). */
+export function lightningSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Lightning',
+    {
+      seed: num(1, { minimum: 0, maximum: 9999, multipleOf: 1 }),
+      bolts: choice('on', ['on', 'off']),
+      sprites: choice('on', ['on', 'off']),
+      thunder: choice('on', ['on', 'off']),
+      volume: num(0.8, { minimum: 0, maximum: 1 }),
+      groundLight: num(2.5, { minimum: 0, maximum: 10 }),
+      darken: num(0.5, { minimum: 0, maximum: 1 }),
+      shadows: choice('on', ['on', 'off']),
+      shadowSize: choice2(1024, [256, 512, 1024, 2048]),
+      shadowRange: num(600, { minimum: 10, maximum: 3000, ...M }),
+      flashLight: choice('point', ['point', 'directional']),
+      color: color('#dce4ff'),
+      // A multiple of the natural rate (about 0.6 a second at storminess 1).
+      rate: num(1, { minimum: 0, maximum: 6, 'x-useful': [0, 5] }),
+      brightness: num(1, { minimum: 0, maximum: 3 }),
+    },
+    extra
+  )
+}
+
+/** `b3d-light-shafts` — sun shafts under broken cloud and under water
+ * (tosijs-3d#97). */
+export function lightShaftsSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Light shafts',
+    {
+      count: num(14, { minimum: 0, maximum: 40, multipleOf: 1 }),
+      radius: num(3000, { minimum: 100, maximum: 10000, ...M }),
+      width: num(40, { minimum: 1, maximum: 400, 'x-useful': [5, 200], ...M }),
+      spread: num(0, { minimum: 0, maximum: 0.2 }),
+      strength: num(0.35, { minimum: 0, maximum: 1 }),
+      rainBoost: num(0.5, { minimum: 0, maximum: 3 }),
+      // Empty = the sun's own colour.
+      color: color(''),
+      underwater: choice('on', ['on', 'off']),
+      underwaterCount: num(12, { minimum: 0, maximum: 60, multipleOf: 1 }),
+    },
+    extra
+  )
+}
+
+/** `b3d-decorator` — rocks and trees on the terrain, by budget
+ * (tosijs-3d#97). `url` is FETCHED. */
+export function decoratorSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Decorator',
+    {
+      budget: num(2000, {
+        minimum: 0,
+        maximum: 20000,
+        multipleOf: 1,
+        'x-useful': [0, 20000],
+      }),
+      radius: num(900, {
+        minimum: 50,
+        maximum: 5000,
+        'x-useful': [200, 3000],
+        ...M,
+      }),
+      seed: num(1, { minimum: 0, maximum: 9999, multipleOf: 1 }),
+      url: url(),
+      scale: num(1, { minimum: 0.1, maximum: 10, 'x-scale': 'log' }),
+      follow: choice('on', ['on', 'off']),
+      shadows: choice('off', ['on', 'off']),
+      colliders: choice('on', ['on', 'off']),
+      colliderRange: num(60, { minimum: 0, maximum: 500, ...M }),
+      colliderPool: num(48, { minimum: 0, maximum: 500, multipleOf: 1 }),
+      shadowRange: num(200, { minimum: 0, maximum: 2000, ...M }),
+      shadowBudget: num(600, { minimum: 0, maximum: 5000, multipleOf: 1 }),
+    },
+    extra
+  )
+}
+
+/** `b3d-trail` — a ribbon behind whatever it is nested in (tosijs-3d#97). */
+export function trailSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Trail',
+    {
+      // Offset from what it is nested in.
+      x: num(0, M),
+      y: num(0, M),
+      z: num(0, M),
+      diameter: num(0.06, {
+        minimum: 0.001,
+        maximum: 10,
+        'x-scale': 'log',
+        ...M,
+      }),
+      length: num(45, { minimum: 1, maximum: 500, multipleOf: 1 }),
+      color: color('#ffffff'),
+      // Empty = the same colour under water.
+      underwaterColor: color(''),
+      alpha: num(0.16, { minimum: 0, maximum: 1 }),
+      minSpeed: num(8, { minimum: 0, maximum: 100, 'x-unit': 'm/s' }),
+    },
+    extra
+  )
+}
+
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export const sceneSchemas = {
   skybox: skyboxSchema,
@@ -756,4 +942,10 @@ export const sceneSchemas = {
   terrain: terrainSchema,
   reflections: reflectionsSchema,
   cloudDeck: cloudDeckSchema,
+  moon: moonSchema,
+  weatherCell: weatherCellSchema,
+  lightning: lightningSchema,
+  lightShafts: lightShaftsSchema,
+  decorator: decoratorSchema,
+  trail: trailSchema,
 } as const

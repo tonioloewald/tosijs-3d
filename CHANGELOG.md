@@ -6,6 +6,33 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **Schemas for the moon and the weather and decoration elements**
+  (tosijs-3d#93, #97, from ensemble): `moonSchema`, `weatherCellSchema`,
+  `lightningSchema`, `lightShaftsSchema`, `decoratorSchema` and
+  `trailSchema`, in `sceneSchemas` as `moon`, `weatherCell`, `lightning`,
+  `lightShafts`, `decorator` and `trail`. Same shape as the others (colour
+  formats, the decorator's `url` as a fetched `uri-reference`, `x-useful`
+  bands from the demos' sliders), held to the real elements by the drift
+  test. A schema-driven consumer can now offer the weather.
+
+### Fixed
+
+- **`inputField` leaked itself and everything containing it**
+  (tosijs-3d#96, from ensemble): every field's keyboard-toggle repaint went
+  into a module-level set that was never pruned, and reached the field's
+  SVG, its host, and the host's scene and engine. Ensemble measured +4000 DOM
+  nodes per editor visit. The set now holds them weakly; a dropped field is
+  collectable (tested: the test fails on the old code).
+
+### Security
+
+- **The publish workflow is re-copied from the practices template**: only a
+  stage job running no project code holds the npm credential.
+
 ## 0.8.8
 
 **Adopter fixes and folding everywhere.** Aircraft no longer crash into
