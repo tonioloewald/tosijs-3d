@@ -552,6 +552,7 @@ export {
   button3d,
   iconBar3d,
   tabs3d,
+  foldSections,
   toggle3d,
   slider3d,
   select3d,

@@ -252,7 +252,7 @@ settings into `select3d` cyclers to get discrete values.
 | | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
 | | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
 | | `background` | theme `panelBg` | |
-| `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. In a `<tosi-b3d>` `scenePanel`, flat and VR alike; the open set is remembered in the browser |
+| `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. A `<tosi-b3d>` `scenePanel` folds them itself; for a `panel3d` of your own, run the rows through `foldSections(rows, { key, mode, repaint })` and rebuild on `repaint` |
 | | `open` | first section only | whether a collapsible section starts open |
 | `row3d` | `weights` | equal | proportional shares of the post-gap width |
 | | `align` | `'middle'` | `top` / `middle` / `bottom` |
@@ -273,6 +273,7 @@ settings into `select3d` cyclers to get discrete values.
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded, or as `tabs3d` (`mode: 'tabs'`); rebuild your panel on `repaint` |
 | `tabs3d` | `tabs` / `active` / `handleSelect` | `0` | file tabs; a tab is a caption or `{ icon, title }`; at most half the strip each, overlapping around the active one when they don't fit |
 | `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
 | `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
@@ -988,6 +989,125 @@ export function tabs3d(config: {
       config.handleSelect?.(i)
     },
   }
+}
+
+/**
+ * **Fold or tab a panel's sections** (board #2805, tosijs-3d#99). A
+ * `label3d({ collapsible: true })` heads a section: every row after it, up to
+ * the next one, belongs to it. This returns the rows to SHOW:
+ *
+ * - `mode: 'fold'` (the default): every header, plus the rows of open sections.
+ * - `mode: 'tabs'`: rows before the first section, a `tabs3d` strip of the
+ *   sections (a section's `icon` becomes its tab), and the active section's rows.
+ *
+ * A panel is laid out once when built, so folding means REBUILDING: a header's
+ * tap or a tab's pick calls `repaint`, and you build the panel again from the
+ * same row list. Pass `key` to remember the open set and the active tab across
+ * visits (localStorage; a private window just starts from the defaults).
+ * `<tosi-b3d>`'s scene panel is built on this.
+ *
+ * ```javascript
+ * const build = () => panel3d({ width: 320 }, ...foldSections(rows(), { key: 'sky', repaint: rebuild }))
+ * ```
+ */
+export function foldSections(
+  rows: Widget3d[],
+  opts: { key?: string; mode?: 'fold' | 'tabs'; repaint: () => void }
+): Widget3d[] {
+  const state = sectionState(opts.key)
+  const save = () => {
+    if (opts.key == null) return
+    try {
+      localStorage.setItem(
+        `${opts.key}`,
+        JSON.stringify(Object.fromEntries(state.open))
+      )
+      if (state.tab != null) localStorage.setItem(`${opts.key}:tab`, state.tab)
+    } catch {
+      /* no storage: it still works for this visit */
+    }
+  }
+  type Sec = {
+    title: string
+    icon?: string
+    open?: boolean
+    isOpen: boolean
+    toggle?: () => void
+  }
+  if (opts.mode === 'tabs') {
+    const head: Widget3d[] = []
+    const sections: { title: string; icon?: string; rows: Widget3d[] }[] = []
+    for (const row of rows) {
+      const sec = (row as any).section as Sec | undefined
+      if (sec != null)
+        sections.push({ title: sec.title, icon: sec.icon, rows: [] })
+      else if (sections.length === 0) head.push(row)
+      else sections[sections.length - 1].rows.push(row)
+    }
+    if (sections.length === 0) return rows
+    let active = sections.findIndex((x) => x.title === state.tab)
+    if (active < 0) active = 0
+    const strip = tabs3d({
+      tabs: sections.map((x) =>
+        x.icon ? { icon: x.icon, title: x.title } : x.title
+      ),
+      active,
+      handleSelect: (i) => {
+        state.tab = sections[i].title
+        save()
+        opts.repaint()
+      },
+    })
+    return [...head, strip, ...sections[active].rows]
+  }
+  const out: Widget3d[] = []
+  let showing = true
+  let first = true
+  for (const row of rows) {
+    const sec = (row as any).section as Sec | undefined
+    if (sec == null) {
+      if (showing) out.push(row)
+      continue
+    }
+    const isOpen = state.open.get(sec.title) ?? sec.open ?? first
+    first = false
+    sec.isOpen = isOpen
+    sec.toggle = () => {
+      state.open.set(sec.title, !isOpen)
+      save()
+      opts.repaint()
+    }
+    out.push(row)
+    showing = isOpen
+  }
+  return out
+}
+
+const sectionStates = new Map<
+  string,
+  { open: Map<string, boolean>; tab: string | null }
+>()
+function sectionState(key = ''): {
+  open: Map<string, boolean>
+  tab: string | null
+} {
+  let st = sectionStates.get(key)
+  if (st == null) {
+    st = { open: new Map(), tab: null }
+    if (key !== '') {
+      try {
+        for (const [k, v] of Object.entries(
+          JSON.parse(localStorage.getItem(key) || '{}')
+        ))
+          st.open.set(k, !!v)
+        st.tab = localStorage.getItem(`${key}:tab`)
+      } catch {
+        /* no storage: defaults */
+      }
+    }
+    sectionStates.set(key, st)
+  }
+  return st
 }
 
 /** What a panel offers the widgets inside it. */

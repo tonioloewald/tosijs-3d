@@ -295,7 +295,7 @@ import {
   iconBar3d,
   label3d,
   textBlock3d,
-  tabs3d,
+  foldSections,
   type Widget3d,
 } from './widgets3d.js'
 import { handlerOf } from './handler-of.js'
@@ -3383,114 +3383,18 @@ export class B3d extends Component {
   }
 
   /*
-  COLLAPSIBLE SECTIONS (board #2466). A `label3d({ collapsible: true })` heads
-  a section: every row after it, up to the next one, belongs to it. Folded
-  sections' rows are simply LEFT OUT here, the one place both presentations
-  get their rows, so flat and XR fold identically. The open set persists per
-  page, in the browser (a private window just starts from the defaults).
+  COLLAPSIBLE SECTIONS (board #2466): folded or tabbed by the exported
+  `foldSections` (widgets3d), so a plain panel3d gets the same behaviour
+  (board #2805). Here, in `_panelWidgets`, the one place both presentations
+  get their rows, so flat and XR fold identically; the open set and the
+  active tab persist per page.
   */
-  private _sectionOpen: Map<string, boolean> | null = null
-  private _sectionKey(): string {
-    return `tosi-b3d:sections:${location.pathname}`
-  }
-  private _sectionsOpen(): Map<string, boolean> {
-    if (this._sectionOpen == null) {
-      this._sectionOpen = new Map()
-      try {
-        const raw = localStorage.getItem(this._sectionKey())
-        for (const [k, v] of Object.entries(JSON.parse(raw || '{}')))
-          this._sectionOpen.set(k, !!v)
-      } catch {
-        /* no storage: defaults */
-      }
-    }
-    return this._sectionOpen
-  }
   private _foldSections(rows: Widget3d[]): Widget3d[] {
-    if (this.panelSections === 'tabs') return this._tabSections(rows)
-    const open = this._sectionsOpen()
-    const out: Widget3d[] = []
-    let showing = true
-    let first = true
-    for (const row of rows) {
-      const sec = (row as any).section as
-        | {
-            title: string
-            open?: boolean
-            isOpen: boolean
-            toggle?: () => void
-          }
-        | undefined
-      if (sec == null) {
-        if (showing) out.push(row)
-        continue
-      }
-      const isOpen = open.get(sec.title) ?? sec.open ?? first
-      first = false
-      sec.isOpen = isOpen
-      sec.toggle = () => {
-        open.set(sec.title, !isOpen)
-        try {
-          localStorage.setItem(
-            this._sectionKey(),
-            JSON.stringify(Object.fromEntries(open))
-          )
-        } catch {
-          /* no storage: it still toggles for this visit */
-        }
-        this._repaintPanels()
-      }
-      out.push(row)
-      showing = isOpen
-    }
-    return out
-  }
-
-  /*
-  TABS: the same sections, one at a time, behind a strip of file tabs. Rows
-  before the first section stay above the strip. The chosen tab is kept like
-  the open set.
-  */
-  private _tabSections(rows: Widget3d[]): Widget3d[] {
-    const head: Widget3d[] = []
-    const sections: { title: string; icon?: string; rows: Widget3d[] }[] = []
-    for (const row of rows) {
-      const sec = (row as any).section as
-        | { title: string; icon?: string }
-        | undefined
-      if (sec != null)
-        sections.push({ title: sec.title, icon: sec.icon, rows: [] })
-      else if (sections.length === 0) head.push(row)
-      else sections[sections.length - 1].rows.push(row)
-    }
-    if (sections.length === 0) return rows
-    if ((this as any)._activeTab == null) {
-      try {
-        ;(this as any)._activeTab = localStorage.getItem(
-          this._sectionKey() + ':tab'
-        )
-      } catch {
-        /* no storage: the first tab */
-      }
-    }
-    let active = sections.findIndex((s) => s.title === (this as any)._activeTab)
-    if (active < 0) active = 0
-    const strip = tabs3d({
-      tabs: sections.map((s) =>
-        s.icon ? { icon: s.icon, title: s.title } : s.title
-      ),
-      active,
-      handleSelect: (i) => {
-        ;(this as any)._activeTab = sections[i].title
-        try {
-          localStorage.setItem(this._sectionKey() + ':tab', sections[i].title)
-        } catch {
-          /* no storage: it still switches for this visit */
-        }
-        this._repaintPanels()
-      },
+    return foldSections(rows, {
+      key: `tosi-b3d:sections:${location.pathname}`,
+      mode: this.panelSections,
+      repaint: () => this._repaintPanels(),
     })
-    return [...head, strip, ...sections[active].rows]
   }
 
   private _panelWidgets(xr = false): Widget3d[] {

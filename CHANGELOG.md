@@ -14,6 +14,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   (board #2808, manta-recon): `bombFullRadius` / `bombBlastRadius` (2 / 6)
   and `missileFullRadius` / `missileBlastRadius` (1.5 / 4), like the gun's,
   so a game sizes blasts to its world.
+- **Any panel can fold** (board #2805, tosijs-3d#99, from ensemble):
+  `foldSections(rows, { key, mode, repaint })` returns the rows to show for
+  collapsible sections, folded or as tabs, and asks for a rebuild when one
+  toggles. `<tosi-b3d>`'s scene panel is built on it, so a `panel3d` of your
+  own folds the same way.
 
 ### Fixed
 
