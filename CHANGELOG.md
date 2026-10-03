@@ -20,6 +20,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   toggles. `<tosi-b3d>`'s scene panel is built on it, so a `panel3d` of your
   own folds the same way.
 
+### Changed
+
+- **The active tab shrinks to its own caption** when tabs are tight (Tonio):
+  a short active tab no longer takes the width of the longest, and the space
+  it saves goes to the other tabs' visible slices.
+
 ### Fixed
 
 - **Aircraft crashed into explosion debris** (board #2803, manta-recon): the

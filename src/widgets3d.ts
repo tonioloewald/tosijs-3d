@@ -917,7 +917,18 @@ export function tabs3d(config: {
           : measureTextWidth(t, TH.BOLD_FONT) + TH.PAD_X * 2
       )
     )
-    const L = tabLayout(n, layoutW, 0.5, natural, active)
+    const tabW = (t: Tab3d) =>
+      typeof t !== 'string'
+        ? TAB_ICON + TH.PAD_X * 2
+        : measureTextWidth(t, TH.BOLD_FONT) + TH.PAD_X * 2
+    const L = tabLayout(
+      n,
+      layoutW,
+      0.5,
+      natural,
+      active,
+      tabW(config.tabs[active])
+    )
     ;(root as any).__layout = L
     // The line the active tab joins: the strip's floor.
     root.appendChild(
@@ -929,9 +940,11 @@ export function tabs3d(config: {
       // OPAQUE: the theme's fills are translucent, and a tab must hide the
       // label of the one it covers. The panel colour underneath, the tint on
       // top.
-      const under = svgElements.path({ d: tabPath(x, L.w), fill: TH.PANEL_BG })
+      // The active tab may be narrower than the rest (its own caption).
+      const tw = on ? L.wActive : L.w
+      const under = svgElements.path({ d: tabPath(x, tw), fill: TH.PANEL_BG })
       const tab = svgElements.path({
-        d: tabPath(x, L.w),
+        d: tabPath(x, tw),
         fill: on ? TH.BTN_BG : TH.ROW_BG,
         stroke: TH.PANEL_BG,
         'stroke-width': 1.5,
@@ -939,7 +952,7 @@ export function tabs3d(config: {
       const item = config.tabs[i]
       if (typeof item !== 'string') {
         const [v0, v1] = L.visible[i]
-        const cx = on ? x + L.w / 2 : (v0 + v1) / 2
+        const cx = on ? x + tw / 2 : (v0 + v1) / 2
         root.appendChild(
           g(
             {},
@@ -963,7 +976,7 @@ export function tabs3d(config: {
       an ellipsis shows the name's first letter.
       */
       const [v0, v1] = L.visible[i]
-      const room = (on ? L.w : v1 - v0) - 12
+      const room = (on ? tw : v1 - v0) - 12
       label.setAttribute('x', String((on ? x : v0) + (on ? TH.PAD_X : 6)))
       label.setAttribute('y', String(H / 2 + 1))
       const font = on ? TH.BOLD_FONT : TH.TEXT_FONT

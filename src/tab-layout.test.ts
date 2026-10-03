@@ -45,4 +45,19 @@ describe('file tabs (board #2466)', () => {
     expect(tabAt(250, l, 4)).toBe(5)
     expect(tabAt(-5, l, 4)).toBe(-1)
   })
+
+  test('when tight, the ACTIVE tab takes only its own caption width', () => {
+    // 9 tabs, widest caption 160, the active one ('Sky') needs only 50
+    const l = tabLayout(9, 320, 0.5, 200, 4, 50)
+    expect(l.w).toBe(160)
+    expect(l.wActive).toBe(50)
+    // the saved space goes to the others' slices: 270 / 8 each
+    expect(l.visible[0][1] - l.visible[0][0]).toBeCloseTo(270 / 8, 9)
+    expect(l.visible[8][1]).toBeCloseTo(320, 9)
+    // and a tap just past the narrow active tab lands on the next one
+    expect(tabAt(l.x[4] + 55, l, 4)).toBe(5)
+  })
+  test('it never grows past the shared width', () => {
+    expect(tabLayout(9, 320, 0.5, 200, 4, 999).wActive).toBe(160)
+  })
 })

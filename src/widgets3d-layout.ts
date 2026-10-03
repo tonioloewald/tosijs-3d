@@ -581,9 +581,17 @@ export function tabLayout(
   width: number,
   maxFrac = 0.5,
   natural = Infinity,
-  active = -1
-): { w: number; x: number[]; visible: [number, number][] } {
-  if (n <= 0) return { w: 0, x: [], visible: [] }
+  active = -1,
+  /** The ACTIVE tab's own natural width, if it needs less than the rest. */
+  activeNatural = Infinity
+): {
+  w: number
+  /** The active tab's width: its own, when space is tight (see below). */
+  wActive: number
+  x: number[]
+  visible: [number, number][]
+} {
+  if (n <= 0) return { w: 0, wActive: 0, x: [], visible: [] }
   const w = Math.min(width * maxFrac, natural, n === 1 ? width : Infinity)
   const x: number[] = []
   const visible: [number, number][] = []
@@ -592,7 +600,7 @@ export function tabLayout(
       x.push(i * w)
       visible.push([i * w, i * w + w])
     }
-    return { w, x, visible }
+    return { w, wActive: w, x, visible }
   }
   /*
   THEY OVERLAP, AROUND THE ACTIVE TAB (Tonio: "the tabs left of the active
@@ -603,7 +611,14 @@ export function tabLayout(
   showing its RIGHT slice).
   */
   const a = active >= 0 && active < n ? active : 0
-  const xa = (a * (width - w)) / (n - 1)
+  /*
+  THE ACTIVE TAB SHRINKS TO FIT ITS OWN CAPTION when space is tight (Tonio:
+  "the active tab isn't being shrunk to fit if it can be"): a short "Sky"
+  need not be as wide as "Atmosphere", and what it saves goes to the slices
+  of the others.
+  */
+  const wa = Math.min(w, Math.max(1, activeNatural))
+  const xa = (a * (width - wa)) / (n - 1)
   for (let i = 0; i < n; i++) {
     if (i < a) {
       const step = xa / a
@@ -611,15 +626,15 @@ export function tabLayout(
       visible.push([i * step, (i + 1) * step])
     } else if (i === a) {
       x.push(xa)
-      visible.push([xa, xa + w])
+      visible.push([xa, xa + wa])
     } else {
-      const step = (width - (xa + w)) / (n - 1 - a)
-      const right = xa + w + (i - a) * step
+      const step = (width - (xa + wa)) / (n - 1 - a)
+      const right = xa + wa + (i - a) * step
       x.push(right - w)
       visible.push([right - step, right])
     }
   }
-  return { w, x, visible }
+  return { w, wActive: wa, x, visible }
 }
 
 /**
@@ -643,14 +658,15 @@ export function tabOrder(n: number, active: number): number[] {
  * -1 if none. */
 export function tabAt(
   px: number,
-  layout: { w: number; x: number[] },
+  layout: { w: number; wActive?: number; x: number[] },
   active: number
 ): number {
   const { w, x } = layout
   const order = tabOrder(x.length, active)
   for (let k = order.length - 1; k >= 0; k--) {
     const i = order[k]
-    if (px >= x[i] && px < x[i] + w) return i
+    const wi = i === active ? layout.wActive ?? w : w
+    if (px >= x[i] && px < x[i] + wi) return i
   }
   return -1
 }
