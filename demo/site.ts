@@ -13,31 +13,6 @@ import * as tosijs from 'tosijs'
 import * as tosijs3d from '../src/index'
 import * as tosijsui from 'tosijs-ui'
 import * as demoUtils from './demo-utils' // shared "when in doubt" helpers for live examples
-/*
-SHADOW SHADERS, STATICALLY. Babylon's ShadowGenerator loads these with a
-dynamic import(); in the site's code-split ESM build each lands in a chunk
-that imports "../hydrate.js" while the page loaded "hydrate.js?v=<hash>" —
-two URLs, so a SECOND copy of the whole bundle evaluates, throws "Cannot
-redefine property: onBeforeViewRenderObservable", the import rejects, and
-no shadow map ever renders on the doc site (sun shadows included). Found
-chasing lightning shadows (tosijs-ui#191 is the root). Imported here they
-are registered in THIS copy of Babylon's ShaderStore; and since Bun still
-emits the chunk import, the loader is told they are here rather than
-fetching the chunk that brings the second copy in. GLSL only (the site is
-WebGL). Remove once tosijs-ui#191 lands.
-*/
-import '@babylonjs/core/Shaders/shadowMap.fragment.js'
-import '@babylonjs/core/Shaders/shadowMap.vertex.js'
-import '@babylonjs/core/Shaders/depthBoxBlur.fragment.js'
-import '@babylonjs/core/Shaders/ShadersInclude/shadowMapFragmentSoftTransparentShadow.js'
-import { ShadowGenerator } from '@babylonjs/core'
-;(ShadowGenerator.prototype as any)._initShaderSourceAsync = async function (
-  this: any
-) {
-  this._shaderLanguage = 0 // GLSL
-  this._shadersLoaded = true
-}
-
 // Point live examples' asset lookups (assetUrl) at the shared CDN.
 tosijs3d.setAssetBase('https://cdn.tosijs.net')
 

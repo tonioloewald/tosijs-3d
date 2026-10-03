@@ -428,6 +428,9 @@ const _rightScratch = new BABYLON.Vector3()
 
 export class B3dBiped extends B3dControllable {
   static preferredTagName = 'tosi-b3d-biped'
+  // Attributes read directly as `this.x` (the rest go through `as any`).
+  declare url: string
+  declare player: boolean
 
   static initAttributes = {
     ...B3dControllable.initAttributes,
@@ -2475,7 +2478,6 @@ export class B3dBiped extends B3dControllable {
       this button is the SURFACE control and continuous, so it never charges.
       */
       const jumpDown = (input.jump ?? 0) > 0.5
-      this._jumpWas = jumpDown
 
       const surfaceY = this._waterSurfaceY()
       // `eyeHeight` as a proxy for body height. It is a little short by

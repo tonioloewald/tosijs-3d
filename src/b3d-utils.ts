@@ -1015,6 +1015,16 @@ export class AbstractMesh extends B3dChild {
     // host fades to translucent while on, so the gizmo reads through it.
     axes: false,
   }
+  // initAttributes become instance properties at hydration, which TypeScript
+  // cannot infer from a static (tosijs 1.10 dropped the `[key: string]: any`
+  // that used to hide this, tosijs#36).
+  declare x: number
+  declare y: number
+  declare z: number
+  declare rx: number
+  declare ry: number
+  declare rz: number
+  declare axes: boolean
 
   mesh?: BABYLON.Mesh
   // Generation counter for async asset loads. Bumped on every sceneReady and

@@ -26,6 +26,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
   manta's orbit view re-set black every frame. The sky re-applies its backdrop
   when the active camera changes back.
 
+### Changed
+
+- **Dev: tosijs-ui 1.16.5 and tosijs 1.10.7.** tosijs-ui 1.16 loads the doc
+  site's entry once (tosijs-ui#191), so the static shadow-shader workaround in
+  `demo/site.ts` is gone and the doc site renders shadows without it. That
+  double load was also ensemble's `Cannot redefine property:
+  onBeforeViewRenderObservable` (tosijs-3d#78). tosijs 1.10 dropped
+  `Component`'s `[key: string]: any`, which surfaced 27 undeclared properties:
+  `AbstractMesh` now declares `x`/`y`/`z`/`rx`/`ry`/`rz`/`axes`, `B3dBiped`
+  declares `url`/`player`, and a dead `_jumpWas` store is gone. The peer range
+  is unchanged (`tosijs ^1.9.2`).
+
 ### Added
 
 - **`opacityWeightedGlow(layer)`** installs the same rule on a `GlowLayer` you
