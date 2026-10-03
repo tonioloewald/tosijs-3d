@@ -404,6 +404,7 @@ export type { FrameName, XrFramesOptions } from './xr-frames.js'
 export {
   attachFramePanel,
   placeholderPanelSvg,
+  opacityWeightedGlow,
   excludeFromGlow,
 } from './frame-panel.js'
 export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'

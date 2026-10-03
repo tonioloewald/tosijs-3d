@@ -6,6 +6,25 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **Glow no longer whites out the frame under a fading full-screen mesh**
+  (board #2742, from manta-recon). Babylon's glow layer ignores opacity: it
+  never reads `mesh.visibility` and does not weight the colour by
+  `material.alpha`. So manta's re-entry curtain, a full-screen emissive quad on
+  every layer bit, bloomed at full strength while at 30% alpha, and the orbit
+  view went white. The glow layer `<tosi-b3d>` builds now weights each mesh's
+  emissive by `alpha × visibility`. Opaque, visible meshes glow exactly as before.
+  A mesh hidden with `visibility = 0` no longer glows, so `excludeFromGlow` is
+  needed only for emissive things that are not light sources.
+
+### Added
+
+- **`opacityWeightedGlow(layer)`** installs the same rule on a `GlowLayer` you
+  build yourself.
+
 ## 0.8.9
 
 **What ensemble was waiting on, and a safer publish.** Schemas for the moon,

@@ -236,14 +236,50 @@ export function placeholderPanelSvg(
 }
 
 /**
+ * Make a glow layer bloom a mesh only as much as the mesh is actually visible.
+ *
+ * **Babylon's glow ignores opacity.** Its default emissive pick never reads
+ * `mesh.visibility`, and it passes `material.alpha` through without weighting the
+ * colour by it. So a full-screen emissive quad at 30% alpha (a fade-to-white
+ * curtain on the way in) blooms at FULL strength, and the frame goes white while
+ * the quad itself is barely there. Measured in manta-recon (board #2742): the
+ * curtain at alpha 0.3 is a dim wash without glow, and with glow the background
+ * goes white, the carrier washes out and the planet bleaches. The same rule is
+ * why an emissive mesh hidden with `visibility = 0` still glowed.
+ *
+ * This installs an emissive selector that scales the colour by
+ * `material.alpha × mesh.visibility`. It keeps Babylon's emissive-texture level
+ * and `emissiveIntensity`, so an opaque, fully visible mesh glows exactly as before.
+ * `<tosi-b3d>` applies it to the glow layer it builds; call it yourself on one you
+ * build.
+ */
+export function opacityWeightedGlow(layer: BABYLON.GlowLayer): void {
+  layer.customEmissiveColorSelector = (mesh, _subMesh, material, result) => {
+    const m = material as any
+    const e = m?.emissiveColor as BABYLON.Color3 | undefined
+    if (!e) {
+      result.copyFrom(layer.neutralColor)
+      return
+    }
+    const alpha = m.alpha ?? 1
+    const k =
+      (m.emissiveTexture?.level ?? 1) *
+      (m.emissiveIntensity ?? 1) *
+      alpha *
+      (mesh.visibility ?? 1)
+    result.set(e.r * k, e.g * k, e.b * k, alpha)
+  }
+}
+
+/**
  * Keep a mesh out of every glow layer in the scene.
  *
- * **A glow layer ignores `mesh.visibility` entirely** (Babylon's effect layer never reads it),
- * so ANY emissive mesh you hide by setting `visibility = 0` will still be drawn by the glow
- * pass. Anything whose visibility you animate — a gaze-revealed panel, a fading-out fragment —
- * and which is emissive, has to opt out of glow or it cannot actually hide.
- *
- * Exported because this is a trap, not a nameplate quirk.
+ * A glow layer `<tosi-b3d>` builds weights glow by opacity (`opacityWeightedGlow`),
+ * so a mesh hidden with `visibility = 0` no longer glows there. A plain Babylon
+ * `GlowLayer` ignores `mesh.visibility` entirely, so under one of those an emissive
+ * mesh whose visibility you animate (a gaze-revealed panel, a fading fragment) still
+ * has to opt out of glow or it cannot actually hide. Exclusion is also right for
+ * things that are emissive but are not light sources, like UI plaques.
  */
 export function excludeFromGlow(
   scene: BABYLON.Scene,
