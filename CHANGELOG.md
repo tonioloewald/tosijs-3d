@@ -25,6 +25,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **The active tab shrinks to its own caption** when tabs are tight (Tonio):
   a short active tab no longer takes the width of the longest, and the space
   it saves goes to the other tabs' visible slices.
+  Each side stays on its side: tabs left of the active one end under it and
+  tabs right of it start under it, so a narrow active tab no longer lets the
+  right side cover the left side's slices.
 
 ### Fixed
 

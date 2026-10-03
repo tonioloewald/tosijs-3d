@@ -60,4 +60,16 @@ describe('file tabs (board #2466)', () => {
   test('it never grows past the shared width', () => {
     expect(tabLayout(9, 320, 0.5, 200, 4, 999).wActive).toBe(160)
   })
+
+  test('neither side reaches across a narrow active tab', () => {
+    const l = tabLayout(9, 320, 0.5, 200, 5, 50) // 'Stars' active, narrow
+    const a0 = l.x[5]
+    const a1 = l.x[5] + l.wActive
+    for (let i = 0; i < 5; i++)
+      expect(l.x[i] + l.ws[i]).toBeLessThanOrEqual(a1 + 1e-9)
+    for (let i = 6; i < 9; i++) expect(l.x[i]).toBeGreaterThanOrEqual(a0 - 1e-9)
+    // so the slice just left of the active tab is really there to tap
+    const mid = (l.visible[4][0] + l.visible[4][1]) / 2
+    expect(tabAt(mid, l, 5)).toBe(4)
+  })
 })

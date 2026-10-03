@@ -941,7 +941,7 @@ export function tabs3d(config: {
       // label of the one it covers. The panel colour underneath, the tint on
       // top.
       // The active tab may be narrower than the rest (its own caption).
-      const tw = on ? L.wActive : L.w
+      const tw = L.ws[i]
       const under = svgElements.path({ d: tabPath(x, tw), fill: TH.PANEL_BG })
       const tab = svgElements.path({
         d: tabPath(x, tw),

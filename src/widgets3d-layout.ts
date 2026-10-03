@@ -589,9 +589,11 @@ export function tabLayout(
   /** The active tab's width: its own, when space is tight (see below). */
   wActive: number
   x: number[]
+  /** Each tab's drawn width (see "EACH SIDE STAYS ON ITS SIDE"). */
+  ws: number[]
   visible: [number, number][]
 } {
-  if (n <= 0) return { w: 0, wActive: 0, x: [], visible: [] }
+  if (n <= 0) return { w: 0, wActive: 0, x: [], ws: [], visible: [] }
   const w = Math.min(width * maxFrac, natural, n === 1 ? width : Infinity)
   const x: number[] = []
   const visible: [number, number][] = []
@@ -600,7 +602,7 @@ export function tabLayout(
       x.push(i * w)
       visible.push([i * w, i * w + w])
     }
-    return { w, wActive: w, x, visible }
+    return { w, wActive: w, x, ws: x.map(() => w), visible }
   }
   /*
   THEY OVERLAP, AROUND THE ACTIVE TAB (Tonio: "the tabs left of the active
@@ -634,7 +636,25 @@ export function tabLayout(
       visible.push([right - step, right])
     }
   }
-  return { w, wActive: wa, x, visible }
+  /*
+  EACH SIDE STAYS ON ITS SIDE. A full-width tab right of a NARROW active tab
+  reached back past it and covered the left side's slices (Tonio, with Stars
+  active: Atmosphere's slice was buried). So a left tab ends at the active
+  tab's right edge, and a right tab starts at its left edge: under the
+  active tab, never across it.
+  */
+  const ws: number[] = []
+  for (let i = 0; i < n; i++) {
+    if (i < a) ws.push(Math.min(w, xa + wa - x[i]))
+    else if (i === a) ws.push(wa)
+    else {
+      const right = x[i] + w
+      const left = Math.max(x[i], xa)
+      x[i] = left
+      ws.push(right - left)
+    }
+  }
+  return { w, wActive: wa, x, ws, visible }
 }
 
 /**
@@ -658,14 +678,14 @@ export function tabOrder(n: number, active: number): number[] {
  * -1 if none. */
 export function tabAt(
   px: number,
-  layout: { w: number; wActive?: number; x: number[] },
+  layout: { w: number; wActive?: number; ws?: number[]; x: number[] },
   active: number
 ): number {
   const { w, x } = layout
   const order = tabOrder(x.length, active)
   for (let k = order.length - 1; k >= 0; k--) {
     const i = order[k]
-    const wi = i === active ? layout.wActive ?? w : w
+    const wi = layout.ws?.[i] ?? (i === active ? layout.wActive ?? w : w)
     if (px >= x[i] && px < x[i] + wi) return i
   }
   return -1
