@@ -485,9 +485,14 @@ export class B3dPlanet extends B3dChild {
     }
 
     // Atmosphere shell outside the highest point
-    const maxH = this.vertexHeights
-      ? Math.max(...this.vertexHeights)
-      : attrs.grossAmplitude + attrs.detailAmplitude
+    // A LOOP, not Math.max(...): spreading every vertex height into call
+    // arguments overflows the stack past the engine's argument limit (a page
+    // that would not start at subdivisions 160, board #2745).
+    let maxH = attrs.grossAmplitude + attrs.detailAmplitude
+    if (this.vertexHeights && this.vertexHeights.length > 0) {
+      maxH = -Infinity
+      for (const h of this.vertexHeights) if (h > maxH) maxH = h
+    }
     const atmoRadius = attrs.radius + maxH + atmoFrac * attrs.radius
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       'atmosphere',

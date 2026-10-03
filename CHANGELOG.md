@@ -6,6 +6,26 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **Bomb and missile blast radii are attributes** on `<tosi-b3d-aircraft>`
+  (board #2808, manta-recon): `bombFullRadius` / `bombBlastRadius` (2 / 6)
+  and `missileFullRadius` / `missileBlastRadius` (1.5 / 4), like the gun's,
+  so a game sizes blasts to its world.
+
+### Fixed
+
+- **Aircraft crashed into explosion debris** (board #2803, manta-recon): the
+  sweep ray treated `fragment-N` meshes as solid, so flying through an
+  explosion's remains crashed you in clear air. Fragments no longer collide
+  with anything; they carry a `debris` collision group for a game that wants
+  damaging debris.
+- **`b3d-planet` crashed at high `subdivisions`** (board #2745, manta-recon):
+  `Math.max(...vertexHeights)` overflowed the stack (160 failed, 96 worked).
+  Now a loop.
+
 ## 0.8.7
 
 **Panels that fit.** The scene panel caps itself to the space it has, and

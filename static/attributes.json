@@ -357,6 +357,26 @@
         "description": "Bomb warhead full damage"
       },
       {
+        "name": "missileFullRadius",
+        "default": "1.5",
+        "description": "Missile blast: full damage within the first, falling to nothing at the second (m). Size them to your world, as `gunFullRadius`/`gunBlastRadius`"
+      },
+      {
+        "name": "missileBlastRadius",
+        "default": "4",
+        "description": "Missile blast: full damage within the first, falling to nothing at the second (m). Size them to your world, as `gunFullRadius`/`gunBlastRadius`"
+      },
+      {
+        "name": "bombFullRadius",
+        "default": "2",
+        "description": "Bomb blast, likewise"
+      },
+      {
+        "name": "bombBlastRadius",
+        "default": "6",
+        "description": "Bomb blast, likewise"
+      },
+      {
         "name": "lockRange",
         "default": "140",
         "description": "Max range to acquire a missile target"
