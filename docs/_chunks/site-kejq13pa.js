@@ -1,5 +1,0 @@
-import{Ye}from"./site-c6g1b76s.js";import{I,k,qs}from"./site-wsw4wdqb.js";import{Fl}from"./site-rhds55q7.js";import{a}from"./site-3ge18yeb.js";class Qm extends Ye{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",k,0),this.controlPoint1=this.registerDataInput("controlPoint1",qs),this.controlPoint2=this.registerDataInput("controlPoint2",qs),this.easingFunction=this.registerDataOutput("easingFunction",I)}_updateOutputs(t){let o=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(o===void 0)return;let r=`${o}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[r]){let s=new Fl(e.x,e.y,i.x,i.y);s.setEasingMode(o),this._easingFunctions[r]=s}this.easingFunction.setValue(this._easingFunctions[r],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var n=!1;function qm(){if(n)return;n=!0,a("FlowGraphBezierCurveEasing",Qm)}qm();
-export{Qm,qm};
-
-//# debugId=DBA02F30E9EDF36664756E2164756E21
-//# sourceMappingURL=site-kejq13pa.js.map

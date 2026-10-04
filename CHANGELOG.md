@@ -6,7 +6,17 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.10
+
+**Two fixes from manta's orbit stage, and the doc site has shadows again
+without a workaround.** Glow no longer whites out the frame under a fading
+full-screen mesh, and the skybox leaves the background colour alone for a
+camera that cannot see it. tosijs-ui 1.16 loads the doc site once, which was
+the cause of ensemble's `Cannot redefine property` error and our missing doc-
+site shadows.
+
+Size: barrel (min, packages external) 898.6 KB raw / 300.6 KB gz, +0.05% on
+0.8.9.
 
 ### Fixed
 

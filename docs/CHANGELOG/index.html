@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=bbe5b3b1f7e3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=5ff1fa890aaf" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=f987f54cd712" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=b24a385d4b8a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,12 +51,49 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>Unreleased</h2>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Glow no longer whites out the frame under a fading full-screen mesh</strong>
+(board #2742, from manta-recon). Babylon&#39;s glow layer ignores opacity: it
+never reads <code>mesh.visibility</code> and does not weight the colour by
+<code>material.alpha</code>. So manta&#39;s re-entry curtain, a full-screen emissive quad on
+every layer bit, bloomed at full strength while at 30% alpha, and the orbit
+view went white. The glow layer <code>&lt;tosi-b3d&gt;</code> builds now weights each mesh&#39;s
+emissive by <code>alpha × visibility</code>. Opaque, visible meshes glow exactly as before.
+A mesh hidden with <code>visibility = 0</code> no longer glows, so <code>excludeFromGlow</code> is
+needed only for emissive things that are not light sources.</li>
+<li><strong>The skybox no longer overwrites the scene&#39;s clear colour for a camera that
+cannot see it</strong> (board #2865, from manta-recon). A camera whose <code>layerMask</code>
+excludes the dome is looking at another stage, which owns its own backdrop.
+The sky used to reset it to Babylon&#39;s default grey on every refresh, so
+manta&#39;s orbit view re-set black every frame. The sky re-applies its backdrop
+when the active camera changes back.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>Dev: tosijs-ui 1.16.5 and tosijs 1.10.7.</strong> tosijs-ui 1.16 loads the doc
+site&#39;s entry once (tosijs-ui#191), so the static shadow-shader workaround in
+<code>demo/site.ts</code> is gone and the doc site renders shadows without it. That
+double load was also ensemble&#39;s <code>Cannot redefine property: onBeforeViewRenderObservable</code> (tosijs-3d#78). tosijs 1.10 dropped
+<code>Component</code>&#39;s <code>[key: string]: any</code>, which surfaced 27 undeclared properties:
+<code>AbstractMesh</code> now declares <code>x</code>/<code>y</code>/<code>z</code>/<code>rx</code>/<code>ry</code>/<code>rz</code>/<code>axes</code>, <code>B3dBiped</code>
+declares <code>url</code>/<code>player</code>, and a dead <code>_jumpWas</code> store is gone. The peer range
+is unchanged (<code>tosijs ^1.9.2</code>).</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong><code>opacityWeightedGlow(layer)</code></strong> installs the same rule on a <code>GlowLayer</code> you
+build yourself.</li>
+</ul>
 <h2>0.8.9</h2>
 <p><strong>What ensemble was waiting on, and a safer publish.</strong> Schemas for the moon,
 the weather and decoration elements and sound, with sections, so a schema-
 driven editor can offer the weather; <code>inputField</code> no longer leaks; fetched
 attributes refuse anything but a string. And the publish now runs under the
 practices template where only a code-free job can hold the npm credential.</p>
+<p>Size: barrel (min, packages external) 898.1 KB raw / 300.5 KB gz, +0.6% on
+0.8.8.</p>
 <h3>Added</h3>
 <ul>
 <li><strong>Schemas for the moon and the weather and decoration elements</strong>
@@ -4417,6 +4454,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=bbe5b3b1f7e3"></script>
+  <script type="module" src="../hydrate-p1pek84k.js"></script>
 </body>
 </html>

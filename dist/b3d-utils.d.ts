@@ -393,6 +393,13 @@ export declare class AbstractMesh extends B3dChild {
         rz: number;
         axes: boolean;
     };
+    x: number;
+    y: number;
+    z: number;
+    rx: number;
+    ry: number;
+    rz: number;
+    axes: boolean;
     mesh?: BABYLON.Mesh;
     protected loadGeneration: number;
     private _axesNode?;

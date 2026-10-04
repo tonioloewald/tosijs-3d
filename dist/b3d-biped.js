@@ -2177,7 +2177,6 @@ export class B3dBiped extends B3dControllable {
             this button is the SURFACE control and continuous, so it never charges.
             */
             const jumpDown = (input.jump ?? 0) > 0.5;
-            this._jumpWas = jumpDown;
             const surfaceY = this._waterSurfaceY();
             // `eyeHeight` as a proxy for body height. It is a little short by
             // definition, which is the harmless direction: equilibrium is a FRACTION

@@ -1,0 +1,5 @@
+import{tt,ai}from"./site-yk445q08.js";import{jt}from"./site-yrysffz4.js";import{o}from"./site-wcwq97n8.js";class dx extends tt{constructor(e){super(e);this.delayIndex=this.registerDataInput("delayIndex",jt)}_execute(e,a){let r=ai(this.delayIndex.getValue(e));if(r<0||isNaN(r)||!isFinite(r))return this._reportError(e,"Invalid delay index");let t=e._getGlobalContextVariable("pendingDelays",[])[r];if(t)t.dispose();this.out._activateSignal(e)}getClassName(){return"FlowGraphCancelDelayBlock"}}var l=!1;function px(){if(l)return;l=!0,o("FlowGraphCancelDelayBlock",dx)}px();
+export{dx,px};
+
+//# debugId=293DD7BAD9F2ADB764756E2164756E21
+//# sourceMappingURL=site-0s535076.js.map

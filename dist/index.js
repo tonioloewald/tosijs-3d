@@ -109,7 +109,7 @@ export { B3dGamepad, b3dGamepad, parseGamepadControls, } from './glass-gamepad.j
 export { XrGamepadSource } from './xr-gamepad.js';
 // XR reference frames & spatial UI
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
-export { attachFramePanel, placeholderPanelSvg, excludeFromGlow, } from './frame-panel.js';
+export { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js';

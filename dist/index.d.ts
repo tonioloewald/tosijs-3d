@@ -80,7 +80,7 @@ export { XrGamepadSource } from './xr-gamepad.js';
 export type { ClusterConfig, ClusterAnchor } from './glass-gamepad.js';
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
 export type { FrameName, XrFramesOptions } from './xr-frames.js';
-export { attachFramePanel, placeholderPanelSvg, excludeFromGlow, } from './frame-panel.js';
+export { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
 export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';

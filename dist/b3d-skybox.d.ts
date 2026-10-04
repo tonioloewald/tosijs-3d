@@ -143,6 +143,8 @@ export declare class B3dSkybox extends AbstractMesh {
     private interval;
     private _sizeToCamera;
     private _lastSkyTime;
+    /** The camera the backdrop was last written for — see `_sizeToCamera`. */
+    private _skyCamera;
     private _sunApplied;
     private _sunWaitFrames;
     private sunEl;

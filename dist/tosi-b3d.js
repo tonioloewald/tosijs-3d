@@ -306,7 +306,7 @@ import { CombatWorld } from './destroyable.js';
 import { b3dGamepad } from './glass-gamepad.js';
 import { XrGamepadSource } from './xr-gamepad.js';
 import { XrFrames, EntityFrame } from './xr-frames.js';
-import { attachFramePanel, placeholderPanelSvg, } from './frame-panel.js';
+import { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, } from './frame-panel.js';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js';
 import { compositeFog, approachFog, } from './atmosphere.js';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, renderScalingLevel, } from './b3d-quality.js';
@@ -5138,9 +5138,12 @@ export class B3d extends Component {
         if (intensity > 0) {
             if (!this.glowLayer) {
                 this.glowLayer = new BABYLON.GlowLayer('glow', this.scene);
-                // A glow layer ignores `mesh.visibility` (see `excludeFromGlow`), so any panel that
-                // already exists would be drawn by the glow pass even when gaze-hidden. Panels built
-                // AFTER this exclude themselves on creation; these are the ones that got here first.
+                // Bloom only as much as a mesh is visible. Babylon's glow ignores opacity, so a
+                // fading full-screen curtain whited out the whole frame (#2742).
+                opacityWeightedGlow(this.glowLayer);
+                // UI plaques and leaves are emissive but not light sources: keep them out of
+                // the bloom. Panels built AFTER this exclude themselves on creation; these are
+                // the ones that got here first.
                 for (const m of this.scene.meshes) {
                     // Neither UI plaques nor leaves are light sources — keep them out of the bloom.
                     if (m.name === 'frame-panel' || m.name === 'ambient-leaves')

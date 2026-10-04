@@ -1,0 +1,5 @@
+import{rp,gi}from"./site-yk445q08.js";import{Dr,ut}from"./site-yrysffz4.js";class Bl extends gi{constructor(t){super(t);this.key=this.registerDataInput("key",Dr),this.keyCode=this.registerDataOutput("keyCode",Dr),this.keyValue=this.registerDataOutput("keyValue",Dr),this.shiftKey=this.registerDataOutput("shiftKey",ut),this.ctrlKey=this.registerDataOutput("ctrlKey",ut),this.altKey=this.registerDataOutput("altKey",ut),this.metaKey=this.registerDataOutput("metaKey",ut),this.commandOrCtrl=this.registerDataOutput("commandOrCtrl",ut)}_executeEvent(t,a){let e=a.event,s=this.key.getValue(t);if(s&&s!==e.code)return!0;return this.keyCode.setValue(e.code,t),this.keyValue.setValue(e.key,t),this.shiftKey.setValue(e.shiftKey,t),this.ctrlKey.setValue(e.ctrlKey,t),this.altKey.setValue(e.altKey,t),this.metaKey.setValue(e.metaKey,t),this.commandOrCtrl.setValue(rp?e.metaKey:e.ctrlKey,t),this._execute(t),!this.config?.stopPropagation}_preparePendingTasks(t){}_cancelPendingTasks(t){}}
+export{Bl};
+
+//# debugId=8D48534625B192D164756E2164756E21
+//# sourceMappingURL=site-0q7zwh05.js.map

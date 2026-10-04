@@ -47,6 +47,8 @@ export declare class AnimState {
 export declare function ualAnimationStates(extra?: AnimStateSpec[]): AnimState[];
 export declare class B3dBiped extends B3dControllable {
     static preferredTagName: string;
+    url: string;
+    player: boolean;
     static initAttributes: {
         url: string;
         skin: string;
