@@ -289,6 +289,17 @@ export function detonateWarhead(
 
 // A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
 // between the blast center and it — cubes don't shadow each other from a blast.
+/*
+"DESTROYABLE" MEANS THE WHOLE MODEL, not the node that was registered.
+
+A library model registers its ROOT, and the root is a TransformNode: the mesh a
+ray can actually hit is a child. Exempting only the registered nodes therefore
+exempted nothing for such a model, and the ray to its origin stopped on its own
+hull. An aircraft with `destroyable="on"` took no blast damage from anything,
+including its own bomb going off under it (manta-recon, board #2906). So the
+exemption walks up: a mesh anywhere beneath a destroyable is not cover. Same
+ancestry rule as `destroyableAt`, for the same reason.
+*/
 function hasLos(
   owner: B3d,
   from: BABYLON.Vector3,
@@ -302,9 +313,18 @@ function hasLos(
   const ray = new BABYLON.Ray(from, dir.normalize(), dist - 0.1)
   // Shared predicate — a UI panel must not provide BLAST COVER. `ground` is
   // deliberately transparent to LOS here (it is the floor, not a wall).
+  const roots = new Set<unknown>(destroyableMeshes)
+  const underDestroyable = (m: BABYLON.AbstractMesh): boolean => {
+    let node: unknown = m
+    while (node != null) {
+      if (roots.has(node)) return true
+      node = (node as { parent?: unknown }).parent
+    }
+    return false
+  }
   const hit = owner.scene.pickWithRay(
     ray,
-    collidable((m) => m.name === 'ground' || destroyableMeshes.includes(m))
+    collidable((m) => m.name === 'ground' || underDestroyable(m))
   )
   return !(hit != null && hit.hit)
 }

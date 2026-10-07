@@ -26,6 +26,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - a popup torn off a tilted panel (the headset settings panel is tilted)
     snapped upright, and the drag then threw it metres away.
   The settings panel's own occlusion re-pick had the same cut-ray fault.
+- **A model's own hull shielded it from every blast.** Blast line of sight
+  exempted only the node each destroyable registered, and a library model
+  registers a root with the hull as a child, so the ray to it stopped on its
+  own hull. An aircraft with `destroyable="on"` took no blast damage, its own
+  bomb included. Anything beneath a destroyable is now not cover; a wall
+  still is. From manta-recon (board #2906).
 
 ### Changed
 
