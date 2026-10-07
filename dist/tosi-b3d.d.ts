@@ -358,10 +358,13 @@ export declare class B3d extends Component {
     camera?: BABYLON.Camera;
     gui?: GUI.GUI3DManager;
     glowLayer?: BABYLON.GlowLayer;
+    private static _warnedSsaoAlways;
     private _ssao?;
     private _ssaoCamObs?;
     xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
+    /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
+    private _xrPresenting;
     private static _active;
     /** True when this scene should consume shared keyboard/gamepad input — it's the
      * active (last hovered/clicked) scene, or none has been touched yet. Controllables

@@ -6,7 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.12
+
+**0.8.11's ambient occlusion broke VR, and this takes it out of the headset.**
+Also: headset popups can be dragged and closed, and a model no longer shields
+itself from a blast. The headset fixes were verified in an EMULATED headset
+(a fake WebXR device in headless Chrome), not yet on a device.
 
 ### Fixed
 

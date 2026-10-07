@@ -385,7 +385,27 @@ function wirePointer(owner) {
             return;
         // Un-pickable panels are skipped by the pick itself, so a modal's blocking
         // needs no test here.
-        const hit = scene.pick(scene.pointerX, scene.pointerY, (m) => list.some((p) => p.plane.mesh === m));
+        /*
+        ALONG THE RAY THAT PRESSED, not from the screen position. In a headset the
+        press comes from a controller, and `scene.pointerX/Y` is only that
+        controller projected onto the screen: picking from there casts a ray from
+        the HEAD through that point, which is not where the hand is aiming. The
+        title bar is a thin target, so the two disagree about it most of the time,
+        and the popup could be neither dragged nor closed in VR. Flat, the event's
+        ray IS the screen ray, so this is the same pick.
+        */
+        const isPopup = (m) => list.some((p) => p.plane.mesh === m);
+        const pressRay = info.pickInfo?.ray;
+        /*
+        A COPY AT FULL LENGTH. Babylon's XR pointer shortens its ray to the distance
+        of whatever it hit, so re-casting that same ray stops a rounding error short
+        of the surface it just found and reports a miss. Measured in an emulated
+        session: length 1.4968695 against a hit at 1.4968695, no hit; the same
+        origin and direction at full length, hit.
+        */
+        const hit = pressRay != null
+            ? scene.pickWithRay(new BABYLON.Ray(pressRay.origin, pressRay.direction, 1e4), isPopup)
+            : scene.pick(scene.pointerX, scene.pointerY, isPopup);
         const onPopup = hit?.hit === true ? hit.pickedMesh : null;
         if (onPopup != null) {
             // CLICK to front, not just drag-to-front: raising something only when you
@@ -426,7 +446,7 @@ function wirePointer(owner) {
             target.beginDrag(info.event?.pointerId ?? 0, 
             // The point on the panel actually under the pointer, and the ray that
             // found it — see beginDrag for why both are required.
-            info.pickInfo?.pickedPoint ?? undefined, info.pickInfo?.ray ?? undefined);
+            hit?.pickedPoint ?? info.pickInfo?.pickedPoint ?? undefined, pressRay ?? undefined);
         }
     });
 }
@@ -659,6 +679,17 @@ export function openPopup(owner, opts) {
         // failed drag.
         if (gripHeight > 0)
             drag.startAndReleaseDragOnPointerEvents = false;
+        /*
+        A HEADSET DRAG DIED ON ITS FIRST FRAME without this. The behaviour cancels
+        a drag when "another button" arrives on the same pointer, meaning any event
+        whose `button` is neither -1 nor the button that started it. `startDrag()`
+        records no starting button (-1), a mouse move carries -1 so it passes, and
+        Babylon's XR pointer synthesises its moves as `new PointerEvent('pointermove')`,
+        whose button defaults to 0. So in VR the first move after the press
+        released the drag: the popup tore off and then sat there. We end the drag
+        ourselves on POINTERUP, so the rule has nothing to protect.
+        */
+        drag.allowOtherButtonsDuringDrag = true;
         mesh.addBehavior(drag);
         drag.onDragStartObservable.add(() => {
             // Pull a tab out of the window: moving an owned popup promotes it.
@@ -729,7 +760,12 @@ export function openPopup(owner, opts) {
             point — Babylon reuses its pick info between events.
             */
             const grabRay = ray != null
-                ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), ray.length)
+                ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), 
+                // NOT `ray.length`: an XR pointer's ray is cut to its hit
+                // distance, and Babylon starts the drag by casting this ray at
+                // a plane through the grab point. A ray that ends exactly there
+                // misses it, and the drag silently never starts.
+                1e4)
                 : undefined;
             queueMicrotask(() => {
                 if (drag == null || closed)
@@ -769,6 +805,25 @@ export function openPopup(owner, opts) {
                 plane.x = world.x;
                 plane.y = world.y;
                 plane.z = world.z;
+                /*
+                …AND THE ORIENTATION, which the element also rewrites every frame.
+        
+                Position alone was enough only while every opener happened to be
+                upright. The headset's settings panel is tilted back to face you, so a
+                popup torn off it snapped vertical: it turned edge-on to the viewer, and
+                because the drag plane is the panel's own plane, a controller ray aimed
+                up at it met that plane metres away. Measured in an emulated session: a
+                0.25 m sweep of the pointer threw the popup 7 m into the sky.
+                `setParent(null)` has just baked the world rotation into the mesh, so
+                read it back in the element's own yaw/pitch/roll.
+                */
+                const e = mesh.rotationQuaternion?.toEulerAngles();
+                if (e != null) {
+                    const deg = 180 / Math.PI;
+                    plane.rx = e.x * deg;
+                    plane.ry = e.y * deg;
+                    plane.rz = e.z * deg;
+                }
                 attachDrag();
             });
         },

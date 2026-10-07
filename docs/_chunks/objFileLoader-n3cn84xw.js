@@ -1,4 +1,0 @@
-import{jr,q0}from"./site-j5tpf81z.js";import"./site-y66zcpy4.js";import"./site-76h4tp3d.js";import"./site-rq01b80k.js";import"./site-596r1e4t.js";export{jr as OBJFileLoader,q0 as RegisterOBJFileLoader};
-
-//# debugId=AB5EFEDCA7D57C6764756E2164756E21
-//# sourceMappingURL=objFileLoader-n3cn84xw.js.map

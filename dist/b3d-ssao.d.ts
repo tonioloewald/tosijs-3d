@@ -1,10 +1,13 @@
 import * as BABYLON from '@babylonjs/core';
+/** `always` is deprecated: it means `on`. SSAO does not run in XR. */
 export type SsaoSetting = 'off' | 'auto' | 'on' | 'always';
 /**
  * Should SSAO be running? Pure, so the rule is testable without an engine.
  *
- * `auto` and `on` are flat-only: a headset pays for the effect twice at a high
- * per-eye resolution. `always` is the explicit "also in XR".
+ * Never in XR, whatever the setting: a post-process pipeline on a WebXR camera
+ * draws one image across both eyes (see "Flat only" in the page above). `xr` must be true for
+ * the WHOLE session including entering and exiting, because the headset camera
+ * becomes the active camera before the session reports itself entered.
  */
 export declare function ssaoActive(setting: SsaoSetting | boolean | string | null | undefined, opts: {
     xr: boolean;

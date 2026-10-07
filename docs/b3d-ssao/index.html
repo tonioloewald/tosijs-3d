@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=84117ce0295f" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=e2e8990c53be" data-tosi-doc-system />
   <title>Ambient occlusion (SSAO) — tosijs-3d</title>
   <meta name="description" content="Corners get darker. Where a wall meets the floor, where crates are stacked, under a ledge: real light does not reach in there, and a renderer without ambient…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-ssao/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=85c8ff021f3d" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=31b288fc94f0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Ambient occlusion (SSAO)</h1>
 <p><strong>Corners get darker.</strong> Where a wall meets the floor, where crates are stacked,
@@ -53,9 +53,8 @@ them. That is most of why a scene of plain boxes looks pasted together. One
 attribute on <code>&lt;tosi-b3d&gt;</code> fixes it: <code>ssao=&quot;auto&quot;</code>.</p>
 <h2>Demo</h2>
 <p>Open the ⚙ panel and switch <code>ssao</code> between <code>off</code> and <code>on</code>. Watch the foot of
-the walls, the gaps between the crates and the underside of the lintel.
-<code>always</code> keeps it on inside a headset, which is how you check what it costs
-there.</p>
+the walls, the gaps between the crates and the underside of the lintel. Enter
+VR and it switches itself off: see &quot;Flat only&quot; below.</p>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, select3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
@@ -70,7 +69,7 @@ preview.append(
       ssaoStrength: ssaoDemo.strength,
       ssaoRadius: ssaoDemo.radius,
       scenePanel: () =&gt; [
-        select3d({ label: &#39;ssao&#39;, value: ssaoDemo.mode, options: [&#39;off&#39;, &#39;auto&#39;, &#39;on&#39;, &#39;always&#39;] }),
+        select3d({ label: &#39;ssao&#39;, value: ssaoDemo.mode, options: [&#39;off&#39;, &#39;auto&#39;, &#39;on&#39;] }),
         slider3d({ label: &#39;strength&#39;, value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: &#39;radius (m)&#39;, value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
       ],
@@ -109,34 +108,33 @@ cost is one extra pass over your geometry plus a per-pixel loop.</p>
 <thead>
 <tr>
 <th><code>ssao</code></th>
-<th>flat</th>
-<th>in a headset</th>
+<th></th>
 </tr>
 </thead>
 <tbody><tr>
 <td><code>off</code> (default)</td>
 <td>off</td>
-<td>off</td>
 </tr>
 <tr>
 <td><code>auto</code></td>
 <td>on if the device tier affords it (top tier only)</td>
-<td>off</td>
 </tr>
 <tr>
 <td><code>on</code></td>
 <td>on</td>
-<td>off</td>
-</tr>
-<tr>
-<td><code>always</code></td>
-<td>on</td>
-<td>on</td>
 </tr>
 </tbody></table>
-<p>A headset pays for it twice (two eyes) at a high per-eye resolution, so <code>auto</code>
-and <code>on</code> both stay off in XR. <code>always</code> is there for hardware that can pay: a
-PC-driven headset, or a Vision Pro. A standalone Quest-class device cannot.</p>
+<h2>Flat only</h2>
+<p><strong>SSAO never runs in a headset</strong>, whatever the setting, and it is switched off
+before the session starts and back on when it ends.</p>
+<p>That is not a budget decision. Babylon&#39;s SSAO is a post-process, and a
+post-process chain on a WebXR camera does not render per eye: it draws ONE
+image across both. That is what 0.8.11 did on a Quest, and an emulated headset
+reproduces it whether the chain is carried into the session or built inside
+it. Ambient occlusion in a headset needs a different technique, not a
+different setting.</p>
+<p>(0.8.11 shipped an <code>always</code> value that claimed to run in XR. It never worked.
+It is still accepted, means <code>on</code>, and warns once.)</p>
 <p>Sample count and resolution come from the device budget
 (<code>PerfBudgets.ssaoSamples</code>, <code>ssaoRatio</code>), so you tune the LOOK and the tier
 tunes the COST.</p>
@@ -152,7 +150,7 @@ tunes the COST.</p>
 <tbody><tr>
 <td><code>ssao</code></td>
 <td><code>&#39;off&#39;</code></td>
-<td><code>off</code>, <code>auto</code>, <code>on</code> or <code>always</code>: see the table above. LIVE</td>
+<td><code>off</code>, <code>auto</code> or <code>on</code>: see the table above. Flat only. LIVE</td>
 </tr>
 <tr>
 <td><code>ssaoStrength</code></td>
@@ -413,6 +411,6 @@ vertex-animated crowd) is occluded as if standing in its rest pose.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-9m8hs5pm.js"></script>
+  <script type="module" src="../hydrate-25dr1c0j.js"></script>
 </body>
 </html>

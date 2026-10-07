@@ -929,7 +929,7 @@ b3d-spawner
 ## b3d-ssao
 Ambient occlusion (SSAO)
 
-  ssao  = 'off'  — `off`, `auto`, `on` or `always`: see the table above. LIVE
+  ssao  = 'off'  — `off`, `auto` or `on`: see the table above. Flat only. LIVE
   ssaoStrength  = 1  — How dark a fully occluded crease gets. `0` is none. LIVE
   ssaoRadius  = 2  — How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE
 
