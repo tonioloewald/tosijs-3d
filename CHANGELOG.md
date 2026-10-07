@@ -10,17 +10,28 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
-- **SSAO broke VR.** Entering a headset with `ssao` on left its post-process
-  chain on the headset camera: on a Quest, one image stretched across both
-  eyes. SSAO is now removed before the headset camera takes over and restored
-  when the session ends.
+- **SSAO broke VR.** With `ssao="always"` a headset drew one image stretched
+  across both eyes, and `on` put the same chain on the headset camera for the
+  moment of entry. A post-process chain on a WebXR camera does not render per
+  eye. SSAO is now removed before the headset camera takes over and
+  restored when the session ends.
+- **Popups in a headset could not be dragged or closed by their title bar.**
+  Three causes, all found by driving an emulated controller:
+  - the press was re-cast along Babylon's XR pointer ray, which is cut to the
+    exact distance of what it hit, so the re-cast stopped a rounding error
+    short of the popup and missed;
+  - a drag that did start was cancelled by the first pointer move, because
+    Babylon's XR moves carry `button: 0` and the drag behaviour reads that as
+    "another button pressed";
+  - a popup torn off a tilted panel (the headset settings panel is tilted)
+    snapped upright, and the drag then threw it metres away.
+  The settings panel's own occlusion re-pick had the same cut-ray fault.
 
 ### Changed
 
 - **SSAO is flat-only, and `ssao="always"` is deprecated.** 0.8.11 said
-  `always` ran in a headset. It never worked: a post-process pipeline built
-  inside a WebXR session is ignored, and one carried into it breaks the frame.
-  `always` is still accepted, means `on`, and warns once.
+  `always` ran in a headset. It is the setting that broke the frame. It is
+  still accepted, means `on`, and warns once.
 
 ## 0.8.11
 

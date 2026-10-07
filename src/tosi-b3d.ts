@@ -586,7 +586,7 @@ export class B3d extends Component {
     /*
     Ambient occlusion (see b3d-ssao). 'off' | 'auto' | 'on'. `auto` follows
     the device tier. FLAT ONLY, whatever the setting: a post-process pipeline
-    does not survive a WebXR camera. Off by default: it redraws the opaque
+    on a WebXR camera draws one image across both eyes. Off by default: it redraws the opaque
     scene and samples it per pixel, which is a cost a scene should choose.
     */
     ssao: 'off' as SsaoSetting,
@@ -5517,7 +5517,12 @@ export class B3d extends Component {
         pick.pickedMesh !== plane &&
         isNoCollide(pick.pickedMesh)
       if (!uv && !blockedByUi && pick?.ray) {
-        const p2 = scene.pickWithRay(pick.ray, (m) => m === plane)
+        // A full-length copy: the XR pointer's ray is cut to the distance of
+        // the occluder it hit, so re-casting it can never reach a panel behind.
+        const p2 = scene.pickWithRay(
+          new BABYLON.Ray(pick.ray.origin, pick.ray.direction, 1e4),
+          (m) => m === plane
+        )
         if (p2?.hit) uv = p2.getTextureCoordinates()
         if (kind) dbg.repick = p2?.hit ? 'HIT' : 'miss'
       } else if (kind) {

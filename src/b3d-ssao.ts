@@ -78,11 +78,11 @@ cost is one extra pass over your geometry plus a per-pixel loop.
 before the session starts and back on when it ends.
 
 That is not a budget decision. Babylon's SSAO is a post-process, and a
-post-process chain does not survive a WebXR camera: built inside a session it
-is silently ignored (the picture is identical with and without it), and one
-carried INTO a session from the flat camera breaks the frame outright. On a
-Quest that was one image stretched across both eyes. Ambient occlusion in a
-headset needs a different technique, not a different setting.
+post-process chain on a WebXR camera does not render per eye: it draws ONE
+image across both. That is what 0.8.11 did on a Quest, and an emulated headset
+reproduces it whether the chain is carried into the session or built inside
+it. Ambient occlusion in a headset needs a different technique, not a
+different setting.
 
 (0.8.11 shipped an `always` value that claimed to run in XR. It never worked.
 It is still accepted, means `on`, and warns once.)
@@ -116,8 +116,8 @@ export type SsaoSetting = 'off' | 'auto' | 'on' | 'always'
 /**
  * Should SSAO be running? Pure, so the rule is testable without an engine.
  *
- * Never in XR, whatever the setting: a post-process pipeline does not survive
- * a WebXR camera (see "Flat only" in the page above). `xr` must be true for
+ * Never in XR, whatever the setting: a post-process pipeline on a WebXR camera
+ * draws one image across both eyes (see "Flat only" in the page above). `xr` must be true for
  * the WHOLE session including entering and exiting, because the headset camera
  * becomes the active camera before the session reports itself entered.
  */
