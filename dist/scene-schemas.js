@@ -49,6 +49,16 @@ a curve — where the answer really is "hand the whole thing to a custom editor"
 Asked by `tosijs-3d-ensemble` (#72), whose generated panel had eight colour
 properties it could not render and had to fall back to unvalidated hex text.
 
+## The host has one too: `sceneSchemas.b3d`
+
+`<tosi-b3d>` itself carries scene-level settings: the clear colour, glow, the
+ambient occlusion look (`ssaoStrength`, `ssaoRadius`), the scene wind and the
+time scale. `b3dSchema()` describes those and ONLY those. The host's other
+attributes configure a viewer rather than a scene (camera limits, quality
+tier, pixel ratio, gamepad and panel chrome, XR and pause behaviour) and are
+declined by name in `SCENE_OMITTED.b3d`, so a document never stores someone's
+laptop. Asked by `tosijs-3d-ensemble` (#101).
+
 ## Drift is a test, not a promise
 
 The defaults here are duplicated from the components — there is no way to read
@@ -527,6 +537,34 @@ export const SCENE_OMITTED = {
     decorator: [],
     trail: [],
     sound: [],
+    /*
+    The host carries two kinds of attribute, and only one is the SCENE. These
+    configure a VIEWER: the default camera's limits, the device (frame rate,
+    quality tier, pixel ratio), input chrome (glass gamepad, panels), XR entry
+    and pause behaviour. A document that stored them would be storing someone's
+    laptop.
+    */
+    b3d: [
+        'frameRate',
+        'minElevation',
+        'maxElevation',
+        'minDistance',
+        'maxDistance',
+        'noXr',
+        'xrGrid',
+        'xrReticle',
+        'scenePanelOpen',
+        'panelSections',
+        'gamepadScale',
+        'gamepadFade',
+        'quality',
+        'pixelRatio',
+        'stats',
+        'pauseWhenHidden',
+        'startPaused',
+        'reseatFreeze',
+        'enterXrOnResume',
+    ],
 };
 /** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
 export function groundSchema(extra = {}) {
@@ -1048,7 +1086,87 @@ export function soundSchema(extra = {}) {
     }, extra);
 }
 /** Every scene-primitive schema, by the element name a consumer would use. */
+/**
+ * `tosi-b3d` — the scene HOST's own attributes: the ones that say how the
+ * scene looks and moves, as opposed to how one viewer is looking at it.
+ *
+ * Asked by `tosijs-3d-ensemble` (#101). A document can RECOMMEND an ambient
+ * occlusion look (`ssaoStrength`, `ssaoRadius`) and carry the scene's wind, and
+ * a consumer must never type those ranges itself.
+ *
+ * `ssao` is listed because the look is meaningless without it, but whether it
+ * is ON is usually the viewer's call (it costs frame time and never runs in a
+ * headset): store the recommendation, and let the device decide.
+ */
+export function b3dSchema(extra = {}) {
+    return schema('Scene', {
+        clearColor: {
+            ...color(''),
+            description: 'Background colour where nothing is drawn. Empty leaves the default; a skybox covers it.',
+        },
+        glowLayerIntensity: num(0, {
+            minimum: 0,
+            maximum: 3,
+            'x-useful': [0, 1.5],
+            description: 'Bloom around emissive surfaces. 0 is off.',
+        }),
+        ssao: {
+            ...choice('off', ['off', 'auto', 'on', 'always']),
+            'x-deprecated-values': ['always'],
+            description: 'Ambient occlusion. `auto` follows the device tier. Flat only: it never runs in a headset. `always` is deprecated and means `on`.',
+        },
+        ssaoStrength: num(1, {
+            minimum: 0,
+            maximum: 3,
+            'x-useful': [0.5, 2],
+            description: 'How dark a fully occluded crease gets. 0 is none.',
+        }),
+        ssaoRadius: num(2, {
+            minimum: 0.25,
+            maximum: 6,
+            'x-useful': [0.5, 3],
+            ...M,
+            description: 'How far a surface looks for something occluding it. Small darkens tight creases; large shades whole alcoves.',
+        }),
+        timeScale: num(1, {
+            minimum: 0,
+            maximum: 8,
+            'x-useful': [0, 2],
+            description: 'Sim time against wall time. 1 is real time, 0 stops the sim.',
+        }),
+        windSpeed: num(0, {
+            minimum: 0,
+            maximum: 60,
+            'x-useful': [0, 30],
+            'x-unit': 'm/s',
+            description: 'The scene wind. 0 is none; a child\'s own wind attributes still win where set.',
+        }),
+        windBearingDeg: num(0, {
+            minimum: 0,
+            maximum: 360,
+            ...DEG,
+            description: 'Where the wind is GOING, north-up and clockwise. 0 blows toward +Z.',
+        }),
+        windGust: num(0, {
+            minimum: 0,
+            maximum: 1,
+            description: 'Gust size as a fraction of windSpeed. 0 is dead steady.',
+        }),
+    }, {
+        ...sections([
+            { title: 'Look', keys: ['clearColor', 'glowLayerIntensity'] },
+            {
+                title: 'Ambient occlusion',
+                keys: ['ssao', 'ssaoStrength', 'ssaoRadius'],
+            },
+            { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
+            { title: 'Time', keys: ['timeScale'] },
+        ]),
+        ...extra,
+    });
+}
 export const sceneSchemas = {
+    b3d: b3dSchema,
     skybox: skyboxSchema,
     sun: sunSchema,
     water: waterSchema,

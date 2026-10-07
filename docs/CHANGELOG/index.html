@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=e2e8990c53be" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d0b25a2c27eb" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=31b288fc94f0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=faf7d60b6a48" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,23 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.13</h2>
+<p><strong>A schema for <code>&lt;tosi-b3d&gt;</code> itself, and an emulated headset in the repo.</strong></p>
+<h3>Added</h3>
+<ul>
+<li><strong><code>sceneSchemas.b3d</code> / <code>b3dSchema()</code></strong>: the host&#39;s scene-level attributes,
+with ranges, units and useful bands: <code>clearColor</code>, <code>glowLayerIntensity</code>,
+<code>ssao</code>, <code>ssaoStrength</code>, <code>ssaoRadius</code>, <code>timeScale</code>, <code>windSpeed</code>,
+<code>windBearingDeg</code>, <code>windGust</code>. The attributes that configure a viewer rather
+than a scene (camera limits, quality, pixel ratio, gamepad and panel chrome,
+XR and pause behaviour) are declined by name in <code>SCENE_OMITTED.b3d</code>. The
+drift test covers it like every other schema. <code>ssao</code> marks <code>always</code> in
+<code>x-deprecated-values</code>. Asked by tosijs-3d-ensemble (#101).</li>
+<li><strong><code>bun run xr &lt;path&gt;</code></strong> (<code>bin/xr-emulate.ts</code>, repo tooling, not shipped): an
+emulated headset. Headless Chrome with a fake WebXR device enters VR on a
+page, screenshots both eyes and drives controllers from script. It is how
+0.8.12&#39;s headset fixes were found.</li>
+</ul>
 <h2>0.8.12</h2>
 <p><strong>0.8.11&#39;s ambient occlusion broke VR, and this takes it out of the headset.</strong>
 Also: headset popups can be dragged and closed, and a model no longer shields
@@ -4520,6 +4537,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-25dr1c0j.js"></script>
+  <script type="module" src="../hydrate-avg36r6v.js"></script>
 </body>
 </html>

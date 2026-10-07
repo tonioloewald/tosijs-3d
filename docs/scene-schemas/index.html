@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=e2e8990c53be" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d0b25a2c27eb" data-tosi-doc-system />
   <title>Scene schemas — tosijs-3d</title>
   <meta name="description" content="JSON Schema for the scene primitives, so a consumer never hand-copies our attributes. No DOM, no Babylon — importable from a headless runner." />
   <link rel="canonical" href="https://3d.tosijs.net/scene-schemas/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=31b288fc94f0" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=faf7d60b6a48" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Scene schemas</h1>
 <p><strong>JSON Schema for the scene primitives, so a consumer never hand-copies our
@@ -81,6 +81,14 @@ stays reserved for values JSON Schema has no word for at all — a light program
 a curve — where the answer really is &quot;hand the whole thing to a custom editor&quot;.</p>
 <p>Asked by <code>tosijs-3d-ensemble</code> (#72), whose generated panel had eight colour
 properties it could not render and had to fall back to unvalidated hex text.</p>
+<h2>The host has one too: <code>sceneSchemas.b3d</code></h2>
+<p><code>&lt;tosi-b3d&gt;</code> itself carries scene-level settings: the clear colour, glow, the
+ambient occlusion look (<code>ssaoStrength</code>, <code>ssaoRadius</code>), the scene wind and the
+time scale. <code>b3dSchema()</code> describes those and ONLY those. The host&#39;s other
+attributes configure a viewer rather than a scene (camera limits, quality
+tier, pixel ratio, gamepad and panel chrome, XR and pause behaviour) and are
+declined by name in <code>SCENE_OMITTED.b3d</code>, so a document never stores someone&#39;s
+laptop. Asked by <code>tosijs-3d-ensemble</code> (#101).</p>
 <h2>Drift is a test, not a promise</h2>
 <p>The defaults here are duplicated from the components — there is no way to read
 them without importing Babylon, which is exactly what makes this module usable.
@@ -330,6 +338,6 @@ because it cannot silently rot.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-25dr1c0j.js"></script>
+  <script type="module" src="../hydrate-avg36r6v.js"></script>
 </body>
 </html>

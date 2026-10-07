@@ -162,7 +162,25 @@ export declare function soundSchema(extra?: Record<string, unknown>): {
     properties: Record<string, unknown>;
 };
 /** Every scene-primitive schema, by the element name a consumer would use. */
+/**
+ * `tosi-b3d` — the scene HOST's own attributes: the ones that say how the
+ * scene looks and moves, as opposed to how one viewer is looking at it.
+ *
+ * Asked by `tosijs-3d-ensemble` (#101). A document can RECOMMEND an ambient
+ * occlusion look (`ssaoStrength`, `ssaoRadius`) and carry the scene's wind, and
+ * a consumer must never type those ranges itself.
+ *
+ * `ssao` is listed because the look is meaningless without it, but whether it
+ * is ON is usually the viewer's call (it costs frame time and never runs in a
+ * headset): store the recommendation, and let the device decide.
+ */
+export declare function b3dSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
 export declare const sceneSchemas: {
+    readonly b3d: typeof b3dSchema;
     readonly skybox: typeof skyboxSchema;
     readonly sun: typeof sunSchema;
     readonly water: typeof waterSchema;

@@ -54,6 +54,7 @@ const SOURCES: Array<[keyof typeof sceneSchemas, string, string]> = [
   ['decorator', './b3d-decorator', 'B3dDecorator'],
   ['trail', './b3d-trail', 'B3dTrail'],
   ['sound', './b3d-sound', 'B3dSound'],
+  ['b3d', './tosi-b3d', 'B3d'],
 ]
 
 const attrsOf = async (mod: string, cls: string) => {

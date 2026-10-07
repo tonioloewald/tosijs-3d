@@ -254,6 +254,30 @@ So the triage question is not "is this a VR bug" but **"is this about what is
 drawn, or about where the pointer starts?"** The first is a flat bug you happened
 to notice in a headset. The second is the only kind that genuinely needs one.
 
+### An emulated headset: `bun run xr <path>`
+
+`bin/xr-emulate.ts` runs a page in headless Chrome against a FAKE Quest (Meta's
+`iwer` WebXR runtime), clicks the page's own Enter VR button, and screenshots
+the canvas with both eyes side by side. Scripts can pose the controllers and
+pull their triggers (`__xrTest.aim`, `.press`). So two questions that used to
+need a headset no longer do: **is the frame stereo**, and **does a controller
+press reach this**.
+
+```sh
+bun run xr /b3d-ssao/ --script check.js --out "$SCRATCH/xr" --name ssao
+```
+
+It is the right tool for the half of VR that is NOT symmetric with flat: the
+ray that starts at a hand. Its first day found that Babylon's XR pointer cuts
+its ray to the exact hit distance (so re-casting it misses), and that its
+synthetic moves carry `button: 0` (so `PointerDragBehavior` cancels the drag).
+Neither exists on a mouse.
+
+It is an emulator: nothing about frame rate, multiview or a real browser's
+quirks. The file's header lists four traps, of which the one to remember is
+that OUR rAF pump deadlocks it — the harness stubs `_installXrRafPump`, and
+prints `⚠️ NOT ADVANCING` if the session is not ticking.
+
 You cannot spawn Electron on a Quest, so driving the headset's own browser is
 the only way to `eval` against a live immersive session. Every VR finding to
 date has arrived as the user describing symptoms in words, each costing a round
