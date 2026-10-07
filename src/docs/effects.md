@@ -3,6 +3,7 @@
 <!--{ "order": 20 }-->
 
 <!-- toc -->
+- [Ambient occlusion (SSAO)](/b3d-ssao/)
 - [Light programs](/light-modulation/)
 - [b3d-exploder](/b3d-exploder/)
 - [b3d-reflections](/b3d-reflections/)

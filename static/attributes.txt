@@ -926,6 +926,13 @@ b3d-spawner
   seed  = 1  — Deterministic placement — same seed, same battles
   disabled  = false  — Stop spawning (a boolean can't default to true — see CLAUDE.md)
 
+## b3d-ssao
+Ambient occlusion (SSAO)
+
+  ssao  = 'off'  — `off`, `auto`, `on` or `always`: see the table above. LIVE
+  ssaoStrength  = 1  — How dark a fully occluded crease gets. `0` is none. LIVE
+  ssaoRadius  = 2  — How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE
+
 ## b3d-star-system — <tosi-b3d-star-system>
 b3d-star-system
 
@@ -1296,6 +1303,9 @@ b3d
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
   quality
+  ssao
+  ssaoStrength
+  ssaoRadius
   pixelRatio
   stats
   pauseWhenHidden

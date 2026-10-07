@@ -361,6 +361,7 @@ import {
   renderScalingLevel,
   type QualitySetting,
 } from './b3d-quality.js'
+import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import {
   allocateAmbient,
   ratchetPool,
@@ -582,6 +583,17 @@ export class B3d extends Component {
     // 'medium' | 'high' force a tier. Drives the `auto` defaults of shadows,
     // reflections, terrain, and the engine render scaling. See b3d-quality.
     quality: 'auto' as QualitySetting,
+    /*
+    Ambient occlusion (see b3d-ssao). 'off' | 'auto' | 'on' | 'always'. `auto`
+    follows the device tier; `auto` and `on` are flat-only, `always` also runs
+    in a headset. Off by default: it redraws the opaque scene and samples it
+    per pixel, which is a cost a scene should choose.
+    */
+    ssao: 'off' as SsaoSetting,
+    // How dark a fully occluded crease gets.
+    ssaoStrength: 1,
+    // Metres a surface looks for something occluding it.
+    ssaoRadius: 2,
     /*
     Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
     own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
@@ -946,6 +958,8 @@ export class B3d extends Component {
   camera?: BABYLON.Camera
   gui?: GUI.GUI3DManager
   glowLayer?: BABYLON.GlowLayer
+  private _ssao?: SsaoController
+  private _ssaoCamObs?: BABYLON.Observer<BABYLON.Scene> | null
   xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
 
@@ -2214,6 +2228,7 @@ export class B3d extends Component {
     this._qualityOff = onQualityChange(() => {
       this._applyHardwareScaling(this.xrActive)
       this._reallocAmbient() // a new tier is a new pool
+      this._applySsao()
     })
   }
 
@@ -3830,6 +3845,7 @@ export class B3d extends Component {
     let restoreRaf: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
+      this._applySsao() // `auto`/`on` are flat-only
       // Keep the xrColor icon as the button face; the title carries the state
       // (the flat button isn't visible in-session anyway). Setting textContent
       // here would wipe the icon.
@@ -5665,6 +5681,9 @@ export class B3d extends Component {
     Order matters: stop the loop first, or the next frame renders a scene that is
     being disposed underneath it.
     */
+    this._ssao?.dispose()
+    this._ssao = undefined
+    this._ssaoCamObs = undefined
     this.glowLayer = undefined
     this.gui = undefined
     try {
@@ -5678,6 +5697,37 @@ export class B3d extends Component {
       // and a throw here would strand whatever the caller was doing.
       console.warn('b3d teardown', err)
     }
+  }
+
+  /**
+   * Bring the SSAO pipeline in line with the `ssao*` attributes, the device
+   * tier, the XR state and the active camera. Cheap when nothing changed, so it
+   * is called from every place one of those can change.
+   */
+  private _applySsao(): void {
+    if (this.scene == null || this.scene.isDisposed) return
+    const a = this as any
+    const budgets = qualityBudgets({ xr: this.xrActive })
+    const active = ssaoActive(a.ssao, {
+      xr: this.xrActive,
+      budgetAllows: budgets.ssao,
+    })
+    if (!active && this._ssao == null) return
+    if (this._ssao == null) {
+      this._ssao = new SsaoController(this.scene)
+      // A pipeline is attached to a CAMERA, and scenes swap cameras (a vehicle's
+      // follow camera, a cutscene, XR entry).
+      this._ssaoCamObs = this.scene.onActiveCameraChanged.add(() =>
+        this._applySsao()
+      )
+    }
+    this._ssao.update({
+      active,
+      strength: Number(a.ssaoStrength) || 0,
+      radius: Number(a.ssaoRadius) || 2,
+      samples: budgets.ssaoSamples,
+      ratio: budgets.ssaoRatio,
+    })
   }
 
   render(): void {
@@ -5714,6 +5764,7 @@ export class B3d extends Component {
       this.glowLayer.dispose()
       this.glowLayer = undefined
     }
+    this._applySsao()
   }
 }
 

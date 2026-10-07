@@ -3583,6 +3583,27 @@
     ]
   },
   {
+    "module": "b3d-ssao",
+    "summary": "Ambient occlusion (SSAO)",
+    "attributes": [
+      {
+        "name": "ssao",
+        "default": "'off'",
+        "description": "`off`, `auto`, `on` or `always`: see the table above. LIVE"
+      },
+      {
+        "name": "ssaoStrength",
+        "default": "1",
+        "description": "How dark a fully occluded crease gets. `0` is none. LIVE"
+      },
+      {
+        "name": "ssaoRadius",
+        "default": "2",
+        "description": "How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE"
+      }
+    ]
+  },
+  {
     "module": "b3d-star-system",
     "tag": "tosi-b3d-star-system",
     "summary": "b3d-star-system",
@@ -4976,6 +4997,15 @@
       },
       {
         "name": "quality"
+      },
+      {
+        "name": "ssao"
+      },
+      {
+        "name": "ssaoStrength"
+      },
+      {
+        "name": "ssaoRadius"
       },
       {
         "name": "pixelRatio"

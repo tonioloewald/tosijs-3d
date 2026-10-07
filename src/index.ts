@@ -414,6 +414,8 @@ export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js'
 export { B3dWeatherCell, b3dWeatherCell } from './b3d-weather-cell.js'
 export { B3dLightning, b3dLightning } from './b3d-lightning.js'
 export { B3dLightShafts, b3dLightShafts } from './b3d-light-shafts.js'
+export { SsaoController, ssaoActive } from './b3d-ssao.js'
+export type { SsaoSetting, SsaoParams } from './b3d-ssao.js'
 export type { WeatherSample, WeatherCell } from './weather.js'
 export type { Trail, TrailOptions } from './b3d-trail.js'
 

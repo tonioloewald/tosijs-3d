@@ -100,6 +100,17 @@ export interface PerfBudgets {
    * real-time cube probe is one of the most expensive things you can add). */
   reflections: boolean
   /**
+   * Whether `<tosi-b3d ssao="auto">` turns ambient occlusion on. SSAO draws
+   * the opaque scene a second time (depth and normals) and then samples it
+   * per pixel, so only the top tier affords it by default. Never applies in
+   * XR: `auto` is always off in a headset.
+   */
+  ssao: boolean
+  /** SSAO samples per pixel. The quality/cost dial once it is on. */
+  ssaoSamples: number
+  /** SSAO resolution as a fraction of the frame (0.5 = a quarter of the pixels). */
+  ssaoRatio: number
+  /**
    * The ambient particle pool for the WHOLE SCENE, in reference-particle units — not a
    * per-system capacity. Ambient effects compete: rain, dust and motes can each be
    * individually "affordable" and still cook the frame together, so the scene divides one
@@ -189,6 +200,9 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     numCascades: 4,
     reflectionSize: 512,
     reflections: true,
+    ssao: true,
+    ssaoSamples: 16,
+    ssaoRatio: 0.5,
     ambientParticles: 3000,
   },
   medium: {
@@ -204,6 +218,9 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     numCascades: 4,
     reflectionSize: 256,
     reflections: true,
+    ssao: false,
+    ssaoSamples: 12,
+    ssaoRatio: 0.5,
     ambientParticles: 1400,
   },
   low: {
@@ -219,6 +236,9 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     numCascades: 2,
     reflectionSize: 128,
     reflections: false,
+    ssao: false,
+    ssaoSamples: 8,
+    ssaoRatio: 0.5,
     ambientParticles: 500,
   },
 }
