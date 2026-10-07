@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=5ff1fa890aaf" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=84117ce0295f" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=b24a385d4b8a" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=85c8ff021f3d" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,7 +51,34 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
-<h2>Unreleased</h2>
+<h2>0.8.11</h2>
+<p><strong>Ambient occlusion.</strong> One attribute on <code>&lt;tosi-b3d&gt;</code>, off by default. Checked
+flat; <code>always</code> (the in-headset setting) is not yet verified per eye on a
+device, and this release is partly so that it can be.</p>
+<h3>Added</h3>
+<ul>
+<li><strong>Ambient occlusion: <code>&lt;tosi-b3d ssao&gt;</code>.</strong> <code>off</code> (default), <code>auto</code> (on where
+the device tier affords it), <code>on</code>, or <code>always</code>. <code>auto</code> and <code>on</code> are
+flat-only; <code>always</code> also runs in a headset, for hardware that can pay.
+<code>ssaoStrength</code> and <code>ssaoRadius</code> tune the look; samples and resolution come
+from the device budget (<code>PerfBudgets.ssao</code>, <code>ssaoSamples</code>, <code>ssaoRatio</code>).
+Corners, stacked crates and the foot of a wall get darker, which is most of
+what makes simple geometry look placed rather than pasted. Measured on an
+M5 Max: about +1.2 ms a frame at 1344x640, scaling with pixel count. The
+depth-and-normals pass is built at the SSAO&#39;s own resolution, which measured
+40% cheaper than Babylon&#39;s default with no visible difference. Sky, water,
+cloud deck, terrain and skinned characters all checked clean. New page:
+Effects → Ambient occlusion, with a small scene to test in a headset.</li>
+</ul>
+<h2>0.8.10</h2>
+<p><strong>Two fixes from manta&#39;s orbit stage, and the doc site has shadows again
+without a workaround.</strong> Glow no longer whites out the frame under a fading
+full-screen mesh, and the skybox leaves the background colour alone for a
+camera that cannot see it. tosijs-ui 1.16 loads the doc site once, which was
+the cause of ensemble&#39;s <code>Cannot redefine property</code> error and our missing doc-
+site shadows.</p>
+<p>Size: barrel (min, packages external) 898.6 KB raw / 300.6 KB gz, +0.05% on
+0.8.9.</p>
 <h3>Fixed</h3>
 <ul>
 <li><strong>Glow no longer whites out the frame under a fading full-screen mesh</strong>
@@ -4251,6 +4278,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
       <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
@@ -4454,6 +4482,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-p1pek84k.js"></script>
+  <script type="module" src="../hydrate-9m8hs5pm.js"></script>
 </body>
 </html>

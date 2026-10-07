@@ -13,6 +13,7 @@ import { XrFrames } from './xr-frames.js';
 import { type FramePanelSpec } from './frame-panel.js';
 import { type FogState, type FogLayer } from './atmosphere.js';
 import { type QualitySetting } from './b3d-quality.js';
+import { type SsaoSetting } from './b3d-ssao.js';
 import { type AmbientEffect } from './ambient-budget.js';
 export declare const showB3dStats: (on?: boolean) => void;
 /**
@@ -126,6 +127,9 @@ export declare class B3d extends Component {
          * used (see b3d-gamepad's `fade`). */
         gamepadFade: "on" | "off";
         quality: QualitySetting;
+        ssao: SsaoSetting;
+        ssaoStrength: number;
+        ssaoRadius: number;
         pixelRatio: number;
         stats: boolean;
         /** Pause automatically when the tab/window goes to the background.
@@ -354,6 +358,8 @@ export declare class B3d extends Component {
     camera?: BABYLON.Camera;
     gui?: GUI.GUI3DManager;
     glowLayer?: BABYLON.GlowLayer;
+    private _ssao?;
+    private _ssaoCamObs?;
     xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
     private static _active;
@@ -1036,6 +1042,12 @@ export declare class B3d extends Component {
     /** The canvas's context was lost by teardown — see `connectedCallback`. */
     private _canvasSpent;
     private _teardown;
+    /**
+     * Bring the SSAO pipeline in line with the `ssao*` attributes, the device
+     * tier, the XR state and the active camera. Cheap when nothing changed, so it
+     * is called from every place one of those can change.
+     */
+    private _applySsao;
     render(): void;
 }
 export declare const b3d: import("tosijs").ElementCreator<B3d>;

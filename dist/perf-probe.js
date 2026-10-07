@@ -70,6 +70,9 @@ const BUDGETS = {
         numCascades: 4,
         reflectionSize: 512,
         reflections: true,
+        ssao: true,
+        ssaoSamples: 16,
+        ssaoRatio: 0.5,
         ambientParticles: 3000,
     },
     medium: {
@@ -85,6 +88,9 @@ const BUDGETS = {
         numCascades: 4,
         reflectionSize: 256,
         reflections: true,
+        ssao: false,
+        ssaoSamples: 12,
+        ssaoRatio: 0.5,
         ambientParticles: 1400,
     },
     low: {
@@ -100,6 +106,9 @@ const BUDGETS = {
         numCascades: 2,
         reflectionSize: 128,
         reflections: false,
+        ssao: false,
+        ssaoSamples: 8,
+        ssaoRatio: 0.5,
         ambientParticles: 500,
     },
 };

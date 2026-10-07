@@ -6,7 +6,11 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.11
+
+**Ambient occlusion.** One attribute on `<tosi-b3d>`, off by default. Checked
+flat; `always` (the in-headset setting) is not yet verified per eye on a
+device, and this release is partly so that it can be.
 
 ### Added
 
