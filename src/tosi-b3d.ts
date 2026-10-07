@@ -584,10 +584,10 @@ export class B3d extends Component {
     // reflections, terrain, and the engine render scaling. See b3d-quality.
     quality: 'auto' as QualitySetting,
     /*
-    Ambient occlusion (see b3d-ssao). 'off' | 'auto' | 'on' | 'always'. `auto`
-    follows the device tier; `auto` and `on` are flat-only, `always` also runs
-    in a headset. Off by default: it redraws the opaque scene and samples it
-    per pixel, which is a cost a scene should choose.
+    Ambient occlusion (see b3d-ssao). 'off' | 'auto' | 'on'. `auto` follows
+    the device tier. FLAT ONLY, whatever the setting: a post-process pipeline
+    does not survive a WebXR camera. Off by default: it redraws the opaque
+    scene and samples it per pixel, which is a cost a scene should choose.
     */
     ssao: 'off' as SsaoSetting,
     // How dark a fully occluded crease gets.
@@ -958,10 +958,13 @@ export class B3d extends Component {
   camera?: BABYLON.Camera
   gui?: GUI.GUI3DManager
   glowLayer?: BABYLON.GlowLayer
+  private static _warnedSsaoAlways = false
   private _ssao?: SsaoController
   private _ssaoCamObs?: BABYLON.Observer<BABYLON.Scene> | null
   xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
+  /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
+  private _xrPresenting = false
 
   // The scene the pointer last entered / pressed — so that when a page hosts several
   // live demos, global keyboard/gamepad input only drives the one you're interacting
@@ -3845,7 +3848,10 @@ export class B3d extends Component {
     let restoreRaf: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
-      this._applySsao() // `auto`/`on` are flat-only
+      // SSAO must be gone BEFORE the headset camera becomes active, which
+      // happens during ENTERING_XR, ahead of IN_XR.
+      this._xrPresenting = state !== BABYLON.WebXRState.NOT_IN_XR
+      this._applySsao()
       // Keep the xrColor icon as the button face; the title carries the state
       // (the flat button isn't visible in-session anyway). Setting textContent
       // here would wipe the icon.
@@ -5708,8 +5714,14 @@ export class B3d extends Component {
     if (this.scene == null || this.scene.isDisposed) return
     const a = this as any
     const budgets = qualityBudgets({ xr: this.xrActive })
+    if (a.ssao === 'always' && !B3d._warnedSsaoAlways) {
+      B3d._warnedSsaoAlways = true
+      console.warn(
+        'tosi-b3d: ssao="always" is deprecated and means "on". SSAO does not run in XR.'
+      )
+    }
     const active = ssaoActive(a.ssao, {
-      xr: this.xrActive,
+      xr: this._xrPresenting || this.xrActive,
       budgetAllows: budgets.ssao,
     })
     if (!active && this._ssao == null) return

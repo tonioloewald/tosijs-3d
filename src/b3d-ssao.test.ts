@@ -2,9 +2,9 @@ import { describe, test, expect } from 'bun:test'
 import { ssaoActive } from './b3d-ssao.js'
 
 /*
-WHO GETS AMBIENT OCCLUSION. The rule is the whole safety story: SSAO redraws
-the opaque scene and samples it per pixel, a headset pays that twice, and a
-default that turned it on in XR would cost a Quest its frame rate silently.
+WHO GETS AMBIENT OCCLUSION. The rule is the whole safety story: SSAO is a
+post-process, and a post-process pipeline on a WebXR camera breaks the frame,
+so it must be off for every setting whenever a session is presenting.
 */
 describe('ssaoActive', () => {
   const flat = { xr: false, budgetAllows: true }
@@ -31,8 +31,14 @@ describe('ssaoActive', () => {
     expect(ssaoActive('on', xr)).toBe(false)
   })
 
-  test('always is the explicit opt-in for a headset', () => {
-    expect(ssaoActive('always', xr)).toBe(true)
+  // 0.8.11 let `always` run in XR. On a Quest that stretched one image across
+  // both eyes: a post-process pipeline does not survive a WebXR camera.
+  test('nothing runs in a headset, including the deprecated always', () => {
+    expect(ssaoActive('always', xr)).toBe(false)
+    expect(ssaoActive(true, xr)).toBe(false)
+  })
+
+  test('always still means on when flat', () => {
     expect(ssaoActive('always', weak)).toBe(true)
   })
 

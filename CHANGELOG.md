@@ -6,6 +6,22 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **SSAO broke VR.** Entering a headset with `ssao` on left its post-process
+  chain on the headset camera: on a Quest, one image stretched across both
+  eyes. SSAO is now removed before the headset camera takes over and restored
+  when the session ends.
+
+### Changed
+
+- **SSAO is flat-only, and `ssao="always"` is deprecated.** 0.8.11 said
+  `always` ran in a headset. It never worked: a post-process pipeline built
+  inside a WebXR session is ignored, and one carried into it breaks the frame.
+  `always` is still accepted, means `on`, and warns once.
+
 ## 0.8.11
 
 **Ambient occlusion.** One attribute on `<tosi-b3d>`, off by default. Checked

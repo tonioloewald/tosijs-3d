@@ -3589,7 +3589,7 @@
       {
         "name": "ssao",
         "default": "'off'",
-        "description": "`off`, `auto`, `on` or `always`: see the table above. LIVE"
+        "description": "`off`, `auto` or `on`: see the table above. Flat only. LIVE"
       },
       {
         "name": "ssaoStrength",
