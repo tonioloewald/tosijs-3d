@@ -1139,7 +1139,7 @@ export function b3dSchema(extra = {}) {
             maximum: 60,
             'x-useful': [0, 30],
             'x-unit': 'm/s',
-            description: 'The scene wind. 0 is none; a child\'s own wind attributes still win where set.',
+            description: "The scene wind. 0 is none; a child's own wind attributes still win where set.",
         }),
         windBearingDeg: num(0, {
             minimum: 0,
