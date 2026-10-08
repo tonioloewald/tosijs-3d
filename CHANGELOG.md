@@ -19,6 +19,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   `rock:boulder:3` (`rockNames('boulder', 6)` lists six). See
   [procedural-rock](/procedural-rock/).
 
+- **The scatter gathers into clumps.** Every rule now clusters by default
+  (copses, thickets, rock fields, with thin outliers between) instead of
+  spreading evenly. Per rule: `clump` (0 = the old even spread, default
+  0.85), `clumpSize` (metres, default 90) and `clumpGroup` (rules in one
+  group gather in the same places; the default stones gather around the
+  boulders). The budget is still met. Same seed gives a DIFFERENT layout
+  than before; set `clump: 0` on a rule to get the old one back.
+
 ### Changed
 
 - **A volcano's flank is bare basalt, and seams start only near the top.**

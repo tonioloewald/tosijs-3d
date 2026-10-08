@@ -1289,6 +1289,13 @@ Rocket Ascent
   rocketScale  = 4  — Uniform scale on the Kenney parts
   timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
 
+## scatter
+scatter
+
+  clump  = 0.85  — 0 = even spread, 1 = clumps only
+  clumpSize  = 90  — Metres across a clump and the gap beside it
+  clumpGroup  = kind  — Rules in one group gather in the SAME places: stones around boulders
+
 ## slope-profile
 slope-profile
 

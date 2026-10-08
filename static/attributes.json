@@ -4955,6 +4955,27 @@
     ]
   },
   {
+    "module": "scatter",
+    "summary": "scatter",
+    "attributes": [
+      {
+        "name": "clump",
+        "default": "0.85",
+        "description": "0 = even spread, 1 = clumps only"
+      },
+      {
+        "name": "clumpSize",
+        "default": "90",
+        "description": "Metres across a clump and the gap beside it"
+      },
+      {
+        "name": "clumpGroup",
+        "default": "kind",
+        "description": "Rules in one group gather in the SAME places: stones around boulders"
+      }
+    ]
+  },
+  {
     "module": "slope-profile",
     "summary": "slope-profile",
     "attributes": [

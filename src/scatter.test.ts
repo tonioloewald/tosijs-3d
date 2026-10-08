@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   band,
+  clumpAt,
   scatterPlacements,
   NearIndex,
   pruneScatterCache,
@@ -279,5 +280,86 @@ describe('the cache survives a budget change', () => {
     expect(other).toEqual(
       scatterPlacements({ ...o, budget: 12000, cache: undefined })
     )
+  })
+})
+
+describe('clumps', () => {
+  const base = {
+    seed: 3,
+    budget: 1500,
+    center: { x: 0, z: 0 },
+    radius: 600,
+    height: flat,
+    climate: mild,
+  }
+  // How unevenly a scatter fills a coarse grid: variance over mean of the
+  // counts. An even spread is near 1 (Poisson) or below; clumps push it up.
+  const unevenness = (pts: { x: number; z: number }[], size = 100) => {
+    const counts = new Map<string, number>()
+    for (let x = -400; x < 400; x += size)
+      for (let z = -400; z < 400; z += size) counts.set(`${x},${z}`, 0)
+    for (const p of pts) {
+      const key = `${Math.floor(p.x / size) * size},${
+        Math.floor(p.z / size) * size
+      }`
+      if (counts.has(key)) counts.set(key, counts.get(key)! + 1)
+    }
+    const v = [...counts.values()]
+    const mean = v.reduce((a, b) => a + b, 0) / v.length
+    const variance = v.reduce((a, b) => a + (b - mean) ** 2, 0) / v.length
+    return {
+      ratio: variance / mean,
+      empty: v.filter((n) => n === 0).length,
+      cells: v.length,
+    }
+  }
+
+  test('the default gathers; clump 0 spreads evenly; both meet the budget', () => {
+    const even = scatterPlacements({
+      ...base,
+      rules: [{ ...anywhere, clump: 0 }],
+    })
+    const clumped = scatterPlacements({ ...base, rules: [anywhere] })
+    expect(Math.abs(even.length - 1500)).toBeLessThan(120)
+    expect(Math.abs(clumped.length - 1500)).toBeLessThan(120)
+    expect(unevenness(even).ratio).toBeLessThan(1.5)
+    expect(unevenness(clumped).ratio).toBeGreaterThan(
+      unevenness(even).ratio * 4
+    )
+  })
+
+  test('outliers: the gaps are thin, not empty', () => {
+    const clumped = scatterPlacements({ ...base, rules: [anywhere] })
+    const inGaps = clumped.filter((p) => clumpAt(3, 'x', p.x, p.z) === 0)
+    expect(inGaps.length).toBeGreaterThan(20)
+    expect(inGaps.length).toBeLessThan(clumped.length * 0.35)
+  })
+
+  test('rules in one group gather in the same places; other groups do not', () => {
+    const a = { ...anywhere, kind: 'a', clumpGroup: 'g', clump: 1 }
+    const b = { ...anywhere, kind: 'b', clumpGroup: 'g', clump: 1 }
+    const out = scatterPlacements({ ...base, rules: [a, b] })
+    // With clump 1 nothing of either kind stands where the shared field is 0.
+    expect(out.length).toBeGreaterThan(500)
+    expect(out.every((p) => clumpAt(3, 'g', p.x, p.z) > 0)).toBe(true)
+    expect(out.some((p) => clumpAt(3, 'other', p.x, p.z) === 0)).toBe(true)
+  })
+
+  test('the field is anchored to the world: same place, same answer', () => {
+    expect(clumpAt(1, 'pine', 123.4, -56.7)).toBe(
+      clumpAt(1, 'pine', 123.4, -56.7)
+    )
+    const there = scatterPlacements({
+      ...base,
+      rules: [anywhere],
+      center: { x: 80, z: 0 },
+    })
+    const here = new Set(
+      scatterPlacements({ ...base, rules: [anywhere] }).map(
+        (p) => `${p.x},${p.z}`
+      )
+    )
+    const shared = there.filter((p) => here.has(`${p.x},${p.z}`))
+    expect(shared.length).toBeGreaterThan(there.length * 0.6)
   })
 })

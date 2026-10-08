@@ -27,6 +27,23 @@ one, and an acceptance threshold is SOLVED so the expected count equals the
 budget. Sparse country and lush country get the same count; the lush one
 spends it on trees.
 
+## Clumps, not a sprinkle
+
+Left alone, a scatter spreads evenly, and an even spread reads as noise.
+Copses, thickets and rock fields with open ground between them read as a
+place. So every rule gathers by default: a seeded, world-anchored **clump
+field** multiplies its weight, high in about a third of the ground and low
+(never zero, so there are outliers) in the rest.
+
+| Rule option | Default | Description |
+|-------------|---------|-------------|
+| `clump` | `0.85` | 0 = even spread, 1 = clumps only |
+| `clumpSize` | `90` | Metres across a clump and the gap beside it |
+| `clumpGroup` | the rule's `kind` | Rules in one group gather in the SAME places: stones around boulders |
+
+The budget is still met: the threshold is solved after the weights are
+multiplied.
+
 ## World-anchored and deterministic
 
 Candidates live in world cells: each cell's point is a hash of its integer
@@ -63,6 +80,19 @@ export interface ScatterRule {
    * boulder you can stand on), or omitted for nothing (bushes, pebbles).
    */
   collider?: 'trunk' | 'box'
+  /**
+   * How strongly it gathers into clumps, 0 (even spread) … 1 (clumps only).
+   * Default `0.85`: copses and rock fields with the occasional outlier, which
+   * reads far better than an even sprinkle. See `clumpAt`.
+   */
+  clump?: number
+  /** Metres across a clump and the gap beside it. Default `90`. */
+  clumpSize?: number
+  /**
+   * Rules sharing a group share ONE clump pattern, so they gather in the same
+   * places (stones around boulders). Default: the rule's `kind`.
+   */
+  clumpGroup?: string
 }
 
 export interface ScatterClimate {
@@ -176,6 +206,72 @@ function floorBand(
   return band(x, [lo + soft, hi], soft)
 }
 
+/** Smooth value noise on a lattice, 0…1, anchored to the world. */
+function valueNoise(seed: number, x: number, z: number): number {
+  const ix = Math.floor(x)
+  const iz = Math.floor(z)
+  const fx = x - ix
+  const fz = z - iz
+  const sx = fx * fx * (3 - 2 * fx)
+  const sz = fz * fz * (3 - 2 * fz)
+  const a = unit(hash(seed, ix, iz, 21))
+  const b = unit(hash(seed, ix + 1, iz, 21))
+  const c = unit(hash(seed, ix, iz + 1, 21))
+  const d = unit(hash(seed, ix + 1, iz + 1, 21))
+  return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz
+}
+
+/** A string as a 32-bit number, for seeding a clump group. */
+function hashString(text: string): number {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++)
+    h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return h >>> 0
+}
+
+/**
+ * THE CLUMP FIELD: where a group gathers, 0 (a gap) … 1 (the middle of a
+ * clump). World-anchored and seeded, so a copse stays where it is as the
+ * scatter follows the camera.
+ *
+ * Two octaves of value noise, then a threshold: about a third of the ground is
+ * clump, with soft edges, and the smaller octave keeps the outlines from being
+ * round. Tonio: "copses and little regions of detail play much better than
+ * random scatter whether it's rocks or trees."
+ */
+export function clumpAt(
+  seed: number,
+  group: string,
+  x: number,
+  z: number,
+  size = 90
+): number {
+  const s = hash(seed, hashString(group))
+  const u = x / size
+  const v = z / size
+  const n =
+    0.7 * valueNoise(s, u, v) + 0.3 * valueNoise(s + 1, u * 2.7, v * 2.7)
+  const t = (n - 0.5) / 0.14
+  return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t)
+}
+
+/**
+ * What a rule's weight is multiplied by at a point: `1 - clump` in a gap (the
+ * outliers), rising to well over 1 inside a clump. The scatter's budget solver
+ * rescales everything afterwards, so only the RATIO matters.
+ */
+export function clumpWeight(
+  rule: ScatterRule,
+  seed: number,
+  x: number,
+  z: number
+): number {
+  const strength = Math.max(0, Math.min(1, rule.clump ?? 0.85))
+  if (strength === 0) return 1
+  const c = clumpAt(seed, rule.clumpGroup ?? rule.kind, x, z, rule.clumpSize)
+  return 1 - strength + strength * 3 * c
+}
+
 /** How suitable a point is for a rule — its density times every band. */
 export function suitability(
   rule: ScatterRule,
@@ -278,6 +374,7 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
         const r = o.rules[ri]
         const w =
           suitability(r, c, slopeDeg) *
+          clumpWeight(r, o.seed, x, z) *
           (o.suppress ? Math.max(0, o.suppress(x, z, r.kind)) : 1)
         pool[poolUsed + ri] = w
         total += w
@@ -448,6 +545,8 @@ export const NATURE_KIT_RULES: ScatterRule[] = [
     slope: [8, 90],
     scale: [3, 9],
     alignToSlope: 0.6,
+    clumpGroup: 'rocks',
+    clumpSize: 60,
   },
   {
     kind: 'rock',
@@ -456,6 +555,9 @@ export const NATURE_KIT_RULES: ScatterRule[] = [
     altitude: [0, 1e5],
     scale: [3, 7],
     alignToSlope: 0.9,
+    // Stones gather where the boulders do.
+    clumpGroup: 'rocks',
+    clumpSize: 60,
   },
 ]
 

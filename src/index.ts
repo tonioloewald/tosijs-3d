@@ -666,6 +666,7 @@ export {
 } from './procedural-rock.js'
 export {
   scatterPlacements,
+  clumpAt,
   NearIndex,
   NATURE_KIT_RULES,
   type ScatterRule,
