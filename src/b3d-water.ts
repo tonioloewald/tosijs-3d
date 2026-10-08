@@ -57,6 +57,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `caustics` | `'auto'` | Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun |
 | `causticsStrength` | `0.6` | How bright the web gets |
 | `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
+| `shore` | `'off'` | `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: lapping foam, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -98,6 +99,9 @@ import {
 import { inheritedWind, waterWind } from './wind.js'
 import { band } from './atmosphere.js'
 import { CausticsMap } from './caustics.js'
+import { shoreGrid, shoreData, type ShoreGrid } from './water-shore.js'
+import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js'
+import { seasonOf } from './biome-plugin.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dWater extends AbstractMesh {
@@ -156,6 +160,15 @@ export class B3dWater extends AbstractMesh {
     // dragged along), and how often the reflection is redrawn is `reflectionRefresh`
     // (a moving sea doesn't need a perfect mirror). Off by default (a small pond doesn't need it).
     follow: false,
+    /*
+    THE SHORE: give the surface the depth of the water under each vertex (from
+    the scene's terrain), and draw from it: foam and pale shallows at the
+    waterline, and ice that spreads out from the land as the climate at sea
+    level drops below freezing (sheet, then broken plates, then open water).
+    See water-shore. Off by default: it needs a terrain and replaces the mesh
+    with a finer one.
+    */
+    shore: 'off' as 'on' | 'off',
     /*
     EMPTY MEANS PROCEDURAL, and that is the default on purpose.
 
@@ -324,6 +337,26 @@ export class B3dWater extends AbstractMesh {
         { segments: attrs.subdivisions, diameter: attrs.waterSize },
         scene
       )
+    } else if (attrs.shore === 'on' && registerShoreWater()) {
+      // A grid that is fine around the viewer, with a vertex colour holding
+      // [depth, ice] that the patched shader draws the shoreline from.
+      const grid = shoreGrid(Math.max(1, attrs.waterSize))
+      const mesh = new BABYLON.Mesh('water_nocast', scene)
+      const data = new BABYLON.VertexData()
+      data.positions = grid.positions
+      data.normals = grid.normals
+      data.uvs = grid.uvs
+      data.indices = grid.indices
+      data.applyToMesh(mesh)
+      const shore = new Float32Array(grid.count * grid.count * 4)
+      // Until the terrain answers: deep, open water everywhere.
+      for (let i = 0; i < shore.length; i += 4) {
+        shore[i] = 60
+        shore[i + 3] = 1
+      }
+      mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, shore, true, 4)
+      this.mesh = mesh
+      this._shore = { grid, data: shore, key: '' }
     } else {
       this.mesh = BABYLON.MeshBuilder.CreateGround(
         'water_nocast',
@@ -471,6 +504,11 @@ export class B3dWater extends AbstractMesh {
       this._updateCaustics(scene)
     }
     scene.registerBeforeRender(this._ceilingTick)
+
+    if (this._shore != null) {
+      this._shoreTick = () => this._updateShore(false)
+      scene.registerBeforeRender(this._shoreTick)
+    }
 
     if (attrs.follow) {
       // Run it on beforeRender (authoritative, right before the scene draws) AND re-run it from
@@ -712,7 +750,13 @@ export class B3dWater extends AbstractMesh {
       const c = cam.globalPosition
       this._ceiling.setEnabled(true)
       this._updateWindow(scene, waterY, c)
-      this._ceiling.position.set(c.x, waterY - 0.08, c.z)
+      // With shore data the underside moves in 4 m steps (its fine cell),
+      // so its vertices stay on the same world lines as it follows.
+      const cs = this._ceilingShore
+      const ux = cs != null ? Math.round(c.x / 4) * 4 : c.x
+      const uz = cs != null ? Math.round(c.z / 4) * 4 : c.z
+      this._ceiling.position.set(ux, waterY - 0.08, uz)
+      if (cs != null) this._updateCeilingShore(cs, ux, uz, waterY)
       this._ceiling.visibility = w
       const bump = this._ceilingBump
       if (bump != null) {
@@ -720,8 +764,8 @@ export class B3dWater extends AbstractMesh {
         // drifting slowly so the window's edge shimmers.
         this._shimmer += sceneDelta(scene) * 0.03
         const cell = 2000 / bump.uScale
-        bump.uOffset = c.x / cell + this._shimmer
-        bump.vOffset = c.z / cell + this._shimmer * 0.6
+        bump.uOffset = ux / cell + this._shimmer
+        bump.vOffset = uz / cell + this._shimmer * 0.6
       }
       // Live colours: a slider on either should move the window now.
       const key = `${(this as any).undersideColor}|${
@@ -849,11 +893,32 @@ export class B3dWater extends AbstractMesh {
 
   private _buildCeiling(scene: BABYLON.Scene): BABYLON.Mesh {
     const size = 2000
-    const ceiling = BABYLON.MeshBuilder.CreateGround(
-      'water-underside_nocast',
-      { width: size, height: size, subdivisions: 1 },
-      scene
-    )
+    let ceiling: BABYLON.Mesh
+    if (this._shore != null) {
+      // With a shore, the underside carries the same [depth, ice] data as
+      // the surface, so the ice is there from below too.
+      const grid = shoreGrid(size, 32, 4, 12)
+      ceiling = new BABYLON.Mesh('water-underside_nocast', scene)
+      const data = new BABYLON.VertexData()
+      data.positions = grid.positions
+      data.normals = grid.normals
+      data.uvs = grid.uvs
+      data.indices = grid.indices
+      data.applyToMesh(ceiling)
+      const shore = new Float32Array(grid.count * grid.count * 4)
+      for (let i = 0; i < shore.length; i += 4) {
+        shore[i] = 60
+        shore[i + 3] = 1
+      }
+      ceiling.setVerticesData(BABYLON.VertexBuffer.ColorKind, shore, true, 4)
+      this._ceilingShore = { grid, data: shore, key: '' }
+    } else {
+      ceiling = BABYLON.MeshBuilder.CreateGround(
+        'water-underside_nocast',
+        { width: size, height: size, subdivisions: 1 },
+        scene
+      )
+    }
     ceiling.isPickable = false
     ceiling.receiveShadows = false
     /*
@@ -911,6 +976,7 @@ export class B3dWater extends AbstractMesh {
     b.vScale = size / 24
     mat.bumpTexture = b
     this._ceilingBump = b
+    if (this._ceilingShore != null) new IceUndersidePlugin(mat)
     ceiling.material = mat
     return ceiling
   }
@@ -921,6 +987,10 @@ export class B3dWater extends AbstractMesh {
     if (this._refreshObserver != null)
       this.owner?.scene?.onBeforeRenderObservable.remove(this._refreshObserver)
     this._refreshObserver = null
+    if (this._shoreTick != null)
+      this.owner?.scene?.unregisterBeforeRender(this._shoreTick)
+    this._shoreTick = undefined
+    this._shore = null
     this._removeMedium?.()
     this._removeMedium = undefined
     this._medium = null
@@ -964,17 +1034,118 @@ export class B3dWater extends AbstractMesh {
    * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.
    * The waves are world-anchored (procedural + the bump UV offset), so a snap is seamless: the
    * same sea, a differently-centred mesh. `follow` only. */
+  private _shore: { grid: ShoreGrid; data: Float32Array; key: string } | null =
+    null
+  private _ceilingShore: {
+    grid: ShoreGrid
+    data: Float32Array
+    key: string
+  } | null = null
+
+  /** The climate at sea level this time of year; 1 (never freezes) without a biome terrain. */
+  private _seaTemperature(terrain: any): number {
+    const p = terrain?.biomePlugin?.isEnabled
+      ? terrain.biomePlugin.params
+      : null
+    return p != null
+      ? p.baseTemperature + seasonOf(p.season, p.seasonality).temperature
+      : 1
+  }
+
+  private _updateCeilingShore(
+    cs: { grid: ShoreGrid; data: Float32Array; key: string },
+    x: number,
+    z: number,
+    waterY: number
+  ): void {
+    const terrain = this.owner?.querySelector('tosi-b3d-terrain') as any
+    if (terrain == null || typeof terrain.heightSampler !== 'function') return
+    const off = terrain.originOffset ?? { x: 0, z: 0 }
+    const temperature = this._seaTemperature(terrain)
+    const key = [
+      x + off.x,
+      z + off.z,
+      waterY,
+      terrain.generationKey ?? '',
+      temperature.toFixed(3),
+    ].join('|')
+    if (key === cs.key) return
+    cs.key = key
+    // The underside is turned over about X, so its local +z is world -z.
+    shoreData(
+      cs.grid,
+      x + off.x,
+      z + off.z,
+      waterY,
+      terrain.heightSampler(),
+      temperature,
+      cs.data,
+      true
+    )
+    this._ceiling?.updateVerticesData(BABYLON.VertexBuffer.ColorKind, cs.data)
+  }
+  private _shoreTick?: () => void
+  private _shoreNext = 0
+
+  /*
+  Write [depth, ice] for every vertex from the terrain under it. Cheap (one
+  height sample per vertex, under ten thousand of them), and done only when
+  something it depends on has changed: where the mesh is, the water level,
+  the terrain's shape, or the climate at sea level (which the season moves).
+  */
+  private _updateShore(force: boolean): void {
+    const shore = this._shore
+    const mesh = this.mesh
+    const owner = this.owner
+    if (shore == null || mesh == null || owner == null) return
+    const now = performance.now()
+    if (!force && now < this._shoreNext) return
+    this._shoreNext = now + 250
+    const terrain = owner.querySelector('tosi-b3d-terrain') as any
+    if (terrain == null || typeof terrain.heightSampler !== 'function') return
+    const off = terrain.originOffset ?? { x: 0, z: 0 }
+    // The climate AT SEA LEVEL, this time of year. No biome: never freezes.
+    const temperature = this._seaTemperature(terrain)
+    const cx = mesh.position.x + off.x
+    const cz = mesh.position.z + off.z
+    const y = mesh.position.y
+    const key = [
+      cx,
+      cz,
+      y,
+      terrain.generationKey ?? '',
+      temperature.toFixed(3),
+    ].join('|')
+    if (key === shore.key) return
+    shore.key = key
+    shoreData(
+      shore.grid,
+      cx,
+      cz,
+      y,
+      terrain.heightSampler(),
+      temperature,
+      shore.data
+    )
+    mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, shore.data)
+  }
+
   private _applyFollow(): void {
     const cam = this.owner?.scene.activeCamera
     if (!cam || !this.mesh) return
     const size = Math.max(1, (this as any).waterSize)
-    const step = size / 16 // snap cell — small vs the plane, so its edge is never near the view
+    // snap cell — small vs the plane, so its edge is never near the view. With
+    // a shore grid it is a whole number of its fine cells (4 m), so after a
+    // snap the vertices around the viewer land on the same world lines and
+    // the shoreline does not swim.
+    const step = this._shore != null ? Math.min(32, size / 16) : size / 16
     const p = cam.globalPosition
     const sx = Math.round(p.x / step) * step
     const sz = Math.round(p.z / step) * step
     if (this.mesh.position.x === sx && this.mesh.position.z === sz) return
     this.mesh.position.x = sx
     this.mesh.position.z = sz
+    this._updateShore(true)
     // Re-anchor the ripple to WORLD space at the new centre, so the surface detail stays put.
     const bump = this.waterMaterial?.bumpTexture as BABYLON.Texture | undefined
     if (bump) {

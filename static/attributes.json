@@ -4403,6 +4403,11 @@
         "description": "Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space"
       },
       {
+        "name": "shore",
+        "default": "'off'",
+        "description": "`'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: lapping foam, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time"
+      },
+      {
         "name": "normalMap"
       },
       {

@@ -1130,6 +1130,7 @@ b3d-water
   reflectionRefresh  = 0  — Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo
   twoSided  = false  — Render both sides
   follow  = false  — Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space
+  shore  = 'off'  — `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: lapping foam, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time
   normalMap
   windForce  = -5  — Wind strength
   waveHeight  = 0  — Wave amplitude

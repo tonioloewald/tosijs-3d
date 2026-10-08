@@ -6,6 +6,20 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **A shoreline, and sea ice.** `<tosi-b3d-water shore="on">` gives the water
+  the depth of the ground under each vertex (from the scene's terrain) and
+  draws from it: foam lapping at the waterline, paler water over the
+  shallows, and ice. The ice follows the cold and the shore: a solid sheet
+  along the beach, breaking into plates further out, open water beyond, and
+  all of it moving out to sea as the climate at sea level (season included)
+  gets colder. It is there from below as well. `iceCover(temperature, depth)`
+  is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
+  colour on the water mesh is shore data, not a tint.
+
 ## 0.8.15
 
 **Rocks and trees that belong to the land.** Procedural rocks, Quaternius

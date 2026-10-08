@@ -378,6 +378,7 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
         description:
           'Size of the reflection and refraction textures. 0 follows the device tier (1024 / 512 / 256).',
       }),
+      shore: choice('off', ['on', 'off']),
       reflectionRefresh: num(0, {
         minimum: 0,
         maximum: 8,

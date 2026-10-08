@@ -639,7 +639,7 @@ const scene = b3d(
   // ocean scales with the mountains instead of sitting at a fixed height
   // while the world reshapes around it. `follow` keeps it under the camera;
   // the ripples stay anchored in world space.
-  water = b3dWater({ y: seaY(), waterSize: 8000, follow: true, twoSided: true, waterColor: demo.waterColor, colorBlendFactor: demo.waterTint, fogColor: demo.waterFog }),
+  water = b3dWater({ y: seaY(), waterSize: 8000, follow: true, twoSided: true, shore: 'on', waterColor: demo.waterColor, colorBlendFactor: demo.waterTint, fogColor: demo.waterFog }),
 )
 
 preview.append(scene)

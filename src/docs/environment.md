@@ -26,6 +26,7 @@
 - [procedural-rock](/procedural-rock/)
 - [scatter](/scatter/)
 - [water-normal](/water-normal/)
+- [water-shore](/water-shore/)
 - [weather](/weather/)
 - [b3d-clouds](/b3d-clouds/)
 - [b3d-cloud-deck](/b3d-cloud-deck/)
