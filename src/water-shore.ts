@@ -29,6 +29,9 @@ breaks up in spring.
 | up to about `0.9` | Plates: more of them, and wider, as the cover rises |
 | `1` | A sheet, with hairline cracks where the plates met |
 
+Colder still and the cracks close: `iceSolid` runs from that cracked sheet to
+one unbroken surface, shallows first.
+
 ## A mesh that is fine where you are
 
 Depth lives on vertices, so the mesh decides how sharp the shoreline is.
@@ -169,18 +172,36 @@ export const FREEZING = 0.36
  * lie in that order going out from land. Colder pushes all three outward.
  */
 export function iceCover(temperature: number, depth: number): number {
+  return Math.max(0, Math.min(1, iceAmount(temperature, depth)))
+}
+
+/**
+ * How far past a full sheet the ice is, 0…1: at 0 the sheet still shows the
+ * hairline cracks where its plates met; at 1 it is one unbroken surface. Only
+ * real cold gets there, and the shallows get there first.
+ */
+export function iceSolid(temperature: number, depth: number): number {
+  return Math.max(0, Math.min(1, (iceAmount(temperature, depth) - 1.15) / 0.6))
+}
+
+/** Unclamped: under 1 is cover, over 1 is a sheet knitting solid. */
+function iceAmount(temperature: number, depth: number): number {
   if (!(temperature < FREEZING)) return 0
   // 0 at freezing, 1 fourteen hundredths colder, on up from there.
   const cold = (FREEZING - temperature) / 0.14
   const d = Math.max(0, depth)
-  // 1 at the beach, 0 by 25 m: how much the bottom helps it freeze.
+  // 1 at the beach, 0 by 25 m: how much the bottom helps it freeze…
   const t = Math.min(1, d / 25)
   const shallow = 1 - t * t * (3 - 2 * t)
-  return Math.max(0, Math.min(1, cold * (0.4 + 0.8 * shallow)))
+  // …and the last couple of metres freeze at the first touch of cold.
+  const wading = 1 - Math.min(1, d / 2.5)
+  // The open sea needs real cold: it is a full sheet only near a chart
+  // temperature of 0, and knits solid below that.
+  return cold * (0.42 + 0.9 * shallow + 0.9 * wading)
 }
 
 /**
- * Fill a grid's shore data: for each vertex, `[depth, ice, 0, 1]` (the water
+ * Fill a grid's shore data: for each vertex, `[depth, ice, solid, 1]` (the water
  * shader reads these from the vertex colour). `height(x, z)` is the terrain in
  * the same coordinates as `centreX/centreZ + line`; `waterY` is the surface.
  */
@@ -206,7 +227,7 @@ export function shoreData(
       const v = (iz * count + ix) * 4
       data[v] = depth
       data[v + 1] = iceCover(temperature, depth)
-      data[v + 2] = 0
+      data[v + 2] = iceSolid(temperature, depth)
       data[v + 3] = 1
     }
   }

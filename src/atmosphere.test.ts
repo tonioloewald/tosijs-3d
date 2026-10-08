@@ -142,3 +142,25 @@ describe('approachFog — the last line of defence against a pop', () => {
     )
   })
 })
+
+describe('a layer that clears the air', () => {
+  const base = {
+    color: { r: 1, g: 1, b: 1 },
+    density: 0.01,
+    start: 1000,
+    end: 4000,
+  }
+  const vacuum = (weight: number, reciprocal: boolean) =>
+    compositeFog(base, [{ weight, start: 1e6, end: 1e7, reciprocal }])
+
+  test('blended straight, a trace of vacuum throws the fog five times further', () => {
+    expect(vacuum(0.0016, false).end).toBeGreaterThan(19000)
+  })
+
+  test('blended by reciprocals, a trace is a trace and the ends are the ends', () => {
+    expect(vacuum(0.0016, true).end).toBeLessThan(4020)
+    expect(vacuum(0.5, true).end).toBeCloseTo(8000, -2)
+    expect(vacuum(0, true).end).toBe(4000)
+    expect(vacuum(1, true).end).toBeCloseTo(1e7, -3)
+  })
+})

@@ -20,6 +20,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
   colour on the water mesh is shore data, not a tint.
 
+### Fixed
+
+- **Negative `cirrus` had a quarter of the cloud of positive `cirrus`.** The
+  two streak directions were built differently; across-the-wind is now the
+  same field turned a quarter, so the sign changes only which way the streaks
+  run.
+- **A little less air cleared the haze almost completely, and a slow drag
+  back to full air never quite arrived.** The vacuum fog layer now mixes fog
+  by strength (`FogLayer.reciprocal`), and the sky's air value lands exactly
+  on 0 and 1.
+
 ## 0.8.15
 
 **Rocks and trees that belong to the land.** Procedural rocks, Quaternius

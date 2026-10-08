@@ -4,6 +4,7 @@ import {
   shoreGrid,
   shoreData,
   iceCover,
+  iceSolid,
   FREEZING,
   SHORE_DEPTH_MAX,
   SHORE_DEPTH_MIN,
@@ -84,13 +85,31 @@ describe('iceCover', () => {
     const t = 0.2
     expect(iceCover(t, 0)).toBe(1)
     const out = iceCover(t, 30)
-    expect(out).toBeGreaterThan(0.2)
+    expect(out).toBeGreaterThan(0.15)
     expect(out).toBeLessThan(0.7)
   })
 
+  test('the first touch of cold freezes the wading depth and little else', () => {
+    const t = 0.33
+    expect(iceCover(t, 0.2)).toBeGreaterThan(0.35)
+    expect(iceCover(t, 12)).toBeLessThan(0.25)
+  })
+
+  test('solid: only in real cold, shallows first, never before a full sheet', () => {
+    expect(iceSolid(0.3, 0)).toBe(0)
+    expect(iceSolid(0.2, 40)).toBe(0)
+    expect(iceSolid(0.05, 0)).toBe(1)
+    expect(iceSolid(0.1, 2)).toBeGreaterThan(iceSolid(0.1, 30))
+    for (const t of [0.3, 0.2, 0.1])
+      for (const d of [0, 5, 20, 50])
+        if (iceSolid(t, d) > 0) expect(iceCover(t, d)).toBe(1)
+  })
+
   test('colder pushes the sheet out to sea', () => {
-    expect(iceCover(0.02, 60)).toBeGreaterThan(0.9)
+    expect(iceCover(0.02, 60)).toBe(1)
     expect(iceCover(0.3, 60)).toBeLessThan(0.25)
+    // …and colder than the chart's zero (a hard winter), the open sea is solid.
+    expect(iceSolid(-0.15, 60)).toBeGreaterThan(0.5)
   })
 })
 

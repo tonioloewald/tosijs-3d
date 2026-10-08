@@ -137,6 +137,24 @@ describe('cloudOpacity — the shared weather dial', () => {
   })
 })
 
+describe('cirrus — the sign turns the streaks, and nothing else', () => {
+  test('negative is positive with the axes swapped: the same amount of cloud', () => {
+    const size = 48
+    for (const c of [0.3, 1]) {
+      const along = cloudField({ size, seed: 5, cirrus: c })
+      const across = cloudField({ size, seed: 5, cirrus: -c })
+      for (const [x, y] of [
+        [3, 7],
+        [20, 41],
+        [47, 0],
+      ])
+        expect(across[y * size + x]).toBe(along[x * size + y])
+      const sum = (f: Float32Array) => f.reduce((a, b) => a + b, 0)
+      expect(sum(across)).toBeCloseTo(sum(along), 3)
+    }
+  })
+})
+
 describe('cirrus — long and wispy vs rounded', () => {
   test('streaks are ANISOTROPIC: it varies less along the heading than across', () => {
     /*

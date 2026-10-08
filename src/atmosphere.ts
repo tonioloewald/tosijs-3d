@@ -80,6 +80,14 @@ export type FogLayer = {
    * which is right for water and for anything you are simply immersed in.
    */
   veil?: number
+  /**
+   * Blend `start` and `end` by their RECIPROCALS. For a layer that CLEARS the
+   * air (vacuum: distances of millions of metres): blended straight, a weight
+   * of 0.002 toward ten million metres moves a 4 km fog out to 20 km, so
+   * thinning the air a little cleared it almost entirely. Fog strength goes
+   * as one over distance, and that is what should be mixed.
+   */
+  reciprocal?: boolean
 }
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
@@ -107,8 +115,12 @@ export function compositeFog(base: FogState, layers: FogLayer[]): FogState {
     }
     if (layer.density !== undefined)
       out.density = lerp(out.density, layer.density, w)
-    if (layer.start !== undefined) out.start = lerp(out.start, layer.start, w)
-    if (layer.end !== undefined) out.end = lerp(out.end, layer.end, w)
+    const mix = layer.reciprocal
+      ? (a: number, b: number) =>
+          a > 0 && b > 0 ? 1 / lerp(1 / a, 1 / b, w) : lerp(a, b, w)
+      : (a: number, b: number) => lerp(a, b, w)
+    if (layer.start !== undefined) out.start = mix(out.start, layer.start)
+    if (layer.end !== undefined) out.end = mix(out.end, layer.end)
   }
   return out
 }

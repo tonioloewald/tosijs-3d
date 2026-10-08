@@ -2465,9 +2465,23 @@ export class B3dSkybox extends AbstractMesh {
       const vac = this._vacuumNow()
       // Quantised, not compared raw: a float that drifts by 1e-7 every frame
       // would refresh the sky every frame and the gate would be decorative.
+      /*
+      …BUT THE ENDS ARE EXACT. A slow drag back to full air arrives in steps
+      smaller than the gate, so the value stopped up to 0.002 short of zero
+      and stayed there. That sounds like nothing, and the space fog layer it
+      weights pulls the fog's end toward ten million metres: 0.0016 of that
+      moved the fog from 4 km to 20 km and the clouds, which fade by it, were
+      gone until a fast drag jumped the gate (Tonio: "turning air down makes
+      clouds disappear and they don't come back… if you drag hard to the
+      right it fixes it").
+      */
+      const atEnd = (now: number, held: number) =>
+        now !== held && (now === 0 || now === 1)
       const moved =
         Math.abs(vac - this._vacuum) > 0.002 ||
-        Math.abs(this._gasNow - this._gas) > 0.002
+        Math.abs(this._gasNow - this._gas) > 0.002 ||
+        atEnd(vac, this._vacuum) ||
+        atEnd(this._gasNow, this._gas)
       if (moved) {
         this._vacuum = vac
         this._gas = this._gasNow
@@ -2521,6 +2535,9 @@ export class B3dSkybox extends AbstractMesh {
             density: 0,
             start: 1e6,
             end: 1e7,
+            // Mixed as strengths, so a LITTLE less air is a little less haze
+            // (see FogLayer.reciprocal).
+            reciprocal: true,
             /*
             NO VEIL. Vacuum is the ABSENCE of a medium, not one in front of the
             sky: its weight still pulls the haze to nothing, but defaulting the

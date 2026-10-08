@@ -7,7 +7,8 @@ water mesh without shore data compiles exactly the stock shader.
 ONE THING IS TAKEN AWAY: stock water multiplies its colour by the vertex
 colour. With shore data in that attribute the multiply would tint the sea by
 its own depth, so it is removed. A vertex colour on a water mesh now MEANS
-shore data: r = depth in metres (negative above the waterline), g = ice cover.
+shore data: r = depth in metres (negative above the waterline), g = ice cover,
+b = how solid a full sheet is.
 */
 import * as BABYLON from '@babylonjs/core'
 // The material loads its shader on demand; the patch needs the text NOW, so
@@ -75,14 +76,18 @@ const SHORE = `${MARK}
   // SHALLOWS: paler and greener toward the beach.
   float b3dShallow = 1.0 - smoothstep(0.0, 7.0, b3dDepth);
   color.rgb = mix(color.rgb, color.rgb * 1.12 + vec3(0.03, 0.09, 0.08), 0.55 * b3dShallow);
-  // FOAM: a band that laps in and out over the last metre and a half, broken
-  // up by noise, and a thinner line riding out ahead of it.
-  float b3dLap = 0.5 + 0.5 * sin(time * 1.1 + b3dXZ.x * 0.21 + b3dXZ.y * 0.17);
-  float b3dGrain = b3dShoreNoise(b3dXZ * 1.7 + vec2(time * 0.35, -time * 0.22));
-  float b3dWash = 1.0 - smoothstep(0.05, 0.3 + 0.6 * b3dLap, b3dDepth + 0.3 * b3dGrain);
-  float b3dLineAt = 0.9 + 0.8 * b3dLap;
-  float b3dLine = (1.0 - smoothstep(0.0, 0.35, abs(b3dDepth - b3dLineAt))) * smoothstep(0.4, 0.8, b3dGrain);
-  float b3dFoam = clamp(b3dWash * (0.45 + 0.4 * b3dGrain) + 0.45 * b3dLine, 0.0, 1.0);
+  // FOAM: a thin wash that laps in and out over the last half metre, and a
+  // line riding out ahead of it. Kept FAINT, and never still: two laps out of
+  // step, and grain that streams along the shore, so no patch of it sits.
+  float b3dLap = 0.5 + 0.3 * sin(time * 1.9 + b3dXZ.x * 0.21 + b3dXZ.y * 0.17)
+    + 0.2 * sin(time * 3.1 - b3dXZ.x * 0.13 + b3dXZ.y * 0.29);
+  vec2 b3dFlow = vec2(time * 0.9, -time * 0.6);
+  float b3dGrain = 0.6 * b3dShoreNoise(b3dXZ * 1.7 + b3dFlow)
+    + 0.4 * b3dShoreNoise(b3dXZ * 3.9 - b3dFlow * 1.4);
+  float b3dWash = 1.0 - smoothstep(0.03, 0.2 + 0.45 * b3dLap, b3dDepth + 0.25 * b3dGrain);
+  float b3dLineAt = 0.6 + 0.9 * b3dLap;
+  float b3dLine = (1.0 - smoothstep(0.0, 0.25, abs(b3dDepth - b3dLineAt))) * smoothstep(0.45, 0.8, b3dGrain);
+  float b3dFoam = clamp(b3dWash * (0.3 + 0.35 * b3dGrain) + 0.28 * b3dLine, 0.0, 0.7);
   /*
   ICE, in three states that run into each other as the cover falls: a SHEET
   (every plate present, hairline cracks), BROKEN plates (some missing, the
@@ -94,8 +99,11 @@ const SHORE = `${MARK}
   float b3dId = 0.0;
   if (b3dIce > 0.0) {
     vec2 b3dP = b3dShoreIce(b3dXZ, b3dIce);
-    b3dPlate = b3dP.x;
-    b3dId = b3dP.y;
+    // SOLID: in real cold the plates knit into one surface. The cracks
+    // close and the plate-to-plate difference in white goes with them.
+    float b3dSolid = clamp(vColor.b, 0.0, 1.0);
+    b3dPlate = mix(b3dP.x, 1.0, b3dSolid);
+    b3dId = mix(b3dP.y, 0.6, b3dSolid);
   }
   vec3 b3dLight = diffuseBase + vec3(0.32, 0.35, 0.4);
   // Each plate a slightly different white; a little snow-grain on top.
@@ -173,6 +181,8 @@ export class IceUndersidePlugin extends BABYLON.MaterialPluginBase {
         float b3dIce = clamp(vColor.g, 0.0, 1.0);
         if (b3dIce > 0.0) {
           vec2 b3dP = b3dShoreIce(vPositionW.xz, b3dIce);
+          float b3dSolid = clamp(vColor.b, 0.0, 1.0);
+          b3dP = mix(b3dP, vec2(1.0, 0.45), b3dSolid);
           // Thinner at a plate's number's low end: more light comes through.
           vec3 b3dSlab = mix(vec3(0.3, 0.56, 0.62), vec3(0.7, 0.9, 0.92), b3dP.y)
             * (0.9 + 0.1 * b3dShoreNoise(vPositionW.xz * 1.3));

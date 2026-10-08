@@ -661,6 +661,7 @@ export {
   shoreGridLines,
   shoreData,
   iceCover,
+  iceSolid,
   type ShoreGrid,
 } from './water-shore.js'
 export {
