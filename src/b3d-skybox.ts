@@ -2020,6 +2020,18 @@ export class B3dSkybox extends AbstractMesh {
         1
       )
     }
+    /*
+    BLENDED AS SOON AS THE AIR THINS, and a blended mesh is drawn with the
+    other transparent things, sorted by distance. The dome is pinned to the
+    camera, so its distance is zero: it was drawn LAST, over the cloud deck
+    (which writes no depth to stop it). So any air below 0.999 (an
+    `atmosphere` under about 0.8) painted sky over every cloud, and clouds
+    needed exactly full air to exist (Tonio: "it shouldn't need to be 1.0 to
+    have clouds"). `alphaIndex` is sorted before distance: the dome first,
+    its stars next, then everything else.
+    */
+    this.mesh.alphaIndex = 0
+    if (this._starfieldMesh != null) this._starfieldMesh.alphaIndex = 1
     material.needAlphaBlending = () => air < 0.999
     material.luminance = attrs.luminance
     if (this._forkedSky) {

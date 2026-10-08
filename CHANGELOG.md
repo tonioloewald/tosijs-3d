@@ -26,6 +26,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   two streak directions were built differently; across-the-wind is now the
   same field turned a quarter, so the sign changes only which way the streaks
   run.
+- **Clouds needed exactly full air.** With `atmosphere` under about 0.8 the
+  sky dome becomes a blended mesh, and it was drawn after the cloud deck and
+  over it. It is now drawn first.
 - **A little less air cleared the haze almost completely, and a slow drag
   back to full air never quite arrived.** The vacuum fog layer now mixes fog
   by strength (`FogLayer.reciprocal`), and the sky's air value lands exactly
