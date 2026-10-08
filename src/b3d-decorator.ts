@@ -575,6 +575,17 @@ export class B3dDecorator extends B3dChild {
           this._root,
           true
         ) as BABYLON.Mesh
+        /*
+        ITS OWN GEOMETRY. A clone shares its source's, and a thin-instance
+        matrix buffer is registered ON the geometry (world0…world3) — so the
+        twin's short list of near casters replaced the visible mesh's buffer.
+        The visible mesh then drew its full count from a buffer holding a
+        few dozen: WebGL rejects that draw outright (INVALID_OPERATION, no
+        other sign), and whole models vanished the moment shadows went on.
+        It also made a rebuild flash: everything drew until the next caster
+        pick, 300 ms later, took the buffer back.
+        */
+        shadow.makeGeometryUnique()
         shadow.position.setAll(0)
         shadow.rotationQuaternion = BABYLON.Quaternion.Identity()
         shadow.scaling.setAll(1)

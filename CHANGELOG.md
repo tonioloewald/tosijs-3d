@@ -78,6 +78,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Switching decorator shadows on made whole models vanish**, and every
+  rebuild flashed the full scatter before dropping most of it. Each part's
+  shadow-only twin shared its geometry, and with it the thin-instance buffer,
+  so the visible mesh drew its full count from the twin's short list and
+  WebGL rejected the draw. The twin now has its own geometry.
+
 - A menu hung off a narrow button (`button3d({ menu })`, `openMenu3d`) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky's preset menu).
 - **A `select3d` inside a `row3d` stepped to its next option instead of opening
   its list.** A row did not pass the panel's host to its children, and a select
