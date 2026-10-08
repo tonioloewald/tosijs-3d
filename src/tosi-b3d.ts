@@ -3285,10 +3285,14 @@ export class B3d extends Component {
       // per-second average stays 0: nothing feeds it for this counter.)
       const draws = meter?.drawCallsCounter.current ?? '?'
       return [
-        `fps ${d.fps}  frame ${frame}ms  cpu ${cpu}ms${d.xrActive ? '  [XR]' : ''}`,
+        `fps ${d.fps}  frame ${frame}ms  cpu ${cpu}ms${
+          d.xrActive ? '  [XR]' : ''
+        }`,
         `draws ${draws}  meshes ${this.scene.getActiveMeshes().length}`,
         `render ${d.renderWidth}×${d.renderHeight}  (css ${d.cssWidth}×${d.cssHeight})`,
-        `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${d.tier}  resizes ${d.resizeCount}`,
+        `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${
+          d.tier
+        }  resizes ${d.resizeCount}`,
       ]
     }
     const block = textBlock3d({ lines: lines(), muted: true })

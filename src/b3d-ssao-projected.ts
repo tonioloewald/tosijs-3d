@@ -231,7 +231,6 @@ export class ProjectedAoController {
   }
 
   private _disposeTextures(): void {
-    const scene = this._scene
     this._depth?.dispose()
     this._ao?.dispose()
     this._blur?.dispose()
@@ -513,7 +512,13 @@ class ProjectedAoPlugin extends BABYLON.MaterialPluginBase {
     if (!this._isEnabled || c == null || ao == null || depth == null) return
     uniformBuffer.updateMatrix('projectedAoMatrix', c.viewProjection)
     // x = 1 while this material is being used to draw the depth picture.
-    uniformBuffer.updateFloat4('projectedAoMode', c.drawingDepth ? 1 : 0, 0, 0, 0)
+    uniformBuffer.updateFloat4(
+      'projectedAoMode',
+      c.drawingDepth ? 1 : 0,
+      0,
+      0,
+      0
+    )
     uniformBuffer.setTexture('projectedAoSampler', ao)
     /*
     NEVER the depth texture while it is the thing being drawn. Sampling the
