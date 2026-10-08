@@ -1113,8 +1113,19 @@ export function b3dSchema(extra = {}) {
         ssao: {
             ...choice('off', ['off', 'auto', 'on', 'always']),
             'x-deprecated-values': ['always'],
-            description: 'Ambient occlusion. `auto` follows the device tier. Flat only: it never runs in a headset. `always` is deprecated and means `on`.',
+            description: 'Ambient occlusion. `auto` follows the device tier and never runs in a headset; `on` does, unless `ssaoMethod` is `screen`. `always` is deprecated and means `on`.',
         },
+        ssaoMethod: {
+            ...choice('projected', ['projected', 'screen']),
+            description: '`projected` computes occlusion once from between the eyes and each material looks it up by world position, so `ssao="on"` also runs in a headset. `screen` is a post-process and flat only.',
+        },
+        ssaoRate: num(30, {
+            minimum: 0,
+            maximum: 120,
+            'x-useful': [10, 60],
+            'x-unit': 'Hz',
+            description: 'Projected only: how many times a second the occlusion is redrawn. 0 is every frame.',
+        }),
         ssaoStrength: num(1, {
             minimum: 0,
             maximum: 3,
@@ -1157,7 +1168,13 @@ export function b3dSchema(extra = {}) {
             { title: 'Look', keys: ['clearColor', 'glowLayerIntensity'] },
             {
                 title: 'Ambient occlusion',
-                keys: ['ssao', 'ssaoStrength', 'ssaoRadius'],
+                keys: [
+                    'ssao',
+                    'ssaoStrength',
+                    'ssaoRadius',
+                    'ssaoMethod',
+                    'ssaoRate',
+                ],
             },
             { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
             { title: 'Time', keys: ['timeScale'] },

@@ -1243,12 +1243,12 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
         ...choice('off', ['off', 'auto', 'on', 'always']),
         'x-deprecated-values': ['always'],
         description:
-          'Ambient occlusion. `auto` follows the device tier. Flat only unless `ssaoMethod` is `projected`. `always` is deprecated and means `on`.',
+          'Ambient occlusion. `auto` follows the device tier and never runs in a headset; `on` does, unless `ssaoMethod` is `screen`. `always` is deprecated and means `on`.',
       },
       ssaoMethod: {
-        ...choice('screen', ['screen', 'projected']),
+        ...choice('projected', ['projected', 'screen']),
         description:
-          'EXPERIMENTAL. `screen` is a post-process and flat only. `projected` computes occlusion once from between the eyes and each material looks it up by world position, so `ssao="on"` also runs in a headset.',
+          '`projected` computes occlusion once from between the eyes and each material looks it up by world position, so `ssao="on"` also runs in a headset. `screen` is a post-process and flat only.',
       },
       ssaoRate: num(30, {
         minimum: 0,

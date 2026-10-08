@@ -130,6 +130,8 @@ export declare class B3d extends Component {
         ssao: SsaoSetting;
         ssaoStrength: number;
         ssaoRadius: number;
+        ssaoMethod: "screen" | "projected";
+        ssaoRate: number;
         pixelRatio: number;
         stats: boolean;
         /** Pause automatically when the tab/window goes to the background.
@@ -360,6 +362,7 @@ export declare class B3d extends Component {
     glowLayer?: BABYLON.GlowLayer;
     private static _warnedSsaoAlways;
     private _ssao?;
+    private _projectedAo?;
     private _ssaoCamObs?;
     xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
@@ -803,6 +806,7 @@ export declare class B3d extends Component {
      */
     private _ambientWatchdog;
     private _statsBaseScale;
+    private _perfMeter;
     private _debugOpen;
     private _debugSources;
     private _liveDebug;

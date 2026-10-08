@@ -596,12 +596,11 @@ export class B3d extends Component {
     // Metres a surface looks for something occluding it.
     ssaoRadius: 2,
     /*
-    EXPERIMENTAL. 'screen' is Babylon's post-process (flat only). 'projected'
-    computes occlusion once from between the eyes and has every material look
-    it up by world position, which is the only kind that works in a headset:
-    see b3d-ssao-projected.
+    'projected' (default) computes occlusion once from between the eyes and
+    has every material look it up by world position: flat and in a headset,
+    see b3d-ssao-projected. 'screen' is Babylon's post-process, flat only.
     */
-    ssaoMethod: 'screen' as 'screen' | 'projected',
+    ssaoMethod: 'projected' as 'screen' | 'projected',
     // Projected only: redraws per second (0 = every frame). The lookup is by
     // world position, so a stale drawing stays put while the view moves.
     ssaoRate: 30,
@@ -5761,7 +5760,7 @@ export class B3d extends Component {
         'tosi-b3d: ssao="always" is deprecated and means "on". SSAO does not run in XR.'
       )
     }
-    const projected = a.ssaoMethod === 'projected'
+    const projected = a.ssaoMethod !== 'screen'
     const active = ssaoActive(a.ssao, {
       xr: this._xrPresenting || this.xrActive,
       budgetAllows: budgets.ssao,

@@ -3589,7 +3589,7 @@
       {
         "name": "ssao",
         "default": "'off'",
-        "description": "`off`, `auto` or `on`: see the table above. Flat only. LIVE"
+        "description": "`off`, `auto` or `on`: see the tables above. LIVE"
       },
       {
         "name": "ssaoStrength",
@@ -3600,6 +3600,16 @@
         "name": "ssaoRadius",
         "default": "2",
         "description": "How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE"
+      },
+      {
+        "name": "ssaoMethod",
+        "default": "'projected'",
+        "description": "`projected` (flat and headset) or `screen` (Babylon's post-process, flat only). LIVE"
+      },
+      {
+        "name": "ssaoRate",
+        "default": "30",
+        "description": "Projected only: redraws per second. `0` is every frame. LIVE"
       }
     ]
   },
@@ -5006,6 +5016,12 @@
       },
       {
         "name": "ssaoRadius"
+      },
+      {
+        "name": "ssaoMethod"
+      },
+      {
+        "name": "ssaoRate"
       },
       {
         "name": "pixelRatio"

@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=d0b25a2c27eb" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=409136781e19" data-tosi-doc-system />
   <title>Ambient occlusion (SSAO) — tosijs-3d</title>
   <meta name="description" content="Corners get darker. Where a wall meets the floor, where crates are stacked, under a ledge: real light does not reach in there, and a renderer without ambient…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-ssao/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=faf7d60b6a48" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=85b7aa2456a6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Ambient occlusion (SSAO)</h1>
 <p><strong>Corners get darker.</strong> Where a wall meets the floor, where crates are stacked,
@@ -53,12 +53,33 @@ them. That is most of why a scene of plain boxes looks pasted together. One
 attribute on <code>&lt;tosi-b3d&gt;</code> fixes it: <code>ssao=&quot;auto&quot;</code>.</p>
 <h2>Demo</h2>
 <p>Open the ⚙ panel and switch <code>ssao</code> between <code>off</code> and <code>on</code>. Watch the foot of
-the walls, the gaps between the crates and the underside of the lintel. Enter
-VR and it switches itself off: see &quot;Flat only&quot; below.</p>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, select3d, slider3d } from &#39;tosijs-3d&#39;
+the walls, the gaps between the crates and the underside of the lintel, then
+orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
+organic shape occlusion does most for. It works in VR too, with the default
+<code>projected</code> method; <code>screen</code> is Babylon&#39;s own and switches itself off in a
+headset. See &quot;Two methods&quot; below.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, select3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
-const { ssaoDemo } = tosi({ ssaoDemo: { mode: &#39;on&#39;, strength: 1, radius: 2 } })
+const { ssaoDemo } = tosi({ ssaoDemo: { mode: &#39;on&#39;, method: &#39;projected&#39;, strength: 1, radius: 2 } })
+
+// A bust in faux alabaster: pale and semi-gloss, so occlusion is easy to see.
+const bust = b3dProp({
+  libraryUrl: assetUrl(&#39;tosijs-3d/ariosto-bust.glb&#39;),
+  meshName: &#39;Ariosto&#39;,
+  scale: 0.8,
+  x: 0.6, y: 1.4, z: -2.6, ry: 100,
+})
+function alabaster(babylon) {
+  const mesh = bust.mesh ? bust.mesh.getChildMeshes()[0] : null
+  if (mesh == null) return setTimeout(alabaster, 250, babylon)
+  const material = new babylon.PBRMaterial(&#39;alabaster&#39;, mesh.getScene())
+  material.albedoColor = new babylon.Color3(0.93, 0.9, 0.84)
+  material.metallic = 0
+  material.roughness = 0.4
+  material.bumpTexture = mesh.material.bumpTexture
+  mesh.material = material
+}
 
 const stone = &#39;#b9b2a4&#39;
 const crate = &#39;#a0764a&#39;
@@ -66,14 +87,17 @@ preview.append(
   b3d(
     {
       ssao: ssaoDemo.mode,
+      ssaoMethod: ssaoDemo.method,
       ssaoStrength: ssaoDemo.strength,
       ssaoRadius: ssaoDemo.radius,
       scenePanel: () =&gt; [
         select3d({ label: &#39;ssao&#39;, value: ssaoDemo.mode, options: [&#39;off&#39;, &#39;auto&#39;, &#39;on&#39;] }),
+        select3d({ label: &#39;method&#39;, value: ssaoDemo.method, options: [&#39;projected&#39;, &#39;screen&#39;] }),
         slider3d({ label: &#39;strength&#39;, value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: &#39;radius (m)&#39;, value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {
+        alabaster(BABYLON)
         const cam = el.scene.activeCamera
         // Target first: an orbit camera re-derives its position from the target.
         if (cam &amp;&amp; cam.setTarget) cam.setTarget(new BABYLON.Vector3(-0.5, 1, 0.5))
@@ -95,15 +119,35 @@ preview.append(
     b3dBox({ meshName: &#39;crate-1&#39;, size: 1, x: -3.2, y: 0.5, z: -0.5, color: crate }),
     b3dBox({ meshName: &#39;crate-2&#39;, size: 1, x: -2.1, y: 0.5, z: -0.3, ry: 12, color: crate }),
     b3dBox({ meshName: &#39;crate-3&#39;, size: 1, x: -2.7, y: 1.5, z: -0.4, ry: -8, color: crate }),
-    b3dSphere({ meshName: &#39;ball&#39;, diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: &#39;#c8553d&#39; })
+    b3dSphere({ meshName: &#39;ball&#39;, diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: &#39;#c8553d&#39; }),
+    b3dBox({ meshName: &#39;plinth&#39;, width: 0.6, height: 1, depth: 0.6, x: 0.6, y: 0.5, z: -2.6, color: stone }),
+    bust
   )
 )
 </code></pre>
-<h2>What it costs, and why it is off by default</h2>
-<p>SSAO is not free and it is not one draw. Babylon&#39;s <code>SSAO2RenderingPipeline</code>
-draws the opaque scene a SECOND time into a depth-and-normals buffer, then for
-every pixel samples that buffer several times and blurs the result. So the
-cost is one extra pass over your geometry plus a per-pixel loop.</p>
+<h2>Two methods</h2>
+<p><code>ssaoMethod</code> chooses how the occlusion is worked out. The default is
+<code>projected</code>.</p>
+<table>
+<thead>
+<tr>
+<th><code>ssaoMethod</code></th>
+<th>Where it runs</th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>projected</code> (default)</td>
+<td>flat and in a headset</td>
+<td>ours: see below</td>
+</tr>
+<tr>
+<td><code>screen</code></td>
+<td>flat only</td>
+<td>Babylon&#39;s <code>SSAO2RenderingPipeline</code>, a post-process</td>
+</tr>
+</tbody></table>
+<p>And <code>ssao</code> chooses whether it runs at all:</p>
 <table>
 <thead>
 <tr>
@@ -117,22 +161,47 @@ cost is one extra pass over your geometry plus a per-pixel loop.</p>
 </tr>
 <tr>
 <td><code>auto</code></td>
-<td>on if the device tier affords it (top tier only)</td>
+<td>on if the device tier affords it (top tier only), and never in a headset</td>
 </tr>
 <tr>
 <td><code>on</code></td>
-<td>on</td>
+<td>on, including in a headset when the method is <code>projected</code></td>
 </tr>
 </tbody></table>
-<h2>Flat only</h2>
-<p><strong>SSAO never runs in a headset</strong>, whatever the setting, and it is switched off
-before the session starts and back on when it ends.</p>
-<p>That is not a budget decision. Babylon&#39;s SSAO is a post-process, and a
-post-process chain on a WebXR camera does not render per eye: it draws ONE
-image across both. That is what 0.8.11 did on a Quest, and an emulated headset
-reproduces it whether the chain is carried into the session or built inside
-it. Ambient occlusion in a headset needs a different technique, not a
-different setting.</p>
+<h2>Projected</h2>
+<p>Occlusion is computed once, from a camera between the eyes, into a texture.
+Every lit material then looks its own pixel up in that texture by world
+position, the way cloud shadows and caustics do.</p>
+<ul>
+<li>It is correct in stereo, because each eye shades its own pixels and the
+darkening is attached to the surface.</li>
+<li>Nothing is post-processed, so the canvas keeps its antialiasing.</li>
+<li>It is not redrawn every frame. The lookup uses the matrix the texture was
+drawn with, so an old texture stays where it was in the world while the view
+moves. <code>ssaoRate</code> is redraws per second (default 30).</li>
+<li>The depth it works from is drawn by each mesh&#39;s own material, so skinned
+characters, instances and shader vertex animation (the crowd) are occluded
+in the pose you see.</li>
+</ul>
+<p>What it costs is one extra pass over the opaque scene per redraw (depth only:
+the materials skip their lighting), two small full-screen passes, and two
+texture reads per lit pixel. On a Quest, in this demo, frame rate and CPU time
+were the same with it on as off. That is a small scene. It has not been
+measured on a heavy one, which is why <code>auto</code> stays off in a headset.</p>
+<p>It concentrates its darkening in contacts and corners, where <code>screen</code> spreads
+it more thinly. It is softer than <code>screen</code> on fine surface detail, because it
+works from depth alone at reduced resolution and <code>screen</code> also reads each
+material&#39;s normal map. A surface the middle camera could not see gets no
+occlusion until the next redraw.</p>
+<h2>Screen, and why it is flat only</h2>
+<p><code>ssaoMethod=&quot;screen&quot;</code> is Babylon&#39;s pipeline: it draws the opaque scene a second
+time into a depth-and-normals buffer, samples that for every pixel, blurs the
+result and composites it over the frame.</p>
+<p><strong>It never runs in a headset.</strong> A post-process chain on a WebXR camera does not
+render per eye: it draws ONE image across both. That is what 0.8.11 did on a
+Quest, and an emulated headset reproduces it whether the chain is carried into
+the session or built inside it. With this method occlusion is switched off
+before a session starts and back on when it ends.</p>
 <p>(0.8.11 shipped an <code>always</code> value that claimed to run in XR. It never worked.
 It is still accepted, means <code>on</code>, and warns once.)</p>
 <p>Sample count and resolution come from the device budget
@@ -150,7 +219,7 @@ tunes the COST.</p>
 <tbody><tr>
 <td><code>ssao</code></td>
 <td><code>&#39;off&#39;</code></td>
-<td><code>off</code>, <code>auto</code> or <code>on</code>: see the table above. Flat only. LIVE</td>
+<td><code>off</code>, <code>auto</code> or <code>on</code>: see the tables above. LIVE</td>
 </tr>
 <tr>
 <td><code>ssaoStrength</code></td>
@@ -161,6 +230,16 @@ tunes the COST.</p>
 <td><code>ssaoRadius</code></td>
 <td><code>2</code></td>
 <td>How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE</td>
+</tr>
+<tr>
+<td><code>ssaoMethod</code></td>
+<td><code>&#39;projected&#39;</code></td>
+<td><code>projected</code> (flat and headset) or <code>screen</code> (Babylon&#39;s post-process, flat only). LIVE</td>
+</tr>
+<tr>
+<td><code>ssaoRate</code></td>
+<td><code>30</code></td>
+<td>Projected only: redraws per second. <code>0</code> is every frame. LIVE</td>
 </tr>
 </tbody></table>
 <h2>What is and is not occluded</h2>
@@ -411,6 +490,6 @@ vertex-animated crowd) is occluded as if standing in its rest pose.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-avg36r6v.js"></script>
+  <script type="module" src="../hydrate-1xn3vfw5.js"></script>
 </body>
 </html>

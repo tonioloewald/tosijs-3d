@@ -1,5 +1,0 @@
-import{gi}from"./site-yk445q08.js";import{I}from"./site-yrysffz4.js";import{o}from"./site-wcwq97n8.js";class Vp extends gi{constructor(e){super(e);this.sound=this.registerDataInput("sound",I)}_preparePendingTasks(e){let r=this.sound.getValue(e);if(!r){this._reportError(e,"No sound provided for sound-ended event");return}let s=r.onEndedObservable.add(()=>{this._execute(e)});e._setExecutionVariable(this,"_soundEndedObserver",s),e._setExecutionVariable(this,"_subscribedSound",r)}_executeEvent(e,r){return!0}_cancelPendingTasks(e){let r=e._getExecutionVariable(this,"_soundEndedObserver",null),s=e._getExecutionVariable(this,"_subscribedSound",null);if(r&&s)s.onEndedObservable.remove(r);e._setExecutionVariable(this,"_soundEndedObserver",null),e._setExecutionVariable(this,"_subscribedSound",null)}getClassName(){return"FlowGraphSoundEndedEventBlock"}}var n=!1;function Gp(){if(n)return;n=!0,o("FlowGraphSoundEndedEventBlock",Vp)}Gp();
-export{Vp,Gp};
-
-//# debugId=F7E8D2CD0F704BFC64756E2164756E21
-//# sourceMappingURL=site-h2ed83fz.js.map

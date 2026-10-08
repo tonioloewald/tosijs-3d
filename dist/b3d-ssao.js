@@ -10,14 +10,35 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 ## Demo
 
 Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
-the walls, the gaps between the crates and the underside of the lintel. Enter
-VR and it switches itself off: see "Flat only" below.
+the walls, the gaps between the crates and the underside of the lintel, then
+orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
+organic shape occlusion does most for. It works in VR too, with the default
+`projected` method; `screen` is Babylon's own and switches itself off in a
+headset. See "Two methods" below.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, select3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, select3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', strength: 1, radius: 2 } })
+const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', method: 'projected', strength: 1, radius: 2 } })
+
+// A bust in faux alabaster: pale and semi-gloss, so occlusion is easy to see.
+const bust = b3dProp({
+  libraryUrl: assetUrl('tosijs-3d/ariosto-bust.glb'),
+  meshName: 'Ariosto',
+  scale: 0.8,
+  x: 0.6, y: 1.4, z: -2.6, ry: 100,
+})
+function alabaster(babylon) {
+  const mesh = bust.mesh ? bust.mesh.getChildMeshes()[0] : null
+  if (mesh == null) return setTimeout(alabaster, 250, babylon)
+  const material = new babylon.PBRMaterial('alabaster', mesh.getScene())
+  material.albedoColor = new babylon.Color3(0.93, 0.9, 0.84)
+  material.metallic = 0
+  material.roughness = 0.4
+  material.bumpTexture = mesh.material.bumpTexture
+  mesh.material = material
+}
 
 const stone = '#b9b2a4'
 const crate = '#a0764a'
@@ -25,14 +46,17 @@ preview.append(
   b3d(
     {
       ssao: ssaoDemo.mode,
+      ssaoMethod: ssaoDemo.method,
       ssaoStrength: ssaoDemo.strength,
       ssaoRadius: ssaoDemo.radius,
       scenePanel: () => [
         select3d({ label: 'ssao', value: ssaoDemo.mode, options: ['off', 'auto', 'on'] }),
+        select3d({ label: 'method', value: ssaoDemo.method, options: ['projected', 'screen'] }),
         slider3d({ label: 'strength', value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: 'radius (m)', value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {
+        alabaster(BABYLON)
         const cam = el.scene.activeCamera
         // Target first: an orbit camera re-derives its position from the target.
         if (cam && cam.setTarget) cam.setTarget(new BABYLON.Vector3(-0.5, 1, 0.5))
@@ -54,35 +78,70 @@ preview.append(
     b3dBox({ meshName: 'crate-1', size: 1, x: -3.2, y: 0.5, z: -0.5, color: crate }),
     b3dBox({ meshName: 'crate-2', size: 1, x: -2.1, y: 0.5, z: -0.3, ry: 12, color: crate }),
     b3dBox({ meshName: 'crate-3', size: 1, x: -2.7, y: 1.5, z: -0.4, ry: -8, color: crate }),
-    b3dSphere({ meshName: 'ball', diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: '#c8553d' })
+    b3dSphere({ meshName: 'ball', diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: '#c8553d' }),
+    b3dBox({ meshName: 'plinth', width: 0.6, height: 1, depth: 0.6, x: 0.6, y: 0.5, z: -2.6, color: stone }),
+    bust
   )
 )
 ```
 
-## What it costs, and why it is off by default
+## Two methods
 
-SSAO is not free and it is not one draw. Babylon's `SSAO2RenderingPipeline`
-draws the opaque scene a SECOND time into a depth-and-normals buffer, then for
-every pixel samples that buffer several times and blurs the result. So the
-cost is one extra pass over your geometry plus a per-pixel loop.
+`ssaoMethod` chooses how the occlusion is worked out. The default is
+`projected`.
+
+| `ssaoMethod` | Where it runs | |
+| --- | --- | --- |
+| `projected` (default) | flat and in a headset | ours: see below |
+| `screen` | flat only | Babylon's `SSAO2RenderingPipeline`, a post-process |
+
+And `ssao` chooses whether it runs at all:
 
 | `ssao` | |
 | --- | --- |
 | `off` (default) | off |
-| `auto` | on if the device tier affords it (top tier only) |
-| `on` | on |
+| `auto` | on if the device tier affords it (top tier only), and never in a headset |
+| `on` | on, including in a headset when the method is `projected` |
 
-## Flat only
+## Projected
 
-**SSAO never runs in a headset**, whatever the setting, and it is switched off
-before the session starts and back on when it ends.
+Occlusion is computed once, from a camera between the eyes, into a texture.
+Every lit material then looks its own pixel up in that texture by world
+position, the way cloud shadows and caustics do.
 
-That is not a budget decision. Babylon's SSAO is a post-process, and a
-post-process chain on a WebXR camera does not render per eye: it draws ONE
-image across both. That is what 0.8.11 did on a Quest, and an emulated headset
-reproduces it whether the chain is carried into the session or built inside
-it. Ambient occlusion in a headset needs a different technique, not a
-different setting.
+- It is correct in stereo, because each eye shades its own pixels and the
+  darkening is attached to the surface.
+- Nothing is post-processed, so the canvas keeps its antialiasing.
+- It is not redrawn every frame. The lookup uses the matrix the texture was
+  drawn with, so an old texture stays where it was in the world while the view
+  moves. `ssaoRate` is redraws per second (default 30).
+- The depth it works from is drawn by each mesh's own material, so skinned
+  characters, instances and shader vertex animation (the crowd) are occluded
+  in the pose you see.
+
+What it costs is one extra pass over the opaque scene per redraw (depth only:
+the materials skip their lighting), two small full-screen passes, and two
+texture reads per lit pixel. On a Quest, in this demo, frame rate and CPU time
+were the same with it on as off. That is a small scene. It has not been
+measured on a heavy one, which is why `auto` stays off in a headset.
+
+It concentrates its darkening in contacts and corners, where `screen` spreads
+it more thinly. It is softer than `screen` on fine surface detail, because it
+works from depth alone at reduced resolution and `screen` also reads each
+material's normal map. A surface the middle camera could not see gets no
+occlusion until the next redraw.
+
+## Screen, and why it is flat only
+
+`ssaoMethod="screen"` is Babylon's pipeline: it draws the opaque scene a second
+time into a depth-and-normals buffer, samples that for every pixel, blurs the
+result and composites it over the frame.
+
+**It never runs in a headset.** A post-process chain on a WebXR camera does not
+render per eye: it draws ONE image across both. That is what 0.8.11 did on a
+Quest, and an emulated headset reproduces it whether the chain is carried into
+the session or built inside it. With this method occlusion is switched off
+before a session starts and back on when it ends.
 
 (0.8.11 shipped an `always` value that claimed to run in XR. It never worked.
 It is still accepted, means `on`, and warns once.)
@@ -95,9 +154,11 @@ tunes the COST.
 
 | Attribute | Default | Description |
 | --- | --- | --- |
-| `ssao` | `'off'` | `off`, `auto` or `on`: see the table above. Flat only. LIVE |
+| `ssao` | `'off'` | `off`, `auto` or `on`: see the tables above. LIVE |
 | `ssaoStrength` | `1` | How dark a fully occluded crease gets. `0` is none. LIVE |
 | `ssaoRadius` | `2` | How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE |
+| `ssaoMethod` | `'projected'` | `projected` (flat and headset) or `screen` (Babylon's post-process, flat only). LIVE |
+| `ssaoRate` | `30` | Projected only: redraws per second. `0` is every frame. LIVE |
 
 ## What is and is not occluded
 
@@ -112,7 +173,7 @@ import * as BABYLON from '@babylonjs/core';
  * Should SSAO be running? Pure, so the rule is testable without an engine.
  *
  * Never in XR, whatever the setting: a post-process pipeline on a WebXR camera
- * draws one image across both eyes (see "Flat only" in the page above). `xr` must be true for
+ * draws one image across both eyes (see "Screen" in the page above). `xr` must be true for
  * the WHOLE session including entering and exiting, because the headset camera
  * becomes the active camera before the session reports itself entered.
  */
@@ -122,7 +183,10 @@ export function ssaoActive(setting, opts) {
         return false;
     if (setting === false || setting === 'false')
         return false;
-    if (opts.xr)
+    // `xrCapable`: the projected method (b3d-ssao-projected) is not a
+    // post-process, so it may run in a session. Even then only when ASKED
+    // for: `auto` in a headset stays off until the cost is measured on one.
+    if (opts.xr && (opts.xrCapable !== true || setting === 'auto'))
         return false;
     if (setting === 'auto')
         return opts.budgetAllows;

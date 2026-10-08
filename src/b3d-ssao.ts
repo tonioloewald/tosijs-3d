@@ -12,15 +12,15 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
 the walls, the gaps between the crates and the underside of the lintel, then
 orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
-organic shape occlusion does most for. Enter VR and it switches
-itself off, unless `method` is `projected`: see "Flat only" and "Projected"
-below.
+organic shape occlusion does most for. It works in VR too, with the default
+`projected` method; `screen` is Babylon's own and switches itself off in a
+headset. See "Two methods" below.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, select3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', method: 'screen', strength: 1, radius: 2 } })
+const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', method: 'projected', strength: 1, radius: 2 } })
 
 // A bust in faux alabaster: pale and semi-gloss, so occlusion is easy to see.
 const bust = b3dProp({
@@ -51,7 +51,7 @@ preview.append(
       ssaoRadius: ssaoDemo.radius,
       scenePanel: () => [
         select3d({ label: 'ssao', value: ssaoDemo.mode, options: ['off', 'auto', 'on'] }),
-        select3d({ label: 'method', value: ssaoDemo.method, options: ['screen', 'projected'] }),
+        select3d({ label: 'method', value: ssaoDemo.method, options: ['projected', 'screen'] }),
         slider3d({ label: 'strength', value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: 'radius (m)', value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
       ],
@@ -85,40 +85,29 @@ preview.append(
 )
 ```
 
-## What it costs, and why it is off by default
+## Two methods
 
-SSAO is not free and it is not one draw. Babylon's `SSAO2RenderingPipeline`
-draws the opaque scene a SECOND time into a depth-and-normals buffer, then for
-every pixel samples that buffer several times and blurs the result. So the
-cost is one extra pass over your geometry plus a per-pixel loop.
+`ssaoMethod` chooses how the occlusion is worked out. The default is
+`projected`.
+
+| `ssaoMethod` | Where it runs | |
+| --- | --- | --- |
+| `projected` (default) | flat and in a headset | ours: see below |
+| `screen` | flat only | Babylon's `SSAO2RenderingPipeline`, a post-process |
+
+And `ssao` chooses whether it runs at all:
 
 | `ssao` | |
 | --- | --- |
 | `off` (default) | off |
-| `auto` | on if the device tier affords it (top tier only) |
-| `on` | on |
+| `auto` | on if the device tier affords it (top tier only), and never in a headset |
+| `on` | on, including in a headset when the method is `projected` |
 
-## Flat only
+## Projected
 
-**SSAO never runs in a headset**, whatever the setting, and it is switched off
-before the session starts and back on when it ends.
-
-That is not a budget decision. Babylon's SSAO is a post-process, and a
-post-process chain on a WebXR camera does not render per eye: it draws ONE
-image across both. That is what 0.8.11 did on a Quest, and an emulated headset
-reproduces it whether the chain is carried into the session or built inside
-it. Ambient occlusion in a headset needs a different technique, not a
-different setting.
-
-(0.8.11 shipped an `always` value that claimed to run in XR. It never worked.
-It is still accepted, means `on`, and warns once.)
-
-## Projected: occlusion that works in a headset (experimental)
-
-`ssaoMethod="projected"` does the same sum somewhere else. Occlusion is
-computed once, from a camera between the eyes, into a texture, and every lit
-material then looks its own pixel up in that texture by world position, the way
-cloud shadows and caustics do.
+Occlusion is computed once, from a camera between the eyes, into a texture.
+Every lit material then looks its own pixel up in that texture by world
+position, the way cloud shadows and caustics do.
 
 - It is correct in stereo, because each eye shades its own pixels and the
   darkening is attached to the surface.
@@ -126,15 +115,36 @@ cloud shadows and caustics do.
 - It is not redrawn every frame. The lookup uses the matrix the texture was
   drawn with, so an old texture stays where it was in the world while the view
   moves. `ssaoRate` is redraws per second (default 30).
+- The depth it works from is drawn by each mesh's own material, so skinned
+  characters, instances and shader vertex animation (the crowd) are occluded
+  in the pose you see.
 
-With it, `ssao="on"` runs in a headset as well as flat. `auto` still stays off
-in a session: the cost is one extra depth pass over the scene per redraw, and
-that has not been measured on a standalone headset.
+What it costs is one extra pass over the opaque scene per redraw (depth only:
+the materials skip their lighting), two small full-screen passes, and two
+texture reads per lit pixel. On a Quest, in this demo, frame rate and CPU time
+were the same with it on as off. That is a small scene. It has not been
+measured on a heavy one, which is why `auto` stays off in a headset.
 
-It is verified in an emulated headset, not yet on a device. It is subtler than
-`screen` on fine detail, because it works from depth alone at reduced
-resolution, where `screen` also reads each material's normals. A surface the
-middle camera could not see gets no occlusion until the next redraw.
+It concentrates its darkening in contacts and corners, where `screen` spreads
+it more thinly. It is softer than `screen` on fine surface detail, because it
+works from depth alone at reduced resolution and `screen` also reads each
+material's normal map. A surface the middle camera could not see gets no
+occlusion until the next redraw.
+
+## Screen, and why it is flat only
+
+`ssaoMethod="screen"` is Babylon's pipeline: it draws the opaque scene a second
+time into a depth-and-normals buffer, samples that for every pixel, blurs the
+result and composites it over the frame.
+
+**It never runs in a headset.** A post-process chain on a WebXR camera does not
+render per eye: it draws ONE image across both. That is what 0.8.11 did on a
+Quest, and an emulated headset reproduces it whether the chain is carried into
+the session or built inside it. With this method occlusion is switched off
+before a session starts and back on when it ends.
+
+(0.8.11 shipped an `always` value that claimed to run in XR. It never worked.
+It is still accepted, means `on`, and warns once.)
 
 Sample count and resolution come from the device budget
 (`PerfBudgets.ssaoSamples`, `ssaoRatio`), so you tune the LOOK and the tier
@@ -144,10 +154,10 @@ tunes the COST.
 
 | Attribute | Default | Description |
 | --- | --- | --- |
-| `ssao` | `'off'` | `off`, `auto` or `on`: see the table above. Flat only unless `ssaoMethod` is `projected`. LIVE |
+| `ssao` | `'off'` | `off`, `auto` or `on`: see the tables above. LIVE |
 | `ssaoStrength` | `1` | How dark a fully occluded crease gets. `0` is none. LIVE |
 | `ssaoRadius` | `2` | How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE |
-| `ssaoMethod` | `'screen'` | `screen` or `projected` (experimental; the one that runs in a headset). LIVE |
+| `ssaoMethod` | `'projected'` | `projected` (flat and headset) or `screen` (Babylon's post-process, flat only). LIVE |
 | `ssaoRate` | `30` | Projected only: redraws per second. `0` is every frame. LIVE |
 
 ## What is and is not occluded
@@ -168,7 +178,7 @@ export type SsaoSetting = 'off' | 'auto' | 'on' | 'always'
  * Should SSAO be running? Pure, so the rule is testable without an engine.
  *
  * Never in XR, whatever the setting: a post-process pipeline on a WebXR camera
- * draws one image across both eyes (see "Flat only" in the page above). `xr` must be true for
+ * draws one image across both eyes (see "Screen" in the page above). `xr` must be true for
  * the WHOLE session including entering and exiting, because the headset camera
  * becomes the active camera before the session reports itself entered.
  */

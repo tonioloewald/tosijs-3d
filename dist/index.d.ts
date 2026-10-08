@@ -90,6 +90,8 @@ export { B3dLightning, b3dLightning } from './b3d-lightning.js';
 export { B3dLightShafts, b3dLightShafts } from './b3d-light-shafts.js';
 export { SsaoController, ssaoActive } from './b3d-ssao.js';
 export type { SsaoSetting, SsaoParams } from './b3d-ssao.js';
+export { ProjectedAoController } from './b3d-ssao-projected.js';
+export type { ProjectedAoParams } from './b3d-ssao-projected.js';
 export type { WeatherSample, WeatherCell } from './weather.js';
 export type { Trail, TrailOptions } from './b3d-trail.js';
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js';

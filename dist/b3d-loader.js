@@ -27,12 +27,24 @@ model, or remove the element to free it.)
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d, toggle3d } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 
-const { demo } = tosi({ demo: { time: 10 } })
+const { demo } = tosi({ demo: { time: 10, shadows: true, glow: false, ssao: false } })
+
+// Three effects that change how every material in the file reads.
+let host = null
+function applyEffects() {
+  if (host == null || host.scene == null) return
+  host.scene.shadowsEnabled = demo.shadows.value
+  host.glowLayerIntensity = demo.glow.value ? 1 : 0
+  host.ssao = demo.ssao.value ? 'on' : 'off'
+}
+demo.shadows.observe(applyEffects)
+demo.glow.observe(applyEffects)
+demo.ssao.observe(applyEffects)
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -45,8 +57,13 @@ preview.append(
     {
       scenePanel: () => [
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
+        toggle3d({ label: 'shadows', value: demo.shadows }),
+        toggle3d({ label: 'glow', value: demo.glow }),
+        toggle3d({ label: 'ssao', value: demo.ssao }),
       ],
       sceneCreated(el, BABYLON) {
+        host = el
+        applyEffects()
         const camera = orbitCam(el, {
           alpha: -Math.PI / 2, beta: Math.PI / 4, radius: 20, target: [0, 1, 0],
         })

@@ -6,18 +6,26 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.14
 
-**Ambient occlusion that works in a headset (experimental).**
+**Ambient occlusion that works in a headset, and it is the default.**
+
+### Changed
+
+- **`ssaoMethod` defaults to `projected`.** Scenes with `ssao="on"` or `"auto"`
+  now get the projected method flat, which keeps antialiasing and concentrates
+  its darkening in contacts and corners. **`ssao="on"` now also runs in a
+  headset**, where it used to switch itself off. `auto` still never runs in a
+  headset. Set `ssaoMethod="screen"` for the previous behaviour exactly.
 
 ### Added
 
-- **`ssaoMethod="projected"`** on `<tosi-b3d>`: occlusion computed once from a
-  camera between the eyes and looked up by every material by world position.
-  It is correct in stereo, uses no post-process (so antialiasing survives), and
-  is redrawn `ssaoRate` times a second (default 30) instead of every frame.
-  With it `ssao="on"` runs in a headset. Verified in the emulated headset; not
-  yet measured on a device, so `auto` stays off in a session.
+- **Projected ambient occlusion** (`ssaoMethod`, `ssaoRate` on `<tosi-b3d>`):
+  occlusion computed once from a camera between the eyes and looked up by every
+  material by world position. It is correct in stereo, uses no post-process,
+  and is redrawn `ssaoRate` times a second (default 30) instead of every frame.
+  Checked on a Quest in the SSAO demo: stereo, and no measurable change in
+  frame rate or CPU time. Not yet measured on a heavy scene.
 - Projected occlusion follows **shader vertex animation**: the crowd is
   occluded in its animated pose, because every mesh draws its own depth with
   its own material.

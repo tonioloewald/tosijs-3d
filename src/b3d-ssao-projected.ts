@@ -1,9 +1,9 @@
 /*
-PROJECTED AMBIENT OCCLUSION — experimental, and the only kind that can run in a
-headset. `<tosi-b3d ssao="on" ssaoMethod="projected">`.
+PROJECTED AMBIENT OCCLUSION — the default method, and the only kind that can run
+in a headset. `<tosi-b3d ssao="on">`.
 
 Babylon's SSAO is a post-process: it composites one full-frame image, and on a
-WebXR camera that is one image across both eyes (see b3d-ssao.ts, "Flat only").
+WebXR camera that is one image across both eyes (see b3d-ssao.ts, "Screen").
 This does the same sum somewhere else. Occlusion is computed ONCE, from a
 camera between the eyes, into a texture. Every lit material then looks its own
 pixel up in that texture BY WORLD POSITION, the way cloud shadows and caustics

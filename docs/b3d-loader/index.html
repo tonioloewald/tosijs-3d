@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=d0b25a2c27eb" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=409136781e19" data-tosi-doc-system />
   <title>b3d-loader — tosijs-3d</title>
   <meta name="description" content="Loads a GLB/glTF scene file into the 3D scene. Meshes named with -ignore are discarded. Imported point/spot lights have their intensity scaled by…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-loader/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=faf7d60b6a48" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=85b7aa2456a6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-loader</h1>
 <p>Loads a GLB/glTF scene file into the 3D scene. Meshes named with <code>-ignore</code> are discarded.
@@ -96,12 +96,24 @@ Imported point/spot lights have their intensity scaled by <code>lightIntensitySc
 hides the model — the loader owns the mesh hierarchy; use <code>explode</code> for a single-mesh
 model, or remove the element to free it.)</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d, toggle3d } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span } = elements
 
-const { demo } = tosi({ demo: { time: 10 } })
+const { demo } = tosi({ demo: { time: 10, shadows: true, glow: false, ssao: false } })
+
+// Three effects that change how every material in the file reads.
+let host = null
+function applyEffects() {
+  if (host == null || host.scene == null) return
+  host.scene.shadowsEnabled = demo.shadows.value
+  host.glowLayerIntensity = demo.glow.value ? 1 : 0
+  host.ssao = demo.ssao.value ? &#39;on&#39; : &#39;off&#39;
+}
+demo.shadows.observe(applyEffects)
+demo.glow.observe(applyEffects)
+demo.ssao.observe(applyEffects)
 
 const formatTime = (v) =&gt; {
   const h = Math.floor(v)
@@ -114,8 +126,13 @@ preview.append(
     {
       scenePanel: () =&gt; [
         slider3d({ label: &#39;time of day&#39;, value: demo.time, min: 0, max: 24, step: 0.1 }),
+        toggle3d({ label: &#39;shadows&#39;, value: demo.shadows }),
+        toggle3d({ label: &#39;glow&#39;, value: demo.glow }),
+        toggle3d({ label: &#39;ssao&#39;, value: demo.ssao }),
       ],
       sceneCreated(el, BABYLON) {
+        host = el
+        applyEffects()
         const camera = orbitCam(el, {
           alpha: -Math.PI / 2, beta: Math.PI / 4, radius: 20, target: [0, 1, 0],
         })
@@ -395,6 +412,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-avg36r6v.js"></script>
+  <script type="module" src="../hydrate-1xn3vfw5.js"></script>
 </body>
 </html>

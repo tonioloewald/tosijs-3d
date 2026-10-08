@@ -929,10 +929,10 @@ b3d-spawner
 ## b3d-ssao
 Ambient occlusion (SSAO)
 
-  ssao  = 'off'  — `off`, `auto` or `on`: see the table above. Flat only unless `ssaoMethod` is `projected`. LIVE
+  ssao  = 'off'  — `off`, `auto` or `on`: see the tables above. LIVE
   ssaoStrength  = 1  — How dark a fully occluded crease gets. `0` is none. LIVE
   ssaoRadius  = 2  — How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE
-  ssaoMethod  = 'screen'  — `screen` or `projected` (experimental; the one that runs in a headset). LIVE
+  ssaoMethod  = 'projected'  — `projected` (flat and headset) or `screen` (Babylon's post-process, flat only). LIVE
   ssaoRate  = 30  — Projected only: redraws per second. `0` is every frame. LIVE
 
 ## b3d-star-system — <tosi-b3d-star-system>

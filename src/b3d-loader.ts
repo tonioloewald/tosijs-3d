@@ -34,8 +34,7 @@ const { div, span } = elements
 
 const { demo } = tosi({ demo: { time: 10, shadows: true, glow: false, ssao: false } })
 
-// Three effects that change how every material in the file reads. SSAO is
-// flat only: it switches itself off in a headset.
+// Three effects that change how every material in the file reads.
 let host = null
 function applyEffects() {
   if (host == null || host.scene == null) return
