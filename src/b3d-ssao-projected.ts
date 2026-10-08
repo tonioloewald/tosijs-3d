@@ -95,7 +95,11 @@ void main(void) {
     float rise = dot(n, v) / (length(v) + 0.0001);
     occlusion += max(0.0, rise - 0.1) * max(0.0, 1.0 - far);
   }
-  occlusion *= 2.5;
+  // Tuned by eye on a headset against the screen method. Averaged over a
+  // frame the two darken about equally at 2.5, but this one puts its darkness
+  // into contacts and corners where the screen method spreads it, so at equal
+  // averages it LOOKS about twice as strong.
+  occlusion *= 1.4;
   float ao = clamp(1.0 - aoParams.y * occlusion / count, 0.0, 1.0);
   gl_FragColor = vec4(ao, ao, ao, 1.0);
 }`
