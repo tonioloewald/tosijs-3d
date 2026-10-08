@@ -12,11 +12,33 @@ palms at a warm shoreline.
 b3dDecorator({ budget: 5000, radius: 900 })
 ```
 
+## What it places, and why it matches the ground
+
+By default: trees, bushes and undergrowth from a curated
+[Quaternius](https://quaternius.com) nature library on the CDN, and rocks made
+from a seed ([procedural-rock](/procedural-rock/)). Things gather into copses
+and rock fields with open ground between them ([scatter](/scatter/)).
+
+Nothing keeps a fixed colour. With a biome terrain, the decorator draws its
+materials with the TERRAIN's biome shading, each in a role:
+
+| Role | What it does |
+|------|--------------|
+| rock (`ground`) | Shaded exactly like terrain: cliff colour on the sides, whatever grows there on top |
+| `leaf` | Its own green pulled toward the colour of the ground under it; turns in autumn |
+| `evergreen` | The same, but never turns (pines, palms, cacti) |
+| `bark` | Its own colour, lightly tinted by the ground |
+
+So changing planet, climate or season recolours the vegetation with the land.
+The year is the terrain's: `biomeSeason` and `biomeSeasonality`. Roles are
+assigned by material name (`roles`, default `NATURE_ROLES`); a material with no
+role keeps its own look.
+
 ## How it draws
 
 Every model is drawn with **thin instances**: one draw call per model PART,
-however many copies. A few dozen Nature Kit models make a few dozen draw
-calls, whether the budget is 1,000 or 20,000. What grows with the budget is
+however many copies. A few dozen models make a few dozen draw calls, whether
+the budget is 1,000 or 20,000. What grows with the budget is
 vertices. The Perf Stats panel's `decorator` row shows the counts and the
 build time.
 
@@ -52,7 +74,7 @@ biped stops at a trunk and can stand on a boulder.
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
-| `url` | `''` | The model library; empty = Kenney's Nature Kit on the CDN |
+| `url` | `''` | The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES` |
 | `scale` | `1` | Multiplies every rule's scale range |
 | `follow` | `'on'` | Re-scatter as the camera moves |
 | `shadows` | `'off'` | Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live |
@@ -77,6 +99,10 @@ import {
   pruneScatterCache,
   type GroundSample,
   NATURE_KIT_RULES,
+  NATURE_RULES,
+  NATURE_ROLES,
+  roleFor,
+  type DecorationRole,
   type Placement,
   type ScatterRule,
 } from './scatter.js'
@@ -136,8 +162,25 @@ export class B3dDecorator extends B3dChild {
   declare shadowRange: number
   declare shadowBudget: number
 
-  /** The rules. Replace before the first build (or call `rebuild()`). */
-  rules: ScatterRule[] = NATURE_KIT_RULES
+  private _rules: ScatterRule[] | null = null
+  /**
+   * The rules. Replace before the first build (or call `rebuild()`). Unset,
+   * they follow the library: `NATURE_RULES` for the default one, and Kenney's
+   * `NATURE_KIT_RULES` when `url` names another (which is what `url` meant
+   * before the default library changed).
+   */
+  get rules(): ScatterRule[] {
+    return this._rules ?? (this.url ? NATURE_KIT_RULES : NATURE_RULES)
+  }
+  set rules(rules: ScatterRule[]) {
+    this._rules = rules
+  }
+  /**
+   * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
+   * `NATURE_ROLES` for the key forms. A library material with a role is drawn
+   * with the terrain's biome shading in that role; any other keeps its own look.
+   */
+  roles: Record<string, DecorationRole> = NATURE_ROLES
   /** What was placed last, in LOGICAL world coordinates. */
   placements: Placement[] = []
   /**
@@ -207,7 +250,7 @@ export class B3dDecorator extends B3dChild {
     const gen = ++this._loadGen
     const url =
       fetchedUrl(this.url, 'b3d-decorator url') ||
-      assetUrl('kenney/libraries/nature-kit.glb')
+      assetUrl('quaternius/libraries/nature.glb')
     BABYLON.SceneLoader.LoadAssetContainerAsync(url, '', scene)
       .then((c) => {
         if (gen !== this._loadGen) {
@@ -255,6 +298,8 @@ export class B3dDecorator extends B3dChild {
     this._rockMaterial?.dispose()
     this._rockMaterial = null
     this._rockBiome = null
+    for (const entry of this._roleMaterials.values()) entry.material.dispose()
+    this._roleMaterials.clear()
     this._container?.dispose()
     this._container = null
     this._models.clear()
@@ -371,6 +416,49 @@ export class B3dDecorator extends B3dChild {
     return mesh
   }
 
+  private _roleMaterials = new Map<
+    string,
+    {
+      material: BABYLON.StandardMaterial
+      plugin: BiomePlugin | null
+      role: DecorationRole
+    }
+  >()
+
+  /**
+   * The material a part is DRAWN with. A library material whose name has a
+   * role becomes a plain StandardMaterial of the same colour carrying the
+   * biome plugin in that role; anything else is used as it came.
+   */
+  private _roleMaterial(
+    src: BABYLON.Material | null,
+    model: string
+  ): BABYLON.Material | null {
+    const scene = this.owner?.scene
+    if (src == null || scene == null) return src
+    const role = roleFor(this.roles, model, src.name)
+    if (role == null) return src
+    const key = `${role}-${src.name.replace(/\.\d+$/, '')}`
+    const have = this._roleMaterials.get(key)
+    if (have != null) return have.material
+    const material = new BABYLON.StandardMaterial(`deco-${key}`, scene)
+    // A glTF colour is linear; a StandardMaterial's is not.
+    const colour = ((src as any).albedoColor ?? (src as any).diffuseColor) as
+      | BABYLON.Color3
+      | undefined
+    material.diffuseColor =
+      colour != null
+        ? (src as any).albedoColor != null
+          ? colour.toGammaSpace()
+          : colour.clone()
+        : new BABYLON.Color3(0.5, 0.5, 0.5)
+    material.specularColor = new BABYLON.Color3(0, 0, 0)
+    material.backFaceCulling = src.backFaceCulling
+    const entry = { material, plugin: null as BiomePlugin | null, role }
+    this._roleMaterials.set(key, entry)
+    return material
+  }
+
   /*
   THE ROCKS WEAR THE TERRAIN'S COLOURS. The rock material carries the same
   biome plugin as the ground and reads the SAME params and palettes (by
@@ -380,18 +468,30 @@ export class B3dDecorator extends B3dChild {
   Without a biome terrain they stay plain grey.
   */
   private _syncRockBiome(terrain: any): void {
-    const mat = this._rockMaterial
-    if (mat == null) return
     const src = terrain?.biomePlugin as BiomePlugin | null
-    if (src == null || !src.isEnabled) {
-      if (this._rockBiome != null) this._rockBiome.isEnabled = false
-      return
+    const live = src != null && src.isEnabled
+    const sync = (
+      material: BABYLON.Material,
+      plugin: BiomePlugin | null,
+      role: 'ground' | DecorationRole
+    ): BiomePlugin | null => {
+      if (!live) {
+        if (plugin != null) plugin.isEnabled = false
+        return plugin
+      }
+      plugin ??= attachBiomePlugin(material)
+      plugin.role = role
+      plugin.isEnabled = true
+      plugin.params = src.params
+      plugin.palette = src.palette
+      plugin.paletteB = src.paletteB
+      return plugin
     }
-    this._rockBiome ??= attachBiomePlugin(mat)
-    this._rockBiome.isEnabled = true
-    this._rockBiome.params = src.params
-    this._rockBiome.palette = src.palette
-    this._rockBiome.paletteB = src.paletteB
+    if (this._rockMaterial != null)
+      this._rockBiome = sync(this._rockMaterial, this._rockBiome, 'ground')
+    // Leaves and bark: the same climate, read in their own role.
+    for (const entry of this._roleMaterials.values())
+      entry.plugin = sync(entry.material, entry.plugin, entry.role)
   }
 
   private _model(name: string): ModelInfo | null {
@@ -455,6 +555,7 @@ export class B3dDecorator extends B3dChild {
         part.rotationQuaternion = BABYLON.Quaternion.Identity()
         part.scaling.setAll(1)
         part.setEnabled(true)
+        part.material = this._roleMaterial(m.material, name)
         part.isPickable = false
         part.checkCollisions = false
         // Trees shade each other, and the terrain's shadows fall on them.

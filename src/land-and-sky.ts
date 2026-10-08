@@ -39,6 +39,10 @@ const { demo } = tosi({
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,
+    // The spring equinox (no temperature offset, so the default look is
+    // unchanged), with a temperate swing ready for the 'time of year' slider.
+    season: 0,
+    seasonality: 0.2,
     // How cratered the ground is (0 = none; a preset sets it: Mars, the Moon).
     craters: 0,
     // A field of volcanoes (Io): how many, 0 = none.
@@ -177,7 +181,7 @@ sky.world.observe(() => {
 // 300 times brighter than the full moon. So its disc shrinks for real (1 /
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
-  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale'],
+  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale', 'season', 'seasonality'],
   sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
     // LAST: switching the storm on builds it from the values above.
     'storm'],
@@ -402,6 +406,8 @@ const terrain = b3dTerrain({
   biomeTemperature: demo.temperature,
   biomeMoisture: demo.moisture,
   biomeVolcanicScale: demo.volcanicScale,
+  biomeSeason: demo.season,
+  biomeSeasonality: demo.seasonality,
 })
 
 applyVolcano(demo.volcano.valueOf())
@@ -500,6 +506,10 @@ const scene = b3d(
       label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
+      // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. 'seasons' is
+      // how hard it swings; at 0 the year does nothing.
+      slider3d({ label: 'time of year', value: demo.season, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'seasons', value: demo.seasonality, min: 0, max: 0.4, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
       // With the clouds it is made of, not under Terrain where it used to be.

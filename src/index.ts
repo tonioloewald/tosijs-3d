@@ -667,6 +667,11 @@ export {
 export {
   scatterPlacements,
   clumpAt,
+  NATURE_RULES,
+  NATURE_ROLES,
+  roleFor,
+  type DecorationRole,
+  ROCK_RULES,
   NearIndex,
   NATURE_KIT_RULES,
   type ScatterRule,
@@ -1200,8 +1205,9 @@ export {
   MANTA_PALETTE,
   LAVA_PALETTE,
   CRYOVOLCANIC_PALETTE,
+  seasonOf,
 } from './biome-plugin.js'
-export type { BiomeParams } from './biome-plugin.js'
+export type { BiomeParams, BiomeRole } from './biome-plugin.js'
 
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles.js'

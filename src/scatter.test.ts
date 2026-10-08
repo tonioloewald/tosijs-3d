@@ -2,6 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import {
   band,
   clumpAt,
+  roleFor,
+  NATURE_ROLES,
+  NATURE_RULES,
   scatterPlacements,
   NearIndex,
   pruneScatterCache,
@@ -361,5 +364,28 @@ describe('clumps', () => {
     )
     const shared = there.filter((p) => here.has(`${p.x},${p.z}`))
     expect(shared.length).toBeGreaterThan(there.length * 0.6)
+  })
+})
+
+describe('decoration roles', () => {
+  test('a model-specific key beats the bare material name', () => {
+    expect(roleFor(NATURE_ROLES, 'CommonTree_3', 'Green')).toBe('leaf')
+    expect(roleFor(NATURE_ROLES, 'PineTree_2', 'Green')).toBe('evergreen')
+    expect(roleFor(NATURE_ROLES, 'PalmTree_1', 'DarkGreen')).toBe('evergreen')
+    expect(roleFor(NATURE_ROLES, 'Willow_1', 'DarkGreen')).toBe('leaf')
+    expect(roleFor(NATURE_ROLES, 'PineTree_2', 'Wood')).toBe('bark')
+  })
+
+  test("Blender's numeric suffix is ignored; unknown materials have no role", () => {
+    expect(roleFor(NATURE_ROLES, 'Bush_1', 'Green.001')).toBe('leaf')
+    expect(roleFor(NATURE_ROLES, 'BushBerries_1', 'Berry')).toBe(null)
+    expect(roleFor(NATURE_ROLES, 'Flowers', 'Pink')).toBe(null)
+  })
+
+  test('the default rules name only models and rocks, and no rule is empty', () => {
+    for (const rule of NATURE_RULES) {
+      expect(rule.models.length).toBeGreaterThan(0)
+      expect(rule.scale[0]).toBeLessThanOrEqual(rule.scale[1])
+    }
   })
 })

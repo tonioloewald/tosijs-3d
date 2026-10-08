@@ -27,7 +27,29 @@ versions may carry breaking peer-dependency changes — each is called out in a
   boulders). The budget is still met. Same seed gives a DIFFERENT layout
   than before; set `clump: 0` on a rule to get the old one back.
 
+- **Seasons in the biome shader.** `<tosi-b3d-terrain biomeSeason
+  biomeSeasonality>` (params `season`, `seasonality`): the year swings the
+  chart's temperature axis, so winter cools the whole ground (snow lines drop)
+  with no second palette. `seasonality` defaults to 0, so nothing changes
+  until you ask. `seasonOf(season, seasonality)` is the pure rule.
+- **Vegetation roles: trees take their colour from the land.**
+  `BiomePlugin.role` is `'ground'` (as before), `'leaf'`, `'evergreen'` or
+  `'bark'`. A leaf is its own green pulled toward the colour of the ground
+  under it (`leafBlend`), and turns in autumn in temperate country; an
+  evergreen does not turn. The decorator assigns roles by material name
+  (`roles`, default `NATURE_ROLES`, with `Model*/Material` keys for one
+  model's use of a shared material).
+
 ### Changed
+
+- **⚠️ The decorator's default models are Quaternius', not Kenney's.** With no
+  `url` it now loads `quaternius/libraries/nature.glb` (a curated 64-model
+  library: common, pine, birch, willow and palm trees, dead trees, bushes,
+  cacti, undergrowth) with the new `NATURE_RULES`. Naming a `url` keeps the old
+  behaviour: `NATURE_KIT_RULES` over that library. To stay on Kenney's kit,
+  set `url` to `assetUrl('kenney/libraries/nature-kit.glb')`. The new trees
+  are heavier (about 1,000 vertices each against Kenney's 100): Land and Sky's
+  2,000 placements went from about 205k to 365k vertices.
 
 - **A volcano's flank is bare basalt, and seams start only near the top.**
   Walking in from the edge of `volcano()`'s province you now cross the biome,

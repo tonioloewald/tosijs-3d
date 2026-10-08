@@ -287,6 +287,8 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeTemperature` | `-1` (auto 0.72) | Sea-level temperature, `0…1` cold → warm. LIVE |
 | `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
+| `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
+| `biomeSeasonality` | `0` | How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE |
 | `normalSmoothing` | `0.6` | Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag |
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
@@ -391,6 +393,8 @@ const freshBiomeMemo = () => ({
   temperature: NaN,
   moisture: NaN,
   volcanicScale: NaN,
+  season: NaN,
+  seasonality: NaN,
 })
 import { touchesExtent } from './landform.js'
 
@@ -499,6 +503,9 @@ export class B3dTerrain extends B3dChild {
     biomeTemperature: -1,
     biomeMoisture: -1,
     biomeVolcanicScale: -1,
+    // The year: where in it, and how far it swings the temperature axis.
+    biomeSeason: 0.25,
+    biomeSeasonality: 0,
     // 0..1: normals see a tent-filtered height (positions stay crisp) — cliff
     // faces shade smoothly instead of zigzag-banding. 0 restores pre-0.7 look.
     normalSmoothing: 0.6,
@@ -2029,6 +2036,18 @@ export class B3dTerrain extends B3dChild {
     if (v !== memo.volcanicScale) {
       memo.volcanicScale = v
       p.volcanicScale = v >= 0 ? v : BIOME_AUTO.volcanicScale
+    }
+    const season = Number(a.biomeSeason)
+    const seasonality = Number(a.biomeSeasonality)
+    if (season !== memo.season) {
+      memo.season = season
+      p.season = Number.isFinite(season) ? season : BIOME_AUTO.season
+    }
+    if (seasonality !== memo.seasonality) {
+      memo.seasonality = seasonality
+      p.seasonality = Number.isFinite(seasonality)
+        ? Math.max(0, seasonality)
+        : 0
     }
   }
 

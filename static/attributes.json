@@ -1322,7 +1322,7 @@
       {
         "name": "url",
         "default": "''",
-        "description": "The model library; empty = Kenney's Nature Kit on the CDN"
+        "description": "The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES`"
       },
       {
         "name": "scale",
@@ -3865,6 +3865,16 @@
         "name": "biomeVolcanicScale",
         "default": "-1",
         "description": "Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE"
+      },
+      {
+        "name": "biomeSeason",
+        "default": "0.25",
+        "description": "Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE"
+      },
+      {
+        "name": "biomeSeasonality",
+        "default": "0",
+        "description": "How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE"
       },
       {
         "name": "normalSmoothing",

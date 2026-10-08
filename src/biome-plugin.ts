@@ -178,6 +178,45 @@ export interface BiomeParams {
   strata: number
   strataScale: number
   strataTilt: number
+  /**
+   * Where in the year it is, 0…1: `0` spring equinox, `0.25` midsummer, `0.5`
+   * autumn equinox, `0.75` midwinter. Does nothing while `seasonality` is 0.
+   */
+  season: number
+  /**
+   * How much the year swings the TEMPERATURE axis, in chart units (0 = no
+   * seasons, the default; 0.2 is a temperate climate). Winter cools the whole
+   * chart, so snow lines drop and grass goes to tundra on its own; the same
+   * swing turns `leaf`-role materials in autumn.
+   */
+  seasonality: number
+  /**
+   * How far a `leaf`-role material is pulled from its own colour toward the
+   * colour of the ground it stands on, 0…1. Default 0.6.
+   */
+  leafBlend: number
+}
+
+/**
+ * What a point in the year does to the chart: a temperature offset (summer
+ * warm, winter cold) and how far into AUTUMN it is (0 outside it, 1 at the
+ * equinox), both scaled by `seasonality`. Pure; the shader's uniforms are this.
+ */
+export function seasonOf(
+  season: number,
+  seasonality: number
+): { temperature: number; autumn: number } {
+  const amount = Math.max(0, seasonality)
+  if (amount === 0) return { temperature: 0, autumn: 0 }
+  const phase = (((season % 1) + 1) % 1) * Math.PI * 2
+  // Autumn is a window around 0.5: opening after midsummer, shut by midwinter.
+  const year = ((season % 1) + 1) % 1
+  const d = Math.abs(year - 0.5)
+  const window = d >= 0.2 ? 0 : 0.5 + 0.5 * Math.cos((d / 0.2) * Math.PI)
+  return {
+    temperature: amount * Math.sin(phase),
+    autumn: window * Math.min(1, amount / 0.15),
+  }
 }
 
 export const defaultBiomeParams = (): BiomeParams => ({
@@ -212,6 +251,9 @@ export const defaultBiomeParams = (): BiomeParams => ({
   strata: 0.35,
   strataScale: 0.06,
   strataTilt: 0.12,
+  season: 0.25,
+  seasonality: 0,
+  leafBlend: 0.6,
   surfDepth: 3,
   volcanism: 0,
   volcanicScale: 0.09,
@@ -335,6 +377,15 @@ export const MANTA_PALETTE_B: number[][] = [
 const CLIFF_COLOR: [number, number, number] = [0.38, 0.35, 0.33]
 const SEDIMENT_COLOR: [number, number, number] = [0.32, 0.33, 0.3]
 
+/** What a material is to the biome shader. See `BiomePlugin.role`. */
+export type BiomeRole = 'ground' | 'leaf' | 'bark' | 'evergreen'
+const ROLE_CODE: Record<BiomeRole, number> = {
+  ground: 0,
+  leaf: 1,
+  bark: 2,
+  evergreen: 3,
+}
+
 export class BiomePlugin extends BABYLON.MaterialPluginBase {
   params: BiomeParams = defaultBiomeParams()
   /** 20 rgb triples, row-major over the 4×5 chart (dead→dry→med→wet→marine). */
@@ -342,6 +393,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   /** Per-cell variation colours (mixed by medium-frequency noise); cells equal
    * to their `palette` entry don't vary. */
   paletteB: number[][] = MANTA_PALETTE_B
+  /**
+   * What this MATERIAL is, which is not a property of the world and so is not
+   * in `params` (a decorator shares one `params` object between the terrain,
+   * its rocks and its trees): `'ground'` classifies by slope and climate like
+   * terrain; `'leaf'` keeps its own colour and takes on the ground's (and the
+   * season's); `'evergreen'` is a leaf that does not turn in autumn (needles,
+   * palms, cacti); `'bark'` keeps its own colour, lightly tinted by the ground.
+   */
+  role: BiomeRole = 'ground'
   private _isEnabled = false
   private _t0 = performance.now()
 
@@ -387,7 +447,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 } as any,
-        { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, spare
+        { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, role (0 ground, 1 leaf, 2 bark, 3 evergreen)
+        { name: 'biomeSeason', size: 4, type: 'vec4' }, // temperature offset, autumn 0…1, leafBlend, spare
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -404,6 +465,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePaletteB[20];
         uniform vec4 biomeVolcPal[7];
         uniform vec4 biomeExtra;
+        uniform vec4 biomeSeason;
       #endif`,
     }
   }
@@ -512,6 +574,14 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.interior,
       p.waterTable,
       p.noWater,
+      ROLE_CODE[this.role] ?? 0
+    )
+    const year = seasonOf(p.season ?? 0.25, p.seasonality ?? 0)
+    uniformBuffer.updateFloat4(
+      'biomeSeason',
+      year.temperature,
+      year.autumn,
+      p.leafBlend ?? 0.6,
       0
     )
   }
@@ -698,7 +768,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // grey when cold — never phantom ice). Just above zero, cold regions
         // grow polar ice naturally: Mars with ice caps, which is correct.
         float mN = bioFbm(wp.xz * biomeNoise.z + 71.3) * biomeNoise.w;
-        float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN;
+        float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN + biomeSeason.x;
         float effMapM = biomeCfg.w;
         if (planetary) {
           // The three-point latitude curve authors think in: equator →
@@ -710,7 +780,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float latT = alat < 0.5
             ? mix(biomePlanetC.x, biomePlanetC.y, alat * 2.0)
             : mix(biomePlanetC.y, biomePlanetC.z, alat * 2.0 - 1.0);
-          temperature = latT - biomeCfg.z * abs(altitude) + tN;
+          temperature = latT - biomeCfg.z * abs(altitude) + tN + biomeSeason.x;
           // ROUGH moisture estimate: proximity to water (map moisture dries
           // with altitude — coasts wet, highlands dry) + orographic rain
           // shadow (windward slopes wet, leeward dry, off the surface normal
@@ -750,6 +820,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // cell's A/B colours (coral pink ↔ orange, kelp olive ↔ brown).
         float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
         vec3 biome = bioChartColour(temperature + dith, moisture + dith, varN);
+        // What grows here, before slope and rock get a say — a leaf takes it.
+        vec3 bioGround = biome;
+        // The material's OWN colour, which the leaf and bark roles keep.
+        vec3 bioOwn = diffuseColor;
         // photic cutoff: growth colour dies to bare sediment exactly where the
         // shared water fog curve kills the light.
         if (underwater) {
@@ -967,6 +1041,35 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             }
           }
         #endif
+        /*
+        VEGETATION ROLES. A leaf or a trunk is not ground: its faces are steep
+        (so the slope override would paint it as cliff) and it has a colour of
+        its own. So these roles ignore everything above except the CLIMATE:
+        a leaf is its own green pulled toward whatever the ground under it is
+        (lush, dry, snow), which is what makes a tree read as part of the land
+        rather than placed on it.
+        */
+        if (biomeExtra.w > 0.5) {
+          if (biomeExtra.w < 1.5 || biomeExtra.w > 2.5) {
+            // Model greens are authored dark (they expect a bright, flat
+            // light); lifted here so a canopy sits near the ground's value.
+            // …and lifted again as a whole: a canopy's faces point every way,
+            // so under a sky light it averages well under what level ground
+            // catches, and an unlifted tree reads as a dark hole in the land.
+            vec3 leaf = mix(bioOwn * 1.5, bioGround * 0.85, biomeSeason.z) * 1.45;
+            // AUTUMN: temperate leaves turn, patch by patch — a slow noise
+            // picks who goes first and whether to gold or to red. Cold
+            // (conifer) and hot (palm) country stays green.
+            float temperate = smoothstep(0.3, 0.42, temperature) * (1.0 - smoothstep(0.64, 0.74, temperature));
+            float who = 0.5 + 0.5 * bioSimplex(wp.xz * 0.045 + 17.0);
+            // Evergreens (role 3) sit the autumn out.
+            float turned = smoothstep(who - 0.25, who + 0.25, biomeSeason.y * 1.5 - 0.25) * temperate * step(biomeExtra.w, 1.5);
+            vec3 gold = mix(vec3(0.62, 0.36, 0.05), vec3(0.45, 0.09, 0.04), 0.5 + 0.5 * bioSimplex(wp.xz * 0.11 + 4.0));
+            biome = mix(leaf, gold * 1.45, turned);
+          } else {
+            biome = mix(bioOwn, bioGround * 0.6, 0.25);
+          }
+        }
         diffuseColor = biome;
       }
       #endif`,

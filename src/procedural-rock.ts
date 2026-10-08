@@ -240,8 +240,10 @@ export function rockGeometry(opts: RockOptions = {}): RockGeometry {
 
 /** The shapes a scatter rule can ask for by name. */
 export const ROCK_KINDS: Record<string, RockOptions> = {
-  boulder: { detail: 3, cuts: 10, roughness: 0.06, squash: 0.8, sink: 0.18 },
-  tall: { detail: 3, cuts: 9, roughness: 0.06, squash: 1.15, sink: 0.15 },
+  // 162 vertices each. At detail 3 (642) the default scatter's boulders
+  // alone were 210k vertices, more than the terrain.
+  boulder: { detail: 2, cuts: 10, roughness: 0.06, squash: 0.8, sink: 0.18 },
+  tall: { detail: 2, cuts: 9, roughness: 0.06, squash: 1.15, sink: 0.15 },
   stone: { detail: 2, cuts: 7, roughness: 0.07, squash: 0.65, sink: 0.2 },
   slab: { detail: 2, cuts: 7, roughness: 0.05, squash: 0.35, sink: 0.25 },
 }

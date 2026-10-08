@@ -338,7 +338,7 @@ b3d-decorator
   budget  = 2000  — How many things to place. Performance cares about this, not density
   radius  = 900  — Metres around the camera to fill
   seed  = 1  — Same seed, same forest
-  url  = ''  — The model library; empty = Kenney's Nature Kit on the CDN
+  url  = ''  — The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES`
   scale  = 1  — Multiplies every rule's scale range
   follow  = 'on'  — Re-scatter as the camera moves
   shadows  = 'off'  — Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live
@@ -1001,6 +1001,8 @@ b3d-terrain
   biomeTemperature  = -1  — Sea-level temperature, `0…1` cold → warm. LIVE
   biomeMoisture  = -1  — Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE
   biomeVolcanicScale  = -1  — Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE
+  biomeSeason  = 0.25  — Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE
+  biomeSeasonality  = 0  — How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE
   normalSmoothing  = 0.6  — Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag
   seed  = 12345  — Noise seed
   surfaceType  = 'cylinder'  — `'cylinder'`, `'torus'`, or `'sphere'`

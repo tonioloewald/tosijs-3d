@@ -455,8 +455,222 @@ const range = (prefix: string, letters: string) =>
   letters.split('').map((l) => `${prefix}${l}`)
 
 /**
- * A starting rule set: trees and plants from Kenney's Nature Kit
- * (`kenney/libraries/nature-kit.glb`), rocks made procedurally.
+ * Boulders and stones, made procedurally (procedural-rock) and coloured by the
+ * terrain. Shared by both rule sets below.
+ */
+export const ROCK_RULES: ScatterRule[] = [
+  {
+    kind: 'boulder',
+    collider: 'box',
+    // Procedural (procedural-rock): made from a seed, coloured by the terrain.
+    models: [...rockNames('boulder', 6), ...rockNames('tall', 3)],
+    density: 0.35,
+    altitude: [0, 1e5],
+    slope: [8, 90],
+    scale: [3, 9],
+    alignToSlope: 0.6,
+    clumpGroup: 'rocks',
+    clumpSize: 60,
+  },
+  {
+    kind: 'rock',
+    models: [...rockNames('stone', 8), ...rockNames('slab', 4)],
+    density: 0.5,
+    altitude: [0, 1e5],
+    scale: [3, 7],
+    alignToSlope: 0.9,
+    // Stones gather where the boulders do.
+    clumpGroup: 'rocks',
+    clumpSize: 60,
+  },
+]
+
+const numbered = (prefix: string, count: number) =>
+  Array.from({ length: count }, (_, i) => `${prefix}_${i + 1}`)
+
+/**
+ * THE DEFAULT RULES: trees, bushes and undergrowth from the curated Quaternius
+ * nature library (`quaternius/libraries/nature.glb`), rocks made procedurally.
+ * Those models stand 2.5 to 5 units tall, so the tree scales here are about
+ * 3 to 4.5 (a 9 to 15 m tree).
+ */
+export const NATURE_RULES: ScatterRule[] = [
+  {
+    kind: 'pine',
+    collider: 'trunk',
+    models: numbered('PineTree', 5),
+    density: 1,
+    temperature: [0.12, 0.5],
+    moisture: [0.2, 1],
+    altitude: [3, 1e5],
+    slope: [0, 32],
+    scale: [3.2, 5],
+  },
+  {
+    kind: 'broadleaf',
+    collider: 'trunk',
+    models: [...numbered('CommonTree', 5), ...numbered('BirchTree', 5)],
+    density: 1,
+    temperature: [0.42, 0.78],
+    moisture: [0.3, 1],
+    altitude: [2, 1e5],
+    slope: [0, 28],
+    scale: [2.8, 4.4],
+  },
+  {
+    // Willows keep to low wet ground: the waterside.
+    kind: 'willow',
+    collider: 'trunk',
+    models: numbered('Willow', 5),
+    density: 0.6,
+    temperature: [0.42, 0.82],
+    moisture: [0.45, 1],
+    altitude: [0.5, 14],
+    slope: [0, 18],
+    scale: [3, 4.2],
+    clumpSize: 60,
+  },
+  {
+    kind: 'palm',
+    collider: 'trunk',
+    models: numbered('PalmTree', 4),
+    density: 1.4,
+    temperature: [0.7, 1],
+    moisture: [0.15, 1],
+    altitude: [0.5, 18],
+    slope: [0, 20],
+    scale: [2, 3.2],
+  },
+  {
+    // Dead trees mark the margins: too dry or too cold for the living ones.
+    kind: 'deadtree',
+    collider: 'trunk',
+    models: [
+      ...numbered('CommonTree_Dead', 5),
+      ...numbered('BirchTree_Dead', 5),
+      ...numbered('Willow_Dead', 5),
+    ],
+    density: 0.25,
+    temperature: [0.15, 0.85],
+    moisture: [0.04, 0.26],
+    altitude: [2, 1e5],
+    slope: [0, 30],
+    scale: [2.6, 4],
+    clump: 0.5,
+  },
+  {
+    kind: 'bush',
+    models: ['Bush_1', 'Bush_2', 'BushBerries_1', 'BushBerries_2'],
+    density: 1.4,
+    temperature: [0.25, 0.85],
+    moisture: [0.15, 1],
+    altitude: [1, 1e5],
+    slope: [0, 38],
+    scale: [0.9, 1.7],
+    // Bushes fill in around the broadleaf copses.
+    clumpGroup: 'broadleaf',
+  },
+  {
+    kind: 'undergrowth',
+    models: [
+      'Grass',
+      'Grass_2',
+      'Grass_Short',
+      'Flowers',
+      ...numbered('Plant', 5),
+    ],
+    density: 1.6,
+    temperature: [0.3, 0.9],
+    moisture: [0.2, 1],
+    altitude: [1, 1e5],
+    slope: [0, 35],
+    scale: [1.2, 2.4],
+    clumpSize: 40,
+  },
+  {
+    kind: 'cactus',
+    collider: 'trunk',
+    models: [
+      ...numbered('Cactus', 5),
+      'CactusFlower_1',
+      'CactusFlowers_2',
+      'CactusFlowers_3',
+      'CactusFlowers_4',
+      'CactusFlowers_5',
+    ],
+    density: 1.2,
+    temperature: [0.7, 1],
+    moisture: [0, 0.2],
+    altitude: [1, 1e5],
+    slope: [0, 25],
+    scale: [1.8, 3.6],
+  },
+  {
+    kind: 'deadwood',
+    models: ['TreeStump', 'WoodLog'],
+    density: 0.15,
+    temperature: [0.3, 0.8],
+    moisture: [0.3, 1],
+    altitude: [2, 1e5],
+    slope: [0, 25],
+    scale: [1.6, 2.6],
+    alignToSlope: 0.8,
+    clumpGroup: 'broadleaf',
+  },
+  ...ROCK_RULES,
+]
+
+/** A role the biome shader can draw a decoration material in. */
+export type DecorationRole = 'leaf' | 'evergreen' | 'bark'
+
+/**
+ * What each material in the nature library IS: the decorator gives these the
+ * terrain's biome shading in that role, so leaves take the colour of the
+ * ground they stand on (and the season) and trunks stay wood. A material not
+ * listed keeps its own look (flowers, berries, coconuts).
+ *
+ * A key is a material name, or `ModelGlob/Material` for one model's use of it
+ * (checked first): the pines share `Green` with the oaks, and must not turn
+ * in autumn.
+ */
+export const NATURE_ROLES: Record<string, DecorationRole> = {
+  Green: 'leaf',
+  DarkGreen: 'leaf',
+  Leaves: 'leaf',
+  'PineTree*/Green': 'evergreen',
+  'PalmTree*/Green': 'evergreen',
+  'PalmTree*/DarkGreen': 'evergreen',
+  'Cactus*/Green': 'evergreen',
+  'Cactus*/DarkGreen': 'evergreen',
+  Wood: 'bark',
+  LightWood: 'bark',
+  White: 'bark',
+  Black: 'bark',
+}
+
+/**
+ * The role of `material` as used by `model`, or null. Blender's `.001`
+ * suffixes are ignored; a `ModelGlob/Material` key beats a bare name.
+ */
+export function roleFor(
+  roles: Record<string, DecorationRole>,
+  model: string,
+  material: string
+): DecorationRole | null {
+  const name = material.replace(/\.\d+$/, '')
+  for (const key in roles) {
+    const slash = key.indexOf('/')
+    if (slash < 0 || key.slice(slash + 1) !== name) continue
+    const glob = key.slice(0, slash).replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    if (new RegExp(`^${glob.replace(/\*/g, '.*')}$`).test(model))
+      return roles[key]
+  }
+  return roles[name] ?? null
+}
+
+/**
+ * The older rule set, over Kenney's Nature Kit (`kenney/libraries/nature-kit.glb`):
+ * what the decorator uses when you point `url` at that library.
  * Tuned against Land and Sky's default climate; a starting point, not a
  * taxonomy.
  */
@@ -535,30 +749,7 @@ export const NATURE_KIT_RULES: ScatterRule[] = [
     slope: [0, 25],
     scale: [5, 9],
   },
-  {
-    kind: 'boulder',
-    collider: 'box',
-    // Procedural (procedural-rock): made from a seed, coloured by the terrain.
-    models: [...rockNames('boulder', 6), ...rockNames('tall', 3)],
-    density: 0.35,
-    altitude: [0, 1e5],
-    slope: [8, 90],
-    scale: [3, 9],
-    alignToSlope: 0.6,
-    clumpGroup: 'rocks',
-    clumpSize: 60,
-  },
-  {
-    kind: 'rock',
-    models: [...rockNames('stone', 8), ...rockNames('slab', 4)],
-    density: 0.5,
-    altitude: [0, 1e5],
-    scale: [3, 7],
-    alignToSlope: 0.9,
-    // Stones gather where the boulders do.
-    clumpGroup: 'rocks',
-    clumpSize: 60,
-  },
+  ...ROCK_RULES,
 ]
 
 /**
