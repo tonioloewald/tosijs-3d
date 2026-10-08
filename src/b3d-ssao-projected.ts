@@ -135,7 +135,7 @@ void main(void) {
  */
 export class ProjectedAoController {
   private _camera: BABYLON.FreeCamera | null = null
-  private _depth: BABYLON.DepthRenderer | null = null
+  private _depth: BABYLON.RenderTargetTexture | null = null
   private _ao: BABYLON.ProceduralTexture | null = null
   private _blur: BABYLON.ProceduralTexture | null = null
   private _plugins: ProjectedAoPlugin[] = []
@@ -146,6 +146,7 @@ export class ProjectedAoController {
   private _params: ProjectedAoParams | null = null
   private _lastDraw = -Infinity
   private _warmUp = 0
+  private _drawing = false
   private _tan = { x: 1, y: 1 }
 
   /** The view-projection the textures were last drawn with. */
@@ -164,11 +165,32 @@ export class ProjectedAoController {
   }
 
   get depthTexture(): BABYLON.Nullable<BABYLON.BaseTexture> {
-    return this._depth?.getDepthMap() ?? null
+    return this._depth
   }
 
   get attachedCount(): number {
     return this._plugins.length
+  }
+
+  private _blank: BABYLON.RawTexture | null = null
+
+  /** A 1x1 stand-in for a sampler that must not point at the depth texture. */
+  get blank(): BABYLON.BaseTexture {
+    this._blank ??= BABYLON.RawTexture.CreateRGBATexture(
+      new Uint8Array([255, 255, 255, 255]),
+      1,
+      1,
+      this._scene,
+      false,
+      false,
+      BABYLON.Texture.NEAREST_SAMPLINGMODE
+    )
+    return this._blank
+  }
+
+  /** True while the scene is drawing this controller's depth picture. */
+  get drawingDepth(): boolean {
+    return this._drawing
   }
 
   update(p: ProjectedAoParams): void {
@@ -204,15 +226,12 @@ export class ProjectedAoController {
     this._disposeTextures()
     this._camera?.dispose()
     this._camera = null
+    this._blank?.dispose()
+    this._blank = null
   }
 
   private _disposeTextures(): void {
     const scene = this._scene
-    const map = this._depth?.getDepthMap()
-    if (map != null && !scene.isDisposed) {
-      const i = scene.customRenderTargets.indexOf(map)
-      if (i >= 0) scene.customRenderTargets.splice(i, 1)
-    }
     this._depth?.dispose()
     this._ao?.dispose()
     this._blur?.dispose()
@@ -297,7 +316,18 @@ export class ProjectedAoController {
     const depthType = scene.getEngine().getCaps().textureFloatRender
       ? BABYLON.Constants.TEXTURETYPE_FLOAT
       : BABYLON.Constants.TEXTURETYPE_HALF_FLOAT
-    const target = new BABYLON.RenderTargetTexture(
+    /*
+    EVERY MESH DRAWS ITS OWN DEPTH, WITH ITS OWN MATERIAL. The plugin below is
+    on that material and, while this texture is being drawn, replaces the
+    material's output with camera-space depth and returns before any lighting.
+
+    Not Babylon's DepthRenderer, though it is the obvious tool. It draws with
+    its own depth shader, which follows bones but knows nothing about a
+    material plugin that moves vertices, so a baked vertex-animated crowd was
+    occluded in its rest pose. Going through the material itself is one path
+    for skinning, morphs, vertex animation and instances alike.
+    */
+    const map = new BABYLON.RenderTargetTexture(
       'projected-ao-depth',
       { width, height },
       scene,
@@ -306,29 +336,33 @@ export class ProjectedAoController {
       depthType,
       false,
       BABYLON.Texture.NEAREST_SAMPLINGMODE,
-      undefined,
-      undefined,
-      undefined,
+      true,
+      false,
+      false,
       BABYLON.Constants.TEXTUREFORMAT_R
     )
-    // Camera-space Z in metres, and 0 where there is nothing (the sky).
-    this._depth = new BABYLON.DepthRenderer(
-      scene,
-      depthType,
-      cam,
-      false,
-      BABYLON.Texture.NEAREST_SAMPLINGMODE,
-      true,
-      'projected-ao-depth',
-      target
-    )
-    const map = this._depth.getDepthMap()
+    // 0 where there is nothing (the sky): depth is in metres and never 0.
+    map.clearColor = new BABYLON.Color4(0, 0, 0, 1)
     map.activeCamera = cam
+    map.renderParticles = false
+    map.renderSprites = false
+    map.ignoreCameraViewport = true
+    // Only what can write depth this way: a material carrying the hook, and
+    // nothing see-through or pinned to the horizon.
+    map.renderListPredicate = (mesh) => {
+      const material = mesh.material
+      if (material == null || mesh.infiniteDistance) return false
+      if (material.needAlphaBlendingForMesh(mesh)) return false
+      const plugin = material.pluginManager?.getPlugin(
+        'ProjectedAo'
+      ) as ProjectedAoPlugin | null
+      return plugin != null && plugin.isEnabled
+    }
     map.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE
     map.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE
-    // Drawn when WE say, not every frame: see `_frame`.
-    map.refreshRate = BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE
-    scene.customRenderTargets.push(map)
+    // Not in `scene.customRenderTargets`: `_frame` calls `render()` itself,
+    // because when it is drawn is the whole point of `rate`.
+    this._depth = map
 
     const pass = (name: string, shader: string): BABYLON.ProceduralTexture => {
       const t = new BABYLON.ProceduralTexture(
@@ -413,7 +447,12 @@ export class ProjectedAoController {
         Math.min(MAX_SAMPLES, Math.max(4, p.samples))
       )
     )
-    this._depth!.getDepthMap().resetRefreshCounter()
+    this._drawing = true
+    try {
+      this._depth!.render(false, false)
+    } finally {
+      this._drawing = false
+    }
     this._ao!.resetRefreshCounter()
     this._blur!.resetRefreshCounter()
     this.draws++
@@ -456,9 +495,13 @@ class ProjectedAoPlugin extends BABYLON.MaterialPluginBase {
     fragment: string
   } {
     return {
-      ubo: [{ name: 'projectedAoMatrix', size: 16, type: 'mat4' }],
+      ubo: [
+        { name: 'projectedAoMatrix', size: 16, type: 'mat4' },
+        { name: 'projectedAoMode', size: 4, type: 'vec4' },
+      ],
       fragment: `#ifdef PROJECTED_AO
         uniform mat4 projectedAoMatrix;
+        uniform vec4 projectedAoMode;
       #endif`,
     }
   }
@@ -469,8 +512,21 @@ class ProjectedAoPlugin extends BABYLON.MaterialPluginBase {
     const depth = c?.depthTexture
     if (!this._isEnabled || c == null || ao == null || depth == null) return
     uniformBuffer.updateMatrix('projectedAoMatrix', c.viewProjection)
+    // x = 1 while this material is being used to draw the depth picture.
+    uniformBuffer.updateFloat4('projectedAoMode', c.drawingDepth ? 1 : 0, 0, 0, 0)
     uniformBuffer.setTexture('projectedAoSampler', ao)
-    uniformBuffer.setTexture('projectedAoDepthSampler', depth)
+    /*
+    NEVER the depth texture while it is the thing being drawn. Sampling the
+    texture you are rendering into is a feedback loop: WebGL raises
+    INVALID_OPERATION and drops the draw, with nothing in the console, so the
+    depth picture comes out empty and the only symptom is no occlusion. The
+    shader does not read it in that pass, but a sampler left pointing at it is
+    enough.
+    */
+    uniformBuffer.setTexture(
+      'projectedAoDepthSampler',
+      c.drawingDepth ? c.blank : depth
+    )
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -479,6 +535,15 @@ class ProjectedAoPlugin extends BABYLON.MaterialPluginBase {
       CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef PROJECTED_AO
         uniform sampler2D projectedAoSampler;
         uniform sampler2D projectedAoDepthSampler;
+      #endif`,
+      // Drawing the depth picture with this material: write camera-space
+      // depth (for a perspective camera, 1 / gl_FragCoord.w) and leave before
+      // the material does any of its own work.
+      CUSTOM_FRAGMENT_MAIN_BEGIN: `#ifdef PROJECTED_AO
+        if (projectedAoMode.x > 0.5) {
+          gl_FragColor = vec4(1.0 / gl_FragCoord.w, 0.0, 0.0, 1.0);
+          return;
+        }
       #endif`,
       CUSTOM_FRAGMENT_MAIN_END: `#ifdef PROJECTED_AO
       {
