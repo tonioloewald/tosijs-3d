@@ -100,6 +100,9 @@ export default defineSiteConfig({
   // readers). buildSite runs this after the doc-site build; no separate tsc
   // step needed in bin/site.ts.
   emitLibrary: true,
+  // The doc browser's menu offers "Download ePub" whether or not one was
+  // built, and without this the link 404s on the live site.
+  epub: { author: 'Tonio Loewald' },
   libraryTsconfig: 'tsconfig.build.json',
 
   // Importmap so the bundle's runtime `import('jolt-physics')` resolves to

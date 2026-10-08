@@ -48,6 +48,7 @@
     "@babylonjs/loaders": "^9.16.2",
     "@babylonjs/materials": "^9.16.2",
     "@eslint/js": "^10.0.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "latest",
     "babylonjs-gltf2interface": "^9.16.2",
     "chokidar": "^4.0.3",
