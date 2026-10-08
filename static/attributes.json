@@ -4363,7 +4363,14 @@
         "description": "Mesh subdivisions"
       },
       {
-        "name": "textureSize"
+        "name": "textureSize",
+        "default": "0",
+        "description": "Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256"
+      },
+      {
+        "name": "reflectionRefresh",
+        "default": "0",
+        "description": "Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame"
       },
       {
         "name": "twoSided",

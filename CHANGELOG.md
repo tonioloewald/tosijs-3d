@@ -26,6 +26,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   instead of 4. A PC driving a headset is unaffected. `headsetDevice()` is
   exported for your own build-once budgets.
 
+- **Water's reflection and refraction follow the device tier.** Each is the
+  whole scene drawn again, and both were 1024 and redrawn every frame on every
+  device. `textureSize` now defaults to auto (1024 / 512 / 256) and a new
+  `reflectionRefresh` redraws them every Nth frame (1 / 2 / 3). Top-tier
+  devices are unchanged. To keep the old behaviour everywhere, set
+  `textureSize="1024" reflectionRefresh="1"`.
+- Land and Sky's lightning storm toggle moved to the Weather tab.
+
 ### Added
 
 - An **Occlusion on/off button in Perf Stats**, so its cost can be read in any

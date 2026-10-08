@@ -372,7 +372,18 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       z: num(0, { ...M }),
       waterSize: num(128, { minimum: 1, maximum: 10000, ...M }),
       subdivisions: num(32, { minimum: 1, maximum: 256 }),
-      textureSize: num(1024, { minimum: 64, maximum: 4096 }),
+      textureSize: num(0, {
+        minimum: 0,
+        maximum: 4096,
+        description:
+          'Size of the reflection and refraction textures. 0 follows the device tier (1024 / 512 / 256).',
+      }),
+      reflectionRefresh: num(0, {
+        minimum: 0,
+        maximum: 8,
+        description:
+          'Redraw the reflection and refraction every Nth frame. 0 follows the device tier (1 / 2 / 3); 1 is every frame.',
+      }),
       normalMap: url(),
       twoSided: bool(false),
       // Snell's window from below; 'auto' = on whenever twoSided (board #197).
@@ -431,6 +442,7 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
             'waterSize',
             'subdivisions',
             'textureSize',
+            'reflectionRefresh',
             'normalMap',
             'twoSided',
             'spherical',

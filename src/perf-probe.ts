@@ -93,6 +93,17 @@ export interface PerfBudgets {
    * and nobody can tell. Its cost is a quad draw, not a sample loop.
    */
   cloudShadowSize: number
+  /**
+   * Size of a water surface's reflection and refraction textures. Each one is
+   * the whole scene drawn again, so this is fill rate twice over.
+   */
+  waterTextureSize: number
+  /**
+   * Redraw those two textures every Nth frame. 1 is every frame. A rippled
+   * surface hides a reflection that is a frame or two old far better than a
+   * device hides two extra scene draws per frame.
+   */
+  waterRefresh: number
   numCascades: number
   /** Reflection probe resolution (per face). */
   reflectionSize: number
@@ -203,6 +214,8 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     tileBuildMs: 4,
     shadowTextureSize: 2048,
     cloudShadowSize: 512,
+    waterTextureSize: 1024,
+    waterRefresh: 1,
     numCascades: 4,
     reflectionSize: 512,
     reflections: true,
@@ -221,6 +234,8 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     tileBuildMs: 3,
     shadowTextureSize: 1024,
     cloudShadowSize: 384,
+    waterTextureSize: 512,
+    waterRefresh: 2,
     numCascades: 4,
     reflectionSize: 256,
     reflections: true,
@@ -239,6 +254,8 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     tileBuildMs: 2,
     shadowTextureSize: 1024,
     cloudShadowSize: 256,
+    waterTextureSize: 256,
+    waterRefresh: 3,
     numCascades: 2,
     reflectionSize: 128,
     reflections: false,
