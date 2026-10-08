@@ -36,6 +36,8 @@ the EDGE and nothing that stays in view. Stable is the point.
 */
 /*{ "parent": "Environment" }*/
 
+import { rockNames } from './procedural-rock.js'
+
 export interface ScatterRule {
   /** What it is: `'tree'`, `'boulder'`… (for the caller; not interpreted). */
   kind: string
@@ -356,7 +358,8 @@ const range = (prefix: string, letters: string) =>
   letters.split('').map((l) => `${prefix}${l}`)
 
 /**
- * A starting rule set over Kenney's Nature Kit (`kenney/libraries/nature-kit.glb`).
+ * A starting rule set: trees and plants from Kenney's Nature Kit
+ * (`kenney/libraries/nature-kit.glb`), rocks made procedurally.
  * Tuned against Land and Sky's default climate; a starting point, not a
  * taxonomy.
  */
@@ -438,22 +441,17 @@ export const NATURE_KIT_RULES: ScatterRule[] = [
   {
     kind: 'boulder',
     collider: 'box',
-    models: [
-      ...range('rock_large', 'ABCDEF'),
-      ...range('rock_tall', 'ABCDEFGHIJ'),
-    ],
+    // Procedural (procedural-rock): made from a seed, coloured by the terrain.
+    models: [...rockNames('boulder', 6), ...rockNames('tall', 3)],
     density: 0.35,
     altitude: [0, 1e5],
     slope: [8, 90],
-    scale: [5, 14],
+    scale: [3, 9],
     alignToSlope: 0.6,
   },
   {
     kind: 'rock',
-    models: [
-      ...range('rock_small', 'ABCDEFGHI'),
-      ...range('rock_smallFlat', 'ABC'),
-    ],
+    models: [...rockNames('stone', 8), ...rockNames('slab', 4)],
     density: 0.5,
     altitude: [0, 1e5],
     scale: [3, 7],

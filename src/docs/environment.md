@@ -23,6 +23,7 @@
 - [landform](/landform/)
 - [light-rays](/light-rays/)
 - [lightning](/lightning/)
+- [procedural-rock](/procedural-rock/)
 - [scatter](/scatter/)
 - [water-normal](/water-normal/)
 - [weather](/weather/)

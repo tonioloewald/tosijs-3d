@@ -657,6 +657,14 @@ export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js'
 // Rocks and trees on the terrain, by budget and climate.
 export { B3dDecorator, b3dDecorator } from './b3d-decorator.js'
 export {
+  rockGeometry,
+  rockFromName,
+  rockNames,
+  ROCK_KINDS,
+  type RockOptions,
+  type RockGeometry,
+} from './procedural-rock.js'
+export {
   scatterPlacements,
   NearIndex,
   NATURE_KIT_RULES,

@@ -599,7 +599,8 @@ const scene = b3d(
   // overhead, and it eases in and out as the storm passes.
   b3dAmbient({ preset: 'rain', weather: 'rain', radius: 14 }),
   b3dAmbient({ preset: 'snow', weather: 'snow', radius: 14 }),
-  b3dLight({ intensity: 0.5 }),
+  // Bounce from the ground, or every vertical face (a rock's sides) is black.
+  b3dLight({ intensity: 0.5, groundColor: '#57523f' }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
   // The layer case: a cloud DECK over the peaks, orographic so the towers

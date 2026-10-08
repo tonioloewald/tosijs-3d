@@ -69,6 +69,8 @@ import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { assetUrl } from './asset-url.js'
 import { mantaAxes } from './biome-chart.js'
+import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
+import { rockFromName, rockGeometry } from './procedural-rock.js'
 import {
   scatterPlacements,
   NearIndex,
@@ -248,6 +250,11 @@ export class B3dDecorator extends B3dChild {
       this._root.dispose()
     }
     this._root = null
+    for (const m of this._rockSources) m.dispose()
+    this._rockSources = []
+    this._rockMaterial?.dispose()
+    this._rockMaterial = null
+    this._rockBiome = null
     this._container?.dispose()
     this._container = null
     this._models.clear()
@@ -311,6 +318,7 @@ export class B3dDecorator extends B3dChild {
       this._key = key
       this._build(terrain, here, off)
     }
+    this._syncRockBiome(terrain)
     if (performance.now() >= this._nextShadowCheck) {
       this._nextShadowCheck = performance.now() + 300
       this._pickShadowCasters(here, off)
@@ -325,12 +333,76 @@ export class B3dDecorator extends B3dChild {
     }
   }
 
+  private _rockSources: BABYLON.Mesh[] = []
+  private _rockMaterial: BABYLON.StandardMaterial | null = null
+  private _rockBiome: BiomePlugin | null = null
+
+  /** The source mesh for a procedural rock name, or null for any other name. */
+  private _rockSource(name: string): BABYLON.Mesh | null {
+    const opts = rockFromName(name)
+    const scene = this.owner?.scene
+    if (opts == null || scene == null) return null
+    const rock = rockGeometry(opts)
+    const mesh = new BABYLON.Mesh(`rock-source-${name}`, scene)
+    const data = new BABYLON.VertexData()
+    data.positions = rock.positions
+    data.normals = rock.normals
+    // The generator winds counter-clockwise (the glTF convention); Babylon's
+    // front face is the other way round, so each triangle is reversed here.
+    // Unreversed, the rocks drew inside out: only their far walls showed.
+    const indices = new Uint16Array(rock.indices.length)
+    for (let i = 0; i < indices.length; i += 3) {
+      indices[i] = rock.indices[i]
+      indices[i + 1] = rock.indices[i + 2]
+      indices[i + 2] = rock.indices[i + 1]
+    }
+    data.indices = indices
+    data.applyToMesh(mesh)
+    if (this._rockMaterial == null) {
+      const mat = new BABYLON.StandardMaterial('deco-rock', scene)
+      mat.diffuseColor = new BABYLON.Color3(0.42, 0.4, 0.38)
+      mat.specularColor = new BABYLON.Color3(0, 0, 0)
+      this._rockMaterial = mat
+    }
+    mesh.material = this._rockMaterial
+    mesh.setEnabled(false)
+    mesh.isPickable = false
+    this._rockSources.push(mesh)
+    return mesh
+  }
+
+  /*
+  THE ROCKS WEAR THE TERRAIN'S COLOURS. The rock material carries the same
+  biome plugin as the ground and reads the SAME params and palettes (by
+  reference, re-pointed each frame because a preset replaces them). So a rock's
+  steep sides take the terrain's cliff colour and its top takes whatever grows
+  there, snow included, and changing planet recolours the rocks with the ground.
+  Without a biome terrain they stay plain grey.
+  */
+  private _syncRockBiome(terrain: any): void {
+    const mat = this._rockMaterial
+    if (mat == null) return
+    const src = terrain?.biomePlugin as BiomePlugin | null
+    if (src == null || !src.isEnabled) {
+      if (this._rockBiome != null) this._rockBiome.isEnabled = false
+      return
+    }
+    this._rockBiome ??= attachBiomePlugin(mat)
+    this._rockBiome.isEnabled = true
+    this._rockBiome.params = src.params
+    this._rockBiome.palette = src.palette
+    this._rockBiome.paletteB = src.paletteB
+  }
+
   private _model(name: string): ModelInfo | null {
     if (this._models.has(name)) return this._models.get(name)!
     const c = this._container!
-    const node = [...c.transformNodes, ...c.meshes].find(
-      (n) => publicName(n.name) === name
-    )
+    // A `rock:<kind>:<n>` name is MADE, not looked up (procedural-rock).
+    const node =
+      this._rockSource(name) ??
+      [...c.transformNodes, ...c.meshes].find(
+        (n) => publicName(n.name) === name
+      )
     let info: ModelInfo | null = null
     if (node != null) {
       /*

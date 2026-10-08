@@ -8,6 +8,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+### Added
+
+- **Procedural rocks.** `rockGeometry({ seed })` makes a rock from a seed
+  (a sphere cut by random planes, roughened, squashed, sunk into the ground):
+  pure, deterministic, no model file. The decorator's default boulders and
+  stones are now these instead of Kenney's, and it shades them with the
+  terrain's own biome colours, so their tops take whatever grows there and
+  they change colour with the planet. A scatter rule asks for one by name:
+  `rock:boulder:3` (`rockNames('boulder', 6)` lists six). See
+  [procedural-rock](/procedural-rock/).
+
 ### Changed
 
 - **A volcano's flank is bare basalt, and seams start only near the top.**

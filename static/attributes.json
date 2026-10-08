@@ -4863,6 +4863,42 @@
     ]
   },
   {
+    "module": "procedural-rock",
+    "summary": "procedural-rock",
+    "attributes": [
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same rock"
+      },
+      {
+        "name": "detail",
+        "default": "2",
+        "description": "Subdivisions of the starting sphere: 1 = 42 vertices, 2 = 162, 3 = 642"
+      },
+      {
+        "name": "cuts",
+        "default": "8",
+        "description": "How many planes cut it. More cuts, more faces"
+      },
+      {
+        "name": "roughness",
+        "default": "0.07",
+        "description": "Depth of the noise, as a fraction of the radius"
+      },
+      {
+        "name": "squash",
+        "default": "0.7",
+        "description": "Height relative to width. Low values give slabs"
+      },
+      {
+        "name": "sink",
+        "default": "0.15",
+        "description": "Fraction of the height that sits below the ground"
+      }
+    ]
+  },
+  {
     "module": "rocket-ascent",
     "summary": "Rocket Ascent",
     "attributes": [
