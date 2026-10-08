@@ -6,6 +6,21 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+**Ambient occlusion that works in a headset (experimental).**
+
+### Added
+
+- **`ssaoMethod="projected"`** on `<tosi-b3d>`: occlusion computed once from a
+  camera between the eyes and looked up by every material by world position.
+  It is correct in stereo, uses no post-process (so antialiasing survives), and
+  is redrawn `ssaoRate` times a second (default 30) instead of every frame.
+  With it `ssao="on"` runs in a headset. Verified in the emulated headset; not
+  yet measured on a device, so `auto` stays off in a session.
+- The SSAO demo has a bust (on the CDN at `tosijs-3d/ariosto-bust.glb`) and a
+  `method` selector; the scene loader demo has shadow, glow and SSAO toggles.
+
 ## 0.8.13
 
 **A schema for `<tosi-b3d>` itself, and an emulated headset in the repo.**

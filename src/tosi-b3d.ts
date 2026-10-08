@@ -362,6 +362,7 @@ import {
   type QualitySetting,
 } from './b3d-quality.js'
 import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
+import { ProjectedAoController } from './b3d-ssao-projected.js'
 import {
   allocateAmbient,
   ratchetPool,
@@ -594,6 +595,16 @@ export class B3d extends Component {
     ssaoStrength: 1,
     // Metres a surface looks for something occluding it.
     ssaoRadius: 2,
+    /*
+    EXPERIMENTAL. 'screen' is Babylon's post-process (flat only). 'projected'
+    computes occlusion once from between the eyes and has every material look
+    it up by world position, which is the only kind that works in a headset:
+    see b3d-ssao-projected.
+    */
+    ssaoMethod: 'screen' as 'screen' | 'projected',
+    // Projected only: redraws per second (0 = every frame). The lookup is by
+    // world position, so a stale drawing stays put while the view moves.
+    ssaoRate: 30,
     /*
     Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
     own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
@@ -960,6 +971,7 @@ export class B3d extends Component {
   glowLayer?: BABYLON.GlowLayer
   private static _warnedSsaoAlways = false
   private _ssao?: SsaoController
+  private _projectedAo?: ProjectedAoController
   private _ssaoCamObs?: BABYLON.Observer<BABYLON.Scene> | null
   xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
@@ -5694,6 +5706,8 @@ export class B3d extends Component {
     */
     this._ssao?.dispose()
     this._ssao = undefined
+    this._projectedAo?.dispose()
+    this._projectedAo = undefined
     this._ssaoCamObs = undefined
     this.glowLayer = undefined
     this.gui = undefined
@@ -5725,11 +5739,31 @@ export class B3d extends Component {
         'tosi-b3d: ssao="always" is deprecated and means "on". SSAO does not run in XR.'
       )
     }
+    const projected = a.ssaoMethod === 'projected'
     const active = ssaoActive(a.ssao, {
       xr: this._xrPresenting || this.xrActive,
       budgetAllows: budgets.ssao,
+      xrCapable: projected,
     })
-    if (!active && this._ssao == null) return
+    const params = {
+      strength: Number(a.ssaoStrength) || 0,
+      radius: Number(a.ssaoRadius) || 2,
+      samples: budgets.ssaoSamples,
+      ratio: budgets.ssaoRatio,
+    }
+    // One method at a time: switching tears the other down.
+    if (active && projected) {
+      this._projectedAo ??= new ProjectedAoController(this.scene)
+      this._projectedAo.update({
+        ...params,
+        active: true,
+        rate: Math.max(0, Number(a.ssaoRate) || 0),
+      })
+    } else {
+      this._projectedAo?.dispose()
+    }
+    const screen = active && !projected
+    if (!screen && this._ssao == null) return
     if (this._ssao == null) {
       this._ssao = new SsaoController(this.scene)
       // A pipeline is attached to a CAMERA, and scenes swap cameras (a vehicle's
@@ -5738,13 +5772,7 @@ export class B3d extends Component {
         this._applySsao()
       )
     }
-    this._ssao.update({
-      active,
-      strength: Number(a.ssaoStrength) || 0,
-      radius: Number(a.ssaoRadius) || 2,
-      samples: budgets.ssaoSamples,
-      ratio: budgets.ssaoRatio,
-    })
+    this._ssao.update({ ...params, active: screen })
   }
 
   render(): void {

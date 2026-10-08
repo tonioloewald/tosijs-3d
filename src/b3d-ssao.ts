@@ -13,13 +13,14 @@ Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
 the walls, the gaps between the crates and the underside of the lintel, then
 orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
 organic shape occlusion does most for. Enter VR and it switches
-itself off: see "Flat only" below.
+itself off, unless `method` is `projected`: see "Flat only" and "Projected"
+below.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, select3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', strength: 1, radius: 2 } })
+const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', method: 'screen', strength: 1, radius: 2 } })
 
 // A bust in faux alabaster: pale and semi-gloss, so occlusion is easy to see.
 const bust = b3dProp({
@@ -45,10 +46,12 @@ preview.append(
   b3d(
     {
       ssao: ssaoDemo.mode,
+      ssaoMethod: ssaoDemo.method,
       ssaoStrength: ssaoDemo.strength,
       ssaoRadius: ssaoDemo.radius,
       scenePanel: () => [
         select3d({ label: 'ssao', value: ssaoDemo.mode, options: ['off', 'auto', 'on'] }),
+        select3d({ label: 'method', value: ssaoDemo.method, options: ['screen', 'projected'] }),
         slider3d({ label: 'strength', value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: 'radius (m)', value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
       ],
@@ -110,6 +113,29 @@ different setting.
 (0.8.11 shipped an `always` value that claimed to run in XR. It never worked.
 It is still accepted, means `on`, and warns once.)
 
+## Projected: occlusion that works in a headset (experimental)
+
+`ssaoMethod="projected"` does the same sum somewhere else. Occlusion is
+computed once, from a camera between the eyes, into a texture, and every lit
+material then looks its own pixel up in that texture by world position, the way
+cloud shadows and caustics do.
+
+- It is correct in stereo, because each eye shades its own pixels and the
+  darkening is attached to the surface.
+- Nothing is post-processed, so the canvas keeps its antialiasing.
+- It is not redrawn every frame. The lookup uses the matrix the texture was
+  drawn with, so an old texture stays where it was in the world while the view
+  moves. `ssaoRate` is redraws per second (default 30).
+
+With it, `ssao="on"` runs in a headset as well as flat. `auto` still stays off
+in a session: the cost is one extra depth pass over the scene per redraw, and
+that has not been measured on a standalone headset.
+
+It is verified in an emulated headset, not yet on a device. It is subtler than
+`screen` on fine detail, because it works from depth alone at reduced
+resolution, where `screen` also reads each material's normals. A surface the
+middle camera could not see gets no occlusion until the next redraw.
+
 Sample count and resolution come from the device budget
 (`PerfBudgets.ssaoSamples`, `ssaoRatio`), so you tune the LOOK and the tier
 tunes the COST.
@@ -118,9 +144,11 @@ tunes the COST.
 
 | Attribute | Default | Description |
 | --- | --- | --- |
-| `ssao` | `'off'` | `off`, `auto` or `on`: see the table above. Flat only. LIVE |
+| `ssao` | `'off'` | `off`, `auto` or `on`: see the table above. Flat only unless `ssaoMethod` is `projected`. LIVE |
 | `ssaoStrength` | `1` | How dark a fully occluded crease gets. `0` is none. LIVE |
 | `ssaoRadius` | `2` | How far, in metres, a surface looks for something occluding it. Small radii darken only tight creases; large ones shade whole alcoves. LIVE |
+| `ssaoMethod` | `'screen'` | `screen` or `projected` (experimental; the one that runs in a headset). LIVE |
+| `ssaoRate` | `30` | Projected only: redraws per second. `0` is every frame. LIVE |
 
 ## What is and is not occluded
 
@@ -146,12 +174,15 @@ export type SsaoSetting = 'off' | 'auto' | 'on' | 'always'
  */
 export function ssaoActive(
   setting: SsaoSetting | boolean | string | null | undefined,
-  opts: { xr: boolean; budgetAllows: boolean }
+  opts: { xr: boolean; budgetAllows: boolean; xrCapable?: boolean }
 ): boolean {
   // No `isOff` here: b3d-utils pulls in tosijs, and this rule is tested headless.
   if (setting == null || setting === '' || setting === 'off') return false
   if (setting === false || setting === 'false') return false
-  if (opts.xr) return false
+  // `xrCapable`: the projected method (b3d-ssao-projected) is not a
+  // post-process, so it may run in a session. Even then only when ASKED
+  // for: `auto` in a headset stays off until the cost is measured on one.
+  if (opts.xr && (opts.xrCapable !== true || setting === 'auto')) return false
   if (setting === 'auto') return opts.budgetAllows
   return (
     setting === 'on' ||

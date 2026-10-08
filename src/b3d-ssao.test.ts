@@ -42,6 +42,15 @@ describe('ssaoActive', () => {
     expect(ssaoActive('always', weak)).toBe(true)
   })
 
+  test('the projected method may run in a headset, but only when asked', () => {
+    const headset = { xr: true, budgetAllows: true, xrCapable: true }
+    expect(ssaoActive('on', headset)).toBe(true)
+    // `auto` stays off in a session until the cost is measured on a device.
+    expect(ssaoActive('auto', headset)).toBe(false)
+    expect(ssaoActive('off', headset)).toBe(false)
+    expect(ssaoActive('on', { ...headset, xrCapable: false })).toBe(false)
+  })
+
   test('an unknown value is off, not on', () => {
     expect(ssaoActive('yes please' as any, flat)).toBe(false)
   })
