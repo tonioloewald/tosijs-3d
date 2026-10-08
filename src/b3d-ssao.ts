@@ -11,30 +11,31 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 
 Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
 the walls, the gaps between the crates and the underside of the lintel, then
-orbit in on the bust: its beard, laurel and collar are the kind of creased,
-organic shape occlusion does most for. `stone` swaps its material, because how
-much occlusion you can see depends on the surface: it shows plainly on pale
-alabaster and is half hidden by the veins of marble. Enter VR and it switches
+orbit in on the busts: a beard, a laurel and a collar are the kind of creased,
+organic shape occlusion does most for. It is one model in three surfaces (its
+own, alabaster, marble), because how much occlusion you can see depends on the
+surface: it shows plainly on pale alabaster and is half hidden by marble's veins. Enter VR and it switches
 itself off: see "Flat only" below.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, PerlinNoise, select3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', strength: 1, radius: 2, stone: 'alabaster' } })
+const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', strength: 1, radius: 2 } })
 
-const bust = b3dProp({
-  libraryUrl: assetUrl('tosijs-3d/ariosto-bust.glb'),
-  meshName: 'Ariosto',
-  scale: 0.8,
-  x: 0.9, y: 1.4, z: -2.4, ry: 100,
-})
-
-// Three surfaces for one shape. Marble is painted into the vertex colours from
-// 3D noise, so its veins run through the stone and ignore the model's UV seams.
-let babylon = null
-let provided = null
-let stoneMaterial = null
+// One shape in three surfaces, left to right: the model's own material, faux
+// alabaster, and marble. Marble is painted into the vertex colours from 3D
+// noise, so its veins run through the stone and ignore the model's UV seams.
+const stones = ['provided', 'alabaster', 'marble']
+const bustX = [-0.7, 0.6, 1.9]
+const busts = stones.map((kind, i) =>
+  b3dProp({
+    libraryUrl: assetUrl('tosijs-3d/ariosto-bust.glb'),
+    meshName: 'Ariosto',
+    scale: 0.8,
+    x: bustX[i], y: 1.4, z: -2.6, ry: 100,
+  })
+)
 function marbleColors(mesh) {
   const noise = new PerlinNoise(7)
   const p = mesh.getVerticesData('position')
@@ -49,25 +50,24 @@ function marbleColors(mesh) {
   }
   return colors
 }
-function applyStone() {
-  const meshes = bust.mesh ? bust.mesh.getChildMeshes() : []
-  if (babylon == null || meshes.length === 0) return setTimeout(applyStone, 250)
-  const kind = ssaoDemo.stone.value
-  for (const mesh of meshes) {
-    if (provided == null) {
-      provided = mesh.material
-      stoneMaterial = new babylon.PBRMaterial('stone', mesh.getScene())
-      stoneMaterial.albedoColor = new babylon.Color3(0.93, 0.9, 0.84)
-      stoneMaterial.metallic = 0
-      stoneMaterial.bumpTexture = provided.bumpTexture
-      mesh.setVerticesData('color', marbleColors(mesh))
-    }
-    mesh.material = kind === 'provided' ? provided : stoneMaterial
+function dressBusts(babylon) {
+  const meshes = busts.map((bust) => (bust.mesh ? bust.mesh.getChildMeshes()[0] : null))
+  if (meshes.some((mesh) => mesh == null)) return setTimeout(dressBusts, 250, babylon)
+  // The three share one geometry, so the colours are set once and each bust
+  // chooses whether to use them.
+  meshes[0].setVerticesData('color', marbleColors(meshes[0]))
+  stones.forEach((kind, i) => {
+    const mesh = meshes[i]
     mesh.useVertexColors = kind === 'marble'
-    stoneMaterial.roughness = kind === 'marble' ? 0.2 : 0.4
-  }
+    if (kind === 'provided') return
+    const material = new babylon.PBRMaterial(kind, mesh.getScene())
+    material.albedoColor = new babylon.Color3(0.93, 0.9, 0.84)
+    material.metallic = 0
+    material.roughness = kind === 'marble' ? 0.2 : 0.4
+    material.bumpTexture = meshes[0].material.bumpTexture
+    mesh.material = material
+  })
 }
-ssaoDemo.stone.observe(applyStone)
 
 const stone = '#b9b2a4'
 const crate = '#a0764a'
@@ -81,11 +81,9 @@ preview.append(
         select3d({ label: 'ssao', value: ssaoDemo.mode, options: ['off', 'auto', 'on'] }),
         slider3d({ label: 'strength', value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: 'radius (m)', value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
-        select3d({ label: 'stone', value: ssaoDemo.stone, options: ['provided', 'alabaster', 'marble'] }),
       ],
       sceneCreated(el, BABYLON) {
-        babylon = BABYLON
-        applyStone()
+        dressBusts(BABYLON)
         const cam = el.scene.activeCamera
         // Target first: an orbit camera re-derives its position from the target.
         if (cam && cam.setTarget) cam.setTarget(new BABYLON.Vector3(-0.5, 1, 0.5))
@@ -108,8 +106,8 @@ preview.append(
     b3dBox({ meshName: 'crate-2', size: 1, x: -2.1, y: 0.5, z: -0.3, ry: 12, color: crate }),
     b3dBox({ meshName: 'crate-3', size: 1, x: -2.7, y: 1.5, z: -0.4, ry: -8, color: crate }),
     b3dSphere({ meshName: 'ball', diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: '#c8553d' }),
-    b3dBox({ meshName: 'plinth', width: 0.6, height: 1, depth: 0.6, x: 0.9, y: 0.5, z: -2.4, color: stone }),
-    bust
+    ...bustX.map((x, i) => b3dBox({ meshName: 'plinth-' + i, width: 0.6, height: 1, depth: 0.6, x, y: 0.5, z: -2.6, color: stone })),
+    ...busts
   )
 )
 ```
