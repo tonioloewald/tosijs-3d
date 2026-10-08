@@ -35,11 +35,16 @@ one unbroken surface, shallows first.
 ## Walking on it
 
 Ice is water until it is solid. `iceBears` is true once the cracks have mostly
-closed, and there a [biped](/b3d-biped/) walks on the surface; anywhere short of
-that (plates, or a sheet still showing its cracks) it falls through and swims.
-Swim up to solid ice at the surface and you climb onto it; dive first and you
-go under it, with the ice as a ceiling. `water.iceBearsAt(x, z)` asks the
-question for a point in the scene.
+closed, and there the water carries an invisible collision mesh: the same
+vertices, only the triangles whose ice bears. Anything that collides or picks
+meets it like ground, and it is in the `ice` collision group for anything that
+wants to tell it from land. Short of solid (plates, or a sheet still showing
+its cracks) there is nothing there and you fall through and swim. Waves stop
+under ice, so the sheet is flat where it collides.
+
+A [biped](/b3d-biped/) swimming at the surface climbs onto solid ice; one that
+dived first goes under it, with the ice as a ceiling. `water.iceBearsAt(x, z)`
+asks the question for a point in the scene.
 
 ## A mesh that is fine where you are
 

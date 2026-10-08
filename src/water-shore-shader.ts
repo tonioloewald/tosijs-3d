@@ -14,6 +14,7 @@ import * as BABYLON from '@babylonjs/core'
 // The material loads its shader on demand; the patch needs the text NOW, so
 // it is pulled in here (the module's side effect fills the shader store).
 import '@babylonjs/materials/water/water.fragment.js'
+import '@babylonjs/materials/water/water.vertex.js'
 
 const MARK = '/*b3dShore*/'
 
@@ -139,6 +140,23 @@ export function registerShoreWater(): boolean {
     .replace(tint, '')
     .replace(defs, defs + '\n' + DEFINITIONS)
     .replace(compose, compose + '\n' + SHORE)
+  // Ice does not ride the swell: the wave displacement fades out with the
+  // cover, so a sheet lies flat and its collision surface (b3d-water's ice
+  // mesh, a plane) is where the ice is drawn.
+  const vert = store.waterVertexShader
+  const wave = 'p.y+=abs(newY);'
+  if (vert != null && vert.includes(wave)) {
+    store.waterVertexShader = vert.replace(
+      wave,
+      `${MARK}
+#ifdef VERTEXCOLOR
+p.y+=abs(newY)*(1.0-clamp(color.g,0.0,1.0));
+#else
+p.y+=abs(newY);
+#endif
+`
+    )
+  }
   return true
 }
 

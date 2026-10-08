@@ -414,6 +414,7 @@ const CROUCH_HALF = 0.45
 const STEP_UP = 0.5
 /** How far the ground may drop before it becomes a FALL rather than a step. */
 const STEP_DOWN = 0.6
+const ICE_GROUP = ['ice'] as const
 /**
  * Vertical kick while swimming, m/s². Enough to beat buoyancy comfortably
  * (which is ~1.5 m/s² of upward push at full submersion) without feeling like a
@@ -2445,7 +2446,12 @@ export class B3dBiped extends B3dControllable {
         // `collidable()` for the shared rules (UI never counts as floor,
         // isPickable/isEnabled re-checked because a predicate replaces
         // Babylon's own filter); `checkCollisions` stays as OUR clause.
-        collidable((m) => m === node || !m.checkCollisions)
+        // Not the water's ice mesh: which SIDE of the ice we are on is kept
+        // below (`iceSide`), and a probe from just under it would put a diver
+        // on top.
+        collidable((m) => m === node || !m.checkCollisions, {
+          ignoreGroups: ICE_GROUP,
+        })
       )
       /*
       WATER IS A MEDIUM, NOT A LINE.

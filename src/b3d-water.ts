@@ -103,6 +103,7 @@ import {
   shoreGrid,
   shoreData,
   iceBears,
+  ICE_BEARS,
   type ShoreGrid,
 } from './water-shore.js'
 import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js'
@@ -362,6 +363,27 @@ export class B3dWater extends AbstractMesh {
       mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, shore, true, 4)
       this.mesh = mesh
       this._shore = { grid, data: shore, key: '' }
+      /*
+      SOLID ICE IS A MESH, so it is solid for everyone.
+
+      The same vertices as the water, with only the triangles whose ice bears
+      weight (`_updateIceMesh` refills the index list whenever the shore data
+      changes). It collides and picks like any ground, so a car, a shell and a
+      ground probe all meet it without knowing what ice is. Never drawn
+      (`visibility` 0, which leaves it pickable). In the `ice` collision group
+      for anything that wants to tell it from land.
+      */
+      const ice = new BABYLON.Mesh('water-ice_nocast', scene)
+      const iceData = new BABYLON.VertexData()
+      iceData.positions = grid.positions
+      iceData.normals = grid.normals
+      iceData.indices = grid.indices
+      iceData.applyToMesh(ice, true)
+      ice.visibility = 0
+      ice.checkCollisions = true
+      ice.setEnabled(false)
+      markCollisionGroup(ice, 'ice')
+      this._ice = ice
     } else {
       this.mesh = BABYLON.MeshBuilder.CreateGround(
         'water_nocast',
@@ -1020,6 +1042,8 @@ export class B3dWater extends AbstractMesh {
     this._ceiling?.material?.dispose(true, true)
     this._ceiling?.dispose()
     this._ceiling = null
+    this._ice?.dispose()
+    this._ice = null
     this._ceilingBump = null
     this._ceilingKey = ''
     this._underW = 0
@@ -1161,6 +1185,34 @@ export class B3dWater extends AbstractMesh {
       shore.data
     )
     mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, shore.data)
+    this._updateIceMesh(shore)
+  }
+
+  /** The walkable ice: see where it is built. */
+  private _ice: BABYLON.Mesh | null = null
+
+  private _updateIceMesh(shore: { grid: ShoreGrid; data: Float32Array }): void {
+    const ice = this._ice
+    const mesh = this.mesh
+    if (ice == null || mesh == null) return
+    const { indices } = shore.grid
+    const data = shore.data
+    const bears = (v: number) => data[v * 4 + 2] >= ICE_BEARS
+    const kept: number[] = []
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i]
+      const b = indices[i + 1]
+      const c = indices[i + 2]
+      if (bears(a) && bears(b) && bears(c)) kept.push(a, b, c)
+    }
+    ice.position.copyFrom(mesh.position)
+    if (kept.length === 0) {
+      ice.setEnabled(false)
+      return
+    }
+    ice.setIndices(kept, shore.grid.count * shore.grid.count, true)
+    ice.setEnabled(true)
+    ice.computeWorldMatrix(true)
   }
 
   private _applyFollow(): void {

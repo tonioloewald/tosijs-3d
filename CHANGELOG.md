@@ -19,12 +19,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   gets colder. It is there from below as well. `iceCover(temperature, depth)`
   is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
   colour on the water mesh is shore data, not a tint.
-- **Solid ice is walkable.** Ice is water until it has knitted solid
-  (`iceBears`); there a biped walks on the surface. Plates and a sheet still
-  showing its cracks are water: you fall through and swim. Swim up to solid
-  ice at the surface and you climb onto it; dive first and you go under, with
-  the ice as a ceiling. `water.iceBearsAt(x, z)` asks for any point. Only the
-  biped knows about it so far: vehicles, projectiles and ray picks do not.
+- **Solid ice is solid.** Ice is water until it has knitted solid
+  (`iceBears`); where it has, the water carries an invisible collision mesh
+  (collision group `ice`), so anything that collides or picks meets it: a
+  car, a shell, a ground probe. Plates and a sheet still showing its cracks
+  are water. Wave displacement fades out under ice, so the sheet lies flat
+  where it collides. A biped swimming at the surface climbs onto solid ice;
+  one that dived first goes under it, with the ice as a ceiling.
+  `water.iceBearsAt(x, z)` asks for any point.
 
 ### Fixed
 
