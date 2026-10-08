@@ -347,6 +347,8 @@ b3d-decorator
   colliderPool  = 48  — How many colliders at most
   shadowRange  = 200  — Metres around the camera whose copies cast shadows (with `shadows: 'on'`)
   shadowBudget  = 600  — How many of the nearest copies cast, at most
+  clump  = -1  — How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live
+  clumpSize  = 0  — Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live
 
 ## b3d-destroyable — <tosi-b3d-destroyable>
 b3d-destroyable
@@ -1295,7 +1297,7 @@ Rocket Ascent
 scatter
 
   clump  = 0.85  — 0 = even spread, 1 = clumps only
-  clumpSize  = 90  — Metres across a clump and the gap beside it
+  clumpScale  = 1  — This rule's clump size relative to the scatter's
   clumpGroup  = kind  — Rules in one group gather in the SAME places: stones around boulders
 
 ## slope-profile

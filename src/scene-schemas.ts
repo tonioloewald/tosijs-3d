@@ -1159,6 +1159,9 @@ export function decoratorSchema(extra: Record<string, unknown> = {}) {
       seed: num(1, { minimum: 0, maximum: 9999, multipleOf: 1 }),
       url: url(),
       scale: num(1, { minimum: 0.1, maximum: 10, 'x-scale': 'log' }),
+      // -1 = each rule's own strength; 0 = auto size.
+      clump: num(-1, { minimum: -1, maximum: 1 }),
+      clumpSize: num(0, { minimum: 0, maximum: 1000, ...M }),
       follow: choice('on', ['on', 'off']),
       shadows: choice('off', ['on', 'off']),
       colliders: choice('on', ['on', 'off']),

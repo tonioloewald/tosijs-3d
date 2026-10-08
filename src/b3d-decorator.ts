@@ -83,6 +83,8 @@ biped stops at a trunk and can stand on a boulder.
 | `colliderPool` | `48` | How many colliders at most |
 | `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
 | `shadowBudget` | `600` | How many of the nearest copies cast, at most |
+| `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live |
+| `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |
 */
 /*{ "parent": "Environment" }*/
 
@@ -147,6 +149,10 @@ export class B3dDecorator extends B3dChild {
     colliderPool: 48,
     shadowRange: 200,
     shadowBudget: 600,
+    // -1 = each rule's own strength; 0…1 overrides them all.
+    clump: -1,
+    // 0 = auto (from the spacing); otherwise metres.
+    clumpSize: 0,
   }
 
   declare budget: number
@@ -161,6 +167,8 @@ export class B3dDecorator extends B3dChild {
   declare colliderPool: number
   declare shadowRange: number
   declare shadowBudget: number
+  declare clump: number
+  declare clumpSize: number
 
   private _rules: ScatterRule[] | null = null
   /**
@@ -328,6 +336,8 @@ export class B3dDecorator extends B3dChild {
       this.radius,
       this.seed,
       this.scale,
+      this.clump,
+      this.clumpSize,
       terrain?.generationKey ?? '',
       terrain?.provinceField != null ? 'province' : '',
       p
@@ -640,17 +650,22 @@ export class B3dDecorator extends B3dChild {
         return { temperature, moisture, altitude: y - cfg.seaLevel }
       },
       rules,
+      clump: Number(this.clump),
+      clumpSize: Number(this.clumpSize),
       cache: this._cache,
       /*
-      THE PROVINCE SAYS WHAT GROWS: volcanism suppresses plants (rocks are
-      at home on a lava field), with the same thresholds the biome shader
+      THE PROVINCE SAYS WHAT GROWS: volcanism suppresses plants AND rocks,
+      with the same thresholds the biome shader
       uses to paint lava and basalt, so nothing grows where the ground reads
-      as rock. Nothing is suppressed without a province.
+      as rock. Rocks belong on a lava field, but ours cannot read the
+      province (it is a per-vertex field on the terrain's tiles), so they
+      came out the colour of the country around the volcano: pale stones
+      all over black basalt. Until they can, none. Nothing is suppressed
+      without a province.
       */
       suppress:
         typeof terrain.provinceField === 'function'
-          ? (x, z, kind) => {
-              if (kind === 'rock' || kind === 'boulder') return 1
+          ? (x, z) => {
               // Asked once per plant RULE at the same point: evaluate the
               // province once per point.
               if (x !== lastX || z !== lastZ) {
@@ -722,6 +737,7 @@ export class B3dDecorator extends B3dChild {
     const width = Math.min(info.max.x - info.min.x, info.max.z - info.min.z)
     const footprint = width * (rule?.collider === 'trunk' ? 0.12 : 0.45)
     const height = info.max.y - info.min.y
+    const buried = rule?.sink ?? 0.02
     for (const part of info.parts) {
       const mesh = shadow ? part.shadow : part.mesh
       const buf = new Float32Array(list.length * 16)
@@ -735,7 +751,7 @@ export class B3dDecorator extends B3dChild {
         scl.setAll(p.scale)
         const slope = Math.acos(Math.min(1, Math.max(-1, p.normal.y)))
         const residual = Math.tan(slope * (1 - align))
-        const sink = p.scale * (footprint * residual + height * 0.02)
+        const sink = p.scale * (footprint * residual + height * buried)
         pos.set(p.x - off.x, p.y - info.min.y * p.scale - sink, p.z - off.z)
         BABYLON.Matrix.ComposeToRef(scl, q, pos, srt)
         part.rel.multiplyToRef(srt, out)

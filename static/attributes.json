@@ -1363,6 +1363,16 @@
         "name": "shadowBudget",
         "default": "600",
         "description": "How many of the nearest copies cast, at most"
+      },
+      {
+        "name": "clump",
+        "default": "-1",
+        "description": "How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live"
+      },
+      {
+        "name": "clumpSize",
+        "default": "0",
+        "description": "Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live"
       }
     ]
   },
@@ -4974,9 +4984,9 @@
         "description": "0 = even spread, 1 = clumps only"
       },
       {
-        "name": "clumpSize",
-        "default": "90",
-        "description": "Metres across a clump and the gap beside it"
+        "name": "clumpScale",
+        "default": "1",
+        "description": "This rule's clump size relative to the scatter's"
       },
       {
         "name": "clumpGroup",

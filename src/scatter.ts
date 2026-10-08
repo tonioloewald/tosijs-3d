@@ -27,6 +27,12 @@ one, and an acceptance threshold is SOLVED so the expected count equals the
 budget. Sparse country and lush country get the same count; the lush one
 spends it on trees.
 
+The budget is a ceiling, not a quota. The threshold stops rising where a place
+a quarter as suitable as the best would be certain to be used, because past
+that the gaps between clumps fill in and the scatter turns into an even
+spread. A small radius, or a map that is mostly sea, gets fewer than the
+budget and keeps its shape.
+
 ## Clumps, not a sprinkle
 
 Left alone, a scatter spreads evenly, and an even spread reads as noise.
@@ -38,8 +44,14 @@ field** multiplies its weight, high in about a third of the ground and low
 | Rule option | Default | Description |
 |-------------|---------|-------------|
 | `clump` | `0.85` | 0 = even spread, 1 = clumps only |
-| `clumpSize` | `90` | Metres across a clump and the gap beside it |
+| `clumpScale` | `1` | This rule's clump size relative to the scatter's |
 | `clumpGroup` | the rule's `kind` | Rules in one group gather in the SAME places: stones around boulders |
+
+The scatter as a whole takes `clump` (one strength for every rule) and
+`clumpSize` (metres). Left alone, the size is AUTO: about two and a half times
+the average spacing, so a clump is a handful of things at any budget and
+radius. A fixed size does not survive a change of radius: pull the radius in
+and each clump holds hundreds of things, which reads as an even spread again.
 
 The budget is still met: the threshold is solved after the weights are
 multiplied.
@@ -86,8 +98,18 @@ export interface ScatterRule {
    * reads far better than an even sprinkle. See `clumpAt`.
    */
   clump?: number
-  /** Metres across a clump and the gap beside it. Default `90`. */
-  clumpSize?: number
+  /**
+   * This rule's clump size relative to the scatter's (`ScatterOptions.
+   * clumpSize`). Default `1`; rocks use less, so a rock field is smaller than
+   * a copse.
+   */
+  clumpScale?: number
+  /**
+   * How much of the model's height is buried, 0…1. Default `0.02`. A rock
+   * wants a quarter or so: resting on its lowest point it looks set down on
+   * the ground, or floating over it on a slope.
+   */
+  sink?: number
   /**
    * Rules sharing a group share ONE clump pattern, so they gather in the same
    * places (stones around boulders). Default: the rule's `kind`.
@@ -120,6 +142,19 @@ export interface ScatterOptions {
   suppress?: (x: number, z: number, kind: string) => number
   /** Candidates per placement. More = closer to the budget, slower. */
   oversample?: number
+  /**
+   * Clump strength for EVERY rule, 0 (even spread) … 1 (clumps only),
+   * overriding each rule's own. Omitted or negative: the rules decide.
+   */
+  clump?: number
+  /**
+   * Metres across a clump and the gap beside it. Omitted or 0 = AUTO: about
+   * two and a half times the average spacing (`autoClumpSize`), so a clump
+   * holds a handful of things whatever the budget and radius. A fixed size
+   * does not survive a change of radius: pull the radius in and each clump
+   * holds hundreds of things, which looks like an even spread again.
+   */
+  clumpSize?: number
   /**
    * Evaluated candidates, kept across calls. Candidates are world-anchored
    * per cell, so after the region moves most cells are ones already
@@ -264,12 +299,30 @@ export function clumpWeight(
   rule: ScatterRule,
   seed: number,
   x: number,
-  z: number
+  z: number,
+  size = 90,
+  strength = rule.clump ?? 0.85
 ): number {
-  const strength = Math.max(0, Math.min(1, rule.clump ?? 0.85))
-  if (strength === 0) return 1
-  const c = clumpAt(seed, rule.clumpGroup ?? rule.kind, x, z, rule.clumpSize)
-  return 1 - strength + strength * 3 * c
+  const s = Math.max(0, Math.min(1, strength))
+  if (s === 0) return 1
+  const c = clumpAt(
+    seed,
+    rule.clumpGroup ?? rule.kind,
+    x,
+    z,
+    size * (rule.clumpScale ?? 1)
+  )
+  return 1 - s + s * 3 * c
+}
+
+/**
+ * The clump size a scatter uses when none is given: two and a half times the
+ * average spacing between placements, snapped to a half-octave so it does not
+ * creep (and re-deal every clump) as the budget moves a little.
+ */
+export function autoClumpSize(budget: number, radius: number): number {
+  const spacing = Math.sqrt((Math.PI * radius * radius) / Math.max(1, budget))
+  return Math.pow(2, Math.round(Math.log2(spacing * 2.5) * 2) / 2)
 }
 
 /** How suitable a point is for a rule — its density times every band. */
@@ -317,10 +370,13 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   const oversample = o.oversample ?? 4
   if (o.budget <= 0 || o.radius <= 0 || o.rules.length === 0) return []
   const area = Math.PI * o.radius * o.radius
-  // Cell size so the circle holds budget × oversample candidates. Rounded to a
-  // power of two so the cell grid is stable as the budget moves a little.
+  // Cell size so the circle holds AT LEAST budget × oversample candidates,
+  // snapped DOWN to a half-octave so the cell grid is stable as the budget
+  // moves a little. It used to round to the NEAREST power of two, which could
+  // halve the candidates: on a map that is mostly sea the scatter then ran out
+  // of places, and a budget of 18,500 placed the same 14,171 as 14,500 did.
   const raw = Math.sqrt(area / (o.budget * oversample))
-  const cell = Math.pow(2, Math.round(Math.log2(raw)))
+  const cell = Math.pow(2, Math.floor(Math.log2(raw) * 2) / 2)
   if (o.cache != null && CELL_OF.get(o.cache) !== cell) {
     o.cache.clear()
     CELL_OF.set(o.cache, cell)
@@ -331,6 +387,11 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   const z0 = Math.floor((o.center.z - o.radius) / cell)
   const z1 = Math.floor((o.center.z + o.radius) / cell)
   const e = Math.max(0.5, cell * 0.25) // finite-difference step for slope
+  const clumpSize =
+    o.clumpSize != null && o.clumpSize > 0
+      ? o.clumpSize
+      : autoClumpSize(o.budget, o.radius)
+  const clumpAll = o.clump != null && o.clump >= 0 ? o.clump : undefined
 
   const cands: Candidate[] = []
   const R = o.rules.length
@@ -374,7 +435,7 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
         const r = o.rules[ri]
         const w =
           suitability(r, c, slopeDeg) *
-          clumpWeight(r, o.seed, x, z) *
+          clumpWeight(r, o.seed, x, z, clumpSize, clumpAll) *
           (o.suppress ? Math.max(0, o.suppress(x, z, r.kind)) : 1)
         pool[poolUsed + ri] = w
         total += w
@@ -412,43 +473,58 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
     }
     return sum
   }
+  /*
+  …BUT NOT PAST THE POINT WHERE CONTRAST DIES. Pushed far enough, k accepts
+  everything, and "everything" is an even spread: the gaps between clumps fill
+  and thin habitat is packed as full as lush. That is what happened when the
+  radius was pulled in under a fixed budget (Tonio: "it starts looking very
+  random vs. clumped"). So k stops where a candidate a QUARTER as suitable as
+  the best one would be certain: below that the budget is simply not met. The
+  budget is how many things there may be, not a number to hit at any cost.
+  */
+  let best = 0
+  for (let i = 0; i < totals.length; i++) if (totals[i] > best) best = totals[i]
+  const kMax = 4 / best
+  if (expected(kMax) < o.budget) return pick(kMax)
   let lo = 0
-  let hi = 1
-  while (expected(hi) < o.budget && hi < 1e12) hi *= 2
+  let hi = Math.min(1, kMax)
+  while (expected(hi) < o.budget && hi < kMax) hi = Math.min(kMax, hi * 2)
   // 30 halvings: k to ~1e-9 of its bracket — far past what a count can show.
   for (let i = 0; i < 30; i++) {
     const mid = (lo + hi) / 2
     if (expected(mid) < o.budget) lo = mid
     else hi = mid
   }
-  const k = hi
+  return pick(hi)
 
-  const out: Placement[] = []
-  for (const c of cands) {
-    if (unit(c.h) >= Math.min(1, k * c.total)) continue
-    // Which rule: proportional to its weight here.
-    let pick = unit(hash(c.h, 11)) * c.total
-    let ri = 0
-    for (; ri < R - 1; ri++) {
-      pick -= pool[c.w + ri]
-      if (pick < 0) break
+  function pick(k: number): Placement[] {
+    const out: Placement[] = []
+    for (const c of cands) {
+      if (unit(c.h) >= Math.min(1, k * c.total)) continue
+      // Which rule: proportional to its weight here.
+      let pick = unit(hash(c.h, 11)) * c.total
+      let ri = 0
+      for (; ri < R - 1; ri++) {
+        pick -= pool[c.w + ri]
+        if (pick < 0) break
+      }
+      const rule = o.rules[ri]
+      const model =
+        rule.models[Math.floor(unit(hash(c.h, 12)) * rule.models.length)]
+      const [s0, s1] = rule.scale
+      out.push({
+        rule: ri,
+        model,
+        x: c.x,
+        y: c.y,
+        z: c.z,
+        yaw: unit(hash(c.h, 13)) * Math.PI * 2,
+        scale: s0 + (s1 - s0) * unit(hash(c.h, 14)),
+        normal: { x: c.nx, y: c.ny, z: c.nz },
+      })
     }
-    const rule = o.rules[ri]
-    const model =
-      rule.models[Math.floor(unit(hash(c.h, 12)) * rule.models.length)]
-    const [s0, s1] = rule.scale
-    out.push({
-      rule: ri,
-      model,
-      x: c.x,
-      y: c.y,
-      z: c.z,
-      yaw: unit(hash(c.h, 13)) * Math.PI * 2,
-      scale: s0 + (s1 - s0) * unit(hash(c.h, 14)),
-      normal: { x: c.nx, y: c.ny, z: c.nz },
-    })
+    return out
   }
-  return out
 }
 
 const range = (prefix: string, letters: string) =>
@@ -470,7 +546,8 @@ export const ROCK_RULES: ScatterRule[] = [
     scale: [3, 9],
     alignToSlope: 0.6,
     clumpGroup: 'rocks',
-    clumpSize: 60,
+    clumpScale: 0.65,
+    sink: 0.25,
   },
   {
     kind: 'rock',
@@ -481,7 +558,8 @@ export const ROCK_RULES: ScatterRule[] = [
     alignToSlope: 0.9,
     // Stones gather where the boulders do.
     clumpGroup: 'rocks',
-    clumpSize: 60,
+    clumpScale: 0.65,
+    sink: 0.3,
   },
 ]
 
@@ -528,7 +606,7 @@ export const NATURE_RULES: ScatterRule[] = [
     altitude: [0.5, 14],
     slope: [0, 18],
     scale: [3, 4.2],
-    clumpSize: 60,
+    clumpScale: 0.65,
   },
   {
     kind: 'palm',
@@ -585,7 +663,7 @@ export const NATURE_RULES: ScatterRule[] = [
     altitude: [1, 1e5],
     slope: [0, 35],
     scale: [1.2, 2.4],
-    clumpSize: 40,
+    clumpScale: 0.45,
   },
   {
     kind: 'cactus',

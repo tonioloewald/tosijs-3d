@@ -1014,7 +1014,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 + 0.35 * bioFbm(wp.xz * 0.01);
               float bed = 0.5 + 0.5 * sin(bedY * 6.2831853);
               float bedSharp = smoothstep(0.35, 0.65, bed);
-              volcGround *= 1.0 + biomeStrata.x * (bedSharp - 0.5) * (1.0 - 0.8 * t23);
+              // A LOCAL province is a volcano, and lava does not lie in beds:
+              // with the seams gone from its flanks the banding was all that
+              // was left on the basalt, and the cone read as striped. Kept
+              // faint there; the global dial's rock keeps its strata.
+              float beds = biomeStrata.x * mix(1.0, 0.15, smoothstep(0.02, 0.12, provVolc) * (1.0 - volcG));
+              volcGround *= 1.0 + beds * (bedSharp - 0.5) * (1.0 - 0.8 * t23);
               // stage 1: seams are COLD dark brown; they hand over as glow rises.
               // Keep a floor under the cold seam so a stage-1 face still reads
               // as VEINED rock — near-black basalt with near-black seams on it

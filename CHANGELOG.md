@@ -22,9 +22,20 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **The scatter gathers into clumps.** Every rule now clusters by default
   (copses, thickets, rock fields, with thin outliers between) instead of
   spreading evenly. Per rule: `clump` (0 = the old even spread, default
-  0.85), `clumpSize` (metres, default 90) and `clumpGroup` (rules in one
-  group gather in the same places; the default stones gather around the
-  boulders). The budget is still met. Same seed gives a DIFFERENT layout
+  0.85), `clumpScale` (this rule's clump size relative to the scatter's) and
+  `clumpGroup` (rules in one group gather in the same places; the default
+  stones gather around the boulders). The scatter and `<tosi-b3d-decorator>`
+  take `clump` (one strength for every rule) and `clumpSize` (metres; 0 =
+  auto, about two and a half times the average spacing, so pulling `radius`
+  in keeps the clumps).
+- **The scatter's budget is a ceiling.** It no longer fills the gaps between
+  clumps, or packs thin habitat as full as lush, to reach the number: a small
+  radius or a map that is mostly sea gets fewer and keeps its shape. It also
+  lays down at least `oversample` × budget candidates (it could lay down
+  half that), so a high budget no longer stalls below itself.
+- `ScatterRule.sink`: how much of a model is buried. The default rocks bury a
+  quarter or more; they used to rest on their lowest point and looked set
+  down on the ground, or floating over it. Same seed gives a DIFFERENT layout
   than before; set `clump: 0` on a rule to get the old one back.
 
 - **Seasons in the biome shader.** `<tosi-b3d-terrain biomeSeason

@@ -667,6 +667,7 @@ export {
 export {
   scatterPlacements,
   clumpAt,
+  autoClumpSize,
   NATURE_RULES,
   NATURE_ROLES,
   roleFor,

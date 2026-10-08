@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   band,
   clumpAt,
+  autoClumpSize,
   roleFor,
   NATURE_ROLES,
   NATURE_RULES,
@@ -289,6 +290,8 @@ describe('the cache survives a budget change', () => {
 describe('clumps', () => {
   const base = {
     seed: 3,
+    // A fixed size, so `clumpAt` below (default 90) is the field in use.
+    clumpSize: 90,
     budget: 1500,
     center: { x: 0, z: 0 },
     radius: 600,
@@ -364,6 +367,99 @@ describe('clumps', () => {
     )
     const shared = there.filter((p) => here.has(`${p.x},${p.z}`))
     expect(shared.length).toBeGreaterThan(there.length * 0.6)
+  })
+})
+
+describe('auto clump size', () => {
+  test('follows the spacing, so pulling the radius in keeps the clumps', () => {
+    const wide = autoClumpSize(2000, 900)
+    const near = autoClumpSize(2000, 300)
+    expect(wide).toBeGreaterThan(60)
+    expect(wide).toBeLessThan(130)
+    // A third of the radius: a third of the spacing, a third of the clump.
+    expect(near).toBeGreaterThan(wide / 4)
+    expect(near).toBeLessThan(wide / 2)
+  })
+
+  test('does not creep when the budget moves a little', () => {
+    expect(autoClumpSize(2000, 900)).toBe(autoClumpSize(2100, 900))
+  })
+
+  test('things per clump stay about the same at any radius', () => {
+    const count = (radius: number) => {
+      const size = autoClumpSize(2000, radius)
+      const out = scatterPlacements({
+        seed: 5,
+        budget: 2000,
+        center: { x: 0, z: 0 },
+        radius,
+        height: flat,
+        climate: mild,
+        rules: [anywhere],
+      })
+      // Mean neighbours within one clump-size, as a share of the budget.
+      let near = 0
+      const sample = out.slice(0, 150)
+      for (const p of sample)
+        near += out.filter(
+          (q) => Math.hypot(q.x - p.x, q.z - p.z) < size / 2
+        ).length
+      return near / sample.length
+    }
+    const wide = count(900)
+    const tight = count(300)
+    expect(tight).toBeGreaterThan(wide * 0.6)
+    expect(tight).toBeLessThan(wide * 1.6)
+  })
+
+  test('one strength for every rule overrides their own', () => {
+    const even = scatterPlacements({
+      seed: 5,
+      budget: 800,
+      center: { x: 0, z: 0 },
+      radius: 500,
+      height: flat,
+      climate: mild,
+      clumpSize: 90,
+      clump: 0,
+      rules: [{ ...anywhere, clump: 1 }],
+    })
+    // With the rule's own clump 1, nothing stands where the field is 0.
+    expect(even.some((p) => clumpAt(5, 'x', p.x, p.z) === 0)).toBe(true)
+  })
+})
+
+describe('the budget is a ceiling', () => {
+  test('a budget the clumps cannot hold is not met by filling the gaps', () => {
+    // Everything suitable, strong clumping, and far more asked for than fits.
+    const out = scatterPlacements({
+      seed: 9,
+      budget: 3000,
+      center: { x: 0, z: 0 },
+      radius: 400,
+      height: flat,
+      climate: mild,
+      clumpSize: 90,
+      oversample: 1,
+      rules: [anywhere],
+    })
+    expect(out.length).toBeLessThan(3000)
+    const inGaps = out.filter((p) => clumpAt(9, 'x', p.x, p.z) === 0)
+    // The gaps stay thin: still mostly clump.
+    expect(inGaps.length).toBeLessThan(out.length * 0.45)
+  })
+
+  test('with room to spare the budget is still met', () => {
+    const out = scatterPlacements({
+      seed: 9,
+      budget: 1000,
+      center: { x: 0, z: 0 },
+      radius: 600,
+      height: flat,
+      climate: mild,
+      rules: [anywhere],
+    })
+    expect(Math.abs(out.length - 1000)).toBeLessThan(90)
   })
 })
 

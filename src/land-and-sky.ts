@@ -72,7 +72,7 @@ const { sky } = tosi({
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
-    decoBudget: 2000, decoRadius: 900, decoShadows: false,
+    decoBudget: 2000, decoRadius: 900, decoShadows: false, decoClump: 0.85, decoClumpSize: 0,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
     // Extra (cosmetic) moons: a set, swung round the sky together.
     moons: 'Big moon', moonAz: 0, moonEl: 0,
@@ -373,7 +373,7 @@ demo.craters.observe(() => {
 demo.seed.observe(() => applyVolcano(demo.volcano.valueOf()))
 
 // 'on'|'off' on the element, a boolean on the toggle — bridged here.
-const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius })
+const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius, clump: sky.decoClump, clumpSize: sky.decoClumpSize })
 sky.decoShadows.observe(() => {
   decorator.shadows = sky.decoShadows.value ? 'on' : 'off'
 })
@@ -544,6 +544,10 @@ const scene = b3d(
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
       slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
       slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
+      // Tighter or looser: how strongly things gather, and how big a clump
+      // is (0 = auto, sized from how far apart things are).
+      slider3d({ label: 'clumping', value: sky.decoClump, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'clump size (m)', value: sky.decoClumpSize, min: 0, max: 300, step: 10 }),
       toggle3d({ label: 'tree shadows', value: sky.decoShadows }),
       label3d({ text: 'Camera', icon: 'camera', collapsible: true }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
