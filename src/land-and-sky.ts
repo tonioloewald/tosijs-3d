@@ -36,9 +36,9 @@ const { demo } = tosi({
     // waterline read as barren above it. 0.72 is the wet row — forest.
     temperature: 0.72,
     moisture: 0.72,
-    // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
+    // Plates sized to THIS volcano (300 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
-    volcanicScale: 0.02,
+    volcanicScale: 0.028,
     // How cratered the ground is (0 = none; a preset sets it: Mars, the Moon).
     craters: 0,
     // A field of volcanoes (Io): how many, 0 = none.
@@ -282,7 +282,7 @@ sky.preset.observe(() => {
 // The volcano is authored ONCE and switched in and out. Applied here as well
 // as from the toggle because it is ON by default, and the toggle's handler only
 // runs when someone flips it.
-const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+const theVolcano = volcano({ x: 600, z: -400, radius: 300, height: 160, craterRadius: 70, craterDepth: 55 })
 // Where the sea is: a FRACTION of the terrain's height, or, on a world
 // with no sea, far below everything (no water to see).
 function seaY() {

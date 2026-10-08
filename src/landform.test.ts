@@ -38,21 +38,28 @@ describe('volcano — the classic cone that fades in as an override', () => {
     expect(Math.abs(a - b)).toBeLessThan(20 * 0.6)
   })
 
-  test('province: seams cool into a BASALT apron before the biome', () => {
-    // radius 60, default crater 0.22R = 13.2 → rim at x = 113.2
+  test('province: biome, then BARE basalt, then faint seams, then the crater', () => {
+    // radius 60, default crater 0.22R = 13.2 → rim at x = 113.2. The province
+    // runs 0.75R past the rim; `t` is the way in from its edge (0) to the rim (1).
     const cr = 60 * 0.22
+    const at = (t: number) => v.province(100 + cr + 60 * 0.75 * (1 - t), -50)
     const rimIn = v.province(100 + cr - 1e-6, -50)
     const rimOut = v.province(100 + cr + 1e-6, -50)
     expect(Math.abs(rimIn - rimOut)).toBeLessThan(1e-3) // continuous
-    // seams cool GRADUALLY: halfway through the cooling, still warm
-    const mid = v.province(100 + cr + 60 * 0.15, -50)
-    expect(mid).toBeGreaterThan(0.25)
-    expect(mid).toBeLessThan(0.45)
-    // 0.3–0.38R past the rim: the plateau — cold basalt, not glowing seams
-    for (const past of [0.3, 0.34, 0.38]) {
-      const p = v.province(100 + cr + 60 * past, -50)
-      expect(p).toBeGreaterThan(0.12)
-      expect(p).toBeLessThan(0.2)
+    // The middle of the flank is bare basalt: fully rock (the shader's 0.12)
+    // and below its first seams (0.14).
+    for (const t of [0.25, 0.35, 0.45, 0.55]) {
+      expect(at(t)).toBeGreaterThan(0.12)
+      expect(at(t)).toBeLessThan(0.14)
+    }
+    // Seams only on the upper flank, and faint: never past the rim's value.
+    expect(at(0.8)).toBeGreaterThan(0.14)
+    expect(at(1)).toBeCloseTo(0.25)
+    // It only ever rises on the way in.
+    let last = 0
+    for (let t = 0; t <= 1.0001; t += 0.05) {
+      expect(at(t)).toBeGreaterThanOrEqual(last - 1e-9)
+      last = at(t)
     }
     // past the apron (0.75R beyond the rim), nothing
     expect(v.province(100 + cr + 60 * 0.76, -50)).toBe(0)
@@ -69,8 +76,8 @@ describe('volcano — the classic cone that fades in as an override', () => {
     const cr = 60 * 0.22
     expect(v.province(100 + cr * 0.5, -50)).toBeCloseTo(1) // floor
     expect(v.province(100 + cr * 0.9, -50)).toBeLessThan(0.75) // wall
-    expect(v.province(100 + cr, -50)).toBeLessThanOrEqual(0.5) // rim
-    expect(v.province(100 + cr * 2.5, -50)).toBeLessThan(0.45)
+    expect(v.province(100 + cr, -50)).toBeLessThanOrEqual(0.25 + 1e-9) // rim
+    expect(v.province(100 + cr * 2.5, -50)).toBeLessThan(0.25)
   })
 })
 

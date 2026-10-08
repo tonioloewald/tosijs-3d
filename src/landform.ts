@@ -244,10 +244,16 @@ export interface VolcanoOptions {
 /**
  * A classic volcano that fades in as an override: smoothstep-blended flanks
  * (C1 at the footprint edge — no seam against the noise terrain), a steepened
- * cone, a caldera sunk below the rim, and a matching province — molten at the
- * vent, glowing seams down the upper flanks, cold voronoi lower, living biome
- * beyond.
+ * cone, a caldera sunk below the rim, and a matching province — molten on the
+ * caldera floor, faint seams on the upper flanks, bare basalt below them, the
+ * living biome beyond.
  */
+/** Province value of a volcano's bare-basalt flank: past the shader's 0.12
+ * (fully rock) and under its 0.14 (first seams). */
+const BASALT_HEAT = 0.13
+/** Province value at the crater rim: faint seams. The wall climbs from here. */
+const RIM_HEAT = 0.25
+
 export function volcano(opts: VolcanoOptions): AuthoredLandform {
   const {
     x: cx,
@@ -280,35 +286,38 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     const dx = x - cx
     const dz = z - cz
     const d = Math.sqrt(dx * dx + dz * dz)
-    // The ladder lands where a volcano keeps it: full intensity (pools)
-    // ONLY on the flat caldera floor; the crater WALL and rim drop to half
-    // (glowing seams — crusted, never open lava, so the rim can't read as
-    // molten even where smoothed shading normals under-report steepness).
+    // Full intensity (pools) ONLY on the flat caldera floor. The crater wall
+    // climbs to it from the rim's value, so stronger veins start INSIDE the
+    // crater and nowhere else.
     const floorR = craterRadius * 0.55
     if (d <= floorR) return glow
     if (d <= craterRadius) {
       const wall = smooth(1 - (d - floorR) / (craterRadius - floorR))
-      return glow * (0.5 + 0.5 * wall)
+      return glow * (RIM_HEAT + (1 - RIM_HEAT) * wall)
     }
     /*
-    OUTSIDE: the seams COOL FAST, then a BASALT APRON, then the biome.
+    OUTSIDE, walking in from the edge: biome, then PLAIN BASALT, then faint
+    veins, and only then the crater.
 
-    This was one smooth tail from 0.5 at the rim to 0 at 0.4R — and the shader
-    runs its ladder at 1 + 2·value, so almost all of that tail was glowing
-    seams, with the cold-basalt stage squeezed into a sliver at the very
-    edge where the volcanic mask was still half vegetation. Tonio: "the
-    transition from the surrounding terrain to lava seems a bit sudden (we'd
-    want to go through say basalt first)". So the tail is two terms: a quick
-    cooling (0.35 over 0.12R) and a basalt plateau at 0.15 that holds, then
-    fades between 0.35R and 0.75R past the rim. At the rim they sum to the
-    wall's 0.5, so the join is continuous. SLOW on purpose — Tonio, after the
-    first pass: "have it transition through basalt more slowly": the seams
-    cool over 0.3R (it was 0.12R), and the apron fades over 0.4R.
+    `t` is how far you have come from the province's edge (0) to the rim (1).
+    The shader blends the biome to basalt by a value of 0.12 and draws no
+    seams on a local province below 0.14, so:
+
+      t 0    to 0.25   the value rises to BASALT_HEAT: the ground turns to rock
+      t 0.25 to 0.55   it holds there: bare basalt, no seams at all
+      t 0.55 to 1      it rises to RIM_HEAT: seams fade in, faintly
+
+    Earlier versions cooled DOWN from a glowing rim, which put seams on most
+    of the flank and squeezed the basalt into the outer edge. Tonio: "It goes
+    from surrounding landscape straight to lava veins. I think it should go
+    from surrounding landscape to basalt and only subtly transition to veined
+    lava later (say 50-60% of the way to the cone) and then not get stronger
+    veins until you're inside the cone."
     */
-    const past = d - craterRadius
-    const cooling = smooth(1 - past / (radius * 0.3))
-    const apron = smooth(1 - clamp01((past - radius * 0.35) / (radius * 0.4)))
-    return glow * (0.35 * cooling + 0.15 * apron)
+    const t = 1 - clamp01((d - craterRadius) / (radius * 0.75))
+    const basalt = smooth(clamp01(t / 0.25))
+    const veins = smooth(clamp01((t - 0.55) / 0.45))
+    return glow * (BASALT_HEAT * basalt + (RIM_HEAT - BASALT_HEAT) * veins)
   }
   return {
     landform: withExtent(landform, circleExtent(cx, cz, radius)),

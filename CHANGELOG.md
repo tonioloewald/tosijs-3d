@@ -8,6 +8,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+### Changed
+
+- **A volcano's flank is bare basalt, and seams start only near the top.**
+  Walking in from the edge of `volcano()`'s province you now cross the biome,
+  then plain basalt, then faint seams from about 55% of the way to the crater
+  rim; stronger veins and open lava are inside the crater only. The rim's
+  province value is 0.25 (it was 0.5). In the biome shader, a local province
+  draws no seams below 0.14 and all of them by 0.4; the global `volcanism`
+  dial is unchanged. Land and Sky's volcano is smaller (radius 300, height
+  160).
+
 ### Fixed
 
 - A menu hung off a narrow button (`button3d({ menu })`, `openMenu3d`) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky's preset menu).

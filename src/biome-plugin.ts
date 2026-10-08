@@ -887,6 +887,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               float vw = max(biomeSurf.w, 1e-3)
                 * (1.25 + 1.8 * clamp(stage - 1.0, 0.0, 1.0) + 8.4 * clamp(stage - 2.0, 0.0, 1.0));
               float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
+              // A LOCAL province's low end is BARE basalt: no seams below
+              // 0.14, all of them by 0.4. Without this the cold seam (which
+              // is drawn warm) started the moment the rock did, so a volcano
+              // went from grass straight to red veins. The global dial keeps
+              // its seams at every level (volcG).
+              vein *= max(volcG, smoothstep(0.14, 0.4, provVolc));
               float t12 = clamp(stage - 1.0, 0.0, 1.0);
               float t23 = clamp(stage - 2.0, 0.0, 1.0);
               float damp = mix(1.0, mix(0.5, 0.15, clamp(-altitude / 15.0, 0.0, 1.0)), sub);
