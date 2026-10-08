@@ -194,7 +194,6 @@ export class ProjectedAoController {
         this._blank = null;
     }
     _disposeTextures() {
-        const scene = this._scene;
         this._depth?.dispose();
         this._ao?.dispose();
         this._blur?.dispose();

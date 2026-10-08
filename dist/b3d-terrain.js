@@ -287,6 +287,8 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeTemperature` | `-1` (auto 0.72) | Sea-level temperature, `0…1` cold → warm. LIVE |
 | `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
+| `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
+| `biomeSeasonality` | `0` | How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE |
 | `normalSmoothing` | `0.6` | Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag |
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
@@ -356,7 +358,7 @@ import { PerlinNoise } from './perlin-noise.js';
 import { PiecewiseLinearFilter } from './gradient-filter.js';
 import { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler.js';
 import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, budgetedReach, MAX_TILES_ACROSS, } from './terrain-grid.js';
-import { resolveBudget } from './b3d-quality.js';
+import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { attachBiomePlugin, defaultBiomeParams, } from './biome-plugin.js';
 /** The plugin's own defaults — what a negative (AUTO) climate dial means. */
 const BIOME_AUTO = defaultBiomeParams();
@@ -366,6 +368,8 @@ const freshBiomeMemo = () => ({
     temperature: NaN,
     moisture: NaN,
     volcanicScale: NaN,
+    season: NaN,
+    seasonality: NaN,
 });
 import { touchesExtent } from './landform.js';
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
@@ -425,6 +429,9 @@ export class B3dTerrain extends B3dChild {
         biomeTemperature: -1,
         biomeMoisture: -1,
         biomeVolcanicScale: -1,
+        // The year: where in it, and how far it swings the temperature axis.
+        biomeSeason: 0.25,
+        biomeSeasonality: 0,
         // 0..1: normals see a tent-filtered height (positions stay crisp) — cliff
         // faces shade smoothly instead of zigzag-banding. 0 restores pre-0.7 look.
         normalSmoothing: 0.6,
@@ -845,14 +852,17 @@ export class B3dTerrain extends B3dChild {
         // auto (0) → resolve from the device tier; explicit value wins. Cache it: the
         // pool's buffers are sized to this subdivision, so streamTiles must reuse the
         // SAME value (attrs.hiResSubdivisions may still be the 0 sentinel).
-        const subs = resolveBudget(attrs.hiResSubdivisions, 'hiResSubdivisions');
+        // On a standalone headset, size for the XR tier NOW: this pool is built
+        // flat and cannot be resized when the session starts.
+        const xr = headsetDevice();
+        const subs = resolveBudget(attrs.hiResSubdivisions, 'hiResSubdivisions', { xr });
         this._resolvedSubs = subs;
         this._fieldScratch = new Float64Array(tileFieldScratchSize(subs));
         this.tileTemplate = B3dTerrain.buildTileTemplate(subs);
         const scene = this.owner.scene;
         const tpl = this.tileTemplate;
         const vertCount = tpl.gridCount + tpl.perim.length;
-        const count = Math.max(1, resolveBudget(attrs.poolSize, 'poolSize'));
+        const count = Math.max(1, resolveBudget(attrs.poolSize, 'poolSize', { xr }));
         for (let i = 0; i < count; i++) {
             const mesh = new BABYLON.Mesh(`terrain-tile-${i}`, scene);
             const vd = new BABYLON.VertexData();
@@ -952,11 +962,14 @@ export class B3dTerrain extends B3dChild {
         this.lastCamX = camX;
         this.lastCamZ = camZ;
         desiredCellsInto(camX, camZ, cfg, this._desired);
-        const budget = budgetOverride ?? resolveBudget(attrs.fillBudget, 'fillBudget');
+        const budget = budgetOverride ??
+            resolveBudget(attrs.fillBudget, 'fillBudget', { xr: headsetDevice() });
         // budgetOverride = regenerate(): rebuild everything now, deliberately unbounded.
         const msBudget = budgetOverride != null
             ? 0
-            : resolveBudget(attrs.tileBuildMs, 'tileBuildMs');
+            : resolveBudget(attrs.tileBuildMs, 'tileBuildMs', {
+                xr: headsetDevice(),
+            });
         this.streamTiles(budget, msBudget);
         this.endProfileFrame(budget);
     }
@@ -1795,6 +1808,18 @@ export class B3dTerrain extends B3dChild {
         if (v !== memo.volcanicScale) {
             memo.volcanicScale = v;
             p.volcanicScale = v >= 0 ? v : BIOME_AUTO.volcanicScale;
+        }
+        const season = Number(a.biomeSeason);
+        const seasonality = Number(a.biomeSeasonality);
+        if (season !== memo.season) {
+            memo.season = season;
+            p.season = Number.isFinite(season) ? season : BIOME_AUTO.season;
+        }
+        if (seasonality !== memo.seasonality) {
+            memo.seasonality = seasonality;
+            p.seasonality = Number.isFinite(seasonality)
+                ? Math.max(0, seasonality)
+                : 0;
         }
     }
     /** Material tweaks that must never cost a regeneration. */

@@ -338,7 +338,7 @@ b3d-decorator
   budget  = 2000  — How many things to place. Performance cares about this, not density
   radius  = 900  — Metres around the camera to fill
   seed  = 1  — Same seed, same forest
-  url  = ''  — The model library; empty = Kenney's Nature Kit on the CDN
+  url  = ''  — The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES`
   scale  = 1  — Multiplies every rule's scale range
   follow  = 'on'  — Re-scatter as the camera moves
   shadows  = 'off'  — Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live
@@ -347,6 +347,8 @@ b3d-decorator
   colliderPool  = 48  — How many colliders at most
   shadowRange  = 200  — Metres around the camera whose copies cast shadows (with `shadows: 'on'`)
   shadowBudget  = 600  — How many of the nearest copies cast, at most
+  clump  = -1  — How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live
+  clumpSize  = 0  — Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live
 
 ## b3d-destroyable — <tosi-b3d-destroyable>
 b3d-destroyable
@@ -1001,6 +1003,8 @@ b3d-terrain
   biomeTemperature  = -1  — Sea-level temperature, `0…1` cold → warm. LIVE
   biomeMoisture  = -1  — Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE
   biomeVolcanicScale  = -1  — Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE
+  biomeSeason  = 0.25  — Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE
+  biomeSeasonality  = 0  — How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE
   normalSmoothing  = 0.6  — Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag
   seed  = 12345  — Noise seed
   surfaceType  = 'cylinder'  — `'cylinder'`, `'torus'`, or `'sphere'`
@@ -1122,7 +1126,8 @@ b3d-water
   spherical  = false  — Use a sphere instead of a plane
   waterSize  = 128  — Size of the water plane
   subdivisions  = 32  — Mesh subdivisions
-  textureSize
+  textureSize  = 0  — Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256
+  reflectionRefresh  = 0  — Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame
   twoSided  = false  — Render both sides
   follow  = false  — Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space
   normalMap
@@ -1264,6 +1269,16 @@ picker
   placeholder  = 'choose…'  — shown when nothing is selected
   handleChange  — the chosen value; fires on pick, and the popup closes
 
+## procedural-rock
+procedural-rock
+
+  seed  = 1  — Same seed, same rock
+  detail  = 2  — Subdivisions of the starting sphere: 1 = 42 vertices, 2 = 162, 3 = 642
+  cuts  = 8  — How many planes cut it. More cuts, more faces
+  roughness  = 0.07  — Depth of the noise, as a fraction of the radius
+  squash  = 0.7  — Height relative to width. Low values give slabs
+  sink  = 0.15  — Fraction of the height that sits below the ground
+
 ## rocket-ascent
 Rocket Ascent
 
@@ -1277,6 +1292,13 @@ Rocket Ascent
   nebulae  = 0  — Sprite nebulae, OFF — superseded by baking the galaxy
   rocketScale  = 4  — Uniform scale on the Kenney parts
   timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
+
+## scatter
+scatter
+
+  clump  = 0.85  — 0 = even spread, 1 = clumps only
+  clumpScale  = 1  — This rule's clump size relative to the scatter's
+  clumpGroup  = kind  — Rules in one group gather in the SAME places: stones around boulders
 
 ## slope-profile
 slope-profile

@@ -254,7 +254,7 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.
 /*{ "parent": "environment", "order": 502 }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js';
-import { resolveBudget } from './b3d-quality.js';
+import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { cloudField, cloudOpacity, orographicLift, OROGRAPHIC_REACH, packWeatherTexture, } from './cloud-field.js';
 import { CloudShadowMap } from './cloud-shadows.js';
 const DECK_VERT = `
@@ -2333,7 +2333,9 @@ export class B3dCloudDeck extends B3dChild {
         // A lightning flash comes from BELOW the cloud: its light is not
         // cloud-shadowed, so the shadow fades while the deck is flashing.
         map.strengthSource = () => 1 - Math.min(1, this._flash.level);
-        const res = resolveBudget(this.shadowResolution, 'cloudShadowSize');
+        const res = resolveBudget(this.shadowResolution, 'cloudShadowSize', {
+            xr: headsetDevice(),
+        });
         const tex = new BABYLON.ProceduralTexture('cloud-deck-shadow', res, { fragmentSource: SHADOW_FRAG }, scene, undefined, false, false);
         /*
         EVERY FRAME, because it now costs a quad. The window follows the camera, so

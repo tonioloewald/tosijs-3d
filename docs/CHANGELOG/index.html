@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=af2efa154e1d" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=85b7aa2456a6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,131 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.15</h2>
+<p><strong>Rocks and trees that belong to the land.</strong> Procedural rocks, Quaternius
+trees gathered into copses, and a biome shader that colours vegetation by the
+ground under it and by the season: autumn colour, bare winter branches, snow.</p>
+<p>Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).</p>
+<h3>Added</h3>
+<ul>
+<li><p><strong>Procedural rocks.</strong> <code>rockGeometry({ seed })</code> makes a rock from a seed
+(a sphere cut by random planes, roughened, squashed, sunk into the ground):
+pure, deterministic, no model file. The decorator&#39;s default boulders and
+stones are now these instead of Kenney&#39;s, and it shades them with the
+terrain&#39;s own biome colours, so their tops take whatever grows there and
+they change colour with the planet. A scatter rule asks for one by name:
+<code>rock:boulder:3</code> (<code>rockNames(&#39;boulder&#39;, 6)</code> lists six). See
+<a href="/procedural-rock/">procedural-rock</a>.</p>
+</li>
+<li><p><strong>The scatter gathers into clumps.</strong> Every rule now clusters by default
+(copses, thickets, rock fields, with thin outliers between) instead of
+spreading evenly. Per rule: <code>clump</code> (0 = the old even spread, default
+0.85), <code>clumpScale</code> (this rule&#39;s clump size relative to the scatter&#39;s) and
+<code>clumpGroup</code> (rules in one group gather in the same places; the default
+stones gather around the boulders). The scatter and <code>&lt;tosi-b3d-decorator&gt;</code>
+take <code>clump</code> (one strength for every rule) and <code>clumpSize</code> (metres; 0 =
+auto, about two and a half times the average spacing, so pulling <code>radius</code>
+in keeps the clumps).</p>
+</li>
+<li><p><strong>The scatter&#39;s budget is a ceiling.</strong> It no longer fills the gaps between
+clumps, or packs thin habitat as full as lush, to reach the number: a small
+radius or a map that is mostly sea gets fewer and keeps its shape. It also
+lays down at least <code>oversample</code> × budget candidates (it could lay down
+half that), so a high budget no longer stalls below itself.</p>
+</li>
+<li><p><code>ScatterRule.sink</code>: how much of a model is buried. The default rocks bury a
+quarter or more; they used to rest on their lowest point and looked set
+down on the ground, or floating over it. Same seed gives a DIFFERENT layout
+than before; set <code>clump: 0</code> on a rule to get the old one back.</p>
+</li>
+<li><p><strong>Seasons in the biome shader.</strong> <code>&lt;tosi-b3d-terrain biomeSeason biomeSeasonality&gt;</code> (params <code>season</code>, <code>seasonality</code>): the year swings the
+chart&#39;s temperature axis, so winter cools the whole ground (snow lines drop)
+with no second palette. <code>seasonality</code> defaults to 0, so nothing changes
+until you ask. <code>seasonOf(season, seasonality)</code> is the pure rule.</p>
+</li>
+<li><p><strong>Winter snow.</strong> Where the season takes a moist place below freezing
+(temperature about 0.3), snow lies on level ground and the tops of rocks,
+and evergreen foliage goes white. It is a layer of its own, applied only
+while the season is pulling cold, so a world without seasons is unchanged.</p>
+</li>
+<li><p><strong>Deciduous trees drop their leaves.</strong> After the autumn turn (season 0.55
+to 0.7) <code>leaf</code>-role canopies thin in soft patches and are gone through
+winter, leaving trunk and branches, then return across the spring equinox.
+Evergreens, and anything in warm country, keep theirs. A bare tree still
+casts its full summer shadow and still counts in ambient occlusion.</p>
+</li>
+<li><p><strong>Vegetation roles: trees take their colour from the land.</strong>
+<code>BiomePlugin.role</code> is <code>&#39;ground&#39;</code> (as before), <code>&#39;leaf&#39;</code>, <code>&#39;evergreen&#39;</code> or
+<code>&#39;bark&#39;</code>. A leaf is its own green pulled toward the colour of the ground
+under it (<code>leafBlend</code>), and turns in autumn in temperate country; an
+evergreen does not turn. The decorator assigns roles by material name
+(<code>roles</code>, default <code>NATURE_ROLES</code>, with <code>Model*/Material</code> keys for one
+model&#39;s use of a shared material).</p>
+</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><p><strong>⚠️ The decorator&#39;s default models are Quaternius&#39;, not Kenney&#39;s.</strong> With no
+<code>url</code> it now loads <code>quaternius/libraries/nature.glb</code> (a curated 64-model
+library: common, pine, birch, willow and palm trees, dead trees, bushes,
+cacti, undergrowth) with the new <code>NATURE_RULES</code>. Naming a <code>url</code> keeps the old
+behaviour: <code>NATURE_KIT_RULES</code> over that library. To stay on Kenney&#39;s kit,
+set <code>url</code> to <code>assetUrl(&#39;kenney/libraries/nature-kit.glb&#39;)</code>. The new trees
+are heavier (about 1,000 vertices each against Kenney&#39;s 100): Land and Sky&#39;s
+2,000 placements went from about 205k to 365k vertices.</p>
+</li>
+<li><p><strong>A volcano&#39;s flank is bare basalt, and seams start only near the top.</strong>
+Walking in from the edge of <code>volcano()</code>&#39;s province you now cross the biome,
+then plain basalt, then faint seams from about 55% of the way to the crater
+rim; stronger veins and open lava are inside the crater only. The rim&#39;s
+province value is 0.25 (it was 0.5). In the biome shader, a local province
+draws no seams below 0.14 and all of them by 0.4; the global <code>volcanism</code>
+dial is unchanged. Land and Sky&#39;s volcano keeps its size with a smaller
+crater (radius 55, it was 90).</p>
+</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>Switching decorator shadows on made whole models vanish</strong>, and every
+rebuild flashed the full scatter before dropping most of it. Each part&#39;s
+shadow-only twin shared its geometry, and with it the thin-instance buffer,
+so the visible mesh drew its full count from the twin&#39;s short list and
+WebGL rejected the draw. The twin now has its own geometry.</p>
+</li>
+<li><p>A menu hung off a narrow button (<code>button3d({ menu })</code>, <code>openMenu3d</code>) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky&#39;s preset menu).</p>
+</li>
+<li><p><strong>A <code>select3d</code> inside a <code>row3d</code> stepped to its next option instead of opening
+its list.</strong> A row did not pass the panel&#39;s host to its children, and a select
+with no host falls back to stepping. Land and Sky&#39;s world picker jumped from
+Earth to Mars on a tap. (Seen in a headset, reproduced flat.)</p>
+</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><p><strong>A standalone headset sizes build-once budgets for stereo from the start.</strong>
+Terrain detail and tile pool, shadow map and cascade count, cloud shadows and
+reflection probes are sized when the scene is built, which is before any
+session, so a Quest got the flat (<code>medium</code>) numbers and kept them in VR. They
+now resolve at the XR tier (<code>low</code>) on a standalone headset, flat included:
+terrain 12 subdivisions and 56 tiles instead of 16 and 80, shadows 2 cascades
+instead of 4. A PC driving a headset is unaffected. <code>headsetDevice()</code> is
+exported for your own build-once budgets.</p>
+</li>
+<li><p><strong>Water&#39;s reflection and refraction follow the device tier.</strong> Each is the
+whole scene drawn again, and both were 1024 and redrawn every frame on every
+device. <code>textureSize</code> now defaults to auto (1024 / 512 / 256) and a new
+<code>reflectionRefresh</code> redraws them every Nth frame (1 / 2 / 3). Top-tier
+devices are unchanged. To keep the old behaviour everywhere, set
+<code>textureSize=&quot;1024&quot; reflectionRefresh=&quot;1&quot;</code>.</p>
+</li>
+<li><p>Land and Sky&#39;s lightning storm toggle moved to the Weather tab.</p>
+</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li>An <strong>Occlusion on/off button in Perf Stats</strong>, so its cost can be read in any
+demo on any device; Land and Sky has its own control too.</li>
+</ul>
 <h2>0.8.14</h2>
 <p><strong>Ambient occlusion that works in a headset, and it is the default.</strong></p>
 <h3>Changed</h3>
@@ -4415,6 +4540,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
       <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
@@ -4570,6 +4696,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-x248vvst.js"></script>
+  <script type="module" src="../hydrate-ng96qkxd.js"></script>
 </body>
 </html>

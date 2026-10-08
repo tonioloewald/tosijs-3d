@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=af2efa154e1d" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
   <title>b3d-decorator — tosijs-3d</title>
   <meta name="description" content="Rocks and trees on the terrain, by budget and by climate. Drop it into a scene with a &lt;tosi-b3d-terrain&gt;." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-decorator/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=85b7aa2456a6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-decorator</h1>
 <p><strong>Rocks and trees on the terrain, by budget and by climate.</strong> Drop it into a
@@ -54,10 +54,45 @@ paints with), so the pines stand where the ground is cold forest, and the
 palms at a warm shoreline.</p>
 <pre><code class="language-javascript" data-highlighted><span class="token function">b3dDecorator</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">budget</span><span class="token operator">:</span> <span class="token number">5000</span><span class="token punctuation">,</span> <span class="token literal-property property">radius</span><span class="token operator">:</span> <span class="token number">900</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
+<h2>What it places, and why it matches the ground</h2>
+<p>By default: trees, bushes and undergrowth from a curated
+<a href="https://quaternius.com">Quaternius</a> nature library on the CDN, and rocks made
+from a seed (<a href="/procedural-rock/">procedural-rock</a>). Things gather into copses
+and rock fields with open ground between them (<a href="/scatter/">scatter</a>).</p>
+<p>Nothing keeps a fixed colour. With a biome terrain, the decorator draws its
+materials with the TERRAIN&#39;s biome shading, each in a role:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>rock (<code>ground</code>)</td>
+<td>Shaded exactly like terrain: cliff colour on the sides, whatever grows there on top</td>
+</tr>
+<tr>
+<td><code>leaf</code></td>
+<td>Its own green pulled toward the colour of the ground under it; turns in autumn</td>
+</tr>
+<tr>
+<td><code>evergreen</code></td>
+<td>The same, but never turns (pines, palms, cacti)</td>
+</tr>
+<tr>
+<td><code>bark</code></td>
+<td>Its own colour, lightly tinted by the ground</td>
+</tr>
+</tbody></table>
+<p>So changing planet, climate or season recolours the vegetation with the land.
+The year is the terrain&#39;s: <code>biomeSeason</code> and <code>biomeSeasonality</code>. Roles are
+assigned by material name (<code>roles</code>, default <code>NATURE_ROLES</code>); a material with no
+role keeps its own look.</p>
 <h2>How it draws</h2>
 <p>Every model is drawn with <strong>thin instances</strong>: one draw call per model PART,
-however many copies. A few dozen Nature Kit models make a few dozen draw
-calls, whether the budget is 1,000 or 20,000. What grows with the budget is
+however many copies. A few dozen models make a few dozen draw calls, whether
+the budget is 1,000 or 20,000. What grows with the budget is
 vertices. The Perf Stats panel&#39;s <code>decorator</code> row shows the counts and the
 build time.</p>
 <p>The scatter is <strong>world-anchored</strong>, so when the camera moves far enough
@@ -107,7 +142,7 @@ biped stops at a trunk and can stand on a boulder.</p>
 <tr>
 <td><code>url</code></td>
 <td><code>&#39;&#39;</code></td>
-<td>The model library; empty = Kenney&#39;s Nature Kit on the CDN</td>
+<td>The model library; empty = the curated Quaternius nature library on the CDN (<code>quaternius/libraries/nature.glb</code>). Naming another switches the default rules to Kenney&#39;s <code>NATURE_KIT_RULES</code></td>
 </tr>
 <tr>
 <td><code>scale</code></td>
@@ -148,6 +183,16 @@ biped stops at a trunk and can stand on a boulder.</p>
 <td><code>shadowBudget</code></td>
 <td><code>600</code></td>
 <td>How many of the nearest copies cast, at most</td>
+</tr>
+<tr>
+<td><code>clump</code></td>
+<td><code>-1</code></td>
+<td>How strongly things gather: 0 = even spread, 1 = clumps only. <code>-1</code> leaves it to each rule (0.85 by default). Live</td>
+</tr>
+<tr>
+<td><code>clumpSize</code></td>
+<td><code>0</code></td>
+<td>Metres across a clump and the gap beside it. <code>0</code> = auto, about two and a half times the average spacing, so tightening <code>radius</code> keeps the clumps. Live</td>
 </tr>
 </tbody></table>
 
@@ -238,6 +283,7 @@ biped stops at a trunk and can stand on a boulder.</p>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
       <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
@@ -393,6 +439,6 @@ biped stops at a trunk and can stand on a boulder.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-x248vvst.js"></script>
+  <script type="module" src="../hydrate-ng96qkxd.js"></script>
 </body>
 </html>

@@ -697,25 +697,6 @@ export declare function menu3d(config: {
     handleSelect?: (item: MenuAction, index: number) => void;
     rowHeight?: number;
 }): Widget3d;
-/**
- * Open an action menu as a popup anchored to something, and close it on pick.
- *
- * This is the piece that was missing. `select3d` could open a menu because it
- * holds a `WidgetHost` privately; nothing else could, so an icon in a tool
- * palette had no route to one (tosijs-3d#59). Any widget that gets a host can
- * now open a menu in one call.
- *
- * ```javascript
- * openMenu3d(host, anchorRect, [
- *   { label: 'Load…', icon: 'uploadCloud', handleSelect: load },
- *   { label: 'Revert', icon: 'rotateCcw', disabled: !dirty, handleSelect: revert },
- * ])
- * ```
- *
- * Dismissal is the host's: a press outside closes it, exactly as it does for a
- * select. `width` defaults to the anchor's, floored so a menu hanging off a
- * narrow icon is still readable rather than a column of clipped words.
- */
 export declare function openMenu3d(host: WidgetHost, anchor: {
     x: number;
     y: number;

@@ -44,6 +44,8 @@ tosi-b3d { width: 100%; height: 100%; }
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
+| `textureSize` | `0` (auto) | Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256 |
+| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame |
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
@@ -83,6 +85,7 @@ document.body.append(
 /*{ "parent": "Environment" }*/
 import { plane as mediumPlane } from './medium.js';
 import * as BABYLON from '@babylonjs/core';
+import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
 import { AbstractMesh, fetchedUrl, markCollisionGroup, sceneDelta, } from './b3d-utils.js';
@@ -132,11 +135,16 @@ export class B3dWater extends AbstractMesh {
         spherical: false,
         waterSize: 128,
         subdivisions: 32,
-        textureSize: 1024,
+        // 0 = auto: from the device tier (1024 / 512 / 256). Each of the two
+        // textures is the whole scene drawn again.
+        textureSize: 0,
+        // 0 = auto: redraw the reflection and refraction every Nth frame, from the
+        // device tier (1 / 2 / 3). 1 = every frame.
+        reflectionRefresh: 0,
         twoSided: false,
         // Follow the camera in x/z so a finite plane reads as an ENDLESS sea. The mesh rides with
         // you but the ripple pattern is offset back into WORLD space (so the surface looks fixed, not
-        // dragged along), and the reflection map refreshes every few frames instead of every one
+        // dragged along), and how often the reflection is redrawn is `reflectionRefresh`
         // (a moving sea doesn't need a perfect mirror). Off by default (a small pond doesn't need it).
         follow: false,
         /*
@@ -326,7 +334,25 @@ export class B3dWater extends AbstractMesh {
         per-element attribute on the aircraft can express. See `markCollisionGroup`.
         */
         markCollisionGroup(this.mesh, 'water');
-        this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(attrs.textureSize, attrs.textureSize));
+        /*
+        THE WATER DRAWS THE SCENE TWICE MORE, once mirrored for the reflection and
+        once for the refraction. Both were 1024 and redrawn every frame on every
+        device, whatever the tier (and a comment on `follow` said otherwise). On a
+        standalone headset that was two extra full scene draws per frame on top of
+        two eyes. Size and rate now come from the budget, and on a headset from the
+        XR tier, because the textures are built once.
+        */
+        const xr = headsetDevice();
+        const textureSize = resolveBudget(attrs.textureSize, 'waterTextureSize', {
+            xr,
+        });
+        this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(textureSize, textureSize));
+        const refresh = Math.max(1, Math.round(resolveBudget(attrs.reflectionRefresh, 'waterRefresh', { xr })));
+        const targets = this.waterMaterial.getRenderTargetTextures?.().data ?? [];
+        for (const target of targets) {
+            if (target != null)
+                target.refreshRate = refresh;
+        }
         const normalMap = fetchedUrl(attrs.normalMap, 'b3d-water normalMap');
         this.waterMaterial.bumpTexture = normalMap
             ? // An explicit path: load it, but SAY SO if it fails. The checkerboard

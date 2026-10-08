@@ -160,7 +160,36 @@ export interface BiomeParams {
     strata: number;
     strataScale: number;
     strataTilt: number;
+    /**
+     * Where in the year it is, 0…1: `0` spring equinox, `0.25` midsummer, `0.5`
+     * autumn equinox, `0.75` midwinter. Does nothing while `seasonality` is 0.
+     */
+    season: number;
+    /**
+     * How much the year swings the TEMPERATURE axis, in chart units (0 = no
+     * seasons, the default; 0.2 is a temperate climate). Winter cools the whole
+     * chart, and where that takes a moist place below freezing (about 0.3) snow
+     * lies on level ground and whitens evergreen foliage; the same swing turns
+     * `leaf`-role materials in autumn.
+     */
+    seasonality: number;
+    /**
+     * How far a `leaf`-role material is pulled from its own colour toward the
+     * colour of the ground it stands on, 0…1. Default 0.6.
+     */
+    leafBlend: number;
 }
+/**
+ * What a point in the year does to the chart: a temperature offset (summer
+ * warm, winter cold) and how far into AUTUMN it is (0 outside it, 1 at the
+ * equinox) and how BARE the deciduous trees are (0 in leaf, 1 through winter),
+ * all scaled by `seasonality`. Pure; the shader's uniforms are this.
+ */
+export declare function seasonOf(season: number, seasonality: number): {
+    temperature: number;
+    autumn: number;
+    bare: number;
+};
 export declare const defaultBiomeParams: () => BiomeParams;
 /** Molten-rock volcanism (the default `volcanicPalette`). Ladder order:
  * rock1, rock2, cold vein, ember, molten, pool edge, pool bright. */
@@ -194,6 +223,8 @@ export declare const MANTA_PALETTE: number[][];
  * to their `MANTA_PALETTE` entry get no variation; most don't need any.
  */
 export declare const MANTA_PALETTE_B: number[][];
+/** What a material is to the biome shader. See `BiomePlugin.role`. */
+export type BiomeRole = 'ground' | 'leaf' | 'bark' | 'evergreen';
 export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
     params: BiomeParams;
     /** 20 rgb triples, row-major over the 4×5 chart (dead→dry→med→wet→marine). */
@@ -201,6 +232,15 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
     /** Per-cell variation colours (mixed by medium-frequency noise); cells equal
      * to their `palette` entry don't vary. */
     paletteB: number[][];
+    /**
+     * What this MATERIAL is, which is not a property of the world and so is not
+     * in `params` (a decorator shares one `params` object between the terrain,
+     * its rocks and its trees): `'ground'` classifies by slope and climate like
+     * terrain; `'leaf'` keeps its own colour and takes on the ground's (and the
+     * season's); `'evergreen'` is a leaf that does not turn in autumn (needles,
+     * palms, cacti); `'bark'` keeps its own colour, lightly tinted by the ground.
+     */
+    role: BiomeRole;
     private _isEnabled;
     private _t0;
     constructor(material: BABYLON.Material);

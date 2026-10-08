@@ -1322,7 +1322,7 @@
       {
         "name": "url",
         "default": "''",
-        "description": "The model library; empty = Kenney's Nature Kit on the CDN"
+        "description": "The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES`"
       },
       {
         "name": "scale",
@@ -1363,6 +1363,16 @@
         "name": "shadowBudget",
         "default": "600",
         "description": "How many of the nearest copies cast, at most"
+      },
+      {
+        "name": "clump",
+        "default": "-1",
+        "description": "How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live"
+      },
+      {
+        "name": "clumpSize",
+        "default": "0",
+        "description": "Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live"
       }
     ]
   },
@@ -3867,6 +3877,16 @@
         "description": "Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE"
       },
       {
+        "name": "biomeSeason",
+        "default": "0.25",
+        "description": "Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE"
+      },
+      {
+        "name": "biomeSeasonality",
+        "default": "0",
+        "description": "How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE"
+      },
+      {
         "name": "normalSmoothing",
         "default": "0.6",
         "description": "Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag"
@@ -4363,7 +4383,14 @@
         "description": "Mesh subdivisions"
       },
       {
-        "name": "textureSize"
+        "name": "textureSize",
+        "default": "0",
+        "description": "Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256"
+      },
+      {
+        "name": "reflectionRefresh",
+        "default": "0",
+        "description": "Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame"
       },
       {
         "name": "twoSided",
@@ -4856,6 +4883,42 @@
     ]
   },
   {
+    "module": "procedural-rock",
+    "summary": "procedural-rock",
+    "attributes": [
+      {
+        "name": "seed",
+        "default": "1",
+        "description": "Same seed, same rock"
+      },
+      {
+        "name": "detail",
+        "default": "2",
+        "description": "Subdivisions of the starting sphere: 1 = 42 vertices, 2 = 162, 3 = 642"
+      },
+      {
+        "name": "cuts",
+        "default": "8",
+        "description": "How many planes cut it. More cuts, more faces"
+      },
+      {
+        "name": "roughness",
+        "default": "0.07",
+        "description": "Depth of the noise, as a fraction of the radius"
+      },
+      {
+        "name": "squash",
+        "default": "0.7",
+        "description": "Height relative to width. Low values give slabs"
+      },
+      {
+        "name": "sink",
+        "default": "0.15",
+        "description": "Fraction of the height that sits below the ground"
+      }
+    ]
+  },
+  {
     "module": "rocket-ascent",
     "summary": "Rocket Ascent",
     "attributes": [
@@ -4908,6 +4971,27 @@
         "name": "timeOfDay",
         "default": "14",
         "description": "Broad daylight — so the stars appear because the AIR ran out, not because night fell"
+      }
+    ]
+  },
+  {
+    "module": "scatter",
+    "summary": "scatter",
+    "attributes": [
+      {
+        "name": "clump",
+        "default": "0.85",
+        "description": "0 = even spread, 1 = clumps only"
+      },
+      {
+        "name": "clumpScale",
+        "default": "1",
+        "description": "This rule's clump size relative to the scatter's"
+      },
+      {
+        "name": "clumpGroup",
+        "default": "kind",
+        "description": "Rules in one group gather in the SAME places: stones around boulders"
       }
     ]
   },

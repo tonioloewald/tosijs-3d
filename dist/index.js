@@ -13,7 +13,7 @@ from a ReferenceError in every case).
 export * as BABYLON from '@babylonjs/core';
 // Device-capability probe (measure-don't-guess quality budgets)
 export { B3dProbe, b3dProbe, runProbe } from './b3d-probe.js';
-export { getPerfProfile, setPerfProfile, setQuality, getQuality, effectiveTier, qualityBudgets, resolveBudget, onQualityChange, } from './b3d-quality.js';
+export { getPerfProfile, setPerfProfile, setQuality, getQuality, effectiveTier, qualityBudgets, resolveBudget, headsetDevice, onQualityChange, } from './b3d-quality.js';
 export { PROBE_VERSION, classify, budgetsForTier, resolveProfile, defaultProfile, isStandaloneHmd, tierCap, } from './perf-probe.js';
 // World simulation (narrative-driver boundary)
 export { WorldStore } from './world-store.js';
@@ -180,7 +180,8 @@ export { playground } from './playground.js';
 export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js';
 // Rocks and trees on the terrain, by budget and climate.
 export { B3dDecorator, b3dDecorator } from './b3d-decorator.js';
-export { scatterPlacements, NearIndex, NATURE_KIT_RULES, } from './scatter.js';
+export { rockGeometry, rockFromName, rockNames, ROCK_KINDS, } from './procedural-rock.js';
+export { scatterPlacements, clumpAt, autoClumpSize, NATURE_RULES, NATURE_ROLES, roleFor, ROCK_RULES, NearIndex, NATURE_KIT_RULES, } from './scatter.js';
 export { cloudField, cloudOpacity, } from './cloud-field.js';
 export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, } from './starfield-codec.js';
 export { rocketAscent } from './rocket-ascent.js';
@@ -346,7 +347,7 @@ export const carve = {
     shaft,
 };
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field.js';
-export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin.js';
+export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, seasonOf, } from './biome-plugin.js';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles.js';
 export { B3dSound, b3dSound } from './b3d-sound.js';

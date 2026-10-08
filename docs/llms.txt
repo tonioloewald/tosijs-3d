@@ -1,4 +1,4 @@
-# tosijs-3d v0.8.14
+# tosijs-3d v0.8.15
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -308,6 +308,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   see-through portals: a doorway that shows another place, and shows it *while you
 - https://3d.tosijs.net/prefab/ — prefab
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
+- https://3d.tosijs.net/procedural-rock/ — procedural-rock
+  positions, normals and indices of one rock. The same seed always gives the same
 - https://3d.tosijs.net/province-climate/ — Province climate
   a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/radar/ — radar.ts

@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
-import { NearIndex, type Placement, type ScatterRule } from './scatter.js';
+import { NearIndex, type DecorationRole, type Placement, type ScatterRule } from './scatter.js';
 export declare class B3dDecorator extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {
@@ -22,6 +22,8 @@ export declare class B3dDecorator extends B3dChild {
         colliderPool: number;
         shadowRange: number;
         shadowBudget: number;
+        clump: number;
+        clumpSize: number;
     };
     budget: number;
     radius: number;
@@ -35,8 +37,23 @@ export declare class B3dDecorator extends B3dChild {
     colliderPool: number;
     shadowRange: number;
     shadowBudget: number;
-    /** The rules. Replace before the first build (or call `rebuild()`). */
-    rules: ScatterRule[];
+    clump: number;
+    clumpSize: number;
+    private _rules;
+    /**
+     * The rules. Replace before the first build (or call `rebuild()`). Unset,
+     * they follow the library: `NATURE_RULES` for the default one, and Kenney's
+     * `NATURE_KIT_RULES` when `url` names another (which is what `url` meant
+     * before the default library changed).
+     */
+    get rules(): ScatterRule[];
+    set rules(rules: ScatterRule[]);
+    /**
+     * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
+     * `NATURE_ROLES` for the key forms. A library material with a role is drawn
+     * with the terrain's biome shading in that role; any other keeps its own look.
+     */
+    roles: Record<string, DecorationRole>;
     /** What was placed last, in LOGICAL world coordinates. */
     placements: Placement[];
     /**
@@ -73,6 +90,19 @@ export declare class B3dDecorator extends B3dChild {
     /** Everything the placements depend on, as one string. */
     private _currentKey;
     private _tick;
+    private _rockSources;
+    private _rockMaterial;
+    private _rockBiome;
+    /** The source mesh for a procedural rock name, or null for any other name. */
+    private _rockSource;
+    private _roleMaterials;
+    /**
+     * The material a part is DRAWN with. A library material whose name has a
+     * role becomes a plain StandardMaterial of the same colour carrying the
+     * biome plugin in that role; anything else is used as it came.
+     */
+    private _roleMaterial;
+    private _syncRockBiome;
     private _model;
     private _clearParts;
     private _build;

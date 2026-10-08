@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=af2efa154e1d" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
   <title>b3d-water — tosijs-3d</title>
   <meta name="description" content="Water plane with reflections, waves, and underwater fog effect." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-water/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=85b7aa2456a6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-water</h1>
 <p>Water plane with reflections, waves, and underwater fog effect.</p>
@@ -89,6 +89,16 @@ preview.append(scene)
 </tr>
 </thead>
 <tbody><tr>
+<td><code>textureSize</code></td>
+<td><code>0</code> (auto)</td>
+<td>Size of the reflection and refraction textures. Each is the whole scene drawn again. <code>0</code> follows the device tier: 1024 / 512 / 256</td>
+</tr>
+<tr>
+<td><code>reflectionRefresh</code></td>
+<td><code>0</code> (auto)</td>
+<td>Redraw those textures every Nth frame. <code>0</code> follows the device tier: 1 / 2 / 3. <code>1</code> is every frame</td>
+</tr>
+<tr>
 <td><code>waterSize</code></td>
 <td><code>128</code></td>
 <td>Size of the water plane</td>
@@ -280,6 +290,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
       <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
@@ -435,6 +446,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-x248vvst.js"></script>
+  <script type="module" src="../hydrate-ng96qkxd.js"></script>
 </body>
 </html>

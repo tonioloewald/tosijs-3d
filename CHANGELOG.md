@@ -6,7 +6,13 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.8.15
+
+**Rocks and trees that belong to the land.** Procedural rocks, Quaternius
+trees gathered into copses, and a biome shader that colours vegetation by the
+ground under it and by the season: autumn colour, bare winter branches, snow.
+
+Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).
 
 ### Added
 

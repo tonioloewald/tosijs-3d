@@ -9,6 +9,7 @@ export declare class B3dWater extends AbstractMesh {
         waterSize: number;
         subdivisions: number;
         textureSize: number;
+        reflectionRefresh: number;
         twoSided: boolean;
         follow: boolean;
         normalMap: string;

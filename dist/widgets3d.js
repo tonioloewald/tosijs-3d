@@ -1007,6 +1007,18 @@ export function row3d(config, ...children) {
     };
     return {
         el,
+        /*
+        PASS THE HOST DOWN. A row is a container, and a control inside it that
+        opens a popup needs the panel's host to do it. Without this a `select3d`
+        in a row had no host, and its fallback for "no menu possible" is to STEP to
+        the next option: tapping Land and Sky's world picker jumped straight from
+        Earth to Mars, in a headset, rebuilding the planet before you could react.
+        Offset per column, so the menu drops from the control and not from the
+        row's left edge.
+        */
+        setHost(h) {
+            children.forEach((c, i) => c.setHost?.(offsetHost(h, () => ({ x: cols[i]?.x ?? 0, y: tops[i] ?? 0 }))));
+        },
         layout(width) {
             cols = rowColumns(width, children.length, gap, config.weights);
             const heights = children.map((c, i) => c.layout(cols[i].width));
@@ -2112,9 +2124,22 @@ export function menu3d(config) {
  * ```
  *
  * Dismissal is the host's: a press outside closes it, exactly as it does for a
- * select. `width` defaults to the anchor's, floored so a menu hanging off a
- * narrow icon is still readable rather than a column of clipped words.
+ * select. `width` defaults to the anchor's, widened to fit the longest label,
+ * so a menu hanging off a narrow icon is readable rather than spilling out of
+ * its box.
  */
+/**
+ * How wide a menu must be to show its longest label: the same padding and icon
+ * gutter `list3d` lays its rows out with. A menu hung off a narrow button used
+ * to take the 160 floor, and any label longer than that ran out of its box.
+ */
+function menuWidth(items) {
+    const gutter = items.some((it) => it.icon) ? Math.round(TH.ROW * 0.5) + 8 : 0;
+    const widest = Math.max(0, ...items.map((it) => measureTextWidth(it.label, TH.TEXT_FONT)));
+    // Plus the popup panel's own padding (panel3d's default, both sides): the
+    // rows are laid out inside it, so without this they come up 24 short.
+    return Math.ceil(widest + gutter + TH.PAD_X * 2) + 24;
+}
 export function openMenu3d(host, anchor, items, opts = {}) {
     // An empty menu opens nothing rather than an empty box. Returning null says
     // "no menu happened" so a caller can fall back instead of guessing from a
@@ -2124,7 +2149,7 @@ export function openMenu3d(host, anchor, items, opts = {}) {
     return host.showPopup({
         anchor,
         side: opts.side,
-        width: opts.width ?? Math.max(anchor.width, 160),
+        width: opts.width ?? Math.max(anchor.width, 160, menuWidth(items)),
         maxHeight: opts.maxHeight,
         handleClose: handlerOf(opts, 'handleClose', 'onClose'),
     }, menu3d({

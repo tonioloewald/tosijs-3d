@@ -12,11 +12,33 @@ palms at a warm shoreline.
 b3dDecorator({ budget: 5000, radius: 900 })
 ```
 
+## What it places, and why it matches the ground
+
+By default: trees, bushes and undergrowth from a curated
+[Quaternius](https://quaternius.com) nature library on the CDN, and rocks made
+from a seed ([procedural-rock](/procedural-rock/)). Things gather into copses
+and rock fields with open ground between them ([scatter](/scatter/)).
+
+Nothing keeps a fixed colour. With a biome terrain, the decorator draws its
+materials with the TERRAIN's biome shading, each in a role:
+
+| Role | What it does |
+|------|--------------|
+| rock (`ground`) | Shaded exactly like terrain: cliff colour on the sides, whatever grows there on top |
+| `leaf` | Its own green pulled toward the colour of the ground under it; turns in autumn |
+| `evergreen` | The same, but never turns (pines, palms, cacti) |
+| `bark` | Its own colour, lightly tinted by the ground |
+
+So changing planet, climate or season recolours the vegetation with the land.
+The year is the terrain's: `biomeSeason` and `biomeSeasonality`. Roles are
+assigned by material name (`roles`, default `NATURE_ROLES`); a material with no
+role keeps its own look.
+
 ## How it draws
 
 Every model is drawn with **thin instances**: one draw call per model PART,
-however many copies. A few dozen Nature Kit models make a few dozen draw
-calls, whether the budget is 1,000 or 20,000. What grows with the budget is
+however many copies. A few dozen models make a few dozen draw calls, whether
+the budget is 1,000 or 20,000. What grows with the budget is
 vertices. The Perf Stats panel's `decorator` row shows the counts and the
 build time.
 
@@ -52,7 +74,7 @@ biped stops at a trunk and can stand on a boulder.
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
-| `url` | `''` | The model library; empty = Kenney's Nature Kit on the CDN |
+| `url` | `''` | The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES` |
 | `scale` | `1` | Multiplies every rule's scale range |
 | `follow` | `'on'` | Re-scatter as the camera moves |
 | `shadows` | `'off'` | Cast shadows — from the NEAR copies only (`shadowRange`, `shadowBudget`), through a shadow-only twin of each part. Copies always RECEIVE shadows. Live |
@@ -61,13 +83,17 @@ biped stops at a trunk and can stand on a boulder.
 | `colliderPool` | `48` | How many colliders at most |
 | `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
 | `shadowBudget` | `600` | How many of the nearest copies cast, at most |
+| `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live |
+| `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |
 */
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js';
 import { assetUrl } from './asset-url.js';
 import { mantaAxes } from './biome-chart.js';
-import { scatterPlacements, NearIndex, pruneScatterCache, NATURE_KIT_RULES, } from './scatter.js';
+import { attachBiomePlugin } from './biome-plugin.js';
+import { rockFromName, rockGeometry } from './procedural-rock.js';
+import { scatterPlacements, NearIndex, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
 /*
 A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
 pass renders its explicit caster list WITHOUT checking layer masks
@@ -91,9 +117,30 @@ export class B3dDecorator extends B3dChild {
         colliderPool: 48,
         shadowRange: 200,
         shadowBudget: 600,
+        // -1 = each rule's own strength; 0…1 overrides them all.
+        clump: -1,
+        // 0 = auto (from the spacing); otherwise metres.
+        clumpSize: 0,
     };
-    /** The rules. Replace before the first build (or call `rebuild()`). */
-    rules = NATURE_KIT_RULES;
+    _rules = null;
+    /**
+     * The rules. Replace before the first build (or call `rebuild()`). Unset,
+     * they follow the library: `NATURE_RULES` for the default one, and Kenney's
+     * `NATURE_KIT_RULES` when `url` names another (which is what `url` meant
+     * before the default library changed).
+     */
+    get rules() {
+        return this._rules ?? (this.url ? NATURE_KIT_RULES : NATURE_RULES);
+    }
+    set rules(rules) {
+        this._rules = rules;
+    }
+    /**
+     * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
+     * `NATURE_ROLES` for the key forms. A library material with a role is drawn
+     * with the terrain's biome shading in that role; any other keeps its own look.
+     */
+    roles = NATURE_ROLES;
     /** What was placed last, in LOGICAL world coordinates. */
     placements = [];
     /**
@@ -164,7 +211,7 @@ export class B3dDecorator extends B3dChild {
         owner.registerWorldRoot(this._root);
         const gen = ++this._loadGen;
         const url = fetchedUrl(this.url, 'b3d-decorator url') ||
-            assetUrl('kenney/libraries/nature-kit.glb');
+            assetUrl('quaternius/libraries/nature.glb');
         BABYLON.SceneLoader.LoadAssetContainerAsync(url, '', scene)
             .then((c) => {
             if (gen !== this._loadGen) {
@@ -208,6 +255,15 @@ export class B3dDecorator extends B3dChild {
             this._root.dispose();
         }
         this._root = null;
+        for (const m of this._rockSources)
+            m.dispose();
+        this._rockSources = [];
+        this._rockMaterial?.dispose();
+        this._rockMaterial = null;
+        this._rockBiome = null;
+        for (const entry of this._roleMaterials.values())
+            entry.material.dispose();
+        this._roleMaterials.clear();
         this._container?.dispose();
         this._container = null;
         this._models.clear();
@@ -233,6 +289,8 @@ export class B3dDecorator extends B3dChild {
             this.radius,
             this.seed,
             this.scale,
+            this.clump,
+            this.clumpSize,
             terrain?.generationKey ?? '',
             terrain?.provinceField != null ? 'province' : '',
             p
@@ -265,6 +323,7 @@ export class B3dDecorator extends B3dChild {
             this._key = key;
             this._build(terrain, here, off);
         }
+        this._syncRockBiome(terrain);
         if (performance.now() >= this._nextShadowCheck) {
             this._nextShadowCheck = performance.now() + 300;
             this._pickShadowCasters(here, off);
@@ -276,11 +335,113 @@ export class B3dDecorator extends B3dChild {
             this._placeColliders(here, off);
         }
     }
+    _rockSources = [];
+    _rockMaterial = null;
+    _rockBiome = null;
+    /** The source mesh for a procedural rock name, or null for any other name. */
+    _rockSource(name) {
+        const opts = rockFromName(name);
+        const scene = this.owner?.scene;
+        if (opts == null || scene == null)
+            return null;
+        const rock = rockGeometry(opts);
+        const mesh = new BABYLON.Mesh(`rock-source-${name}`, scene);
+        const data = new BABYLON.VertexData();
+        data.positions = rock.positions;
+        data.normals = rock.normals;
+        // The generator winds counter-clockwise (the glTF convention); Babylon's
+        // front face is the other way round, so each triangle is reversed here.
+        // Unreversed, the rocks drew inside out: only their far walls showed.
+        const indices = new Uint16Array(rock.indices.length);
+        for (let i = 0; i < indices.length; i += 3) {
+            indices[i] = rock.indices[i];
+            indices[i + 1] = rock.indices[i + 2];
+            indices[i + 2] = rock.indices[i + 1];
+        }
+        data.indices = indices;
+        data.applyToMesh(mesh);
+        if (this._rockMaterial == null) {
+            const mat = new BABYLON.StandardMaterial('deco-rock', scene);
+            mat.diffuseColor = new BABYLON.Color3(0.42, 0.4, 0.38);
+            mat.specularColor = new BABYLON.Color3(0, 0, 0);
+            this._rockMaterial = mat;
+        }
+        mesh.material = this._rockMaterial;
+        mesh.setEnabled(false);
+        mesh.isPickable = false;
+        this._rockSources.push(mesh);
+        return mesh;
+    }
+    _roleMaterials = new Map();
+    /**
+     * The material a part is DRAWN with. A library material whose name has a
+     * role becomes a plain StandardMaterial of the same colour carrying the
+     * biome plugin in that role; anything else is used as it came.
+     */
+    _roleMaterial(src, model) {
+        const scene = this.owner?.scene;
+        if (src == null || scene == null)
+            return src;
+        const role = roleFor(this.roles, model, src.name);
+        if (role == null)
+            return src;
+        const key = `${role}-${src.name.replace(/\.\d+$/, '')}`;
+        const have = this._roleMaterials.get(key);
+        if (have != null)
+            return have.material;
+        const material = new BABYLON.StandardMaterial(`deco-${key}`, scene);
+        // A glTF colour is linear; a StandardMaterial's is not.
+        const colour = (src.albedoColor ?? src.diffuseColor);
+        material.diffuseColor =
+            colour != null
+                ? src.albedoColor != null
+                    ? colour.toGammaSpace()
+                    : colour.clone()
+                : new BABYLON.Color3(0.5, 0.5, 0.5);
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        material.backFaceCulling = src.backFaceCulling;
+        const entry = { material, plugin: null, role };
+        this._roleMaterials.set(key, entry);
+        return material;
+    }
+    /*
+    THE ROCKS WEAR THE TERRAIN'S COLOURS. The rock material carries the same
+    biome plugin as the ground and reads the SAME params and palettes (by
+    reference, re-pointed each frame because a preset replaces them). So a rock's
+    steep sides take the terrain's cliff colour and its top takes whatever grows
+    there, snow included, and changing planet recolours the rocks with the ground.
+    Without a biome terrain they stay plain grey.
+    */
+    _syncRockBiome(terrain) {
+        const src = terrain?.biomePlugin;
+        const live = src != null && src.isEnabled;
+        const sync = (material, plugin, role) => {
+            if (!live) {
+                if (plugin != null)
+                    plugin.isEnabled = false;
+                return plugin;
+            }
+            plugin ??= attachBiomePlugin(material);
+            plugin.role = role;
+            plugin.isEnabled = true;
+            plugin.params = src.params;
+            plugin.palette = src.palette;
+            plugin.paletteB = src.paletteB;
+            return plugin;
+        };
+        if (this._rockMaterial != null)
+            this._rockBiome = sync(this._rockMaterial, this._rockBiome, 'ground');
+        // Leaves and bark: the same climate, read in their own role.
+        for (const entry of this._roleMaterials.values())
+            entry.plugin = sync(entry.material, entry.plugin, entry.role);
+    }
     _model(name) {
         if (this._models.has(name))
             return this._models.get(name);
         const c = this._container;
-        const node = [...c.transformNodes, ...c.meshes].find((n) => publicName(n.name) === name);
+        // A `rock:<kind>:<n>` name is MADE, not looked up (procedural-rock).
+        const node = this._rockSource(name) ??
+            [...c.transformNodes, ...c.meshes].find((n) => publicName(n.name) === name);
         let info = null;
         if (node != null) {
             /*
@@ -324,11 +485,23 @@ export class B3dDecorator extends B3dChild {
                 part.rotationQuaternion = BABYLON.Quaternion.Identity();
                 part.scaling.setAll(1);
                 part.setEnabled(true);
+                part.material = this._roleMaterial(m.material, name);
                 part.isPickable = false;
                 part.checkCollisions = false;
                 // Trees shade each other, and the terrain's shadows fall on them.
                 part.receiveShadows = true;
                 const shadow = m.clone(`deco-${name}-shadow`, this._root, true);
+                /*
+                ITS OWN GEOMETRY. A clone shares its source's, and a thin-instance
+                matrix buffer is registered ON the geometry (world0…world3) — so the
+                twin's short list of near casters replaced the visible mesh's buffer.
+                The visible mesh then drew its full count from a buffer holding a
+                few dozen: WebGL rejects that draw outright (INVALID_OPERATION, no
+                other sign), and whole models vanished the moment shadows went on.
+                It also made a rebuild flash: everything drew until the next caster
+                pick, 300 ms later, took the buffer back.
+                */
+                shadow.makeGeometryUnique();
                 shadow.position.setAll(0);
                 shadow.rotationQuaternion = BABYLON.Quaternion.Identity();
                 shadow.scaling.setAll(1);
@@ -393,17 +566,21 @@ export class B3dDecorator extends B3dChild {
                 return { temperature, moisture, altitude: y - cfg.seaLevel };
             },
             rules,
+            clump: Number(this.clump),
+            clumpSize: Number(this.clumpSize),
             cache: this._cache,
             /*
-            THE PROVINCE SAYS WHAT GROWS: volcanism suppresses plants (rocks are
-            at home on a lava field), with the same thresholds the biome shader
+            THE PROVINCE SAYS WHAT GROWS: volcanism suppresses plants AND rocks,
+            with the same thresholds the biome shader
             uses to paint lava and basalt, so nothing grows where the ground reads
-            as rock. Nothing is suppressed without a province.
+            as rock. Rocks belong on a lava field, but ours cannot read the
+            province (it is a per-vertex field on the terrain's tiles), so they
+            came out the colour of the country around the volcano: pale stones
+            all over black basalt. Until they can, none. Nothing is suppressed
+            without a province.
             */
             suppress: typeof terrain.provinceField === 'function'
-                ? (x, z, kind) => {
-                    if (kind === 'rock' || kind === 'boulder')
-                        return 1;
+                ? (x, z) => {
                     // Asked once per plant RULE at the same point: evaluate the
                     // province once per point.
                     if (x !== lastX || z !== lastZ) {
@@ -472,6 +649,7 @@ export class B3dDecorator extends B3dChild {
         const width = Math.min(info.max.x - info.min.x, info.max.z - info.min.z);
         const footprint = width * (rule?.collider === 'trunk' ? 0.12 : 0.45);
         const height = info.max.y - info.min.y;
+        const buried = rule?.sink ?? 0.02;
         for (const part of info.parts) {
             const mesh = shadow ? part.shadow : part.mesh;
             const buf = new Float32Array(list.length * 16);
@@ -485,7 +663,7 @@ export class B3dDecorator extends B3dChild {
                 scl.setAll(p.scale);
                 const slope = Math.acos(Math.min(1, Math.max(-1, p.normal.y)));
                 const residual = Math.tan(slope * (1 - align));
-                const sink = p.scale * (footprint * residual + height * 0.02);
+                const sink = p.scale * (footprint * residual + height * buried);
                 pos.set(p.x - off.x, p.y - info.min.y * p.scale - sink, p.z - off.z);
                 BABYLON.Matrix.ComposeToRef(scl, q, pos, srt);
                 part.rel.multiplyToRef(srt, out);

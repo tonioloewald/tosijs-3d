@@ -17,6 +17,8 @@ export declare class B3dTerrain extends B3dChild {
         biomeTemperature: number;
         biomeMoisture: number;
         biomeVolcanicScale: number;
+        biomeSeason: number;
+        biomeSeasonality: number;
         normalSmoothing: number;
         seed: number;
         surfaceType: string;

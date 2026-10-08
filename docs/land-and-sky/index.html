@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=af2efa154e1d" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
   <title>Land and Sky — tosijs-3d</title>
   <meta name="description" content="THE KITCHEN SINK — one world that grows with the world-sim layer. Terrain (with live dials), a sea, weather over both, and the encoded sky behind." />
   <link rel="canonical" href="https://3d.tosijs.net/land-and-sky/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=85b7aa2456a6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Land and Sky</h1>
 <p><strong>THE KITCHEN SINK</strong> — one world that grows with the world-sim layer. Terrain
@@ -54,6 +54,10 @@ first — which is the point.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
+
+// Its own state, not `sky` or `demo`: those are what a preset saves, and
+// whether occlusion is on is a property of the device, not of a world.
+const { landAo } = tosi({ landAo: { mode: &#39;off&#39; } })
 
 const { demo } = tosi({
   demo: {
@@ -77,6 +81,10 @@ const { demo } = tosi({
     // Plates sized to THIS volcano (420 m). The plugin&#39;s 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,
+    // The spring equinox (no temperature offset, so the default look is
+    // unchanged), with a temperate swing ready for the &#39;time of year&#39; slider.
+    season: 0,
+    seasonality: 0.2,
     // How cratered the ground is (0 = none; a preset sets it: Mars, the Moon).
     craters: 0,
     // A field of volcanoes (Io): how many, 0 = none.
@@ -106,7 +114,7 @@ const { sky } = tosi({
     world: &#39;Earth&#39;, atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: &#39;#ffffff&#39;, horizonTint: &#39;#ffffff&#39;, tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
-    decoBudget: 2000, decoRadius: 900, decoShadows: false,
+    decoBudget: 2000, decoRadius: 900, decoShadows: false, decoClump: 0.85, decoClumpSize: 0,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
     // Extra (cosmetic) moons: a set, swung round the sky together.
     moons: &#39;Big moon&#39;, moonAz: 0, moonEl: 0,
@@ -215,7 +223,7 @@ sky.world.observe(() =&gt; {
 // 300 times brighter than the full moon. So its disc shrinks for real (1 /
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
-  demo: [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;seaLevel&#39;, &#39;sea&#39;, &#39;waterColor&#39;, &#39;waterFog&#39;, &#39;waterTint&#39;, &#39;palette&#39;, &#39;volcano&#39;, &#39;volcanoes&#39;, &#39;craters&#39;, &#39;temperature&#39;, &#39;moisture&#39;, &#39;volcanicScale&#39;],
+  demo: [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;seaLevel&#39;, &#39;sea&#39;, &#39;waterColor&#39;, &#39;waterFog&#39;, &#39;waterTint&#39;, &#39;palette&#39;, &#39;volcano&#39;, &#39;volcanoes&#39;, &#39;craters&#39;, &#39;temperature&#39;, &#39;moisture&#39;, &#39;volcanicScale&#39;, &#39;season&#39;, &#39;seasonality&#39;],
   sky: [&#39;coverage&#39;, &#39;altitude&#39;, &#39;timeOfDay&#39;, &#39;orographic&#39;, &#39;wind&#39;, &#39;cirrus&#39;, &#39;evolve&#39;, &#39;atmosphere&#39;, &#39;dust&#39;, &#39;turbidity&#39;, &#39;rayleigh&#39;, &#39;mieCoefficient&#39;, &#39;luminance&#39;, &#39;zenithTint&#39;, &#39;horizonTint&#39;, &#39;tintStrength&#39;, &#39;starSize&#39;, &#39;starGain&#39;, &#39;starFloor&#39;, &#39;twinkle&#39;, &#39;moons&#39;, &#39;moonAz&#39;, &#39;moonEl&#39;, &#39;deckColor&#39;, &#39;deckUnderColor&#39;, &#39;sunSize&#39;, &#39;sunBrightness&#39;, &#39;decoBudget&#39;, &#39;stormX&#39;, &#39;stormZ&#39;, &#39;stormRadius&#39;, &#39;stormCoverage&#39;, &#39;lightningRate&#39;, &#39;stormRain&#39;,
     // LAST: switching the storm on builds it from the values above.
     &#39;storm&#39;],
@@ -320,7 +328,7 @@ sky.preset.observe(() =&gt; {
 // The volcano is authored ONCE and switched in and out. Applied here as well
 // as from the toggle because it is ON by default, and the toggle&#39;s handler only
 // runs when someone flips it.
-const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, craterDepth: 50 })
 // Where the sea is: a FRACTION of the terrain&#39;s height, or, on a world
 // with no sea, far below everything (no water to see).
 function seaY() {
@@ -407,7 +415,7 @@ demo.craters.observe(() =&gt; {
 demo.seed.observe(() =&gt; applyVolcano(demo.volcano.valueOf()))
 
 // &#39;on&#39;|&#39;off&#39; on the element, a boolean on the toggle — bridged here.
-const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius })
+const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius, clump: sky.decoClump, clumpSize: sky.decoClumpSize })
 sky.decoShadows.observe(() =&gt; {
   decorator.shadows = sky.decoShadows.value ? &#39;on&#39; : &#39;off&#39;
 })
@@ -440,6 +448,8 @@ const terrain = b3dTerrain({
   biomeTemperature: demo.temperature,
   biomeMoisture: demo.moisture,
   biomeVolcanicScale: demo.volcanicScale,
+  biomeSeason: demo.season,
+  biomeSeasonality: demo.seasonality,
 })
 
 applyVolcano(demo.volcano.valueOf())
@@ -471,6 +481,7 @@ const scene = b3d(
     // travels with the clouds it is made of.
     windSpeed: sky.wind,
     windBearingDeg: 90,
+    ssao: landAo.mode,
     // Sections as icon TABS (one at a time); &#39;fold&#39; shows them as headers.
     panelSections: &#39;tabs&#39;,
     // Lightning strikes wherever a weather cell is stormy (the storm toggle).
@@ -518,6 +529,13 @@ const scene = b3d(
           ],
         })
       ),
+      // The clocks live with the world: the day, the year, and how much
+      // the year matters.
+      slider3d({ label: &#39;time of day&#39;, value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. &#39;season strength&#39;
+      // is how hard it swings; at 0 the year does nothing.
+      slider3d({ label: &#39;time of year&#39;, value: demo.season, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: &#39;season strength&#39;, value: demo.seasonality, min: 0, max: 0.6, step: 0.01 }),
       label3d({ text: &#39;Terrain&#39;, icon: &#39;terrain&#39;, collapsible: true }),
       slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.005, max: 0.3, scale: &#39;log&#39; }),
       slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.02, max: 1, scale: &#39;log&#39; }),
@@ -534,12 +552,13 @@ const scene = b3d(
       slider3d({ label: &#39;volcanoes&#39;, value: demo.volcanoes, min: 0, max: 16, step: 1 }),
       select3d({ label: &#39;ground palette&#39;, value: demo.palette, options: [&#39;earth&#39;, ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
-      toggle3d({ label: &#39;lightning storm&#39;, value: sky.storm }),
       label3d({ text: &#39;Climate&#39;, icon: &#39;thermometer&#39;, collapsible: true }),
       slider3d({ label: &#39;temperature&#39;, value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: &#39;moisture&#39;, value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: &#39;volcanic scale&#39;, value: demo.volcanicScale, min: 0.005, max: 0.15, scale: &#39;log&#39; }),
       label3d({ text: &#39;Weather&#39;, icon: &#39;cloud&#39;, collapsible: true }),
+      // With the clouds it is made of, not under Terrain where it used to be.
+      toggle3d({ label: &#39;lightning storm&#39;, value: sky.storm }),
       slider3d({ label: &#39;cloud cover&#39;, value: sky.coverage, min: 0, max: 2, step: 0.02 }),
       slider3d({ label: &#39;cloud base&#39;, value: sky.altitude, min: 60, max: 1400, step: 10 }),
       slider3d({ label: &#39;orographic&#39;, value: sky.orographic, min: 0, max: 1, step: 0.05 }),
@@ -547,7 +566,6 @@ const scene = b3d(
       // Signed: positive streaks ALONG the wind, negative ACROSS it.
       slider3d({ label: &#39;cirrus&#39;, value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: &#39;evolve&#39;, value: sky.evolve, min: 0, max: 1, step: 0.05 }),
-      slider3d({ label: &#39;time of day&#39;, value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
       label3d({ text: &#39;Atmosphere&#39;, icon: &#39;sky&#39;, collapsible: true }),
       slider3d({ label: &#39;air&#39;, value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: &#39;dust&#39;, value: sky.dust, min: 0, max: 1, step: 0.01 }),
@@ -570,10 +588,17 @@ const scene = b3d(
       // Perf Stats panel&#39;s decorator row (placed, draw calls, build ms).
       slider3d({ label: &#39;rocks &amp; trees&#39;, value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
       slider3d({ label: &#39;reach (m)&#39;, value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
+      // Tighter or looser: how strongly things gather, and how big a clump
+      // is (0 = auto, sized from how far apart things are).
+      slider3d({ label: &#39;clumping&#39;, value: sky.decoClump, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: &#39;clump size (m)&#39;, value: sky.decoClumpSize, min: 0, max: 300, step: 10 }),
       toggle3d({ label: &#39;tree shadows&#39;, value: sky.decoShadows }),
       label3d({ text: &#39;Camera&#39;, icon: &#39;camera&#39;, collapsible: true }),
       slider3d({ label: &#39;eye height&#39;, value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
+      // Off by default: this is the heavy scene, and the place to find out
+      // what occlusion costs on your device. Works in VR.
+      select3d({ label: &#39;ambient occlusion&#39;, value: landAo.mode, options: [&#39;off&#39;, &#39;on&#39;] }),
     ],
     sceneCreated(el, BABYLON) {
       // The terrain&#39;s biome shader exists only once it has built: apply the
@@ -632,7 +657,8 @@ const scene = b3d(
   // overhead, and it eases in and out as the storm passes.
   b3dAmbient({ preset: &#39;rain&#39;, weather: &#39;rain&#39;, radius: 14 }),
   b3dAmbient({ preset: &#39;snow&#39;, weather: &#39;snow&#39;, radius: 14 }),
-  b3dLight({ intensity: 0.5 }),
+  // Bounce from the ground, or every vertical face (a rock&#39;s sides) is black.
+  b3dLight({ intensity: 0.5, groundColor: &#39;#57523f&#39; }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
   // The layer case: a cloud DECK over the peaks, orographic so the towers
@@ -777,6 +803,7 @@ to populate — the same one a visitor just reshaped.</li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
       <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
@@ -932,6 +959,6 @@ to populate — the same one a visitor just reshaped.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-x248vvst.js"></script>
+  <script type="module" src="../hydrate-ng96qkxd.js"></script>
 </body>
 </html>

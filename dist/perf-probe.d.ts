@@ -57,6 +57,17 @@ export interface PerfBudgets {
      * and nobody can tell. Its cost is a quad draw, not a sample loop.
      */
     cloudShadowSize: number;
+    /**
+     * Size of a water surface's reflection and refraction textures. Each one is
+     * the whole scene drawn again, so this is fill rate twice over.
+     */
+    waterTextureSize: number;
+    /**
+     * Redraw those two textures every Nth frame. 1 is every frame. A rippled
+     * surface hides a reflection that is a frame or two old far better than a
+     * device hides two extra scene draws per frame.
+     */
+    waterRefresh: number;
     numCascades: number;
     /** Reflection probe resolution (per face). */
     reflectionSize: number;
@@ -108,6 +119,12 @@ export interface PerfProfile {
     /** true when served from cache, false when freshly measured. */
     cached: boolean;
     stale: boolean;
+    /**
+     * A standalone mobile headset (see `isStandaloneHmd`). Such a device WILL
+     * enter stereo, so anything sized once at build has to be sized for the XR
+     * tier from the start: it cannot be resized on entry.
+     */
+    standaloneHmd?: boolean;
 }
 export interface ProbeEnv {
     /** UNMASKED_RENDERER_WEBGL if the browser exposes it (strongest signal). */

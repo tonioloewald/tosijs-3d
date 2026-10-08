@@ -65,6 +65,18 @@ export function setQuality(setting) {
 export function getQuality() {
     return currentOverride;
 }
+/**
+ * Is this a standalone headset (a Quest, not a PC driving one)?
+ *
+ * For budgets that are SIZED ONCE AT BUILD. A scene is built flat, before any
+ * session, so a build-once budget resolved the ordinary way gets the flat tier
+ * and keeps it in stereo: a Quest's terrain was sized for `medium` and drawn
+ * twice. Pass this as `xr` for those: `resolveBudget(v, key, { xr:
+ * headsetDevice() })`. A forced `quality` still wins, lowered one tier.
+ */
+export function headsetDevice() {
+    return currentProfile.standaloneHmd === true;
+}
 /** The tier actually in force (override, or the measured tier), for flat or XR. */
 export function effectiveTier(opts = {}) {
     const override = getQuality();

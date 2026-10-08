@@ -97,13 +97,6 @@ export interface VolcanoOptions {
      * fades down the flanks and ends before the footprint. Default 1. */
     glow?: number;
 }
-/**
- * A classic volcano that fades in as an override: smoothstep-blended flanks
- * (C1 at the footprint edge — no seam against the noise terrain), a steepened
- * cone, a caldera sunk below the rim, and a matching province — molten at the
- * vent, glowing seams down the upper flanks, cold voronoi lower, living biome
- * beyond.
- */
 export declare function volcano(opts: VolcanoOptions): AuthoredLandform;
 export interface CraterOptions {
     /** Impact point (world coords). */
