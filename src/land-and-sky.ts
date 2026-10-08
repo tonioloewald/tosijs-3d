@@ -509,7 +509,7 @@ const scene = b3d(
       // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. 'season strength'
       // is how hard it swings; at 0 the year does nothing.
       slider3d({ label: 'time of year', value: demo.season, min: 0, max: 1, step: 0.01 }),
-      slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.4, step: 0.01 }),
+      slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
       // With the clouds it is made of, not under Terrain where it used to be.

@@ -43,6 +43,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   chart's temperature axis, so winter cools the whole ground (snow lines drop)
   with no second palette. `seasonality` defaults to 0, so nothing changes
   until you ask. `seasonOf(season, seasonality)` is the pure rule.
+- **Winter snow.** Where the season takes a moist place below freezing
+  (temperature about 0.3), snow lies on level ground and the tops of rocks,
+  and evergreen foliage goes white. It is a layer of its own, applied only
+  while the season is pulling cold, so a world without seasons is unchanged.
 - **Deciduous trees drop their leaves.** After the autumn turn (season 0.55
   to 0.7) `leaf`-role canopies thin in soft patches and are gone through
   winter, leaving trunk and branches, then return across the spring equinox.

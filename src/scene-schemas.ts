@@ -750,7 +750,7 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
       biomeMoisture: num(-1, { minimum: -1, maximum: 1 }),
       biomeVolcanicScale: num(-1, { minimum: -1, maximum: 1 }),
       biomeSeason: num(0.25, { minimum: 0, maximum: 1 }),
-      biomeSeasonality: num(0, { minimum: 0, maximum: 0.5 }),
+      biomeSeasonality: num(0, { minimum: 0, maximum: 1 }),
       tileSize: num(10, { minimum: 1, maximum: 1000, ...M }),
       lodLevels: num(5, { minimum: 1, maximum: 12 }),
       splitFactor: num(2, { minimum: 2, maximum: 8 }),

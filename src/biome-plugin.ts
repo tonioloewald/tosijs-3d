@@ -186,8 +186,9 @@ export interface BiomeParams {
   /**
    * How much the year swings the TEMPERATURE axis, in chart units (0 = no
    * seasons, the default; 0.2 is a temperate climate). Winter cools the whole
-   * chart, so snow lines drop and grass goes to tundra on its own; the same
-   * swing turns `leaf`-role materials in autumn.
+   * chart, and where that takes a moist place below freezing (about 0.3) snow
+   * lies on level ground and whitens evergreen foliage; the same swing turns
+   * `leaf`-role materials in autumn.
    */
   seasonality: number
   /**
@@ -835,6 +836,19 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         vec3 bioGround = biome;
         // The material's OWN colour, which the leaf and bark roles keep.
         vec3 bioOwn = diffuseColor;
+        /*
+        WINTER SNOW is weather, not climate. The chart's cold column only
+        turns white near absolute cold, so a temperate winter (which merely
+        nudges the temperature axis) could never reach it: the ground went
+        scrub-brown and stopped. So snow is its own layer: it lies wherever
+        the SEASON has pushed the temperature below freezing and there is
+        moisture to fall, and only while the season is pulling cold, so a
+        world without seasons is untouched.
+        */
+        float bioSnow = underwater ? 0.0
+          : smoothstep(0.4, 0.28, temperature + dith)
+            * smoothstep(0.08, 0.25, moisture)
+            * clamp(-biomeSeason.x * 10.0, 0.0, 1.0);
         // photic cutoff: growth colour dies to bare sediment exactly where the
         // shared water fog curve kills the light.
         if (underwater) {
@@ -905,6 +919,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           #endif
           cliff = max(cliff, biomeExtra.x * provLocal);
           biome = mix(biome, cliffCol, cliff);
+          // It settles on what faces the sky: level ground, the tops of
+          // rocks. Cliffs shed it and stay rock.
+          biome = mix(biome, biomePalette[12].rgb, bioSnow * smoothstep(0.55, 0.8, cosUp));
           // --- VOLCANISM: the override that outranks climate ---------------
           // LOCAL provinces: terrain tiles carry a per-vertex volcanism field
           // in the colour buffer's alpha (inverted — 1 = none), written by
@@ -1100,8 +1117,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               float gap = 0.5 + 0.5 * bioSimplex3(wp * 2.6);
               if (dropping > 0.97 || gap < dropping * 1.1 - 0.05) discard;
             }
+            // Snow-laden: in a wet winter a canopy that is still there (an
+            // evergreen's) is simply white. (Tonio: "given sufficient
+            // moisture winter foliage on evergreens should just be white".)
+            biome = mix(biome, biomePalette[12].rgb * 1.3, bioSnow);
           } else {
             biome = mix(bioOwn, bioGround * 0.6, 0.25);
+            biome = mix(biome, biomePalette[12].rgb, bioSnow * 0.25);
           }
         }
         diffuseColor = biome;
