@@ -371,12 +371,17 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   if (o.budget <= 0 || o.radius <= 0 || o.rules.length === 0) return []
   const area = Math.PI * o.radius * o.radius
   // Cell size so the circle holds AT LEAST budget × oversample candidates,
-  // snapped DOWN to a half-octave so the cell grid is stable as the budget
+  // snapped DOWN (see below) so the cell grid is stable as the budget
   // moves a little. It used to round to the NEAREST power of two, which could
   // halve the candidates: on a map that is mostly sea the scatter then ran out
   // of places, and a budget of 18,500 placed the same 14,171 as 14,500 did.
   const raw = Math.sqrt(area / (o.budget * oversample))
-  const cell = Math.pow(2, Math.floor(Math.log2(raw) * 2) / 2)
+  // An EIGHTH of an octave: coarse enough that a nudge to the budget keeps the
+  // grid (and the cache), fine enough that the count follows the budget. At a
+  // half-octave the candidates jumped by 2x at each step, and where the map
+  // could not hold the budget the count sat still for a long stretch of the
+  // slider and then leapt (5,543 from 6,000 to 9,000, then 10,052 at 10,000).
+  const cell = Math.pow(2, Math.floor(Math.log2(raw) * 8) / 8)
   if (o.cache != null && CELL_OF.get(o.cache) !== cell) {
     o.cache.clear()
     CELL_OF.set(o.cache, cell)
