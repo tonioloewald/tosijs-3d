@@ -9,6 +9,61 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.8.14 → 0.8.15
+
+**Nothing breaks at compile time. Three defaults change what you see.**
+
+### 1. The decorator's default library is Quaternius', not Kenney's
+
+**What changed.** `<tosi-b3d-decorator>` with no `url` loads
+`quaternius/libraries/nature.glb` and uses `NATURE_RULES`. It used to load
+Kenney's Nature Kit and use `NATURE_KIT_RULES`.
+
+**Who is affected.**
+- You set no `url` and no `rules`: you get the new trees. Nothing to do unless
+  you want the old ones.
+- You set custom `rules` that use Kenney's model names (`tree_oak`,
+  `rock_largeA`) and no `url`: none of those names exist in the new library.
+  The decorator now warns in the console and places nothing for them.
+- You self-host only the Kenney kit: the default URL is a file you do not have.
+
+**What to do.** To stay on Kenney's kit, name it:
+
+```javascript
+b3dDecorator({ url: assetUrl('kenney/libraries/nature-kit.glb') })
+```
+
+With a `url` set and no `rules`, the decorator uses `NATURE_KIT_RULES`.
+
+### 2. Layouts are different, and things clump
+
+**What changed.** Every scatter rule now gathers into clumps by default, the
+candidate grid changed, and the budget became a ceiling (a small radius or a
+mostly-sea map places fewer than the budget). The same seed gives a different
+layout than 0.8.14 did. `NATURE_KIT_RULES`' rocks are now procedural
+(`rock:boulder:1` …) at a different scale, and no rocks are placed on a
+volcanic province.
+
+**Who is affected.** Anyone who stored placements, compared them in a test, or
+tuned a scene around where things stood.
+
+**What to do.** There is no switch that restores 0.8.14's exact layout. For an
+even spread again, set `clump="0"` on the element (or `clump: 0` on a rule).
+
+### 3. Water reflections follow the device tier
+
+**What changed.** `<tosi-b3d-water>`'s `textureSize` defaults to auto (1024,
+512 or 256 by device tier; it was 1024 everywhere) and a new
+`reflectionRefresh` redraws the reflection every frame, every second or every
+third by tier on a flat screen.
+
+**What to do.** Top-tier devices see no change. To keep the old behaviour on
+every device:
+
+```javascript
+b3dWater({ textureSize: 1024, reflectionRefresh: 1 })
+```
+
 ## 0.8.0 → 0.8.1
 
 **Nothing breaks at compile time, and one behaviour changes.** The

@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=336cc4c0f202" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=3986aa630438" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -55,7 +55,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 <p><strong>Rocks and trees that belong to the land.</strong> Procedural rocks, Quaternius
 trees gathered into copses, and a biome shader that colours vegetation by the
 ground under it and by the season: autumn colour, bare winter branches, snow.</p>
-<p>Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).</p>
+<p>Size: barrel (min, packages external) 932.0 KB raw / 313.0 KB gz, +1.85% on
+0.8.14.</p>
 <h3>Added</h3>
 <ul>
 <li><p><strong>Procedural rocks.</strong> <code>rockGeometry({ seed })</code> makes a rock from a seed
@@ -112,17 +113,31 @@ evergreen does not turn. The decorator assigns roles by material name
 (<code>roles</code>, default <code>NATURE_ROLES</code>, with <code>Model*/Material</code> keys for one
 model&#39;s use of a shared material).</p>
 </li>
+<li><p>An <strong>Occlusion on/off button in Perf Stats</strong>, so its cost can be read in any
+demo on any device; Land and Sky has its own control too.</p>
+</li>
 </ul>
 <h3>Changed</h3>
 <ul>
-<li><p><strong>⚠️ The decorator&#39;s default models are Quaternius&#39;, not Kenney&#39;s.</strong> With no
-<code>url</code> it now loads <code>quaternius/libraries/nature.glb</code> (a curated 64-model
-library: common, pine, birch, willow and palm trees, dead trees, bushes,
-cacti, undergrowth) with the new <code>NATURE_RULES</code>. Naming a <code>url</code> keeps the old
-behaviour: <code>NATURE_KIT_RULES</code> over that library. To stay on Kenney&#39;s kit,
-set <code>url</code> to <code>assetUrl(&#39;kenney/libraries/nature-kit.glb&#39;)</code>. The new trees
-are heavier (about 1,000 vertices each against Kenney&#39;s 100): Land and Sky&#39;s
-2,000 placements went from about 205k to 365k vertices.</p>
+<li><p><strong>⚠️ The decorator&#39;s defaults changed: models, rocks and layout.</strong> See
+<a href="/Migration/">Migration</a> for the exact steps. In short:</p>
+<ul>
+<li>With no <code>url</code> it now loads <code>quaternius/libraries/nature.glb</code> (a curated
+64-model library: common, pine, birch, willow and palm trees, dead trees,
+bushes, cacti, undergrowth) with the new <code>NATURE_RULES</code>. Custom rules that
+use Kenney&#39;s model names and set no <code>url</code> now find none of their models:
+the decorator warns and places nothing for them. Set <code>url</code> to
+<code>assetUrl(&#39;kenney/libraries/nature-kit.glb&#39;)</code>.</li>
+<li>Naming a <code>url</code> still gets <code>NATURE_KIT_RULES</code> and Kenney&#39;s trees, but NOT
+the old result: its rocks are now the procedural ones, everything clumps,
+and the same seed gives a different layout. <code>clump: 0</code> on a rule (or
+<code>clump=&quot;0&quot;</code> on the element) restores the even spread.</li>
+<li>Rocks are no longer placed on a volcanic province. They cannot read the
+province, so they came out the colour of the country around it.</li>
+<li>The new trees are heavier (about 1,000 vertices each against Kenney&#39;s
+100): Land and Sky&#39;s 2,000 placements went from about 205k to 365k
+vertices.</li>
+</ul>
 </li>
 <li><p><strong>A volcano&#39;s flank is bare basalt, and seams start only near the top.</strong>
 Walking in from the edge of <code>volcano()</code>&#39;s province you now cross the biome,
@@ -133,9 +148,31 @@ draws no seams below 0.14 and all of them by 0.4; the global <code>volcanism</co
 dial is unchanged. Land and Sky&#39;s volcano keeps its size with a smaller
 crater (radius 55, it was 90).</p>
 </li>
+<li><p><strong>A standalone headset sizes build-once budgets for stereo from the start.</strong>
+Terrain detail and tile pool, shadow map and cascade count, cloud shadows and
+reflection probes are sized when the scene is built, which is before any
+session, so a Quest got the flat (<code>medium</code>) numbers and kept them in VR. They
+now resolve at the XR tier (<code>low</code>) on a standalone headset, flat included:
+terrain 12 subdivisions and 56 tiles instead of 16 and 80, shadows 2 cascades
+instead of 4. A PC driving a headset is unaffected. <code>headsetDevice()</code> is
+exported for your own build-once budgets.</p>
+</li>
+<li><p><strong>Water&#39;s reflection and refraction follow the device tier.</strong> Each is the
+whole scene drawn again, and both were 1024 and redrawn every frame on every
+device. <code>textureSize</code> now defaults to auto (1024 / 512 / 256) and a new
+<code>reflectionRefresh</code> redraws them every Nth frame (1 / 2 / 3) on a flat
+screen; inside a headset session they are redrawn every frame, because
+skipping one eye breaks stereo. Top-tier devices are unchanged. To keep the old behaviour everywhere, set
+<code>textureSize=&quot;1024&quot; reflectionRefresh=&quot;1&quot;</code>.</p>
+</li>
+<li><p>Land and Sky&#39;s lightning storm toggle moved to the Weather tab.</p>
+</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
+<li><p><strong>A world with no moisture grows nothing.</strong> The cactus rule accepted a
+moisture of zero, so Mars grew cacti (and a few dead trees).</p>
+</li>
 <li><p><strong>Switching decorator shadows on made whole models vanish</strong>, and every
 rebuild flashed the full scatter before dropping most of it. Each part&#39;s
 shadow-only twin shared its geometry, and with it the thin-instance buffer,
@@ -149,32 +186,6 @@ its list.</strong> A row did not pass the panel&#39;s host to its children, and 
 with no host falls back to stepping. Land and Sky&#39;s world picker jumped from
 Earth to Mars on a tap. (Seen in a headset, reproduced flat.)</p>
 </li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li><p><strong>A standalone headset sizes build-once budgets for stereo from the start.</strong>
-Terrain detail and tile pool, shadow map and cascade count, cloud shadows and
-reflection probes are sized when the scene is built, which is before any
-session, so a Quest got the flat (<code>medium</code>) numbers and kept them in VR. They
-now resolve at the XR tier (<code>low</code>) on a standalone headset, flat included:
-terrain 12 subdivisions and 56 tiles instead of 16 and 80, shadows 2 cascades
-instead of 4. A PC driving a headset is unaffected. <code>headsetDevice()</code> is
-exported for your own build-once budgets.</p>
-</li>
-<li><p><strong>Water&#39;s reflection and refraction follow the device tier.</strong> Each is the
-whole scene drawn again, and both were 1024 and redrawn every frame on every
-device. <code>textureSize</code> now defaults to auto (1024 / 512 / 256) and a new
-<code>reflectionRefresh</code> redraws them every Nth frame (1 / 2 / 3). Top-tier
-devices are unchanged. To keep the old behaviour everywhere, set
-<code>textureSize=&quot;1024&quot; reflectionRefresh=&quot;1&quot;</code>.</p>
-</li>
-<li><p>Land and Sky&#39;s lightning storm toggle moved to the Weather tab.</p>
-</li>
-</ul>
-<h3>Added</h3>
-<ul>
-<li>An <strong>Occlusion on/off button in Perf Stats</strong>, so its cost can be read in any
-demo on any device; Land and Sky has its own control too.</li>
 </ul>
 <h2>0.8.14</h2>
 <p><strong>Ambient occlusion that works in a headset, and it is the default.</strong></p>
@@ -4696,6 +4707,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ng96qkxd.js"></script>
+  <script type="module" src="../hydrate-bxrr95z2.js"></script>
 </body>
 </html>

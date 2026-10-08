@@ -17,6 +17,37 @@ const rock = rockGeometry({ seed: 7, cuts: 9, squash: 0.75 })
 // rock.positions, rock.normals, rock.indices
 ```
 
+**Winding is counter-clockwise** (the glTF convention), and Babylon's front
+face is the other way round. Handed to Babylon as they are, the triangles draw
+inside out: you see the far wall of the rock through the near one. Swap two
+indices of each triangle first:
+
+```javascript
+const indices = new Uint16Array(rock.indices.length)
+for (let i = 0; i < indices.length; i += 3) {
+  indices[i] = rock.indices[i]
+  indices[i + 1] = rock.indices[i + 2]
+  indices[i + 2] = rock.indices[i + 1]
+}
+const data = new BABYLON.VertexData()
+data.positions = rock.positions
+data.normals = rock.normals
+data.indices = indices
+data.applyToMesh(mesh)
+```
+
+The decorator does this for you.
+
+## Names a scatter rule can use
+
+`rock:<kind>:<n>`, where the kind is one of `boulder`, `tall`, `stone` or
+`slab` (`ROCK_KINDS`) and `n` picks the seed. `rockNames('boulder', 6)` lists
+six of them.
+
+Under the decorator, a rock's own `sink` does nothing: the decorator seats
+every model by its lowest point and then buries it by the RULE's `sink`
+(`ScatterRule.sink`), so that is the one to change.
+
 ## How a rock is made
 
 1. Start from a sphere.
@@ -214,9 +245,9 @@ export function rockFromName(name) {
     const m = /^rock:([a-z]+):(\d+)$/.exec(name);
     if (m == null)
         return null;
-    const kind = ROCK_KINDS[m[1]];
-    if (kind == null)
+    if (!Object.hasOwn(ROCK_KINDS, m[1]))
         return null;
+    const kind = ROCK_KINDS[m[1]];
     // Kinds get separate seed ranges, so `boulder:1` and `stone:1` differ.
     const base = Object.keys(ROCK_KINDS).indexOf(m[1]) * 1000;
     return { ...kind, seed: base + Number(m[2]) };

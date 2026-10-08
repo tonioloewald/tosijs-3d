@@ -12,7 +12,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 trees gathered into copses, and a biome shader that colours vegetation by the
 ground under it and by the season: autumn colour, bare winter branches, snow.
 
-Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).
+Size: barrel (min, packages external) 932.0 KB raw / 313.0 KB gz, +1.85% on
+0.8.14.
 
 ### Added
 
@@ -66,16 +67,28 @@ Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).
   (`roles`, default `NATURE_ROLES`, with `Model*/Material` keys for one
   model's use of a shared material).
 
+- An **Occlusion on/off button in Perf Stats**, so its cost can be read in any
+  demo on any device; Land and Sky has its own control too.
+
 ### Changed
 
-- **⚠️ The decorator's default models are Quaternius', not Kenney's.** With no
-  `url` it now loads `quaternius/libraries/nature.glb` (a curated 64-model
-  library: common, pine, birch, willow and palm trees, dead trees, bushes,
-  cacti, undergrowth) with the new `NATURE_RULES`. Naming a `url` keeps the old
-  behaviour: `NATURE_KIT_RULES` over that library. To stay on Kenney's kit,
-  set `url` to `assetUrl('kenney/libraries/nature-kit.glb')`. The new trees
-  are heavier (about 1,000 vertices each against Kenney's 100): Land and Sky's
-  2,000 placements went from about 205k to 365k vertices.
+- **⚠️ The decorator's defaults changed: models, rocks and layout.** See
+  [Migration](/Migration/) for the exact steps. In short:
+  - With no `url` it now loads `quaternius/libraries/nature.glb` (a curated
+    64-model library: common, pine, birch, willow and palm trees, dead trees,
+    bushes, cacti, undergrowth) with the new `NATURE_RULES`. Custom rules that
+    use Kenney's model names and set no `url` now find none of their models:
+    the decorator warns and places nothing for them. Set `url` to
+    `assetUrl('kenney/libraries/nature-kit.glb')`.
+  - Naming a `url` still gets `NATURE_KIT_RULES` and Kenney's trees, but NOT
+    the old result: its rocks are now the procedural ones, everything clumps,
+    and the same seed gives a different layout. `clump: 0` on a rule (or
+    `clump="0"` on the element) restores the even spread.
+  - Rocks are no longer placed on a volcanic province. They cannot read the
+    province, so they came out the colour of the country around it.
+  - The new trees are heavier (about 1,000 vertices each against Kenney's
+    100): Land and Sky's 2,000 placements went from about 205k to 365k
+    vertices.
 
 - **A volcano's flank is bare basalt, and seams start only near the top.**
   Walking in from the edge of `volcano()`'s province you now cross the biome,
@@ -85,22 +98,6 @@ Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).
   draws no seams below 0.14 and all of them by 0.4; the global `volcanism`
   dial is unchanged. Land and Sky's volcano keeps its size with a smaller
   crater (radius 55, it was 90).
-
-### Fixed
-
-- **Switching decorator shadows on made whole models vanish**, and every
-  rebuild flashed the full scatter before dropping most of it. Each part's
-  shadow-only twin shared its geometry, and with it the thin-instance buffer,
-  so the visible mesh drew its full count from the twin's short list and
-  WebGL rejected the draw. The twin now has its own geometry.
-
-- A menu hung off a narrow button (`button3d({ menu })`, `openMenu3d`) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky's preset menu).
-- **A `select3d` inside a `row3d` stepped to its next option instead of opening
-  its list.** A row did not pass the panel's host to its children, and a select
-  with no host falls back to stepping. Land and Sky's world picker jumped from
-  Earth to Mars on a tap. (Seen in a headset, reproduced flat.)
-
-### Changed
 
 - **A standalone headset sizes build-once budgets for stereo from the start.**
   Terrain detail and tile pool, shadow map and cascade count, cloud shadows and
@@ -114,15 +111,28 @@ Size: barrel 930.9 KB raw (+1.73%), 312.6 KB gzipped (+1.82%).
 - **Water's reflection and refraction follow the device tier.** Each is the
   whole scene drawn again, and both were 1024 and redrawn every frame on every
   device. `textureSize` now defaults to auto (1024 / 512 / 256) and a new
-  `reflectionRefresh` redraws them every Nth frame (1 / 2 / 3). Top-tier
-  devices are unchanged. To keep the old behaviour everywhere, set
+  `reflectionRefresh` redraws them every Nth frame (1 / 2 / 3) on a flat
+  screen; inside a headset session they are redrawn every frame, because
+  skipping one eye breaks stereo. Top-tier devices are unchanged. To keep the old behaviour everywhere, set
   `textureSize="1024" reflectionRefresh="1"`.
 - Land and Sky's lightning storm toggle moved to the Weather tab.
 
-### Added
+### Fixed
 
-- An **Occlusion on/off button in Perf Stats**, so its cost can be read in any
-  demo on any device; Land and Sky has its own control too.
+- **A world with no moisture grows nothing.** The cactus rule accepted a
+  moisture of zero, so Mars grew cacti (and a few dead trees).
+
+- **Switching decorator shadows on made whole models vanish**, and every
+  rebuild flashed the full scatter before dropping most of it. Each part's
+  shadow-only twin shared its geometry, and with it the thin-instance buffer,
+  so the visible mesh drew its full count from the twin's short list and
+  WebGL rejected the draw. The twin now has its own geometry.
+
+- A menu hung off a narrow button (`button3d({ menu })`, `openMenu3d`) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky's preset menu).
+- **A `select3d` inside a `row3d` stepped to its next option instead of opening
+  its list.** A row did not pass the panel's host to its children, and a select
+  with no host falls back to stepping. Land and Sky's world picker jumped from
+  Earth to Mars on a tap. (Seen in a headset, reproduced flat.)
 
 ## 0.8.14
 

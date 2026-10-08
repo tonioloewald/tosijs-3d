@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=336cc4c0f202" data-tosi-doc-system />
   <title>Migration — tosijs-3d</title>
   <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
   <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=3986aa630438" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Migration</h1>
 <!--{ "order": 2 }-->
@@ -53,6 +53,45 @@ else is additive. The full detail for each is in <a href="./CHANGELOG.md">CHANGE
 <p>This file ships <strong>inside the package</strong>, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.</p>
+<h2>0.8.14 → 0.8.15</h2>
+<p><strong>Nothing breaks at compile time. Three defaults change what you see.</strong></p>
+<h3>1. The decorator&#39;s default library is Quaternius&#39;, not Kenney&#39;s</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-decorator&gt;</code> with no <code>url</code> loads
+<code>quaternius/libraries/nature.glb</code> and uses <code>NATURE_RULES</code>. It used to load
+Kenney&#39;s Nature Kit and use <code>NATURE_KIT_RULES</code>.</p>
+<p><strong>Who is affected.</strong></p>
+<ul>
+<li>You set no <code>url</code> and no <code>rules</code>: you get the new trees. Nothing to do unless
+you want the old ones.</li>
+<li>You set custom <code>rules</code> that use Kenney&#39;s model names (<code>tree_oak</code>,
+<code>rock_largeA</code>) and no <code>url</code>: none of those names exist in the new library.
+The decorator now warns in the console and places nothing for them.</li>
+<li>You self-host only the Kenney kit: the default URL is a file you do not have.</li>
+</ul>
+<p><strong>What to do.</strong> To stay on Kenney&#39;s kit, name it:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">b3dDecorator</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token function">assetUrl</span><span class="token punctuation">(</span><span class="token string">'kenney/libraries/nature-kit.glb'</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>With a <code>url</code> set and no <code>rules</code>, the decorator uses <code>NATURE_KIT_RULES</code>.</p>
+<h3>2. Layouts are different, and things clump</h3>
+<p><strong>What changed.</strong> Every scatter rule now gathers into clumps by default, the
+candidate grid changed, and the budget became a ceiling (a small radius or a
+mostly-sea map places fewer than the budget). The same seed gives a different
+layout than 0.8.14 did. <code>NATURE_KIT_RULES</code>&#39; rocks are now procedural
+(<code>rock:boulder:1</code> …) at a different scale, and no rocks are placed on a
+volcanic province.</p>
+<p><strong>Who is affected.</strong> Anyone who stored placements, compared them in a test, or
+tuned a scene around where things stood.</p>
+<p><strong>What to do.</strong> There is no switch that restores 0.8.14&#39;s exact layout. For an
+even spread again, set <code>clump=&quot;0&quot;</code> on the element (or <code>clump: 0</code> on a rule).</p>
+<h3>3. Water reflections follow the device tier</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-water&gt;</code>&#39;s <code>textureSize</code> defaults to auto (1024,
+512 or 256 by device tier; it was 1024 everywhere) and a new
+<code>reflectionRefresh</code> redraws the reflection every frame, every second or every
+third by tier on a flat screen.</p>
+<p><strong>What to do.</strong> Top-tier devices see no change. To keep the old behaviour on
+every device:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token function">b3dWater</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">textureSize</span><span class="token operator">:</span> <span class="token number">1024</span><span class="token punctuation">,</span> <span class="token literal-property property">reflectionRefresh</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
 <h2>0.8.0 → 0.8.1</h2>
 <p><strong>Nothing breaks at compile time, and one behaviour changes.</strong> The
 <code>activationVeto</code> signature grew a second parameter and it is OPTIONAL — a
@@ -545,6 +584,6 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ng96qkxd.js"></script>
+  <script type="module" src="../hydrate-bxrr95z2.js"></script>
 </body>
 </html>

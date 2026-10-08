@@ -90,6 +90,7 @@ export declare class B3dDecorator extends B3dChild {
     /** Everything the placements depend on, as one string. */
     private _currentKey;
     private _tick;
+    private _warnedMissing;
     private _rockSources;
     private _rockMaterial;
     private _rockBiome;

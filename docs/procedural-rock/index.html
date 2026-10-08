@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=336cc4c0f202" data-tosi-doc-system />
   <title>procedural-rock — tosijs-3d</title>
   <meta name="description" content="Rocks made from a seed, with no model file. rockGeometry returns the positions, normals and indices of one rock." />
   <link rel="canonical" href="https://3d.tosijs.net/procedural-rock/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=3986aa630438" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>procedural-rock</h1>
 <p><strong>Rocks made from a seed, with no model file.</strong> <code>rockGeometry</code> returns the
@@ -58,6 +58,30 @@ rock on Mars is Mars-coloured and a rock above the snow line carries snow.</p>
 <span class="token keyword">const</span> rock <span class="token operator">=</span> <span class="token function">rockGeometry</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">seed</span><span class="token operator">:</span> <span class="token number">7</span><span class="token punctuation">,</span> <span class="token literal-property property">cuts</span><span class="token operator">:</span> <span class="token number">9</span><span class="token punctuation">,</span> <span class="token literal-property property">squash</span><span class="token operator">:</span> <span class="token number">0.75</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 <span class="token comment">// rock.positions, rock.normals, rock.indices</span>
 </code></pre>
+<p><strong>Winding is counter-clockwise</strong> (the glTF convention), and Babylon&#39;s front
+face is the other way round. Handed to Babylon as they are, the triangles draw
+inside out: you see the far wall of the rock through the near one. Swap two
+indices of each triangle first:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">const</span> indices <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Uint16Array</span><span class="token punctuation">(</span>rock<span class="token punctuation">.</span>indices<span class="token punctuation">.</span>length<span class="token punctuation">)</span>
+<span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">let</span> i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> indices<span class="token punctuation">.</span>length<span class="token punctuation">;</span> i <span class="token operator">+=</span> <span class="token number">3</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+  indices<span class="token punctuation">[</span>i<span class="token punctuation">]</span> <span class="token operator">=</span> rock<span class="token punctuation">.</span>indices<span class="token punctuation">[</span>i<span class="token punctuation">]</span>
+  indices<span class="token punctuation">[</span>i <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">]</span> <span class="token operator">=</span> rock<span class="token punctuation">.</span>indices<span class="token punctuation">[</span>i <span class="token operator">+</span> <span class="token number">2</span><span class="token punctuation">]</span>
+  indices<span class="token punctuation">[</span>i <span class="token operator">+</span> <span class="token number">2</span><span class="token punctuation">]</span> <span class="token operator">=</span> rock<span class="token punctuation">.</span>indices<span class="token punctuation">[</span>i <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span>
+<span class="token keyword">const</span> data <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">BABYLON<span class="token punctuation">.</span>VertexData</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+data<span class="token punctuation">.</span>positions <span class="token operator">=</span> rock<span class="token punctuation">.</span>positions
+data<span class="token punctuation">.</span>normals <span class="token operator">=</span> rock<span class="token punctuation">.</span>normals
+data<span class="token punctuation">.</span>indices <span class="token operator">=</span> indices
+data<span class="token punctuation">.</span><span class="token function">applyToMesh</span><span class="token punctuation">(</span>mesh<span class="token punctuation">)</span>
+</code></pre>
+<p>The decorator does this for you.</p>
+<h2>Names a scatter rule can use</h2>
+<p><code>rock:&lt;kind&gt;:&lt;n&gt;</code>, where the kind is one of <code>boulder</code>, <code>tall</code>, <code>stone</code> or
+<code>slab</code> (<code>ROCK_KINDS</code>) and <code>n</code> picks the seed. <code>rockNames(&#39;boulder&#39;, 6)</code> lists
+six of them.</p>
+<p>Under the decorator, a rock&#39;s own <code>sink</code> does nothing: the decorator seats
+every model by its lowest point and then buries it by the RULE&#39;s <code>sink</code>
+(<code>ScatterRule.sink</code>), so that is the one to change.</p>
 <h2>How a rock is made</h2>
 <ol>
 <li>Start from a sphere.</li>
@@ -353,6 +377,6 @@ the same convention as a library model, so scatter rules scale it the same way.<
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ng96qkxd.js"></script>
+  <script type="module" src="../hydrate-bxrr95z2.js"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=5d867734e1a2" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=336cc4c0f202" data-tosi-doc-system />
   <title>scatter — tosijs-3d</title>
   <meta name="description" content="Where things grow: rocks and trees placed on terrain by budget and by climate. The function is scatterPlacements (a bare scatter would leak a common noun from…" />
   <link rel="canonical" href="https://3d.tosijs.net/scatter/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=f6e3ce1b80d5" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=3986aa630438" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>scatter</h1>
 <p><strong>Where things grow: rocks and trees placed on terrain by budget and by
@@ -64,8 +64,8 @@ suitability at a point is the product of its bands times its <code>density</code
 <p><code>budget</code> is the number of things, which is what performance cares about.
 Candidate points are laid down at <code>oversample</code> × budget, the rules score each
 one, and an acceptance threshold is SOLVED so the expected count equals the
-budget. Sparse country and lush country get the same count; the lush one
-spends it on trees.</p>
+budget where the ground can hold it. Sparse country and lush country get the
+same count; the lush one spends it on trees.</p>
 <p>The budget is a ceiling, not a quota. The threshold stops rising where a place
 a quarter as suitable as the best would be certain to be used, because past
 that the gaps between clumps fill in and the scatter turns into an even
@@ -100,14 +100,19 @@ field</strong> multiplies its weight, high in about a third of the ground and lo
 <td>the rule&#39;s <code>kind</code></td>
 <td>Rules in one group gather in the SAME places: stones around boulders</td>
 </tr>
+<tr>
+<td><code>sink</code></td>
+<td><code>0.02</code></td>
+<td>How much of the model&#39;s height the decorator buries. Rocks use a quarter or more</td>
+</tr>
 </tbody></table>
 <p>The scatter as a whole takes <code>clump</code> (one strength for every rule) and
 <code>clumpSize</code> (metres). Left alone, the size is AUTO: about two and a half times
 the average spacing, so a clump is a handful of things at any budget and
 radius. A fixed size does not survive a change of radius: pull the radius in
 and each clump holds hundreds of things, which reads as an even spread again.</p>
-<p>The budget is still met: the threshold is solved after the weights are
-multiplied.</p>
+<p>The threshold is solved after the weights are multiplied, so clumping does
+not by itself cost any of the budget.</p>
 <h2>World-anchored and deterministic</h2>
 <p>Candidates live in world cells: each cell&#39;s point is a hash of its integer
 coordinates and the seed. The same place always gets the same answer, however
@@ -357,6 +362,6 @@ the EDGE and nothing that stays in view. Stable is the point.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ng96qkxd.js"></script>
+  <script type="module" src="../hydrate-bxrr95z2.js"></script>
 </body>
 </html>

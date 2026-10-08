@@ -14,6 +14,8 @@ export interface RockOptions {
 export interface RockGeometry {
     positions: Float32Array;
     normals: Float32Array;
+    /** Triangles, wound COUNTER-CLOCKWISE seen from outside (glTF's way, not
+     * Babylon's: reverse each one before giving it to Babylon). */
     indices: Uint16Array;
     /** Model-space bounds. */
     min: [number, number, number];

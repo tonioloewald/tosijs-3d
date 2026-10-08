@@ -24,8 +24,8 @@ suitability at a point is the product of its bands times its `density`.
 `budget` is the number of things, which is what performance cares about.
 Candidate points are laid down at `oversample` × budget, the rules score each
 one, and an acceptance threshold is SOLVED so the expected count equals the
-budget. Sparse country and lush country get the same count; the lush one
-spends it on trees.
+budget where the ground can hold it. Sparse country and lush country get the
+same count; the lush one spends it on trees.
 
 The budget is a ceiling, not a quota. The threshold stops rising where a place
 a quarter as suitable as the best would be certain to be used, because past
@@ -46,6 +46,7 @@ field** multiplies its weight, high in about a third of the ground and low
 | `clump` | `0.85` | 0 = even spread, 1 = clumps only |
 | `clumpScale` | `1` | This rule's clump size relative to the scatter's |
 | `clumpGroup` | the rule's `kind` | Rules in one group gather in the SAME places: stones around boulders |
+| `sink` | `0.02` | How much of the model's height the decorator buries. Rocks use a quarter or more |
 
 The scatter as a whole takes `clump` (one strength for every rule) and
 `clumpSize` (metres). Left alone, the size is AUTO: about two and a half times
@@ -53,8 +54,8 @@ the average spacing, so a clump is a handful of things at any budget and
 radius. A fixed size does not survive a change of radius: pull the radius in
 and each clump holds hundreds of things, which reads as an even spread again.
 
-The budget is still met: the threshold is solved after the weights are
-multiplied.
+The threshold is solved after the weights are multiplied, so clumping does
+not by itself cost any of the budget.
 
 ## World-anchored and deterministic
 
@@ -137,7 +138,8 @@ export interface ScatterOptions {
    * What a PROVINCE says: `0` nothing of this kind grows here, `1` no opinion
    * (PROVINCE-DESIGN.md: decoration composes by MULTIPLYING — the province
    * suppresses rather than replaces, and two reasons nothing grows still
-   * leave nothing growing). A lava field says 0 to trees and 1 to rocks.
+   * leave nothing growing). A lava field says 0 to trees; the decorator's own
+   * province rule currently says 0 to rocks as well.
    */
   suppress?: (x: number, z: number, kind: string) => number
   /** Candidates per placement. More = closer to the budget, slower. */
@@ -281,7 +283,11 @@ export function clumpAt(
   z: number,
   size = 90
 ): number {
-  const s = hash(seed, hashString(group))
+  return clumpField(hash(seed, hashString(group)), x, z, size)
+}
+
+/** `clumpAt` with the group already hashed (`hash(seed, hashString(group))`). */
+function clumpField(s: number, x: number, z: number, size: number): number {
   const u = x / size
   const v = z / size
   const n =
@@ -400,6 +406,33 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
 
   const cands: Candidate[] = []
   const R = o.rules.length
+  /*
+  The clump fields, worked out ONCE per rule rather than per candidate per
+  rule: the group's hash (a string hash, which was most of the cost: clumping
+  made a rebuild four to five times slower until this was hoisted), and which
+  rules share a field. Same numbers as `clumpWeight`, so the same placements.
+  */
+  const clumpStrength = new Float64Array(R)
+  const fieldOf = new Int32Array(R)
+  const fieldSeed: number[] = []
+  const fieldSize: number[] = []
+  const fieldKeys = new Map<string, number>()
+  for (let ri = 0; ri < R; ri++) {
+    const r = o.rules[ri]
+    clumpStrength[ri] = Math.max(0, Math.min(1, clumpAll ?? r.clump ?? 0.85))
+    const group = r.clumpGroup ?? r.kind
+    const size = clumpSize * (r.clumpScale ?? 1)
+    const key = `${group}|${size}`
+    let fi = fieldKeys.get(key)
+    if (fi == null) {
+      fi = fieldSeed.length
+      fieldKeys.set(key, fi)
+      fieldSeed.push(hash(o.seed, hashString(group)))
+      fieldSize.push(size)
+    }
+    fieldOf[ri] = fi
+  }
+  const fieldAt = new Float64Array(Math.max(1, fieldSeed.length))
   let pool = new Float64Array(4096 * R)
   let poolUsed = 0
   for (let iz = z0; iz <= z1; iz++) {
@@ -436,12 +469,22 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
         pool = grown
       }
       let total = 0
+      fieldAt.fill(-1)
       for (let ri = 0; ri < R; ri++) {
         const r = o.rules[ri]
-        const w =
-          suitability(r, c, slopeDeg) *
-          clumpWeight(r, o.seed, x, z, clumpSize, clumpAll) *
-          (o.suppress ? Math.max(0, o.suppress(x, z, r.kind)) : 1)
+        let w = suitability(r, c, slopeDeg)
+        if (w > 0) {
+          const strength = clumpStrength[ri]
+          if (strength > 0) {
+            // One field per distinct (group, size): rules that share it
+            // (stones and boulders) pay for it once per candidate.
+            const fi = fieldOf[ri]
+            if (fieldAt[fi] < 0)
+              fieldAt[fi] = clumpField(fieldSeed[fi], x, z, fieldSize[fi])
+            w *= 1 - strength + strength * 3 * fieldAt[fi]
+          }
+          if (w > 0 && o.suppress) w *= Math.max(0, o.suppress(x, z, r.kind))
+        }
         pool[poolUsed + ri] = w
         total += w
       }
@@ -635,7 +678,7 @@ export const NATURE_RULES: ScatterRule[] = [
     ],
     density: 0.25,
     temperature: [0.15, 0.85],
-    moisture: [0.04, 0.26],
+    moisture: [0.1, 0.28],
     altitude: [2, 1e5],
     slope: [0, 30],
     scale: [2.6, 4],
@@ -683,7 +726,9 @@ export const NATURE_RULES: ScatterRule[] = [
     ],
     density: 1.2,
     temperature: [0.7, 1],
-    moisture: [0, 0.2],
+    // Dry, not DEAD: a floor above zero, so a world with no water at all
+    // (Mars) grows nothing. At [0, …] it grew cacti.
+    moisture: [0.1, 0.24],
     altitude: [1, 1e5],
     slope: [0, 25],
     scale: [1.8, 3.6],
@@ -831,7 +876,9 @@ export const NATURE_KIT_RULES: ScatterRule[] = [
     models: ['cactus_short', 'cactus_tall'],
     density: 1.2,
     temperature: [0.7, 1],
-    moisture: [0, 0.2],
+    // Dry, not DEAD: a floor above zero, so a world with no water at all
+    // (Mars) grows nothing. At [0, …] it grew cacti.
+    moisture: [0.1, 0.24],
     altitude: [1, 1e5],
     slope: [0, 25],
     scale: [5, 9],

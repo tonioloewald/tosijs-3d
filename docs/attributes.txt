@@ -1127,7 +1127,7 @@ b3d-water
   waterSize  = 128  — Size of the water plane
   subdivisions  = 32  — Mesh subdivisions
   textureSize  = 0  — Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256
-  reflectionRefresh  = 0  — Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame
+  reflectionRefresh  = 0  — Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo
   twoSided  = false  — Render both sides
   follow  = false  — Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space
   normalMap
@@ -1299,6 +1299,7 @@ scatter
   clump  = 0.85  — 0 = even spread, 1 = clumps only
   clumpScale  = 1  — This rule's clump size relative to the scatter's
   clumpGroup  = kind  — Rules in one group gather in the SAME places: stones around boulders
+  sink  = 0.02  — How much of the model's height the decorator buries. Rocks use a quarter or more
 
 ## slope-profile
 slope-profile

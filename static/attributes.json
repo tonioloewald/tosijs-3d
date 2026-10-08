@@ -4390,7 +4390,7 @@
       {
         "name": "reflectionRefresh",
         "default": "0",
-        "description": "Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame"
+        "description": "Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo"
       },
       {
         "name": "twoSided",
@@ -4992,6 +4992,11 @@
         "name": "clumpGroup",
         "default": "kind",
         "description": "Rules in one group gather in the SAME places: stones around boulders"
+      },
+      {
+        "name": "sink",
+        "default": "0.02",
+        "description": "How much of the model's height the decorator buries. Rocks use a quarter or more"
       }
     ]
   },

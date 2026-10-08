@@ -45,7 +45,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `textureSize` | `0` (auto) | Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256 |
-| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame |
+| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo |
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
@@ -385,9 +385,27 @@ export class B3dWater extends AbstractMesh {
       Math.round(resolveBudget(attrs.reflectionRefresh, 'waterRefresh', { xr }))
     )
     const targets = this.waterMaterial.getRenderTargetTextures?.().data ?? []
-    for (const target of targets) {
-      if (target != null) target.refreshRate = refresh
+    /*
+    EVERY FRAME WHILE A SESSION IS PRESENTING. Babylon advances a target's
+    refresh counter once per CAMERA, and a headset has two: a rate of 2 drew
+    the reflection for the left eye only (and saved nothing), a rate of 3
+    alternated eyes, and the skipped eye showed the other eye's reflection.
+    Found by the 0.8.15 review; skipping whole frames for both eyes together
+    is the real fix and is not built yet. The smaller TEXTURE still applies
+    in a headset, which is where most of the saving was.
+    */
+    const applyRefresh = () => {
+      const rate = (this.owner as any)?.xrActive === true ? 1 : refresh
+      for (const target of targets) {
+        if (target != null && target.refreshRate !== rate)
+          target.refreshRate = rate
+      }
     }
+    applyRefresh()
+    if (this._refreshObserver != null)
+      scene.onBeforeRenderObservable.remove(this._refreshObserver)
+    this._refreshObserver =
+      refresh > 1 ? scene.onBeforeRenderObservable.add(applyRefresh) : null
     const normalMap = fetchedUrl(attrs.normalMap, 'b3d-water normalMap')
     this.waterMaterial.bumpTexture = normalMap
       ? // An explicit path: load it, but SAY SO if it fails. The checkerboard
@@ -897,7 +915,12 @@ export class B3dWater extends AbstractMesh {
     return ceiling
   }
 
+  private _refreshObserver: BABYLON.Observer<BABYLON.Scene> | null = null
+
   sceneDispose(): void {
+    if (this._refreshObserver != null)
+      this.owner?.scene?.onBeforeRenderObservable.remove(this._refreshObserver)
+    this._refreshObserver = null
     this._removeMedium?.()
     this._removeMedium = undefined
     this._medium = null

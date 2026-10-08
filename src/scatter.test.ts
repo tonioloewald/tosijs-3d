@@ -6,6 +6,7 @@ import {
   roleFor,
   NATURE_ROLES,
   NATURE_RULES,
+  suitability,
   scatterPlacements,
   NearIndex,
   pruneScatterCache,
@@ -460,6 +461,30 @@ describe('the budget is a ceiling', () => {
       rules: [anywhere],
     })
     expect(Math.abs(out.length - 1000)).toBeLessThan(90)
+  })
+})
+
+describe('a dead world grows nothing', () => {
+  test('no plant rule is suitable at zero moisture, whatever the heat', () => {
+    for (const rules of [NATURE_RULES, NATURE_KIT_RULES])
+      for (const rule of rules) {
+        if (rule.models[0].startsWith('rock:')) continue
+        for (const temperature of [0, 0.5, 1]) {
+          const s = suitability(
+            rule,
+            { temperature, moisture: 0, altitude: 20 },
+            5
+          )
+          expect([rule.kind, s]).toEqual([rule.kind, 0])
+        }
+      }
+  })
+
+  test('cacti still grow in dry, hot country', () => {
+    const cactus = NATURE_RULES.find((r) => r.kind === 'cactus')!
+    expect(
+      suitability(cactus, { temperature: 0.9, moisture: 0.15, altitude: 20 }, 5)
+    ).toBeGreaterThan(0.5)
   })
 })
 

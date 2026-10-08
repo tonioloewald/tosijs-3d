@@ -2,8 +2,8 @@
 # b3d-decorator
 
 **Rocks and trees on the terrain, by budget and by climate.** Drop it into a
-scene with a `<tosi-b3d-terrain>`. It scatters a fixed NUMBER of things around
-the camera, chosen by [scatter](/scatter/)'s climate rules (the same
+scene with a `<tosi-b3d-terrain>`. It scatters up to a set NUMBER of things
+around the camera, chosen by [scatter](/scatter/)'s climate rules (the same
 temperature, moisture, altitude and slope axes the terrain's biome shader
 paints with), so the pines stand where the ground is cold forest, and the
 palms at a warm shoreline.
@@ -388,6 +388,7 @@ export class B3dDecorator extends B3dChild {
     }
   }
 
+  private _warnedMissing = ''
   private _rockSources: BABYLON.Mesh[] = []
   private _rockMaterial: BABYLON.StandardMaterial | null = null
   private _rockBiome: BiomePlugin | null = null
@@ -704,11 +705,34 @@ export class B3dDecorator extends B3dChild {
       else byModel.set(p.model, [p])
     }
     this._clearParts()
+    const missing: string[] = []
     for (const [name, list] of byModel) {
       const info = this._model(name)
-      if (info == null) continue
+      if (info == null) {
+        missing.push(name)
+        continue
+      }
       this._writeInstances(list, info, off, false)
       for (const part of info.parts) this._drawn.push(part.mesh)
+    }
+    /*
+    SAY SO when the rules name models the library does not have. It used to
+    place nothing and say nothing, which is exactly what rules written for
+    one library do against another (Kenney names against the default
+    library, since 0.8.15). Once per distinct set of names.
+    */
+    const missingKey = missing.sort().join(',')
+    if (missing.length > 0 && missingKey !== this._warnedMissing) {
+      this._warnedMissing = missingKey
+      console.warn(
+        `b3d-decorator: ${
+          missing.length
+        } model name(s) in the rules are not in the library, so nothing is placed for them (first: "${
+          missing[0]
+        }"). The library is ${
+          this.url || "the default 'quaternius/libraries/nature.glb'"
+        }. Rules written for Kenney's kit need url set to that kit.`
+      )
     }
     this._shadowFrom = null // re-pick the near casters for this build
     this._syncShadows()

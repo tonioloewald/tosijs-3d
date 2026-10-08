@@ -125,6 +125,7 @@ export declare class B3dWater extends AbstractMesh {
     /** Stop photographing the sky while there is no window to show it in. */
     private _pauseWindow;
     private _buildCeiling;
+    private _refreshObserver;
     sceneDispose(): void;
     /** Reposition the plane under the camera — but SNAPPED to a coarse grid, so it moves
      * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.

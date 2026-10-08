@@ -69,7 +69,8 @@ export interface ScatterOptions {
      * What a PROVINCE says: `0` nothing of this kind grows here, `1` no opinion
      * (PROVINCE-DESIGN.md: decoration composes by MULTIPLYING — the province
      * suppresses rather than replaces, and two reasons nothing grows still
-     * leave nothing growing). A lava field says 0 to trees and 1 to rocks.
+     * leave nothing growing). A lava field says 0 to trees; the decorator's own
+     * province rule currently says 0 to rocks as well.
      */
     suppress?: (x: number, z: number, kind: string) => number;
     /** Candidates per placement. More = closer to the budget, slower. */
