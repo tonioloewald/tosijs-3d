@@ -1419,6 +1419,22 @@ export function row3d(
 
   return {
     el,
+    /*
+    PASS THE HOST DOWN. A row is a container, and a control inside it that
+    opens a popup needs the panel's host to do it. Without this a `select3d`
+    in a row had no host, and its fallback for "no menu possible" is to STEP to
+    the next option: tapping Land and Sky's world picker jumped straight from
+    Earth to Mars, in a headset, rebuilding the planet before you could react.
+    Offset per column, so the menu drops from the control and not from the
+    row's left edge.
+    */
+    setHost(h) {
+      children.forEach((c, i) =>
+        c.setHost?.(
+          offsetHost(h, () => ({ x: cols[i]?.x ?? 0, y: tops[i] ?? 0 }))
+        )
+      )
+    },
     layout(width: number) {
       cols = rowColumns(width, children.length, gap, config.weights)
       const heights = children.map((c, i) => c.layout(cols[i].width))

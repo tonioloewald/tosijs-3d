@@ -6,6 +6,20 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **A `select3d` inside a `row3d` stepped to its next option instead of opening
+  its list.** A row did not pass the panel's host to its children, and a select
+  with no host falls back to stepping. Land and Sky's world picker jumped from
+  Earth to Mars on a tap. (Seen in a headset, reproduced flat.)
+
+### Added
+
+- An **Occlusion on/off button in Perf Stats**, so its cost can be read in any
+  demo on any device; Land and Sky has its own control too.
+
 ## 0.8.14
 
 **Ambient occlusion that works in a headset, and it is the default.**

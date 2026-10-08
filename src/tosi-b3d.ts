@@ -3326,6 +3326,17 @@ export class B3d extends Component {
       // One-tap discriminator: swap between the engine's real hardware scaling and
       // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
       // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
+      // Occlusion on or off, from inside any demo and any headset: what it
+      // costs is a question about THIS scene on THIS device, and most demos
+      // have no control for it.
+      button3d({
+        label: `Occlusion: ${isOff((this as any).ssao) ? 'off' : 'on'}`,
+        handleClick: () => {
+          ;(this as any).ssao = isOff((this as any).ssao) ? 'on' : 'off'
+          this._applySsao()
+          this._repaintPanels()
+        },
+      }),
       button3d({
         label: scaled ? 'Reset scale' : 'Force scale ×3',
         handleClick: () => {
