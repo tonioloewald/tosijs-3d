@@ -10,6 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- A menu hung off a narrow button (`button3d({ menu })`, `openMenu3d`) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky's preset menu).
 - **A `select3d` inside a `row3d` stepped to its next option instead of opening
   its list.** A row did not pass the panel's host to its children, and a select
   with no host falls back to stepping. Land and Sky's world picker jumped from
