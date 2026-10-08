@@ -86,7 +86,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 import * as BABYLON from '@babylonjs/core'
 import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils.js'
-import { resolveBudget } from './b3d-quality.js'
+import { headsetDevice, resolveBudget } from './b3d-quality.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dSun extends B3dChild {
@@ -277,7 +277,10 @@ export class B3dSun extends B3dChild {
     this.light = light
 
     this.shadowGenerator = new BABYLON.CascadedShadowGenerator(
-      resolveBudget(attrs.shadowTextureSize, 'shadowTextureSize'),
+      // Sized once, so on a standalone headset sized for the XR tier now.
+      resolveBudget(attrs.shadowTextureSize, 'shadowTextureSize', {
+        xr: headsetDevice(),
+      }),
       light
     )
 
@@ -322,7 +325,8 @@ export class B3dSun extends B3dChild {
     this.shadowGenerator.normalBias = attrs.shadowNormalBias
     this.shadowGenerator.numCascades = resolveBudget(
       attrs.numCascades,
-      'numCascades'
+      'numCascades',
+      { xr: headsetDevice() }
     )
     this.shadowGenerator.shadowMaxZ = attrs.shadowMaxZ
     this.shadowGenerator.stabilizeCascades = !isOff(attrs.stabilizeCascades)

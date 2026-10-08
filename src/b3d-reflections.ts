@@ -70,7 +70,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
 import { conventionName } from './b3d-utils.js'
-import { resolveBudget } from './b3d-quality.js'
+import { headsetDevice, resolveBudget } from './b3d-quality.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dReflections extends B3dChild {
@@ -121,7 +121,9 @@ export class B3dReflections extends B3dChild {
     const attrs = this as any
     const probe = new BABYLON.ReflectionProbe(
       mesh.name.replace(/[_-]mirror/g, '_probe'),
-      resolveBudget(attrs.probeSize, 'reflectionSize'),
+      resolveBudget(attrs.probeSize, 'reflectionSize', {
+        xr: headsetDevice(),
+      }),
       this.owner.scene
     )
     try {

@@ -375,7 +375,7 @@ import {
   type DesiredCell,
   type QuadtreeConfig,
 } from './terrain-grid.js'
-import { resolveBudget } from './b3d-quality.js'
+import { headsetDevice, resolveBudget } from './b3d-quality.js'
 import {
   attachBiomePlugin,
   BiomePlugin,
@@ -965,9 +965,13 @@ export class B3dTerrain extends B3dChild {
     // auto (0) → resolve from the device tier; explicit value wins. Cache it: the
     // pool's buffers are sized to this subdivision, so streamTiles must reuse the
     // SAME value (attrs.hiResSubdivisions may still be the 0 sentinel).
+    // On a standalone headset, size for the XR tier NOW: this pool is built
+    // flat and cannot be resized when the session starts.
+    const xr = headsetDevice()
     const subs: number = resolveBudget(
       attrs.hiResSubdivisions,
-      'hiResSubdivisions'
+      'hiResSubdivisions',
+      { xr }
     )
     this._resolvedSubs = subs
     this._fieldScratch = new Float64Array(tileFieldScratchSize(subs))
@@ -976,7 +980,10 @@ export class B3dTerrain extends B3dChild {
     const scene = this.owner!.scene
     const tpl = this.tileTemplate
     const vertCount = tpl.gridCount + tpl.perim.length
-    const count: number = Math.max(1, resolveBudget(attrs.poolSize, 'poolSize'))
+    const count: number = Math.max(
+      1,
+      resolveBudget(attrs.poolSize, 'poolSize', { xr })
+    )
     for (let i = 0; i < count; i++) {
       const mesh = new BABYLON.Mesh(`terrain-tile-${i}`, scene)
       const vd = new BABYLON.VertexData()
@@ -1091,12 +1098,15 @@ export class B3dTerrain extends B3dChild {
     this.lastCamZ = camZ
     desiredCellsInto(camX, camZ, cfg, this._desired)
     const budget =
-      budgetOverride ?? resolveBudget(attrs.fillBudget, 'fillBudget')
+      budgetOverride ??
+      resolveBudget(attrs.fillBudget, 'fillBudget', { xr: headsetDevice() })
     // budgetOverride = regenerate(): rebuild everything now, deliberately unbounded.
     const msBudget =
       budgetOverride != null
         ? 0
-        : resolveBudget(attrs.tileBuildMs, 'tileBuildMs')
+        : resolveBudget(attrs.tileBuildMs, 'tileBuildMs', {
+            xr: headsetDevice(),
+          })
     this.streamTiles(budget, msBudget)
     this.endProfileFrame(budget)
   }

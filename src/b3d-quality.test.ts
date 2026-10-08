@@ -11,6 +11,7 @@ import {
   effectiveTier,
   qualityBudgets,
   resolveBudget,
+  headsetDevice,
   onQualityChange,
 } from './b3d-quality.js'
 import { resolveProfile, budgetsForTier } from './perf-probe.js'
@@ -87,6 +88,30 @@ describe('resolveBudget — the auto sentinel', () => {
     expect(resolveBudget(0, 'shadowTextureSize', { xr: true })).toBe(
       budgetsForTier('medium', true).shadowTextureSize
     )
+  })
+})
+
+describe('headsetDevice — build-once budgets on a standalone headset', () => {
+  const QUEST = { immersiveVr: true, renderer: 'Adreno (TM) 740' }
+  const TETHERED = { immersiveVr: true, renderer: 'NVIDIA GeForce RTX 4080' }
+
+  test('a Quest is one, a PC driving a headset is not, a laptop is not', () => {
+    setPerfProfile(resolveProfile(FAST, { cached: false, hints: QUEST }))
+    expect(headsetDevice()).toBe(true)
+    setPerfProfile(resolveProfile(FAST, { cached: false, hints: TETHERED }))
+    expect(headsetDevice()).toBe(false)
+    setPerfProfile(resolveProfile(FAST, { cached: false }))
+    expect(headsetDevice()).toBe(false)
+  })
+
+  test('on a Quest a build-once budget is the XR tier, not the flat one', () => {
+    // A Quest that benchmarks fast is capped to medium flat and low in XR.
+    setPerfProfile(resolveProfile(FAST, { cached: false, hints: QUEST }))
+    const flat = resolveBudget(0, 'poolSize')
+    const built = resolveBudget(0, 'poolSize', { xr: headsetDevice() })
+    expect(flat).toBe(budgetsForTier('medium').poolSize)
+    expect(built).toBe(budgetsForTier('low').poolSize)
+    expect(resolveBudget(0, 'numCascades', { xr: headsetDevice() })).toBe(2)
   })
 })
 

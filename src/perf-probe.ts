@@ -146,6 +146,12 @@ export interface PerfProfile {
   /** true when served from cache, false when freshly measured. */
   cached: boolean
   stale: boolean
+  /**
+   * A standalone mobile headset (see `isStandaloneHmd`). Such a device WILL
+   * enter stereo, so anything sized once at build has to be sized for the XR
+   * tier from the start: it cannot be resized on entry.
+   */
+  standaloneHmd?: boolean
 }
 
 export interface ProbeEnv {
@@ -417,6 +423,7 @@ export function resolveProfile(
     xrTier,
     xrBudgets: budgetsForTier(xrTier, true),
     measurements,
+    standaloneHmd: isStandaloneHmd(opts.hints ?? {}),
     cached: opts.cached,
     stale: opts.stale ?? false,
   }

@@ -255,7 +255,7 @@ shade underfoot belong to the cloud overhead rather than merely resemble it.
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
-import { resolveBudget } from './b3d-quality.js'
+import { headsetDevice, resolveBudget } from './b3d-quality.js'
 import type { B3d } from './tosi-b3d.js'
 import {
   cloudField,
@@ -2537,7 +2537,9 @@ export class B3dCloudDeck extends B3dChild {
     // A lightning flash comes from BELOW the cloud: its light is not
     // cloud-shadowed, so the shadow fades while the deck is flashing.
     map.strengthSource = () => 1 - Math.min(1, this._flash.level)
-    const res = resolveBudget(this.shadowResolution, 'cloudShadowSize')
+    const res = resolveBudget(this.shadowResolution, 'cloudShadowSize', {
+      xr: headsetDevice(),
+    })
     const tex = new BABYLON.ProceduralTexture(
       'cloud-deck-shadow',
       res,

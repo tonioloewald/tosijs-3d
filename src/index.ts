@@ -28,6 +28,7 @@ export {
   effectiveTier,
   qualityBudgets,
   resolveBudget,
+  headsetDevice,
   onQualityChange,
 } from './b3d-quality.js'
 export type { QualitySetting, NumericBudgetKey } from './b3d-quality.js'

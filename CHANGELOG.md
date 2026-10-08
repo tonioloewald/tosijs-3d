@@ -15,6 +15,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   with no host falls back to stepping. Land and Sky's world picker jumped from
   Earth to Mars on a tap. (Seen in a headset, reproduced flat.)
 
+### Changed
+
+- **A standalone headset sizes build-once budgets for stereo from the start.**
+  Terrain detail and tile pool, shadow map and cascade count, cloud shadows and
+  reflection probes are sized when the scene is built, which is before any
+  session, so a Quest got the flat (`medium`) numbers and kept them in VR. They
+  now resolve at the XR tier (`low`) on a standalone headset, flat included:
+  terrain 12 subdivisions and 56 tiles instead of 16 and 80, shadows 2 cascades
+  instead of 4. A PC driving a headset is unaffected. `headsetDevice()` is
+  exported for your own build-once budgets.
+
 ### Added
 
 - An **Occlusion on/off button in Perf Stats**, so its cost can be read in any
