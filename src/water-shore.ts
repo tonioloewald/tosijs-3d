@@ -32,6 +32,15 @@ breaks up in spring.
 Colder still and the cracks close: `iceSolid` runs from that cracked sheet to
 one unbroken surface, shallows first.
 
+## Walking on it
+
+Ice is water until it is solid. `iceBears` is true once the cracks have mostly
+closed, and there a [biped](/b3d-biped/) walks on the surface; anywhere short of
+that (plates, or a sheet still showing its cracks) it falls through and swims.
+Swim up to solid ice at the surface and you climb onto it; dive first and you
+go under it, with the ice as a ceiling. `water.iceBearsAt(x, z)` asks the
+question for a point in the scene.
+
 ## A mesh that is fine where you are
 
 Depth lives on vertices, so the mesh decides how sharp the shoreline is.
@@ -182,6 +191,47 @@ export function iceCover(temperature: number, depth: number): number {
  */
 export function iceSolid(temperature: number, depth: number): number {
   return Math.max(0, Math.min(1, (iceAmount(temperature, depth) - 1.15) / 0.6))
+}
+
+/** How solid (`iceSolid`) the ice must be before it carries someone. */
+export const ICE_BEARS = 0.5
+
+/**
+ * Whether the ice here carries weight. Only ice that has knitted solid does:
+ * a sheet that still shows its cracks, and broken plates, are water with ice
+ * floating in it, so you fall through and swim.
+ */
+export function iceBears(temperature: number, depth: number): boolean {
+  return iceSolid(temperature, depth) >= ICE_BEARS
+}
+
+/** Which side of bearing ice a body is on; `none` where the ice does not bear. */
+export type IceSide = 'none' | 'over' | 'under'
+
+/**
+ * Which side of the ice a body is on this frame, from the side it was on.
+ * `rootDepth` is how far its root is below the water's surface (metres).
+ *
+ * The side is decided ONCE, where the body meets bearing ice, and then kept:
+ * at or near the surface it climbs on top, properly under it stays under and
+ * the ice is a ceiling. Deciding it from the position every frame cannot work,
+ * because a swimmer held against the underside is as close to the surface as
+ * one about to climb out. From under, the only way up is to stand in water
+ * shallow enough to step out of (`stepUp`).
+ */
+export function iceSide(
+  prev: IceSide,
+  bears: boolean,
+  rootDepth: number,
+  swimming: boolean,
+  stepUp = 0.5,
+  reach = 0.9
+): IceSide {
+  if (!bears) return 'none'
+  if (prev === 'over') return 'over'
+  if (prev === 'under')
+    return !swimming && rootDepth <= stepUp ? 'over' : 'under'
+  return rootDepth > reach ? 'under' : 'over'
 }
 
 /** Unclamped: under 1 is cover, over 1 is a sheet knitting solid. */

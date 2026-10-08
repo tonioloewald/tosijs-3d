@@ -5,6 +5,8 @@ import {
   shoreData,
   iceCover,
   iceSolid,
+  iceBears,
+  iceSide,
   FREEZING,
   SHORE_DEPTH_MAX,
   SHORE_DEPTH_MIN,
@@ -138,5 +140,38 @@ describe('shoreData', () => {
     shoreData(g, 1000, -500, 0, (x, z) => (seen.push(x, z), 0), 0.6)
     expect(Math.min(...seen.filter((_, i) => i % 2 === 0))).toBe(980)
     expect(Math.max(...seen.filter((_, i) => i % 2 === 1))).toBe(-480)
+  })
+})
+
+describe('iceBears', () => {
+  test('only solid ice carries weight', () => {
+    expect(iceBears(0.7, 0)).toBe(false) // open water
+    expect(iceBears(0.3, 0)).toBe(false) // a sheet, still cracked
+    expect(iceBears(0.05, 0)).toBe(true)
+    expect(iceBears(0.3, 60)).toBe(false) // plates
+  })
+  test('the shore bears before the open sea', () => {
+    expect(iceBears(0.12, 0.5)).toBe(true)
+    expect(iceBears(0.12, 40)).toBe(false)
+  })
+})
+
+describe('iceSide', () => {
+  test('no bearing ice, no side', () => {
+    expect(iceSide('over', false, 0, false)).toBe('none')
+    expect(iceSide('under', false, 3, true)).toBe('none')
+  })
+  test('met at the surface you climb on; met from below you stay under', () => {
+    expect(iceSide('none', true, 0, true)).toBe('over')
+    expect(iceSide('none', true, -1, false)).toBe('over') // walking onto it
+    expect(iceSide('none', true, 3, true)).toBe('under')
+  })
+  test('held against the underside is still under', () => {
+    expect(iceSide('under', true, 0.5, true)).toBe('under')
+    expect(iceSide('over', true, 0.5, false)).toBe('over')
+  })
+  test('from under, you get out by standing in the shallows', () => {
+    expect(iceSide('under', true, 0.4, false)).toBe('over')
+    expect(iceSide('under', true, 0.8, false)).toBe('under')
   })
 })

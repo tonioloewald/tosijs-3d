@@ -246,6 +246,7 @@ import {
   aimTarget,
   surfaceAimLimit,
 } from './swim-aim.js'
+import { iceSide, type IceSide } from './water-shore.js'
 import { fitChase, type Band, type ChaseFit } from './camera-fit.js'
 import {
   DEFAULT_AIM_LIMITS,
@@ -1295,7 +1296,15 @@ export class B3dBiped extends B3dControllable {
   private _sneakWas = false
   /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
   private _camZoom = 0
-  private _waterEl: { mesh?: BABYLON.TransformNode } | null | undefined
+  private _waterEl:
+    | {
+        mesh?: BABYLON.TransformNode
+        iceBearsAt?: (x: number, z: number) => boolean
+      }
+    | null
+    | undefined
+  /** Which side of weight-bearing ice we are on; see water-shore's `iceSide`. */
+  private _iceSide: IceSide = 'none'
 
   /**
    * Surface height of the scene's water, or `null` if there is none.
@@ -1308,9 +1317,8 @@ export class B3dBiped extends B3dControllable {
   private _waterSurfaceY(): number | null {
     if (this._waterEl === undefined) {
       this._waterEl =
-        (this.owner?.querySelector('tosi-b3d-water') as {
-          mesh?: BABYLON.TransformNode
-        } | null) ?? null
+        (this.owner?.querySelector('tosi-b3d-water') as B3dBiped['_waterEl']) ??
+        null
     }
     const mesh = this._waterEl?.mesh
     return mesh ? mesh.absolutePosition.y : null
@@ -2479,7 +2487,31 @@ export class B3dBiped extends B3dControllable {
       */
       const jumpDown = (input.jump ?? 0) > 0.5
 
-      const surfaceY = this._waterSurfaceY()
+      /*
+      ICE IS WATER UNTIL IT IS SOLID.
+
+      Where the water's ice bears weight (`iceBearsAt`), the surface is ground
+      from above and a ceiling from below; everywhere else, plates included,
+      it is water and nothing here changes. Which side we are on is decided
+      once, where we meet the ice, and kept (`iceSide` says why). On top, there
+      is no water as far as the rest of this frame is concerned: `surfaceY` is
+      null and the ice stands in for the floor.
+      */
+      const seaY = this._waterSurfaceY()
+      const eyeLevel = ((this as any).eyeHeight as number) || 1.6
+      this._iceSide =
+        seaY != null && node.position.y < seaY + eyeLevel + 1
+          ? iceSide(
+              this._iceSide,
+              this._waterEl?.iceBearsAt?.(node.position.x, node.position.z) ===
+                true,
+              seaY - node.position.y,
+              this._swimming,
+              STEP_UP
+            )
+          : 'none'
+      const onIce = this._iceSide === 'over' && seaY != null
+      const surfaceY = onIce ? null : seaY
       // `eyeHeight` as a proxy for body height. It is a little short by
       // definition, which is the harmless direction: equilibrium is a FRACTION
       // of whatever height you give it, so erring small floats you a touch
@@ -2538,8 +2570,16 @@ export class B3dBiped extends B3dControllable {
       const headDepth = surfaceY == null ? 0 : surfaceY - (feetY + bodyHeight)
       const submerged =
         surfaceY == null ? 0 : submergedFraction(feetY, bodyHeight, surfaceY)
-      const grounded = hit?.hit === true && hit.pickedPoint != null
-      const groundY = grounded ? hit!.pickedPoint!.y : -Infinity
+      const floorHit = hit?.hit === true && hit.pickedPoint != null
+      const floorY = floorHit ? hit!.pickedPoint!.y : -Infinity
+      // The ice is in reach when we are below it (climbing out, or it froze
+      // around us) or within the same drop the ground probe allows.
+      const iceFloor =
+        onIce &&
+        seaY! > floorY &&
+        seaY! >= node.position.y - (STEP_DOWN + fallStep)
+      const grounded = floorHit || iceFloor
+      const groundY = iceFloor ? seaY! : floorY
       /*
       THE SWIM/STAND TEST MUST NOT USE THE POSE, or it feeds back on itself.
 
@@ -2739,6 +2779,15 @@ export class B3dBiped extends B3dControllable {
         })
         let nextY = node.position.y + this._fallVel * dt
         let onFloor = false
+        // Under bearing ice the head stops at its underside. Before the floor
+        // test, so in water too shallow for both, the floor wins.
+        if (this._iceSide === 'under' && seaY != null) {
+          const top = seaY - 0.1 - (bodyBottom + bodyHeight)
+          if (nextY > top) {
+            nextY = top
+            this._fallVel = Math.min(0, this._fallVel)
+          }
+        }
         // The floor stops the body's LOWEST point, which in a swim pose is the
         // trailing legs rather than the root — treading, they hang 1.37 m below
         // it. Clamping the root instead buried them in the seabed.

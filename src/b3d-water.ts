@@ -99,7 +99,12 @@ import {
 import { inheritedWind, waterWind } from './wind.js'
 import { band } from './atmosphere.js'
 import { CausticsMap } from './caustics.js'
-import { shoreGrid, shoreData, type ShoreGrid } from './water-shore.js'
+import {
+  shoreGrid,
+  shoreData,
+  iceBears,
+  type ShoreGrid,
+} from './water-shore.js'
 import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js'
 import { seasonOf } from './biome-plugin.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
@@ -1050,6 +1055,34 @@ export class B3dWater extends AbstractMesh {
     return p != null
       ? p.baseTemperature + seasonOf(p.season, p.seasonality).temperature
       : 1
+  }
+
+  private _iceHeight: {
+    key: string
+    fn: (x: number, z: number) => number
+  } | null = null
+
+  /**
+   * Whether the ice at a point in the scene carries weight: solid ice does,
+   * plates and a cracked sheet do not (see water-shore's `iceBears`). Always
+   * false without `shore="on"` and a terrain. One terrain sample per call.
+   */
+  iceBearsAt(x: number, z: number): boolean {
+    if (this._shore == null || this.mesh == null) return false
+    const terrain = this.owner?.querySelector('tosi-b3d-terrain') as any
+    if (terrain == null || typeof terrain.heightSampler !== 'function') {
+      return false
+    }
+    const temperature = this._seaTemperature(terrain)
+    if (!iceBears(temperature, 0)) return false // nothing bears anywhere
+    const off = terrain.originOffset ?? { x: 0, z: 0 }
+    const key = `${terrain.generationKey ?? ''}|${off.x}|${off.z}`
+    if (this._iceHeight?.key !== key) {
+      this._iceHeight = { key, fn: terrain.heightSampler() }
+    }
+    const depth =
+      this.mesh.absolutePosition.y - this._iceHeight.fn(x + off.x, z + off.z)
+    return iceBears(temperature, depth)
   }
 
   private _updateCeilingShore(
