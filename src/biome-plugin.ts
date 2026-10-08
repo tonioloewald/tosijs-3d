@@ -200,22 +200,33 @@ export interface BiomeParams {
 /**
  * What a point in the year does to the chart: a temperature offset (summer
  * warm, winter cold) and how far into AUTUMN it is (0 outside it, 1 at the
- * equinox), both scaled by `seasonality`. Pure; the shader's uniforms are this.
+ * equinox) and how BARE the deciduous trees are (0 in leaf, 1 through winter),
+ * all scaled by `seasonality`. Pure; the shader's uniforms are this.
  */
 export function seasonOf(
   season: number,
   seasonality: number
-): { temperature: number; autumn: number } {
+): { temperature: number; autumn: number; bare: number } {
   const amount = Math.max(0, seasonality)
-  if (amount === 0) return { temperature: 0, autumn: 0 }
+  if (amount === 0) return { temperature: 0, autumn: 0, bare: 0 }
   const phase = (((season % 1) + 1) % 1) * Math.PI * 2
-  // Autumn is a window around 0.5: opening after midsummer, shut by midwinter.
+  // Autumn opens after midsummer (0.3), peaks at the equinox, and HOLDS: the
+  // leaves stay turned while they fall, and are green again when they return.
   const year = ((season % 1) + 1) % 1
-  const d = Math.abs(year - 0.5)
-  const window = d >= 0.2 ? 0 : 0.5 + 0.5 * Math.cos((d / 0.2) * Math.PI)
+  // BARE: the leaves come down after the turn (0.55 to 0.7), stay down through
+  // winter, and come back across the spring equinox (0.95 to 0.1, wrapping).
+  const ease = (t: number) => {
+    const c = Math.max(0, Math.min(1, t))
+    return c * c * (3 - 2 * c)
+  }
+  const late = year < 0.5 ? year + 1 : year
+  const bare = ease((late - 0.55) / 0.15) * (1 - ease((late - 0.95) / 0.15))
+  const window = year >= 0.95 ? 0 : ease((year - 0.3) / 0.2)
+  const strength = Math.min(1, amount / 0.15)
   return {
     temperature: amount * Math.sin(phase),
-    autumn: window * Math.min(1, amount / 0.15),
+    autumn: window * strength,
+    bare: bare * strength,
   }
 }
 
@@ -448,7 +459,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 } as any,
         { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, role (0 ground, 1 leaf, 2 bark, 3 evergreen)
-        { name: 'biomeSeason', size: 4, type: 'vec4' }, // temperature offset, autumn 0…1, leafBlend, spare
+        { name: 'biomeSeason', size: 4, type: 'vec4' }, // temperature offset, autumn 0…1, leafBlend, bare 0…1
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -582,7 +593,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       year.temperature,
       year.autumn,
       p.leafBlend ?? 0.6,
-      0
+      year.bare
     )
   }
 
@@ -1060,12 +1071,30 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             // AUTUMN: temperate leaves turn, patch by patch — a slow noise
             // picks who goes first and whether to gold or to red. Cold
             // (conifer) and hot (palm) country stays green.
-            float temperate = smoothstep(0.3, 0.42, temperature) * (1.0 - smoothstep(0.64, 0.74, temperature));
+            // The CLIMATE here, without the season's own swing: whether a tree
+            // is deciduous is where it grows, not what month it is.
+            float tClimate = temperature - biomeSeason.x;
+            float temperate = smoothstep(0.3, 0.42, tClimate) * (1.0 - smoothstep(0.64, 0.74, tClimate));
             float who = 0.5 + 0.5 * bioSimplex(wp.xz * 0.045 + 17.0);
             // Evergreens (role 3) sit the autumn out.
             float turned = smoothstep(who - 0.25, who + 0.25, biomeSeason.y * 1.5 - 0.25) * temperate * step(biomeExtra.w, 1.5);
             vec3 gold = mix(vec3(0.62, 0.36, 0.05), vec3(0.45, 0.09, 0.04), 0.5 + 0.5 * bioSimplex(wp.xz * 0.11 + 4.0));
             biome = mix(leaf, gold * 1.45, turned);
+            /*
+            AND THEN THEY FALL. The shader cannot remove a leaf, but it can
+            decline to draw one: the canopy is discarded in soft patches a
+            hand across, so it THINS rather than fading, and the same slow noise
+            that chose who turned first chooses who drops first. What is left
+            is the trunk and branches — which in this library are exactly the
+            'dead' model of the same tree. Warm country keeps its leaves.
+            */
+            float dropping = smoothstep(who - 0.25, who + 0.25, biomeSeason.w * 1.5 - 0.25)
+              * (1.0 - smoothstep(0.64, 0.74, tClimate)) * step(biomeExtra.w, 1.5);
+            if (dropping > 0.0) {
+              // Smooth noise, not a grid: square cells read as pixels.
+              float gap = 0.5 + 0.5 * bioSimplex3(wp * 2.6);
+              if (dropping > 0.97 || gap < dropping * 1.1 - 0.05) discard;
+            }
           } else {
             biome = mix(bioOwn, bioGround * 0.6, 0.25);
           }

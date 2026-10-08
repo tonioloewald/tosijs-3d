@@ -642,6 +642,10 @@ export const NATURE_ROLES: Record<string, DecorationRole> = {
   'PalmTree*/DarkGreen': 'evergreen',
   'Cactus*/Green': 'evergreen',
   'Cactus*/DarkGreen': 'evergreen',
+  // Bushes and flowers keep their leaves: bare, they would leave berries
+  // and flower heads hanging in the air.
+  'Bush*/Green': 'evergreen',
+  'Flowers/Green': 'evergreen',
   Wood: 'bark',
   LightWood: 'bark',
   White: 'bark',

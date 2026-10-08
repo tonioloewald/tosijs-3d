@@ -377,7 +377,9 @@ describe('decoration roles', () => {
   })
 
   test("Blender's numeric suffix is ignored; unknown materials have no role", () => {
-    expect(roleFor(NATURE_ROLES, 'Bush_1', 'Green.001')).toBe('leaf')
+    expect(roleFor(NATURE_ROLES, 'CommonTree_1', 'Green.001')).toBe('leaf')
+    // Bushes keep their leaves, or their berries would hang in the air.
+    expect(roleFor(NATURE_ROLES, 'BushBerries_1', 'Green')).toBe('evergreen')
     expect(roleFor(NATURE_ROLES, 'BushBerries_1', 'Berry')).toBe(null)
     expect(roleFor(NATURE_ROLES, 'Flowers', 'Pink')).toBe(null)
   })

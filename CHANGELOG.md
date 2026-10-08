@@ -32,6 +32,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   chart's temperature axis, so winter cools the whole ground (snow lines drop)
   with no second palette. `seasonality` defaults to 0, so nothing changes
   until you ask. `seasonOf(season, seasonality)` is the pure rule.
+- **Deciduous trees drop their leaves.** After the autumn turn (season 0.55
+  to 0.7) `leaf`-role canopies thin in soft patches and are gone through
+  winter, leaving trunk and branches, then return across the spring equinox.
+  Evergreens, and anything in warm country, keep theirs. A bare tree still
+  casts its full summer shadow and still counts in ambient occlusion.
 - **Vegetation roles: trees take their colour from the land.**
   `BiomePlugin.role` is `'ground'` (as before), `'leaf'`, `'evergreen'` or
   `'bark'`. A leaf is its own green pulled toward the colour of the ground
