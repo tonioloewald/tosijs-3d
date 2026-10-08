@@ -16,8 +16,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   rim; stronger veins and open lava are inside the crater only. The rim's
   province value is 0.25 (it was 0.5). In the biome shader, a local province
   draws no seams below 0.14 and all of them by 0.4; the global `volcanism`
-  dial is unchanged. Land and Sky's volcano is smaller (radius 300, height
-  160).
+  dial is unchanged. Land and Sky's volcano keeps its size with a smaller
+  crater (radius 55, it was 90).
 
 ### Fixed
 
