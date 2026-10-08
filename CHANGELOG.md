@@ -18,8 +18,20 @@ versions may carry breaking peer-dependency changes — each is called out in a
   is redrawn `ssaoRate` times a second (default 30) instead of every frame.
   With it `ssao="on"` runs in a headset. Verified in the emulated headset; not
   yet measured on a device, so `auto` stays off in a session.
+- Projected occlusion follows **shader vertex animation**: the crowd is
+  occluded in its animated pose, because every mesh draws its own depth with
+  its own material.
+- The Perf Stats readout is **live** and shows frame interval, CPU time in
+  `scene.render()`, and draw calls. It was three labels built once, so the fps
+  was whatever it had been when the popup opened.
 - The SSAO demo has a bust (on the CDN at `tosijs-3d/ariosto-bust.glb`) and a
   `method` selector; the scene loader demo has shadow, glow and SSAO toggles.
+
+### Fixed
+
+- **Opening a second menu in a panel left the first one open**, one list over
+  the other. A panel now has one anchored popup at a time. (Seen in a headset,
+  reproduced flat.)
 
 ## 0.8.13
 

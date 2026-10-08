@@ -2553,6 +2553,7 @@ export class B3d extends Component {
   }
 
   private _statsBaseScale: number | null = null
+  private _perfMeter: BABYLON.SceneInstrumentation | null = null
   // Which debug tools (Perf Stats + registered sources) are expanded, by id. Empty
   // by default — the panel opens with the debug data collapsed to its icon bar, so
   // a demo's own controls aren't buried under diagnostics you didn't ask to see.
@@ -3132,7 +3133,7 @@ export class B3d extends Component {
       if (!this._debugOpen.has(t.id) || this._debugPopups.has(t.id)) continue
       const bucket: LiveDebugRow[] = []
       let rows: Widget3d[] = []
-      if (t.id === '__perf') rows = this._perfReadoutRows()
+      if (t.id === '__perf') rows = this._perfReadoutRows(bucket)
       else {
         const src = this._debugSources.find((x) => x.name === t.id)
         if (src) rows = this._sourceRows(src, bucket)
@@ -3257,26 +3258,45 @@ export class B3d extends Component {
   // IDENTICAL flat and in XR. `_refreshXrPanel` rewrites the XR panel in place, so a
   // control that exists in one presentation works in both — the panel is ONE ui with two
   // presentations.
-  private _perfReadoutRows(): Widget3d[] {
-    const s = this.debugState
+  private _perfReadoutRows(bucket?: LiveDebugRow[]): Widget3d[] {
     const scaled = this._statsBaseScale != null
+    /*
+    LIVE, and with a frame TIME. These were three labels built once, so the fps
+    shown was the fps at the instant the popup opened, and there was no time
+    figure at all: reported from a headset as "no frame rate or rendering time
+    numbers", which for a frozen number is fair.
+
+    `cpu` is the time this thread spends in `scene.render()`, averaged over the
+    last second. It is NOT the whole frame: the GPU's share is not measurable
+    on a headset (no timer queries), so read it against `frame`, which is the
+    interval between frames.
+    */
+    if (this._perfMeter == null || this._perfMeter.scene !== this.scene) {
+      this._perfMeter?.dispose()
+      this._perfMeter = new BABYLON.SceneInstrumentation(this.scene)
+      this._perfMeter.captureFrameTime = true
+    }
+    const lines = (): string[] => {
+      const d = this.debugState
+      const meter = this._perfMeter
+      const fps = this.engine?.getFps() ?? 0
+      const frame = fps > 0 ? (1000 / fps).toFixed(1) : '?'
+      const cpu = meter?.frameTimeCounter.lastSecAverage.toFixed(1) ?? '?'
+      // `current`, read between frames, is the frame just finished. (The
+      // per-second average stays 0: nothing feeds it for this counter.)
+      const draws = meter?.drawCallsCounter.current ?? '?'
+      return [
+        `fps ${d.fps}  frame ${frame}ms  cpu ${cpu}ms${d.xrActive ? '  [XR]' : ''}`,
+        `draws ${draws}  meshes ${this.scene.getActiveMeshes().length}`,
+        `render ${d.renderWidth}×${d.renderHeight}  (css ${d.cssWidth}×${d.cssHeight})`,
+        `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${d.tier}  resizes ${d.resizeCount}`,
+      ]
+    }
+    const block = textBlock3d({ lines: lines(), muted: true })
+    bucket?.push({ update: (next) => block.update(next), lines })
     return [
-      label3d({
-        text: `render ${s.renderWidth}×${s.renderHeight}  (css ${s.cssWidth}×${s.cssHeight})`,
-        muted: true,
-      }),
-      label3d({
-        text: `dpr ${s.devicePixelRatio}  scale ${s.hardwareScaling?.toFixed(
-          2
-        )}  ${s.tier}`,
-        muted: true,
-      }),
-      label3d({
-        text: `fps ${s.fps}  resizes ${s.resizeCount}${
-          s.xrActive ? '  [XR]' : ''
-        }`,
-        muted: true,
-      }),
+      label3d({ text: 'Perf Stats', bold: true, compact: true }),
+      block,
       // Only once XR has been entered — meaningless before, and a row that says
       // nothing is a row that costs panel space in the place with least of it.
       ...(this._xrBaseline != null
@@ -5708,6 +5728,8 @@ export class B3d extends Component {
     this._ssao = undefined
     this._projectedAo?.dispose()
     this._projectedAo = undefined
+    this._perfMeter?.dispose()
+    this._perfMeter = null
     this._ssaoCamObs = undefined
     this.glowLayer = undefined
     this.gui = undefined

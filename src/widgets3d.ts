@@ -3341,7 +3341,22 @@ export function panel3d(
     one case that wants it: a popup that must not escape its panel.
     */
     showPopup(config, ...items) {
-      return this.showLayer!(config, ...items)
+      /*
+      ONE ANCHORED POPUP PER PANEL. A menu belongs to the control that opened
+      it, and opening another control's menu means you are done with the
+      first. The bounded path below has always closed its predecessor; this
+      one, which is the path every menu actually takes, did not, so tapping
+      one select and then another left both lists up, one over the other.
+      (Seen in a headset, reproduced flat in a minute.)
+
+      Kept on the root, not in a closure variable: this object is built per
+      widget and the rule is per PANEL.
+      */
+      const slot = root as unknown as { __anchored?: { close: () => void } }
+      slot.__anchored?.close()
+      const handle = this.showLayer!(config, ...items)
+      slot.__anchored = handle
+      return handle
     },
     boundedPopup(config, ...items) {
       return baseHost.showPopup(
@@ -3356,7 +3371,12 @@ export function panel3d(
         ...items
       )
     },
-    closePopup: () => baseHost.closePopup(),
+    closePopup: () => {
+      const slot = root as unknown as { __anchored?: { close: () => void } }
+      slot.__anchored?.close()
+      slot.__anchored = undefined
+      baseHost.closePopup()
+    },
     relayout: () => baseHost.relayout(),
     showLayer(config, ...items) {
       /*
