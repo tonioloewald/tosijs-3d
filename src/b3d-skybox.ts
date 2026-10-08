@@ -668,6 +668,16 @@ function registerForkedSky(): boolean {
         `{float sd=dot(normalize(vPositionW-cameraPosition),b3dSunDir);` +
         `float b3dSk=b3dSunSize*b3dSunSize;color.rgb+=b3dSunDiscColor*b3dSunDisc*smoothstep(1.0-0.000035*b3dSk,1.0-0.00002*b3dSk,sd);` +
         /*
+        A SMALL SUN STILL BLAZES. The disc above is drawn at its true size, and
+        from Jupiter that is a fifth of ours: under a pixel on a monitor, so on
+        Io there was no sun in the sky at all (Tonio: "On Io I never seem to
+        see the sun"). A distant sun is a point too bright to look at, not a
+        dim one, so as the disc shrinks a tight glare takes over: a fifth of a
+        degree wide whatever the disc's size, and gone by the time the disc is
+        big enough to see.
+        */
+        `color.rgb+=b3dSunDiscColor*b3dSunDisc*(1.0-smoothstep(0.0,0.5,b3dSk))*exp(-(1.0-sd)*120000.0);` +
+        /*
         THE SUN AS HDR, for a photograph of the sky rather than for the
         screen: 0 in normal rendering. The sky is LDR, so the sun is a 1.0
         like any bright cloud, and seen through something that transmits a

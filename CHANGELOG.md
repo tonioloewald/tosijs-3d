@@ -6,6 +6,14 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **A small, distant sun is visible in an airless sky.** Its disc is drawn at
+  true size, which from Jupiter is under a pixel, so Io had no sun. A tight
+  glare now takes over as the disc shrinks.
+
 ## 0.8.15
 
 **Rocks and trees that belong to the land.** Procedural rocks, Quaternius
