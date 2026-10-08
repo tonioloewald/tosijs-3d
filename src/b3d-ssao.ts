@@ -10,14 +10,64 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 ## Demo
 
 Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
-the walls, the gaps between the crates and the underside of the lintel. Enter
-VR and it switches itself off: see "Flat only" below.
+the walls, the gaps between the crates and the underside of the lintel, then
+orbit in on the bust: its beard, laurel and collar are the kind of creased,
+organic shape occlusion does most for. `stone` swaps its material, because how
+much occlusion you can see depends on the surface: it shows plainly on pale
+alabaster and is half hidden by the veins of marble. Enter VR and it switches
+itself off: see "Flat only" below.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, select3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dBox, b3dSphere, b3dGround, b3dProp, assetUrl, PerlinNoise, select3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', strength: 1, radius: 2 } })
+const { ssaoDemo } = tosi({ ssaoDemo: { mode: 'on', strength: 1, radius: 2, stone: 'alabaster' } })
+
+const bust = b3dProp({
+  libraryUrl: assetUrl('tosijs-3d/ariosto-bust.glb'),
+  meshName: 'Ariosto',
+  scale: 0.8,
+  x: 0.9, y: 1.4, z: -2.4, ry: 100,
+})
+
+// Three surfaces for one shape. Marble is painted into the vertex colours from
+// 3D noise, so its veins run through the stone and ignore the model's UV seams.
+let babylon = null
+let provided = null
+let stoneMaterial = null
+function marbleColors(mesh) {
+  const noise = new PerlinNoise(7)
+  const p = mesh.getVerticesData('position')
+  const colors = new Float32Array((p.length / 3) * 4)
+  for (let i = 0; i < p.length / 3; i++) {
+    const x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2]
+    let turbulence = 0
+    for (let o = 1; o <= 8; o *= 2) turbulence += Math.abs(noise.noise3D(x * 3 * o, y * 3 * o, z * 3 * o)) / o
+    const vein = Math.pow(1 - Math.abs(Math.sin((x * 1.5 + y * 3 + turbulence * 3) * Math.PI)), 2.5)
+    const shade = 1 - 0.7 * vein
+    colors.set([shade, shade * 0.98, shade * 0.96, 1], i * 4)
+  }
+  return colors
+}
+function applyStone() {
+  const meshes = bust.mesh ? bust.mesh.getChildMeshes() : []
+  if (babylon == null || meshes.length === 0) return setTimeout(applyStone, 250)
+  const kind = ssaoDemo.stone.value
+  for (const mesh of meshes) {
+    if (provided == null) {
+      provided = mesh.material
+      stoneMaterial = new babylon.PBRMaterial('stone', mesh.getScene())
+      stoneMaterial.albedoColor = new babylon.Color3(0.93, 0.9, 0.84)
+      stoneMaterial.metallic = 0
+      stoneMaterial.bumpTexture = provided.bumpTexture
+      mesh.setVerticesData('color', marbleColors(mesh))
+    }
+    mesh.material = kind === 'provided' ? provided : stoneMaterial
+    mesh.useVertexColors = kind === 'marble'
+    stoneMaterial.roughness = kind === 'marble' ? 0.2 : 0.4
+  }
+}
+ssaoDemo.stone.observe(applyStone)
 
 const stone = '#b9b2a4'
 const crate = '#a0764a'
@@ -31,8 +81,11 @@ preview.append(
         select3d({ label: 'ssao', value: ssaoDemo.mode, options: ['off', 'auto', 'on'] }),
         slider3d({ label: 'strength', value: ssaoDemo.strength, min: 0, max: 3, step: 0.05 }),
         slider3d({ label: 'radius (m)', value: ssaoDemo.radius, min: 0.25, max: 6, step: 0.05 }),
+        select3d({ label: 'stone', value: ssaoDemo.stone, options: ['provided', 'alabaster', 'marble'] }),
       ],
       sceneCreated(el, BABYLON) {
+        babylon = BABYLON
+        applyStone()
         const cam = el.scene.activeCamera
         // Target first: an orbit camera re-derives its position from the target.
         if (cam && cam.setTarget) cam.setTarget(new BABYLON.Vector3(-0.5, 1, 0.5))
@@ -54,7 +107,9 @@ preview.append(
     b3dBox({ meshName: 'crate-1', size: 1, x: -3.2, y: 0.5, z: -0.5, color: crate }),
     b3dBox({ meshName: 'crate-2', size: 1, x: -2.1, y: 0.5, z: -0.3, ry: 12, color: crate }),
     b3dBox({ meshName: 'crate-3', size: 1, x: -2.7, y: 1.5, z: -0.4, ry: -8, color: crate }),
-    b3dSphere({ meshName: 'ball', diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: '#c8553d' })
+    b3dSphere({ meshName: 'ball', diameter: 1.2, x: 1, y: 0.6, z: 1.6, color: '#c8553d' }),
+    b3dBox({ meshName: 'plinth', width: 0.6, height: 1, depth: 0.6, x: 0.9, y: 0.5, z: -2.4, color: stone }),
+    bust
   )
 )
 ```
