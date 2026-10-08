@@ -487,6 +487,13 @@ const scene = b3d(
           ],
         })
       ),
+      // The clocks live with the world: the day, the year, and how much
+      // the year matters.
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
+      // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. 'season strength'
+      // is how hard it swings; at 0 the year does nothing.
+      slider3d({ label: 'time of year', value: demo.season, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01 }),
       label3d({ text: 'Terrain', icon: 'terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
@@ -506,10 +513,6 @@ const scene = b3d(
       label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
-      // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. 'season strength'
-      // is how hard it swings; at 0 the year does nothing.
-      slider3d({ label: 'time of year', value: demo.season, min: 0, max: 1, step: 0.01 }),
-      slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
       // With the clouds it is made of, not under Terrain where it used to be.
@@ -521,7 +524,6 @@ const scene = b3d(
       // Signed: positive streaks ALONG the wind, negative ACROSS it.
       slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
       slider3d({ label: 'evolve', value: sky.evolve, min: 0, max: 1, step: 0.05 }),
-      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.25 }),
       label3d({ text: 'Atmosphere', icon: 'sky', collapsible: true }),
       slider3d({ label: 'air', value: sky.atmosphere, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'dust', value: sky.dust, min: 0, max: 1, step: 0.01 }),
