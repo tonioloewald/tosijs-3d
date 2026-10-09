@@ -55,8 +55,8 @@ Depth lives on vertices, so the mesh decides how sharp the shoreline is.
 `shoreGrid` is a square grid whose lines are close together in the middle
 (4 m by default) and spread geometrically toward the edge, so a sea 8 km
 across costs under ten thousand vertices and still has a vertex every few
-metres around the viewer. [b3d-water](/b3d-water/) asks for a finer one: a
-vertex every 2 m out to 64 m, about 16,600 in all.
+metres around the viewer. [b3d-water](/b3d-water/)'s `shoreFine` asks for a
+finer one: a vertex every 2 m out to 64 m, about 16,600 in all.
 
 Pure: no engine. The terrain and the climate arrive as numbers.
 */

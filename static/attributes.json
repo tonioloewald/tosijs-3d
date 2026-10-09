@@ -4405,7 +4405,12 @@
       {
         "name": "shore",
         "default": "'off'",
-        "description": "`'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: lapping foam, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time"
+        "description": "`'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time"
+      },
+      {
+        "name": "shoreFine",
+        "default": "false",
+        "description": "With `shore=\"on\"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time"
       },
       {
         "name": "normalMap"

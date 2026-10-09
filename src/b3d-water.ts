@@ -57,7 +57,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | `caustics` | `'auto'` | Light through the moving surface, dancing on everything beneath it (terrain, hulls, the player). `'auto'` = on whenever `twoSided`. Fades with depth and fog; follows the sun |
 | `causticsStrength` | `0.6` | How bright the web gets |
 | `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
-| `shore` | `'off'` | `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: lapping foam, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time |
+| `shore` | `'off'` | `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time |
+| `shoreFine` | `false` | With `shore="on"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -176,6 +177,8 @@ export class B3dWater extends AbstractMesh {
     with a finer one.
     */
     shore: 'off' as 'on' | 'off',
+    // Twice the vertices near the viewer, for a shoreline you stand at.
+    shoreFine: false,
     /*
     EMPTY MEANS PROCEDURAL, and that is the default on purpose.
 
@@ -349,9 +352,12 @@ export class B3dWater extends AbstractMesh {
     } else if (attrs.shore === 'on' && registerShoreWater()) {
       // A grid that is fine around the viewer, with a vertex colour holding
       // [depth, ice] that the patched shader draws the shoreline from.
-      // A vertex every 2 m out to 64 m from the centre, then spreading: the
-      // shoreline you are standing at is the one that has to be right.
-      const grid = shoreGrid(Math.max(1, attrs.waterSize), 64, 2, 32)
+      // A vertex every 4 m out to 64 m from the centre, then spreading;
+      // `shoreFine` makes that every 2 m.
+      const size = Math.max(1, attrs.waterSize)
+      const grid = attrs.shoreFine
+        ? shoreGrid(size, 64, 2, 32)
+        : shoreGrid(size)
       const mesh = new BABYLON.Mesh('water_nocast', scene)
       const data = new BABYLON.VertexData()
       data.positions = grid.positions
