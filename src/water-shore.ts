@@ -55,7 +55,8 @@ Depth lives on vertices, so the mesh decides how sharp the shoreline is.
 `shoreGrid` is a square grid whose lines are close together in the middle
 (4 m by default) and spread geometrically toward the edge, so a sea 8 km
 across costs under ten thousand vertices and still has a vertex every few
-metres around the viewer.
+metres around the viewer. [b3d-water](/b3d-water/) asks for a finer one: a
+vertex every 2 m out to 64 m, about 16,600 in all.
 
 Pure: no engine. The terrain and the climate arrive as numbers.
 */
@@ -268,6 +269,7 @@ function iceAmount(temperature: number, depth: number): number {
 export const SHORE_DISTANCE_MAX = 40
 
 let rawDepth = new Float32Array(0)
+let shoreDist = new Float32Array(0)
 
 /**
  * Fill a grid's shore data: for each vertex, `[depth, ice, solid, distance]`
@@ -276,12 +278,18 @@ let rawDepth = new Float32Array(0)
  * surface.
  *
  * `distance` is how far the vertex is from the waterline, in metres along the
- * surface: positive out to sea, negative inland. It is the depth divided by
- * how steeply the bed falls away there, which is exact for a straight beach
- * and good near any shoreline, where it matters. Foam is drawn from this and
+ * surface: positive out to sea, negative inland. Surf is drawn from this and
  * not from depth, because a depth says nothing about width: half a metre deep
  * is a ten-metre band on a flat and a hand's width under a cliff, and the mesh
  * cannot draw a hand's width.
+ *
+ * It is a real distance, not depth over slope. Every vertex beside the
+ * waterline is given how far away the line is (where the depth crosses zero
+ * along the grid, or depth over slope if that is nearer), and those distances
+ * are then carried outward across the grid. So it grows a metre per metre
+ * everywhere, and lines drawn at even distances are evenly spaced whatever the
+ * bed does under them. Depth over slope alone does not: on a flat shallow it
+ * swings wildly from vertex to vertex.
  */
 export function shoreData(
   grid: { lines: number[]; count: number },
@@ -296,48 +304,104 @@ export function shoreData(
   flipZ = false
 ): Float32Array {
   const { lines, count } = grid
-  const data = out ?? new Float32Array(count * count * 4)
+  const total = count * count
+  const data = out ?? new Float32Array(total * 4)
   const zs = flipZ ? -1 : 1
-  if (rawDepth.length < count * count)
-    rawDepth = new Float32Array(count * count)
+  if (rawDepth.length < total) {
+    rawDepth = new Float32Array(total)
+    shoreDist = new Float32Array(total)
+  }
   const raw = rawDepth
+  const dist = shoreDist
   for (let iz = 0; iz < count; iz++) {
     for (let ix = 0; ix < count; ix++) {
       raw[iz * count + ix] =
         waterY - height(centreX + lines[ix], centreZ + zs * lines[iz])
     }
   }
+  const FAR = SHORE_DISTANCE_MAX
   const last = count - 1
+  dist.fill(FAR, 0, total)
+  // SEED: vertices with the waterline on an edge beside them.
+  const seed = (i: number, d: number) => {
+    if (d < dist[i]) dist[i] = d
+  }
+  const cross = (a: number, b: number, length: number) => {
+    const ra = raw[a]
+    const rb = raw[b]
+    if (ra === rb || ra > 0 === rb > 0) return
+    const t = ra / (ra - rb)
+    seed(a, t * length)
+    seed(b, (1 - t) * length)
+  }
+  for (let iz = 0; iz < count; iz++) {
+    for (let ix = 0; ix < count; ix++) {
+      const i = iz * count + ix
+      if (ix < last) cross(i, i + 1, lines[ix + 1] - lines[ix])
+      if (iz < last) cross(i, i + count, lines[iz + 1] - lines[iz])
+    }
+  }
+  // Along a grid edge is further than straight across, on a shore that runs
+  // diagonally: depth over slope is the straight-across distance, so a
+  // seeded vertex takes whichever is nearer.
   for (let iz = 0; iz < count; iz++) {
     const z0 = Math.max(0, iz - 1)
     const z1 = Math.min(last, iz + 1)
     for (let ix = 0; ix < count; ix++) {
       const i = iz * count + ix
-      const depth = Math.max(SHORE_DEPTH_MIN, Math.min(SHORE_DEPTH_MAX, raw[i]))
+      if (dist[i] >= FAR) continue
       const x0 = Math.max(0, ix - 1)
       const x1 = Math.min(last, ix + 1)
       const gx =
-        x1 > x0
-          ? (raw[iz * count + x1] - raw[iz * count + x0]) /
-            (lines[x1] - lines[x0])
-          : 0
+        (raw[iz * count + x1] - raw[iz * count + x0]) / (lines[x1] - lines[x0])
       const gz =
-        z1 > z0
-          ? (raw[z1 * count + ix] - raw[z0 * count + ix]) /
-            (lines[z1] - lines[z0])
-          : 0
-      // A bed flatter than 1 in 20 is treated as 1 in 20: a wide shallow is
-      // far from its shore, not on it.
-      const fall = Math.max(0.05, Math.hypot(gx, gz))
-      const v = i * 4
-      data[v] = depth
-      data[v + 1] = iceCover(temperature, depth)
-      data[v + 2] = iceSolid(temperature, depth)
-      data[v + 3] = Math.max(
-        -SHORE_DISTANCE_MAX,
-        Math.min(SHORE_DISTANCE_MAX, raw[i] / fall)
-      )
+        (raw[z1 * count + ix] - raw[z0 * count + ix]) / (lines[z1] - lines[z0])
+      const fall = Math.hypot(gx, gz)
+      if (fall > 1e-6) seed(i, Math.abs(raw[i]) / fall)
     }
+  }
+  // CARRY it outward: two passes each way over the eight neighbours.
+  const relax = (i: number, j: number, step: number) => {
+    const d = dist[j] + step
+    if (d < dist[i]) dist[i] = d
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    for (let iz = 0; iz < count; iz++) {
+      const dz = iz > 0 ? lines[iz] - lines[iz - 1] : 0
+      for (let ix = 0; ix < count; ix++) {
+        const i = iz * count + ix
+        const dx = ix > 0 ? lines[ix] - lines[ix - 1] : 0
+        if (ix > 0) relax(i, i - 1, dx)
+        if (iz > 0) {
+          relax(i, i - count, dz)
+          if (ix > 0) relax(i, i - count - 1, Math.hypot(dx, dz))
+          if (ix < last)
+            relax(i, i - count + 1, Math.hypot(lines[ix + 1] - lines[ix], dz))
+        }
+      }
+    }
+    for (let iz = last; iz >= 0; iz--) {
+      const dz = iz < last ? lines[iz + 1] - lines[iz] : 0
+      for (let ix = last; ix >= 0; ix--) {
+        const i = iz * count + ix
+        const dx = ix < last ? lines[ix + 1] - lines[ix] : 0
+        if (ix < last) relax(i, i + 1, dx)
+        if (iz < last) {
+          relax(i, i + count, dz)
+          if (ix < last) relax(i, i + count + 1, Math.hypot(dx, dz))
+          if (ix > 0)
+            relax(i, i + count - 1, Math.hypot(lines[ix] - lines[ix - 1], dz))
+        }
+      }
+    }
+  }
+  for (let i = 0; i < total; i++) {
+    const depth = Math.max(SHORE_DEPTH_MIN, Math.min(SHORE_DEPTH_MAX, raw[i]))
+    const v = i * 4
+    data[v] = depth
+    data[v + 1] = iceCover(temperature, depth)
+    data[v + 2] = iceSolid(temperature, depth)
+    data[v + 3] = raw[i] > 0 ? Math.min(FAR, dist[i]) : -Math.min(FAR, dist[i])
   }
   return data
 }

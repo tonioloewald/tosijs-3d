@@ -104,7 +104,10 @@ const SHORE = `${MARK}
   // They rise about 16 m out and are brightest as they arrive.
   float b3dNear = 1.0 - smoothstep(1.0, 16.0, b3dShore);
   float b3dBroken = smoothstep(0.15, 0.75, b3dGrain + 0.35 * b3dNear);
-  float b3dSurf = b3dFront * b3dBroken * b3dNear * (0.35 + 0.65 * b3dNear);
+  // Fronts are a thing of the water: they end at the waterline. Inland of
+  // it there is only the wet edge, so where the drawn land sits low there
+  // is a wash and no stack of lines.
+  float b3dSurf = b3dFront * b3dBroken * b3dNear * (0.35 + 0.65 * b3dNear) * smoothstep(-0.3, 0.6, b3dShore);
   // The wet edge: in and out with each arriving front.
   float b3dLap = 0.5 + 0.5 * sin(6.2832 * (b3dT * 0.13 + 1.3 * b3dSlow));
   float b3dEdge = 1.0 - smoothstep(-0.4, 1.4 + 1.6 * b3dLap, b3dShore + 0.8 * (b3dGrain - 0.5));

@@ -179,6 +179,24 @@ describe('distance from the shore', () => {
     // 0.3 m of water over a dead flat bed: no waterline anywhere near.
     expect(Math.min(...dist(() => -0.3))).toBeGreaterThan(5)
   })
+  test('grows a metre per metre whatever the bed does (evenly spaced surf)', () => {
+    // A beach that is nearly flat for 12 m and then drops away: depth over
+    // slope would put the far side of the flat tens of metres out.
+    const d = dist((x) => (x < 12 ? -x * 0.02 : -0.24 - (x - 12) * 1.5))
+    g.lines.forEach((x, ix) => {
+      if (x < 0 || x > 30) return
+      expect(Math.abs(d[ix] - x)).toBeLessThan(0.5)
+    })
+  })
+  test('a diagonal shore: straight across, not along the grid', () => {
+    const data = shoreData(g, 0, 0, 0, (x, z) => -(x + z) / Math.SQRT2, 1)
+    g.lines.forEach((x, ix) => {
+      if (x < 0 || x > 20) return
+      expect(Math.abs(data[mid + ix * 4 + 3] - x / Math.SQRT2)).toBeLessThan(
+        0.08 * x + 0.3
+      )
+    })
+  })
 })
 
 describe('the bottom of the biome chart (-22.5 °C)', () => {

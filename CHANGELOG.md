@@ -28,7 +28,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   another, and a wet edge lapping at the waterline), paler water over the
   shallows, and ice. The surf is drawn from each vertex's DISTANCE to the
   waterline, not its depth, so it is the same width on a steep shore as on
-  a flat one. The ice follows the cold and the shore: a solid sheet
+  a flat one. The distance is a real one, carried across the grid from
+  the waterline, so the fronts are evenly spaced whatever the bed does.
+  The water has a vertex every 2 m out to 64 m from the viewer (about
+  16,600 in all). The ice follows the cold and the shore: a solid sheet
   along the beach, breaking into plates further out, open water beyond, and
   all of it moving out to sea as the climate at sea level (season included)
   gets colder. It is there from below as well. The sea starts to freeze at

@@ -349,7 +349,9 @@ export class B3dWater extends AbstractMesh {
     } else if (attrs.shore === 'on' && registerShoreWater()) {
       // A grid that is fine around the viewer, with a vertex colour holding
       // [depth, ice] that the patched shader draws the shoreline from.
-      const grid = shoreGrid(Math.max(1, attrs.waterSize))
+      // A vertex every 2 m out to 64 m from the centre, then spreading: the
+      // shoreline you are standing at is the one that has to be right.
+      const grid = shoreGrid(Math.max(1, attrs.waterSize), 64, 2, 32)
       const mesh = new BABYLON.Mesh('water_nocast', scene)
       const data = new BABYLON.VertexData()
       data.positions = grid.positions
