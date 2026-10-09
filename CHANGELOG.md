@@ -86,6 +86,11 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   showed severe mismatches that a Mac never did. The hash is arithmetic only
   now. Plate edges are also a little softer. (The layout of plates for a given
   place changes. Not yet confirmed on a headset.)
+- **No holes in solid sea ice near its edge.** The invisible mesh a car or a
+  shell lands on kept a triangle only if all three corners were solid, so a
+  band one cell wide (16 m and more far from the viewer) was drawn solid and
+  had nothing to stand on. A triangle is kept when it is solid on average,
+  which is where the drawn ice crosses the same line.
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.

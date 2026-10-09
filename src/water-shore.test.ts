@@ -11,6 +11,7 @@ import {
   FREEZING,
   SHORE_DEPTH_MAX,
   SHORE_DEPTH_MIN,
+  bearingTriangles,
 } from './water-shore.js'
 import { planetTemperature } from './biome-chart.js'
 
@@ -238,5 +239,35 @@ describe('iceSide', () => {
   test('from under, you get out by standing in the shallows', () => {
     expect(iceSide('under', true, 0.4, false)).toBe('over')
     expect(iceSide('under', true, 0.8, false)).toBe('under')
+  })
+})
+
+describe('bearingTriangles: the ice collision mesh', () => {
+  // [depth, cover, solid, distance] per vertex
+  const v = (depth: number, solid: number) => [depth, 1, solid, 10]
+  const tri = [0, 1, 2]
+
+  test('a triangle whose corners all bear is kept', () => {
+    const data = [...v(5, 1), ...v(5, 1), ...v(5, 1)]
+    expect(bearingTriangles(tri, data)).toEqual(tri)
+  })
+
+  test('a triangle that is MOSTLY solid is kept (it was a hole in drawn ice)', () => {
+    // Two corners solid, one just short: the drawn ice is solid across most of
+    // it and `iceBearsAt` says yes there. All-three-must-bear dropped it.
+    const data = [...v(5, 1), ...v(5, 0.9), ...v(5, 0.2)]
+    expect(bearingTriangles(tri, data)).toEqual(tri)
+  })
+
+  test('a triangle that is mostly open water is not', () => {
+    const data = [...v(5, 1), ...v(5, 0.1), ...v(5, 0.1)]
+    expect(bearingTriangles(tri, data)).toEqual([])
+  })
+
+  test('a triangle wholly over land is dropped, one that reaches water is kept', () => {
+    const land = [...v(-4, 1), ...v(-3, 1), ...v(-2, 1)]
+    expect(bearingTriangles(tri, land)).toEqual([])
+    const shore = [...v(-4, 1), ...v(-3, 1), ...v(1, 1)]
+    expect(bearingTriangles(tri, shore)).toEqual(tri)
   })
 })

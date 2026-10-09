@@ -104,7 +104,7 @@ import {
   shoreGrid,
   shoreData,
   iceBears,
-  ICE_BEARS,
+  bearingTriangles,
   type ShoreGrid,
 } from './water-shore.js'
 import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js'
@@ -1257,19 +1257,7 @@ export class B3dWater extends AbstractMesh {
     const ice = this._ice
     const mesh = this.mesh
     if (ice == null || mesh == null) return
-    const { indices } = shore.grid
-    const data = shore.data
-    // Over water only: land is at least as "solid" by the rule, and a
-    // colliding plane at sea level under a hillside is nobody's ice.
-    const bears = (v: number) =>
-      data[v * 4 + 2] >= ICE_BEARS && data[v * 4] > -0.5
-    const kept: number[] = []
-    for (let i = 0; i < indices.length; i += 3) {
-      const a = indices[i]
-      const b = indices[i + 1]
-      const c = indices[i + 2]
-      if (bears(a) && bears(b) && bears(c)) kept.push(a, b, c)
-    }
+    const kept = bearingTriangles(shore.grid.indices, shore.data)
     ice.position.copyFrom(mesh.position)
     if (kept.length === 0) {
       ice.setEnabled(false)
