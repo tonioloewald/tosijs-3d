@@ -967,3 +967,18 @@ export function pruneScatterCache(
     if (dx * dx + dz * dz > k2) cache.delete(key)
   }
 }
+
+/**
+ * Whether `url` names the default decoration library: unset, the resolved
+ * default itself, or any host serving the same path. Asked of the URL in use,
+ * so that naming the default library explicitly is still the default library.
+ */
+export function isDefaultLibrary(
+  url: string,
+  resolvedDefault: string,
+  path: string
+): boolean {
+  if (!url) return true
+  const bare = url.split(/[?#]/)[0]
+  return bare === resolvedDefault || bare === path || bare.endsWith('/' + path)
+}

@@ -31,8 +31,9 @@ materials with the TERRAIN's biome shading, each in a role:
 
 So changing planet, climate or season recolours the vegetation with the land.
 The year is the terrain's: `biomeSeason` and `biomeSeasonality`. Roles are
-assigned by material name (`roles`, default `NATURE_ROLES`); a material with no
-role keeps its own look.
+assigned by material name (`roles`). The default library gets `NATURE_ROLES`;
+for any other library set `roles` yourself. A material with no role keeps its
+own look.
 
 ## How it draws
 
@@ -96,6 +97,7 @@ import { mantaAxes } from './biome-chart.js'
 import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
 import { rockFromName, rockGeometry } from './procedural-rock.js'
 import {
+  isDefaultLibrary,
   scatterPlacements,
   NearIndex,
   pruneScatterCache,
@@ -116,6 +118,8 @@ pass renders its explicit caster list WITHOUT checking layer masks
 but is never drawn to the screen.
 */
 const SHADOW_ONLY_LAYER = 0x10000000
+const DEFAULT_LIBRARY = 'quaternius/libraries/nature.glb'
+const NO_ROLES: Record<string, DecorationRole> = {}
 
 interface Part {
   mesh: BABYLON.Mesh
@@ -170,6 +174,20 @@ export class B3dDecorator extends B3dChild {
   declare clump: number
   declare clumpSize: number
 
+  /**
+   * Whether the library in use is the default one. Asked of the RESOLVED url,
+   * because naming the default library explicitly is still the default
+   * library: testing `url` for being set chose Kenney's rules against the
+   * Quaternius models, which matched nothing and placed nothing.
+   */
+  private get _defaultLibrary(): boolean {
+    return isDefaultLibrary(
+      fetchedUrl(this.url, 'b3d-decorator url'),
+      assetUrl(DEFAULT_LIBRARY),
+      DEFAULT_LIBRARY
+    )
+  }
+
   private _rules: ScatterRule[] | null = null
   /**
    * The rules. Replace before the first build (or call `rebuild()`). Unset,
@@ -178,7 +196,9 @@ export class B3dDecorator extends B3dChild {
    * before the default library changed).
    */
   get rules(): ScatterRule[] {
-    return this._rules ?? (this.url ? NATURE_KIT_RULES : NATURE_RULES)
+    return (
+      this._rules ?? (this._defaultLibrary ? NATURE_RULES : NATURE_KIT_RULES)
+    )
   }
   set rules(rules: ScatterRule[]) {
     this._rules = rules
@@ -187,8 +207,19 @@ export class B3dDecorator extends B3dChild {
    * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
    * `NATURE_ROLES` for the key forms. A library material with a role is drawn
    * with the terrain's biome shading in that role; any other keeps its own look.
+   *
+   * Unset, the default library gets `NATURE_ROLES` and any other library gets
+   * none: those keys are generic material names (`White`, `Wood`), and a
+   * third-party model with a material of the same name had it replaced by
+   * flat biome shading. Set `roles` to opt a custom library in.
    */
-  roles: Record<string, DecorationRole> = NATURE_ROLES
+  get roles(): Record<string, DecorationRole> {
+    return this._roles ?? (this._defaultLibrary ? NATURE_ROLES : NO_ROLES)
+  }
+  set roles(roles: Record<string, DecorationRole>) {
+    this._roles = roles
+  }
+  private _roles: Record<string, DecorationRole> | null = null
   /** What was placed last, in LOGICAL world coordinates. */
   placements: Placement[] = []
   /**
@@ -257,8 +288,7 @@ export class B3dDecorator extends B3dChild {
     owner.registerWorldRoot(this._root)
     const gen = ++this._loadGen
     const url =
-      fetchedUrl(this.url, 'b3d-decorator url') ||
-      assetUrl('quaternius/libraries/nature.glb')
+      fetchedUrl(this.url, 'b3d-decorator url') || assetUrl(DEFAULT_LIBRARY)
     BABYLON.SceneLoader.LoadAssetContainerAsync(url, '', scene)
       .then((c) => {
         if (gen !== this._loadGen) {

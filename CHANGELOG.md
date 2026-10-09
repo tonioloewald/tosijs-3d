@@ -54,6 +54,18 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   was cover for everything and a ground burst damaged nothing. A burst near a
   surface now looks from a metre above it; a hill or wall in between is still
   cover. (Only a mesh named `ground` was exempt before.)
+- **Decorator: naming the default library explicitly no longer empties the
+  scatter.** Default rules were chosen by whether `url` was set, so
+  `url="…/quaternius/libraries/nature.glb"` got the other library's rules,
+  which matched no model. The choice is now made from the library in use.
+- **Decorator: `NATURE_ROLES` applies only to the default library.** Its keys
+  are generic material names (`White`, `Wood`), so a third-party model with a
+  material of the same name had it replaced by flat biome shading. Set `roles`
+  to opt a custom library in.
+- The Perf Stats "Occlusion" button says whether occlusion is running, not
+  what was asked for (`on, not running here` when the method cannot run in
+  the current mode). Land and Sky's own occlusion select, which drifted out of
+  step with it, is gone.
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.

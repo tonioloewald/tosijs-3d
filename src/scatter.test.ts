@@ -13,6 +13,7 @@ import {
   NATURE_KIT_RULES,
   type ScatterClimate,
   type ScatterRule,
+  isDefaultLibrary,
 } from './scatter.js'
 
 const flat = () => 10
@@ -510,5 +511,28 @@ describe('decoration roles', () => {
       expect(rule.models.length).toBeGreaterThan(0)
       expect(rule.scale[0]).toBeLessThanOrEqual(rule.scale[1])
     }
+  })
+})
+
+describe('isDefaultLibrary', () => {
+  const path = 'quaternius/libraries/nature.glb'
+  const dflt = 'https://cdn.tosijs.net/' + path
+  test('unset is the default', () => {
+    expect(isDefaultLibrary('', dflt, path)).toBe(true)
+  })
+  test('naming the default library explicitly is still the default', () => {
+    // This used to select the OTHER library's rules, which matched no model.
+    expect(isDefaultLibrary(dflt, dflt, path)).toBe(true)
+    expect(isDefaultLibrary('/static/' + path, dflt, path)).toBe(true)
+    expect(isDefaultLibrary(dflt + '?v=2', dflt, path)).toBe(true)
+  })
+  test('another library is not', () => {
+    expect(
+      isDefaultLibrary(
+        'https://cdn.tosijs.net/kenney/nature-kit.glb',
+        dflt,
+        path
+      )
+    ).toBe(false)
   })
 })
