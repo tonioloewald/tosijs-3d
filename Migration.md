@@ -58,7 +58,7 @@ never the property, it is a listener for the `'enter'` event and receives an
 `generateGalaxy(seed, count, options)` was an adapter over the voxel galaxy.
 Call that directly:
 
-```js
+```javascript
 // before
 const galaxy = generateGalaxy(1234, 10000, options)
 // after
