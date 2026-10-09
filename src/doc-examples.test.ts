@@ -157,6 +157,61 @@ describe('doc-comment examples', () => {
   })
 })
 
+describe('doc examples use the callback names that exist', () => {
+  /*
+  `onX` was removed in 0.10, and the compiler cannot see inside a doc comment:
+  three demo controls (two aircraft sliders, the particles Burst button) still
+  passed an old name and were dead the moment the fallback went. A widget
+  factory handed `onChange` now does nothing, so the page looks fine and the
+  control is inert. Scoped to this library's factories: `onClick` on a DOM
+  `button(...)` is a real event listener and is fine.
+  */
+  const FACTORIES =
+    'button3d|slider3d|toggle3d|select3d|list3d|color3d|vector3d|euler3d|angle3d|arc3d|picker3d|curve3d|footprint3d|iconGrid3d|inputField|keyboard|themeEditor|terrainEditor3d|lightEditor3d|curveProgram3d'
+  const OLD = new RegExp(
+    `\\b(?:ui\\.)?(?:${FACTORIES})\\(\\s*\\{[^}]*?\\b(on[A-Z]\\w*)\\s*[:(]`
+  )
+
+  test('no widget factory in an example is passed a removed onX option', () => {
+    const bad: string[] = []
+    for (const s of snippets()) {
+      const m = OLD.exec(s.code)
+      if (m != null) bad.push(`${s.file} [example ${s.index}] ${m[1]}`)
+    }
+    expect(bad, 'use handleX: an onX option is ignored').toEqual([])
+  })
+})
+
+describe('a doc comment is not cut short by a nested comment', () => {
+  /*
+  A doc page is everything from its opening marker to the FIRST comment
+  terminator. A block comment written inside an example therefore ends the
+  page there: the rest of the page silently disappears from the site and the
+  build says nothing. The cut nearly always lands inside a code fence, so an
+  ODD number of fences in a doc block is the sign. Use line comments inside a
+  doc comment.
+  */
+  test('every doc block closes the code fences it opens', () => {
+    const bad: string[] = []
+    const dir = new URL('.', import.meta.url).pathname
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.ts') || file.includes('.test.')) continue
+      const src = readFileSync(`${dir}${file}`, 'utf8')
+      for (const block of src.matchAll(/\/\*#([\s\S]*?)\*\//g)) {
+        const fences = block[1].match(/^\s*```/gm)?.length ?? 0
+        if (fences % 2 === 1) {
+          const line = src.slice(0, block.index ?? 0).split('\n').length
+          bad.push(`${file}:${line}`)
+        }
+      }
+    }
+    expect(
+      bad,
+      'an unclosed fence: a block comment inside the example ended the page'
+    ).toEqual([])
+  })
+})
+
 /*
 AN EXECUTABLE FENCE MUST MOUNT SOMETHING.
 
