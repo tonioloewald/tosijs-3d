@@ -196,3 +196,33 @@ describe('world-store / standalone (no driver)', () => {
     expect(world.getEntity(guard)?.components.health?.dead).toBe(true)
   })
 })
+
+describe('queries return copies (#3070)', () => {
+  test('writing to getState() does not reach the sim', () => {
+    const world = new WorldStore()
+    const s = world.getState() as any
+    s.now = 999
+    s.entities[s.playerId].position.x = 12345
+    expect(world.getState().now).toBe(0)
+    expect(
+      world.getState().entities[world.getState().playerId].position.x
+    ).not.toBe(12345)
+  })
+
+  test('getEntity and query hand out copies too', () => {
+    const world = new WorldStore()
+    const id = world.getState().playerId
+    ;(world.getEntity(id) as any).position.x = 777
+    ;(world.query(() => true)[0] as any).position.x = 888
+    const x = world.getEntity(id)?.position.x
+    expect(x).not.toBe(777)
+    expect(x).not.toBe(888)
+  })
+
+  test('ref is the driver’s own value and comes back by identity', () => {
+    const world = new WorldStore()
+    const ref = { fn: () => 1 }
+    const id = world.spawn({ kind: 'npc', position: { x: 0, y: 0, z: 0 }, ref })
+    expect(world.getEntity(id)?.ref).toBe(ref)
+  })
+})

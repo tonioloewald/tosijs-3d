@@ -304,7 +304,10 @@ export type Unsubscribe = () => void
 export type SpawnSpec = {
   kind: EntityKind
   position: Vec3
-  /** Optional caller-supplied id; the sim generates a stable one otherwise. */
+  /**
+   * Caller-supplied id. Optional for the engine's own systems (the sim
+   * generates a stable one); REQUIRED of a driver, see `WorldApi.spawn`.
+   */
   id?: EntityId
   /** Opaque, echoed-but-never-read by the sim. */
   ref?: unknown
@@ -323,15 +326,25 @@ export type SpawnSpec = {
  */
 export interface WorldApi {
   // commands
+  /**
+   * A driver MUST supply `spec.id`. The returned id is an in-process
+   * convenience: across a worker boundary a command cannot return a value, so
+   * a driver that relies on it works on the rig and breaks the day it ships.
+   */
   spawn(spec: SpawnSpec): EntityId
   /** Remove an entity from the world. Symmetric with spawn; idempotent. */
   forget(id: EntityId): void
-  /** Set or (with null) clear advisory steering for an entity. */
+  /**
+   * Set or (with null) clear advisory steering for an entity. LEGACY: the
+   * intent is stored in `state.intents` and nothing reads it. `MinSimApi.steer`
+   * is the path the sim honours; an entity given only an intent does not move.
+   */
   setIntent(id: EntityId, intent: EntityIntent | null): void
   defineZone(id: ZoneId, zone: Zone): void
   removeZone(id: ZoneId): void
 
-  // queries (authoritative)
+  // queries (authoritative). Each returns a COPY: writing to a result changes
+  // nothing in the sim, in-process or across a worker.
   getState(): Readonly<WorldState>
   getEntity(id: EntityId): Readonly<WorldEntity> | undefined
   query(predicate: (entity: Readonly<WorldEntity>) => boolean): WorldEntity[]

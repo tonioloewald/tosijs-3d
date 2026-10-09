@@ -24,6 +24,13 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   `handleCommit`** are removed; use `whenChange` / `whenCommit`.
 - **`generateGalaxy`** is removed; use `voxelGalaxy({ seed, brightBudget }).view()`.
   **`galaxy.getStarSPS()`** is removed; use `pickStar`.
+- **`new MersenneTwister()` needs a seed.** It used to seed from the clock
+  when the argument was left out, which silently broke "same seed, same
+  result". It now throws; pass `Date.now()` if that is what you want.
+- **`WorldStore.getState()`, `getEntity()` and `query()` return copies.** A
+  driver could change the simulation by writing to what a query returned.
+  Code that relied on that (deliberately or not) must call a command instead.
+  The engine's own systems read `store.liveState`.
 
 ### Changed
 
@@ -32,6 +39,16 @@ with anything else. [Migration.md](./Migration.md) has every pair.
 
 ### Fixed
 
+- `world-store.ts` compiles under `noUncheckedIndexedAccess` (the steer loop
+  read `r.portals[0]` unguarded), so a project that vendors it with strict
+  settings no longer has to pin an old copy.
+- The world contract now says what it meant: a driver must supply `spec.id` to
+  `spawn` (the return value cannot cross a worker boundary), and `setIntent`
+  is legacy (`steer` is what the sim honours).
+- The conformance kit covers the choice primitive: a pick emits exactly one
+  `choiceMade`, an option that is not on the menu emits nothing, a choice is
+  reported once, and the sim resolves nothing. A conformant store must now
+  have `chooseOption(choiceId, optionId)`.
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.

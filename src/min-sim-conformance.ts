@@ -45,7 +45,15 @@ export type ConformanceHarness = {
  * driver command), but the kit needs it to test that steering resolves over time — and every
  * conformant store has one (determinism rule: time only via `tick`, no `Date.now`).
  */
-export type TickableMinSim = MinSimApi & { tick(deltaSeconds: number): void }
+export type TickableMinSim = MinSimApi & {
+  tick(deltaSeconds: number): void
+  /**
+   * The player-side act of picking an option. Like `tick` it is a simulation
+   * method, not a driver command: the driver presents (`presentChoice`) and
+   * hears the pick (`choiceMade`); the sim never resolves the choice.
+   */
+  chooseOption(choiceId: string, optionId: string): void
+}
 
 const room = (
   id: string,
@@ -247,6 +255,45 @@ export function runMinSimConformance(
       )
       api.traverse('ghost', 'window') // locked → stays put
       expect(api.placeOf('ghost')).toBe('study')
+    })
+
+    test('choice: a pick emits exactly one choiceMade, and nothing else happens', () => {
+      const api = makeApi()
+      stage(api)
+      const seen: SimulationEvent[] = []
+      api.subscribe((e) => seen.push(e))
+      const before = api.placeOf('player')
+      api.presentChoice({
+        id: 'wolfMenu',
+        at: 'wolf',
+        options: [
+          { id: 'fight', label: 'Fight' },
+          { id: 'flee', label: 'Flee' },
+        ],
+      })
+      // presenting is not an event: the sim reports PICKS
+      expect(seen.filter((e) => e.type === 'choiceMade')).toEqual([])
+
+      // an option that is not on the menu emits nothing and leaves it open
+      api.chooseOption('wolfMenu', 'negotiate')
+      expect(seen.filter((e) => e.type === 'choiceMade')).toEqual([])
+
+      api.chooseOption('wolfMenu', 'flee')
+      const made = seen.filter((e) => e.type === 'choiceMade')
+      expect(made.length).toBe(1)
+      const pick = made[0] as { choiceId: string; optionId: string }
+      expect(pick.choiceId).toBe('wolfMenu')
+      expect(pick.optionId).toBe('flee')
+
+      // reported once: the choice is closed, so a second pick is not heard
+      api.chooseOption('wolfMenu', 'fight')
+      expect(seen.filter((e) => e.type === 'choiceMade').length).toBe(1)
+
+      // the sim NEVER resolves the choice: picking "flee" moved nobody and
+      // produced no other event. Adjudication is the driver's.
+      expect(seen.length).toBe(1)
+      expect(api.placeOf('player')).toBe(before)
+      expect(api.placeOf('wolf')).toBe('garden')
     })
 
     test('steer toward an entity closes the distance over ticks', () => {

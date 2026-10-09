@@ -103,6 +103,18 @@ function distance(a: { x: number; y: number; z: number }, b: typeof a): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz)
 }
 
+/** A deep copy of plain data. `ref` is opaque to the sim and is not copied. */
+function snapshot<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(snapshot) as unknown as T
+  if (value == null || typeof value !== 'object') return value
+  const out: Record<string, unknown> = {}
+  for (const k in value as Record<string, unknown>) {
+    const v = (value as Record<string, unknown>)[k]
+    out[k] = k === 'ref' ? v : snapshot(v)
+  }
+  return out as T
+}
+
 export class WorldStore implements MinSimApi {
   private state: WorldState
   private handlers = new Set<EventHandler>()
@@ -176,16 +188,34 @@ export class WorldStore implements MinSimApi {
 
   // --- WorldApi: queries (authoritative) -----------------------------------
 
+  /*
+  Every query returns a COPY. `Readonly<T>` is a type, not a guarantee: an
+  in-process driver handed the live object could rewrite the clock or teleport
+  the player through the READ api, and nothing would say so until that driver
+  moved to a worker, where the same line does nothing. A copy makes in-process
+  and across-a-worker behave the same, which is what the contract promises.
+  `ref` is the driver's own opaque value, so it is passed through, not copied.
+  */
   getState(): Readonly<WorldState> {
+    return snapshot(this.state)
+  }
+
+  /**
+   * The LIVE state, for the engine's own systems (the view reconciles from it
+   * every frame, where a copy of the whole world would be waste). Not part of
+   * `WorldApi`: a driver must never hold this. Do not write to it.
+   */
+  get liveState(): Readonly<WorldState> {
     return this.state
   }
 
   getEntity(id: EntityId): Readonly<WorldEntity> | undefined {
-    return this.state.entities[id]
+    const e = this.state.entities[id]
+    return e == null ? undefined : snapshot(e)
   }
 
   query(predicate: (entity: Readonly<WorldEntity>) => boolean): WorldEntity[] {
-    return Object.values(this.state.entities).filter(predicate)
+    return Object.values(this.state.entities).filter(predicate).map(snapshot)
   }
 
   // --- WorldApi: events (best-effort) --------------------------------------
@@ -517,7 +547,8 @@ export class WorldStore implements MinSimApi {
         if (here != null && here !== target.toPlace) {
           const r = this.route(here, target.toPlace)
           if (r != null && r.portals.length > 0) {
-            this.traverse(id, r.portals[0])
+            const next = r.portals[0]
+            if (next != null) this.traverse(id, next)
             continue
           }
         }

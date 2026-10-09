@@ -73,6 +73,21 @@ const galaxy = voxelGalaxy({
 The result is identical. `getStarSPS()` on `<tosi-b3d-galaxy>` returned `null`
 since the stars moved to a vertex shader; use `galaxy.pickStar(x, y)`.
 
+### 3. `new MersenneTwister()` needs a seed
+
+It used to seed from `Date.now()` when you left the argument out. It now
+throws. Pass a seed, or `new MersenneTwister(Date.now())` if you want a
+different sequence each run. (`PRNG` always required one.)
+
+### 4. `WorldStore` queries return copies
+
+`getState()`, `getEntity()` and `query()` used to return the store's live
+objects, so writing to a result changed the simulation. They return copies
+now. If you were moving something by writing to a query result, call the
+command for it. Engine-side code that needs the live state every frame reads
+`store.liveState` and must not write to it. A store passed to the conformance
+kit must also implement `chooseOption(choiceId, optionId)`.
+
 ## 0.8.15 → 0.9.0
 
 ### 1. `biomeTemperature` is in degrees now: 0 is 0 °C, 1 is 50 °C

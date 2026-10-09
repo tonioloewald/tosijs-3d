@@ -169,3 +169,7 @@ describe('Xoshiro128 — the engine behind PRNG', () => {
     }
   })
 })
+
+test('the seed is required: omitting it throws instead of seeding from the clock', () => {
+  expect(() => new (MersenneTwister as any)()).toThrow('seed is required')
+})

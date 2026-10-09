@@ -159,7 +159,7 @@ export class WorldView {
 
   /** One-way sync: create missing meshes, move existing ones, dispose gone ones. */
   reconcile(): void {
-    const { entities } = this.store.getState()
+    const { entities } = this.store.liveState
     for (const id in entities) {
       const entity = entities[id]
       let mesh = this.meshes.get(id)
