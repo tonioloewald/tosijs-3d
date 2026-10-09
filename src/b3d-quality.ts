@@ -37,6 +37,24 @@ setQuality('low')            // force low everywhere
 setQuality('auto')           // back to the measured profile (default)
 // a settings <select> calls setQuality(e.target.value) and reads getQuality()
 ```
+
+## Budgets that are sized once: `headsetDevice()`
+
+A scene is built flat, before any session starts, so a budget that is read
+once at build (terrain detail, a pool size, a shadow map) is resolved for the
+flat tier and then drawn twice in stereo. On a standalone headset that is the
+wrong tier for the whole session. For those, pass `headsetDevice()` as `xr`:
+
+```javascript
+import { resolveBudget, headsetDevice } from 'tosijs-3d'
+
+const subs = resolveBudget(this.subdivisions, 'hiResSubdivisions', {
+  xr: headsetDevice(),
+})
+```
+
+It is true on a standalone headset (a Quest), false on a PC driving one. A
+budget re-read every frame does not need it: pass the live `xr` state there.
 */
 /*{ "parent": "Performance", "order": 900 }*/
 
