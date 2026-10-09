@@ -34,7 +34,7 @@ for the names rather than relying on the compiler.
 | `button3d`, menu actions, `addDebugSource` actions | `onClick` | `handleClick` |
 | `list3d`, `surface` `MenuItem`, `table` | `onSelect` | `handleSelect` |
 | `table`, `box` `button` / `BoxChild` | `onActivate` | `handleActivate` |
-| `showPopup` / `openPopup` / `openMenu3d` | `onClose` | `handleClose` |
+| `showPopup` / `openPopup` / `openMenu3d` / `surface.openPanel` | `onClose` | `handleClose` |
 | `inputField` | `onChange` / `onEnter` / `onFocus` | `handleChange` / `handleEnter` / `handleFocus` |
 | `keyboard` | `onKey` / `onAction` / `onCaretMove` | `handleKey` / `handleAction` / `handleCaretMove` |
 | `curve3d` / `footprint3d` result (`field.onChange = …`) | `onChange` | `handleChange` |

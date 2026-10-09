@@ -275,7 +275,8 @@ export class B3dTrigger extends B3dChild {
       handlerOf<(t: B3dTrigger) => void>(
         this as unknown as Record<string, unknown>,
         'whenEnter',
-        'onEnter'
+        'onEnter',
+        '<tosi-b3d-trigger>'
       )?.(this)
       this.dispatchEvent(
         new CustomEvent('enter', { detail: { trigger: this }, bubbles: true })
@@ -289,7 +290,8 @@ export class B3dTrigger extends B3dChild {
       handlerOf<(t: B3dTrigger) => void>(
         this as unknown as Record<string, unknown>,
         'whenExit',
-        'onExit'
+        'onExit',
+        '<tosi-b3d-trigger>'
       )?.(this)
       this.dispatchEvent(
         new CustomEvent('exit', { detail: { trigger: this }, bubbles: true })

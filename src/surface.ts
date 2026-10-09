@@ -221,8 +221,6 @@ export interface Surface {
       title?: string
       draggable?: boolean
       handleClose?: () => void
-      /** @deprecated use `handleClose`. */
-      onClose?: () => void
     }
   ) => Popup
   /** Close one popup. */
@@ -346,8 +344,6 @@ export function surface(opts: { width: number; height: number }): Surface {
       title?: string
       draggable?: boolean
       handleClose?: () => void
-      /** @deprecated use `handleClose`. */
-      onClose?: () => void
     } = {}
   ): Popup => {
     const w = contentBox.width
@@ -483,7 +479,12 @@ export function surface(opts: { width: number; height: number }): Surface {
       closeRect: { x: cx, y: cy, width: cs, height: cs },
       close: () => {
         removePanel(p)
-        ;(o.handleClose ?? o.onClose)?.()
+        handlerOf<() => void>(
+          o as Record<string, unknown>,
+          'handleClose',
+          'onClose',
+          'openPanel'
+        )?.()
       },
     }
     panels.push(p)

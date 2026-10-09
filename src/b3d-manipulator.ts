@@ -510,7 +510,8 @@ export class B3dManipulator extends B3dChild {
     handlerOf<(t: ManipulatorTransform) => void>(
       this as unknown as Record<string, unknown>,
       'whenChange',
-      'handleChange'
+      'handleChange',
+      '<tosi-b3d-manipulator>'
     )?.(d.current)
     this.dispatchEvent(
       new CustomEvent('change', { detail: d.current, bubbles: true })
@@ -543,7 +544,8 @@ export class B3dManipulator extends B3dChild {
     handlerOf<(t: ManipulatorTransform) => void>(
       this as unknown as Record<string, unknown>,
       'whenCommit',
-      'handleCommit'
+      'handleCommit',
+      '<tosi-b3d-manipulator>'
     )?.(committed)
     this.dispatchEvent(
       new CustomEvent('commit', { detail: committed, bubbles: true })

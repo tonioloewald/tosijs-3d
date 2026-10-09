@@ -52,12 +52,20 @@ const warnedHandlers = new Set<string>()
 export function handlerOf<T>(
   config: Record<string, unknown>,
   handleName: string,
-  onName: string
+  onName: string,
+  /** Whose option this is (`'<tosi-b3d-trigger>'`), named in the warning. */
+  where?: string
 ): T | undefined {
-  if (typeof config[onName] === 'function' && !warnedHandlers.has(onName)) {
-    warnedHandlers.add(onName)
+  // Keyed on the PAIR: `onEnter` was the old name of two different things
+  // (`handleEnter` on a field, `whenEnter` on a trigger), and keyed on the old
+  // name alone the second one was dropped without a word.
+  const key = `${where ?? ''}:${onName}:${handleName}`
+  if (typeof config[onName] === 'function' && !warnedHandlers.has(key)) {
+    warnedHandlers.add(key)
     console.warn(
-      `tosijs-3d: \`${onName}\` was removed in 0.10 and is IGNORED — use \`${handleName}\`.`
+      `tosijs-3d: ${
+        where ? where + ' ' : ''
+      }\`${onName}\` was removed in 0.10 and is IGNORED — use \`${handleName}\`.`
     )
   }
   const next = config[handleName]

@@ -87,4 +87,14 @@ describe('handlerOf', () => {
     ).toBeUndefined()
     expect(warnings).toHaveLength(0)
   })
+
+  test('one old name with two replacements warns for each', () => {
+    // `onEnter` was `handleEnter` on a field and `whenEnter` on a trigger.
+    const fn = (): void => {}
+    handlerOf({ onEnter: fn }, 'handleEnter', 'onEnter')
+    handlerOf({ onEnter: fn }, 'whenEnter', 'onEnter', '<tosi-b3d-trigger>')
+    expect(warnings).toHaveLength(2)
+    expect(warnings[1]).toContain('<tosi-b3d-trigger>')
+    expect(warnings[1]).toContain('whenEnter')
+  })
 })

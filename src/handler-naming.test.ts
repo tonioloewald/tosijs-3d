@@ -18,9 +18,8 @@ reason. These tests exercise the factories that used to accept ONLY `onX`
 through their NEW names, so a regression is a red test rather than a callback
 that silently never fires.
 
-The deprecated spellings stay covered by the existing suites, which still pass
-them — that is the backward-compatibility half, and it is deliberate that it is
-tested by the old tests rather than duplicated here.
+The old spellings were removed in 0.10. That they are ignored, and reported,
+is pinned in handler-of.test.ts and handler-rename.test.ts.
 */
 
 let T: typeof import('./table.js')

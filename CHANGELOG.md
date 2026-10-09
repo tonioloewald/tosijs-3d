@@ -8,9 +8,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.10.0 (unreleased)
 
-**The deprecated names are gone.** Nothing new: this version only removes what
-0.8 and 0.9 said would be removed, so the rename is one step and not mixed in
-with anything else. [Migration.md](./Migration.md) has every pair.
+**A quality release: the deprecated names are gone, and a long list of bugs
+with them.** No new features. Most of what breaks was announced in 0.8 and
+0.9; three things were not, and are listed below with the rest:
+`new MersenneTwister()` without a seed, `WorldStore` queries returning copies,
+and `surface.openPanel`'s `onClose`. [Migration.md](./Migration.md) has every
+pair and what to do.
 
 ### ⚠️ Breaking
 
@@ -31,11 +34,13 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   driver could change the simulation by writing to what a query returned.
   Code that relied on that (deliberately or not) must call a command instead.
   The engine's own systems read `store.liveState`.
-
-### Changed
-
-- `surface.openPanel` takes `handleClose`. Its `onClose` was never announced
-  as deprecated, so it still works for now.
+  A copy is made on every call, so read once per frame, not once per entity.
+- **A store passed to the conformance kit must implement
+  `chooseOption(choiceId, optionId)`.** The kit now covers the choice
+  primitive and calls it.
+- **`surface.openPanel({ onClose })` is `handleClose`.** This one was never
+  announced: it was the last `onX` option in the library and follows the same
+  rule now (ignored, with a warning).
 
 ### Fixed
 
@@ -47,8 +52,7 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   is legacy (`steer` is what the sim honours).
 - The conformance kit covers the choice primitive: a pick emits exactly one
   `choiceMade`, an option that is not on the menu emits nothing, a choice is
-  reported once, and the sim resolves nothing. A conformant store must now
-  have `chooseOption(choiceId, optionId)`.
+  reported once, and the sim resolves nothing.
 - **A bomb that goes off on terrain now hurts what is above it.** The blast's
   line of sight started on (or just under) the surface it hit, so the terrain
   was cover for everything and a ground burst damaged nothing. A burst near a

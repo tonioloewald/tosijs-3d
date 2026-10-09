@@ -760,7 +760,7 @@ export class B3dDecorator extends B3dChild {
         } model name(s) in the rules are not in the library, so nothing is placed for them (first: "${
           missing[0]
         }"). The library is ${
-          this.url || "the default 'quaternius/libraries/nature.glb'"
+          this.url || `the default '${DEFAULT_LIBRARY}'`
         }. Rules written for Kenney's kit need url set to that kit.`
       )
     }
