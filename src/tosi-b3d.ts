@@ -364,6 +364,7 @@ import {
 } from './b3d-quality.js'
 import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import { ProjectedAoController } from './b3d-ssao-projected.js'
+import { costSweep, formatSweep, type SweepRow } from './cost-sweep.js'
 import {
   allocateAmbient,
   ratchetPool,
@@ -2553,6 +2554,36 @@ export class B3d extends Component {
   }
 
   private _statsBaseScale: number | null = null
+  private _sweepLines: string[] = []
+  private _sweepNow: string | null = null
+  /** The rows of the last {@link costSweep}, for reading over a debug bridge. */
+  lastCostSweep: SweepRow[] = []
+
+  /**
+   * Where this scene's frame goes, measured here: see [[cost-sweep]]. Also the
+   * **Cost sweep** button in Perf Stats, so it runs inside a headset session.
+   */
+  async costSweep(seconds = 2): Promise<SweepRow[]> {
+    if (this.scene == null) return []
+    const rate = (this as any).frameRate
+    const rows = await costSweep(this.scene, {
+      seconds,
+      xr: this.xrHelper,
+      // The render throttle would be what is measured, not the scene.
+      unthrottle: (on) => {
+        ;(this as any).frameRate = on ? 1000 : rate
+      },
+      progress: (name, done, total) => {
+        this._sweepNow = name == null ? null : `${done + 1}/${total} ${name}`
+        this._repaintPanels()
+      },
+    })
+    this._sweepLines = formatSweep(rows)
+    this.lastCostSweep = rows
+    console.log('cost sweep\n' + this._sweepLines.join('\n'))
+    this._repaintPanels()
+    return rows
+  }
   private _perfMeter: BABYLON.SceneInstrumentation | null = null
   // Which debug tools (Perf Stats + registered sources) are expanded, by id. Empty
   // by default — the panel opens with the debug data collapsed to its icon bar, so
@@ -3345,6 +3376,15 @@ export class B3d extends Component {
           this._repaintPanels()
         },
       }),
+      button3d({
+        label: this._sweepNow ?? 'Cost sweep',
+        handleClick: () => {
+          if (this._sweepNow == null) void this.costSweep().catch(() => {})
+        },
+      }),
+      ...(this._sweepLines.length > 0
+        ? [textBlock3d({ lines: this._sweepLines, muted: true })]
+        : []),
       // One-tap discriminator: swap between the engine's real hardware scaling and
       // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
       // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.

@@ -198,6 +198,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
 - https://3d.tosijs.net/core/ — Core
   one element everything else lives inside. After that: a
+- https://3d.tosijs.net/cost-sweep/ — Cost sweep
+  Where a frame goes, **measured on the device it runs on**. The sweep switches
 - https://3d.tosijs.net/curve/ — curve
   `[0,1]` to itself, as sorted control points, with the editing rules that keep it
 - https://3d.tosijs.net/curve-field/ — Curve editor

@@ -1466,3 +1466,5 @@ export {
   type TwoFingerStep,
   type TouchPoint,
 } from './touch-gesture.js'
+export { costSweep, formatSweep } from './cost-sweep.js'
+export type { SweepRow, SweepOptions } from './cost-sweep.js'
