@@ -2818,6 +2818,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-sphere)",
     "tag": "tosi-b3d-sphere",
+    "summary": "b3d-primitives",
     "attributes": [
       {
         "name": "x"
@@ -2850,19 +2851,28 @@
         "name": "diameter"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#ff0000'"
       },
       {
-        "name": "glow"
+        "name": "glow",
+        "default": "0",
+        "description": "Self-illumination, 0 to 1, as a fraction of `color`. Blooms if the scene has `glowLayerIntensity`"
       },
       {
-        "name": "glowColor"
+        "name": "glowColor",
+        "default": "''",
+        "description": "A different colour for the glow"
       },
       {
-        "name": "mirror"
+        "name": "mirror",
+        "default": "false",
+        "description": "Polished metal that reflects the scene (see [[b3d-reflections]])"
       },
       {
-        "name": "solid"
+        "name": "solid",
+        "default": "'off'",
+        "description": "`'on'`: a character walks into it instead of through it"
       },
       {
         "name": "solidProxy"
@@ -2872,6 +2882,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-box)",
     "tag": "tosi-b3d-box",
+    "summary": "b3d-primitives",
     "attributes": [
       {
         "name": "x"
@@ -2898,31 +2909,48 @@
         "name": "meshName"
       },
       {
-        "name": "size"
+        "name": "size",
+        "default": "1",
+        "description": "Edge length of a cube"
       },
       {
-        "name": "width"
+        "name": "width",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "height"
+        "name": "height",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "depth"
+        "name": "depth",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#ff0000'"
       },
       {
-        "name": "mirror"
+        "name": "mirror",
+        "default": "false",
+        "description": "Polished metal that reflects the scene (see [[b3d-reflections]])"
       },
       {
-        "name": "glow"
+        "name": "glow",
+        "default": "0",
+        "description": "Self-illumination, 0 to 1, as a fraction of `color`. Blooms if the scene has `glowLayerIntensity`"
       },
       {
-        "name": "glowColor"
+        "name": "glowColor",
+        "default": "''",
+        "description": "A different colour for the glow"
       },
       {
-        "name": "solid"
+        "name": "solid",
+        "default": "'off'",
+        "description": "`'on'`: a character walks into it instead of through it"
       },
       {
         "name": "solidProxy"
@@ -2932,6 +2960,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-ground)",
     "tag": "tosi-b3d-ground",
+    "summary": "b3d-primitives",
     "attributes": [
       {
         "name": "x"
@@ -2958,22 +2987,33 @@
         "name": "meshName"
       },
       {
-        "name": "size"
+        "name": "size",
+        "default": "1",
+        "description": "Edge length of a cube"
       },
       {
-        "name": "width"
+        "name": "width",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "height"
+        "name": "height",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#ff0000'"
       },
       {
-        "name": "texture"
+        "name": "texture",
+        "default": "''",
+        "description": "An image URL, or `'checker'` (a ruler you can count) or `'noise'` (mottled natural ground)"
       },
       {
-        "name": "textureTiles"
+        "name": "textureTiles",
+        "default": "8",
+        "description": "Repeats across the plane; for `'noise'`, the number of features"
       }
     ]
   },

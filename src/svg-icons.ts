@@ -96,7 +96,7 @@ rule-prefixes.
 ## The set
 
 The artwork lives in `icons/{color,stroked,filled}/*.svg`; `bun run icons`
-regenerates [[icon-data]] via tosijs-ui's `tosijs-make-icons` generator (folder
+regenerates `icon-data.ts` via tosijs-ui's `tosijs-make-icons` generator (folder
 name → default fill/stroke/color handling). Add an SVG, rerun, done. Notable
 marks: `tosijs3d` (the brand cube), `xrColor` (the enter-XR/VR affordance, from
 tosijs-ui), and `tosiXr`.

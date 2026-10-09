@@ -1,7 +1,7 @@
 /*#
 # xr-gamepad
 
-`XrGamepadSource` adapts the live XR controllers (from [[gamepad]]'s
+`XrGamepadSource` adapts the live XR controllers (from `gamepad.ts`'s
 `xrControllers()`) to a [[virtual-gamepad]] `VirtualGamepad`, so XR input flows
 through the *same* spine as the keyboard, hardware pad, and on-screen glass
 gamepad. Add it to the active `MappedInputProvider` and whatever a controllable's

@@ -11,4 +11,5 @@
 - [b3d-biped](/b3d-biped/)
 - [b3d-car](/b3d-car/)
 - [mantle](/mantle/)
+- [fly-by-wire](/fly-by-wire/)
 <!-- /toc -->

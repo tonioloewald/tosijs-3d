@@ -28,7 +28,7 @@ than legs moving. Override the upper body wholesale and you delete it — the le
 swing under a dead trunk, which is the single most recognisable "layered
 animation" failure.
 
-That is why [[MaskMode]] defaults to **additive**: an aim clip applied as a
+That is why `MaskMode` defaults to **additive**: an aim clip applied as a
 DELTA from its own reference pose preserves whatever the locomotion was doing
 underneath, so the counter-rotation survives and the aim rides on top. Override
 is offered because sometimes you genuinely want to replace — a reload that must

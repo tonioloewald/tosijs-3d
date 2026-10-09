@@ -37,5 +37,6 @@
 - [biome-plugin](/biome-plugin/)
 - [patch-field](/patch-field/)
 - [slope-profile](/slope-profile/)
+- [terrain-grid](/terrain-grid/)
 - [cloud-field](/cloud-field/)
 <!-- /toc -->

@@ -5,6 +5,7 @@
 <!-- toc -->
 - [b3d](/tosi-b3d/)
 - [b3d-elevator](/b3d-elevator/)
+- [b3d-primitives](/b3d-primitives/)
 - [library-mesh](/library-mesh/)
 - [b3d-prop](/b3d-prop/)
 - [make-mesh](/make-mesh/)

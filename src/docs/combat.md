@@ -15,4 +15,9 @@ Damage, destruction, and weapons — pure deterministic models (`destroyable` /
 - [b3d-warhead](/b3d-warhead/)
 - [destroyable-behavior](/destroyable-behavior/)
 - [radar.ts](/radar/)
+- [ballistics](/ballistics/)
+- [guidance](/guidance/)
+- [warhead](/warhead/)
+- [destroyable](/destroyable/)
+- [resource](/resource/)
 <!-- /toc -->

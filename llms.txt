@@ -114,6 +114,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
 - https://3d.tosijs.net/b3d-planet/ — b3d-planet
   Procedural planet mesh using a subdivided cube projected onto a sphere.
+- https://3d.tosijs.net/b3d-primitives/ — b3d-primitives
+  something in a scene: no model file, a material already on it, and it casts
 - https://3d.tosijs.net/b3d-probe/ — b3d-probe
   `<tosi-b3d-probe>` — a device-capability probe. Drop it anywhere (a landing page is
 - https://3d.tosijs.net/b3d-prop/ — b3d-prop
@@ -154,6 +156,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Water plane with reflections, waves, and underwater fog effect.
 - https://3d.tosijs.net/b3d-weather-cell/ — b3d-weather-cell
   declared as a circle on the map with what it adds at its centre. Weather
+- https://3d.tosijs.net/ballistics/ — ballistics
+  same integrator flies the live projectile and draws the bomb sight, so the arc
 - https://3d.tosijs.net/biome-chart/ — biome-chart
   The **pure biome-classification model** under the procedural terrain shader
 - https://3d.tosijs.net/biome-plugin/ — biome-plugin
@@ -199,6 +203,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/demos/ — Demos
   Whole scenes you can walk around in, rather than one component at a time.
+- https://3d.tosijs.net/destroyable/ — destroyable
+  destroyables by id and resolves damage, armour, protection, regeneration and
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
@@ -209,6 +215,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math — the CSS block + inline-block model, in SVG user
+- https://3d.tosijs.net/fly-by-wire/ — fly-by-wire
+  becomes a plane": the stick commands an attitude (bank and pitch), the model
 - https://3d.tosijs.net/footprint-field/ — Footprint editor
   drawn inside a square, vertices you drag where they actually are. The rules live
 - https://3d.tosijs.net/formations/ — formations
@@ -227,6 +235,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
 - https://3d.tosijs.net/glb-manifest/ — glb-manifest
   chunk holds attribution (`asset.extras`) and, for libraries built by
+- https://3d.tosijs.net/gradient-filter/ — gradient-filter
+  0..1 through a list of control points, with straight lines between them.
+- https://3d.tosijs.net/guidance/ — guidance
+  round, one leads a gun, and both are used by [[b3d-launcher]] and
 - https://3d.tosijs.net/handler-of/ — handlerOf
   `onX` was removed in 0.10: it is no longer called, and passing one says so in
 - https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
@@ -298,6 +310,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/perlin-noise/ — perlin-noise
+  is what terrain, clouds and everything else procedural here is built on.
 - https://3d.tosijs.net/picker/ — picker
   scroll for five hundred; this is the other end. It composes controls that
 - https://3d.tosijs.net/popup-chrome/ — popup-chrome
@@ -314,6 +328,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/resource/ — resource
+  destroyable's health and a launcher's energy: it regenerates, but only once it
 - https://3d.tosijs.net/rocket-ascent/ — Rocket Ascent
   through the cloud deck, and keeps going until the air runs out and the stars
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
@@ -353,6 +369,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
 - https://3d.tosijs.net/table-layout/ — table-layout
   The **pure geometry behind a data table** — column widths, and which rows are worth
+- https://3d.tosijs.net/terrain-grid/ — terrain-grid
+  streamed level-of-detail tiles: where a tile sits in the world, which world
 - https://3d.tosijs.net/terrain-editor/ — terrainEditor3d
   unit and enum comes from `sceneSchemas.terrain()`, so the control cannot
 - https://3d.tosijs.net/text-edit/ — text-edit
@@ -381,6 +399,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   BRIGHT stars, one for its DIM stars. The bright pass is global (the stars you
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
+- https://3d.tosijs.net/warhead/ — warhead
+  is either DIRECT (a fixed amount to the one thing it hit) or AREA: full damage
 - https://3d.tosijs.net/water-normal/ — water-normal
   field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
 - https://3d.tosijs.net/water-shore/ — water-shore

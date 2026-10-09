@@ -13,4 +13,6 @@
 - [portal-transform](/portal-transform/)
 - [icon-name](/icon-name/)
 - [mersenne-twister](/mersenne-twister/)
+- [perlin-noise](/perlin-noise/)
+- [gradient-filter](/gradient-filter/)
 <!-- /toc -->

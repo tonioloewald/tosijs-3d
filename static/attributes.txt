@@ -722,6 +722,7 @@ b3d-planet
   rotationSpeed  = 0  — Auto-rotation speed (radians/sec)
 
 ## b3d-primitives (tosi-b3d-sphere) — <tosi-b3d-sphere>
+b3d-primitives
 
   x
   y
@@ -733,14 +734,15 @@ b3d-planet
   meshName
   segments
   diameter
-  color
-  glow
-  glowColor
-  mirror
-  solid
+  color  = '#ff0000'
+  glow  = 0  — Self-illumination, 0 to 1, as a fraction of `color`. Blooms if the scene has `glowLayerIntensity`
+  glowColor  = ''  — A different colour for the glow
+  mirror  = false  — Polished metal that reflects the scene (see [[b3d-reflections]])
+  solid  = 'off'  — `'on'`: a character walks into it instead of through it
   solidProxy
 
 ## b3d-primitives (tosi-b3d-box) — <tosi-b3d-box>
+b3d-primitives
 
   x
   y
@@ -750,18 +752,19 @@ b3d-planet
   rz
   axes
   meshName
-  size
-  width
-  height
-  depth
-  color
-  mirror
-  glow
-  glowColor
-  solid
+  size  = 1  — Edge length of a cube
+  width  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
+  height  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
+  depth  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
+  color  = '#ff0000'
+  mirror  = false  — Polished metal that reflects the scene (see [[b3d-reflections]])
+  glow  = 0  — Self-illumination, 0 to 1, as a fraction of `color`. Blooms if the scene has `glowLayerIntensity`
+  glowColor  = ''  — A different colour for the glow
+  solid  = 'off'  — `'on'`: a character walks into it instead of through it
   solidProxy
 
 ## b3d-primitives (tosi-b3d-ground) — <tosi-b3d-ground>
+b3d-primitives
 
   x
   y
@@ -771,12 +774,12 @@ b3d-planet
   rz
   axes
   meshName
-  size
-  width
-  height
-  color
-  texture
-  textureTiles
+  size  = 1  — Edge length of a cube
+  width  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
+  height  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
+  color  = '#ff0000'
+  texture  = ''  — An image URL, or `'checker'` (a ruler you can count) or `'noise'` (mottled natural ground)
+  textureTiles  = 8  — Repeats across the plane; for `'noise'`, the number of features
 
 ## b3d-probe — <tosi-b3d-probe>
 b3d-probe

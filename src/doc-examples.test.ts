@@ -389,3 +389,66 @@ describe('a published MARKDOWN doc has no live fences', () => {
     ).toEqual([])
   })
 })
+
+describe('the doc site hangs together', () => {
+  /*
+  Two ways a page goes missing without anyone being told.
+
+  A LINK TO A PAGE THAT DOES NOT EXIST: a doc links another module by file
+  (the `?name.ts` and double-bracket forms) or by slug, and the link is only
+  as good as that module having a doc comment. Seventeen shipped dead, because
+  the flight model, ballistics, guidance and noise had no page at all.
+
+  A PARENT THAT IS NOT A CATEGORY: `"parent": "environment"` beside thirty
+  pages saying `"Environment"`. Fifteen pages had one.
+  */
+  const dir = new URL('.', import.meta.url).pathname
+  const files = readdirSync(dir).filter(
+    (f) => f.endsWith('.ts') && !f.includes('.test.')
+  )
+  const sources = new Map(
+    files.map((f) => [f, readFileSync(`${dir}${f}`, 'utf8')] as const)
+  )
+  const landing = readdirSync(`${dir}docs`).filter((f) => f.endsWith('.md'))
+  const pages = new Set<string>([
+    ...files
+      .filter((f) => (sources.get(f) ?? '').includes('/' + '*#'))
+      .map((f) => f.slice(0, -3)),
+    ...landing.map((f) => f.slice(0, -3)),
+  ])
+
+  test('every in-site link names a page that exists', () => {
+    const dead: string[] = []
+    const LINK = /\]\(\?([\w-]+)\.ts\)|\[\[([\w-]+)\]\]|\]\(\/([a-z0-9-]+)\/\)/g
+    const scan = (name: string, text: string) => {
+      for (const m of text.matchAll(LINK)) {
+        const target = m[1] ?? m[2] ?? m[3]
+        if (!pages.has(target) && !pages.has(target.toLowerCase())) {
+          dead.push(`${name} -> ${target}`)
+        }
+      }
+    }
+    for (const [f, src] of sources) {
+      for (const block of src.matchAll(/\/\*#([\s\S]*?)\*\//g))
+        scan(f, block[1])
+    }
+    for (const f of landing) scan(f, readFileSync(`${dir}docs/${f}`, 'utf8'))
+    expect([...new Set(dead)]).toEqual([])
+  })
+
+  test("every page's parent is a category that exists, spelled the same way", () => {
+    const titles = new Set(
+      landing.map((f) => {
+        const m = /^# (.+)$/m.exec(readFileSync(`${dir}docs/${f}`, 'utf8'))
+        return m?.[1].trim() ?? ''
+      })
+    )
+    const bad: string[] = []
+    for (const [f, src] of sources) {
+      for (const m of src.matchAll(/\/\*\{[^}]*"parent":\s*"([^"]+)"/g)) {
+        if (!titles.has(m[1])) bad.push(`${f}: "${m[1]}"`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+})
