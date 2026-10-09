@@ -68,7 +68,7 @@ one unbounded member makes a whole `mergeProvinces`/`composeLandforms`
 unbounded, because a box around only the members that declared one is a promise
 nobody made.
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "Environment" }*/
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 const smooth = (t: number) => {

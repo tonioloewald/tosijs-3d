@@ -251,7 +251,7 @@ by `b3d-clouds` painting blob positions into a moving window. Pointing it at
 this field instead, with the same live `coverage` uniform, is what makes the
 shade underfoot belong to the cloud overhead rather than merely resemble it.
 */
-/*{ "parent": "environment", "order": 502 }*/
+/*{ "parent": "Environment", "order": 502 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
@@ -922,6 +922,7 @@ function freshWeatherKey(): {
 }
 
 export class B3dCloudDeck extends B3dChild {
+  static preferredTagName = 'tosi-b3d-cloud-deck'
   static initAttributes = {
     altitude: 140,
     /**
@@ -2797,6 +2798,4 @@ export class B3dCloudDeck extends B3dChild {
   }
 }
 
-export const b3dCloudDeck = B3dCloudDeck.elementCreator({
-  tag: 'tosi-b3d-cloud-deck',
-})
+export const b3dCloudDeck = B3dCloudDeck.elementCreator()

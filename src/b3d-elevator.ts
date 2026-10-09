@@ -43,6 +43,7 @@ import { AbstractMesh, sceneDelta } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 
 export class B3dElevator extends AbstractMesh {
+  static preferredTagName = 'tosi-b3d-elevator'
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     meshName: 'elevator',
@@ -257,6 +258,4 @@ export class B3dElevator extends AbstractMesh {
   }
 }
 
-export const b3dElevator = B3dElevator.elementCreator({
-  tag: 'tosi-b3d-elevator',
-})
+export const b3dElevator = B3dElevator.elementCreator()

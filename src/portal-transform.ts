@@ -44,7 +44,7 @@ tests rather than three lines inside a render loop.
 - **Stencil / framing.** Keeping the view inside the doorway is a rendering
   concern.
 */
-/*{ "parent": "utilities" }*/
+/*{ "parent": "Utilities" }*/
 
 import {
   add,

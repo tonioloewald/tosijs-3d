@@ -52,7 +52,7 @@ mapped onto two circles in 4D and read from 3D noise, so the field wraps in both
 axes with no seam to hide. A cloud deck has to repeat — it covers the sky — and
 a visible tile boundary is worse than no clouds.
 */
-/*{ "parent": "environment", "order": 920 }*/
+/*{ "parent": "Environment", "order": 920 }*/
 
 import { PerlinNoise } from './perlin-noise.js'
 

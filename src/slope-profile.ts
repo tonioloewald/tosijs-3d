@@ -29,7 +29,7 @@ origin safe), plain `evaluate(t)` filters work unchanged.
 | `mesaProfile` | quantized steps (alias of `plateauFilter`) | mesas, mid-level plateaus |
 | `terraceProfile` | steps with sloped risers | terraced hills |
 */
-/*{ "parent": "environment", "order": 900 }*/
+/*{ "parent": "Environment", "order": 900 }*/
 
 import {
   PiecewiseLinearFilter,

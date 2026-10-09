@@ -225,7 +225,7 @@ b3d-car
   turnRate  = 90  — Degrees per second at full speed
   friction  = 3  — Deceleration when coasting
 
-## b3d-cloud-deck
+## b3d-cloud-deck — <tosi-b3d-cloud-deck>
 b3d-cloud-deck
 
   altitude  = 140  — Height of the deck. Moving it is ONE number
@@ -233,15 +233,13 @@ b3d-cloud-deck
   subdivisions  = 64  — Grid resolution — see "A grid, not a quad"
   coverage  = 0.5  — Clear `0` → solid `1` → thickening to `2`. LIVE, and shared with the shadow
   thickenDepth  = 900  — MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`
+  seed  = 1337  — Same seed, same weather
+  frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
   wind  = 8  — Metres per second the deck drifts. Nothing rebakes
   windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
   follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not
-  ambientGloomBelow  = 0.7  — `transmission` below which the AMBIENT fill starts to go. `0` disables
-  ambientGloom  = 0.45  — How far the ambient may be taken down
-  sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
-  sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
   stormRise  = 0  — Opt-in STORM TOWER: how far the top skin rises over a cell whose coverage passes 1 (domed). Off by default: a storm is more cover and lightning, not geometry of its own — lightning lights the underside from below, the whiteout from inside, and the top from above
   localCoverage  = 1  — How much a unit of local weather adds to `coverage`. What the field does BELOW an overcast
@@ -250,12 +248,14 @@ b3d-cloud-deck
   shadows  = 'on'  — Cloud shadows on the ground
   shadowResolution  = 0  — Shadow texture size. Deliberately coarser than the cloud — a soft cue does not need the detail
   shadowRange  = 6000  — Width in metres of the shadow window, centred on the camera
+  ambientGloomBelow  = 0.7  — `transmission` below which the AMBIENT fill starts to go. `0` disables
+  ambientGloom  = 0.45  — How far the ambient may be taken down
+  sunGloomBelow  = 0.25  — `transmission` below which the SUN starts to go — later than the ambient, on purpose
+  sunGloom  = 0.65  — How far the sun may be taken down at zero transmission
   shadowStrength  = 0.75  — Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow
   transmission  = -1  — How much light comes THROUGH: `0` storm-dark underside, `1` glowing. `-1` = auto from `coverage`
   thickness  = 180  — Whiteout depth at FULL coverage. Thinner skies scale it down — passing through always whites out, coverage decides for how long
   haze  = 0.6  — How much the air under the deck takes the cloud's colour. Hides the rim
-  seed  = 1337  — Same seed, same weather
-  frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   octaves  = 6  — Detail octaves. Billow needs more than fBm — folding eats fine structure
   fieldSize  = 1024  — Texels per edge of the baked density field. More texels = finer cloud, 1 byte each
   period  = 1800  — Metres per repeat of the field — the size of the CLOUDS, independent of the size of the deck
@@ -383,9 +383,17 @@ b3d-destroyable
   blastRadius
   blastDelay
 
-## b3d-elevator
+## b3d-elevator — <tosi-b3d-elevator>
 b3d-elevator
 
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
+  meshName
   mode  = 'cycle'  — `'cycle'` runs forever; `'pressure'` moves while something stands on it; `'switch'` waits for `call()`
   travel  = 3  — Metres between the bottom stop and the top
   stops  = 2  — How many stops, evenly spaced. `2` is bottom and top

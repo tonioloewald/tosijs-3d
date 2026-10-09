@@ -870,6 +870,7 @@
   },
   {
     "module": "b3d-cloud-deck",
+    "tag": "tosi-b3d-cloud-deck",
     "summary": "b3d-cloud-deck",
     "attributes": [
       {
@@ -898,6 +899,16 @@
         "description": "MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`"
       },
       {
+        "name": "seed",
+        "default": "1337",
+        "description": "Same seed, same weather"
+      },
+      {
+        "name": "frequency",
+        "default": "3",
+        "description": "Field repeats across its own width. Higher = smaller puffs"
+      },
+      {
         "name": "cirrus",
         "default": "0",
         "description": "Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field"
@@ -921,26 +932,6 @@
         "name": "follow",
         "default": "'on'",
         "description": "Keep the deck centred under the camera. A deck is finite; the world is not"
-      },
-      {
-        "name": "ambientGloomBelow",
-        "default": "0.7",
-        "description": "`transmission` below which the AMBIENT fill starts to go. `0` disables"
-      },
-      {
-        "name": "ambientGloom",
-        "default": "0.45",
-        "description": "How far the ambient may be taken down"
-      },
-      {
-        "name": "sunGloomBelow",
-        "default": "0.25",
-        "description": "`transmission` below which the SUN starts to go — later than the ambient, on purpose"
-      },
-      {
-        "name": "sunGloom",
-        "default": "0.65",
-        "description": "How far the sun may be taken down at zero transmission"
       },
       {
         "name": "localRise",
@@ -983,6 +974,26 @@
         "description": "Width in metres of the shadow window, centred on the camera"
       },
       {
+        "name": "ambientGloomBelow",
+        "default": "0.7",
+        "description": "`transmission` below which the AMBIENT fill starts to go. `0` disables"
+      },
+      {
+        "name": "ambientGloom",
+        "default": "0.45",
+        "description": "How far the ambient may be taken down"
+      },
+      {
+        "name": "sunGloomBelow",
+        "default": "0.25",
+        "description": "`transmission` below which the SUN starts to go — later than the ambient, on purpose"
+      },
+      {
+        "name": "sunGloom",
+        "default": "0.65",
+        "description": "How far the sun may be taken down at zero transmission"
+      },
+      {
         "name": "shadowStrength",
         "default": "0.75",
         "description": "Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow"
@@ -1001,16 +1012,6 @@
         "name": "haze",
         "default": "0.6",
         "description": "How much the air under the deck takes the cloud's colour. Hides the rim"
-      },
-      {
-        "name": "seed",
-        "default": "1337",
-        "description": "Same seed, same weather"
-      },
-      {
-        "name": "frequency",
-        "default": "3",
-        "description": "Field repeats across its own width. Higher = smaller puffs"
       },
       {
         "name": "octaves",
@@ -1472,8 +1473,33 @@
   },
   {
     "module": "b3d-elevator",
+    "tag": "tosi-b3d-elevator",
     "summary": "b3d-elevator",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "meshName"
+      },
       {
         "name": "mode",
         "default": "'cycle'",

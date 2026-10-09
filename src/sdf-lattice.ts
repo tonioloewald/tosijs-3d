@@ -272,7 +272,7 @@ one owner, so chunks tile without overlapping geometry — while still computing
 the neighbouring cells' vertices (the one-cell apron) so the boundary quad has
 real corners.
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "Environment" }*/
 
 /** Signed distance/density field: negative inside solid, 0 at the surface. */
 export type SdfField = (x: number, y: number, z: number) => number
