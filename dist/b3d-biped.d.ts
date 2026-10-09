@@ -499,6 +499,8 @@ export declare class B3dBiped extends B3dControllable {
     /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
     private _camZoom;
     private _waterEl;
+    /** Which side of weight-bearing ice we are on; see water-shore's `iceSide`. */
+    private _iceSide;
     /**
      * Surface height of the scene's water, or `null` if there is none.
      *

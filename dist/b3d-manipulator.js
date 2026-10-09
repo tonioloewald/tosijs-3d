@@ -119,7 +119,7 @@ preview.append(
 fires once on release, snapped, and only when something actually changed — which
 is your undo step. Both also dispatch a DOM `change` / `commit` event carrying
 the transform in `detail`. (`handleChange`/`handleCommit` were the names until
-0.8.4 — they still work, warn once, and go in 0.9: a COMPONENT's callbacks are
+0.8.4 — they still work, warn once, and go in 0.10: a COMPONENT's callbacks are
 `when*`.)
 
 ## Scale is exclusive of move and turn
@@ -209,9 +209,9 @@ export class B3dManipulator extends B3dChild {
     whenChange = null;
     /** Once on release, snapped, and only when something changed. */
     whenCommit = null;
-    /** @deprecated use `whenChange` — removed in 0.9. */
+    /** @deprecated use `whenChange` — removed in 0.10. */
     handleChange = null;
-    /** @deprecated use `whenCommit` — removed in 0.9. */
+    /** @deprecated use `whenCommit` — removed in 0.10. */
     handleCommit = null;
     /** The node being manipulated. Set this directly to skip `target`. */
     node = null;

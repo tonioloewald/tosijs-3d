@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=061930568918" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
   <title>Migration — tosijs-3d</title>
   <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
   <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=0dbf7fda9879" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Migration</h1>
 <!--{ "order": 2 }-->
@@ -53,6 +53,60 @@ else is additive. The full detail for each is in <a href="./CHANGELOG.md">CHANGE
 <p>This file ships <strong>inside the package</strong>, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.</p>
+<h2>0.8.15 → 0.9.0</h2>
+<h3>1. <code>biomeTemperature</code> is in degrees now: 0 is 0 °C, 1 is 50 °C</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-terrain biomeTemperature&gt;</code> used to be the biome
+chart&#39;s own axis: <code>0…1</code>, cold to warm, with <code>-1</code> meaning &quot;use the default&quot;.
+It is now a temperature: <code>0</code> is 0 °C and each unit is 50 °C, so <code>-1</code> is
+-50 °C, and the value is not limited to any range. The default is <code>0.45</code>
+(22.5 °C), which is the same climate as before.</p>
+<p><strong>Who is affected.</strong> Anyone who sets <code>biomeTemperature</code>. An old value is read
+on the new scale and comes out much warmer: <code>0.3</code> used to be about -4 °C and
+is now 15 °C. <code>-1</code> used to mean the default and is now -50 °C.</p>
+<p><strong>What to do.</strong> Convert each value: <code>new = (old - 0.36) / 0.8</code>. Replace <code>-1</code>
+with <code>0.45</code>, or delete the attribute.</p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+<th>Climate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>-1</code> (auto)</td>
+<td><code>0.45</code></td>
+<td>22.5 °C</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td><code>0.8</code></td>
+<td>40 °C</td>
+</tr>
+<tr>
+<td><code>0.72</code></td>
+<td><code>0.45</code></td>
+<td>22.5 °C</td>
+</tr>
+<tr>
+<td><code>0.36</code></td>
+<td><code>0</code></td>
+<td>0 °C</td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td><code>-0.45</code></td>
+<td>-22.5 °C</td>
+</tr>
+</tbody></table>
+<p><code>chartTemperature</code> and <code>planetTemperature</code> (from <code>biome-chart</code>) do the
+conversion in code. Only this attribute moved. <code>BiomePlugin.params</code>, the
+province climate curves and the decorator&#39;s rule bands are still in chart
+units.</p>
+<h3>2. Nothing else is removed, including what was promised</h3>
+<p>The deprecated <code>onX</code> callback names (and the other names announced as
+&quot;removed in 0.9&quot;) still work in 0.9.x and warn once. They are removed in
+0.10. Rename when convenient.</p>
 <h2>0.8.14 → 0.8.15</h2>
 <p><strong>Nothing breaks at compile time. Three defaults change what you see.</strong></p>
 <h3>1. The decorator&#39;s default library is Quaternius&#39;, not Kenney&#39;s</h3>
@@ -153,7 +207,8 @@ the string breaks instead of quietly defaulting.</p>
 <code>&#39;false&#39;</code>, rather than comparing to a string yourself.</p>
 <h3>2. Callback options: <code>onX</code> → <code>handleX</code></h3>
 <p>Every callback option in the library now takes <code>handleX</code>. The old <code>onX</code> spelling
-still works, warns <strong>once per name</strong>, and is <strong>removed in 0.9</strong>.</p>
+still works, warns <strong>once per name</strong>, and is <strong>removed in 0.10</strong> (announced
+for 0.9, then kept one more minor).</p>
 <table>
 <thead>
 <tr>
@@ -431,6 +486,7 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
       <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -584,6 +640,6 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8p5cxzfx.js"></script>
+  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
 </body>
 </html>

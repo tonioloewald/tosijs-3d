@@ -25,7 +25,7 @@ export interface BoxChild {
     focusable?: boolean;
     /** Called when the child is activated (pointer up-over, or focus + menu/Enter). */
     handleActivate?: () => void;
-    /** @deprecated use `handleActivate` — removed in 0.9. */
+    /** @deprecated use `handleActivate` — removed in 0.10. */
     onActivate?: () => void;
     /** The box calls this when the child's hover/press/focus state changes. */
     setState?: (state: BoxChildState) => void;
@@ -183,7 +183,7 @@ export declare function inlineItem(el: SVGElement, width: number, height: number
  */
 export declare function button(label: string, opts?: {
     handleActivate?: () => void;
-    /** @deprecated use `handleActivate` — removed in 0.9. */
+    /** @deprecated use `handleActivate` — removed in 0.10. */
     onActivate?: () => void;
     font?: FontSpec;
     color?: string;

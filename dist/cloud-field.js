@@ -76,8 +76,18 @@ export function cloudField(options = {}) {
     tile. That is what makes anisotropy free here: a stretched cloud is the same
     construction read at two scales, not a resampling that has to be re-seamed.
     */
-    const stretchU = cirrus > 0 ? 1 + cirrus * 5 : 1;
-    const stretchV = cirrus < 0 ? 1 - cirrus * 5 : 1;
+    /*
+    NEGATIVE CIRRUS IS POSITIVE CIRRUS TURNED A QUARTER, and it is computed that
+    way: the same field with its two axes swapped. It used to stretch the other
+    axis instead, and the two axes are not built alike (one goes round a full
+    circle in the noise, the other along a single line of it), so the "same"
+    wispiness across the wind had a quarter of the cloud: 5% of the sky over the
+    half-way mark against 20% (Tonio: "negative cirrus seems to reduce cloud
+    cover").
+    */
+    const across = cirrus < 0;
+    const stretchU = 1 + wisp * 5;
+    const stretchV = 1;
     const out = new Float32Array(size * size);
     let min = Infinity;
     let max = -Infinity;
@@ -89,8 +99,8 @@ export function cloudField(options = {}) {
             which is the same construction `water-normal` uses and for the same
             reason.
             */
-            const u = (x / size) * Math.PI * 2;
-            const v = (y / size) * Math.PI * 2;
+            const u = ((across ? y : x) / size) * Math.PI * 2;
+            const v = ((across ? x : y) / size) * Math.PI * 2;
             let amp = 1;
             let freq = frequency;
             let sum = 0;

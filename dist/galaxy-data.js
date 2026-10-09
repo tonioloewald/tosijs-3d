@@ -768,7 +768,7 @@ function inSpiralArmFor(starSeed) {
     return generateStarDetail(starSeed).inSpiralArm;
 }
 /**
- * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.9.
+ * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.10.
  *
  * ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"). This used to be its own
  * generator: one sequential random stream producing the stars, then the

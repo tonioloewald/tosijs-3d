@@ -45,6 +45,19 @@ collapses until ice meets the waterline, exactly as the spec asks, emergent
 from the lapse; **map moisture** — sweep forest → steppe → dune on the same
 terrain. Drag to orbit.
 
+## Two temperature scales
+
+What an author sets (the terrain's `biomeTemperature`, and what the sea ice
+reads) is a **temperature**: `0` is 0 °C and each unit is 50 °C, so `1` is
+50 °C, `-1` is -50 °C, and it does not stop at either end.
+
+The chart on this page is a window onto that. Its `0…1` axis runs from
+-22.5 °C to 40 °C, with freezing at 0.36, and the demo's sliders below are in
+those **chart units**. So are `BiomePlugin.params`, the province climate
+curves, `biomeLapseRate` and the decorator's rule bands. `chartTemperature`
+and `planetTemperature` convert between the two; the terrain converts on the
+way in. Outside the window the chart clamps to its end rows.
+
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,

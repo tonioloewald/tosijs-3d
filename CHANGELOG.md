@@ -11,12 +11,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 **A sea that knows its shore, and a temperature that means one.** The water
 takes the depth and the distance to land from the terrain and draws surf that
 runs in, pale shallows and sea ice; solid ice is solid for everything in the
-scene. Temperature is now in degrees, so the same dial reaches Titan and Venus.
+scene. Temperature is now a real scale (0 is 0 °C, 1 is 50 °C), so the same
+dial reaches Titan and Venus.
+
+Size: barrel (min, packages external) 948.5 KB raw / 318.9 KB gz, +1.75% on
+0.8.15 (the shore model and its shader).
 
 ### ⚠️ Breaking
 
-- **`biomeTemperature` is a temperature.** `0` is 0 °C and each unit is
-  50 °C (`1` = 50 °C, `-1` = -50 °C), with no limit either way, so a world
+- **`biomeTemperature` is a temperature, and `-1` no longer means
+  "default".** `0` is 0 °C and each unit is 50 °C (`1` = 50 °C, `-1` =
+  -50 °C, which warns once in the console), with no limit either way, so a world
   can be as cold as Titan or as hot as Venus. It used to be the biome
   chart's `0…1` axis with `-1` for "default". Convert old values with
   `(old - 0.36) / 0.8`; the default is now `0.45` and looks the same. The
@@ -51,7 +56,10 @@ scene. Temperature is now in degrees, so the same dial reaches Titan and Venus.
   gets colder. It is there from below as well. The sea starts to freeze at
   -2 °C at the beach; open water stays clear to about -8 °C and is one
   unbroken surface by -22.5 °C. `iceCover(temperature, depth)` is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
-  colour on the water mesh is shore data, not a tint.
+  colour on the water mesh is shore data, not a tint. The shader patch is
+  made once for the page, so this holds for EVERY `WaterMaterial` on a page
+  that has one `shore="on"` water: a vertex-coloured water mesh of your own
+  loses its tint there.
 - **Solid ice is solid.** Ice is water until it has knitted solid
   (`iceBears`); where it has, the water carries an invisible collision mesh
   (collision group `ice`), so anything that collides or picks meets it: a

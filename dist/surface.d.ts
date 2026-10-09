@@ -74,7 +74,7 @@ export declare function surface(opts: {
 export interface MenuItem {
     label: string;
     handleSelect?: (item: MenuItem) => void;
-    /** @deprecated use `handleSelect` — removed in 0.9. */
+    /** @deprecated use `handleSelect` — removed in 0.10. */
     onSelect?: (item: MenuItem) => void;
     submenu?: MenuItem[];
 }

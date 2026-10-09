@@ -1,0 +1,5 @@
+import{rp,_i}from"./site-bj6vxf7c.js";import{Dr,lt}from"./site-2dj95bre.js";class Bl extends _i{constructor(t){super(t);this.key=this.registerDataInput("key",Dr),this.keyCode=this.registerDataOutput("keyCode",Dr),this.keyValue=this.registerDataOutput("keyValue",Dr),this.shiftKey=this.registerDataOutput("shiftKey",lt),this.ctrlKey=this.registerDataOutput("ctrlKey",lt),this.altKey=this.registerDataOutput("altKey",lt),this.metaKey=this.registerDataOutput("metaKey",lt),this.commandOrCtrl=this.registerDataOutput("commandOrCtrl",lt)}_executeEvent(t,a){let e=a.event,s=this.key.getValue(t);if(s&&s!==e.code)return!0;return this.keyCode.setValue(e.code,t),this.keyValue.setValue(e.key,t),this.shiftKey.setValue(e.shiftKey,t),this.ctrlKey.setValue(e.ctrlKey,t),this.altKey.setValue(e.altKey,t),this.metaKey.setValue(e.metaKey,t),this.commandOrCtrl.setValue(rp?e.metaKey:e.ctrlKey,t),this._execute(t),!this.config?.stopPropagation}_preparePendingTasks(t){}_cancelPendingTasks(t){}}
+export{Bl};
+
+//# debugId=2F13322ADD0D5D9764756E2164756E21
+//# sourceMappingURL=site-ezmehf50.js.map

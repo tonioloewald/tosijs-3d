@@ -134,6 +134,7 @@ export { clearOfBand, easeDistance, fitChase, fitDistance, forceFirstPerson, typ
 export { playground, type PlaygroundOptions } from './playground.js';
 export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js';
 export { B3dDecorator, b3dDecorator } from './b3d-decorator.js';
+export { shoreGrid, shoreGridLines, shoreData, iceCover, iceSolid, iceBears, iceSide, ICE_BEARS, SHORE_DISTANCE_MAX, type IceSide, type ShoreGrid, } from './water-shore.js';
 export { rockGeometry, rockFromName, rockNames, ROCK_KINDS, type RockOptions, type RockGeometry, } from './procedural-rock.js';
 export { scatterPlacements, clumpAt, autoClumpSize, NATURE_RULES, NATURE_ROLES, roleFor, type DecorationRole, ROCK_RULES, NearIndex, NATURE_KIT_RULES, type ScatterRule, type ScatterClimate, type ScatterOptions, type Placement, } from './scatter.js';
 export { cloudField, cloudOpacity, type CloudFieldOptions, } from './cloud-field.js';
@@ -242,7 +243,7 @@ export type { ColumnSpec, ColumnRect, RowWindow } from './table-layout.js';
 export type { FocusTarget, FocusPulse, GamepadFocusOptions, } from './gamepad-focus.js';
 export type { Keyboard, InputField, KeyboardOptions, InputFieldOptions, } from './keyboard.js';
 export type { KeyboardMode, KeyAction, KeyDef, KeyRect } from './key-layout.js';
-export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, } from './biome-chart.js';
+export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, chartTemperature, planetTemperature, CELSIUS_PER_UNIT, } from './biome-chart.js';
 export type { BiomeChartConfig } from './biome-chart.js';
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
 export type { LocalizedFilter } from './slope-profile.js';

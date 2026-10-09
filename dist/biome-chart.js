@@ -45,6 +45,19 @@ collapses until ice meets the waterline, exactly as the spec asks, emergent
 from the lapse; **map moisture** — sweep forest → steppe → dune on the same
 terrain. Drag to orbit.
 
+## Two temperature scales
+
+What an author sets (the terrain's `biomeTemperature`, and what the sea ice
+reads) is a **temperature**: `0` is 0 °C and each unit is 50 °C, so `1` is
+50 °C, `-1` is -50 °C, and it does not stop at either end.
+
+The chart on this page is a window onto that. Its `0…1` axis runs from
+-22.5 °C to 40 °C, with freezing at 0.36, and the demo's sliders below are in
+those **chart units**. So are `BiomePlugin.params`, the province climate
+curves, `biomeLapseRate` and the decorator's rule bands. `chartTemperature`
+and `planetTemperature` convert between the two; the terrain converts on the
+way in. Outside the window the chart clamps to its end rows.
+
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
@@ -223,6 +236,31 @@ export function planetaryAxes(p, cfg, tNoise = 0, mNoise = 0, latWarpNoise = 0) 
     const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75;
     const moisture = underwater ? landM + (1 - landM) * mGate : landM;
     return { temperature, moisture, latitude };
+}
+/**
+ * THE TEMPERATURE SCALE: `0` is 0 °C and each unit is 50 °C, so `1` is 50 °C,
+ * `-1` is -50 °C, and it does not stop at either end (Titan is about -3.6,
+ * Venus about 9.3). This is what an author sets: the terrain's
+ * `biomeTemperature`, and what the ice rule reads.
+ *
+ * The CHART is a window onto it. Its `0…1` axis runs from -22.5 °C to 40 °C
+ * (freezing sits at 0.36), and everything inside the biome shader, the
+ * province climate curves and the decorator's bands is still in those chart
+ * units. Outside the window the chart clamps to its end rows; the number
+ * itself is kept, so colder is still colder.
+ */
+export const CELSIUS_PER_UNIT = 50;
+/** The chart coordinate of 0 °C. */
+export const CHART_ZERO = 0.36;
+/** Chart units per temperature unit. */
+export const CHART_SPAN = 0.8;
+/** Temperature (0 = 0 °C, 1 = 50 °C) → the chart's coordinate, unclamped. */
+export function chartTemperature(temperature) {
+    return CHART_ZERO + CHART_SPAN * temperature;
+}
+/** A chart coordinate → temperature (0 = 0 °C, 1 = 50 °C). */
+export function planetTemperature(chart) {
+    return (chart - CHART_ZERO) / CHART_SPAN;
 }
 /** Axes → clamped chart coordinates (u = temperature, v = moisture, 0..1). */
 export function chartUV(temperature, moisture) {

@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=061930568918" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
   <title>Land and Sky — tosijs-3d</title>
   <meta name="description" content="THE KITCHEN SINK — one world that grows with the world-sim layer. Terrain (with live dials), a sea, weather over both, and the encoded sky behind." />
   <link rel="canonical" href="https://3d.tosijs.net/land-and-sky/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=0dbf7fda9879" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Land and Sky</h1>
 <p><strong>THE KITCHEN SINK</strong> — one world that grows with the world-sim layer. Terrain
@@ -76,7 +76,8 @@ const { demo } = tosi({
     // chart&#39;s default 0.45 sits between the dry row (dune) and the medium
     // row (steppe), which is why a warm world with a coral reef below the
     // waterline read as barren above it. 0.72 is the wet row — forest.
-    temperature: 0.72,
+    // TEMPERATURE: 0 is 0 °C and a unit is 50 °C, so this is 22.5 °C.
+    temperature: 0.45,
     moisture: 0.72,
     // Plates sized to THIS volcano (420 m). The plugin&#39;s 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
@@ -108,6 +109,9 @@ const { demo } = tosi({
 const { sky } = tosi({
   sky: {
     coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    // What the deck is actually given: the two dials above, thinned by how
+    // much air there is (see cloudAir). Not saved in presets.
+    cloudCover: 0.1, cloudOrographic: 0.8,
     storm: false,
     // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
     // Moon: black noon, stars out); the tints colour the scattered light only.
@@ -229,13 +233,24 @@ const PRESET_KEYS = {
     &#39;storm&#39;],
 }
 const STATE = { demo, sky }
+// `scale: 2`: temperature is 0 = 0 °C, 1 = 50 °C. Presets saved before that
+// carry the biome chart&#39;s 0…1 axis and are converted when read.
 function capturePreset(name) {
-  const p = { name }
+  const p = { name, scale: 2 }
   for (const [group, keys] of Object.entries(PRESET_KEYS)) {
     p[group] = {}
     for (const k of keys) p[group][k] = STATE[group][k].value
   }
   return p
+}
+function migratePreset(p) {
+  if (p == null || p.scale === 2) return p
+  const t = p.demo?.temperature
+  return {
+    ...p,
+    scale: 2,
+    demo: typeof t === &#39;number&#39; ? { ...p.demo, temperature: +((t - 0.36) / 0.8).toFixed(3) } : p.demo,
+  }
 }
 function applyPreset(p) {
   for (const [group, keys] of Object.entries(PRESET_KEYS)) {
@@ -252,11 +267,12 @@ const BUILT_IN = {
   // seas, a smaller sun, two little moons, and Olympus Mons for the volcano.
   Mars: {
     name: &#39;Mars&#39;,
-    // HOT and bone-dry: the palette&#39;s red dust is the warm end of its driest
-    // row, and temperature falls with altitude, so a cooler Mars went grey.
+    // A HACK, for the colour: 40 °C, where Mars is really about -60 °C
+    // (-1.2). The palette&#39;s red dust is the warm end of its driest row, so a
+    // true Mars would land on the cold end and go grey. Wants its own palette.
     // (No volcano for now: Earth&#39;s province, a stand-in until each world
     // gets its own landforms.)
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.35 },
+    demo: { seaLevel: 0, temperature: 0.8, moisture: 0, sea: false, volcano: false, craters: 0.35 },
     sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: &#39;#c8a070&#39;, horizonTint: &#39;#e0b080&#39;, tintStrength: 1, deckColor: &#39;#f0e0d0&#39;, deckUnderColor: &#39;#8a7060&#39;, sunSize: 0.66, sunBrightness: sunLight(1.52), moons: &#39;Mars pair&#39;, decoBudget: 0 },
   },
   // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
@@ -268,7 +284,8 @@ const BUILT_IN = {
     // Venus&#39;s surface is YOUNG (resurfaced by volcanism): few craters.
     // Mostly smooth lava plains (Magellan radar): gentle relief. And no rain:
     // Venus&#39;s sulfuric acid evaporates long before it reaches the ground.
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.06, grossAmplitude: 90, detailAmplitude: 8 },
+    // 465 °C, and here the real number works: the chart clamps to its hot row.
+    demo: { seaLevel: 0, temperature: 9.3, moisture: 0, sea: false, volcano: false, craters: 0.06, grossAmplitude: 90, detailAmplitude: 8 },
     sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, stormRain: 0, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: &#39;#e8c880&#39;, horizonTint: &#39;#f0d890&#39;, tintStrength: 0.85, deckColor: &#39;#f2e2a8&#39;, deckUnderColor: &#39;#c0a060&#39;, sunSize: 1.39, sunBrightness: sunLight(0.72), moons: &#39;None&#39;, decoBudget: 0 },
   },
 }
@@ -281,7 +298,7 @@ Object.assign(BUILT_IN, {
     name: &#39;Moon&#39;,
     // FLATTISH, so the craters carry the shape (Earth&#39;s 230 m relief buried
     // them). Jagged highlands would be a mountain province on top.
-    demo: { sea: false, volcano: false, craters: 0.9, temperature: 0, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
+    demo: { sea: false, volcano: false, craters: 0.9, temperature: -0.45, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
     sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: &#39;Earth&#39;, decoBudget: 0, wind: 0 },
   },
   // Sulfur and fire: yellow, orange and white ground, black lava, a field of
@@ -289,15 +306,17 @@ Object.assign(BUILT_IN, {
   // the sky, to come.)
   Io: {
     name: &#39;Io&#39;,
-    demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.5, moisture: 0, palette: &#39;sulfur&#39; },
+    // (A hack: 9 °C picks the sulfur palette&#39;s middle row. Io is about -130 °C.)
+    demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.175, moisture: 0, palette: &#39;sulfur&#39; },
     sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: &#39;None&#39;, decoBudget: 0, wind: 0 },
   },
   // Thick orange haze over dark methane seas, a tiny, dim sun barely there.
   Titan: {
     name: &#39;Titan&#39;,
-    // (Temperature is the biome&#39;s, not Titan&#39;s -180 C: cold enough reads as
-    // ice everywhere, so the ground is its dry, dark row instead.)
-    demo: { sea: true, seaLevel: 0.45, volcano: false, craters: 0.05, temperature: 0.62, moisture: 0.02, waterColor: &#39;#1a0e04&#39;, waterTint: 0.75, waterFog: &#39;#2a1a08&#39; },
+    // (A hack: 16 °C, not Titan&#39;s -180 °C (-3.6). The real number reads as
+    // ice everywhere and would freeze the sea, which is methane and should
+    // not. Wants its own palette and a freezing point per sea.)
+    demo: { sea: true, seaLevel: 0.45, volcano: false, craters: 0.05, temperature: 0.325, moisture: 0.02, waterColor: &#39;#1a0e04&#39;, waterTint: 0.75, waterFog: &#39;#2a1a08&#39; },
     sky: { atmosphere: 1, dust: 1, zenithTint: &#39;#b87830&#39;, horizonTint: &#39;#d09040&#39;, tintStrength: 1, coverage: 0.5, cirrus: 0.3, orographic: 0.2, deckColor: &#39;#d8a060&#39;, deckUnderColor: &#39;#806030&#39;, sunSize: 0.11, sunBrightness: sunLight(9.5), moons: &#39;None&#39;, decoBudget: 0, wind: 2 },
   },
 })
@@ -318,8 +337,20 @@ function saveCustom(p) {
   }
 }
 const presetNames = () =&gt; [...Object.keys(BUILT_IN), ...Object.keys(loadCustom())]
+// NO AIR, NO CLOUD. The cloud dials say how cloudy the weather is; how much
+// cloud that makes depends on there being air to hold it. Full from about a
+// third of Earth&#39;s air up, none below a twentieth, so Mars (0.03) has none.
+function cloudAir() {
+  const k = Math.min(1, Math.max(0, (sky.atmosphere.value - 0.05) / 0.25))
+  sky.cloudCover.value = sky.coverage.value * k
+  sky.cloudOrographic.value = sky.orographic.value * k
+}
+sky.coverage.observe(cloudAir)
+sky.orographic.observe(cloudAir)
+sky.atmosphere.observe(cloudAir)
+cloudAir()
 sky.preset.observe(() =&gt; {
-  const p = BUILT_IN[sky.preset.value] ?? loadCustom()[sky.preset.value]
+  const p = BUILT_IN[sky.preset.value] ?? migratePreset(loadCustom()[sky.preset.value])
   if (p == null) return
   applyPreset(EARTH)
   applyPreset(p)
@@ -535,7 +566,9 @@ const scene = b3d(
       // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. &#39;season strength&#39;
       // is how hard it swings; at 0 the year does nothing.
       slider3d({ label: &#39;time of year&#39;, value: demo.season, min: 0, max: 1, step: 0.01 }),
-      slider3d({ label: &#39;season strength&#39;, value: demo.seasonality, min: 0, max: 0.6, step: 0.01 }),
+      // The swing either side of the yearly mean. Stored in the biome chart&#39;s
+      // units, where 1 spans 62.5 °C.
+      slider3d({ label: &#39;season strength&#39;, value: demo.seasonality, min: 0, max: 0.6, step: 0.01, format: (v) =&gt; &#39;±&#39; + Math.round(v * 62.5) + &#39; °C&#39; }),
       label3d({ text: &#39;Terrain&#39;, icon: &#39;terrain&#39;, collapsible: true }),
       slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.005, max: 0.3, scale: &#39;log&#39; }),
       slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.02, max: 1, scale: &#39;log&#39; }),
@@ -553,7 +586,7 @@ const scene = b3d(
       select3d({ label: &#39;ground palette&#39;, value: demo.palette, options: [&#39;earth&#39;, ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       label3d({ text: &#39;Climate&#39;, icon: &#39;thermometer&#39;, collapsible: true }),
-      slider3d({ label: &#39;temperature&#39;, value: demo.temperature, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: &#39;temperature&#39;, value: demo.temperature, min: -1, max: 1, step: 0.02, format: (v) =&gt; Math.round(v * 50) + &#39; °C&#39; }),
       slider3d({ label: &#39;moisture&#39;, value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: &#39;volcanic scale&#39;, value: demo.volcanicScale, min: 0.005, max: 0.15, scale: &#39;log&#39; }),
       label3d({ text: &#39;Weather&#39;, icon: &#39;cloud&#39;, collapsible: true }),
@@ -669,8 +702,8 @@ const scene = b3d(
   decorator,
   b3dCloudDeck({
     altitude: sky.altitude,
-    coverage: sky.coverage,
-    orographic: sky.orographic,
+    coverage: sky.cloudCover,
+    orographic: sky.cloudOrographic,
     wind: sky.wind,
     cirrus: sky.cirrus,
     evolve: sky.evolve,
@@ -681,7 +714,7 @@ const scene = b3d(
   // ocean scales with the mountains instead of sitting at a fixed height
   // while the world reshapes around it. `follow` keeps it under the camera;
   // the ripples stay anchored in world space.
-  water = b3dWater({ y: seaY(), waterSize: 8000, follow: true, twoSided: true, waterColor: demo.waterColor, colorBlendFactor: demo.waterTint, fogColor: demo.waterFog }),
+  water = b3dWater({ y: seaY(), waterSize: 8000, follow: true, twoSided: true, shore: &#39;on&#39;, shoreFine: true, waterColor: demo.waterColor, colorBlendFactor: demo.waterTint, fogColor: demo.waterFog }),
 )
 
 preview.append(scene)
@@ -806,6 +839,7 @@ to populate — the same one a visitor just reshaped.</li>
       <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -959,6 +993,6 @@ to populate — the same one a visitor just reshaped.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8p5cxzfx.js"></script>
+  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=061930568918" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
   <title>b3d-water — tosijs-3d</title>
   <meta name="description" content="Water plane with reflections, waves, and underwater fog effect." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-water/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=0dbf7fda9879" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-water</h1>
 <p>Water plane with reflections, waves, and underwater fog effect.</p>
@@ -152,6 +152,16 @@ preview.append(scene)
 <td><code>causticsScale</code></td>
 <td><code>6</code></td>
 <td>Metres per caustic cell: bigger is coarser and calmer</td>
+</tr>
+<tr>
+<td><code>shore</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> gives the surface the depth of the water under it, from the scene&#39;s terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See <a href="/water-shore/">water-shore</a>. Not for <code>spherical</code> water. Set at build time</td>
+</tr>
+<tr>
+<td><code>shoreFine</code></td>
+<td><code>false</code></td>
+<td>With <code>shore=&quot;on&quot;</code>: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time</td>
 </tr>
 <tr>
 <td><code>follow</code></td>
@@ -293,6 +303,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -446,6 +457,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8p5cxzfx.js"></script>
+  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
 </body>
 </html>

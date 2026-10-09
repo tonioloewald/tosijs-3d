@@ -40,6 +40,14 @@ export type FogLayer = {
      * which is right for water and for anything you are simply immersed in.
      */
     veil?: number;
+    /**
+     * Blend `start` and `end` by their RECIPROCALS. For a layer that CLEARS the
+     * air (vacuum: distances of millions of metres): blended straight, a weight
+     * of 0.002 toward ten million metres moves a 4 km fog out to 20 km, so
+     * thinning the air a little cleared it almost entirely. Fog strength goes
+     * as one over distance, and that is what should be mixed.
+     */
+    reciprocal?: boolean;
 };
 /**
  * Composite layers over a base, in order. Each pulls the running state toward itself by its

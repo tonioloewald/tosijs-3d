@@ -1894,6 +1894,19 @@ export class B3dSkybox extends AbstractMesh {
             const v = this._vacuum;
             sceneNow.clearColor.set(this._clearBase.r + (sc.r - this._clearBase.r) * v, this._clearBase.g + (sc.g - this._clearBase.g) * v, this._clearBase.b + (sc.b - this._clearBase.b) * v, 1);
         }
+        /*
+        BLENDED AS SOON AS THE AIR THINS, and a blended mesh is drawn with the
+        other transparent things, sorted by distance. The dome is pinned to the
+        camera, so its distance is zero: it was drawn LAST, over the cloud deck
+        (which writes no depth to stop it). So any air below 0.999 (an
+        `atmosphere` under about 0.8) painted sky over every cloud, and clouds
+        needed exactly full air to exist (Tonio: "it shouldn't need to be 1.0 to
+        have clouds"). `alphaIndex` is sorted before distance: the dome first,
+        its stars next, then everything else.
+        */
+        this.mesh.alphaIndex = 0;
+        if (this._starfieldMesh != null)
+            this._starfieldMesh.alphaIndex = 1;
         material.needAlphaBlending = () => air < 0.999;
         material.luminance = attrs.luminance;
         if (this._forkedSky) {
@@ -2139,6 +2152,25 @@ export class B3dSkybox extends AbstractMesh {
             // Night horizon: dark desaturated blue
             this._horizonColor.copyFrom(NIGHT_HORIZON);
         }
+        /*
+        THE FOG TAKES THE SKY'S TINT. `horizonColor` is what a `syncSkybox` fog
+        fades distant ground to, and it was always Earth's blue-white: on a tinted
+        sky the far hills stood out as a pale band along the horizon (it read as
+        low cloud on Mars). Same rule as the shader's: keep the brightness, take
+        the hue, by `tintStrength`.
+        */
+        {
+            const k = Math.min(1, Math.max(0, Number(attrs.tintStrength) || 0));
+            if (k > 0) {
+                const h = this.hex(attrs.horizonTint || '#ffffff');
+                const c = this._horizonColor;
+                const lum = (x) => 0.2126 * x.r + 0.7152 * x.g + 0.0722 * x.b;
+                const s = lum(c) / Math.max(lum(h), 0.001);
+                c.r += (h.r * s - c.r) * k;
+                c.g += (h.g * s - c.g) * k;
+                c.b += (h.b * s - c.b) * k;
+            }
+        }
         if (this.owner != null) {
             if (this.sunEl == null) {
                 this.sunEl = this.owner.querySelector('tosi-b3d-sun');
@@ -2298,8 +2330,21 @@ export class B3dSkybox extends AbstractMesh {
             const vac = this._vacuumNow();
             // Quantised, not compared raw: a float that drifts by 1e-7 every frame
             // would refresh the sky every frame and the gate would be decorative.
+            /*
+            …BUT THE ENDS ARE EXACT. A slow drag back to full air arrives in steps
+            smaller than the gate, so the value stopped up to 0.002 short of zero
+            and stayed there. That sounds like nothing, and the space fog layer it
+            weights pulls the fog's end toward ten million metres: 0.0016 of that
+            moved the fog from 4 km to 20 km and the clouds, which fade by it, were
+            gone until a fast drag jumped the gate (Tonio: "turning air down makes
+            clouds disappear and they don't come back… if you drag hard to the
+            right it fixes it").
+            */
+            const atEnd = (now, held) => now !== held && (now === 0 || now === 1);
             const moved = Math.abs(vac - this._vacuum) > 0.002 ||
-                Math.abs(this._gasNow - this._gas) > 0.002;
+                Math.abs(this._gasNow - this._gas) > 0.002 ||
+                atEnd(vac, this._vacuum) ||
+                atEnd(this._gasNow, this._gas);
             if (moved) {
                 this._vacuum = vac;
                 this._gas = this._gasNow;
@@ -2352,6 +2397,9 @@ export class B3dSkybox extends AbstractMesh {
                     density: 0,
                     start: 1e6,
                     end: 1e7,
+                    // Mixed as strengths, so a LITTLE less air is a little less haze
+                    // (see FogLayer.reciprocal).
+                    reciprocal: true,
                     /*
                     NO VEIL. Vacuum is the ABSENCE of a medium, not one in front of the
                     sky: its weight still pulls the haze to nothing, but defaulting the

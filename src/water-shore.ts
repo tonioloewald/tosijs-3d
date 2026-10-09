@@ -3,11 +3,13 @@
 
 **What the water knows about the ground under it.** A sea drawn as one flat
 sheet has no idea where the land is, so it cannot foam at a beach or freeze
-from the shore outward. This module gives each vertex of the water's mesh two
-numbers: the **depth** of the water there, how much **ice** covers it, and the
-**distance** to the waterline.
+from the shore outward. This module gives each vertex of the water's mesh four
+numbers: the **depth** of the water there, how much **ice** covers it, how
+**solid** that ice is, and the **distance** to the waterline.
 [b3d-water](/b3d-water/) fills them in from the terrain (`shore="on"`) and its
-shader draws from them:
+shader draws from them. It needs a [terrain](/b3d-terrain/) in the scene to
+read depths from, and the ice also needs that terrain's `biome="on"`, which is
+where the temperature comes from. It draws:
 
 - a **shoreline**: wave fronts that rise about 16 m out and run in to the
   shore one after another, with a wet edge lapping at the waterline (drawn

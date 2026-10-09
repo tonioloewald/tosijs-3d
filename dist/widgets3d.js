@@ -403,7 +403,7 @@ bar that is not determinate is a lie with a progress percentage on it.
 ## Callbacks are `handleX`, not `onX`
 
 `handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings still
-work through 0.8.x and warn once, and are removed in 0.9.
+work through 0.9.x and warn once, and are removed in 0.10.
 
 Not a style preference. These are plain factory functions today, where `onX` is
 harmless — but the moment one becomes a tosijs COMPONENT, the element creator

@@ -747,7 +747,8 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
       biome: choice('off', ['off', 'on']),
       biomeSeaLevel: num(0, { minimum: -1000, maximum: 1000, ...M }),
       biomeLapseRate: num(0, { minimum: 0, maximum: 1 }),
-      // -1 = the biome plugin's own default; 0 is a real value for all three.
+      // Temperature: 0 is 0 °C, a unit is 50 °C; no auto value. For the two
+      // after it, -1 = the biome plugin's own default (0 is a real value).
       biomeTemperature: num(0.45, { minimum: -6, maximum: 10 }),
       biomeMoisture: num(-1, { minimum: -1, maximum: 1 }),
       biomeVolcanicScale: num(-1, { minimum: -1, maximum: 1 }),

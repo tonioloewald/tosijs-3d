@@ -121,6 +121,11 @@ export function compositeFog(base: FogState, layers: FogLayer[]): FogState {
       : (a: number, b: number) => lerp(a, b, w)
     if (layer.start !== undefined) out.start = mix(out.start, layer.start)
     if (layer.end !== undefined) out.end = mix(out.end, layer.end)
+    // A reciprocal blend cannot take a zero, so a start of 0 falls back to a
+    // plain lerp while the end beside it moves by reciprocals: toward a far
+    // layer the start then races ahead of the end, and everything nearer
+    // than the end draws as solid fog. The start never passes the end.
+    if (layer.reciprocal && out.start > out.end) out.start = out.end
   }
   return out
 }

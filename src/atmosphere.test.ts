@@ -164,3 +164,19 @@ describe('a layer that clears the air', () => {
     expect(vacuum(1, true).end).toBeCloseTo(1e7, -3)
   })
 })
+
+describe('a reciprocal layer over fog that starts at zero', () => {
+  const baseFog = () => ({ color: { r: 1, g: 1, b: 1 }, density: 0.01 })
+  const far = { weight: 0.05, start: 1e6, end: 1e7, reciprocal: true }
+  test('the start never passes the end', () => {
+    const out = compositeFog({ ...baseFog(), start: 0, end: 4000 }, [far])
+    expect(out.start).toBeLessThanOrEqual(out.end)
+  })
+  test('nor when a start-0 layer comes before it', () => {
+    const out = compositeFog({ ...baseFog(), start: 1000, end: 4000 }, [
+      { weight: 1, start: 0, end: 60 },
+      far,
+    ])
+    expect(out.start).toBeLessThanOrEqual(out.end)
+  })
+})

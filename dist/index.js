@@ -180,6 +180,7 @@ export { playground } from './playground.js';
 export { B3dCloudDeck, b3dCloudDeck } from './b3d-cloud-deck.js';
 // Rocks and trees on the terrain, by budget and climate.
 export { B3dDecorator, b3dDecorator } from './b3d-decorator.js';
+export { shoreGrid, shoreGridLines, shoreData, iceCover, iceSolid, iceBears, iceSide, ICE_BEARS, SHORE_DISTANCE_MAX, } from './water-shore.js';
 export { rockGeometry, rockFromName, rockNames, ROCK_KINDS, } from './procedural-rock.js';
 export { scatterPlacements, clumpAt, autoClumpSize, NATURE_RULES, NATURE_ROLES, roleFor, ROCK_RULES, NearIndex, NATURE_KIT_RULES, } from './scatter.js';
 export { cloudField, cloudOpacity, } from './cloud-field.js';
@@ -314,7 +315,7 @@ export const ui = {
     createFocusPulse,
 };
 // Procedural biome shader (TERRAIN-SHADER-DESIGN.md): pure chart model + plugin
-export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, } from './biome-chart.js';
+export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, chartTemperature, planetTemperature, CELSIUS_PER_UNIT, } from './biome-chart.js';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
 export { volcano, impactCrater, craterField, pad, gulley, cover, composeLandforms, mergeProvinces, 

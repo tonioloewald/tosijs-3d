@@ -343,13 +343,28 @@ export class B3dWater extends AbstractMesh {
     super.sceneReady(owner, scene)
     const attrs = this as any
 
+    // `shore` asked for and not given must say so: the water is otherwise
+    // simply plain, with no surf, no ice and nothing to explain it.
+    const shoreReady = attrs.shore === 'on' && registerShoreWater()
+    if (attrs.shore === 'on' && attrs.spherical) {
+      console.warn(
+        'tosi-b3d-water: shore="on" does nothing on spherical water.'
+      )
+    } else if (attrs.shore === 'on' && !shoreReady) {
+      console.warn(
+        `tosi-b3d-water: shore="on" could not patch the water shader of this Babylon (${BABYLON.Engine.Version}), so there is no shoreline or ice. Please report it.`
+      )
+    } else if (attrs.shoreFine && attrs.shore !== 'on') {
+      console.warn('tosi-b3d-water: shoreFine does nothing without shore="on".')
+    }
+
     if (attrs.spherical) {
       this.mesh = BABYLON.MeshBuilder.CreateSphere(
         'water_nocast',
         { segments: attrs.subdivisions, diameter: attrs.waterSize },
         scene
       )
-    } else if (attrs.shore === 'on' && registerShoreWater()) {
+    } else if (shoreReady) {
       // A grid that is fine around the viewer, with a vertex colour holding
       // [depth, ice] that the patched shader draws the shoreline from.
       // A vertex every 4 m out to 64 m from the centre, then spreading;
@@ -1049,6 +1064,8 @@ export class B3dWater extends AbstractMesh {
       this.owner?.scene?.unregisterBeforeRender(this._shoreTick)
     this._shoreTick = undefined
     this._shore = null
+    this._ceilingShore = null
+    this._iceHeight = null
     this._removeMedium?.()
     this._removeMedium = undefined
     this._medium = null
@@ -1177,6 +1194,8 @@ export class B3dWater extends AbstractMesh {
   }
   private _shoreTick?: () => void
   private _shoreNext = 0
+  private _shoreSince = performance.now()
+  private _warnedNoTerrain = false
 
   /*
   Write [depth, ice] for every vertex from the terrain under it. Cheap (one
@@ -1193,7 +1212,16 @@ export class B3dWater extends AbstractMesh {
     if (!force && now < this._shoreNext) return
     this._shoreNext = now + 250
     const terrain = owner.querySelector('tosi-b3d-terrain') as any
-    if (terrain == null || typeof terrain.heightSampler !== 'function') return
+    if (terrain == null || typeof terrain.heightSampler !== 'function') {
+      // Given a few seconds for a terrain to arrive, then said once.
+      if (!this._warnedNoTerrain && now - this._shoreSince > 5000) {
+        this._warnedNoTerrain = true
+        console.warn(
+          'tosi-b3d-water: shore="on" needs a <tosi-b3d-terrain> in the scene to read depths from; there is none, so the water has no shoreline. Ice also needs the terrain\'s biome="on".'
+        )
+      }
+      return
+    }
     const off = terrain.originOffset ?? { x: 0, z: 0 }
     // The climate AT SEA LEVEL, this time of year. No biome: never freezes.
     const temperature = this._seaTemperature(terrain)
@@ -1231,7 +1259,10 @@ export class B3dWater extends AbstractMesh {
     if (ice == null || mesh == null) return
     const { indices } = shore.grid
     const data = shore.data
-    const bears = (v: number) => data[v * 4 + 2] >= ICE_BEARS
+    // Over water only: land is at least as "solid" by the rule, and a
+    // colliding plane at sea level under a hillside is nobody's ice.
+    const bears = (v: number) =>
+      data[v * 4 + 2] >= ICE_BEARS && data[v * 4] > -0.5
     const kept: number[] = []
     for (let i = 0; i < indices.length; i += 3) {
       const a = indices[i]

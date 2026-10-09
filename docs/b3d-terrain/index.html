@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=061930568918" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
   <title>b3d-terrain — tosijs-3d</title>
   <meta name="description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-terrain/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=0dbf7fda9879" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>b3d-terrain</h1>
 <p>Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
@@ -419,12 +419,12 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <tr>
 <td><code>biomeLapseRate</code></td>
 <td><code>0</code> (auto)</td>
-<td>Height→temperature lapse. ⚠️ Must be scaled to your vertical range: <code>≈ baseTemperature / relief</code>. The 0.004 default is a small-world number and renders a 340m world entirely as snow</td>
+<td>Height→temperature lapse, in the biome CHART&#39;s units per metre (not <code>biomeTemperature</code>&#39;s; see biome-chart). ⚠️ Must be scaled to your vertical range: <code>≈ baseTemperature / relief</code>. The 0.004 default is a small-world number and renders a 340m world entirely as snow</td>
 </tr>
 <tr>
 <td><code>biomeTemperature</code></td>
-<td><code>-1</code> (auto 0.72)</td>
-<td>Sea-level temperature, <code>0…1</code> cold → warm. LIVE</td>
+<td><code>0.45</code></td>
+<td>Sea-level temperature: <code>0</code> is 0 °C and each unit is 50 °C, so the default is 22.5 °C, <code>-1</code> is -50 °C, and it is not limited to that range (see biome-chart&#39;s <code>chartTemperature</code>). LIVE</td>
 </tr>
 <tr>
 <td><code>biomeMoisture</code></td>
@@ -652,6 +652,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
       <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -805,6 +806,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8p5cxzfx.js"></script>
+  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
 </body>
 </html>

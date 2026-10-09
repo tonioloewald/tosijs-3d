@@ -186,7 +186,8 @@ Use **`isOff()`** from `tosijs-3d`, which accepts `'off'`, `false` and
 ### 2. Callback options: `onX` → `handleX`
 
 Every callback option in the library now takes `handleX`. The old `onX` spelling
-still works, warns **once per name**, and is **removed in 0.9**.
+still works, warns **once per name**, and is **removed in 0.10** (announced
+for 0.9, then kept one more minor).
 
 | widget                                   | old                                  | new                                              |
 | ---------------------------------------- | ------------------------------------ | ------------------------------------------------ |

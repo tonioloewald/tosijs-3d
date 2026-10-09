@@ -228,6 +228,7 @@ import { collidable, isOff, markUiMesh } from './b3d-utils.js';
 import { canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
 import { buoyantStep, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
 import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim.js';
+import { iceSide } from './water-shore.js';
 import { fitChase } from './camera-fit.js';
 import { DEFAULT_AIM_LIMITS, aimDirection as aimToDirection, aimPoseWeights, bodyCatchUp, relaxAim, stepAim, wrapDeg, } from './aim.js';
 import { xrControllers } from './gamepad.js';
@@ -366,6 +367,7 @@ const CROUCH_HALF = 0.45;
 const STEP_UP = 0.5;
 /** How far the ground may drop before it becomes a FALL rather than a step. */
 const STEP_DOWN = 0.6;
+const ICE_GROUP = ['ice'];
 /**
  * Vertical kick while swimming, m/s². Enough to beat buoyancy comfortably
  * (which is ~1.5 m/s² of upward push at full submersion) without feeling like a
@@ -1155,6 +1157,8 @@ export class B3dBiped extends B3dControllable {
     /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
     _camZoom = 0;
     _waterEl;
+    /** Which side of weight-bearing ice we are on; see water-shore's `iceSide`. */
+    _iceSide = 'none';
     /**
      * Surface height of the scene's water, or `null` if there is none.
      *
@@ -1166,7 +1170,8 @@ export class B3dBiped extends B3dControllable {
     _waterSurfaceY() {
         if (this._waterEl === undefined) {
             this._waterEl =
-                this.owner?.querySelector('tosi-b3d-water') ?? null;
+                this.owner?.querySelector('tosi-b3d-water') ??
+                    null;
         }
         const mesh = this._waterEl?.mesh;
         return mesh ? mesh.absolutePosition.y : null;
@@ -2137,7 +2142,12 @@ export class B3dBiped extends B3dControllable {
             // `collidable()` for the shared rules (UI never counts as floor,
             // isPickable/isEnabled re-checked because a predicate replaces
             // Babylon's own filter); `checkCollisions` stays as OUR clause.
-            collidable((m) => m === node || !m.checkCollisions));
+            // Not the water's ice mesh: which SIDE of the ice we are on is kept
+            // below (`iceSide`), and a probe from just under it would put a diver
+            // on top.
+            collidable((m) => m === node || !m.checkCollisions, {
+                ignoreGroups: ICE_GROUP,
+            }));
             /*
             WATER IS A MEDIUM, NOT A LINE.
       
@@ -2177,7 +2187,25 @@ export class B3dBiped extends B3dControllable {
             this button is the SURFACE control and continuous, so it never charges.
             */
             const jumpDown = (input.jump ?? 0) > 0.5;
-            const surfaceY = this._waterSurfaceY();
+            /*
+            ICE IS WATER UNTIL IT IS SOLID.
+      
+            Where the water's ice bears weight (`iceBearsAt`), the surface is ground
+            from above and a ceiling from below; everywhere else, plates included,
+            it is water and nothing here changes. Which side we are on is decided
+            once, where we meet the ice, and kept (`iceSide` says why). On top, there
+            is no water as far as the rest of this frame is concerned: `surfaceY` is
+            null and the ice stands in for the floor.
+            */
+            const seaY = this._waterSurfaceY();
+            const eyeLevel = this.eyeHeight || 1.6;
+            this._iceSide =
+                seaY != null && node.position.y < seaY + eyeLevel + 1
+                    ? iceSide(this._iceSide, this._waterEl?.iceBearsAt?.(node.position.x, node.position.z) ===
+                        true, seaY - node.position.y, this._swimming, STEP_UP)
+                    : 'none';
+            const onIce = this._iceSide === 'over' && seaY != null;
+            const surfaceY = onIce ? null : seaY;
             // `eyeHeight` as a proxy for body height. It is a little short by
             // definition, which is the harmless direction: equilibrium is a FRACTION
             // of whatever height you give it, so erring small floats you a touch
@@ -2235,8 +2263,15 @@ export class B3dBiped extends B3dControllable {
             */
             const headDepth = surfaceY == null ? 0 : surfaceY - (feetY + bodyHeight);
             const submerged = surfaceY == null ? 0 : submergedFraction(feetY, bodyHeight, surfaceY);
-            const grounded = hit?.hit === true && hit.pickedPoint != null;
-            const groundY = grounded ? hit.pickedPoint.y : -Infinity;
+            const floorHit = hit?.hit === true && hit.pickedPoint != null;
+            const floorY = floorHit ? hit.pickedPoint.y : -Infinity;
+            // The ice is in reach when we are below it (climbing out, or it froze
+            // around us) or within the same drop the ground probe allows.
+            const iceFloor = onIce &&
+                seaY > floorY &&
+                seaY >= node.position.y - (STEP_DOWN + fallStep);
+            const grounded = floorHit || iceFloor;
+            const groundY = iceFloor ? seaY : floorY;
             /*
             THE SWIM/STAND TEST MUST NOT USE THE POSE, or it feeds back on itself.
       
@@ -2427,6 +2462,15 @@ export class B3dBiped extends B3dControllable {
                 });
                 let nextY = node.position.y + this._fallVel * dt;
                 let onFloor = false;
+                // Under bearing ice the head stops at its underside. Before the floor
+                // test, so in water too shallow for both, the floor wins.
+                if (this._iceSide === 'under' && seaY != null) {
+                    const top = seaY - 0.1 - (bodyBottom + bodyHeight);
+                    if (nextY > top) {
+                        nextY = top;
+                        this._fallVel = Math.min(0, this._fallVel);
+                    }
+                }
                 // The floor stops the body's LOWEST point, which in a swim pose is the
                 // trailing legs rather than the root — treading, they hang 1.37 m below
                 // it. Clamping the root instead buried them in the seabed.

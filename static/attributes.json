@@ -3859,7 +3859,7 @@
       {
         "name": "biomeLapseRate",
         "default": "0",
-        "description": "Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow"
+        "description": "Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow"
       },
       {
         "name": "biomeTemperature",

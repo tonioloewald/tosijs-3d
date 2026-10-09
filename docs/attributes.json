@@ -3859,12 +3859,12 @@
       {
         "name": "biomeLapseRate",
         "default": "0",
-        "description": "Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow"
+        "description": "Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow"
       },
       {
         "name": "biomeTemperature",
-        "default": "-1",
-        "description": "Sea-level temperature, `0…1` cold → warm. LIVE"
+        "default": "0.45",
+        "description": "Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE"
       },
       {
         "name": "biomeMoisture",
@@ -4401,6 +4401,16 @@
         "name": "follow",
         "default": "false",
         "description": "Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space"
+      },
+      {
+        "name": "shore",
+        "default": "'off'",
+        "description": "`'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time"
+      },
+      {
+        "name": "shoreFine",
+        "default": "false",
+        "description": "With `shore=\"on\"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time"
       },
       {
         "name": "normalMap"

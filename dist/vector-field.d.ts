@@ -5,7 +5,7 @@ export interface Vector3dOptions {
     value?: Vec3;
     /** Fired on every committed edit — typing, scrubbing, or a step. */
     handleChange?: (value: Vec3) => void;
-    /** @deprecated use `handleChange` — removed in 0.9. */
+    /** @deprecated use `handleChange` — removed in 0.10. */
     onChange?: (value: Vec3) => void;
     /** Arrow-key / typed increment. */
     step?: number;

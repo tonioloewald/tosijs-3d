@@ -60,7 +60,7 @@ export interface InputField extends Widget3d {
     }) => void;
     /** Called whenever the text changes. */
     handleChange?: (value: string) => void;
-    /** @deprecated use `handleChange` — removed in 0.9. */
+    /** @deprecated use `handleChange` — removed in 0.10. */
     onChange?: (value: string) => void;
     /**
      * Called whenever this field becomes the receiver — by tap, D-pad arrival or
@@ -72,7 +72,7 @@ export interface InputField extends Widget3d {
      * field — silently, and only sometimes.
      */
     handleFocus?: () => void;
-    /** @deprecated use `handleFocus` — removed in 0.9. */
+    /** @deprecated use `handleFocus` — removed in 0.10. */
     onFocus?: () => void;
 }
 export interface InputFieldOptions {
@@ -81,16 +81,16 @@ export interface InputFieldOptions {
     fontSize?: number;
     height?: number;
     handleChange?: (value: string) => void;
-    /** @deprecated use `handleChange` — removed in 0.9. */
+    /** @deprecated use `handleChange` — removed in 0.10. */
     onChange?: (value: string) => void;
     handleEnter?: (value: string) => void;
-    /** @deprecated use `handleEnter` — removed in 0.9. */
+    /** @deprecated use `handleEnter` — removed in 0.10. */
     onEnter?: (value: string) => void;
     /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
      * — the host's hook for exclusivity (dim the others) and for summoning the
      * keyboard overlay. */
     handleFocus?: () => void;
-    /** @deprecated use `handleFocus` — removed in 0.9. */
+    /** @deprecated use `handleFocus` — removed in 0.10. */
     onFocus?: () => void;
     /**
      * Drag across a numeric field to change its value ("scrub"), in units per
@@ -242,14 +242,14 @@ export interface KeyboardOptions {
      */
     caretStepPx?: number;
     handleKey?: (text: string) => void;
-    /** @deprecated use `handleKey` — removed in 0.9. */
+    /** @deprecated use `handleKey` — removed in 0.10. */
     onKey?: (text: string) => void;
     handleAction?: (action: KeyAction) => void;
-    /** @deprecated use `handleAction` — removed in 0.9. */
+    /** @deprecated use `handleAction` — removed in 0.10. */
     onAction?: (action: KeyAction) => void;
     /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
     handleCaretMove?: (delta: number) => void;
-    /** @deprecated use `handleCaretMove` — removed in 0.9. */
+    /** @deprecated use `handleCaretMove` — removed in 0.10. */
     onCaretMove?: (delta: number) => void;
 }
 export declare function keyboard(config?: KeyboardOptions): Keyboard;

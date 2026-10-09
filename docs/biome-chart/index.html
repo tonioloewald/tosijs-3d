@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=061930568918" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
   <title>biome-chart — tosijs-3d</title>
   <meta name="description" content="The pure biome-classification model under the procedural terrain shader (TERRAIN-SHADER-DESIGN.md): position → (u, v) into a Whittaker-style chart — u is…" />
   <link rel="canonical" href="https://3d.tosijs.net/biome-chart/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=0dbf7fda9879" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>biome-chart</h1>
 <p>The <strong>pure biome-classification model</strong> under the procedural terrain shader
@@ -86,6 +86,16 @@ terrain (beach chases the waterline, drowned slopes turn seagrass);
 collapses until ice meets the waterline, exactly as the spec asks, emergent
 from the lapse; <strong>map moisture</strong> — sweep forest → steppe → dune on the same
 terrain. Drag to orbit.</p>
+<h2>Two temperature scales</h2>
+<p>What an author sets (the terrain&#39;s <code>biomeTemperature</code>, and what the sea ice
+reads) is a <strong>temperature</strong>: <code>0</code> is 0 °C and each unit is 50 °C, so <code>1</code> is
+50 °C, <code>-1</code> is -50 °C, and it does not stop at either end.</p>
+<p>The chart on this page is a window onto that. Its <code>0…1</code> axis runs from
+-22.5 °C to 40 °C, with freezing at 0.36, and the demo&#39;s sliders below are in
+those <strong>chart units</strong>. So are <code>BiomePlugin.params</code>, the province climate
+curves, <code>biomeLapseRate</code> and the decorator&#39;s rule bands. <code>chartTemperature</code>
+and <code>planetTemperature</code> convert between the two; the terrain converts on the
+way in. Outside the window the chart clamps to its end rows.</p>
 <pre><code class="language-js">import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
   toggle3d, mesaProfile, beachProfile, cliffProfile, blendProfiles,
@@ -294,6 +304,7 @@ growth visibly stops exactly where the light dies. Coherence for free.</li>
       <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -447,6 +458,6 @@ growth visibly stops exactly where the light dies. Coherence for free.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8p5cxzfx.js"></script>
+  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
 </body>
 </html>

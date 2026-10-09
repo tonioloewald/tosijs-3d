@@ -283,8 +283,8 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `grossAmplitude` | `8` | Gross height multiplier. ⚠️ Meaningless on its own: it's spread over `grossScale`/`horizScale`, so the same number is a mountain range at one scale and a plain at another |
 | `detailAmplitude` | `3` | Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail |
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
-| `biomeLapseRate` | `0` (auto) | Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
-| `biomeTemperature` | `-1` (auto 0.72) | Sea-level temperature, `0…1` cold → warm. LIVE |
+| `biomeLapseRate` | `0` (auto) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
+| `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
 | `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
 | `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
@@ -362,6 +362,7 @@ import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { attachBiomePlugin, defaultBiomeParams, } from './biome-plugin.js';
 /** The plugin's own defaults — what a negative (AUTO) climate dial means. */
 const BIOME_AUTO = defaultBiomeParams();
+let warnedOldTemperature = false;
 const freshBiomeMemo = () => ({
     sea: NaN,
     lapse: NaN,
@@ -372,6 +373,7 @@ const freshBiomeMemo = () => ({
     seasonality: NaN,
 });
 import { touchesExtent } from './landform.js';
+import { chartTemperature } from './biome-chart.js';
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
 const MIRROR_SAFE_V = 0.25;
@@ -423,10 +425,12 @@ export class B3dTerrain extends B3dChild {
         // highest ground lands near the temperature you want up there —
         // 0.5 / amplitude gives temperate valleys and cold summits.
         biomeLapseRate: 0,
-        // Climate and volcanic plate size, LIVE like the two above. -1 = the
-        // plugin's own default (0.72 / 0.45 / 0.09), because 0 is a real value
-        // for all three (a frozen world, the dead row, and no plates at all).
-        biomeTemperature: -1,
+        // Climate and volcanic plate size, LIVE like the two above. For moisture
+        // and plate size, -1 = the plugin's own default (0.45 / 0.09), because 0
+        // is a real value for both (the dead row, and no plates at all).
+        // Temperature has no auto value: every number is a temperature.
+        // 22.5 °C: 0 is 0 °C, a unit is 50 °C (biome-chart's chartTemperature).
+        biomeTemperature: 0.45,
         biomeMoisture: -1,
         biomeVolcanicScale: -1,
         // The year: where in it, and how far it swings the temperature axis.
@@ -1794,12 +1798,25 @@ export class B3dTerrain extends B3dChild {
         const v = Number(a.biomeVolcanicScale);
         // Each dial writes only when ITS value changes, so a panel writing one
         // param directly is not stomped when a different attribute moves.
-        // Negative is AUTO: the plugin default is written back, so returning to
-        // -1 after a value really returns to auto (as the lapse branch does).
+        // For moisture and plate size, negative is AUTO: the plugin default is
+        // written back, so returning to -1 after a value really returns to auto
+        // (as the lapse branch does). Temperature has no auto.
         const p = this.biomePlugin.params;
         if (t !== memo.temperature) {
             memo.temperature = t;
-            p.baseTemperature = t >= 0 ? Math.min(1, t) : BIOME_AUTO.baseTemperature;
+            // The attribute is on the temperature scale (0 = 0 °C, 1 = 50 °C); the
+            // plugin works in chart units. Not clamped: the chart clamps its own
+            // lookup, and the ice wants to know how cold it really is.
+            p.baseTemperature = Number.isFinite(t)
+                ? chartTemperature(t)
+                : BIOME_AUTO.baseTemperature;
+            // Until 0.9, -1 meant "the default". It is now -50 °C, which is a
+            // legitimate setting, so it is honoured, but it is far more likely to
+            // be a value carried over, and a frozen world says nothing about why.
+            if (t === -1 && !warnedOldTemperature) {
+                warnedOldTemperature = true;
+                console.warn('tosijs-3d: biomeTemperature is -1, which since 0.9 is -50 °C (0 is 0 °C, a unit is 50 °C). It used to mean "default": for that, use 0.45 or remove it. See Migration.md, 0.8.15 → 0.9.0.');
+            }
         }
         if (m !== memo.moisture) {
             memo.moisture = m;

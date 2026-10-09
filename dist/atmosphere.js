@@ -69,10 +69,19 @@ export function compositeFog(base, layers) {
         }
         if (layer.density !== undefined)
             out.density = lerp(out.density, layer.density, w);
+        const mix = layer.reciprocal
+            ? (a, b) => a > 0 && b > 0 ? 1 / lerp(1 / a, 1 / b, w) : lerp(a, b, w)
+            : (a, b) => lerp(a, b, w);
         if (layer.start !== undefined)
-            out.start = lerp(out.start, layer.start, w);
+            out.start = mix(out.start, layer.start);
         if (layer.end !== undefined)
-            out.end = lerp(out.end, layer.end, w);
+            out.end = mix(out.end, layer.end);
+        // A reciprocal blend cannot take a zero, so a start of 0 falls back to a
+        // plain lerp while the end beside it moves by reciprocals: toward a far
+        // layer the start then races ahead of the end, and everything nearer
+        // than the end draws as solid fog. The start never passes the end.
+        if (layer.reciprocal && out.start > out.end)
+            out.start = out.end;
     }
     return out;
 }

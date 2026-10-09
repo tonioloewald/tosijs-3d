@@ -337,6 +337,8 @@ export function waterSchema(extra = {}) {
             maximum: 4096,
             description: 'Size of the reflection and refraction textures. 0 follows the device tier (1024 / 512 / 256).',
         }),
+        shore: choice('off', ['on', 'off']),
+        shoreFine: bool(false),
         reflectionRefresh: num(0, {
             minimum: 0,
             maximum: 8,
@@ -668,8 +670,9 @@ export function terrainSchema(extra = {}) {
         biome: choice('off', ['off', 'on']),
         biomeSeaLevel: num(0, { minimum: -1000, maximum: 1000, ...M }),
         biomeLapseRate: num(0, { minimum: 0, maximum: 1 }),
-        // -1 = the biome plugin's own default; 0 is a real value for all three.
-        biomeTemperature: num(-1, { minimum: -1, maximum: 1 }),
+        // Temperature: 0 is 0 °C, a unit is 50 °C; no auto value. For the two
+        // after it, -1 = the biome plugin's own default (0 is a real value).
+        biomeTemperature: num(0.45, { minimum: -6, maximum: 10 }),
         biomeMoisture: num(-1, { minimum: -1, maximum: 1 }),
         biomeVolcanicScale: num(-1, { minimum: -1, maximum: 1 }),
         biomeSeason: num(0.25, { minimum: 0, maximum: 1 }),

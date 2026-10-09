@@ -68,11 +68,11 @@ export interface TableOptions {
      */
     filter?: (row: TableRow) => boolean;
     handleSelect?: (ids: string[]) => void;
-    /** @deprecated use `handleSelect` — removed in 0.9. */
+    /** @deprecated use `handleSelect` — removed in 0.10. */
     onSelect?: (ids: string[]) => void;
     /** Row activated (a second click / Enter) — distinct from selecting it. */
     handleActivate?: (row: TableRow) => void;
-    /** @deprecated use `handleActivate` — removed in 0.9. */
+    /** @deprecated use `handleActivate` — removed in 0.10. */
     onActivate?: (row: TableRow) => void;
 }
 export declare function table(config: TableOptions): Table;

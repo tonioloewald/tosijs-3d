@@ -39,6 +39,27 @@ export declare function planetaryAxes(p: {
     moisture: number;
     latitude: number;
 };
+/**
+ * THE TEMPERATURE SCALE: `0` is 0 °C and each unit is 50 °C, so `1` is 50 °C,
+ * `-1` is -50 °C, and it does not stop at either end (Titan is about -3.6,
+ * Venus about 9.3). This is what an author sets: the terrain's
+ * `biomeTemperature`, and what the ice rule reads.
+ *
+ * The CHART is a window onto it. Its `0…1` axis runs from -22.5 °C to 40 °C
+ * (freezing sits at 0.36), and everything inside the biome shader, the
+ * province climate curves and the decorator's bands is still in those chart
+ * units. Outside the window the chart clamps to its end rows; the number
+ * itself is kept, so colder is still colder.
+ */
+export declare const CELSIUS_PER_UNIT = 50;
+/** The chart coordinate of 0 °C. */
+export declare const CHART_ZERO = 0.36;
+/** Chart units per temperature unit. */
+export declare const CHART_SPAN = 0.8;
+/** Temperature (0 = 0 °C, 1 = 50 °C) → the chart's coordinate, unclamped. */
+export declare function chartTemperature(temperature: number): number;
+/** A chart coordinate → temperature (0 = 0 °C, 1 = 50 °C). */
+export declare function planetTemperature(chart: number): number;
 /** Axes → clamped chart coordinates (u = temperature, v = moisture, 0..1). */
 export declare function chartUV(temperature: number, moisture: number): {
     u: number;

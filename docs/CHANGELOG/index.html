@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=061930568918" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -43,7 +43,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=0dbf7fda9879" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>Changelog</h1>
 <!--{ "order": 3 }-->
@@ -51,6 +51,93 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.9.0</h2>
+<p><strong>A sea that knows its shore, and a temperature that means one.</strong> The water
+takes the depth and the distance to land from the terrain and draws surf that
+runs in, pale shallows and sea ice; solid ice is solid for everything in the
+scene. Temperature is now a real scale (0 is 0 °C, 1 is 50 °C), so the same
+dial reaches Titan and Venus.</p>
+<p>Size: barrel (min, packages external) 948.5 KB raw / 318.9 KB gz, +1.75% on
+0.8.15 (the shore model and its shader).</p>
+<h3>⚠️ Breaking</h3>
+<ul>
+<li><strong><code>biomeTemperature</code> is a temperature, and <code>-1</code> no longer means
+&quot;default&quot;.</strong> <code>0</code> is 0 °C and each unit is 50 °C (<code>1</code> = 50 °C, <code>-1</code> =
+-50 °C, which warns once in the console), with no limit either way, so a world
+can be as cold as Titan or as hot as Venus. It used to be the biome
+chart&#39;s <code>0…1</code> axis with <code>-1</code> for &quot;default&quot;. Convert old values with
+<code>(old - 0.36) / 0.8</code>; the default is now <code>0.45</code> and looks the same. The
+chart is a window onto the new scale (-22.5 °C to 40 °C) and clamps beyond
+it. <code>chartTemperature</code> / <code>planetTemperature</code> convert. Everything inside the
+biome shader, province climate and decorator bands is still in chart
+units. See <a href="./Migration.md">Migration</a>.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>The deprecated <code>onX</code> callback names stay for one more minor.</strong> They were
+announced as &quot;removed in 0.9&quot;; they are removed in <strong>0.10</strong> instead, and
+still work and warn once in 0.9.x. The same goes for the other names marked
+for removal in 0.9 (<code>whenEnter</code>/<code>whenExit</code>&#39;s old spellings on the trigger,
+the manipulator&#39;s, <code>generateGalaxy</code>). Nothing to do yet beyond renaming at
+your own pace.</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong>A shoreline, and sea ice.</strong> <code>&lt;tosi-b3d-water shore=&quot;on&quot;&gt;</code> gives the water
+the depth of the ground under each vertex (from the scene&#39;s terrain) and
+draws from it: surf (wave fronts running in to the shore one after
+another, and a wet edge lapping at the waterline), paler water over the
+shallows, and ice. The surf is drawn from each vertex&#39;s DISTANCE to the
+waterline, not its depth, so it is the same width on a steep shore as on
+a flat one. The distance is a real one, carried across the grid from
+the waterline, so the fronts are evenly spaced whatever the bed does.
+<code>shoreFine</code> doubles the mesh near the viewer: a vertex every 2 m out to
+64 m (about 16,600 in all) where there is otherwise one every 4 m. The ice follows the cold and the shore: a solid sheet
+along the beach, breaking into plates further out, open water beyond, and
+all of it moving out to sea as the climate at sea level (season included)
+gets colder. It is there from below as well. The sea starts to freeze at
+-2 °C at the beach; open water stays clear to about -8 °C and is one
+unbroken surface by -22.5 °C. <code>iceCover(temperature, depth)</code> is the rule; see <a href="/water-shore/">water-shore</a>. With <code>shore=&quot;on&quot;</code> a vertex
+colour on the water mesh is shore data, not a tint. The shader patch is
+made once for the page, so this holds for EVERY <code>WaterMaterial</code> on a page
+that has one <code>shore=&quot;on&quot;</code> water: a vertex-coloured water mesh of your own
+loses its tint there.</li>
+<li><strong>Solid ice is solid.</strong> Ice is water until it has knitted solid
+(<code>iceBears</code>); where it has, the water carries an invisible collision mesh
+(collision group <code>ice</code>), so anything that collides or picks meets it: a
+car, a shell, a ground probe. Plates and a sheet still showing its cracks
+are water. Wave displacement fades out under ice, so the sheet lies flat
+where it collides. A biped swimming at the surface climbs onto solid ice;
+one that dived first goes under it, with the ice as a ceiling.
+<code>water.iceBearsAt(x, z)</code> asks for any point.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Water animates on every browser.</strong> Babylon&#39;s <code>WaterMaterial</code> advances
+its clock only on a frame whose duration differs from the last, so where
+frame times are steady (a browser that rounds its timer, a display holding
+its rate) the ripples crawled. <code>&lt;tosi-b3d-water&gt;</code> now writes the
+material&#39;s time itself, once a frame, from the scene&#39;s clock. It also
+stops when the scene is paused.</li>
+<li><strong>Fog takes the sky&#39;s tint.</strong> A <code>syncSkybox</code> fog fades distant ground to
+the skybox&#39;s <code>horizonColor</code>, which ignored <code>horizonTint</code>: under a tinted
+sky the far hills stood out as a pale blue-white band along the horizon.
+It now keeps its brightness and takes the tint&#39;s hue, by <code>tintStrength</code>.</li>
+<li><strong>Land and Sky: no air, no cloud.</strong> The demo&#39;s cloud cover and orographic
+dials are thinned by the air setting (none below a twentieth of Earth&#39;s),
+so Mars has a clear sky. The cloud deck itself is unchanged.</li>
+<li><strong>Negative <code>cirrus</code> had a quarter of the cloud of positive <code>cirrus</code>.</strong> The
+two streak directions were built differently; across-the-wind is now the
+same field turned a quarter, so the sign changes only which way the streaks
+run.</li>
+<li><strong>Clouds needed exactly full air.</strong> With <code>atmosphere</code> under about 0.8 the
+sky dome becomes a blended mesh, and it was drawn after the cloud deck and
+over it. It is now drawn first.</li>
+<li><strong>A little less air cleared the haze almost completely, and a slow drag
+back to full air never quite arrived.</strong> The vacuum fog layer now mixes fog
+by strength (<code>FogLayer.reciprocal</code>), and the sky&#39;s air value lands exactly
+on 0 and 1.</li>
+</ul>
 <h2>0.8.15</h2>
 <p><strong>Rocks and trees that belong to the land.</strong> Procedural rocks, Quaternius
 trees gathered into copses, and a biome shader that colours vegetation by the
@@ -4558,6 +4645,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
       <li><a class="doc-link" href="../scatter/">scatter</a></li>
       <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
       <li><a class="doc-link" href="../weather/">weather</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
@@ -4711,6 +4799,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-8p5cxzfx.js"></script>
+  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
 </body>
 </html>

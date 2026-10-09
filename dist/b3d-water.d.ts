@@ -12,6 +12,8 @@ export declare class B3dWater extends AbstractMesh {
         reflectionRefresh: number;
         twoSided: boolean;
         follow: boolean;
+        shore: "on" | "off";
+        shoreFine: boolean;
         normalMap: string;
         windForce: number;
         waveHeight: number;
@@ -64,6 +66,8 @@ export declare class B3dWater extends AbstractMesh {
      * so the underside fades in exactly as the fog does. */
     private _underW;
     private _shimmer;
+    /** Milliseconds of scene time, for the water shader. See `_windTick`. */
+    private _clock;
     private _ceilingKey;
     private _windTick?;
     private _wasUnderwater;
@@ -131,6 +135,27 @@ export declare class B3dWater extends AbstractMesh {
      * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.
      * The waves are world-anchored (procedural + the bump UV offset), so a snap is seamless: the
      * same sea, a differently-centred mesh. `follow` only. */
+    private _shore;
+    private _ceilingShore;
+    /** The climate at sea level this time of year, on the temperature scale
+     * (0 = 0 °C, 1 = 50 °C); warm (never freezes) without a biome terrain. */
+    private _seaTemperature;
+    private _iceHeight;
+    /**
+     * Whether the ice at a point in the scene carries weight: solid ice does,
+     * plates and a cracked sheet do not (see water-shore's `iceBears`). Always
+     * false without `shore="on"` and a terrain. One terrain sample per call.
+     */
+    iceBearsAt(x: number, z: number): boolean;
+    private _updateCeilingShore;
+    private _shoreTick?;
+    private _shoreNext;
+    private _shoreSince;
+    private _warnedNoTerrain;
+    private _updateShore;
+    /** The walkable ice: see where it is built. */
+    private _ice;
+    private _updateIceMesh;
     private _applyFollow;
     render(): void;
 }

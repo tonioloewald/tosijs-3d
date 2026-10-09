@@ -29,9 +29,9 @@ export declare class B3dTrigger extends B3dChild {
     owner: B3d | null;
     whenEnter: ((trigger: B3dTrigger) => void) | null;
     whenExit: ((trigger: B3dTrigger) => void) | null;
-    /** @deprecated use `whenEnter` — removed in 0.9. */
+    /** @deprecated use `whenEnter` — removed in 0.10. */
     onEnter: ((trigger: B3dTrigger) => void) | null;
-    /** @deprecated use `whenExit` — removed in 0.9. */
+    /** @deprecated use `whenExit` — removed in 0.10. */
     onExit: ((trigger: B3dTrigger) => void) | null;
     private _inside;
     private _beforeRender;
