@@ -4479,6 +4479,11 @@
         "description": "With `shore=\"on\"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time"
       },
       {
+        "name": "receiveShadows",
+        "default": "'on'",
+        "description": "The surface (and the ice on it) takes shadows from the sun. `'off'` skips the shadow lookup per water pixel"
+      },
+      {
         "name": "normalMap"
       },
       {

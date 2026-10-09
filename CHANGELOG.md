@@ -64,6 +64,11 @@ pair and what to do.
 
 ### Fixed
 
+- **Water, and the ice on it, receives shadows.** The surface never did: it
+  was not marked as a shadow receiver, so nothing cast a shadow on the sea,
+  which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`
+  restores the old behaviour and saves a shadow lookup per water pixel (the
+  cost on a headset has not been measured).
 - `PerlinNoise(0)` uses seed 0. It was treated as "no seed" and gave a
   different field every time.
 - `world-store.ts` compiles under `noUncheckedIndexedAccess` (the steer loop

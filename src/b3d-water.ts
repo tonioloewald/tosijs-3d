@@ -59,6 +59,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
 | `shore` | `'off'` | `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time |
 | `shoreFine` | `false` | With `shore="on"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time |
+| `receiveShadows` | `'on'` | The surface (and the ice on it) takes shadows from the sun. `'off'` skips the shadow lookup per water pixel |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -96,6 +97,7 @@ import {
   fetchedUrl,
   markCollisionGroup,
   sceneDelta,
+  isOff,
 } from './b3d-utils.js'
 import { inheritedWind, waterWind } from './wind.js'
 import { band } from './atmosphere.js'
@@ -179,6 +181,16 @@ export class B3dWater extends AbstractMesh {
     shore: 'off' as 'on' | 'off',
     // Twice the vertices near the viewer, for a shoreline you stand at.
     shoreFine: false,
+    /*
+    THE SURFACE TAKES SHADOWS. It never did: the water does not register with
+    the scene the way a loaded mesh does, so the sun never marked it as a
+    receiver, and a cliff, a hull or a tree threw no shadow on the sea. On
+    open water that is easy to miss. On ICE it is not: a white sheet with
+    nothing on it casting a shadow reads as a flat cut-out (Tonio: "ice on
+    water surface doesn't receive shadows"). `'off'` restores the old look
+    and saves the shadow lookup per water pixel.
+    */
+    receiveShadows: 'on' as 'on' | 'off',
     /*
     EMPTY MEANS PROCEDURAL, and that is the default on purpose.
 
@@ -422,6 +434,7 @@ export class B3dWater extends AbstractMesh {
       )
     }
     this.mesh.checkCollisions = false
+    this.mesh.receiveShadows = !isOff(attrs.receiveShadows)
     /*
     MARK IT AS WATER.
 

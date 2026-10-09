@@ -380,6 +380,7 @@ export function waterSchema(extra: Record<string, unknown> = {}) {
       }),
       shore: choice('off', ['on', 'off']),
       shoreFine: bool(false),
+      receiveShadows: choice('on', ['on', 'off']),
       reflectionRefresh: num(0, {
         minimum: 0,
         maximum: 8,
