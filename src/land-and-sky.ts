@@ -34,7 +34,8 @@ const { demo } = tosi({
     // chart's default 0.45 sits between the dry row (dune) and the medium
     // row (steppe), which is why a warm world with a coral reef below the
     // waterline read as barren above it. 0.72 is the wet row — forest.
-    temperature: 0.72,
+    // TEMPERATURE: 0 is 0 °C and a unit is 50 °C, so this is 22.5 °C.
+    temperature: 0.45,
     moisture: 0.72,
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
@@ -187,13 +188,24 @@ const PRESET_KEYS = {
     'storm'],
 }
 const STATE = { demo, sky }
+// `scale: 2`: temperature is 0 = 0 °C, 1 = 50 °C. Presets saved before that
+// carry the biome chart's 0…1 axis and are converted when read.
 function capturePreset(name) {
-  const p = { name }
+  const p = { name, scale: 2 }
   for (const [group, keys] of Object.entries(PRESET_KEYS)) {
     p[group] = {}
     for (const k of keys) p[group][k] = STATE[group][k].value
   }
   return p
+}
+function migratePreset(p) {
+  if (p == null || p.scale === 2) return p
+  const t = p.demo?.temperature
+  return {
+    ...p,
+    scale: 2,
+    demo: typeof t === 'number' ? { ...p.demo, temperature: +((t - 0.36) / 0.8).toFixed(3) } : p.demo,
+  }
 }
 function applyPreset(p) {
   for (const [group, keys] of Object.entries(PRESET_KEYS)) {
@@ -210,11 +222,12 @@ const BUILT_IN = {
   // seas, a smaller sun, two little moons, and Olympus Mons for the volcano.
   Mars: {
     name: 'Mars',
-    // HOT and bone-dry: the palette's red dust is the warm end of its driest
-    // row, and temperature falls with altitude, so a cooler Mars went grey.
+    // A HACK, for the colour: 40 °C, where Mars is really about -60 °C
+    // (-1.2). The palette's red dust is the warm end of its driest row, so a
+    // true Mars would land on the cold end and go grey. Wants its own palette.
     // (No volcano for now: Earth's province, a stand-in until each world
     // gets its own landforms.)
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.35 },
+    demo: { seaLevel: 0, temperature: 0.8, moisture: 0, sea: false, volcano: false, craters: 0.35 },
     sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 0 },
   },
   // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
@@ -226,7 +239,8 @@ const BUILT_IN = {
     // Venus's surface is YOUNG (resurfaced by volcanism): few craters.
     // Mostly smooth lava plains (Magellan radar): gentle relief. And no rain:
     // Venus's sulfuric acid evaporates long before it reaches the ground.
-    demo: { seaLevel: 0, temperature: 1, moisture: 0, sea: false, volcano: false, craters: 0.06, grossAmplitude: 90, detailAmplitude: 8 },
+    // 465 °C, and here the real number works: the chart clamps to its hot row.
+    demo: { seaLevel: 0, temperature: 9.3, moisture: 0, sea: false, volcano: false, craters: 0.06, grossAmplitude: 90, detailAmplitude: 8 },
     sky: { storm: true, stormX: 0, stormZ: 0, stormRadius: 8000, stormCoverage: 0.4, lightningRate: 4, stormRain: 0, wind: 3, coverage: 2, altitude: 900, orographic: 0, dust: 0.4, zenithTint: '#e8c880', horizonTint: '#f0d890', tintStrength: 0.85, deckColor: '#f2e2a8', deckUnderColor: '#c0a060', sunSize: 1.39, sunBrightness: sunLight(0.72), moons: 'None', decoBudget: 0 },
   },
 }
@@ -239,7 +253,7 @@ Object.assign(BUILT_IN, {
     name: 'Moon',
     // FLATTISH, so the craters carry the shape (Earth's 230 m relief buried
     // them). Jagged highlands would be a mountain province on top.
-    demo: { sea: false, volcano: false, craters: 0.9, temperature: 0, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
+    demo: { sea: false, volcano: false, craters: 0.9, temperature: -0.45, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
     sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: 'Earth', decoBudget: 0, wind: 0 },
   },
   // Sulfur and fire: yellow, orange and white ground, black lava, a field of
@@ -247,15 +261,17 @@ Object.assign(BUILT_IN, {
   // the sky, to come.)
   Io: {
     name: 'Io',
-    demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.5, moisture: 0, palette: 'sulfur' },
+    // (A hack: 9 °C picks the sulfur palette's middle row. Io is about -130 °C.)
+    demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.175, moisture: 0, palette: 'sulfur' },
     sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: 'None', decoBudget: 0, wind: 0 },
   },
   // Thick orange haze over dark methane seas, a tiny, dim sun barely there.
   Titan: {
     name: 'Titan',
-    // (Temperature is the biome's, not Titan's -180 C: cold enough reads as
-    // ice everywhere, so the ground is its dry, dark row instead.)
-    demo: { sea: true, seaLevel: 0.45, volcano: false, craters: 0.05, temperature: 0.62, moisture: 0.02, waterColor: '#1a0e04', waterTint: 0.75, waterFog: '#2a1a08' },
+    // (A hack: 16 °C, not Titan's -180 °C (-3.6). The real number reads as
+    // ice everywhere and would freeze the sea, which is methane and should
+    // not. Wants its own palette and a freezing point per sea.)
+    demo: { sea: true, seaLevel: 0.45, volcano: false, craters: 0.05, temperature: 0.325, moisture: 0.02, waterColor: '#1a0e04', waterTint: 0.75, waterFog: '#2a1a08' },
     sky: { atmosphere: 1, dust: 1, zenithTint: '#b87830', horizonTint: '#d09040', tintStrength: 1, coverage: 0.5, cirrus: 0.3, orographic: 0.2, deckColor: '#d8a060', deckUnderColor: '#806030', sunSize: 0.11, sunBrightness: sunLight(9.5), moons: 'None', decoBudget: 0, wind: 2 },
   },
 })
@@ -277,7 +293,7 @@ function saveCustom(p) {
 }
 const presetNames = () => [...Object.keys(BUILT_IN), ...Object.keys(loadCustom())]
 sky.preset.observe(() => {
-  const p = BUILT_IN[sky.preset.value] ?? loadCustom()[sky.preset.value]
+  const p = BUILT_IN[sky.preset.value] ?? migratePreset(loadCustom()[sky.preset.value])
   if (p == null) return
   applyPreset(EARTH)
   applyPreset(p)
@@ -511,7 +527,7 @@ const scene = b3d(
       select3d({ label: 'ground palette', value: demo.palette, options: ['earth', ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
-      slider3d({ label: 'temperature', value: demo.temperature, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'temperature (1 = 50 °C)', value: demo.temperature, min: -1, max: 1, step: 0.01 }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),

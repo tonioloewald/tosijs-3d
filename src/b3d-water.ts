@@ -108,6 +108,7 @@ import {
 } from './water-shore.js'
 import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js'
 import { seasonOf } from './biome-plugin.js'
+import { planetTemperature } from './biome-chart.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dWater extends AbstractMesh {
@@ -1071,13 +1072,16 @@ export class B3dWater extends AbstractMesh {
     key: string
   } | null = null
 
-  /** The climate at sea level this time of year; 1 (never freezes) without a biome terrain. */
+  /** The climate at sea level this time of year, on the temperature scale
+   * (0 = 0 °C, 1 = 50 °C); warm (never freezes) without a biome terrain. */
   private _seaTemperature(terrain: any): number {
     const p = terrain?.biomePlugin?.isEnabled
       ? terrain.biomePlugin.params
       : null
     return p != null
-      ? p.baseTemperature + seasonOf(p.season, p.seasonality).temperature
+      ? planetTemperature(
+          p.baseTemperature + seasonOf(p.season, p.seasonality).temperature
+        )
       : 1
   }
 

@@ -41,7 +41,7 @@ const terrain = b3dTerrain({
   detailAmplitude: 10,
   biomeSeaLevel: 0,
   biomeLapseRate: 0.15 / 60,
-  biomeTemperature: 0.6,
+  biomeTemperature: 0.3,
   biomeMoisture: 0.75,
 })
 

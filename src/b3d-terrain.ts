@@ -284,7 +284,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `detailAmplitude` | `3` | Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail |
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
-| `biomeTemperature` | `-1` (auto 0.72) | Sea-level temperature, `0…1` cold → warm. LIVE |
+| `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
 | `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
 | `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
@@ -397,6 +397,7 @@ const freshBiomeMemo = () => ({
   seasonality: NaN,
 })
 import { touchesExtent } from './landform.js'
+import { chartTemperature } from './biome-chart.js'
 
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
@@ -500,7 +501,8 @@ export class B3dTerrain extends B3dChild {
     // Climate and volcanic plate size, LIVE like the two above. -1 = the
     // plugin's own default (0.72 / 0.45 / 0.09), because 0 is a real value
     // for all three (a frozen world, the dead row, and no plates at all).
-    biomeTemperature: -1,
+    // 22.5 °C: 0 is 0 °C, a unit is 50 °C (biome-chart's chartTemperature).
+    biomeTemperature: 0.45,
     biomeMoisture: -1,
     biomeVolcanicScale: -1,
     // The year: where in it, and how far it swings the temperature axis.
@@ -2027,7 +2029,12 @@ export class B3dTerrain extends B3dChild {
     const p = this.biomePlugin.params
     if (t !== memo.temperature) {
       memo.temperature = t
-      p.baseTemperature = t >= 0 ? Math.min(1, t) : BIOME_AUTO.baseTemperature
+      // The attribute is on the temperature scale (0 = 0 °C, 1 = 50 °C); the
+      // plugin works in chart units. Not clamped: the chart clamps its own
+      // lookup, and the ice wants to know how cold it really is.
+      p.baseTemperature = Number.isFinite(t)
+        ? chartTemperature(t)
+        : BIOME_AUTO.baseTemperature
     }
     if (m !== memo.moisture) {
       memo.moisture = m

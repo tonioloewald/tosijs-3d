@@ -16,7 +16,7 @@ shader draws from them:
 ## Where the ice is
 
 Ice follows the cold and the shore. `iceCover(temperature, depth)` is the whole
-rule: nothing above freezing (a chart temperature of about 0.36); below it the
+rule: nothing above the sea's freezing point (about -2 °C); below it the
 shallows freeze first and the cover spreads outward into deeper water as it
 gets colder. So one cold bay has a solid sheet along the beach, breaking into
 plates further out, and open sea beyond. The temperature is the terrain's
@@ -173,11 +173,15 @@ export function shoreGrid(
   return { positions, normals, uvs, indices, count, lines }
 }
 
-/** Chart temperature at and above which water never freezes. */
-export const FREEZING = 0.36
+/**
+ * Temperature at and above which the sea never freezes: -2 °C, where 0 is
+ * 0 °C and a unit is 50 °C (biome-chart's scale). Every temperature in this
+ * module is on that scale.
+ */
+export const FREEZING = -0.04
 
 /**
- * How much of the water is ice, 0 (open) … 1 (a solid sheet), from the chart
+ * How much of the water is ice, 0 (open) … 1 (a solid sheet), from the
  * temperature at the surface and the depth of the water (metres; anything at
  * or above the waterline counts as the shore itself).
  *
@@ -242,18 +246,19 @@ export function iceSide(
 /** Unclamped: under 1 is cover, over 1 is a sheet knitting solid. */
 function iceAmount(temperature: number, depth: number): number {
   if (!(temperature < FREEZING)) return 0
-  // 0 at freezing, 1 fourteen hundredths colder, on up from there.
-  const cold = (FREEZING - temperature) / 0.14
+  // 0 at freezing, 1 about nine degrees colder, on up from there.
+  const cold = (FREEZING - temperature) / 0.175
   const d = Math.max(0, depth)
   // 1 at the beach, 0 by 25 m: how much the bottom helps it freeze…
   const t = Math.min(1, d / 25)
   const shallow = 1 - t * t * (3 - 2 * t)
   // …and the last couple of metres freeze at the first touch of cold.
   const wading = 1 - Math.min(1, d / 2.5)
-  // The open sea needs real cold, and gets there faster the colder it is: a
-  // full sheet near a chart temperature of 0.12, bearing weight near 0.05,
-  // and one unbroken surface at 0, so a world at 0 is frozen right across.
-  return cold * (0.42 + 0.105 * cold + 0.9 * shallow + 0.9 * wading)
+  // The open sea does not freeze just because it is below zero: deep water
+  // stays clear until about -8 °C, then goes quickly. A full sheet near
+  // -18 °C, bearing weight near -21 °C, one unbroken surface at -22.5 °C.
+  const open = Math.max(0, cold - 0.686 * (1 - shallow))
+  return open * (0.6 + 0.28 * open) + cold * (0.9 * shallow + 0.9 * wading)
 }
 
 /**

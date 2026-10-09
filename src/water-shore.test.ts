@@ -11,6 +11,7 @@ import {
   SHORE_DEPTH_MAX,
   SHORE_DEPTH_MIN,
 } from './water-shore.js'
+import { planetTemperature } from './biome-chart.js'
 
 describe('shoreGridLines', () => {
   test('spans the size exactly, symmetric, strictly increasing', () => {
@@ -68,50 +69,58 @@ describe('shoreGrid', () => {
   })
 })
 
+// The cases below were written against the biome chart's axis.
+const T = planetTemperature
+
 describe('iceCover', () => {
-  test('nothing at or above freezing', () => {
+  test('nothing at or above freezing, which for the sea is -2 °C', () => {
+    expect(iceCover(0, 0)).toBe(0)
+    expect(iceCover(-0.03, 0)).toBe(0)
+    expect(iceCover(-0.1, 0)).toBeGreaterThan(0)
+    // The open sea stays clear well below that.
+    expect(iceCover(-0.12, 60)).toBe(0)
     expect(iceCover(FREEZING, 0)).toBe(0)
-    expect(iceCover(0.7, 0)).toBe(0)
+    expect(iceCover(T(0.7), 0)).toBe(0)
     expect(iceCover(NaN, 3)).toBe(0)
   })
 
   test('the shallows freeze first, and the deep last', () => {
     const t = 0.26
-    expect(iceCover(t, 0)).toBeGreaterThan(iceCover(t, 8))
-    expect(iceCover(t, 8)).toBeGreaterThan(iceCover(t, 40))
+    expect(iceCover(T(t), 0)).toBeGreaterThan(iceCover(T(t), 8))
+    expect(iceCover(T(t), 8)).toBeGreaterThan(iceCover(T(t), 40))
     // Land above the waterline counts as the shore.
-    expect(iceCover(t, -3)).toBe(iceCover(t, 0))
+    expect(iceCover(T(t), -3)).toBe(iceCover(T(t), 0))
   })
 
   test('sheet, then plates, then less: a cold bay has all three', () => {
     const t = 0.2
-    expect(iceCover(t, 0)).toBe(1)
-    const out = iceCover(t, 30)
+    expect(iceCover(T(t), 0)).toBe(1)
+    const out = iceCover(T(t), 30)
     expect(out).toBeGreaterThan(0.15)
     expect(out).toBeLessThan(0.7)
   })
 
   test('the first touch of cold freezes the wading depth and little else', () => {
-    const t = 0.33
-    expect(iceCover(t, 0.2)).toBeGreaterThan(0.35)
-    expect(iceCover(t, 12)).toBeLessThan(0.25)
+    const t = 0.3
+    expect(iceCover(T(t), 0.2)).toBeGreaterThan(0.35)
+    expect(iceCover(T(t), 12)).toBeLessThan(0.25)
   })
 
   test('solid: only in real cold, shallows first, never before a full sheet', () => {
-    expect(iceSolid(0.3, 0)).toBe(0)
-    expect(iceSolid(0.2, 40)).toBe(0)
-    expect(iceSolid(0.05, 0)).toBe(1)
-    expect(iceSolid(0.1, 2)).toBeGreaterThan(iceSolid(0.1, 30))
+    expect(iceSolid(T(0.3), 0)).toBe(0)
+    expect(iceSolid(T(0.2), 40)).toBe(0)
+    expect(iceSolid(T(0.05), 0)).toBe(1)
+    expect(iceSolid(T(0.1), 2)).toBeGreaterThan(iceSolid(T(0.1), 30))
     for (const t of [0.3, 0.2, 0.1])
       for (const d of [0, 5, 20, 50])
-        if (iceSolid(t, d) > 0) expect(iceCover(t, d)).toBe(1)
+        if (iceSolid(T(t), d) > 0) expect(iceCover(T(t), d)).toBe(1)
   })
 
   test('colder pushes the sheet out to sea', () => {
-    expect(iceCover(0.02, 60)).toBe(1)
-    expect(iceCover(0.3, 60)).toBeLessThan(0.25)
+    expect(iceCover(T(0.02), 60)).toBe(1)
+    expect(iceCover(T(0.3), 60)).toBeLessThan(0.25)
     // …and colder than the chart's zero (a hard winter), the open sea is solid.
-    expect(iceSolid(-0.15, 60)).toBeGreaterThan(0.5)
+    expect(iceSolid(T(-0.15), 60)).toBeGreaterThan(0.5)
   })
 })
 
@@ -121,7 +130,7 @@ describe('shoreData', () => {
     // The bed falls away to +x: 1 m deeper per metre, dry land to -x.
     const bed = (x: number) => -x
     const warm = shoreData(g, 0, 0, 0, bed, 0.6)
-    const cold = shoreData(g, 0, 0, 0, bed, 0.1)
+    const cold = shoreData(g, 0, 0, 0, bed, -0.5)
     const at = (data: Float32Array, ix: number) => [
       data[ix * 4],
       data[ix * 4 + 1],
@@ -143,24 +152,25 @@ describe('shoreData', () => {
   })
 })
 
-describe('a world at temperature 0', () => {
+describe('the bottom of the biome chart (-22.5 °C)', () => {
   test('is frozen solid right across, however deep', () => {
-    expect(iceSolid(0, 60)).toBe(1)
-    expect(iceBears(0.04, 60)).toBe(true)
-    expect(iceSolid(0.13, 60)).toBe(0)
+    expect(iceSolid(-0.45, 60)).toBe(1)
+    expect(iceSolid(T(0), 60)).toBe(1)
+    expect(iceBears(T(0.02), 60)).toBe(true)
+    expect(iceSolid(T(0.13), 60)).toBe(0)
   })
 })
 
 describe('iceBears', () => {
   test('only solid ice carries weight', () => {
-    expect(iceBears(0.7, 0)).toBe(false) // open water
-    expect(iceBears(0.3, 0)).toBe(false) // a sheet, still cracked
-    expect(iceBears(0.05, 0)).toBe(true)
-    expect(iceBears(0.3, 60)).toBe(false) // plates
+    expect(iceBears(T(0.7), 0)).toBe(false) // open water
+    expect(iceBears(T(0.3), 0)).toBe(false) // a sheet, still cracked
+    expect(iceBears(T(0.05), 0)).toBe(true)
+    expect(iceBears(T(0.3), 60)).toBe(false) // plates
   })
   test('the shore bears before the open sea', () => {
-    expect(iceBears(0.12, 0.5)).toBe(true)
-    expect(iceBears(0.12, 40)).toBe(false)
+    expect(iceBears(T(0.12), 0.5)).toBe(true)
+    expect(iceBears(T(0.12), 40)).toBe(false)
   })
 })
 

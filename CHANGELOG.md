@@ -8,6 +8,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+### ⚠️ Breaking
+
+- **`biomeTemperature` is a temperature.** `0` is 0 °C and each unit is
+  50 °C (`1` = 50 °C, `-1` = -50 °C), with no limit either way, so a world
+  can be as cold as Titan or as hot as Venus. It used to be the biome
+  chart's `0…1` axis with `-1` for "default". Convert old values with
+  `(old - 0.36) / 0.8`; the default is now `0.45` and looks the same. The
+  chart is a window onto the new scale (-22.5 °C to 40 °C) and clamps beyond
+  it. `chartTemperature` / `planetTemperature` convert. Everything inside the
+  biome shader, province climate and decorator bands is still in chart
+  units. See [Migration](./Migration.md).
+
 ### Added
 
 - **A shoreline, and sea ice.** `<tosi-b3d-water shore="on">` gives the water
@@ -16,8 +28,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   shallows, and ice. The ice follows the cold and the shore: a solid sheet
   along the beach, breaking into plates further out, open water beyond, and
   all of it moving out to sea as the climate at sea level (season included)
-  gets colder. It is there from below as well. `iceCover(temperature, depth)`
-  is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
+  gets colder. It is there from below as well. The sea starts to freeze at
+  -2 °C at the beach; open water stays clear to about -8 °C and is one
+  unbroken surface by -22.5 °C. `iceCover(temperature, depth)` is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
   colour on the water mesh is shore data, not a tint.
 - **Solid ice is solid.** Ice is water until it has knitted solid
   (`iceBears`); where it has, the water carries an invisible collision mesh

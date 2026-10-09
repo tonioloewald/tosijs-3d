@@ -1114,6 +1114,9 @@ export {
   cellBlend,
   slopeMask,
   photicFactor,
+  chartTemperature,
+  planetTemperature,
+  CELSIUS_PER_UNIT,
 } from './biome-chart.js'
 export type { BiomeChartConfig } from './biome-chart.js'
 // Slope profiles — levels adjustments for terrain, localizable across regions

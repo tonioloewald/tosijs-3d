@@ -459,9 +459,10 @@ describe('the climate dials are LIVE, and survive a re-parent (0.8.3 gate B1)', 
     })
     t.frame()
     const p = t.el.biomePlugin.params
-    expect([p.baseTemperature, p.mapMoisture, p.volcanicScale]).toEqual([
-      0.3, 0.8, 0.02,
-    ])
+    // Temperature is authored as 0 = 0 °C, 1 = 50 °C; the plugin holds the
+    // chart's coordinate (0.36 + 0.8 × 0.3).
+    expect(p.baseTemperature).toBeCloseTo(0.6)
+    expect([p.mapMoisture, p.volcanicScale]).toEqual([0.8, 0.02])
     expect(t.builds).toBe(0)
   })
 

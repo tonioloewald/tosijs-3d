@@ -9,6 +9,36 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.8.15 → 0.9.0 (unreleased)
+
+### 1. `biomeTemperature` is in degrees now: 0 is 0 °C, 1 is 50 °C
+
+**What changed.** `<tosi-b3d-terrain biomeTemperature>` used to be the biome
+chart's own axis: `0…1`, cold to warm, with `-1` meaning "use the default".
+It is now a temperature: `0` is 0 °C and each unit is 50 °C, so `-1` is
+-50 °C, and the value is not limited to any range. The default is `0.45`
+(22.5 °C), which is the same climate as before.
+
+**Who is affected.** Anyone who sets `biomeTemperature`. An old value is read
+on the new scale and comes out much warmer: `0.3` used to be about -4 °C and
+is now 15 °C. `-1` used to mean the default and is now -50 °C.
+
+**What to do.** Convert each value: `new = (old - 0.36) / 0.8`. Replace `-1`
+with `0.45`, or delete the attribute.
+
+| Old | New | Climate |
+|-----|-----|---------|
+| `-1` (auto) | `0.45` | 22.5 °C |
+| `1` | `0.8` | 40 °C |
+| `0.72` | `0.45` | 22.5 °C |
+| `0.36` | `0` | 0 °C |
+| `0` | `-0.45` | -22.5 °C |
+
+`chartTemperature` and `planetTemperature` (from `biome-chart`) do the
+conversion in code. Only this attribute moved. `BiomePlugin.params`, the
+province climate curves and the decorator's rule bands are still in chart
+units.
+
 ## 0.8.14 → 0.8.15
 
 **Nothing breaks at compile time. Three defaults change what you see.**
