@@ -249,6 +249,8 @@ export class B3dLightning extends B3dChild {
   private _spriteMat: BABYLON.StandardMaterial | null = null
   private _audio: AudioContext | null = null
   private _noise: AudioBuffer | null = null
+  /** Thunder already queued on the audio clock and not yet finished. */
+  private _rumbles = new Set<{ src: AudioBufferSourceNode; gain: GainNode }>()
 
   private _id(cell: WeatherCell): number {
     let id = this._ids.get(cell)
@@ -309,6 +311,8 @@ export class B3dLightning extends B3dChild {
       )) {
         this._start(owner, scene, s)
       }
+    } else if (this._rumbles.size > 0) {
+      this._hush()
     }
     this._lastT = t
 
@@ -320,7 +324,19 @@ export class B3dLightning extends B3dChild {
       const level = flashAt(age, l.strike.seed, l.length)
       const weight =
         l.strike.kind === 'sprite' ? 0.15 : l.strike.kind === 'cloud' ? 0.7 : 1
-      for (const m of l.bolt) m.visibility = level
+      /*
+      THE CHANNEL IS THERE OR IT IS NOT. Fading the core by `visibility`
+      alpha-blends it, so between re-strokes a bolt was a 30% transparent
+      white tube: pale, see-through, and from close up obviously a tube
+      (Tonio, in a headset: "too pale, they read as transparent"). The core is
+      opaque for as long as the stroke is live at all; the flicker is carried
+      by the additive halo, the lit cloud and the lit ground, which is where a
+      real stroke's brightness goes too.
+      */
+      for (const m of l.bolt) {
+        if (m.name === 'lightning-halo') m.visibility = Math.min(1, level * 1.5)
+        else m.visibility = level > 0.03 ? 1 : 0
+      }
       if (l.sprite) l.sprite.visibility = Math.min(1, level * 2)
       if (level * weight > bestLevel) {
         bestLevel = level * weight
@@ -657,12 +673,20 @@ export class B3dLightning extends B3dChild {
     if (this._glowMat == null) {
       const m = new BABYLON.StandardMaterial('lightning-halo-mat', scene)
       m.disableLighting = true
-      m.emissiveColor = this._color().scale(0.45)
+      m.emissiveColor = this._color().scale(0.7)
       m.diffuseColor = BABYLON.Color3.Black()
       m.alphaMode = BABYLON.Constants.ALPHA_ADD
       m.alpha = 0.99
       m.disableDepthWrite = true
       m.backFaceCulling = false
+      // Bright along the middle, nothing at the silhouette: a uniform additive
+      // tube has a hard edge and reads as a pale ribbon, not as glowing air.
+      const f = new BABYLON.FresnelParameters()
+      f.leftColor = BABYLON.Color3.Black()
+      f.rightColor = this._color().scale(0.9)
+      f.power = 2.5
+      f.bias = 0
+      m.emissiveFresnelParameters = f
       this._glowMat = m
     }
     return this._glowMat
@@ -672,7 +696,9 @@ export class B3dLightning extends B3dChild {
     if (this._boltMat == null) {
       const m = new BABYLON.StandardMaterial('lightning-bolt-mat', scene)
       m.disableLighting = true
-      m.emissiveColor = this._color().scale(1.4)
+      // Far past white on purpose: it clamps on an LDR target, and anything
+      // that blooms (the glow layer, a later HDR path) gets the real ratio.
+      m.emissiveColor = this._color().scale(6)
       m.diffuseColor = BABYLON.Color3.Black()
       m.backFaceCulling = false
       this._boltMat = m
@@ -830,9 +856,35 @@ export class B3dLightning extends B3dChild {
       src.connect(filter).connect(gain).connect(ac.destination)
       src.start(when)
       src.stop(when + 4.2)
+      const rumble = { src, gain }
+      this._rumbles.add(rumble)
+      src.onended = () => this._rumbles.delete(rumble)
     } catch {
       /* audio is garnish */
     }
+  }
+
+  /*
+  THE STORM IS GONE, SO IS ITS THUNDER. Thunder is queued on the audio clock
+  as far ahead as sound takes to arrive (23 s for a storm 8 km off), so
+  switching world left the old world's thunder to play out over the new one
+  (Tonio: thunder from Venus heard on Earth). With no storm left, what is
+  queued is faded quickly and stopped.
+  */
+  private _hush(): void {
+    const ac = this._audio
+    for (const r of this._rumbles) {
+      try {
+        if (ac != null) {
+          r.gain.gain.cancelScheduledValues(ac.currentTime)
+          r.gain.gain.setTargetAtTime(0, ac.currentTime, 0.08)
+          r.src.stop(ac.currentTime + 0.5)
+        } else r.src.stop()
+      } catch {
+        /* already stopped */
+      }
+    }
+    this._rumbles.clear()
   }
 
   sceneDispose() {

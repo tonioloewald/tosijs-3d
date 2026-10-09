@@ -66,6 +66,14 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   what was asked for (`on, not running here` when the method cannot run in
   the current mode). Land and Sky's own occlusion select, which drifted out of
   step with it, is gone.
+- **Lightning bolts are solid, not see-through.** The channel was faded by
+  transparency between re-strokes, so up close it was a pale translucent
+  tube. It is opaque while the stroke is live, far brighter than white (so it
+  blooms), and the glow around it fades to nothing at its edge. The flicker is
+  carried by the glow, the cloud and the ground.
+- **Thunder stops when its storm does.** Thunder is queued as far ahead as
+  sound takes to arrive, so changing world left the old storm's thunder
+  playing over the new one.
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.
