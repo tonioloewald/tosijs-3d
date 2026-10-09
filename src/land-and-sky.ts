@@ -13,10 +13,6 @@ first — which is the point.
 import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-// Its own state, not `sky` or `demo`: those are what a preset saves, and
-// whether occlusion is on is a property of the device, not of a world.
-const { landAo } = tosi({ landAo: { mode: 'off' } })
-
 const { demo } = tosi({
   demo: {
     seed: 111,
@@ -470,7 +466,6 @@ const scene = b3d(
     // travels with the clouds it is made of.
     windSpeed: sky.wind,
     windBearingDeg: 90,
-    ssao: landAo.mode,
     // Sections as icon TABS (one at a time); 'fold' shows them as headers.
     panelSections: 'tabs',
     // Lightning strikes wherever a weather cell is stormy (the storm toggle).
@@ -587,9 +582,9 @@ const scene = b3d(
       label3d({ text: 'Camera', icon: 'camera', collapsible: true }),
       slider3d({ label: 'eye height', value: sky.eye, min: 5, max: 1500, step: 10 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
-      // Off by default: this is the heavy scene, and the place to find out
-      // what occlusion costs on your device. Works in VR.
-      select3d({ label: 'ambient occlusion', value: landAo.mode, options: ['off', 'on'] }),
+      // Ambient occlusion is off here (the heavy scene). Perf Stats has the
+      // switch, in every demo and in VR; a second one here drifted out of step
+      // with it.
     ],
     sceneCreated(el, BABYLON) {
       // The terrain's biome shader exists only once it has built: apply the

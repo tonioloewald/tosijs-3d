@@ -968,6 +968,8 @@ export class B3d extends Component {
   glowLayer?: BABYLON.GlowLayer
   private static _warnedSsaoAlways = false
   private _ssao?: SsaoController
+  /** Whether occlusion is actually being drawn (the setting can say `on` where it cannot run). */
+  private _ssaoRunning = false
   private _projectedAo?: ProjectedAoController
   private _ssaoCamObs?: BABYLON.Observer<BABYLON.Scene> | null
   xrHelper?: BABYLON.WebXRDefaultExperience
@@ -3321,20 +3323,28 @@ export class B3d extends Component {
             }),
           ]
         : []),
-      // One-tap discriminator: swap between the engine's real hardware scaling and
-      // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
-      // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
       // Occlusion on or off, from inside any demo and any headset: what it
       // costs is a question about THIS scene on THIS device, and most demos
-      // have no control for it.
+      // have no control for it. The label is what is RUNNING, not what was
+      // asked for: `on` with the flat-only method does nothing in a headset,
+      // and a button that said "on" there measured nothing.
       button3d({
-        label: `Occlusion: ${isOff((this as any).ssao) ? 'off' : 'on'}`,
+        label: `Occlusion: ${
+          this._ssaoRunning
+            ? 'on'
+            : isOff((this as any).ssao)
+              ? 'off'
+              : 'on, not running here'
+        }`,
         handleClick: () => {
           ;(this as any).ssao = isOff((this as any).ssao) ? 'on' : 'off'
           this._applySsao()
           this._repaintPanels()
         },
       }),
+      // One-tap discriminator: swap between the engine's real hardware scaling and
+      // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
+      // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
       button3d({
         label: scaled ? 'Reset scale' : 'Force scale ×3',
         handleClick: () => {
@@ -5779,6 +5789,7 @@ export class B3d extends Component {
       budgetAllows: budgets.ssao,
       xrCapable: projected,
     })
+    this._ssaoRunning = active
     const params = {
       strength: Number(a.ssaoStrength) || 0,
       radius: Number(a.ssaoRadius) || 2,
