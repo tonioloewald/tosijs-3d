@@ -354,6 +354,27 @@ export function isNoCollide(mesh: BABYLON.AbstractMesh): boolean {
 }
 
 /**
+ * Whether `node` is part of what is CARRYING `rig`: beneath the rig's parent
+ * (the vehicle you ride) without being beneath the rig itself (your own
+ * panels). False when the rig has no parent. Structural, so it is testable
+ * with plain `{ parent }` objects.
+ */
+export function insideCarrier(
+  node: { parent?: unknown } | null,
+  rig: { parent?: unknown } | null
+): boolean {
+  const carrier = rig?.parent
+  if (carrier == null) return false
+  let n: unknown = node
+  while (n != null) {
+    if (n === rig) return false
+    if (n === carrier) return true
+    n = (n as { parent?: unknown }).parent
+  }
+  return false
+}
+
+/**
  * THE collision predicate. Everything physical picks through this.
  *
  * Excludes UI **by default** — you opt IN to hitting it, never out. That

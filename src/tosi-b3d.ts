@@ -313,6 +313,7 @@ import {
 import {
   cameraIsAttached,
   isNoCollide,
+  insideCarrier,
   isOff,
   markUiMesh,
   replaceKeepingLayers,
@@ -3089,6 +3090,8 @@ export class B3d extends Component {
    */
   /** The in-scene panel, while a session is running. See `_attachXrPanel`. */
   private _xrPanelEl: { popup?: PanelPopup } | null = null
+  /** The XR rig node: the camera's parent, and what a vehicle carries. */
+  private _xrRig: BABYLON.TransformNode | null = null
 
   private _livePanelEl(): { popup?: PanelPopup } | null {
     // In a session the in-scene panel IS the panel — the flat overlay is not
@@ -3333,8 +3336,8 @@ export class B3d extends Component {
           this._ssaoRunning
             ? 'on'
             : isOff((this as any).ssao)
-              ? 'off'
-              : 'on, not running here'
+            ? 'off'
+            : 'on, not running here'
         }`,
         handleClick: () => {
           ;(this as any).ssao = isOff((this as any).ssao) ? 'on' : 'off'
@@ -3830,6 +3833,29 @@ export class B3d extends Component {
       disableDefaultUI: true,
     })
     this.xrHelper = xr
+    /*
+    THE POINTER DOES NOT PICK WHAT YOU ARE SITTING IN.
+
+    In a cockpit the hull is all around you and nearer than any panel, so the
+    controller's ray landed on the canopy: the laser dot sat on the cockpit,
+    and on a Quest the panel behind it could be hovered but not pressed or
+    dragged, with no way out of the session (Tonio, 0.9.0 run-through, board
+    #3198). The panel re-picks past an occluder, which is why an emulated
+    controller could still press it, but that is a second pick standing in for
+    a first one that should never have hit the hull.
+
+    So anything beneath the node the rig is parented to (the vehicle you are
+    riding) is not a pointer target. The rig's own children (the panels) still
+    are. On foot, or in a chase view, the rig is parented to nothing you could
+    be inside, and nothing changes.
+    */
+    if (xr.pointerSelection != null) {
+      xr.pointerSelection.raySelectionPredicate = (m) =>
+        m.isEnabled() &&
+        m.isVisible &&
+        m.isPickable &&
+        !insideCarrier(m, this._xrRig)
+    }
     if (flatCamera != null && this.scene.activeCamera !== flatCamera) {
       this.scene.activeCamera = flatCamera
     }
@@ -4022,6 +4048,7 @@ export class B3d extends Component {
     const cam = base.camera
 
     const rig = new BABYLON.TransformNode('xr-rig', scene)
+    this._xrRig = rig
     /*
     ARRIVE WHERE YOU WERE LOOKING FROM — height included.
 

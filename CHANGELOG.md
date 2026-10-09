@@ -74,6 +74,12 @@ with anything else. [Migration.md](./Migration.md) has every pair.
 - **Thunder stops when its storm does.** Thunder is queued as far ahead as
   sound takes to arrive, so changing world left the old storm's thunder
   playing over the new one.
+- **In VR, the pointer no longer lands on the vehicle you are sitting in.**
+  In the aircraft's cockpit the controller ray hit the canopy first, and on a
+  Quest the panel behind it could be hovered but not pressed or dragged, so
+  there was no way out of the session from inside. Anything beneath the node
+  the XR rig rides on is no longer a pointer target; your own panels are.
+  (Reproduced and checked with the emulated headset; not yet on a device.)
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.
