@@ -111,7 +111,7 @@ describe('widgetBox — widgets inside a box', () => {
     let activated = 0
     const b = B.box(
       { width: 200, padding: 0 },
-      { ...child, onActivate: () => activated++ }
+      { ...child, handleActivate: () => activated++ }
     )
     b.handlePointer('down', 20, 20)
     b.handlePointer('up', 20, 20)
@@ -122,7 +122,7 @@ describe('widgetBox — widgets inside a box', () => {
   test('mixed children: a plain button still activates normally alongside a raw widget', () => {
     const s = spyWidget({ height: 40 })
     let clicked = 0
-    const btn = B.button('Go', { block: true, onActivate: () => clicked++ })
+    const btn = B.button('Go', { block: true, handleActivate: () => clicked++ })
     const b = WB.widgetBox({ width: 200, padding: 0, gap: 0 }, [
       s.widget as any,
     ])

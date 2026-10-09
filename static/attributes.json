@@ -5305,11 +5305,11 @@
       },
       {
         "name": "list3d",
-        "default": "items` / `onSelect"
+        "default": "items` / `handleSelect"
       },
       {
         "name": "button3d",
-        "default": "label` / `onClick"
+        "default": "label` / `handleClick"
       },
       {
         "name": "menu3d",

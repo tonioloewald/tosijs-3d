@@ -96,7 +96,7 @@ test('toggle flips its bound value when the switch is clicked', async () => {
   expect(s.on.value).toBe(true)
 })
 
-test('button fires onClick on release', () => {
+test('button fires handleClick on release', () => {
   let clicked = false
   const panel = panel3d({ width: 300, height: 100 }, button3d({ label: 'Go', handleClick: () => { clicked = true } }))
   preview.append(panel)
@@ -268,9 +268,9 @@ settings into `select3d` cyclers to get discrete values.
 | `select3d` | `options` | | opens a list (downward chevron); steps only with no host |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
-| `list3d` | `items` / `onSelect` | | items may carry `icon` and `disabled` |
-| `button3d` | `label` / `onClick` | | |
-| | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
+| `list3d` | `items` / `handleSelect` | | items may carry `icon` and `disabled` |
+| `button3d` | `label` / `handleClick` | | |
+| | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
 | `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded, or as `tabs3d` (`mode: 'tabs'`); rebuild your panel on `repaint` |
@@ -402,8 +402,8 @@ bar that is not determinate is a lie with a progress percentage on it.
 
 ## Callbacks are `handleX`, not `onX`
 
-`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings still
-work through 0.9.x and warn once, and are removed in 0.10.
+`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings were
+removed in 0.10: one is no longer called, and passing it warns once.
 
 Not a style preference. These are plain factory functions today, where `onX` is
 harmless — but the moment one becomes a tosijs COMPONENT, the element creator
@@ -1179,8 +1179,6 @@ export interface WidgetHost {
       maxHeight?: number
       /** Called when this popup goes away — including dismissal from outside. */
       handleClose?: () => void
-      /** @deprecated use `handleClose` — removed in 0.10. */
-      onClose?: () => void
     },
     ...items: Widget3d[]
   ) => { close: () => void }
@@ -1254,8 +1252,6 @@ export interface WidgetHost {
       chrome?: boolean
       /** Called when it goes away, however it went. */
       handleClose?: () => void
-      /** @deprecated use `handleClose` — removed in 0.10. */
-      onClose?: () => void
     },
     ...items: Widget3d[]
   ) => { close: () => void }
@@ -1585,11 +1581,9 @@ export function button3d(config: {
   label: string
   /** Fired on release, on the thing pressed. */
   handleClick?: () => void
-  /** @deprecated use `handleClick` — removed in 0.10. */
-  onClick?: () => void
   /**
    * Make this a MENU button: pressing it opens these actions anchored to the
-   * button, instead of (not as well as) firing `onClick`.
+   * button, instead of (not as well as) firing `handleClick`.
    *
    * Both would be a trap — a control that sometimes acts and sometimes opens
    * has no reliable meaning, and you find out which by pressing it.
@@ -1684,8 +1678,6 @@ export function iconBar3d(config: {
     dim?: boolean
     /** Fired on release, on the thing pressed. */
     handleClick?: () => void
-    /** @deprecated use `handleClick` — removed in 0.10. */
-    onClick?: () => void
   }>
 }): Widget3d {
   const BS = 32 // button size
@@ -1875,8 +1867,6 @@ export function toggle3d(config: {
   value: Bindable<boolean>
   /** Fired as the value changes. */
   handleChange?: (v: boolean) => void
-  /** @deprecated use `handleChange` — removed in 0.10. */
-  onChange?: (v: boolean) => void
 }): Widget3d {
   const bound = boundValue<boolean>(
     config.value,
@@ -2017,8 +2007,6 @@ export function slider3d(config: {
   precision?: number
   /** Fired as the value changes. */
   handleChange?: (v: number) => void
-  /** @deprecated use `handleChange` — removed in 0.10. */
-  onChange?: (v: number) => void
   /**
    * Where the number lives.
    *
@@ -2318,8 +2306,6 @@ export function select3d(config: {
   wrap?: boolean
   /** Fired as the value changes. */
   handleChange?: (v: string | number) => void
-  /** @deprecated use `handleChange` — removed in 0.10. */
-  onChange?: (v: string | number) => void
 }): Widget3d {
   const opts = config.options.map((o) =>
     o != null && typeof o === 'object'
@@ -2509,8 +2495,6 @@ export function list3d<
   items: T[]
   /** Fired when a row is chosen. */
   handleSelect?: (item: T, index: number) => void
-  /** @deprecated use `handleSelect` — removed in 0.10. */
-  onSelect?: (item: T, index: number) => void
   rowHeight?: number
 }): Widget3d {
   const rowH = config.rowHeight ?? TH.ROW
@@ -2900,8 +2884,6 @@ export function openMenu3d(
     /** Fired after an item is chosen (the menu has already closed). */
     handleSelect?: (item: MenuAction, index: number) => void
     handleClose?: () => void
-    /** @deprecated use `handleClose` — removed in 0.10. */
-    onClose?: () => void
   } = {}
 ): { close: () => void } | null {
   // An empty menu opens nothing rather than an empty box. Returning null says

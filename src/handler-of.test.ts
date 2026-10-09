@@ -27,22 +27,23 @@ describe('handlerOf', () => {
     expect(warnings).toHaveLength(0)
   })
 
-  test('falls back to the deprecated on* name, and warns', () => {
+  test('the removed on* name is NOT returned, and says so', () => {
+    // Removed in 0.10. Silently dropping it would recreate the bug the rename
+    // was for: a callback that is never called and never mentioned.
     const fn = (): string => 'old'
     const got = handlerOf<() => string>(
       { onChange: fn },
       'handleChange',
       'onChange'
     )
-    expect(got).toBe(fn)
+    expect(got).toBeUndefined()
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('onChange')
     expect(warnings[0]).toContain('handleChange')
+    expect(warnings[0]).toContain('0.10')
   })
 
-  test('handle* WINS when both are given', () => {
-    // Not arbitrary: a consumer mid-migration may leave the old one behind, and
-    // silently calling the stale callback is the worse failure.
+  test('handle* is returned when both are given, and the stale one is reported', () => {
     const next = (): string => 'new'
     const old = (): string => 'old'
     const got = handlerOf<() => string>(
@@ -51,6 +52,7 @@ describe('handlerOf', () => {
       'onChange'
     )
     expect(got).toBe(next)
+    expect(warnings).toHaveLength(1)
   })
 
   test('warns ONCE per name — a slider reads its callback every pointer move', () => {
@@ -61,7 +63,7 @@ describe('handlerOf', () => {
     expect(warnings).toHaveLength(1)
   })
 
-  test('a different deprecated name gets its own warning', () => {
+  test('a different removed name gets its own warning', () => {
     const fn = (): void => {}
     handlerOf({ onChange: fn }, 'handleChange', 'onChange')
     handlerOf({ onSelect: fn }, 'handleSelect', 'onSelect')

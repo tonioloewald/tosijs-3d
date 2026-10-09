@@ -134,7 +134,7 @@ describe('themeEditor — structure', () => {
     theme.setW3dTheme({ spacing: 8 })
   })
 
-  test('onChange still works, deprecated', () => {
+  test('onChange was removed in 0.10: it is not called', () => {
     let calls = 0
     const el = te.themeEditor({
       colours: [],
@@ -142,13 +142,13 @@ describe('themeEditor — structure', () => {
       onChange: () => {
         calls += 1
       },
-    })
+    } as any)
     document.body.append(el)
     const num = el.querySelector('input[type=number]') as HTMLInputElement
     const W = num.ownerDocument.defaultView as any
     num.value = '9'
     num.dispatchEvent(new W.Event('change'))
-    expect(calls).toBe(1)
+    expect(calls).toBe(0)
     theme.setW3dTheme({ spacing: 8 })
   })
 

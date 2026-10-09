@@ -103,9 +103,9 @@ describe('box — event model', () => {
     let activated = ''
     const b = mod.box(
       { width: 300, gap: 10 },
-      mod.button('Alpha', { onActivate: () => (activated = 'Alpha') }),
-      mod.button('Beta', { onActivate: () => (activated = 'Beta') }),
-      mod.button('Gamma', { onActivate: () => (activated = 'Gamma') })
+      mod.button('Alpha', { handleActivate: () => (activated = 'Alpha') }),
+      mod.button('Beta', { handleActivate: () => (activated = 'Beta') }),
+      mod.button('Gamma', { handleActivate: () => (activated = 'Gamma') })
     )
     expect(b.focusIndex()).toBe(-1)
     b.focusMove(1, 0) // first move → first focusable
@@ -128,14 +128,14 @@ describe('box — event model', () => {
     let hit = false
     const b = mod.box(
       { width: 200, padding: 0 },
-      mod.button('Go', { onActivate: () => (hit = true) })
+      mod.button('Go', { handleActivate: () => (hit = true) })
     )
     b.handlePointer('down', 15, 15)
     b.handlePointer('up', 15, 15)
     expect(hit).toBe(true)
   })
 
-  test('handleActivate fires through the box, same as the old name', () => {
+  test('handleActivate fires through the BOX, not only when called directly', () => {
     // The rename is only real if the BOX invokes it — a test that calls
     // `btn.handleActivate()` directly proves the property exists and nothing
     // about the path that has to find it.
@@ -153,7 +153,7 @@ describe('box — event model', () => {
     let hit = false
     const b = mod.box(
       { width: 200, padding: 0 },
-      mod.button('Go', { onActivate: () => (hit = true) })
+      mod.button('Go', { handleActivate: () => (hit = true) })
     )
     b.handlePointer('down', 15, 15) // on the button
     b.handlePointer('up', 195, 15) // off it
@@ -307,7 +307,7 @@ describe('box — a lost up cannot wedge the box (self-heal on down)', () => {
     const b = mod.box(
       { width: 200, gap: 8 },
       raw,
-      mod.button('Go', { onActivate: () => clicked++ })
+      mod.button('Go', { handleActivate: () => clicked++ })
     )
     b.handlePointer('down', 100, 10) // press the raw child; the up is LOST
     expect(events).toEqual(['down'])

@@ -217,7 +217,13 @@ export interface Surface {
   openPanel: (
     at: FlowBox | { x: number; y: number },
     content: Box,
-    opts?: { title?: string; draggable?: boolean; onClose?: () => void }
+    opts?: {
+      title?: string
+      draggable?: boolean
+      handleClose?: () => void
+      /** @deprecated use `handleClose`. */
+      onClose?: () => void
+    }
   ) => Popup
   /** Close one popup. */
   closePopup: (p: Popup) => void
@@ -336,7 +342,13 @@ export function surface(opts: { width: number; height: number }): Surface {
   const openPanel = (
     at: FlowBox | { x: number; y: number },
     contentBox: Box,
-    o: { title?: string; draggable?: boolean; onClose?: () => void } = {}
+    o: {
+      title?: string
+      draggable?: boolean
+      handleClose?: () => void
+      /** @deprecated use `handleClose`. */
+      onClose?: () => void
+    } = {}
   ): Popup => {
     const w = contentBox.width
     const draggable = o.draggable ?? true
@@ -471,7 +483,7 @@ export function surface(opts: { width: number; height: number }): Surface {
       closeRect: { x: cx, y: cy, width: cs, height: cs },
       close: () => {
         removePanel(p)
-        o.onClose?.()
+        ;(o.handleClose ?? o.onClose)?.()
       },
     }
     panels.push(p)
@@ -577,8 +589,6 @@ export function surface(opts: { width: number; height: number }): Surface {
 export interface MenuItem {
   label: string
   handleSelect?: (item: MenuItem) => void
-  /** @deprecated use `handleSelect` — removed in 0.10. */
-  onSelect?: (item: MenuItem) => void
   submenu?: MenuItem[]
 }
 

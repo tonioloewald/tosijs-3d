@@ -146,8 +146,6 @@ export interface ThemeEditorOptions {
   title?: string
   /** Fired after each change, so you can rebuild whatever you are showing. */
   handleChange?: (theme: W3dTheme) => void
-  /** @deprecated use `handleChange` — removed in 0.10. */
-  onChange?: (theme: W3dTheme) => void
   /**
    * Colour control factory. Defaults to `<input type="color">`, which **cannot
    * express alpha** — pass tosijs-ui's `colorInput` (or any alpha-capable
@@ -179,14 +177,12 @@ export function themeEditor(
   const snapshot = { ...w3dTheme }
   const {
     title = 'Theme Editor',
-    handleChange,
-    onChange,
     colours = COLOURS,
     metrics = METRICS,
   } = config
 
   /*
-  `handleChange` FIRST, `onChange` only as the deprecated alias.
+  `handleChange`. (`onChange` was the old alias, removed in 0.10.)
 
   This is the `onFoo` footgun landing on a plain factory rather than a
   component: the option was named `onChange` while every caller — the w3d-theme
@@ -197,7 +193,7 @@ export function themeEditor(
   */
   const changed = (): void =>
     handlerOf<(theme: W3dTheme) => void>(
-      { handleChange, onChange },
+      config as Record<string, unknown>,
       'handleChange',
       'onChange'
     )?.(w3dTheme)

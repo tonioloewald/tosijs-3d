@@ -41,8 +41,8 @@ const mk = (opts: any = {}) => {
     height: BODY_H,
     rowHeight: ROW_H,
     headerHeight: HEAD_H,
-    onSelect: (ids) => picked.push(ids),
-    onActivate: (r) => activated.push(r),
+    handleSelect: (ids) => picked.push(ids),
+    handleActivate: (r) => activated.push(r),
     ...opts,
   })
   t.layout(W)

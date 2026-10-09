@@ -55,8 +55,6 @@ export interface Footprint3dOptions {
   label?: string
   /** Fired after any edit. */
   handleChange?: (vertices: ControlPoint[]) => void
-  /** @deprecated use `handleChange` — removed in 0.10. */
-  onChange?: (vertices: ControlPoint[]) => void
 }
 
 export interface FootprintField extends Widget3d {
@@ -69,8 +67,6 @@ export interface FootprintField extends Widget3d {
   applyPreset: (name: string) => void
   /** Fired after any edit. */
   handleChange?: (vertices: ControlPoint[]) => void
-  /** @deprecated use `handleChange` — removed in 0.10. */
-  onChange?: (vertices: ControlPoint[]) => void
 }
 
 function initialVertices(value: Footprint3dOptions['value']): ControlPoint[] {
@@ -88,7 +84,7 @@ function initialVertices(value: Footprint3dOptions['value']): ControlPoint[] {
  *
  * ```js
  * const fp = footprint3d({ value: 'hexagon', label: 'footprint' })
- * fp.onChange = () => rebuildTerrain()
+ * fp.handleChange = () => rebuildTerrain()
  * fp.evaluate(0.25)   // extent a quarter-turn round
  * ```
  */
@@ -221,7 +217,6 @@ export function footprint3d(config: Footprint3dOptions = {}): FootprintField {
   const api: FootprintField = {
     el,
     handleChange: config.handleChange,
-    onChange: config.onChange,
 
     layout(width: number) {
       const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5))

@@ -40,8 +40,8 @@ const mk = (holdMs = 5) => {
   const actions: string[] = []
   const kb = K.keyboard({
     holdMs,
-    onKey: (c) => keys.push(c),
-    onAction: (a) => actions.push(a),
+    handleKey: (c) => keys.push(c),
+    handleAction: (a) => actions.push(a),
   })
   kb.layout(W)
   return { kb, keys, actions }
@@ -214,9 +214,9 @@ describe('keyboard — spacebar as a caret trackpad', () => {
     const kb = K.keyboard({
       holdMs,
       caretStepPx: 10,
-      onKey: (c) => keys.push(c),
-      onAction: (a) => actions.push(a),
-      onCaretMove: (d) => moves.push(d),
+      handleKey: (c) => keys.push(c),
+      handleAction: (a) => actions.push(a),
+      handleCaretMove: (d) => moves.push(d),
     })
     kb.layout(W)
     return { kb, moves, keys, actions }
@@ -282,8 +282,8 @@ describe('keyboard — spacebar as a caret trackpad', () => {
     const actions: string[] = []
     const kb = K.keyboard({
       holdMs: 5,
-      onAction: (a) => actions.push(a),
-      onKey: () => {},
+      handleAction: (a) => actions.push(a),
+      handleKey: () => {},
     })
     kb.layout(W)
     const s = space()
@@ -298,7 +298,7 @@ describe('keyboard — spacebar as a caret trackpad', () => {
 describe('inputField', () => {
   test('insert appends at the caret and reports the change', () => {
     const seen: string[] = []
-    const f = K.inputField({ value: 'hi', onChange: (v) => seen.push(v) })
+    const f = K.inputField({ value: 'hi', handleChange: (v) => seen.push(v) })
     f.layout(200)
     f.insert('!')
     expect(f.value).toBe('hi!')
@@ -314,7 +314,7 @@ describe('inputField', () => {
 
   test('space inserts a space; enter does not alter the text', () => {
     let entered = ''
-    const f = K.inputField({ value: 'go', onEnter: (v) => (entered = v) })
+    const f = K.inputField({ value: 'go', handleEnter: (v) => (entered = v) })
     f.layout(200)
     f.action('space')
     expect(f.value).toBe('go ')
@@ -327,8 +327,8 @@ describe('inputField', () => {
     const f = K.inputField({ value: '' })
     f.layout(300)
     const kb = K.keyboard({
-      onKey: (c) => f.insert(c),
-      onAction: (a) => f.action(a),
+      handleKey: (c) => f.insert(c),
+      handleAction: (a) => f.action(a),
     })
     kb.layout(W)
     for (const ch of ['h', 'i']) {
@@ -496,7 +496,7 @@ describe('keyboard — hold-capable keys carry a discoverability hint', () => {
   test('the spacebar hints ↔ only when the caret drag is actually wired', () => {
     const { kb } = mk() // no onCaretMove
     expect(kb.el.querySelectorAll('[data-kb-hint="↔"]').length).toBe(0)
-    const kb2 = K.keyboard({ onKey: () => {}, onCaretMove: () => {} })
+    const kb2 = K.keyboard({ handleKey: () => {}, handleCaretMove: () => {} })
     kb2.layout(W)
     expect(kb2.el.querySelectorAll('[data-kb-hint="↔"]').length).toBe(1)
   })
@@ -535,7 +535,7 @@ describe('inputField — the caret is the focus indicator', () => {
 
   test('onFocus fires on becoming the receiver — the host hook for exclusivity', () => {
     let focusA = 0
-    const a = K.inputField({ value: 'a', onFocus: () => focusA++ })
+    const a = K.inputField({ value: 'a', handleFocus: () => focusA++ })
     const b = K.inputField({ value: 'b' })
     a.layout(200)
     b.layout(200)
@@ -633,9 +633,9 @@ describe('keyboard — a lost pointerup cannot wedge the board (self-heal on dow
     const keys: string[] = []
     const kb = K.keyboard({
       holdMs: 5,
-      onKey: (c) => keys.push(c),
-      onAction: () => {},
-      onCaretMove: (d) => moves.push(d),
+      handleKey: (c) => keys.push(c),
+      handleAction: () => {},
+      handleCaretMove: (d) => moves.push(d),
     })
     kb.layout(W)
     const sp = centre('alpha', false, 'space')
@@ -668,9 +668,9 @@ describe('keyboard — a slow space tap is still a space', () => {
     const kb = K.keyboard({
       holdMs: 5,
       caretStepPx: 10,
-      onKey: () => {},
-      onAction: (a) => actions.push(a),
-      onCaretMove: (d) => moves.push(d),
+      handleKey: () => {},
+      handleAction: (a) => actions.push(a),
+      handleCaretMove: (d) => moves.push(d),
     })
     kb.layout(W)
     const sp = centre('alpha', false, 'space')
@@ -687,9 +687,9 @@ describe('keyboard — a slow space tap is still a space', () => {
     const kb = K.keyboard({
       holdMs: 5,
       caretStepPx: 10,
-      onKey: () => {},
-      onAction: (a) => actions.push(a),
-      onCaretMove: (d) => moves.push(d),
+      handleKey: () => {},
+      handleAction: (a) => actions.push(a),
+      handleCaretMove: (d) => moves.push(d),
     })
     kb.layout(W)
     const sp = centre('alpha', false, 'space')
@@ -763,7 +763,7 @@ describe('inputField type — one property, three jobs (#37)', () => {
     const f = K.inputField({
       type: 'number',
       value: '1',
-      onEnter: (v) => {
+      handleEnter: (v) => {
         seen = v
       },
     })
@@ -1038,8 +1038,8 @@ describe('a field outside the attached group (tosijs-3d#82)', () => {
 })
 
 describe('caps lock — hold shift', () => {
-  const kb = (onKey: (k: string) => void) => {
-    const k = K.keyboard({ mode: 'alpha', onKey, holdMs: 10 })
+  const kb = (handleKey: (k: string) => void) => {
+    const k = K.keyboard({ mode: 'alpha', handleKey, holdMs: 10 })
     k.layout(360)
     return k
   }

@@ -253,12 +253,8 @@ export interface TableOptions {
    */
   filter?: (row: TableRow) => boolean
   handleSelect?: (ids: string[]) => void
-  /** @deprecated use `handleSelect` — removed in 0.10. */
-  onSelect?: (ids: string[]) => void
   /** Row activated (a second click / Enter) — distinct from selecting it. */
   handleActivate?: (row: TableRow) => void
-  /** @deprecated use `handleActivate` — removed in 0.10. */
-  onActivate?: (row: TableRow) => void
 }
 
 export function table(config: TableOptions): Table {
@@ -650,7 +646,7 @@ export function table(config: TableOptions): Table {
       // hidden by a filter still exists, and dropping its selection would make
       // typing in a search box quietly destructive.
       const live = new Set(allRows.map((r) => r.id))
-      // Drop selections whose rows are gone — otherwise onSelect reports ids that no
+      // Drop selections whose rows are gone — otherwise handleSelect reports ids that no
       // longer exist and the count disagrees with what's on screen.
       let changed = false
       for (const id of [...selected])

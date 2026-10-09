@@ -9,6 +9,70 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.9.0 → 0.10.0
+
+### 1. The deprecated callback names are gone: `onX` → `handleX`
+
+**What changed.** The `onX` callback options were deprecated in 0.8.0 and kept
+working, with a warning, through 0.9.x. They are removed. An `onX` option is
+no longer called.
+
+**Who is affected.** Anyone who saw the console warning
+"`onChange` is deprecated — use `handleChange`" and has not renamed yet.
+
+**How you will notice.** TypeScript reports the old name as an unknown
+property. At runtime the callback does not fire, and the console says so once
+per name: "`onChange` was removed in 0.10 and is IGNORED — use `handleChange`".
+Demo code in doc comments and plain JavaScript is not type-checked, so search
+for the names rather than relying on the compiler.
+
+**What to do.** Rename. Every pair:
+
+| where | removed | use |
+| --- | --- | --- |
+| `toggle3d` `slider3d` `select3d` `color3d` `vector3d` `euler3d` `angle3d` `arc3d` `picker3d` `curve3d` `footprint3d` `themeEditor` `terrainEditor3d` | `onChange` | `handleChange` |
+| `button3d`, menu actions, `addDebugSource` actions | `onClick` | `handleClick` |
+| `list3d`, `surface` `MenuItem`, `table` | `onSelect` | `handleSelect` |
+| `table`, `box` `button` / `BoxChild` | `onActivate` | `handleActivate` |
+| `showPopup` / `openPopup` / `openMenu3d` | `onClose` | `handleClose` |
+| `inputField` | `onChange` / `onEnter` / `onFocus` | `handleChange` / `handleEnter` / `handleFocus` |
+| `keyboard` | `onKey` / `onAction` / `onCaretMove` | `handleKey` / `handleAction` / `handleCaretMove` |
+| `curve3d` / `footprint3d` result (`field.onChange = …`) | `onChange` | `handleChange` |
+
+Components take `when*`:
+
+| component | removed | use |
+| --- | --- | --- |
+| `<tosi-b3d-trigger>` | `onEnter` / `onExit` properties | `whenEnter` / `whenExit` |
+| `<tosi-b3d-manipulator>` | `handleChange` / `handleCommit` | `whenChange` / `whenCommit` |
+
+`b3dTrigger({ onEnter })` through the element creator is unchanged: it was
+never the property, it is a listener for the `'enter'` event and receives an
+`Event`.
+
+`handlerOf(config, 'handleX', 'onX')` keeps its signature. It now returns only
+`handleX`, and warns once if it finds a function under the old name.
+
+### 2. `generateGalaxy` and `galaxy.getStarSPS()` are removed
+
+`generateGalaxy(seed, count, options)` was an adapter over the voxel galaxy.
+Call that directly:
+
+```js
+// before
+const galaxy = generateGalaxy(1234, 10000, options)
+// after
+const galaxy = voxelGalaxy({
+  seed: 1234,
+  brightBudget: 10000,
+  dimBudget: 0,
+  galaxyOptions: options,
+}).view({ generatePlanets: options.generatePlanets === true })
+```
+
+The result is identical. `getStarSPS()` on `<tosi-b3d-galaxy>` returned `null`
+since the stars moved to a vertex shader; use `galaxy.pickStar(x, y)`.
+
 ## 0.8.15 → 0.9.0
 
 ### 1. `biomeTemperature` is in degrees now: 0 is 0 °C, 1 is 50 °C
@@ -186,8 +250,8 @@ Use **`isOff()`** from `tosijs-3d`, which accepts `'off'`, `false` and
 ### 2. Callback options: `onX` → `handleX`
 
 Every callback option in the library now takes `handleX`. The old `onX` spelling
-still works, warns **once per name**, and is **removed in 0.10** (announced
-for 0.9, then kept one more minor).
+kept working through 0.9.x, warning **once per name**, and was **removed in
+0.10** (see the top of this file).
 
 | widget                                   | old                                  | new                                              |
 | ---------------------------------------- | ------------------------------------ | ------------------------------------------------ |

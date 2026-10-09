@@ -445,8 +445,8 @@ describe('select3d is a SELECT — one tap anywhere on it opens the list', () =>
   const OPTIONS = ['alpha', 'beta', 'gamma', 'delta']
 
   /** A panel wrapping one select, laid out — which is what supplies the host. */
-  const build = (onChange?: (v: string | number) => void) => {
-    const sel = w3d.select3d({ value: 'alpha', options: OPTIONS, onChange })
+  const build = (handleChange?: (v: string | number) => void) => {
+    const sel = w3d.select3d({ value: 'alpha', options: OPTIONS, handleChange })
     const panel = w3d.panel3d({ width: 300 }, sel) as any
     return { sel, panel }
   }

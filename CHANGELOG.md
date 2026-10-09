@@ -6,6 +6,37 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.0 (unreleased)
+
+**The deprecated names are gone.** Nothing new: this version only removes what
+0.8 and 0.9 said would be removed, so the rename is one step and not mixed in
+with anything else. [Migration.md](./Migration.md) has every pair.
+
+### ⚠️ Breaking
+
+- **`onX` callback options are removed.** `onChange`, `onClick`, `onSelect`,
+  `onActivate`, `onClose`, `onKey`, `onAction`, `onCaretMove`, `onEnter` and
+  `onFocus` are no longer called; use `handleX`. An old name is not dropped
+  silently: `handlerOf` warns once per name that it is ignored and names the
+  replacement.
+- **`<tosi-b3d-trigger>`'s `onEnter` / `onExit` properties** are removed; use
+  `whenEnter` / `whenExit`. **`<tosi-b3d-manipulator>`'s `handleChange` /
+  `handleCommit`** are removed; use `whenChange` / `whenCommit`.
+- **`generateGalaxy`** is removed; use `voxelGalaxy({ seed, brightBudget }).view()`.
+  **`galaxy.getStarSPS()`** is removed; use `pickStar`.
+
+### Changed
+
+- `surface.openPanel` takes `handleClose`. Its `onClose` was never announced
+  as deprecated, so it still works for now.
+
+### Fixed
+
+- Three demo controls were dead because they still used an old name the
+  compiler cannot see in a doc comment: the aircraft page's "chase pitch
+  follow" and "follow lag" sliders, and the particles page's Burst button.
+  (They worked, with a warning, until the fallback was removed here.)
+
 ## 0.9.0
 
 **A sea that knows its shore, and a temperature that means one.** The water

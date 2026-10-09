@@ -118,13 +118,11 @@ describe('handleX works on the factories that used to take only onX', () => {
     expect(warnings).toHaveLength(0)
   })
 
-  test('the deprecated spelling still works — and says so once', () => {
+  test('the removed spelling is ignored — and says so once', () => {
     let fired = 0
-    const btn = B.button('Go', { onActivate: () => (fired += 1) })
-    // `button` resolves through the shim at construction, so the value landed
-    // under the NEW name and the box will find it.
-    btn.handleActivate!()
-    expect(fired).toBe(1)
+    const btn = B.button('Go', { onActivate: () => (fired += 1) } as any)
+    expect(btn.handleActivate).toBeUndefined()
+    expect(fired).toBe(0)
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('onActivate')
   })

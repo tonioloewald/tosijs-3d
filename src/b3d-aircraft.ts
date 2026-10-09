@@ -80,11 +80,11 @@ const scene = b3d(
       slider3d({ label: 'storminess', min: 0, max: 1, step: 0.05, value: 0,
         handleChange(v) { storm.storminess = v } }),
       slider3d({ label: 'chase pitch follow', min: 0, max: 1, step: 0.05, value: 0,
-        onChange(v) {
+        handleChange(v) {
           el.querySelectorAll('tosi-b3d-aircraft').forEach((a) => { a.chasePitchFollow = v })
         } }),
       slider3d({ label: 'follow lag', min: 0.5, max: 12, step: 0.5, value: 3,
-        onChange(v) {
+        handleChange(v) {
           el.querySelectorAll('tosi-b3d-aircraft').forEach((a) => { a.chasePitchLag = v })
         } }),
     ],

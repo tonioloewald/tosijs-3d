@@ -13,11 +13,11 @@ All generation is seeded — same seed always produces the same galaxy.
 ## Demo
 
 ```js
-import { PRNG, generateGalaxy, generateStarSystem } from 'tosijs-3d'
+import { voxelGalaxy, generateStarSystem } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div, p, pre, table, tr, td, th, thead, tbody } = elements
 
-const galaxy = generateGalaxy(1234, 100)
+const galaxy = voxelGalaxy({ seed: 1234, brightBudget: 100, dimBudget: 0 }).view()
 
 let output = `Galaxy: ${galaxy.stars.length} stars\n\n`
 output += 'First 10 stars:\n'
@@ -42,10 +42,13 @@ preview.append(pre(output))
 
 ## API
 
-### `generateGalaxy(seed, count, options?)`
+### `voxelGalaxy({ seed, brightBudget }).view()`
 
-Returns `{ stars: StarData[] }`. Each star has position, spectral type,
-luminosity, mass, planet count, and a deterministic seed for system generation.
+The galaxy itself is [voxel-galaxy](/voxel-galaxy/); its `view()` returns the
+`GalaxyData` this module defines (`{ stars, nebulae, distantStars }`). Each star
+has position, spectral type, luminosity, mass, planet count, and a deterministic
+seed for system generation. (`generateGalaxy(seed, count)` was an adapter over
+it and was removed in 0.10.)
 
 ### `generateStarSystem(star)`
 
@@ -64,9 +67,6 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 
 import { PRNG, CheapPRNG, type RandomLike } from './mersenne-twister.js'
 import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js'
-// A CYCLE, deliberately and safely: voxel-galaxy imports this module too, but
-// neither reads the other at module evaluation — see spectral-classes.
-import { voxelGalaxy } from './voxel-galaxy.js'
 
 // --- Utilities ---
 
@@ -1057,36 +1057,6 @@ export function sampleSpiral(
 /** The one detail the position needs, without building the rest. */
 function inSpiralArmFor(starSeed: number): boolean {
   return generateStarDetail(starSeed).inSpiralArm
-}
-
-/**
- * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.10.
- *
- * ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"). This used to be its own
- * generator: one sequential random stream producing the stars, then the
- * nebulae, then the distant shell, so nothing could be generated locally and
- * 63% of stars shared a seed with another. It is now an ADAPTER over the voxel
- * galaxy: `numberOfStars` is the BRIGHT budget, and the result is that
- * galaxy's `view()` (every bright star, its nebulae and shell) in the shape
- * this function always returned. The spiral model it was built on survives as
- * `sampleSpiral`, which is what the voxel galaxy's density is sampled from.
- *
- * A given seed therefore produces a DIFFERENT galaxy from 0.8.3's: same
- * shape and distributions, different stars.
- */
-export function generateGalaxy(
-  seed: number,
-  numberOfStars: number,
-  options: GalaxyOptions = {}
-): GalaxyData {
-  return voxelGalaxy({
-    seed,
-    brightBudget: numberOfStars,
-    // No dim population: `numberOfStars` stays the whole star count, as it
-    // always was. Interesting stars are the voxel galaxy's to offer.
-    dimBudget: 0,
-    galaxyOptions: options,
-  }).view({ generatePlanets: options.generatePlanets === true })
 }
 
 /*

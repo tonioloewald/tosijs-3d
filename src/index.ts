@@ -1302,7 +1302,6 @@ export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole.js'
 export { B3dGalaxy, b3dGalaxy } from './b3d-galaxy.js'
 export { B3dStarSystem, b3dStarSystem } from './b3d-star-system.js'
 export {
-  generateGalaxy,
   generateStarSystem,
   starTypeData,
   randomName,
@@ -1318,7 +1317,7 @@ export type {
   StarTypeInfo,
   NebulaData,
 } from './galaxy-data.js'
-// THE galaxy (GALAXY-DESIGN.md) — generateGalaxy above is an adapter over it.
+// THE galaxy (GALAXY-DESIGN.md).
 export { voxelGalaxy } from './voxel-galaxy.js'
 export type {
   VoxelGalaxy,

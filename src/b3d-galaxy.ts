@@ -364,7 +364,6 @@ export interface GalaxyPoint {
 const QUAD_SCALE = 'quadScale'
 /** Pick slack, in pixels, so a one-pixel star is still clickable. */
 const SLACK_PX = 3
-let warnedStarSps = false
 
 interface Quads {
   mesh: BABYLON.Mesh
@@ -991,22 +990,6 @@ export class B3dGalaxy extends B3dChild {
   /** Get the galaxy data */
   getGalaxyData(): GalaxyData | null {
     return this.galaxyData
-  }
-
-  /**
-   * @deprecated There is no particle system any more — stars are billboarded
-   * in the vertex shader. Use {@link pickStar} to pick. Returns null; removed
-   * in 0.10.
-   */
-  getStarSPS(): null {
-    if (!warnedStarSps) {
-      warnedStarSps = true
-      console.warn(
-        'b3d-galaxy: getStarSPS() is gone (stars are billboarded in the ' +
-          'vertex shader) — use galaxy.pickStar(x, y) to pick a star.'
-      )
-    }
-    return null
   }
 
   /** The star mesh — hide it, fade it, or compare against it. */

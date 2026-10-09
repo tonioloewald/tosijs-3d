@@ -1384,8 +1384,8 @@ widgets3d
   toggle3d  = label` / `value
   select3d  = options
   inputField  = type  — `'text'`
-  list3d  = items` / `onSelect
-  button3d  = label` / `onClick
+  list3d  = items` / `handleSelect
+  button3d  = label` / `handleClick
   menu3d  = items` / `handleSelect
   iconBar3d  = items
   foldSections  = key` / `mode` / `repaint  — `'fold'`

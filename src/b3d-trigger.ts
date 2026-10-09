@@ -9,9 +9,9 @@ triggers.
 Set `whenEnter` and `whenExit` callback properties from JavaScript, or listen
 for `'enter'` / `'exit'` CustomEvents on the element.
 
-⚠️ The old `onEnter` / `onExit` still work and are removed in 0.10 — but only by
-DIRECT assignment. Passed to the element creator, an `on*` prop becomes a DOM
-event listener, so it is called with an Event rather than the trigger.
+⚠️ The `onEnter` / `onExit` properties were removed in 0.10. Passed to the
+element creator, an `on*` prop is a DOM event listener, so `b3dTrigger({ onEnter })`
+is a listener for the `'enter'` event and is called with an Event, not the trigger.
 
 ## Demo
 
@@ -197,15 +197,11 @@ export class B3dTrigger extends B3dChild {
   got two different arguments depending on how you attached it.
 
   `whenEnter` cannot be read as an event name, which is the same reason
-  `whenImpact` and `whenDestroyed` are spelled that way. Both still work; the
-  old pair is removed in 0.10.
+  `whenImpact` and `whenDestroyed` are spelled that way. The old pair was
+  removed in 0.10.
   */
   whenEnter: ((trigger: B3dTrigger) => void) | null = null
   whenExit: ((trigger: B3dTrigger) => void) | null = null
-  /** @deprecated use `whenEnter` — removed in 0.10. */
-  onEnter: ((trigger: B3dTrigger) => void) | null = null
-  /** @deprecated use `whenExit` — removed in 0.10. */
-  onExit: ((trigger: B3dTrigger) => void) | null = null
 
   private _inside = false
   private _beforeRender: (() => void) | null = null
@@ -275,7 +271,7 @@ export class B3dTrigger extends B3dChild {
 
     if (dist < attrs.radius && !this._inside) {
       this._inside = true
-      // ONE of them — new name wins, and the old one warns once (handler-of).
+      // The removed `on*` name is reported once if someone still assigns it.
       handlerOf<(t: B3dTrigger) => void>(
         this as unknown as Record<string, unknown>,
         'whenEnter',
@@ -289,7 +285,7 @@ export class B3dTrigger extends B3dChild {
       }
     } else if (dist >= attrs.radius && this._inside) {
       this._inside = false
-      // ONE of them — new name wins, and the old one warns once (handler-of).
+      // The removed `on*` name is reported once if someone still assigns it.
       handlerOf<(t: B3dTrigger) => void>(
         this as unknown as Record<string, unknown>,
         'whenExit',

@@ -409,8 +409,6 @@ export type DebugPanelSource = {
   actions?: Array<{
     label: string | (() => string)
     handleClick?: () => void
-    /** @deprecated use `handleClick` — removed in 0.10. */
-    onClick?: () => void
   }>
   /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
    * name — see [[svg-icons]]). Defaults to `'bug'`. */

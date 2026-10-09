@@ -41,7 +41,7 @@ const scene = b3d(
     scenePanel: () => [
       label3d({ text: 'Particles' }),
       slider3d({ label: 'emit rate', value: demo.emitRate, min: 0, max: 200, step: 5 }),
-      button3d({ label: 'Burst', onClick() { explosion.burst(150) } }),
+      button3d({ label: 'Burst', handleClick() { explosion.burst(150) } }),
     ],
     sceneCreated(el, BABYLON) {
       const camera = orbitCam(el, {

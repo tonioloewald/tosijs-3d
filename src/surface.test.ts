@@ -47,7 +47,7 @@ describe('surface — popups', () => {
 
 describe('surface — cascade menu', () => {
   const items = () => [
-    { label: 'A', onSelect: () => {} },
+    { label: 'A', handleSelect: () => {} },
     { label: 'More', submenu: [{ label: 'X' }, { label: 'Y' }] },
   ]
 
@@ -100,7 +100,7 @@ describe('surface — cascade menu', () => {
   test('selecting a leaf item fires onSelect and closes the whole menu', () => {
     const s = S.surface({ width: 400, height: 400 })
     let picked = ''
-    const its = [{ label: 'A', onSelect: () => (picked = 'A') }]
+    const its = [{ label: 'A', handleSelect: () => (picked = 'A') }]
     const top = S.openMenu(s, { x: 10, y: 10, width: 60, height: 20 }, its)
     const r = top.box.childRect(0)!
     top.box.handlePointer('down', r.x + 5, r.y + 5)
@@ -167,7 +167,7 @@ describe('surface — a menu leaf select must not destroy persistent panels (rc.
     )
     let selected = ''
     const menu = S.openMenu(s, { x: 10, y: 10, width: 60, height: 20 }, [
-      { label: 'Talk', onSelect: () => (selected = 'Talk') },
+      { label: 'Talk', handleSelect: () => (selected = 'Talk') },
     ])
     // press the leaf item (menu box coords: first row)
     const r = menu.box.childRect(0)!

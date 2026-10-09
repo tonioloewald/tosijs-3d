@@ -1,11 +1,11 @@
 /*
 The spectral classes and their draw weights — a LEAF module on purpose.
 
-`galaxy-data` and `voxel-galaxy` import each other (the old `generateGalaxy`
-is an adapter over the voxel galaxy), and a cycle is only safe while neither
-side reads the other at MODULE EVALUATION. `voxel-galaxy` builds its default
-mixes from these at load time, so they live here, where both can reach them
-without the cycle mattering.
+`galaxy-data` and `voxel-galaxy` used to import each other (`generateGalaxy`
+was an adapter over the voxel galaxy until 0.10), and a cycle is only safe
+while neither side reads the other at MODULE EVALUATION. `voxel-galaxy` builds
+its default mixes from these at load time, so they live here, where both can
+reach them whatever imports what.
 */
 
 /** The spectral classes, hot → cool. */

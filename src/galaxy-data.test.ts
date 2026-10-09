@@ -1,18 +1,30 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  generateGalaxy,
   generateStarSystem,
   sampleSpiral,
   romanNumeral,
+  type GalaxyOptions,
 } from './galaxy-data.js'
 import { voxelGalaxy } from './voxel-galaxy.js'
 
-// ONE GALAXY: `generateGalaxy` is a deprecated adapter over the voxel galaxy
-// (GALAXY-DESIGN.md → "Reconciliation"), so these pin THAT — the adapter is
-// the voxel view, and the baker demo's working galaxy is pinned by digest.
-// The shipped sky is pinned separately (sampleSpiral below, shipped-sky.test).
+// ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"): `GalaxyData` is the voxel
+// galaxy's view, so these pin THAT. `generateGalaxy` was an adapter over it,
+// removed in 0.10; `galaxyView` is the same call spelled out. The shipped sky
+// is pinned separately (sampleSpiral below, shipped-sky.test).
 
-function digest(g: ReturnType<typeof generateGalaxy>): string {
+const galaxyView = (
+  seed: number,
+  brightBudget: number,
+  options: GalaxyOptions = {}
+) =>
+  voxelGalaxy({
+    seed,
+    brightBudget,
+    dimBudget: 0,
+    galaxyOptions: options,
+  }).view({ generatePlanets: options.generatePlanets === true })
+
+function digest(g: ReturnType<typeof galaxyView>): string {
   let h = 0x811c9dc5
   const mix = (s: string) => {
     for (let i = 0; i < s.length; i++) {
@@ -36,33 +48,23 @@ function digest(g: ReturnType<typeof generateGalaxy>): string {
   return h.toString(16)
 }
 
-describe('generateGalaxy — the adapter', () => {
-  test('is exactly the voxel galaxy’s view', () => {
-    const a = generateGalaxy(1234, 2000)
-    const b = voxelGalaxy({
-      seed: 1234,
-      brightBudget: 2000,
-      dimBudget: 0,
-    }).view()
-    expect(digest(a)).toBe(digest(b))
-  })
-
+describe('the galaxy view', () => {
   test("the baker demo's 10k working galaxy is pinned", () => {
-    const g = generateGalaxy(1234, 10000)
+    const g = galaxyView(1234, 10000)
     // A budget, not an exact count: counts are rounded per voxel.
     expect(Math.abs(g.stars.length - 10000)).toBeLessThan(300)
     expect(digest(g)).toBe('2727ed54')
   })
 
   test('deterministic, and the seed matters', () => {
-    const a = generateGalaxy(99, 500)
-    const b = generateGalaxy(99, 500)
+    const a = galaxyView(99, 500)
+    const b = galaxyView(99, 500)
     expect(digest(a)).toBe(digest(b))
-    expect(digest(generateGalaxy(100, 500))).not.toBe(digest(a))
+    expect(digest(galaxyView(100, 500))).not.toBe(digest(a))
   })
 
   test('honours its budgets', () => {
-    const g = generateGalaxy(5, 2000, { distantGalaxies: 7, distantStars: 11 })
+    const g = galaxyView(5, 2000, { distantGalaxies: 7, distantStars: 11 })
     expect(Math.abs(g.stars.length - 2000)).toBeLessThan(150)
     expect(g.distantGalaxies.length).toBe(7)
     expect(g.distantStars.length).toBe(11)
@@ -71,7 +73,7 @@ describe('generateGalaxy — the adapter', () => {
   })
 
   test('no star lands at NaN', () => {
-    const g = generateGalaxy(1234, 20000, {
+    const g = galaxyView(1234, 20000, {
       distantGalaxies: 0,
       distantStars: 0,
     })
@@ -85,8 +87,8 @@ describe('generateGalaxy — the adapter', () => {
   })
 
   test('planets on demand equal planets generated in bulk', () => {
-    const bulk = generateGalaxy(42, 200, { generatePlanets: true })
-    const lazy = generateGalaxy(42, 200)
+    const bulk = galaxyView(42, 200, { generatePlanets: true })
+    const lazy = galaxyView(42, 200)
     for (let i = 0; i < 50; i++) {
       const fromBulk = generateStarSystem(bulk.stars[i]).planets
       const fromLazy = generateStarSystem(lazy.stars[i]).planets
