@@ -68,8 +68,37 @@ vec2 b3dShoreIce(vec2 xz, float ice) {
 }
 `
 
+/*
+CLOUD SHADOWS. Everything else takes them from a material plugin
+(cloud-shadows.ts); this material routes no plugin events, so the same lookup
+is written here and b3d-water feeds it the scene's map. Strength 0 (no map, or
+uniforms never set) skips it. It runs before the fog, so no fog correction.
+*/
+export const CLOUD_UNIFORMS = [
+  'b3dCloudWindow',
+  'b3dCloudSun',
+  'b3dCloudStrength',
+]
+export const CLOUD_SAMPLER = 'b3dCloudSampler'
+
+const CLOUD = `
+if (b3dCloudStrength > 0.0 && vPositionW.y <= b3dCloudWindow.w) {
+  float b3dCsT = (b3dCloudSun.y < -0.001)
+    ? (b3dCloudSun.w - vPositionW.y) / b3dCloudSun.y
+    : 0.0;
+  vec2 b3dCsUv = (vPositionW.xz + b3dCloudSun.xz * b3dCsT - b3dCloudWindow.xy) * b3dCloudWindow.z + 0.5;
+  if (b3dCsUv.x > 0.0 && b3dCsUv.x < 1.0 && b3dCsUv.y > 0.0 && b3dCsUv.y < 1.0) {
+    color.rgb *= mix(1.0, texture2D(b3dCloudSampler, b3dCsUv).r, b3dCloudStrength);
+  }
+}
+`
+
 const DEFINITIONS = `${MARK}
 varying float vB3dShore;
+uniform vec4 b3dCloudWindow;
+uniform vec4 b3dCloudSun;
+uniform float b3dCloudStrength;
+uniform sampler2D b3dCloudSampler;
 #ifdef VERTEXCOLOR
 ${FUNCTIONS}
 #endif
@@ -182,7 +211,7 @@ export function registerShoreWater(): boolean {
   store.waterPixelShader = frag
     .replace(tint, '')
     .replace(defs, defs + '\n' + DEFINITIONS)
-    .replace(compose, compose + '\n' + SHORE)
+    .replace(compose, compose + '\n' + SHORE + CLOUD)
   store.waterVertexShader = vert
     .replace(vdefs, vdefs + `\n${MARK}\nvarying float vB3dShore;`)
     .replace(

@@ -255,7 +255,20 @@ BABYLON.RegisterMaterialPlugin(
   (material) => new CloudShadowPlugin(material)
 )
 
+/*
+Receivers that cannot wear the plugin (Babylon's WaterMaterial routes no plugin
+events) ask for the scene's map by name instead, and sample it themselves.
+*/
+const sceneMaps = new WeakMap<BABYLON.Scene, CloudShadowMap[]>()
+
+/** The cloud shadow map currently live in a scene (the newest), or null. */
+export function cloudShadowMapOf(scene: BABYLON.Scene): CloudShadowMap | null {
+  const maps = sceneMaps.get(scene)
+  return maps != null && maps.length > 0 ? maps[maps.length - 1] : null
+}
+
 export class CloudShadowMap {
+  private _scene: BABYLON.Scene
   readonly texture: BABYLON.DynamicTexture
   readonly resolution: number
   /** World size (metres) of the square window the texture covers. */
@@ -308,6 +321,10 @@ export class CloudShadowMap {
   constructor(scene: BABYLON.Scene, worldSize: number, resolution = 256) {
     this.worldSize = worldSize
     this.resolution = resolution
+    this._scene = scene
+    const maps = sceneMaps.get(scene) ?? []
+    maps.push(this)
+    sceneMaps.set(scene, maps)
     this.texture = new BABYLON.DynamicTexture(
       'cloud-shadow-map',
       { width: resolution, height: resolution },
@@ -402,6 +419,11 @@ export class CloudShadowMap {
   dispose(): void {
     for (const p of this._plugins) p.isEnabled = false
     this._plugins = []
+    const maps = sceneMaps.get(this._scene)
+    if (maps != null) {
+      const at = maps.indexOf(this)
+      if (at >= 0) maps.splice(at, 1)
+    }
     this.texture.dispose()
   }
 }

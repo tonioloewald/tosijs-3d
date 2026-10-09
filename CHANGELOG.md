@@ -69,6 +69,12 @@ pair and what to do.
   which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`
   restores the old behaviour and saves a shadow lookup per water pixel (the
   cost on a headset has not been measured).
+- **Cloud shadows fall on water and ice.** They never did, on any device:
+  cloud shadows are a material plugin, and Babylon's water material runs no
+  plugins. The lookup is now in the water's own shader, fed from the scene's
+  cloud shadow map (`cloudShadowMapOf(scene)`, new). `receiveShadows="off"`
+  turns it off with the sun's shadows. Every water now uses the patched
+  shader, not only `shore="on"`.
 - `PerlinNoise(0)` uses seed 0. It was treated as "no seed" and gave a
   different field every time.
 - `world-store.ts` compiles under `noUncheckedIndexedAccess` (the steer loop

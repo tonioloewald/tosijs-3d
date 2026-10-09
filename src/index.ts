@@ -317,6 +317,7 @@ export type { ShadowDecalOptions, ProjectDownOptions } from './shadow-decal.js'
 // Projected cloud shadows: one top-down texture sampled by world position (works over terrain).
 export {
   CloudShadowMap,
+  cloudShadowMapOf,
   projectShadowXZ,
   shadowWindowUv,
 } from './cloud-shadows.js'

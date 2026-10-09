@@ -4481,7 +4481,7 @@
       {
         "name": "receiveShadows",
         "default": "'on'",
-        "description": "The surface (and the ice on it) takes shadows from the sun. `'off'` skips the shadow lookup per water pixel"
+        "description": "The surface (and the ice on it) takes shadows from the sun and from clouds. `'off'` skips both lookups per water pixel"
       },
       {
         "name": "normalMap"

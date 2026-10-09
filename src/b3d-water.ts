@@ -59,7 +59,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
 | `shore` | `'off'` | `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time |
 | `shoreFine` | `false` | With `shore="on"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time |
-| `receiveShadows` | `'on'` | The surface (and the ice on it) takes shadows from the sun. `'off'` skips the shadow lookup per water pixel |
+| `receiveShadows` | `'on'` | The surface (and the ice on it) takes shadows from the sun and from clouds. `'off'` skips both lookups per water pixel |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -109,7 +109,13 @@ import {
   bearingTriangles,
   type ShoreGrid,
 } from './water-shore.js'
-import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js'
+import {
+  registerShoreWater,
+  IceUndersidePlugin,
+  CLOUD_UNIFORMS,
+  CLOUD_SAMPLER,
+} from './water-shore-shader.js'
+import { cloudShadowMapOf } from './cloud-shadows.js'
 import { seasonOf } from './biome-plugin.js'
 import { planetTemperature } from './biome-chart.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
@@ -357,7 +363,10 @@ export class B3dWater extends AbstractMesh {
 
     // `shore` asked for and not given must say so: the water is otherwise
     // simply plain, with no surf, no ice and nothing to explain it.
-    const shoreReady = attrs.shore === 'on' && registerShoreWater()
+    // Patched for every water, not only a shore: the patch is also where the
+    // surface takes cloud shadows.
+    const patched = registerShoreWater()
+    const shoreReady = attrs.shore === 'on' && patched
     if (attrs.shore === 'on' && attrs.spherical) {
       console.warn(
         'tosi-b3d-water: shore="on" does nothing on spherical water.'
@@ -479,6 +488,7 @@ export class B3dWater extends AbstractMesh {
       scene,
       new BABYLON.Vector2(textureSize, textureSize)
     )
+    if (patched) this._wireCloudShadows(this.waterMaterial, scene)
     const refresh = Math.max(
       1,
       Math.round(resolveBudget(attrs.reflectionRefresh, 'waterRefresh', { xr }))
@@ -1068,6 +1078,56 @@ export class B3dWater extends AbstractMesh {
   }
 
   private _refreshObserver: BABYLON.Observer<BABYLON.Scene> | null = null
+
+  /*
+  CLOUD SHADOWS ON THE SURFACE. WaterMaterial builds its effect from a fixed
+  list of uniforms and samplers and offers no hook to extend it, so the names
+  the patched shader added are appended as the effect is created; without that
+  the locations are never looked up and every set is a silent no-op.
+  */
+  private _wireCloudShadows(mat: WaterMaterial, scene: BABYLON.Scene): void {
+    const ready = mat.isReadyForSubMesh.bind(mat)
+    mat.isReadyForSubMesh = (mesh, subMesh, useInstances) => {
+      const engine = scene.getEngine() as any
+      const create = engine.createEffect
+      engine.createEffect = function (name: unknown, options: any) {
+        if (name === 'water' && Array.isArray(options?.uniformsNames)) {
+          options.uniformsNames.push(...CLOUD_UNIFORMS)
+          options.samplers?.push(CLOUD_SAMPLER)
+        }
+        // eslint-disable-next-line prefer-rest-params
+        return create.apply(this, arguments)
+      }
+      try {
+        return ready(mesh, subMesh, useInstances)
+      } finally {
+        engine.createEffect = create
+      }
+    }
+    mat.onBindObservable.add(() => {
+      const effect = mat.getEffect()
+      if (effect == null) return
+      const map = cloudShadowMapOf(scene)
+      if (map == null || this.mesh?.receiveShadows !== true) {
+        effect.setFloat('b3dCloudStrength', 0)
+        return
+      }
+      effect.setFloat4(
+        'b3dCloudWindow',
+        map.centerX,
+        map.centerZ,
+        1 / map.worldSize,
+        map.layerTop
+      )
+      effect.setFloat4('b3dCloudSun', map.sunX, map.sunY, map.sunZ, map.groundY)
+      const st = map.strengthSource?.() ?? 1
+      effect.setFloat(
+        'b3dCloudStrength',
+        Number.isFinite(st) ? Math.max(0, Math.min(1, st)) : 1
+      )
+      effect.setTexture(CLOUD_SAMPLER, map.sourceTexture ?? map.texture)
+    })
+  }
 
   sceneDispose(): void {
     if (this._refreshObserver != null)
