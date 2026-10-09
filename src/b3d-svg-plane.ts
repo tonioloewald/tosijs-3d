@@ -89,14 +89,14 @@ const friendlyLayer = g(
     circle({ r: '5', fill: 'none', stroke: '#8cc63f', 'stroke-width': '1' }),
     { bind: { value: '^', binding: position } }
   ),
-  { bindList: { value: friendlies, idPath: 'id' } }
+  { bindList: { value: friendlies, idPath: 'id', nonVirtualReason: 'a radar draws every contact, and SVG has no viewport to window against' } }
 )
 const hostileLayer = g(
   g(
     polygon({ points: '0,-6 5.2,3 -5.2,3', fill: 'none', stroke: '#ff1d25', 'stroke-width': '1.5', 'stroke-linejoin': 'round' }),
     { bind: { value: '^', binding: position } }
   ),
-  { bindList: { value: hostiles, idPath: 'id' } }
+  { bindList: { value: hostiles, idPath: 'id', nonVirtualReason: 'a radar draws every contact, and SVG has no viewport to window against' } }
 )
 
 const radarSvg = svg(

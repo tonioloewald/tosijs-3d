@@ -8,7 +8,7 @@ accurate but visually striking.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dBlackHole, b3dSphere, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dLight, b3dBlackHole, b3dSphere, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p } = elements
 
@@ -19,8 +19,8 @@ const { demo } = tosi({
     diskOuterRadius: 3.0,
     diskBrightness: 1.5,
     rotationSpeed: 0.3,
-    lensing: true,
-    photonRing: true,
+    lensing: 'on',
+    photonRing: 'on',
     photonRingBrightness: 2.0,
     wireframe: false,
   },
@@ -50,8 +50,8 @@ const scene = b3d(
       slider3d({ label: 'disk brightness', value: demo.diskBrightness, min: 0.5, max: 3, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'photon ring bright', value: demo.photonRingBrightness, min: 0.5, max: 5, step: 0.1 }),
-      toggle3d({ label: 'lensing', value: demo.lensing }),
-      toggle3d({ label: 'photon ring', value: demo.photonRing }),
+      select3d({ label: 'lensing', value: demo.lensing, options: ['on', 'off'] }),
+      select3d({ label: 'photon ring', value: demo.photonRing, options: ['on', 'off'] }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
     ],
     sceneCreated(el, BABYLON) {
