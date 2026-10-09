@@ -524,7 +524,9 @@ const scene = b3d(
       // The year: 0.25 midsummer, 0.5 autumn, 0.75 midwinter. 'season strength'
       // is how hard it swings; at 0 the year does nothing.
       slider3d({ label: 'time of year', value: demo.season, min: 0, max: 1, step: 0.01 }),
-      slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01 }),
+      // The swing either side of the yearly mean. Stored in the biome chart's
+      // units, where 1 spans 62.5 °C.
+      slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01, format: (v) => '±' + Math.round(v * 62.5) + ' °C' }),
       label3d({ text: 'Terrain', icon: 'terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
@@ -542,7 +544,7 @@ const scene = b3d(
       select3d({ label: 'ground palette', value: demo.palette, options: ['earth', ...Object.keys(PALETTES)] }),
       // Beside the volcano: the other thing you switch on to watch happen.
       label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
-      slider3d({ label: 'temperature (1 = 50 °C)', value: demo.temperature, min: -1, max: 1, step: 0.01 }),
+      slider3d({ label: 'temperature', value: demo.temperature, min: -1, max: 1, step: 0.02, format: (v) => Math.round(v * 50) + ' °C' }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
