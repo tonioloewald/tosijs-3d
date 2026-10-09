@@ -63,6 +63,7 @@ vec2 b3dShoreIce(vec2 xz, float ice) {
 `
 
 const DEFINITIONS = `${MARK}
+varying float vB3dShore;
 #ifdef VERTEXCOLOR
 ${FUNCTIONS}
 #endif
@@ -77,17 +78,26 @@ const SHORE = `${MARK}
   // SHALLOWS: paler and greener toward the beach.
   float b3dShallow = 1.0 - smoothstep(0.0, 7.0, b3dDepth);
   color.rgb = mix(color.rgb, color.rgb * 1.12 + vec3(0.03, 0.09, 0.08), 0.55 * b3dShallow);
-  // FOAM: a thin wash that laps in and out over the last half metre, and a
-  // line riding out ahead of it. Kept FAINT, and never still: two laps out of
-  // step, and grain that streams along the shore, so no patch of it sits.
+  // FOAM, drawn from the DISTANCE to the waterline (metres, + out to sea),
+  // so it is the same width on a flat as under a cliff. A wash that laps in
+  // and out a few metres, and a line riding out ahead of it. Just inland of
+  // the waterline it is solid: the land covers that, and where the drawn
+  // land sits a little low it is foam that shows and not a seam. Kept FAINT, and
+  // never still: two laps out of step, and grain streaming along the shore.
+  float b3dShore = vB3dShore;
   float b3dLap = 0.5 + 0.3 * sin(time * 1.9 + b3dXZ.x * 0.21 + b3dXZ.y * 0.17)
     + 0.2 * sin(time * 3.1 - b3dXZ.x * 0.13 + b3dXZ.y * 0.29);
   vec2 b3dFlow = vec2(time * 0.9, -time * 0.6);
   float b3dGrain = 0.6 * b3dShoreNoise(b3dXZ * 1.7 + b3dFlow)
     + 0.4 * b3dShoreNoise(b3dXZ * 3.9 - b3dFlow * 1.4);
-  float b3dWash = 1.0 - smoothstep(0.03, 0.2 + 0.45 * b3dLap, b3dDepth + 0.25 * b3dGrain);
-  float b3dLineAt = 0.6 + 0.9 * b3dLap;
-  float b3dLine = (1.0 - smoothstep(0.0, 0.25, abs(b3dDepth - b3dLineAt))) * smoothstep(0.45, 0.8, b3dGrain);
+  float b3dReach = 0.8 + 2.2 * b3dLap;
+  float b3dAt = b3dShore + 1.2 * (b3dGrain - 0.5);
+  float b3dWash = 1.0 - smoothstep(0.25 * b3dReach, b3dReach, b3dAt);
+  // …but only for a few metres: further in, water showing at all means the
+  // drawn land is well off the real one, and a white slab there is worse
+  // than plain water.
+  b3dWash *= smoothstep(-5.0, -2.0, b3dShore);
+  float b3dLine = (1.0 - smoothstep(0.0, 0.5, abs(b3dAt - b3dReach - 1.1))) * smoothstep(0.45, 0.8, b3dGrain);
   float b3dFoam = clamp(b3dWash * (0.3 + 0.35 * b3dGrain) + 0.28 * b3dLine, 0.0, 0.7);
   /*
   ICE, in three states that run into each other as the cover falls: a SHEET
@@ -129,34 +139,44 @@ export function registerShoreWater(): boolean {
   const tint = 'baseColor.rgb*=vColor.rgb;'
   const defs = '#define CUSTOM_FRAGMENT_DEFINITIONS'
   const compose = 'vec4 color=vec4(finalDiffuse+finalSpecular,alpha);'
+  // The vertex colour's ALPHA does not reach the fragment shader (Babylon
+  // copies rgb only unless the mesh blends by vertex alpha, which would
+  // make the water transparent by it), so the distance to the shore rides
+  // in a varying of its own.
+  const vert = store.waterVertexShader
+  const wave = 'p.y+=abs(newY);'
+  const vdefs = '#define CUSTOM_VERTEX_DEFINITIONS'
   if (
     !frag.includes(tint) ||
     !frag.includes(defs) ||
     !frag.includes(compose) ||
-    !frag.includes('uniform float time;')
+    !frag.includes('uniform float time;') ||
+    vert == null ||
+    !vert.includes(wave) ||
+    !vert.includes(vdefs)
   )
     return false
   store.waterPixelShader = frag
     .replace(tint, '')
     .replace(defs, defs + '\n' + DEFINITIONS)
     .replace(compose, compose + '\n' + SHORE)
-  // Ice does not ride the swell: the wave displacement fades out with the
-  // cover, so a sheet lies flat and its collision surface (b3d-water's ice
-  // mesh, a plane) is where the ice is drawn.
-  const vert = store.waterVertexShader
-  const wave = 'p.y+=abs(newY);'
-  if (vert != null && vert.includes(wave)) {
-    store.waterVertexShader = vert.replace(
+  store.waterVertexShader = vert
+    .replace(vdefs, vdefs + `\n${MARK}\nvarying float vB3dShore;`)
+    .replace(
       wave,
-      `${MARK}
+      // Ice does not ride the swell: the wave displacement fades out with
+      // the cover, so a sheet lies flat and its collision surface
+      // (b3d-water's ice mesh, a plane) is where the ice is drawn.
+      `
 #ifdef VERTEXCOLOR
 p.y+=abs(newY)*(1.0-clamp(color.g,0.0,1.0));
+vB3dShore=color.a;
 #else
 p.y+=abs(newY);
+vB3dShore=40.0;
 #endif
 `
     )
-  }
   return true
 }
 

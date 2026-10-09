@@ -665,6 +665,7 @@ export {
   iceBears,
   iceSide,
   ICE_BEARS,
+  SHORE_DISTANCE_MAX,
   type IceSide,
   type ShoreGrid,
 } from './water-shore.js'

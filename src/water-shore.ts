@@ -4,12 +4,14 @@
 **What the water knows about the ground under it.** A sea drawn as one flat
 sheet has no idea where the land is, so it cannot foam at a beach or freeze
 from the shore outward. This module gives each vertex of the water's mesh two
-numbers: the **depth** of the water there, and how much **ice** covers it.
+numbers: the **depth** of the water there, how much **ice** covers it, and the
+**distance** to the waterline.
 [b3d-water](/b3d-water/) fills them in from the terrain (`shore="on"`) and its
 shader draws from them:
 
-- a **shoreline**: foam lapping where the water is a metre or so deep, and
-  paler water over the shallows;
+- a **shoreline**: foam lapping over the last few metres before the
+  waterline (drawn from the distance, so it is as wide under a cliff as on a
+  flat), and paler water over the shallows (drawn from the depth);
 - **ice**, in three states that run into each other: a solid sheet, then
   broken plates with water between them, then open water.
 
@@ -261,10 +263,24 @@ function iceAmount(temperature: number, depth: number): number {
   return open * (0.6 + 0.28 * open) + cold * (0.9 * shallow + 0.9 * wading)
 }
 
+/** Distances from the shore are clamped to this many metres either way. */
+export const SHORE_DISTANCE_MAX = 40
+
+let rawDepth = new Float32Array(0)
+
 /**
- * Fill a grid's shore data: for each vertex, `[depth, ice, solid, 1]` (the water
- * shader reads these from the vertex colour). `height(x, z)` is the terrain in
- * the same coordinates as `centreX/centreZ + line`; `waterY` is the surface.
+ * Fill a grid's shore data: for each vertex, `[depth, ice, solid, distance]`
+ * (the water shader reads these from the vertex colour). `height(x, z)` is the
+ * terrain in the same coordinates as `centreX/centreZ + line`; `waterY` is the
+ * surface.
+ *
+ * `distance` is how far the vertex is from the waterline, in metres along the
+ * surface: positive out to sea, negative inland. It is the depth divided by
+ * how steeply the bed falls away there, which is exact for a straight beach
+ * and good near any shoreline, where it matters. Foam is drawn from this and
+ * not from depth, because a depth says nothing about width: half a metre deep
+ * is a ten-metre band on a flat and a hand's width under a cliff, and the mesh
+ * cannot draw a hand's width.
  */
 export function shoreData(
   grid: { lines: number[]; count: number },
@@ -281,15 +297,45 @@ export function shoreData(
   const { lines, count } = grid
   const data = out ?? new Float32Array(count * count * 4)
   const zs = flipZ ? -1 : 1
+  if (rawDepth.length < count * count)
+    rawDepth = new Float32Array(count * count)
+  const raw = rawDepth
   for (let iz = 0; iz < count; iz++) {
     for (let ix = 0; ix < count; ix++) {
-      const raw = waterY - height(centreX + lines[ix], centreZ + zs * lines[iz])
-      const depth = Math.max(SHORE_DEPTH_MIN, Math.min(SHORE_DEPTH_MAX, raw))
-      const v = (iz * count + ix) * 4
+      raw[iz * count + ix] =
+        waterY - height(centreX + lines[ix], centreZ + zs * lines[iz])
+    }
+  }
+  const last = count - 1
+  for (let iz = 0; iz < count; iz++) {
+    const z0 = Math.max(0, iz - 1)
+    const z1 = Math.min(last, iz + 1)
+    for (let ix = 0; ix < count; ix++) {
+      const i = iz * count + ix
+      const depth = Math.max(SHORE_DEPTH_MIN, Math.min(SHORE_DEPTH_MAX, raw[i]))
+      const x0 = Math.max(0, ix - 1)
+      const x1 = Math.min(last, ix + 1)
+      const gx =
+        x1 > x0
+          ? (raw[iz * count + x1] - raw[iz * count + x0]) /
+            (lines[x1] - lines[x0])
+          : 0
+      const gz =
+        z1 > z0
+          ? (raw[z1 * count + ix] - raw[z0 * count + ix]) /
+            (lines[z1] - lines[z0])
+          : 0
+      // A bed flatter than 1 in 20 is treated as 1 in 20: a wide shallow is
+      // far from its shore, not on it.
+      const fall = Math.max(0.05, Math.hypot(gx, gz))
+      const v = i * 4
       data[v] = depth
       data[v + 1] = iceCover(temperature, depth)
       data[v + 2] = iceSolid(temperature, depth)
-      data[v + 3] = 1
+      data[v + 3] = Math.max(
+        -SHORE_DISTANCE_MAX,
+        Math.min(SHORE_DISTANCE_MAX, raw[i] / fall)
+      )
     }
   }
   return data

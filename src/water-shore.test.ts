@@ -5,6 +5,7 @@ import {
   shoreData,
   iceCover,
   iceSolid,
+  SHORE_DISTANCE_MAX,
   iceBears,
   iceSide,
   FREEZING,
@@ -149,6 +150,34 @@ describe('shoreData', () => {
     shoreData(g, 1000, -500, 0, (x, z) => (seen.push(x, z), 0), 0.6)
     expect(Math.min(...seen.filter((_, i) => i % 2 === 0))).toBe(980)
     expect(Math.max(...seen.filter((_, i) => i % 2 === 1))).toBe(-480)
+  })
+})
+
+describe('distance from the shore', () => {
+  const g = shoreGrid(80, 10, 4, 10)
+  const mid = (g.count * ((g.count - 1) / 2) + 0) * 4 // the row through z = 0
+  const dist = (bed: (x: number, z: number) => number) => {
+    const data = shoreData(g, 0, 0, 0, bed, 1)
+    return g.lines.map((_, ix) => data[mid + ix * 4 + 3])
+  }
+  test('is metres along the surface, whatever the slope', () => {
+    // A gentle beach and a steep one, both with the waterline at x = 0.
+    const gentle = dist((x) => -x * 0.1)
+    const steep = dist((x) => -x * 2)
+    g.lines.forEach((x, ix) => {
+      if (Math.abs(x) > 30) return
+      expect(gentle[ix]).toBeCloseTo(x, 4)
+      expect(steep[ix]).toBeCloseTo(x, 4)
+    })
+  })
+  test('negative inland, and clamped far from any shore', () => {
+    const d = dist((x) => -x)
+    expect(d[0]).toBe(-SHORE_DISTANCE_MAX)
+    expect(d[d.length - 1]).toBe(SHORE_DISTANCE_MAX)
+  })
+  test('a wide flat shallow is not a shore', () => {
+    // 0.3 m of water over a dead flat bed: no waterline anywhere near.
+    expect(Math.min(...dist(() => -0.3))).toBeGreaterThan(5)
   })
 })
 

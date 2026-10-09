@@ -25,7 +25,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A shoreline, and sea ice.** `<tosi-b3d-water shore="on">` gives the water
   the depth of the ground under each vertex (from the scene's terrain) and
   draws from it: foam lapping at the waterline, paler water over the
-  shallows, and ice. The ice follows the cold and the shore: a solid sheet
+  shallows, and ice. Foam is drawn from each vertex's DISTANCE to the
+  waterline, not its depth, so the band is the same few metres wide on a
+  steep shore as on a flat one. The ice follows the cold and the shore: a solid sheet
   along the beach, breaking into plates further out, open water beyond, and
   all of it moving out to sea as the climate at sea level (season included)
   gets colder. It is there from below as well. The sea starts to freeze at

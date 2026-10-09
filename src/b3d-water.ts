@@ -359,7 +359,7 @@ export class B3dWater extends AbstractMesh {
       // Until the terrain answers: deep, open water everywhere.
       for (let i = 0; i < shore.length; i += 4) {
         shore[i] = 60
-        shore[i + 3] = 1
+        shore[i + 3] = 40 // far from any shore
       }
       mesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, shore, true, 4)
       this.mesh = mesh
@@ -936,7 +936,7 @@ export class B3dWater extends AbstractMesh {
       const shore = new Float32Array(grid.count * grid.count * 4)
       for (let i = 0; i < shore.length; i += 4) {
         shore[i] = 60
-        shore[i + 3] = 1
+        shore[i + 3] = 40 // far from any shore
       }
       ceiling.setVerticesData(BABYLON.VertexBuffer.ColorKind, shore, true, 4)
       this._ceilingShore = { grid, data: shore, key: '' }
