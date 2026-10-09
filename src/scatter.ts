@@ -64,7 +64,7 @@ coordinates and the seed. The same place always gets the same answer, however
 the region moves, so re-scattering around a moving camera changes what is at
 the EDGE and nothing that stays in view. Stable is the point.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-decorator", "order": 10 }*/
 
 import { rockNames } from './procedural-rock.js'
 

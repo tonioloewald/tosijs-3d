@@ -51,7 +51,7 @@ So cost is **modelled** from what actually drives fill — area and blend mode
 Same lesson `tileBuildMs` taught the terrain: bound the frame **by construction**, not by hoping
 a counter shows up.
 */
-/*{ "parent": "Performance", "order": 900 }*/
+/*{ "parent": "b3d-ambient", "order": 20 }*/
 
 import type { PerfTier } from './perf-probe.js'
 

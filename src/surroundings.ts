@@ -234,7 +234,7 @@ and it is hysteresis rather than a mode: `isSwimming` flickered at its threshold
 in the smallest possible case, and this band is budgeted for from the start
 rather than discovered later.
 */
-/*{ "parent": "Vehicles", "order": 168 }*/
+/*{ "parent": "b3d-biped", "order": 70 }*/
 
 /**
  * A ring-and-ladder read of the surroundings.

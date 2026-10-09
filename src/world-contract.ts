@@ -173,7 +173,7 @@ And in reverse, to prove the sim is the sandbox it claims to be: a **scripted ad
 driver** pushing intents that are stale, impossible, contradictory, aimed at dead entities,
 or simply flooding — none of which may corrupt anything, because intents are advisory.
 */
-/*{ "parent": "World Sim", "order": 900 }*/
+/*{ "parent": "world-sim", "order": 10 }*/
 
 /** Plain {x, y, z} vector — no Babylon dependency, matches the pure modules. */
 export type Vec3 = { x: number; y: number; z: number }

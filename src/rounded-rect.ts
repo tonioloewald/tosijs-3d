@@ -50,7 +50,7 @@ const { positions, indices, uvs, normals } = roundedRectGeometry({
 })
 ```
 */
-/*{ "parent": "UI", "order": 900 }*/
+/*{ "parent": "svg-texture", "order": 20 }*/
 
 export interface RoundedRectOptions {
   width: number

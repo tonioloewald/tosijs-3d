@@ -42,7 +42,7 @@ Which side it goes to is decided by **the subject**, not by the camera: if the
 swimmer is under, the camera goes under. A camera that picked the nearer side
 would cross the surface every time the character bobbed.
 */
-/*{ "parent": "Vehicles", "order": 170 }*/
+/*{ "parent": "b3d-biped", "order": 90 }*/
 
 export interface FitOptions {
   /** Never closer than this, however blocked. */

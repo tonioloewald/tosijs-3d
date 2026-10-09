@@ -71,7 +71,7 @@ the same convention as a library model, so scatter rules scale it the same way.
 | `squash` | `0.7` | Height relative to width. Low values give slabs |
 | `sink` | `0.15` | Fraction of the height that sits below the ground |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-decorator", "order": 20 }*/
 
 import { PRNG } from './mersenne-twister.js'
 import { PerlinNoise } from './perlin-noise.js'

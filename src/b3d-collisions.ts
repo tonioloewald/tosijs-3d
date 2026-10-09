@@ -170,7 +170,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "interacting", "order": 30 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

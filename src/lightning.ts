@@ -19,7 +19,7 @@ between t0 and t1" is a pure question the simulation can ask too.
 | `cloud` | inside the cloud: the tower lit from within, no bolt | many |
 | `sprite` | ABOVE the storm, 50–90 km up in reality: brief red-pink crowns and tendrils, only over strong storms | rare |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-lightning", "order": 10 }*/
 
 /** A storm, as far as lightning cares. */
 export interface StormSource {

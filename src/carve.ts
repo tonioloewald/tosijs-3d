@@ -48,7 +48,7 @@ variation on that idea.
 Both take an amplitude in METRES and a scale in 1/metres (small scale = big
 features), the same convention as the terrain noise, so numbers transfer.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "sdf-lattice", "order": 10 }*/
 
 import { PerlinNoise } from './perlin-noise.js'
 import type { PatchField } from './patch-field.js'

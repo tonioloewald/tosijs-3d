@@ -42,7 +42,7 @@ preview.append(
 )
 ```
 */
-/*{ "parent": "Performance", "order": 100 }*/
+/*{ "parent": "performance", "order": 10 }*/
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'

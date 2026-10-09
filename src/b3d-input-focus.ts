@@ -36,7 +36,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "input", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild } from './b3d-utils.js'

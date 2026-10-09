@@ -396,7 +396,7 @@ const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
 const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 ```
 */
-/*{ "parent": "UI", "order": 510 }*/
+/*{ "parent": "ui-in-scene", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import {

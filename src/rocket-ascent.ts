@@ -119,7 +119,7 @@ matters: in that shot the camera is on the missile.
 | `rocketScale` | `4` | Uniform scale on the Kenney parts |
 | `timeOfDay` | `14` | Broad daylight — so the stars appear because the AIR ran out, not because night fell |
 */
-/*{ "parent": "Demos", "order": 20 }*/
+/*{ "parent": "demos", "order": 20 }*/
 
 import { b3dSkybox } from './b3d-skybox.js'
 import { b3dSun } from './b3d-shadows.js'

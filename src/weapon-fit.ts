@@ -207,6 +207,6 @@ MODEL, as a `_grip` node carrying position and orientation, so one asset is
 right for every consumer instead of every consumer discovering it again. Until
 the assets carry one, this is where the numbers come from.
 */
-/*{ "parent": "Demos", "order": 20 }*/
+/*{ "parent": "demos", "order": 30 }*/
 
 export {}

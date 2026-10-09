@@ -166,7 +166,7 @@ preview.append(
 > close in both, because the 3D view is not a screenshot of the DOM one — it is
 > the same surface, rasterised onto a plane.
 */
-/*{ "parent": "UI", "order": 300 }*/
+/*{ "parent": "ui-containers", "order": 20 }*/
 
 import { svgElements } from 'tosijs'
 import { handlerOf } from './handler-of.js'

@@ -203,7 +203,7 @@ a caption-less grid can be much wider — which is why `columns` defaults from
 whether anything is captioned rather than being a fixed number.
 
 */
-/*{ "parent": "UI", "order": 262 }*/
+/*{ "parent": "ui-controls", "order": 50 }*/
 
 import { svgElements } from 'tosijs'
 import { iconGlyph } from './svg-icons.js'

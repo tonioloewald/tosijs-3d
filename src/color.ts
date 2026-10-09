@@ -33,7 +33,7 @@ DOM. Formatting emits ONE shape: `#rrggbb`, or `#rrggbbaa` when alpha is not
 fully opaque. That asymmetry is deliberate — a document that round-trips through
 an editor should not churn its bytes because someone typed `#ABC`.
 */
-/*{ "parent": "UI", "order": 268 }*/
+/*{ "parent": "color-field", "order": 10 }*/
 
 /** Red, green, blue and alpha, each `0..1`. */
 export interface Rgba {

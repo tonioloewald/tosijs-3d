@@ -59,7 +59,7 @@ preview.append(
 | `color` | `'#dddddd'` | Its colour where lit |
 | `brightness` | `1` | Multiplies the lit side |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-skybox", "order": 10 }*/
 
 import { Component } from 'tosijs'
 

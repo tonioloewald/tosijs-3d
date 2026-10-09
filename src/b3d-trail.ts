@@ -74,7 +74,7 @@ It never throws inside the render loop: an exception in a Babylon observer
 skips every observer after it, which manta found the hard way when a trail
 error silently killed the aircraft's camera follow.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "effects", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta, semanticParent } from './b3d-utils.js'

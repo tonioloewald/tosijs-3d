@@ -34,7 +34,7 @@ b3dDestroyable({ x: 0, y: 1, z: 40, capacity: 6 },
 b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 0, z: 200 })
 ```
 #*/
-/*{ "parent": "Combat" }*/
+/*{ "parent": "b3d-radar", "order": 10 }*/
 
 import type * as BABYLON from '@babylonjs/core'
 import { B3dChild, semanticParent } from './b3d-utils.js'

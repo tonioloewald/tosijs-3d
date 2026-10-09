@@ -325,7 +325,7 @@ on the node that should be exported (`pistol.model` lists and instantiates as
 `pistol`). Behaviour suffixes compose with it, so `pistol_muzzle.model` is legal
 and does both.
 */
-/*{ "parent": "Combat" }*/
+/*{ "parent": "combat", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core'
 import { loadLibraryMesh } from './library-mesh.js'
 import { findMuzzle, findSuffixed } from './model-transform.js'

@@ -26,7 +26,7 @@ The one `smart` dial on a launcher or turret (0 to 1) blends between aiming
 straight at the target and using these: 0 is a dumb round, 1 is a full
 solution. Unguided flight is [[ballistics]].
 */
-/*{ "parent": "Combat", "order": 906 }*/
+/*{ "parent": "b3d-launcher", "order": 20 }*/
 
 /**
  * Pure, Babylon-free, deterministic guidance & interception math (see

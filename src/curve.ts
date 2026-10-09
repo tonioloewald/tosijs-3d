@@ -40,7 +40,7 @@ the point's **new index** along with the points. A caller that assumes the index
 survived will start dragging a different point mid-gesture — which reads as the
 curve fighting you.
 */
-/*{ "parent": "Utilities", "order": 260 }*/
+/*{ "parent": "curve-field", "order": 10 }*/
 
 import { PiecewiseLinearFilter, type ControlPoint } from './gradient-filter.js'
 

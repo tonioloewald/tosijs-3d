@@ -1,5 +1,7 @@
 # UI
 
+<!--{ "order": 120 }-->
+
 **One UI that renders twice.** Every control here is a `Widget3d`: it draws to
 SVG and takes pointer input as *coordinates*, never as DOM events. That single
 choice is what lets the same object be a flat overlay, a texture on a panel in
@@ -129,42 +131,8 @@ panel.useDomLayer(flatHost)
 
 <!-- toc -->
 - [widgets3d](/widgets3d/)
-- [panel-orbit](/panel-orbit/)
-- [panel-layer](/panel-layer/)
-- [box](/box/)
-- [handlerOf](/handler-of/)
-- [keyboard](/keyboard/)
-- [table](/table/)
-- [svg-icons](/svg-icons/)
-- [selection](/selection/)
-- [Coordinate fields](/vector-field/)
-- [Curve editor](/curve-field/)
-- [Footprint editor](/footprint-field/)
-- [Icon grid](/icon-grid/)
-- [Light program editor](/curve-program/)
-- [Light editor](/light-editor/)
-- [Light settings (data)](/light-settings/)
-- [color](/color/)
-- [color3d](/color-field/)
-- [theme-editor](/theme-editor/)
-- [w3d-theme](/w3d-theme/)
-- [angle-field](/angle-field/)
-- [picker](/picker/)
-- [b3d-manipulator](/b3d-manipulator/)
-- [surface](/surface/)
-- [popup-surface](/popup-surface/)
-- [b3d-panel](/b3d-panel/)
-- [b3d-svg-plane](/b3d-svg-plane/)
-- [b3d-hud](/b3d-hud/)
-- [svg-texture](/svg-texture/)
-- [dialog-placement](/dialog-placement/)
-- [embed-font](/embed-font/)
-- [flow-layout](/flow-layout/)
-- [key-layout](/key-layout/)
-- [popup-chrome](/popup-chrome/)
-- [rounded-rect](/rounded-rect/)
-- [table-layout](/table-layout/)
-- [text-edit](/text-edit/)
-- [Widget layout maths](/widgets3d-layout/)
-- [widget-box](/widget-box/)
+- [Controls](/ui-controls/)
+- [Containers](/ui-containers/)
+- [In the scene and XR](/ui-in-scene/)
+- [Theme and icons](/ui-theme/)
 <!-- /toc -->

@@ -65,7 +65,7 @@ tosi-b3d { width: 100%; height: 100%; }
 |--------|--------|
 | `_mirror` (or `-mirror`) | Mesh gets a reflection probe attached |
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "sky-and-light", "order": 70 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

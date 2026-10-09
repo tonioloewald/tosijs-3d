@@ -185,7 +185,7 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 - Options: `{ x?, y?, z?, rx?, ry?, rz?, parent?, animations?, canonical? }` —
   rotation in **degrees** (it was radians before 0.7.0; see the CHANGELOG)
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "core", "order": 50 }*/
 
 import { B3dChild, publicName, isIgnored } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

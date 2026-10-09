@@ -308,7 +308,7 @@ preview.append(
 }
 ```
 */
-/*{ "parent": "UI", "order": 260 }*/
+/*{ "parent": "ui-controls", "order": 30 }*/
 
 import { svgElements } from 'tosijs'
 import {

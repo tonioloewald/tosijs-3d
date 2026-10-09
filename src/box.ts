@@ -259,7 +259,7 @@ preview.append(
 > text re-wraps as the box narrows and then scrolls once it runs out of room —
 > the same layout pass in both panes.
 */
-/*{ "parent": "UI", "order": 200 }*/
+/*{ "parent": "ui-containers", "order": 10 }*/
 
 import { svgElements } from 'tosijs'
 import { handlerOf } from './handler-of.js'

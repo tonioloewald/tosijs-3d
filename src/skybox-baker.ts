@@ -198,7 +198,7 @@ camera is nearer 46°, so a star covers about half the angular fraction of the
 frame once you widen it. Anything dialled in while orbiting the galaxy comes out
 small in the bake — 0.7 here against 0.3–0.5 there.
 */
-/*{ "parent": "Demos", "order": 30 }*/
+/*{ "parent": "demos", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { zipSync } from 'fflate'

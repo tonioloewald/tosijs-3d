@@ -64,7 +64,7 @@ every mesh with `receiveShadows` — the scene's existing "I receive shadows" de
 exactly the right opt-in. Sun-direction offset is applied at *paint* time (blob positions are
 projected along the light before stamping), so the shader stays a plain straight-down lookup.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "b3d-cloud-deck", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 

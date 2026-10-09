@@ -1,6 +1,6 @@
 # Changelog
 
-<!--{ "order": 3 }-->
+<!--{ "parent": "reference", "order": 20 }-->
 
 All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
@@ -42,8 +42,30 @@ pair and what to do.
   announced: it was the last `onX` option in the library and follows the same
   rule now (ignored, with a warning).
 
+### Docs
+
+- **The doc site is reorganised.** Sections now list the elements you put in a
+  scene, with the pure models and helpers each is built from tucked beneath
+  it (the flight model under the aircraft, the biome chart under the
+  terrain). UI was one list of 39 pages and Environment one of 37; no section
+  now has more than 12 direct children. Environment is split into Sky and
+  light, Weather and clouds, Terrain and Water; Migration and the Changelog
+  moved from second and third to a Reference section at the end. Page URLs
+  are unchanged, except the section landing pages.
+- **Getting started**: the install line with its peer dependencies, a first
+  scene that needs no model file, and where to go next. The README has the
+  same.
+- **Ten modules that other pages linked to had no page**: the flight model,
+  ballistics, guidance, warhead, destroyable, resource, Perlin noise, gradient
+  filter, terrain grid and the primitives (box, sphere, ground). 17 links were
+  dead. A test now fails on a link to a page that does not exist.
+- Every section landing page says which page you want, where most were a bare
+  list of links.
+
 ### Fixed
 
+- `PerlinNoise(0)` uses seed 0. It was treated as "no seed" and gave a
+  different field every time.
 - `world-store.ts` compiles under `noUncheckedIndexedAccess` (the steer loop
   read `r.portals[0]` unguarded), so a project that vendors it with strict
   settings no longer has to pin an old copy.

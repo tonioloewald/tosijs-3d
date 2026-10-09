@@ -169,7 +169,7 @@ going: when a demo can say *"the standard arena, plus the thing I am showing
 you"* as one line of JSON, this is what that JSON will describe.
 
 */
-/*{ "parent": "Demos", "order": 10 }*/
+/*{ "parent": "demos", "order": 10 }*/
 
 import { b3dBox } from './b3d-primitives.js'
 import { b3dElevator } from './b3d-elevator.js'

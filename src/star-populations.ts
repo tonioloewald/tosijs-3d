@@ -40,7 +40,7 @@ addresses may then point at different stars. That is accepted (Tonio:
 _"If you change the rules for star system generation expecting things not to
 change is bizarre."_).
 */
-/*{ "parent": "Space", "order": 915 }*/
+/*{ "parent": "b3d-galaxy", "order": 30 }*/
 
 import { CheapPRNG } from './mersenne-twister.js'
 import { SPECTRAL_CLASSES } from './spectral-classes.js'

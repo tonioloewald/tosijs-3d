@@ -96,7 +96,7 @@ preview.append(
 )
 ```
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "world-sim", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { EntityId, WorldEntity } from './world-contract.js'

@@ -22,7 +22,7 @@ the SAME model.
   not closed (1+). And the gaps set the width: broad shafts from the ragged
   sky at the threshold, very narrow ones as the cover closes toward 1.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-light-shafts", "order": 10 }*/
 
 type V3 = { x: number; y: number; z: number }
 

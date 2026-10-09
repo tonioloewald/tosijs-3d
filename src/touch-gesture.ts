@@ -38,7 +38,7 @@ Zoom is NATURAL: the radius scales by `previous spacing / spacing`, so what is
 under your fingers stays under them. Pan is in PIXELS; the bridge converts it
 to world units at the target's depth (see `touchOrbit` in `tosi-b3d`).
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "touch-orbit", "order": 10 }*/
 
 export interface TouchPoint {
   x: number

@@ -36,7 +36,7 @@ Subsetting to the glyphs actually drawn would cut this hard, and is not done
 here: it needs a shaper, which is a far larger dependency than the feature
 warrants today.
 */
-/*{ "parent": "UI", "order": 900 }*/
+/*{ "parent": "svg-texture", "order": 10 }*/
 
 /** A resolved face, ready to inline. */
 export interface EmbeddedFont {

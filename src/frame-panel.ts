@@ -25,7 +25,7 @@ import { attachFramePanel } from 'tosijs-3d'
 // to your shoulder. See <tosi-b3d-panel> for the element form.
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "b3d-panel", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { SvgTexture } from './svg-texture.js'

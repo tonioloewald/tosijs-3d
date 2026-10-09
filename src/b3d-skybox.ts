@@ -141,7 +141,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 | `sunBrightness` | `1` | Multiplies the sun's light. A distant world gets less light, but the eye adapts, so set it by how it looks rather than by the inverse square |
 | `applyFog` | `false` | Whether scene fog affects the skybox |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "sky-and-light", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { PRNG } from './mersenne-twister.js'

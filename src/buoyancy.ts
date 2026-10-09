@@ -33,7 +33,7 @@ Drag is quadratic, so terminal speed is `sqrt(|a| / drag)` — the default gives
 about 1.5 m/s sinking, an order slower than the ~20 m/s of a fall through air.
 Slow enough to see, fast enough not to feel broken.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "b3d-biped", "order": 20 }*/
 
 export interface BuoyancyParams {
   /** Metres per second squared, negative. Default −9.81. */

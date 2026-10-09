@@ -51,7 +51,7 @@ why this reads from the file and why there will never be a `.json` beside it.
 "what fits here" without instantiating anything — the question placement code
 actually asks, and the reason this beats measuring after the fact.
 */
-/*{ "parent": "Utilities" }*/
+/*{ "parent": "b3d-library", "order": 20 }*/
 
 export interface LibraryItem {
   name: string

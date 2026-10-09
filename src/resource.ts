@@ -18,7 +18,7 @@ fraction(energy) // 0.75, for a meter
 Also `refill`, `isEmpty` and `isFull`. Time only moves through `regenTick`,
 so it is deterministic. See [[destroyable]].
 */
-/*{ "parent": "Combat", "order": 909 }*/
+/*{ "parent": "b3d-destroyable", "order": 30 }*/
 
 /**
  * Pure, Babylon-free, deterministic resource pool: a capacity that drains and

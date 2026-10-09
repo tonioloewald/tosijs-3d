@@ -22,7 +22,7 @@ plateauFilter(4) // four flat steps
 
 `identityFilter()` is the do-nothing curve.
 */
-/*{ "parent": "Utilities", "order": 906 }*/
+/*{ "parent": "b3d-terrain", "order": 80 }*/
 
 export interface GradientFilter {
   evaluate(t: number): number

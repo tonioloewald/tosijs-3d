@@ -19,7 +19,7 @@ default camera and `orbitCam` both call it; call it yourself on an
 
 Returns a function that restores Babylon's handler.
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "input", "order": 40 }*/
 import * as BABYLON from '@babylonjs/core'
 import { twoFingerGesture } from './touch-gesture.js'
 

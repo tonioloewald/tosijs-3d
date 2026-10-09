@@ -90,7 +90,7 @@ implements the OpenGL cube convention that `textureCube` uses, and
 {@link faceToDir} inverts it; `starfield-codec.test.ts` round-trips random
 directions through both, which is the only way this stays honest.
 */
-/*{ "parent": "Space", "order": 430 }*/
+/*{ "parent": "b3d-skybox", "order": 20 }*/
 
 /** A thing in the sky: a star, or a distant galaxy. */
 export interface SkyObject {

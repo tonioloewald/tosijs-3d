@@ -77,7 +77,7 @@ The other cost is real and worth stating: a figure that is promoted to a named
 character has to cross from here to a skinned rig. That seam should be designed,
 not discovered.
 */
-/*{ "parent": "Performance", "order": 118 }*/
+/*{ "parent": "b3d-crowd", "order": 10 }*/
 
 /**
  * One animation in a baked set.

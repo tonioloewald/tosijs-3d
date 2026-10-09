@@ -38,7 +38,7 @@ also means a caller holding the wreck's position on a NODE can copy it in and
 out each frame, so a floating-origin rebase is absorbed for free — the model
 never holds a world position across a shift.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "b3d-death", "order": 10 }*/
 
 import { ballisticStep } from './ballistics.js'
 

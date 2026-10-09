@@ -47,7 +47,7 @@ character per second**. Budgeting a tenth of a 60fps frame for it buys roughly
 untouched.
 
 */
-/*{ "parent": "Vehicles", "order": 169 }*/
+/*{ "parent": "b3d-biped", "order": 80 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { Surroundings } from './surroundings.js'

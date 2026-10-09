@@ -704,4 +704,4 @@ out with the moon riding it, the deck moonlit above.
 - **The simulation** (world-store / world-view) gets a corner of this world
   to populate — the same one a visitor just reshaped.
 */
-/*{ "parent": "Demos", "order": 40 }*/
+/*{ "parent": "demos", "order": 50 }*/

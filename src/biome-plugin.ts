@@ -53,7 +53,7 @@ terrain these are `biomeSeason` and `biomeSeasonality`.
 Both are in CHART units (see [[biome-chart]], "Two temperature scales"), not
 the degrees an author sets with `biomeTemperature`.
 */
-/*{ "parent": "Environment", "order": 900 }*/
+/*{ "parent": "b3d-terrain", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 

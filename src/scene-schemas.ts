@@ -67,7 +67,7 @@ So `scene-schemas.test.ts` imports the real components and fails if an attribute
 is missing, extra, or disagrees on its default. The copy is allowed to exist
 because it cannot silently rot.
 */
-/*{ "parent": "Core", "order": 320 }*/
+/*{ "parent": "core", "order": 80 }*/
 
 /** A number with a range and, where it helps, a unit and a scale hint. */
 const num = (

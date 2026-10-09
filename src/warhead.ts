@@ -25,7 +25,7 @@ model only does the arithmetic. [[b3d-warhead]] is the scene side (it gathers
 the targets, casts the rays and draws the explosion); the amounts land on a
 [[destroyable]].
 */
-/*{ "parent": "Combat", "order": 907 }*/
+/*{ "parent": "b3d-warhead", "order": 10 }*/
 
 /**
  * Pure, Babylon-free warhead damage resolution (see COMBAT-DESIGN.md). A warhead

@@ -247,7 +247,7 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 }
 ```
 */
-/*{ "parent": "UI", "order": 210 }*/
+/*{ "parent": "ui-controls", "order": 80 }*/
 
 import { svgElements } from 'tosijs'
 import { isTextEntry } from './text-entry.js'

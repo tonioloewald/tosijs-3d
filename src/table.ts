@@ -150,7 +150,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 */
-/*{ "parent": "UI", "order": 220 }*/
+/*{ "parent": "ui-controls", "order": 90 }*/
 
 import { svgElements } from 'tosijs'
 import {

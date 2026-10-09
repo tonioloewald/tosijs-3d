@@ -113,7 +113,7 @@ available. Same reasoning as the on-screen keyboard, and the same fallback.
 | `placeholder` | `'choose…'` | shown when nothing is selected |
 | `handleChange` | | the chosen value; fires on pick, and the popup closes |
 */
-/*{ "parent": "UI", "order": 273 }*/
+/*{ "parent": "ui-controls", "order": 70 }*/
 
 import { svgElements } from 'tosijs'
 import { w3dTheme } from './w3d-theme.js'

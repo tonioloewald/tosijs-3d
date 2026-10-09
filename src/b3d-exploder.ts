@@ -83,7 +83,7 @@ preview.append(scene)
 > you in VR, so this works in a headset too.
 
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "effects", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { markCollisionGroup, markUiMesh, sceneDelta } from './b3d-utils.js'

@@ -129,7 +129,7 @@ tosi-b3d {
 | `subdivisions` | `64` | Mesh detail level (lower = faster) |
 
 */
-/*{ "parent": "Space" }*/
+/*{ "parent": "space", "order": 50 }*/
 
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

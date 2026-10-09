@@ -110,7 +110,7 @@ so you have full control:
 | `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
 | `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
 */
-/*{ "parent": "UI", "order": 500 }*/
+/*{ "parent": "ui-in-scene", "order": 10 }*/
 
 import { Component } from 'tosijs'
 import type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'

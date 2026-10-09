@@ -37,7 +37,7 @@ names the replacement. From 0.8.0 to 0.9.x both spellings worked.
 A slider reads its callback on every pointer move, so a warning per call is a
 performance bug wearing a helpful hat.
 */
-/*{ "parent": "UI", "order": 205 }*/
+/*{ "parent": "widgets3d", "order": 10 }*/
 
 const warnedHandlers = new Set<string>()
 

@@ -222,7 +222,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Vehicles" }*/
+/*{ "parent": "characters-and-vehicles", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { XRStuff, collidable, isOff, markUiMesh } from './b3d-utils.js'

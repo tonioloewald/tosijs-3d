@@ -737,7 +737,7 @@ and loading real assets would fold an asset pipeline into a measurement that is
 not about one. Baking from a real skinned GLB is the next step, and the layout
 it bakes into is already fixed and tested.
 */
-/*{ "parent": "Performance", "order": 119 }*/
+/*{ "parent": "characters-and-vehicles", "order": 50 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'

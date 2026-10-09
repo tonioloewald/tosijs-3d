@@ -163,7 +163,7 @@ causality drives no consequence.
 perfectly well name something the blast then destroys. That is the truth of what
 happened, and the ledger should say so.
 */
-/*{ "parent": "Combat", "order": 100 }*/
+/*{ "parent": "combat", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core'
 import { loadLibraryMesh } from './library-mesh.js'
 import { AbstractMesh, isOff } from './b3d-utils.js'

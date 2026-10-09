@@ -17,7 +17,7 @@ The pattern is a pure function (`causticPattern`): a seeded cellular (Worley)
 field on a torus, so it tiles by construction, bright along the cell EDGES the
 way real caustic networks are. No file, no network.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "b3d-water", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { Xoshiro128 } from './mersenne-twister.js'

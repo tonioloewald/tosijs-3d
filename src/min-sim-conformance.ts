@@ -28,7 +28,7 @@ sim resolves nothing. It never asserts a coordinate — coordinates never cross.
 A store handed to the kit needs two simulation-side methods that are not part of `MinSimApi`:
 `tick(seconds)` and `chooseOption(choiceId, optionId)` (the player's pick).
 */
-/*{ "parent": "World Sim", "order": 900 }*/
+/*{ "parent": "world-sim", "order": 50 }*/
 
 import type {
   MinSimApi,

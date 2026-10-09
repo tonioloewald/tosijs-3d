@@ -84,7 +84,7 @@ keeps it proportional to the viewport instead of the data.
 `overscan` draws a row or two beyond each edge so a fast scroll doesn't flash empty
 bands before the next paint.
 */
-/*{ "parent": "UI", "order": 900 }*/
+/*{ "parent": "table", "order": 10 }*/
 
 /** A column as the author declares it. */
 /*

@@ -40,7 +40,7 @@ names, and this repo already carries that scar: `b3d-biped` finds bones with
 split root silently produces an all-zero mask, which animates nothing and looks
 exactly like a clip that failed to load.
 */
-/*{ "parent": "Vehicles", "order": 165 }*/
+/*{ "parent": "b3d-biped", "order": 50 }*/
 
 /** One bone, as a name and its parent's name. All this needs of a skeleton. */
 export interface BoneNode {

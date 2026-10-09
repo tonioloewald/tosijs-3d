@@ -21,7 +21,7 @@ ways of combining regions can never disagree at a boundary:
 Pure and Babylon-free, so the simulation (and a driver) can ask the same
 question the renderer does.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-weather-cell", "order": 10 }*/
 
 import { addWind, NO_WIND, scaleWind, type Wind } from './wind.js'
 

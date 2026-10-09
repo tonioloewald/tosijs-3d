@@ -135,7 +135,7 @@ tosi-b3d {
 | `lightRange` | `500` | Point light range |
 
 */
-/*{ "parent": "Space" }*/
+/*{ "parent": "space", "order": 30 }*/
 
 import { B3dChild, sceneDelta } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

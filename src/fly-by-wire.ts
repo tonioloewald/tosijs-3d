@@ -32,7 +32,7 @@ throttle setting settles) and `turbulence`.
 Plain `{x, y, z}` objects, time only through `dt`, no randomness: the same
 inputs give the same flight, which is what `fly-by-wire.test.ts` relies on.
 */
-/*{ "parent": "Vehicles", "order": 905 }*/
+/*{ "parent": "b3d-aircraft", "order": 10 }*/
 
 /**
  * Pure fly-by-wire VTOL flight model — the "drone-that-becomes-a-plane"

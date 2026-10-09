@@ -35,7 +35,7 @@ import { XrFrames } from 'tosijs-3d'
 // (damped yaw) but not your gaze. See <tosi-b3d-panel> / frame-panel for the assembled spatial UI.
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "b3d-panel", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 

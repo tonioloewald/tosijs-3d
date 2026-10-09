@@ -1,6 +1,6 @@
 # Demos
 
-<!--{ "order": 5 }-->
+<!--{"order": 5}-->
 
 Whole scenes you can walk around in, rather than one component at a time.
 

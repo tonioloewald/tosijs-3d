@@ -171,7 +171,7 @@ preview.append(scene)
 | `gravityZ` | `0` | Gravity Z component |
 | `debug` | `false` | Show wireframe physics collider shapes |
 */
-/*{ "parent": "Utilities" }*/
+/*{ "parent": "interacting", "order": 40 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

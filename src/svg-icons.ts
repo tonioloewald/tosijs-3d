@@ -653,4 +653,4 @@ copies its arguments, which is right for a private set and wrong for this one.
 */
 export const svgIcons = createSvgIcons(DEFAULT_MAP, {})
 
-/*{ "parent": "UI", "order": 230 }*/
+/*{ "parent": "ui-theme", "order": 20 }*/

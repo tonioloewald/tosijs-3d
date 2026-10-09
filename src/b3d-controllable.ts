@@ -30,7 +30,7 @@ class Spinner extends B3dControllable {
 - `getCameraTarget()` — returns the node cameras should follow
 - `handleGainFocus()` / `handleLoseFocus()` — lifecycle hooks for input switching
 */
-/*{ "parent": "Input", "order": 900 }*/
+/*{ "parent": "input-internals", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import {

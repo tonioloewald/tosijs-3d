@@ -62,7 +62,7 @@ finer one: a vertex every 2 m out to 64 m, about 16,600 in all.
 
 Pure: no engine. The terrain and the climate arrive as numbers.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-water", "order": 10 }*/
 
 /** Depths are clamped to this range (metres; negative = ground above water). */
 export const SHORE_DEPTH_MIN = -4

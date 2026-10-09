@@ -30,7 +30,7 @@ as _"almost nothing for building a PLACE, as opposed to a battle"_ (#36).
   lets `lockable` and `interactive` compose on the same piece instead of one
   knowing about the other (ensemble's `ctx.feature()` finding).
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "b3d-interactive", "order": 10 }*/
 
 /** Where a gesture currently is. */
 export type InteractPhase = 'idle' | 'hover' | 'press'

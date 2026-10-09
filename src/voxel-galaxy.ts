@@ -57,7 +57,7 @@ const local = galaxy.dimStarsNear({ x: 0.5, y: 0, z: 0.01 }, 0.08)
 | `brightMix` | O–G5 | The bright population's spectral mix — the bright/dim cut is here |
 | `dimMix` | G6–M | The dim population's spectral mix — underweight late M freely |
 */
-/*{ "parent": "Space", "order": 910 }*/
+/*{ "parent": "b3d-galaxy", "order": 10 }*/
 
 import { CheapPRNG, PRNG } from './mersenne-twister.js'
 import {

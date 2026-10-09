@@ -90,7 +90,7 @@ Pass `worldMatrix: false` if you are about to reposition the mesh anyway and
 want to skip the work.
 
 */
-/*{ "parent": "Core", "order": 200 }*/
+/*{ "parent": "core", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { primitiveMaterial } from './b3d-primitives.js'

@@ -1,5 +1,5 @@
 /*#
-# b3d-primitives
+# Primitives: box, sphere, ground
 
 **A box, a sphere and a ground plane, as elements.** The quickest way to put
 something in a scene: no model file, a material already on it, and it casts
@@ -67,7 +67,7 @@ collision does not notice anything shorter (`solidProxy: 'off'` declines it).
 For shapes beyond these three, `el.make.*` builds any Babylon primitive with
 the same conveniences: see [[make-mesh]]. For a model file, [[b3d-loader]].
 */
-/*{ "parent": "Core", "order": 120 }*/
+/*{ "parent": "core", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, fetchedUrl, isOff } from './b3d-utils.js'

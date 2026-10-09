@@ -146,7 +146,7 @@ preview.append(
 | `debug` | `false` | Show wireframe sphere |
 | `once` | `false` | Fire `whenEnter` once then deactivate |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "interacting", "order": 20 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import { handlerOf } from './handler-of.js'

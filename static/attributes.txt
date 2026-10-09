@@ -572,7 +572,7 @@ b3d-light-shafts
   underwaterCount  = 12  — Their budget
 
 ## b3d-light — <tosi-b3d-light>
-b3d-light
+Ambient light (b3d-light)
 
   x  = 0  — Light direction X (the "up" direction)
   y  = 1  — Light direction Y
@@ -722,7 +722,7 @@ b3d-planet
   rotationSpeed  = 0  — Auto-rotation speed (radians/sec)
 
 ## b3d-primitives (tosi-b3d-sphere) — <tosi-b3d-sphere>
-b3d-primitives
+Primitives: box, sphere, ground
 
   x
   y
@@ -742,7 +742,7 @@ b3d-primitives
   solidProxy
 
 ## b3d-primitives (tosi-b3d-box) — <tosi-b3d-box>
-b3d-primitives
+Primitives: box, sphere, ground
 
   x
   y
@@ -764,7 +764,7 @@ b3d-primitives
   solidProxy
 
 ## b3d-primitives (tosi-b3d-ground) — <tosi-b3d-ground>
-b3d-primitives
+Primitives: box, sphere, ground
 
   x
   y
@@ -834,7 +834,7 @@ b3d-reflections
   distanceCheckInterval  = 13  — Frames between camera-distance re-checks
 
 ## b3d-shadows — <tosi-b3d-sun>
-b3d-shadows
+Sun and shadows (b3d-shadows)
 
   shadowMaxZ  = 100  — Far plane of the cascaded shadow frustum
   shadowDarkness  = 0.1  — 0 = fully dark shadow, 1 = no shadow

@@ -15,7 +15,7 @@ A consumer that only wants to READ, VALIDATE or SERIALISE a lamp should never
 have to instantiate a UI to do it. Same discipline as `world-store` versus
 `world-view`, and `fly-by-wire` versus `b3d-aircraft`.
 */
-/*{ "parent": "UI", "order": 265 }*/
+/*{ "parent": "light-editor", "order": 20 }*/
 
 import {
   canonicalProgram,

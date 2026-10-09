@@ -25,7 +25,7 @@ panel-sizing formula lived at three sites and was fixed at one).
 `popup-surface` imports `b3d-svg-plane`, so a direct dependency either way round
 is a cycle.
 */
-/*{ "parent": "UI", "order": 173 }*/
+/*{ "parent": "popup-surface", "order": 20 }*/
 
 /** The bit of `B3d` a layer needs — duck-typed, to stay out of the cycle. */
 export interface PopupOwner {

@@ -158,7 +158,7 @@ applies, so something that cannot have its honest minimum should switch OFF
 rather than degrade.
 
 */
-/*{ "parent": "UI", "order": 400 }*/
+/*{ "parent": "ui-containers", "order": 30 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'

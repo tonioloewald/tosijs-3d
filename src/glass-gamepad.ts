@@ -126,7 +126,7 @@ that actually implies an on-screen fallback isn't needed.
 If the pad is disappearing on you during development, `fade="off"` (or
 `setFade(false)`) pins it; `faded` reports the current state.
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "input", "order": 30 }*/
 
 import { isOff } from './b3d-utils.js'
 import { Component, elements, StyleSheet } from 'tosijs'

@@ -54,7 +54,7 @@ Ensemble's version speaks in `[x, y, z]` tuples and writes into an ensemble
 document, so it is re-expressed here in this library's `{x, y, z}` and returns a
 transform rather than editing anything.
 */
-/*{ "parent": "Utilities", "order": 118 }*/
+/*{ "parent": "b3d-manipulator", "order": 10 }*/
 
 /** A point or direction. Plain numbers — the engine does not belong in here. */
 export interface Vec3 {

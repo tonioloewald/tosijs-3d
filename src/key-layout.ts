@@ -104,7 +104,7 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
   sheet, readout))
 ```
 */
-/*{ "parent": "UI", "order": 900 }*/
+/*{ "parent": "keyboard", "order": 10 }*/
 
 import { formatColor, parseColor } from './color.js'
 

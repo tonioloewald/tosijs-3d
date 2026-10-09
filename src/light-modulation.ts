@@ -133,7 +133,7 @@ and would break the no-`Math.random` rule that makes this testable at all.
 For flicker that should not read as periodic, give the sustain segment several
 dissimilar peaks and a period that is not a round number.
 */
-/*{ "parent": "Effects", "order": 120 }*/
+/*{ "parent": "b3d-lamp", "order": 10 }*/
 
 import {
   canonicalCurve,

@@ -137,7 +137,7 @@ the particle version of the fog "thunk", and we already fixed that once.
 | `windZ` | `0` | |
 | `disabled` | `false` | Stop emitting |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "weather-and-clouds", "order": 50 }*/
 
 import { inheritedWind } from './wind.js'
 import * as BABYLON from '@babylonjs/core'

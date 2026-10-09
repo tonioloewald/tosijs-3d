@@ -166,7 +166,7 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
 ```
 
 */
-/*{ "parent": "UI", "order": 271 }*/
+/*{ "parent": "ui-theme", "order": 10 }*/
 
 const rootStyle =
   typeof document !== 'undefined'

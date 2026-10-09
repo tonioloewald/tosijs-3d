@@ -322,7 +322,7 @@ Shared by all three unless noted.
 ([[light-modulation|LightProgram]]) and `node` (the fixture's `TransformNode`,
 for parenting your own geometry).
 */
-/*{ "parent": "Environment", "order": 60 }*/
+/*{ "parent": "sky-and-light", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, conventionName, isOff } from './b3d-utils.js'

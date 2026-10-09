@@ -153,7 +153,7 @@ correctly, because the thing it stands for is far away. [[b3d-manipulator]] is
 the other half of this: a beacon is what you click, handles are what you then
 drag.
 */
-/*{ "parent": "Utilities", "order": 121 }*/
+/*{ "parent": "interacting", "order": 50 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff, semanticParent } from './b3d-utils.js'

@@ -34,7 +34,7 @@ one; `interactive` never learns what a lock is. Vetoes are consulted at
 being tried, because "it did not budge" is feedback and silence is a bug report.
 A refusal names the refuser, so a caller can tell a locked door from a broken one.
 */
-/*{ "parent": "World Sim", "order": 900 }*/
+/*{ "parent": "b3d-interactive", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core'
 // `mesh.renderOutline` does not EXIST until this side-effect module patches it
 // onto the prototype — assigning it without the import silently does nothing,

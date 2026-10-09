@@ -87,7 +87,7 @@ biped stops at a trunk and can stand on a boulder.
 | `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live |
 | `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "terrain", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js'

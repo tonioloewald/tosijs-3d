@@ -84,7 +84,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "water", "order": 10 }*/
 
 import { plane as mediumPlane, type PlaneMedium } from './medium.js'
 import * as BABYLON from '@babylonjs/core'

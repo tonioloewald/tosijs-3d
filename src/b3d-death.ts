@@ -99,7 +99,7 @@ tosi-b3d { width: 100%; height: 100%; }
 > listener, so `onRespawn` would silently become `addEventListener('respawn')` and never
 > fire. (See CLAUDE.md.)
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "world-sim", "order": 70 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta, collidable } from './b3d-utils.js'

@@ -57,7 +57,7 @@ headset off.
 Straight up is excluded for a second reason: azimuth is undefined at the pole,
 so a drag through it would spin the panel around a direction you did not choose.
 */
-/*{ "parent": "UI", "order": 172 }*/
+/*{ "parent": "b3d-panel", "order": 30 }*/
 
 /** A point in the anchor's local space. */
 export interface OrbitVec3 {

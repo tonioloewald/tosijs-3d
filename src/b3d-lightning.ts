@@ -141,7 +141,7 @@ The pure half (when, where, bolt shape, flicker, thunder delay) is
 | `brightness` | `1` | How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together |
 | `color` | `'#dce4ff'` | The flash's colour |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "weather-and-clouds", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'

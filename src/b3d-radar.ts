@@ -102,7 +102,7 @@ one: `maxLocks: 1`, `alignment: 'hostile'` (so it only locks the player).
 | `alignment` | `'friendly'` | This radar's own faction. It locks only **opposed** blips (friendly⇄hostile); neutrals/waypoints show but never lock. |
 | `updateInterval` | `100` | Radar refresh period (ms). Runs below frame-rate and is dithered across frames so many radars don't all recompute the same frame. |
 #*/
-/*{ "parent": "Combat" }*/
+/*{ "parent": "combat", "order": 50 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, semanticParent, sceneDelta } from './b3d-utils.js'

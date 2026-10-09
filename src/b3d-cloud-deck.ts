@@ -251,7 +251,7 @@ by `b3d-clouds` painting blob positions into a moving window. Pointing it at
 this field instead, with the same live `coverage` uniform, is what makes the
 shade underfoot belong to the cloud overhead rather than merely resemble it.
 */
-/*{ "parent": "Environment", "order": 502 }*/
+/*{ "parent": "weather-and-clouds", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'

@@ -51,7 +51,7 @@ Any input source implements `InputProvider`:
 Merges multiple providers (e.g. keyboard + XR sticks). Axes use max-abs (preserves sign),
 buttons use max.
 */
-/*{ "parent": "Input", "order": 900 }*/
+/*{ "parent": "input-internals", "order": 10 }*/
 
 export interface ControlInput {
   forward: number // -1..1

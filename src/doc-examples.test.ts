@@ -436,19 +436,50 @@ describe('the doc site hangs together', () => {
     expect([...new Set(dead)]).toEqual([])
   })
 
-  test("every page's parent is a category that exists, spelled the same way", () => {
-    const titles = new Set(
-      landing.map((f) => {
-        const m = /^# (.+)$/m.exec(readFileSync(`${dir}docs/${f}`, 'utf8'))
-        return m?.[1].trim() ?? ''
-      })
-    )
+  test('no landing page shares a name with a module page', () => {
+    // `weather.md` beside `weather.ts`: "parent": "weather" then named two
+    // pages, and every child of the section fell out to the top level.
+    const clash = landing
+      .map((f) => f.slice(0, -3))
+      .filter((n) => files.includes(`${n}.ts`))
+    expect(clash).toEqual([])
+  })
+
+  test("every page's parent is a page that exists (by slug)", () => {
+    // Parents are written as SLUGS (the file name), which survive a retitle.
+    // The nav also accepts a title, but one spelling is how fifteen pages
+    // came to say "environment" beside thirty saying "Environment".
     const bad: string[] = []
     for (const [f, src] of sources) {
       for (const m of src.matchAll(/\/\*\{[^}]*"parent":\s*"([^"]+)"/g)) {
-        if (!titles.has(m[1])) bad.push(`${f}: "${m[1]}"`)
+        if (!pages.has(m[1])) bad.push(`${f}: "${m[1]}"`)
       }
     }
+    for (const f of landing) {
+      const m = /"parent":\s*"([^"]+)"/.exec(
+        readFileSync(`${dir}docs/${f}`, 'utf8')
+      )
+      if (m != null && !pages.has(m[1])) bad.push(`${f}: "${m[1]}"`)
+    }
     expect(bad).toEqual([])
+  })
+
+  test('no section is a wall of links', () => {
+    // The tree is nested so a newcomer meets the elements, not every helper.
+    // UI had 39 direct children and Environment 37 before it was.
+    const count = new Map<string, number>()
+    const add = (text: string) => {
+      for (const m of text.matchAll(/"parent":\s*"([^"]+)"/g)) {
+        count.set(m[1], (count.get(m[1]) ?? 0) + 1)
+      }
+    }
+    for (const src of sources.values()) {
+      for (const m of src.matchAll(/\/\*\{[^}]*\}\*\//g)) add(m[0])
+    }
+    for (const f of landing) add(readFileSync(`${dir}docs/${f}`, 'utf8'))
+    const big = [...count]
+      .filter(([, n]) => n > 12)
+      .map(([k, n]) => `${k}: ${n}`)
+    expect(big).toEqual([])
   })
 })

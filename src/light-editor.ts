@@ -39,7 +39,7 @@ once". The first version of this was a button and Tonio did not recognise it as
 the switch it was.
 
 */
-/*{ "parent": "UI", "order": 264 }*/
+/*{ "parent": "ui-controls", "order": 100 }*/
 
 import { svgElements } from 'tosijs'
 import {

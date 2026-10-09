@@ -182,7 +182,7 @@ the water ones.
 | `underwater` | `'on'` | Shafts under the water surface too |
 | `underwaterCount` | `12` | Their budget |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "sky-and-light", "order": 50 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'

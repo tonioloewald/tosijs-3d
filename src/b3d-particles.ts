@@ -129,7 +129,7 @@ preview.append(scene)
 | `disposeOnStop` | `false` | Dispose when stopped |
 | `attachTo` | `''` | Mesh name to attach emitter to |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "effects", "order": 10 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

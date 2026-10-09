@@ -129,7 +129,7 @@ vocabulary anywhere in the sim.
 
 `spawned` — bubbles, `detail: { prefab, position, elements }`.
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "world-sim", "order": 60 }*/
 
 import { B3dChild, sceneDelta } from './b3d-utils.js'
 import { Xoshiro128 } from './mersenne-twister.js'

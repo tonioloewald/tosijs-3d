@@ -226,7 +226,7 @@ import { useNearest } from 'tosijs-3d'
 if (input.interact) useNearest(scene, camera.globalPosition)
 ```
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "interacting", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, playerPosition, semanticParent } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'

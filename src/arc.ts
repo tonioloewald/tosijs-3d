@@ -51,7 +51,7 @@ A control that silently snaps to a legal arc teaches nothing about why. So the
 envelope is a first-class value the widget can DRAW — the permitted sector and
 the blocked one — and clamping is what happens after you can see the reason.
 */
-/*{ "parent": "Utilities", "order": 120 }*/
+/*{ "parent": "angle-field", "order": 10 }*/
 
 import { normaliseDegrees, wrapDegrees } from './manipulator.js'
 

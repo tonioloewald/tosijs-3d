@@ -105,7 +105,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "core", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'

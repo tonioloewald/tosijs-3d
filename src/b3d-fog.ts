@@ -59,7 +59,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Environment", "order": 503 }*/
+/*{ "parent": "sky-and-light", "order": 60 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

@@ -110,7 +110,7 @@ icon layer, which imports tosijs, which needs a DOM — and then this module cou
 longer be unit-tested without one. The names are the part worth pinning; the caller
 already has an icon helper.
 */
-/*{ "parent": "UI", "order": 240 }*/
+/*{ "parent": "table", "order": 20 }*/
 
 /** Single-select behaves like a radio; multi like a checkbox. */
 export type SelectionMode = 'single' | 'multi'

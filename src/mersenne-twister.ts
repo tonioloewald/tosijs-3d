@@ -59,7 +59,7 @@ preview.append(pre(output))
 | `pick(array, weights?)` | `T` | Weighted random selection from array |
 
 */
-/*{ "parent": "Utilities", "order": 900 }*/
+/*{ "parent": "reference", "order": 10 }*/
 
 /**
  * Mersenne Twister MT19937 pseudo-random number generator.

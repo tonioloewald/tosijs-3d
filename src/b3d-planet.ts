@@ -153,7 +153,7 @@ tosi-b3d {
 | `rotationSpeed` | `0` | Auto-rotation speed (radians/sec) |
 
 */
-/*{ "parent": "Space" }*/
+/*{ "parent": "space", "order": 40 }*/
 
 import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'

@@ -53,7 +53,7 @@ authority that could shift it would be authoring a different planet rather than
 a place on this one. A province may add a lake at its own level; that is what
 `waterLevel` is for.
 */
-/*{ "parent": "Environment", "order": 130 }*/
+/*{ "parent": "b3d-terrain", "order": 50 }*/
 
 import {
   canonicalCurve,

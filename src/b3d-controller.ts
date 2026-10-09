@@ -73,7 +73,7 @@ tosi-b3d { width: 100%; height: 100%; }
 Put it inside a `<tosi-b3d-input-focus>` only if you want that manager to drive it
 instead — on its own it wires input itself.
 */
-/*{ "parent": "Input", "order": 100 }*/
+/*{ "parent": "input", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core'
 import { B3dControllable } from './b3d-controllable.js'
 import { sceneFrame } from './b3d-utils.js'

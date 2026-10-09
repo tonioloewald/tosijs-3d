@@ -31,7 +31,7 @@ is what makes "extent in this direction" have an answer at all. Both are clamps
 rather than refusals — a drag that stops at the limit shows you the limit; one
 that refuses to move looks broken.
 */
-/*{ "parent": "UI", "order": 261 }*/
+/*{ "parent": "ui-controls", "order": 40 }*/
 
 import { svgElements } from 'tosijs'
 import {

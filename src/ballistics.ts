@@ -29,7 +29,7 @@ const aim = ballisticAim(shell.pos, { x: 0, y: 0, z: 400 }, 120, -9.81)
 Gravity does not depend on mass; drag is quadratic and is divided by mass, so
 a heavy round carries further. For a moving target, see [[guidance]].
 */
-/*{ "parent": "Combat", "order": 905 }*/
+/*{ "parent": "b3d-launcher", "order": 10 }*/
 
 /**
  * Pure, Babylon-free ballistic flight (see COMBAT-DESIGN.md). Plain `{x,y,z}`,

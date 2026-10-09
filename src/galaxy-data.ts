@@ -63,7 +63,7 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 | `GalaxyOptions` | spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness, distantGalaxies, generatePlanets |
 
 */
-/*{ "parent": "Space", "order": 900 }*/
+/*{ "parent": "b3d-galaxy", "order": 20 }*/
 
 import { PRNG, CheapPRNG, type RandomLike } from './mersenne-twister.js'
 import { SPECTRAL_CLASSES, SPECTRAL_WEIGHTS } from './spectral-classes.js'

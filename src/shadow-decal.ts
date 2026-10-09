@@ -71,7 +71,7 @@ decal per-instance without breaking the sharing:
 That's the same discipline the clouds use for their blobs: one material, per-mesh transform and
 visibility. See [b3d-clouds](?b3d-clouds.ts), the first consumer.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "sky-and-light", "order": 90 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { collidable } from './b3d-utils.js'

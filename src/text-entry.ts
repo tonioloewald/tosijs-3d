@@ -36,7 +36,7 @@ a `combobox`, a shadow-DOM input a consumer wrote.
 input inside a shadow root is still recognised — `event.target` for one is the
 HOST element, which is not an input and never matches.
 */
-/*{ "parent": "Input", "order": 118 }*/
+/*{ "parent": "input-internals", "order": 90 }*/
 
 /** `<input type>` values that are pressed rather than typed into. */
 const NOT_TYPING = new Set([

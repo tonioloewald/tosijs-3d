@@ -33,7 +33,7 @@ value drops straight into a quaternion with no sign flip at the call site. Every
 sign bug in this repo's orientation code has come from a conversion at a
 boundary; this one does not have a boundary.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "b3d-biped", "order": 30 }*/
 
 /** Clamp an aim angle to what a body can plausibly hold, in degrees. */
 export function clampAim(deg: number, maxDeg = 70): number {

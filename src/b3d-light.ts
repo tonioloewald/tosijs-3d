@@ -1,5 +1,5 @@
 /*#
-# b3d-light
+# Ambient light (b3d-light)
 
 Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
 and never casts shadows — pair it with `b3dSun` for directional light that
@@ -55,7 +55,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `specular` | `'#808080'` | Specular color (hex) |
 | `groundColor` | `'#000000'` | Bounce from below (hex). Babylon's default is black, which is why vertical faces look unlit however high `intensity` goes — set a dim version of your ground colour |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "sky-and-light", "order": 30 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

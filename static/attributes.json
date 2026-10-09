@@ -2211,7 +2211,7 @@
   {
     "module": "b3d-light",
     "tag": "tosi-b3d-light",
-    "summary": "b3d-light",
+    "summary": "Ambient light (b3d-light)",
     "attributes": [
       {
         "name": "x",
@@ -2818,7 +2818,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-sphere)",
     "tag": "tosi-b3d-sphere",
-    "summary": "b3d-primitives",
+    "summary": "Primitives: box, sphere, ground",
     "attributes": [
       {
         "name": "x"
@@ -2882,7 +2882,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-box)",
     "tag": "tosi-b3d-box",
-    "summary": "b3d-primitives",
+    "summary": "Primitives: box, sphere, ground",
     "attributes": [
       {
         "name": "x"
@@ -2960,7 +2960,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-ground)",
     "tag": "tosi-b3d-ground",
-    "summary": "b3d-primitives",
+    "summary": "Primitives: box, sphere, ground",
     "attributes": [
       {
         "name": "x"
@@ -3205,7 +3205,7 @@
   {
     "module": "b3d-shadows",
     "tag": "tosi-b3d-sun",
-    "summary": "b3d-shadows",
+    "summary": "Sun and shadows (b3d-shadows)",
     "attributes": [
       {
         "name": "shadowMaxZ",

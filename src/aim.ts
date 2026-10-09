@@ -188,7 +188,7 @@ legible bad-shooter behaviour there is: the aim visibly trails the target, so a
 player can *see* they are being missed rather than merely surviving. Pair it
 with `aimWobble` for a shooter who cannot hold still.
 */
-/*{ "parent": "Vehicles", "order": 167 }*/
+/*{ "parent": "b3d-biped", "order": 40 }*/
 
 /** A plain direction. Babylon's `Vector3` satisfies it structurally. */
 export interface AimVec {

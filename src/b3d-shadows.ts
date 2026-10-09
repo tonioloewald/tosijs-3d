@@ -1,5 +1,5 @@
 /*#
-# b3d-shadows
+# Sun and shadows (b3d-shadows)
 
 `B3dSun` — directional light + cascaded shadow generator. Add a `<tosi-b3d-sun>`
 inside `<tosi-b3d>` and every registered mesh starts casting shadows onto every
@@ -82,7 +82,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `_nocast` (or `-nocast`) | Mesh doesn't cast shadows (e.g. huge ground planes) |
 | `_noshadow` (or `-noshadow`) | Mesh doesn't receive shadows |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "sky-and-light", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils.js'

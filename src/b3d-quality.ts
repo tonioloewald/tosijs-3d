@@ -56,7 +56,7 @@ const subs = resolveBudget(this.subdivisions, 'hiResSubdivisions', {
 It is true on a standalone headset (a Quest), false on a PC driving one. A
 budget re-read every frame does not need it: pass the live `xr` state there.
 */
-/*{ "parent": "Performance", "order": 900 }*/
+/*{ "parent": "b3d-probe", "order": 20 }*/
 
 import {
   defaultProfile,

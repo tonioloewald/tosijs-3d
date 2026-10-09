@@ -1,5 +1,5 @@
 /*#
-# radar.ts
+# Radar model
 
 The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 Babylon-free (plain `{x, y, z}`, time only via `dt`, no `Date.now`/`Math.random`), so
@@ -22,7 +22,7 @@ import { Radar } from 'tosijs-3d'
 // each dt and read its tracks / nearest lock. See <tosi-b3d-radar> for the wired-up version.
 ```
 #*/
-/*{ "parent": "Combat", "order": 900 }*/
+/*{ "parent": "b3d-radar", "order": 20 }*/
 
 export type Vec3 = { x: number; y: number; z: number }
 

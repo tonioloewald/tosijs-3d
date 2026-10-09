@@ -17,7 +17,7 @@ Leave the seed out and you get a different field every time, which is rarely
 what you want. Noise is 0 at every whole-number coordinate, so scale your
 inputs (`x * 0.01`) and do not sample on the integer grid.
 */
-/*{ "parent": "Utilities", "order": 905 }*/
+/*{ "parent": "reference", "order": 20 }*/
 
 /**
  * A clean implementation of 3D Perlin Noise

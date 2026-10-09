@@ -333,7 +333,7 @@ tosi-b3d {
 | `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
 */
-/*{ "parent": "Space" }*/
+/*{ "parent": "space", "order": 10 }*/
 
 import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

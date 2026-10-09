@@ -91,7 +91,7 @@ performance or authoring a cylinder/sphere/torus world.
   a value the element never implemented.
 
 */
-/*{ "parent": "Environment", "order": 135 }*/
+/*{ "parent": "b3d-terrain", "order": 60 }*/
 
 import { svgElements } from 'tosijs'
 import { sceneSchemas } from './scene-schemas.js'

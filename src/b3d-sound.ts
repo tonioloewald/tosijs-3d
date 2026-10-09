@@ -76,7 +76,7 @@ preview.append(
 | `attachTo` | `''` | Mesh name to follow |
 | `playbackRate` | `1` | Playback speed |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "effects", "order": 20 }*/
 
 import { B3dChild, fetchedUrl } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'

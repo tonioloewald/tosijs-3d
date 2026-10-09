@@ -143,7 +143,7 @@ stock rig), and a mask keyed on names nobody has is a mask that drives nothing â
 silently, and identically to a clip that failed to load. `layerGroups` reports
 what it matched so a caller can refuse rather than animate air.
 */
-/*{ "parent": "Vehicles", "order": 166 }*/
+/*{ "parent": "b3d-biped", "order": 60 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import {

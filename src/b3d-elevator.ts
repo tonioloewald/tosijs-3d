@@ -36,7 +36,7 @@ one for a lift.
 | `thickness` | `0.2` | Platform thickness — it gets a collision proxy like any thin solid |
 | `color` | `'#8a8f98'` | |
 */
-/*{ "parent": "Core", "order": 120 }*/
+/*{ "parent": "characters-and-vehicles", "order": 40 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, sceneDelta } from './b3d-utils.js'

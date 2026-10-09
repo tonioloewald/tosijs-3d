@@ -19,7 +19,7 @@ You only need this if you are building on the tile substrate yourself (a
 volumetric patch, a custom streamer). `desiredCells` is the quadtree: given a
 viewer, the set of tiles that should exist. See also [[sdf-lattice]].
 */
-/*{ "parent": "Environment", "order": 905 }*/
+/*{ "parent": "b3d-terrain", "order": 70 }*/
 
 /**
  * Pure terrain grid math — no Babylon, no DOM, so it unit-tests headless. This is

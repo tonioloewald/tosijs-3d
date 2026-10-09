@@ -115,7 +115,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `lifetime` | `0` | Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended` |
 | `grow` | `0` | Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "weather-and-clouds", "order": 30 }*/
 
 import type * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils.js'

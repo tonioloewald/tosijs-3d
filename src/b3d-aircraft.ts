@@ -389,7 +389,7 @@ root, so the picked mesh is a wing three levels down and a snapshot taken at
 registration time captures an empty root forever).
 
 */
-/*{ "parent": "Vehicles" }*/
+/*{ "parent": "characters-and-vehicles", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'

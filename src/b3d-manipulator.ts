@@ -172,7 +172,7 @@ authoring — including on a phone, which is where most of the sizing decisions
 were won. This library had no manipulator at all (#38), and `b3d-panel`'s
 coloured debug axes look exactly like one, which is its own small cruelty.
 */
-/*{ "parent": "UI", "order": 275 }*/
+/*{ "parent": "interacting", "order": 60 }*/
 
 import { handlerOf } from './handler-of.js'
 import * as BABYLON from '@babylonjs/core'

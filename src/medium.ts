@@ -56,7 +56,7 @@ the transition happens (metres), smoothstepped — tight enough that entering
 water is *obvious*, wide enough that it is not a discontinuity. Tuned from
 [[b3d-water]]'s `fogTransition`, which learned this the hard way.
 */
-/*{ "parent": "Utilities" }*/
+/*{ "parent": "b3d-water", "order": 40 }*/
 
 export interface MediumVec3 {
   x: number

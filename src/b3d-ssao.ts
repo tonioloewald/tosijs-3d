@@ -167,7 +167,7 @@ water seen through its alpha, particles and the cloud deck neither receive
 nor cast occlusion. A mesh whose vertex shader moves its vertices (the
 vertex-animated crowd) is occluded as if standing in its rest pose.
 */
-/*{ "parent": "Effects", "order": 60 }*/
+/*{ "parent": "sky-and-light", "order": 80 }*/
 
 import * as BABYLON from '@babylonjs/core'
 

@@ -612,7 +612,7 @@ Material *appearance* (metallic, roughness, alpha, emissive) comes through glTF 
 | `-ignore` | Node is disposed on load |
 | `_collide*` | Physics collider (sphere/box/cylinder/mesh) |
 */
-/*{ "parent": "Core", "order": 900 }*/
+/*{ "parent": "core", "order": 70 }*/
 
 // Thresholds for property-based material inference
 const ALPHA_OPAQUE_THRESHOLD = 0.95
@@ -847,7 +847,7 @@ class MyThing extends B3dChild {
 export const myThing = MyThing.elementCreator()
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "core", "order": 70 }*/
 
 /**
  * Base for every element that lives INSIDE a `<tosi-b3d>` scene. The whole

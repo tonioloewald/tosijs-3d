@@ -52,7 +52,7 @@ import { ring, vee, escorts } from 'tosijs-3d'
 for (const at of ring(4, 30, { y: 5 })) spawnEscort(at)
 ```
 */
-/*{ "parent": "World Sim", "order": 900 }*/
+/*{ "parent": "b3d-spawner", "order": 10 }*/
 
 export type Offset = { x: number; y: number; z: number }
 
