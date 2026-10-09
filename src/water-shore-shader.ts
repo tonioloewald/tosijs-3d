@@ -19,8 +19,14 @@ import '@babylonjs/materials/water/water.vertex.js'
 const MARK = '/*b3dShore*/'
 
 const FUNCTIONS = `
+// No sin(): fract(sin(x) * 43758.5) depends on how a GPU evaluates sin of a
+// large argument, and mobile GPUs disagree with desktop ones and with each
+// other, so the plates came out mismatched on a headset and fine on a Mac.
+// This one is arithmetic only (Hoskins, "hash without sine").
 float b3dShoreHash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
 }
 float b3dShoreNoise(vec2 p) {
   vec2 i = floor(p);
@@ -58,7 +64,7 @@ vec2 b3dShoreIce(vec2 xz, float ice) {
   vec2 p = b3dShorePlates(xz * 0.085 + 0.6 * vec2(b3dShoreNoise(xz * 0.03), b3dShoreNoise(xz * 0.03 + 5.0)));
   float there = step(p.y, ice * 1.08);
   float gap = mix(0.3, 0.012, smoothstep(0.25, 1.0, ice));
-  return vec2(there * smoothstep(gap, gap + 0.035, p.x), p.y);
+  return vec2(there * smoothstep(gap, gap + 0.075, p.x), p.y);
 }
 `
 

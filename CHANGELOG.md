@@ -80,6 +80,12 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   there was no way out of the session from inside. Anything beneath the node
   the XR rig rides on is no longer a pointer target; your own panels are.
   (Reproduced and checked with the emulated headset; not yet on a device.)
+- **Sea ice: the plate pattern no longer depends on the GPU's `sin`.** The
+  plates were laid out with the classic `fract(sin(x) * 43758.5)` hash, which
+  mobile GPUs evaluate differently from desktop ones; in a headset the ice
+  showed severe mismatches that a Mac never did. The hash is arithmetic only
+  now. Plate edges are also a little softer. (The layout of plates for a given
+  place changes. Not yet confirmed on a headset.)
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.
