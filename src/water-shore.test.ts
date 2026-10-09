@@ -143,6 +143,14 @@ describe('shoreData', () => {
   })
 })
 
+describe('a world at temperature 0', () => {
+  test('is frozen solid right across, however deep', () => {
+    expect(iceSolid(0, 60)).toBe(1)
+    expect(iceBears(0.04, 60)).toBe(true)
+    expect(iceSolid(0.13, 60)).toBe(0)
+  })
+})
+
 describe('iceBears', () => {
   test('only solid ice carries weight', () => {
     expect(iceBears(0.7, 0)).toBe(false) // open water

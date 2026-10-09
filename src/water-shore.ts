@@ -250,9 +250,10 @@ function iceAmount(temperature: number, depth: number): number {
   const shallow = 1 - t * t * (3 - 2 * t)
   // …and the last couple of metres freeze at the first touch of cold.
   const wading = 1 - Math.min(1, d / 2.5)
-  // The open sea needs real cold: it is a full sheet only near a chart
-  // temperature of 0, and knits solid below that.
-  return cold * (0.42 + 0.9 * shallow + 0.9 * wading)
+  // The open sea needs real cold, and gets there faster the colder it is: a
+  // full sheet near a chart temperature of 0.12, bearing weight near 0.05,
+  // and one unbroken surface at 0, so a world at 0 is frozen right across.
+  return cold * (0.42 + 0.105 * cold + 0.9 * shallow + 0.9 * wading)
 }
 
 /**
