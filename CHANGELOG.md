@@ -46,6 +46,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Water animates on every browser.** Babylon's `WaterMaterial` advances
+  its clock only on a frame whose duration differs from the last, so where
+  frame times are steady (a browser that rounds its timer, a display holding
+  its rate) the ripples crawled. `<tosi-b3d-water>` now writes the
+  material's time itself, once a frame, from the scene's clock. It also
+  stops when the scene is paused.
 - **Fog takes the sky's tint.** A `syncSkybox` fog fades distant ground to
   the skybox's `horizonColor`, which ignored `horizonTint`: under a tinted
   sky the far hills stood out as a pale blue-white band along the horizon.

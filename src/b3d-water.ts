@@ -235,6 +235,8 @@ export class B3dWater extends AbstractMesh {
    * so the underside fades in exactly as the fog does. */
   private _underW = 0
   private _shimmer = 0
+  /** Milliseconds of scene time, for the water shader. See `_windTick`. */
+  private _clock = 0
   private _ceilingKey = ''
   private _windTick?: () => void
   private _wasUnderwater = false
@@ -511,6 +513,26 @@ export class B3dWater extends AbstractMesh {
     this._windTick = () => {
       const mat = this.waterMaterial
       if (mat == null) return
+      /*
+      THE WATER'S CLOCK IS OURS.
+
+      WaterMaterial advances its own time only on a frame whose duration
+      DIFFERS from the last one's ("prevent adding delta time if it hasn't
+      changed": its way of not counting a frame twice when it binds more than
+      once). Where frame times are steady, which is any browser that rounds
+      its timer and any display holding its rate, consecutive frames are the
+      same length and the clock barely moves: the ripples crawl and the surf
+      stands still. So the time is written here, once a frame, and the
+      material is told this frame's duration is already counted. It also
+      stops when the scene is paused, which the material's never did.
+      */
+      this._clock += sceneDelta(scene) * 1000
+      const clocked = mat as unknown as {
+        _lastTime: number
+        _lastDeltaTime: number
+      }
+      clocked._lastTime = this._clock
+      clocked._lastDeltaTime = scene.getEngine().getDeltaTime()
       const next = this._wind()
       if (
         Math.abs(mat.windForce - next.windForce) < 1e-4 &&
