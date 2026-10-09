@@ -365,6 +365,7 @@ import {
 import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import { ProjectedAoController } from './b3d-ssao-projected.js'
 import { costSweep, formatSweep, type SweepRow } from './cost-sweep.js'
+const SWEEP_KEY = 'tosi-b3d-cost-sweep'
 import {
   allocateAmbient,
   ratchetPool,
@@ -2554,7 +2555,18 @@ export class B3d extends Component {
   }
 
   private _statsBaseScale: number | null = null
-  private _sweepLines: string[] = []
+  private _sweepLines: string[] = (() => {
+    // A sweep that never finished (it hung the device) left its journal.
+    try {
+      const j = JSON.parse(localStorage.getItem(SWEEP_KEY) ?? 'null')
+      if (j == null || !Array.isArray(j.lines)) return []
+      return j.starting == null
+        ? j.lines
+        : [...j.lines, `stopped at: ${j.starting}`]
+    } catch {
+      return []
+    }
+  })()
   private _sweepNow: string | null = null
   /** The rows of the last {@link costSweep}, for reading over a debug bridge. */
   lastCostSweep: SweepRow[] = []
@@ -2573,9 +2585,31 @@ export class B3d extends Component {
       unthrottle: (on) => {
         ;(this as any).frameRate = on ? 1000 : rate
       },
-      progress: (name, done, total) => {
-        this._sweepNow = name == null ? null : `${done + 1}/${total} ${name}`
-        this._repaintPanels()
+      // The panel the sweep is run from, the hands and their rays stay.
+      skip: (m) =>
+        m.renderingGroupId > 0 ||
+        /^xr-|panel|controller|laser|pointer|teleport|hand/i.test(m.name) ||
+        /^controller/i.test(m.material?.name ?? ''),
+      /*
+      TWO repaints, not one per experiment. Repainting rebuilds the panel and
+      redraws its texture, and doing that eighteen times inside a session on a
+      device already at its limit is its own load (a panel rebuild has hung a
+      Quest before, #3135).
+      */
+      progress: (name, done) => {
+        const was = this._sweepNow
+        this._sweepNow = name == null ? null : 'Sweeping, about 45 s'
+        if (name == null || (was == null && done === 0)) this._repaintPanels()
+      },
+      journal: (soFar, starting) => {
+        try {
+          localStorage.setItem(
+            SWEEP_KEY,
+            JSON.stringify({ lines: formatSweep(soFar), starting })
+          )
+        } catch {
+          /* private mode: the sweep still runs, it just leaves no trace */
+        }
       },
     })
     this._sweepLines = formatSweep(rows)

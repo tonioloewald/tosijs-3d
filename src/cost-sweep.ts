@@ -34,6 +34,14 @@ const rows = await document.querySelector('tosi-b3d').costSweep()
   twelve that could cover most of the view and lumps the rest as `other`.
 
 Each experiment is restored before the next. A sweep changes nothing for good.
+
+## If it hangs the device
+
+The first run on a Quest did. The sweep writes what it has measured, and the
+name of the experiment it is about to start, to `localStorage` before each
+one. Reload the page and Perf Stats shows the rows it got and **stopped at:**
+the experiment that never finished. The two headset levers run last for that
+reason: they are the part no emulator can exercise.
 */
 /*{ "parent": "performance", "order": 15 }*/
 import type * as BABYLON from '@babylonjs/core'
@@ -118,6 +126,14 @@ export interface SweepOptions {
   progress?: (name: string | null, done: number, total: number) => void
   /** Called before sampling starts and after it ends (lift a frame cap here). */
   unthrottle?: (on: boolean) => void
+  /** Meshes the sweep must leave alone (the panel it is run from, the hands). */
+  skip?: (mesh: BABYLON.AbstractMesh) => boolean
+  /**
+   * Called before each experiment with the rows so far and the one about to
+   * start, and with `null` when the sweep finishes. Write it somewhere that
+   * survives a crash: an experiment that hangs the device is then named.
+   */
+  journal?: (rows: SweepRow[], starting: string | null) => void
 }
 
 /**
@@ -145,6 +161,7 @@ export async function costSweep(
   const drawn: BABYLON.AbstractMesh[] = []
   for (const m of scene.meshes) {
     if (!m.isEnabled() || !m.isVisible || m.getTotalVertices() === 0) continue
+    if (options.skip?.(m) === true) continue
     drawn.push(m)
     const key = groupKey(m.name, m.material?.name)
     const g = groups.get(key) ?? { weight: 0, items: [] }
@@ -170,37 +187,7 @@ export async function costSweep(
   const experiments: Experiment[] = [
     { name: 'baseline', apply: () => () => {} },
   ]
-  if (inXr && session != null) {
-    experiments.push({
-      name: 'foveation 1',
-      apply: () => {
-        const was = session.fixedFoveation
-        session.fixedFoveation = 1
-        return () => {
-          session.fixedFoveation = was ?? 0
-        }
-      },
-    })
-    experiments.push({
-      name: 'viewport x0.7',
-      apply: () => {
-        // A view can only be asked inside the frame that produced it, so the
-        // way back is one more frame asking for the full viewport.
-        const ask = (scale: number) => (frame: XRFrame) => {
-          const pose = frame.getViewerPose(session.referenceSpace)
-          for (const v of pose?.views ?? [])
-            (
-              v as unknown as { requestViewportScale?: (s: number) => void }
-            ).requestViewportScale?.(scale)
-        }
-        const obs = session.onXRFrameObservable.add(ask(0.7))
-        return () => {
-          session.onXRFrameObservable.remove(obs)
-          session.onXRFrameObservable.addOnce(ask(1))
-        }
-      },
-    })
-  } else {
+  if (!inXr) {
     experiments.push({
       name: 'half the pixels',
       apply: () => {
@@ -236,6 +223,43 @@ export async function costSweep(
   // Again at the end: if this differs from the first, the device drifted
   // (heat, a background task) and the rows between are that much in doubt.
   experiments.push({ name: 'baseline again', apply: () => () => {} })
+  /*
+  LAST, and after the closing baseline, on purpose. These two go through the
+  headset's own compositor, the one part an emulator cannot exercise, and the
+  first sweep run on a Quest hung it. Whatever they do, the scene rows are
+  already measured and journalled by the time they start.
+  */
+  if (inXr && session != null) {
+    experiments.push({
+      name: 'foveation 1',
+      apply: () => {
+        const was = session.fixedFoveation
+        session.fixedFoveation = 1
+        return () => {
+          session.fixedFoveation = was ?? 0
+        }
+      },
+    })
+    experiments.push({
+      name: 'viewport x0.7',
+      apply: () => {
+        // A view can only be asked inside the frame that produced it, so the
+        // way back is one more frame asking for the full viewport.
+        const ask = (scale: number) => (frame: XRFrame) => {
+          const pose = frame.getViewerPose(session.referenceSpace)
+          for (const v of pose?.views ?? [])
+            (
+              v as unknown as { requestViewportScale?: (s: number) => void }
+            ).requestViewportScale?.(scale)
+        }
+        const obs = session.onXRFrameObservable.add(ask(0.7))
+        return () => {
+          session.onXRFrameObservable.remove(obs)
+          session.onXRFrameObservable.addOnce(ask(1))
+        }
+      },
+    })
+  }
 
   const rows: SweepRow[] = []
   options.unthrottle?.(true)
@@ -243,6 +267,7 @@ export async function costSweep(
     for (let i = 0; i < experiments.length; i++) {
       const e = experiments[i]
       options.progress?.(e.name, i, experiments.length)
+      options.journal?.(rows, e.name)
       const restore = e.apply()
       try {
         await wait(settle * 1000)
@@ -272,5 +297,6 @@ export async function costSweep(
     options.progress?.(null, experiments.length, experiments.length)
     running = false
   }
+  options.journal?.(rows, null)
   return rows
 }
