@@ -88,11 +88,15 @@ const SHORE = `${MARK}
   itself a thin wet edge laps in and out.
   */
   float b3dShore = vB3dShore;
+  // WaterMaterial's time uniform is in units of 100 SECONDS (milliseconds over
+  // 100000). Used raw, everything here moved a hundred times too slowly
+  // and read as painted on.
+  float b3dT = time * 100.0;
   float b3dSlow = b3dShoreNoise(b3dXZ * 0.045 + 3.0);
-  float b3dGrain = 0.6 * b3dShoreNoise(b3dXZ * 0.9 + vec2(time * 0.35, -time * 0.2))
-    + 0.4 * b3dShoreNoise(b3dXZ * 2.7 - vec2(time * 0.5, time * 0.3));
-  // One front every 5 m, running in at a little over a metre a second.
-  float b3dPhase = b3dShore / 5.0 + time * 0.23 + 1.3 * b3dSlow + 0.12 * b3dGrain;
+  float b3dGrain = 0.6 * b3dShoreNoise(b3dXZ * 0.9 + vec2(b3dT * 0.35, -b3dT * 0.2))
+    + 0.4 * b3dShoreNoise(b3dXZ * 2.7 - vec2(b3dT * 0.5, b3dT * 0.3));
+  // One front every 5 m, running in at about two thirds of a metre a second.
+  float b3dPhase = b3dShore / 5.0 + b3dT * 0.13 + 1.3 * b3dSlow + 0.12 * b3dGrain;
   float b3dSaw = fract(b3dPhase);
   // A soft rise on the shoreward side, trailing away to seaward. Soft on
   // purpose: a hard white line reads as paint, not water.
@@ -102,7 +106,7 @@ const SHORE = `${MARK}
   float b3dBroken = smoothstep(0.15, 0.75, b3dGrain + 0.35 * b3dNear);
   float b3dSurf = b3dFront * b3dBroken * b3dNear * (0.35 + 0.65 * b3dNear);
   // The wet edge: in and out with each arriving front.
-  float b3dLap = 0.5 + 0.5 * sin(6.2832 * (time * 0.23 + 1.3 * b3dSlow));
+  float b3dLap = 0.5 + 0.5 * sin(6.2832 * (b3dT * 0.13 + 1.3 * b3dSlow));
   float b3dEdge = 1.0 - smoothstep(-0.4, 1.4 + 1.6 * b3dLap, b3dShore + 0.8 * (b3dGrain - 0.5));
   // Inland of the true waterline it is all wet edge, however far: the land
   // covers it, and wherever the drawn land sits low enough to show water
