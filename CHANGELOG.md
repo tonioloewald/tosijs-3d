@@ -49,6 +49,11 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   `choiceMade`, an option that is not on the menu emits nothing, a choice is
   reported once, and the sim resolves nothing. A conformant store must now
   have `chooseOption(choiceId, optionId)`.
+- **A bomb that goes off on terrain now hurts what is above it.** The blast's
+  line of sight started on (or just under) the surface it hit, so the terrain
+  was cover for everything and a ground burst damaged nothing. A burst near a
+  surface now looks from a metre above it; a hill or wall in between is still
+  cover. (Only a mesh named `ground` was exempt before.)
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.

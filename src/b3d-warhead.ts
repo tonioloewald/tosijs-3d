@@ -250,12 +250,13 @@ export function detonateWarhead(
     mesh: e.mesh,
   }))
   const meshes = live.map((e) => e.mesh)
+  const losFrom = useLos ? blastEye(owner, center, meshes) : center
   const targets: AoeTarget[] = live.map((e) => {
     const p = e.mesh.absolutePosition
     return {
       id: e.el.combatId,
       position: { x: p.x, y: p.y, z: p.z },
-      visible: useLos ? hasLos(owner, center, e.mesh, meshes) : true,
+      visible: useLos ? hasLos(owner, losFrom, e.mesh, meshes) : true,
     }
   })
   // Shockwave: apply each target's damage on a delay proportional to its distance
@@ -300,6 +301,50 @@ including its own bomb going off under it (manta-recon, board #2906). So the
 exemption walks up: a mesh anywhere beneath a destroyable is not cover. Same
 ancestry rule as `destroyableAt`, for the same reason.
 */
+const underAny = (roots: Set<unknown>, m: BABYLON.AbstractMesh): boolean => {
+  let node: unknown = m
+  while (node != null) {
+    if (roots.has(node)) return true
+    node = (node as { parent?: unknown }).parent
+  }
+  return false
+}
+
+/*
+WHERE A BLAST LOOKS FROM.
+
+A bomb goes off ON the ground, so its centre is on, or a little under, the
+surface it hit. A ray from there to anything above starts inside the ground's
+own shadow: every target was "behind cover" and a ground burst hurt nothing
+(manta-recon's own bomb under its own aircraft, board #2906). Only a mesh named
+`ground` was treated as floor, and terrain tiles are not named that.
+
+So a burst within reach of a surface below it looks from a metre above that
+surface. A hill or a wall between the blast and a target is still cover; the
+floor it is standing on is not.
+*/
+const BLAST_EYE = 1
+function blastEye(
+  owner: B3d,
+  center: BABYLON.Vector3,
+  destroyableMeshes: BABYLON.AbstractMesh[]
+): BABYLON.Vector3 {
+  const roots = new Set<unknown>(destroyableMeshes)
+  const top = center.add(new BABYLON.Vector3(0, BLAST_EYE + 0.5, 0))
+  const down = new BABYLON.Ray(
+    top,
+    new BABYLON.Vector3(0, -1, 0),
+    2 * BLAST_EYE + 0.5
+  )
+  const floor = owner.scene.pickWithRay(
+    down,
+    collidable((m) => underAny(roots, m))
+  )
+  if (floor == null || !floor.hit || floor.pickedPoint == null) return center
+  const y = floor.pickedPoint.y + BLAST_EYE
+  return y > center.y ? new BABYLON.Vector3(center.x, y, center.z) : center
+}
+
 function hasLos(
   owner: B3d,
   from: BABYLON.Vector3,
@@ -314,14 +359,8 @@ function hasLos(
   // Shared predicate — a UI panel must not provide BLAST COVER. `ground` is
   // deliberately transparent to LOS here (it is the floor, not a wall).
   const roots = new Set<unknown>(destroyableMeshes)
-  const underDestroyable = (m: BABYLON.AbstractMesh): boolean => {
-    let node: unknown = m
-    while (node != null) {
-      if (roots.has(node)) return true
-      node = (node as { parent?: unknown }).parent
-    }
-    return false
-  }
+  const underDestroyable = (m: BABYLON.AbstractMesh): boolean =>
+    underAny(roots, m)
   const hit = owner.scene.pickWithRay(
     ray,
     collidable((m) => m.name === 'ground' || underDestroyable(m))

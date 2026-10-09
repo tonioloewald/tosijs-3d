@@ -117,4 +117,57 @@ describe('blast line of sight', () => {
     hull.dispose()
     root.dispose()
   })
+
+  test('a burst ON terrain is not shadowed by the terrain it landed on', async () => {
+    // Terrain tiles are not named `ground`, so the surface a bomb went off on
+    // used to be cover for everything above it.
+    const { owner, behavior, health, root, hull } = setup()
+    root.position.set(2, 5, 0)
+    root.computeWorldMatrix(true)
+    hull.computeWorldMatrix(true)
+    const tile = BABYLON.MeshBuilder.CreateGround(
+      'terrain-tile-107',
+      { width: 40, height: 40 },
+      scene
+    )
+    tile.isPickable = true
+    tile.computeWorldMatrix(true)
+    const before = health()
+    // the bomb's last tracked point is a little UNDER the drawn surface
+    detonateWarhead(owner, new BABYLON.Vector3(0, -0.3, 0), spec)
+    await settle()
+    expect(health()).toBeLessThan(before)
+    behavior.dispose()
+    tile.dispose()
+    hull.dispose()
+    root.dispose()
+  })
+
+  test('a hill between a ground burst and a target is still cover', async () => {
+    const { owner, behavior, health, root, hull } = setup()
+    const tile = BABYLON.MeshBuilder.CreateGround(
+      'terrain-tile-1',
+      { width: 40, height: 40 },
+      scene
+    )
+    tile.isPickable = true
+    tile.computeWorldMatrix(true)
+    const hill = BABYLON.MeshBuilder.CreateBox(
+      'terrain-tile-2',
+      { width: 0.5, height: 8, depth: 8 },
+      scene
+    )
+    hill.position.set(2, 0, 0)
+    hill.isPickable = true
+    hill.computeWorldMatrix(true)
+    const before = health()
+    detonateWarhead(owner, new BABYLON.Vector3(0, 0, 0), spec)
+    await settle()
+    expect(health()).toBe(before)
+    behavior.dispose()
+    tile.dispose()
+    hill.dispose()
+    hull.dispose()
+    root.dispose()
+  })
 })
