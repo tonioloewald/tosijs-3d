@@ -78,27 +78,35 @@ const SHORE = `${MARK}
   // SHALLOWS: paler and greener toward the beach.
   float b3dShallow = 1.0 - smoothstep(0.0, 7.0, b3dDepth);
   color.rgb = mix(color.rgb, color.rgb * 1.12 + vec3(0.03, 0.09, 0.08), 0.55 * b3dShallow);
-  // FOAM, drawn from the DISTANCE to the waterline (metres, + out to sea),
-  // so it is the same width on a flat as under a cliff. A wash that laps in
-  // and out a few metres, and a line riding out ahead of it. Just inland of
-  // the waterline it is solid: the land covers that, and where the drawn
-  // land sits a little low it is foam that shows and not a seam. Kept FAINT, and
-  // never still: two laps out of step, and grain streaming along the shore.
+  /*
+  SURF, drawn from the DISTANCE to the waterline (metres, + out to sea), so
+  it is the same width on a flat as under a cliff. Not a band of foam: a
+  series of wave fronts, each a thin bright edge with a fading trail behind
+  it, that rise a little way out, run in to the shore and are followed by
+  the next. The fronts bend (they are contours of the distance, pushed about
+  by slow noise) and are broken along their length, and at the waterline
+  itself a thin wet edge laps in and out.
+  */
   float b3dShore = vB3dShore;
-  float b3dLap = 0.5 + 0.3 * sin(time * 1.9 + b3dXZ.x * 0.21 + b3dXZ.y * 0.17)
-    + 0.2 * sin(time * 3.1 - b3dXZ.x * 0.13 + b3dXZ.y * 0.29);
-  vec2 b3dFlow = vec2(time * 0.9, -time * 0.6);
-  float b3dGrain = 0.6 * b3dShoreNoise(b3dXZ * 1.7 + b3dFlow)
-    + 0.4 * b3dShoreNoise(b3dXZ * 3.9 - b3dFlow * 1.4);
-  float b3dReach = 0.8 + 2.2 * b3dLap;
-  float b3dAt = b3dShore + 1.2 * (b3dGrain - 0.5);
-  float b3dWash = 1.0 - smoothstep(0.25 * b3dReach, b3dReach, b3dAt);
-  // …but only for a few metres: further in, water showing at all means the
-  // drawn land is well off the real one, and a white slab there is worse
-  // than plain water.
-  b3dWash *= smoothstep(-5.0, -2.0, b3dShore);
-  float b3dLine = (1.0 - smoothstep(0.0, 0.5, abs(b3dAt - b3dReach - 1.1))) * smoothstep(0.45, 0.8, b3dGrain);
-  float b3dFoam = clamp(b3dWash * (0.3 + 0.35 * b3dGrain) + 0.28 * b3dLine, 0.0, 0.7);
+  float b3dSlow = b3dShoreNoise(b3dXZ * 0.045 + 3.0);
+  float b3dGrain = 0.6 * b3dShoreNoise(b3dXZ * 0.9 + vec2(time * 0.35, -time * 0.2))
+    + 0.4 * b3dShoreNoise(b3dXZ * 2.7 - vec2(time * 0.5, time * 0.3));
+  // One front every 5 m, running in at a little over a metre a second.
+  float b3dPhase = b3dShore / 5.0 + time * 0.23 + 1.3 * b3dSlow + 0.12 * b3dGrain;
+  float b3dSaw = fract(b3dPhase);
+  // Crisp on the shoreward side, trailing away to seaward.
+  float b3dFront = exp(-b3dSaw * 9.0) * smoothstep(0.0, 0.02, b3dSaw);
+  // They rise about 16 m out and are brightest as they arrive.
+  float b3dNear = 1.0 - smoothstep(1.0, 16.0, b3dShore);
+  float b3dBroken = smoothstep(0.3, 0.55, b3dGrain + 0.35 * b3dNear);
+  float b3dSurf = b3dFront * b3dBroken * b3dNear * (0.35 + 0.65 * b3dNear);
+  // The wet edge: in and out with each arriving front.
+  float b3dLap = 0.5 + 0.5 * sin(6.2832 * (time * 0.23 + 1.3 * b3dSlow));
+  float b3dEdge = 1.0 - smoothstep(0.1, 0.5 + 1.1 * b3dLap, b3dShore + 0.6 * (b3dGrain - 0.5));
+  // Inland of the true waterline it is all wet edge, however far: the land
+  // covers it, and wherever the drawn land sits low enough to show water
+  // there, it shows surf and not a strip of blue.
+  float b3dFoam = clamp(0.8 * b3dSurf + b3dEdge * (0.25 + 0.3 * b3dGrain), 0.0, 0.75);
   /*
   ICE, in three states that run into each other as the cover falls: a SHEET
   (every plate present, hairline cracks), BROKEN plates (some missing, the

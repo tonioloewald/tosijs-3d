@@ -9,9 +9,10 @@ numbers: the **depth** of the water there, how much **ice** covers it, and the
 [b3d-water](/b3d-water/) fills them in from the terrain (`shore="on"`) and its
 shader draws from them:
 
-- a **shoreline**: foam lapping over the last few metres before the
-  waterline (drawn from the distance, so it is as wide under a cliff as on a
-  flat), and paler water over the shallows (drawn from the depth);
+- a **shoreline**: wave fronts that rise about 16 m out and run in to the
+  shore one after another, with a wet edge lapping at the waterline (drawn
+  from the distance, so it is as wide under a cliff as on a flat), and paler
+  water over the shallows (drawn from the depth);
 - **ice**, in three states that run into each other: a solid sheet, then
   broken plates with water between them, then open water.
 
