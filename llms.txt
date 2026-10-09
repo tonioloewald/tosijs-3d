@@ -431,4 +431,4 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/xr-frames/ — xr-frames
   Reference frames for spatial XR UI. "Stable" in XR isn't one thing — there are
 - https://3d.tosijs.net/xr-gamepad/ — xr-gamepad
-  `XrGamepadSource` adapts the live XR controllers (from [[gamepad]]'s
+  `XrGamepadSource` adapts the live XR controllers (from `gamepad.ts`'s

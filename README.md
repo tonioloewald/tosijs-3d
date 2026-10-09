@@ -24,8 +24,54 @@ b3d(
 )
 ```
 
-See the [b3d](?tosi-b3d.ts) page for that running, and every page here carries a
-live demo you can edit in place.
+The [doc site](https://3d.tosijs.net) has about a hundred live demos you can
+edit in place; the [b3d page](https://3d.tosijs.net/tosi-b3d/) is that scene
+running.
+
+## Getting started
+
+```bash
+npm install tosijs-3d tosijs @babylonjs/core @babylonjs/gui @babylonjs/loaders @babylonjs/materials
+```
+
+Babylon (`^9`) and `tosijs` (`^1.9.2`) are peer dependencies: you install
+them, so there is exactly one copy of the engine in your app. `jolt-physics`
+is an optional peer, needed only if you use `b3dPhysics`.
+
+A first scene, with no model file to find:
+
+```javascript
+import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
+
+document.body.append(
+  b3d(
+    b3dSun({ shadowCascading: true }),
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dGround({ size: 24, texture: 'checker' }),
+    b3dBox({ x: -1.5, y: 0.5, color: '#c8553d' }),
+    b3dSphere({ x: 1.5, y: 1, diameter: 2, color: '#ffd166' })
+  )
+)
+```
+
+Give `tosi-b3d` a size in CSS (`tosi-b3d { width: 100vw; height: 100vh }`) and
+you have a lit scene with shadows and an orbit camera. Then:
+
+- **Your own model:** [b3d-loader](https://3d.tosijs.net/b3d-loader/) takes a
+  GLB; name suffixes on its meshes (`_collide`, `_mirror`, `_nocast`) set how
+  they behave.
+- **Something to drive:** a [character](https://3d.tosijs.net/b3d-biped/), a
+  [car](https://3d.tosijs.net/b3d-car/) or an
+  [aircraft](https://3d.tosijs.net/b3d-aircraft/), inside an
+  [input focus](https://3d.tosijs.net/b3d-input-focus/) so keyboard, gamepad,
+  touch and VR controllers all work.
+- **A world:** [terrain](https://3d.tosijs.net/b3d-terrain/),
+  [water](https://3d.tosijs.net/b3d-water/) and a
+  [sky](https://3d.tosijs.net/b3d-skybox/); [Land and
+  Sky](https://3d.tosijs.net/land-and-sky/) is all of it at once.
+- **Controls that work in a headset:** the `scenePanel` hook on
+  [b3d](https://3d.tosijs.net/tosi-b3d/) and the
+  [widget set](https://3d.tosijs.net/widgets3d/).
 
 ## Four things you may not have seen in a 3D library
 
@@ -60,33 +106,13 @@ the package**, so an agent already in a consumer project reads
 It exists because the recurring adopter failure is not a missing feature, it is
 a feature that ships, is documented, and cannot be found: three issues in one
 week turned out to be capability that was already there. One `grep water` finds
-`submersible`; reading 147 doc pages does not.
+`submersible`; reading two hundred doc pages does not.
 
-**Upgrading?** See [Migration.md](./Migration.md) for the breaking changes and
-what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
-Both ship inside the package, so they work from `node_modules` too.
-
-```javascript
-import {
-  b3d,
-  b3dSun,
-  b3dSkybox,
-  b3dLoader,
-  b3dWater,
-  b3dReflections,
-} from 'tosijs-3d'
-
-document.body.append(
-  b3d(
-    { glowLayerIntensity: 1 },
-    b3dSun({ shadowCascading: true }),
-    b3dSkybox({ timeOfDay: 6, realtimeScale: 100 }),
-    b3dLoader({ url: './scene.glb' }),
-    b3dWater({ y: -0.2 }),
-    b3dReflections()
-  )
-)
-```
+**Upgrading?** See [Migration](https://3d.tosijs.net/Migration/) for the
+breaking changes and what to do about them, and the
+[Changelog](https://3d.tosijs.net/CHANGELOG/) for the full detail. Both ship
+inside the package as `Migration.md` and `CHANGELOG.md`, so they work from
+`node_modules` too.
 
 ## Highlights
 
@@ -137,8 +163,9 @@ performance-sensitive settings resolve to `auto` rather than to a number that is
 always wrong for something. A Quest and a workstation get different worlds.
 
 **Pure models, actually tested** — the flight model, ballistics, guidance, biome
-classification, layout and text editing are engine-free and unit-tested (1000+
-assertions run in ~2s with no GPU). If it can be a function of its inputs, it is.
+classification, layout and text editing are engine-free and unit-tested (about
+3,000 tests, run in seconds with no GPU). If it can be a function of its inputs,
+it is.
 
 ## Development
 
@@ -146,9 +173,11 @@ Requires [Bun](https://bun.sh).
 
 ```bash
 bun install
-bun start
+bun tls     # once: local HTTPS certificates (needs mkcert)
+bun start   # the doc site and dev server, rebuilding on change
+bun test
 ```
 
-Dev server runs on https://localhost:8030 with auto-rebuild on file changes.
+The dev server runs on https://localhost:8030.
 
 <!--{ "pin": "top" }-->
