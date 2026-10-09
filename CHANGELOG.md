@@ -91,6 +91,10 @@ with anything else. [Migration.md](./Migration.md) has every pair.
   band one cell wide (16 m and more far from the viewer) was drawn solid and
   had nothing to stand on. A triangle is kept when it is solid on average,
   which is where the drawn ice crosses the same line.
+- **The HUD page no longer throws 30 times a second.** Its demo still called
+  `setTraces(traces, viewer, options)`, a signature that went away when the
+  HUD started projecting through the camera. The demo passes the camera, and
+  `setTraces` warns once (and draws nothing) if it is handed anything else.
 - Three demo controls were dead because they still used an old name the
   compiler cannot see in a doc comment: the aircraft page's "chase pitch
   follow" and "follow lag" sliders, and the particles page's Burst button.
