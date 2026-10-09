@@ -219,3 +219,27 @@ describe('the moisture gate owns the OCEAN too — airless worlds have no sea', 
     expect(mantaAxes(-20, CFG).moisture).toBe(1) // mapMoisture 0.45 ≥ gate
   })
 })
+
+describe('a base temperature outside the chart window (#3195)', () => {
+  // Since 0.9 the terrain does not clamp: Venus is about 7.8 in chart units
+  // and a cold moon is below -2. The chart must clamp its own lookup.
+  for (const base of [7.8, -2.5]) {
+    test(`base ${base}: the lookup stays inside the chart`, () => {
+      const { temperature, moisture } = mantaAxes(40, {
+        ...CFG,
+        baseTemperature: base,
+      })
+      expect(Number.isFinite(temperature)).toBe(true)
+      const uv = chartUV(temperature, moisture)
+      expect(uv.u).toBeGreaterThanOrEqual(0)
+      expect(uv.u).toBeLessThanOrEqual(1)
+      const blend = cellBlend(uv.u, uv.v, 4, 5)
+      for (const c of blend.cells) {
+        expect(c).toBeGreaterThanOrEqual(0)
+        expect(c).toBeLessThan(20)
+      }
+      const sum = blend.weights.reduce((a, b) => a + b, 0)
+      expect(sum).toBeCloseTo(1, 6)
+    })
+  }
+})
