@@ -10,6 +10,12 @@ queries. A Babylon scene is later a *view* reconciled from this state — the
 store never imports a 3D engine, so it is fully unit-testable and can host a
 headless driver.
 
+**Queries return copies.** `getState()`, `getEntity()` and `query()` hand back
+a deep copy every call, so nothing a driver does to a result can reach the
+sim. Read once and keep the result, not once per entity. The engine's own
+systems (the view, which reconciles every frame) read `store.liveState`, which
+is the live object: never write to it, and never hand it to a driver.
+
 ## Demo
 
 The store holds state; a [world-view](?world-view.ts) reconciles one mesh per entity from it every

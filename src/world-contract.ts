@@ -10,20 +10,30 @@ serializable `WorldState`, a stream of best-effort `SimulationEvent`s, and the
 
 ## Example — a driver against the surface
 
-The driver only ever touches `WorldApi`: read state, subscribe to intentional-act events, send
-*advisory* intents. It never reaches into the sim. (`WorldStore` is the reference implementation.)
+The driver only ever touches the contract: read state, subscribe to intentional-act events, and
+steer. It never reaches into the sim. (`WorldStore` is the reference implementation.)
 
 ```javascript
-import { WorldStore } from 'tosijs-3d'
+// The subpath, not the barrel: the barrel defines elements and needs a DOM,
+// and a driver usually runs headless or in a worker.
+import { WorldStore } from 'tosijs-3d/world-store'
 
-const world = new WorldStore() // any WorldApi implementation
+const world = new WorldStore() // any implementation of the contract
 world.subscribe((event) => {
   // events are COMMITMENTS (interacted / picked-up / chose / died) — never proximity
   if (event.type === 'death') recordConsequence(event.entityId)
 })
-const npc = world.spawn({ kind: 'npc', position: { x: 5, y: 0, z: 0 } })
-world.setIntent(npc, { behavior: 'flee' }) // advisory — the sim may be late or ignore it
+// The driver names the entity. Across a worker boundary a command cannot
+// return a value, so do not rely on the id `spawn` hands back.
+world.spawn({ id: 'witness', kind: 'npc', position: { x: 5, y: 0, z: 0 } })
+world.steer('witness', { fleeFrom: 'player' }) // advisory: the sim may be late or ignore it
 ```
+
+`setIntent` is legacy: the intent is stored and nothing reads it, so an entity
+given only an intent does not move. `steer` is what the sim honours.
+
+Every query (`getState`, `getEntity`, `query`) returns a **copy**. Writing to
+one changes nothing, in-process or across a worker.
 
 ## Hard rules baked into these types
 

@@ -11,16 +11,22 @@ the harness (`describe`/`test`/`expect`) as an argument. A `.test.ts` in either 
 own `bun:test` hooks and a factory for its store:
 
 ```javascript
-import { runMinSimConformance } from 'tosijs-3d'
+// Subpaths, not the barrel: the barrel defines elements and needs a DOM.
+import { runMinSimConformance } from 'tosijs-3d/min-sim-conformance'
 import { describe, test, expect } from 'bun:test'
-import { WorldStore } from 'tosijs-3d'
+import { WorldStore } from 'tosijs-3d/world-store'
 // runMinSimConformance(() => new WorldStore(), { describe, test, expect })
 ```
 
 What it pins is the **contract behaviour**, not the geometry: place membership, portal routing
 (cheapest, bidirectional, locked = impassable), the proximity ladder (a rung in-place, `elsewhere`
-across places), the `SchematicView` shape, `traverse` → `placeEntered`, and that steering toward an
-entity actually *closes the distance*. It never asserts a coordinate — coordinates never cross.
+across places), the `SchematicView` shape, `traverse` → `placeEntered`, that steering toward an
+entity actually *closes the distance*, and the **choice primitive**: a pick emits exactly one
+`choiceMade`, an option that is not on the menu emits nothing, a choice is reported once, and the
+sim resolves nothing. It never asserts a coordinate — coordinates never cross.
+
+A store handed to the kit needs two simulation-side methods that are not part of `MinSimApi`:
+`tick(seconds)` and `chooseOption(choiceId, optionId)` (the player's pick).
 */
 /*{ "parent": "World Sim", "order": 900 }*/
 
