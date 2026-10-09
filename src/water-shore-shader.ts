@@ -94,19 +94,21 @@ const SHORE = `${MARK}
   // One front every 5 m, running in at a little over a metre a second.
   float b3dPhase = b3dShore / 5.0 + time * 0.23 + 1.3 * b3dSlow + 0.12 * b3dGrain;
   float b3dSaw = fract(b3dPhase);
-  // Crisp on the shoreward side, trailing away to seaward.
-  float b3dFront = exp(-b3dSaw * 9.0) * smoothstep(0.0, 0.02, b3dSaw);
+  // A soft rise on the shoreward side, trailing away to seaward. Soft on
+  // purpose: a hard white line reads as paint, not water.
+  float b3dFront = exp(-b3dSaw * 4.5) * smoothstep(0.0, 0.16, b3dSaw);
   // They rise about 16 m out and are brightest as they arrive.
   float b3dNear = 1.0 - smoothstep(1.0, 16.0, b3dShore);
-  float b3dBroken = smoothstep(0.3, 0.55, b3dGrain + 0.35 * b3dNear);
+  float b3dBroken = smoothstep(0.15, 0.75, b3dGrain + 0.35 * b3dNear);
   float b3dSurf = b3dFront * b3dBroken * b3dNear * (0.35 + 0.65 * b3dNear);
   // The wet edge: in and out with each arriving front.
   float b3dLap = 0.5 + 0.5 * sin(6.2832 * (time * 0.23 + 1.3 * b3dSlow));
-  float b3dEdge = 1.0 - smoothstep(0.1, 0.5 + 1.1 * b3dLap, b3dShore + 0.6 * (b3dGrain - 0.5));
+  float b3dEdge = 1.0 - smoothstep(-0.4, 1.4 + 1.6 * b3dLap, b3dShore + 0.8 * (b3dGrain - 0.5));
   // Inland of the true waterline it is all wet edge, however far: the land
   // covers it, and wherever the drawn land sits low enough to show water
   // there, it shows surf and not a strip of blue.
-  float b3dFoam = clamp(0.8 * b3dSurf + b3dEdge * (0.25 + 0.3 * b3dGrain), 0.0, 0.75);
+  // Translucent throughout: the water shows through the surf.
+  float b3dFoam = clamp(0.5 * b3dSurf + b3dEdge * (0.1 + 0.22 * b3dGrain), 0.0, 0.42);
   /*
   ICE, in three states that run into each other as the cover falls: a SHEET
   (every plate present, hairline cracks), BROKEN plates (some missing, the
