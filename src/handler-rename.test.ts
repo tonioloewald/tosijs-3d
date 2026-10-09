@@ -11,7 +11,7 @@ never called. No error, no warning, a callback that simply never fires.
 `handleX` cannot be mistaken for an event name, so the rename removes the trap
 rather than documenting it.
 
-Both spellings work through 0.8.x so an adopter is not chasing renames one
+Both spellings work through 0.9.x so an adopter is not chasing renames one
 widget at a time.
 */
 

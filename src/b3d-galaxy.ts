@@ -996,7 +996,7 @@ export class B3dGalaxy extends B3dChild {
   /**
    * @deprecated There is no particle system any more — stars are billboarded
    * in the vertex shader. Use {@link pickStar} to pick. Returns null; removed
-   * in 0.9.
+   * in 0.10.
    */
   getStarSPS(): null {
     if (!warnedStarSps) {

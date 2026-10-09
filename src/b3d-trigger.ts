@@ -9,7 +9,7 @@ triggers.
 Set `whenEnter` and `whenExit` callback properties from JavaScript, or listen
 for `'enter'` / `'exit'` CustomEvents on the element.
 
-⚠️ The old `onEnter` / `onExit` still work and are removed in 0.9 — but only by
+⚠️ The old `onEnter` / `onExit` still work and are removed in 0.10 — but only by
 DIRECT assignment. Passed to the element creator, an `on*` prop becomes a DOM
 event listener, so it is called with an Event rather than the trigger.
 
@@ -198,13 +198,13 @@ export class B3dTrigger extends B3dChild {
 
   `whenEnter` cannot be read as an event name, which is the same reason
   `whenImpact` and `whenDestroyed` are spelled that way. Both still work; the
-  old pair is removed in 0.9.
+  old pair is removed in 0.10.
   */
   whenEnter: ((trigger: B3dTrigger) => void) | null = null
   whenExit: ((trigger: B3dTrigger) => void) | null = null
-  /** @deprecated use `whenEnter` — removed in 0.9. */
+  /** @deprecated use `whenEnter` — removed in 0.10. */
   onEnter: ((trigger: B3dTrigger) => void) | null = null
-  /** @deprecated use `whenExit` — removed in 0.9. */
+  /** @deprecated use `whenExit` — removed in 0.10. */
   onExit: ((trigger: B3dTrigger) => void) | null = null
 
   private _inside = false

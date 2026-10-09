@@ -9,7 +9,7 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
-## 0.8.15 → 0.9.0 (unreleased)
+## 0.8.15 → 0.9.0
 
 ### 1. `biomeTemperature` is in degrees now: 0 is 0 °C, 1 is 50 °C
 
@@ -38,6 +38,12 @@ with `0.45`, or delete the attribute.
 conversion in code. Only this attribute moved. `BiomePlugin.params`, the
 province climate curves and the decorator's rule bands are still in chart
 units.
+
+### 2. Nothing else is removed, including what was promised
+
+The deprecated `onX` callback names (and the other names announced as
+"removed in 0.9") still work in 0.9.x and warn once. They are removed in
+0.10. Rename when convenient.
 
 ## 0.8.14 → 0.8.15
 

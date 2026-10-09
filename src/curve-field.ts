@@ -353,7 +353,7 @@ export interface Curve3dOptions {
   /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
   /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
   handleChange?: (points: ControlPoint[]) => void
-  /** @deprecated use `handleChange` — removed in 0.9. */
+  /** @deprecated use `handleChange` — removed in 0.10. */
   onChange?: (points: ControlPoint[]) => void
   /**
    * Fired once when a gesture ENDS, with the canonical (rounded, sorted) points.
@@ -483,7 +483,7 @@ export interface CurveField extends Widget3d {
   /** Settable so a demo can wire it after construction. */
   /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
   handleChange?: (points: ControlPoint[]) => void
-  /** @deprecated use `handleChange` — removed in 0.9. */
+  /** @deprecated use `handleChange` — removed in 0.10. */
   onChange?: (points: ControlPoint[]) => void
   /** Settable likewise — fires once per gesture, with canonical points. */
   handleCommit?: (points: ControlPoint[], describe: string) => void

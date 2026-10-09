@@ -144,7 +144,7 @@ export interface Picker3dOptions {
   groups?: 'auto' | 'on' | 'off'
   placeholder?: string
   handleChange?: (value: string) => void
-  /** @deprecated use `handleChange` — removed in 0.9. */
+  /** @deprecated use `handleChange` — removed in 0.10. */
   onChange?: (value: string) => void
 }
 

@@ -957,7 +957,7 @@ All components are regular tosijs `Component` subclasses (not blueprints). They 
 
 So there is one rule now:
 
-- **Plain factories take `handleX`.** `handleChange`, `handleSelect`, `handleActivate`, `handleClick`, `handleClose`, `handleKey`, … Read them with **`handlerOf(config, 'handleX', 'onX')`** (from `handler-of.ts`, exported from the barrel), which prefers the new name, falls back to `onX`, and warns **once per name**. Every `onX` still works and is removed in 0.9.
+- **Plain factories take `handleX`.** `handleChange`, `handleSelect`, `handleActivate`, `handleClick`, `handleClose`, `handleKey`, … Read them with **`handlerOf(config, 'handleX', 'onX')`** (from `handler-of.ts`, exported from the barrel), which prefers the new name, falls back to `onX`, and warns **once per name**. Every `onX` still works and is removed in 0.10.
 - **Components take `whenX`** (or a verb like `drive`) — `whenImpact`, `whenDestroyed`, `whenEnter`/`whenExit`. Not `handleX`, because the creator's `on*` trap is about the `on` prefix specifically and `when*` is the established spelling here.
 
 `handler-of.ts` is deliberately its own dependency-free module so `box`/`surface` can adopt it without pulling `widgets3d` into their import graph.

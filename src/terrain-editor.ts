@@ -117,7 +117,7 @@ export interface TerrainEditor3dOptions {
   advanced?: boolean
   /** Live, on every edit. */
   handleChange?: (settings: TerrainSettings) => void
-  /** @deprecated use `handleChange` — removed in 0.9. */
+  /** @deprecated use `handleChange` — removed in 0.10. */
   onChange?: (settings: TerrainSettings) => void
   /** Once per gesture, for an undo step. */
   handleCommit?: (settings: TerrainSettings, describe: string) => void

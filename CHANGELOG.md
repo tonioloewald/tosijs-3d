@@ -6,7 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.9.0
+
+**A sea that knows its shore, and a temperature that means one.** The water
+takes the depth and the distance to land from the terrain and draws surf that
+runs in, pale shallows and sea ice; solid ice is solid for everything in the
+scene. Temperature is now in degrees, so the same dial reaches Titan and Venus.
 
 ### ⚠️ Breaking
 
@@ -19,6 +24,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   it. `chartTemperature` / `planetTemperature` convert. Everything inside the
   biome shader, province climate and decorator bands is still in chart
   units. See [Migration](./Migration.md).
+
+### Changed
+
+- **The deprecated `onX` callback names stay for one more minor.** They were
+  announced as "removed in 0.9"; they are removed in **0.10** instead, and
+  still work and warn once in 0.9.x. The same goes for the other names marked
+  for removal in 0.9 (`whenEnter`/`whenExit`'s old spellings on the trigger,
+  the manipulator's, `generateGalaxy`). Nothing to do yet beyond renaming at
+  your own pace.
 
 ### Added
 

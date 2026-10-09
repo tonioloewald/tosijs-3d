@@ -134,7 +134,7 @@ export interface Color3dOptions {
   aspect?: number
   /** Live, including mid-drag. Canonical hex. */
   handleChange?: (hex: string) => void
-  /** @deprecated use `handleChange` — removed in 0.9. */
+  /** @deprecated use `handleChange` — removed in 0.10. */
   onChange?: (hex: string) => void
   /** Once per gesture, with the settled value — one undo step. */
   handleCommit?: (hex: string) => void

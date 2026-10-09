@@ -30,7 +30,7 @@ always works* — which is worth more than either spelling winning.
 A slider reads its callback on every pointer move, so a warning per call is a
 performance bug wearing a helpful hat.
 
-Both spellings work through 0.8.x. `onX` is removed in 0.9.
+Both spellings work through 0.9.x. `onX` is removed in 0.10.
 */
 /*{ "parent": "UI", "order": 205 }*/
 
@@ -55,7 +55,7 @@ export function handlerOf<T>(
     if (!warnedHandlers.has(onName)) {
       warnedHandlers.add(onName)
       console.warn(
-        `tosijs-3d: \`${onName}\` is deprecated — use \`${handleName}\`. Both work in 0.8.x; \`${onName}\` is removed in 0.9.`
+        `tosijs-3d: \`${onName}\` is deprecated — use \`${handleName}\`. Both work in 0.9.x; \`${onName}\` is removed in 0.10.`
       )
     }
     return old as T
