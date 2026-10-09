@@ -67,6 +67,9 @@ const { demo } = tosi({
 const { sky } = tosi({
   sky: {
     coverage: 0.1, altitude: 280, timeOfDay: 18.5, orographic: 0.8, wind: 10, cirrus: 0.25, evolve: 0.5, eye: 205,
+    // What the deck is actually given: the two dials above, thinned by how
+    // much air there is (see cloudAir). Not saved in presets.
+    cloudCover: 0.1, cloudOrographic: 0.8,
     storm: false,
     // The atmosphere. `atmosphere` is how much air the WORLD has (0 is the
     // Moon: black noon, stars out); the tints colour the scattered light only.
@@ -292,6 +295,18 @@ function saveCustom(p) {
   }
 }
 const presetNames = () => [...Object.keys(BUILT_IN), ...Object.keys(loadCustom())]
+// NO AIR, NO CLOUD. The cloud dials say how cloudy the weather is; how much
+// cloud that makes depends on there being air to hold it. Full from about a
+// third of Earth's air up, none below a twentieth, so Mars (0.03) has none.
+function cloudAir() {
+  const k = Math.min(1, Math.max(0, (sky.atmosphere.value - 0.05) / 0.25))
+  sky.cloudCover.value = sky.coverage.value * k
+  sky.cloudOrographic.value = sky.orographic.value * k
+}
+sky.coverage.observe(cloudAir)
+sky.orographic.observe(cloudAir)
+sky.atmosphere.observe(cloudAir)
+cloudAir()
 sky.preset.observe(() => {
   const p = BUILT_IN[sky.preset.value] ?? migratePreset(loadCustom()[sky.preset.value])
   if (p == null) return
@@ -643,8 +658,8 @@ const scene = b3d(
   decorator,
   b3dCloudDeck({
     altitude: sky.altitude,
-    coverage: sky.coverage,
-    orographic: sky.orographic,
+    coverage: sky.cloudCover,
+    orographic: sky.cloudOrographic,
     wind: sky.wind,
     cirrus: sky.cirrus,
     evolve: sky.evolve,

@@ -43,6 +43,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Fog takes the sky's tint.** A `syncSkybox` fog fades distant ground to
+  the skybox's `horizonColor`, which ignored `horizonTint`: under a tinted
+  sky the far hills stood out as a pale blue-white band along the horizon.
+  It now keeps its brightness and takes the tint's hue, by `tintStrength`.
+- **Land and Sky: no air, no cloud.** The demo's cloud cover and orographic
+  dials are thinned by the air setting (none below a twentieth of Earth's),
+  so Mars has a clear sky. The cloud deck itself is unchanged.
 - **Negative `cirrus` had a quarter of the cloud of positive `cirrus`.** The
   two streak directions were built differently; across-the-wind is now the
   same field turned a quarter, so the sign changes only which way the streaks

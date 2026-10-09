@@ -2308,6 +2308,27 @@ export class B3dSkybox extends AbstractMesh {
       this._horizonColor.copyFrom(NIGHT_HORIZON)
     }
 
+    /*
+    THE FOG TAKES THE SKY'S TINT. `horizonColor` is what a `syncSkybox` fog
+    fades distant ground to, and it was always Earth's blue-white: on a tinted
+    sky the far hills stood out as a pale band along the horizon (it read as
+    low cloud on Mars). Same rule as the shader's: keep the brightness, take
+    the hue, by `tintStrength`.
+    */
+    {
+      const k = Math.min(1, Math.max(0, Number(attrs.tintStrength) || 0))
+      if (k > 0) {
+        const h = this.hex(attrs.horizonTint || '#ffffff')
+        const c = this._horizonColor
+        const lum = (x: BABYLON.Color3) =>
+          0.2126 * x.r + 0.7152 * x.g + 0.0722 * x.b
+        const s = lum(c) / Math.max(lum(h), 0.001)
+        c.r += (h.r * s - c.r) * k
+        c.g += (h.g * s - c.g) * k
+        c.b += (h.b * s - c.b) * k
+      }
+    }
+
     if (this.owner != null) {
       if (this.sunEl == null) {
         this.sunEl = this.owner.querySelector(
