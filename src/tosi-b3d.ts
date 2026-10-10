@@ -274,6 +274,7 @@ document.body.append(
 | `frameRate` | `30` | Target frame rate |
 | `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
 | `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
+| `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -367,6 +368,8 @@ import {
 import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import { ProjectedAoController } from './b3d-ssao-projected.js'
 import { costSweep, formatSweep, type SweepRow } from './cost-sweep.js'
+import { nearFirst } from './draw-order.js'
+import { setBiomeLite, biomeLite } from './biome-plugin.js'
 const SWEEP_KEY = 'tosi-b3d-cost-sweep'
 import {
   allocateAmbient,
@@ -617,6 +620,9 @@ export class B3d extends Component {
     */
     xrRenderScale: 0,
     xrFoveation: -1,
+    // The ground (biome) shader's form. `auto` is the device tier's: the
+    // cheap one on the low tier, and in a headset on the medium tier.
+    groundDetail: 'auto' as 'auto' | 'full' | 'lite',
     /*
     Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
     own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
@@ -2254,8 +2260,10 @@ export class B3d extends Component {
     }
 
     this._applyHardwareScaling(this.xrActive)
+    this._applyGroundDetail(this.xrActive)
     this._qualityOff = onQualityChange(() => {
       this._applyHardwareScaling(this.xrActive)
+      this._applyGroundDetail(this.xrActive)
       this._reallocAmbient() // a new tier is a new pool
       this._applySsao()
     })
@@ -2347,6 +2355,15 @@ export class B3d extends Component {
         ).requestViewportScale?.(scale)
     })
     this._xrViewportOff = () => session.onXRFrameObservable.remove(obs)
+  }
+
+  private _applyGroundDetail(xr: boolean): void {
+    if (this.scene == null) return
+    const asked = (this as any).groundDetail as string
+    const lite =
+      asked === 'lite' ||
+      (asked !== 'full' && qualityBudgets({ xr }).groundDetail < 0.5)
+    setBiomeLite(this.scene, lite)
   }
 
   private _applyHardwareScaling(xr: boolean): void {
@@ -2661,6 +2678,21 @@ export class B3d extends Component {
         this._sweepNow = name == null ? null : 'Sweeping, about 45 s'
         if (name == null || (was == null && done === 0)) this._repaintPanels()
       },
+      // The ground shader's other form, whichever is not in use: its cost
+      // (or its saving) on this device.
+      extra: [
+        {
+          name: biomeLite(this.scene)
+            ? '+ full ground shader'
+            : '- ground detail',
+          apply: () => {
+            const scene = this.scene!
+            const was = biomeLite(scene)
+            setBiomeLite(scene, !was)
+            return () => setBiomeLite(scene, was)
+          },
+        },
+      ],
       journal: (soFar, starting) => {
         try {
           localStorage.setItem(
@@ -3820,6 +3852,10 @@ export class B3d extends Component {
     this._applyClearColor()
     this.scene.collisionsEnabled = true
     this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0)
+    // Nearest first, the sky last: a covered pixel is rejected before it is
+    // shaded (see draw-order.ts). Babylon's default is creation order.
+    const order = nearFirst(this.scene)
+    this.scene.setRenderingOrder(0, order, order)
 
     // Seed device quality BEFORE any child component builds, so terrain/shadows/
     // reflections resolve their `auto` defaults against the right budget on frame 1.
@@ -4115,6 +4151,7 @@ export class B3d extends Component {
         // back to the flat one on exit (the cheap lever that's safe to change live).
         this._applyHardwareScaling(true)
         this._applyXrResolution()
+        this._applyGroundDetail(true)
         // Same reason: the XR tier is a smaller ambient pool, so re-divide it. A snowstorm
         // that was honest on a monitor may only afford to be nothing at all in a headset.
         this._reallocAmbient()
@@ -4141,6 +4178,7 @@ export class B3d extends Component {
         }
         this._flatOrbitState = null
         this._applyHardwareScaling(false)
+        this._applyGroundDetail(false)
         this._xrViewportOff?.()
         this._xrViewportOff = null
         this._reallocAmbient()

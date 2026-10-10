@@ -139,6 +139,12 @@ export interface PerfBudgets {
    * 12 ms of a 90 ms frame.
    */
   xrFoveation: number
+  /**
+   * The ground shader's form: 1 is the full one, 0 the cheap one (three noise
+   * samples a pixel for eight; see `BiomePlugin.lite`). Measured on a Quest in
+   * Land and Sky: the terrain was 40 ms of a 90 ms frame.
+   */
+  groundDetail: number
 }
 
 export interface StoredProfile {
@@ -231,6 +237,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ssaoRatio: 0.5,
     ambientParticles: 3000,
     xrFoveation: 0,
+    groundDetail: 1,
   },
   medium: {
     hardwareScaling: 1,
@@ -252,6 +259,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ssaoRatio: 0.5,
     ambientParticles: 1400,
     xrFoveation: 0.5,
+    groundDetail: 1,
   },
   low: {
     hardwareScaling: 1.5,
@@ -273,6 +281,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ssaoRatio: 0.5,
     ambientParticles: 500,
     xrFoveation: 1,
+    groundDetail: 0,
   },
 }
 

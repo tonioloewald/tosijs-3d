@@ -1219,6 +1219,8 @@ export type {
 export {
   BiomePlugin,
   attachBiomePlugin,
+  setBiomeLite,
+  biomeLite,
   defaultBiomeParams,
   MANTA_PALETTE,
   LAVA_PALETTE,
@@ -1467,4 +1469,5 @@ export {
   type TouchPoint,
 } from './touch-gesture.js'
 export { costSweep, formatSweep } from './cost-sweep.js'
+export { nearFirst, drawKey } from './draw-order.js'
 export type { SweepRow, SweepOptions } from './cost-sweep.js'

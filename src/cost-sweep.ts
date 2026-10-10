@@ -134,6 +134,11 @@ export interface SweepOptions {
    * survives a crash: an experiment that hangs the device is then named.
    */
   journal?: (rows: SweepRow[], starting: string | null) => void
+  /**
+   * More experiments, run after the closing baseline. `apply` makes the
+   * change and returns the way back.
+   */
+  extra?: Array<{ name: string; apply: () => () => void }>
 }
 
 /**
@@ -229,6 +234,7 @@ export async function costSweep(
   first sweep run on a Quest hung it. Whatever they do, the scene rows are
   already measured and journalled by the time they start.
   */
+  for (const e of options.extra ?? []) experiments.push(e)
   if (inXr && session != null) {
     experiments.push({
       name: 'foveation 1',

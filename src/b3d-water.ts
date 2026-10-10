@@ -116,6 +116,7 @@ import {
   CLOUD_SAMPLER,
 } from './water-shore-shader.js'
 import { cloudShadowMapOf } from './cloud-shadows.js'
+import { nearFirst } from './draw-order.js'
 import { seasonOf } from './biome-plugin.js'
 import { planetTemperature } from './biome-chart.js'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
@@ -494,6 +495,9 @@ export class B3dWater extends AbstractMesh {
       Math.round(resolveBudget(attrs.reflectionRefresh, 'waterRefresh', { xr }))
     )
     const targets = this.waterMaterial.getRenderTargetTextures?.().data ?? []
+    // A target keeps its own draw order; give it the scene's (draw-order.ts).
+    const order = nearFirst(scene)
+    for (const target of targets) target?.setRenderingOrder(0, order, order)
     /*
     EVERY FRAME WHILE A SESSION IS PRESENTING. Babylon advances a target's
     refresh counter once per CAMERA, and a headset has two: a rate of 2 drew

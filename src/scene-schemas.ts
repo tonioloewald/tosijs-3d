@@ -1307,6 +1307,11 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
         description:
           'In a headset: fixed foveation, 0 to 1 (the edges of each eye at reduced resolution). -1 is auto (from the device tier).',
       }),
+      groundDetail: {
+        ...choice('auto', ['auto', 'full', 'lite']),
+        description:
+          'The ground shader: `full`, `lite` (fewer noise samples a pixel, for a weak GPU), or `auto` (from the device tier).',
+      },
       timeScale: num(1, {
         minimum: 0,
         maximum: 8,
@@ -1349,6 +1354,7 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
           ],
         },
         { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation'] },
+        { title: 'Ground', keys: ['groundDetail'] },
         { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
         { title: 'Time', keys: ['timeScale'] },
       ]),

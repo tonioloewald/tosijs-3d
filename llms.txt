@@ -214,6 +214,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
   faces** — the pure half of world-placed dialogs, plus the one function every
+- https://3d.tosijs.net/draw-order/ — Draw order
+  Babylon draws opaque meshes in the order they were created. Nothing looks wrong
 - https://3d.tosijs.net/effects/ — Effects
   and sparks, [trails](/b3d-trail/) behind anything that moves,
 - https://3d.tosijs.net/embed-font/ — embed-font

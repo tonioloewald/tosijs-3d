@@ -451,10 +451,30 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
    */
   role: BiomeRole = 'ground'
   private _isEnabled = false
+  private _lite: boolean
   private _t0 = performance.now()
 
   constructor(material: BABYLON.Material) {
-    super(material, 'Biome', 210, { BIOME: false })
+    super(material, 'Biome', 210, { BIOME: false, BIOME_LITE: false })
+    this._lite = liteScenes.get(material.getScene()) === true
+  }
+
+  /**
+   * The cheap form of the shader, for a GPU that cannot afford the full one:
+   * three noise samples a pixel where the full form takes eight. Climate
+   * noise loses its second octave, the colour patches are sampled flat (so
+   * they streak on a vertical face, which the cliff colour mostly covers) and
+   * the fine brightness breakup reuses the edge dither. Normally set for the
+   * whole scene by `setBiomeLite`, from the device tier.
+   */
+  get lite(): boolean {
+    return this._lite
+  }
+
+  set lite(on: boolean) {
+    if (this._lite === on) return
+    this._lite = on
+    this.markAllDefinesAsDirty()
   }
 
   get isEnabled(): boolean {
@@ -470,6 +490,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
 
   prepareDefines(defines: BABYLON.MaterialDefines): void {
     defines.BIOME = this._isEnabled
+    defines.BIOME_LITE = this._isEnabled && this._lite
   }
 
   getClassName(): string {
@@ -765,7 +786,11 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
         // after profiling on mid-range mobile Safari.
-        return bioSimplex(p) + 0.5 * bioSimplex(p * 2.03 + 17.7);
+        #ifdef BIOME_LITE
+          return 1.3 * bioSimplex(p);
+        #else
+          return bioSimplex(p) + 0.5 * bioSimplex(p * 2.03 + 17.7);
+        #endif
       }
       // --- the pure model, mirrored (see biome-chart.ts for the tests) ---
       float bioSlopeMask(float normalUp, float cliffStart, float cliffFull) {
@@ -863,10 +888,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         float landM = clamp(effMapM + mN * mGate, 0.0, 1.0) * 0.75;
         float moisture = underwater ? mix(landM, 1.0, mGate) : landM;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
-        float dith = bioSimplex3(wp * biomeDither.x) * biomeDither.y;
+        float dithRaw = bioSimplex3(wp * biomeDither.x);
+        float dith = dithRaw * biomeDither.y;
         // Within-biome variation: medium-frequency patches select between each
         // cell's A/B colours (coral pink ↔ orange, kelp olive ↔ brown).
-        float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
+        #ifdef BIOME_LITE
+          float varN = 0.5 + 0.5 * bioSimplex(wp.xz * (biomeNoise.x * 3.1) + 31.7);
+        #else
+          float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
+        #endif
         vec3 biome = bioChartColour(temperature + dith, moisture + dith, varN);
         // What grows here, before slope and rock get a say — a leaf takes it.
         vec3 bioGround = biome;
@@ -902,8 +932,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // surface, and the extra frequency also visually breaks any residual
         // shading banding on steep faces.
         if (biomePlanetB.w > 0.0) {
-          float det = 0.7 * bioSimplex3(wp * biomePlanetB.z)
-                    + 0.3 * bioSimplex3(wp * (biomePlanetB.z * 0.13) + 5.7);
+          #ifdef BIOME_LITE
+            // The edge dither is already a fine 3D noise: use it twice.
+            float det = dithRaw;
+          #else
+            float det = 0.7 * bioSimplex3(wp * biomePlanetB.z)
+                      + 0.3 * bioSimplex3(wp * (biomePlanetB.z * 0.13) + 5.7);
+          #endif
           biome *= 1.0 + biomePlanetB.w * det;
         }
         // slope override OUTSIDE the chart: cliffs at any altitude/depth; cave
@@ -1167,6 +1202,26 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       #endif`,
     }
   }
+}
+
+const liteScenes = new WeakMap<BABYLON.Scene, boolean>()
+
+/**
+ * Switch every biome material in a scene to the cheap form of the shader (or
+ * back), and have ones made later start that way. `<tosi-b3d>` calls this
+ * from the device tier and again on entering and leaving a headset.
+ */
+export function setBiomeLite(scene: BABYLON.Scene, on: boolean): void {
+  liteScenes.set(scene, on)
+  for (const m of scene.materials) {
+    const plugin = m.pluginManager?.getPlugin('Biome') as BiomePlugin | null
+    if (plugin != null) plugin.lite = on
+  }
+}
+
+/** Whether a scene's biome materials are on the cheap form of the shader. */
+export function biomeLite(scene: BABYLON.Scene): boolean {
+  return liteScenes.get(scene) === true
 }
 
 // Registered so `Material.clone()` can re-instantiate it (see the note in

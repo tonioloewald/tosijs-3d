@@ -1349,6 +1349,7 @@ b3d
   ssaoRate
   xrRenderScale  = 0  — In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session
   xrFoveation  = -1  — In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session
+  groundDetail  = 'auto'  — The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)
   pixelRatio
   stats
   pauseWhenHidden

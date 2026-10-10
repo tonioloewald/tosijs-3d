@@ -72,6 +72,17 @@ pair and what to do.
   medium). Measured on a Quest in Land and Sky at 90 ms a frame: half the
   pixels saved 19 ms and full foveation 12 ms. Both are attributes of
   `<tosi-b3d>`; set `xrRenderScale="1" xrFoveation="0"` for the old picture.
+- **Opaque meshes are drawn nearest first, and the sky last.** Babylon draws
+  them in creation order, so a sky made first was shaded across the whole view
+  and then painted over by the land. The picture is the same; a covered pixel
+  is now rejected before its shader runs. `nearFirst(scene)` is exported for a
+  render target of your own (the water's two have it).
+- **A cheaper ground shader for a weak GPU** (`<tosi-b3d groundDetail>`:
+  `auto`, `full`, `lite`). The biome shader took eight noise samples a pixel;
+  `lite` takes three and looks nearly the same from a distance. `auto` picks
+  it on the low tier, and in a headset on the medium tier. Measured on a Quest
+  in Land and Sky, the terrain was 40 ms of a 90 ms frame. The cost sweep
+  measures the other form on your device.
 - **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
   frame goes, measured on the device, by switching one thing off at a time.
 - **Water, and the ice on it, receives shadows.** The surface never did: it

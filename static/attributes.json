@@ -5204,6 +5204,11 @@
         "description": "In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session"
       },
       {
+        "name": "groundDetail",
+        "default": "'auto'",
+        "description": "The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)"
+      },
+      {
         "name": "pixelRatio"
       },
       {

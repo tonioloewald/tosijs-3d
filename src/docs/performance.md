@@ -10,4 +10,5 @@ the place to force a tier.
 <!-- toc -->
 - [b3d-probe](/b3d-probe/)
 - [Cost sweep](/cost-sweep/)
+- [Draw order](/draw-order/)
 <!-- /toc -->
