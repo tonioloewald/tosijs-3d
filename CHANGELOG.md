@@ -64,6 +64,16 @@ pair and what to do.
 
 ### Fixed
 
+- **A headset is drawn at the device tier's resolution.** It never was: the
+  tier lowered the engine's hardware scaling for a session, and that does not
+  reach the XR layer, so every tier drew both eyes at full size. The viewport
+  is now scaled per frame (`xrRenderScale`, auto: 0.67 on the low tier, 0.83
+  on medium) and fixed foveation is set (`xrFoveation`, auto: 1 on low, 0.5 on
+  medium). Measured on a Quest in Land and Sky at 90 ms a frame: half the
+  pixels saved 19 ms and full foveation 12 ms. Both are attributes of
+  `<tosi-b3d>`; set `xrRenderScale="1" xrFoveation="0"` for the old picture.
+- **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
+  frame goes, measured on the device, by switching one thing off at a time.
 - **Water, and the ice on it, receives shadows.** The surface never did: it
   was not marked as a shadow receiver, so nothing cast a shadow on the sea,
   which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`

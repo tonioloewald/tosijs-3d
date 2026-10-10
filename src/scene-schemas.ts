@@ -1293,6 +1293,20 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
         description:
           'How far a surface looks for something occluding it. Small darkens tight creases; large shades whole alcoves.',
       }),
+      xrRenderScale: num(0, {
+        minimum: 0,
+        maximum: 1,
+        'x-useful': [0.5, 1],
+        description:
+          'In a headset: the fraction of each eye drawn, per axis. 0 is auto (from the device tier).',
+      }),
+      xrFoveation: num(-1, {
+        minimum: -1,
+        maximum: 1,
+        'x-useful': [0, 1],
+        description:
+          'In a headset: fixed foveation, 0 to 1 (the edges of each eye at reduced resolution). -1 is auto (from the device tier).',
+      }),
       timeScale: num(1, {
         minimum: 0,
         maximum: 8,
@@ -1334,6 +1348,7 @@ export function b3dSchema(extra: Record<string, unknown> = {}) {
             'ssaoRate',
           ],
         },
+        { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation'] },
         { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
         { title: 'Time', keys: ['timeScale'] },
       ]),

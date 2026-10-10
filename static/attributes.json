@@ -5194,6 +5194,16 @@
         "name": "ssaoRate"
       },
       {
+        "name": "xrRenderScale",
+        "default": "0",
+        "description": "In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session"
+      },
+      {
+        "name": "xrFoveation",
+        "default": "-1",
+        "description": "In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session"
+      },
+      {
         "name": "pixelRatio"
       },
       {

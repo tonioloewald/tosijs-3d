@@ -272,6 +272,8 @@ document.body.append(
 |-----------|---------|-------------|
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `frameRate` | `30` | Target frame rate |
+| `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
+| `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -605,6 +607,16 @@ export class B3d extends Component {
     // Projected only: redraws per second (0 = every frame). The lookup is by
     // world position, so a stale drawing stays put while the view moves.
     ssaoRate: 30,
+    /*
+    IN A HEADSET, resolution is the XR layer's, not the engine's: hardware
+    scaling does not reach it. These two do.
+    `xrRenderScale` is the fraction of each eye's width and height drawn
+    (`0` is AUTO: 1 / the tier's hardware scaling, so 0.67 on the low tier).
+    `xrFoveation` is fixed foveation, 0-1 (`-1` is AUTO: the tier's).
+    Both apply on entering a session and can be changed during one.
+    */
+    xrRenderScale: 0,
+    xrFoveation: -1,
     /*
     Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
     own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
@@ -2289,6 +2301,54 @@ export class B3d extends Component {
     requestAnimationFrame(tick)
   }
 
+  private _xrViewportOff: (() => void) | null = null
+  /** What a session is drawn at right now: `{ scale, foveation }`. */
+  xrResolution = { scale: 1, foveation: 0 }
+
+  /*
+  THE HEADSET'S RESOLUTION LEVERS. The XR layer owns the framebuffer, so the
+  engine's hardware scaling (above) changes nothing in a session: the tier's
+  "XR-biased scaling" was a number nobody read, and every tier drew both eyes
+  at full size. Measured on a Quest in Land and Sky (90 ms a frame): half the
+  pixels saved 19 ms, full foveation 12 ms.
+
+  The viewport is asked for per frame because that is the only form WebXR
+  offers after a session starts (`XRView.requestViewportScale`); a browser
+  without it draws at full size and nothing is lost.
+  */
+  private _applyXrResolution(): void {
+    const session = this.xrHelper?.baseExperience?.sessionManager
+    if (session == null || !this.xrActive) return
+    const b = qualityBudgets({ xr: true })
+    const askedScale = Number((this as any).xrRenderScale) || 0
+    const scale = Math.min(
+      1,
+      Math.max(0.3, askedScale > 0 ? askedScale : 1 / b.hardwareScaling)
+    )
+    const askedFov = Number((this as any).xrFoveation)
+    const foveation = Math.min(
+      1,
+      Math.max(0, askedFov >= 0 ? askedFov : b.xrFoveation)
+    )
+    this.xrResolution = { scale, foveation }
+    try {
+      session.fixedFoveation = foveation
+    } catch {
+      /* not offered by this browser */
+    }
+    this._xrViewportOff?.()
+    this._xrViewportOff = null
+    if (scale >= 1) return
+    const obs = session.onXRFrameObservable.add((frame) => {
+      const pose = frame.getViewerPose(session.referenceSpace)
+      for (const v of pose?.views ?? [])
+        (
+          v as unknown as { requestViewportScale?: (s: number) => void }
+        ).requestViewportScale?.(scale)
+    })
+    this._xrViewportOff = () => session.onXRFrameObservable.remove(obs)
+  }
+
   private _applyHardwareScaling(xr: boolean): void {
     if (this.engine == null) return
     const b = qualityBudgets({ xr })
@@ -3361,6 +3421,13 @@ export class B3d extends Component {
         `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${
           d.tier
         }  resizes ${d.resizeCount}`,
+        ...(d.xrActive
+          ? [
+              `xr scale ${this.xrResolution.scale.toFixed(
+                2
+              )}  foveation ${this.xrResolution.foveation.toFixed(2)}`,
+            ]
+          : []),
       ]
     }
     const block = textBlock3d({ lines: lines(), muted: true })
@@ -4047,6 +4114,7 @@ export class B3d extends Component {
         // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
         // back to the flat one on exit (the cheap lever that's safe to change live).
         this._applyHardwareScaling(true)
+        this._applyXrResolution()
         // Same reason: the XR tier is a smaller ambient pool, so re-divide it. A snowstorm
         // that was honest on a monitor may only afford to be nothing at all in a headset.
         this._reallocAmbient()
@@ -4073,6 +4141,8 @@ export class B3d extends Component {
         }
         this._flatOrbitState = null
         this._applyHardwareScaling(false)
+        this._xrViewportOff?.()
+        this._xrViewportOff = null
         this._reallocAmbient()
         xrSession?.dispose()
         xrSession = undefined
