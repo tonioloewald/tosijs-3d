@@ -367,7 +367,14 @@ import {
 } from './b3d-quality.js'
 import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import { ProjectedAoController } from './b3d-ssao-projected.js'
-import { costSweep, formatSweep, type SweepRow } from './cost-sweep.js'
+import {
+  costSweep,
+  formatRuns,
+  formatSweep,
+  recordRun,
+  type SweepRow,
+  type SweepRun,
+} from './cost-sweep.js'
 import { nearFirst } from './draw-order.js'
 import {
   setBiomeLite,
@@ -2637,18 +2644,24 @@ export class B3d extends Component {
   }
 
   private _statsBaseScale: number | null = null
-  private _sweepLines: string[] = (() => {
-    // A sweep that never finished (it hung the device) left its journal.
+  // The last few sweeps, kept across page loads: one that hung the device
+  // left its journal, naming the experiment it stopped at.
+  private _sweepRuns: SweepRun[] = (() => {
     try {
       const j = JSON.parse(localStorage.getItem(SWEEP_KEY) ?? 'null')
-      if (j == null || !Array.isArray(j.lines)) return []
-      return j.starting == null
-        ? j.lines
-        : [...j.lines, `stopped at: ${j.starting}`]
+      if (Array.isArray(j?.runs)) return j.runs
+      // The journal before runs were numbered.
+      if (Array.isArray(j?.lines))
+        return [{ n: 0, began: 0, lines: j.lines, starting: j.starting }]
     } catch {
-      return []
+      /* unreadable: start clean */
     }
+    return []
   })()
+  private _sweepRun: number | null = null
+  private get _sweepLines(): string[] {
+    return formatRuns(this._sweepRuns, this._sweepRun)
+  }
   private _sweepNow: string | null = null
   /** The rows of the last {@link costSweep}, for reading over a debug bridge. */
   lastCostSweep: SweepRow[] = []
@@ -2657,70 +2670,102 @@ export class B3d extends Component {
    * Where this scene's frame goes, measured here: see [[cost-sweep]]. Also the
    * **Cost sweep** button in Perf Stats, so it runs inside a headset session.
    */
-  async costSweep(seconds = 2): Promise<SweepRow[]> {
+  async costSweep(
+    seconds = 2,
+    what: 'scene' | 'shaders' = 'scene'
+  ): Promise<SweepRow[]> {
     if (this.scene == null) return []
     const rate = (this as any).frameRate
-    const rows = await costSweep(this.scene, {
-      seconds,
-      xr: this.xrHelper,
-      // The render throttle would be what is measured, not the scene.
-      unthrottle: (on) => {
-        ;(this as any).frameRate = on ? 1000 : rate
-      },
-      // The panel the sweep is run from, the hands and their rays stay.
-      skip: (m) =>
-        m.renderingGroupId > 0 ||
-        /^xr-|panel|controller|laser|pointer|teleport|hand/i.test(m.name) ||
-        /^controller/i.test(m.material?.name ?? ''),
-      /*
+    const run: SweepRun = {
+      n: this._sweepRuns.reduce((m, r) => Math.max(m, r.n), 0) + 1,
+      began: Date.now(),
+      lines: [],
+      starting: 'baseline',
+      kind: what,
+    }
+    this._sweepRun = run.n
+    const keep = () => {
+      this._sweepRuns = recordRun(this._sweepRuns, { ...run })
+      try {
+        localStorage.setItem(
+          SWEEP_KEY,
+          JSON.stringify({ runs: this._sweepRuns })
+        )
+      } catch {
+        /* private mode: the sweep still runs, it just leaves no trace */
+      }
+    }
+    // Before the first repaint, so the panel shows this run and not the last.
+    keep()
+    let rows: SweepRow[] = []
+    try {
+      rows = await costSweep(this.scene, {
+        seconds,
+        xr: this.xrHelper,
+        // The render throttle would be what is measured, not the scene.
+        unthrottle: (on) => {
+          ;(this as any).frameRate = on ? 1000 : rate
+        },
+        // The panel the sweep is run from, the hands and their rays stay.
+        skip: (m) =>
+          m.renderingGroupId > 0 ||
+          /^xr-|panel|controller|laser|pointer|teleport|hand/i.test(m.name) ||
+          /^controller/i.test(m.material?.name ?? ''),
+        /*
       TWO repaints, not one per experiment. Repainting rebuilds the panel and
       redraws its texture, and doing that eighteen times inside a session on a
       device already at its limit is its own load (a panel rebuild has hung a
       Quest before, #3135).
       */
-      progress: (name, done) => {
-        const was = this._sweepNow
-        this._sweepNow = name == null ? null : 'Sweeping, about 45 s'
-        if (name == null || (was == null && done === 0)) this._repaintPanels()
-      },
-      // The ground shader's other form, whichever is not in use: its cost
-      // (or its saving) on this device.
-      extra: [
-        {
-          name: biomeLite(this.scene)
-            ? '+ full ground shader'
-            : '- ground detail',
-          apply: () => {
-            const scene = this.scene!
-            const was = biomeLite(scene)
-            setBiomeLite(scene, !was)
-            return () => setBiomeLite(scene, was)
-          },
+        progress: (name, done) => {
+          const was = this._sweepNow
+          this._sweepNow = name == null ? null : 'Sweeping, about a minute'
+          if (name == null || (was == null && done === 0)) this._repaintPanels()
         },
-        {
-          name: biomeComputedNoise(this.scene)
-            ? '- computed noise (texture)'
-            : '+ computed ground noise',
-          apply: () => {
-            const scene = this.scene!
-            const was = biomeComputedNoise(scene)
-            setBiomeComputedNoise(scene, !was)
-            return () => setBiomeComputedNoise(scene, was)
-          },
+        /*
+        The ground shader's other form, whichever is not in use: its cost (or
+        its saving) on this device. Asked for separately (**Shader sweep**):
+        each one recompiles every ground and decoration shader twice, and the
+        sweeps that included them hung a Quest.
+        */
+        only: what === 'shaders' ? 'extra' : undefined,
+        extra:
+          what !== 'shaders'
+            ? []
+            : [
+                {
+                  name: biomeLite(this.scene)
+                    ? '+ full ground shader'
+                    : '- ground detail',
+                  apply: () => {
+                    const scene = this.scene!
+                    const was = biomeLite(scene)
+                    setBiomeLite(scene, !was)
+                    return () => setBiomeLite(scene, was)
+                  },
+                },
+                {
+                  name: biomeComputedNoise(this.scene)
+                    ? '- computed noise (texture)'
+                    : '+ computed ground noise',
+                  apply: () => {
+                    const scene = this.scene!
+                    const was = biomeComputedNoise(scene)
+                    setBiomeComputedNoise(scene, !was)
+                    return () => setBiomeComputedNoise(scene, was)
+                  },
+                },
+              ],
+        journal: (soFar, starting, phase) => {
+          run.lines = formatSweep(soFar)
+          run.starting = starting
+          run.phase = phase
+          keep()
         },
-      ],
-      journal: (soFar, starting) => {
-        try {
-          localStorage.setItem(
-            SWEEP_KEY,
-            JSON.stringify({ lines: formatSweep(soFar), starting })
-          )
-        } catch {
-          /* private mode: the sweep still runs, it just leaves no trace */
-        }
-      },
-    })
-    this._sweepLines = formatSweep(rows)
+      })
+    } finally {
+      this._sweepRun = null
+    }
     this.lastCostSweep = rows
     console.log('cost sweep\n' + this._sweepLines.join('\n'))
     this._repaintPanels()
@@ -3550,6 +3595,13 @@ export class B3d extends Component {
         label: this._sweepNow ?? 'Cost sweep',
         handleClick: () => {
           if (this._sweepNow == null) void this.costSweep().catch(() => {})
+        },
+      }),
+      button3d({
+        label: this._sweepNow ?? 'Shader sweep',
+        handleClick: () => {
+          if (this._sweepNow == null)
+            void this.costSweep(2, 'shaders').catch(() => {})
         },
       }),
       ...(this._sweepLines.length > 0

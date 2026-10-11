@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { formatSweep, groupKey, summarise, topGroups } from './cost-sweep.js'
+import {
+  formatRuns,
+  formatSweep,
+  groupKey,
+  recordRun,
+  summarise,
+  topGroups,
+} from './cost-sweep.js'
 
 describe('cost sweep', () => {
   test('summarise is the median and the 95th percentile', () => {
@@ -41,5 +48,36 @@ describe('cost sweep', () => {
     expect(lines[1]).toContain('- terrain')
     expect(lines[2]).toContain('- water')
     expect(lines[3]).toStartWith('+2.0')
+  })
+
+  test('a run that hangs at once does not hide the one before it', () => {
+    const done = {
+      n: 1,
+      began: 0,
+      lines: ['baseline', '-5 sky'],
+      starting: null,
+    }
+    const hung = {
+      n: 2,
+      began: 0,
+      lines: [],
+      starting: 'baseline',
+      phase: 'measuring' as const,
+    }
+    let runs = recordRun([], done)
+    runs = recordRun(runs, { ...hung, starting: 'x' })
+    runs = recordRun(runs, hung)
+    expect(runs.map((r) => r.n)).toEqual([2, 1])
+    const lines = formatRuns(runs)
+    expect(lines[0]).toContain('run 2')
+    expect(lines[0]).toContain('STOPPED measuring "baseline"')
+    expect(lines[1]).toContain('run 1')
+    expect(lines[1]).toContain('finished')
+    expect(lines.slice(2)).toEqual(['baseline', '-5 sky'])
+    // While it is the one running, it says so.
+    expect(formatRuns(runs, 2)[0]).toContain('running')
+    // Only the newest few are kept.
+    for (let n = 3; n < 9; n++) runs = recordRun(runs, { ...done, n })
+    expect(runs.map((r) => r.n)).toEqual([8, 7, 6, 5])
   })
 })

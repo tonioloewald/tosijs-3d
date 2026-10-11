@@ -100,6 +100,10 @@ pair and what to do.
   repaints a second and main-thread milliseconds a second (`svgTextureCost`).
 - **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
   frame goes, measured on the device, by switching one thing off at a time.
+  Runs are numbered and the last four are kept, each saying whether it
+  finished or where it stopped, so a run that hangs does not replace the one
+  before. **Shader sweep** is a separate button: it measures the ground
+  shader's other forms, which recompiles shaders.
 - **Water, and the ice on it, receives shadows.** The surface never did: it
   was not marked as a shadow receiver, so nothing cast a shadow on the sea,
   which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`

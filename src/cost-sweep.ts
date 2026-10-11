@@ -35,12 +35,19 @@ const rows = await document.querySelector('tosi-b3d').costSweep()
 
 Each experiment is restored before the next. A sweep changes nothing for good.
 
+**Shader sweep**, the button beside it, measures the ground shader's other
+forms (`costSweep(2, 'shaders')`). It is separate because each row recompiles
+every ground and decoration shader twice, which is the heaviest thing either
+sweep does.
+
 ## If it hangs the device
 
 The first run on a Quest did. The sweep writes what it has measured, and the
 name of the experiment it is about to start, to `localStorage` before each
-one. Reload the page and Perf Stats shows the rows it got and **stopped at:**
-the experiment that never finished. The two headset levers run last for that
+one, once as it switches the experiment on and once as it starts measuring.
+Reload the page and Perf Stats shows the rows it got and **STOPPED** with the
+experiment that never finished. Runs are numbered and the last four are kept:
+a run that hangs at once does not replace the rows of the one before it. The two headset levers run last for that
 reason: they are the part no emulator can exercise.
 */
 /*{ "parent": "performance", "order": 15 }*/
@@ -115,6 +122,67 @@ export function formatSweep(rows: SweepRow[]): string[] {
   ]
 }
 
+/** One run of the sweep as it is kept between page loads. */
+export interface SweepRun {
+  /** Counts up for as long as the journal survives. */
+  n: number
+  /** When it began, ms since the epoch. */
+  began: number
+  /** Its rows so far, as {@link formatSweep} lines. */
+  lines: string[]
+  /** The experiment it was on when last heard from; `null` once finished. */
+  starting: string | null
+  /** Whether that experiment was being switched on or measured. */
+  phase?: 'applying' | 'measuring'
+  /** Which sweep it was: the scene's, or the shader forms. */
+  kind?: 'scene' | 'shaders'
+}
+
+/** `runs` with `run` added or replaced (by number), newest first, `keep` kept. */
+export function recordRun(
+  runs: SweepRun[],
+  run: SweepRun,
+  keep = 4
+): SweepRun[] {
+  return [run, ...runs.filter((r) => r.n !== run.n)]
+    .sort((a, b) => b.n - a.n)
+    .slice(0, keep)
+}
+
+/**
+ * The kept runs as panel lines, newest first. Every run gets a heading saying
+ * whether it finished and, if not, where it stopped. Rows are listed for the
+ * newest run and for the newest of each kind that has any, so a run that hangs
+ * at once does not hide the last one that measured something.
+ */
+export function formatRuns(runs: SweepRun[], live: number | null = null) {
+  const sorted = [...runs].sort((a, b) => b.n - a.n)
+  const kindOf = (r: SweepRun) => r.kind ?? 'scene'
+  const withRows = (['scene', 'shaders'] as const).map((k) =>
+    sorted.find((r) => kindOf(r) === k && r.lines.length > 1)
+  )
+  const out: string[] = []
+  for (const r of sorted) {
+    const d = new Date(r.began)
+    const at = `${String(d.getHours()).padStart(2, '0')}:${String(
+      d.getMinutes()
+    ).padStart(2, '0')}`
+    const state =
+      r.starting == null
+        ? 'finished'
+        : r.n === live
+        ? 'running'
+        : `STOPPED ${r.phase ?? 'at'} "${r.starting}"`
+    out.push(
+      `run ${r.n}${
+        kindOf(r) === 'shaders' ? ' (shaders)' : ''
+      }  ${at}  ${state}`
+    )
+    if (r === sorted[0] || withRows.includes(r)) out.push(...r.lines)
+  }
+  return out
+}
+
 export interface SweepOptions {
   /** Seconds sampled per experiment. */
   seconds?: number
@@ -133,12 +201,22 @@ export interface SweepOptions {
    * start, and with `null` when the sweep finishes. Write it somewhere that
    * survives a crash: an experiment that hangs the device is then named.
    */
-  journal?: (rows: SweepRow[], starting: string | null) => void
+  journal?: (
+    rows: SweepRow[],
+    starting: string | null,
+    phase?: 'applying' | 'measuring'
+  ) => void
   /**
    * More experiments, run after the closing baseline. `apply` makes the
    * change and returns the way back.
    */
   extra?: Array<{ name: string; apply: () => () => void }>
+  /**
+   * `'extra'` runs the baseline and the `extra` experiments only. For ones
+   * that recompile shaders, which is heavy enough on a headset to be asked
+   * for separately.
+   */
+  only?: 'extra'
 }
 
 /**
@@ -192,39 +270,42 @@ export async function costSweep(
   const experiments: Experiment[] = [
     { name: 'baseline', apply: () => () => {} },
   ]
-  if (!inXr) {
+  const scenic = options.only !== 'extra'
+  if (scenic) {
+    if (!inXr) {
+      experiments.push({
+        name: 'half the pixels',
+        apply: () => {
+          const was = engine.getHardwareScalingLevel()
+          engine.setHardwareScalingLevel(was * Math.SQRT2)
+          return () => engine.setHardwareScalingLevel(was)
+        },
+      })
+    }
     experiments.push({
-      name: 'half the pixels',
+      name: '- render targets',
       apply: () => {
-        const was = engine.getHardwareScalingLevel()
-        engine.setHardwareScalingLevel(was * Math.SQRT2)
-        return () => engine.setHardwareScalingLevel(was)
+        const was = scene.renderTargetsEnabled
+        scene.renderTargetsEnabled = false
+        return () => {
+          scene.renderTargetsEnabled = was
+        }
       },
     })
+    experiments.push({
+      name: '- shadows',
+      apply: () => {
+        const was = scene.shadowsEnabled
+        scene.shadowsEnabled = false
+        return () => {
+          scene.shadowsEnabled = was
+        }
+      },
+    })
+    for (const g of topGroups(groups))
+      experiments.push({ name: `- ${g.name}`, apply: hide(g.items) })
+    experiments.push({ name: '- everything', apply: hide(drawn) })
   }
-  experiments.push({
-    name: '- render targets',
-    apply: () => {
-      const was = scene.renderTargetsEnabled
-      scene.renderTargetsEnabled = false
-      return () => {
-        scene.renderTargetsEnabled = was
-      }
-    },
-  })
-  experiments.push({
-    name: '- shadows',
-    apply: () => {
-      const was = scene.shadowsEnabled
-      scene.shadowsEnabled = false
-      return () => {
-        scene.shadowsEnabled = was
-      }
-    },
-  })
-  for (const g of topGroups(groups))
-    experiments.push({ name: `- ${g.name}`, apply: hide(g.items) })
-  experiments.push({ name: '- everything', apply: hide(drawn) })
   // Again at the end: if this differs from the first, the device drifted
   // (heat, a background task) and the rows between are that much in doubt.
   experiments.push({ name: 'baseline again', apply: () => () => {} })
@@ -235,7 +316,7 @@ export async function costSweep(
   already measured and journalled by the time they start.
   */
   for (const e of options.extra ?? []) experiments.push(e)
-  if (inXr && session != null) {
+  if (scenic && inXr && session != null) {
     experiments.push({
       name: 'foveation 1',
       apply: () => {
@@ -273,9 +354,10 @@ export async function costSweep(
     for (let i = 0; i < experiments.length; i++) {
       const e = experiments[i]
       options.progress?.(e.name, i, experiments.length)
-      options.journal?.(rows, e.name)
+      options.journal?.(rows, e.name, 'applying')
       const restore = e.apply()
       try {
+        options.journal?.(rows, e.name, 'measuring')
         await wait(settle * 1000)
         const intervals: number[] = []
         let last = 0
