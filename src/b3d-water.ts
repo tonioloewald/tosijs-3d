@@ -114,6 +114,8 @@ import {
   IceUndersidePlugin,
   CLOUD_UNIFORMS,
   CLOUD_SAMPLER,
+  REFRACTION_VP,
+  waterTargetsShareable,
 } from './water-shore-shader.js'
 import { cloudShadowMapOf } from './cloud-shadows.js'
 import { nearFirst } from './draw-order.js'
@@ -248,6 +250,8 @@ export class B3dWater extends AbstractMesh {
   private _skyFogged = false
   /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
   private _skyWasFogged = new WeakMap<BABYLON.AbstractMesh, boolean>()
+  /** The view-projection each water target was last drawn with. */
+  private _targetViews: BABYLON.Matrix[] = []
   private _followTick?: () => void
   private _ceilingTick?: () => void
   private _caustics: CausticsMap | null = null
@@ -499,14 +503,39 @@ export class B3dWater extends AbstractMesh {
     const order = nearFirst(scene)
     for (const target of targets) target?.setRenderingOrder(0, order, order)
     /*
-    EVERY FRAME WHILE A SESSION IS PRESENTING. Babylon advances a target's
-    refresh counter once per CAMERA, and a headset has two: a rate of 2 drew
-    the reflection for the left eye only (and saved nothing), a rate of 3
-    alternated eyes, and the skipped eye showed the other eye's reflection.
-    Found by the 0.8.15 review; skipping whole frames for both eyes together
-    is the real fix and is not built yet. The smaller TEXTURE still applies
-    in a headset, which is where most of the saving was.
+    ONE DRAWING FOR BOTH EYES, EVERY Nth FRAME. Each target is the scene drawn
+    again, and Babylon redraws it once per CAMERA: in a headset that is four
+    extra scene passes a frame. Its own refresh counter also counts cameras,
+    so a rate of 2 drew for the left eye only and a rate of 3 alternated eyes.
+
+    So the decision is made per FRAME here, and the view each target was
+    drawn from is kept and used to look it up (the stock shader looks the
+    refraction up with the view being drawn now, and the reflection with the
+    projection being drawn now, which is right only if it is redrawn for
+    every camera every frame). A lookup through the view it was drawn from
+    lands on the right place in the world from either eye and on any later
+    frame; what goes stale is only what moved.
     */
+    const shareable = patched && waterTargetsShareable()
+    this._targetViews = []
+    for (const target of targets) {
+      if (target == null) continue
+      const view = BABYLON.Matrix.Identity()
+      this._targetViews.push(view)
+      target.onBeforeRenderObservable.add(() => {
+        view.copyFrom(scene.getTransformMatrix())
+      })
+      if (!shareable) continue
+      target.refreshRate = 1
+      let drawn = -1
+      ;(target as unknown as { _shouldRender: () => boolean })._shouldRender =
+        () => {
+          const frame = scene.getFrameId()
+          if (drawn >= 0 && frame - drawn < refresh) return false
+          drawn = frame
+          return true
+        }
+    }
     const applyRefresh = () => {
       const rate = (this.owner as any)?.xrActive === true ? 1 : refresh
       for (const target of targets) {
@@ -514,11 +543,16 @@ export class B3dWater extends AbstractMesh {
           target.refreshRate = rate
       }
     }
-    applyRefresh()
     if (this._refreshObserver != null)
       scene.onBeforeRenderObservable.remove(this._refreshObserver)
-    this._refreshObserver =
-      refresh > 1 ? scene.onBeforeRenderObservable.add(applyRefresh) : null
+    this._refreshObserver = null
+    if (!shareable) {
+      // Babylon's shader has changed shape: the old rule (every frame in a
+      // headset, the tier's rate flat).
+      applyRefresh()
+      if (refresh > 1)
+        this._refreshObserver = scene.onBeforeRenderObservable.add(applyRefresh)
+    }
     const normalMap = fetchedUrl(attrs.normalMap, 'b3d-water normalMap')
     this.waterMaterial.bumpTexture = normalMap
       ? // An explicit path: load it, but SAY SO if it fails. The checkerboard
@@ -1096,7 +1130,7 @@ export class B3dWater extends AbstractMesh {
       const create = engine.createEffect
       engine.createEffect = function (name: unknown, options: any) {
         if (name === 'water' && Array.isArray(options?.uniformsNames)) {
-          options.uniformsNames.push(...CLOUD_UNIFORMS)
+          options.uniformsNames.push(...CLOUD_UNIFORMS, REFRACTION_VP)
           options.samplers?.push(CLOUD_SAMPLER)
         }
         // eslint-disable-next-line prefer-rest-params
@@ -1111,6 +1145,12 @@ export class B3dWater extends AbstractMesh {
     mat.onBindObservable.add(() => {
       const effect = mat.getEffect()
       if (effect == null) return
+      // Targets are [reflection, refraction]: look each up through the view
+      // it was drawn from (see where `_targetViews` is filled).
+      const [reflection, refraction] = this._targetViews
+      if (refraction != null) effect.setMatrix(REFRACTION_VP, refraction)
+      if (reflection != null && waterTargetsShareable())
+        effect.setMatrix('reflectionViewProjection', reflection)
       const map = cloudShadowMapOf(scene)
       if (map == null || this.mesh?.receiveShadows !== true) {
         effect.setFloat('b3dCloudStrength', 0)

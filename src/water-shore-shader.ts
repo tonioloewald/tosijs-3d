@@ -183,6 +183,21 @@ const SHORE = `${MARK}
  * Babylon's shader no longer has the shape this expects — the water then
  * simply has no shoreline, rather than a broken material.
  */
+/**
+ * The view the refraction was DRAWN from, for looking it up. Stock water
+ * looks it up with the view it is being drawn in now, which is only the same
+ * view if the texture is redrawn for every camera on every frame. With this,
+ * one drawing serves both eyes of a headset and several frames.
+ */
+export const REFRACTION_VP = 'b3dRefractionVP'
+const REFRACTION_LOOKUP =
+  'vRefractionMapTexCoord.x=0.5*(gl_Position.w+gl_Position.x);vRefractionMapTexCoord.y=0.5*(gl_Position.w+gl_Position.y);vRefractionMapTexCoord.z=gl_Position.w;'
+let refractionPatched = false
+/** Whether the water shader takes `REFRACTION_VP` (false: Babylon's changed shape). */
+export function waterTargetsShareable(): boolean {
+  return refractionPatched
+}
+
 export function registerShoreWater(): boolean {
   const store = BABYLON.ShaderStore.ShadersStore as Record<string, string>
   const frag = store.waterPixelShader
@@ -212,8 +227,23 @@ export function registerShoreWater(): boolean {
     .replace(tint, '')
     .replace(defs, defs + '\n' + DEFINITIONS)
     .replace(compose, compose + '\n' + SHORE + CLOUD)
+  refractionPatched = vert.includes(REFRACTION_LOOKUP)
   store.waterVertexShader = vert
-    .replace(vdefs, vdefs + `\n${MARK}\nvarying float vB3dShore;`)
+    .replace(
+      vdefs,
+      vdefs +
+        `\n${MARK}\nvarying float vB3dShore;\nuniform mat4 ${REFRACTION_VP};`
+    )
+    .replace(
+      REFRACTION_LOOKUP,
+      `
+#ifdef USE_WORLD_COORDINATES
+vec4 b3dRp=${REFRACTION_VP}*vec4(p,1.0);
+#else
+vec4 b3dRp=${REFRACTION_VP}*finalWorld*vec4(p,1.0);
+#endif
+vRefractionMapTexCoord.x=0.5*(b3dRp.w+b3dRp.x);vRefractionMapTexCoord.y=0.5*(b3dRp.w+b3dRp.y);vRefractionMapTexCoord.z=b3dRp.w;`
+    )
     .replace(
       wave,
       // Ice does not ride the swell: the wave displacement fades out with

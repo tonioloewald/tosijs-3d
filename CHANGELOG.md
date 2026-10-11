@@ -89,6 +89,15 @@ pair and what to do.
   so the detail fades in the distance where the computed noise shimmered. On
   every tier with WebGL 2; `setBiomeComputedNoise(scene, true)` is the way
   back, and the cost sweep measures it. The climate noise is still computed.
+- **The water's reflection and refraction are drawn once for both eyes, and
+  every Nth frame in a headset too.** Each is the scene drawn again, and a
+  headset drew both for each eye on every frame: four extra scene passes.
+  Each is now looked up through the view it was drawn from, so one drawing is
+  in the right place from either eye and on later frames (`reflectionRefresh`,
+  from the device tier: every 3rd frame on the low tier). This also fixes the
+  refraction sliding against the seabed between redraws on a flat screen.
+- **Perf Stats reports what SVG texture repaints cost** (the HUD, panels):
+  repaints a second and main-thread milliseconds a second (`svgTextureCost`).
 - **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
   frame goes, measured on the device, by switching one thing off at a time.
 - **Water, and the ice on it, receives shadows.** The surface never did: it
