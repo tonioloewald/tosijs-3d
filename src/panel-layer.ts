@@ -77,6 +77,7 @@ export function attachSceneLayer(opts: {
     config: {
       anchor: { x: number; y: number; width: number; height: number }
       handleClosed?: () => void
+      chromeBand?: number
     }
   ) => {
     /*
@@ -138,6 +139,15 @@ export function attachSceneLayer(opts: {
       // presentation goes with it and the opener is not left believing it
       // still has one open. See `LayerHost.handleClosed`.
       handleClosed: config.handleClosed,
+      /*
+      The title bar is the BAND THE SHEET RESERVED, not a share of its height.
+      Left at the default fifth, a tall sheet (Perf Stats with a sweep listed)
+      got a bar, and glyphs, several times the size of a short one's, drawn
+      over its first rows.
+      */
+      ...(config.chromeBand != null && config.chromeBand > 0
+        ? { gripHeight: config.chromeBand / Math.max(1, popH) }
+        : {}),
       svg: sheet,
       opener: openerMesh,
       width: worldW,

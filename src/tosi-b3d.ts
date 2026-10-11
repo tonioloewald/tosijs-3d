@@ -2663,6 +2663,7 @@ export class B3d extends Component {
     return formatRuns(this._sweepRuns, this._sweepRun)
   }
   private _sweepNow: string | null = null
+  private _sweepStep = 'sweep: not running'
   /** The rows of the last {@link costSweep}, for reading over a debug bridge. */
   lastCostSweep: SweepRow[] = []
 
@@ -2717,7 +2718,12 @@ export class B3d extends Component {
       device already at its limit is its own load (a panel rebuild has hung a
       Quest before, #3135).
       */
-        progress: (name, done) => {
+        progress: (name, done, total) => {
+          // A LIVE line (rewritten in place, no rebuild): the step it is on.
+          this._sweepStep =
+            name == null
+              ? `sweep: run ${run.n} finished`
+              : `sweep: run ${run.n}, ${done + 1} of ${total}: ${name}`
           const was = this._sweepNow
           this._sweepNow = name == null ? null : 'Sweeping, about a minute'
           if (name == null || (was == null && done === 0)) this._repaintPanels()
@@ -3529,6 +3535,7 @@ export class B3d extends Component {
         `fps ${d.fps}  frame ${frame}ms  cpu ${cpu}ms${
           d.xrActive ? '  [XR]' : ''
         }`,
+        this._sweepStep,
         `draws ${draws}  meshes ${this.scene.getActiveMeshes().length}`,
         `render ${d.renderWidth}×${d.renderHeight}  (css ${d.cssWidth}×${d.cssHeight})`,
         `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${

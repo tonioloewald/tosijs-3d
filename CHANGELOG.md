@@ -104,6 +104,9 @@ pair and what to do.
   finished or where it stopped, so a run that hangs does not replace the one
   before. **Shader sweep** is a separate button: it measures the ground
   shader's other forms, which recompiles shaders.
+- **A popup's move and close icons keep their size on a tall popup in a
+  headset.** The title bar was a fifth of the popup's height, so Perf Stats
+  with a long list got icons several times too large, over its first rows.
 - **Water, and the ice on it, receives shadows.** The surface never did: it
   was not marked as a shadow receiver, so nothing cast a shadow on the sea,
   which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`
