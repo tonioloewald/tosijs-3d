@@ -102,12 +102,14 @@ function rasterizeSvg(
   const blob = new Blob([xml], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   img.onload = () => {
+    const began = performance.now()
     ctx.save()
     ctx.clearRect(0, 0, w, h)
     ctx.translate(0, h)
     ctx.scale(1, -1)
     ctx.drawImage(img, 0, 0, w, h)
     ctx.restore()
+    svgTextureCost.ms += performance.now() - began
     URL.revokeObjectURL(url)
     callback(true)
   }
@@ -121,6 +123,15 @@ function rasterizeSvg(
   }
   img.src = url
 }
+
+/**
+ * What repainting SVG textures has cost on the main thread, across every
+ * instance: `checks` are serialise-and-compare passes, `repaints` the ones
+ * that changed and were redrawn, `ms` the time both took here. The browser's
+ * own SVG rasterising happens off this thread and is NOT in it. Perf Stats
+ * reads this once a second.
+ */
+export const svgTextureCost = { checks: 0, repaints: 0, ms: 0 }
 
 export class SvgTexture {
   texture: BABYLON.DynamicTexture | BABYLON.Texture
@@ -168,6 +179,8 @@ export class SvgTexture {
     if (!this._element || this._rendering) return
     const dt = this.texture as BABYLON.DynamicTexture
     if (!dt?.getContext) return
+    const began = performance.now()
+    svgTextureCost.checks++
     const el = this._element.cloneNode(true) as SVGSVGElement
     el.removeAttribute('style')
     /*
@@ -214,7 +227,10 @@ export class SvgTexture {
     // genuinely animated SVGs (e.g. a radar) still update every cycle. This is
     // the main fix for the in-XR perf creep, where a static panel was paying
     // for a full re-rasterize + texImage2D upload on every interval.
-    if (xml === this._lastXml) return
+    if (xml === this._lastXml) {
+      svgTextureCost.ms += performance.now() - began
+      return
+    }
     this._rendering = true
     // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
     // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
@@ -228,7 +244,10 @@ export class SvgTexture {
       this._rendering = false
       if (ok) {
         this._lastXml = xml
+        const upload = performance.now()
         dt.update(false)
+        svgTextureCost.repaints++
+        svgTextureCost.ms += performance.now() - upload
       } else if (!this._warnedFailure) {
         // Once per instance: self-healing made failure SILENT, and a
         // permanently-bad SVG (malformed markup, CSP-blocked blob) becomes an
@@ -240,6 +259,7 @@ export class SvgTexture {
         )
       }
     })
+    svgTextureCost.ms += performance.now() - began
   }
 
   /** Render an arbitrary SVG string to the texture. */

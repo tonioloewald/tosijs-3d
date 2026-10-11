@@ -305,7 +305,7 @@ import { handlerOf } from './handler-of.js'
 import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
-import { SvgTexture } from './svg-texture.js'
+import { SvgTexture, svgTextureCost } from './svg-texture.js'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import { createMakers, type Makers } from './make-mesh.js'
 import {
@@ -2727,6 +2727,26 @@ export class B3d extends Component {
     return rows
   }
   private _perfMeter: BABYLON.SceneInstrumentation | null = null
+  // SVG texture repaints (the HUD, panels) over the last second or so, on the
+  // main thread: the counters are page-wide, so this is every scene's.
+  private _svgCostAt = { t: 0, checks: 0, repaints: 0, ms: 0 }
+  private _svgCostText = 'svg textures: measuring'
+  private _svgCostLine(): string {
+    const now = performance.now()
+    const was = this._svgCostAt
+    const dt = (now - was.t) / 1000
+    if (dt >= 1) {
+      if (was.t > 0) {
+        const repaints = (svgTextureCost.repaints - was.repaints) / dt
+        const ms = (svgTextureCost.ms - was.ms) / dt
+        this._svgCostText = `svg textures: ${repaints.toFixed(
+          0
+        )} repaints/s  ${ms.toFixed(0)}ms/s on this thread`
+      }
+      this._svgCostAt = { t: now, ...svgTextureCost }
+    }
+    return this._svgCostText
+  }
   // Which debug tools (Perf Stats + registered sources) are expanded, by id. Empty
   // by default — the panel opens with the debug data collapsed to its icon bar, so
   // a demo's own controls aren't buried under diagnostics you didn't ask to see.
@@ -3469,6 +3489,7 @@ export class B3d extends Component {
         `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${
           d.tier
         }  resizes ${d.resizeCount}`,
+        this._svgCostLine(),
         ...(d.xrActive
           ? [
               `xr scale ${this.xrResolution.scale.toFixed(
