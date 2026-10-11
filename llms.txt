@@ -316,6 +316,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   What to change when upgrading. Only breaking changes are listed — everything
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
+- https://3d.tosijs.net/noise-volume/ — Noise volume
+  A block of 3D gradient noise that **tiles in every direction**, as bytes, for
 - https://3d.tosijs.net/panel-layer/ — panel-layer
   A popup that lives inside its panel's SVG is cropped by it. That is the whole
 - https://3d.tosijs.net/panel-orbit/ — panel-orbit
@@ -418,6 +420,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   `touchOrbit(camera)` gives an `ArcRotateCamera` the touch map in
 - https://3d.tosijs.net/ui/ — UI
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
+- https://3d.tosijs.net/utilities/ — utilities
 - https://3d.tosijs.net/vertex-animation/ — vertex-animation
   Babylon, no GPU — so the layout and the phase maths can be tested without a
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad

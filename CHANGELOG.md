@@ -83,6 +83,12 @@ pair and what to do.
   it on the low tier, and in a headset on the medium tier. Measured on a Quest
   in Land and Sky, the terrain was 40 ms of a 90 ms frame. The cost sweep
   measures the other form on your device.
+- **The ground shader reads its fine noise from a texture.** It computed 3D
+  noise four times a pixel, eight hashed corners each; it now reads a shared
+  64-texel tiling block (`noiseVolume`, exported) once per sample. Mip-mapped,
+  so the detail fades in the distance where the computed noise shimmered. On
+  every tier with WebGL 2; `setBiomeComputedNoise(scene, true)` is the way
+  back, and the cost sweep measures it. The climate noise is still computed.
 - **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
   frame goes, measured on the device, by switching one thing off at a time.
 - **Water, and the ice on it, receives shadows.** The surface never did: it

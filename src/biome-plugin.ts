@@ -56,6 +56,7 @@ the degrees an author sets with `biomeTemperature`.
 /*{ "parent": "b3d-terrain", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { noiseVolume } from './noise-volume.js'
 
 /** Live-tunable parameters — mirrors BiomeChartConfig + the noise inventory. */
 export interface BiomeParams {
@@ -452,11 +453,33 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   role: BiomeRole = 'ground'
   private _isEnabled = false
   private _lite: boolean
+  private _computed: boolean
   private _t0 = performance.now()
 
   constructor(material: BABYLON.Material) {
-    super(material, 'Biome', 210, { BIOME: false, BIOME_LITE: false })
+    super(material, 'Biome', 210, {
+      BIOME: false,
+      BIOME_LITE: false,
+      BIOME_NOISETEX: false,
+    })
     this._lite = liteScenes.get(material.getScene()) === true
+    this._computed = computedScenes.get(material.getScene()) === true
+  }
+
+  /**
+   * Compute the fine 3D noise in the shader instead of reading it from the
+   * shared noise texture. The texture is the default wherever 3D textures
+   * exist (WebGL 2) and is several times cheaper a pixel; this is the way
+   * back, and what the cost sweep switches to measure the difference.
+   */
+  get computedNoise(): boolean {
+    return this._computed
+  }
+
+  set computedNoise(on: boolean) {
+    if (this._computed === on) return
+    this._computed = on
+    this.markAllDefinesAsDirty()
   }
 
   /**
@@ -491,6 +514,14 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   prepareDefines(defines: BABYLON.MaterialDefines): void {
     defines.BIOME = this._isEnabled
     defines.BIOME_LITE = this._isEnabled && this._lite
+    defines.BIOME_NOISETEX =
+      this._isEnabled &&
+      !this._computed &&
+      has3dTextures(this._material.getScene())
+  }
+
+  getSamplers(samplers: string[]): void {
+    samplers.push('biomeNoiseTex')
   }
 
   getClassName(): string {
@@ -542,6 +573,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   bindForSubMesh(uniformBuffer: BABYLON.UniformBuffer): void {
     if (!this._isEnabled) return
     const p = this.params
+    const scene = this._material.getScene()
+    if (!this._computed && has3dTextures(scene))
+      uniformBuffer.setTexture('biomeNoiseTex', noiseTextureOf(scene))
     uniformBuffer.updateFloat4(
       'biomeCfg',
       p.seaLevel,
@@ -702,6 +736,20 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       // classification fBm stays 2D deliberately — climate is a MAP (and the
       // altitude term already varies it vertically); 4 upgraded evals ≈ the
       // budgeted cost, to be confirmed on-device in the design's step 6 pass.
+      #ifdef BIOME_NOISETEX
+      // One read of a tiling noise block (noise-volume.ts: 64 texels a side,
+      // 4 a cell) instead of eight hashed corners. The texel fraction is
+      // eased before the lookup so the linear filter does not show as creases
+      // where a low-frequency sample is magnified.
+      uniform highp sampler3D biomeNoiseTex;
+      float bioSimplex3(vec3 p) {
+        vec3 uv = p * 4.0 + 0.5;
+        vec3 i = floor(uv);
+        vec3 f = uv - i;
+        uv = i + f * f * (3.0 - 2.0 * f);
+        return texture(biomeNoiseTex, (uv - 0.5) / 64.0).r * 2.0 - 1.0;
+      }
+      #else
       vec3 bioHash3(vec3 p) {
         p = vec3(
           dot(p, vec3(127.1, 311.7, 74.7)),
@@ -728,6 +776,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           u.z
         );
       }
+      #endif
       // Worley/cellular noise for the volcanic plates: F1 = distance to the
       // nearest cell point, F2 the second — F2−F1 → 0 exactly on the borders
       // between plates, which is where the lava veins live.
@@ -892,7 +941,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         float dith = dithRaw * biomeDither.y;
         // Within-biome variation: medium-frequency patches select between each
         // cell's A/B colours (coral pink ↔ orange, kelp olive ↔ brown).
-        #ifdef BIOME_LITE
+        #if defined(BIOME_LITE) && !defined(BIOME_NOISETEX)
           float varN = 0.5 + 0.5 * bioSimplex(wp.xz * (biomeNoise.x * 3.1) + 31.7);
         #else
           float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
@@ -1205,6 +1254,56 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
 }
 
 const liteScenes = new WeakMap<BABYLON.Scene, boolean>()
+const computedScenes = new WeakMap<BABYLON.Scene, boolean>()
+const noiseTextures = new WeakMap<BABYLON.Scene, BABYLON.RawTexture3D>()
+
+function has3dTextures(scene: BABYLON.Scene): boolean {
+  return (
+    ((scene.getEngine() as unknown as { webGLVersion?: number }).webGLVersion ??
+      0) >= 2
+  )
+}
+
+/** The scene's one noise block, made on first use. */
+function noiseTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture3D {
+  let tex = noiseTextures.get(scene)
+  if (tex == null) {
+    tex = new BABYLON.RawTexture3D(
+      noiseVolume(64, 16),
+      64,
+      64,
+      64,
+      BABYLON.Constants.TEXTUREFORMAT_R,
+      scene,
+      true,
+      false,
+      BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+      BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE
+    )
+    tex.name = 'biome-noise'
+    tex.wrapU = tex.wrapV = tex.wrapR = BABYLON.Texture.WRAP_ADDRESSMODE
+    noiseTextures.set(scene, tex)
+    tex.onDisposeObservable.add(() => noiseTextures.delete(scene))
+  }
+  return tex
+}
+
+/**
+ * Have every biome material in a scene compute its fine noise in the shader
+ * (`true`) or read it from the noise texture (`false`, the default).
+ */
+export function setBiomeComputedNoise(scene: BABYLON.Scene, on: boolean): void {
+  computedScenes.set(scene, on)
+  for (const m of scene.materials) {
+    const plugin = m.pluginManager?.getPlugin('Biome') as BiomePlugin | null
+    if (plugin != null) plugin.computedNoise = on
+  }
+}
+
+/** Whether a scene's biome materials compute their fine noise. */
+export function biomeComputedNoise(scene: BABYLON.Scene): boolean {
+  return computedScenes.get(scene) === true
+}
 
 /**
  * Switch every biome material in a scene to the cheap form of the shader (or

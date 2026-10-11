@@ -1221,6 +1221,8 @@ export {
   attachBiomePlugin,
   setBiomeLite,
   biomeLite,
+  setBiomeComputedNoise,
+  biomeComputedNoise,
   defaultBiomeParams,
   MANTA_PALETTE,
   LAVA_PALETTE,
@@ -1470,4 +1472,5 @@ export {
 } from './touch-gesture.js'
 export { costSweep, formatSweep } from './cost-sweep.js'
 export { nearFirst, drawKey } from './draw-order.js'
+export { noiseVolume } from './noise-volume.js'
 export type { SweepRow, SweepOptions } from './cost-sweep.js'

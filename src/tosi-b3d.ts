@@ -369,7 +369,12 @@ import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import { ProjectedAoController } from './b3d-ssao-projected.js'
 import { costSweep, formatSweep, type SweepRow } from './cost-sweep.js'
 import { nearFirst } from './draw-order.js'
-import { setBiomeLite, biomeLite } from './biome-plugin.js'
+import {
+  setBiomeLite,
+  biomeLite,
+  setBiomeComputedNoise,
+  biomeComputedNoise,
+} from './biome-plugin.js'
 const SWEEP_KEY = 'tosi-b3d-cost-sweep'
 import {
   allocateAmbient,
@@ -2690,6 +2695,17 @@ export class B3d extends Component {
             const was = biomeLite(scene)
             setBiomeLite(scene, !was)
             return () => setBiomeLite(scene, was)
+          },
+        },
+        {
+          name: biomeComputedNoise(this.scene)
+            ? '- computed noise (texture)'
+            : '+ computed ground noise',
+          apply: () => {
+            const scene = this.scene!
+            const was = biomeComputedNoise(scene)
+            setBiomeComputedNoise(scene, !was)
+            return () => setBiomeComputedNoise(scene, was)
           },
         },
       ],

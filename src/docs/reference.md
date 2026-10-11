@@ -10,4 +10,5 @@ procedural is built on.
 - [Migration](/Migration/)
 - [Changelog](/CHANGELOG/)
 - [perlin-noise](/perlin-noise/)
+- [Noise volume](/noise-volume/)
 <!-- /toc -->
