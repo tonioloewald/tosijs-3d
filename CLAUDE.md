@@ -717,6 +717,10 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/portal-transform.ts` | ⚠️ experimental. Pure see-through-portal math — virtual camera pose, oblique clip plane, step-test crossing, recursion budgeted by a falloff CURVE. Unit-tested |
 | `src/asset-url.ts` | `assetUrl()` — resolve a logical asset path to a hosted URL (retargetable CDN base, see `static-assets` memory) |
 | `src/perf-probe.ts` / `b3d-quality.ts` / `b3d-probe.ts` | Device-capability probe → per-tier `PerfBudgets` (see Adaptive defaults) |
+| `src/cost-sweep.ts` | Where a frame goes, measured on the device: switches one thing off at a time and ranks what its absence bought. Runs are numbered and kept (`recordRun`/`formatRuns`), so a run that stops says where. A button in Perf Stats, because a headset has no profiler |
+| `src/debug-sink.ts` | `debugSink.url` + `sendDebug(tag, event)`: a page posts its readings (sweep steps, Perf Stats lines, errors with stacks) to the dev server's `/__debug-sink`, which appends them to a JSONL file outside the repo. **How a headset's numbers reach an agent**: read the file, do not ask for them aloud |
+| `src/draw-order.ts` | Opaque meshes are drawn nearest first and the sky last, so a covered pixel is rejected by depth before its shader runs. Same picture; the saving is whatever was hidden |
+| `src/noise-volume.ts` | A tiling block of 3D gradient noise as bytes, for a shader to SAMPLE instead of compute (the ground shader's fine detail). Pure, seeded |
 | `src/b3d-physics.ts` / `jolt-plugin.ts` | Jolt Physics integration layer |
 
 **Combat (shipped v0.4.0 — pure models bridged to Babylon, spec in `COMBAT-DESIGN.md`):**
