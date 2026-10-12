@@ -45,7 +45,7 @@ field** multiplies its weight, high in about a third of the ground and low
 
 | Rule option | Default | Description |
 |-------------|---------|-------------|
-| `clump` | `0.85` | 0 = even spread, 1 = clumps only |
+| `clump` | `0.95` | 0 = even spread, 1 = clumps only |
 | `clumpScale` | `1` | This rule's clump size relative to the scatter's |
 | `clumpGroup` | the rule's `kind` | Rules in one group gather in the SAME places: stones around boulders |
 | `sink` | `0.02` | How much of the model's height the decorator buries. Rocks use a quarter or more |
@@ -106,7 +106,7 @@ export interface ScatterRule {
   collider?: 'trunk' | 'box'
   /**
    * How strongly it gathers into clumps, 0 (even spread) … 1 (clumps only).
-   * Default `0.85`: copses and rock fields with the occasional outlier, which
+   * Default `0.95`: copses and rock fields with the occasional outlier, which
    * reads far better than an even sprinkle. See `clumpAt`.
    */
   clump?: number
@@ -161,6 +161,13 @@ export interface ScatterOptions {
   suppress?: (x: number, z: number, kind: string) => number
   /** Candidates per placement. More = closer to the budget, slower. */
   oversample?: number
+  /**
+   * The share of what the budget would place that is kept, 0 … 1 (default 1).
+   * Thinned by the clump (see `clumpCentreFor`): fewer clumps in the same
+   * places, each as full as before. Asking for a smaller `budget` instead
+   * thins every clump evenly, and makes new, smaller clumps somewhere else.
+   */
+  share?: number
   /**
    * Clump strength for EVERY rule, 0 (even spread) … 1 (clumps only),
    * overriding each rule's own. Omitted or negative: the rules decide.
@@ -298,20 +305,86 @@ export function clumpAt(
   group: string,
   x: number,
   z: number,
-  size = 90
+  size = 90,
+  centre = CLUMP_CENTRE
 ): number {
-  return clumpField(hash(seed, hashString(group)), x, z, size)
+  return clumpRamp(
+    clumpNoise(hash(seed, hashString(group)), x, z, size),
+    centre,
+    // Past the normal threshold it is a thinned clump, with its harder edge.
+    centre > CLUMP_CENTRE ? CLUMP_THINNED_EDGE : CLUMP_EDGE
+  )
 }
 
 /** `clumpAt` with the group already hashed (`hash(seed, hashString(group))`). */
 function clumpField(s: number, x: number, z: number, size: number): number {
+  return clumpRamp(clumpNoise(s, x, z, size), CLUMP_CENTRE)
+}
+
+/** The noise under the clump field, before its threshold: about 0 … 1. */
+function clumpNoise(s: number, x: number, z: number, size: number): number {
   const u = x / size
   const v = z / size
-  const n =
-    0.7 * valueNoise(s, u, v) + 0.3 * valueNoise(s + 1, u * 2.7, v * 2.7)
-  const t = (n - 0.5) / 0.14
+  return 0.7 * valueNoise(s, u, v) + 0.3 * valueNoise(s + 1, u * 2.7, v * 2.7)
+}
+
+const CLUMP_CENTRE = 0.5
+const CLUMP_EDGE = 0.14
+
+/** The threshold that turns the noise into a clump with a soft edge. */
+function clumpRamp(n: number, centre: number, edge = CLUMP_EDGE): number {
+  const t = (n - centre) / edge
   return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t)
 }
+
+/*
+The clump noise's values, sorted: how much ground lies above any threshold.
+Sampled once (4,096 points of one fixed seed); the distribution does not depend
+on the seed, only on the two octaves.
+*/
+let clumpSorted: Float64Array | null = null
+function clumpValues(): Float64Array {
+  if (clumpSorted != null) return clumpSorted
+  const out = new Float64Array(4096)
+  for (let i = 0; i < 64; i++)
+    for (let j = 0; j < 64; j++)
+      out[i * 64 + j] = clumpNoise(7919, i * 1.37 + 0.11, j * 1.37 + 0.53, 1)
+  out.sort()
+  return (clumpSorted = out)
+}
+
+/**
+ * The threshold at which clumps cover `share` of the ground they cover at the
+ * normal one (`0.5`). Raising the threshold removes the weaker clumps and
+ * shrinks the rest, and leaves the middle of a surviving clump as full as it
+ * was: FEWER CLUMPS, not thinner ones. That is how a scatter is thinned (a
+ * device's share, a dry place). Tonio: "having a tree here and there looks
+ * lame. But having clumps of three or four trees that are more widely
+ * scattered works."
+ */
+export function clumpCentreFor(share: number): number {
+  if (share >= 1) return CLUMP_CENTRE
+  const v = clumpValues()
+  const half = CLUMP_EDGE / 2
+  // Ground counted as clump: past the middle of the soft edge.
+  let lo = 0
+  let hi = v.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (v[mid] < CLUMP_CENTRE + half) lo = mid + 1
+    else hi = mid
+  }
+  const above = (v.length - lo) * Math.max(0, share)
+  const at = Math.min(v.length - 1, Math.max(0, Math.round(v.length - above)))
+  return Math.max(CLUMP_CENTRE, v[at] - CLUMP_THINNED_EDGE / 2)
+}
+
+/*
+A thinned clump has a harder edge than a whole one. With the soft edge most of
+what is left of a small clump is edge, and it is thin all through: the opposite
+of what thinning by the clump is for.
+*/
+const CLUMP_THINNED_EDGE = 0.05
 
 /**
  * What a rule's weight is multiplied by at a point: `1 - clump` in a gap (the
@@ -324,7 +397,7 @@ export function clumpWeight(
   x: number,
   z: number,
   size = 90,
-  strength = rule.clump ?? 0.85
+  strength = rule.clump ?? 0.95
 ): number {
   const s = Math.max(0, Math.min(1, strength))
   if (s === 0) return 1
@@ -435,6 +508,7 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
       ? o.clumpSize
       : autoClumpSize(o.budget, o.radius)
   const clumpAll = o.clump != null && o.clump >= 0 ? o.clump : undefined
+  const share = o.share != null ? Math.max(0, Math.min(1, o.share)) : 1
 
   const cands: Candidate[] = []
   const R = o.rules.length
@@ -451,7 +525,7 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
   const fieldKeys = new Map<string, number>()
   for (let ri = 0; ri < R; ri++) {
     const r = o.rules[ri]
-    clumpStrength[ri] = Math.max(0, Math.min(1, clumpAll ?? r.clump ?? 0.85))
+    clumpStrength[ri] = Math.max(0, Math.min(1, clumpAll ?? r.clump ?? 0.95))
     const group = r.clumpGroup ?? r.kind
     const size = clumpSize * (r.clumpScale ?? 1)
     const key = `${group}|${size}`
@@ -590,12 +664,32 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
         if (pick < 0) break
       }
       const rule = o.rules[ri]
-      // Thinned by how wet it is here: a thirsty kind fills in only when wet.
-      if (
-        rule.thirst != null &&
-        unit(hash(c.h, 15)) >= moistureCover(rule, c.m)
-      )
-        continue
+      /*
+      THINNED, BY THE CLUMP. `cover` is the share that should remain: the
+      caller's share (a device that can draw less) times how wet it is here for
+      a thirsty kind. It is applied after the place is chosen (suitability is
+      only ever compared with other suitability, so scaling it does nothing),
+      and it is applied to the clump field's threshold: the weaker clumps go
+      and the middle of the others stays as full as it was. Thinning each
+      place independently instead leaves a tree here and a tree there.
+      */
+      const cover = share * (rule.thirst != null ? moistureCover(rule, c.m) : 1)
+      if (cover < 1) {
+        const strength = clumpStrength[ri]
+        let keep = cover
+        if (strength > 0) {
+          const fi = fieldOf[ri]
+          const n = clumpNoise(fieldSeed[fi], c.x, c.z, fieldSize[fi])
+          const was = 1 - strength + strength * 3 * clumpRamp(n, CLUMP_CENTRE)
+          const left = clumpRamp(n, clumpCentreFor(cover), CLUMP_THINNED_EDGE)
+          // The outliers' part thins to `cover` in a gap and not at all in
+          // the middle of a clump that is still there.
+          const now =
+            (1 - strength) * (cover + (1 - cover) * left) + strength * 3 * left
+          keep = now / was
+        }
+        if (unit(hash(c.h, 15)) >= keep) continue
+      }
       const model =
         rule.models[Math.floor(unit(hash(c.h, 12)) * rule.models.length)]
       const [s0, s1] = rule.scale

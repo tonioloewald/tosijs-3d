@@ -10,7 +10,7 @@ to it, and `<tosi-b3d>` reports the things that are worth having afterwards:
 every step of a cost sweep, the Perf Stats lines while that popup is open, a
 lost WebGL context, and any event passed to `logDebug`.
 
-```js
+```javascript
 import { debugSink } from 'tosijs-3d'
 
 debugSink.url = '/__debug-sink'

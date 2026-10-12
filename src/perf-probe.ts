@@ -290,7 +290,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 500,
     xrFoveation: 1,
     groundDetail: 0,
-    decorationScale: 0.4,
+    decorationScale: 0.6,
   },
 }
 

@@ -1313,7 +1313,7 @@
       {
         "name": "budgetScale",
         "default": "0",
-        "description": "Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.4 on the low tier, which is what a Quest gets in a session). Set `1` to place the whole budget everywhere"
+        "description": "Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere"
       },
       {
         "name": "radius",
@@ -5066,7 +5066,7 @@
     "attributes": [
       {
         "name": "clump",
-        "default": "0.85",
+        "default": "0.95",
         "description": "0 = even spread, 1 = clumps only"
       },
       {

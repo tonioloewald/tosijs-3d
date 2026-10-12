@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   band,
   clumpAt,
+  clumpCentreFor,
   autoClumpSize,
   roleFor,
   NATURE_ROLES,
@@ -370,6 +371,46 @@ describe('clumps', () => {
     )
     const shared = there.filter((p) => here.has(`${p.x},${p.z}`))
     expect(shared.length).toBeGreaterThan(there.length * 0.6)
+  })
+})
+
+describe('a share thins by the clump', () => {
+  const base = {
+    budget: 1500,
+    seed: 3,
+    center: { x: 0, z: 0 },
+    radius: 400,
+    clumpSize: 90,
+    height: flat,
+    climate: mild,
+    rules: [{ ...anywhere, kind: 'x' }],
+  }
+
+  test('the threshold rises as the share falls, and 1 leaves it alone', () => {
+    expect(clumpCentreFor(1)).toBe(0.5)
+    expect(clumpCentreFor(0.6)).toBeGreaterThan(0.5)
+    expect(clumpCentreFor(0.3)).toBeGreaterThan(clumpCentreFor(0.6))
+  })
+
+  test('fewer things, every one of them a place the full scatter had', () => {
+    const full = scatterPlacements(base)
+    const some = scatterPlacements({ ...base, share: 0.4 })
+    expect(some.length).toBeLessThan(full.length * 0.6)
+    expect(some.length).toBeGreaterThan(full.length * 0.2)
+    const had = new Set(full.map((p) => `${p.x},${p.z}`))
+    expect(some.every((p) => had.has(`${p.x},${p.z}`))).toBe(true)
+  })
+
+  test('the middle of a clump stays full; the edges and gaps go', () => {
+    const full = scatterPlacements(base)
+    const some = scatterPlacements({ ...base, share: 0.4 })
+    // Deep inside the clumps that survive the raised threshold: nothing lost.
+    const deep = (p: { x: number; z: number }) =>
+      clumpAt(3, 'x', p.x, p.z, 90, clumpCentreFor(0.4)) === 1
+    expect(some.filter(deep).length).toBe(full.filter(deep).length)
+    // Out in the gaps it thins to about the share.
+    const gap = (p: { x: number; z: number }) => clumpAt(3, 'x', p.x, p.z) === 0
+    expect(some.filter(gap).length).toBeLessThan(full.filter(gap).length * 0.7)
   })
 })
 

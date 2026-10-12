@@ -73,7 +73,7 @@ biped stops at a trunk and can stand on a boulder.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
-| `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.4 on the low tier, which is what a Quest gets in a session). Set `1` to place the whole budget everywhere |
+| `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
 | `url` | `''` | The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES` |
@@ -365,11 +365,15 @@ export class B3dDecorator extends B3dChild {
     return this.owner?.querySelector('tosi-b3d-terrain') ?? null
   }
 
-  /** How many to place here: the budget times the device tier's share. */
-  private _placedBudget(): number {
+  /** The share of the budget placed here: the attribute, or the device tier's. */
+  private _share(): number {
     const xr = (this.owner as any)?.xrActive === true
-    const share = resolveBudget(this.budgetScale, 'decorationScale', { xr })
-    return Math.max(0, Math.floor(this.budget * share))
+    return resolveBudget(this.budgetScale, 'decorationScale', { xr })
+  }
+
+  /** About how many that is. */
+  private _placedBudget(): number {
+    return Math.max(0, Math.floor(this.budget * this._share()))
   }
 
   /** Everything the placements depend on, as one string. */
@@ -696,7 +700,10 @@ export class B3dDecorator extends B3dChild {
     let lastZ = NaN
     let lastFactor = 1
     this.placements = scatterPlacements({
-      budget: this._placedBudget(),
+      // The whole budget, thinned by the clump: a device that draws less gets
+      // fewer copses in the same places, each as full (see `share`).
+      budget: this.budget,
+      share: this._share(),
       seed: this.seed,
       center: here,
       radius: this.radius,

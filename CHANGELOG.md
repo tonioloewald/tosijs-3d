@@ -119,9 +119,14 @@ pair and what to do.
   caller's `maxHeight`). Perf Stats with a sweep listed was taller than the
   screen flat and enormous in a headset, with no way to its lower rows.
 - **The decorator places a share of its budget set by the device tier**
-  (`budgetScale`, `0` = auto: 1, and 0.4 on the low tier, which is a Quest in
+  (`budgetScale`, `0` = auto: 1, and 0.6 on the low tier, which is a Quest in
   a session). Measured on a Quest: decorations were 16 ms of a 42 ms frame.
   Set `budgetScale: 1` to place the whole budget everywhere.
+- **A thinned scatter loses clumps, not density** (`ScatterOptions.share`,
+  `clumpCentreFor`): the weaker clumps go and the middle of the rest stays as
+  full, in the same places as the whole scatter. The decorator's share and the
+  moisture thinning both work this way. Rules also gather more by default
+  (`clump` 0.95, was 0.85), so fewer things stand alone.
 - **The cost sweep's two headset rows measure what the resolution levers are
   saving** (`+ full resolution`, `+ no foveation`). The old rows set the
   values the tier already uses, so they measured nothing.
