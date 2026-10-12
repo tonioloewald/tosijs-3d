@@ -23,6 +23,8 @@ tosijs3d.showB3dStats()
 // Only where a dev server is answering: the live site has no such endpoint.
 if (location.hostname !== '3d.tosijs.net') {
   tosijs3d.debugSink.url = '/__debug-sink'
+  // Enough frames to see what recurses in a stack overflow (the default is 10).
+  ;(Error as any).stackTraceLimit = 60
 }
 
 // <tosi-doc-system> only reads .context inside render(), which awaits the

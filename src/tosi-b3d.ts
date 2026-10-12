@@ -3204,7 +3204,20 @@ export class B3d extends Component {
         at: where,
       })
       if (this._errors.length > 8) this._errors.shift()
-      this.logDebug('error', { msg: String(e.message), at: where })
+      /*
+      With the stack, top and bottom: a stack overflow's top is the function
+      that recurses and its bottom is what started it, and the middle is the
+      same frame a thousand times.
+      */
+      const stack = String((e.error as Error | undefined)?.stack ?? '')
+      this.logDebug('error', {
+        msg: String(e.message),
+        at: `${where}:${e.colno}`,
+        stack:
+          stack.length > 5000
+            ? `${stack.slice(0, 2500)}\n…\n${stack.slice(-2500)}`
+            : stack,
+      })
     }
     const onRejection = (e: PromiseRejectionEvent) => {
       this._errors.push({
@@ -3213,6 +3226,13 @@ export class B3d extends Component {
         at: 'promise',
       })
       if (this._errors.length > 8) this._errors.shift()
+      this.logDebug('rejection', {
+        msg: String(e.reason),
+        stack: String((e.reason as Error | undefined)?.stack ?? '').slice(
+          0,
+          4000
+        ),
+      })
     }
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
