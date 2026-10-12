@@ -141,6 +141,16 @@ pair and what to do.
   or dispose recursed until the stack ran out and the picture stopped (the
   page kept running). The rig now refuses such a parent and reports who asked
   (console and the debug sink). What asks is not yet known (#3135).
+- **A popup moved in a headset stays with its panel.** Dragging an owned popup
+  used to tear it off, so moving the panel afterwards left it behind. It now
+  moves relative to its opener and stays owned; `tearOff()` is still how a
+  caller lets one go.
+- **No second, dead copy of a popup after a panel rebuild in a headset.** The
+  rebuild dropped its popups' handles and relied on each dying with the panel
+  plane. One that was torn off, or not yet mounted, stayed in the scene: a
+  Perf Stats that never updated and could not be closed. They are now closed
+  before the plane goes, and a popup whose opener has been disposed closes
+  itself.
 - **Perf Stats refreshes every two seconds in a headset** (was 0.4 s). A
   Quest hung within minutes with it open and ran on with it closed; the cause
   is not known, this redraws its texture less often.

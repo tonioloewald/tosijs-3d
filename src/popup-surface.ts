@@ -49,7 +49,7 @@ const scene = b3d(
       }
 
       // popup 0 stays OWNED — parented to the panel, so it travels with it.
-      // Drag it and it tears itself off, like pulling a tab out of a window.
+      // Drag it and it moves ON the panel: it still travels with it.
       spawn(0)
       spawn(1).tearOff()
       // A MODAL blocks pointer access to everything behind it (the other
@@ -198,9 +198,8 @@ export interface PopupSurfaceOptions {
   /**
    * Can it be grabbed and moved? Default true.
    *
-   * Dragging an OWNED popup tears it off first — the same gesture as pulling a
-   * tab out of a window, and the reason an owned popup doesn't need a separate
-   * "tear off" affordance to be discoverable.
+   * Dragging an OWNED popup moves it relative to its opener; it stays owned
+   * and keeps travelling with it. `tearOff()` is how it is let go.
    */
   draggable?: boolean
   /**
@@ -698,6 +697,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
 
   let tornOff = false
   let closed = false
+  let quiet = false
   let drag: BABYLON.PointerDragBehavior | null = null
 
   /*
@@ -713,6 +713,20 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   const place = (): void => {
     const mesh = plane.mesh
     if (mesh == null) return
+    /*
+    The opener may be GONE by now. A popup mounts a frame or more after it is
+    asked for, and a panel that is rebuilt in between disposes the plane this
+    one was to hang from. Parenting to it anyway left a popup in the scene
+    under a disposed node: it stayed where it was when its panel moved, and
+    nothing ever closed it.
+    */
+    if (opener != null && opener.isDisposed()) {
+      // Deferred: this can run inside `openPopup`, before `api` exists. And
+      // quiet: nobody dismissed it, so nobody is told it was dismissed.
+      quiet = true
+      queueMicrotask(() => api.close())
+      return
+    }
     if (opener != null) mesh.parent = opener
     plane.x = offset.x ?? 0
     plane.y = offset.y ?? 0
@@ -759,9 +773,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   owner.appendChild(plane as unknown as Node)
   whenMesh(() => {
     place()
-    // Owned popups are draggable too — the gesture tears them off. Without
-    // this, popup 0 was simply immovable with nothing saying why, which is a
-    // rule you have to be TOLD rather than one you can discover.
+    // Owned popups are draggable too, and stay owned. Without this, popup 0
+    // was simply immovable with nothing saying why, which is a rule you have
+    // to be TOLD rather than one you can discover.
     attachDrag()
     wirePointer(owner)
     applyModalBlocking(owner)
@@ -770,10 +784,8 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   })
 
   /**
-   * Attach the move gesture. Shared, because an owned popup gets one too — and
-   * dragging an owned popup TEARS IT OFF first, which is the same gesture as
-   * pulling a tab out of a window and is why an owned popup needs no separate
-   * tear-off affordance to be discoverable.
+   * Attach the move gesture. Shared, because an owned popup gets one too: it
+   * moves relative to its opener and stays owned.
    */
   function attachDrag(): void {
     /*
@@ -830,8 +842,18 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     drag.allowOtherButtonsDuringDrag = true
     mesh.addBehavior(drag)
     drag.onDragStartObservable.add(() => {
-      // Pull a tab out of the window: moving an owned popup promotes it.
-      if (!tornOff) api.tearOff()
+      /*
+      AN OWNED POPUP STAYS OWNED WHEN YOU MOVE IT.
+
+      Dragging used to tear it off ("pull a tab out of the window"). In a
+      headset that read as a bug: move the Perf Stats popup, then move the
+      panel it came from, and the popup stayed where it was (Tonio: "it loses
+      its parent ... and never gets reattached"). You moved it to see past it,
+      not to disown it. The behaviour drags by absolute position, so a parented
+      mesh needs nothing special: its local position is what changes, and that
+      is what the element keeps. `tearOff()` is still there for a caller that
+      means it.
+      */
       bringToFront(owner, api)
     })
     // The behaviour moves the MESH; the element would overwrite that next
@@ -983,7 +1005,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       applyModalBlocking(owner)
       // LAST, and after `closed` is set: a handler that closes its siblings can
       // reach back here, and must find this one already gone rather than recurse.
-      handleClosed?.()
+      if (!quiet) handleClosed?.()
     },
   }
 

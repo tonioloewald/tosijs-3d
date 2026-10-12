@@ -3445,6 +3445,7 @@ export class B3d extends Component {
 
   /** Popups currently open, by tool id — see `_syncDebugPopups`. */
   private _debugPopups = new Map<string, { close: () => void }>()
+  private _rebuildingXrPanel = false
   /** The live rows each open popup registered, so closing can retire them. */
   private _popupLive = new Map<string, LiveDebugRow[]>()
 
@@ -3528,6 +3529,8 @@ export class B3d extends Component {
             above the other, which is what it looked like.
             */
             handleClose: () => {
+              // The panel being rebuilt under it is not a dismissal.
+              if (this._rebuildingXrPanel) return
               // Dismissed from outside: clear the flag so the icon un-lights.
               this._debugOpen.delete(t.id)
               this._retirePopup(t.id)
@@ -4520,15 +4523,29 @@ export class B3d extends Component {
     // through here — those update the <text> nodes in place.
     let panel = this._attachXrPanel(base, frames.eye)
     this._refreshXrPanel = () => {
-      panel.dispose()
       /*
       AND THE POPUPS GO WITH IT. This presentation really does destroy them —
       the plane is disposed and rebuilt — where the flat one preserves its
-      holders across a rebuild. So the handles are dropped rather than closed
-      (closing a disposed layer is a no-op at best), and `_syncDebugPopups`
-      re-opens whatever `_debugOpen` still asks for against the new panel.
+      holders across a rebuild, and `_syncDebugPopups` re-opens whatever
+      `_debugOpen` still asks for against the new panel.
+
+      CLOSED, not dropped. Dropping the handles relied on every popup being a
+      child of the plane and dying with it. One that was not (torn off, or
+      asked for and not yet mounted when the next rebuild came) stayed in the
+      scene with nothing holding it: a second Perf Stats that never updated
+      and could not be closed, seen on a Quest after a sweep. Closed BEFORE
+      the plane goes, and quietly: this is not the user closing the tool.
       */
-      for (const id of [...this._debugPopups.keys()]) this._retirePopup(id)
+      this._rebuildingXrPanel = true
+      try {
+        for (const [id, handle] of [...this._debugPopups]) {
+          handle.close()
+          this._retirePopup(id)
+        }
+      } finally {
+        this._rebuildingXrPanel = false
+      }
+      panel.dispose()
       this._xrPanelEl = null
       panel = this._attachXrPanel(base, frames.eye)
     }
