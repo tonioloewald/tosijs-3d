@@ -17,7 +17,9 @@ where the shader paints cold forest, palms at a warm shoreline, cacti in hot
 dry country, and bare rock on the steep and high.
 
 Each axis is a soft band (`[lo, hi]`, eased over `soft`), and a rule's
-suitability at a point is the product of its bands times its `density`.
+suitability at a point is the product of its bands times its `density`. A
+rule with a `thirst` is also thinned where it is drier, so wetter country
+carries more trees and undergrowth among the same rocks.
 
 ## Budget, not density
 
@@ -79,6 +81,15 @@ export interface ScatterRule {
   temperature?: [number, number]
   /** Chart moisture band, 0…1. */
   moisture?: [number, number]
+  /**
+   * How much MORE of it grows as the ground gets wetter, inside its moisture
+   * band: of the places chosen for it, the share kept is
+   * `(1 + thirst × moisture) / (1 + thirst)` (see `moistureCover`). `0` (the default)
+   * is a kind that is simply present or absent. A band alone cannot say "more
+   * trees where it rains more": every wet band reaches 1, so anything damp
+   * enough to grow a tree grew the same forest as a rainforest.
+   */
+  thirst?: number
   /** Metres above sea level. */
   altitude?: [number, number]
   /** Degrees from horizontal. */
@@ -121,6 +132,12 @@ export interface ScatterRule {
 export interface ScatterClimate {
   temperature: number
   moisture: number
+  /**
+   * How wet this is against the wettest LAND there can be, 0…1, for a rule's
+   * `thirst`. Unset, `moisture` is used. The terrain's chart keeps land to the
+   * lower three quarters of the moisture axis, so the decorator sets this.
+   */
+  wetness?: number
   /** Metres above sea level. */
   altitude: number
 }
@@ -331,6 +348,19 @@ export function autoClumpSize(budget: number, radius: number): number {
   return Math.pow(2, Math.round(Math.log2(spacing * 2.5) * 2) / 2)
 }
 
+/**
+ * The share of a rule's placements that survive at this moisture: 1 for a rule
+ * with no `thirst`, and for a thirsty one `(1 + thirst × m) / (1 + thirst)`.
+ * Applied AFTER a place is chosen, because suitability is only ever compared
+ * with other suitability: scaling every plant up together changes nothing.
+ */
+export function moistureCover(rule: ScatterRule, moisture: number): number {
+  const thirst = rule.thirst ?? 0
+  if (thirst <= 0) return 1
+  const m = moisture < 0 ? 0 : moisture > 1 ? 1 : moisture
+  return (1 + thirst * m) / (1 + thirst)
+}
+
 /** How suitable a point is for a rule — its density times every band. */
 export function suitability(
   rule: ScatterRule,
@@ -368,6 +398,8 @@ interface Candidate {
   nz: number
   /** Offset of this candidate's rule weights in the shared pool. */
   w: number
+  /** Moisture here, for `moistureCover`. */
+  m: number
   total: number
   h: number
 }
@@ -499,6 +531,7 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
         ny: g.ny,
         nz: g.nz,
         w: wAt,
+        m: c.wetness ?? c.moisture,
         total,
         h: hash(o.seed, ix, iz, 3),
       })
@@ -557,6 +590,12 @@ export function scatterPlacements(o: ScatterOptions): Placement[] {
         if (pick < 0) break
       }
       const rule = o.rules[ri]
+      // Thinned by how wet it is here: a thirsty kind fills in only when wet.
+      if (
+        rule.thirst != null &&
+        unit(hash(c.h, 15)) >= moistureCover(rule, c.m)
+      )
+        continue
       const model =
         rule.models[Math.floor(unit(hash(c.h, 12)) * rule.models.length)]
       const [s0, s1] = rule.scale
@@ -623,6 +662,7 @@ const numbered = (prefix: string, count: number) =>
 export const NATURE_RULES: ScatterRule[] = [
   {
     kind: 'pine',
+    thirst: 4,
     collider: 'trunk',
     models: numbered('PineTree', 5),
     density: 1,
@@ -634,6 +674,7 @@ export const NATURE_RULES: ScatterRule[] = [
   },
   {
     kind: 'broadleaf',
+    thirst: 8,
     collider: 'trunk',
     models: [...numbered('CommonTree', 5), ...numbered('BirchTree', 5)],
     density: 1,
@@ -646,6 +687,7 @@ export const NATURE_RULES: ScatterRule[] = [
   {
     // Willows keep to low wet ground: the waterside.
     kind: 'willow',
+    thirst: 6,
     collider: 'trunk',
     models: numbered('Willow', 5),
     density: 0.6,
@@ -658,6 +700,7 @@ export const NATURE_RULES: ScatterRule[] = [
   },
   {
     kind: 'palm',
+    thirst: 3,
     collider: 'trunk',
     models: numbered('PalmTree', 4),
     density: 1.4,
@@ -686,6 +729,7 @@ export const NATURE_RULES: ScatterRule[] = [
   },
   {
     kind: 'bush',
+    thirst: 4,
     models: ['Bush_1', 'Bush_2', 'BushBerries_1', 'BushBerries_2'],
     density: 1.4,
     temperature: [0.25, 0.85],
@@ -698,6 +742,7 @@ export const NATURE_RULES: ScatterRule[] = [
   },
   {
     kind: 'undergrowth',
+    thirst: 6,
     models: [
       'Grass',
       'Grass_2',

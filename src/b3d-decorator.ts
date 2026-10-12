@@ -703,7 +703,13 @@ export class B3dDecorator extends B3dChild {
       height,
       climate: (_x, _z, y) => {
         const { temperature, moisture } = mantaAxes(y, cfg)
-        return { temperature, moisture, altitude: y - cfg.seaLevel }
+        return {
+          temperature,
+          moisture,
+          altitude: y - cfg.seaLevel,
+          // Land tops out at 0.75 on the chart's moisture axis (mantaAxes).
+          wetness: Math.min(1, moisture / 0.75),
+        }
       },
       rules,
       clump: Number(this.clump),

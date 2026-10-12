@@ -6,6 +6,7 @@ import {
   roleFor,
   NATURE_ROLES,
   NATURE_RULES,
+  moistureCover,
   suitability,
   scatterPlacements,
   NearIndex,
@@ -486,6 +487,18 @@ describe('a dead world grows nothing', () => {
     expect(
       suitability(cactus, { temperature: 0.9, moisture: 0.15, altitude: 20 }, 5)
     ).toBeGreaterThan(0.5)
+  })
+})
+
+describe('wetter country grows more', () => {
+  test('a thirsty rule keeps more of its places the wetter it is; rocks keep all', () => {
+    const broadleaf = NATURE_RULES.find((r) => r.kind === 'broadleaf')!
+    expect(moistureCover(broadleaf, 0.75)).toBeGreaterThan(
+      moistureCover(broadleaf, 0.375) * 1.5
+    )
+    expect(moistureCover(broadleaf, 1)).toBe(1)
+    const rock = NATURE_RULES.find((r) => r.models[0].startsWith('rock:'))!
+    expect(moistureCover(rock, 0)).toBe(1)
   })
 })
 

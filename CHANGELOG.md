@@ -117,6 +117,15 @@ pair and what to do.
 - **The cost sweep's two headset rows measure what the resolution levers are
   saving** (`+ full resolution`, `+ no foveation`). The old rows set the
   values the tier already uses, so they measured nothing.
+- **Wetter country grows more.** A scatter rule's moisture band only said
+  where a kind may grow, and every plant's band reached the top, so anything
+  damp enough for a tree grew the same forest as the wettest setting. Plant
+  rules now have a `thirst`: the drier it is, the more of their places are
+  left empty (`moistureCover`). In Land and Sky, trees go from about 120 at
+  moisture 0.5 to about 240 at 1; rocks are unchanged.
+- **Perf Stats refreshes every two seconds in a headset** (was 0.4 s). A
+  Quest hung within minutes with it open and ran on with it closed; the cause
+  is not known, this redraws its texture less often.
 - **Water, and the ice on it, receives shadows.** The surface never did: it
   was not marked as a shadow receiver, so nothing cast a shadow on the sea,
   which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`

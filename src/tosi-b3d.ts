@@ -3505,7 +3505,17 @@ export class B3d extends Component {
   // cadence (200ms), so it picks the change up for free. Cheap — a few string compares.
   private _startLiveDebug(): void {
     if (this._liveDebugTimer != null) return
+    let last = 0
     this._liveDebugTimer = setInterval(() => {
+      /*
+      In a headset, once every two seconds. Each change redraws the popup's
+      texture (SVG to image to canvas to GPU), and a Quest that hung within a
+      minute or two with Perf Stats open ran indefinitely with it closed
+      (#3135). The cause inside that path is not known; this only does it less.
+      */
+      const now = performance.now()
+      if (this.xrActive && now - last < 2000) return
+      last = now
       const rows = [...this._liveDebug.flat, ...this._liveDebug.xr]
       if (rows.length === 0) {
         clearInterval(this._liveDebugTimer as ReturnType<typeof setInterval>)
