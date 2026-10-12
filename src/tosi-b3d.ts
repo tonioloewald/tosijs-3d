@@ -4467,6 +4467,7 @@ export class B3d extends Component {
 
     const rig = new BABYLON.TransformNode('xr-rig', scene)
     this._xrRig = rig
+    refuseOwnAncestor(rig)
     /*
     ARRIVE WHERE YOU WERE LOOKING FROM — height included.
 
@@ -6304,3 +6305,50 @@ export class B3d extends Component {
 }
 
 export const b3d = B3d.elementCreator()
+
+/**
+ * Make a node refuse a parent that is itself or one of its own descendants,
+ * and say who asked (console, and the debug sink).
+ *
+ * Babylon accepts such a parent. The node is then its own ancestor, and the
+ * next `setEnabled` or `dispose` that reaches it recurses until the stack runs
+ * out, which stops the render loop. On a Quest the headset rig ended up as its
+ * own parent (#3135); what set it was not found by reading, so the rig now
+ * refuses and reports.
+ */
+function refuseOwnAncestor(node: BABYLON.Node): void {
+  let proto: object | null = Object.getPrototypeOf(node)
+  let slot: PropertyDescriptor | undefined
+  while (proto != null && slot == null) {
+    slot = Object.getOwnPropertyDescriptor(proto, 'parent')
+    proto = Object.getPrototypeOf(proto)
+  }
+  if (slot?.get == null || slot.set == null) return
+  const { get, set } = slot
+  Object.defineProperty(node, 'parent', {
+    configurable: true,
+    get() {
+      return get.call(this)
+    },
+    set(next: BABYLON.Node | null) {
+      let n: BABYLON.Node | null = next
+      for (let i = 0; n != null && i < 256; i++) {
+        if (n === node) {
+          const stack = String(new Error('refused').stack ?? '').slice(0, 4000)
+          console.warn(
+            `tosi-b3d: refused to parent "${node.name}" beneath itself (to "${next?.name}")`,
+            stack
+          )
+          sendDebug('parent-refused', {
+            node: node.name,
+            to: `${next?.name} [${next?.getClassName()}]`,
+            stack,
+          })
+          return
+        }
+        n = n.parent
+      }
+      set.call(this, next)
+    },
+  })
+}

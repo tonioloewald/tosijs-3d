@@ -136,6 +136,11 @@ pair and what to do.
   rules now have a `thirst`: the drier it is, the more of their places are
   left empty (`moistureCover`). In Land and Sky, trees go from about 120 at
   moisture 0.5 to about 240 at 1; rocks are unchanged.
+- **A headset session no longer freezes when the rig is parented beneath
+  itself.** On a Quest the rig node became its own parent, and the next enable
+  or dispose recursed until the stack ran out and the picture stopped (the
+  page kept running). The rig now refuses such a parent and reports who asked
+  (console and the debug sink). What asks is not yet known (#3135).
 - **Perf Stats refreshes every two seconds in a headset** (was 0.4 s). A
   Quest hung within minutes with it open and ran on with it closed; the cause
   is not known, this redraws its texture less often.
