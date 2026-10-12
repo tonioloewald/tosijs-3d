@@ -3193,6 +3193,48 @@ export class B3d extends Component {
   */
   private _errors: Array<{ f: number; msg: string; at: string }> = []
   private _errorCaptureOff: (() => void) | null = null
+  /**
+   * A node that is its own ancestor, if the scene has one: the names round the
+   * loop. Babylon does not refuse such a parent, and the next `setEnabled` or
+   * `dispose` anywhere on the loop recurses until the stack runs out (#3135).
+   */
+  private _parentCycle(): string[] | null {
+    const scene = this.scene
+    if (scene == null) return null
+    const nodes: BABYLON.Node[] = [
+      ...scene.meshes,
+      ...scene.transformNodes,
+      ...scene.cameras,
+      ...scene.lights,
+    ]
+    const clear = new Set<BABYLON.Node>()
+    for (const start of nodes) {
+      const path: BABYLON.Node[] = []
+      const seen = new Set<BABYLON.Node>()
+      let n: BABYLON.Node | null = start
+      while (n != null && !clear.has(n)) {
+        if (seen.has(n)) {
+          return path
+            .slice(path.indexOf(n))
+            .map((x) => `${x.name || '(unnamed)'} [${x.getClassName()}]`)
+        }
+        seen.add(n)
+        path.push(n)
+        n = n.parent
+      }
+      for (const x of path) clear.add(x)
+    }
+    return null
+  }
+  private _cycleReported = false
+  private _reportParentCycle(when: string): void {
+    if (this._cycleReported) return
+    const cycle = this._parentCycle()
+    if (cycle == null) return
+    this._cycleReported = true
+    console.warn('tosi-b3d: a node is its own ancestor:', cycle.join(' <- '))
+    sendDebug('parent-cycle', { when, cycle })
+  }
   private _installErrorCapture(): () => void {
     const onError = (e: ErrorEvent) => {
       const where = e.filename
@@ -3210,6 +3252,8 @@ export class B3d extends Component {
       same frame a thousand times.
       */
       const stack = String((e.error as Error | undefined)?.stack ?? '')
+      if (/call stack/i.test(String(e.message)))
+        this._reportParentCycle('error')
       this.logDebug('error', {
         msg: String(e.message),
         at: `${where}:${e.colno}`,
@@ -3565,6 +3609,9 @@ export class B3d extends Component {
       const now = performance.now()
       if (this.xrActive && now - last < 2000) return
       last = now
+      // While a readout is up, so the loop is named when it forms and not
+      // when something trips over it.
+      this._reportParentCycle('tick')
       const rows = [...this._liveDebug.flat, ...this._liveDebug.xr]
       if (rows.length === 0) {
         clearInterval(this._liveDebugTimer as ReturnType<typeof setInterval>)
