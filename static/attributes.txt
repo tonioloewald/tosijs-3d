@@ -336,6 +336,7 @@ b3d-death
 b3d-decorator
 
   budget  = 2000  — How many things to place. Performance cares about this, not density
+  budgetScale  = 0  — Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.4 on the low tier, which is what a Quest gets in a session). Set `1` to place the whole budget everywhere
   radius  = 900  — Metres around the camera to fill
   seed  = 1  — Same seed, same forest
   url  = ''  — The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES`

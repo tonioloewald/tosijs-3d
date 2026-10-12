@@ -2358,15 +2358,46 @@ export class B3d extends Component {
     }
     this._xrViewportOff?.()
     this._xrViewportOff = null
-    if (scale >= 1) return
-    const obs = session.onXRFrameObservable.add((frame) => {
+    const ask = (frame: XRFrame) => {
       const pose = frame.getViewerPose(session.referenceSpace)
       for (const v of pose?.views ?? [])
         (
           v as unknown as { requestViewportScale?: (s: number) => void }
         ).requestViewportScale?.(scale)
-    })
+    }
+    if (scale >= 1) {
+      // Once: a smaller viewport asked for earlier stays until it is undone.
+      session.onXRFrameObservable.addOnce(ask)
+      return
+    }
+    const obs = session.onXRFrameObservable.add(ask)
     this._xrViewportOff = () => session.onXRFrameObservable.remove(obs)
+  }
+
+  // What each headset lever is saving: put it back to full and measure.
+  private _xrLeverExperiments(): Array<{
+    name: string
+    apply: () => () => void
+  }> {
+    if (!this.xrActive) return []
+    const lever = (name: string, attr: string, full: number) => ({
+      name,
+      apply: () => {
+        const was = (this as any)[attr]
+        ;(this as any)[attr] = full
+        this._applyXrResolution()
+        return () => {
+          ;(this as any)[attr] = was
+          this._applyXrResolution()
+        }
+      },
+    })
+    const out = []
+    if (this.xrResolution.scale < 1)
+      out.push(lever('+ full resolution', 'xrRenderScale', 1))
+    if (this.xrResolution.foveation > 0)
+      out.push(lever('+ no foveation', 'xrFoveation', 0))
+    return out
   }
 
   private _applyGroundDetail(xr: boolean): void {
@@ -2737,7 +2768,7 @@ export class B3d extends Component {
         only: what === 'shaders' ? 'extra' : undefined,
         extra:
           what !== 'shaders'
-            ? []
+            ? this._xrLeverExperiments()
             : [
                 {
                   name: biomeLite(this.scene)

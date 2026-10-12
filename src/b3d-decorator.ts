@@ -73,6 +73,7 @@ biped stops at a trunk and can stand on a boulder.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
+| `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.4 on the low tier, which is what a Quest gets in a session). Set `1` to place the whole budget everywhere |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
 | `url` | `''` | The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES` |
@@ -93,6 +94,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { assetUrl } from './asset-url.js'
+import { resolveBudget } from './b3d-quality.js'
 import { mantaAxes } from './biome-chart.js'
 import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
 import { rockFromName, rockGeometry } from './procedural-rock.js'
@@ -142,6 +144,8 @@ export class B3dDecorator extends B3dChild {
 
   static initAttributes = {
     budget: 2000,
+    // 0 = auto: the device tier's share (see PerfBudgets.decorationScale).
+    budgetScale: 0,
     radius: 900,
     seed: 1,
     url: '',
@@ -160,6 +164,7 @@ export class B3dDecorator extends B3dChild {
   }
 
   declare budget: number
+  declare budgetScale: number
   declare radius: number
   declare seed: number
   declare url: string
@@ -307,7 +312,9 @@ export class B3dDecorator extends B3dChild {
       (owner as any).addDebugSource?.({
         name: 'decorator',
         lines: () => [
-          `placed ${this.placements.length} / ${this.budget}`,
+          `placed ${this.placements.length} / ${this._placedBudget()} (budget ${
+            this.budget
+          })`,
           `parts ${this._drawn.length} (≈ draw calls)`,
           `build ${this.lastBuildMs.toFixed(0)} ms`,
           `colliders ${this._pool.filter((m) => m.isEnabled()).length}`,
@@ -358,11 +365,18 @@ export class B3dDecorator extends B3dChild {
     return this.owner?.querySelector('tosi-b3d-terrain') ?? null
   }
 
+  /** How many to place here: the budget times the device tier's share. */
+  private _placedBudget(): number {
+    const xr = (this.owner as any)?.xrActive === true
+    const share = resolveBudget(this.budgetScale, 'decorationScale', { xr })
+    return Math.max(0, Math.floor(this.budget * share))
+  }
+
   /** Everything the placements depend on, as one string. */
   private _currentKey(terrain: any): string {
     const p = terrain?.biomePlugin?.params
     return [
-      this.budget,
+      this._placedBudget(),
       this.radius,
       this.seed,
       this.scale,
@@ -682,7 +696,7 @@ export class B3dDecorator extends B3dChild {
     let lastZ = NaN
     let lastFactor = 1
     this.placements = scatterPlacements({
-      budget: Math.max(0, Math.floor(this.budget)),
+      budget: this._placedBudget(),
       seed: this.seed,
       center: here,
       radius: this.radius,

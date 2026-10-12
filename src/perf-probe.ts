@@ -145,6 +145,12 @@ export interface PerfBudgets {
    * Land and Sky: the terrain was 40 ms of a 90 ms frame.
    */
   groundDetail: number
+  /**
+   * Share of a decorator's `budget` actually placed. Measured on a Quest in
+   * Land and Sky: decorations were 16 ms of a 42 ms frame, the largest single
+   * item once the ground shader was cheap.
+   */
+  decorationScale: number
 }
 
 export interface StoredProfile {
@@ -238,6 +244,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 3000,
     xrFoveation: 0,
     groundDetail: 1,
+    decorationScale: 1,
   },
   medium: {
     hardwareScaling: 1,
@@ -260,6 +267,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 1400,
     xrFoveation: 0.5,
     groundDetail: 1,
+    decorationScale: 1,
   },
   low: {
     hardwareScaling: 1.5,
@@ -282,6 +290,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     ambientParticles: 500,
     xrFoveation: 1,
     groundDetail: 0,
+    decorationScale: 0.4,
   },
 }
 

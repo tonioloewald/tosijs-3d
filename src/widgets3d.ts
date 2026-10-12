@@ -795,6 +795,12 @@ export type LayerHost = (
  * that can leave room for it.
  */
 const POPUP_CHROME_BAND = 30
+/*
+A popup is capped and SCROLLS past the cap. Uncapped, Perf Stats with a sweep
+listed was taller than the screen flat and "enormous" in a headset, with no way
+to reach its lower rows in either.
+*/
+const POPUP_MAX_HEIGHT = 480
 /**
  * @param chromeBand headroom for the mounting layer's own move/close glyphs.
  *   `0` when no mounting host draws any — a DOM layer does not, and reserving
@@ -810,9 +816,13 @@ const POPUP_CHROME_BAND = 30
 function panelPopupSheet(
   width: number,
   items: Widget3d[],
-  chromeBand: number = POPUP_CHROME_BAND
+  chromeBand: number = POPUP_CHROME_BAND,
+  maxHeight: number = POPUP_MAX_HEIGHT
 ): SVGSVGElement {
-  return panel3d({ width, height: 'fit', paddingTop: chromeBand }, ...items)
+  return panel3d(
+    { width, height: 'fit', maxHeight, paddingTop: chromeBand },
+    ...items
+  )
 }
 
 /**
@@ -3475,7 +3485,12 @@ export function panel3d(
       )
       const chromeBand =
         alwaysDraws || config.chrome === true ? POPUP_CHROME_BAND : 0
-      const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand)
+      const sheet = panelPopupSheet(
+        config.width ?? 360,
+        items,
+        chromeBand,
+        config.maxHeight
+      )
       /*
       ONE CLOSE, however it starts.
 

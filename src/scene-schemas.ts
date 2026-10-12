@@ -1154,6 +1154,8 @@ export function decoratorSchema(extra: Record<string, unknown> = {}) {
         multipleOf: 1,
         'x-useful': [0, 20000],
       }),
+      // 0 = auto: the device tier's share of the budget.
+      budgetScale: num(0, { minimum: 0, maximum: 1 }),
       radius: num(900, {
         minimum: 50,
         maximum: 5000,

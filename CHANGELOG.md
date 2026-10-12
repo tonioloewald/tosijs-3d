@@ -107,6 +107,16 @@ pair and what to do.
 - **A popup's move and close icons keep their size on a tall popup in a
   headset.** The title bar was a fifth of the popup's height, so Perf Stats
   with a long list got icons several times too large, over its first rows.
+- **A popup is capped in height and scrolls past the cap** (480 units, or the
+  caller's `maxHeight`). Perf Stats with a sweep listed was taller than the
+  screen flat and enormous in a headset, with no way to its lower rows.
+- **The decorator places a share of its budget set by the device tier**
+  (`budgetScale`, `0` = auto: 1, and 0.4 on the low tier, which is a Quest in
+  a session). Measured on a Quest: decorations were 16 ms of a 42 ms frame.
+  Set `budgetScale: 1` to place the whole budget everywhere.
+- **The cost sweep's two headset rows measure what the resolution levers are
+  saving** (`+ full resolution`, `+ no foveation`). The old rows set the
+  values the tier already uses, so they measured nothing.
 - **Water, and the ice on it, receives shadows.** The surface never did: it
   was not marked as a shadow receiver, so nothing cast a shadow on the sea,
   which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`

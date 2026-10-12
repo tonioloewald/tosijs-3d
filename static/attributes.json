@@ -1311,6 +1311,11 @@
         "description": "How many things to place. Performance cares about this, not density"
       },
       {
+        "name": "budgetScale",
+        "default": "0",
+        "description": "Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.4 on the low tier, which is what a Quest gets in a session). Set `1` to place the whole budget everywhere"
+      },
+      {
         "name": "radius",
         "default": "900",
         "description": "Metres around the camera to fill"

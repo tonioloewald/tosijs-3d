@@ -3,8 +3,9 @@
 
 Where a frame goes, **measured on the device it runs on**. The sweep switches
 one thing off at a time (a group of meshes, the render targets, the shadows),
-or turns a resolution lever (foveation and viewport scale in a headset,
-hardware scaling flat), holds it for a couple of seconds, and records the frame
+or turns a resolution lever (hardware scaling flat; in a headset it puts the
+viewport scale and the foveation back to full, so the row is what each is
+saving), holds it for a couple of seconds, and records the frame
 time. What comes back is a ranked list: the things whose absence bought the
 most.
 
@@ -208,7 +209,8 @@ export interface SweepOptions {
   ) => void
   /**
    * More experiments, run after the closing baseline. `apply` makes the
-   * change and returns the way back.
+   * change and returns the way back. In a session `<tosi-b3d>` adds two here:
+   * `+ full resolution` and `+ no foveation`, what each lever is saving.
    */
   extra?: Array<{ name: string; apply: () => () => void }>
   /**
@@ -310,44 +312,13 @@ export async function costSweep(
   // (heat, a background task) and the rows between are that much in doubt.
   experiments.push({ name: 'baseline again', apply: () => () => {} })
   /*
-  LAST, and after the closing baseline, on purpose. These two go through the
-  headset's own compositor, the one part an emulator cannot exercise, and the
-  first sweep run on a Quest hung it. Whatever they do, the scene rows are
-  already measured and journalled by the time they start.
+  The caller's own, LAST and after the closing baseline on purpose. The
+  headset's resolution levers come in this way: they go through the device's
+  compositor, the one part an emulator cannot exercise, and the first sweep run
+  on a Quest hung there. Whatever they do, the scene rows are already measured
+  and journalled by the time they start.
   */
   for (const e of options.extra ?? []) experiments.push(e)
-  if (scenic && inXr && session != null) {
-    experiments.push({
-      name: 'foveation 1',
-      apply: () => {
-        const was = session.fixedFoveation
-        session.fixedFoveation = 1
-        return () => {
-          session.fixedFoveation = was ?? 0
-        }
-      },
-    })
-    experiments.push({
-      name: 'viewport x0.7',
-      apply: () => {
-        // A view can only be asked inside the frame that produced it, so the
-        // way back is one more frame asking for the full viewport.
-        const ask = (scale: number) => (frame: XRFrame) => {
-          const pose = frame.getViewerPose(session.referenceSpace)
-          for (const v of pose?.views ?? [])
-            (
-              v as unknown as { requestViewportScale?: (s: number) => void }
-            ).requestViewportScale?.(scale)
-        }
-        const obs = session.onXRFrameObservable.add(ask(0.7))
-        return () => {
-          session.onXRFrameObservable.remove(obs)
-          session.onXRFrameObservable.addOnce(ask(1))
-        }
-      },
-    })
-  }
-
   const rows: SweepRow[] = []
   options.unthrottle?.(true)
   try {
