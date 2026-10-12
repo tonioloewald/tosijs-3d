@@ -2821,8 +2821,9 @@ export class B3d extends Component {
       if (was.t > 0) {
         const repaints = (svgTextureCost.repaints - was.repaints) / dt
         const ms = (svgTextureCost.ms - was.ms) / dt
+        // One decimal below 10: a popup redrawn every 2 s read as "0".
         this._svgCostText = `svg textures: ${repaints.toFixed(
-          0
+          repaints < 10 ? 1 : 0
         )} repaints/s  ${ms.toFixed(0)}ms/s on this thread`
       }
       this._svgCostAt = { t: now, ...svgTextureCost }
