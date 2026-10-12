@@ -2729,7 +2729,7 @@ export class B3d extends Component {
     }
     // Before the first repaint, so the panel shows this run and not the last.
     keep()
-    let rows: SweepRow[] = []
+    let rows: SweepRow[]
     try {
       rows = await costSweep(this.scene, {
         seconds,
