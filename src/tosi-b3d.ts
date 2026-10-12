@@ -2829,6 +2829,24 @@ export class B3d extends Component {
     }
     return this._svgCostText
   }
+  /**
+   * JS heap now and against the first reading, with the redraw count: a number
+   * that climbs while the scene sits still is a leak on this side. GPU memory
+   * is not in it (no browser reports that to a page).
+   */
+  private _heapWas: number | null = null
+  private _heapLine(): string {
+    const used = (performance as any).memory?.usedJSHeapSize as
+      | number
+      | undefined
+    if (used == null) return `heap ?  redraws ${svgTextureCost.repaints}`
+    const mb = used / 1048576
+    this._heapWas ??= mb
+    const d = mb - this._heapWas
+    return `heap ${mb.toFixed(0)}MB (${d >= 0 ? '+' : ''}${d.toFixed(
+      0
+    )})  redraws ${svgTextureCost.repaints}`
+  }
   // Which debug tools (Perf Stats + registered sources) are expanded, by id. Empty
   // by default — the panel opens with the debug data collapsed to its icon bar, so
   // a demo's own controls aren't buried under diagnostics you didn't ask to see.
@@ -3583,6 +3601,7 @@ export class B3d extends Component {
           d.tier
         }  resizes ${d.resizeCount}`,
         this._svgCostLine(),
+        this._heapLine(),
         ...(d.xrActive
           ? [
               `xr scale ${this.xrResolution.scale.toFixed(

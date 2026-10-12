@@ -98,6 +98,10 @@ pair and what to do.
   refraction sliding against the seabed between redraws on a flat screen.
 - **Perf Stats reports what SVG texture repaints cost** (the HUD, panels):
   repaints a second and main-thread milliseconds a second (`svgTextureCost`).
+  It also shows the JS heap against its first reading and the total redraw
+  count, so a leak is visible from inside a headset.
+- **`bun run xr … --counters [--again n]`**: documents, DOM nodes, listeners
+  and JS heap before and after a script, after a collection.
 - **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
   frame goes, measured on the device, by switching one thing off at a time.
   Runs are numbered and the last four are kept, each saying whether it

@@ -13,6 +13,10 @@ two controllers can be posed and their triggers pulled from script.
   --pre      JS evaluated BEFORE entering VR (set attributes, open things)
   --script   JS evaluated AFTER entering VR; its value is printed as JSON
   --flat     do not enter VR at all (a flat capture with the same plumbing)
+  --counters print documents / DOM nodes / listeners / JS heap before and after
+             the --script (after a collection): is something accumulating?
+  --again n  with --counters: call window.__again() n more times, reading the
+             counters after each (the script sets it to the work to repeat)
   --out      where the PNGs go (default: $TMPDIR/xr-emulate)
 
 Both scripts are one expression; write `(async () => { ... })()` to await.
@@ -266,6 +270,23 @@ try {
       null
     )
   }
+  // What the page is holding, after a collection: a leak that is not JS heap
+  // (an SVG image is a whole document) shows up here and nowhere in the page.
+  const counters = async () => {
+    await send('HeapProfiler.collectGarbage')
+    const dom = (await send('Memory.getDOMCounters')).result
+    const metrics = (await send('Performance.getMetrics')).result.metrics as {
+      name: string
+      value: number
+    }[]
+    const heap = metrics.find((m) => m.name === 'JSHeapUsedSize')?.value ?? 0
+    return {
+      documents: dom.documents,
+      nodes: dom.nodes,
+      listeners: dom.jsEventListeners,
+      heapMb: Math.round(heap / 1e5) / 10,
+    }
+  }
   const shot = async (suffix: string) => {
     const s = await send('Page.captureScreenshot', { format: 'png' })
     const file = join(outDir, `${name}-${suffix}.png`)
@@ -275,6 +296,7 @@ try {
 
   await send('Runtime.enable')
   await send('Page.enable')
+  await send('Performance.enable')
   await send('Page.addScriptToEvaluateOnNewDocument', {
     source: `${iwer};${HELPERS}`,
   })
@@ -300,8 +322,21 @@ try {
     console.log(
       `frames: ${f0} → ${f1} → ${f2}${f2 === f1 ? '  ⚠️ NOT ADVANCING' : ''}`
     )
+    const before = has('counters') ? await counters() : null
     if (script != null)
       console.log('script:', JSON.stringify(await evaluate(script)))
+    if (before != null) {
+      console.log('counters before:', JSON.stringify(before))
+      console.log('counters after: ', JSON.stringify(await counters()))
+      // A slope needs more than two points: `--again n` reruns `window.__again`
+      // (which the script may leave behind) and reads the counters each time.
+      const again = Number(flag('again') ?? 0)
+      for (let i = 0; i < again; i++) {
+        const out = await evaluate('window.__again && window.__again()')
+        console.log(`again ${i + 1}:`, JSON.stringify(out))
+        console.log('counters:       ', JSON.stringify(await counters()))
+      }
+    }
     await Bun.sleep(1500)
     await shot('vr')
   }
