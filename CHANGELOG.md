@@ -136,11 +136,19 @@ pair and what to do.
   rules now have a `thirst`: the drier it is, the more of their places are
   left empty (`moistureCover`). In Land and Sky, trees go from about 120 at
   moisture 0.5 to about 240 at 1; rocks are unchanged.
-- **A headset session no longer freezes when the rig is parented beneath
-  itself.** On a Quest the rig node became its own parent, and the next enable
-  or dispose recursed until the stack ran out and the picture stopped (the
-  page kept running). The rig now refuses such a parent and reports who asked
-  (console and the debug sink). What asks is not yet known (#3135).
+- **A headset session no longer freezes the second time your hands are
+  tracked.** Babylon's hand tracking (9.16) takes the topmost ancestor of its
+  shared hand mesh as a root and parents it to the camera's parent every
+  frame. The second time hands appear (a controller put down twice), that root
+  is the camera's parent itself, which became its own parent; the next enable
+  or dispose then recursed until the stack ran out and the picture stopped.
+  Found on a Quest with Perf Stats open (#3135). The rig now refuses such a
+  parent (`refuseOwnAncestor`, exported for anyone parenting an XR camera to
+  their own node).
+- **Underwater light rays go away when you leave the water.** They were still
+  fading on the frame you surfaced, the update read the water that was no
+  longer above you and threw, and it threw again every frame after, so the
+  rays stayed for good.
 - **A popup moved in a headset stays with its panel.** Dragging an owned popup
   used to tear it off, so moving the panel afterwards left it behind. It now
   moves relative to its opener and stays owned; `tearOff()` is still how a

@@ -305,6 +305,7 @@ export class B3dLightShafts extends B3dChild {
   private _seq = 0
   private _pool: Record<Kind, BABYLON.Mesh[]> = { sky: [], water: [] }
   private _time = 0
+  private _waterReach = 20
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     ensureShader()
@@ -451,9 +452,16 @@ export class B3dLightShafts extends B3dChild {
       s.level += Math.max(-1, Math.min(1, (s.target - s.level) * dt * rate))
       s.level = Math.max(0, Math.min(1, s.level))
       const d = s.kind === 'water' ? wDir : dir
+      /*
+      A water ray outlives the water above you: it is still fading on the
+      frame you surface. Reading the water there threw, every frame, so
+      nothing was faded and the rays stood where they were for good (seen on a
+      Quest after leaving the sea). They fade at the length they last had.
+      */
+      if (water != null) this._waterReach = water.reach
       const len =
         s.kind === 'water'
-          ? water!.reach
+          ? this._waterReach
           : Math.max(50, s.y - water0(owner)) / Math.max(0.1, -d.y)
       const mid = new BABYLON.Vector3(s.x, s.y, s.z).add(d.scale(len / 2))
       const fog =

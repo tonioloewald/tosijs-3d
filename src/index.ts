@@ -131,6 +131,7 @@ export {
   collidable,
   cameraIsAttached,
   semanticParent,
+  refuseOwnAncestor,
   conventionName,
   simHalted,
   controlsLive,

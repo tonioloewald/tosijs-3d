@@ -1,6 +1,7 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d, FrameInfo } from './tosi-b3d.js'
+import { sendDebug } from './debug-sink.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -1241,4 +1242,66 @@ export function fetchedUrl(value: unknown, where: string): string {
     )
   }
   return ''
+}
+
+/**
+ * Make a node refuse a parent that is itself or one of its own descendants,
+ * and say once who asked (console, and the debug sink).
+ *
+ * Babylon accepts such a parent. The node is then its own ancestor, and the
+ * next `setEnabled` or `dispose` that reaches it recurses until the stack runs
+ * out, which stops the render loop.
+ *
+ * Use it on any node an XR camera is parented to. Babylon's hand tracking
+ * (9.16) does this to that node: `WebXRHand.setHandMesh` takes the TOPMOST
+ * ancestor of the hand mesh as its root, and every frame parents that root to
+ * `xrCamera.parent`. The first time hands appear the root is the hand model's
+ * own; that parents it beneath the camera's parent. The hand meshes are shared
+ * and reused, so the second time hands appear (put a controller down, pick it
+ * up, put it down again) the walk goes one step further and the root IS the
+ * camera's parent, which is then parented to itself. Found on a Quest (#3135).
+ */
+export function refuseOwnAncestor(node: BABYLON.Node): void {
+  let proto: object | null = Object.getPrototypeOf(node)
+  let slot: PropertyDescriptor | undefined
+  while (proto != null && slot == null) {
+    slot = Object.getOwnPropertyDescriptor(proto, 'parent')
+    proto = Object.getPrototypeOf(proto)
+  }
+  if (slot?.get == null || slot.set == null) return
+  const { get, set } = slot
+  let told = false
+  Object.defineProperty(node, 'parent', {
+    configurable: true,
+    get() {
+      return get.call(this)
+    },
+    set(next: BABYLON.Node | null) {
+      let n: BABYLON.Node | null = next
+      for (let i = 0; n != null && i < 256; i++) {
+        if (n === node) {
+          // Once: the hand-tracking case asks again every frame.
+          if (!told) {
+            told = true
+            const stack = String(new Error('refused').stack ?? '').slice(
+              0,
+              4000
+            )
+            console.warn(
+              `tosijs-3d: refused to parent "${node.name}" beneath itself (to "${next?.name}")`,
+              stack
+            )
+            sendDebug('parent-refused', {
+              node: node.name,
+              to: `${next?.name} [${next?.getClassName()}]`,
+              stack,
+            })
+          }
+          return
+        }
+        n = n.parent
+      }
+      set.call(this, next)
+    },
+  })
 }

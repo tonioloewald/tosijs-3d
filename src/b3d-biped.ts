@@ -225,7 +225,13 @@ document.body.append(
 /*{ "parent": "characters-and-vehicles", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { XRStuff, collidable, isOff, markUiMesh } from './b3d-utils.js'
+import {
+  XRStuff,
+  collidable,
+  isOff,
+  markUiMesh,
+  refuseOwnAncestor,
+} from './b3d-utils.js'
 import {
   canMantle,
   mantleClip,
@@ -3116,6 +3122,8 @@ export class B3dBiped extends B3dControllable {
     // Parent the XR camera to a container so we can move/rotate the rig
     // without fighting head tracking (head tracking applies as local transform on top)
     const camRig = new BABYLON.TransformNode('xr-rig', this.owner.scene)
+    // Babylon's hand tracking can parent this to itself: see the helper.
+    refuseOwnAncestor(camRig)
     baseExperience.camera.parent = camRig
 
     let lastTime = Date.now()
