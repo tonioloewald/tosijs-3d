@@ -1471,6 +1471,7 @@ export {
   type TouchPoint,
 } from './touch-gesture.js'
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js'
+export { debugSink, sendDebug } from './debug-sink.js'
 export { nearFirst, drawKey } from './draw-order.js'
 export { noiseVolume } from './noise-volume.js'
 export type { SweepRow, SweepOptions, SweepRun } from './cost-sweep.js'

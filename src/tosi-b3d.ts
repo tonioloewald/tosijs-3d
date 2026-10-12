@@ -306,6 +306,7 @@ import { panelFitWidth } from './widgets3d-layout.js'
 import { w3dTheme } from './w3d-theme.js'
 import type { Medium } from './medium.js'
 import { SvgTexture, svgTextureCost } from './svg-texture.js'
+import { sendDebug } from './debug-sink.js'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import { createMakers, type Makers } from './make-mesh.js'
 import {
@@ -2798,12 +2799,20 @@ export class B3d extends Component {
           run.starting = starting
           run.phase = phase
           keep()
+          sendDebug('sweep', {
+            run: run.n,
+            kind: what,
+            phase,
+            starting,
+            last: run.lines[run.lines.length - 1] ?? null,
+          })
         },
       })
     } finally {
       this._sweepRun = null
     }
     this.lastCostSweep = rows
+    sendDebug('sweep', { run: run.n, kind: what, finished: true, rows })
     console.log('cost sweep\n' + this._sweepLines.join('\n'))
     this._repaintPanels()
     return rows
@@ -3231,6 +3240,7 @@ export class B3d extends Component {
   }
   /** Record a diagnostic event if its tag is armed. Cheap no-op otherwise. */
   logDebug(tag: string, event: Record<string, unknown>): void {
+    sendDebug(tag, event)
     if (!this._debugCapture.has(tag)) return
     this._debugRing.push({ f: this._debugFrame, tag, ...event })
     if (this._debugRing.length > 512) this._debugRing.shift()
@@ -3551,6 +3561,8 @@ export class B3d extends Component {
         // The block re-wraps in place. A source that changes its LINE COUNT still needs a
         // rebuild to reflow the rows below it; the block itself stays live regardless.
         row.update(lines)
+        // Sent before the redraw it causes: if that hangs, this is the last line.
+        if (this.xrActive) sendDebug('live', { lines })
       }
     }, 400)
   }

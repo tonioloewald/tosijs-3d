@@ -11,4 +11,5 @@ the place to force a tier.
 - [b3d-probe](/b3d-probe/)
 - [Cost sweep](/cost-sweep/)
 - [Draw order](/draw-order/)
+- [debug-sink](/debug-sink/)
 <!-- /toc -->

@@ -91,6 +91,11 @@ export default defineSiteConfig({
   // is disabled and the client didn't surface the "not enabled" error. On, it persists to the .ts.
   editableSources: true,
 
+  // A headset has no console: pages post their readings to `/__debug-sink` and
+  // the server appends them to a file outside the project (path printed at
+  // startup). `demo/site.ts` points the library at it, off the live site.
+  debugSink: true,
+
   // Hosted on GitHub Pages at the 3d.tosijs.net apex subdomain (CNAME).
   host: 'github-pages',
 

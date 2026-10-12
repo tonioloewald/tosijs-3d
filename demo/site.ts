@@ -20,6 +20,10 @@ tosijs3d.setAssetBase('https://cdn.tosijs.net')
 // scene's own toolbar). A dev/authoring affordance — library consumers don't get
 // it unless they opt in per scene (`stats`) or via `#perf`.
 tosijs3d.showB3dStats()
+// Only where a dev server is answering: the live site has no such endpoint.
+if (location.hostname !== '3d.tosijs.net') {
+  tosijs3d.debugSink.url = '/__debug-sink'
+}
 
 // <tosi-doc-system> only reads .context inside render(), which awaits the
 // docs.json fetch its connectedCallback kicks off — so a synchronous assignment

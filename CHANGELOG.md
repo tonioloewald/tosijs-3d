@@ -100,6 +100,10 @@ pair and what to do.
   repaints a second and main-thread milliseconds a second (`svgTextureCost`).
   It also shows the JS heap against its first reading and the total redraw
   count, so a leak is visible from inside a headset.
+- **Debug sink** (`debugSink.url`, `sendDebug`): a page can post its readings
+  to an endpoint, for a headset that has no console. With a URL set,
+  `<tosi-b3d>` sends each cost sweep step, the Perf Stats lines while that
+  popup is open in a session, and every `logDebug` event. Off by default.
 - **`bun run xr … --counters [--again n]`**: documents, DOM nodes, listeners
   and JS heap before and after a script, after a collection.
 - **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
