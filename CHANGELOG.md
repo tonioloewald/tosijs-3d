@@ -32,6 +32,11 @@ with two exceptions marked **(behaviour)**.
 - **(behaviour) The glass gamepad steps aside while the scene is paused and
   while a death panel is up.** It sat over both and took the taps meant for
   their buttons.
+- **Popups open at the same time no longer flicker through each other.** Each
+  was meant to sit a step nearer the viewer than the one behind it, and
+  pressing one brings it to the front. Three faults undid that: a new popup
+  took no place in the stack until something was pressed, the step was applied
+  in the tilted panel's own axes, and two restacks in one frame cancelled out.
 - **(behaviour) In a headset, the chase view has a HUD.** The flat overlay is
   DOM, which a headset does not show, and the in-scene plane was cockpit-only.
   In a session the plane now also shows in chase: level, ahead of the craft,
