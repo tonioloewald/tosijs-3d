@@ -19,6 +19,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   the pure `sphere-map` module behind them (ground, latitude and longitude,
   and direction on the globe, each from the others), so a pin on the globe is
   a spot on the ground.
+- **Real worlds.** `<tosi-b3d-planet heightMap colorMap>` draws a planet
+  from its maps: the Moon, Mars and the Earth from NASA's and NOAA's data on
+  the CDN (`nasa/moon`, `nasa/mars`, `nasa/earth`, `noaa/earth`). `relief`
+  exaggerates the heights, `flatSea` fills the oceans level, `bodyRadiusKm`
+  is the real body's radius. The new `planet-map` module reads the 16-bit
+  height PNGs itself (a browser's own decoding keeps eight bits):
+  `loadPlanetMap`, `decodeGray16Png`, `mapSurface`.
 - `planet.rootNode` is public, for placing a planet.
 
 ## 0.10.2

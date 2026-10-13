@@ -15,4 +15,5 @@ for any star in it, [planets](/b3d-planet/) with atmospheres, and a
 - [gas-giant](/gas-giant/)
 - [b3d-black-hole](/b3d-black-hole/)
 - [sphere-map](/sphere-map/)
+- [planet-map](/planet-map/)
 <!-- /toc -->

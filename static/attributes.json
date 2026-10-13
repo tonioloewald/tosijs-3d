@@ -2825,9 +2825,29 @@
         "description": "Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)"
       },
       {
+        "name": "heightMap",
+        "default": "''",
+        "description": "A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A path resolves on the CDN, where `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` live. Sets `surface` when it has loaded"
+      },
+      {
+        "name": "colorMap",
+        "default": "''",
+        "description": "A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere"
+      },
+      {
+        "name": "bodyRadiusKm",
+        "default": "0",
+        "description": "The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host"
+      },
+      {
+        "name": "flatSea",
+        "default": "'off'",
+        "description": "`'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth)"
+      },
+      {
         "name": "relief",
         "default": "1",
-        "description": "With a `surface` set (see below): how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map"
+        "description": "With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map"
       },
       {
         "name": "bands",
@@ -5139,6 +5159,16 @@
       {
         "name": "handleChange",
         "description": "the chosen value; fires on pick, and the popup closes"
+      }
+    ]
+  },
+  {
+    "module": "planet-map",
+    "summary": "planet-map",
+    "attributes": [
+      {
+        "name": "radius",
+        "default": "body-radius-km"
       }
     ]
   },

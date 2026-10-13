@@ -128,7 +128,7 @@ export function createGasGiantMaterial(
 }
 
 /** The scene's first point light (a star) or directional light (a sun). */
-function sceneLight(scene: BABYLON.Scene, out: BABYLON.Vector4): void {
+export function sceneLight(scene: BABYLON.Scene, out: BABYLON.Vector4): void {
   for (const l of scene.lights) {
     if (!l.isEnabled()) continue
     if (l instanceof BABYLON.PointLight) {

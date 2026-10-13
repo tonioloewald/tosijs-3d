@@ -422,6 +422,14 @@ export {
   type GasGiantOverrides,
 } from './gas-giant.js'
 export {
+  decodeGray16Png,
+  mapSurface,
+  loadPlanetMap,
+  type HeightMap,
+  type MapSurfaceOptions,
+} from './planet-map.js'
+export { createMappedPlanetMaterial } from './planet-map-material.js'
+export {
   uvToDirection,
   directionToUv,
   latLonToDirection,

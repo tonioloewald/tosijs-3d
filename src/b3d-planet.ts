@@ -142,7 +142,11 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
-| `relief` | `1` | With a `surface` set (see below): how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
+| `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A path resolves on the CDN, where `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` live. Sets `surface` when it has loaded |
+| `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
+| `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
+| `flatSea` | `'off'` | `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth) |
+| `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
@@ -170,6 +174,9 @@ import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
 import { gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
+import { loadPlanetMap } from './planet-map.js'
+import { createMappedPlanetMaterial } from './planet-map-material.js'
+import { assetUrl } from './asset-url.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
@@ -212,6 +219,16 @@ export class B3dPlanet extends B3dChild {
     // A gas giant: 'jupiter' | 'saturn' | 'uranus' | 'neptune'. A smooth,
     // banded sphere in place of terrain and sea (see gas-giant).
     gas: '',
+    // A real world from its maps (planet-map): a 16-bit height PNG and an
+    // equirectangular colour image. Paths resolve through `assetUrl`.
+    heightMap: '',
+    colorMap: '',
+    // The real body's radius, km: what the heights are measured against.
+    // 0 = the height map's own `body-radius-km` header, where it can be read.
+    bodyRadiusKm: 0,
+    // Fill the seas level (heights below 0 read as 0): for a world whose
+    // colour map shows water.
+    flatSea: 'off' as 'on' | 'off',
     // With `surface` set: how much its true relief is exaggerated (1 = to
     // scale, which on a globe is flat to the eye).
     relief: 1,
@@ -276,6 +293,7 @@ export class B3dPlanet extends B3dChild {
     this.noise = new PerlinNoise(attrs.seed)
 
     this.rootNode = new BABYLON.TransformNode('planet-root', scene)
+    this._loadHeightMap()
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
@@ -418,6 +436,25 @@ export class B3dPlanet extends B3dChild {
     vertexData.normals = normals
     vertexData.applyToMesh(mesh, true)
 
+    if (attrs.colorMap) {
+      // A REAL WORLD'S COLOUR: the map, looked up by direction (planet-map).
+      const mapped = createMappedPlanetMaterial(
+        this.owner.scene,
+        assetUrl(String(attrs.colorMap))
+      )
+      mapped.wireframe = attrs.wireframe
+      mesh.material = mapped
+      mesh.parent = this.rootNode
+      this.planetMesh = mesh
+      this.vertexHeights = heights
+      this.biomePlugin = null
+      if (!this.registered) {
+        this.registered = true
+        this.owner.register({ meshes: [mesh] })
+      }
+      return
+    }
+
     const mat = new BABYLON.StandardMaterial('planet-mat', this.owner.scene)
     mat.diffuseColor = new BABYLON.Color3(0.6, 0.75, 0.45)
     mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
@@ -461,6 +498,32 @@ export class B3dPlanet extends B3dChild {
       this.registered = true
       this.owner.register({ meshes: [mesh] })
     }
+  }
+
+  private _heightMapLoaded = ''
+  /**
+   * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
+   * planet shows as a smooth ball, in its colours, until the heights arrive.
+   */
+  private _loadHeightMap(): void {
+    const attrs = this as any
+    const url = attrs.heightMap ? assetUrl(String(attrs.heightMap)) : ''
+    const key = `${url}|${attrs.flatSea}|${attrs.bodyRadiusKm}`
+    if (key === this._heightMapLoaded) return
+    this._heightMapLoaded = key
+    if (url === '') return
+    loadPlanetMap(url, {
+      ...(isOff(attrs.flatSea) ? {} : { floor: 0 }),
+      ...(attrs.bodyRadiusKm > 0 ? { radius: attrs.bodyRadiusKm * 1000 } : {}),
+    })
+      .then((surface) => {
+        if (this.owner == null || key !== this._heightMapLoaded) return
+        this.surface = surface
+        this.regenerate()
+      })
+      .catch((err) => {
+        console.warn(`b3d-planet: could not load heightMap "${url}"`, err)
+      })
   }
 
   /** A vertex's height above the base sphere, in this planet's own units. */
@@ -634,7 +697,8 @@ export class B3dPlanet extends B3dChild {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
     const oceanPct: number = attrs.ocean
-    if (oceanPct <= 0 || attrs.gas) return
+    // A colour map already shows its seas.
+    if (oceanPct <= 0 || attrs.gas || attrs.colorMap) return
 
     // Ocean radius: height at the given percentile of vertices
     // e.g. ocean=0.6 means 60% of surface is underwater
@@ -827,6 +891,7 @@ export class B3dPlanet extends B3dChild {
       this.ringMesh = null
     }
     this.registered = false
+    this._loadHeightMap()
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
