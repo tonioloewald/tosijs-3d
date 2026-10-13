@@ -1880,6 +1880,7 @@ export class B3dSkybox extends AbstractMesh {
     const cam = this.owner?.scene?.activeCamera
     if (full > start && cam != null)
       climbed = band(cam.globalPosition.y, start, full)
+    this._climbed = climbed
     /*
     GAS AND DUST, which scatter differently (Tonio: "Mars should have almost
     no air"). Gas (`atmosphere`) is Rayleigh scattering, the blue; dust
@@ -1905,6 +1906,9 @@ export class B3dSkybox extends AbstractMesh {
     const r = Number(terrain?.drawnReach)
     return Number.isFinite(r) && r > 0 ? r : 0
   }
+
+  /** How far the camera has climbed out of the air, 0…1 — see `_vacuumNow`. */
+  private _climbed = 0
 
   /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
   private _gasNow = 1
@@ -2644,9 +2648,13 @@ export class B3dSkybox extends AbstractMesh {
       tiles popped in against the black (Tonio: "doesn't fade out to black
       or whatever in the distance. Mars does"). So where there is a terrain
       the clear air stops at its edge: the last third of what is drawn fades
-      to the black it stands against. Nothing in front of that is touched.
+      to the black it stands against. Nothing in front of that is touched, but
+      anything fogged that stands BEYOND the ground's edge goes with it (fog
+      is one setting for the scene), and it needs linear fog to act at all.
       */
-      const reach = this._groundReach()
+      // Only for a world that HAS no air. Climbing out of one that does
+      // must not draw a black curtain over the ground you left.
+      const reach = this._climbed > 0.01 ? 0 : this._groundReach()
       return w <= 0
         ? null
         : {

@@ -2857,7 +2857,7 @@
       {
         "name": "ringOpacity",
         "default": "-1",
-        "description": "`0…1`. `-1` = the gas giant preset's scaled by `rings`, else by `rings` alone"
+        "description": "`0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's"
       },
       {
         "name": "ringColor",
@@ -4732,6 +4732,11 @@
         "name": "defaultPresets",
         "default": "'on'",
         "description": "`'off'` leaves out the general set, showing only yours"
+      },
+      {
+        "name": "swatches",
+        "default": "shared",
+        "description": "Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing"
       },
       {
         "name": "handleChange",

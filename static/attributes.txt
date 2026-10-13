@@ -727,7 +727,7 @@ b3d-planet
   bandColors  = ''  — Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's
   ringInner  = 0  — Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge
   ringOuter  = 0  — Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`
-  ringOpacity  = -1  — `0…1`. `-1` = the gas giant preset's scaled by `rings`, else by `rings` alone
+  ringOpacity  = -1  — `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's
   ringColor  = ''  — `#rrggbb`. Blank = the gas giant preset's, else a pale tan
   seed  = 12345  — Noise seed
   radius  = 50  — Base sphere radius
@@ -1202,6 +1202,7 @@ colorPicker3d
   alpha  = true  — Offer the alpha strip. Off, the value is always `#rrggbb`
   presets  — Colours offered first in the popup: hex strings, or `{ name, value }`
   defaultPresets  = 'on'  — `'off'` leaves out the general set, showing only yours
+  swatches  = shared  — Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing
   handleChange  — Live, including mid-drag. Canonical hex
   handleCommit  — Once per gesture or preset, with the settled value: one undo step
 

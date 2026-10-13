@@ -102,6 +102,7 @@ import {
   isDefaultLibrary,
   scatterPlacements,
   NearIndex,
+  seatDip,
   pruneScatterCache,
   type GroundSample,
   NATURE_KIT_RULES,
@@ -137,14 +138,6 @@ interface ModelInfo {
   min: BABYLON.Vector3
   max: BABYLON.Vector3
 }
-
-/** Where the ground is read around a placement to seat it: see `_build`. */
-const SEAT_RING: [number, number][] = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-]
 
 export class B3dDecorator extends B3dChild {
   static preferredTagName = 'tosi-b3d-decorator'
@@ -764,28 +757,12 @@ export class B3dDecorator extends B3dChild {
     UNDER any bump that sits between. A rock placed on the bump floated
     (Tonio: "rocks are often floating above the terrain. We should err towards
     slightly under"). So each placement is lowered by how far the surface
-    around it falls below its own tangent plane, one mesh cell out: that is
-    the bump the mesh does not have. Slope is not counted (the tangent plane
-    takes it out), so nothing is buried for standing on a hillside.
+    around it falls below its own tangent plane, one mesh cell out (`seatDip`).
+    The cell is the terrain's own (`meshCell`), which counts `horizScale`:
+    left out, the correction was a tenth of what it should be in Land and Sky.
     */
-    const cell =
-      (Number(terrain.tileSize) || 0) /
-      Math.max(1, Number(terrain._resolvedSubs) || 16)
-    if (cell > 0) {
-      const r = cell * 0.7
-      for (const p of this.placements) {
-        const ny = Math.max(0.2, p.normal.y)
-        const gx = -p.normal.x / ny
-        const gz = -p.normal.z / ny
-        let dip = 0
-        for (const [dx, dz] of SEAT_RING) {
-          const under =
-            height(p.x + dx * r, p.z + dz * r) - (p.y + (gx * dx + gz * dz) * r)
-          if (under < dip) dip = under
-        }
-        p.y += dip
-      }
-    }
+    const cell = Number(terrain.meshCell) || 0
+    for (const p of this.placements) p.y += seatDip(height, p, cell)
     this.near = new NearIndex(this.placements, 32)
     pruneScatterCache(this._cache, here, this.radius * 1.5)
     this._center = here

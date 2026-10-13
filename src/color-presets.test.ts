@@ -73,6 +73,8 @@ describe('createSwatchStore', () => {
     const s = createSwatchStore()
     s.add('#123456')
     expect(s.add('#123456')).toBe(false)
+    // …nor one the general set already offers (it would jump to the front).
+    expect(s.add(COLOR_PRESETS[0])).toBe(false)
     expect(s.add('nope')).toBe(false)
     expect(s.added).toEqual(['#123456'])
   })
@@ -88,6 +90,13 @@ describe('createSwatchStore', () => {
     expect(list).not.toContain(COLOR_PRESETS[0])
     expect(list).not.toContain('#abcdef')
     expect(s.added).toEqual([])
+  })
+
+  test('a swatch that was only ever saved here leaves no trace when removed', () => {
+    const s = createSwatchStore()
+    s.add('#123456')
+    s.remove('#123456')
+    expect(s.removed).toEqual([])
   })
 
   test('adding a removed colour puts it back', () => {

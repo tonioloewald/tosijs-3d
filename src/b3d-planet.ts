@@ -149,7 +149,7 @@ tosi-b3d {
 | `bandColors` | `''` | Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's |
 | `ringInner` | `0` | Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge |
 | `ringOuter` | `0` | Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings` |
-| `ringOpacity` | `-1` | `0…1`. `-1` = the gas giant preset's scaled by `rings`, else by `rings` alone |
+| `ringOpacity` | `-1` | `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's |
 | `ringColor` | `''` | `#rrggbb`. Blank = the gas giant preset's, else a pale tan |
 | `subdivisions` | `64` | Grid subdivisions per cube face |
 | `grossScale` | `0.005` | Gross noise frequency |
@@ -708,12 +708,11 @@ export class B3dPlanet extends B3dChild {
       outerRadii * 0.98,
       attrs.ringInner > 0 ? attrs.ringInner : look?.inner ?? outerRadii * 0.45
     )
+    // `rings` always scales it, an explicit `ringOpacity` included, so one
+    // dial fades the ring whichever way its brightness was chosen.
+    const amount = Math.min(1, ringValue * 1.2)
     const opacity =
-      attrs.ringOpacity >= 0
-        ? attrs.ringOpacity
-        : look != null
-        ? look.opacity * Math.min(1, ringValue * 1.2)
-        : Math.min(1, ringValue * 1.2)
+      (attrs.ringOpacity >= 0 ? attrs.ringOpacity : look?.opacity ?? 1) * amount
     const ringRgb = gasGiantRgb(
       /^#[0-9a-f]{6}/i.test(attrs.ringColor)
         ? String(attrs.ringColor).slice(0, 7)
@@ -785,15 +784,15 @@ export class B3dPlanet extends B3dChild {
       this.planetMesh = null
     }
     if (this.atmosphereMesh) {
-      this.atmosphereMesh.dispose()
+      this.atmosphereMesh.dispose(false, true)
       this.atmosphereMesh = null
     }
     if (this.oceanMesh) {
-      this.oceanMesh.dispose()
+      this.oceanMesh.dispose(false, true)
       this.oceanMesh = null
     }
     if (this.ringMesh) {
-      this.ringMesh.dispose()
+      this.ringMesh.dispose(false, true)
       this.ringMesh = null
     }
     this.registered = false
@@ -809,11 +808,11 @@ export class B3dPlanet extends B3dChild {
 
     // Rebuild atmosphere/ocean since their radii depend on parameters
     if (this.atmosphereMesh) {
-      this.atmosphereMesh.dispose()
+      this.atmosphereMesh.dispose(false, true)
       this.atmosphereMesh = null
     }
     if (this.oceanMesh) {
-      this.oceanMesh.dispose()
+      this.oceanMesh.dispose(false, true)
       this.oceanMesh = null
     }
     this.buildAtmosphere()

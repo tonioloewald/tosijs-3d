@@ -52,15 +52,22 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Decorations sit on the ground that is drawn.** Rocks and trees were
   placed on the terrain's true height, but the drawn mesh cuts under any bump
   between its vertices, so they floated. Each is now lowered by the bump the
-  mesh lacks. Standing on a slope buries nothing.
+  mesh lacks (`seatDip` in `scatter`, using the terrain's new `meshCell`).
+  Standing on a slope buries nothing.
 - **An airless world fades to black at the terrain's edge.** With no air the
   haze was pushed out to millions of metres and the far tiles popped in
-  against the sky. `terrain.drawnReach` is how far the ground is drawn.
+  against the sky. `terrain.drawnReach` is how far the ground is drawn. It
+  needs linear fog (a `<tosi-b3d-fog>` in its default mode), applies only to
+  a world with no air (not to climbing out of one that has it), and anything
+  fogged that stands beyond the terrain's edge goes black with it.
 - **Land and Sky: Mars and the Moon have rocks.** `decorator.rules = null`
   goes back to the library's own rules.
-- **Planets in a star system are lit.** The star's light followed its
-  luminosity, so anything dimmer than the sun left its planets nearly black
-  (a K0 star gave 0.12). It now follows the fourth root, between 1.2 and 3.5.
+- **(behaviour) Planets in a star system are lit.** The star's light
+  followed its luminosity (`min(L × 0.5, 5)`), so anything dimmer than the sun
+  left its planets nearly black (a K0 star gave 0.12). It now follows the
+  fourth root, `1.6 × L^0.25` kept between 1.2 and 3.5: a sun-like star goes
+  from 0.5 to 1.6, about three times brighter, and the brightest stars come
+  down from 5 to 3.5.
 - **Docs: the star system and panel pages each showed an empty live example.**
   A note between a demo and its CSS split the CSS off into an example of its
   own, and left the demo without its styles.

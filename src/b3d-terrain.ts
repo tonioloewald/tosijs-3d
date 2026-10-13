@@ -1161,6 +1161,19 @@ export class B3dTerrain extends B3dChild {
    * the world's edge (fog, or the fade an airless sky uses) should finish
    * here.
    */
+  /**
+   * The spacing of the drawn mesh's vertices on the finest tiles, in metres.
+   * Between two of them the ground you see is a straight edge, whatever the
+   * surface does: anything seated on the ground wants this (the decorator).
+   */
+  get meshCell(): number {
+    const attrs = this as any
+    return (
+      (attrs.tileSize * (attrs.horizScale || 1)) /
+      Math.max(1, this._resolvedSubs || attrs.hiResSubdivisions || 16)
+    )
+  }
+
   get drawnReach(): number {
     const attrs = this as any
     return this._budgetedReach(attrs.tileSize * (attrs.horizScale || 1))

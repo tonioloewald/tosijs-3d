@@ -71,6 +71,7 @@ preview.append(
 | `alpha` | `true` | Offer the alpha strip. Off, the value is always `#rrggbb` |
 | `presets` | | Colours offered first in the popup: hex strings, or `{ name, value }` |
 | `defaultPresets` | `'on'` | `'off'` leaves out the general set, showing only yours |
+| `swatches` | shared | Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing |
 | `handleChange` | | Live, including mid-drag. Canonical hex |
 | `handleCommit` | | Once per gesture or preset, with the settled value: one undo step |
 */
@@ -82,9 +83,12 @@ import { handlerOf } from './handler-of.js'
 import { color3d, type ColorField } from './color-field.js'
 import { formatColor, parseColor } from './color.js'
 import {
+  createSwatchStore,
   presetCells,
+  presetList,
   sharedSwatches,
   type ColorPreset,
+  type SwatchStore,
 } from './color-presets.js'
 import { iconGlyph } from './svg-icons.js'
 import type { PointerKind, Widget3d, WidgetHost } from './widgets3d.js'
@@ -101,6 +105,13 @@ export interface ColorPicker3dOptions {
   presets?: Array<string | ColorPreset>
   /** `'off'` shows only `presets`. */
   defaultPresets?: 'on' | 'off'
+  /**
+   * Where swatches saved with `+` are kept. Unset, the page's shared store
+   * (`sharedSwatches()`, in `localStorage` under `SWATCH_KEY`). Pass your own
+   * `createSwatchStore(storage)` to keep them in your document, or `null`
+   * for nothing kept beyond this picker.
+   */
+  swatches?: SwatchStore | null
   handleChange?: (hex: string) => void
   handleCommit?: (hex: string) => void
 }
@@ -250,6 +261,12 @@ export function colorPicker3d(config: ColorPicker3dOptions = {}): ColorPicker {
   let width = 0
   // Kept across a re-open, so taking away several swatches is one mode.
   let deleting = false
+  // Where saved swatches live: the page's shared store, the caller's own, or
+  // (null) one that lasts as long as this picker.
+  const swatches: SwatchStore =
+    config.swatches === null
+      ? createSwatchStore(null)
+      : config.swatches ?? sharedSwatches()
 
   const change = handlerOf<(v: string) => void>(
     config as unknown as Record<string, unknown>,
@@ -355,15 +372,26 @@ export function colorPicker3d(config: ColorPicker3dOptions = {}): ColorPicker {
       handleChange: (hex) => set(hex, false, true),
       handleCommit: (hex) => set(hex, true, true),
     })
-    const store = sharedSwatches()
+    const store = swatches
     const items: Widget3d[] = [
       field,
       presetGrid({
         list: () => store.list(config.presets, config.defaultPresets !== 'off'),
         current: () => value,
         pick: (hex) => set(hex, true),
-        add: (hex) => store.add(hex),
-        remove: (hex) => store.remove(hex),
+        // One already on offer is not saved again (it would jump the queue).
+        add: (hex) => {
+          const on = store
+            .list(config.presets, config.defaultPresets !== 'off')
+            .some((p) => p.value === hex)
+          if (!on) store.add(hex)
+        },
+        remove: (hex) =>
+          store.remove(hex, (v) =>
+            presetList(config.presets, config.defaultPresets !== 'off').some(
+              (p) => p.value === v
+            )
+          ),
         // The popup was sized for the rows it had: open it again.
         resized: () => {
           const was = open

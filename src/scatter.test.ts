@@ -16,6 +16,7 @@ import {
   type ScatterClimate,
   type ScatterRule,
   isDefaultLibrary,
+  seatDip,
 } from './scatter.js'
 
 const flat = () => 10
@@ -588,5 +589,41 @@ describe('isDefaultLibrary', () => {
         path
       )
     ).toBe(false)
+  })
+})
+
+describe('seatDip: sit on the mesh that is drawn', () => {
+  const flatUp = { x: 0, y: 1, z: 0 }
+  test('flat ground and a plain slope bury nothing', () => {
+    expect(seatDip(() => 5, { x: 0, y: 5, z: 0, normal: flatUp }, 4)).toBe(0)
+    // A 45 degree plane: height = x. Its normal is (-1, 1, 0) normalised.
+    const n = { x: -Math.SQRT1_2, y: Math.SQRT1_2, z: 0 }
+    const dip = seatDip((x) => x, { x: 3, y: 3, z: 1, normal: n }, 4)
+    expect(Math.abs(dip)).toBeLessThan(1e-9)
+  })
+
+  test('on a bump, it is lowered by what the bump stands above its surroundings', () => {
+    // A dome: 1 m high at the middle, falling away as the square of distance.
+    const dome = (x: number, z: number) => 1 - 0.05 * (x * x + z * z)
+    const dip = seatDip(dome, { x: 0, y: 1, z: 0, normal: flatUp }, 4)
+    // The ring is 0.7 of a cell out: 2.8 m, where the dome is 0.392 lower.
+    expect(dip).toBeCloseTo(-0.05 * 2.8 * 2.8, 6)
+  })
+
+  test('THE POINT: a wider mesh cell means a deeper seat (the cell must be the real one)', () => {
+    const dome = (x: number, z: number) => 1 - 0.05 * (x * x + z * z)
+    const at = { x: 0, y: 1, z: 0, normal: flatUp }
+    const narrow = seatDip(dome, at, 1.6)
+    const real = seatDip(dome, at, 1.6 * 3.31) // the same terrain at horizScale 3.31
+    expect(real / narrow).toBeCloseTo(3.31 * 3.31, 4)
+  })
+
+  test('a hollow raises nothing: only ever down', () => {
+    const bowl = (x: number, z: number) => 0.05 * (x * x + z * z)
+    expect(seatDip(bowl, { x: 0, y: 0, z: 0, normal: flatUp }, 4)).toBe(0)
+  })
+
+  test('no cell, no change', () => {
+    expect(seatDip(() => 9, { x: 0, y: 0, z: 0, normal: flatUp }, 0)).toBe(0)
   })
 })

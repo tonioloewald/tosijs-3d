@@ -99,8 +99,12 @@ export interface SwatchStore {
   list(own?: Array<string | ColorPreset>, withDefaults?: boolean): ColorPreset[]
   /** Save a colour. False if it was already offered or does not parse. */
   add(hex: string): boolean
-  /** Take a colour out of what is offered, whoever supplied it. */
-  remove(hex: string): void
+  /**
+   * Take a colour out of what is offered, whoever supplied it.
+   * `stillOffered` says whether something other than this store supplies it
+   * (the caller's presets); unset, anything not saved here is assumed to be.
+   */
+  remove(hex: string, stillOffered?: (hex: string) => boolean): void
   readonly added: string[]
   readonly removed: string[]
   /** Told after every change. Returns its unsubscribe. */
@@ -165,17 +169,21 @@ export function createSwatchStore(
         changed()
         return true
       }
-      if (added.includes(value)) return false
+      if (added.includes(value) || COLOR_PRESETS.includes(value)) return false
       added.push(value)
       changed()
       return true
     },
-    remove(hex) {
+    remove(hex, stillOffered) {
       const value = canonHex(hex)
       if (value == null) return
-      if (added.includes(value)) added = added.filter((v) => v !== value)
-      // Someone else may still supply it (the caller, the general set).
-      if (!removed.includes(value)) removed.push(value)
+      const mine = added.includes(value)
+      if (mine) added = added.filter((v) => v !== value)
+      // Hidden, when someone else may still supply it (the caller, the
+      // general set). A colour that was only ever ours is simply gone, so
+      // this list does not grow with every swatch tried and discarded.
+      const stillSupplied = stillOffered?.(value) ?? !mine
+      if (stillSupplied && !removed.includes(value)) removed.push(value)
       changed()
     },
     subscribe(cb) {
