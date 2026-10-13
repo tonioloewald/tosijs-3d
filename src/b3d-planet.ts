@@ -180,12 +180,15 @@ tosi-b3d {
 
 import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
-import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
+import type { BiomePlugin } from './biome-plugin.js'
 import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
 import { createPlanetClouds, type PlanetStorm } from './planet-clouds.js'
-import { createPlanetSurfaceMaterial } from './planet-surface-material.js'
+import {
+  createPlanetBiome,
+  createPlanetSurfaceMaterial,
+} from './planet-surface-material.js'
 import { assetUrl } from './asset-url.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
@@ -303,6 +306,8 @@ export class B3dPlanet extends B3dChild {
   private cloudMesh: BABYLON.Mesh | null = null
   /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
   biomePlugin: BiomePlugin | null = null
+  /** The undrawn material the biome plugin lives on (planet-surface-material). */
+  private _biomeHost: BABYLON.StandardMaterial | null = null
   private ringMesh: BABYLON.Mesh | null = null
   /** The node everything of this planet hangs from: move it to place the planet. */
   rootNode: BABYLON.TransformNode | null = null
@@ -343,6 +348,8 @@ export class B3dPlanet extends B3dChild {
     this.ringMesh = null
     // So a planet put back in a scene fetches its heights again.
     this._heightMapLoaded = ''
+    this._biomeHost?.dispose()
+    this._biomeHost = null
     this.owner = null
   }
 
@@ -464,32 +471,28 @@ export class B3dPlanet extends B3dChild {
     as data (uv.x), so the shader can tell land from water per pixel and
     knows how deep the water is. There is no sea sphere.
     */
-    const unified = !!attrs.colorMap || isOff(attrs.biome)
-    let heightData: Float32Array | null = null
-    let hasSea = false
     let highest = 1e-3
     let deepest = 1e-3
-    if (unified) {
-      this.vertexHeights = heights
-      hasSea = this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0
-      const seaAt =
-        this.surface != null || !hasSea ? 0 : this.heightPercentile(attrs.ocean)
-      heightData = new Float32Array(totalVerts * 2)
-      for (let i = 0; i < totalVerts; i++) {
-        const above = heights[i] - seaAt
-        heightData[i * 2] = hasSea ? above : Math.max(above, 1e-4)
-        if (above > highest) highest = above
-        if (-above > deepest) deepest = -above
-        if (hasSea && above < 0) {
-          const x = positions[i * 3]
-          const y = positions[i * 3 + 1]
-          const z = positions[i * 3 + 2]
-          const k = (radius + seaAt) / (Math.hypot(x, y, z) || 1)
-          positions[i * 3] = x * k
-          positions[i * 3 + 1] = y * k
-          positions[i * 3 + 2] = z * k
-          heights[i] = seaAt
-        }
+    this.vertexHeights = heights
+    const hasSea: boolean =
+      this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0
+    const seaAt =
+      this.surface != null || !hasSea ? 0 : this.heightPercentile(attrs.ocean)
+    const heightData = new Float32Array(totalVerts * 2)
+    for (let i = 0; i < totalVerts; i++) {
+      const above = heights[i] - seaAt
+      heightData[i * 2] = hasSea ? above : Math.max(above, 1e-4)
+      if (above > highest) highest = above
+      if (-above > deepest) deepest = -above
+      if (hasSea && above < 0) {
+        const x = positions[i * 3]
+        const y = positions[i * 3 + 1]
+        const z = positions[i * 3 + 2]
+        const k = (radius + seaAt) / (Math.hypot(x, y, z) || 1)
+        positions[i * 3] = x * k
+        positions[i * 3 + 1] = y * k
+        positions[i * 3 + 2] = z * k
+        heights[i] = seaAt
       }
     }
 
@@ -505,13 +508,42 @@ export class B3dPlanet extends B3dChild {
     vertexData.positions = positions
     vertexData.indices = indices
     vertexData.normals = normals
-    if (heightData != null) vertexData.uvs = heightData
+    vertexData.uvs = heightData
     vertexData.applyToMesh(mesh, true)
 
-    if (unified) {
-      // A real world's colour is its map, looked up by direction
-      // (planet-map); without one, land is coloured by simple rules.
+    {
+      /*
+      The land's colour: a real world's map, looked up by direction
+      (planet-map); or the BIOME SHADER, the same one terrain uses, run
+      inside this material with the planetary front end (`biome="on"`); or,
+      with neither, a few plain rules.
+      */
+      this._biomeHost?.dispose()
+      this._biomeHost = null
+      this.biomePlugin = null
+      if (!attrs.colorMap && !isOff(attrs.biome)) {
+        const made = createPlanetBiome(this.owner.scene, {
+          // The classifier's coastline is the sea's own level.
+          seaRadius: hasSea ? radius + seaAt : 0.001,
+          lapseRate: 0.06,
+          tNoiseScale: 0.05,
+          mNoiseScale: 0.07,
+          ditherScale: 0.6,
+          detailNoiseScale: 1.2,
+          surfDepth: 0.6,
+          // Planet-scale contours are gentle: exaggerate slope deviation so
+          // steep flanks still read as rock at this radius.
+          slopeExaggeration: 6,
+          // Moisture dries over roughly the relief height: coasts wet,
+          // highlands dry.
+          moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
+          rainShadow: 0.3,
+        })
+        this.biomePlugin = made.plugin
+        this._biomeHost = made.host
+      }
       const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
+        biome: this.biomePlugin ?? undefined,
         colorUrl: attrs.colorMap ? assetUrl(String(attrs.colorMap)) : '',
         sea: hasSea,
         heightScale: highest,
@@ -525,56 +557,10 @@ export class B3dPlanet extends B3dChild {
       mesh.parent = this.rootNode
       this.planetMesh = mesh
       this.vertexHeights = heights
-      this.biomePlugin = null
       if (!this.registered) {
         this.registered = true
         this.owner.register({ meshes: [mesh] })
       }
-      return
-    }
-
-    const mat = new BABYLON.StandardMaterial('planet-mat', this.owner.scene)
-    mat.diffuseColor = new BABYLON.Color3(0.6, 0.75, 0.45)
-    mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
-    mat.backFaceCulling = false
-    mat.wireframe = attrs.wireframe
-    if (!isOff(attrs.biome)) {
-      // Planetary front-end: seaRadius = the same percentile the ocean sphere
-      // uses, so the classifier's coastline IS the visible waterline. Noise
-      // frequencies scale to planet-sized relief. Caveat: world-space noise
-      // crawls if the planet SPINS — fine for a static planet; a rotating one
-      // wants object-space sampling (a step-5 concern with triplanar).
-      const seaRadius =
-        attrs.ocean > 0
-          ? attrs.radius +
-            (this.surface != null ? 0 : this.heightPercentile(attrs.ocean))
-          : 0.001
-      this.biomePlugin = attachBiomePlugin(mat, {
-        seaRadius,
-        lapseRate: 0.06,
-        tNoiseScale: 0.05,
-        mNoiseScale: 0.07,
-        ditherScale: 0.6,
-        detailNoiseScale: 1.2,
-        surfDepth: 0.6,
-        // Planet-scale contours are gentle — exaggerate slope deviation so
-        // steep flanks still read as rock at this radius.
-        slopeExaggeration: 6,
-        // moisture dries over roughly the relief height: coasts wet,
-        // highlands dry (the rough proximity-to-water estimate)
-        moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
-        rainShadow: 0.3,
-      })
-    }
-    mesh.material = mat
-    mesh.parent = this.rootNode
-
-    this.planetMesh = mesh
-    this.vertexHeights = heights
-
-    if (!this.registered) {
-      this.registered = true
-      this.owner.register({ meshes: [mesh] })
     }
   }
 
@@ -806,34 +792,12 @@ export class B3dPlanet extends B3dChild {
     )
   }
 
+  /**
+   * There is no sea sphere: the one-mesh planet draws its own sea (see
+   * buildPlanet). Kept as a named step so the build order still reads.
+   */
   private buildOcean() {
-    if (this.owner == null || this.rootNode == null) return
-    const attrs = this as any
-    const oceanPct: number = attrs.ocean
-    // The one-mesh planet draws its own sea (see buildPlanet).
-    if (oceanPct <= 0 || attrs.gas || attrs.colorMap || isOff(attrs.biome))
-      return
-
-    // Ocean radius: height at the given percentile of vertices
-    // e.g. ocean=0.6 means 60% of surface is underwater
-    // A borrowed surface says where its sea is: the datum, height 0 here.
-    const oceanHeight =
-      this.surface != null ? 0 : this.heightPercentile(oceanPct)
-    const oceanRadius = attrs.radius + oceanHeight
-    const mesh = BABYLON.MeshBuilder.CreateSphere(
-      'ocean',
-      { diameter: oceanRadius * 2, segments: 32 },
-      this.owner.scene
-    )
-
-    const mat = new BABYLON.StandardMaterial('ocean-mat', this.owner.scene)
-    mat.diffuseColor = new BABYLON.Color3(0.1, 0.3, 0.7)
-    mat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3)
-    mat.alpha = 0.7
-    mesh.material = mat
-    mesh.parent = this.rootNode
-
-    this.oceanMesh = mesh
+    this.oceanMesh = null
   }
 
   private buildRings() {

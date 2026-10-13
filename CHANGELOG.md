@@ -18,7 +18,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   pale in the shallows and dark in the deep, and the sea has the sun's
   glint, broken into sparkle by fine wave texture. `seaGlint`, `seaIce`.
   On a real-map planet `flatSea="on"` now means "this world has a sea".
-  Planets with `biome="on"` are unchanged for now.
+  With `biome="on"` the land is classified by the biome shader itself: the
+  plugin's own code runs inside the planet material, so it is the same
+  chart, palettes, parameters and volcanism as terrain, and
+  `planet.biomePlugin.params` is live as before. Every planet that is not a
+  gas giant is drawn this way now; the translucent sea sphere is gone.
 
 ### Changed
 

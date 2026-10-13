@@ -23,13 +23,40 @@ cloud shell, and keeps the night side dim, not black.
 import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
 import { sceneLight } from './gas-giant-material.js'
+import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
+import type { BiomeParams } from './biome-plugin.js'
 
 const NAME = 'b3dPlanetSurface'
 
-function registerShader(): void {
+/**
+ * Register the shader, plain or with the BIOME SHADER inside it, and return
+ * the name it is under. The biome variant is not a look-alike: it is the
+ * biome plugin's own GLSL (its uniforms, its functions and its classifying
+ * block, taken from the plugin as text), so a planet's land is classified by
+ * the same code, the same chart and the same parameters as terrain is.
+ */
+function registerShader(biome: BiomePlugin | null): string {
   const store = BABYLON.Effect.ShadersStore
-  if (store[`${NAME}VertexShader`]) return
-  store[`${NAME}VertexShader`] = `
+  const name = biome ? `${NAME}Biome` : NAME
+  if (store[`${name}VertexShader`]) return name
+  const code = biome?.getCustomCode('fragment') ?? null
+  const biomeDecl = biome
+    ? `#define BIOME\n#define NORMAL\n${biome.getUniforms().fragment}\n${
+        code?.CUSTOM_FRAGMENT_DEFINITIONS ?? ''
+      }`
+    : ''
+  /*
+  The plugin's block reads vPositionW and vNormalW and writes diffuseColor.
+  It is given the position this pixel would have had WITHOUT the sea holding
+  the mesh level (so its altitude is the true one, and the sea bed is
+  classified as sea bed), and its answer is the land's colour.
+  */
+  const biomeLand = biome
+    ? `{vec3 pc=biomePlanet.xyz;vec3 vPositionW=pc+normalize(vWorld-pc)*(biomePlanet.w+vHeight);vec3 diffuseColor=vec3(1.0);
+${code?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE ?? ''}
+land=diffuseColor;}`
+    : ''
+  store[`${name}VertexShader`] = `
 precision highp float;
 attribute vec3 position;
 attribute vec3 normal;
@@ -48,7 +75,7 @@ void main(){
   vNormalW=normalize(mat3(world)*normal);
   gl_Position=worldViewProjection*vec4(position,1.0);
 }`
-  store[`${NAME}FragmentShader`] = `
+  store[`${name}FragmentShader`] = `
 precision highp float;
 varying vec3 vBody;
 varying vec3 vWorld;
@@ -60,6 +87,7 @@ uniform vec3 psEye;
 uniform vec4 psK;
 uniform vec4 psSea;
 uniform mat4 world;
+${biomeDecl}
 ${GAS_GIANT_GLSL}
 void main(){
   vec3 d=normalize(vBody);
@@ -78,7 +106,12 @@ void main(){
   if(psK.w>0.5){
     vec2 uv=vec2(atan(d.z,d.x)/6.2831853+0.5,1.0-acos(clamp(d.y,-1.0,1.0))/3.14159265);
     land=texture2D(psColor,uv).rgb;
+  }else if(psSea.x<-0.5){
+    land=vec3(0.5);
   }else{
+    ${biome ? '' : '/*'}
+    ${biomeLand}
+    ${biome ? '/*' : '*/'}
     float alt=clamp(vHeight/max(psK.x,1e-4),0.0,1.0);
     float wet=b3dGgFbm(d*3.1+vec3(psK.z))*0.7+b3dGgNoise(d*11.0)*0.3;
     float temp=1.0-abs(lat)/1.45-alt*0.55+(b3dGgNoise(d*5.0+vec3(3.0))-0.5)*0.18;
@@ -92,6 +125,7 @@ void main(){
     land=mix(land,rock,smoothstep(0.55,0.8,alt));
     land=mix(vec3(0.93,0.95,0.97),land,smoothstep(0.1,0.2,temp));
     land=mix(land,vec3(0.8,0.74,0.56),(1.0-smoothstep(0.0,0.035,alt))*0.7);
+    ${biome ? '*/' : ''}
   }
 
   // --- water --------------------------------------------------------------
@@ -99,6 +133,11 @@ void main(){
   vec3 water=mix(vec3(0.09,0.42,0.5),vec3(0.012,0.06,0.2),1.0-exp(-depth*3.2));
   // With a colour map the map's own sea colour is the truth; deepen it only.
   if(psK.w>0.5)water=land*mix(1.0,0.82,depth);
+  ${
+    biome
+      ? '// The biome shader has coloured the sea BED: shallow water shows it.\n  water=mix(land,water,0.35+0.65*(1.0-exp(-depth*4.0)));'
+      : ''
+  }
   // Sea ice toward the poles.
   float ice=psSea.z*smoothstep(1.02,1.2,abs(lat)+(b3dGgNoise(d*9.0)-0.5)*0.12);
   water=mix(water,vec3(0.86,0.9,0.94),ice);
@@ -134,6 +173,7 @@ void main(){
   }
   gl_FragColor=vec4(col,1.0);
 }`
+  return name
 }
 
 export interface PlanetSurfaceOptions {
@@ -150,6 +190,12 @@ export interface PlanetSurfaceOptions {
   /** 0…1: sea ice toward the poles. Default 0. */
   seaIce?: number
   seed?: number
+  /**
+   * Classify the land with the BIOME SHADER (the plugin from
+   * `createPlanetBiome`): the same code, chart, palettes and parameters as
+   * terrain. Ignored when there is a colour map.
+   */
+  biome?: BiomePlugin
 }
 
 /**
@@ -161,11 +207,12 @@ export function createPlanetSurfaceMaterial(
   scene: BABYLON.Scene,
   options: PlanetSurfaceOptions
 ): BABYLON.ShaderMaterial {
-  registerShader()
+  const biome = options.colorUrl ? null : options.biome ?? null
+  const name = registerShader(biome)
   const mat = new BABYLON.ShaderMaterial(
     'planet-surface',
     scene,
-    { vertex: NAME, fragment: NAME },
+    { vertex: name, fragment: name },
     {
       attributes: ['position', 'normal', 'uv'],
       uniforms: [
@@ -175,6 +222,7 @@ export function createPlanetSurfaceMaterial(
         'psEye',
         'psK',
         'psSea',
+        ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
       samplers: ['psColor'],
     }
@@ -211,7 +259,29 @@ export function createPlanetSurfaceMaterial(
   )
   const light = new BABYLON.Vector4(0, 1, 0, 0)
   const sea = new BABYLON.Vector4()
-  mat.onBind = () => {
+  /*
+  The plugin binds its uniforms into a uniform BUFFER. This material has
+  none, so it is handed something with the same few methods that sets them
+  on the material instead: the plugin's own binding code runs unchanged, and
+  whatever it would have sent to terrain it sends here.
+  */
+  const sink = {
+    updateFloat4: (n: string, a: number, b: number, c: number, d: number) =>
+      mat.setVector4(n, new BABYLON.Vector4(a, b, c, d)),
+    updateFloatArray: (n: string, values: Float32Array) =>
+      mat.setArray4(n, Array.from(values)),
+    updateMatrix: (n: string, m: BABYLON.Matrix) => mat.setMatrix(n, m),
+    // The fine-noise texture is not used here: the noise is computed.
+    setTexture: () => {},
+  }
+  mat.onBind = (mesh) => {
+    if (biome != null)
+      biome.bindForSubMesh(
+        sink as unknown as BABYLON.UniformBuffer,
+        scene,
+        scene.getEngine(),
+        { getMesh: () => mesh } as unknown as BABYLON.SubMesh
+      )
     sceneLight(scene, light)
     mat.setVector4('psLight', light)
     const cam = scene.activeCamera
@@ -226,4 +296,19 @@ export function createPlanetSurfaceMaterial(
   }
   mat.onDisposeObservable.add(() => tex.dispose())
   return mat
+}
+
+/**
+ * A biome shader for a one-mesh planet: the real plugin, attached to a
+ * material that is never drawn, so that it holds the parameters, the
+ * palettes and the code. Hand it to `createPlanetSurfaceMaterial`'s `biome`.
+ * Its `params` are live, exactly as on terrain. Dispose `host` with the
+ * planet.
+ */
+export function createPlanetBiome(
+  scene: BABYLON.Scene,
+  params: Partial<BiomeParams>
+): { plugin: BiomePlugin; host: BABYLON.StandardMaterial } {
+  const host = new BABYLON.StandardMaterial('planet-biome-host', scene)
+  return { plugin: attachBiomePlugin(host, params), host }
 }
