@@ -30,6 +30,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   open with a wind-up, and the path rose from the first frame. It now waits
   for the pull (`CLIMB_PHASE` in `mantle`; `mantlePath` takes a `riseStarts`).
 
+- **Decorations sit on the ground that is drawn.** Rocks and trees were
+  placed on the terrain's true height, but the drawn mesh cuts under any bump
+  between its vertices, so they floated. Each is now lowered by the bump the
+  mesh lacks. Standing on a slope buries nothing.
+- **An airless world fades to black at the terrain's edge.** With no air the
+  haze was pushed out to millions of metres and the far tiles popped in
+  against the sky. `terrain.drawnReach` is how far the ground is drawn.
+- **Land and Sky: Mars and the Moon have rocks.** `decorator.rules = null`
+  goes back to the library's own rules.
 - **Planets in a star system are lit.** The star's light followed its
   luminosity, so anything dimmer than the sun left its planets nearly black
   (a K0 star gave 0.12). It now follows the fourth root, between 1.2 and 3.5.

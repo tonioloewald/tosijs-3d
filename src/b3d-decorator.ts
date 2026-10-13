@@ -138,6 +138,14 @@ interface ModelInfo {
   max: BABYLON.Vector3
 }
 
+/** Where the ground is read around a placement to seat it: see `_build`. */
+const SEAT_RING: [number, number][] = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+]
+
 export class B3dDecorator extends B3dChild {
   static preferredTagName = 'tosi-b3d-decorator'
   static shadowStyleSpec = { ':host': { display: 'none' } }
@@ -205,7 +213,8 @@ export class B3dDecorator extends B3dChild {
       this._rules ?? (this._defaultLibrary ? NATURE_RULES : NATURE_KIT_RULES)
     )
   }
-  set rules(rules: ScatterRule[]) {
+  /** `null` goes back to the library's own rules. */
+  set rules(rules: ScatterRule[] | null) {
     this._rules = rules
   }
   /**
@@ -748,6 +757,35 @@ export class B3dDecorator extends B3dChild {
             }
           : undefined,
     })
+    /*
+    SEAT THEM ON THE GROUND THAT IS DRAWN, which is not the ground that was
+    sampled. `height` is the true surface; what you see is a mesh whose
+    vertices are metres apart, and a straight edge between two of them cuts
+    UNDER any bump that sits between. A rock placed on the bump floated
+    (Tonio: "rocks are often floating above the terrain. We should err towards
+    slightly under"). So each placement is lowered by how far the surface
+    around it falls below its own tangent plane, one mesh cell out: that is
+    the bump the mesh does not have. Slope is not counted (the tangent plane
+    takes it out), so nothing is buried for standing on a hillside.
+    */
+    const cell =
+      (Number(terrain.tileSize) || 0) /
+      Math.max(1, Number(terrain._resolvedSubs) || 16)
+    if (cell > 0) {
+      const r = cell * 0.7
+      for (const p of this.placements) {
+        const ny = Math.max(0.2, p.normal.y)
+        const gx = -p.normal.x / ny
+        const gz = -p.normal.z / ny
+        let dip = 0
+        for (const [dx, dz] of SEAT_RING) {
+          const under =
+            height(p.x + dx * r, p.z + dz * r) - (p.y + (gx * dx + gz * dz) * r)
+          if (under < dip) dip = under
+        }
+        p.y += dip
+      }
+    }
     this.near = new NearIndex(this.placements, 32)
     pruneScatterCache(this._cache, here, this.radius * 1.5)
     this._center = here

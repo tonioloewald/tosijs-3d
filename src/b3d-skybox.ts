@@ -1895,6 +1895,17 @@ export class B3dSkybox extends AbstractMesh {
     return 1 - (1 - (1 - gas) * (1 - dust))
   }
 
+  /** The scene's terrain draws this far (0 = no terrain): see the fog layer. */
+  private _groundReach(): number {
+    const terrain = this.owner?.querySelector(
+      'tosi-b3d-terrain'
+    ) as unknown as {
+      drawnReach?: number
+    } | null
+    const r = Number(terrain?.drawnReach)
+    return Number.isFinite(r) && r > 0 ? r : 0
+  }
+
   /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
   private _gasNow = 1
   private _gas = 1
@@ -2627,14 +2638,23 @@ export class B3dSkybox extends AbstractMesh {
     */
     this._removeFogLayer = owner.addFogLayer(() => {
       const w = this._vacuum
+      /*
+      NO AIR, BUT THE GROUND STILL ENDS. With the haze pushed out to millions
+      of metres nothing hid the far edge of a terrain, and on the Moon its
+      tiles popped in against the black (Tonio: "doesn't fade out to black
+      or whatever in the distance. Mars does"). So where there is a terrain
+      the clear air stops at its edge: the last third of what is drawn fades
+      to the black it stands against. Nothing in front of that is touched.
+      */
+      const reach = this._groundReach()
       return w <= 0
         ? null
         : {
             weight: w,
             color: { r: 0, g: 0, b: 0 },
             density: 0,
-            start: 1e6,
-            end: 1e7,
+            start: reach > 0 ? reach * 0.66 : 1e6,
+            end: reach > 0 ? reach : 1e7,
             // Mixed as strengths, so a LITTLE less air is a little less haze
             // (see FogLayer.reciprocal).
             reciprocal: true,
