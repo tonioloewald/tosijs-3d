@@ -96,7 +96,10 @@ float pcField(vec3 d){
   float f=0.46*b3dGgFbm(q*7.5+sd)
     +0.32*b3dGgFbm(q*22.0+sd*2.1)
     +0.22*b3dGgFbm(q*60.0+sd*3.3);
-  return f+0.24*(pcBelt(latDeg)-0.45);
+  // A lean, not a rule: the belts are cloudier and the deserts clearer, but
+  // there is cloud in the subtropics and clear sky on the equator. (At 0.24
+  // the subtropics were swept bare and the belts were nearly solid.)
+  return f+0.14*(pcBelt(latDeg)-0.5);
 }
 float pcCut(float f){
   float th=mix(0.74,0.3,clamp(pcK.x,0.0,1.0));
