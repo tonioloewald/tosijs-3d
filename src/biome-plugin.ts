@@ -306,7 +306,9 @@ export const defaultBiomeParams = (): BiomeParams => ({
   poleTemp: 0.05,
   rainShadow: 0.25,
   windAzimuth: 0.8,
-  moistureDryHeight: 8,
+  // Off by default (flat ground): the terrain sets it from its relief, and
+  // a planet from its own.
+  moistureDryHeight: 0,
   slopeExaggeration: 1,
   latWarpScale: 0.02,
   latWarpAmp: 0.12,
@@ -967,7 +969,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // grow polar ice naturally: Mars with ice caps, which is correct.
         float mN = (planetary ? bioSimplex3(rel * biomeNoise.z + 71.3) : bioClimate(cp * biomeNoise.z + 71.3)) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN + biomeSeason.x;
-        float effMapM = biomeCfg.w;
+        // Height dries the land (valleys and coasts wet, heights dry); 0 is off.
+        float effMapM = biomePlanetD.z > 0.0
+          ? biomeCfg.w * exp(-max(altitude, 0.0) / biomePlanetD.z)
+          : biomeCfg.w;
         if (planetary) {
           // The three-point latitude curve authors think in: equator →
           // temperate (45°) → pole, over latWarped asin latitude (the warp

@@ -191,6 +191,11 @@ export interface BiomeChartConfig {
   lapseRate: number
   /** Above-water moisture constant (0..1) — the map's overall wetness. */
   mapMoisture: number
+  /**
+   * Height (m) over which land dries to 1/e of the map moisture: valleys and
+   * coasts wet, heights dry. `0` or unset: height does not dry the land.
+   */
+  moistureDryHeight?: number
 }
 
 /** The two chart axes for a position. `tNoise`/`mNoise` are INJECTED noise
@@ -221,7 +226,14 @@ export function mantaAxes(
   // zero, cold regions grow polar ice naturally.
   const g = clamp01(cfg.mapMoisture / 0.25)
   const mGate = g * g * (3 - 2 * g)
-  const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75
+  // Height dries the land. The gate above reads the SCENE's moisture, not
+  // this: a dry summit still belongs to a world with seas.
+  const dryH = cfg.moistureDryHeight ?? 0
+  const eff =
+    dryH > 0
+      ? cfg.mapMoisture * Math.exp(-Math.max(altitude, 0) / dryH)
+      : cfg.mapMoisture
+  const landM = clamp01(eff + mNoise * mGate) * 0.75
   // The gate also owns the OCEAN: airless worlds have no sea, so "underwater"
   // saturation itself fades out — below sea level is just lower dead land.
   const moisture = underwater ? landM + (1 - landM) * mGate : landM

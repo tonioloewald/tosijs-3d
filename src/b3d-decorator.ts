@@ -404,6 +404,7 @@ export class B3dDecorator extends B3dChild {
             p.tNoiseAmp,
             p.mNoiseScale,
             p.mNoiseAmp,
+            p.moistureDryHeight,
           ].join(',')
         : '',
     ].join('|')

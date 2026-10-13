@@ -397,6 +397,7 @@ let warnedOldTemperature = false
 
 const freshBiomeMemo = () => ({
   sea: NaN,
+  relief: NaN,
   lapse: NaN,
   temperature: NaN,
   moisture: NaN,
@@ -2090,6 +2091,17 @@ export class B3dTerrain extends B3dChild {
     // coordinates, so its regions stay put across a floating-origin reset.
     this.biomePlugin.params.worldOffsetX = this.originOffsetX
     this.biomePlugin.params.worldOffsetZ = this.originOffsetZ
+    // Height dries the land over half the relief setting (most ground sits
+    // well under it, and at the whole of it the effect could not be seen):
+    // coasts and valleys green, heights dry. Written when the relief
+    // changes, so a panel setting the param directly is not stomped.
+    const relief =
+      Math.abs(Number(a.grossAmplitude) || 0) +
+      Math.abs(Number(a.detailAmplitude) || 0)
+    if (relief !== memo.relief) {
+      memo.relief = relief
+      this.biomePlugin.params.moistureDryHeight = relief * 0.5
+    }
     if (sea !== memo.sea) {
       memo.sea = sea
       this.biomePlugin.params.seaLevel = sea

@@ -18,6 +18,16 @@ const CFG: BiomeChartConfig = {
 }
 
 describe('mantaAxes — the implemented front-end', () => {
+  test('height dries the land when moistureDryHeight is set, and only then', () => {
+    const dry = { ...CFG, moistureDryHeight: 100 }
+    expect(mantaAxes(100, CFG).moisture).toBeCloseTo(mantaAxes(0, CFG).moisture)
+    expect(mantaAxes(0, dry).moisture).toBeCloseTo(mantaAxes(0, CFG).moisture)
+    expect(mantaAxes(100, dry).moisture).toBeCloseTo(
+      mantaAxes(0, CFG).moisture / Math.E
+    )
+    // Below the sea it is the sea's row, whatever the height above did.
+    expect(mantaAxes(-5, dry).moisture).toBeCloseTo(mantaAxes(-5, CFG).moisture)
+  })
   test('temperature PEAKS at sea level; the lapse runs both ways', () => {
     // "Temperature falls with depth" (design): reef warm at the surface,
     // abyssal cold — AND mountains cool with height. Sea level is the peak.
