@@ -215,12 +215,14 @@ turns the pilot's head in the cockpit, springs back on release).
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
 | `reverseSpeed` | `5` | How fast the craft may back up in a hover (m/s); nose up to reverse |
 | `throttleRate` | `0.8` | How fast the trigger moves the throttle LEVER (full travel per second) |
-| `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees) |
+| `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees). A climb steeper than `asin(acceleration / (climbCost × maxSpeed))` cannot be held without reheat: speed falls to the stall floor. With the defaults (12, 0.4, 50) that is 37°, just above the default 35° |
+| `climbCost` | `0.4` | What a climb costs in speed, and what a dive gives back, as a fraction of `maxSpeed` per second at vertical. Steady speed in a climb is `maxSpeed × sqrt(1 − (climbCost × maxSpeed / acceleration) × sin(pitch))`. Lower it for a craft that holds speed uphill without changing how fast it spools up; `0` makes climbing free |
 | `maxDive` | `0` | Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch` |
 | `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
 | `lookRate` | `150` | Look slew rate (degrees/sec at full stick) |
 | `lookReturn` | `4` | How fast the view springs back to centre when released |
 | `chasePitchFollow` | `0` | How much airframe PITCH the chase inherits. `0` = level pivot (plane pitches within the frame); `1` = as if parented to the airframe (a climb aims the view up) |
+| `chaseLookAhead` | `0` | Where the chase camera AIMS: a point this many metres ahead of the craft, at the craft's height. `0` aims at the craft itself, which with the default camera looks down 22.6° and puts anything level with you near the top of the screen. Raise it to look down the track (30 gives about 4°). Does not move the camera |
 | `chasePitchLag` | `3` | How fast that inherited pitch catches up (per second) — the low-pass that keeps attitude jitter out of the chase |
 | `autoGear` | `'on'` | Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`) |
 | `gearAltitude` | `40` | Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis) |

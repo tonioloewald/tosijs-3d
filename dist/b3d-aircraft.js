@@ -216,12 +216,14 @@ turns the pilot's head in the cockpit, springs back on release).
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
 | `reverseSpeed` | `5` | How fast the craft may back up in a hover (m/s); nose up to reverse |
 | `throttleRate` | `0.8` | How fast the trigger moves the throttle LEVER (full travel per second) |
-| `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees) |
+| `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees). A climb steeper than `asin(acceleration / (climbCost × maxSpeed))` cannot be held without reheat: speed falls to the stall floor. With the defaults (12, 0.4, 50) that is 37°, just above the default 35° |
+| `climbCost` | `0.4` | What a climb costs in speed, and what a dive gives back, as a fraction of `maxSpeed` per second at vertical. Steady speed in a climb is `maxSpeed × sqrt(1 − (climbCost × maxSpeed / acceleration) × sin(pitch))`. Lower it for a craft that holds speed uphill without changing how fast it spools up; `0` makes climbing free |
 | `maxDive` | `0` | Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch` |
 | `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
 | `lookRate` | `150` | Look slew rate (degrees/sec at full stick) |
 | `lookReturn` | `4` | How fast the view springs back to centre when released |
 | `chasePitchFollow` | `0` | How much airframe PITCH the chase inherits. `0` = level pivot (plane pitches within the frame); `1` = as if parented to the airframe (a climb aims the view up) |
+| `chaseLookAhead` | `0` | Where the chase camera AIMS: a point this many metres ahead of the craft, at the craft's height. `0` aims at the craft itself, which with the default camera looks down 22.6° and puts anything level with you near the top of the screen. Raise it to look down the track (30 gives about 4°). Does not move the camera |
 | `chasePitchLag` | `3` | How fast that inherited pitch catches up (per second) — the low-pass that keeps attitude jitter out of the chase |
 | `autoGear` | `'on'` | Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`) |
 | `gearAltitude` | `40` | Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis) |
@@ -488,6 +490,11 @@ export class B3dAircraft extends B3dControllable {
         lookRange: 120,
         /** Max nose-UP attitude the stick can command, degrees. */
         maxPitch: 35,
+        /** Speed lost per second in a vertical climb (gained in a dive), as a
+         * fraction of `maxSpeed`. */
+        climbCost: 0.4,
+        /** Metres ahead of the craft the chase camera aims at. 0 = at the craft. */
+        chaseLookAhead: 0,
         /** Max nose-DOWN attitude, degrees. 0 = same as `maxPitch`. */
         maxDive: 0,
         /** Look slew rate (degrees/sec at full deflection). */
@@ -769,7 +776,9 @@ export class B3dAircraft extends B3dControllable {
         if (cam == null)
             return;
         cam.position.set(0, this.chaseMinHeight * FLAT_CHASE_SCALE, -this.chaseDistance * FLAT_CHASE_SCALE);
-        this._chaseLookPitch = Math.atan2(this.chaseMinHeight, this.chaseDistance);
+        // Aimed at a point `chaseLookAhead` metres beyond the craft, at its
+        // height: 0 is the craft itself, the framing this always had.
+        this._chaseLookPitch = Math.atan2(this.chaseMinHeight, this.chaseDistance + Math.max(0, Number(this.chaseLookAhead) || 0));
     }
     /** Damped airframe pitch the chase has actually inherited (see
      * `chasePitchFollow`) — smoothed, never the raw attitude. */
@@ -909,7 +918,7 @@ export class B3dAircraft extends B3dControllable {
             reverseSpeed: attrs.reverseSpeed,
             climbRate: attrs.maxSpeed * 0.3,
             offLevelSink: attrs.maxSpeed * 0.12,
-            diveBoost: attrs.maxSpeed * 0.4,
+            diveBoost: attrs.maxSpeed * Math.max(0, attrs.climbCost),
             velChase: VEL_CHASE,
             mediumDrag: 1 + Math.max(0, attrs.waterDrag - 1) * this._medium(node),
         };
@@ -999,24 +1008,40 @@ export class B3dAircraft extends B3dControllable {
             // Mount the HUD onto the canopy (in-scene) once, so it shows in a 3D cockpit
             // and in VR — parented to the airframe just ahead of the pilot's eye, banking
             // with the plane (not head-locked).
-            const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`;
+            /*
+            IN A HEADSET THE IN-SCENE PLANE IS THE ONLY HUD THERE IS.
+      
+            The flat overlay is DOM, which a headset does not composite, so a chase
+            view in a session had no instruments at all (manta-recon, #3209). There
+            the plane hangs off the chase anchor (position and heading, level, so it
+            does not bank with the craft) at the same spot ahead of the airframe, and
+            is scaled up so that from the chase seat it covers the angle it covers
+            from the cockpit. That match is for the seat zoomed all the way in:
+            zoom out and it covers less, like everything else near the craft.
+            */
+            const inCockpit = this.cameraView === 'cockpit';
+            const xrChase = !inCockpit && this.owner?.xrActive === true;
+            const hudAhead = this.cockpitForward + attrs.hudForward;
+            const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}|${xrChase ? this.chaseDistance : 'seat'}`;
             if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
                 this._hudMountKey = hudKey;
-                this._hud.attachInScene(node, {
-                    size: attrs.hudSize,
-                    position: new BABYLON.Vector3(0, this.eyeHeight, this.cockpitForward + attrs.hudForward),
+                this._hud.attachInScene((xrChase ? this.getChaseAnchor() : null) ?? node, {
+                    size: xrChase
+                        ? (attrs.hudSize * (this.chaseDistance * 0.8 + hudAhead)) /
+                            Math.max(0.1, attrs.hudForward)
+                        : attrs.hudSize,
+                    position: new BABYLON.Vector3(0, this.eyeHeight, hudAhead),
                 });
             }
-            // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is for the
-            // chase view only when `hud-chase` opts in.
-            const inCockpit = this.cameraView === 'cockpit';
-            this._hud.setInSceneVisible?.(inCockpit);
+            // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is
+            // for the chase view, and the plane again for a chase view in a headset.
+            const chaseHud = !attrs.hudChaseOff;
+            this._hud.setInSceneVisible?.(inCockpit || (xrChase && chaseHud));
             // The HUD is useful from ANY view — speed, altitude, radar, warnings are
             // true wherever the camera is. The horizon is the exception: outside the
             // cockpit it contradicts the real horizon behind the aircraft, so it's
             // dropped in chase and the rest stays. (`hudChase: false` still forces
             // the old cockpit-only behaviour for anyone who wants a clean chase.)
-            const chaseHud = !attrs.hudChaseOff;
             const showHud = inCockpit || chaseHud;
             this._hud.setVisible(!inCockpit && chaseHud);
             this._hud.setHorizonVisible?.(inCockpit);
@@ -2065,8 +2090,8 @@ export class B3dAircraft extends B3dControllable {
         }
         /*
         ALL THREE CHASE NUMBERS MOVE TOGETHER, because `_chaseLookPitch` is
-        `atan2(chaseMinHeight, chaseDistance)` — so holding the ratios holds the
-        framing ANGLE and the camera backs off along the same sight line. Changing
+        `atan2(chaseMinHeight, chaseDistance + chaseLookAhead)` — so holding the
+        ratios holds the framing ANGLE (exactly so when `chaseLookAhead` is 0) and the camera backs off along the same sight line. Changing
         distance alone would tilt the shot, which is not what "pull it back" means.
         */
         const distance = length * 2.6;
@@ -2235,6 +2260,11 @@ export class B3dAircraft extends B3dControllable {
             this._chasePivot.dispose();
             this._chasePivot = null;
         }
+        // The in-scene HUD may hang off the chase anchor (a headset's chase
+        // view). It belongs to the HUD element, which outlives this craft: hide
+        // it, and let the next craft mount it afresh.
+        this._hud?.setInSceneVisible?.(false);
+        this._hudMountKey = '';
         if (this._chaseAnchor) {
             // Anything parented to it (the XR rig) must not be disposed with it.
             for (const child of this._chaseAnchor.getChildren())

@@ -1008,6 +1008,7 @@ export class B3d extends Component {
         if (this._paused)
             return;
         this._paused = true;
+        this._suppressGamepad('pause', true);
         this._showPausePanel();
         // The transport row reads `paused` to choose its label and icon, so the
         // panel has to be told the state moved — see `resume` for the report.
@@ -1021,6 +1022,7 @@ export class B3d extends Component {
         if (!this._paused)
             return;
         this._paused = false;
+        this._suppressGamepad('pause', false);
         this._hidePausePanel();
         /*
         REPAINT THE PANEL — the state it displays has changed underneath it.
@@ -1058,6 +1060,24 @@ export class B3d extends Component {
      * the camera. Camera-relative so it works flat AND in a headset without a
      * second implementation — the same choice `b3d-death` makes.
      */
+    /** Ask the glass gamepad to step aside for a menu, or come back. Named
+     * reasons, so the pause panel and a death panel do not undo each other. */
+    _suppressGamepad(reason, on) {
+        // Every pad that serves this scene: inside it (`gamepad: true` mounts it
+        // there) or mounted beside it, which is how the gamepad page's own demo
+        // does it.
+        const pads = [
+            ...this.querySelectorAll('tosi-b3d-gamepad'),
+            ...(this.parentElement?.querySelectorAll(':scope > tosi-b3d-gamepad') ??
+                []),
+        ];
+        for (const pad of pads) {
+            if (on)
+                pad.suppress?.(reason);
+            else
+                pad.release?.(reason);
+        }
+    }
     _showPausePanel() {
         if (this._pausePanel != null || this.scene == null)
             return;
@@ -5089,6 +5109,9 @@ export class B3d extends Component {
             // the pad) had no way to say so.
             fade: this.gamepadFade ?? 'on',
         }));
+        // A scene that starts paused got there before the pad existed.
+        if (this._paused)
+            this._suppressGamepad('pause', true);
     }
     // In-scene surface: render the panel onto a plane positioned each frame in
     // WORLD space relative to the HEAD (not the rig / flat camera), floating

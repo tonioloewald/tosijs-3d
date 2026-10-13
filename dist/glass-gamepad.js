@@ -125,6 +125,27 @@ that actually implies an on-screen fallback isn't needed.
 
 If the pad is disappearing on you during development, `fade="off"` (or
 `setFade(false)`) pins it; `faded` reports the current state.
+
+## Getting out of the way of a menu
+
+The pad sits over the canvas, so a menu drawn in the scene would be under it
+and a button beneath a stick could not be pressed. The pad therefore steps
+aside by itself while the scene is paused, while a death panel is up and
+while a modal popup (`openPopup({ modal: true })`) is open. That reaches a pad
+inside the scene element (where `gamepad: true` puts it) or directly beside
+it. For any other menu of your own, say so on the pad you mounted:
+
+```javascript
+// `pad` is your b3dGamepad(), or scene.querySelector('tosi-b3d-gamepad')
+// when `gamepad: true` mounted it for you.
+pad.suppress('shop') // gone, and it reports no input
+pad.release('shop') // back, unless something else still holds it
+```
+
+Each caller names its own reason, so two menus cannot release each other's
+hold. This is separate from the fade: `setFade` is about a real keyboard or
+controller being in use. There is no switch to keep the pad up over a paused
+scene; if you need one, call `release('pause')` from a `pause` listener.
 */
 /*{ "parent": "input", "order": 30 }*/
 import { isOff } from './b3d-utils.js';
@@ -447,6 +468,25 @@ export class B3dGamepad extends Component {
         // Faded controls must not eat clicks meant for the scene behind them.
         this.style.pointerEvents = faded ? 'none' : '';
     }
+    _suppressedBy = new Set();
+    /** Is the pad stepping aside for a menu (see `suppress`)? */
+    get suppressed() {
+        return this._suppressedBy.size > 0;
+    }
+    /**
+     * Hide the pad and stop it reporting input until `release` is called with
+     * the same reason. For a modal drawn in the scene, which would otherwise sit
+     * under the pad. Reasons are counted separately.
+     */
+    suppress(reason = 'modal') {
+        this._suppressedBy.add(reason);
+        this.style.visibility = 'hidden';
+    }
+    release(reason = 'modal') {
+        this._suppressedBy.delete(reason);
+        if (this._suppressedBy.size === 0)
+            this.style.visibility = '';
+    }
     _inputWatch = null;
     _idleTimer = null;
     _faded = false;
@@ -501,6 +541,9 @@ export class B3dGamepad extends Component {
     }
     poll() {
         let merged = emptyGamepad();
+        // A stick held when a menu came up must not keep steering behind it.
+        if (this._suppressedBy.size > 0)
+            return merged;
         for (const s of this.sources)
             merged = mergeGamepads(merged, s.poll());
         return merged;

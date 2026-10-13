@@ -105,6 +105,16 @@ export declare class B3dGamepad extends Component implements GamepadSource {
      */
     setFade(on: boolean): void;
     private _setFaded;
+    private _suppressedBy;
+    /** Is the pad stepping aside for a menu (see `suppress`)? */
+    get suppressed(): boolean;
+    /**
+     * Hide the pad and stop it reporting input until `release` is called with
+     * the same reason. For a modal drawn in the scene, which would otherwise sit
+     * under the pad. Reasons are counted separately.
+     */
+    suppress(reason?: string): void;
+    release(reason?: string): void;
     private _inputWatch;
     private _idleTimer;
     private _faded;

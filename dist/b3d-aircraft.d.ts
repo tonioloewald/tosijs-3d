@@ -45,6 +45,11 @@ export declare class B3dAircraft extends B3dControllable {
         lookRange: number;
         /** Max nose-UP attitude the stick can command, degrees. */
         maxPitch: number;
+        /** Speed lost per second in a vertical climb (gained in a dive), as a
+         * fraction of `maxSpeed`. */
+        climbCost: number;
+        /** Metres ahead of the craft the chase camera aims at. 0 = at the craft. */
+        chaseLookAhead: number;
         /** Max nose-DOWN attitude, degrees. 0 = same as `maxPitch`. */
         maxDive: number;
         /** Look slew rate (degrees/sec at full deflection). */
@@ -181,6 +186,8 @@ export declare class B3dAircraft extends B3dControllable {
     private fbwSeeded;
     ceiling: number;
     hudChaseOff: boolean;
+    climbCost: number;
+    chaseLookAhead: number;
     reticle: string;
     reticleRange: number;
     private _hud;

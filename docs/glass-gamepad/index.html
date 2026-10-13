@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=2dcc44dc69b8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=8928b0a894ba" data-tosi-doc-system />
   <title>glass-gamepad (b3dGamepad) — tosijs-3d</title>
   <meta name="description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so it&#39;s both the overlay element and a [[virtual-gamepad]] GamepadSource, like…" />
   <link rel="canonical" href="https://3d.tosijs.net/glass-gamepad/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=2c5b74caf422" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=73041c218643" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="glass-gamepad-b3dgamepad">glass-gamepad (b3dGamepad)</h1>
 <p>A <strong>split</strong> on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so
@@ -187,6 +187,22 @@ your target disappeared. A keypress is the honest signal, because it is the one
 that actually implies an on-screen fallback isn&#39;t needed.</p>
 <p>If the pad is disappearing on you during development, <code>fade=&quot;off&quot;</code> (or
 <code>setFade(false)</code>) pins it; <code>faded</code> reports the current state.</p>
+<h2 id="getting-out-of-the-way-of-a-menu">Getting out of the way of a menu</h2>
+<p>The pad sits over the canvas, so a menu drawn in the scene would be under it
+and a button beneath a stick could not be pressed. The pad therefore steps
+aside by itself while the scene is paused, while a death panel is up and
+while a modal popup (<code>openPopup({ modal: true })</code>) is open. That reaches a pad
+inside the scene element (where <code>gamepad: true</code> puts it) or directly beside
+it. For any other menu of your own, say so on the pad you mounted:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token comment">// `pad` is your b3dGamepad(), or scene.querySelector('tosi-b3d-gamepad')</span>
+<span class="token comment">// when `gamepad: true` mounted it for you.</span>
+pad<span class="token punctuation">.</span><span class="token function">suppress</span><span class="token punctuation">(</span><span class="token string">'shop'</span><span class="token punctuation">)</span> <span class="token comment">// gone, and it reports no input</span>
+pad<span class="token punctuation">.</span><span class="token function">release</span><span class="token punctuation">(</span><span class="token string">'shop'</span><span class="token punctuation">)</span> <span class="token comment">// back, unless something else still holds it</span>
+</code></pre>
+<p>Each caller names its own reason, so two menus cannot release each other&#39;s
+hold. This is separate from the fade: <code>setFade</code> is about a real keyboard or
+controller being in use. There is no switch to keep the pad up over a paused
+scene; if you need one, call <code>release(&#39;pause&#39;)</code> from a <code>pause</code> listener.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -603,6 +619,6 @@ that actually implies an on-screen fallback isn&#39;t needed.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-48tecfqa.js"></script>
+  <script type="module" src="../hydrate-0akytav6.js"></script>
 </body>
 </html>

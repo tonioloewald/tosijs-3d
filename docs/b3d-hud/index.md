@@ -89,3 +89,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `url` | `''` | Empty = the built-in code HUD (fully wired); set to a designer SVG to load one |
 | `size` | `70` | HUD height as a % of the canvas's smaller dimension |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
+| `blend` | `'plus-lighter'` | How the flat overlay is mixed with the scene (any CSS `mix-blend-mode`). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. `'normal'` paints it on top |
+| `opacity` | `0.5` | Opacity of the flat overlay, `0…1`. With `blend="normal"` about `0.85` reads well |
+
+Both are also CSS custom properties, `--hud-blend` and `--hud-opacity`, for a
+page that would sooner set them in a stylesheet. They style the flat overlay
+only: the in-scene plane (cockpit view, a headset) is drawn by the scene.

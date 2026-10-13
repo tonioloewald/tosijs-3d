@@ -664,6 +664,8 @@ export class B3dDeath extends B3dChild {
         plane.svgElement = svg;
         this._panel = plane;
         this.owner.appendChild(plane);
+        // The glass gamepad sits over the canvas and would cover the buttons.
+        this.owner._suppressGamepad?.('death', true);
     }
     /** Tear down the death state and hand control back — then run `next` (e.g. respawn). */
     resume(next) {
@@ -701,6 +703,7 @@ export class B3dDeath extends B3dChild {
         this._charMats = [];
         this._panel?.remove();
         this._panel = null;
+        this.owner?._suppressGamepad?.('death', false);
         // CAMERA HANDOFF. Do NOT restore `_prevCam`: that camera belonged to the aircraft we
         // just deleted, so restoring it points the scene at a corpse's disposed follow-cam.
         //

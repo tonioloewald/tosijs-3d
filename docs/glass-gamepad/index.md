@@ -124,3 +124,24 @@ that actually implies an on-screen fallback isn't needed.
 
 If the pad is disappearing on you during development, `fade="off"` (or
 `setFade(false)`) pins it; `faded` reports the current state.
+
+## Getting out of the way of a menu
+
+The pad sits over the canvas, so a menu drawn in the scene would be under it
+and a button beneath a stick could not be pressed. The pad therefore steps
+aside by itself while the scene is paused, while a death panel is up and
+while a modal popup (`openPopup({ modal: true })`) is open. That reaches a pad
+inside the scene element (where `gamepad: true` puts it) or directly beside
+it. For any other menu of your own, say so on the pad you mounted:
+
+```javascript
+// `pad` is your b3dGamepad(), or scene.querySelector('tosi-b3d-gamepad')
+// when `gamepad: true` mounted it for you.
+pad.suppress('shop') // gone, and it reports no input
+pad.release('shop') // back, unless something else still holds it
+```
+
+Each caller names its own reason, so two menus cannot release each other's
+hold. This is separate from the fade: `setFade` is about a real keyboard or
+controller being in use. There is no switch to keep the pad up over a paused
+scene; if you need one, call `release('pause')` from a `pause` listener.

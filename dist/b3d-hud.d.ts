@@ -8,6 +8,8 @@ export declare class B3dHud extends B3dChild {
         url: string;
         size: number;
         pxPerDeg: number;
+        blend: string;
+        opacity: number;
     };
     static lightStyleSpec: {
         ':host': {
@@ -46,6 +48,9 @@ export declare class B3dHud extends B3dChild {
     url: string;
     size: number;
     pxPerDeg: number;
+    blend: string;
+    opacity: number;
+    render(): void;
     private controller;
     private _meters;
     private _horizon;

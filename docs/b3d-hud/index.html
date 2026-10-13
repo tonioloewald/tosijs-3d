@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=2dcc44dc69b8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=8928b0a894ba" data-tosi-doc-system />
   <title>b3d-hud — tosijs-3d</title>
   <meta name="description" content="A drop-in aircraft HUD: mounts the hud SVG as an additive, translucent overlay centred over the scene and exposes setMeter / setHorizon / setTraces to" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-hud/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=2c5b74caf422" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=73041c218643" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-hud">b3d-hud</h1>
 <p>A drop-in aircraft HUD: mounts the <a href="../hud/">hud</a> SVG as an <strong>additive, translucent</strong>
@@ -132,7 +132,20 @@ setInterval(() =&gt; {
 <td><code>8</code></td>
 <td>Pitch-ladder pixels per degree</td>
 </tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>&#39;plus-lighter&#39;</code></td>
+<td>How the flat overlay is mixed with the scene (any CSS <code>mix-blend-mode</code>). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. <code>&#39;normal&#39;</code> paints it on top</td>
+</tr>
+<tr>
+<td><code>opacity</code></td>
+<td><code>0.5</code></td>
+<td>Opacity of the flat overlay, <code>0…1</code>. With <code>blend=&quot;normal&quot;</code> about <code>0.85</code> reads well</td>
+</tr>
 </tbody></table>
+<p>Both are also CSS custom properties, <code>--hud-blend</code> and <code>--hud-opacity</code>, for a
+page that would sooner set them in a stylesheet. They style the flat overlay
+only: the in-scene plane (cockpit view, a headset) is drawn by the scene.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -549,6 +562,6 @@ setInterval(() =&gt; {
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-48tecfqa.js"></script>
+  <script type="module" src="../hydrate-0akytav6.js"></script>
 </body>
 </html>

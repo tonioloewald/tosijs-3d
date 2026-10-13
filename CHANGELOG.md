@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.1 (unreleased)
+## 0.10.1
 
 Five requests from manta-recon. Nothing changes unless you set the new dials,
 with two exceptions marked **(behaviour)**.
@@ -44,6 +44,8 @@ with two exceptions marked **(behaviour)**.
   In a session the plane now also shows in chase: level, ahead of the craft,
   scaled to cover the angle it covers from the cockpit. `hudChaseOff` still
   keeps the chase view bare. Checked in the emulated headset, not on a device.
+
+Size: barrel (min, packages external) 972.0 KB raw / 327.7 KB gz, +0.17% on 0.10.0.
 
 ## 0.10.0
 

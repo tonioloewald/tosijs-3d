@@ -515,6 +515,9 @@ export declare class B3d extends Component {
      * the camera. Camera-relative so it works flat AND in a headset without a
      * second implementation — the same choice `b3d-death` makes.
      */
+    /** Ask the glass gamepad to step aside for a menu, or come back. Named
+     * reasons, so the pause panel and a death panel do not undo each other. */
+    _suppressGamepad(reason: string, on: boolean): void;
     private _showPausePanel;
     private _hidePausePanel;
     /**

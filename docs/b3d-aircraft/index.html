@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=2dcc44dc69b8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=8928b0a894ba" data-tosi-doc-system />
   <title>b3d-aircraft — tosijs-3d</title>
   <meta name="description" content="Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-aircraft/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=2c5b74caf422" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=73041c218643" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-aircraft">b3d-aircraft</h1>
 <p>Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather
@@ -282,7 +282,12 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <tr>
 <td><code>maxPitch</code></td>
 <td><code>35</code></td>
-<td>Max nose-UP attitude the stick commands (degrees)</td>
+<td>Max nose-UP attitude the stick commands (degrees). A climb steeper than <code>asin(acceleration / (climbCost × maxSpeed))</code> cannot be held without reheat: speed falls to the stall floor. With the defaults (12, 0.4, 50) that is 37°, just above the default 35°</td>
+</tr>
+<tr>
+<td><code>climbCost</code></td>
+<td><code>0.4</code></td>
+<td>What a climb costs in speed, and what a dive gives back, as a fraction of <code>maxSpeed</code> per second at vertical. Steady speed in a climb is <code>maxSpeed × sqrt(1 − (climbCost × maxSpeed / acceleration) × sin(pitch))</code>. Lower it for a craft that holds speed uphill without changing how fast it spools up; <code>0</code> makes climbing free</td>
 </tr>
 <tr>
 <td><code>maxDive</code></td>
@@ -308,6 +313,11 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <td><code>chasePitchFollow</code></td>
 <td><code>0</code></td>
 <td>How much airframe PITCH the chase inherits. <code>0</code> = level pivot (plane pitches within the frame); <code>1</code> = as if parented to the airframe (a climb aims the view up)</td>
+</tr>
+<tr>
+<td><code>chaseLookAhead</code></td>
+<td><code>0</code></td>
+<td>Where the chase camera AIMS: a point this many metres ahead of the craft, at the craft&#39;s height. <code>0</code> aims at the craft itself, which with the default camera looks down 22.6° and puts anything level with you near the top of the screen. Raise it to look down the track (30 gives about 4°). Does not move the camera</td>
 </tr>
 <tr>
 <td><code>chasePitchLag</code></td>
@@ -1028,6 +1038,6 @@ registration time captures an empty root forever).</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-48tecfqa.js"></script>
+  <script type="module" src="../hydrate-0akytav6.js"></script>
 </body>
 </html>

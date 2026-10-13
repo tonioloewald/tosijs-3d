@@ -215,9 +215,25 @@ function bringToFront(owner, front) {
             ? cam.globalPosition.subtract(mesh.absolutePosition).normalize()
             : new BABYLON.Vector3(0, 0, -1);
         const lift = toward.scale(DEPTH_STEP * (list.length - depth));
-        p.plane.x = mesh.position.x + lift.x - (p.stackLift?.x ?? 0);
-        p.plane.y = mesh.position.y + lift.y - (p.stackLift?.y ?? 0);
-        p.plane.z = mesh.position.z + lift.z - (p.stackLift?.z ?? 0);
+        /*
+        INTO THE PARENT'S SPACE. The element's x/y/z are local to the panel the
+        popup hangs from, and that panel is tilted and scaled in a headset, so a
+        world vector written into them pointed somewhere else: the stack was
+        spread sideways and its members stayed in one plane, flickering where
+        they overlapped.
+        */
+        const parent = mesh.parent;
+        if (parent != null) {
+            const inv = parent.getWorldMatrix().clone().invert();
+            BABYLON.Vector3.TransformNormalToRef(lift, inv, lift);
+        }
+        // From the ELEMENT's position, not the mesh's: the mesh only catches up
+        // at the next render, so a second restack in the same frame read a
+        // position without the first one's offset, subtracted that offset anyway,
+        // and left the popup a step short, level with its neighbour.
+        p.plane.x = Number(p.plane.x) + lift.x - (p.stackLift?.x ?? 0);
+        p.plane.y = Number(p.plane.y) + lift.y - (p.stackLift?.y ?? 0);
+        p.plane.z = Number(p.plane.z) + lift.z - (p.stackLift?.z ?? 0);
         p.stackLift = { x: lift.x, y: lift.y, z: lift.z };
     });
 }
@@ -258,6 +274,8 @@ function applyModalBlocking(owner) {
     if (list == null)
         return;
     const pickable = modalPickable(list);
+    // A modal is a menu: the glass gamepad would sit over it and take its taps.
+    owner._suppressGamepad?.('modal-popup', list.some((p) => p.modal === true));
     list.forEach((p, i) => {
         const mesh = p.plane.mesh;
         if (mesh == null)
@@ -559,6 +577,8 @@ export function openPopup(owner, opts) {
     let closed = false;
     let quiet = false;
     let drag = null;
+    // The popup's own handle, once it exists: `place` runs before or after that.
+    let self = null;
     /*
     THE ELEMENT OWNS THE TRANSFORM, not the mesh.
   
@@ -592,6 +612,11 @@ export function openPopup(owner, opts) {
         plane.x = offset.x ?? 0;
         plane.y = offset.y ?? 0;
         plane.z = (offset.z ?? 0) - lift;
+        // This overwrites whatever the stack had added, so the stack must not
+        // believe its offset is still there (it would subtract it again and leave
+        // this popup one step too far back, level with its neighbour).
+        if (self != null)
+            self.stackLift = undefined;
         // Apply to the node NOW as well as to the element. The element's own render
         // writes exactly these values on its next pass, but `tearOff` reads
         // `absolutePosition` and would otherwise get a pose one frame stale — which
@@ -634,6 +659,13 @@ export function openPopup(owner, opts) {
     owner.appendChild(plane);
     whenMesh(() => {
         place();
+        // Take a place in the stack now. Without this, two popups opened one
+        // after the other sat at the same depth until one of them was clicked.
+        // Deferred: on a live scene this runs before `api` exists.
+        queueMicrotask(() => {
+            if (!closed)
+                bringToFront(owner, api);
+        });
         // Owned popups are draggable too, and stay owned. Without this, popup 0
         // was simply immovable with nothing saying why, which is a rule you have
         // to be TOLD rather than one you can discover.
@@ -822,6 +854,9 @@ export function openPopup(owner, opts) {
                 */
                 const world = mesh.absolutePosition.clone();
                 mesh.setParent(null);
+                // The stack's offset was in the old parent's space and is now part
+                // of the world pose; it must not be subtracted as if it were not.
+                api.stackLift = undefined;
                 // …and hand the world pose to the ELEMENT, or its per-frame sync writes
                 // the old parent-relative offset straight back over it.
                 plane.x = world.x;
@@ -871,6 +906,7 @@ export function openPopup(owner, opts) {
                 handleClosed?.();
         },
     };
+    self = api;
     // Newest on top, which is what "it just opened" should mean.
     const list = openPopups.get(owner) ?? [];
     list.unshift(api);
@@ -892,6 +928,7 @@ export function openPopup(owner, opts) {
     `applyModalBlocking` already skips).
     */
     applyModalBlocking(owner);
+    bringToFront(owner, api);
     return api;
 }
 //# sourceMappingURL=popup-surface.js.map
