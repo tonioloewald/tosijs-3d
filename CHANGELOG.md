@@ -9,10 +9,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ## 0.10.0 (unreleased)
 
 **A quality release: the deprecated names are gone, and a long list of bugs
-with them.** No new features. Most of what breaks was announced in 0.8 and
+with them.** No new elements; what was added is tooling for measuring and
+debugging on a device, and some defaults changed (listed under **Changed
+defaults** below). Most of what breaks was announced in 0.8 and
 0.9; three things were not, and are listed below with the rest:
 `new MersenneTwister()` without a seed, `WorldStore` queries returning copies,
-and `surface.openPanel`'s `onClose`. [Migration.md](./Migration.md) has every
+and `surface.openPanel`'s `onClose`. [Migration.md](https://3d.tosijs.net/Migration/) has every
 pair and what to do.
 
 ### ⚠️ Breaking
@@ -41,6 +43,26 @@ pair and what to do.
 - **`surface.openPanel({ onClose })` is `handleClose`.** This one was never
   announced: it was the last `onX` option in the library and follows the same
   rule now (ignored, with a warning).
+
+
+### Changed defaults
+
+Nothing here removes an API, but a scene can look or behave differently
+without a line of yours changing. Each has the setting that puts it back.
+
+- **Opaque meshes are drawn nearest first, the sky last** (was material
+  order). The picture is the same for ordinary opaque meshes; one with depth
+  write off can differ. `scene.setRenderingOrder(0)` restores Babylon's order,
+  and a camera-pinned sky of your own must set `infiniteDistance`.
+- **A headset session renders at a reduced scale with foveation** on the low
+  tier (`xrRenderScale`, `xrFoveation`; `1` and `0` for full).
+- **The decorator places a tier share of its budget** (0.6 on the low tier)
+  and plant rules thin with moisture (`thirst`), so the same seed gives a
+  different layout from 0.9. `budgetScale: 1` places the whole budget.
+- **Scatter rules gather more** (`clump` 0.95, was 0.85).
+- **Water receives sun and cloud shadows.**
+- **The low tier uses the lighter ground shader** (`groundDetail`).
+- **`PerlinNoise(0)` is a seed**, not "no seed".
 
 ### Docs
 
@@ -257,7 +279,7 @@ Size: barrel (min, packages external) 948.5 KB raw / 318.9 KB gz, +1.75% on
   chart is a window onto the new scale (-22.5 °C to 40 °C) and clamps beyond
   it. `chartTemperature` / `planetTemperature` convert. Everything inside the
   biome shader, province climate and decorator bands is still in chart
-  units. See [Migration](./Migration.md).
+  units. See [Migration](https://3d.tosijs.net/Migration/).
 
 ### Changed
 
@@ -1592,7 +1614,7 @@ demo is now **Land and Sky**.
 ### ⚠️ Breaking
 
 Nothing breaks at compile time. Two behaviours change, and
-[Migration.md](./Migration.md) has the before/after for each.
+[Migration.md](https://3d.tosijs.net/Migration/) has the before/after for each.
 
 - **Aircraft guns are direct-hit, not area-effect.** `gun-mode="blast"`
   restores the old behaviour; `gunBlastRadius`/`gunFullRadius` are attributes

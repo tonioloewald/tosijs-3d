@@ -2682,7 +2682,15 @@ export class B3d extends Component {
   private _sweepRuns: SweepRun[] = (() => {
     try {
       const j = JSON.parse(localStorage.getItem(SWEEP_KEY) ?? 'null')
-      if (Array.isArray(j?.runs)) return j.runs
+      // Only what has the shape of a run: this is storage, and a bad entry
+      // would stop Perf Stats building until it was cleared by hand.
+      if (Array.isArray(j?.runs))
+        return j.runs.filter(
+          (r: unknown) =>
+            r != null &&
+            typeof (r as SweepRun).n === 'number' &&
+            Array.isArray((r as SweepRun).lines)
+        )
       // The journal before runs were numbered.
       if (Array.isArray(j?.lines))
         return [{ n: 0, began: 0, lines: j.lines, starting: j.starting }]

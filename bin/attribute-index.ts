@@ -122,7 +122,7 @@ export function sectionFor(doc: string, names: string[]): string {
   for (let i = 0; i < lines.length; i++) {
     const h = /^(#{2,6})\s+(.*)$/.exec(lines[i])
     if (h == null) continue
-    const words = h[2].toLowerCase().match(/[a-z0-9-]+/g) ?? []
+    const words: string[] = h[2].toLowerCase().match(/[a-z0-9-]+/g) ?? []
     if (!wanted.some((w) => words.includes(w))) continue
     let end = i + 1
     for (; end < lines.length; end++) {

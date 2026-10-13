@@ -45,7 +45,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `textureSize` | `0` (auto) | Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256 |
-| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo |
+| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. It applies in a headset too: one drawing serves both eyes and later frames, looked up through the view it was drawn from |
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |

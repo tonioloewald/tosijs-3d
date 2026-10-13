@@ -8,7 +8,8 @@ aloud.
 Off until a URL is set. With one, `sendDebug(tag, event)` posts a line of JSON
 to it, and `<tosi-b3d>` reports the things that are worth having afterwards:
 every step of a cost sweep, the Perf Stats lines while that popup is open, a
-lost WebGL context, and any event passed to `logDebug`.
+lost WebGL context, any event passed to `logDebug`, and every uncaught error
+or promise rejection on the page, with its stack.
 
 ```javascript
 import { debugSink } from 'tosijs-3d'

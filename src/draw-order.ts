@@ -14,6 +14,11 @@ large part of a frame, and on a desktop tile renderer it is close to nothing.
 Blended meshes are untouched: they are still drawn after the opaque ones, far
 to near.
 
+To put Babylon's own order back (by material), call
+`scene.setRenderingOrder(0)` after the scene is ready. A sky of your own that
+is pinned to the camera must set `infiniteDistance`, or it sorts as the
+nearest thing and is drawn first.
+
 ```javascript
 import { nearFirst } from 'tosijs-3d'
 // A render target of your own does not inherit the scene's order.
