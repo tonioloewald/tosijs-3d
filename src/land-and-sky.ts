@@ -648,6 +648,11 @@ const scene = b3d(
       // THE EYE IS PINNED: the slider means what it says.
       el.scene.registerBeforeRender(() => {
         cam.position.y = sky.eye.valueOf()
+        // In a headset the view is the XR camera on its rig, which took its
+        // height from this camera ONCE, on entry: the slider moved nothing.
+        // The rig is the floor, so it sits a nominal eye height lower.
+        const rig = el.xrFrames?.rig
+        if (rig != null) rig.position.y = Math.max(0, sky.eye.valueOf() - 1.6)
       })
     },
   },

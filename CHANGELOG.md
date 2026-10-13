@@ -60,6 +60,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Land and Sky: the eye height slider works in a headset.** It moved the flat camera only; the headset's rig took its height once, on entry.
 - **Climate regions stay put when the origin moves.** The ground's temperature and moisture noise was read at the render position, so a floating-origin reset shifted it. It is read at the world position now (`worldOffsetX`/`worldOffsetZ` on the biome params, which the terrain keeps up to date).
 - **Cloud broke into mismatched tiles on a Quest.** The shader noise's
   lattice hash now snaps to the integer first, so every cell hashes a shared
