@@ -153,6 +153,8 @@ describe('the shape a generated panel relies on', () => {
       'ground.meshName',
       // the NAME of a mesh to follow, like ground.meshName
       'sound.attachTo',
+      // up to three colours, comma separated (like starfieldTilt's three numbers)
+      'moon.bandColors',
     ])
     for (const [key, make] of Object.entries(sceneSchemas)) {
       for (const [k, spec] of Object.entries<any>((make() as any).properties)) {

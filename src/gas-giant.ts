@@ -6,6 +6,65 @@ winds that alternate direction from belt to belt, with a long-lived storm.
 It colours a point on a sphere, so the same code draws a giant hanging in a
 moon's sky ([`<tosi-b3d-moon gas="jupiter">`](/b3d-moon/)) and one you orbit.
 
+## Demo
+
+A giant over the horizon of one of its moons. Pick a planet, then pull it
+about: the dials start at the preset's own values.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dGround, GAS_GIANTS, slider3d, select3d, label3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { gg } = tosi({ gg: { kind: 'jupiter', size: 28, time: 16, tilt: 10, ...GAS_GIANTS.jupiter } })
+const planet = b3dMoon({
+  frame: 'ground', azimuth: 22, elevation: 22,
+  gas: gg.kind, size: gg.size, axisTilt: gg.tilt,
+  bands: gg.bands, turbulence: gg.turbulence, storm: gg.storm,
+})
+// Choosing a planet resets the dials to that planet's numbers.
+gg.kind.observe(() => {
+  const look = GAS_GIANTS[gg.kind.value]
+  gg.bands.value = look.bands
+  gg.turbulence.value = look.turbulence
+  gg.storm.value = look.storm
+})
+
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () => [
+        label3d({ text: 'Gas giant' }),
+        select3d({ label: 'planet', value: gg.kind, options: Object.keys(GAS_GIANTS) }),
+        slider3d({ label: 'bands', value: gg.bands, min: 1, max: 30, step: 1 }),
+        slider3d({ label: 'turbulence', value: gg.turbulence, min: 0, max: 1.5, step: 0.05 }),
+        slider3d({ label: 'storm', value: gg.storm, min: 0, max: 2, step: 0.05 }),
+        slider3d({ label: 'tilt', value: gg.tilt, min: -45, max: 45, step: 1 }),
+        slider3d({ label: 'size (degrees)', value: gg.size, min: 2, max: 80, step: 1 }),
+        slider3d({ label: 'time of day (its phase)', value: gg.time, min: 0, max: 24, step: 0.25 }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, 2, 0), el.scene)
+        cam.setTarget(new BABYLON.Vector3(0, 6, 10))
+        cam.attachControl(el.querySelector('canvas'), true)
+        el.setActiveCamera(cam)
+      },
+    },
+    b3dSun({}),
+    b3dSkybox(
+      { timeOfDay: gg.time, realtimeScale: 0, atmosphere: 0, starfieldCube: '/sky/nebula', starfieldData: '/sky/stars', starfieldTilt: '12,25,58' },
+      planet,
+    ),
+    b3dGround({ width: 80, height: 80, color: '#6a6250' }),
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
+## How it works
+
 It is the [cloud deck](/b3d-cloud-deck/)'s idea turned on its side: a noise
 field advected by wind. There the wind blows across a plane; here each
 latitude has its own wind, which is what draws the bands out into streaks.
