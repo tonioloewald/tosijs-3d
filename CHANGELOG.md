@@ -30,6 +30,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A rotating planet's land no longer shimmers.** The biome shader read its
+  noise by world position, so a planet turned under its own climate. On a
+  planet it now works in the planet's own frame, and reads its climate noise
+  in 3D (it was smeared down the sides of the sphere).
+- **Volcanism on a planet is planet-sized.** The volcanic patterns were sized
+  in metres of terrain, so on a globe the regions were one value everywhere
+  (the dial flipped the whole planet) and the plates were a ninth of its
+  width. They scale with the planet now: regions about a twentieth of the
+  way round, plates you can see.
 - **A planet's air no longer pinches at the poles.** Its clouds were 2D noise
   over latitude and longitude, which converges to a point at each pole and has
   a seam down the back. They are 3D noise read on the sphere itself now, and
