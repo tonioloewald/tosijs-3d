@@ -282,6 +282,9 @@ export function colorPicker3d(config: ColorPicker3dOptions = {}): ColorPicker {
       {
         anchor,
         maxHeight: host.hasLayer ? undefined : Math.max(120, below, above),
+        // A picker stays open while you try colours, so it needs a way to
+        // be put away: the title band with its close (and move) glyphs.
+        ...(host.hasLayer ? { chrome: true } : {}),
         width: Math.max(220, Math.min(width, 300)),
         handleClose: () => {
           open = null
@@ -315,7 +318,14 @@ export function colorPicker3d(config: ColorPicker3dOptions = {}): ColorPicker {
     },
     handle(kind: PointerKind, _x: number, y: number) {
       // On release: a press that becomes a scroll must not open a popup.
-      if (kind === 'up' && y >= 0 && y <= H) openPopup()
+      if (kind !== 'up' || y < 0 || y > H) return
+      // The row is also the way to put it away again.
+      if (open != null) {
+        const was = open
+        open = null
+        field = null
+        was.close()
+      } else openPopup()
     },
   }
   paint()
