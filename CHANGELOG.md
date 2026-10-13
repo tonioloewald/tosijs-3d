@@ -44,6 +44,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **Procedural planet: moisture varies by region.** With `biome="on"` the moisture noise is now broad and strong (`mNoiseScale` 0.035, `mNoiseAmp` 0.5 on `planet.biomePlugin.params`), so a continent carries deserts and forest belts where it was one colour. The demo has a `moisture variation` slider. Set `mNoiseAmp` to 0.18 and `mNoiseScale` to 0.07 for the old look.
 - **A planet's cloud reads its noise from a texture.** A cloud pixel takes
   54 noise samples, each of which was eight hashes of arithmetic; each is
   one read of a small 3D texture now (the same noise, a different draw of

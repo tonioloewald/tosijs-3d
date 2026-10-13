@@ -74,6 +74,7 @@ const scene = b3d(
               bind('temperate temp', 'temperateTemp', 0, 1, 0.01),
               bind('pole temp', 'poleTemp', 0, 1, 0.01),
               bind('moisture', 'mapMoisture', 0, 1, 0.01),
+              bind('moisture variation', 'mNoiseAmp', 0, 1, 0.01),
               bind('rain shadow', 'rainShadow', 0, 0.6, 0.01),
               bind('volcanism', 'volcanism', 0, 1, 0.01),
             ]
@@ -533,7 +534,14 @@ export class B3dPlanet extends B3dChild {
           seaRadius: hasSea ? radius + seaAt : 0.001,
           lapseRate: 0.06,
           tNoiseScale: 0.05,
-          mNoiseScale: 0.07,
+          /*
+          Moisture varies in broad regions and by a lot: about three across
+          a hemisphere, enough to cross the chart from desert to forest. At
+          0.07 and the plugin's 0.18 a continent was one colour (the patches
+          were small and too faint to change biome).
+          */
+          mNoiseScale: 0.035,
+          mNoiseAmp: 0.5,
           ditherScale: 0.6,
           detailNoiseScale: 1.2,
           surfDepth: 0.6,
