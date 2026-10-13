@@ -44,7 +44,10 @@ void main(){
   vec3 n=normalize(vNormalW);
   vec3 l=pmLight.w>0.5?normalize(pmLight.xyz-vWorld):normalize(pmLight.xyz);
   float lit=smoothstep(-0.05,0.25,dot(n,l))*(0.25+0.75*max(dot(n,l),0.0));
-  gl_FragColor=vec4(alb*(lit+0.02),1.0);
+  // The night side is DIM, not black: starlight and the glow of its own air
+  // leave a real planet's dark half readable, and at 2% the land vanished
+  // while the white cloud above it could still be seen.
+  gl_FragColor=vec4(alb*(lit+0.09),1.0);
 }`
 }
 
