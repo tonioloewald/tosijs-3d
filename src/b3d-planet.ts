@@ -336,7 +336,11 @@ export class B3dPlanet extends B3dChild {
     const speed: number = attrs.rotationSpeed
     if (speed > 0) {
       const dt = sceneDelta(this.owner!.scene)
-      this.rootNode.rotation.y += speed * dt
+      // WEST TO EAST, as planets turn: seen from above the north pole,
+      // anticlockwise. East is +longitude, toward +Z from +X, and in
+      // Babylon's left-handed frame that is a NEGATIVE turn about Y. (It was
+      // positive, and the Earth ran backwards.)
+      this.rootNode.rotation.y -= speed * dt
     }
   }
 

@@ -34,6 +34,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **(behaviour) Planets turn west to east.** `rotationSpeed` spun them the
+  other way, so the Earth ran backwards.
 - **A rotating planet's land no longer shimmers.** The biome shader read its
   noise by world position, so a planet turned under its own climate. On a
   planet it now works in the planet's own frame, and reads its climate noise
