@@ -336,11 +336,23 @@ about the axis by its own wind before the noise is read, and the point being
 read is itself pushed about by a coarser noise, which is what curls the band
 edges over into eddies where a plain offset would only make them wavy.
 */
+/*
+THE LATTICE HASH SNAPS TO THE INTEGER FIRST (b3dGgHashL). A corner of the
+noise lattice is reached from eight cells, as `i`, `i + (1,0,0)` and so on,
+and a shader compiler is free to fold that constant offset into the hash's
+own first multiply-and-add. The result differs in the last bit from the
+neighbouring cell's, and the hash then multiplies that bit up into a
+different number altogether: cells that disagree about a shared corner, so
+the noise breaks into mismatched tiles along some edges. Seen on a Quest,
+never on a desktop. A `floor` cannot be folded through, so every route to a
+corner now hashes the identical value.
+*/
 export const GAS_GIANT_GLSL = `
 float b3dGgHash(vec3 p){p=fract(p*0.3183099+vec3(0.1,0.2,0.3));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float b3dGgHashL(vec3 p){return b3dGgHash(floor(p+0.5));}
 float b3dGgNoise(vec3 x){vec3 i=floor(x);vec3 f=fract(x);f=f*f*(3.0-2.0*f);
-return mix(mix(mix(b3dGgHash(i),b3dGgHash(i+vec3(1.0,0.0,0.0)),f.x),mix(b3dGgHash(i+vec3(0.0,1.0,0.0)),b3dGgHash(i+vec3(1.0,1.0,0.0)),f.x),f.y),
-mix(mix(b3dGgHash(i+vec3(0.0,0.0,1.0)),b3dGgHash(i+vec3(1.0,0.0,1.0)),f.x),mix(b3dGgHash(i+vec3(0.0,1.0,1.0)),b3dGgHash(i+vec3(1.0,1.0,1.0)),f.x),f.y),f.z);}
+return mix(mix(mix(b3dGgHashL(i),b3dGgHashL(i+vec3(1.0,0.0,0.0)),f.x),mix(b3dGgHashL(i+vec3(0.0,1.0,0.0)),b3dGgHashL(i+vec3(1.0,1.0,0.0)),f.x),f.y),
+mix(mix(b3dGgHashL(i+vec3(0.0,0.0,1.0)),b3dGgHashL(i+vec3(1.0,0.0,1.0)),f.x),mix(b3dGgHashL(i+vec3(0.0,1.0,1.0)),b3dGgHashL(i+vec3(1.0,1.0,1.0)),f.x),f.y),f.z);}
 float b3dGgFbm(vec3 p){float a=0.5;float s=0.0;for(int i=0;i<3;i++){s+=a*b3dGgNoise(p);p=p*2.03+vec3(7.1,3.3,5.7);a*=0.5;}return s/0.875;}
 vec3 b3dGgTurn(vec3 n,float a){float c=cos(a);float s=sin(a);return vec3(n.x*c-n.z*s,n.y,n.x*s+n.z*c);}
 vec3 b3dGasGiant(vec3 n,vec4 k,vec3 c0,vec3 c1,vec3 c2,float t){
