@@ -14,8 +14,9 @@ turn them. `relief` exaggerates the heights: at 1 a planet is as smooth as a
 billiard ball, which is the truth, and somewhere past 10 it becomes a relief
 map.
 
-The Earth's weather is not part of the picture: `clouds` and `storms` are
-dials, and the cover and the cyclones are worked out as you watch.
+The Earth's weather is not part of the picture: `clouds`, `storms` (how
+many) and `storm intensity` are dials, and the cover and the cyclones are
+worked out as you watch.
 
 ```js
 import { b3d, b3dPlanet, b3dSun, b3dSkybox, select3d, slider3d, label3d } from 'tosijs-3d'
@@ -27,11 +28,13 @@ const WORLDS = {
   // NOAA's heights include the sea floor; `flatSea` fills the oceans level.
   Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', inlandWater: 'on', clouds: 0.45, atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
 }
-const { real } = tosi({ real: { world: 'Earth', relief: WORLDS.Earth.relief, spin: 0.03, clouds: WORLDS.Earth.clouds, storms: 1 } })
+const { real } = tosi({ real: { world: 'Earth', relief: WORLDS.Earth.relief, spin: 0.03, clouds: WORLDS.Earth.clouds, storms: 3, stormIntensity: 1 } })
 const planet = b3dPlanet({ radius: 50, subdivisions: 160, ocean: 0, rotationSpeed: real.spin, ...WORLDS.Earth })
 
-// Storms on the Earth: a hurricane off the Caribbean and a cyclone in the
-// south-west Pacific, each turning the right way for its hemisphere. And one
+// Storms on the Earth: a hurricane off the Caribbean, a cyclone in the
+// south-west Pacific and a typhoon in the Philippine Sea (the fourth, and
+// four is as many as a planet takes), each turning the right way for its
+// hemisphere. And one
 // that is real: the Catatumbo lightning over Lake Maracaibo in Venezuela,
 // a thunderstorm that stands in the same place most nights of the year
 // (`cyclone: 0`: it does not turn). Swing round to the night side to see
@@ -41,16 +44,20 @@ const STORMS = {
     { lat: 24, lon: -62, size: 6, intensity: 1, lightning: 1.5 },
     { lat: -17, lon: 160, size: 5, intensity: 0.9, lightning: 1 },
     { lat: 9.5, lon: -71.5, size: 2.2, intensity: 0.8, lightning: 4, cyclone: 0 },
+    { lat: 17, lon: 133, size: 7, intensity: 1, lightning: 1.2 },
   ],
 }
 // None of the weather is a picture: the cloud cover and the storms are
-// computed as you watch, so both are dials.
+// computed as you watch, so all of it is dials. A stronger storm winds
+// harder, flashes more and is wider.
 const setStorms = () => {
-  const k = real.storms.value
-  planet.storms = k <= 0 ? [] : (STORMS[real.world.value] ?? []).map((s) => ({ ...s, intensity: s.intensity * k, lightning: s.lightning * k }))
+  const k = real.stormIntensity.value
+  const wide = 0.6 + 0.4 * k
+  planet.storms = k <= 0 ? [] : (STORMS[real.world.value] ?? []).slice(0, real.storms.value).map((s) => ({ ...s, size: s.size * wide, intensity: s.intensity * k, lightning: s.lightning * k }))
 }
 setStorms()
 real.storms.observe(setStorms)
+real.stormIntensity.observe(setStorms)
 real.clouds.observe(() => {
   planet.clouds = real.clouds.value
   planet.updateOptions()
@@ -79,7 +86,8 @@ preview.append(
         slider3d({ label: 'relief (× true)', value: real.relief, min: 1, max: 60, step: 1 }),
         slider3d({ label: 'rotation', value: real.spin, min: 0, max: 0.3, step: 0.01 }),
         slider3d({ label: 'clouds', value: real.clouds, min: 0, max: 1, step: 0.05 }),
-        slider3d({ label: 'storms', value: real.storms, min: 0, max: 1.5, step: 0.05 }),
+        slider3d({ label: 'storms', value: real.storms, min: 0, max: 4, step: 1 }),
+        slider3d({ label: 'storm intensity', value: real.stormIntensity, min: 0, max: 2, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera('orbit', -Math.PI / 2.4, Math.PI / 2.3, 150, BABYLON.Vector3.Zero(), el.scene)

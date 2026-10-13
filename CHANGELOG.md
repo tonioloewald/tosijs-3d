@@ -33,8 +33,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Lakes glint.** `inlandWater="on"` on a planet with a `colorMap` guesses
   inland water from the picture (blue, or the near-black NASA's Blue Marble
   paints deep lakes) and gives it the sea's glint. The height map only knows
-  the sea. The real-worlds Earth has it on, and that demo gained `clouds`
-  and `storms` sliders.
+  the sea. The real-worlds Earth has it on, and that demo gained `clouds`,
+  `storms` (how many, up to four) and `storm intensity` sliders.
 
 ### Fixed
 
