@@ -3,6 +3,7 @@ import {
   canMantle,
   mantleClip,
   mantlePath,
+  CLIMB_PHASE,
   defaultMantleLimits,
   type LedgeReading,
 } from './mantle.js'
@@ -99,5 +100,29 @@ describe('mantleClip — the rig decides, by measurement', () => {
 
   test('degrades to the fallback rather than asking for a missing clip', () => {
     expect(mantleClip(1.2, ['Idle_Loop', 'Walk_Loop'])).toBe('jump')
+  })
+})
+
+describe('mantlePath — a climb clip opens with a wind-up', () => {
+  const from = { x: 0, y: 0, z: 0 }
+  const to = { x: 0, y: 2, z: 1 }
+  const at = (t: number) =>
+    mantlePath(
+      from,
+      to,
+      t,
+      CLIMB_PHASE.riseEnds,
+      CLIMB_PHASE.moveStarts,
+      CLIMB_PHASE.riseStarts
+    )
+  test('the body does not rise while the clip is still crouching', () => {
+    expect(at(CLIMB_PHASE.riseStarts).y).toBe(0)
+    expect(at(CLIMB_PHASE.riseStarts / 2)).toEqual(from)
+  })
+  test('it still arrives exactly on top, having risen before moving in', () => {
+    expect(at(1)).toEqual(to)
+    const mid = at(CLIMB_PHASE.moveStarts)
+    expect(mid.y).toBeGreaterThan(0.5)
+    expect(mid.z).toBe(0)
   })
 })

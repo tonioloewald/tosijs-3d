@@ -6,6 +6,17 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.2 (unreleased)
+
+### Fixed
+
+- **Climbing onto a moving lift no longer leaves the biped waist deep in its
+  deck.** The climb aimed at where the deck was when it began; the landing now
+  travels with whatever is being climbed.
+- **A climb no longer slides a crouching body up the face.** The climb clips
+  open with a wind-up, and the path rose from the first frame. It now waits
+  for the pull (`CLIMB_PHASE` in `mantle`; `mantlePath` takes a `riseStarts`).
+
 ## 0.10.1
 
 Five requests from manta-recon. Nothing changes unless you set the new dials,

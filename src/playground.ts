@@ -302,11 +302,12 @@ export function playground(options: PlaygroundOptions = {}) {
   )
 
   /*
-  THE CLIMB — three crates at a step, a mantle and a "no".
+  THE CLIMB — three crates: a step, a mantle and a pull-up.
 
   0.4 is a stair you walk up without noticing, 0.9 is the band `mantle` exists
-  for, and 1.6 is above it: the character should refuse rather than levitate,
-  and refusing visibly is the behaviour worth being able to watch.
+  for, and 1.6 was the "no" until the rig gained `ClimbUp_2m` and `climbReach`
+  went to 2.2: it is now the tall climb, a pull-up over your own head. The
+  refusal to watch is the tower beside the lifts.
   */
   parts.push(
     wall('crate-step', -14, 10, 1.6, 0.4, 1.6, CRATE),
