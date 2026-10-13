@@ -148,7 +148,9 @@ tosi-b3d {
 | `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
 | `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
 | `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
-| `flatSea` | `'off'` | `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth) |
+| `flatSea` | `'off'` | `'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth) |
+| `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
+| `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
@@ -183,7 +185,7 @@ import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
 import { createPlanetClouds, type PlanetStorm } from './planet-clouds.js'
-import { createMappedPlanetMaterial } from './planet-map-material.js'
+import { createPlanetSurfaceMaterial } from './planet-surface-material.js'
 import { assetUrl } from './asset-url.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
@@ -237,6 +239,9 @@ export class B3dPlanet extends B3dChild {
     // Fill the seas level (heights below 0 read as 0): for a world whose
     // colour map shows water.
     flatSea: 'off' as 'on' | 'off',
+    // The sun's glint on the sea, 0…1, and sea ice toward the poles, 0…1.
+    seaGlint: 1,
+    seaIce: 0,
     // With `surface` set: how much its true relief is exaggerated (1 = to
     // scale, which on a globe is flat to the eye).
     relief: 1,
@@ -452,6 +457,46 @@ export class B3dPlanet extends B3dChild {
       }
     }
 
+    /*
+    ONE MESH FOR LAND AND SEA (planet-surface-material, board #3271), for a
+    planet with a colour map or without the biome shading. Every vertex
+    under the sea is brought up TO the sea, and each keeps its true height
+    as data (uv.x), so the shader can tell land from water per pixel and
+    knows how deep the water is. There is no sea sphere.
+    */
+    const unified = !!attrs.colorMap || isOff(attrs.biome)
+    let heightData: Float32Array | null = null
+    let seaAt = 0
+    let hasSea = false
+    let highest = 1e-3
+    let deepest = 1e-3
+    if (unified) {
+      this.vertexHeights = heights
+      hasSea =
+        this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0
+      seaAt =
+        this.surface != null || !hasSea
+          ? 0
+          : this.heightPercentile(attrs.ocean)
+      heightData = new Float32Array(totalVerts * 2)
+      for (let i = 0; i < totalVerts; i++) {
+        const above = heights[i] - seaAt
+        heightData[i * 2] = hasSea ? above : Math.max(above, 1e-4)
+        if (above > highest) highest = above
+        if (-above > deepest) deepest = -above
+        if (hasSea && above < 0) {
+          const x = positions[i * 3]
+          const y = positions[i * 3 + 1]
+          const z = positions[i * 3 + 2]
+          const k = (radius + seaAt) / (Math.hypot(x, y, z) || 1)
+          positions[i * 3] = x * k
+          positions[i * 3 + 1] = y * k
+          positions[i * 3 + 2] = z * k
+          heights[i] = seaAt
+        }
+      }
+    }
+
     // Recompute normals from geometry for proper lighting
     BABYLON.VertexData.ComputeNormals(
       positions,
@@ -464,14 +509,21 @@ export class B3dPlanet extends B3dChild {
     vertexData.positions = positions
     vertexData.indices = indices
     vertexData.normals = normals
+    if (heightData != null) vertexData.uvs = heightData
     vertexData.applyToMesh(mesh, true)
 
-    if (attrs.colorMap) {
-      // A REAL WORLD'S COLOUR: the map, looked up by direction (planet-map).
-      const mapped = createMappedPlanetMaterial(
-        this.owner.scene,
-        assetUrl(String(attrs.colorMap))
-      )
+    if (unified) {
+      // A real world's colour is its map, looked up by direction
+      // (planet-map); without one, land is coloured by simple rules.
+      const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
+        colorUrl: attrs.colorMap ? assetUrl(String(attrs.colorMap)) : '',
+        sea: hasSea,
+        heightScale: highest,
+        depthScale: Math.max(deepest * 0.6, radius * 0.004),
+        glint: attrs.seaGlint,
+        seaIce: attrs.seaIce,
+        seed: 1 + (Math.abs(attrs.seed) % 83),
+      })
       mapped.wireframe = attrs.wireframe
       mesh.material = mapped
       mesh.parent = this.rootNode
@@ -549,8 +601,8 @@ export class B3dPlanet extends B3dChild {
     }
     this._heightMapLoaded = key
     if (url === '') return
+    // No floor: the sea floor's depth is kept, for the colour of the water.
     loadPlanetMap(url, {
-      ...(isOff(attrs.flatSea) ? {} : { floor: 0 }),
       ...(attrs.bodyRadiusKm > 0 ? { radius: attrs.bodyRadiusKm * 1000 } : {}),
     })
       .then((surface) => {
@@ -762,8 +814,9 @@ export class B3dPlanet extends B3dChild {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
     const oceanPct: number = attrs.ocean
-    // A colour map already shows its seas.
-    if (oceanPct <= 0 || attrs.gas || attrs.colorMap) return
+    // The one-mesh planet draws its own sea (see buildPlanet).
+    if (oceanPct <= 0 || attrs.gas || attrs.colorMap || isOff(attrs.biome))
+      return
 
     // Ocean radius: height at the given percentile of vertices
     // e.g. ocean=0.6 means 60% of surface is underwater

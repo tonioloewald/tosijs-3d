@@ -2842,7 +2842,17 @@
       {
         "name": "flatSea",
         "default": "'off'",
-        "description": "`'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth)"
+        "description": "`'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth)"
+      },
+      {
+        "name": "seaGlint",
+        "default": "1",
+        "description": "The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move"
+      },
+      {
+        "name": "seaIce",
+        "default": "0",
+        "description": "Sea ice toward the poles, `0…1`"
       },
       {
         "name": "relief",

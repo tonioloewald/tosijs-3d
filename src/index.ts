@@ -430,6 +430,10 @@ export {
 } from './planet-map.js'
 export { createMappedPlanetMaterial } from './planet-map-material.js'
 export {
+  createPlanetSurfaceMaterial,
+  type PlanetSurfaceOptions,
+} from './planet-surface-material.js'
+export {
   createPlanetClouds,
   type PlanetStorm,
   type PlanetCloudOptions,

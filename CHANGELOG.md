@@ -8,6 +8,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.10.4 (unreleased)
 
+### Added
+
+- **One mesh for land and sea.** A planet with a colour map, or without the
+  biome shading, is now a single sphere drawn by one shader
+  (`createPlanetSurfaceMaterial`): land above sea level, water below, told
+  apart per pixel by height. The coast is a smooth line however coarse the
+  mesh (it was wherever the ground poked through a sea sphere), the water is
+  pale in the shallows and dark in the deep, and the sea has the sun's
+  glint, broken into sparkle by fine wave texture. `seaGlint`, `seaIce`.
+  On a real-map planet `flatSea="on"` now means "this world has a sea".
+  Planets with `biome="on"` are unchanged for now.
+
 ### Changed
 
 - **Planet storms look like storms.** The winding is a vortex's (tightest
