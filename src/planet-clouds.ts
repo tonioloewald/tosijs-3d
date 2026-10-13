@@ -70,12 +70,15 @@ float pcBelt(float latDeg){
   float mid=exp(-pow((a-52.0)/15.0,2.0));
   return clamp(0.85*itcz+mid+0.45*smoothstep(66.0,86.0,a),0.0,1.0);
 }
-// The cloud's DEPTH at a point, before the coverage dial cuts it.
-float pcField(vec3 d){
+// The cloud's DEPTH at a point, with the belt winds having blown for tt
+// seconds, before the coverage dial cuts it.
+float pcF(vec3 d,float tt){
   float latDeg=asin(clamp(d.y,-1.0,1.0))*57.29578;
   float lat=latDeg*0.0174533;
   vec3 sd=vec3(pcK.z*11.3,pcK.z*5.9,pcK.z*2.7);
-  vec3 q=b3dGgTurn(d,pcK.y*0.012*cos(lat*3.0));
+  // The whole sky drifts east (that can run for ever: nothing is stretched),
+  // and each belt is carried by its own wind for tt.
+  vec3 q=b3dGgTurn(d,-pcK.y*0.003+tt*0.012*cos(lat*3.0));
   /*
   CYCLONES. Space is cut into cells about 16 degrees across, each with a
   centre; near its centre the sky is WOUND about it, anticlockwise in the
@@ -100,6 +103,28 @@ float pcField(vec3 d){
   // there is cloud in the subtropics and clear sky on the equator. (At 0.24
   // the subtropics were swept bare and the belts were nearly solid.)
   return f+0.14*(pcBelt(latDeg)-0.5);
+}
+/*
+WINDS THAT DIFFER BY LATITUDE CANNOT SIMPLY RUN. Neighbouring belts moving at
+different speeds shear whatever lies across them, and the shear grows without
+limit: after a few minutes every system had been drawn out into thin stripes
+along the latitude lines, and the stripes overwhelmed everything else. So the
+winds run for a minute and start again, in two copies half a minute apart,
+and the sky is a cross-fade between them: each copy is faded out as it
+reaches its limit and back in once it has been reset. Nothing is ever
+stretched further than a minute's wind, and the fade doubles as the slow
+birth and death of systems. The blend is restored to full contrast, since
+the average of two skies is a flatter sky.
+*/
+float pcField(vec3 d){
+  const float T=60.0;
+  float ph=pcK.y/T;
+  float a=fract(ph);
+  float b=fract(ph+0.5);
+  float wa=1.0-abs(2.0*a-1.0);
+  float wb=1.0-wa;
+  float f=wa*pcF(d,(a-0.5)*T)+wb*pcF(d,(b-0.5)*T);
+  return 0.5+(f-0.5)/sqrt(wa*wa+wb*wb);
 }
 float pcCut(float f){
   float th=mix(0.74,0.3,clamp(pcK.x,0.0,1.0));
