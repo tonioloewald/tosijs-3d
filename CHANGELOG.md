@@ -42,7 +42,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   54 noise samples, each of which was eight hashes of arithmetic; each is
   one read of a small 3D texture now (the same noise, a different draw of
   it, so the weather is not where it was). The cloud shell was 6 to 9 ms of
-  a Quest's frame. Not yet measured on one.
+  a Quest's frame; measured there afterwards, removing it buys under 1 ms.
+- **A planet's surface reads its noise too**: its climate, the biome
+  shader's fine noise (as terrain already did) and the sea's glint. The
+  glint is only worked out near the sun's reflection, which is a small part
+  of an ocean. Not yet measured on a headset.
 
 ### Fixed
 

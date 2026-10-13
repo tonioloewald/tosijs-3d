@@ -1297,7 +1297,7 @@ function has3dTextures(scene: BABYLON.Scene): boolean {
 }
 
 /** The scene's one noise block, made on first use. */
-function noiseTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture3D {
+export function noiseTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture3D {
   let tex = noiseTextures.get(scene)
   if (tex == null) {
     tex = new BABYLON.RawTexture3D(
@@ -1315,7 +1315,19 @@ function noiseTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture3D {
     tex.name = 'biome-noise'
     tex.wrapU = tex.wrapV = tex.wrapR = BABYLON.Texture.WRAP_ADDRESSMODE
     noiseTextures.set(scene, tex)
-    tex.onDisposeObservable.add(() => noiseTextures.delete(scene))
+    /*
+    SHARED, so it belongs to the scene and not to whoever holds it. A mesh
+    disposed "with its material and textures" would otherwise take this away
+    from every other material reading it (a planet rebuilding its clouds
+    left its own surface with a dead texture, and a material with a dead
+    texture is never ready: the planet vanished). It goes with the scene.
+    */
+    const dispose = tex.dispose.bind(tex)
+    tex.dispose = () => {}
+    scene.onDisposeObservable.addOnce(() => {
+      noiseTextures.delete(scene)
+      dispose()
+    })
   }
   return tex
 }

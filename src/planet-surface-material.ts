@@ -24,7 +24,17 @@ import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
 import { sceneLight } from './gas-giant-material.js'
 import { sceneSeconds } from './b3d-utils.js'
-import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
+import {
+  NOISE_TEXTURE_GLSL,
+  NOISE_TEXTURE_SAMPLER,
+  hasNoiseTexture,
+  noiseTextureOf,
+} from './noise-texture.js'
+import {
+  attachBiomePlugin,
+  noiseTextureOf as biomeNoiseTextureOf,
+  type BiomePlugin,
+} from './biome-plugin.js'
 import type { BiomeParams } from './biome-plugin.js'
 
 const NAME = 'b3dPlanetSurface'
@@ -97,6 +107,7 @@ uniform float psLakes;
 uniform mat4 world;
 ${biomeDecl}
 ${GAS_GIANT_GLSL}
+${NOISE_TEXTURE_GLSL}
 void main(){
   vec3 d=normalize(vBody);
   vec3 n=normalize(vNormalW);
@@ -145,8 +156,8 @@ void main(){
     ${biomeLand}
     ${biome ? '/*' : '*/'}
     float alt=clamp(vHeight/max(psK.x,1e-4),0.0,1.0);
-    float wet=b3dGgFbm(d*3.1+vec3(psK.z))*0.7+b3dGgNoise(d*11.0)*0.3;
-    float temp=1.0-abs(lat)/1.45-alt*0.55+(b3dGgNoise(d*5.0+vec3(3.0))-0.5)*0.18;
+    float wet=b3dVnFbm(d*3.1+vec3(psK.z))*0.7+b3dVn(d*11.0)*0.3;
+    float temp=1.0-abs(lat)/1.45-alt*0.55+(b3dVn(d*5.0+vec3(3.0))-0.5)*0.18;
     vec3 desert=vec3(0.76,0.66,0.44);
     vec3 grass=vec3(0.35,0.5,0.24);
     vec3 forest=vec3(0.13,0.3,0.14);
@@ -171,7 +182,7 @@ void main(){
       : ''
   }
   // Sea ice toward the poles.
-  float ice=psSea.z*smoothstep(1.02,1.2,abs(lat)+(b3dGgNoise(d*9.0)-0.5)*0.12);
+  float ice=psSea.z>0.0&&abs(lat)>0.9?psSea.z*smoothstep(1.02,1.2,abs(lat)+(b3dVn(d*9.0)-0.5)*0.12):0.0;
   water=mix(water,vec3(0.86,0.9,0.94),ice);
 
   vec3 alb=mix(land,water,sea);
@@ -188,18 +199,23 @@ void main(){
   */
   if(sea>0.0&&psSea.y>0.0){
     vec3 up=normalize(mat3(world)*d);
-    float t=psSea.w;
-    vec3 wv=vec3(b3dGgNoise(d*420.0+vec3(t*0.7,0.0,0.0)),b3dGgNoise(d*420.0+vec3(31.0,t*0.6,0.0)),b3dGgNoise(d*420.0+vec3(0.0,57.0,t*0.5)))-0.5;
-    vec3 wv2=vec3(b3dGgNoise(d*95.0+vec3(t*0.2)),b3dGgNoise(d*95.0+vec3(17.0+t*0.2)),b3dGgNoise(d*95.0+vec3(41.0)))-0.5;
-    vec3 wn=normalize(up+wv*0.16+wv2*0.07);
     vec3 h=normalize(l+v);
-    float nh=max(dot(wn,h),0.0);
-    float core=pow(nh,260.0)*3.2;
-    float spread=pow(nh,34.0)*0.38;
-    // Low sun and a grazing view both stretch and brighten it.
-    float fres=0.25+0.75*pow(1.0-max(dot(up,v),0.0),3.0);
     float day=smoothstep(-0.02,0.15,dot(up,l));
-    col+=vec3(1.0,0.96,0.88)*(core+spread)*fres*day*sea*(1.0-ice)*psSea.y;
+    // Only NEAR the reflection: the waves tilt the surface by 12 degrees at
+    // most, so further than that from the mirror point there is no sparkle
+    // to work out, and that is most of an ocean.
+    if(dot(up,h)>0.72){
+      float t=psSea.w;
+      vec3 wv=vec3(b3dVn(d*420.0+vec3(t*0.7,0.0,0.0)),b3dVn(d*420.0+vec3(31.0,t*0.6,0.0)),b3dVn(d*420.0+vec3(0.0,57.0,t*0.5)))-0.5;
+      vec3 wv2=vec3(b3dVn(d*95.0+vec3(t*0.2)),b3dVn(d*95.0+vec3(17.0+t*0.2)),b3dVn(d*95.0+vec3(41.0)))-0.5;
+      vec3 wn=normalize(up+wv*0.16+wv2*0.07);
+      float nh=max(dot(wn,h),0.0);
+      float core=pow(nh,260.0)*3.2;
+      float spread=pow(nh,34.0)*0.38;
+      // Low sun and a grazing view both stretch and brighten it.
+      float fres=0.25+0.75*pow(1.0-max(dot(up,v),0.0),3.0);
+      col+=vec3(1.0,0.96,0.88)*(core+spread)*fres*day*sea*(1.0-ice)*psSea.y;
+    }
     // …and the sea's own sheen of sky at the limb.
     col+=vec3(0.25,0.4,0.6)*pow(1.0-max(dot(up,v),0.0),5.0)*0.25*day*sea;
   }
@@ -262,9 +278,21 @@ export function createPlanetSurfaceMaterial(
         'psLakes',
         ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
-      samplers: ['psColor'],
+      samplers: ['psColor', NOISE_TEXTURE_SAMPLER, 'biomeNoiseTex'],
+      // The noise is READ where the engine has 3D textures: this shader's
+      // own (noise-texture) and the biome shader's fine noise, as on terrain.
+      defines: hasNoiseTexture(scene)
+        ? ['#define B3D_NOISETEX', '#define BIOME_NOISETEX']
+        : [],
     }
   )
+  if (hasNoiseTexture(scene)) {
+    mat.setTexture(NOISE_TEXTURE_SAMPLER, noiseTextureOf(scene))
+    // Bound NOW, not at the first draw (where the plugin would bind it): a 3D
+    // sampler left on the unit a 2D one is using is an invalid draw, and the
+    // planet was dropped for a frame each time it was rebuilt.
+    if (biome != null) mat.setTexture('biomeNoiseTex', biomeNoiseTextureOf(scene))
+  }
   // No mipmaps on the map: the lookup jumps at the date line, and a mip
   // level chosen from that jump draws a seam down the back of the planet.
   const tex =
@@ -309,8 +337,7 @@ export function createPlanetSurfaceMaterial(
     updateFloatArray: (n: string, values: Float32Array) =>
       mat.setArray4(n, Array.from(values)),
     updateMatrix: (n: string, m: BABYLON.Matrix) => mat.setMatrix(n, m),
-    // The fine-noise texture is not used here: the noise is computed.
-    setTexture: () => {},
+    setTexture: (n: string, t: BABYLON.BaseTexture) => mat.setTexture(n, t),
   }
   mat.onBind = (mesh) => {
     if (biome != null)
