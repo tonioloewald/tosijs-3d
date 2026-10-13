@@ -592,6 +592,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
     const mesh = p.seaRadius > 0 ? subMesh?.getMesh() : null
     if (mesh != null) mesh.getWorldMatrix().invertToRef(this._body)
     else BABYLON.Matrix.IdentityToRef(this._body)
+    // …and the planet's centre is wherever the planet IS. `planetCenter` was
+    // only ever the origin, so a planet that had been moved was shaded as if
+    // it had not: altitude and latitude measured from the wrong place.
+    const at = mesh?.getAbsolutePosition() ?? p.planetCenter
     uniformBuffer.updateMatrix('biomeBody', this._body)
     const scene = this._material.getScene()
     if (!this._computed && has3dTextures(scene))
@@ -648,13 +652,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.moistureDryHeight,
       ((performance.now() - this._t0) / 1000) % 3600
     )
-    uniformBuffer.updateFloat4(
-      'biomePlanet',
-      p.planetCenter.x,
-      p.planetCenter.y,
-      p.planetCenter.z,
-      p.seaRadius
-    )
+    uniformBuffer.updateFloat4('biomePlanet', at.x, at.y, at.z, p.seaRadius)
     uniformBuffer.updateFloat4(
       'biomePlanetB',
       p.latWarpScale,

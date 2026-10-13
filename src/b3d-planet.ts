@@ -145,7 +145,7 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
-| `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A path resolves on the CDN, where `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` live. Sets `surface` when it has loaded |
+| `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
 | `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
 | `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
 | `flatSea` | `'off'` | `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth) |
@@ -165,13 +165,13 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
-| `clouds` | `0` | Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
+| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
-| `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0 |
+| `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
 | `ocean` | `0.6` | Ocean coverage (0=none, 0.6=60% of surface underwater) |
 | `wireframe` | `false` | Debug: render as wireframe |
-| `rotationSpeed` | `0` | Auto-rotation speed (radians/sec) |
+| `rotationSpeed` | `0` | Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way |
 
 */
 /*{ "parent": "space", "order": 40 }*/
@@ -336,6 +336,8 @@ export class B3dPlanet extends B3dChild {
     this.oceanMesh = null
     this.cloudMesh = null
     this.ringMesh = null
+    // So a planet put back in a scene fetches its heights again.
+    this._heightMapLoaded = ''
     this.owner = null
   }
 
@@ -343,7 +345,8 @@ export class B3dPlanet extends B3dChild {
     if (this.rootNode == null) return
     const attrs = this as any
     const speed: number = attrs.rotationSpeed
-    if (speed > 0) {
+    // Negative runs it the other way (the direction it had before 0.10.3).
+    if (speed !== 0) {
       const dt = sceneDelta(this.owner!.scene)
       // WEST TO EAST, as planets turn: seen from above the north pole,
       // anticlockwise. East is +longitude, toward +Z from +X, and in
@@ -528,6 +531,7 @@ export class B3dPlanet extends B3dChild {
   }
 
   private _heightMapLoaded = ''
+  private _surfaceFromMap = false
   /**
    * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
    * planet shows as a smooth ball, in its colours, until the heights arrive.
@@ -537,6 +541,12 @@ export class B3dPlanet extends B3dChild {
     const url = attrs.heightMap ? assetUrl(String(attrs.heightMap)) : ''
     const key = `${url}|${attrs.flatSea}|${attrs.bodyRadiusKm}`
     if (key === this._heightMapLoaded) return
+    // A change of map (or none) drops the heights of the last one: the planet
+    // is its own noise, in the new colours, until the new heights arrive.
+    if (this._surfaceFromMap) {
+      this.surface = null
+      this._surfaceFromMap = false
+    }
     this._heightMapLoaded = key
     if (url === '') return
     loadPlanetMap(url, {
@@ -546,6 +556,7 @@ export class B3dPlanet extends B3dChild {
       .then((surface) => {
         if (this.owner == null || key !== this._heightMapLoaded) return
         this.surface = surface
+        this._surfaceFromMap = true
         this.regenerate()
       })
       .catch((err) => {

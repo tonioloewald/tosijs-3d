@@ -87,3 +87,37 @@ describe('sphere-map', () => {
     expect(angle * frame.radius).toBeCloseTo(100, 4)
   })
 })
+
+describe('the ground is the globe, not its mirror image', () => {
+  test('+z is north: latitude rises as z does', () => {
+    const a = groundToLatLon(100, 200, frame).lat
+    const b = groundToLatLon(100, 400, frame).lat
+    expect(b).toBeGreaterThan(a)
+  })
+
+  test('+x is east: longitude rises as x does', () => {
+    const a = groundToLatLon(100, 200, frame).lon
+    const b = groundToLatLon(300, 200, frame).lon
+    expect(b).toBeGreaterThan(a)
+  })
+
+  test('east, north and up turn the same way on the ground and on the globe', () => {
+    const cross = (p: number[], q: number[]) => [
+      p[1] * q[2] - p[2] * q[1],
+      p[2] * q[0] - p[0] * q[2],
+      p[0] * q[1] - p[1] * q[0],
+    ]
+    // On the ground: east × north, against up (+y).
+    const ground = cross([1, 0, 0], [0, 0, 1])[1]
+    // On the globe: the same two steps, against outward.
+    const o = groundToDirection(500, -300, frame)
+    const e = groundToDirection(501, -300, frame)
+    const n = groundToDirection(500, -299, frame)
+    const c = cross(
+      [e.x - o.x, e.y - o.y, e.z - o.z],
+      [n.x - o.x, n.y - o.y, n.z - o.z]
+    )
+    const globe = c[0] * o.x + c[1] * o.y + c[2] * o.z
+    expect(Math.sign(globe)).toBe(Math.sign(ground))
+  })
+})

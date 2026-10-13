@@ -2827,7 +2827,7 @@
       {
         "name": "heightMap",
         "default": "''",
-        "description": "A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A path resolves on the CDN, where `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` live. Sets `surface` when it has loaded"
+        "description": "A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show"
       },
       {
         "name": "colorMap",
@@ -2938,7 +2938,7 @@
       {
         "name": "clouds",
         "default": "0",
-        "description": "Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
+        "description": "(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
       },
       {
         "name": "cloudColor",
@@ -2966,7 +2966,7 @@
       {
         "name": "rotationSpeed",
         "default": "0",
-        "description": "Auto-rotation speed (radians/sec)"
+        "description": "Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way"
       }
     ]
   },

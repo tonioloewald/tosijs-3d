@@ -18,7 +18,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Places.** `terrain.latLonAt(x, z)` and `terrain.groundAt(lat, lon)`, and
   the pure `sphere-map` module behind them (ground, latitude and longitude,
   and direction on the globe, each from the others), so a pin on the globe is
-  a spot on the ground.
+  a spot on the ground. On the ground +x is east and +z is north.
 - **Real worlds.** `<tosi-b3d-planet heightMap colorMap>` draws a planet
   from its maps: the Moon, Mars and the Earth from NASA's and NOAA's data on
   the CDN (`nasa/moon`, `nasa/mars`, `nasa/earth`, `noaa/earth`). `relief`
@@ -31,13 +31,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
   more cloud along the equator and the storm tracks, and a shadow on the
   ground beneath. `cloudColor`, `cloudSpeed`. `planet.storms` places up to
   four cyclones by latitude and longitude, each with an eye, turning the
-  right way for its hemisphere, with lightning inside.
+  right way for its hemisphere, with lightning inside. Provisional: this is
+  the weather from orbit only, its own field and its own storms; it does not
+  yet agree with the cloud deck and weather cells on that world's ground.
 - `planet.rootNode` is public, for placing a planet.
 
 ### Fixed
 
 - **(behaviour) Planets turn west to east.** `rotationSpeed` spun them the
-  other way, so the Earth ran backwards.
+  other way, so the Earth ran backwards. A negative `rotationSpeed` turns a
+  planet the old way (it used to be ignored).
+- **A planet that has been moved is shaded where it is.** The biome shader
+  measured altitude and latitude from the world origin.
 - **A rotating planet's land no longer shimmers.** The biome shader read its
   noise by world position, so a planet turned under its own climate. On a
   planet it now works in the planet's own frame, and reads its climate noise

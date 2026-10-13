@@ -106,7 +106,7 @@ Three ways of naming one place:
 | --- | --- |
 | **direction** | a unit vector from the planet's centre. What a globe is made of |
 | **latitude, longitude** | degrees. What a person writes down. North is +Y |
-| **ground** | metres east and north of the terrain's origin. What the terrain uses |
+| **ground** | metres east (+x) and north (+z) of the terrain's origin, in the terrain's own unshifting coordinates: a scene position plus `terrain.originOffset`. What the terrain uses |
 
 `frame` says how the sheet is laid on the sphere: the planet's `radius` and
 the `worldU`, `worldV` the terrain's origin sits at.
@@ -186,7 +186,11 @@ export function directionToLatLon(d: Vec3): { lat: number; lon: number } {
   return { lat: 90 - v * 180, lon: u > 0.5 ? u * 360 - 360 : u * 360 }
 }
 
-/** Metres on the ground (east `x`, `z`) to fractions of a turn. */
+/**
+ * Metres on the ground to the TERRAIN SAMPLER's fractions of a turn: its own
+ * `(u, v)`, in which `v` grows with `z`. Not a latitude: see the note on the
+ * mirror below, and use `groundToLatLon` for a place.
+ */
 export function groundToUv(
   x: number,
   z: number,
@@ -215,6 +219,21 @@ export function uvToGround(
   }
 }
 
+/*
++X IS EAST AND +Z IS NORTH, and that takes a mirror.
+
+The terrain's own wrap runs its `v` from one pole to the other as z grows,
+and taken at face value that makes +z SOUTH: seen from above, with +x to the
+right and +z up the screen, the ground was then the mirror image of the globe
+built from it, and anyone walking +z to go north went south. The wrap is the
+terrain's and is not ours to change, so the mirror is put right here: the
+globe is the sampler's sphere reflected top to bottom. Nothing else moves:
+every ground point still has one direction and one height.
+
+(So a terrain at the default `worldV` of 0.25 has its origin at 45 degrees
+SOUTH. Give it 0.75 for 45 north.)
+*/
+
 /** Where on the globe a spot on the ground is. */
 export function groundToDirection(
   x: number,
@@ -222,7 +241,8 @@ export function groundToDirection(
   frame: SphereFrame
 ): Vec3 {
   const { u, v } = groundToUv(x, z, frame)
-  return uvToDirection(u, v)
+  const d = uvToDirection(u, v)
+  return { x: d.x, y: -d.y, z: d.z }
 }
 
 /** Where on the ground a direction on the globe is. */
@@ -230,7 +250,7 @@ export function directionToGround(
   d: Vec3,
   frame: SphereFrame
 ): { x: number; z: number } {
-  const { u, v } = directionToUv(d)
+  const { u, v } = directionToUv({ x: d.x, y: -d.y, z: d.z })
   return uvToGround(u, v, frame)
 }
 

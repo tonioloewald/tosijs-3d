@@ -692,7 +692,11 @@ export class B3dTerrain extends B3dChild {
     return { radius: attrs.radius, worldU: this.worldU, worldV: this.worldV }
   }
 
-  /** Latitude and longitude (degrees) of a spot on the ground; null off a sphere. */
+  /**
+   * Latitude and longitude (degrees) of a spot on the ground; null off a
+   * sphere. `x`, `z` are the terrain's own unshifting coordinates: a scene
+   * position plus `originOffset`. +x is east and +z is north.
+   */
   latLonAt(x: number, z: number): { lat: number; lon: number } | null {
     const frame = this.sphereFrame
     return frame == null ? null : groundToLatLon(x, z, frame)

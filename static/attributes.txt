@@ -721,7 +721,7 @@ b3d-planet
 
   biome
   gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)
-  heightMap  = ''  — A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A path resolves on the CDN, where `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` live. Sets `surface` when it has loaded
+  heightMap  = ''  — A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show
   colorMap  = ''  — A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere
   bodyRadiusKm  = 0  — The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host
   flatSea  = 'off'  — `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth)
@@ -744,13 +744,13 @@ b3d-planet
   atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none)
   atmosphereColor
   atmosphereTurbulence
-  clouds  = 0  — Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
+  clouds  = 0  — (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
   cloudColor  = '#ffffff'  — The cloud's colour where lit
   cloudSpeed  = 1  — How fast the weather moves. `0` holds it still
   ocean  = 0.6  — Ocean coverage (0=none, 0.6=60% of surface underwater)
   rings
   wireframe  = false  — Debug: render as wireframe
-  rotationSpeed  = 0  — Auto-rotation speed (radians/sec)
+  rotationSpeed  = 0  — Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way
 
 ## b3d-primitives (tosi-b3d-sphere) — <tosi-b3d-sphere>
 Primitives: box, sphere, ground
