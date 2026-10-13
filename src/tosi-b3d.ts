@@ -1300,12 +1300,21 @@ export class B3d extends Component {
   /** Ask the glass gamepad to step aside for a menu, or come back. Named
    * reasons, so the pause panel and a death panel do not undo each other. */
   _suppressGamepad(reason: string, on: boolean): void {
-    const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
+    // Every pad that serves this scene: inside it (`gamepad: true` mounts it
+    // there) or mounted beside it, which is how the gamepad page's own demo
+    // does it.
+    const pads = [
+      ...this.querySelectorAll('tosi-b3d-gamepad'),
+      ...(this.parentElement?.querySelectorAll(':scope > tosi-b3d-gamepad') ??
+        []),
+    ] as unknown as Array<{
       suppress?: (reason: string) => void
       release?: (reason: string) => void
-    } | null
-    if (on) pad?.suppress?.(reason)
-    else pad?.release?.(reason)
+    }>
+    for (const pad of pads) {
+      if (on) pad.suppress?.(reason)
+      else pad.release?.(reason)
+    }
   }
 
   private _showPausePanel(): void {

@@ -29,9 +29,11 @@ with two exceptions marked **(behaviour)**.
 
 ### Fixed
 
-- **(behaviour) The glass gamepad steps aside while the scene is paused and
-  while a death panel is up.** It sat over both and took the taps meant for
-  their buttons.
+- **(behaviour) The glass gamepad steps aside while the scene is paused,
+  while a death panel is up and while a modal popup is open.** It sat over
+  them and took the taps meant for their buttons. This reaches a pad inside
+  the scene element or directly beside it. There is no attribute to opt out;
+  `pad.release('pause')` from a `pause` listener puts it back.
 - **Popups open at the same time no longer flicker through each other.** Each
   was meant to sit a step nearer the viewer than the one behind it, and
   pressing one brings it to the front. Three faults undid that: a new popup
@@ -40,8 +42,8 @@ with two exceptions marked **(behaviour)**.
 - **(behaviour) In a headset, the chase view has a HUD.** The flat overlay is
   DOM, which a headset does not show, and the in-scene plane was cockpit-only.
   In a session the plane now also shows in chase: level, ahead of the craft,
-  scaled to cover the angle it covers from the cockpit. Checked in the emulated
-  headset, not on a device.
+  scaled to cover the angle it covers from the cockpit. `hudChaseOff` still
+  keeps the chase view bare. Checked in the emulated headset, not on a device.
 
 ## 0.10.0
 

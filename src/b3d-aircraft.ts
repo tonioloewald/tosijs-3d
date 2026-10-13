@@ -1138,7 +1138,8 @@ export class B3dAircraft extends B3dControllable {
       the plane hangs off the chase anchor (position and heading, level, so it
       does not bank with the craft) at the same spot ahead of the airframe, and
       is scaled up so that from the chase seat it covers the angle it covers
-      from the cockpit.
+      from the cockpit. That match is for the seat zoomed all the way in:
+      zoom out and it covers less, like everything else near the craft.
       */
       const inCockpit = this.cameraView === 'cockpit'
       const xrChase = !inCockpit && this.owner?.xrActive === true
@@ -1161,14 +1162,13 @@ export class B3dAircraft extends B3dControllable {
       }
       // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is
       // for the chase view, and the plane again for a chase view in a headset.
-      const chaseHudOn = !attrs.hudChaseOff
-      this._hud.setInSceneVisible?.(inCockpit || (xrChase && chaseHudOn))
+      const chaseHud = !attrs.hudChaseOff
+      this._hud.setInSceneVisible?.(inCockpit || (xrChase && chaseHud))
       // The HUD is useful from ANY view — speed, altitude, radar, warnings are
       // true wherever the camera is. The horizon is the exception: outside the
       // cockpit it contradicts the real horizon behind the aircraft, so it's
       // dropped in chase and the rest stays. (`hudChase: false` still forces
       // the old cockpit-only behaviour for anyone who wants a clean chase.)
-      const chaseHud = !attrs.hudChaseOff
       const showHud = inCockpit || chaseHud
       this._hud.setVisible(!inCockpit && chaseHud)
       this._hud.setHorizonVisible?.(inCockpit)
@@ -2307,8 +2307,8 @@ export class B3dAircraft extends B3dControllable {
 
     /*
     ALL THREE CHASE NUMBERS MOVE TOGETHER, because `_chaseLookPitch` is
-    `atan2(chaseMinHeight, chaseDistance)` — so holding the ratios holds the
-    framing ANGLE and the camera backs off along the same sight line. Changing
+    `atan2(chaseMinHeight, chaseDistance + chaseLookAhead)` — so holding the
+    ratios holds the framing ANGLE (exactly so when `chaseLookAhead` is 0) and the camera backs off along the same sight line. Changing
     distance alone would tilt the shot, which is not what "pull it back" means.
     */
     const distance = length * 2.6
@@ -2514,6 +2514,11 @@ export class B3dAircraft extends B3dControllable {
       this._chasePivot.dispose()
       this._chasePivot = null
     }
+    // The in-scene HUD may hang off the chase anchor (a headset's chase
+    // view). It belongs to the HUD element, which outlives this craft: hide
+    // it, and let the next craft mount it afresh.
+    this._hud?.setInSceneVisible?.(false)
+    this._hudMountKey = ''
     if (this._chaseAnchor) {
       // Anything parented to it (the XR rig) must not be disposed with it.
       for (const child of this._chaseAnchor.getChildren()) child.parent = null

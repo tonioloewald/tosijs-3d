@@ -379,6 +379,11 @@ function applyModalBlocking(owner: B3d): void {
   const list = openPopups.get(owner)
   if (list == null) return
   const pickable = modalPickable(list)
+  // A modal is a menu: the glass gamepad would sit over it and take its taps.
+  owner._suppressGamepad?.(
+    'modal-popup',
+    list.some((p) => p.modal === true)
+  )
   list.forEach((p, i) => {
     const mesh = p.plane.mesh
     if (mesh == null) return
@@ -991,6 +996,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
         */
         const world = mesh.absolutePosition.clone()
         mesh.setParent(null)
+        // The stack's offset was in the old parent's space and is now part
+        // of the world pose; it must not be subtracted as if it were not.
+        api.stackLift = undefined
         // …and hand the world pose to the ELEMENT, or its per-frame sync writes
         // the old parent-relative offset straight back over it.
         plane.x = world.x
