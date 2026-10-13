@@ -244,6 +244,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
 - https://3d.tosijs.net/gamepad-svg/ — gamepad-svg
   Generates a gamepad SVG using tosijs element creators. All colors and stroke
+- https://3d.tosijs.net/gas-giant/ — gas-giant
+  winds that alternate direction from belt to belt, with a long-lived storm.
 - https://3d.tosijs.net/getting-started/ — Getting started
   Babylon (`^9`) and `tosijs` (`^1.9.2`) are peer dependencies: you install them,
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)

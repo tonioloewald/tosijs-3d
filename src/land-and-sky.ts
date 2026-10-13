@@ -116,6 +116,12 @@ const MOONS = {
   // (Moons ride the star sphere; this sits up ahead of the default view in
   // the morning.)
   Earth: [{ azimuth: 60, elevation: 22, size: 3.7, color: '#6f9ad8' }],
+  // A giant planet from a close moon: Jupiter from Io is about 19 degrees
+  // across. `gas` makes the body a banded gas giant (see gas-giant).
+  // `frame: 'ground'`: the moon is tide-locked, so its planet never sets.
+  Jupiter: [{ frame: 'ground', azimuth: 90, elevation: 18, size: 19, gas: 'jupiter', axisTilt: 8 }],
+  Saturn: [{ frame: 'ground', azimuth: 90, elevation: 18, size: 11, gas: 'saturn', axisTilt: 20 }],
+  Neptune: [{ frame: 'ground', azimuth: 90, elevation: 18, size: 8, gas: 'neptune', axisTilt: 25 }],
   'Alien trio': [
     { azimuth: 0, elevation: 30, size: 6, color: '#e0b090' },
     { azimuth: 25, elevation: 12, size: 2, color: '#a0c8ff' },
@@ -154,7 +160,9 @@ function placeMoons() {
       moonEls[i] = b3dMoon()
       skybox.append(moonEls[i])
     }
-    Object.assign(moonEls[i], m, {
+    // Every field, so a body left over from another set does not keep its
+    // colour or stay a gas giant.
+    Object.assign(moonEls[i], { color: '#dddddd', gas: '', axisTilt: 0, frame: 'stars' }, m, {
       azimuth: m.azimuth + sky.moonAz.value,
       elevation: m.elevation + sky.moonEl.value,
     })
@@ -256,13 +264,13 @@ Object.assign(BUILT_IN, {
     sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: 'Earth', decoBudget: 0, wind: 0 },
   },
   // Sulfur and fire: yellow, orange and white ground, black lava, a field of
-  // hot volcanoes, a tiny sun. No air to speak of. (Plumes, and Jupiter in
-  // the sky, to come.)
+  // hot volcanoes, a tiny sun, and Jupiter filling a fifth of the sky. No air
+  // to speak of. (Plumes to come.)
   Io: {
     name: 'Io',
     // (A hack: 9 °C picks the sulfur palette's middle row. Io is about -130 °C.)
     demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.175, moisture: 0, palette: 'sulfur' },
-    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: 'None', decoBudget: 0, wind: 0 },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: 'Jupiter', decoBudget: 0, wind: 0 },
   },
   // Thick orange haze over dark methane seas, a tiny, dim sun barely there.
   Titan: {

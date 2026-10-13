@@ -8,6 +8,19 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.10.2 (unreleased)
 
+### Added
+
+- **Gas giants in the sky.** `<tosi-b3d-moon gas="jupiter">` (also `saturn`,
+  `uranus`, `neptune`) draws a banded planet with winds that alternate from
+  belt to belt and a great storm, lit by the real sun so its phase is right.
+  `bands`, `turbulence`, `storm`, `bandColors`, `axisTilt`, `spin` and `seed`
+  override the preset. The shader is one function in the new `gas-giant`
+  module (`GAS_GIANT_GLSL`, `resolveGasGiant`), for reuse on a planet you
+  orbit.
+- **`<tosi-b3d-moon frame="ground">`**: the body is placed against the
+  horizon and stays there while the stars and sun go round, like the planet a
+  tide-locked moon orbits. Land and Sky's Io has Jupiter in its sky.
+
 ### Fixed
 
 - **Climbing onto a moving lift no longer leaves the biped waist deep in its

@@ -2500,6 +2500,51 @@
         "name": "brightness",
         "default": "1",
         "description": "Multiplies the lit side"
+      },
+      {
+        "name": "frame",
+        "default": "'stars'",
+        "description": "`'stars'`: it rides the star sphere, rising and setting. `'ground'`: `azimuth` and `elevation` are against the HORIZON (azimuth 0 is +Z) and it stays put while the sky turns, like the planet a tide-locked moon orbits"
+      },
+      {
+        "name": "gas",
+        "default": "''",
+        "description": "Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. Banded, with winds and a storm; see [gas-giant](/gas-giant/). `color` is then unused"
+      },
+      {
+        "name": "bands",
+        "default": "0",
+        "description": "Gas giant: stripes from pole to pole. `0` = the preset's"
+      },
+      {
+        "name": "turbulence",
+        "default": "-1",
+        "description": "Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's"
+      },
+      {
+        "name": "storm",
+        "default": "-1",
+        "description": "Gas giant: size of the great storm, `0` = none. `-1` = the preset's"
+      },
+      {
+        "name": "bandColors",
+        "default": "''",
+        "description": "Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's"
+      },
+      {
+        "name": "axisTilt",
+        "default": "0",
+        "description": "Gas giant: degrees its bands lean from level. It is always seen equator-on, as a moon sees its planet"
+      },
+      {
+        "name": "spin",
+        "default": "1",
+        "description": "Gas giant: how fast its clouds run. `0` freezes them"
+      },
+      {
+        "name": "seed",
+        "default": "0",
+        "description": "Gas giant: a different planet with the same look. `0` = the preset's"
       }
     ]
   },
@@ -4763,6 +4808,20 @@
         "name": "fillY",
         "default": "#3ea9f5",
         "description": "Y button (blue)"
+      }
+    ]
+  },
+  {
+    "module": "gas-giant",
+    "summary": "gas-giant",
+    "attributes": [
+      {
+        "name": "bands",
+        "default": "How many light and dark stripes from pole to pole. Jupiter is about 12, Neptune 5"
+      },
+      {
+        "name": "storm",
+        "default": "0…1"
       }
     ]
   },
