@@ -57,6 +57,12 @@ the degrees an author sets with `biomeTemperature`.
 
 import * as BABYLON from '@babylonjs/core'
 import { noiseVolume } from './noise-volume.js'
+import {
+  CLIMATE_CELLS,
+  CLIMATE_GAIN,
+  climateLattice,
+  climateNoise,
+} from './climate-noise.js'
 
 /** Live-tunable parameters — mirrors BiomeChartConfig + the noise inventory. */
 export interface BiomeParams {
@@ -69,6 +75,13 @@ export interface BiomeParams {
   tNoiseAmp: number
   mNoiseScale: number
   mNoiseAmp: number
+  /**
+   * Where the scene's origin is in the world (flat ground). The climate noise
+   * is read at world position plus this, so regions stay where they are when
+   * a floating origin moves everything. The terrain keeps it up to date.
+   */
+  worldOffsetX: number
+  worldOffsetZ: number
   /** High-frequency single-octave dither on the crossfade inputs. */
   ditherScale: number
   ditherAmp: number
@@ -275,8 +288,11 @@ export const defaultBiomeParams = (): BiomeParams => ({
   mapMoisture: 0.45,
   tNoiseScale: 0.013,
   tNoiseAmp: 0.1,
-  mNoiseScale: 0.02,
-  mNoiseAmp: 0.18,
+  // Regions a few kilometres across, strong enough to change biome.
+  mNoiseScale: 0.001,
+  mNoiseAmp: 0.5,
+  worldOffsetX: 0,
+  worldOffsetZ: 0,
   ditherScale: 0.35,
   ditherAmp: 0.045,
   cliffStart: 0.7,
@@ -521,7 +537,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   }
 
   getSamplers(samplers: string[]): void {
-    samplers.push('biomeNoiseTex')
+    samplers.push('biomeNoiseTex', 'biomeClimateTex')
   }
 
   getClassName(): string {
@@ -550,6 +566,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 } as any,
         { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, role (0 ground, 1 leaf, 2 bark, 3 evergreen)
         { name: 'biomeSeason', size: 4, type: 'vec4' }, // temperature offset, autumn 0…1, leafBlend, bare 0…1
+        { name: 'biomeOrigin', size: 4, type: 'vec4' }, // world offset x, z (flat ground), unused, unused
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -568,6 +585,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeVolcPal[7];
         uniform vec4 biomeExtra;
         uniform vec4 biomeSeason;
+        uniform vec4 biomeOrigin;
       #endif`,
     }
   }
@@ -600,6 +618,14 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
     const scene = this._material.getScene()
     if (!this._computed && has3dTextures(scene))
       uniformBuffer.setTexture('biomeNoiseTex', noiseTextureOf(scene))
+    uniformBuffer.setTexture('biomeClimateTex', climateTextureOf(scene))
+    uniformBuffer.updateFloat4(
+      'biomeOrigin',
+      p.worldOffsetX,
+      p.worldOffsetZ,
+      0,
+      0
+    )
     uniformBuffer.updateFloat4(
       'biomeCfg',
       p.seaLevel,
@@ -850,6 +876,20 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         }
         return vec2(F1, F2);
       }
+      // The CLIMATE noise (temperature and moisture regions on flat ground):
+      // a grid of seeded bytes, so code can work out the same value
+      // (climate-noise.ts, term for term) and put the forest where the
+      // ground is green.
+      uniform sampler2D biomeClimateTex;
+      float bioClimate1(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = p - i;
+        f = f * f * (3.0 - 2.0 * f);
+        return texture2D(biomeClimateTex, (i + f + 0.5) / ${CLIMATE_CELLS}.0).r * 2.0 - 1.0;
+      }
+      float bioClimate(vec2 p) {
+        return ${CLIMATE_GAIN} * (bioClimate1(p) + 0.5 * bioClimate1(p * 2.03 + 17.7));
+      }
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
         // after profiling on mid-range mobile Safari.
@@ -916,12 +956,16 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // fBm axis noise — noise feeds the INPUTS, never the classification.
         // On a sphere the noise is read in 3D: XZ alone is constant along
         // the axis and smears down the sides of a planet.
-        float tN = (planetary ? bioSimplex3(rel * biomeNoise.x) : bioFbm(wp.xz * biomeNoise.x)) * biomeNoise.y;
+        // Flat ground reads it at the WORLD position (render position plus
+        // the floating origin's travel), so a region does not move when the
+        // origin does.
+        vec2 cp = wp.xz + biomeOrigin.xy;
+        float tN = (planetary ? bioSimplex3(rel * biomeNoise.x) : bioClimate(cp * biomeNoise.x)) * biomeNoise.y;
         // Moisture noise scales with AVAILABLE moisture: an airless world has
         // no damp patches, so mapMoisture 0 is EXACTLY the dead row (moon
         // grey when cold — never phantom ice). Just above zero, cold regions
         // grow polar ice naturally: Mars with ice caps, which is correct.
-        float mN = (planetary ? bioSimplex3(rel * biomeNoise.z + 71.3) : bioFbm(wp.xz * biomeNoise.z + 71.3)) * biomeNoise.w;
+        float mN = (planetary ? bioSimplex3(rel * biomeNoise.z + 71.3) : bioClimate(cp * biomeNoise.z + 71.3)) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN + biomeSeason.x;
         float effMapM = biomeCfg.w;
         if (planetary) {
@@ -1294,6 +1338,62 @@ function has3dTextures(scene: BABYLON.Scene): boolean {
     ((scene.getEngine() as unknown as { webGLVersion?: number }).webGLVersion ??
       0) >= 2
   )
+}
+
+const climateTextures = new WeakMap<BABYLON.Scene, BABYLON.RawTexture>()
+const sharedLattice = climateLattice()
+
+/**
+ * The climate noise at a world position on flat ground, as the shader reads
+ * it: what to add to temperature (chart units) and to map moisture. Pass the
+ * results to `mantaAxes` as its `tNoise` and `mNoise`.
+ */
+export function climateNoiseAt(
+  params: Pick<
+    BiomeParams,
+    'tNoiseScale' | 'tNoiseAmp' | 'mNoiseScale' | 'mNoiseAmp'
+  >,
+  x: number,
+  z: number
+): { temperature: number; moisture: number } {
+  return {
+    temperature:
+      climateNoise(sharedLattice, x * params.tNoiseScale, z * params.tNoiseScale) *
+      params.tNoiseAmp,
+    moisture:
+      climateNoise(
+        sharedLattice,
+        x * params.mNoiseScale + 71.3,
+        z * params.mNoiseScale + 71.3
+      ) * params.mNoiseAmp,
+  }
+}
+
+/** The scene's climate lattice as a texture, made on first use. */
+export function climateTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture {
+  let tex = climateTextures.get(scene)
+  if (tex == null) {
+    tex = BABYLON.RawTexture.CreateLuminanceTexture(
+      sharedLattice,
+      CLIMATE_CELLS,
+      CLIMATE_CELLS,
+      scene,
+      false,
+      false,
+      BABYLON.Texture.BILINEAR_SAMPLINGMODE
+    )
+    tex.name = 'biome-climate'
+    tex.wrapU = tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+    climateTextures.set(scene, tex)
+    // Shared, so it goes with the scene (see noiseTextureOf).
+    const dispose = tex.dispose.bind(tex)
+    tex.dispose = () => {}
+    scene.onDisposeObservable.addOnce(() => {
+      climateTextures.delete(scene)
+      dispose()
+    })
+  }
+  return tex
 }
 
 /** The scene's one noise block, made on first use. */

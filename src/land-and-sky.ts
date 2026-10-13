@@ -558,6 +558,10 @@ const scene = b3d(
       label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: -1, max: 1, step: 0.02, format: (v) => Math.round(v * 50) + ' °C' }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
+      // How much one region differs from the next, and how big a region is.
+      // Straight onto the shader's settings: the decorator reads the same ones.
+      slider3d({ label: 'moisture variation', value: terrain.biomePlugin?.params.mNoiseAmp ?? 0.5, min: 0, max: 1, step: 0.01, handleChange: (v) => { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseAmp = v } }),
+      slider3d({ label: 'region size', value: 0.001 / (terrain.biomePlugin?.params.mNoiseScale ?? 0.001), min: 0.1, max: 10, scale: 'log', format: (v) => v.toFixed(1) + ' km', handleChange: (v) => { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseScale = 0.001 / v } }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
       // With the clouds it is made of, not under Terrain where it used to be.

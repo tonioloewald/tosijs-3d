@@ -96,7 +96,11 @@ import type { B3d } from './tosi-b3d.js'
 import { assetUrl } from './asset-url.js'
 import { resolveBudget } from './b3d-quality.js'
 import { mantaAxes } from './biome-chart.js'
-import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
+import {
+  attachBiomePlugin,
+  climateNoiseAt,
+  type BiomePlugin,
+} from './biome-plugin.js'
 import { rockFromName, rockGeometry } from './procedural-rock.js'
 import {
   isDefaultLibrary,
@@ -391,7 +395,16 @@ export class B3dDecorator extends B3dChild {
       terrain?.generationKey ?? '',
       terrain?.provinceField != null ? 'province' : '',
       p
-        ? [p.seaLevel, p.baseTemperature, p.lapseRate, p.mapMoisture].join(',')
+        ? [
+            p.seaLevel,
+            p.baseTemperature,
+            p.lapseRate,
+            p.mapMoisture,
+            p.tNoiseScale,
+            p.tNoiseAmp,
+            p.mNoiseScale,
+            p.mNoiseAmp,
+          ].join(',')
         : '',
     ].join('|')
   }
@@ -685,6 +698,7 @@ export class B3dDecorator extends B3dChild {
       lapseRate: 0.004,
       mapMoisture: 0.5,
     }
+    const noisy = terrain.biomePlugin != null
     // The cache holds GROUND only, so it is stale only when the terrain is.
     const groundKey = String(terrain?.generationKey ?? '')
     if (groundKey !== this._cacheKey) {
@@ -710,8 +724,16 @@ export class B3dDecorator extends B3dChild {
       center: here,
       radius: this.radius,
       height,
-      climate: (_x, _z, y) => {
-        const { temperature, moisture } = mantaAxes(y, cfg)
+      climate: (x, z, y) => {
+        // The same regional noise the ground is drawn with, so the forest
+        // stands where the ground is green.
+        const n = noisy ? climateNoiseAt(cfg, x, z) : null
+        const { temperature, moisture } = mantaAxes(
+          y,
+          cfg,
+          n?.temperature ?? 0,
+          n?.moisture ?? 0
+        )
         return {
           temperature,
           moisture,

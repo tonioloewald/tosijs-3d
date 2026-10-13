@@ -2086,6 +2086,10 @@ export class B3dTerrain extends B3dChild {
     if (!this.biomePlugin.isEnabled) this.biomePlugin.isEnabled = true
     const sea = Number.isFinite(a.biomeSeaLevel) ? a.biomeSeaLevel : 0
     const memo = this._biomeMemo
+    // Where the origin has travelled to: the climate noise is read in world
+    // coordinates, so its regions stay put across a floating-origin reset.
+    this.biomePlugin.params.worldOffsetX = this.originOffsetX
+    this.biomePlugin.params.worldOffsetZ = this.originOffsetZ
     if (sea !== memo.sea) {
       memo.sea = sea
       this.biomePlugin.params.seaLevel = sea

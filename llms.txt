@@ -182,6 +182,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 - https://3d.tosijs.net/characters-and-vehicles/ — Characters and vehicles
   climbs; an [aircraft](/b3d-aircraft/) that hovers like a drone and flies like a
+- https://3d.tosijs.net/climate-noise/ — climate-noise
+  The broad noise that makes one region of a world wetter or warmer than the
 - https://3d.tosijs.net/cloud-field/ — cloud-field
   fBm — the absolute value creases the field at every zero crossing, which is what
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows

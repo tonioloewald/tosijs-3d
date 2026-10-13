@@ -34,6 +34,7 @@ import {
   attachBiomePlugin,
   noiseTextureOf as biomeNoiseTextureOf,
   type BiomePlugin,
+  climateTextureOf,
 } from './biome-plugin.js'
 import type { BiomeParams } from './biome-plugin.js'
 
@@ -301,7 +302,7 @@ export function createPlanetSurfaceMaterial(
         'psFine',
         ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
-      samplers: ['psColor', NOISE_TEXTURE_SAMPLER, 'biomeNoiseTex'],
+      samplers: ['psColor', NOISE_TEXTURE_SAMPLER, 'biomeNoiseTex', 'biomeClimateTex'],
       // The noise is READ where the engine has 3D textures: this shader's
       // own (noise-texture) and the biome shader's fine noise, as on terrain.
       defines: hasNoiseTexture(scene)
@@ -316,6 +317,9 @@ export function createPlanetSurfaceMaterial(
     // planet was dropped for a frame each time it was rebuilt.
     if (biome != null) mat.setTexture('biomeNoiseTex', biomeNoiseTextureOf(scene))
   }
+  // The biome shader declares its flat-ground climate texture whether or not
+  // a planet reads it, and an unbound sampler is an invalid draw.
+  if (biome != null) mat.setTexture('biomeClimateTex', climateTextureOf(scene))
   // No mipmaps on the map: the lookup jumps at the date line, and a mip
   // level chosen from that jump draws a seam down the back of the planet.
   const tex =

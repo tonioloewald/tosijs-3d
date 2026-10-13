@@ -44,6 +44,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **⚠️ The ground's climate varies by region, so worlds look different out of the box.** The biome shader's moisture noise was patches 50 m across at ±0.18, too small and too faint to change a biome, so every island was the same mottle. It is now regions about a kilometre across at ±0.5 (`mNoiseScale` 0.001, `mNoiseAmp` 0.5 on `terrain.biomePlugin.params`): one island is forest, the next is dry. For the old look set them to 0.02 and 0.18. Land and Sky has `moisture variation` and `region size` sliders.
+- **The decorator follows the regions.** Its trees and plants were placed from the base climate alone. The ground's temperature and moisture noise is now a seeded lattice the shader reads as a texture and code can evaluate too (`climateNoiseAt`, and the pure `climateNoise`), so the forest stands where the ground is drawn green. Changing the noise settings rebuilds the scatter.
 - **Procedural planet: moisture varies by region.** With `biome="on"` the moisture noise is now broad and strong (`mNoiseScale` 0.035, `mNoiseAmp` 0.5 on `planet.biomePlugin.params`), so a continent carries deserts and forest belts where it was one colour. The demo has a `moisture variation` slider. Set `mNoiseAmp` to 0.18 and `mNoiseScale` to 0.07 for the old look.
 - **A planet's cloud reads its noise from a texture.** A cloud pixel takes
   54 noise samples, each of which was eight hashes of arithmetic; each is
@@ -57,6 +59,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Climate regions stay put when the origin moves.** The ground's temperature and moisture noise was read at the render position, so a floating-origin reset shifted it. It is read at the world position now (`worldOffsetX`/`worldOffsetZ` on the biome params, which the terrain keeps up to date).
 - **Cloud broke into mismatched tiles on a Quest.** The shader noise's
   lattice hash now snaps to the integer first, so every cell hashes a shared
   corner to the identical value. (A compiler folding the corner offset into
