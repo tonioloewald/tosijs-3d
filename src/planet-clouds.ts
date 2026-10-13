@@ -28,6 +28,13 @@ import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
 import { sceneLight } from './gas-giant-material.js'
 import { latLonToDirection } from './sphere-map.js'
+import { sceneSeconds } from './b3d-utils.js'
+import {
+  NOISE_TEXTURE_GLSL,
+  NOISE_TEXTURE_SAMPLER,
+  hasNoiseTexture,
+  noiseTextureOf,
+} from './noise-texture.js'
 
 const NAME = 'b3dPlanetClouds'
 
@@ -62,6 +69,7 @@ uniform vec4 pcK;
 uniform vec4 pcStormA[4];
 uniform vec4 pcStormB[4];
 ${GAS_GIANT_GLSL}
+${NOISE_TEXTURE_GLSL}
 // Rodrigues: turn p about a unit axis.
 vec3 pcAbout(vec3 p,vec3 ax,float a){float c=cos(a);float s=sin(a);return p*c+cross(ax,p)*s+ax*dot(ax,p)*(1.0-c);}
 // WHERE WEATHER LIVES, by latitude (0…1): a thin band of storms near the
@@ -150,9 +158,11 @@ float pcF(vec3 d,float tt){
     storm=max(storm,power*(depth-0.95*cyc*(1.0-smoothstep(0.035,0.075,u))));
   }
   // Big systems, then two finer layers for the texture a deck has close to.
-  float f=storm+0.46*b3dGgFbm(q*7.5+sd)
-    +0.32*b3dGgFbm(q*22.0+sd*2.1)
-    +0.22*b3dGgFbm(q*60.0+sd*3.3);
+  // The noise is READ (noise-texture): 54 samples a pixel, which computed
+  // was most of what a planet cost on a headset.
+  float f=storm+0.46*b3dVnFbm(q*7.5+sd)
+    +0.32*b3dVnFbm(q*22.0+sd*2.1)
+    +0.22*b3dVnFbm(q*60.0+sd*3.3);
   // A lean, not a rule: the belts are cloudier and the deserts clearer, but
   // there is cloud in the subtropics and clear sky on the equator. (At 0.24
   // the subtropics were swept bare and the belts were nearly solid.)
@@ -320,9 +330,13 @@ export function createPlanetClouds(
         'pcStormA',
         'pcStormB',
       ],
+      samplers: [NOISE_TEXTURE_SAMPLER],
+      defines: hasNoiseTexture(scene) ? ['#define B3D_NOISETEX'] : [],
       needAlphaBlending: true,
     }
   )
+  if (hasNoiseTexture(scene))
+    mat.setTexture(NOISE_TEXTURE_SAMPLER, noiseTextureOf(scene))
   const color = options.color ?? new BABYLON.Color3(1, 1, 1)
   mat.setVector3('pcColor', new BABYLON.Vector3(color.r, color.g, color.b))
   mat.alphaMode = BABYLON.Constants.ALPHA_PREMULTIPLIED
@@ -364,7 +378,7 @@ export function createPlanetClouds(
       'pcK',
       new BABYLON.Vector4(
         options.coverage,
-        performance.now() * 0.001 * speed,
+        sceneSeconds(scene) * speed,
         options.seed ?? 1,
         options.shadow ?? 0.45
       )

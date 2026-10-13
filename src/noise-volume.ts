@@ -120,3 +120,23 @@ export function noiseVolume(
   }
   return out
 }
+
+/**
+ * `cells`³ bytes of VALUE noise: one random value at each lattice point and
+ * nothing between, wrapped, so it tiles. A shader eases the fraction and lets
+ * the linear filter do the interpolation, which gives exactly the noise the
+ * eight-hashed-corners arithmetic computes, from one read (`noise-texture`).
+ */
+export function latticeVolume(cells = 64, seed = 1): Uint8Array {
+  let state = seed >>> 0 || 1
+  const out = new Uint8Array(cells * cells * cells)
+  for (let i = 0; i < out.length; i++) {
+    state ^= state << 13
+    state >>>= 0
+    state ^= state >>> 17
+    state ^= state << 5
+    state >>>= 0
+    out[i] = state >>> 24
+  }
+  return out
+}

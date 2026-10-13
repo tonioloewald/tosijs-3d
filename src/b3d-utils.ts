@@ -154,6 +154,17 @@ export const sceneDelta = (scene: BABYLON.Scene): number => {
  * Falls back to a sane package for scenes `<tosi-b3d>` does not drive (tests,
  * standalone Babylon), where `dt` and `realDt` are simply the same number.
  */
+/**
+ * The clock for a shader's animation: the scene's SIM seconds, so weather and
+ * waves stop when the world is paused and slow with `timeScale`. Wall-clock
+ * seconds in a scene `<tosi-b3d>` does not drive.
+ */
+export const sceneSeconds = (scene: BABYLON.Scene): number => {
+  const published = (scene.metadata as { b3dFrame?: FrameInfo } | null)
+    ?.b3dFrame
+  return published != null ? published.elapsed : performance.now() * 0.001
+}
+
 export const sceneFrame = (scene: BABYLON.Scene): FrameInfo => {
   const published = (scene.metadata as { b3dFrame?: FrameInfo } | null)
     ?.b3dFrame

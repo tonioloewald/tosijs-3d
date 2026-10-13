@@ -23,6 +23,7 @@ cloud shell, and keeps the night side dim, not black.
 import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
 import { sceneLight } from './gas-giant-material.js'
+import { sceneSeconds } from './b3d-utils.js'
 import { attachBiomePlugin, type BiomePlugin } from './biome-plugin.js'
 import type { BiomeParams } from './biome-plugin.js'
 
@@ -327,7 +328,7 @@ export function createPlanetSurfaceMaterial(
       options.sea ? 1 : 0,
       options.glint ?? 1,
       options.seaIce ?? 0,
-      (performance.now() * 0.001) % 1000
+      sceneSeconds(scene) % 1000
     )
     mat.setVector4('psSea', sea)
     mat.setFloat('psLakes', options.inlandWater === true ? 1 : 0)

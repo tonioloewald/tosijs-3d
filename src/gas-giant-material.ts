@@ -24,6 +24,7 @@ planet, and tilting it tilts the bands.
 
 import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL, gasGiantRgb, type GasGiantLook } from './gas-giant.js'
+import { sceneSeconds } from './b3d-utils.js'
 
 export interface GasGiantMaterialOptions {
   /** How fast the clouds run. 1 is the default; 0 freezes them. */
@@ -122,7 +123,7 @@ export function createGasGiantMaterial(
     if (given != null) light.set(given.x, given.y, given.z, given.w)
     else sceneLight(scene, light)
     mat.setVector4('ggLight', light)
-    mat.setFloat('ggTime', performance.now() * 0.001 * spin)
+    mat.setFloat('ggTime', sceneSeconds(scene) * spin)
   }
   return mat
 }

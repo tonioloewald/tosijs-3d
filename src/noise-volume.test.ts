@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { noiseVolume } from './noise-volume.js'
+import { noiseVolume, latticeVolume } from './noise-volume.js'
 
 describe('noiseVolume', () => {
   const size = 32
@@ -43,5 +43,28 @@ describe('noiseVolume', () => {
   test('zero on the lattice: gradient noise is 0 at every cell corner', () => {
     expect(at(0, 0, 0)).toBe(128)
     expect(at(4, 8, 12)).toBe(128)
+  })
+})
+
+describe('latticeVolume', () => {
+  test('one byte a lattice point, the same for the same seed', () => {
+    const a = latticeVolume(16, 7)
+    expect(a.length).toBe(16 * 16 * 16)
+    expect(Array.from(latticeVolume(16, 7))).toEqual(Array.from(a))
+    expect(Array.from(latticeVolume(16, 8))).not.toEqual(Array.from(a))
+  })
+  test('spread evenly over the whole range, averaging a half', () => {
+    const v = latticeVolume(32)
+    let sum = 0
+    let lo = 255
+    let hi = 0
+    for (const b of v) {
+      sum += b
+      lo = Math.min(lo, b)
+      hi = Math.max(hi, b)
+    }
+    expect(lo).toBeLessThan(4)
+    expect(hi).toBeGreaterThan(251)
+    expect(Math.abs(sum / v.length / 255 - 0.5)).toBeLessThan(0.01)
   })
 })

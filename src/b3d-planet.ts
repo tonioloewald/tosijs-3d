@@ -180,7 +180,7 @@ tosi-b3d {
 /*{ "parent": "space", "order": 40 }*/
 
 import { Color } from 'tosijs'
-import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
+import { isOff, B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js'
 import type { BiomePlugin } from './biome-plugin.js'
 import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
@@ -777,7 +777,7 @@ export class B3dPlanet extends B3dChild {
       if (cam) mat.setVector3('cameraPosition', cam.globalPosition)
       sceneLight(scene, light)
       mat.setVector4('atmoLight', light)
-      mat.setFloat('time', performance.now() / 1000)
+      mat.setFloat('time', sceneSeconds(scene))
     }
 
     mesh.material = mat

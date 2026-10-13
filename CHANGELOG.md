@@ -36,6 +36,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   the sea. The real-worlds Earth has it on, and that demo gained `clouds`,
   `storms` (how many, up to four) and `storm intensity` sliders.
 
+### Changed
+
+- **A planet's cloud reads its noise from a texture.** A cloud pixel takes
+  54 noise samples, each of which was eight hashes of arithmetic; each is
+  one read of a small 3D texture now (the same noise, a different draw of
+  it, so the weather is not where it was). The cloud shell was 6 to 9 ms of
+  a Quest's frame. Not yet measured on one.
+
 ### Fixed
 
 - **Cloud broke into mismatched tiles on a Quest.** The shader noise's
@@ -46,6 +54,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A hard edge in planet cloud along the equator**, where a weather cell
   lying across it was wound opposite ways on either side.
 - The cost sweep lists a planet's cloud shell as its own row.
+- **Pausing stops a planet's weather.** Cloud, the air's haze, the sea's
+  glint and a gas giant's bands ran on the wall clock; they follow the
+  scene's own time now, so they pause and slow with `timeScale`.
 - **A planet's air no longer glows on the night side.** The atmosphere shell
   is added to what is behind it and was added at full strength all the way
   round. It is lit by the sun now, with a little twilight past the
