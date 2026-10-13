@@ -398,6 +398,7 @@ let warnedOldTemperature = false
 const freshBiomeMemo = () => ({
   sea: NaN,
   relief: NaN,
+  sheet: NaN,
   lapse: NaN,
   temperature: NaN,
   moisture: NaN,
@@ -725,6 +726,16 @@ export class B3dTerrain extends B3dChild {
     return {
       radius: frame.radius,
       seaLevel: Number(this.biomePlugin?.params?.seaLevel) || 0,
+      // The ground's own climate settings, live: a globe that shades with
+      // the biome shader copies them, in its own units, every frame.
+      climate: this.biomePlugin?.params,
+      palettes:
+        this.biomePlugin != null
+          ? () => ({
+              palette: this.biomePlugin!.palette,
+              paletteB: this.biomePlugin!.paletteB,
+            })
+          : undefined,
       heightAt: (d) => {
         const g = directionToGround(d, frame)
         return height(g.x, g.z)
@@ -2125,6 +2136,30 @@ export class B3dTerrain extends B3dChild {
     // written back, so returning to -1 after a value really returns to auto
     // (as the lapse branch does). Temperature has no auto.
     const p = this.biomePlugin.params
+    /*
+    ON A SPHERE the ground's climate is its planet's: the shader reads it at
+    the point of the globe each piece of ground is (see `sheetRadius`), so a
+    globe built from `planetSurface()` is coloured as the ground is.
+    */
+    const frame = this.sphereFrame
+    p.sheetRadius = frame?.radius ?? 0
+    p.sheetU = frame?.worldU ?? 0
+    p.sheetV = frame?.worldV ?? 0
+    const sheet = frame?.radius ?? 0
+    if (t !== memo.temperature || sheet !== memo.sheet) {
+      memo.sheet = sheet
+      if (sheet > 0 && Number.isFinite(t)) {
+        // One dial for a planet's three: the attribute is the world's mean,
+        // the equator is warmer and the poles far colder. At the default
+        // these are the planet's own defaults (0.85, 0.55, 0.05).
+        const base = chartTemperature(t)
+        p.equatorTemp = base + 0.13
+        p.temperateTemp = base - 0.17
+        p.poleTemp = base - 0.67
+        // The wobble in the climate bands, sized to the planet.
+        p.latWarpScale = 1 / sheet
+      }
+    }
     if (t !== memo.temperature) {
       memo.temperature = t
       // The attribute is on the temperature scale (0 = 0 °C, 1 = 50 °C); the

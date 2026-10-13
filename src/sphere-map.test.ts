@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SphereSampler } from './surface-sampler.js'
 import {
+  climateForGlobe,
   directionToGround,
   directionToLatLon,
   directionToUv,
@@ -119,5 +120,53 @@ describe('the ground is the globe, not its mirror image', () => {
     )
     const globe = c[0] * o.x + c[1] * o.y + c[2] * o.z
     expect(Math.sign(globe)).toBe(Math.sign(ground))
+  })
+})
+
+describe('a ground climate on a globe', () => {
+  const ground = {
+    equatorTemp: 0.85,
+    temperateTemp: 0.55,
+    poleTemp: 0.05,
+    lapseRate: 0.004,
+    mapMoisture: 0.45,
+    tNoiseScale: 0.013,
+    tNoiseAmp: 0.1,
+    mNoiseScale: 0.001,
+    mNoiseAmp: 0.5,
+    latWarpScale: 1 / 4000,
+    latWarpAmp: 0.12,
+    moistureDryHeight: 170,
+    rainShadow: 0.25,
+    windAzimuth: 0.8,
+    volcanism: 0,
+    volcanicScale: 0.09,
+    season: 0.25,
+    seasonality: 0,
+  }
+
+  test('noise is read at the same place: scale times radius is unchanged', () => {
+    const globe = climateForGlobe(ground, 4000, 40, 2)
+    expect(globe.mNoiseScale * 40).toBeCloseTo(ground.mNoiseScale * 4000, 10)
+    expect(globe.tNoiseScale * 40).toBeCloseTo(ground.tNoiseScale * 4000, 10)
+    expect(globe.latWarpScale * 40).toBeCloseTo(ground.latWarpScale * 4000, 10)
+  })
+
+  test('what is measured against height follows the exaggerated relief', () => {
+    const globe = climateForGlobe(ground, 4000, 40, 2)
+    // 100 m of ground is 100 / 100 * 2 = 2 units of globe.
+    const groundCooling = ground.lapseRate * 100
+    expect(globe.lapseRate * 2).toBeCloseTo(groundCooling, 10)
+    expect(100 / ground.moistureDryHeight).toBeCloseTo(
+      2 / globe.moistureDryHeight,
+      10
+    )
+  })
+
+  test('everything else is the same number', () => {
+    const globe = climateForGlobe(ground, 4000, 40, 2)
+    expect(globe.equatorTemp).toBe(0.85)
+    expect(globe.mNoiseAmp).toBe(0.5)
+    expect(globe.windAzimuth).toBe(0.8)
   })
 })

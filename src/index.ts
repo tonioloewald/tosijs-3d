@@ -451,6 +451,7 @@ export {
   latLonToGround,
   type SphereFrame,
   type PlanetSurface,
+  climateForGlobe,
 } from './sphere-map.js'
 export {
   createGasGiantMaterial,

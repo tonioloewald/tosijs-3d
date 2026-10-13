@@ -30,7 +30,9 @@ const terrain = b3dTerrain({
   grossScale: 0.0016, detailScale: 0.012, grossAmplitude: 320, detailAmplitude: 24,
   center: true,
 })
-const globe = b3dPlanet({ radius: 40, relief: 2, ocean: 0.5, atmosphere: 0.05, subdivisions: 96 })
+// biome: 'on' so the globe shades with the ground's own climate and colours;
+// flatSea because this world has a sea at 0 m (the water below).
+const globe = b3dPlanet({ radius: 40, relief: 2, flatSea: 'on', atmosphere: 0.05, subdivisions: 96, biome: 'on' })
 
 preview.append(
   b3d(
@@ -155,6 +157,76 @@ export interface PlanetSurface {
   seaLevel: number
   /** Ground height in metres, in a direction from the centre (any length). */
   heightAt(direction: Vec3): number
+  /**
+   * The ground's climate, in metres (a terrain's `biomePlugin.params`). A
+   * planet with `biome="on"` shades from it, so the globe is coloured as the
+   * ground is. Read every frame, so changing the ground changes the globe.
+   */
+  climate?: SurfaceClimate
+  /** The ground's biome colours (the plugin's `palette` and `paletteB`), now. */
+  palettes?: () => { palette: number[][]; paletteB: number[][] }
+}
+
+/** The climate settings a globe takes from the ground it is a globe of. */
+export interface SurfaceClimate {
+  equatorTemp: number
+  temperateTemp: number
+  poleTemp: number
+  lapseRate: number
+  mapMoisture: number
+  tNoiseScale: number
+  tNoiseAmp: number
+  mNoiseScale: number
+  mNoiseAmp: number
+  latWarpScale: number
+  latWarpAmp: number
+  moistureDryHeight: number
+  rainShadow: number
+  windAzimuth: number
+  volcanism: number
+  volcanicScale: number
+  season: number
+  seasonality: number
+}
+
+/** What is the same number on the globe; the rest are lengths, converted. */
+const CLIMATE_KEYS: (keyof SurfaceClimate)[] = [
+  'equatorTemp',
+  'temperateTemp',
+  'poleTemp',
+  'mapMoisture',
+  'tNoiseAmp',
+  'mNoiseAmp',
+  'latWarpAmp',
+  'rainShadow',
+  'windAzimuth',
+  'volcanism',
+  'volcanicScale',
+  'season',
+  'seasonality',
+]
+
+/**
+ * A ground climate (metres) as a globe of `globeRadius` units needs it, the
+ * globe's relief exaggerated `relief` times. Noise is read at the same place
+ * on both, so its scale is per unit of the globe; heights are stretched by
+ * the relief, so what is measured against height is too.
+ */
+export function climateForGlobe(
+  climate: SurfaceClimate,
+  trueRadius: number,
+  globeRadius: number,
+  relief = 1
+): SurfaceClimate {
+  const metresPerUnit = trueRadius / globeRadius
+  const out = {} as SurfaceClimate
+  for (const key of CLIMATE_KEYS) out[key] = climate[key]
+  out.tNoiseScale = climate.tNoiseScale * metresPerUnit
+  out.mNoiseScale = climate.mNoiseScale * metresPerUnit
+  out.latWarpScale = climate.latWarpScale * metresPerUnit
+  out.lapseRate = (climate.lapseRate * metresPerUnit) / relief
+  out.moistureDryHeight = (climate.moistureDryHeight * relief) / metresPerUnit
+  return out
 }
 
 const TWO_PI = Math.PI * 2

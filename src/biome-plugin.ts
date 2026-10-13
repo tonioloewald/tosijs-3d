@@ -82,6 +82,17 @@ export interface BiomeParams {
    */
   worldOffsetX: number
   worldOffsetZ: number
+  /**
+   * A SHEET: flat ground wrapped round a planet of this radius (m), its
+   * origin at `sheetU`, `sheetV` of a turn (the terrain's `radius`, `worldU`,
+   * `worldV` in `surfaceType="sphere"`, which sets these). The climate is
+   * then the planetary one, read at the point of the sphere each piece of
+   * ground is, and the lengths below (`lapseRate`, the noise scales,
+   * `moistureDryHeight`) are in metres. `0`: not a sheet.
+   */
+  sheetRadius: number
+  sheetU: number
+  sheetV: number
   /** High-frequency single-octave dither on the crossfade inputs. */
   ditherScale: number
   ditherAmp: number
@@ -293,6 +304,9 @@ export const defaultBiomeParams = (): BiomeParams => ({
   mNoiseAmp: 0.5,
   worldOffsetX: 0,
   worldOffsetZ: 0,
+  sheetRadius: 0,
+  sheetU: 0,
+  sheetV: 0,
   ditherScale: 0.35,
   ditherAmp: 0.045,
   cliffStart: 0.7,
@@ -569,6 +583,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, role (0 ground, 1 leaf, 2 bark, 3 evergreen)
         { name: 'biomeSeason', size: 4, type: 'vec4' }, // temperature offset, autumn 0…1, leafBlend, bare 0…1
         { name: 'biomeOrigin', size: 4, type: 'vec4' }, // world offset x, z (flat ground), unused, unused
+        { name: 'biomeSphere', size: 4, type: 'vec4' }, // sheet: planet radius (0 = not a sheet), worldU, worldV, unused
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -588,6 +603,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeExtra;
         uniform vec4 biomeSeason;
         uniform vec4 biomeOrigin;
+        uniform vec4 biomeSphere;
       #endif`,
     }
   }
@@ -626,6 +642,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.worldOffsetX,
       p.worldOffsetZ,
       0,
+      0
+    )
+    uniformBuffer.updateFloat4(
+      'biomeSphere',
+      p.seaRadius > 0 ? 0 : p.sheetRadius,
+      p.sheetU,
+      p.sheetV,
       0
     )
     uniformBuffer.updateFloat4(
@@ -937,23 +960,44 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // The two front-ends share everything but the AXES (biome-chart.ts):
         // flat = worldY − seaLevel with world-up; planetary (seaRadius > 0) =
         // RADIAL altitude with radial up + insolation over warped latitude.
-        bool planetary = biomePlanet.w > 0.0;
+        // A SHEET is flat ground wrapped round a planet (a terrain with
+        // surfaceType sphere). Its climate is the planet's: the same front
+        // end a globe of that world uses, at the point of the sphere this
+        // piece of ground is, so the two views agree (sphere-map.ts).
+        bool sheet = biomeSphere.x > 0.0;
+        bool planetary = biomePlanet.w > 0.0 || sheet;
         vec3 nW = normalize(vNormalW);
         vec3 centre = biomePlanet.xyz;
-        if (planetary) {
+        float seaR = biomePlanet.w;
+        // The position the CLIMATE is read at; wp stays the drawn position.
+        vec3 pp = wp;
+        if (sheet) {
+          vec2 g = wp.xz + biomeOrigin.xy;
+          float th = (biomeSphere.y + g.x / (6.2831853 * biomeSphere.x)) * 6.2831853;
+          float ph = (biomeSphere.z + g.y / (3.1415927 * biomeSphere.x)) * 3.1415927;
+          // groundToDirection: the sampler's sphere, mirrored so +z is north.
+          vec3 dir = vec3(sin(ph) * cos(th), -cos(ph), sin(ph) * sin(th));
+          vec3 east = vec3(-sin(th), 0.0, cos(th));
+          vec3 north = vec3(cos(ph) * cos(th), sin(ph), cos(ph) * sin(th));
+          centre = vec3(0.0);
+          seaR = biomeSphere.x + biomeCfg.x;
+          pp = dir * (biomeSphere.x + wp.y);
+          nW = normalize(east * nW.x + dir * nW.y + north * nW.z);
+        } else if (planetary) {
           // Into the planet's own frame: see bindForSubMesh.
           wp = (biomeBody * vec4(vPositionW, 1.0)).xyz;
+          pp = wp;
           centre = (biomeBody * vec4(biomePlanet.xyz, 1.0)).xyz;
           nW = normalize(mat3(biomeBody) * nW);
         }
+        vec3 rel = pp - centre;
         // The volcanic patterns are sized in METRES of terrain. A planet is
         // a few dozen units across, so they are read as if it were 600
         // across: provinces a twentieth of the way round, plates you can see.
-        vec3 vp = planetary ? (wp - centre) * (600.0 / biomePlanet.w) : wp;
-        vec3 rel = wp - centre;
+        vec3 vp = planetary ? rel * (600.0 / seaR) : wp;
         float r = length(rel);
         vec3 up = planetary ? rel / max(r, 1e-5) : vec3(0.0, 1.0, 0.0);
-        float altitude = planetary ? (r - biomePlanet.w) : (wp.y - biomeCfg.x);
+        float altitude = planetary ? (r - seaR) : (wp.y - biomeCfg.x);
         // mantaAxes: |altitude| lapse (peaks at sea level, cools both ways) +
         // fBm axis noise — noise feeds the INPUTS, never the classification.
         // On a sphere the noise is read in 3D: XZ alone is constant along
@@ -988,7 +1032,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // with altitude — coasts wet, highlands dry) + orographic rain
           // shadow (windward slopes wet, leeward dry, off the surface normal
           // — the classic no-upstream-sampling approximation).
-          float dry = exp(-max(altitude, 0.0) / max(biomePlanetD.z, 1e-3));
+          float dry = biomePlanetD.z > 0.0 ? exp(-max(altitude, 0.0) / biomePlanetD.z) : 1.0;
           float oro = 0.0;
           #ifdef NORMAL
             vec3 wind = vec3(cos(biomePlanetD.y), 0.0, sin(biomePlanetD.y));

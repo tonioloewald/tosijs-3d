@@ -184,7 +184,7 @@ import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js'
 import type { BiomePlugin } from './biome-plugin.js'
 import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
-import type { PlanetSurface } from './sphere-map.js'
+import { climateForGlobe, type PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
 import { createPlanetClouds, type PlanetStorm } from './planet-clouds.js'
 import { sceneLight } from './gas-giant-material.js'
@@ -360,7 +360,39 @@ export class B3dPlanet extends B3dChild {
     this.owner = null
   }
 
+  /**
+   * A globe OF a ground (a `surface` that carries its climate) is coloured
+   * as that ground is: the same settings in the globe's units, and the same
+   * colours, copied each frame so the ground's dials move the globe.
+   */
+  private _followGroundClimate(): void {
+    const s = this.surface
+    const plugin = this.biomePlugin
+    if (s?.climate == null || plugin == null) return
+    const attrs = this as any
+    Object.assign(
+      plugin.params,
+      climateForGlobe(
+        s.climate,
+        s.radius,
+        attrs.radius,
+        attrs.relief > 0 ? attrs.relief : 1
+      )
+    )
+    // The globe's slopes are the ground's, steepened by the relief; the
+    // cliff test reads 1 - cos, which goes as the slope squared. (The 6 a
+    // synthetic planet uses is for its own gentle noise.)
+    const relief = attrs.relief > 0 ? attrs.relief : 1
+    plugin.params.slopeExaggeration = 1 / (relief * relief)
+    const colours = s.palettes?.()
+    if (colours != null) {
+      plugin.palette = colours.palette
+      plugin.paletteB = colours.paletteB
+    }
+  }
+
   private update() {
+    this._followGroundClimate()
     if (this.rootNode == null) return
     const attrs = this as any
     const speed: number = attrs.rotationSpeed
