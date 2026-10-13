@@ -57,3 +57,26 @@
 - **The owner's demo pass found three biped bugs, all older than this
   release** (#3241 to #3243). The 220-page headless sweep could not have:
   it checks that pages load without throwing, not that a wall stops you.
+
+## 0.10.1 and 0.10.2 cycle
+
+- **Two patches in a day, each with a fast two-lens review, each GO with
+  follow-ups.** 0.10.2's found one real major: the "seat rocks on the drawn
+  mesh" fix left the terrain's horizontal scale out of the mesh spacing, so
+  in the demo it was written for it did a tenth of its job. I had LOOKED at
+  that demo after the fix and seen rocks on the ground; the review read the
+  arithmetic. A capture that looks right is weak evidence for a number.
+- **Red was pushed twice.** Once two schema tests (new attributes the schema
+  did not describe), once a lint error that would stop the dev server. Both
+  times the commit command was chained after the check with `;`, so a failed
+  check did not stop it. Chain with `&&`, or read the result first.
+- **A shader was broken by a text splice** that dropped a declaration; the
+  planet and the whole sky went black and only a capture showed it. A test
+  now checks every local in that GLSL is declared, which is as much as can
+  be checked without a compiler.
+- **Owner feedback redirected the design three times in an hour** (flat disc,
+  must work in space, band count and Saturn's subtlety), each cheaply,
+  because each round ended with something on screen to react to.
+- **Wrong first diagnoses, corrected by measuring:** the three biped reports
+  were filed as ground-snap bugs and were a climb aiming at a moving deck, a
+  climb path out of step with its clip, and a deliberate 55 degree face.
