@@ -80,3 +80,22 @@
 - **Wrong first diagnoses, corrected by measuring:** the three biped reports
   were filed as ground-snap bugs and were a climb aiming at a moving deck, a
   climb path out of step with its clip, and a deliberate 55 degree face.
+
+## 0.10.3 cycle
+
+- **The review caught a mirror.** The new ground-to-globe mapping had +z as
+  south, so the terrain was its globe's mirror image. My own check had been
+  "heights agree at three points", which a mirrored mapping passes exactly.
+  A check has to be able to fail for the fault that matters: the tests added
+  are about handedness, which is what was wrong.
+- **A shortcut was taken and recorded only when the review asked.** Planet
+  weather was meant to come from the ground's weather model; it shipped as
+  its own field and storms because the look was being tuned live with the
+  owner. Right call for the afternoon, wrong to leave unsaid. It is now on
+  the board (#3270) and marked provisional in the docs.
+- **I told the owner an interrupted edit had not run when it had.** A tool
+  call rejected mid-flight had already written the file; the dev server
+  rebuilt with it and the owner saw the result. After an interruption,
+  check `git status` before saying what state the tree is in.
+- **A stale browser cache cost three rounds.** Worth asking "is the dev
+  tools pane open?" early when a fix that measures correct looks unfixed.
