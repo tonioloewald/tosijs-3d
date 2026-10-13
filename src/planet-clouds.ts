@@ -297,7 +297,10 @@ export function createPlanetClouds(
     scene
   )
   const mat = new BABYLON.ShaderMaterial(
-    'planet-clouds',
+    // Named so the cost sweep lists it apart from the planet's surface: the
+    // sweep groups by the name up to the first hyphen, and this is the
+    // dearest thing a planet draws.
+    'cloudshell-planet',
     scene,
     { vertex: NAME, fragment: NAME },
     {
