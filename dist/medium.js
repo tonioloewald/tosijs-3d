@@ -56,7 +56,7 @@ the transition happens (metres), smoothstepped — tight enough that entering
 water is *obvious*, wide enough that it is not a discontinuity. Tuned from
 [[b3d-water]]'s `fogTransition`, which learned this the hard way.
 */
-/*{ "parent": "utilities" }*/
+/*{ "parent": "b3d-water", "order": 40 }*/
 /** A horizontal medium — a sea, a fog bank, the top of a mercury vat. */
 export function plane(spec) {
     return { kind: 'plane', ...spec };

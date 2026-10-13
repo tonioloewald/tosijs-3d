@@ -870,6 +870,7 @@
   },
   {
     "module": "b3d-cloud-deck",
+    "tag": "tosi-b3d-cloud-deck",
     "summary": "b3d-cloud-deck",
     "attributes": [
       {
@@ -898,6 +899,16 @@
         "description": "MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2`"
       },
       {
+        "name": "seed",
+        "default": "1337",
+        "description": "Same seed, same weather"
+      },
+      {
+        "name": "frequency",
+        "default": "3",
+        "description": "Field repeats across its own width. Higher = smaller puffs"
+      },
+      {
         "name": "cirrus",
         "default": "0",
         "description": "Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field"
@@ -921,26 +932,6 @@
         "name": "follow",
         "default": "'on'",
         "description": "Keep the deck centred under the camera. A deck is finite; the world is not"
-      },
-      {
-        "name": "ambientGloomBelow",
-        "default": "0.7",
-        "description": "`transmission` below which the AMBIENT fill starts to go. `0` disables"
-      },
-      {
-        "name": "ambientGloom",
-        "default": "0.45",
-        "description": "How far the ambient may be taken down"
-      },
-      {
-        "name": "sunGloomBelow",
-        "default": "0.25",
-        "description": "`transmission` below which the SUN starts to go — later than the ambient, on purpose"
-      },
-      {
-        "name": "sunGloom",
-        "default": "0.65",
-        "description": "How far the sun may be taken down at zero transmission"
       },
       {
         "name": "localRise",
@@ -983,6 +974,26 @@
         "description": "Width in metres of the shadow window, centred on the camera"
       },
       {
+        "name": "ambientGloomBelow",
+        "default": "0.7",
+        "description": "`transmission` below which the AMBIENT fill starts to go. `0` disables"
+      },
+      {
+        "name": "ambientGloom",
+        "default": "0.45",
+        "description": "How far the ambient may be taken down"
+      },
+      {
+        "name": "sunGloomBelow",
+        "default": "0.25",
+        "description": "`transmission` below which the SUN starts to go — later than the ambient, on purpose"
+      },
+      {
+        "name": "sunGloom",
+        "default": "0.65",
+        "description": "How far the sun may be taken down at zero transmission"
+      },
+      {
         "name": "shadowStrength",
         "default": "0.75",
         "description": "Shadow darkness at zero transmission. Scaled down as `transmission` rises — a cloud you can see daylight through does not cast a hard shadow"
@@ -1001,16 +1012,6 @@
         "name": "haze",
         "default": "0.6",
         "description": "How much the air under the deck takes the cloud's colour. Hides the rim"
-      },
-      {
-        "name": "seed",
-        "default": "1337",
-        "description": "Same seed, same weather"
-      },
-      {
-        "name": "frequency",
-        "default": "3",
-        "description": "Field repeats across its own width. Higher = smaller puffs"
       },
       {
         "name": "octaves",
@@ -1310,6 +1311,11 @@
         "description": "How many things to place. Performance cares about this, not density"
       },
       {
+        "name": "budgetScale",
+        "default": "0",
+        "description": "Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere"
+      },
+      {
         "name": "radius",
         "default": "900",
         "description": "Metres around the camera to fill"
@@ -1367,7 +1373,7 @@
       {
         "name": "clump",
         "default": "-1",
-        "description": "How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live"
+        "description": "How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.95 by default). Live"
       },
       {
         "name": "clumpSize",
@@ -1472,8 +1478,33 @@
   },
   {
     "module": "b3d-elevator",
+    "tag": "tosi-b3d-elevator",
     "summary": "b3d-elevator",
     "attributes": [
+      {
+        "name": "x"
+      },
+      {
+        "name": "y"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "meshName"
+      },
       {
         "name": "mode",
         "default": "'cycle'",
@@ -2185,7 +2216,7 @@
   {
     "module": "b3d-light",
     "tag": "tosi-b3d-light",
-    "summary": "b3d-light",
+    "summary": "Ambient light (b3d-light)",
     "attributes": [
       {
         "name": "x",
@@ -2792,6 +2823,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-sphere)",
     "tag": "tosi-b3d-sphere",
+    "summary": "Primitives: box, sphere, ground",
     "attributes": [
       {
         "name": "x"
@@ -2824,19 +2856,28 @@
         "name": "diameter"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#ff0000'"
       },
       {
-        "name": "glow"
+        "name": "glow",
+        "default": "0",
+        "description": "Self-illumination, 0 to 1, as a fraction of `color`. Blooms if the scene has `glowLayerIntensity`"
       },
       {
-        "name": "glowColor"
+        "name": "glowColor",
+        "default": "''",
+        "description": "A different colour for the glow"
       },
       {
-        "name": "mirror"
+        "name": "mirror",
+        "default": "false",
+        "description": "Polished metal that reflects the scene (see [[b3d-reflections]])"
       },
       {
-        "name": "solid"
+        "name": "solid",
+        "default": "'off'",
+        "description": "`'on'`: a character walks into it instead of through it"
       },
       {
         "name": "solidProxy"
@@ -2846,6 +2887,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-box)",
     "tag": "tosi-b3d-box",
+    "summary": "Primitives: box, sphere, ground",
     "attributes": [
       {
         "name": "x"
@@ -2872,31 +2914,48 @@
         "name": "meshName"
       },
       {
-        "name": "size"
+        "name": "size",
+        "default": "1",
+        "description": "Edge length of a cube"
       },
       {
-        "name": "width"
+        "name": "width",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "height"
+        "name": "height",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "depth"
+        "name": "depth",
+        "default": "0",
+        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#ff0000'"
       },
       {
-        "name": "mirror"
+        "name": "mirror",
+        "default": "false",
+        "description": "Polished metal that reflects the scene (see [[b3d-reflections]])"
       },
       {
-        "name": "glow"
+        "name": "glow",
+        "default": "0",
+        "description": "Self-illumination, 0 to 1, as a fraction of `color`. Blooms if the scene has `glowLayerIntensity`"
       },
       {
-        "name": "glowColor"
+        "name": "glowColor",
+        "default": "''",
+        "description": "A different colour for the glow"
       },
       {
-        "name": "solid"
+        "name": "solid",
+        "default": "'off'",
+        "description": "`'on'`: a character walks into it instead of through it"
       },
       {
         "name": "solidProxy"
@@ -2906,6 +2965,7 @@
   {
     "module": "b3d-primitives (tosi-b3d-ground)",
     "tag": "tosi-b3d-ground",
+    "summary": "Primitives: box, sphere, ground",
     "attributes": [
       {
         "name": "x"
@@ -2932,22 +2992,31 @@
         "name": "meshName"
       },
       {
-        "name": "size"
+        "name": "size",
+        "default": "0",
+        "description": "A square of this side; overrides `width` and `height`"
       },
       {
-        "name": "width"
+        "name": "width",
+        "default": "4"
       },
       {
-        "name": "height"
+        "name": "height",
+        "default": "4"
       },
       {
-        "name": "color"
+        "name": "color",
+        "default": "'#888888'"
       },
       {
-        "name": "texture"
+        "name": "texture",
+        "default": "''",
+        "description": "An image URL, or `'checker'` (a ruler you can count) or `'noise'` (mottled natural ground)"
       },
       {
-        "name": "textureTiles"
+        "name": "textureTiles",
+        "default": "8",
+        "description": "Repeats across the plane; for `'noise'`, the number of features"
       }
     ]
   },
@@ -3139,7 +3208,7 @@
   {
     "module": "b3d-shadows",
     "tag": "tosi-b3d-sun",
-    "summary": "b3d-shadows",
+    "summary": "Sun and shadows (b3d-shadows)",
     "attributes": [
       {
         "name": "shadowMaxZ",
@@ -4390,7 +4459,7 @@
       {
         "name": "reflectionRefresh",
         "default": "0",
-        "description": "Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo"
+        "description": "Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. It applies in a headset too: one drawing serves both eyes and later frames, looked up through the view it was drawn from"
       },
       {
         "name": "twoSided",
@@ -4411,6 +4480,11 @@
         "name": "shoreFine",
         "default": "false",
         "description": "With `shore=\"on\"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time"
+      },
+      {
+        "name": "receiveShadows",
+        "default": "'on'",
+        "description": "The surface (and the ice on it) takes shadows from the sun and from clouds. `'off'` skips both lookups per water pixel"
       },
       {
         "name": "normalMap"
@@ -4990,7 +5064,7 @@
     "attributes": [
       {
         "name": "clump",
-        "default": "0.85",
+        "default": "0.95",
         "description": "0 = even spread, 1 = clumps only"
       },
       {
@@ -5121,6 +5195,21 @@
       },
       {
         "name": "ssaoRate"
+      },
+      {
+        "name": "xrRenderScale",
+        "default": "0",
+        "description": "In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session"
+      },
+      {
+        "name": "xrFoveation",
+        "default": "-1",
+        "description": "In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session"
+      },
+      {
+        "name": "groundDetail",
+        "default": "'auto'",
+        "description": "The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one)"
       },
       {
         "name": "pixelRatio"
@@ -5305,11 +5394,11 @@
       },
       {
         "name": "list3d",
-        "default": "items` / `onSelect"
+        "default": "items` / `handleSelect"
       },
       {
         "name": "button3d",
-        "default": "label` / `onClick"
+        "default": "label` / `handleClick"
       },
       {
         "name": "menu3d",

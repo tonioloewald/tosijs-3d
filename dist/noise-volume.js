@@ -1,0 +1,79 @@
+/*#
+# Noise volume
+
+A block of 3D gradient noise that **tiles in every direction**, as bytes, for
+a shader to sample from a texture instead of computing. Arithmetic noise in a
+fragment shader is the expensive way to get noise: eight hashed corners a
+sample, every pixel, every frame. One texture read replaces that, and a
+mip-mapped texture also fades to its average in the distance where computed
+noise shimmers.
+
+The ground shader ([[biome-plugin]]) uses one for its fine detail. It is pure
+(no engine, seeded), so the same seed is the same ground everywhere.
+
+```javascript
+import { noiseVolume } from 'tosijs-3d'
+const bytes = noiseVolume(64, 16) // 64 texels a side, repeating every 16 cells
+```
+
+A value is `0.5 + 0.5 * gain * n`, where `n` is the noise in about -0.9 to 0.9.
+The average is 0.5, so a shader reads `texel * 2 - 1`.
+*/
+/*{ "parent": "reference", "order": 21 }*/
+/**
+ * `size`³ bytes of gradient noise with `cells` lattice cells along each side
+ * (`size` should be a multiple of `cells`). Sample `x + size*y + size*size*z`.
+ */
+export function noiseVolume(size = 64, cells = 16, seed = 1, gain = 1.3) {
+    // One unit gradient per lattice point, wrapped, so the block tiles.
+    const grads = new Float32Array(cells * cells * cells * 3);
+    let state = seed >>> 0 || 1;
+    const rand = () => {
+        // xorshift32: seeded, and the same in every engine.
+        state ^= state << 13;
+        state >>>= 0;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        state >>>= 0;
+        return state / 4294967296;
+    };
+    for (let i = 0; i < grads.length; i += 3) {
+        const z = rand() * 2 - 1;
+        const a = rand() * Math.PI * 2;
+        const r = Math.sqrt(1 - z * z);
+        grads[i] = r * Math.cos(a);
+        grads[i + 1] = r * Math.sin(a);
+        grads[i + 2] = z;
+    }
+    const corner = (ix, iy, iz, fx, fy, fz) => {
+        const g = 3 * ((ix % cells) + cells * ((iy % cells) + cells * (iz % cells)));
+        return grads[g] * fx + grads[g + 1] * fy + grads[g + 2] * fz;
+    };
+    const fade = (t) => t * t * (3 - 2 * t);
+    const mix = (a, b, t) => a + (b - a) * t;
+    const out = new Uint8Array(size * size * size);
+    const scale = cells / size;
+    let o = 0;
+    for (let z = 0; z < size; z++) {
+        const pz = z * scale;
+        const iz = Math.floor(pz);
+        const fz = pz - iz;
+        const wz = fade(fz);
+        for (let y = 0; y < size; y++) {
+            const py = y * scale;
+            const iy = Math.floor(py);
+            const fy = py - iy;
+            const wy = fade(fy);
+            for (let x = 0; x < size; x++) {
+                const px = x * scale;
+                const ix = Math.floor(px);
+                const fx = px - ix;
+                const wx = fade(fx);
+                const n = mix(mix(mix(corner(ix, iy, iz, fx, fy, fz), corner(ix + 1, iy, iz, fx - 1, fy, fz), wx), mix(corner(ix, iy + 1, iz, fx, fy - 1, fz), corner(ix + 1, iy + 1, iz, fx - 1, fy - 1, fz), wx), wy), mix(mix(corner(ix, iy, iz + 1, fx, fy, fz - 1), corner(ix + 1, iy, iz + 1, fx - 1, fy, fz - 1), wx), mix(corner(ix, iy + 1, iz + 1, fx, fy - 1, fz - 1), corner(ix + 1, iy + 1, iz + 1, fx - 1, fy - 1, fz - 1), wx), wy), wz);
+                out[o++] = Math.max(0, Math.min(255, Math.round(127.5 + 127.5 * gain * n)));
+            }
+        }
+    }
+    return out;
+}
+//# sourceMappingURL=noise-volume.js.map

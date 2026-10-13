@@ -20,8 +20,6 @@ export interface Angle3dOptions {
     /** Ring diameter. `0` fits the row to the panel width. */
     size?: number;
     handleChange?: (v: number) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (v: number) => void;
     handleCommit?: (v: number) => void;
 }
 export interface Arc3dOptions {
@@ -33,8 +31,6 @@ export interface Arc3dOptions {
     maxWidth?: number;
     size?: number;
     handleChange?: (v: Arc) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (v: Arc) => void;
     handleCommit?: (v: Arc) => void;
 }
 /** Dial one direction. */

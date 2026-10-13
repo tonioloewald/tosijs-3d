@@ -29,9 +29,8 @@ export interface PopupSurfaceOptions {
     /**
      * Can it be grabbed and moved? Default true.
      *
-     * Dragging an OWNED popup tears it off first — the same gesture as pulling a
-     * tab out of a window, and the reason an owned popup doesn't need a separate
-     * "tear off" affordance to be discoverable.
+     * Dragging an OWNED popup moves it relative to its opener; it stays owned
+     * and keeps travelling with it. `tearOff()` is how it is let go.
      */
     draggable?: boolean;
     /**

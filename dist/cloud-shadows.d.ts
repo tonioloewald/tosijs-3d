@@ -28,7 +28,10 @@ export interface CloudShadowBlob {
      * Stamped instead of the soft ellipse; `strength` becomes its opacity. */
     sprite?: CanvasImageSource;
 }
+/** The cloud shadow map currently live in a scene (the newest), or null. */
+export declare function cloudShadowMapOf(scene: BABYLON.Scene): CloudShadowMap | null;
 export declare class CloudShadowMap {
+    private _scene;
     readonly texture: BABYLON.DynamicTexture;
     readonly resolution: number;
     /** World size (metres) of the square window the texture covers. */

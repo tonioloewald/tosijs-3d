@@ -59,7 +59,7 @@ used to be exported (`/tosi-test-pattern.svg`) resolve only on **this** site, so
 publishing them would have been a broken promise in your project. Pass your own,
 or omit it for a generated checker that needs no asset at all.
 */
-/*{ "parent": "Utilities" }*/
+/*{ "parent": "core", "order": 100 }*/
 import { touchOrbit } from './touch-orbit.js';
 import * as BABYLON from '@babylonjs/core';
 import { b3dSun, b3dSkybox, b3dLight, b3dGround, b3dFog, b3dLibrary, b3dDeath, inputFocus, gameController, } from './index.js';

@@ -196,22 +196,6 @@ export declare function sampleSpiral(seed: number, n: number, options?: GalaxyOp
     z: number;
 }>;
 /**
- * @deprecated Use `voxelGalaxy({ seed, brightBudget }).view()`. Removed in 0.10.
- *
- * ONE GALAXY (GALAXY-DESIGN.md → "Reconciliation"). This used to be its own
- * generator: one sequential random stream producing the stars, then the
- * nebulae, then the distant shell, so nothing could be generated locally and
- * 63% of stars shared a seed with another. It is now an ADAPTER over the voxel
- * galaxy: `numberOfStars` is the BRIGHT budget, and the result is that
- * galaxy's `view()` (every bright star, its nebulae and shell) in the shape
- * this function always returned. The spiral model it was built on survives as
- * `sampleSpiral`, which is what the voxel galaxy's density is sampled from.
- *
- * A given seed therefore produces a DIFFERENT galaxy from 0.8.3's: same
- * shape and distributions, different stars.
- */
-export declare function generateGalaxy(seed: number, numberOfStars: number, options?: GalaxyOptions): GalaxyData;
-/**
  * The galaxy's NEBULAE on the spiral model, drawn from `prng`. Split out so the
  * voxel galaxy draws them from its own derived seed (GALAXY-DESIGN.md →
  * "Reconciliation") while the old stream keeps its order.

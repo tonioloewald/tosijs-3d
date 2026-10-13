@@ -223,7 +223,7 @@ generated from JSON Schema dispatches on the token and hands the entire value
 here.
 
 */
-/*{ "parent": "UI", "order": 263 }*/
+/*{ "parent": "light-editor", "order": 10 }*/
 import { svgElements } from 'tosijs';
 import { canonicalProgram } from './light-modulation.js';
 import { readCurve } from './curve.js';

@@ -96,7 +96,7 @@ test('toggle flips its bound value when the switch is clicked', async () => {
   expect(s.on.value).toBe(true)
 })
 
-test('button fires onClick on release', () => {
+test('button fires handleClick on release', () => {
   let clicked = false
   const panel = panel3d({ width: 300, height: 100 }, button3d({ label: 'Go', handleClick: () => { clicked = true } }))
   preview.append(panel)
@@ -268,9 +268,9 @@ settings into `select3d` cyclers to get discrete values.
 | `select3d` | `options` | | opens a list (downward chevron); steps only with no host |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
-| `list3d` | `items` / `onSelect` | | items may carry `icon` and `disabled` |
-| `button3d` | `label` / `onClick` | | |
-| | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
+| `list3d` | `items` / `handleSelect` | | items may carry `icon` and `disabled` |
+| `button3d` | `label` / `handleClick` | | |
+| | `menu` | — | makes it a MENU button — opens actions instead of firing `handleClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, handleClick}` |
 | `foldSections` | `key` / `mode` / `repaint` | `'fold'` | the rows to show for collapsible sections: folded, or as `tabs3d` (`mode: 'tabs'`); rebuild your panel on `repaint` |
@@ -402,8 +402,8 @@ bar that is not determinate is a lie with a progress percentage on it.
 
 ## Callbacks are `handleX`, not `onX`
 
-`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings still
-work through 0.9.x and warn once, and are removed in 0.10.
+`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings were
+removed in 0.10: one is no longer called, and passing it warns once.
 
 Not a style preference. These are plain factory functions today, where `onX` is
 harmless — but the moment one becomes a tosijs COMPONENT, the element creator
@@ -478,7 +478,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 | `--w3d-button-bg` / `--w3d-button-hover` / `--w3d-button-active` | greys | Button states |
 | `--w3d-row-bg` / `--w3d-row-hover` | subtle whites | Row background / hover |
 */
-/*{ "parent": "UI", "order": 100 }*/
+/*{ "parent": "ui", "order": 10 }*/
 import { svgElements, StyleSheet } from 'tosijs';
 import { placePopup } from './flow-layout.js';
 import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, DEFAULT_SLIDER_PRECISION, ellipsize, measureTextWidth, tabLayout, tabAt, tabOrder, } from './widgets3d-layout.js';
@@ -611,6 +611,12 @@ export function resolveDynamic(v, fallback) {
  * that can leave room for it.
  */
 const POPUP_CHROME_BAND = 30;
+/*
+A popup is capped and SCROLLS past the cap. Uncapped, Perf Stats with a sweep
+listed was taller than the screen flat and "enormous" in a headset, with no way
+to reach its lower rows in either.
+*/
+const POPUP_MAX_HEIGHT = 480;
 /**
  * @param chromeBand headroom for the mounting layer's own move/close glyphs.
  *   `0` when no mounting host draws any — a DOM layer does not, and reserving
@@ -623,8 +629,8 @@ const POPUP_CHROME_BAND = 30;
  *   arrangement exists to avoid. Paying 30px flat so the in-scene one has room
  *   for its handles is the right side of that trade.
  */
-function panelPopupSheet(width, items, chromeBand = POPUP_CHROME_BAND) {
-    return panel3d({ width, height: 'fit', paddingTop: chromeBand }, ...items);
+function panelPopupSheet(width, items, chromeBand = POPUP_CHROME_BAND, maxHeight = POPUP_MAX_HEIGHT) {
+    return panel3d({ width, height: 'fit', maxHeight, paddingTop: chromeBand }, ...items);
 }
 /**
  * A collapsible section header: bold caption, a chevron (open / closed), and
@@ -2619,7 +2625,7 @@ export function panel3d(config, ...widgets) {
             */
             const alwaysDraws = hosts.some((h) => h.drawsChrome === true);
             const chromeBand = alwaysDraws || config.chrome === true ? POPUP_CHROME_BAND : 0;
-            const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand);
+            const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand, config.maxHeight);
             /*
             ONE CLOSE, however it starts.
       

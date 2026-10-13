@@ -308,7 +308,7 @@ preview.append(
 }
 ```
 */
-/*{ "parent": "UI", "order": 260 }*/
+/*{ "parent": "ui-controls", "order": 30 }*/
 import { svgElements } from 'tosijs';
 import { deletePoint, evaluateCurve, insertPoint, linear, movePoint, moveMarker, normalizeMarkers, normalizeCurve, canonicalCurve, presetsFor, falloffDefault, } from './curve.js';
 import { w3dTheme } from './w3d-theme.js';
@@ -378,7 +378,7 @@ function initialPoints(value, kind) {
  *
  * ```js
  * const falloff = curve3d({ kind: 'falloff', label: 'falloff' })
- * falloff.onChange = () => rebuildTerrain()
+ * falloff.handleChange = () => rebuildTerrain()
  * falloff.evaluate(0.5)
  * ```
  */
@@ -609,7 +609,6 @@ export function curve3d(config = {}) {
     const api = {
         el,
         handleChange: config.handleChange,
-        onChange: config.onChange,
         handleCommit: config.handleCommit,
         layout(width) {
             const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5));

@@ -11,6 +11,7 @@ export declare class B3dDecorator extends B3dChild {
     };
     static initAttributes: {
         budget: number;
+        budgetScale: number;
         radius: number;
         seed: number;
         url: string;
@@ -26,6 +27,7 @@ export declare class B3dDecorator extends B3dChild {
         clumpSize: number;
     };
     budget: number;
+    budgetScale: number;
     radius: number;
     seed: number;
     url: string;
@@ -39,6 +41,13 @@ export declare class B3dDecorator extends B3dChild {
     shadowBudget: number;
     clump: number;
     clumpSize: number;
+    /**
+     * Whether the library in use is the default one. Asked of the RESOLVED url,
+     * because naming the default library explicitly is still the default
+     * library: testing `url` for being set chose Kenney's rules against the
+     * Quaternius models, which matched nothing and placed nothing.
+     */
+    private get _defaultLibrary();
     private _rules;
     /**
      * The rules. Replace before the first build (or call `rebuild()`). Unset,
@@ -52,8 +61,15 @@ export declare class B3dDecorator extends B3dChild {
      * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
      * `NATURE_ROLES` for the key forms. A library material with a role is drawn
      * with the terrain's biome shading in that role; any other keeps its own look.
+     *
+     * Unset, the default library gets `NATURE_ROLES` and any other library gets
+     * none: those keys are generic material names (`White`, `Wood`), and a
+     * third-party model with a material of the same name had it replaced by
+     * flat biome shading. Set `roles` to opt a custom library in.
      */
-    roles: Record<string, DecorationRole>;
+    get roles(): Record<string, DecorationRole>;
+    set roles(roles: Record<string, DecorationRole>);
+    private _roles;
     /** What was placed last, in LOGICAL world coordinates. */
     placements: Placement[];
     /**
@@ -87,6 +103,10 @@ export declare class B3dDecorator extends B3dChild {
     /** Throw away the current scatter and build again on the next frame. */
     rebuild(): void;
     private _terrain;
+    /** The share of the budget placed here: the attribute, or the device tier's. */
+    private _share;
+    /** About how many that is. */
+    private _placedBudget;
     /** Everything the placements depend on, as one string. */
     private _currentKey;
     private _tick;

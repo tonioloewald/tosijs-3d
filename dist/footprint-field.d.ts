@@ -6,8 +6,6 @@ export interface Footprint3dOptions {
     label?: string;
     /** Fired after any edit. */
     handleChange?: (vertices: ControlPoint[]) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (vertices: ControlPoint[]) => void;
 }
 export interface FootprintField extends Widget3d {
     readonly vertices: ControlPoint[];
@@ -19,15 +17,13 @@ export interface FootprintField extends Widget3d {
     applyPreset: (name: string) => void;
     /** Fired after any edit. */
     handleChange?: (vertices: ControlPoint[]) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (vertices: ControlPoint[]) => void;
 }
 /**
  * A footprint editor.
  *
  * ```js
  * const fp = footprint3d({ value: 'hexagon', label: 'footprint' })
- * fp.onChange = () => rebuildTerrain()
+ * fp.handleChange = () => rebuildTerrain()
  * fp.evaluate(0.25)   // extent a quarter-turn round
  * ```
  */

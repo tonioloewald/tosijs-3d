@@ -9,6 +9,15 @@ export interface ScatterRule {
     temperature?: [number, number];
     /** Chart moisture band, 0…1. */
     moisture?: [number, number];
+    /**
+     * How much MORE of it grows as the ground gets wetter, inside its moisture
+     * band: of the places chosen for it, the share kept is
+     * `(1 + thirst × moisture) / (1 + thirst)` (see `moistureCover`). `0` (the default)
+     * is a kind that is simply present or absent. A band alone cannot say "more
+     * trees where it rains more": every wet band reaches 1, so anything damp
+     * enough to grow a tree grew the same forest as a rainforest.
+     */
+    thirst?: number;
     /** Metres above sea level. */
     altitude?: [number, number];
     /** Degrees from horizontal. */
@@ -25,7 +34,7 @@ export interface ScatterRule {
     collider?: 'trunk' | 'box';
     /**
      * How strongly it gathers into clumps, 0 (even spread) … 1 (clumps only).
-     * Default `0.85`: copses and rock fields with the occasional outlier, which
+     * Default `0.95`: copses and rock fields with the occasional outlier, which
      * reads far better than an even sprinkle. See `clumpAt`.
      */
     clump?: number;
@@ -50,6 +59,12 @@ export interface ScatterRule {
 export interface ScatterClimate {
     temperature: number;
     moisture: number;
+    /**
+     * How wet this is against the wettest LAND there can be, 0…1, for a rule's
+     * `thirst`. Unset, `moisture` is used. The terrain's chart keeps land to the
+     * lower three quarters of the moisture axis, so the decorator sets this.
+     */
+    wetness?: number;
     /** Metres above sea level. */
     altitude: number;
 }
@@ -75,6 +90,13 @@ export interface ScatterOptions {
     suppress?: (x: number, z: number, kind: string) => number;
     /** Candidates per placement. More = closer to the budget, slower. */
     oversample?: number;
+    /**
+     * The share of what the budget would place that is kept, 0 … 1 (default 1).
+     * Thinned by the clump (see `clumpCentreFor`): fewer clumps in the same
+     * places, each as full as before. Asking for a smaller `budget` instead
+     * thins every clump evenly, and makes new, smaller clumps somewhere else.
+     */
+    share?: number;
     /**
      * Clump strength for EVERY rule, 0 (even spread) … 1 (clumps only),
      * overriding each rule's own. Omitted or negative: the rules decide.
@@ -126,7 +148,17 @@ export declare function band(x: number, range: [number, number] | undefined, sof
  * round. Tonio: "copses and little regions of detail play much better than
  * random scatter whether it's rocks or trees."
  */
-export declare function clumpAt(seed: number, group: string, x: number, z: number, size?: number): number;
+export declare function clumpAt(seed: number, group: string, x: number, z: number, size?: number, centre?: number): number;
+/**
+ * The threshold at which clumps cover `share` of the ground they cover at the
+ * normal one (`0.5`). Raising the threshold removes the weaker clumps and
+ * shrinks the rest, and leaves the middle of a surviving clump as full as it
+ * was: FEWER CLUMPS, not thinner ones. That is how a scatter is thinned (a
+ * device's share, a dry place). Tonio: "having a tree here and there looks
+ * lame. But having clumps of three or four trees that are more widely
+ * scattered works."
+ */
+export declare function clumpCentreFor(share: number): number;
 /**
  * What a rule's weight is multiplied by at a point: `1 - clump` in a gap (the
  * outliers), rising to well over 1 inside a clump. The scatter's budget solver
@@ -139,6 +171,13 @@ export declare function clumpWeight(rule: ScatterRule, seed: number, x: number, 
  * creep (and re-deal every clump) as the budget moves a little.
  */
 export declare function autoClumpSize(budget: number, radius: number): number;
+/**
+ * The share of a rule's placements that survive at this moisture: 1 for a rule
+ * with no `thirst`, and for a thirsty one `(1 + thirst × m) / (1 + thirst)`.
+ * Applied AFTER a place is chosen, because suitability is only ever compared
+ * with other suitability: scaling every plant up together changes nothing.
+ */
+export declare function moistureCover(rule: ScatterRule, moisture: number): number;
 /** How suitable a point is for a rule — its density times every band. */
 export declare function suitability(rule: ScatterRule, c: ScatterClimate, slopeDeg: number): number;
 /**
@@ -227,4 +266,10 @@ export declare function pruneScatterCache(cache: Map<number, GroundSample>, cent
     x: number;
     z: number;
 }, keep: number): void;
+/**
+ * Whether `url` names the default decoration library: unset, the resolved
+ * default itself, or any host serving the same path. Asked of the URL in use,
+ * so that naming the default library explicitly is still the default library.
+ */
+export declare function isDefaultLibrary(url: string, resolvedDefault: string, path: string): boolean;
 //# sourceMappingURL=scatter.d.ts.map

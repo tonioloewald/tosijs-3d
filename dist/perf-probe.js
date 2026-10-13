@@ -28,7 +28,7 @@ import { classify, budgetsForTier } from 'tosijs-3d'
 // when their attribute is left `auto`.
 ```
 */
-/*{ "parent": "Performance", "order": 900 }*/
+/*{ "parent": "b3d-probe", "order": 10 }*/
 /** Bump whenever the benchmark WORKLOAD changes (so old cached measurements, which
  * are only comparable within a workload version, are discarded). Tuning the
  * classifier thresholds or the budget table does NOT need a bump — those re-derive
@@ -76,6 +76,9 @@ const BUDGETS = {
         ssaoSamples: 16,
         ssaoRatio: 0.5,
         ambientParticles: 3000,
+        xrFoveation: 0,
+        groundDetail: 1,
+        decorationScale: 1,
     },
     medium: {
         hardwareScaling: 1,
@@ -96,6 +99,9 @@ const BUDGETS = {
         ssaoSamples: 12,
         ssaoRatio: 0.5,
         ambientParticles: 1400,
+        xrFoveation: 0.5,
+        groundDetail: 1,
+        decorationScale: 1,
     },
     low: {
         hardwareScaling: 1.5,
@@ -116,6 +122,9 @@ const BUDGETS = {
         ssaoSamples: 8,
         ssaoRatio: 0.5,
         ambientParticles: 500,
+        xrFoveation: 1,
+        groundDetail: 0,
+        decorationScale: 0.6,
     },
 };
 /** Combined capability score (higher = faster; ~1 = medium baseline). */

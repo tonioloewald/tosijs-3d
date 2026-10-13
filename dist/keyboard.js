@@ -247,7 +247,7 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 }
 ```
 */
-/*{ "parent": "UI", "order": 210 }*/
+/*{ "parent": "ui-controls", "order": 80 }*/
 import { svgElements } from 'tosijs';
 import { isTextEntry } from './text-entry.js';
 import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout.js';
@@ -356,19 +356,11 @@ export function fieldGroup(config) {
         if (fields.includes(f))
             return;
         fields.push(f);
-        // Wrap whichever spelling the field carries, and write back under the SAME
-        // one — moving the callback to `handleFocus` would strand a consumer who
-        // still reads `field.onFocus` to detach it later.
-        const usesOld = typeof f.onFocus === 'function' && f.handleFocus == null;
-        const prior = f.handleFocus ?? f.onFocus;
-        const wrapped = () => {
+        const prior = f.handleFocus;
+        f.handleFocus = () => {
             prior?.();
             focus(f);
         };
-        if (usesOld)
-            f.onFocus = wrapped;
-        else
-            f.handleFocus = wrapped;
     };
     for (const f of config.fields)
         add(f);

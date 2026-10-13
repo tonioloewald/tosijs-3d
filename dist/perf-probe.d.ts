@@ -96,6 +96,25 @@ export interface PerfBudgets {
      * the camera, so cost doesn't grow with the world.
      */
     ambientParticles: number;
+    /**
+     * Fixed foveation in a headset, 0-1: how much the edges of each eye are
+     * drawn at reduced resolution. Free where you are not looking; visible as
+     * blockiness at the edge at 1. Measured on a Quest in a heavy scene: 1 saved
+     * 12 ms of a 90 ms frame.
+     */
+    xrFoveation: number;
+    /**
+     * The ground shader's form: 1 is the full one, 0 the cheap one (three noise
+     * samples a pixel for eight; see `BiomePlugin.lite`). Measured on a Quest in
+     * Land and Sky: the terrain was 40 ms of a 90 ms frame.
+     */
+    groundDetail: number;
+    /**
+     * Share of a decorator's `budget` actually placed. Measured on a Quest in
+     * Land and Sky: decorations were 16 ms of a 42 ms frame, the largest single
+     * item once the ground shader was cheap.
+     */
+    decorationScale: number;
 }
 export interface StoredProfile {
     probeVersion: number;

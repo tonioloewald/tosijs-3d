@@ -150,7 +150,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 */
-/*{ "parent": "UI", "order": 220 }*/
+/*{ "parent": "ui-controls", "order": 90 }*/
 import { svgElements } from 'tosijs';
 import { resolveColumns, visibleRows, maxScroll, rowAt, } from './table-layout.js';
 import { selectionIcon, applySelection, } from './selection.js';
@@ -510,7 +510,7 @@ export function table(config) {
             // hidden by a filter still exists, and dropping its selection would make
             // typing in a search box quietly destructive.
             const live = new Set(allRows.map((r) => r.id));
-            // Drop selections whose rows are gone — otherwise onSelect reports ids that no
+            // Drop selections whose rows are gone — otherwise handleSelect reports ids that no
             // longer exist and the count disagrees with what's on screen.
             let changed = false;
             for (const id of [...selected])

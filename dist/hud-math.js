@@ -23,7 +23,7 @@ import { hudTrace, horizonTransform } from 'tosijs-3d'
 // aircraft attitude. See <tosi-b3d-hud> for the live, assembled HUD.
 ```
 */
-/*{ "parent": "Core", "order": 900 }*/
+/*{ "parent": "b3d-aircraft", "order": 40 }*/
 import { sub, rotateVector, quatConjugate, } from './spatial-transform.js';
 /**
  * Rough centroid of an SVG path's coordinates → which side of the 256px HUD centre

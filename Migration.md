@@ -3,7 +3,7 @@
 <!--{ "parent": "reference", "order": 10 }-->
 
 What to change when upgrading. Only breaking changes are listed — everything
-else is additive. The full detail for each is in [CHANGELOG.md](./CHANGELOG.md).
+else is additive. The full detail for each is in [CHANGELOG.md](https://3d.tosijs.net/CHANGELOG/).
 
 This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
@@ -87,6 +87,22 @@ now. If you were moving something by writing to a query result, call the
 command for it. Engine-side code that needs the live state every frame reads
 `store.liveState` and must not write to it. A store passed to the conformance
 kit must also implement `chooseOption(choiceId, optionId)`.
+
+### 5. Some defaults changed: a scene can look different
+
+Nothing to rename, but four things change what you see without a line of
+yours changing. The changelog's **Changed defaults** block has all of them.
+
+- **Decoration layouts differ again.** Plants thin out in drier country, things
+  gather into clumps more strongly, and a low-tier device (a Quest in a
+  session) places 60% of the budget as fewer clumps. `budgetScale: 1` places
+  the whole budget; `clump: 0.85` on the decorator is the old gathering.
+- **Opaque meshes are drawn nearest first.** Same picture for ordinary meshes.
+  `scene.setRenderingOrder(0)` puts Babylon's order back; a camera-pinned sky
+  of your own needs `infiniteDistance`.
+- **A headset on the low tier renders at reduced scale with foveation.**
+  `xrRenderScale: 1` and `xrFoveation: 0` are full resolution.
+- **Water receives sun and cloud shadows.**
 
 ## 0.8.15 → 0.9.0
 

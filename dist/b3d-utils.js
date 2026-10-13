@@ -1,5 +1,6 @@
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
+import { sendDebug } from './debug-sink.js';
 const DEG_TO_RAD = Math.PI / 180;
 export function findB3dOwner(el) {
     let node = el.parentElement;
@@ -322,6 +323,26 @@ export function isNoCollide(mesh) {
     return (mesh.metadata?.b3dNoCollide === true);
 }
 /**
+ * Whether `node` is part of what is CARRYING `rig`: beneath the rig's parent
+ * (the vehicle you ride) without being beneath the rig itself (your own
+ * panels). False when the rig has no parent. Structural, so it is testable
+ * with plain `{ parent }` objects.
+ */
+export function insideCarrier(node, rig) {
+    const carrier = rig?.parent;
+    if (carrier == null)
+        return false;
+    let n = node;
+    while (n != null) {
+        if (n === rig)
+            return false;
+        if (n === carrier)
+            return true;
+        n = n.parent;
+    }
+    return false;
+}
+/**
  * THE collision predicate. Everything physical picks through this.
  *
  * Excludes UI **by default** — you opt IN to hitting it, never out. That
@@ -525,7 +546,7 @@ Material *appearance* (metallic, roughness, alpha, emissive) comes through glTF 
 | `-ignore` | Node is disposed on load |
 | `_collide*` | Physics collider (sphere/box/cylinder/mesh) |
 */
-/*{ "parent": "Core", "order": 900 }*/
+/*{ "parent": "core", "order": 70 }*/
 // Thresholds for property-based material inference
 const ALPHA_OPAQUE_THRESHOLD = 0.95;
 /**
@@ -760,7 +781,7 @@ class MyThing extends B3dChild {
 export const myThing = MyThing.elementCreator()
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "core", "order": 70 }*/
 /**
  * Base for every element that lives INSIDE a `<tosi-b3d>` scene. The whole
  * pull-model lifecycle lives here, in ONE place. On connect (by which point tosijs
@@ -1112,5 +1133,61 @@ export function fetchedUrl(value, where) {
         console.warn(`${where}: refusing a non-string URL (${typeof value}); a fetched attribute must be a string.`);
     }
     return '';
+}
+/**
+ * Make a node refuse a parent that is itself or one of its own descendants,
+ * and say once who asked (console, and the debug sink).
+ *
+ * Babylon accepts such a parent. The node is then its own ancestor, and the
+ * next `setEnabled` or `dispose` that reaches it recurses until the stack runs
+ * out, which stops the render loop.
+ *
+ * Use it on any node an XR camera is parented to. Babylon's hand tracking
+ * (9.16) does this to that node: `WebXRHand.setHandMesh` takes the TOPMOST
+ * ancestor of the hand mesh as its root, and every frame parents that root to
+ * `xrCamera.parent`. The first time hands appear the root is the hand model's
+ * own; that parents it beneath the camera's parent. The hand meshes are shared
+ * and reused, so the second time hands appear (put a controller down, pick it
+ * up, put it down again) the walk goes one step further and the root IS the
+ * camera's parent, which is then parented to itself. Found on a Quest (#3135).
+ */
+export function refuseOwnAncestor(node) {
+    let proto = Object.getPrototypeOf(node);
+    let slot;
+    while (proto != null && slot == null) {
+        slot = Object.getOwnPropertyDescriptor(proto, 'parent');
+        proto = Object.getPrototypeOf(proto);
+    }
+    if (slot?.get == null || slot.set == null)
+        return;
+    const { get, set } = slot;
+    let told = false;
+    Object.defineProperty(node, 'parent', {
+        configurable: true,
+        get() {
+            return get.call(this);
+        },
+        set(next) {
+            let n = next;
+            for (let i = 0; n != null && i < 256; i++) {
+                if (n === node) {
+                    // Once: the hand-tracking case asks again every frame.
+                    if (!told) {
+                        told = true;
+                        const stack = String(new Error('refused').stack ?? '').slice(0, 4000);
+                        console.warn(`tosijs-3d: refused to parent "${node.name}" beneath itself (to "${next?.name}")`, stack);
+                        sendDebug('parent-refused', {
+                            node: node.name,
+                            to: `${next?.name} [${next?.getClassName()}]`,
+                            stack,
+                        });
+                    }
+                    return;
+                }
+                n = n.parent;
+            }
+            set.call(this, next);
+        },
+    });
 }
 //# sourceMappingURL=b3d-utils.js.map

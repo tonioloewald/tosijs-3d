@@ -39,7 +39,7 @@ export interface Surface {
     }, content: Box, opts?: {
         title?: string;
         draggable?: boolean;
-        onClose?: () => void;
+        handleClose?: () => void;
     }) => Popup;
     /** Close one popup. */
     closePopup: (p: Popup) => void;
@@ -74,8 +74,6 @@ export declare function surface(opts: {
 export interface MenuItem {
     label: string;
     handleSelect?: (item: MenuItem) => void;
-    /** @deprecated use `handleSelect` — removed in 0.10. */
-    onSelect?: (item: MenuItem) => void;
     submenu?: MenuItem[];
 }
 /**

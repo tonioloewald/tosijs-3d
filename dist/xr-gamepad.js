@@ -1,7 +1,7 @@
 /*#
 # xr-gamepad
 
-`XrGamepadSource` adapts the live XR controllers (from [[gamepad]]'s
+`XrGamepadSource` adapts the live XR controllers (from `gamepad.ts`'s
 `xrControllers()`) to a [[virtual-gamepad]] `VirtualGamepad`, so XR input flows
 through the *same* spine as the keyboard, hardware pad, and on-screen glass
 gamepad. Add it to the active `MappedInputProvider` and whatever a controllable's
@@ -28,7 +28,7 @@ import { XrGamepadSource } from 'tosijs-3d'
 // with the other sources by CompositeInputProvider. Wired automatically inside <tosi-b3d-controller>.
 ```
 */
-/*{ "parent": "Input", "order": 900 }*/
+/*{ "parent": "input-internals", "order": 60 }*/
 import { emptyGamepad, } from './virtual-gamepad.js';
 export class XrGamepadSource {
     controllers;

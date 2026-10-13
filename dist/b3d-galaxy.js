@@ -333,7 +333,7 @@ tosi-b3d {
 | `coreSize` | `0.12` | Central black hole radius. Disk radii are multiples of it, so this scales the whole assembly |
 
 */
-/*{ "parent": "Space" }*/
+/*{ "parent": "space", "order": 10 }*/
 import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 import { generateStarSystem, } from './galaxy-data.js';
@@ -343,7 +343,6 @@ import { b3dBlackHole } from './b3d-black-hole.js';
 const QUAD_SCALE = 'quadScale';
 /** Pick slack, in pixels, so a one-pixel star is still clickable. */
 const SLACK_PX = 3;
-let warnedStarSps = false;
 /*
 One static quad per point, every vertex AT the point's centre. Same layout as
 `CreatePlane` — corners (0,0) (1,0) (1,1) (0,1), triangles 0-1-2 / 0-2-3 — and
@@ -892,19 +891,6 @@ export class B3dGalaxy extends B3dChild {
     /** Get the galaxy data */
     getGalaxyData() {
         return this.galaxyData;
-    }
-    /**
-     * @deprecated There is no particle system any more — stars are billboarded
-     * in the vertex shader. Use {@link pickStar} to pick. Returns null; removed
-     * in 0.10.
-     */
-    getStarSPS() {
-        if (!warnedStarSps) {
-            warnedStarSps = true;
-            console.warn('b3d-galaxy: getStarSPS() is gone (stars are billboarded in the ' +
-                'vertex shader) — use galaxy.pickStar(x, y) to pick a star.');
-        }
-        return null;
     }
     /** The star mesh — hide it, fade it, or compare against it. */
     getStarMesh() {

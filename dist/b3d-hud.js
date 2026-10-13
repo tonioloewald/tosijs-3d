@@ -15,7 +15,7 @@ shows it in the cockpit view; `setInSceneVisible(bool)` toggles it.
 
 ## Demo
 
-Scrub the meters and attitude in the ⚙ panel; the radar traces orbit a fixed viewer,
+Scrub the meters and attitude in the ⚙ panel; the radar traces orbit the origin,
 tracking inside the ring when in the field of view and pinning to the periphery when
 they swing out or behind.
 
@@ -65,8 +65,7 @@ const apply = () => {
 for (const k of ['speed', 'altitude', 'health', 'energy', 'pitch', 'roll', 'warn']) s[k].observe(apply)
 apply()
 
-// Radar traces orbiting a fixed viewer at the origin (facing +Z).
-const viewer = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 } }
+// Radar traces orbiting the origin; the HUD projects each through the camera.
 const kinds = ['hostile', 'friendly', 'neutral', 'waypoint']
 let t = 0
 setInterval(() => {
@@ -75,8 +74,9 @@ setInterval(() => {
     kind,
     pos: { x: Math.sin(t + i * 1.6) * 34, y: Math.sin(t * 0.7 + i) * 12, z: Math.cos(t + i * 1.6) * 34 },
   }))
-  // track inside the ring (radius 84), pin OUTSIDE the gauges (pinRadius 116)
-  hud.setTraces(traces, viewer, { fovH: Math.PI / 2, fovV: Math.PI / 2, radius: 84, pinRadius: 116 })
+  // Tracked inside the ring while on screen, pinned to the rim when off it.
+  const camera = scene.scene?.activeCamera
+  if (camera) hud.setTraces(traces, camera)
 }, 32)
 ```
 ```css
@@ -91,12 +91,13 @@ tosi-b3d { width: 100%; height: 100%; }
 | `size` | `70` | HUD height as a % of the canvas's smaller dimension |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 */
-/*{ "parent": "UI", "order": 520 }*/
+/*{ "parent": "b3d-aircraft", "order": 20 }*/
 import { B3dChild } from './b3d-utils.js';
 import { SvgTexture } from './svg-texture.js';
 import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud.js';
 import { glassUV, hudPointFromUV, hudSizePx } from './hud-math.js';
 import * as BABYLON from '@babylonjs/core';
+let warnedTraceCamera = false;
 export class B3dHud extends B3dChild {
     static preferredTagName = 'tosi-b3d-hud';
     static initAttributes = {
@@ -392,6 +393,15 @@ export class B3dHud extends B3dChild {
     setTraces(traces, camera) {
         if (this.controller == null)
             return;
+        // The second argument used to be a viewer POSE. A caller still passing one
+        // threw on every call, 30 times a second, from inside its own timer.
+        if (camera == null || camera.viewport == null) {
+            if (!warnedTraceCamera) {
+                warnedTraceCamera = true;
+                console.warn('b3d-hud: setTraces(traces, camera) needs a Babylon camera (e.g. scene.activeCamera); traces are not drawn.');
+            }
+            return;
+        }
         const points = [];
         for (const t of traces) {
             const p = this.projectWorldToHud(t.pos, camera);

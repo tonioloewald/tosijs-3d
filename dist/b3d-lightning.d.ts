@@ -63,6 +63,8 @@ export declare class B3dLightning extends B3dChild {
     private _spriteMat;
     private _audio;
     private _noise;
+    /** Thunder already queued on the audio clock and not yet finished. */
+    private _rumbles;
     private _id;
     private _storms;
     private _deck;
@@ -76,6 +78,7 @@ export declare class B3dLightning extends B3dChild {
     private _boltMaterial;
     private _sprite;
     private _thunder;
+    private _hush;
     sceneDispose(): void;
 }
 export declare const b3dLightning: import("tosijs").ElementCreator<B3dLightning>;

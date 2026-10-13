@@ -11,6 +11,18 @@ export type SvgTextureOptions = {
     /** Re-render interval in ms for dynamic mode. Default 30. */
     updateInterval?: number;
 };
+/**
+ * What repainting SVG textures has cost on the main thread, across every
+ * instance: `checks` are serialise-and-compare passes, `repaints` the ones
+ * that changed and were redrawn, `ms` the time both took here. The browser's
+ * own SVG rasterising happens off this thread and is NOT in it. Perf Stats
+ * reads this once a second.
+ */
+export declare const svgTextureCost: {
+    checks: number;
+    repaints: number;
+    ms: number;
+};
 export declare class SvgTexture {
     texture: BABYLON.DynamicTexture | BABYLON.Texture;
     private _resolution;

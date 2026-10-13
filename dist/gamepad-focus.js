@@ -50,7 +50,7 @@ direction walks steadily instead of either sprinting or stopping dead.
 The timing is passed in as `now` rather than read from a clock, so the ramp is
 deterministic and testable — same discipline as the rest of the pure models here.
 */
-/*{ "parent": "input", "order": 900 }*/
+/*{ "parent": "ui-in-scene", "order": 40 }*/
 const DIRS = [
     { key: 'dpadLeft', dx: -1, dy: 0 },
     { key: 'dpadRight', dx: 1, dy: 0 },

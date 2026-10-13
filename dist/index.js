@@ -27,7 +27,7 @@ export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, e
 // shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to
 // use `semanticParent`; instructing someone to call something they cannot
 // import is worse than not documenting it.
-markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
+markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, refuseOwnAncestor, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
 // The pure flight model, so a consumer can predict what the aircraft will do
 // without instantiating one — `equilibriumSpeed` is what the HUD's set-point
 // mark is drawn from, and a mission planner wants the same number.
@@ -83,7 +83,7 @@ export { B3dFog, b3dFog } from './b3d-fog.js';
 export { B3dClouds, b3dClouds } from './b3d-clouds.js';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal.js';
 // Projected cloud shadows: one top-down texture sampled by world position (works over terrain).
-export { CloudShadowMap, projectShadowXZ, shadowWindowUv, } from './cloud-shadows.js';
+export { CloudShadowMap, cloudShadowMapOf, projectShadowXZ, shadowWindowUv, } from './cloud-shadows.js';
 export { B3dAmbient, b3dAmbient } from './b3d-ambient.js';
 export { LeafField } from './ambient-leaves.js';
 // Garnish competes for ONE pool and switches OFF rather than thinning into a lie.
@@ -226,7 +226,7 @@ export { footprint3d } from './footprint-field.js';
 export { vector3d, euler3d, wrapDegrees } from './vector-field.js';
 export { panelFitWidth, panelFit, panelHeight, rowColumns, alignOffset, stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout.js';
 // SVG material system
-export { SvgTexture } from './svg-texture.js';
+export { SvgTexture, svgTextureCost } from './svg-texture.js';
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane.js';
 export { panelGesture, uvToViewBox, planeLocalToViewBox, } from './b3d-svg-plane.js';
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
@@ -348,7 +348,7 @@ export const carve = {
     shaft,
 };
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field.js';
-export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, seasonOf, } from './biome-plugin.js';
+export { BiomePlugin, attachBiomePlugin, setBiomeLite, biomeLite, setBiomeComputedNoise, biomeComputedNoise, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, seasonOf, } from './biome-plugin.js';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles.js';
 export { B3dSound, b3dSound } from './b3d-sound.js';
@@ -382,8 +382,8 @@ export { B3dStar, b3dStar } from './b3d-star.js';
 export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole.js';
 export { B3dGalaxy, b3dGalaxy } from './b3d-galaxy.js';
 export { B3dStarSystem, b3dStarSystem } from './b3d-star-system.js';
-export { generateGalaxy, generateStarSystem, starTypeData, randomName, capitalize, romanNumeral, } from './galaxy-data.js';
-// THE galaxy (GALAXY-DESIGN.md) — generateGalaxy above is an adapter over it.
+export { generateStarSystem, starTypeData, randomName, capitalize, romanNumeral, } from './galaxy-data.js';
+// THE galaxy (GALAXY-DESIGN.md).
 export { voxelGalaxy } from './voxel-galaxy.js';
 export { sampleSpiral, starNameFor } from './galaxy-data.js';
 // What makes a dim star INTERESTING (HI <= 2) — the harness-learned split.
@@ -420,4 +420,8 @@ export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64Of
 // Touch on an orbit camera: one finger orbits, two pan, a pinch zooms (#52).
 export { touchOrbit } from './touch-orbit.js';
 export { twoFingerGesture, } from './touch-gesture.js';
+export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js';
+export { debugSink, sendDebug } from './debug-sink.js';
+export { nearFirst, drawKey } from './draw-order.js';
+export { noiseVolume } from './noise-volume.js';
 //# sourceMappingURL=index.js.map

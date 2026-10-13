@@ -31,7 +31,7 @@ is what makes "extent in this direction" have an answer at all. Both are clamps
 rather than refusals — a drag that stops at the limit shows you the limit; one
 that refuses to move looks broken.
 */
-/*{ "parent": "UI", "order": 261 }*/
+/*{ "parent": "ui-controls", "order": 40 }*/
 import { svgElements } from 'tosijs';
 import { MIN_EXTENT, moveVertex, ngon, polygonExtent, presetsFor, polygonVertices, } from './curve.js';
 import { w3dTheme } from './w3d-theme.js';
@@ -54,7 +54,7 @@ function initialVertices(value) {
  *
  * ```js
  * const fp = footprint3d({ value: 'hexagon', label: 'footprint' })
- * fp.onChange = () => rebuildTerrain()
+ * fp.handleChange = () => rebuildTerrain()
  * fp.evaluate(0.25)   // extent a quarter-turn round
  * ```
  */
@@ -158,7 +158,6 @@ export function footprint3d(config = {}) {
     const api = {
         el,
         handleChange: config.handleChange,
-        onChange: config.onChange,
         layout(width) {
             const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5));
             const capH = config.label ? Math.round(w3dTheme.fontSize * 1.2) : 0;

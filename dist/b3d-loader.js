@@ -105,7 +105,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "core", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
 import { applyMaterialConventions, B3dChild, isOff, isIgnored, } from './b3d-utils.js';
 import { DestroyableBehavior } from './destroyable-behavior.js';

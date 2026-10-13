@@ -101,7 +101,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 */
-/*{ "parent": "Core", "order": 146 }*/
+/*{ "parent": "core", "order": 60 }*/
 import { AbstractMesh } from './b3d-utils.js';
 import { loadLibraryMesh } from './library-mesh.js';
 /**

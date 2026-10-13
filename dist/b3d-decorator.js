@@ -31,8 +31,9 @@ materials with the TERRAIN's biome shading, each in a role:
 
 So changing planet, climate or season recolours the vegetation with the land.
 The year is the terrain's: `biomeSeason` and `biomeSeasonality`. Roles are
-assigned by material name (`roles`, default `NATURE_ROLES`); a material with no
-role keeps its own look.
+assigned by material name (`roles`). The default library gets `NATURE_ROLES`;
+for any other library set `roles` yourself. A material with no role keeps its
+own look.
 
 ## How it draws
 
@@ -72,6 +73,7 @@ biped stops at a trunk and can stand on a boulder.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `budget` | `2000` | How many things to place. Performance cares about this, not density |
+| `budgetScale` | `0` | Share of `budget` actually placed. `0` is auto, from the device tier (1, except 0.6 on the low tier, which is what a Quest gets in a session). A smaller share means fewer clumps in the same places, each as full, not thinner clumps. Set `1` to place the whole budget everywhere |
 | `radius` | `900` | Metres around the camera to fill |
 | `seed` | `1` | Same seed, same forest |
 | `url` | `''` | The model library; empty = the curated Quaternius nature library on the CDN (`quaternius/libraries/nature.glb`). Naming another switches the default rules to Kenney's `NATURE_KIT_RULES` |
@@ -83,17 +85,18 @@ biped stops at a trunk and can stand on a boulder.
 | `colliderPool` | `48` | How many colliders at most |
 | `shadowRange` | `200` | Metres around the camera whose copies cast shadows (with `shadows: 'on'`) |
 | `shadowBudget` | `600` | How many of the nearest copies cast, at most |
-| `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.85 by default). Live |
+| `clump` | `-1` | How strongly things gather: 0 = even spread, 1 = clumps only. `-1` leaves it to each rule (0.95 by default). Live |
 | `clumpSize` | `0` | Metres across a clump and the gap beside it. `0` = auto, about two and a half times the average spacing, so tightening `radius` keeps the clumps. Live |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "terrain", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js';
 import { assetUrl } from './asset-url.js';
+import { resolveBudget } from './b3d-quality.js';
 import { mantaAxes } from './biome-chart.js';
 import { attachBiomePlugin } from './biome-plugin.js';
 import { rockFromName, rockGeometry } from './procedural-rock.js';
-import { scatterPlacements, NearIndex, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
+import { isDefaultLibrary, scatterPlacements, NearIndex, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
 /*
 A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
 pass renders its explicit caster list WITHOUT checking layer masks
@@ -101,11 +104,15 @@ pass renders its explicit caster list WITHOUT checking layer masks
 but is never drawn to the screen.
 */
 const SHADOW_ONLY_LAYER = 0x10000000;
+const DEFAULT_LIBRARY = 'quaternius/libraries/nature.glb';
+const NO_ROLES = {};
 export class B3dDecorator extends B3dChild {
     static preferredTagName = 'tosi-b3d-decorator';
     static shadowStyleSpec = { ':host': { display: 'none' } };
     static initAttributes = {
         budget: 2000,
+        // 0 = auto: the device tier's share (see PerfBudgets.decorationScale).
+        budgetScale: 0,
         radius: 900,
         seed: 1,
         url: '',
@@ -122,6 +129,15 @@ export class B3dDecorator extends B3dChild {
         // 0 = auto (from the spacing); otherwise metres.
         clumpSize: 0,
     };
+    /**
+     * Whether the library in use is the default one. Asked of the RESOLVED url,
+     * because naming the default library explicitly is still the default
+     * library: testing `url` for being set chose Kenney's rules against the
+     * Quaternius models, which matched nothing and placed nothing.
+     */
+    get _defaultLibrary() {
+        return isDefaultLibrary(fetchedUrl(this.url, 'b3d-decorator url'), assetUrl(DEFAULT_LIBRARY), DEFAULT_LIBRARY);
+    }
     _rules = null;
     /**
      * The rules. Replace before the first build (or call `rebuild()`). Unset,
@@ -130,7 +146,7 @@ export class B3dDecorator extends B3dChild {
      * before the default library changed).
      */
     get rules() {
-        return this._rules ?? (this.url ? NATURE_KIT_RULES : NATURE_RULES);
+        return (this._rules ?? (this._defaultLibrary ? NATURE_RULES : NATURE_KIT_RULES));
     }
     set rules(rules) {
         this._rules = rules;
@@ -139,8 +155,19 @@ export class B3dDecorator extends B3dChild {
      * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
      * `NATURE_ROLES` for the key forms. A library material with a role is drawn
      * with the terrain's biome shading in that role; any other keeps its own look.
+     *
+     * Unset, the default library gets `NATURE_ROLES` and any other library gets
+     * none: those keys are generic material names (`White`, `Wood`), and a
+     * third-party model with a material of the same name had it replaced by
+     * flat biome shading. Set `roles` to opt a custom library in.
      */
-    roles = NATURE_ROLES;
+    get roles() {
+        return this._roles ?? (this._defaultLibrary ? NATURE_ROLES : NO_ROLES);
+    }
+    set roles(roles) {
+        this._roles = roles;
+    }
+    _roles = null;
     /** What was placed last, in LOGICAL world coordinates. */
     placements = [];
     /**
@@ -210,8 +237,7 @@ export class B3dDecorator extends B3dChild {
         this._root = new BABYLON.TransformNode('decorator', scene);
         owner.registerWorldRoot(this._root);
         const gen = ++this._loadGen;
-        const url = fetchedUrl(this.url, 'b3d-decorator url') ||
-            assetUrl('quaternius/libraries/nature.glb');
+        const url = fetchedUrl(this.url, 'b3d-decorator url') || assetUrl(DEFAULT_LIBRARY);
         BABYLON.SceneLoader.LoadAssetContainerAsync(url, '', scene)
             .then((c) => {
             if (gen !== this._loadGen) {
@@ -231,7 +257,7 @@ export class B3dDecorator extends B3dChild {
             owner.addDebugSource?.({
                 name: 'decorator',
                 lines: () => [
-                    `placed ${this.placements.length} / ${this.budget}`,
+                    `placed ${this.placements.length} / ${this._placedBudget()} (budget ${this.budget})`,
                     `parts ${this._drawn.length} (≈ draw calls)`,
                     `build ${this.lastBuildMs.toFixed(0)} ms`,
                     `colliders ${this._pool.filter((m) => m.isEnabled()).length}`,
@@ -281,11 +307,20 @@ export class B3dDecorator extends B3dChild {
     _terrain() {
         return this.owner?.querySelector('tosi-b3d-terrain') ?? null;
     }
+    /** The share of the budget placed here: the attribute, or the device tier's. */
+    _share() {
+        const xr = this.owner?.xrActive === true;
+        return resolveBudget(this.budgetScale, 'decorationScale', { xr });
+    }
+    /** About how many that is. */
+    _placedBudget() {
+        return Math.max(0, Math.floor(this.budget * this._share()));
+    }
     /** Everything the placements depend on, as one string. */
     _currentKey(terrain) {
         const p = terrain?.biomePlugin?.params;
         return [
-            this.budget,
+            this._placedBudget(),
             this.radius,
             this.seed,
             this.scale,
@@ -557,14 +592,23 @@ export class B3dDecorator extends B3dChild {
         let lastZ = NaN;
         let lastFactor = 1;
         this.placements = scatterPlacements({
-            budget: Math.max(0, Math.floor(this.budget)),
+            // The whole budget, thinned by the clump: a device that draws less gets
+            // fewer copses in the same places, each as full (see `share`).
+            budget: this.budget,
+            share: this._share(),
             seed: this.seed,
             center: here,
             radius: this.radius,
             height,
             climate: (_x, _z, y) => {
                 const { temperature, moisture } = mantaAxes(y, cfg);
-                return { temperature, moisture, altitude: y - cfg.seaLevel };
+                return {
+                    temperature,
+                    moisture,
+                    altitude: y - cfg.seaLevel,
+                    // Land tops out at 0.75 on the chart's moisture axis (mantaAxes).
+                    wetness: Math.min(1, moisture / 0.75),
+                };
             },
             rules,
             clump: Number(this.clump),
@@ -631,7 +675,7 @@ export class B3dDecorator extends B3dChild {
         const missingKey = missing.sort().join(',');
         if (missing.length > 0 && missingKey !== this._warnedMissing) {
             this._warnedMissing = missingKey;
-            console.warn(`b3d-decorator: ${missing.length} model name(s) in the rules are not in the library, so nothing is placed for them (first: "${missing[0]}"). The library is ${this.url || "the default 'quaternius/libraries/nature.glb'"}. Rules written for Kenney's kit need url set to that kit.`);
+            console.warn(`b3d-decorator: ${missing.length} model name(s) in the rules are not in the library, so nothing is placed for them (first: "${missing[0]}"). The library is ${this.url || `the default '${DEFAULT_LIBRARY}'`}. Rules written for Kenney's kit need url set to that kit.`);
         }
         this._shadowFrom = null; // re-pick the near casters for this build
         this._syncShadows();

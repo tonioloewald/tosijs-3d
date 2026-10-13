@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
 export declare class B3dElevator extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         mode: "cycle" | "pressure" | "switch";

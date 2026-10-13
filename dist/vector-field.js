@@ -97,7 +97,7 @@ preview.append(
 > coordinate stays a coordinate rather than three fields that happen to sit near
 > each other — and the 3D pane is the same widget, not a picture of it.
 */
-/*{ "parent": "UI", "order": 250 }*/
+/*{ "parent": "ui-controls", "order": 10 }*/
 import { svgElements } from 'tosijs';
 import { inputField } from './keyboard.js';
 import { w3dTheme } from './w3d-theme.js';

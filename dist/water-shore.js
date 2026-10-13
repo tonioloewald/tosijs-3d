@@ -62,7 +62,7 @@ finer one: a vertex every 2 m out to 64 m, about 16,600 in all.
 
 Pure: no engine. The terrain and the climate arrive as numbers.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-water", "order": 10 }*/
 /** Depths are clamped to this range (metres; negative = ground above water). */
 export const SHORE_DEPTH_MIN = -4;
 export const SHORE_DEPTH_MAX = 60;
@@ -193,6 +193,36 @@ export const ICE_BEARS = 0.5;
  */
 export function iceBears(temperature, depth) {
     return iceSolid(temperature, depth) >= ICE_BEARS;
+}
+/**
+ * The triangles of a shore grid that carry weight, as an index list for the
+ * ice collision mesh.
+ *
+ * A triangle is kept when the solidity AVERAGED over its corners bears, which
+ * is where the drawn ice (interpolated across the triangle) crosses the same
+ * threshold. Requiring all three corners to bear left a band a whole cell wide
+ * where the ice was drawn solid, `iceBearsAt` said yes and the mesh had a hole;
+ * on the coarse outer grid that band is 16 m and more, enough for a car or a
+ * shell to fall through. A triangle wholly over land is dropped: land is at
+ * least as solid by the rule, and a colliding plane at sea level under a
+ * hillside is nobody's ice.
+ *
+ * `data` is `shoreData`'s output: `[depth, cover, solid, distance]` per vertex.
+ */
+export function bearingTriangles(indices, data) {
+    const kept = [];
+    for (let i = 0; i + 2 < indices.length; i += 3) {
+        const a = indices[i];
+        const b = indices[i + 1];
+        const c = indices[i + 2];
+        const solid = (data[a * 4 + 2] + data[b * 4 + 2] + data[c * 4 + 2]) / 3;
+        if (solid < ICE_BEARS)
+            continue;
+        const deepest = Math.max(data[a * 4], data[b * 4], data[c * 4]);
+        if (deepest > -0.5)
+            kept.push(a, b, c);
+    }
+    return kept;
 }
 /**
  * Which side of the ice a body is on this frame, from the side it was on.

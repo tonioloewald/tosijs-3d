@@ -116,7 +116,7 @@ same gust — the determinism rule every model here follows. It is separate from
 the steady wind on purpose: a consumer that wants a dead-steady breeze simply
 does not call it.
 */
-/*{ "parent": "Environment", "order": 137 }*/
+/*{ "parent": "b3d-weather-cell", "order": 20 }*/
 import { PerlinNoise } from './perlin-noise.js';
 /** The identity — no wind, and what an absent province contributes. */
 export const NO_WIND = { x: 0, z: 0 };

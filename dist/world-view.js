@@ -64,7 +64,8 @@ preview.append(
         const dt = sceneDelta(el.scene)
         store.tick(dt)
         // WASD writes the player's position back into the store.
-        const p = { ...store.getState().entities.player.position }
+        // getEntity returns a copy, so this is ours to change
+        const p = store.getEntity('player').position
         const speed = 4 * dt
         if (keys.has('w')) p.z += speed
         if (keys.has('s')) p.z -= speed
@@ -83,7 +84,7 @@ preview.append(
         }
         // Driver work: drop a witness the player has ignored for too long.
         const w = store.getEntity(witness)
-        if (w && w.lastInteractedAt === undefined && store.getState().now > FORGET_AFTER) {
+        if (w && w.lastInteractedAt === undefined && store.liveState.now > FORGET_AFTER) {
           store.forget(witness)
         }
       },
@@ -95,7 +96,7 @@ preview.append(
 )
 ```
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "world-sim", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
 const KIND_COLORS = {
     player: '#39c5ff',
@@ -139,7 +140,7 @@ export class WorldView {
     }
     /** One-way sync: create missing meshes, move existing ones, dispose gone ones. */
     reconcile() {
-        const { entities } = this.store.getState();
+        const { entities } = this.store.liveState;
         for (const id in entities) {
             const entity = entities[id];
             let mesh = this.meshes.get(id);

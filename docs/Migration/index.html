@@ -1,20 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
-       a 4s safety-net timeout), because an undefined custom element is
-       display:inline, so the pre-rendered page stacked as bare text and hydration
-       reflowed the whole thing. The cost was a blank screen for as long as the
-       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
-       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
-       out as though the chrome were there, so hydration only ADDS the chrome and
-       nothing moves. Paint immediately; don't hide readable content. -->
-  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
-       than hiding it, a dark-mode reader would otherwise get a flash of the light
-       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
-       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
-       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
-       light default, exactly as before. -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script>
     try {
       var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
@@ -24,14 +12,13 @@
       if (p.highContrast) document.documentElement.classList.add('high-contrast')
     } catch (e) {}
   </script>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=2dcc44dc69b8" data-tosi-doc-system />
   <title>Migration — tosijs-3d</title>
   <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
   <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="Migration — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="Migration — tosijs-3d" />
@@ -43,18 +30,146 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=2c5b74caf422" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
-<h1>Migration</h1>
-<!--{ "order": 2 }-->
+<h1 id="migration">Migration</h1>
+<!--{ "parent": "reference", "order": 10 }-->
 
 <p>What to change when upgrading. Only breaking changes are listed — everything
-else is additive. The full detail for each is in <a href="./CHANGELOG.md">CHANGELOG.md</a>.</p>
+else is additive. The full detail for each is in <a href="https://3d.tosijs.net/CHANGELOG/">CHANGELOG.md</a>.</p>
 <p>This file ships <strong>inside the package</strong>, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.</p>
-<h2>0.8.15 → 0.9.0</h2>
-<h3>1. <code>biomeTemperature</code> is in degrees now: 0 is 0 °C, 1 is 50 °C</h3>
+<h2 id="090--0100">0.9.0 → 0.10.0</h2>
+<h3 id="1-the-deprecated-callback-names-are-gone-onx--handlex">1. The deprecated callback names are gone: <code>onX</code> → <code>handleX</code></h3>
+<p><strong>What changed.</strong> The <code>onX</code> callback options were deprecated in 0.8.0 and kept
+working, with a warning, through 0.9.x. They are removed. An <code>onX</code> option is
+no longer called.</p>
+<p><strong>Who is affected.</strong> Anyone who saw the console warning
+&quot;<code>onChange</code> is deprecated — use <code>handleChange</code>&quot; and has not renamed yet.</p>
+<p><strong>How you will notice.</strong> TypeScript reports the old name as an unknown
+property. At runtime the callback does not fire, and the console says so once
+per name: &quot;<code>onChange</code> was removed in 0.10 and is IGNORED — use <code>handleChange</code>&quot;.
+Demo code in doc comments and plain JavaScript is not type-checked, so search
+for the names rather than relying on the compiler.</p>
+<p><strong>What to do.</strong> Rename. Every pair:</p>
+<table>
+<thead>
+<tr>
+<th>where</th>
+<th>removed</th>
+<th>use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>toggle3d</code> <code>slider3d</code> <code>select3d</code> <code>color3d</code> <code>vector3d</code> <code>euler3d</code> <code>angle3d</code> <code>arc3d</code> <code>picker3d</code> <code>curve3d</code> <code>footprint3d</code> <code>themeEditor</code> <code>terrainEditor3d</code></td>
+<td><code>onChange</code></td>
+<td><code>handleChange</code></td>
+</tr>
+<tr>
+<td><code>button3d</code>, menu actions, <code>addDebugSource</code> actions</td>
+<td><code>onClick</code></td>
+<td><code>handleClick</code></td>
+</tr>
+<tr>
+<td><code>list3d</code>, <code>surface</code> <code>MenuItem</code>, <code>table</code></td>
+<td><code>onSelect</code></td>
+<td><code>handleSelect</code></td>
+</tr>
+<tr>
+<td><code>table</code>, <code>box</code> <code>button</code> / <code>BoxChild</code></td>
+<td><code>onActivate</code></td>
+<td><code>handleActivate</code></td>
+</tr>
+<tr>
+<td><code>showPopup</code> / <code>openPopup</code> / <code>openMenu3d</code> / <code>surface.openPanel</code></td>
+<td><code>onClose</code></td>
+<td><code>handleClose</code></td>
+</tr>
+<tr>
+<td><code>inputField</code></td>
+<td><code>onChange</code> / <code>onEnter</code> / <code>onFocus</code></td>
+<td><code>handleChange</code> / <code>handleEnter</code> / <code>handleFocus</code></td>
+</tr>
+<tr>
+<td><code>keyboard</code></td>
+<td><code>onKey</code> / <code>onAction</code> / <code>onCaretMove</code></td>
+<td><code>handleKey</code> / <code>handleAction</code> / <code>handleCaretMove</code></td>
+</tr>
+<tr>
+<td><code>curve3d</code> / <code>footprint3d</code> result (<code>field.onChange = …</code>)</td>
+<td><code>onChange</code></td>
+<td><code>handleChange</code></td>
+</tr>
+</tbody></table>
+<p>Components take <code>when*</code>:</p>
+<table>
+<thead>
+<tr>
+<th>component</th>
+<th>removed</th>
+<th>use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&lt;tosi-b3d-trigger&gt;</code></td>
+<td><code>onEnter</code> / <code>onExit</code> properties</td>
+<td><code>whenEnter</code> / <code>whenExit</code></td>
+</tr>
+<tr>
+<td><code>&lt;tosi-b3d-manipulator&gt;</code></td>
+<td><code>handleChange</code> / <code>handleCommit</code></td>
+<td><code>whenChange</code> / <code>whenCommit</code></td>
+</tr>
+</tbody></table>
+<p><code>b3dTrigger({ onEnter })</code> through the element creator is unchanged: it was
+never the property, it is a listener for the <code>&#39;enter&#39;</code> event and receives an
+<code>Event</code>.</p>
+<p><code>handlerOf(config, &#39;handleX&#39;, &#39;onX&#39;)</code> keeps its signature. It now returns only
+<code>handleX</code>, and warns once if it finds a function under the old name.</p>
+<h3 id="2-generategalaxy-and-galaxygetstarsps-are-removed">2. <code>generateGalaxy</code> and <code>galaxy.getStarSPS()</code> are removed</h3>
+<p><code>generateGalaxy(seed, count, options)</code> was an adapter over the voxel galaxy.
+Call that directly:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token comment">// before</span>
+<span class="token keyword">const</span> galaxy <span class="token operator">=</span> <span class="token function">generateGalaxy</span><span class="token punctuation">(</span><span class="token number">1234</span><span class="token punctuation">,</span> <span class="token number">10000</span><span class="token punctuation">,</span> options<span class="token punctuation">)</span>
+<span class="token comment">// after</span>
+<span class="token keyword">const</span> galaxy <span class="token operator">=</span> <span class="token function">voxelGalaxy</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">seed</span><span class="token operator">:</span> <span class="token number">1234</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">brightBudget</span><span class="token operator">:</span> <span class="token number">10000</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">dimBudget</span><span class="token operator">:</span> <span class="token number">0</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">galaxyOptions</span><span class="token operator">:</span> options<span class="token punctuation">,</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">view</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">generatePlanets</span><span class="token operator">:</span> options<span class="token punctuation">.</span>generatePlanets <span class="token operator">===</span> <span class="token boolean">true</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>The result is identical. <code>getStarSPS()</code> on <code>&lt;tosi-b3d-galaxy&gt;</code> returned <code>null</code>
+since the stars moved to a vertex shader; use <code>galaxy.pickStar(x, y)</code>.</p>
+<h3 id="3-new-mersennetwister-needs-a-seed">3. <code>new MersenneTwister()</code> needs a seed</h3>
+<p>It used to seed from <code>Date.now()</code> when you left the argument out. It now
+throws. Pass a seed, or <code>new MersenneTwister(Date.now())</code> if you want a
+different sequence each run. (<code>PRNG</code> always required one.)</p>
+<h3 id="4-worldstore-queries-return-copies">4. <code>WorldStore</code> queries return copies</h3>
+<p><code>getState()</code>, <code>getEntity()</code> and <code>query()</code> used to return the store&#39;s live
+objects, so writing to a result changed the simulation. They return copies
+now. If you were moving something by writing to a query result, call the
+command for it. Engine-side code that needs the live state every frame reads
+<code>store.liveState</code> and must not write to it. A store passed to the conformance
+kit must also implement <code>chooseOption(choiceId, optionId)</code>.</p>
+<h3 id="5-some-defaults-changed-a-scene-can-look-different">5. Some defaults changed: a scene can look different</h3>
+<p>Nothing to rename, but four things change what you see without a line of
+yours changing. The changelog&#39;s <strong>Changed defaults</strong> block has all of them.</p>
+<ul>
+<li><strong>Decoration layouts differ again.</strong> Plants thin out in drier country, things
+gather into clumps more strongly, and a low-tier device (a Quest in a
+session) places 60% of the budget as fewer clumps. <code>budgetScale: 1</code> places
+the whole budget; <code>clump: 0.85</code> on the decorator is the old gathering.</li>
+<li><strong>Opaque meshes are drawn nearest first.</strong> Same picture for ordinary meshes.
+<code>scene.setRenderingOrder(0)</code> puts Babylon&#39;s order back; a camera-pinned sky
+of your own needs <code>infiniteDistance</code>.</li>
+<li><strong>A headset on the low tier renders at reduced scale with foveation.</strong>
+<code>xrRenderScale: 1</code> and <code>xrFoveation: 0</code> are full resolution.</li>
+<li><strong>Water receives sun and cloud shadows.</strong></li>
+</ul>
+<h2 id="0815--090">0.8.15 → 0.9.0</h2>
+<h3 id="1-biometemperature-is-in-degrees-now-0-is-0-c-1-is-50-c">1. <code>biomeTemperature</code> is in degrees now: 0 is 0 °C, 1 is 50 °C</h3>
 <p><strong>What changed.</strong> <code>&lt;tosi-b3d-terrain biomeTemperature&gt;</code> used to be the biome
 chart&#39;s own axis: <code>0…1</code>, cold to warm, with <code>-1</code> meaning &quot;use the default&quot;.
 It is now a temperature: <code>0</code> is 0 °C and each unit is 50 °C, so <code>-1</code> is
@@ -103,13 +218,13 @@ with <code>0.45</code>, or delete the attribute.</p>
 conversion in code. Only this attribute moved. <code>BiomePlugin.params</code>, the
 province climate curves and the decorator&#39;s rule bands are still in chart
 units.</p>
-<h3>2. Nothing else is removed, including what was promised</h3>
+<h3 id="2-nothing-else-is-removed-including-what-was-promised">2. Nothing else is removed, including what was promised</h3>
 <p>The deprecated <code>onX</code> callback names (and the other names announced as
 &quot;removed in 0.9&quot;) still work in 0.9.x and warn once. They are removed in
 0.10. Rename when convenient.</p>
-<h2>0.8.14 → 0.8.15</h2>
+<h2 id="0814--0815">0.8.14 → 0.8.15</h2>
 <p><strong>Nothing breaks at compile time. Three defaults change what you see.</strong></p>
-<h3>1. The decorator&#39;s default library is Quaternius&#39;, not Kenney&#39;s</h3>
+<h3 id="1-the-decorators-default-library-is-quaternius-not-kenneys">1. The decorator&#39;s default library is Quaternius&#39;, not Kenney&#39;s</h3>
 <p><strong>What changed.</strong> <code>&lt;tosi-b3d-decorator&gt;</code> with no <code>url</code> loads
 <code>quaternius/libraries/nature.glb</code> and uses <code>NATURE_RULES</code>. It used to load
 Kenney&#39;s Nature Kit and use <code>NATURE_KIT_RULES</code>.</p>
@@ -126,7 +241,7 @@ The decorator now warns in the console and places nothing for them.</li>
 <pre><code class="language-javascript" data-highlighted><span class="token function">b3dDecorator</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">url</span><span class="token operator">:</span> <span class="token function">assetUrl</span><span class="token punctuation">(</span><span class="token string">'kenney/libraries/nature-kit.glb'</span><span class="token punctuation">)</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
 <p>With a <code>url</code> set and no <code>rules</code>, the decorator uses <code>NATURE_KIT_RULES</code>.</p>
-<h3>2. Layouts are different, and things clump</h3>
+<h3 id="2-layouts-are-different-and-things-clump">2. Layouts are different, and things clump</h3>
 <p><strong>What changed.</strong> Every scatter rule now gathers into clumps by default, the
 candidate grid changed, and the budget became a ceiling (a small radius or a
 mostly-sea map places fewer than the budget). The same seed gives a different
@@ -137,7 +252,7 @@ volcanic province.</p>
 tuned a scene around where things stood.</p>
 <p><strong>What to do.</strong> There is no switch that restores 0.8.14&#39;s exact layout. For an
 even spread again, set <code>clump=&quot;0&quot;</code> on the element (or <code>clump: 0</code> on a rule).</p>
-<h3>3. Water reflections follow the device tier</h3>
+<h3 id="3-water-reflections-follow-the-device-tier">3. Water reflections follow the device tier</h3>
 <p><strong>What changed.</strong> <code>&lt;tosi-b3d-water&gt;</code>&#39;s <code>textureSize</code> defaults to auto (1024,
 512 or 256 by device tier; it was 1024 everywhere) and a new
 <code>reflectionRefresh</code> redraws the reflection every frame, every second or every
@@ -146,13 +261,13 @@ third by tier on a flat screen.</p>
 every device:</p>
 <pre><code class="language-javascript" data-highlighted><span class="token function">b3dWater</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">textureSize</span><span class="token operator">:</span> <span class="token number">1024</span><span class="token punctuation">,</span> <span class="token literal-property property">reflectionRefresh</span><span class="token operator">:</span> <span class="token number">1</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
-<h2>0.8.0 → 0.8.1</h2>
+<h2 id="080--081">0.8.0 → 0.8.1</h2>
 <p><strong>Nothing breaks at compile time, and one behaviour changes.</strong> The
 <code>activationVeto</code> signature grew a second parameter and it is OPTIONAL — a
 required one would have been a hard TypeScript break for every caller, and the
 default is chosen so that a veto reading it gets a conservative answer rather
 than a permissive one.</p>
-<h3>1. Aircraft guns are direct-hit, not area-effect</h3>
+<h3 id="1-aircraft-guns-are-direct-hit-not-area-effect">1. Aircraft guns are direct-hit, not area-effect</h3>
 <p><strong>What changed.</strong> <code>&lt;tosi-b3d-aircraft&gt;</code>&#39;s cannon damages the thing its shell
 passes through. It used to detonate a small AOE warhead at the impact point.</p>
 <p><strong>Why.</strong> Blast damage resolves by distance to a destroyable&#39;s registered point —
@@ -176,7 +291,7 @@ which now fails on any live-language fence in a published markdown file.
 </code></pre>
 <p>Both radii are attributes now; they used to be hardcoded. Missiles and bombs are
 unchanged — AOE is right for those.</p>
-<h3>2. <code>activationVeto</code>&#39;s second parameter (optional)</h3>
+<h3 id="2-activationvetos-second-parameter-optional">2. <code>activationVeto</code>&#39;s second parameter (optional)</h3>
 <p><code>blocks(info)</code> now receives a description of the activation — who, how, how far.
 A veto that ignores its argument is unaffected, which is every veto written
 before this existed:</p>
@@ -188,14 +303,14 @@ info, vetoes are told <code>distance: Infinity</code> — &quot;we do not know t
 call it yourself and want a reach veto to pass, supply the distance:</p>
 <pre><code class="language-javascript" data-highlighted><span class="token function">activationVeto</span><span class="token punctuation">(</span>vetoes<span class="token punctuation">,</span> <span class="token punctuation">{</span> <span class="token literal-property property">source</span><span class="token operator">:</span> <span class="token string">'near'</span><span class="token punctuation">,</span> <span class="token literal-property property">distance</span><span class="token operator">:</span> <span class="token number">0.4</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
 </code></pre>
-<h3>3. <code>select3d</code> no longer draws ‹ › stepper arrows</h3>
+<h3 id="3-select3d-no-longer-draws---stepper-arrows">3. <code>select3d</code> no longer draws ‹ › stepper arrows</h3>
 <p>Tapping the control opens a popup list, which it already did — the arrows were
 a second way to do the same thing and made the popup undiscoverable. Nothing to
 change; the control is the same size and the same tap.</p>
-<h2>0.7.8 → 0.8.0</h2>
+<h2 id="078--080">0.7.8 → 0.8.0</h2>
 <p><strong>Nothing breaks at runtime.</strong> Both items below keep working in 0.8.x; one is an
 install-time floor, the other is a deprecation with a removal date.</p>
-<h3>1. Peer floor: <code>tosijs</code> <code>^1.7.8</code> → <code>^1.9.2</code></h3>
+<h3 id="1-peer-floor-tosijs-178--192">1. Peer floor: <code>tosijs</code> <code>^1.7.8</code> → <code>^1.9.2</code></h3>
 <p>Upgrade <code>tosijs</code> alongside this. npm will refuse to install otherwise
 (<code>ERESOLVE</code>); bun and pnpm warn and proceed, which is the case worth reading on.</p>
 <p>One behaviour changed with it, and it is silent. A wrong-typed write to an
@@ -205,10 +320,10 @@ used to mean <code>&#39;on&#39;</code> and now genuinely sets <code>false</code>
 the string breaks instead of quietly defaulting.</p>
 <p>Use <strong><code>isOff()</code></strong> from <code>tosijs-3d</code>, which accepts <code>&#39;off&#39;</code>, <code>false</code> and
 <code>&#39;false&#39;</code>, rather than comparing to a string yourself.</p>
-<h3>2. Callback options: <code>onX</code> → <code>handleX</code></h3>
+<h3 id="2-callback-options-onx--handlex">2. Callback options: <code>onX</code> → <code>handleX</code></h3>
 <p>Every callback option in the library now takes <code>handleX</code>. The old <code>onX</code> spelling
-still works, warns <strong>once per name</strong>, and is <strong>removed in 0.10</strong> (announced
-for 0.9, then kept one more minor).</p>
+kept working through 0.9.x, warning <strong>once per name</strong>, and was <strong>removed in
+0.10</strong> (see the top of this file).</p>
 <table>
 <thead>
 <tr>
@@ -268,9 +383,9 @@ element creator never set the field at all; it added a listener for the <code>&#
 CustomEvent, so your callback received an <code>Event</code> instead of the trigger.</p>
 <p>If you write your own widgets, <code>handlerOf(config, &#39;handleX&#39;, &#39;onX&#39;)</code> is exported
 so you can follow the same rule.</p>
-<h2>0.6.2 → 0.7.0</h2>
+<h2 id="062--070">0.6.2 → 0.7.0</h2>
 <blockquote>
-<h1>⚠️ READ THIS FIRST: library rotation</h1>
+<h1 id="️-read-this-first-library-rotation">⚠️ READ THIS FIRST: library rotation</h1>
 <p><strong>If you place library models with <code>rx</code>/<code>ry</code>/<code>rz</code>, your scenes will MOVE.</strong></p>
 <p>Everything else in this release either errors or looks obviously wrong. This
 one changes a scene that previously looked <strong>correct</strong>, which is why it is at
@@ -302,7 +417,7 @@ unaffected throughout.</li>
 key. If there are none, skip this entirely.</p>
 </blockquote>
 <blockquote>
-<h2>⚠️ AND THIS: models placed away from the origin in their file</h2>
+<h2 id="️-and-this-models-placed-away-from-the-origin-in-their-file">⚠️ AND THIS: models placed away from the origin in their file</h2>
 <p><strong>If a <code>.glb</code> has its object sitting somewhere other than (0,0,0) in the source
 scene, <code>canonicalize</code> now discards that placement</strong> — as its contract always
 claimed it did. It previously zeroed only the glTF loader&#39;s <code>__root__</code>
@@ -378,7 +493,7 @@ the origin — the common case — are unaffected.</strong></p>
 <td><code>whenImpact({ point, normal, mesh })</code>. The old name still fires, with a one-shot warning</td>
 </tr>
 </tbody></table>
-<h3>The two that fail SILENTLY</h3>
+<h3 id="the-two-that-fail-silently">The two that fail SILENTLY</h3>
 <p>Most of the above errors, or is obvious the first time you look. These two do
 not, so check them by hand:</p>
 <ul>
@@ -387,10 +502,10 @@ now produces a different orientation rather than an error.</li>
 <li><strong><code>hudChase</code>.</strong> tosijs props end in an index signature, so a stale <code>hudChase</code>
 <strong>compiles and is silently ignored</strong>. Nothing will tell you.</li>
 </ul>
-<h3>A note on library rotation</h3>
+<h3 id="a-note-on-library-rotation">A note on library rotation</h3>
 <p>See the box at the top of this section. It is the one change here that can move a
 scene which previously looked correct, so it is not buried down here.</p>
-<h3>Prerelease users</h3>
+<h3 id="prerelease-users">Prerelease users</h3>
 <p>If you pinned <code>0.7.0-rc.1</code> or any <code>0.7.0-beta.*</code>, move to <code>0.7.0</code>. The
 prerelease channel was inverted — <code>rc.1</code> was published before <code>beta.1…6</code>, and
 semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to the older build.
@@ -400,8 +515,7 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
-    <li><a class="doc-link current" href="../Migration/" aria-current="page">Migration</a></li>
-    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
     <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
     <ul>
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
@@ -414,222 +528,394 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
-      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
-      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
-      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
-      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
-      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
-      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
-      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
-      <li><a class="doc-link" href="../hud/">hud</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><a class="doc-link" href="../landform/">landform</a></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
+        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+        <li><a class="doc-link" href="../caustics/">caustics</a></li>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
-      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
-      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
-      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
-      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
-      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-      <li><a class="doc-link" href="../caustics/">caustics</a></li>
-      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
-      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
-      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
-      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
-      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
-      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
-      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
-      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
-      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
-      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
-      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-      <li><a class="doc-link" href="../wind/">wind</a></li>
-      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
-      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
-      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
-      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
-      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
-      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></li>
-      <li><a class="doc-link" href="../carve/">carve</a></li>
-      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
-      <li><a class="doc-link" href="../landform/">landform</a></li>
-      <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
-      <li><a class="doc-link" href="../scatter/">scatter</a></li>
-      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-      <li><a class="doc-link" href="../weather/">weather</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
-      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
-      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
-      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../mantle/">mantle</a></li>
+        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+        <li><a class="doc-link" href="../hud/">hud</a></li>
+        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
-      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
-      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
-      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
-      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
-      <li><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></li>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
-      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
-      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
-      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
-      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
-      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
-      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
-      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
-      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
-      <li><a class="doc-link" href="../table/">table</a></li>
-      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
-      <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
-      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
-      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
-      <li><a class="doc-link" href="../color/">color</a></li>
-      <li><a class="doc-link" href="../color-field/">color3d</a></li>
-      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
-      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
-      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
-      <li><a class="doc-link" href="../picker/">picker</a></li>
-      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
-      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
-      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
-      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
-      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
-      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
-      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      <li><a class="doc-link" href="../arc/">arc</a></li>
-      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
-      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
-      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
     <ul>
-      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
-      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
-      <li><a class="doc-link" href="../aim/">aim</a></li>
-      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
-      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
-      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
-      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
-      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
+        <li><a class="doc-link" href="../resource/">resource</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../warhead/">warhead</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+        <li><a class="doc-link" href="../radar/">Radar model</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../arc/">arc</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../curve/">curve</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link current" href="../Migration/" aria-current="page">Migration</a></li>
+      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
     </ul>
     </details></li>
   </ul>
@@ -640,6 +926,6 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
+  <script type="module" src="../hydrate-48tecfqa.js"></script>
 </body>
 </html>

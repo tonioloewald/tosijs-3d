@@ -1,0 +1,96 @@
+# world-view
+
+The Babylon **view** of a [[world-store]]. The store is the authoritative,
+serializable truth; the view is a disposable projection of it. `WorldView`
+watches the store and reconciles one mesh per entity every frame: entities that
+appeared get a mesh, entities that moved get their mesh repositioned, entities
+that were forgotten get their mesh disposed. Data flows one way —
+`store → meshes` — so the rendering layer can never desync the simulation.
+
+This keeps the architecture honest: the view imports Babylon, the store does
+not. You can run the store headlessly (tests, a server, a driver developing
+against the contract) and attach a view only where there's something to draw.
+
+The default factory draws primitives (capsule for characters, box for objects)
+so a scene is visible with zero assets; pass your own `factory` to swap in
+`b3dBiped`, library instances, or GLB meshes per entity kind.
+
+```js
+import {
+  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta,
+} from 'tosijs-3d'
+import { elements } from 'tosijs'
+
+// A stand-in "director" sets up a scene by writing to the store.
+const store = new WorldStore()
+const witness = store.spawn({
+  kind: 'npc',
+  position: { x: 4, y: 0.8, z: 3 },
+  components: { interactable: { promptId: 'talk', locked: false } },
+})
+store.spawn({ kind: 'item', position: { x: -2, y: 0.25, z: 1 } })
+store.spawn({ kind: 'container', position: { x: 0, y: 0.4, z: -4 } })
+
+// The driver only ever observes events + queries; it never blocks the sim.
+//
+// Shown on the PAGE rather than logged: an event stream in the console is spam
+// in every page that embeds this demo, and invisible to anyone who has not
+// opened devtools — which for a demo about "what the driver sees" is the one
+// thing worth showing.
+const eventLog = elements.div({
+  style: { padding: '0 16px 12px', font: '12px ui-monospace, monospace', opacity: '0.75' },
+}, 'events will appear here')
+const seen = []
+store.subscribe((event) => {
+  seen.unshift(`${event.type} ${event.entity ?? ''}`)
+  eventLog.textContent = seen.slice(0, 4).join('   |   ')
+})
+const FORGET_AFTER = 15 // seconds; a real driver would use minutes/hours
+
+const keys = new Set()
+window.addEventListener('keydown', (e) => keys.add(e.key.toLowerCase()))
+window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()))
+
+preview.append(
+  eventLog,
+  b3d(
+    {
+      sceneCreated(el) {
+        // Bridge the headless store to the live scene.
+        new WorldView(el.scene, store)
+      },
+      update(el) {
+        const dt = sceneDelta(el.scene)
+        store.tick(dt)
+        // WASD writes the player's position back into the store.
+        // getEntity returns a copy, so this is ours to change
+        const p = store.getEntity('player').position
+        const speed = 4 * dt
+        if (keys.has('w')) p.z += speed
+        if (keys.has('s')) p.z -= speed
+        if (keys.has('a')) p.x -= speed
+        if (keys.has('d')) p.x += speed
+        store.moveEntity('player', p)
+        // E engages the nearest interactable — a commitment, not a fly-by.
+        if (keys.has('e')) {
+          const near = store
+            .query((entity) => !!entity.components.interactable)
+            .find((entity) => {
+              const d = entity.position
+              return (d.x - p.x) ** 2 + (d.z - p.z) ** 2 < 4
+            })
+          if (near) store.interact('player', near.id)
+        }
+        // Driver work: drop a witness the player has ignored for too long.
+        const w = store.getEntity(witness)
+        if (w && w.lastInteractedAt === undefined && store.liveState.now > FORGET_AFTER) {
+          store.forget(witness)
+        }
+      },
+    },
+    b3dSun(),
+    b3dSkybox({ timeOfDay: 11 }),
+    b3dGround({ width: 24, height: 24, color: '#4a7a4a' })
+  )
+)
+```

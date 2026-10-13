@@ -13,7 +13,7 @@ export declare class MersenneTwister {
     private readonly LOWER_MASK;
     private mt;
     private mti;
-    constructor(seed?: number);
+    constructor(seed: number);
     private initGenrand;
     /** Random 32-bit unsigned integer */
     int32(): number;

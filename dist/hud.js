@@ -24,7 +24,7 @@ const hud = buildFallbackHud()
 hud.setMeter('airspeed', 0.6) // then mount hud's SVG in an overlay, or use <tosi-b3d-hud>
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "b3d-aircraft", "order": 30 }*/
 import { svgElements } from 'tosijs';
 import { sideFromD, lockFillOpacity, arcDashArray, } from './hud-math.js';
 const SVGNS = 'http://www.w3.org/2000/svg';

@@ -113,7 +113,7 @@ The gap it closes is real: a slider needs `down → move* → up` with **capture
 drag survives the pointer slipping off the track. `box` now gives a raw child the whole
 gesture and keeps routing to it until `up`.
 */
-/*{ "parent": "UI", "order": 900 }*/
+/*{ "parent": "widgets3d", "order": 30 }*/
 import { box } from './box.js';
 /**
  * Wrap a {@link Widget3d} as a {@link BoxChild}.

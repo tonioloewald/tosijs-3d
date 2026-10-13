@@ -30,7 +30,7 @@ import { allocateAmbient } from 'tosijs-3d'
 
 Effects **compete**. Rain, dust and motes can each be individually "within budget" and still cook
 the frame together. So the device tier vends ONE `ambientParticles` pool for the whole scene and
-[`allocateAmbient`](#allocateambient) divides it — which is also why a future decal system
+`allocateAmbient` divides it — which is also why a future decal system
 (footprints, blood, bullet holes) should draw from this same pool rather than inventing its own.
 
 ## Why the cost model is *modelled*, not measured
@@ -47,11 +47,11 @@ reasons that are worth writing down so nobody tries again:
    least trustworthy on the device that needs it most.
 
 So cost is **modelled** from what actually drives fill — area and blend mode
-([`fillWeight`](#fillweight)) — and bounded against a pool sized from the *measured device*.
+(`fillWeight`) — and bounded against a pool sized from the *measured device*.
 Same lesson `tileBuildMs` taught the terrain: bound the frame **by construction**, not by hoping
 a counter shows up.
 */
-/*{ "parent": "Performance", "order": 900 }*/
+/*{ "parent": "b3d-ambient", "order": 20 }*/
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 /** The reference particle: 0.15 across, standard blend. Everything is priced against it. */
 const REF_SIZE = 0.15;

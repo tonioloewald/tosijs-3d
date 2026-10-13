@@ -41,7 +41,7 @@ const scene = b3d(
     scenePanel: () => [
       label3d({ text: 'Particles' }),
       slider3d({ label: 'emit rate', value: demo.emitRate, min: 0, max: 200, step: 5 }),
-      button3d({ label: 'Burst', onClick() { explosion.burst(150) } }),
+      button3d({ label: 'Burst', handleClick() { explosion.burst(150) } }),
     ],
     sceneCreated(el, BABYLON) {
       const camera = orbitCam(el, {
@@ -129,7 +129,7 @@ preview.append(scene)
 | `disposeOnStop` | `false` | Dispose when stopped |
 | `attachTo` | `''` | Mesh name to attach emitter to |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "effects", "order": 10 }*/
 import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 // Default flare texture: 32x32 radial gradient white-to-transparent

@@ -119,8 +119,7 @@ preview.append(
 fires once on release, snapped, and only when something actually changed — which
 is your undo step. Both also dispatch a DOM `change` / `commit` event carrying
 the transform in `detail`. (`handleChange`/`handleCommit` were the names until
-0.8.4 — they still work, warn once, and go in 0.10: a COMPONENT's callbacks are
-`when*`.)
+0.8.4 and were removed in 0.10: a COMPONENT's callbacks are `when*`.)
 
 ## Scale is exclusive of move and turn
 
@@ -173,7 +172,7 @@ authoring — including on a phone, which is where most of the sizing decisions
 were won. This library had no manipulator at all (#38), and `b3d-panel`'s
 coloured debug axes look exactly like one, which is its own small cruelty.
 */
-/*{ "parent": "UI", "order": 275 }*/
+/*{ "parent": "interacting", "order": 60 }*/
 import { handlerOf } from './handler-of.js';
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, cameraIsAttached, isOff } from './b3d-utils.js';
@@ -209,10 +208,6 @@ export class B3dManipulator extends B3dChild {
     whenChange = null;
     /** Once on release, snapped, and only when something changed. */
     whenCommit = null;
-    /** @deprecated use `whenChange` — removed in 0.10. */
-    handleChange = null;
-    /** @deprecated use `whenCommit` — removed in 0.10. */
-    handleCommit = null;
     /** The node being manipulated. Set this directly to skip `target`. */
     node = null;
     _view = null;
@@ -429,7 +424,7 @@ export class B3dManipulator extends B3dChild {
         if (!updateDrag(d, ray, composeRotation, options))
             return;
         this._write(d.current);
-        handlerOf(this, 'whenChange', 'handleChange')?.(d.current);
+        handlerOf(this, 'whenChange', 'handleChange', '<tosi-b3d-manipulator>')?.(d.current);
         this.dispatchEvent(new CustomEvent('change', { detail: d.current, bubbles: true }));
     }
     /**
@@ -457,7 +452,7 @@ export class B3dManipulator extends B3dChild {
         if (!dragChanged(d, committed))
             return d.moved;
         this._write(committed);
-        handlerOf(this, 'whenCommit', 'handleCommit')?.(committed);
+        handlerOf(this, 'whenCommit', 'handleCommit', '<tosi-b3d-manipulator>')?.(committed);
         this.dispatchEvent(new CustomEvent('commit', { detail: committed, bubbles: true }));
         return true;
     }

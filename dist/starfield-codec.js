@@ -90,7 +90,7 @@ implements the OpenGL cube convention that `textureCube` uses, and
 {@link faceToDir} inverts it; `starfield-codec.test.ts` round-trips random
 directions through both, which is the only way this stays honest.
 */
-/*{ "parent": "space", "order": 430 }*/
+/*{ "parent": "b3d-skybox", "order": 20 }*/
 /** `px nx py ny pz nz` — the `CubeTexture` file suffixes, in GL face order. */
 export const FACE_NAMES = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 /**

@@ -141,7 +141,7 @@ The pure half (when, where, bolt shape, flicker, thunder delay) is
 | `brightness` | `1` | How DRAMATIC a flash is: the whole landscape lit from above (falling off with the storm's distance), the cloud lit from inside, and the bolt's glow, together |
 | `color` | `'#dce4ff'` | The flash's colour |
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "weather-and-clouds", "order": 40 }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js';
 import { boltPath, flashAt, MAX_RATE, strikesBetween, thunderDelay, } from './lightning.js';
@@ -201,6 +201,8 @@ export class B3dLightning extends B3dChild {
     _spriteMat = null;
     _audio = null;
     _noise = null;
+    /** Thunder already queued on the audio clock and not yet finished. */
+    _rumbles = new Set();
     _id(cell) {
         let id = this._ids.get(cell);
         if (id == null) {
@@ -251,6 +253,9 @@ export class B3dLightning extends B3dChild {
                 this._start(owner, scene, s);
             }
         }
+        else if (this._rumbles.size > 0) {
+            this._hush();
+        }
         this._lastT = t;
         // The brightest live flash drives the deck and the ground light.
         let best = null;
@@ -259,8 +264,21 @@ export class B3dLightning extends B3dChild {
             const age = t - l.strike.t;
             const level = flashAt(age, l.strike.seed, l.length);
             const weight = l.strike.kind === 'sprite' ? 0.15 : l.strike.kind === 'cloud' ? 0.7 : 1;
-            for (const m of l.bolt)
-                m.visibility = level;
+            /*
+            THE CHANNEL IS THERE OR IT IS NOT. Fading the core by `visibility`
+            alpha-blends it, so between re-strokes a bolt was a 30% transparent
+            white tube: pale, see-through, and from close up obviously a tube
+            (Tonio, in a headset: "too pale, they read as transparent"). The core is
+            opaque for as long as the stroke is live at all; the flicker is carried
+            by the additive halo, the lit cloud and the lit ground, which is where a
+            real stroke's brightness goes too.
+            */
+            for (const m of l.bolt) {
+                if (m.name === 'lightning-halo')
+                    m.visibility = Math.min(1, level * 1.5);
+                else
+                    m.visibility = level > 0.03 ? 1 : 0;
+            }
             if (l.sprite)
                 l.sprite.visibility = Math.min(1, level * 2);
             if (level * weight > bestLevel) {
@@ -543,12 +561,20 @@ export class B3dLightning extends B3dChild {
         if (this._glowMat == null) {
             const m = new BABYLON.StandardMaterial('lightning-halo-mat', scene);
             m.disableLighting = true;
-            m.emissiveColor = this._color().scale(0.45);
+            m.emissiveColor = this._color().scale(0.7);
             m.diffuseColor = BABYLON.Color3.Black();
             m.alphaMode = BABYLON.Constants.ALPHA_ADD;
             m.alpha = 0.99;
             m.disableDepthWrite = true;
             m.backFaceCulling = false;
+            // Bright along the middle, nothing at the silhouette: a uniform additive
+            // tube has a hard edge and reads as a pale ribbon, not as glowing air.
+            const f = new BABYLON.FresnelParameters();
+            f.leftColor = BABYLON.Color3.Black();
+            f.rightColor = this._color().scale(0.9);
+            f.power = 2.5;
+            f.bias = 0;
+            m.emissiveFresnelParameters = f;
             this._glowMat = m;
         }
         return this._glowMat;
@@ -557,7 +583,9 @@ export class B3dLightning extends B3dChild {
         if (this._boltMat == null) {
             const m = new BABYLON.StandardMaterial('lightning-bolt-mat', scene);
             m.disableLighting = true;
-            m.emissiveColor = this._color().scale(1.4);
+            // Far past white on purpose: it clamps on an LDR target, and anything
+            // that blooms (the glow layer, a later HDR path) gets the real ratio.
+            m.emissiveColor = this._color().scale(6);
             m.diffuseColor = BABYLON.Color3.Black();
             m.backFaceCulling = false;
             this._boltMat = m;
@@ -694,10 +722,38 @@ export class B3dLightning extends B3dChild {
             src.connect(filter).connect(gain).connect(ac.destination);
             src.start(when);
             src.stop(when + 4.2);
+            const rumble = { src, gain };
+            this._rumbles.add(rumble);
+            src.onended = () => this._rumbles.delete(rumble);
         }
         catch {
             /* audio is garnish */
         }
+    }
+    /*
+    THE STORM IS GONE, SO IS ITS THUNDER. Thunder is queued on the audio clock
+    as far ahead as sound takes to arrive (23 s for a storm 8 km off), so
+    switching world left the old world's thunder to play out over the new one
+    (Tonio: thunder from Venus heard on Earth). With no storm left, what is
+    queued is faded quickly and stopped.
+    */
+    _hush() {
+        const ac = this._audio;
+        for (const r of this._rumbles) {
+            try {
+                if (ac != null) {
+                    r.gain.gain.cancelScheduledValues(ac.currentTime);
+                    r.gain.gain.setTargetAtTime(0, ac.currentTime, 0.08);
+                    r.src.stop(ac.currentTime + 0.5);
+                }
+                else
+                    r.src.stop();
+            }
+            catch {
+                /* already stopped */
+            }
+        }
+        this._rumbles.clear();
     }
     sceneDispose() {
         if (this._obs)

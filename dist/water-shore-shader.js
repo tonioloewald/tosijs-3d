@@ -17,8 +17,14 @@ import '@babylonjs/materials/water/water.fragment.js';
 import '@babylonjs/materials/water/water.vertex.js';
 const MARK = '/*b3dShore*/';
 const FUNCTIONS = `
+// No sin(): fract(sin(x) * 43758.5) depends on how a GPU evaluates sin of a
+// large argument, and mobile GPUs disagree with desktop ones and with each
+// other, so the plates came out mismatched on a headset and fine on a Mac.
+// This one is arithmetic only (Hoskins, "hash without sine").
 float b3dShoreHash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
 }
 float b3dShoreNoise(vec2 p) {
   vec2 i = floor(p);
@@ -56,11 +62,38 @@ vec2 b3dShoreIce(vec2 xz, float ice) {
   vec2 p = b3dShorePlates(xz * 0.085 + 0.6 * vec2(b3dShoreNoise(xz * 0.03), b3dShoreNoise(xz * 0.03 + 5.0)));
   float there = step(p.y, ice * 1.08);
   float gap = mix(0.3, 0.012, smoothstep(0.25, 1.0, ice));
-  return vec2(there * smoothstep(gap, gap + 0.035, p.x), p.y);
+  return vec2(there * smoothstep(gap, gap + 0.075, p.x), p.y);
+}
+`;
+/*
+CLOUD SHADOWS. Everything else takes them from a material plugin
+(cloud-shadows.ts); this material routes no plugin events, so the same lookup
+is written here and b3d-water feeds it the scene's map. Strength 0 (no map, or
+uniforms never set) skips it. It runs before the fog, so no fog correction.
+*/
+export const CLOUD_UNIFORMS = [
+    'b3dCloudWindow',
+    'b3dCloudSun',
+    'b3dCloudStrength',
+];
+export const CLOUD_SAMPLER = 'b3dCloudSampler';
+const CLOUD = `
+if (b3dCloudStrength > 0.0 && vPositionW.y <= b3dCloudWindow.w) {
+  float b3dCsT = (b3dCloudSun.y < -0.001)
+    ? (b3dCloudSun.w - vPositionW.y) / b3dCloudSun.y
+    : 0.0;
+  vec2 b3dCsUv = (vPositionW.xz + b3dCloudSun.xz * b3dCsT - b3dCloudWindow.xy) * b3dCloudWindow.z + 0.5;
+  if (b3dCsUv.x > 0.0 && b3dCsUv.x < 1.0 && b3dCsUv.y > 0.0 && b3dCsUv.y < 1.0) {
+    color.rgb *= mix(1.0, texture2D(b3dCloudSampler, b3dCsUv).r, b3dCloudStrength);
+  }
 }
 `;
 const DEFINITIONS = `${MARK}
 varying float vB3dShore;
+uniform vec4 b3dCloudWindow;
+uniform vec4 b3dCloudSun;
+uniform float b3dCloudStrength;
+uniform sampler2D b3dCloudSampler;
 #ifdef VERTEXCOLOR
 ${FUNCTIONS}
 #endif
@@ -143,6 +176,19 @@ const SHORE = `${MARK}
  * Babylon's shader no longer has the shape this expects — the water then
  * simply has no shoreline, rather than a broken material.
  */
+/**
+ * The view the refraction was DRAWN from, for looking it up. Stock water
+ * looks it up with the view it is being drawn in now, which is only the same
+ * view if the texture is redrawn for every camera on every frame. With this,
+ * one drawing serves both eyes of a headset and several frames.
+ */
+export const REFRACTION_VP = 'b3dRefractionVP';
+const REFRACTION_LOOKUP = 'vRefractionMapTexCoord.x=0.5*(gl_Position.w+gl_Position.x);vRefractionMapTexCoord.y=0.5*(gl_Position.w+gl_Position.y);vRefractionMapTexCoord.z=gl_Position.w;';
+let refractionPatched = false;
+/** Whether the water shader takes `REFRACTION_VP` (false: Babylon's changed shape). */
+export function waterTargetsShareable() {
+    return refractionPatched;
+}
 export function registerShoreWater() {
     const store = BABYLON.ShaderStore.ShadersStore;
     const frag = store.waterPixelShader;
@@ -171,9 +217,18 @@ export function registerShoreWater() {
     store.waterPixelShader = frag
         .replace(tint, '')
         .replace(defs, defs + '\n' + DEFINITIONS)
-        .replace(compose, compose + '\n' + SHORE);
+        .replace(compose, compose + '\n' + SHORE + CLOUD);
+    refractionPatched = vert.includes(REFRACTION_LOOKUP);
     store.waterVertexShader = vert
-        .replace(vdefs, vdefs + `\n${MARK}\nvarying float vB3dShore;`)
+        .replace(vdefs, vdefs +
+        `\n${MARK}\nvarying float vB3dShore;\nuniform mat4 ${REFRACTION_VP};`)
+        .replace(REFRACTION_LOOKUP, `
+#ifdef USE_WORLD_COORDINATES
+vec4 b3dRp=${REFRACTION_VP}*vec4(p,1.0);
+#else
+vec4 b3dRp=${REFRACTION_VP}*finalWorld*vec4(p,1.0);
+#endif
+vRefractionMapTexCoord.x=0.5*(b3dRp.w+b3dRp.x);vRefractionMapTexCoord.y=0.5*(b3dRp.w+b3dRp.y);vRefractionMapTexCoord.z=b3dRp.w;`)
         .replace(wave, 
     // Ice does not ride the swell: the wave displacement fades out with
     // the cover, so a sheet lies flat and its collision surface

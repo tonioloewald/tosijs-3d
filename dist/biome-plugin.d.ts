@@ -242,11 +242,32 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
      */
     role: BiomeRole;
     private _isEnabled;
+    private _lite;
+    private _computed;
     private _t0;
     constructor(material: BABYLON.Material);
+    /**
+     * Compute the fine 3D noise in the shader instead of reading it from the
+     * shared noise texture. The texture is the default wherever 3D textures
+     * exist (WebGL 2) and is several times cheaper a pixel; this is the way
+     * back, and what the cost sweep switches to measure the difference.
+     */
+    get computedNoise(): boolean;
+    set computedNoise(on: boolean);
+    /**
+     * The cheap form of the shader, for a GPU that cannot afford the full one:
+     * three noise samples a pixel where the full form takes eight. Climate
+     * noise loses its second octave, the colour patches are sampled flat (so
+     * they streak on a vertical face, which the cliff colour mostly covers) and
+     * the fine brightness breakup reuses the edge dither. Normally set for the
+     * whole scene by `setBiomeLite`, from the device tier.
+     */
+    get lite(): boolean;
+    set lite(on: boolean);
     get isEnabled(): boolean;
     set isEnabled(enabled: boolean);
     prepareDefines(defines: BABYLON.MaterialDefines): void;
+    getSamplers(samplers: string[]): void;
     getClassName(): string;
     getUniforms(): {
         ubo: {
@@ -261,6 +282,21 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
         [pointName: string]: string;
     } | null;
 }
+/**
+ * Have every biome material in a scene compute its fine noise in the shader
+ * (`true`) or read it from the noise texture (`false`, the default).
+ */
+export declare function setBiomeComputedNoise(scene: BABYLON.Scene, on: boolean): void;
+/** Whether a scene's biome materials compute their fine noise. */
+export declare function biomeComputedNoise(scene: BABYLON.Scene): boolean;
+/**
+ * Switch every biome material in a scene to the cheap form of the shader (or
+ * back), and have ones made later start that way. `<tosi-b3d>` calls this
+ * from the device tier and again on entering and leaving a headset.
+ */
+export declare function setBiomeLite(scene: BABYLON.Scene, on: boolean): void;
+/** Whether a scene's biome materials are on the cheap form of the shader. */
+export declare function biomeLite(scene: BABYLON.Scene): boolean;
 /**
  * Attach (or retrieve) the biome plugin on a material — for authored tiles or
  * any mesh that should classify like the terrain. `b3d-terrain biome="on"`

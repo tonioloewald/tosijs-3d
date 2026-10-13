@@ -1,20 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
-       a 4s safety-net timeout), because an undefined custom element is
-       display:inline, so the pre-rendered page stacked as bare text and hydration
-       reflowed the whole thing. The cost was a blank screen for as long as the
-       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
-       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
-       out as though the chrome were there, so hydration only ADDS the chrome and
-       nothing moves. Paint immediately; don't hide readable content. -->
-  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
-       than hiding it, a dark-mode reader would otherwise get a flash of the light
-       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
-       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
-       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
-       light default, exactly as before. -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script>
     try {
       var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
@@ -24,14 +12,13 @@
       if (p.highContrast) document.documentElement.classList.add('high-contrast')
     } catch (e) {}
   </script>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=546e4ce57ab8" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=2dcc44dc69b8" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="Changelog — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="Changelog — tosijs-3d" />
@@ -43,15 +30,264 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=d526a3e24431" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <tosi-doc-system docs="../docs.json?v=2c5b74caf422" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
-<h1>Changelog</h1>
-<!--{ "order": 3 }-->
+<h1 id="changelog">Changelog</h1>
+<!--{ "parent": "reference", "order": 20 }-->
 
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
-<h2>0.9.0</h2>
+<h2 id="0100">0.10.0</h2>
+<p><strong>A quality release: the deprecated names are gone, and a long list of bugs
+with them.</strong> No new elements; what was added is tooling for measuring and
+debugging on a device, and some defaults changed (listed under <strong>Changed
+defaults</strong> below). Most of what breaks was announced in 0.8 and
+0.9; three things were not, and are listed below with the rest:
+<code>new MersenneTwister()</code> without a seed, <code>WorldStore</code> queries returning copies,
+and <code>surface.openPanel</code>&#39;s <code>onClose</code>. <a href="https://3d.tosijs.net/Migration/">Migration.md</a> has every
+pair and what to do.</p>
+<p>Size: barrel (min, packages external) 970.3 KB raw / 327.2 KB gz, +2.30% on
+0.9.0.</p>
+<h3 id="️-breaking">⚠️ Breaking</h3>
+<ul>
+<li><strong><code>onX</code> callback options are removed.</strong> <code>onChange</code>, <code>onClick</code>, <code>onSelect</code>,
+<code>onActivate</code>, <code>onClose</code>, <code>onKey</code>, <code>onAction</code>, <code>onCaretMove</code>, <code>onEnter</code> and
+<code>onFocus</code> are no longer called; use <code>handleX</code>. An old name is not dropped
+silently: <code>handlerOf</code> warns once per name that it is ignored and names the
+replacement.</li>
+<li><strong><code>&lt;tosi-b3d-trigger&gt;</code>&#39;s <code>onEnter</code> / <code>onExit</code> properties</strong> are removed; use
+<code>whenEnter</code> / <code>whenExit</code>. <strong><code>&lt;tosi-b3d-manipulator&gt;</code>&#39;s <code>handleChange</code> /
+<code>handleCommit</code></strong> are removed; use <code>whenChange</code> / <code>whenCommit</code>.</li>
+<li><strong><code>generateGalaxy</code></strong> is removed; use <code>voxelGalaxy({ seed, brightBudget }).view()</code>.
+<strong><code>galaxy.getStarSPS()</code></strong> is removed; use <code>pickStar</code>.</li>
+<li><strong><code>new MersenneTwister()</code> needs a seed.</strong> It used to seed from the clock
+when the argument was left out, which silently broke &quot;same seed, same
+result&quot;. It now throws; pass <code>Date.now()</code> if that is what you want.</li>
+<li><strong><code>WorldStore.getState()</code>, <code>getEntity()</code> and <code>query()</code> return copies.</strong> A
+driver could change the simulation by writing to what a query returned.
+Code that relied on that (deliberately or not) must call a command instead.
+The engine&#39;s own systems read <code>store.liveState</code>.
+A copy is made on every call, so read once per frame, not once per entity.</li>
+<li><strong>A store passed to the conformance kit must implement
+<code>chooseOption(choiceId, optionId)</code>.</strong> The kit now covers the choice
+primitive and calls it.</li>
+<li><strong><code>surface.openPanel({ onClose })</code> is <code>handleClose</code>.</strong> This one was never
+announced: it was the last <code>onX</code> option in the library and follows the same
+rule now (ignored, with a warning).</li>
+</ul>
+<h3 id="changed-defaults">Changed defaults</h3>
+<p>Nothing here removes an API, but a scene can look or behave differently
+without a line of yours changing. Each has the setting that puts it back.</p>
+<ul>
+<li><strong>Opaque meshes are drawn nearest first, the sky last</strong> (was material
+order). The picture is the same for ordinary opaque meshes; one with depth
+write off can differ. <code>scene.setRenderingOrder(0)</code> restores Babylon&#39;s order,
+and a camera-pinned sky of your own must set <code>infiniteDistance</code>.</li>
+<li><strong>A headset session renders at a reduced scale with foveation</strong> on the low
+tier (<code>xrRenderScale</code>, <code>xrFoveation</code>; <code>1</code> and <code>0</code> for full).</li>
+<li><strong>The decorator places a tier share of its budget</strong> (0.6 on the low tier)
+and plant rules thin with moisture (<code>thirst</code>), so the same seed gives a
+different layout from 0.9. <code>budgetScale: 1</code> places the whole budget.</li>
+<li><strong>Scatter rules gather more</strong> (<code>clump</code> 0.95, was 0.85).</li>
+<li><strong>Water receives sun and cloud shadows.</strong></li>
+<li><strong>The low tier uses the lighter ground shader</strong> (<code>groundDetail</code>).</li>
+<li><strong><code>PerlinNoise(0)</code> is a seed</strong>, not &quot;no seed&quot;.</li>
+</ul>
+<h3 id="docs">Docs</h3>
+<ul>
+<li><strong>The doc site is reorganised.</strong> Sections now list the elements you put in a
+scene, with the pure models and helpers each is built from tucked beneath
+it (the flight model under the aircraft, the biome chart under the
+terrain). UI was one list of 39 pages and Environment one of 37; no section
+now has more than 12 direct children. Environment is split into Sky and
+light, Weather and clouds, Terrain and Water; Migration and the Changelog
+moved from second and third to a Reference section at the end. Page URLs
+are unchanged, except the section landing pages.</li>
+<li><strong>Getting started</strong>: the install line with its peer dependencies, a first
+scene that needs no model file, and where to go next. The README has the
+same.</li>
+<li><strong>Ten modules that other pages linked to had no page</strong>: the flight model,
+ballistics, guidance, warhead, destroyable, resource, Perlin noise, gradient
+filter, terrain grid and the primitives (box, sphere, ground). 17 links were
+dead. A test now fails on a link to a page that does not exist.</li>
+<li>Every section landing page says which page you want, where most were a bare
+list of links.</li>
+</ul>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li><strong>A headset is drawn at the device tier&#39;s resolution.</strong> It never was: the
+tier lowered the engine&#39;s hardware scaling for a session, and that does not
+reach the XR layer, so every tier drew both eyes at full size. The viewport
+is now scaled per frame (<code>xrRenderScale</code>, auto: 0.67 on the low tier, 0.83
+on medium) and fixed foveation is set (<code>xrFoveation</code>, auto: 1 on low, 0.5 on
+medium). Measured on a Quest in Land and Sky at 90 ms a frame: half the
+pixels saved 19 ms and full foveation 12 ms. Both are attributes of
+<code>&lt;tosi-b3d&gt;</code>; set <code>xrRenderScale=&quot;1&quot; xrFoveation=&quot;0&quot;</code> for the old picture.</li>
+<li><strong>Opaque meshes are drawn nearest first, and the sky last.</strong> Babylon draws
+them in creation order, so a sky made first was shaded across the whole view
+and then painted over by the land. The picture is the same; a covered pixel
+is now rejected before its shader runs. <code>nearFirst(scene)</code> is exported for a
+render target of your own (the water&#39;s two have it).</li>
+<li><strong>A cheaper ground shader for a weak GPU</strong> (<code>&lt;tosi-b3d groundDetail&gt;</code>:
+<code>auto</code>, <code>full</code>, <code>lite</code>). The biome shader took eight noise samples a pixel;
+<code>lite</code> takes three and looks nearly the same from a distance. <code>auto</code> picks
+it on the low tier, and in a headset on the medium tier. Measured on a Quest
+in Land and Sky, the terrain was 40 ms of a 90 ms frame. The cost sweep
+measures the other form on your device.</li>
+<li><strong>The ground shader reads its fine noise from a texture.</strong> It computed 3D
+noise four times a pixel, eight hashed corners each; it now reads a shared
+64-texel tiling block (<code>noiseVolume</code>, exported) once per sample. Mip-mapped,
+so the detail fades in the distance where the computed noise shimmered. On
+every tier with WebGL 2; <code>setBiomeComputedNoise(scene, true)</code> is the way
+back, and the cost sweep measures it. The climate noise is still computed.</li>
+<li><strong>The water&#39;s reflection and refraction are drawn once for both eyes, and
+every Nth frame in a headset too.</strong> Each is the scene drawn again, and a
+headset drew both for each eye on every frame: four extra scene passes.
+Each is now looked up through the view it was drawn from, so one drawing is
+in the right place from either eye and on later frames (<code>reflectionRefresh</code>,
+from the device tier: every 3rd frame on the low tier). This also fixes the
+refraction sliding against the seabed between redraws on a flat screen.</li>
+<li><strong>Perf Stats reports what SVG texture repaints cost</strong> (the HUD, panels):
+repaints a second and main-thread milliseconds a second (<code>svgTextureCost</code>).
+It also shows the JS heap against its first reading and the total redraw
+count, so a leak is visible from inside a headset.</li>
+<li><strong>Debug sink</strong> (<code>debugSink.url</code>, <code>sendDebug</code>): a page can post its readings
+to an endpoint, for a headset that has no console. With a URL set,
+<code>&lt;tosi-b3d&gt;</code> sends each cost sweep step, the Perf Stats lines while that
+popup is open in a session, and every <code>logDebug</code> event. Off by default.</li>
+<li><strong><code>bun run xr … --counters [--again n]</code></strong>: documents, DOM nodes, listeners
+and JS heap before and after a script, after a collection.</li>
+<li><strong>Cost sweep</strong> (<code>b3d.costSweep()</code>, and a button in Perf Stats): where a
+frame goes, measured on the device, by switching one thing off at a time.
+Runs are numbered and the last four are kept, each saying whether it
+finished or where it stopped, so a run that hangs does not replace the one
+before. <strong>Shader sweep</strong> is a separate button: it measures the ground
+shader&#39;s other forms, which recompiles shaders.</li>
+<li><strong>A popup&#39;s move and close icons keep their size on a tall popup in a
+headset.</strong> The title bar was a fifth of the popup&#39;s height, so Perf Stats
+with a long list got icons several times too large, over its first rows.</li>
+<li><strong>A popup is capped in height and scrolls past the cap</strong> (480 units, or the
+caller&#39;s <code>maxHeight</code>). Perf Stats with a sweep listed was taller than the
+screen flat and enormous in a headset, with no way to its lower rows.</li>
+<li><strong>The decorator places a share of its budget set by the device tier</strong>
+(<code>budgetScale</code>, <code>0</code> = auto: 1, and 0.6 on the low tier, which is a Quest in
+a session). Measured on a Quest: decorations were 16 ms of a 42 ms frame.
+Set <code>budgetScale: 1</code> to place the whole budget everywhere.</li>
+<li><strong>A thinned scatter loses clumps, not density</strong> (<code>ScatterOptions.share</code>,
+<code>clumpCentreFor</code>): the weaker clumps go and the middle of the rest stays as
+full, in the same places as the whole scatter. The decorator&#39;s share and the
+moisture thinning both work this way. Rules also gather more by default
+(<code>clump</code> 0.95, was 0.85), so fewer things stand alone.</li>
+<li><strong>The cost sweep&#39;s two headset rows measure what the resolution levers are
+saving</strong> (<code>+ full resolution</code>, <code>+ no foveation</code>). The old rows set the
+values the tier already uses, so they measured nothing.</li>
+<li><strong>Wetter country grows more.</strong> A scatter rule&#39;s moisture band only said
+where a kind may grow, and every plant&#39;s band reached the top, so anything
+damp enough for a tree grew the same forest as the wettest setting. Plant
+rules now have a <code>thirst</code>: the drier it is, the more of their places are
+left empty (<code>moistureCover</code>). In Land and Sky, trees go from about 120 at
+moisture 0.5 to about 240 at 1; rocks are unchanged.</li>
+<li><strong>A headset session no longer freezes the second time your hands are
+tracked.</strong> Babylon&#39;s hand tracking (9.16) takes the topmost ancestor of its
+shared hand mesh as a root and parents it to the camera&#39;s parent every
+frame. The second time hands appear (a controller put down twice), that root
+is the camera&#39;s parent itself, which became its own parent; the next enable
+or dispose then recursed until the stack ran out and the picture stopped.
+Found on a Quest with Perf Stats open (#3135). The rig now refuses such a
+parent (<code>refuseOwnAncestor</code>, exported for anyone parenting an XR camera to
+their own node).</li>
+<li><strong>Underwater light rays go away when you leave the water.</strong> They were still
+fading on the frame you surfaced, the update read the water that was no
+longer above you and threw, and it threw again every frame after, so the
+rays stayed for good.</li>
+<li><strong>A popup moved in a headset stays with its panel.</strong> Dragging an owned popup
+used to tear it off, so moving the panel afterwards left it behind. It now
+moves relative to its opener and stays owned; <code>tearOff()</code> is still how a
+caller lets one go.</li>
+<li><strong>No second, dead copy of a popup after a panel rebuild in a headset.</strong> The
+rebuild dropped its popups&#39; handles and relied on each dying with the panel
+plane. One that was torn off, or not yet mounted, stayed in the scene: a
+Perf Stats that never updated and could not be closed. They are now closed
+before the plane goes, and a popup whose opener has been disposed closes
+itself.</li>
+<li><strong>Perf Stats refreshes every two seconds in a headset</strong> (was 0.4 s). A
+Quest hung within minutes with it open and ran on with it closed; the cause
+is not known, this redraws its texture less often.</li>
+<li><strong>Water, and the ice on it, receives shadows.</strong> The surface never did: it
+was not marked as a shadow receiver, so nothing cast a shadow on the sea,
+which on a white ice sheet is obvious. <code>&lt;tosi-b3d-water receiveShadows=&quot;off&quot;&gt;</code>
+restores the old behaviour and saves a shadow lookup per water pixel (the
+cost on a headset has not been measured).</li>
+<li><strong>Cloud shadows fall on water and ice.</strong> They never did, on any device:
+cloud shadows are a material plugin, and Babylon&#39;s water material runs no
+plugins. The lookup is now in the water&#39;s own shader, fed from the scene&#39;s
+cloud shadow map (<code>cloudShadowMapOf(scene)</code>, new). <code>receiveShadows=&quot;off&quot;</code>
+turns it off with the sun&#39;s shadows. Every water now uses the patched
+shader, not only <code>shore=&quot;on&quot;</code>.</li>
+<li><code>PerlinNoise(0)</code> uses seed 0. It was treated as &quot;no seed&quot; and gave a
+different field every time.</li>
+<li><code>world-store.ts</code> compiles under <code>noUncheckedIndexedAccess</code> (the steer loop
+read <code>r.portals[0]</code> unguarded), so a project that vendors it with strict
+settings no longer has to pin an old copy.</li>
+<li>The world contract now says what it meant: a driver must supply <code>spec.id</code> to
+<code>spawn</code> (the return value cannot cross a worker boundary), and <code>setIntent</code>
+is legacy (<code>steer</code> is what the sim honours).</li>
+<li>The conformance kit covers the choice primitive: a pick emits exactly one
+<code>choiceMade</code>, an option that is not on the menu emits nothing, a choice is
+reported once, and the sim resolves nothing.</li>
+<li><strong>A bomb that goes off on terrain now hurts what is above it.</strong> The blast&#39;s
+line of sight started on (or just under) the surface it hit, so the terrain
+was cover for everything and a ground burst damaged nothing. A burst near a
+surface now looks from a metre above it; a hill or wall in between is still
+cover. (Only a mesh named <code>ground</code> was exempt before.)</li>
+<li><strong>Decorator: naming the default library explicitly no longer empties the
+scatter.</strong> Default rules were chosen by whether <code>url</code> was set, so
+<code>url=&quot;…/quaternius/libraries/nature.glb&quot;</code> got the other library&#39;s rules,
+which matched no model. The choice is now made from the library in use.</li>
+<li><strong>Decorator: <code>NATURE_ROLES</code> applies only to the default library.</strong> Its keys
+are generic material names (<code>White</code>, <code>Wood</code>), so a third-party model with a
+material of the same name had it replaced by flat biome shading. Set <code>roles</code>
+to opt a custom library in.</li>
+<li>The Perf Stats &quot;Occlusion&quot; button says whether occlusion is running, not
+what was asked for (<code>on, not running here</code> when the method cannot run in
+the current mode). Land and Sky&#39;s own occlusion select, which drifted out of
+step with it, is gone.</li>
+<li><strong>Lightning bolts are solid, not see-through.</strong> The channel was faded by
+transparency between re-strokes, so up close it was a pale translucent
+tube. It is opaque while the stroke is live, far brighter than white (so it
+blooms), and the glow around it fades to nothing at its edge. The flicker is
+carried by the glow, the cloud and the ground.</li>
+<li><strong>Thunder stops when its storm does.</strong> Thunder is queued as far ahead as
+sound takes to arrive, so changing world left the old storm&#39;s thunder
+playing over the new one.</li>
+<li><strong>In VR, the pointer no longer lands on the vehicle you are sitting in.</strong>
+In the aircraft&#39;s cockpit the controller ray hit the canopy first, and on a
+Quest the panel behind it could be hovered but not pressed or dragged, so
+there was no way out of the session from inside. Anything beneath the node
+the XR rig rides on is no longer a pointer target; your own panels are.
+(Reproduced and checked with the emulated headset; not yet on a device.)</li>
+<li><strong>Sea ice: the plate pattern no longer depends on the GPU&#39;s <code>sin</code>.</strong> The
+plates were laid out with the classic <code>fract(sin(x) * 43758.5)</code> hash, which
+mobile GPUs evaluate differently from desktop ones; in a headset the ice
+showed severe mismatches that a Mac never did. The hash is arithmetic only
+now. Plate edges are also a little softer. (The layout of plates for a given
+place changes. Not yet confirmed on a headset.)</li>
+<li><strong>No holes in solid sea ice near its edge.</strong> The invisible mesh a car or a
+shell lands on kept a triangle only if all three corners were solid, so a
+band one cell wide (16 m and more far from the viewer) was drawn solid and
+had nothing to stand on. A triangle is kept when it is solid on average,
+which is where the drawn ice crosses the same line.</li>
+<li><strong>The HUD page no longer throws 30 times a second.</strong> Its demo still called
+<code>setTraces(traces, viewer, options)</code>, a signature that went away when the
+HUD started projecting through the camera. The demo passes the camera, and
+<code>setTraces</code> warns once (and draws nothing) if it is handed anything else.</li>
+<li>Three demo controls were dead because they still used an old name the
+compiler cannot see in a doc comment: the aircraft page&#39;s &quot;chase pitch
+follow&quot; and &quot;follow lag&quot; sliders, and the particles page&#39;s Burst button.
+(They worked, with a warning, until the fallback was removed here.)</li>
+</ul>
+<h2 id="090">0.9.0</h2>
 <p><strong>A sea that knows its shore, and a temperature that means one.</strong> The water
 takes the depth and the distance to land from the terrain and draws surf that
 runs in, pale shallows and sea ice; solid ice is solid for everything in the
@@ -59,7 +295,7 @@ scene. Temperature is now a real scale (0 is 0 °C, 1 is 50 °C), so the same
 dial reaches Titan and Venus.</p>
 <p>Size: barrel (min, packages external) 948.5 KB raw / 318.9 KB gz, +1.75% on
 0.8.15 (the shore model and its shader).</p>
-<h3>⚠️ Breaking</h3>
+<h3 id="️-breaking-1">⚠️ Breaking</h3>
 <ul>
 <li><strong><code>biomeTemperature</code> is a temperature, and <code>-1</code> no longer means
 &quot;default&quot;.</strong> <code>0</code> is 0 °C and each unit is 50 °C (<code>1</code> = 50 °C, <code>-1</code> =
@@ -70,9 +306,9 @@ chart&#39;s <code>0…1</code> axis with <code>-1</code> for &quot;default&quot;
 chart is a window onto the new scale (-22.5 °C to 40 °C) and clamps beyond
 it. <code>chartTemperature</code> / <code>planetTemperature</code> convert. Everything inside the
 biome shader, province climate and decorator bands is still in chart
-units. See <a href="./Migration.md">Migration</a>.</li>
+units. See <a href="https://3d.tosijs.net/Migration/">Migration</a>.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed">Changed</h3>
 <ul>
 <li><strong>The deprecated <code>onX</code> callback names stay for one more minor.</strong> They were
 announced as &quot;removed in 0.9&quot;; they are removed in <strong>0.10</strong> instead, and
@@ -81,7 +317,7 @@ for removal in 0.9 (<code>whenEnter</code>/<code>whenExit</code>&#39;s old spell
 the manipulator&#39;s, <code>generateGalaxy</code>). Nothing to do yet beyond renaming at
 your own pace.</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added">Added</h3>
 <ul>
 <li><strong>A shoreline, and sea ice.</strong> <code>&lt;tosi-b3d-water shore=&quot;on&quot;&gt;</code> gives the water
 the depth of the ground under each vertex (from the scene&#39;s terrain) and
@@ -111,7 +347,7 @@ where it collides. A biped swimming at the surface climbs onto solid ice;
 one that dived first goes under it, with the ice as a ceiling.
 <code>water.iceBearsAt(x, z)</code> asks for any point.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-1">Fixed</h3>
 <ul>
 <li><strong>Water animates on every browser.</strong> Babylon&#39;s <code>WaterMaterial</code> advances
 its clock only on a frame whose duration differs from the last, so where
@@ -138,13 +374,13 @@ back to full air never quite arrived.</strong> The vacuum fog layer now mixes fo
 by strength (<code>FogLayer.reciprocal</code>), and the sky&#39;s air value lands exactly
 on 0 and 1.</li>
 </ul>
-<h2>0.8.15</h2>
+<h2 id="0815">0.8.15</h2>
 <p><strong>Rocks and trees that belong to the land.</strong> Procedural rocks, Quaternius
 trees gathered into copses, and a biome shader that colours vegetation by the
 ground under it and by the season: autumn colour, bare winter branches, snow.</p>
 <p>Size: barrel (min, packages external) 932.0 KB raw / 313.0 KB gz, +1.85% on
 0.8.14.</p>
-<h3>Added</h3>
+<h3 id="added-1">Added</h3>
 <ul>
 <li><p><strong>Procedural rocks.</strong> <code>rockGeometry({ seed })</code> makes a rock from a seed
 (a sphere cut by random planes, roughened, squashed, sunk into the ground):
@@ -204,7 +440,7 @@ model&#39;s use of a shared material).</p>
 demo on any device; Land and Sky has its own control too.</p>
 </li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-1">Changed</h3>
 <ul>
 <li><p><strong>⚠️ The decorator&#39;s defaults changed: models, rocks and layout.</strong> See
 <a href="/Migration/">Migration</a> for the exact steps. In short:</p>
@@ -255,7 +491,7 @@ skipping one eye breaks stereo. Top-tier devices are unchanged. To keep the old 
 <li><p>Land and Sky&#39;s lightning storm toggle moved to the Weather tab.</p>
 </li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-2">Fixed</h3>
 <ul>
 <li><p><strong>A small, distant sun is visible in an airless sky.</strong> Its disc is drawn at
 true size, which from Jupiter is under a pixel, so Io had no sun. A tight
@@ -278,9 +514,9 @@ with no host falls back to stepping. Land and Sky&#39;s world picker jumped from
 Earth to Mars on a tap. (Seen in a headset, reproduced flat.)</p>
 </li>
 </ul>
-<h2>0.8.14</h2>
+<h2 id="0814">0.8.14</h2>
 <p><strong>Ambient occlusion that works in a headset, and it is the default.</strong></p>
-<h3>Changed</h3>
+<h3 id="changed-2">Changed</h3>
 <ul>
 <li><strong><code>ssaoMethod</code> defaults to <code>projected</code>.</strong> Scenes with <code>ssao=&quot;on&quot;</code> or <code>&quot;auto&quot;</code>
 now get the projected method flat, which keeps antialiasing and concentrates
@@ -288,7 +524,7 @@ its darkening in contacts and corners. <strong><code>ssao=&quot;on&quot;</code> 
 headset</strong>, where it used to switch itself off. <code>auto</code> still never runs in a
 headset. Set <code>ssaoMethod=&quot;screen&quot;</code> for the previous behaviour exactly.</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-2">Added</h3>
 <ul>
 <li><strong>Projected ambient occlusion</strong> (<code>ssaoMethod</code>, <code>ssaoRate</code> on <code>&lt;tosi-b3d&gt;</code>):
 occlusion computed once from a camera between the eyes and looked up by every
@@ -305,15 +541,15 @@ was whatever it had been when the popup opened.</li>
 <li>The SSAO demo has a bust (on the CDN at <code>tosijs-3d/ariosto-bust.glb</code>) and a
 <code>method</code> selector; the scene loader demo has shadow, glow and SSAO toggles.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-3">Fixed</h3>
 <ul>
 <li><strong>Opening a second menu in a panel left the first one open</strong>, one list over
 the other. A panel now has one anchored popup at a time. (Seen in a headset,
 reproduced flat.)</li>
 </ul>
-<h2>0.8.13</h2>
+<h2 id="0813">0.8.13</h2>
 <p><strong>A schema for <code>&lt;tosi-b3d&gt;</code> itself, and an emulated headset in the repo.</strong></p>
-<h3>Added</h3>
+<h3 id="added-3">Added</h3>
 <ul>
 <li><strong><code>sceneSchemas.b3d</code> / <code>b3dSchema()</code></strong>: the host&#39;s scene-level attributes,
 with ranges, units and useful bands: <code>clearColor</code>, <code>glowLayerIntensity</code>,
@@ -328,12 +564,12 @@ emulated headset. Headless Chrome with a fake WebXR device enters VR on a
 page, screenshots both eyes and drives controllers from script. It is how
 0.8.12&#39;s headset fixes were found.</li>
 </ul>
-<h2>0.8.12</h2>
+<h2 id="0812">0.8.12</h2>
 <p><strong>0.8.11&#39;s ambient occlusion broke VR, and this takes it out of the headset.</strong>
 Also: headset popups can be dragged and closed, and a model no longer shields
 itself from a blast. The headset fixes were verified in an EMULATED headset
 (a fake WebXR device in headless Chrome), not yet on a device.</p>
-<h3>Fixed</h3>
+<h3 id="fixed-4">Fixed</h3>
 <ul>
 <li><strong>SSAO broke VR.</strong> With <code>ssao=&quot;always&quot;</code> a headset drew one image stretched
 across both eyes, and <code>on</code> put the same chain on the headset camera for the
@@ -360,17 +596,17 @@ own hull. An aircraft with <code>destroyable=&quot;on&quot;</code> took no blast
 bomb included. Anything beneath a destroyable is now not cover; a wall
 still is. From manta-recon (board #2906).</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-3">Changed</h3>
 <ul>
 <li><strong>SSAO is flat-only, and <code>ssao=&quot;always&quot;</code> is deprecated.</strong> 0.8.11 said
 <code>always</code> ran in a headset. It is the setting that broke the frame. It is
 still accepted, means <code>on</code>, and warns once.</li>
 </ul>
-<h2>0.8.11</h2>
+<h2 id="0811">0.8.11</h2>
 <p><strong>Ambient occlusion.</strong> One attribute on <code>&lt;tosi-b3d&gt;</code>, off by default. Checked
 flat; <code>always</code> (the in-headset setting) is not yet verified per eye on a
 device, and this release is partly so that it can be.</p>
-<h3>Added</h3>
+<h3 id="added-4">Added</h3>
 <ul>
 <li><strong>Ambient occlusion: <code>&lt;tosi-b3d ssao&gt;</code>.</strong> <code>off</code> (default), <code>auto</code> (on where
 the device tier affords it), <code>on</code>, or <code>always</code>. <code>auto</code> and <code>on</code> are
@@ -385,7 +621,7 @@ depth-and-normals pass is built at the SSAO&#39;s own resolution, which measured
 cloud deck, terrain and skinned characters all checked clean. New page:
 Effects → Ambient occlusion, with a small scene to test in a headset.</li>
 </ul>
-<h2>0.8.10</h2>
+<h2 id="0810">0.8.10</h2>
 <p><strong>Two fixes from manta&#39;s orbit stage, and the doc site has shadows again
 without a workaround.</strong> Glow no longer whites out the frame under a fading
 full-screen mesh, and the skybox leaves the background colour alone for a
@@ -394,7 +630,7 @@ the cause of ensemble&#39;s <code>Cannot redefine property</code> error and our 
 site shadows.</p>
 <p>Size: barrel (min, packages external) 898.6 KB raw / 300.6 KB gz, +0.05% on
 0.8.9.</p>
-<h3>Fixed</h3>
+<h3 id="fixed-5">Fixed</h3>
 <ul>
 <li><strong>Glow no longer whites out the frame under a fading full-screen mesh</strong>
 (board #2742, from manta-recon). Babylon&#39;s glow layer ignores opacity: it
@@ -412,7 +648,7 @@ The sky used to reset it to Babylon&#39;s default grey on every refresh, so
 manta&#39;s orbit view re-set black every frame. The sky re-applies its backdrop
 when the active camera changes back.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-4">Changed</h3>
 <ul>
 <li><strong>Dev: tosijs-ui 1.16.5 and tosijs 1.10.7.</strong> tosijs-ui 1.16 loads the doc
 site&#39;s entry once (tosijs-ui#191), so the static shadow-shader workaround in
@@ -423,12 +659,12 @@ double load was also ensemble&#39;s <code>Cannot redefine property: onBeforeView
 declares <code>url</code>/<code>player</code>, and a dead <code>_jumpWas</code> store is gone. The peer range
 is unchanged (<code>tosijs ^1.9.2</code>).</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-5">Added</h3>
 <ul>
 <li><strong><code>opacityWeightedGlow(layer)</code></strong> installs the same rule on a <code>GlowLayer</code> you
 build yourself.</li>
 </ul>
-<h2>0.8.9</h2>
+<h2 id="089">0.8.9</h2>
 <p><strong>What ensemble was waiting on, and a safer publish.</strong> Schemas for the moon,
 the weather and decoration elements and sound, with sections, so a schema-
 driven editor can offer the weather; <code>inputField</code> no longer leaks; fetched
@@ -436,7 +672,7 @@ attributes refuse anything but a string. And the publish now runs under the
 practices template where only a code-free job can hold the npm credential.</p>
 <p>Size: barrel (min, packages external) 898.1 KB raw / 300.5 KB gz, +0.6% on
 0.8.8.</p>
-<h3>Added</h3>
+<h3 id="added-6">Added</h3>
 <ul>
 <li><strong>Schemas for the moon and the weather and decoration elements</strong>
 (tosijs-3d#93, #97, from ensemble): <code>moonSchema</code>, <code>weatherCellSchema</code>,
@@ -456,7 +692,7 @@ the grouping. Tested: every key exists, none twice.</li>
 cloud deck&#39;s <code>coverage</code> past 1 is thickness, not more cover, and <code>cirrus</code>
 is signed, its sign picking the axis.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-6">Fixed</h3>
 <ul>
 <li><strong><code>inputField</code> leaked itself and everything containing it</strong>
 (tosijs-3d#96, from ensemble): every field&#39;s keyboard-toggle repaint went
@@ -471,12 +707,12 @@ decorator and sound now refuse anything but a string (<code>fetchedUrl</code>, a
 once-per-field warning). The elements still fetch whatever string they
 are given: validating URLs stays the embedder&#39;s job.</li>
 </ul>
-<h3>Security</h3>
+<h3 id="security">Security</h3>
 <ul>
 <li><strong>The publish workflow is re-copied from the practices template</strong>: only a
 stage job running no project code holds the npm credential.</li>
 </ul>
-<h2>0.8.8</h2>
+<h2 id="088">0.8.8</h2>
 <p><strong>Adopter fixes and folding everywhere.</strong> Aircraft no longer crash into
 explosion debris, <code>b3d-planet</code> survives high detail, and bomb and missile
 blasts can be sized to a game&#39;s world (all from manta-recon). Any panel can
@@ -484,7 +720,7 @@ now fold or tab its sections (<code>foldSections</code>, from ensemble), and tab
 better when space is tight.</p>
 <p>Size: barrel (min, packages external) 891.7 KB raw / 298.6 KB gz, +0.1% on
 0.8.7.</p>
-<h3>Added</h3>
+<h3 id="added-7">Added</h3>
 <ul>
 <li><strong>Bomb and missile blast radii are attributes</strong> on <code>&lt;tosi-b3d-aircraft&gt;</code>
 (board #2808, manta-recon): <code>bombFullRadius</code> / <code>bombBlastRadius</code> (2 / 6)
@@ -496,7 +732,7 @@ collapsible sections, folded or as tabs, and asks for a rebuild when one
 toggles. <code>&lt;tosi-b3d&gt;</code>&#39;s scene panel is built on it, so a <code>panel3d</code> of your
 own folds the same way.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-5">Changed</h3>
 <ul>
 <li><strong>The active tab shrinks to its own caption</strong> when tabs are tight (Tonio):
 a short active tab no longer takes the width of the longest, and the space
@@ -505,7 +741,7 @@ Each side stays on its side: tabs left of the active one end under it and
 tabs right of it start under it, so a narrow active tab no longer lets the
 right side cover the left side&#39;s slices.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-7">Fixed</h3>
 <ul>
 <li><strong>Aircraft crashed into explosion debris</strong> (board #2803, manta-recon): the
 sweep ray treated <code>fragment-N</code> meshes as solid, so flying through an
@@ -516,14 +752,14 @@ damaging debris.</li>
 <code>Math.max(...vertexHeights)</code> overflowed the stack (160 failed, 96 worked).
 Now a loop.</li>
 </ul>
-<h2>0.8.7</h2>
+<h2 id="087">0.8.7</h2>
 <p><strong>Panels that fit.</strong> The scene panel caps itself to the space it has, and
 its sections can fold or become file tabs, captions or icons, with the
 overlap and stacking of real file tabs. Land and Sky uses icon tabs and a
 preset menu. Also: a security pin for a build-only dependency.</p>
 <p>Size: barrel (min, packages external) 891.2 KB raw / 298.3 KB gz, +0.7% on
 0.8.6.</p>
-<h3>Added</h3>
+<h3 id="added-8">Added</h3>
 <ul>
 <li><strong>Scene panels fit the space they have</strong> (board #2466). The flat ⚙ panel
 is capped at the scene&#39;s height (it was a fixed 620 px, and ran off the
@@ -552,7 +788,7 @@ and Sky uses icon tabs.
 <code>tabs3d</code> is exported (with <code>Tab3d</code>), and the widgets page has a live
 <strong>Tabs</strong> demo: nine captions overlapping, three side by side, icons.</li>
 </ul>
-<h2>0.8.6</h2>
+<h2 id="086">0.8.6</h2>
 <p><strong>Other worlds.</strong> Land and Sky becomes a world builder: presets you pick,
 save and share, with Earth, Mars, Venus, the Moon, Io and Titan built in.
 A crater field landform, volcano fields, ground palettes, sea colours, and
@@ -560,7 +796,7 @@ a sun whose size and brightness follow the world. Lightning casts shadows
 and darkens the day, and the aircraft demo has weather to fly in.</p>
 <p>Size: barrel (min, packages external) 885.2 KB raw / 296.3 KB gz, about
 +0.3% on 0.8.5.</p>
-<h3>Added</h3>
+<h3 id="added-9">Added</h3>
 <ul>
 <li><strong>Land and Sky presets</strong> (board #2442, stage 1): a whole world as data
 (terrain, sea, climate, weather, atmosphere, stars, moons, cloud colours,
@@ -600,7 +836,7 @@ the storm&#39;s rain is now a preset setting (<code>stormRain</code>).</li>
 across your starting heading, so you crab) and storminess (a storm cell
 over the whole arena), and a live turbulence readout.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-8">Fixed</h3>
 <ul>
 <li><strong>Lightning bolts vanished into haze</strong> while their light still lit the
 ground (Tonio: &quot;I see flashes but never seem to see lightning strokes&quot;):
@@ -611,7 +847,7 @@ fraction of a pixel a few kilometres off, so under a big storm most bolts
 vanished while their flash lit everything. Bolts (and their glow) now
 scale with distance, never thinner than about a pixel and a half.</li>
 </ul>
-<h2>0.8.5</h2>
+<h2 id="085">0.8.5</h2>
 <p><strong>Weather you can watch.</strong> Storms that darken the day and strike: lightning
 that lights the cloud from below, inside and above, lights the landscape and
 throws shadows, with thunder at the speed of sound. Shafts of sun through a
@@ -622,7 +858,7 @@ deck&#39;s local weather was mirrored north-south, and on the doc site no shadow
 map had rendered at all.</p>
 <p>Size: barrel (min, packages external) 883.2 KB raw / 295.6 KB gz (+5.7% gz),
 for lightning, light shafts, weather cells, trails and caustics.</p>
-<h3>Fixed</h3>
+<h3 id="fixed-9">Fixed</h3>
 <ul>
 <li><p><strong>Lightning lit the land through cloud-shaped shadows</strong> (Tonio: &quot;the
 directional light seems to be coming from above the cloud layer ... the
@@ -691,7 +927,7 @@ it. Pure: <code>cloud-field</code>&#39;s <code>orographicLift</code>, tested. <c
 the height above the sea.</p>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-10">Added</h3>
 <ul>
 <li><strong>Lightning casts shadows</strong> (Tonio: &quot;spin up a shadow map and retain it
 between strokes and just use it for the brightest strike&quot;). ONE shadow map,
@@ -888,7 +1124,7 @@ audio cues, and <strong><code>submerged</code></strong> (0–1) is readable. In 
 <code>FlyByWireConfig.mediumDrag</code>, and drag now clamps at rest instead of
 overshooting into reverse on a long frame.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-10">Fixed</h3>
 <ul>
 <li><strong>Replacing the player left input focus on the removed one</strong> (board #2421,
 from manta-recon&#39;s respawn): the new craft got no input and its crash was
@@ -914,7 +1150,7 @@ Markup (<code>gamepad</code>, <code>gamepad=&quot;…&quot;</code>) and <code>b3
 #458), resetting them to the defaults. It now clears the travel (the
 floating-origin offset) and leaves the placement alone.</li>
 </ul>
-<h2>0.8.4</h2>
+<h2 id="084">0.8.4</h2>
 <p><strong>A sky you can actually see the stars in, and a world with things growing on
 it.</strong> The encoded sky is decoded exactly (sharp points, not smeared blobs),
 twinkles, and is rebaked from the new voxel galaxy — one galaxy implementation
@@ -936,7 +1172,7 @@ and warn once: <code>generateGalaxy</code> (use <code>voxelGalaxy</code>), <code
 the trigger, <code>handleChange</code>/<code>handleCommit</code> on the manipulator
 (<code>whenChange</code>/<code>whenCommit</code>). <code>registerIcons</code> now refuses markup that can run.</p>
 </blockquote>
-<h3>Fixed</h3>
+<h3 id="fixed-11">Fixed</h3>
 <ul>
 <li><strong>Dropdowns in a panel with a pinned header opened over their own
 control</strong> — body popups were anchored as if there were no header, too high
@@ -1056,7 +1292,7 @@ terrain rebuild; and the fly-into-cloud whiteout rebuilt the whole weather
 field — a fresh terrain height sampler — every frame to sample one point.
 The first bakes once; the second samples the field the bake already built.</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-11">Added</h3>
 <ul>
 <li><strong>Undo for the two page-global mutations.</strong> <code>themeEditor()</code>&#39;s element has
 <code>restore()</code> — the palette as it was when the editor was built, then
@@ -1083,7 +1319,7 @@ not guessed), and the distant shell. <code>bakeSkyPair</code> takes precomputed
 <code>objects</code>; <code>bin/bake-stars.ts</code> rebakes <code>static/sky/stars_*</code> without a
 browser in ~1 s for the tuning loop; <code>SHIPPED_SKY.voxel</code> holds the dials.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-6">Changed</h3>
 <ul>
 <li><strong><code>b3d-manipulator</code> callbacks are <code>whenChange</code> / <code>whenCommit</code></strong> — the
 component convention. <code>handleChange</code>/<code>handleCommit</code> still work, warn once,
@@ -1217,7 +1453,7 @@ plain string that is not a colour, enum, URL or deliberately listed.</li>
 <li><strong><code>bun run sizes</code></strong> — the barrel as a consumer bundles it, and the shipped
 <code>dist/*.js</code>, against a committed <code>dist-sizes.json</code> (0.8.3: 263.1 KB gz).</li>
 </ul>
-<h2>0.8.3</h2>
+<h2 id="083">0.8.3</h2>
 <p><strong>A galaxy that costs nothing per frame, a sky that keeps the right time, and
 clouds that light like clouds.</strong> Galaxy billboarding moved into the vertex
 shader (3.19 ms → ~0.02 ms of CPU per render). The sun now runs a northern arc,
@@ -1236,7 +1472,7 @@ kitchen-sink demo module <code>tosijs-3d/world-sim</code> is now <code>tosijs-3d
 reference sky (<code>/sky/default_*.png</code>) is no longer served — it lives in
 <code>reference/sky/</code> in the repo.</p>
 </blockquote>
-<h3>Added</h3>
+<h3 id="added-12">Added</h3>
 <ul>
 <li><strong><code>galaxy.pickStar(x, y)</code></strong> — the star under a screen point, or <code>-1</code>: the
 nearest star whose DRAWN disc the ray crosses (the old triangle pick also
@@ -1253,7 +1489,7 @@ in commit messages.</li>
 wants ~0.7. And <code>terrain.generationKey</code>, which changes whenever the
 terrain&#39;s shape does.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-7">Changed</h3>
 <ul>
 <li><strong><code>b3d-galaxy</code> billboards in the vertex shader.</strong> Stars and nebulae are
 static quads the shader turns to face the viewpoint; the per-frame
@@ -1292,7 +1528,7 @@ cover 0.10,
 arrows ROTATE (up = look up); it was an orbit camera, so up-arrow nose-dived
 and left/right swung the eye round a 300 m circle.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-12">Fixed</h3>
 <ul>
 <li><strong>The sun ran a southern-hemisphere arc at a northern latitude.</strong> North is
 +Z (every heading is <code>atan2(x, z)</code>) and the latitude rotation leaned the arc
@@ -1323,15 +1559,15 @@ distant stars) and once properly. The shipped sky (<code>static/sky/stars_*</cod
 rebaked without them; the recipe was first proven by reproducing the old
 faces byte-for-byte with the pre-fix code.</li>
 </ul>
-<h3>Deprecated</h3>
+<h3 id="deprecated">Deprecated</h3>
 <ul>
 <li><strong><code>getStarSPS()</code></strong> returns <code>null</code> and warns once — there is no particle
 system. Use <code>pickStar</code>. <code>getDistantStarParticles()</code> /
 <code>getDistantGalaxyParticles()</code> now return <code>GalaxyPoint</code>s (the
 <code>position</code>/<code>scaling</code>/<code>color</code> subset of a <code>SolidParticle</code> the baker read).</li>
 </ul>
-<h2>0.8.2</h2>
-<h3>Added</h3>
+<h2 id="082">0.8.2</h2>
+<h3 id="added-13">Added</h3>
 <ul>
 <li><strong>The encoded sky</strong> — <code>starfield-codec</code> + <code>skybox-baker</code>. A starfield is data,
 not a picture: six small RGBA faces carry sub-texel position, gamma brightness
@@ -1359,7 +1595,7 @@ as a fraction of v-size), weather, and the encoded sky, under Demos.</li>
 galaxy option — the colour follows the class, and planets (71% of galaxy
 generation time) are computed on demand via <code>generateStarSystem</code>.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-8">Changed</h3>
 <ul>
 <li><strong>Galaxy generation is ~70× faster</strong> — names derive from each star&#39;s own
 seed via a cheap PRNG (no collision retries, no name table), planets are
@@ -1372,7 +1608,7 @@ through the light&#39;s colour.</li>
 <li><strong>The baker downloads ONE zip</strong> — twelve separate downloads got silently
 dropped by the browser mid-burst.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-13">Fixed</h3>
 <ul>
 <li>The biome classifier&#39;s sea level and lapse rate are LIVE dials — they
 move the snow line without re-cutting the tile pool (the shader reads the
@@ -1384,10 +1620,10 @@ left pointing at a disposed texture).</li>
 <li>The sky shader compiles under the strictest decoders — floats in the
 generated GLSL now LOOK like floats.</li>
 </ul>
-<h2>0.8.1</h2>
-<h3>⚠️ Breaking</h3>
+<h2 id="081">0.8.1</h2>
+<h3 id="️-breaking-2">⚠️ Breaking</h3>
 <p>Nothing breaks at compile time. Two behaviours change, and
-<a href="./Migration.md">Migration.md</a> has the before/after for each.</p>
+<a href="https://3d.tosijs.net/Migration/">Migration.md</a> has the before/after for each.</p>
 <ul>
 <li><strong>Aircraft guns are direct-hit, not area-effect.</strong> <code>gun-mode=&quot;blast&quot;</code>
 restores the old behaviour; <code>gunBlastRadius</code>/<code>gunFullRadius</code> are attributes
@@ -1399,7 +1635,7 @@ see Migration.md for why that direction, and how to say otherwise.</li>
 <li><strong><code>select3d</code> no longer draws ‹ › stepper arrows.</strong> The popup it always had is
 now the only way in, and is discoverable.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-9">Changed</h3>
 <ul>
 <li><strong>Aircraft guns damage what they pass through, instead of firing an area
 effect</strong> (#23). Blast damage resolves by distance to a destroyable&#39;s
@@ -1424,7 +1660,7 @@ the same behaviour — were invisible to every explosion in the scene. The
 registry now lives on <code>DestroyableBehavior</code>, so anything attaching one is a
 target by construction.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-14">Fixed</h3>
 <p>A second headset pass found the rest of these. Between the two, every one was
 invisible to a green suite — and the ones on panels were all reproducible flat,
 which is now written down rather than re-learned (CLAUDE.md, &quot;A PANEL IS NOT A
@@ -1649,7 +1885,7 @@ never attached, so a visible VR spinner would have been culled.</p>
 editor no longer follows you between demos (from the 0.8.0 headset pass).</p>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-14">Added</h3>
 <ul>
 <li><p><strong>A spatial panel can be dragged, and the drag is aimed at where you POINT.</strong>
 <code>orbitFromAim</code> walks the controller ray to the sphere&#39;s radius and asks which
@@ -1820,10 +2056,10 @@ all things, had no colour control in the presentation this library is for.</p>
 literal colours and no <code>currentColor</code>, so they do not follow the theme.</p>
 </li>
 </ul>
-<h2>0.8.0</h2>
+<h2 id="080">0.8.0</h2>
 <p>Lights, editors, and the schema surface <code>tosijs-3d-ensemble</code> asked for — plus
 the two renames that were waiting for a minor.</p>
-<h3>⚠️ Breaking</h3>
+<h3 id="️-breaking-3">⚠️ Breaking</h3>
 <ul>
 <li><p><strong>Peer dependency: <code>tosijs</code> is now <code>^1.9.2</code></strong> (was <code>^1.7.8</code>). Upgrade tosijs
 alongside this. The floor moved because 1.9 fixes five issues we filed
@@ -1847,7 +2083,7 @@ In other words: all of them. <code>b3d-trigger</code> gains <code>whenEnter</cod
 instead, because components use <code>when*</code> (see Fixed).</p>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-15">Added</h3>
 <ul>
 <li><p><strong><code>handlerOf</code></strong> (<code>handler-of.ts</code>, exported from the barrel) — the shim behind
 the <code>handleX</code>/<code>onX</code> rule, in its own dependency-free module so the smallest
@@ -1907,7 +2143,7 @@ cells; <code>disabled</code> takes a predicate so a menu can be a constant.</p>
 <li><p><strong><code>table</code></strong> — <code>ColumnSpec.kind: &#39;icon&#39;</code>.</p>
 </li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-15">Fixed</h3>
 <ul>
 <li><p>A <strong>move</strong> no longer costs a scene, and a genuine removal now disposes the
 engine — a leaked WebGL context is not just memory (Chrome caps them near 16
@@ -2013,17 +2249,17 @@ both put their controls in flat DOM beside the canvas, which an immersive
 session does not render. Both now also build through <code>scenePanel</code>.</p>
 </li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-10">Changed</h3>
 <ul>
 <li>Doc pages are named for what they are (<code>Light program editor</code>, <code>Curve editor</code>, <code>Lamps</code>) rather than for their module. URLs are unchanged.</li>
 <li>⚠️ <code>shadows=&quot;on&quot;</code> is not free — one extra render of the caster list per lamp
 per frame, worse with a large <code>range</code>. Prefer <code>off</code> for dynamically inserted
 content.</li>
 </ul>
-<h2>0.7.8</h2>
+<h2 id="078">0.7.8</h2>
 <p>Lights you can see, edit and animate — and the editor surface <code>tosijs-3d-ensemble</code>
 asked for, built to their spec so they can adopt it without writing widgets.</p>
-<h3>Added</h3>
+<h3 id="added-16">Added</h3>
 <ul>
 <li><p><strong>Lamps.</strong> <code>b3dPointLight</code>, <code>b3dSpotLight</code>, <code>b3dAreaLight</code> — a placed light
 that comes with its own fixture geometry (toggle it, scale it, bring a GLB, or
@@ -2073,7 +2309,7 @@ module-level constant instead of being rebuilt whenever its state moves.
 <code>WidgetHost</code> is now exported — it was unnameable from outside.</p>
 </li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-16">Fixed</h3>
 <ul>
 <li><strong>Lamps never marked shadow RECEIVERS</strong>, so a <code>shadows=&quot;on&quot;</code> lamp rendered a
 shadow map nothing read — a full extra render pass that presented as lights
@@ -2088,18 +2324,18 @@ scale; pulled back 30% with the framing angle preserved (0.13° drift).</li>
 <li>Log slider values no longer carry float noise (<code>0.010000000000000009</code>), which
 matters because they are serialised and diffed.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-11">Changed</h3>
 <ul>
 <li>⚠️ <strong><code>shadows=&quot;on&quot;</code> is not free</strong>, and the cost is worst where it is least
 visible: every such lamp is an extra render of the caster list, per frame, and
 large <code>range</code> sweeps more of the world into it. Prefer <code>off</code> for dynamically
 inserted content. See <code>TODO.md</code> → arbitration for inserted lights.</li>
 </ul>
-<h2>0.7.7</h2>
+<h2 id="077">0.7.7</h2>
 <p>A lifecycle release. <code>&lt;tosi-b3d&gt;</code> now distinguishes being <strong>moved</strong> from being
 <strong>removed</strong>, which fixes an engine leak and a scene-corruption bug that were the
 same root cause seen from two ends.</p>
-<h3>Fixed</h3>
+<h3 id="fixed-17">Fixed</h3>
 <ul>
 <li><p><strong>A MOVE no longer costs a scene</strong> (#58, and the real cause of the black sky
 in #51). <code>connectedCallback</code> built an Engine and a Scene unconditionally, so
@@ -2133,7 +2369,7 @@ their scene, so after a rebuild a late subscriber received nodes belonging to
 the disposed one.</p>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-17">Added</h3>
 <ul>
 <li><p><strong><code>b3d.whenDisposed(cb)</code> → unsubscribe</strong> — the other half of <code>whenReady</code>, and
 the half that did not exist. Fires on a genuine disposal, <strong>not</strong> on a move.
@@ -2146,10 +2382,10 @@ Babylon&#39;s failure mode there is a black material that still reports
 <p>One rule governs both hooks: <strong>subscriptions are durable, scene state is not.</strong></p>
 </li>
 </ul>
-<h2>0.7.6</h2>
+<h2 id="076">0.7.6</h2>
 <p>An adoption-feedback release: everything here came from <code>tosijs-3d-ensemble</code>
 hitting it for real.</p>
-<h3>Fixed</h3>
+<h3 id="fixed-18">Fixed</h3>
 <ul>
 <li><p><strong>The icon LANGUAGE now works on the texture path</strong> (#54). <code>icon-data</code> stores
 every value with a trailing space, and a redirect is re-parsed as a <em>name</em>
@@ -2188,7 +2424,7 @@ backgrounded tab throttles timers, so the day cycle ran ~10x slow and never
 caught up.</p>
 </li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-12">Changed</h3>
 <ul>
 <li><strong>Underwater fog eases toward the surface</strong> rather than being full-strength
 until the crossing band.</li>
@@ -2200,8 +2436,8 @@ and our own deprecated tosijs usages are gone — <code>elementCreator({tag})</c
 deep path with it in the same module — the classic route to two Babylon module
 instances in a consumer&#39;s bundle.</li>
 </ul>
-<h2>0.7.5</h2>
-<h3>Added</h3>
+<h2 id="075">0.7.5</h2>
+<h3 id="added-18">Added</h3>
 <ul>
 <li><p><strong><code>iconGrid3d</code> — segmented select, tool palette and mode picker in one.</strong>
 Three widgets collapse into one because the difference between them was never
@@ -2257,7 +2493,7 @@ are that seam.</p>
 sorted so features come first and the pure models sort to the bottom.</p>
 </li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-13">Changed</h3>
 <ul>
 <li><strong>The scene-panel button wears the tosijs-3d owl</strong>, not a gear. The
 <code>scenePanelGear</code> part name is unchanged — a consumer may be styling it, and a
@@ -2267,7 +2503,7 @@ unicode glyphs. A codepoint is at the mercy of whatever font the panel
 resolved, and a rasterised texture is its own document with its own fallback,
 so <code>⏎</code> could arrive as a box.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-19">Fixed</h3>
 <ul>
 <li><strong>Nested panel pointer events were handled twice</strong> — once by the inner panel,
 then again when they bubbled to the outer one, which routed them back in by
@@ -2294,8 +2530,8 @@ to hit — wrong for a controller ray. The target is now sized on its own terms.
 <code>svgIcons</code> resolves and <code>iconGlyph</code> cannot. The icon guard now checks that a
 name RENDERS, not merely that it exists.</li>
 </ul>
-<h2>0.7.4</h2>
-<h3>Added</h3>
+<h2 id="074">0.7.4</h2>
+<h3 id="added-19">Added</h3>
 <ul>
 <li><p><strong><code>curve3d</code> + <code>footprint3d</code> — author a terrain province instead of coding
 one.</strong> A province is a <strong>footprint</strong> (extent by direction) plus <strong>one curve
@@ -2337,7 +2573,7 @@ the row keeps its own axis index and lights exactly one caret — all three at
 once says focus is everywhere, which says nothing.</p>
 </li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-20">Fixed</h3>
 <ul>
 <li><p><strong>A yielded camera is always given back.</strong> Dragging a popup detaches the
 camera so it does not orbit inside the same gesture, but the restore sat
@@ -2643,8 +2879,8 @@ nothing here changed; an adopter relying on the old default should pass
 <code>height: 480</code>.</p>
 </li>
 </ul>
-<h2>0.7.3</h2>
-<h3>Added</h3>
+<h2 id="073">0.7.3</h2>
+<h3 id="added-20">Added</h3>
 <ul>
 <li><p><strong>⚠️ The biped uses the GTA V control layout.</strong> Left stick moves and
 <strong>strafes</strong>; right stick <strong>turns the body</strong> and pitches. It was tank-controlled
@@ -2931,7 +3167,7 @@ downhill waded in and began swimming on its own.</li>
 </ul>
 </li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-14">Changed</h3>
 <ul>
 <li><p><strong>Toolchain bumped</strong> — <code>tosijs</code> 1.7.8 → 1.8.0, <code>tosijs-ui</code> 1.9.8 → 1.12.3,
 <code>haltija</code> 1.11.2 → 1.12.5, and <strong><code>tjs-lang</code> 0.13.6 added explicitly</strong>: it is a
@@ -2953,7 +3189,7 @@ FOCUS, so a command run from this directory could silently drive another
 project&#39;s page — which happened repeatedly. New in haltija 1.12.</p>
 </li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-21">Fixed</h3>
 <ul>
 <li><p><strong>Entering water flipped your heading 180°.</strong> With a mirrored glTF root
 (<code>scaling.z = −1</code>) world forward is <code>−(R·ẑ)</code>, so reading yaw back gives
@@ -3180,7 +3416,7 @@ which is symmetric and agrees with the wrong answer.</li>
 </ul>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-21">Added</h3>
 <ul>
 <li><strong><code>&lt;tosi-b3d-interactive&gt;</code> — a mesh you can touch</strong> (#36), the substrate doors,
 knobs, switches, levers, consoles and lamps all stand on. <code>b3d-button</code> is a
@@ -3212,8 +3448,8 @@ from touching the wrong thing — and aim wanders more in a headset, not less.</
 a mesh (a loader, a biped, a vehicle), plus <code>nearestInteractive</code> / <code>useNearest</code>
 for the &quot;walk up and press E&quot; control that wires to <code>ControlInput.interact</code>.</li>
 </ul>
-<h2>0.7.2</h2>
-<h3>Fixed</h3>
+<h2 id="072">0.7.2</h2>
+<h3 id="fixed-22">Fixed</h3>
 <ul>
 <li><strong><code>placement=&quot;world&quot;</code> left dialogs at the WORLD ORIGIN</strong> (#35) — so the pause
 and respawn panels were unreachable in any scene not centred on <code>(0,0,0)</code>, and
@@ -3225,7 +3461,7 @@ render: <strong><code>AbstractMesh</code> rewrites <code>mesh.position</code> fr
 MESH is silently undone. Both the placement and the easing now write the
 ELEMENT, which is what owns the transform.</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-22">Added</h3>
 <ul>
 <li><strong><code>destroyable=&quot;off&quot;</code> on <code>&lt;tosi-b3d-destroyable&gt;</code></strong> — place a library mesh
 without enrolling it in combat. Same knob and spelling <code>b3d-loader</code> already
@@ -3235,8 +3471,8 @@ getting a combat record whether or not anything could shoot it. Requested by
 tosijs-3d-ensemble, whose stopgap was <code>armor: 100_000</code> — buying &quot;cannot be
 killed&quot; by paying for a combatant.</li>
 </ul>
-<h2>0.7.1</h2>
-<h3>Fixed</h3>
+<h2 id="071">0.7.1</h2>
+<h3 id="fixed-23">Fixed</h3>
 <ul>
 <li><p><strong>Modal dialogs are WORLD-PLACED and follow you if you look away.</strong> The
 respawn and pause panels sit at a spot with clear line of sight, face you, and
@@ -3256,7 +3492,7 @@ together with the radians it produced, so a later write to <code>turnRate</code>
 detected exactly and the view derives fresh. Still one stored value.</p>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-23">Added</h3>
 <ul>
 <li><p><strong><code>flightStage()</code></strong> — a setting an aircraft can actually operate in: ground,
 sky and fog at flight scale, a library, a sun configured for the ground it
@@ -3289,7 +3525,7 @@ they are page-specific, not API.</li>
 </ul>
 </li>
 </ul>
-<h2>0.7.0</h2>
+<h2 id="070">0.7.0</h2>
 <blockquote>
 <p><strong>Prereleases, and why the numbering looks backwards.</strong> <code>0.7.0-rc.1</code> was cut
 first, then work continued as <code>-beta.1…beta.6</code>. Semver sorts beta BELOW rc, so
@@ -3334,7 +3570,7 @@ No peer-dependency changes, but this is a <strong>behaviour</strong> release: th
 the right stick and the on-screen gamepad all work differently, and one
 attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene that
 was tuned around the old feel.</p>
-<h3>⚠️ Breaking</h3>
+<h3 id="️-breaking-4">⚠️ Breaking</h3>
 <ul>
 <li><p><strong><code>canonicalize</code> now drops the CONTENT node&#39;s scene transform, so a model
 placed away from the origin in its source file lands differently.</strong> The
@@ -3447,7 +3683,7 @@ raw name keep working — but code that PARSED the returned string, or
 compared it to an authored name with its suffix, needs updating.</p>
 </li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-24">Added</h3>
 <ul>
 <li><p><strong>Re-seat is now a two-step, confirmed gesture — and it finally works.</strong>
 Re-seating takes your CURRENT head yaw as forward, but you had to LOOK AT the
@@ -3853,7 +4089,7 @@ anything ticking inside a scene observer (see 0.6.2&#39;s note on
 now use it.</p>
 </li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-15">Changed</h3>
 <ul>
 <li><p><strong>tosijs-ui devDependency → ^1.9.8</strong>, for serve-time gzip on the dev server:
 it was sending the 10.7 MB bundle uncompressed even to clients asking for
@@ -3887,7 +4123,7 @@ the detail layer doing real work — the old defaults read as pudding.</p>
 put every scene ON a mirror plane with a seam running to the horizon.</p>
 </li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-24">Fixed</h3>
 <ul>
 <li><p><strong>Phantom collisions: an aircraft &quot;collided with something it was nowhere
 near&quot;.</strong> Flying high, banking in cockpit view, you died instantly — in any
@@ -4140,7 +4376,7 @@ rather than the tile&#39;s own relief.</p>
 flooding by <code>waterTable</code>, <code>noWater</code>), volcanism confined to its caldera.</p>
 </li>
 </ul>
-<h2>0.7.0-rc.1</h2>
+<h2 id="070-rc1">0.7.0-rc.1</h2>
 <p>Published to npm under the <code>next</code> tag on 2026-08-13, superseded by 0.7.0.
 Everything in 0.7.0 above applies, with two differences that matter if you
 installed it:</p>
@@ -4153,12 +4389,12 @@ them to <code>carve.*</code> (see ⚠️ Breaking).</li>
 <p>It was tagged <strong>before</strong> the pre-release review ran, deliberately, to get it
 into an adopter&#39;s hands sooner. The review found no blocker in the shipped
 behaviour; what it found were the two release-artifact gaps above.</p>
-<h2>0.6.2</h2>
+<h2 id="062">0.6.2</h2>
 <p>Terrain gets <strong>volcanism</strong> and <strong>authored landforms</strong>, clouds get real shapes, and a
 systemic timing bug that made half the engine run in slow motion is fixed. Additive
 only — no API removals, no peer-dependency changes. (The full terrain-system upgrade
 lands as 0.7.0 once its remaining pieces are in.)</p>
-<h3>Added</h3>
+<h3 id="added-25">Added</h3>
 <ul>
 <li><strong>Volcanism intensity ladder</strong> (<a href="https://3d.tosijs.net/biome-plugin/">biome-plugin</a>) —
 the <code>volcanism</code> dial now climbs stages rather than scaling one look: near-black basalt
@@ -4194,7 +4430,7 @@ aligned bases, since cumulus condense at a level.</li>
 <li><strong><code>B3d.frameDelta</code></strong> + <strong><code>sceneDelta(scene)</code></strong> — the authoritative inter-render delta
 (see Fixed).</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-25">Fixed</h3>
 <ul>
 <li><strong>Everything ticking in a scene observer ran in slow motion.</strong> Babylon&#39;s
 <code>getDeltaTime()</code> measures the engine&#39;s rAF tick, but scene observers only fire when
@@ -4225,10 +4461,10 @@ never block it again.</li>
 crusted rim (a smoothed shading normal can&#39;t make the rim read as open lava).</li>
 <li>Library instances carry their animations, retargeted onto the instance.</li>
 </ul>
-<h2>0.6.1</h2>
+<h2 id="061">0.6.1</h2>
 <p>First consumer-reported fixes — both filed by <strong>manta-recon</strong> (tosijs-3d&#39;s first
 external adopter) with root-cause analyses read from the 0.6.0 dist. No API changes.</p>
-<h3>Fixed</h3>
+<h3 id="fixed-26">Fixed</h3>
 <ul>
 <li><strong>Aircraft chase camera never created when focus adoption lands after a fast
 mesh load</strong> (<a href="https://github.com/tonioloewald/tosijs-3d/issues/1">#1</a>). Both
@@ -4246,14 +4482,14 @@ now floored to make progress below <code>vtolSpeed</code> (a nose-high climb-out
 instead of freezing); the throttle-released zoom-climb stall — the deliberate
 &quot;hard way into high-altitude hover&quot; — is untouched.</li>
 </ul>
-<h2>0.6.0</h2>
+<h2 id="060">0.6.0</h2>
 <p>Cut as rc.1 → rc.3 (each reviewed; rc consumers see the per-rc sections in git
 history), finalized after the nine-lens review&#39;s follow-up fixes landed.</p>
 <p>The <strong>SVG UI surface</strong> release: a first-class, VR-ready UI substrate — container,
 overlay, widgets seam, table, keyboard — plus the interaction contracts that make
 the same surface work identically in the DOM, on a 3D plane, and under an XR
 controller ray. No peer-dependency changes.</p>
-<h3>Added</h3>
+<h3 id="added-26">Added</h3>
 <ul>
 <li><strong><code>box</code></strong> — the flow container: blocks + inline items + wrapped text, background/
 border/radius, resize-with-reflow, scroll regions, a coordinate-based event model
@@ -4293,7 +4529,7 @@ gesture.</li>
 <li><strong><code>svgIcons.resize</code></strong> glyph (from tosijs-ui), used by the resizable-box demo&#39;s
 in-corner grip.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-16">Changed</h3>
 <ul>
 <li><strong><code>b3dSvgPlane</code></strong> routes the texture&#39;s alpha to the mesh (<code>opacityTexture</code>) —
 transparent svg regions (outside rounded corners) are transparent on the plane,
@@ -4303,7 +4539,7 @@ never the physical pointer&#39;s — a listener&#39;s <code>setPointerCapture</c
 event can no longer hijack the real mouse/ray stream.</li>
 <li>Panel demos are side-by-side DOM + 3D (50/50) throughout, built on <code>panelScene</code>.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-27">Fixed</h3>
 <ul>
 <li><strong>The lost-pointerup chain</strong>: demos passing <code>pointerEvents: false</code> were silently
 running with forwarding ON (tosijs discards wrong-typed prop writes — filed as
@@ -4321,7 +4557,7 @@ the click (ring on the tapped key); Space presses the focused key.</li>
 <li>Arrow keys no longer orbit demo cameras (<code>ArcRotateCameraKeyboardMoveInput</code>
 removed — arrows drive the UI).</li>
 </ul>
-<h3>Added (post-rc, from the review follow-ups)</h3>
+<h3 id="added-post-rc-from-the-review-follow-ups">Added (post-rc, from the review follow-ups)</h3>
 <ul>
 <li><strong><code>ui.*</code> namespace</strong> — the SVG UI family&#39;s value exports live on one
 container (<code>ui.box</code>, <code>ui.table</code>, <code>ui.keyboard</code>, …): common nouns don&#39;t leak
@@ -4336,7 +4572,7 @@ gesture contract is unit-pinned); named option types (<code>TableOptions</code>,
 <code>GamepadFocusOptions</code>); <code>panelScene</code> takes <code>updateInterval</code>; <code>w3dTheme</code>
 (one place reads the <code>--w3d-*</code> variables).</li>
 </ul>
-<h3>Fixed (post-rc)</h3>
+<h3 id="fixed-post-rc">Fixed (post-rc)</h3>
 <ul>
 <li><code>table.focusMove</code> speaks the protocol&#39;s <code>(dx, dy)</code> (rc.1 trapped D-pad focus
 in a hosted table); menu leaf-select no longer destroys persistent panels
@@ -4350,14 +4586,14 @@ surgically (the virtualized body no longer rebuilds per drag-move);
 made it silent); deploy/tunnel host reads <code>TOSIJS_DEPLOY_HOST</code> instead of a
 committed address.</li>
 </ul>
-<h3>⚠️ Changed</h3>
+<h3 id="️-changed">⚠️ Changed</h3>
 <ul>
 <li><strong><code>B3d.onResize()</code> / <code>B3dHud.onResize()</code> → <code>handleResize()</code></strong> (the <code>on*</code>
 prefix is reserved by the element-creator&#39;s listener sugar). A 0.5.x
 consumer calling <code>onResize()</code> must call <code>handleResize()</code>.</li>
 </ul>
-<h2>0.5.2</h2>
-<h3>⚠️ Breaking — peer dependency (<code>tosijs</code> ≥ 1.7.8)</h3>
+<h2 id="052">0.5.2</h2>
+<h3 id="️-breaking--peer-dependency-tosijs--178">⚠️ Breaking — peer dependency (<code>tosijs</code> ≥ 1.7.8)</h3>
 <ul>
 <li><strong><code>tosijs</code> peer range <code>^1.6.9</code> → <code>^1.7.8</code>.</strong> Consumers must be on <code>tosijs</code>
 <strong>≥ 1.7.8</strong>; a project on <code>1.6.x</code> will hit <code>ERESOLVE</code>. (1.7.6/1.7.7 are
@@ -4369,7 +4605,7 @@ playable-game cut — so it&#39;s flagged here rather than forced to a minor.</l
 <code>chokidar</code> added to <code>devDependencies</code> (tosijs-ui 1.7.x&#39;s shipped doc-site
 pipeline imports it at runtime but declares it dev-only — filed upstream).</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-27">Added</h3>
 <ul>
 <li><strong><code>svgIcons</code></strong> (<code>svg-icons.ts</code>) — an SVG <strong>icon proxy</strong> (<code>svgIcons.&lt;name&gt;()</code> →
 an SVG <code>ElementCreator</code>) over a focused, <strong>generated</strong> icon set
@@ -4390,7 +4626,7 @@ DOM and on a 3D texture. Babylon/DOM-free, unit-tested.</li>
 including in-scene panels).</li>
 <li><strong><code>icon-name.ts</code></strong> — the pure composition-suffix parser behind <code>svgIcons</code>.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-17">Changed</h3>
 <ul>
 <li><strong>Scene chrome → icon lozenge.</strong> The top-left toolbar is now one rounded pill
 with two <code>svgIcons</code> buttons (settings + <code>xrColor</code> Enter-VR); the scene-panel <code>×</code>
@@ -4398,7 +4634,7 @@ close is a <code>close</code> icon. The doc-browser <strong>header logo</strong>
 <strong>favicon</strong> = the teal cube, both via tosijs-ui 1.7.4&#39;s new <code>logo</code> option.</li>
 <li><strong>README</strong> gained a 280px logo and its stale <code>xinjs-3d</code> links were fixed.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-28">Fixed</h3>
 <ul>
 <li><strong>keyboard icon</strong> rendering — the generator strips <code>fill-rule</code> from non-<code>color</code>
 icons, so its evenodd key-holes broke; moved to <code>color/</code> with <code>currentColor</code>
@@ -4411,8 +4647,8 @@ flash.</li>
 <li>The svg-icons &quot;composition suffixes&quot; snippet is a <strong>static</strong> code block (was an
 erroring live example).</li>
 </ul>
-<h2>0.5.1</h2>
-<h3>⚠️ Breaking — renamed public methods (<code>on*</code> → <code>add*Listener</code> / <code>handle*</code>)</h3>
+<h2 id="051">0.5.1</h2>
+<h3 id="️-breaking--renamed-public-methods-on--addlistener--handle">⚠️ Breaking — renamed public methods (<code>on*</code> → <code>add*Listener</code> / <code>handle*</code>)</h3>
 <p>No peer-dependency changes this release. The break is a <strong>method rename</strong>: tosijs&#39;s
 <code>elementCreator</code> treats any <code>on&lt;Event&gt;</code>-named member as <code>addEventListener</code> sugar and
 <strong>shadows</strong> a component method of the same name (it now fires a live warning, and it was a
@@ -4453,7 +4689,7 @@ methods <strong>push to a listener list</strong> (add/remove semantics), not a s
 overrode <code>onGainFocus</code>/<code>onLoseFocus</code>, or a gamepad source with an <code>onButton</code> callback, rename to
 the new members. It&#39;s a pure rename — signatures are unchanged. Built-in components are all
 migrated; this only affects code you wrote against these surfaces.</p>
-<h3>Added</h3>
+<h3 id="added-28">Added</h3>
 <ul>
 <li><strong>Coordinate-free <code>MinSimApi</code></strong> (<code>world-contract.ts</code> §8) — a world-simulation boundary where
 <strong>coordinates never cross the membrane</strong>: a driver (an AI narrative engine, a scripted demo)
@@ -4475,13 +4711,13 @@ and in a driver&#39;s repo (the Ariosto use case), proving both stores behave th
 <li><strong>Clouds drift with wind</strong> — the cloud layer now moves with the wind vector, so the sky is
 alive rather than a still image.</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-18">Changed</h3>
 <ul>
 <li><strong>Demo cameras</strong> migrated to a shared <code>demo-utils</code> <code>orbitCam</code> helper (tilt-clamped so an orbit
 can&#39;t dip below the horizon) instead of 24 hand-rolled per-demo cameras. Authoring-only — no
 library-API impact.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-29">Fixed</h3>
 <ul>
 <li><strong>Cloud whiteout</strong> now behaves correctly: it ramps to full <strong>earlier</strong> (less &quot;snaps on at the
 moment of entry&quot;, denser once inside), <strong>blots out the sky</strong> (not just scene geometry), and
@@ -4492,8 +4728,8 @@ the fog).</li>
 so a <code>true</code> default can never turn on) — the old <code>player: true</code> default made the controller
 throw at construction and silently never wire input.</li>
 </ul>
-<h2>0.5.0</h2>
-<h3>⚠️ Breaking — peer dependencies</h3>
+<h2 id="050">0.5.0</h2>
+<h3 id="️-breaking--peer-dependencies">⚠️ Breaking — peer dependencies</h3>
 <ul>
 <li><strong>Babylon.js 8 → 9.</strong> Peer range for <code>@babylonjs/core</code>, <code>@babylonjs/gui</code>,
 <code>@babylonjs/loaders</code>, <code>@babylonjs/materials</code> moved <code>^8</code> → <code>^9</code>. <strong>Consumers must
@@ -4508,7 +4744,7 @@ direct Babylon dep — silently breaking <code>instanceof</code>, engine singlet
 plugin registration. No action needed by consumers; this just makes install
 resolution correct.</li>
 </ul>
-<h3>Added</h3>
+<h3 id="added-29">Added</h3>
 <ul>
 <li><strong>Clouds</strong> (<code>&lt;tosi-b3d-clouds&gt;</code>) — an opaque blob cloud layer you can <em>fly into</em>
 and lose the world inside (a fog whiteout, not a texture). A <code>coverage</code> weather
@@ -4535,7 +4771,7 @@ breaking in VR.</li>
 <li><strong><code>PLATFORM.md</code></strong> — the platform bet (stay on the web, don&#39;t abstract the
 renderer; the real risk of the Android XR / Vision Pro shift is <em>input</em>).</li>
 </ul>
-<h3>Changed</h3>
+<h3 id="changed-19">Changed</h3>
 <ul>
 <li><strong>Aircraft</strong> — the stick is dead on the ground (only the throttle lifts off);
 you can&#39;t crash-land until you&#39;ve actually cleared the pad; chase camera banks
@@ -4546,7 +4782,7 @@ at <code>y=0</code> floods the valleys.</li>
 <li>Babylon <code>8.56 → 9.16</code>, Jolt <code>1.0 → 1.1</code>, tosijs-ui <code>1.6.22 → 1.6.23</code>, tosijs
 <code>1.6.8 → 1.6.9</code> (dev-server/haltija reliability), haltija <code>→ 1.4.0</code>.</li>
 </ul>
-<h3>Fixed</h3>
+<h3 id="fixed-30">Fixed</h3>
 <ul>
 <li>Death explosion/wreck FX land at the real wreck; a respawn is no longer charred
 (char a cloned material, not the shared library one).</li>
@@ -4559,8 +4795,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
-    <li><a class="doc-link" href="../Migration/">Migration</a></li>
-    <li><a class="doc-link current" href="../CHANGELOG/" aria-current="page">Changelog</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
     <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
     <ul>
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
@@ -4573,222 +4808,394 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
-      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
-      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
-      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
-      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
-      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
-      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
-      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
-      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
-      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
-      <li><a class="doc-link" href="../hud/">hud</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
-      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
-      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><a class="doc-link" href="../landform/">landform</a></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
+        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+        <li><a class="doc-link" href="../caustics/">caustics</a></li>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
-      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
-      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
-      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
-      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
-      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
-      <li><a class="doc-link" href="../caustics/">caustics</a></li>
-      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
-      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
-      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
-      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
-      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
-      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
-      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
-      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
-      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
-      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
-      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
-      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
-      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
-      <li><a class="doc-link" href="../wind/">wind</a></li>
-      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
-      <li><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></li>
-      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
-      <li><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></li>
-      <li><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></li>
-      <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
-      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></li>
-      <li><a class="doc-link" href="../carve/">carve</a></li>
-      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
-      <li><a class="doc-link" href="../landform/">landform</a></li>
-      <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
-      <li><a class="doc-link" href="../lightning/">lightning</a></li>
-      <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
-      <li><a class="doc-link" href="../scatter/">scatter</a></li>
-      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
-      <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
-      <li><a class="doc-link" href="../weather/">weather</a></li>
-      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
-      <li><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></li>
-      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
-      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
-      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
-      <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../mantle/">mantle</a></li>
+        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+        <li><a class="doc-link" href="../hud/">hud</a></li>
+        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
-      <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
-      <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
-      <li><a class="doc-link" href="../touch-orbit/">touch-orbit</a></li>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
-      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
-      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
-      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
-      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
-      <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
-      <li><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></li>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
-      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
-      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
-      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
-      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
-      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
-      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
-      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
-      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
-      <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
-      <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
-      <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
-      <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
-      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
-      <li><a class="doc-link" href="../table/">table</a></li>
-      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
-      <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
-      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
-      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
-      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
-      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
-      <li><a class="doc-link" href="../color/">color</a></li>
-      <li><a class="doc-link" href="../color-field/">color3d</a></li>
-      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
-      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
-      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
-      <li><a class="doc-link" href="../picker/">picker</a></li>
-      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
-      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
-      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
-      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
-      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
-      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
-      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
-      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
-      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-    </ul>
-    </details></li>
-    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
-    <ul>
-      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
-      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
-      <li><a class="doc-link" href="../arc/">arc</a></li>
-      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
-      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
-      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
-      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
     <ul>
-      <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
-      <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
-      <li><a class="doc-link" href="../aim/">aim</a></li>
-      <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
-      <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
-      <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
-      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
-      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
-      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
-      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
+        <li><a class="doc-link" href="../resource/">resource</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../warhead/">warhead</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+        <li><a class="doc-link" href="../radar/">Radar model</a></li>
+      </ul>
+      </details></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
-      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
-      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
-      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
-      <li><a class="doc-link" href="../interaction/">interaction</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
-      <li><a class="doc-link" href="../formations/">formations</a></li>
-      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
-      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
-      <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../arc/">arc</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../curve/">curve</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link current" href="../CHANGELOG/" aria-current="page">Changelog</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
     </ul>
     </details></li>
   </ul>
@@ -4799,6 +5206,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ssdqr5ew.js"></script>
+  <script type="module" src="../hydrate-48tecfqa.js"></script>
 </body>
 </html>

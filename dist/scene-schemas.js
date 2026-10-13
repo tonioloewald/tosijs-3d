@@ -67,7 +67,7 @@ So `scene-schemas.test.ts` imports the real components and fails if an attribute
 is missing, extra, or disagrees on its default. The copy is allowed to exist
 because it cannot silently rot.
 */
-/*{ "parent": "Core", "order": 320 }*/
+/*{ "parent": "core", "order": 80 }*/
 /** A number with a range and, where it helps, a unit and a scale hint. */
 const num = (def, extra = {}) => ({ type: 'number', default: def, ...extra });
 const color = (def) => ({
@@ -339,6 +339,7 @@ export function waterSchema(extra = {}) {
         }),
         shore: choice('off', ['on', 'off']),
         shoreFine: bool(false),
+        receiveShadows: choice('on', ['on', 'off']),
         reflectionRefresh: num(0, {
             minimum: 0,
             maximum: 8,
@@ -1038,6 +1039,8 @@ export function decoratorSchema(extra = {}) {
             multipleOf: 1,
             'x-useful': [0, 20000],
         }),
+        // 0 = auto: the device tier's share of the budget.
+        budgetScale: num(0, { minimum: 0, maximum: 1 }),
         radius: num(900, {
             minimum: 50,
             maximum: 5000,
@@ -1157,6 +1160,22 @@ export function b3dSchema(extra = {}) {
             ...M,
             description: 'How far a surface looks for something occluding it. Small darkens tight creases; large shades whole alcoves.',
         }),
+        xrRenderScale: num(0, {
+            minimum: 0,
+            maximum: 1,
+            'x-useful': [0.5, 1],
+            description: 'In a headset: the fraction of each eye drawn, per axis. 0 is auto (from the device tier).',
+        }),
+        xrFoveation: num(-1, {
+            minimum: -1,
+            maximum: 1,
+            'x-useful': [0, 1],
+            description: 'In a headset: fixed foveation, 0 to 1 (the edges of each eye at reduced resolution). -1 is auto (from the device tier).',
+        }),
+        groundDetail: {
+            ...choice('auto', ['auto', 'full', 'lite']),
+            description: 'The ground shader: `full`, `lite` (fewer noise samples a pixel, for a weak GPU), or `auto` (from the device tier).',
+        },
         timeScale: num(1, {
             minimum: 0,
             maximum: 8,
@@ -1194,6 +1213,8 @@ export function b3dSchema(extra = {}) {
                     'ssaoRate',
                 ],
             },
+            { title: 'Headset', keys: ['xrRenderScale', 'xrFoveation'] },
+            { title: 'Ground', keys: ['groundDetail'] },
             { title: 'Wind', keys: ['windSpeed', 'windBearingDeg', 'windGust'] },
             { title: 'Time', keys: ['timeScale'] },
         ]),

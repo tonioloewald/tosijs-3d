@@ -1,12 +1,24 @@
-/**
- * Pure, Babylon-free, deterministic resource pool: a capacity that drains and
- * regenerates, but only after a quiet period since the last drain. It's the shared
- * primitive behind a Destroyable's health AND a Launcher's energy pool — one tested
- * mechanic, two uses (see COMBAT-DESIGN.md).
- *
- * No Date.now / Math.random — time advances only via the `dt` you pass, so the same
- * inputs always reproduce the same trace (unit-testable, replay-safe).
- */
+/*#
+# resource
+
+**A pool that drains and refills, after a pause.** The one mechanic behind a
+destroyable's health and a launcher's energy: it regenerates, but only once it
+has been left alone for `regenDelay` seconds.
+
+```javascript
+import { makeResource, drain, regenTick, fraction } from 'tosijs-3d/resource'
+
+const energy = makeResource({ max: 100, regenRate: 10, regenDelay: 2 })
+drain(energy, 30) // now 70. Returns the overkill: what could not be taken (0 here)
+regenTick(energy, 1) // nothing yet: still inside the delay
+regenTick(energy, 1.5) // the delay has passed: 75
+fraction(energy) // 0.75, for a meter
+```
+
+Also `refill`, `isEmpty` and `isFull`. Time only moves through `regenTick`,
+so it is deterministic. See [[destroyable]].
+*/
+/*{ "parent": "b3d-destroyable", "order": 30 }*/
 export function makeResource(spec) {
     const max = spec.max;
     return {

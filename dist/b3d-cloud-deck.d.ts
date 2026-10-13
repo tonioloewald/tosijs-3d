@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
 export declare class B3dCloudDeck extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         altitude: number;
         /**

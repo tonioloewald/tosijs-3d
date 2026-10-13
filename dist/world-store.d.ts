@@ -18,6 +18,12 @@ export declare class WorldStore implements MinSimApi {
     defineZone(id: ZoneId, zone: Zone): void;
     removeZone(id: ZoneId): void;
     getState(): Readonly<WorldState>;
+    /**
+     * The LIVE state, for the engine's own systems (the view reconciles from it
+     * every frame, where a copy of the whole world would be waste). Not part of
+     * `WorldApi`: a driver must never hold this. Do not write to it.
+     */
+    get liveState(): Readonly<WorldState>;
     getEntity(id: EntityId): Readonly<WorldEntity> | undefined;
     query(predicate: (entity: Readonly<WorldEntity>) => boolean): WorldEntity[];
     subscribe(handler: EventHandler): Unsubscribe;

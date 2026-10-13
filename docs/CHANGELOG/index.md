@@ -1,0 +1,4683 @@
+# Changelog
+
+<!--{ "parent": "reference", "order": 20 }-->
+
+All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
+versions may carry breaking peer-dependency changes — each is called out in a
+**⚠️ Breaking** block in its version section below, with what a consumer must do.
+
+## 0.10.0
+
+**A quality release: the deprecated names are gone, and a long list of bugs
+with them.** No new elements; what was added is tooling for measuring and
+debugging on a device, and some defaults changed (listed under **Changed
+defaults** below). Most of what breaks was announced in 0.8 and
+0.9; three things were not, and are listed below with the rest:
+`new MersenneTwister()` without a seed, `WorldStore` queries returning copies,
+and `surface.openPanel`'s `onClose`. [Migration.md](https://3d.tosijs.net/Migration/) has every
+pair and what to do.
+
+Size: barrel (min, packages external) 970.3 KB raw / 327.2 KB gz, +2.30% on
+0.9.0.
+
+### ⚠️ Breaking
+
+- **`onX` callback options are removed.** `onChange`, `onClick`, `onSelect`,
+  `onActivate`, `onClose`, `onKey`, `onAction`, `onCaretMove`, `onEnter` and
+  `onFocus` are no longer called; use `handleX`. An old name is not dropped
+  silently: `handlerOf` warns once per name that it is ignored and names the
+  replacement.
+- **`<tosi-b3d-trigger>`'s `onEnter` / `onExit` properties** are removed; use
+  `whenEnter` / `whenExit`. **`<tosi-b3d-manipulator>`'s `handleChange` /
+  `handleCommit`** are removed; use `whenChange` / `whenCommit`.
+- **`generateGalaxy`** is removed; use `voxelGalaxy({ seed, brightBudget }).view()`.
+  **`galaxy.getStarSPS()`** is removed; use `pickStar`.
+- **`new MersenneTwister()` needs a seed.** It used to seed from the clock
+  when the argument was left out, which silently broke "same seed, same
+  result". It now throws; pass `Date.now()` if that is what you want.
+- **`WorldStore.getState()`, `getEntity()` and `query()` return copies.** A
+  driver could change the simulation by writing to what a query returned.
+  Code that relied on that (deliberately or not) must call a command instead.
+  The engine's own systems read `store.liveState`.
+  A copy is made on every call, so read once per frame, not once per entity.
+- **A store passed to the conformance kit must implement
+  `chooseOption(choiceId, optionId)`.** The kit now covers the choice
+  primitive and calls it.
+- **`surface.openPanel({ onClose })` is `handleClose`.** This one was never
+  announced: it was the last `onX` option in the library and follows the same
+  rule now (ignored, with a warning).
+
+
+### Changed defaults
+
+Nothing here removes an API, but a scene can look or behave differently
+without a line of yours changing. Each has the setting that puts it back.
+
+- **Opaque meshes are drawn nearest first, the sky last** (was material
+  order). The picture is the same for ordinary opaque meshes; one with depth
+  write off can differ. `scene.setRenderingOrder(0)` restores Babylon's order,
+  and a camera-pinned sky of your own must set `infiniteDistance`.
+- **A headset session renders at a reduced scale with foveation** on the low
+  tier (`xrRenderScale`, `xrFoveation`; `1` and `0` for full).
+- **The decorator places a tier share of its budget** (0.6 on the low tier)
+  and plant rules thin with moisture (`thirst`), so the same seed gives a
+  different layout from 0.9. `budgetScale: 1` places the whole budget.
+- **Scatter rules gather more** (`clump` 0.95, was 0.85).
+- **Water receives sun and cloud shadows.**
+- **The low tier uses the lighter ground shader** (`groundDetail`).
+- **`PerlinNoise(0)` is a seed**, not "no seed".
+
+### Docs
+
+- **The doc site is reorganised.** Sections now list the elements you put in a
+  scene, with the pure models and helpers each is built from tucked beneath
+  it (the flight model under the aircraft, the biome chart under the
+  terrain). UI was one list of 39 pages and Environment one of 37; no section
+  now has more than 12 direct children. Environment is split into Sky and
+  light, Weather and clouds, Terrain and Water; Migration and the Changelog
+  moved from second and third to a Reference section at the end. Page URLs
+  are unchanged, except the section landing pages.
+- **Getting started**: the install line with its peer dependencies, a first
+  scene that needs no model file, and where to go next. The README has the
+  same.
+- **Ten modules that other pages linked to had no page**: the flight model,
+  ballistics, guidance, warhead, destroyable, resource, Perlin noise, gradient
+  filter, terrain grid and the primitives (box, sphere, ground). 17 links were
+  dead. A test now fails on a link to a page that does not exist.
+- Every section landing page says which page you want, where most were a bare
+  list of links.
+
+### Fixed
+
+- **A headset is drawn at the device tier's resolution.** It never was: the
+  tier lowered the engine's hardware scaling for a session, and that does not
+  reach the XR layer, so every tier drew both eyes at full size. The viewport
+  is now scaled per frame (`xrRenderScale`, auto: 0.67 on the low tier, 0.83
+  on medium) and fixed foveation is set (`xrFoveation`, auto: 1 on low, 0.5 on
+  medium). Measured on a Quest in Land and Sky at 90 ms a frame: half the
+  pixels saved 19 ms and full foveation 12 ms. Both are attributes of
+  `<tosi-b3d>`; set `xrRenderScale="1" xrFoveation="0"` for the old picture.
+- **Opaque meshes are drawn nearest first, and the sky last.** Babylon draws
+  them in creation order, so a sky made first was shaded across the whole view
+  and then painted over by the land. The picture is the same; a covered pixel
+  is now rejected before its shader runs. `nearFirst(scene)` is exported for a
+  render target of your own (the water's two have it).
+- **A cheaper ground shader for a weak GPU** (`<tosi-b3d groundDetail>`:
+  `auto`, `full`, `lite`). The biome shader took eight noise samples a pixel;
+  `lite` takes three and looks nearly the same from a distance. `auto` picks
+  it on the low tier, and in a headset on the medium tier. Measured on a Quest
+  in Land and Sky, the terrain was 40 ms of a 90 ms frame. The cost sweep
+  measures the other form on your device.
+- **The ground shader reads its fine noise from a texture.** It computed 3D
+  noise four times a pixel, eight hashed corners each; it now reads a shared
+  64-texel tiling block (`noiseVolume`, exported) once per sample. Mip-mapped,
+  so the detail fades in the distance where the computed noise shimmered. On
+  every tier with WebGL 2; `setBiomeComputedNoise(scene, true)` is the way
+  back, and the cost sweep measures it. The climate noise is still computed.
+- **The water's reflection and refraction are drawn once for both eyes, and
+  every Nth frame in a headset too.** Each is the scene drawn again, and a
+  headset drew both for each eye on every frame: four extra scene passes.
+  Each is now looked up through the view it was drawn from, so one drawing is
+  in the right place from either eye and on later frames (`reflectionRefresh`,
+  from the device tier: every 3rd frame on the low tier). This also fixes the
+  refraction sliding against the seabed between redraws on a flat screen.
+- **Perf Stats reports what SVG texture repaints cost** (the HUD, panels):
+  repaints a second and main-thread milliseconds a second (`svgTextureCost`).
+  It also shows the JS heap against its first reading and the total redraw
+  count, so a leak is visible from inside a headset.
+- **Debug sink** (`debugSink.url`, `sendDebug`): a page can post its readings
+  to an endpoint, for a headset that has no console. With a URL set,
+  `<tosi-b3d>` sends each cost sweep step, the Perf Stats lines while that
+  popup is open in a session, and every `logDebug` event. Off by default.
+- **`bun run xr … --counters [--again n]`**: documents, DOM nodes, listeners
+  and JS heap before and after a script, after a collection.
+- **Cost sweep** (`b3d.costSweep()`, and a button in Perf Stats): where a
+  frame goes, measured on the device, by switching one thing off at a time.
+  Runs are numbered and the last four are kept, each saying whether it
+  finished or where it stopped, so a run that hangs does not replace the one
+  before. **Shader sweep** is a separate button: it measures the ground
+  shader's other forms, which recompiles shaders.
+- **A popup's move and close icons keep their size on a tall popup in a
+  headset.** The title bar was a fifth of the popup's height, so Perf Stats
+  with a long list got icons several times too large, over its first rows.
+- **A popup is capped in height and scrolls past the cap** (480 units, or the
+  caller's `maxHeight`). Perf Stats with a sweep listed was taller than the
+  screen flat and enormous in a headset, with no way to its lower rows.
+- **The decorator places a share of its budget set by the device tier**
+  (`budgetScale`, `0` = auto: 1, and 0.6 on the low tier, which is a Quest in
+  a session). Measured on a Quest: decorations were 16 ms of a 42 ms frame.
+  Set `budgetScale: 1` to place the whole budget everywhere.
+- **A thinned scatter loses clumps, not density** (`ScatterOptions.share`,
+  `clumpCentreFor`): the weaker clumps go and the middle of the rest stays as
+  full, in the same places as the whole scatter. The decorator's share and the
+  moisture thinning both work this way. Rules also gather more by default
+  (`clump` 0.95, was 0.85), so fewer things stand alone.
+- **The cost sweep's two headset rows measure what the resolution levers are
+  saving** (`+ full resolution`, `+ no foveation`). The old rows set the
+  values the tier already uses, so they measured nothing.
+- **Wetter country grows more.** A scatter rule's moisture band only said
+  where a kind may grow, and every plant's band reached the top, so anything
+  damp enough for a tree grew the same forest as the wettest setting. Plant
+  rules now have a `thirst`: the drier it is, the more of their places are
+  left empty (`moistureCover`). In Land and Sky, trees go from about 120 at
+  moisture 0.5 to about 240 at 1; rocks are unchanged.
+- **A headset session no longer freezes the second time your hands are
+  tracked.** Babylon's hand tracking (9.16) takes the topmost ancestor of its
+  shared hand mesh as a root and parents it to the camera's parent every
+  frame. The second time hands appear (a controller put down twice), that root
+  is the camera's parent itself, which became its own parent; the next enable
+  or dispose then recursed until the stack ran out and the picture stopped.
+  Found on a Quest with Perf Stats open (#3135). The rig now refuses such a
+  parent (`refuseOwnAncestor`, exported for anyone parenting an XR camera to
+  their own node).
+- **Underwater light rays go away when you leave the water.** They were still
+  fading on the frame you surfaced, the update read the water that was no
+  longer above you and threw, and it threw again every frame after, so the
+  rays stayed for good.
+- **A popup moved in a headset stays with its panel.** Dragging an owned popup
+  used to tear it off, so moving the panel afterwards left it behind. It now
+  moves relative to its opener and stays owned; `tearOff()` is still how a
+  caller lets one go.
+- **No second, dead copy of a popup after a panel rebuild in a headset.** The
+  rebuild dropped its popups' handles and relied on each dying with the panel
+  plane. One that was torn off, or not yet mounted, stayed in the scene: a
+  Perf Stats that never updated and could not be closed. They are now closed
+  before the plane goes, and a popup whose opener has been disposed closes
+  itself.
+- **Perf Stats refreshes every two seconds in a headset** (was 0.4 s). A
+  Quest hung within minutes with it open and ran on with it closed; the cause
+  is not known, this redraws its texture less often.
+- **Water, and the ice on it, receives shadows.** The surface never did: it
+  was not marked as a shadow receiver, so nothing cast a shadow on the sea,
+  which on a white ice sheet is obvious. `<tosi-b3d-water receiveShadows="off">`
+  restores the old behaviour and saves a shadow lookup per water pixel (the
+  cost on a headset has not been measured).
+- **Cloud shadows fall on water and ice.** They never did, on any device:
+  cloud shadows are a material plugin, and Babylon's water material runs no
+  plugins. The lookup is now in the water's own shader, fed from the scene's
+  cloud shadow map (`cloudShadowMapOf(scene)`, new). `receiveShadows="off"`
+  turns it off with the sun's shadows. Every water now uses the patched
+  shader, not only `shore="on"`.
+- `PerlinNoise(0)` uses seed 0. It was treated as "no seed" and gave a
+  different field every time.
+- `world-store.ts` compiles under `noUncheckedIndexedAccess` (the steer loop
+  read `r.portals[0]` unguarded), so a project that vendors it with strict
+  settings no longer has to pin an old copy.
+- The world contract now says what it meant: a driver must supply `spec.id` to
+  `spawn` (the return value cannot cross a worker boundary), and `setIntent`
+  is legacy (`steer` is what the sim honours).
+- The conformance kit covers the choice primitive: a pick emits exactly one
+  `choiceMade`, an option that is not on the menu emits nothing, a choice is
+  reported once, and the sim resolves nothing.
+- **A bomb that goes off on terrain now hurts what is above it.** The blast's
+  line of sight started on (or just under) the surface it hit, so the terrain
+  was cover for everything and a ground burst damaged nothing. A burst near a
+  surface now looks from a metre above it; a hill or wall in between is still
+  cover. (Only a mesh named `ground` was exempt before.)
+- **Decorator: naming the default library explicitly no longer empties the
+  scatter.** Default rules were chosen by whether `url` was set, so
+  `url="…/quaternius/libraries/nature.glb"` got the other library's rules,
+  which matched no model. The choice is now made from the library in use.
+- **Decorator: `NATURE_ROLES` applies only to the default library.** Its keys
+  are generic material names (`White`, `Wood`), so a third-party model with a
+  material of the same name had it replaced by flat biome shading. Set `roles`
+  to opt a custom library in.
+- The Perf Stats "Occlusion" button says whether occlusion is running, not
+  what was asked for (`on, not running here` when the method cannot run in
+  the current mode). Land and Sky's own occlusion select, which drifted out of
+  step with it, is gone.
+- **Lightning bolts are solid, not see-through.** The channel was faded by
+  transparency between re-strokes, so up close it was a pale translucent
+  tube. It is opaque while the stroke is live, far brighter than white (so it
+  blooms), and the glow around it fades to nothing at its edge. The flicker is
+  carried by the glow, the cloud and the ground.
+- **Thunder stops when its storm does.** Thunder is queued as far ahead as
+  sound takes to arrive, so changing world left the old storm's thunder
+  playing over the new one.
+- **In VR, the pointer no longer lands on the vehicle you are sitting in.**
+  In the aircraft's cockpit the controller ray hit the canopy first, and on a
+  Quest the panel behind it could be hovered but not pressed or dragged, so
+  there was no way out of the session from inside. Anything beneath the node
+  the XR rig rides on is no longer a pointer target; your own panels are.
+  (Reproduced and checked with the emulated headset; not yet on a device.)
+- **Sea ice: the plate pattern no longer depends on the GPU's `sin`.** The
+  plates were laid out with the classic `fract(sin(x) * 43758.5)` hash, which
+  mobile GPUs evaluate differently from desktop ones; in a headset the ice
+  showed severe mismatches that a Mac never did. The hash is arithmetic only
+  now. Plate edges are also a little softer. (The layout of plates for a given
+  place changes. Not yet confirmed on a headset.)
+- **No holes in solid sea ice near its edge.** The invisible mesh a car or a
+  shell lands on kept a triangle only if all three corners were solid, so a
+  band one cell wide (16 m and more far from the viewer) was drawn solid and
+  had nothing to stand on. A triangle is kept when it is solid on average,
+  which is where the drawn ice crosses the same line.
+- **The HUD page no longer throws 30 times a second.** Its demo still called
+  `setTraces(traces, viewer, options)`, a signature that went away when the
+  HUD started projecting through the camera. The demo passes the camera, and
+  `setTraces` warns once (and draws nothing) if it is handed anything else.
+- Three demo controls were dead because they still used an old name the
+  compiler cannot see in a doc comment: the aircraft page's "chase pitch
+  follow" and "follow lag" sliders, and the particles page's Burst button.
+  (They worked, with a warning, until the fallback was removed here.)
+
+## 0.9.0
+
+**A sea that knows its shore, and a temperature that means one.** The water
+takes the depth and the distance to land from the terrain and draws surf that
+runs in, pale shallows and sea ice; solid ice is solid for everything in the
+scene. Temperature is now a real scale (0 is 0 °C, 1 is 50 °C), so the same
+dial reaches Titan and Venus.
+
+Size: barrel (min, packages external) 948.5 KB raw / 318.9 KB gz, +1.75% on
+0.8.15 (the shore model and its shader).
+
+### ⚠️ Breaking
+
+- **`biomeTemperature` is a temperature, and `-1` no longer means
+  "default".** `0` is 0 °C and each unit is 50 °C (`1` = 50 °C, `-1` =
+  -50 °C, which warns once in the console), with no limit either way, so a world
+  can be as cold as Titan or as hot as Venus. It used to be the biome
+  chart's `0…1` axis with `-1` for "default". Convert old values with
+  `(old - 0.36) / 0.8`; the default is now `0.45` and looks the same. The
+  chart is a window onto the new scale (-22.5 °C to 40 °C) and clamps beyond
+  it. `chartTemperature` / `planetTemperature` convert. Everything inside the
+  biome shader, province climate and decorator bands is still in chart
+  units. See [Migration](https://3d.tosijs.net/Migration/).
+
+### Changed
+
+- **The deprecated `onX` callback names stay for one more minor.** They were
+  announced as "removed in 0.9"; they are removed in **0.10** instead, and
+  still work and warn once in 0.9.x. The same goes for the other names marked
+  for removal in 0.9 (`whenEnter`/`whenExit`'s old spellings on the trigger,
+  the manipulator's, `generateGalaxy`). Nothing to do yet beyond renaming at
+  your own pace.
+
+### Added
+
+- **A shoreline, and sea ice.** `<tosi-b3d-water shore="on">` gives the water
+  the depth of the ground under each vertex (from the scene's terrain) and
+  draws from it: surf (wave fronts running in to the shore one after
+  another, and a wet edge lapping at the waterline), paler water over the
+  shallows, and ice. The surf is drawn from each vertex's DISTANCE to the
+  waterline, not its depth, so it is the same width on a steep shore as on
+  a flat one. The distance is a real one, carried across the grid from
+  the waterline, so the fronts are evenly spaced whatever the bed does.
+  `shoreFine` doubles the mesh near the viewer: a vertex every 2 m out to
+  64 m (about 16,600 in all) where there is otherwise one every 4 m. The ice follows the cold and the shore: a solid sheet
+  along the beach, breaking into plates further out, open water beyond, and
+  all of it moving out to sea as the climate at sea level (season included)
+  gets colder. It is there from below as well. The sea starts to freeze at
+  -2 °C at the beach; open water stays clear to about -8 °C and is one
+  unbroken surface by -22.5 °C. `iceCover(temperature, depth)` is the rule; see [water-shore](/water-shore/). With `shore="on"` a vertex
+  colour on the water mesh is shore data, not a tint. The shader patch is
+  made once for the page, so this holds for EVERY `WaterMaterial` on a page
+  that has one `shore="on"` water: a vertex-coloured water mesh of your own
+  loses its tint there.
+- **Solid ice is solid.** Ice is water until it has knitted solid
+  (`iceBears`); where it has, the water carries an invisible collision mesh
+  (collision group `ice`), so anything that collides or picks meets it: a
+  car, a shell, a ground probe. Plates and a sheet still showing its cracks
+  are water. Wave displacement fades out under ice, so the sheet lies flat
+  where it collides. A biped swimming at the surface climbs onto solid ice;
+  one that dived first goes under it, with the ice as a ceiling.
+  `water.iceBearsAt(x, z)` asks for any point.
+
+### Fixed
+
+- **Water animates on every browser.** Babylon's `WaterMaterial` advances
+  its clock only on a frame whose duration differs from the last, so where
+  frame times are steady (a browser that rounds its timer, a display holding
+  its rate) the ripples crawled. `<tosi-b3d-water>` now writes the
+  material's time itself, once a frame, from the scene's clock. It also
+  stops when the scene is paused.
+- **Fog takes the sky's tint.** A `syncSkybox` fog fades distant ground to
+  the skybox's `horizonColor`, which ignored `horizonTint`: under a tinted
+  sky the far hills stood out as a pale blue-white band along the horizon.
+  It now keeps its brightness and takes the tint's hue, by `tintStrength`.
+- **Land and Sky: no air, no cloud.** The demo's cloud cover and orographic
+  dials are thinned by the air setting (none below a twentieth of Earth's),
+  so Mars has a clear sky. The cloud deck itself is unchanged.
+- **Negative `cirrus` had a quarter of the cloud of positive `cirrus`.** The
+  two streak directions were built differently; across-the-wind is now the
+  same field turned a quarter, so the sign changes only which way the streaks
+  run.
+- **Clouds needed exactly full air.** With `atmosphere` under about 0.8 the
+  sky dome becomes a blended mesh, and it was drawn after the cloud deck and
+  over it. It is now drawn first.
+- **A little less air cleared the haze almost completely, and a slow drag
+  back to full air never quite arrived.** The vacuum fog layer now mixes fog
+  by strength (`FogLayer.reciprocal`), and the sky's air value lands exactly
+  on 0 and 1.
+
+## 0.8.15
+
+**Rocks and trees that belong to the land.** Procedural rocks, Quaternius
+trees gathered into copses, and a biome shader that colours vegetation by the
+ground under it and by the season: autumn colour, bare winter branches, snow.
+
+Size: barrel (min, packages external) 932.0 KB raw / 313.0 KB gz, +1.85% on
+0.8.14.
+
+### Added
+
+- **Procedural rocks.** `rockGeometry({ seed })` makes a rock from a seed
+  (a sphere cut by random planes, roughened, squashed, sunk into the ground):
+  pure, deterministic, no model file. The decorator's default boulders and
+  stones are now these instead of Kenney's, and it shades them with the
+  terrain's own biome colours, so their tops take whatever grows there and
+  they change colour with the planet. A scatter rule asks for one by name:
+  `rock:boulder:3` (`rockNames('boulder', 6)` lists six). See
+  [procedural-rock](/procedural-rock/).
+
+- **The scatter gathers into clumps.** Every rule now clusters by default
+  (copses, thickets, rock fields, with thin outliers between) instead of
+  spreading evenly. Per rule: `clump` (0 = the old even spread, default
+  0.85), `clumpScale` (this rule's clump size relative to the scatter's) and
+  `clumpGroup` (rules in one group gather in the same places; the default
+  stones gather around the boulders). The scatter and `<tosi-b3d-decorator>`
+  take `clump` (one strength for every rule) and `clumpSize` (metres; 0 =
+  auto, about two and a half times the average spacing, so pulling `radius`
+  in keeps the clumps).
+- **The scatter's budget is a ceiling.** It no longer fills the gaps between
+  clumps, or packs thin habitat as full as lush, to reach the number: a small
+  radius or a map that is mostly sea gets fewer and keeps its shape. It also
+  lays down at least `oversample` × budget candidates (it could lay down
+  half that), so a high budget no longer stalls below itself.
+- `ScatterRule.sink`: how much of a model is buried. The default rocks bury a
+  quarter or more; they used to rest on their lowest point and looked set
+  down on the ground, or floating over it. Same seed gives a DIFFERENT layout
+  than before; set `clump: 0` on a rule to get the old one back.
+
+- **Seasons in the biome shader.** `<tosi-b3d-terrain biomeSeason
+  biomeSeasonality>` (params `season`, `seasonality`): the year swings the
+  chart's temperature axis, so winter cools the whole ground (snow lines drop)
+  with no second palette. `seasonality` defaults to 0, so nothing changes
+  until you ask. `seasonOf(season, seasonality)` is the pure rule.
+- **Winter snow.** Where the season takes a moist place below freezing
+  (temperature about 0.3), snow lies on level ground and the tops of rocks,
+  and evergreen foliage goes white. It is a layer of its own, applied only
+  while the season is pulling cold, so a world without seasons is unchanged.
+- **Deciduous trees drop their leaves.** After the autumn turn (season 0.55
+  to 0.7) `leaf`-role canopies thin in soft patches and are gone through
+  winter, leaving trunk and branches, then return across the spring equinox.
+  Evergreens, and anything in warm country, keep theirs. A bare tree still
+  casts its full summer shadow and still counts in ambient occlusion.
+- **Vegetation roles: trees take their colour from the land.**
+  `BiomePlugin.role` is `'ground'` (as before), `'leaf'`, `'evergreen'` or
+  `'bark'`. A leaf is its own green pulled toward the colour of the ground
+  under it (`leafBlend`), and turns in autumn in temperate country; an
+  evergreen does not turn. The decorator assigns roles by material name
+  (`roles`, default `NATURE_ROLES`, with `Model*/Material` keys for one
+  model's use of a shared material).
+
+- An **Occlusion on/off button in Perf Stats**, so its cost can be read in any
+  demo on any device; Land and Sky has its own control too.
+
+### Changed
+
+- **⚠️ The decorator's defaults changed: models, rocks and layout.** See
+  [Migration](/Migration/) for the exact steps. In short:
+  - With no `url` it now loads `quaternius/libraries/nature.glb` (a curated
+    64-model library: common, pine, birch, willow and palm trees, dead trees,
+    bushes, cacti, undergrowth) with the new `NATURE_RULES`. Custom rules that
+    use Kenney's model names and set no `url` now find none of their models:
+    the decorator warns and places nothing for them. Set `url` to
+    `assetUrl('kenney/libraries/nature-kit.glb')`.
+  - Naming a `url` still gets `NATURE_KIT_RULES` and Kenney's trees, but NOT
+    the old result: its rocks are now the procedural ones, everything clumps,
+    and the same seed gives a different layout. `clump: 0` on a rule (or
+    `clump="0"` on the element) restores the even spread.
+  - Rocks are no longer placed on a volcanic province. They cannot read the
+    province, so they came out the colour of the country around it.
+  - The new trees are heavier (about 1,000 vertices each against Kenney's
+    100): Land and Sky's 2,000 placements went from about 205k to 365k
+    vertices.
+
+- **A volcano's flank is bare basalt, and seams start only near the top.**
+  Walking in from the edge of `volcano()`'s province you now cross the biome,
+  then plain basalt, then faint seams from about 55% of the way to the crater
+  rim; stronger veins and open lava are inside the crater only. The rim's
+  province value is 0.25 (it was 0.5). In the biome shader, a local province
+  draws no seams below 0.14 and all of them by 0.4; the global `volcanism`
+  dial is unchanged. Land and Sky's volcano keeps its size with a smaller
+  crater (radius 55, it was 90).
+
+- **A standalone headset sizes build-once budgets for stereo from the start.**
+  Terrain detail and tile pool, shadow map and cascade count, cloud shadows and
+  reflection probes are sized when the scene is built, which is before any
+  session, so a Quest got the flat (`medium`) numbers and kept them in VR. They
+  now resolve at the XR tier (`low`) on a standalone headset, flat included:
+  terrain 12 subdivisions and 56 tiles instead of 16 and 80, shadows 2 cascades
+  instead of 4. A PC driving a headset is unaffected. `headsetDevice()` is
+  exported for your own build-once budgets.
+
+- **Water's reflection and refraction follow the device tier.** Each is the
+  whole scene drawn again, and both were 1024 and redrawn every frame on every
+  device. `textureSize` now defaults to auto (1024 / 512 / 256) and a new
+  `reflectionRefresh` redraws them every Nth frame (1 / 2 / 3) on a flat
+  screen; inside a headset session they are redrawn every frame, because
+  skipping one eye breaks stereo. Top-tier devices are unchanged. To keep the old behaviour everywhere, set
+  `textureSize="1024" reflectionRefresh="1"`.
+- Land and Sky's lightning storm toggle moved to the Weather tab.
+
+### Fixed
+
+- **A small, distant sun is visible in an airless sky.** Its disc is drawn at
+  true size, which from Jupiter is under a pixel, so Io had no sun. A tight
+  glare now takes over as the disc shrinks.
+
+- **A world with no moisture grows nothing.** The cactus rule accepted a
+  moisture of zero, so Mars grew cacti (and a few dead trees).
+
+- **Switching decorator shadows on made whole models vanish**, and every
+  rebuild flashed the full scatter before dropping most of it. Each part's
+  shadow-only twin shared its geometry, and with it the thin-instance buffer,
+  so the visible mesh drew its full count from the twin's short list and
+  WebGL rejected the draw. The twin now has its own geometry.
+
+- A menu hung off a narrow button (`button3d({ menu })`, `openMenu3d`) is now as wide as its longest label. It used to take a 160 floor, so longer labels ran out of the box (Land and Sky's preset menu).
+- **A `select3d` inside a `row3d` stepped to its next option instead of opening
+  its list.** A row did not pass the panel's host to its children, and a select
+  with no host falls back to stepping. Land and Sky's world picker jumped from
+  Earth to Mars on a tap. (Seen in a headset, reproduced flat.)
+
+## 0.8.14
+
+**Ambient occlusion that works in a headset, and it is the default.**
+
+### Changed
+
+- **`ssaoMethod` defaults to `projected`.** Scenes with `ssao="on"` or `"auto"`
+  now get the projected method flat, which keeps antialiasing and concentrates
+  its darkening in contacts and corners. **`ssao="on"` now also runs in a
+  headset**, where it used to switch itself off. `auto` still never runs in a
+  headset. Set `ssaoMethod="screen"` for the previous behaviour exactly.
+
+### Added
+
+- **Projected ambient occlusion** (`ssaoMethod`, `ssaoRate` on `<tosi-b3d>`):
+  occlusion computed once from a camera between the eyes and looked up by every
+  material by world position. It is correct in stereo, uses no post-process,
+  and is redrawn `ssaoRate` times a second (default 30) instead of every frame.
+  Checked on a Quest in the SSAO demo: stereo, and no measurable change in
+  frame rate or CPU time. Not yet measured on a heavy scene.
+- Projected occlusion follows **shader vertex animation**: the crowd is
+  occluded in its animated pose, because every mesh draws its own depth with
+  its own material.
+- The Perf Stats readout is **live** and shows frame interval, CPU time in
+  `scene.render()`, and draw calls. It was three labels built once, so the fps
+  was whatever it had been when the popup opened.
+- The SSAO demo has a bust (on the CDN at `tosijs-3d/ariosto-bust.glb`) and a
+  `method` selector; the scene loader demo has shadow, glow and SSAO toggles.
+
+### Fixed
+
+- **Opening a second menu in a panel left the first one open**, one list over
+  the other. A panel now has one anchored popup at a time. (Seen in a headset,
+  reproduced flat.)
+
+## 0.8.13
+
+**A schema for `<tosi-b3d>` itself, and an emulated headset in the repo.**
+
+### Added
+
+- **`sceneSchemas.b3d` / `b3dSchema()`**: the host's scene-level attributes,
+  with ranges, units and useful bands: `clearColor`, `glowLayerIntensity`,
+  `ssao`, `ssaoStrength`, `ssaoRadius`, `timeScale`, `windSpeed`,
+  `windBearingDeg`, `windGust`. The attributes that configure a viewer rather
+  than a scene (camera limits, quality, pixel ratio, gamepad and panel chrome,
+  XR and pause behaviour) are declined by name in `SCENE_OMITTED.b3d`. The
+  drift test covers it like every other schema. `ssao` marks `always` in
+  `x-deprecated-values`. Asked by tosijs-3d-ensemble (#101).
+- **`bun run xr <path>`** (`bin/xr-emulate.ts`, repo tooling, not shipped): an
+  emulated headset. Headless Chrome with a fake WebXR device enters VR on a
+  page, screenshots both eyes and drives controllers from script. It is how
+  0.8.12's headset fixes were found.
+
+## 0.8.12
+
+**0.8.11's ambient occlusion broke VR, and this takes it out of the headset.**
+Also: headset popups can be dragged and closed, and a model no longer shields
+itself from a blast. The headset fixes were verified in an EMULATED headset
+(a fake WebXR device in headless Chrome), not yet on a device.
+
+### Fixed
+
+- **SSAO broke VR.** With `ssao="always"` a headset drew one image stretched
+  across both eyes, and `on` put the same chain on the headset camera for the
+  moment of entry. A post-process chain on a WebXR camera does not render per
+  eye. SSAO is now removed before the headset camera takes over and
+  restored when the session ends.
+- **Popups in a headset could not be dragged or closed by their title bar.**
+  Three causes, all found by driving an emulated controller:
+  - the press was re-cast along Babylon's XR pointer ray, which is cut to the
+    exact distance of what it hit, so the re-cast stopped a rounding error
+    short of the popup and missed;
+  - a drag that did start was cancelled by the first pointer move, because
+    Babylon's XR moves carry `button: 0` and the drag behaviour reads that as
+    "another button pressed";
+  - a popup torn off a tilted panel (the headset settings panel is tilted)
+    snapped upright, and the drag then threw it metres away.
+  The settings panel's own occlusion re-pick had the same cut-ray fault.
+- **A model's own hull shielded it from every blast.** Blast line of sight
+  exempted only the node each destroyable registered, and a library model
+  registers a root with the hull as a child, so the ray to it stopped on its
+  own hull. An aircraft with `destroyable="on"` took no blast damage, its own
+  bomb included. Anything beneath a destroyable is now not cover; a wall
+  still is. From manta-recon (board #2906).
+
+### Changed
+
+- **SSAO is flat-only, and `ssao="always"` is deprecated.** 0.8.11 said
+  `always` ran in a headset. It is the setting that broke the frame. It is
+  still accepted, means `on`, and warns once.
+
+## 0.8.11
+
+**Ambient occlusion.** One attribute on `<tosi-b3d>`, off by default. Checked
+flat; `always` (the in-headset setting) is not yet verified per eye on a
+device, and this release is partly so that it can be.
+
+### Added
+
+- **Ambient occlusion: `<tosi-b3d ssao>`.** `off` (default), `auto` (on where
+  the device tier affords it), `on`, or `always`. `auto` and `on` are
+  flat-only; `always` also runs in a headset, for hardware that can pay.
+  `ssaoStrength` and `ssaoRadius` tune the look; samples and resolution come
+  from the device budget (`PerfBudgets.ssao`, `ssaoSamples`, `ssaoRatio`).
+  Corners, stacked crates and the foot of a wall get darker, which is most of
+  what makes simple geometry look placed rather than pasted. Measured on an
+  M5 Max: about +1.2 ms a frame at 1344x640, scaling with pixel count. The
+  depth-and-normals pass is built at the SSAO's own resolution, which measured
+  40% cheaper than Babylon's default with no visible difference. Sky, water,
+  cloud deck, terrain and skinned characters all checked clean. New page:
+  Effects → Ambient occlusion, with a small scene to test in a headset.
+
+## 0.8.10
+
+**Two fixes from manta's orbit stage, and the doc site has shadows again
+without a workaround.** Glow no longer whites out the frame under a fading
+full-screen mesh, and the skybox leaves the background colour alone for a
+camera that cannot see it. tosijs-ui 1.16 loads the doc site once, which was
+the cause of ensemble's `Cannot redefine property` error and our missing doc-
+site shadows.
+
+Size: barrel (min, packages external) 898.6 KB raw / 300.6 KB gz, +0.05% on
+0.8.9.
+
+### Fixed
+
+- **Glow no longer whites out the frame under a fading full-screen mesh**
+  (board #2742, from manta-recon). Babylon's glow layer ignores opacity: it
+  never reads `mesh.visibility` and does not weight the colour by
+  `material.alpha`. So manta's re-entry curtain, a full-screen emissive quad on
+  every layer bit, bloomed at full strength while at 30% alpha, and the orbit
+  view went white. The glow layer `<tosi-b3d>` builds now weights each mesh's
+  emissive by `alpha × visibility`. Opaque, visible meshes glow exactly as before.
+  A mesh hidden with `visibility = 0` no longer glows, so `excludeFromGlow` is
+  needed only for emissive things that are not light sources.
+- **The skybox no longer overwrites the scene's clear colour for a camera that
+  cannot see it** (board #2865, from manta-recon). A camera whose `layerMask`
+  excludes the dome is looking at another stage, which owns its own backdrop.
+  The sky used to reset it to Babylon's default grey on every refresh, so
+  manta's orbit view re-set black every frame. The sky re-applies its backdrop
+  when the active camera changes back.
+
+### Changed
+
+- **Dev: tosijs-ui 1.16.5 and tosijs 1.10.7.** tosijs-ui 1.16 loads the doc
+  site's entry once (tosijs-ui#191), so the static shadow-shader workaround in
+  `demo/site.ts` is gone and the doc site renders shadows without it. That
+  double load was also ensemble's `Cannot redefine property:
+  onBeforeViewRenderObservable` (tosijs-3d#78). tosijs 1.10 dropped
+  `Component`'s `[key: string]: any`, which surfaced 27 undeclared properties:
+  `AbstractMesh` now declares `x`/`y`/`z`/`rx`/`ry`/`rz`/`axes`, `B3dBiped`
+  declares `url`/`player`, and a dead `_jumpWas` store is gone. The peer range
+  is unchanged (`tosijs ^1.9.2`).
+
+### Added
+
+- **`opacityWeightedGlow(layer)`** installs the same rule on a `GlowLayer` you
+  build yourself.
+
+## 0.8.9
+
+**What ensemble was waiting on, and a safer publish.** Schemas for the moon,
+the weather and decoration elements and sound, with sections, so a schema-
+driven editor can offer the weather; `inputField` no longer leaks; fetched
+attributes refuse anything but a string. And the publish now runs under the
+practices template where only a code-free job can hold the npm credential.
+
+Size: barrel (min, packages external) 898.1 KB raw / 300.5 KB gz, +0.6% on
+0.8.8.
+
+### Added
+
+- **Schemas for the moon and the weather and decoration elements**
+  (tosijs-3d#93, #97, from ensemble): `moonSchema`, `weatherCellSchema`,
+  `lightningSchema`, `lightShaftsSchema`, `decoratorSchema` and
+  `trailSchema`, in `sceneSchemas` as `moon`, `weatherCell`, `lightning`,
+  `lightShafts`, `decorator` and `trail`. Same shape as the others (colour
+  formats, the decorator's `url` as a fetched `uri-reference`, `x-useful`
+  bands from the demos' sliders), held to the real elements by the drift
+  test. A schema-driven consumer can now offer the weather.
+- **`soundSchema`** (`sceneSchemas.sound`, tosijs-3d#95): `url` is a fetched
+  `uri-reference`, so a consumer's URL rule now sees the one built-in
+  fetched field it couldn't.
+- **Sections in the schemas** (tosijs-3d#98): `x-sections: [{ title, icon,
+  keys }]` on the skybox, cloud deck and water, so a panel generated from a
+  schema can fold or tab by section (`foldSections`) without re-deriving
+  the grouping. Tested: every key exists, none twice.
+- **Two descriptions that stop a misreading** (manta-recon's notes): the
+  cloud deck's `coverage` past 1 is thickness, not more cover, and `cirrus`
+  is signed, its sign picking the axis.
+
+### Fixed
+
+- **`inputField` leaked itself and everything containing it**
+  (tosijs-3d#96, from ensemble): every field's keyboard-toggle repaint went
+  into a module-level set that was never pruned, and reached the field's
+  SVG, its host, and the host's scene and engine. Ensemble measured +4000 DOM
+  nodes per editor visit. The set now holds them weakly; a dropped field is
+  collectable (tested: the test fails on the old code).
+- **Fetched attributes are refused unless they are strings**
+  (tosijs-3d#95): `String(value)` turned a JSON array like `["http://…"]`
+  into the URL inside it and fetched that. Skybox, water, clouds, ground,
+  decorator and sound now refuse anything but a string (`fetchedUrl`, a
+  once-per-field warning). The elements still fetch whatever string they
+  are given: validating URLs stays the embedder's job.
+
+### Security
+
+- **The publish workflow is re-copied from the practices template**: only a
+  stage job running no project code holds the npm credential.
+
+## 0.8.8
+
+**Adopter fixes and folding everywhere.** Aircraft no longer crash into
+explosion debris, `b3d-planet` survives high detail, and bomb and missile
+blasts can be sized to a game's world (all from manta-recon). Any panel can
+now fold or tab its sections (`foldSections`, from ensemble), and tabs fit
+better when space is tight.
+
+Size: barrel (min, packages external) 891.7 KB raw / 298.6 KB gz, +0.1% on
+0.8.7.
+
+### Added
+
+- **Bomb and missile blast radii are attributes** on `<tosi-b3d-aircraft>`
+  (board #2808, manta-recon): `bombFullRadius` / `bombBlastRadius` (2 / 6)
+  and `missileFullRadius` / `missileBlastRadius` (1.5 / 4), like the gun's,
+  so a game sizes blasts to its world.
+- **Any panel can fold** (board #2805, tosijs-3d#99, from ensemble):
+  `foldSections(rows, { key, mode, repaint })` returns the rows to show for
+  collapsible sections, folded or as tabs, and asks for a rebuild when one
+  toggles. `<tosi-b3d>`'s scene panel is built on it, so a `panel3d` of your
+  own folds the same way.
+
+### Changed
+
+- **The active tab shrinks to its own caption** when tabs are tight (Tonio):
+  a short active tab no longer takes the width of the longest, and the space
+  it saves goes to the other tabs' visible slices.
+  Each side stays on its side: tabs left of the active one end under it and
+  tabs right of it start under it, so a narrow active tab no longer lets the
+  right side cover the left side's slices.
+
+### Fixed
+
+- **Aircraft crashed into explosion debris** (board #2803, manta-recon): the
+  sweep ray treated `fragment-N` meshes as solid, so flying through an
+  explosion's remains crashed you in clear air. Fragments no longer collide
+  with anything; they carry a `debris` collision group for a game that wants
+  damaging debris.
+- **`b3d-planet` crashed at high `subdivisions`** (board #2745, manta-recon):
+  `Math.max(...vertexHeights)` overflowed the stack (160 failed, 96 worked).
+  Now a loop.
+
+## 0.8.7
+
+**Panels that fit.** The scene panel caps itself to the space it has, and
+its sections can fold or become file tabs, captions or icons, with the
+overlap and stacking of real file tabs. Land and Sky uses icon tabs and a
+preset menu. Also: a security pin for a build-only dependency.
+
+Size: barrel (min, packages external) 891.2 KB raw / 298.3 KB gz, +0.7% on
+0.8.6.
+
+### Added
+
+- **Scene panels fit the space they have** (board #2466). The flat ⚙ panel
+  is capped at the scene's height (it was a fixed 620 px, and ran off the
+  bottom of a short window or a phone), re-fitted when the scene resizes;
+  its own scrolling takes over. And **collapsible sections**:
+  `label3d({ text, collapsible: true, open? })` heads a section that folds
+  everything below it up to the next one, flat and in VR alike, with the
+  open set remembered in the browser. Land and Sky's 50-odd rows fold into
+  nine sections.
+  Section headers are compact (a caption line, not a control row), and
+  Land and Sky's preset actions (save, copy, paste) moved into a ⋯ menu
+  beside the preset picker.
+- **File tabs**: `tabs3d({ tabs, active, handleSelect })`, a strip where
+  each tab is at most half the width with an ellipsized label; when they do
+  not fit they overlap (each later tab on the one before, so every tab keeps
+  its left edge), and the active one sits in front, joined to the panel
+  below. Pure geometry: `tabLayout` / `tabAt`, tested. `<tosi-b3d>
+  panelSections="tabs"` shows collapsible sections as tabs, one at a time
+  (the chosen tab is remembered); the default stays `'fold'`. Overlapping
+  tabs spread AROUND the active one: those left of it share the space
+  before it (each showing its left slice), those right of it the space
+  after (each its right slice), labels in the visible slice. A tab can be an
+  ICON (`{ icon, title }`), and `label3d({ collapsible, icon })` gives a
+  section one, which tab mode shows instead of the caption: icon tabs are
+  narrow, so they sit side by side and nothing moves when you switch. Land
+  and Sky uses icon tabs.
+  `tabs3d` is exported (with `Tab3d`), and the widgets page has a live
+  **Tabs** demo: nine captions overlapping, three side by side, icons.
+
+## 0.8.6
+
+**Other worlds.** Land and Sky becomes a world builder: presets you pick,
+save and share, with Earth, Mars, Venus, the Moon, Io and Titan built in.
+A crater field landform, volcano fields, ground palettes, sea colours, and
+a sun whose size and brightness follow the world. Lightning casts shadows
+and darkens the day, and the aircraft demo has weather to fly in.
+
+Size: barrel (min, packages external) 885.2 KB raw / 296.3 KB gz, about
++0.3% on 0.8.5.
+
+### Added
+
+- **Land and Sky presets** (board #2442, stage 1): a whole world as data
+  (terrain, sea, climate, weather, atmosphere, stars, moons, cloud colours,
+  sun) you pick from the ⚙ panel's new **World** section, save as a new
+  preset (kept in your browser) or copy and paste as JSON. Built in: Earth,
+  Mars and Venus. A preset lists only what it changes, over Earth.
+- **The sun's size and brightness per world** (`b3d-skybox` `sunSize`,
+  `sunBrightness`): the disc (and its glow in vacuum and in the water
+  window's HDR capture) scales with 1/distance (Venus 1.39, Mars 0.66, Io
+  0.19, Titan 0.11); its light is set by how it LOOKS (a log curve), not by
+  the inverse square, because the eye adapts.
+- **Venus is one giant lightning storm** under a maxed, sulfur-yellow deck;
+  Land and Sky's storm is preset-able (where, how big, the cover it adds,
+  how often it strikes). **Mars is red**: hot and bone-dry, so the palette's
+  red dust (temperature falls with altitude; a cooler Mars went grey). The
+  volcano is off for both until each world has its own landforms.
+- **`craterField`** (landform): a whole cratered surface, seeded and
+  unbounded. Sizes in doubling classes, one grid per class sized to its
+  craters, so a real 1/size-squared population is one presence roll per
+  cell and a terrain sample checks one cell per class. Big (old) craters
+  first, small ones punch into them; each worn to its own age; complex
+  craters (flat floor, central peak) past `complexRadius`. Land and Sky has
+  a **craters** slider; Mars 0.35, Venus 0.06 (its surface is young). Dry
+  worlds have **no sea** (`sea: false`): no water plane, no shore colours.
+- **Moon, Io and Titan presets.** The Moon: airless, saturated craters, grey
+  regolith, stars at noon, Earth in its sky. Io: a sulfur palette (frost,
+  yellow, orange-red, black lava), a field of hot volcanoes, a tiny sun.
+  Titan: orange haze and cloud over dark amber methane seas, a tiny, dim
+  sun. Land and Sky gains **volcanoes** (a seeded field), a **ground
+  palette** (swapped on the biome shader) and sea colours. `b3d-water`
+  gains **`fogColor`**: the colour of the water you are in, which the
+  underwater fog, the medium and the light shafts all read.
+- **Venus: no rain, gentler relief.** Its sulfuric acid rain evaporates
+  before reaching the ground, and the surface is mostly smooth lava plains;
+  the storm's rain is now a preset setting (`stormRain`).
+- **The aircraft demo has weather to fly in**: ⚙ sliders for wind (blowing
+  across your starting heading, so you crab) and storminess (a storm cell
+  over the whole arena), and a live turbulence readout.
+
+### Fixed
+
+- **Lightning bolts vanished into haze** while their light still lit the
+  ground (Tonio: "I see flashes but never seem to see lightning strokes"):
+  under a closed deck the scene fog swallowed the bolt meshes. Bolts ignore
+  fog now; they are far brighter than anything it hides.
+- **Distant lightning strokes did not render**: a 1.6 m channel is a small
+  fraction of a pixel a few kilometres off, so under a big storm most bolts
+  vanished while their flash lit everything. Bolts (and their glow) now
+  scale with distance, never thinner than about a pixel and a half.
+
+## 0.8.5
+
+**Weather you can watch.** Storms that darken the day and strike: lightning
+that lights the cloud from below, inside and above, lights the landscape and
+throws shadows, with thunder at the speed of sound. Shafts of sun through a
+broken sky, and the sky and sun seen through the water from below, with rays
+fanning down from them. Rain and snow from the weather, the wind carrying
+aircraft and buffeting them in a storm. And two long-hidden bugs: the cloud
+deck's local weather was mirrored north-south, and on the doc site no shadow
+map had rendered at all.
+
+Size: barrel (min, packages external) 883.2 KB raw / 295.6 KB gz (+5.7% gz),
+for lightning, light shafts, weather cells, trails and caustics.
+
+### Fixed
+
+- **Lightning lit the land through cloud-shaped shadows** (Tonio: "the
+  directional light seems to be coming from above the cloud layer ... the
+  shadows are mostly cloud"). The projected cloud shadow multiplied the
+  whole lit colour, flash included; a flash starts BELOW the cloud, so the
+  cloud shadow now fades while the deck is flashing (`strengthSource`, read
+  at draw time).
+- **Moonlight made shafts as bright as noon.** The shafts' colour was
+  normalised and never scaled by the light's intensity; the skybox puts the
+  moon in the same light at night. They now scale with it (moon shafts are
+  real, and faint).
+- **Shafts are SMALL where they leave the deck or the surface** (Tonio: the
+  wider they are, the more obvious any mismatch with the gap): sky `width`
+  200 -> 40 m (4 m near closed cover), underwater rays 0.2-0.8 m.
+
+- **No shadow map rendered on the doc site, the sun's included.** Babylon's
+  shadow generators lazy-load their shaders from code-split chunks, and each
+  chunk loaded a second copy of the site bundle (tosijs-ui#191), which threw,
+  so the shaders never loaded and every `isReady()` stayed false. The site
+  entry now imports the shadow shaders statically and tells the generators
+  they are loaded (site-only workaround; the library is unaffected).
+
+- **Thunder kept playing after leaving the page** (Tonio). Thunder is
+  scheduled ahead on the audio clock (a storm 2 km off rumbles 6 s after its
+  flash, for 4 s), and disposing `<tosi-b3d-lightning>` neither stopped it
+  nor closed the context. It now closes its AudioContext, silencing
+  anything queued at once and no longer leaking a context per visit.
+
+- **The cloud deck's local-weather texture was MIRRORED north-south.**
+  Babylon's ground rows run from +Z to -Z; the texture's rows the other way.
+  Everything reading the texture (local coverage, storm gloom, the cloud
+  shadow) put storms and orographic cloud at the mirror image of where they
+  were, invisible when a storm sat near the deck's centre. The lightning
+  demo's storm, 1.3 km off-centre, was drawn 1.3 km the other way, so every
+  strike lit empty sky. Pure `packWeatherTexture` flips the rows, tested.
+- **A storm's sky only closed at its very core**, so from below you looked
+  up through gaps at the inside of the tower, which read as the deck's
+  BOTTOM bowing upward (Tonio). A storm now counts in full in the coverage
+  (its share is taken out of the ramped field and added back whole): a cell
+  of 1.8 closes the sky over the inner half of its radius, the base stays
+  flat, and only the top skin rises into the tower. From above the ceiling
+  bulges up; from below it is a flat, solid underside.
+- **A strike lit the cloud one frame late** (the deck pushed its flash before
+  lightning set it); the flash is now written at draw time. It also lights
+  the TOP skin, so a tower seen from the side glows, and the ground light
+  sits halfway between the cloud base and the terrain under the strike.
+
+- **The launcher demo's left stick did nothing** (board #2434). Since the
+  GTA-style remap the biped mapping sends A/D and left-stick X to `strafe`
+  and only the right stick to `turn`; three doc demos (launcher, warhead,
+  the controller's rover) still steered on `turn` alone, so the glass
+  pad's stick and A/D were dead. They now steer on either.
+
+- **Orographic cloud filled the whole sky over land** (Tonio: "orographic is
+  the problem. It fills the transparent areas without changing apparent
+  cloud coverage"). The lift was measured from ABSOLUTE height, so with Land
+  and Sky's sea at 147 m every bit of land counted as mountain and added
+  +0.5 to +0.75 coverage: a 0.3 sky rendered as a solid grey sheet. It is
+  now measured from the SEA (the scene's water surface) and weighted to
+  RIDGES (ground above its surroundings); a high flat plateau keeps 35% of
+  it. Pure: `cloud-field`'s `orographicLift`, tested. `orographicPeak` is now
+  the height above the sea.
+
+### Added
+
+- **Lightning casts shadows** (Tonio: "spin up a shadow map and retain it
+  between strokes and just use it for the brightest strike"). ONE shadow map,
+  kept; re-rendered once per new brightest ground strike, never per frame.
+  The strike's light is a POINT light by default (`flashLight`), from the
+  middle of the channel, so shadows radiate from the bolt (a cube map: six
+  renders per strike); `'directional'` is the one-render option for low-end
+  devices. Casters within `shadowRange` of you (and of the strike, for a
+  point light); `shadows`, `shadowSize`. It replaces the old point light, so
+  the scene stays within a material's 4-light budget. The lightning demo now
+  has hills, trees and a hamlet under the storm.
+- **A storm darkens the day around it** (Tonio: "cut ambient and even sun
+  brightness somewhat when lightning is flashing ... by half"): new
+  `darken` on `<tosi-b3d-lightning>` (0.5) takes the sun and the ambient
+  fill down by half at full storm, easing with distance and strength,
+  through the cloud deck's own light handling (`deck.stormDim`) so the two
+  cannot compound. The deck's gloom no longer dims lightning's own lights
+  (it was cutting the landscape flash by up to 90% under cover).
+- **Land and Sky: a "lightning storm" toggle** beside the volcano: the storm
+  gathers in front of you over 20 s, strikes, rains and throws strike
+  shadows, then drifts away east.
+- **Lightning is dramatic** (Tonio: "having the lightning be dramatically
+  bright"): each strike lights the WHOLE landscape from above (falling off
+  with the storm's distance), the tower from inside, harder, and the bolt
+  carries an additive halo. New `brightness` (the drama) and `rate` (how
+  often, a multiple of the natural rate; pure `strikesBetween` takes it,
+  tested) on `<tosi-b3d-lightning>`; `groundLight` default 2.5 -> 6. Storm
+  lightning also brightens the WHITEOUT when you are inside the cloud. The
+  landscape flash is strong enough for a dark ground to read as lit (peak
+  3.5, halving at 6 km; the ground light reaches 6 km). The
+  demo has a scene panel: storm size,
+  how often, cloud cover, brightness, time of day. A storm is no longer a
+  TOWER by default (Tonio: "it basically looks terrible"): the deck's
+  `stormRise` defaults to 0 (opt-in, domed when on), so a storm is more
+  cover and lightning. From below the flash lights the underside and the
+  ground, inside it the whiteout, above it the top.
+- **Weather reaches the airframe** (board #1125). `<tosi-b3d-aircraft>` asks
+  the scene for the weather where it is: the WIND carries it (it chases an
+  air-relative velocity, so a crosswind crabs it downwind), and a STORM
+  buffets it — seeded disturbance on pitch, roll and climb that the attitude
+  controller fights back toward the stick. Strong wind alone adds a little.
+  New attributes **`turbulence`** (`'on'`/`'off'`, default on) and
+  **`turbulenceScale`** (default `1`), and a read-only **`turbulenceLevel`**
+  (0–1) for a HUD or a debug readout. The disturbance is the pure, seeded
+  **`turbulence(t, seed, level)`** in `fly-by-wire`. Nothing happens on the
+  ground or in an owner without the weather service.
+- **Light shafts** (WEATHER-DESIGN stage 4, board #1084), to Tonio's model
+  (pure half: **`light-rays`**): **`<tosi-b3d-light-shafts>`** hangs shafts
+  from the gaps in the cloud deck, BELOW it, running along the sun and
+  widening slightly (`spread`), and as broad as the gaps: `width` at the
+  0.5 threshold down to slits as the cover closes toward 1. An additive,
+  flat fill of the sun's colour — `strength` 0.35 at the cloud, linear to 0 — most prominent looking toward
+  the sun (a forward-scatter phase, per pixel), and only where the local
+  cover is broken: 0.5 up to (not including) 1. Placement searches a fine
+  grid near you as well as a coarse one far out, keeps one shaft per gap,
+  and only refuses a shaft that would pass through you, so a deck just
+  above your head (Land and Sky) gets shafts too. The same model runs UNDER
+  THE WATER: shafts from the surface, bent by Snell's law, sunlight tinted
+  by the water's fog, shimmering as cells come and go (`underwater`,
+  `underwaterCount`). SURFACE TURBULENCE drives them (the wind over the
+  water, its `waveHeight` and `bumpHeight`): calm water gives a few broad,
+  slow rays, choppy water many narrow ones that flicker (`waterRoughness`,
+  `waterRayShape`; `waterRoughness` on the element reads it back). The doc
+  page has an underwater demo. Shafts are RECTANGULAR (`spread` 0), so
+  perspective alone makes them radiate from the sun; sky placement is
+  weighted hard toward the sun's position in view, and underwater rays are
+  biased toward the viewer so the middle of the view is not empty. Rain adds
+  to the strength.
+- **The weather-cell demo has a frame of reference** (Tonio: "it has no
+  frame of reference so it just looks like leaves blowing around"): a row of
+  flagpoles you fly past, each flag showing the wind WHERE IT STANDS
+  (streaming downwind, limp in the lee), and the lee's edge drawn as a ring
+  on the water.
+- **The sky through the water, from below** (`b3d-water` `undersideSky`,
+  default 1; Tonio: "we want to see the sky and sun through and distorted by
+  the water surface"). The window no longer shows a flat colour: a small
+  reflection probe photographs the sky with its fog and veil OFF, and the
+  underside refracts it through the water's own ripples, so the sky and the
+  sun arrive bent and moving. Clearest in the shallows, fading with depth,
+  giving way to the dark mirror at grazing angles. The probe is HALF-FLOAT
+  and captures the sun as HDR (a new skybox uniform, `b3dSunHdr`, 0 in
+  normal rendering), so the sun still punches through the partial
+  transmission of the surface (Tonio: "our skybox isn't HDR so its glare
+  doesn't punch through"). (It replaces a glare sprite that looked fake.) Underwater rays are fewer (`underwaterCount`
+  12, lower presence).
+- **Rain and snow from the weather** (WEATHER-DESIGN stage 5, board #1124).
+  `b3d-ambient` gains `weather: 'rain' | 'snow'`: emission follows the
+  PRECIPITATION where the viewer is, so a storm brings its own rain and it
+  eases in and out as the storm passes; the local temperature splits rain
+  from snow (sleet between). Rain now draws as STREAKS stretched along its
+  velocity, so the wind visibly slants it. Land and Sky's storm rains.
+- **Lightning and thunder** (WEATHER-DESIGN stage 3, board #1123):
+  **`<tosi-b3d-lightning>`** strikes under every weather cell with
+  `storminess`, seeded (same seed, same storm; frame rate cannot change it).
+  Cloud-to-ground strikes draw a jagged, branching bolt that flickers through
+  its re-strokes and light the ground; every strike lights the cloud deck from
+  INSIDE around it (`deck.flash()`, a new hook: why storms want coverage past
+  1); thunder is procedural and arrives at the speed of sound, so you can
+  count the distance; and over strong storms, rarely, **sprites**: brief
+  red-pink crowns with purple tendrils high above the tower. Each strike
+  dispatches `strike` with `{ kind, x, z, t, distance }`. The pure model is
+  `lightning.ts` (`strikesBetween`, `boltPath`, `flashAt`, `thunderDelay`).
+  Land and Sky's storm now brings lightning.
+- **Weather, stage 2: a storm you can see** (board #1122). A
+  `<tosi-b3d-weather-cell>` with `coverage` joins the cloud deck's local
+  weather field: denser cloud over it, a greyer, heavier underside (its own
+  "gloom" channel, so orographic cloud still never repaints fair weather as
+  foul), the storm's shadow on the ground beneath (the shadow reads the same
+  field), and full strength even when the global dial says clear. A drifting
+  cell re-bakes about once per 10 m of travel.
+  Land and Sky has a **storm** toggle in its Weather group: a storm drifting
+  with the wind (the scene's wind now matches the deck's) that passes over
+  you and recedes into view.
+  Cells gain **`grow`** (seconds to gather from nothing to full), so a storm
+  builds rather than appearing; the deck re-bakes in 1% strength steps as it
+  does. Across SPACE a cell was already gradual: a smoothstep over its whole
+  radius, smoothed again by the deck.
+  **Storm towers:** cell coverage now runs to 2, and past 1 is THICKNESS,
+  as on the deck's own dial: the deck lifts its top skin there by up to
+  `stormRise` (1,500 m), whatever the global dial says, so a storm is a dark
+  heavy base from below and a bright tower from above, and the thing
+  lightning will light from inside. The cell channels get one smoothing pass,
+  not the orographic field's four (which flattened a storm's excess from 0.7
+  to 0.18). Land and Sky's storm is coverage 1.7.
+- **Weather, stage 1: the weather where you are** (WEATHER-DESIGN.md, board
+  #255). `b3d.weatherAt(x, z)` (and `weatherHere()`) answers what every
+  weather consumer asks: the scene's base wind plus every
+  **`<tosi-b3d-weather-cell>`** that reaches the point, composed per quantity
+  (wind and temperature sum, coverage sums clamped, precipitation and
+  storminess take the max). Clouds, water and ambient now read the wind AT
+  THE VIEWER rather than one scene-wide value, so a lee is calm and a squall
+  is local. A cell with `drift="wind"` travels with the wind (a weather
+  system), and `lifetime` grows, holds and ends it. The pure model is
+  `weather.ts`. Measured on the new page: leaves' wind 12 → 0.96 m/s crossing
+  a lee's centre.
+- **Caustics** (board #198, tosijs-3d#16): light through the moving surface,
+  dancing on whatever is beneath a `twoSided` `b3d-water` (`caustics`,
+  `'auto'` = on whenever `twoSided`; `causticsStrength`, `causticsScale`).
+  Projected by world position through a material plugin (the cloud-shadow
+  technique), so terrain, hulls and the player all get it with no per-mesh
+  setup; slants with the sun, shimmers (two moving layers, combined with
+  `min`), fades with depth and fog, and goes with the sun. The pattern is a
+  seeded, tiling cellular web (`causticPattern`), with no file to fetch.
+- **One lattice per world, enforced where code can** (board #257,
+  tosijs-3d#75): every `extractChunk` result carries its `lattice` identity
+  (`latticeIdentity(cfg)`), and `assertLatticesWeld(chunks)` throws on a
+  mismatch instead of leaving a crack. TUNNEL-DESIGN.md records the decision
+  that carves are world-level objects provinces declare but don't own, so a
+  tunnel between provinces is just a carve in the field.
+- **Snell's window: the water's underside** (board #197, tosijs-3d#15). Looking
+  up from under a `twoSided` `b3d-water` used to show flat dark blue. Now
+  (`underside`, `'auto'` = on whenever `twoSided`) it is a bright window onto
+  the sky overhead, darkening to a mirror of the depths toward grazing angles,
+  rippling with the same normal map as the surface, and fading in with the
+  underwater fog's own band weight. One plane, one draw call, only while
+  submerged. `undersideColor` / `undersideDepthColor` tune the two ends. It
+  stays OPAQUE and the sky stays fogged, unlike the prototype, so a level look
+  under water still sees murk rather than sky.
+- **`b3d.debugFogColor`** (`'#ff00ff'`) paints the composited fog a colour
+  nothing else is, to tell fog from surface from sky; also a toggle on the
+  Perf Stats panel's new Fog row (with density, end and veil), for a headset.
+- **`<tosi-b3d-trail>`** — a ribbon behind anything that moves (contrails,
+  missile smoke, a fast enemy's wake), lifted from manta-recon's engine
+  contrails (tosijs-3d#4, board #186). Nest it in the mover, give it a local
+  offset; it measures speed at its own emitter (so it works on anything),
+  fades below `minSpeed`, takes `underwaterColor` below a `<tosi-b3d-water>`,
+  re-attaches when the host's mesh is replaced (respawn, async load), and
+  resets on a floating-origin shift. **`attachTrail(node, scene, options)`**
+  is the same for a node you hold, such as a spawned missile.
+  Missiles get it for free: `<tosi-b3d-launcher missile-trail="on">`, or
+  `trail` on `spawnProjectile`/`spawnMissile` for your own rounds.
+- **Frame panels are usable as menus** (board #768, tosijs-3d#92, from
+  manta-recon moving its outer game to viewer-relative panels):
+  - **They route pointers.** A `panel3d` on a frame panel now takes presses,
+    drags and hover from mouse, touch and XR rays (the same routing
+    `b3d-svg-plane` has), and repaints immediately on press and release rather
+    than on the texture's 400 ms timer. Before, the buttons drew and ignored
+    every click, with no error.
+  - `attachFramePanel` returns its **`mesh`**.
+  - **`resolution`** on `FramePanelSpec` (and `<tosi-b3d-panel resolution>`):
+    384 suits a reticle, not a menu of text.
+  - **`flatFrame` applies to any panel**, not only hand panels, so
+    `flatFrame: 'face'` measures a flat panel's elevation from the VIEW rather
+    than the off-screen horizon of a pitched camera.
+- **Flying under water feels like water** (board #185, manta's #3). A
+  `submersible` aircraft now meets a thicker MEDIUM below the surface:
+  `waterDrag` (×10 by default, the 2010 Manta's air:water ratio) multiplies
+  drag, blended over `waterTransition` metres. The controls are unchanged; full
+  throttle settles at ~32% of `maxSpeed`. **`surface-crossed`** fires on each
+  crossing with `{ entering, point, speed, aircraft }` for splash, wake and
+  audio cues, and **`submerged`** (0–1) is readable. In the pure model:
+  `FlyByWireConfig.mediumDrag`, and drag now clamps at rest instead of
+  overshooting into reverse on a long frame.
+
+### Fixed
+
+- **Replacing the player left input focus on the removed one** (board #2421,
+  from manta-recon's respawn): the new craft got no input and its crash was
+  ignored by `b3d-death`. A controllable now releases focus when it is
+  disposed, and `adoptIfVacant` treats a disconnected focused entity as a
+  vacant seat. No more `releaseFocus()` before the swap.
+- **Ambient wind accumulated every frame and flung particles away**: the
+  preset's direction vectors were assigned by reference, and the per-frame
+  `direction.set(preset + wind)` wrote into the preset, so the wind grew frame
+  on frame (drops at kilometres a second, never seen). Cloned now, and the
+  particles take the INHERITED wind (scene and weather cells), not only the
+  element's own `windX`/`windZ`.
+- **Flat eye-anchored panels trailed a moving camera by one frame** (board
+  #767, found by manta-recon at 2.15 m per frame behind b3d-aircraft's follow
+  camera). The flat frames are now posed on `onBeforeCameraRenderObservable`,
+  after anything that moves the camera during the render. Measured: 0.000 m
+  gap over 64 frames of a camera moving 2 m per frame.
+- **Every scene with a glass gamepad logged a type warning** (`gamepad is
+  declared boolean … but was written string`). `gamepad` is genuinely
+  `boolean | string` (`true` = the default layout, a string = a layout), so
+  it is now a plain property read once at setup rather than a typed attribute.
+  Markup (`gamepad`, `gamepad="…"`) and `b3d({ gamepad })` are unchanged.
+- **`b3d-terrain.recenter()` threw away an authored `worldU`/`worldV`** (board
+  #458), resetting them to the defaults. It now clears the travel (the
+  floating-origin offset) and leaves the placement alone.
+
+## 0.8.4
+
+**A sky you can actually see the stars in, and a world with things growing on
+it.** The encoded sky is decoded exactly (sharp points, not smeared blobs),
+twinkles, and is rebaked from the new voxel galaxy — one galaxy implementation
+now, with stable star addresses and a biased "interesting stars" population.
+Worlds get their own air and dust (a black noon on the Moon, a butterscotch
+Mars), cosmetic extra moons whose phase follows the sun, and render resolution
+follows the display by device tier. `<tosi-b3d-decorator>` scatters rocks and
+trees by budget and biome, with near-only shadows and colliders. Plus a
+batch of adopter fixes (ensemble's #76–#91, touch-orbit #52) and review
+follow-ups, and the first release through the OIDC + staged publish flow.
+
+Size: barrel 837.8 KB min (+5.6%) · **279.6 KB gz (+6.3%)**; dist total 1.30 MB gz (+4.3%).
+
+> **Visible, not breaking:** every `PRNG`-seeded output re-rolls (xoshiro128\*\*
+> replaces the Mersenne Twister), so a given seed produces a different galaxy,
+> star system, cloud field, crowd and spawn sequence from 0.8.3 — "same seed,
+> same battles" holds within 0.8.4, not across the upgrade. The shipped sky is
+> rebaked (and now served from a versioned URL). Deprecated names still work
+> and warn once: `generateGalaxy` (use `voxelGalaxy`), `onEnter`/`onExit` on
+> the trigger, `handleChange`/`handleCommit` on the manipulator
+> (`whenChange`/`whenCommit`). `registerIcons` now refuses markup that can run.
+
+### Fixed
+
+- **Dropdowns in a panel with a pinned header opened over their own
+  control** — body popups were anchored as if there were no header, too high
+  by its height. The in-VR scene panel has one (the transport bar), so this was
+  every select in the headset. Header widgets also get a host now, so a
+  `select3d` pinned in a header can open at all.
+- **`FrameInfo` keeps wall-clock time while paused**, as documented:
+  `realDt`, `realElapsed` and `frame` advance on a paused (still rendering)
+  frame; `dt` and `elapsed` stay stopped. They used to freeze too, which broke
+  the one case they exist for — a spinner on the pause panel.
+- **Floating origin reaches the placeables.** `b3d-prop`, a standalone
+  `b3d-beacon` and a place-anchored `b3d-spawner` drifted on a terrain rebase;
+  they now shift with it. The shared piece is `AbstractMesh.followOrigin()`,
+  which `b3d-destroyable` now uses too.
+- **`b3d-trigger` no longer calls BOTH `whenEnter` and `onEnter`** — the new
+  name wins and the old one warns once, like every other deprecated callback.
+  `themeEditor` reads `handleChange`/`onChange` the same way (it never warned).
+- **A table's row-button menu opened low** by the COLUMN gap; it is now
+  anchored at the row.
+- **A log slider with `zeroStop` ignored `step`**; it quantises in decades
+  like one without.
+- **`registerIcons` refuses markup that can run** (`<script>`, `on*=`
+  handlers, `<foreignObject>`, `javascript:` URLs) with a warning; the trust
+  boundary is now documented.
+- Clouds, ambient and water share one wind-inheritance rule
+  (`inheritedWind`); `vector3d`/`footprint3d`/`curve3d` import `handlerOf`
+  from its own module rather than dragging in `widgets3d`.
+- **Stars were smeared into soft plus-shaped blobs.** The sky's star decoder
+  placed each star relative to whichever tap fetched its texel, so it moved
+  as the fragment moved and was drawn across the whole texel (sometimes twice,
+  when two rotated taps hit one texel). It now walks the 3×3 neighbourhood in
+  texel space and rebuilds every star from its own texel and sub-texel offset,
+  through an exact GLSL mirror of the codec's cube convention. Also, **the
+  data cube had mipmaps**, despite a comment saying otherwise: a mip of packed
+  fields is data nobody encoded. They are off now.
+- **Airless sun and moon vanished** (the moon kept only its glow). The sky
+  model draws both through scattering, so without air there was nothing left.
+  Real half-degree discs now fade in as the air goes, and the glow fades with
+  it: a hard white sun and moon on a black sky. The airless moon is as bright
+  as the moon seen through air.
+- **The voxel galaxy's disc was built of slabs** (seen by Tonio as
+  "ellipsoid columns" at 1M stars). Voxel layers (0.03 at `nz` 20) were as
+  thick as the disc, so stars sat in flat slabs with hard edges. `nz` now
+  defaults to 60. Every voxel address changes (0.8.4 already rerolls the
+  galaxy), and the shipped sky is rebaked with a slightly crisper band.
+- **Big objects in the star sky were clipped square**, and **packed stars sat
+  on a lattice.** Objects wider than the decoder's 3×3 reach (distant galaxies
+  run to 3.5 texels) were cut at texel edges. Everything now tapers to nothing
+  within a texel. Packed stars in the dense core, known only to a quarter
+  texel, were drawn at their cells' centres, which formed a lattice the cube
+  projection bends into curves. They now get a deterministic jitter within the
+  cell (error diffusion for position).
+- **`atmosphere` just below 1 made the clouds vanish.** 5% vacuum pushed a
+  1–4 km fog out past 50 km, and the haze that hides the cloud deck's rim went
+  with it. The world's air is now steep, nearly binary (vacuum is
+  `(1 − atmosphere)⁴`): 0.95 is Earth, and only the last stretch thins the sky.
+- **Touch on the orbit camera: two fingers pan, a pinch zooms** (tosijs-3d#52).
+  Babylon's default does both on every two-finger move, with zoom from the
+  change in SQUARED spacing, so a drag read as "a weird zoom"; its alternative
+  mode turns a slow pinch into a pan for good. New **`touchOrbit(camera)`**
+  (wired into `<tosi-b3d>`'s default camera and `orbitCam`) decides once per
+  gesture from NET spread vs NET centroid travel, then locks. Pan follows the
+  fingers (pixels → world units at the target's depth), and zoom is natural.
+  Pure decision model in **`touch-gesture`**, unit-tested; measured in
+  headless Chrome with emulated touch: a 150 px two-finger drag now moves the
+  target 2.35 m with the radius unchanged, where before it moved 0.76 m and
+  zoomed 8 → 8.68.
+- **Vacuum hid the stars it was supposed to reveal.** The space band's fog
+  layer defaulted its sky veil to its weight, so leaving the atmosphere
+  painted the sky black OVER the starfield. Vacuum is the absence of a
+  medium; it now thins the haze without veiling the sky. Found building
+  `atmosphere: 0`, and it applies to the rocket climb too.
+- **A field outside an attached `fieldGroup` swallowed keystrokes silently**
+  (tosijs-3d#82). Attaching any group stood the global key listener down for
+  EVERY field, so a tapped field outside it showed a caret while its keys went
+  to the group's active field or nowhere. Now the listener stands down only
+  for fields an attached group owns, and a field outside every group that
+  takes focus makes those groups let go. `fieldGroup` gains **`add(field)`**,
+  so a field created after the group can join it rather than depending on
+  construction order.
+- **A page that mounted and removed scenes hit Chrome's WebGL context cap**
+  (tosijs-3d#79). Babylon's `engine.dispose()` keeps the context alive unless
+  `loseContextOnDispose` is set, so every removed scene held one until GC, and
+  Chrome force-loses the OLDEST live context past its cap — the scene you are
+  looking at goes black. Teardown now releases the context, and an element
+  re-added after a removal gets a fresh canvas (a lost context is permanent
+  for its canvas). A genuine re-add no longer warns "an engine already
+  exists". `bun bin/context-cap.ts` checks it in headless Chrome: 50 trips
+  with the removed elements retained; the live scene rendered nothing before
+  the fix and renders now.
+- **Starfield attributes were construction-time only** (tosijs-3d#88). Setting
+  `starfieldData`, `starfieldCube`, `starfieldTilt`, `nebulae`, … on an
+  existing sky did nothing — no request, no stars, no error. They rebuild the
+  starfield now; the dome is untouched. A dispose also releases the cube
+  textures (a moved sky used to leave them behind).
+- **A sky given `starfieldData` alone drew no stars.** The build returned
+  early unless `starfield` or `starfieldCube` was set, although the data cube
+  stands on its own.
+- **`slider3d`, `toggle3d` and `select3d` rejected the reactive boxes they
+  are designed to bind** (tosijs-3d#76) — 24 false type errors in one
+  consumer panel. `value` is `Bindable<T>` now (exported): a `T` or anything
+  with `.value` and `.observe`.
+- **`spaceStart`, `spaceFull` and `starDistance` said `unit` where every other
+  schema field says `x-unit`** (tosijs-3d#85). A test now rejects a bare `unit`.
+- **`azimuth` is out of `skyboxSchema()`** (tosijs-3d#86). It has been a no-op
+  since the sky material fork (the sun is placed by `latitude` and
+  `timeOfDay`), and the schema offered it as a 0–360° slider while the docs
+  called it a 0–1 fraction. Still accepted in markup; documented as ignored.
+- **A cloud deck forgot its local weather on a re-parent.** Its bake memo
+  survived `sceneDispose`, so the fresh mesh stayed unbaked — orographic cloud
+  gone — until some input moved. A deck moved into another `<tosi-b3d>` also
+  kept sampling the OLD scene's terrain (a narrow regression from 0.8.3's
+  cached lookup). Both reset on dispose now.
+- **The deck did per-frame work it did not need.** With no field in force
+  (orographic 0, no `weather`) it re-baked zeros on every grid snap and every
+  terrain rebuild; and the fly-into-cloud whiteout rebuilt the whole weather
+  field — a fresh terrain height sampler — every frame to sample one point.
+  The first bakes once; the second samples the field the bake already built.
+
+### Added
+
+- **Undo for the two page-global mutations.** `themeEditor()`'s element has
+  `restore()` — the palette as it was when the editor was built, then
+  `handleChange` so you rebuild. `registerIcons()` now RETURNS an undo that
+  removes the names it added and brings back any icon it replaced.
+- **`<tosi-b3d-moon>`** — cosmetic extra moons (tosijs-3d#89). Put up to
+  four inside a `<tosi-b3d-skybox>`: `azimuth`/`elevation` on the star
+  sphere (they ride with the stars), `size` (angular diameter, degrees),
+  `color`, `brightness`. The PHASE is automatic: each disc is shaded as a
+  sphere lit by the real sun, so a moon near the sun is a crescent and one
+  opposite it is full. A moon hides the stars behind it; it casts no light.
+- **`voxel-galaxy`** (`tosijs-3d/voxel-galaxy`) — the first step of
+  `GALAXY-DESIGN.md`: a galaxy as voxels, each with a derived bright and dim
+  seed. `brightStars()` is the global pass; `dimStarsNear(point, radius)` is
+  the local one the skybox baker will use. Density is sampled from
+  `generateGalaxy` and propagated so no voxel is empty; stars are addressed
+  `population:voxel:n` (no shared-seed clones). `galaxy-data` exports `starDetailFor`, `SPECTRAL_CLASSES`
+  and `SPECTRAL_WEIGHTS`, split out so both generators share one definition.
+- **The baker reads the voxel galaxy** (`GALAXY-DESIGN.md` step 2):
+  `starsFromVoxelGalaxy(galaxy, shell, eye, { dimReach, floor })` gives every
+  bright star (today's rule — intrinsic brightness), the dim stars near the
+  eye falling off with distance (the gather radius computed from the floor,
+  not guessed), and the distant shell. `bakeSkyPair` takes precomputed
+  `objects`; `bin/bake-stars.ts` rebakes `static/sky/stars_*` without a
+  browser in ~1 s for the tuning loop; `SHIPPED_SKY.voxel` holds the dials.
+
+### Changed
+
+- **`b3d-manipulator` callbacks are `whenChange` / `whenCommit`** — the
+  component convention. `handleChange`/`handleCommit` still work, warn once,
+  and are removed in 0.9.
+- `AbstractMesh.applyUniformScale()` replaces the identical private copies in
+  `b3d-prop` and `b3d-destroyable`.
+- **ONE galaxy implementation** (GALAXY-DESIGN.md → "Reconciliation").
+  The voxel galaxy is the galaxy now. `b3d-galaxy`, `b3d-star-system`, the
+  skybox baker and `bin/bake-stars` all read it. Its nebulae and distant shell
+  have their own derived seeds, so they no longer depend on the star count.
+  - **Visible:** a given seed now produces a **different galaxy** from 0.8.3
+    (same shape and distributions, different stars), and `starCount` is the
+    galaxy's **bright budget** (±noise), not an exact count.
+  - **`generateGalaxy` is deprecated** (removed in 0.9). It is now an adapter
+    returning `voxelGalaxy({ seed, brightBudget }).view()`. The spiral model it
+    was built on survives as **`sampleSpiral`**, which the density is sampled
+    from.
+  - **Stars have an address:** `id` is `seed:population:voxel:n`, with a
+    sequence number rather than the derived seed. `galaxy.star(id)`,
+    `b3d-galaxy.getStar(id)` and `b3d-star-system`'s new `star` attribute
+    resolve it. Star _n_ never depends on the budget, so an address resolves
+    even in a galaxy computed with a smaller one.
+  - **New:** `voxelGalaxy().view()`, `.star(id)`, `.nebulae()`, `.shell()`;
+    `b3d-galaxy`'s `dimBudget`; `starAddress` / `parseStarAddress`,
+    `starNameFor`, `sampleSpiral` and `starsFromVoxelGalaxy` in the barrel.
+  - **Interesting stars.** The dim population splits in two. **Interesting**
+    stars have a planet with HI ≤ 2 (breathable or filterable air, under 2 g,
+    not extreme); they are generated globally, so the galaxy demo's HI filter
+    sees every habitable system with its HI already known. **Boring** stars
+    are generated only locally, as sky texture. Both are exact: candidates are
+    drawn from a spectral mix biased by measured pass rates, then verified with
+    the real HI rules. The rates come from a harness, **`bin/tune-populations.ts`**,
+    which writes `population-table.ts`. A fingerprint test fails when HI
+    changes, and the fix is to rerun it. HI 3 is deliberately not
+    "interesting": it has no air requirement, so the Moon and Mars are HI 3.
+    `generateGalaxy` (deprecated) keeps meaning bright stars only.
+  - **`PRNG` runs on xoshiro128\*\*** (new **`Xoshiro128`**, exported). MT
+    carried 624 words of state and regenerated them before its first draw,
+    so just constructing one cost ~13 µs, and a star system builds one per
+    planet. xoshiro has 4 words: 30–75× faster to construct and draw, and it
+    passes BigCrush and PractRand, which MT fails. A star system now costs
+    6.5 µs, down from 70. It is checked against an independent BigInt
+    transcription of the reference C. **Every `PRNG`-seeded output
+    re-rolls:** planets, the spiral samples, nebulae, the shell and the
+    skybox's point starfield. That is folded into this release, which already
+    changes every galaxy. `b3d-clouds`, `b3d-crowd` and `b3d-spawner` moved
+    too, so their seeded layouts (cloud blobs, crowd placement, spawn rings)
+    reroll once as well. `MersenneTwister` stays exported.
+  - **The shipped sky's nebula half is rebaked** with the new nebulae.
+    **`bin/bake-nebula.ts`** bakes it in headless Chrome and checks that the
+    point half on disk came from the same galaxy.
+- **Noted late, from 0.8.3: `slider3d`'s `peek` readout appears BESIDE the
+  caption rather than replacing it** (tosijs-3d#84). Deliberate — a label that
+  vanishes the moment you touch the control loses the name of what you are
+  adjusting — but it went unannounced, and a consumer test pinned the old
+  behaviour. Press and drag over the caption also work (the stacked layout made
+  the whole width the track); now pinned by a test.
+- **The shipped sky's stars are rebaked from the voxel galaxy** — 100k bright
+  stars plus the dim stars around the bake point (~119k objects, against 100k
+  before). Far more stars at night, and a dense local sprinkle across the
+  whole sky rather than only along the band. The band itself is a little
+  broader. `bun bin/bake-stars.ts` with no flags reproduces it byte-for-byte;
+  the smooth `nebula_*` half is unchanged.
+- **The shipped sky has pinned, versioned URLs** (tosijs-3d#90):
+  `/sky/0.8.3/…` (the previous sky) and `/sky/0.8.4/…` (this one), each with a
+  `manifest.json` holding the decode parameters and the recipe.
+  `/sky/stars` stays "latest" for the demos; a document should pin a version.
+  `shipped-sky.test.ts` fails if latest drifts from the newest version.
+- **A world's own air, and its sky colour** (tosijs-3d#89). `b3d-skybox`
+  gains **`atmosphere`** (1 Earth … 0 the Moon: black noon, stars out, no
+  haze, a hard sun), which multiplies with the space band, and
+  **`zenithTint` / `horizonTint` / `tintStrength`**, which colourize the
+  scattered light only, keeping its brightness (a butterscotch Mars, a green
+  alien sky). Stars and moon are behind the air and stay untinted. Land and
+  Sky gains an **Atmosphere** group: a world preset (Earth / Mars / Alien /
+  Airless) plus live air, tint, turbidity, rayleigh, mie and luminance.
+- **Viewer-relative panels in the flat view** (tosijs-3d#81).
+  `<tosi-b3d-panel presence="both">` appears on a monitor as well as in a
+  headset, placed with the same frame vocabulary (eye / body / neck / face,
+  azimuth-elevation-distance, presets, gaze reveal). **`XrFrames.flat(scene,
+camera)`** derives the frames from any flat camera's world pose (the eye
+  frame takes the view's yaw, not its pitch). Hands have no flat analogue, so
+  a hand panel declares **`flatFrame`**; without one it stays VR-only and
+  warns once. `presence` defaults to `'xr'`, so existing panels are unchanged.
+- **`<tosi-b3d-decorator>` — rocks and trees on the terrain, by budget and
+  by climate.** The pure **`scatterPlacements`** model places a fixed NUMBER of things.
+  Its rules use the biome shader's own axes (temperature, moisture, altitude
+  above sea, slope), so pines grow in the cold, palms on warm shores, cacti in
+  hot dry country, and boulders on the steep. Candidates are world-anchored
+  and deterministic, and an acceptance threshold is solved to hit the budget.
+  Provinces suppress by kind (no plants on a lava field; rocks still). Models
+  come from Kenney's Nature Kit, drawn as thin instances: one draw call per
+  model part, whatever the budget. A small collider pool follows the camera:
+  trunks as posts, boulders as boxes. `measureCost()` steps through budgets
+  and reports frame time, GPU time (where exposed), draw calls and indices.
+  Land and Sky has a Vegetation group (budget 0–20k, reach).
+- **Render resolution follows the display, by device tier.** Scenes rendered
+  at CSS resolution, so a 1.25× or 2× display upscaled everything (soft edges,
+  soft stars). The render now uses the display's pixel ratio capped by tier:
+  high up to 2×, medium up to 1.5×, low at CSS resolution. The new
+  `PerfBudgets.pixelRatioCap` sets the cap, and **`<tosi-b3d pixel-ratio>`**
+  overrides it with an explicit value (`1` = CSS resolution, `2` = full
+  Retina, `0.75` = below CSS for speed). It follows a window moved to another
+  monitor, and XR is unaffected. The rule is `renderScalingLevel` in
+  `b3d-quality`, tested.
+- **Twinkle** (`starfieldTwinkle`, default 0.35): scintillation, which is
+  the air, so it scales with the gas (none on an airless world), is strongest
+  at the horizon, and each star flickers on its own pattern. Land and Sky has
+  a twinkle slider.
+- **`dust` on `b3d-skybox`** separates dust from gas. Gas (`atmosphere`)
+  scatters blue; dust scatters a bright grey haze that the tint colours. So
+  Mars is almost no air, lots of dust and a butterscotch sky (Land and Sky's
+  preset: air 0.03, dust 0.85), and the Moon is neither. The previous Mars
+  needed full air to be bright at all.
+- **Star look dials on `b3d-skybox`:** **`starfieldGain`** (brightness) and
+  **`starfieldFloor`** (the faint mass) join `starfieldSharpness` (size) and
+  `starfieldSizeScale`. All four are live uniforms, so a slider does not reload
+  the cube. With exact points the defaults moved to gain 0.9 and floor 0.4.
+  Land and Sky has a Stars group (size, brightness, faint stars).
+- **`slider3d({ useful: [lo, hi] })`** (tosijs-3d#83) — a soft band on the
+  track where the values anybody wants live; the handle still reaches `min`
+  and `max`. It is where a schema's `x-useful` lands.
+- **`cloudDeckSchema()`** in `sceneSchemas` (tosijs-3d#87) — the deck was the
+  one scene primitive a schema-driven consumer had to describe by hand.
+- **Fetched strings are marked in the scene schemas** (tosijs-3d#91):
+  `format: 'uri-reference'` on `starfieldData`, `starfieldCube`,
+  `nebulaTexture`, `water.normalMap`, `clouds.model` and `ground.texture`
+  (which also lists its keywords in `x-keywords`). A test fails on any new
+  plain string that is not a colour, enum, URL or deliberately listed.
+- **`bun run sizes`** — the barrel as a consumer bundles it, and the shipped
+  `dist/*.js`, against a committed `dist-sizes.json` (0.8.3: 263.1 KB gz).
+
+## 0.8.3
+
+**A galaxy that costs nothing per frame, a sky that keeps the right time, and
+clouds that light like clouds.** Galaxy billboarding moved into the vertex
+shader (3.19 ms → ~0.02 ms of CPU per render). The sun now runs a northern arc,
+ignores `starfieldTilt`, and a skybox without a sun still knows it is night.
+The cloud deck's silver lining finally faces the sun, and fair-weather cloud
+is white from below and outshines the sky at its thinnest. The kitchen-sink
+demo is now **Land and Sky**.
+
+> **Visible, not breaking:** scenes tuned by eye will look different. The sun
+> crosses the SOUTH at noon (it crossed the north), the tilt no longer lifts or
+> drops it, the moon rides the night arc, cloud undersides are brighter and
+> their rims glow toward the sun rather than away from it, and a volcano grows
+> a basalt apron. No component API was removed, but two paths moved: the
+> kitchen-sink demo module `tosijs-3d/world-sim` is now `tosijs-3d/land-and-sky`
+> (a side-effect-only demo, not a library entry point), and the unused 2048
+> reference sky (`/sky/default_*.png`) is no longer served — it lives in
+> `reference/sky/` in the repo.
+
+### Added
+
+- **`galaxy.pickStar(x, y)`** — the star under a screen point, or `-1`: the
+  nearest star whose DRAWN disc the ray crosses (the old triangle pick also
+  hit a quad's invisible corners), else the nearest within 3 px, so a
+  one-pixel star is clickable. `getStarPoints()` — every point in the star
+  mesh, for bakers.
+- **`SHIPPED_SKY`** — the recipe for `static/sky` (seed, 100k stars, 42% out,
+  1 off-plane, roll 0, 256 + 1024, and the `12,25,58` tilt it is framed for),
+  plus a "use shipped recipe" button in the baker demo. It used to live only
+  in commit messages.
+- **Live terrain climate:** `biomeTemperature`, `biomeMoisture` and
+  `biomeVolcanicScale` attributes (−1 = the plugin's default), synced like
+  `biomeSeaLevel`. The moisture default (0.45) is steppe — a green world
+  wants ~0.7. And `terrain.generationKey`, which changes whenever the
+  terrain's shape does.
+
+### Changed
+
+- **`b3d-galaxy` billboards in the vertex shader.** Stars and nebulae are
+  static quads the shader turns to face the viewpoint; the per-frame
+  `setParticles()` that rewrote every vertex whether or not anything moved is
+  gone. Measured on the baker's 10k-star galaxy: **3.19 ms → ~0.02 ms of CPU
+  per render**, and it no longer scales with star count. A sky baked through
+  it is byte-identical in the data cube and differs by 1/255 in 3 of 393,216
+  smooth-cube pixels (GPU float32 vs CPU float64 at a triangle edge). Quads
+  face the camera's POSITION rather than its view plane — the rule the cube
+  bake already used, so there is one mechanism where there were two that
+  could stack. `setVisibility()` now genuinely fades.
+- **`cirrus` is signed, `-1…1`.** The magnitude is how wispy; the sign is
+  the axis — positive streaks ALONG the wind heading (as before, bit for
+  bit), negative ACROSS it.
+- **A volcano goes through basalt before lava.** Its province tail was one
+  smooth ramp from 0.5 at the rim, so almost all of it sat on the ladder's
+  glowing-seam stage and vegetation met glowing rock directly. It now cools
+  gradually over 0.3 R past the rim and holds a cold-basalt apron (~0.15)
+  before fading into the biome by 0.75 R; the shader's local volcanic mask is
+  fully on by 0.12 (was 0.3), so the apron reads as solid basalt.
+- **Fair-weather cloud is white from below, and outshines the sky at its
+  thinnest.** The underside lift peaked at 42% toward white on a clear day; it
+  is now ~90% up to coverage 0.5, easing onto the storm curve by full cover
+  (following the dial, so an orographic cap does not turn fair weather into a
+  slab). Below 0.5 the cloud gains a forward-scatter glow in the sun's HUE —
+  golden at golden hour — rising to ~3× as cover falls to 0, mostly spared the
+  distance fog. An explicit `transmission` keeps its authority.
+- **The kitchen-sink demo is "Land and Sky"** (`/land-and-sky/`, under
+  Demos). Titled `world-sim`, it slugified onto the World Sim category and
+  adopted all twelve world-simulation pages as its children; `/world-sim/` is
+  the category's landing page again. New defaults (Tonio's): volcano on,
+  moisture 0.72 (forest), volcanic scale 0.02 for its 420 m cone (the
+  demo's value — the library default stays 0.09, right for ~50 m cones),
+  cover 0.10,
+  18:30. A Climate group joins the panel, and the camera turns in place —
+  arrows ROTATE (up = look up); it was an orbit camera, so up-arrow nose-dived
+  and left/right swung the eye round a 300 m circle.
+
+### Fixed
+
+- **The sun ran a southern-hemisphere arc at a northern latitude.** North is
+  +Z (every heading is `atan2(x, z)`) and the latitude rotation leaned the arc
+  toward +Z. Now it rises east, crosses the south at noon and sets west
+  (98° / 180° / 262° at 7:00 / 12:00 / 17:00, latitude 40).
+- **`starfieldTilt` moved the sun.** It orients the galaxy behind the
+  atmosphere; noon is latitude and time. With the demos' `12,25,58` the noon
+  sun sat ~15° up instead of 50°. The tilt now sits in the celestial frame,
+  inside the diurnal turn, so sun, moon and stars still wheel as one, and the
+  moon rides the night arc — up at night with or without a tilt.
+- **A skybox with no `<tosi-b3d-sun>` ignored the clock.** The dome's
+  day/night writes sat inside the sun-element branch, so without a sun it
+  stayed at stock daylight while the star exposure said night — stars through
+  a sunlit sky (the beacon demo). Only the light's writes need a light now.
+- **Cloud deck: the silver lining pointed the wrong way.** `sunDir` is the
+  light's travel direction and the forward-scatter term read it unnegated, so
+  rims blazed with the sun BEHIND the viewer and the clouds in front of a
+  sunset were the darkest in the sky.
+- **Cloud deck: `orographic` was not live.** The local-weather field only
+  re-sampled when the grid moved, so dragging `orographic` (or reshaping the
+  terrain under it) did nothing until the camera travelled a grid step.
+- **Cloud deck: `coverage: 0` is a clear sky.** The orographic boost was added
+  on top of the dial, so zero still left cloud on every peak; it now ramps in
+  over the first quarter of the dial.
+- **The skybox baker encoded every distant star twice** — once as a
+  spectral-less 0.02 "star" (it walked the whole star mesh, whose tail IS the
+  distant stars) and once properly. The shipped sky (`static/sky/stars_*`) is
+  rebaked without them; the recipe was first proven by reproducing the old
+  faces byte-for-byte with the pre-fix code.
+
+### Deprecated
+
+- **`getStarSPS()`** returns `null` and warns once — there is no particle
+  system. Use `pickStar`. `getDistantStarParticles()` /
+  `getDistantGalaxyParticles()` now return `GalaxyPoint`s (the
+  `position`/`scaling`/`color` subset of a `SolidParticle` the baker read).
+
+## 0.8.2
+
+### Added
+
+- **The encoded sky** — `starfield-codec` + `skybox-baker`. A starfield is data,
+  not a picture: six small RGBA faces carry sub-texel position, gamma brightness
+  and a spectral A-byte, decoded in the sky shader into points that stay points
+  at any zoom. The shipped pair (256 smooth + 1024 data) renders a 100k-star
+  galaxy at 25 MiB of VRAM and 0.4 MB on disk, against the 2.3 MB / 96 MiB
+  raster it replaces. The A-byte spends precision where the eye is: faint stars
+  are warm yellow, bright stars carry a 224-step spectral ramp, galaxy discs
+  their size.
+- **`png.ts`** — a lossless PNG encoder — and with it the package's first
+  runtime dependency: **`fflate` (`^0.8.3`)** supplies the deflate, because
+  Chrome's `CompressionStream` output is rejected by Chrome's own PNG decoder
+  and the packed fields must survive byte-exact. The packed fields must survive
+  byte-exact, and both the canvas path (premultiplied backing store) and
+  Chrome's `CompressionStream` deflate destroy them; the encoder writes the
+  bytes directly and a test round-trips through real inflate.
+- **Distant dim stars** (`distantStars`, default 3000) — isotropic points
+  outside the disc, so the off-band sky has texture instead of blankness.
+- **`b3d-cloud-deck`** — the cloud DECK: a tiled field shader with one
+  coverage dial driving transmission, gloom and depth; orographic clouds that
+  ask the terrain for its own height sampler; a shared cloud shadow.
+- **The `world-sim` page** — the kitchen sink: live-dialed terrain (sea level
+  as a fraction of v-size), weather, and the encoded sky, under Demos.
+- **`spectralGlsl`/`spectralRamp`/`spectralValue`** and the `generatePlanets`
+  galaxy option — the colour follows the class, and planets (71% of galaxy
+  generation time) are computed on demand via `generateStarSystem`.
+
+### Changed
+
+- **Galaxy generation is ~70× faster** — names derive from each star's own
+  seed via a cheap PRNG (no collision retries, no name table), planets are
+  on-demand, and the core nebulae are a fixed budget rather than a fraction.
+- **The sky is one rigid frame** — the dome's rotation carries the gradient,
+  the sun, the moon and the stars together; the star fade dies by gamma at the
+  first hint of daylight, and the golden hour has two stops (amber, then a
+  pink-red at the horizon crossing) feeding the deck's fringe and the fog
+  through the light's colour.
+- **The baker downloads ONE zip** — twelve separate downloads got silently
+  dropped by the browser mid-burst.
+
+### Fixed
+
+- The biome classifier's sea level and lapse rate are LIVE dials — they
+  move the snow line without re-cutting the tile pool (the shader reads the
+  plugin params every bind; the old spelling regenerated the world for a
+  value the shader never saw).
+- The cloud-deck shadow survived field re-bakes (the shadow's sampler was
+  left pointing at a disposed texture).
+- The cloud-deck's core glow no longer blows out at high star counts.
+- The sky shader compiles under the strictest decoders — floats in the
+  generated GLSL now LOOK like floats.
+
+## 0.8.1
+
+### ⚠️ Breaking
+
+Nothing breaks at compile time. Two behaviours change, and
+[Migration.md](https://3d.tosijs.net/Migration/) has the before/after for each.
+
+- **Aircraft guns are direct-hit, not area-effect.** `gun-mode="blast"`
+  restores the old behaviour; `gunBlastRadius`/`gunFullRadius` are attributes
+  now rather than hardcoded.
+- **`activationVeto` takes an optional second parameter.** Existing callers
+  compile unchanged, and a veto that ignores its argument behaves identically.
+  When the info is omitted a reach veto now **refuses** rather than passing —
+  see Migration.md for why that direction, and how to say otherwise.
+- **`select3d` no longer draws ‹ › stepper arrows.** The popup it always had is
+  now the only way in, and is discoverable.
+
+### Changed
+
+- **Aircraft guns damage what they pass through, instead of firing an area
+  effect** (#23). Blast damage resolves by distance to a destroyable's
+  registered point — ONE point, at the model's origin — so scaling a fighter 4×
+  puts its wing outside a 1.5 m blast and point-blank fire does nothing, with
+  no error. Direct-hit damage has no length scale in it and is immune to that
+  whole class. `gunMode="blast"` restores the previous behaviour, and
+  `gunFullRadius`/`gunBlastRadius` are attributes now rather than hardcoded.
+- **A disposed mesh now takes its own materials and textures with it.**
+  `mesh.dispose()` leaves them behind, so every scene child that built one
+  leaked it on every teardown — including every RE-PARENT, since a move
+  disconnects the child while the scene deliberately survives. Measured:
+  re-parenting one scene six times took materials 3 → 15 and textures 3 → 21,
+  unbounded, meshes correctly flat. `disposeMeshTree` CHECKS before disposing —
+  a glTF file shares one material across many meshes and a disposed material
+  still answers `isReady()`, so a wrong sharing rule turns siblings black
+  silently. Textures held by the scene environment, a render target or a
+  light's gel are exempt, because nothing references those from a material.
+- **A blast finds every destroyable, not every `<tosi-b3d-destroyable>`.**
+  `detonateWarhead` queried one tag name, so `b3d-loader` models — which attach
+  the same behaviour — were invisible to every explosion in the scene. The
+  registry now lives on `DestroyableBehavior`, so anything attaching one is a
+  target by construction.
+
+### Fixed
+
+A second headset pass found the rest of these. Between the two, every one was
+invisible to a green suite — and the ones on panels were all reproducible flat,
+which is now written down rather than re-learned (CLAUDE.md, "A PANEL IS NOT A
+HEADSET-ONLY SURFACE").
+
+- **We were eating other people's keystrokes.** `KeyboardGamepad` listens on
+  `window` so you can steer without clicking the canvas first, and the on-screen
+  keyboard listens there so an in-scene field types with no DOM focus — the only
+  way that works in a headset. Both then `preventDefault` what they claim, with
+  no notion of where the event came from. `a` is a strafe key, so typing "lamp"
+  into a search box lost the character AND strafed the demo, on any page
+  carrying a scene. `isTextEntry(event)` is the one predicate all three
+  listeners consult. An input you PRESS is not typing — space on a checkbox
+  stays a press — and key RELEASE is deliberately unguarded, or a key pressed on
+  the canvas and released in a field would stay down forever.
+- **A popup is a popup, not something its panel crops.** `select3d`'s menu and
+  `openMenu3d` went to the panel-bounded path, so a menu was squeezed into
+  whatever room was left under its own row. Only the keyboard called
+  `showLayer`, because someone knew it existed. `showPopup` now prefers a layer
+  and keeps the bounded path as its fallback, so the fix reaches every caller;
+  `boundedPopup` remains for a popup that must not escape. **Picking an option
+  dismisses it** — `closePopup()` is the panel's own tracking and knows nothing
+  about layers, so a menu set the value and stayed standing.
+- **An in-scene panel's popups open on their own plane.** A panel rasterised
+  onto a plane is not in the document, so the DOM layer cannot auto-install and
+  every popup took the cropped path. `panelScene` had registered a scene layer
+  since the keyboard needed one; the `<tosi-b3d>` settings panel never did. The
+  placement maths is extracted to `panel-layer` rather than copied — a formula
+  at three sites, fixed at one, is a mistake this repo has already paid for.
+- **A popup is drawn at its panel's scale.** It took `width * 0.95` whatever it
+  contained: right for a keyboard, grotesque for a 160-unit menu at twice the
+  text size of the thing that opened it. One viewBox unit is now the same
+  physical size on a panel and its popup.
+- **A press aimed at a popup reaches the popup.** The XR panel's re-pick ignored
+  what the ray actually hit and forced a pick against itself, so a press on a
+  popup in FRONT of it was routed to the panel behind — close and move never saw
+  a thing. An occluder that is itself UI now wins.
+- **No empty band above a flat popup.** 30px was reserved for the move/close
+  glyphs an in-scene popup draws; a DOM layer draws none. Reserved only when a
+  mounting host actually draws chrome.
+- **The keyboard's × means "put it away".** It closed only the presentation you
+  pressed, leaving the other up and the field still believing it had a keyboard
+  open — and left the mode on, so the glyph stayed lit over nothing and the next
+  press flipped the preference instead of reopening. A takeover is still not a
+  dismissal: swapping layouts between fields must not darken the glyph.
+- **`Migration.md`'s first block ran as a live example.** The doc system executes
+  `html` fences, which is the natural fence for illustrative markup. Now `xml`,
+  and `doc-examples.test.ts` — which scanned only `src/*.ts` — fails on any live
+  fence in a published markdown doc.
+
+Five of these came from one headset pass on the terrain editor, which is the
+argument for `RELEASING.md` step 5a in one paragraph: every one of them was
+invisible to 2300 passing tests, and the first was invisible to a day of
+reading the source.
+
+- **A pinned panel header was clipped away — invisible, but still hittable.**
+  The header was appended inside the clipped body group, whose clip rect
+  necessarily starts below it, so it was clipped in full while its band stayed
+  reserved and the pointer router kept routing to it. Three symptoms, one cause:
+  the Exit VR / Re-seat / Pause buttons vanished, the panel grew a tall empty
+  band, and pressing where they _should_ be worked. ⚠️ It only bit a panel that
+  SCROLLS, because `clip-path` is only applied then — so every small panel in
+  the demos and tests was fine and the terrain editor was not.
+- **An icon bar ran off the edge of its panel.** `layout()` ignored the width it
+  was handed. A scene's bar is Exit VR + Re-seat + Perf Stats + one per
+  registered debug source + the gadgets — ten items, 380px, in a 296px panel. It
+  wraps now, and the hit test reads `y` as well as `x`.
+- **Noise `scale` sliders are LOGARITHMIC.** They are frequencies: on the old
+  linear 0.005–0.3 track the whole usable band was the first 15% and the default
+  sat at 3%, so every value you actually want was crushed against the left stop.
+  The schema has said `x-scale: 'log'` all along and `terrainEditor3d` honours
+  it — the hand-rolled demo panels did not, which is how it shipped.
+- **A scrolling panel has a scroll RAIL.** Scrolling began on empty space, and a
+  panel full of controls has none, so in a headset there was no gesture that
+  scrolled it at all. The rail is also the only visible sign that there IS more
+  below — a texture on a plane has no scrollbar, no overflow shadow and no
+  momentum. Rows are measured twice so it never overlaps a control.
+- **A slider keeps a usable track however narrow its row.** The label took a
+  flat 45% and the readout took whatever it needed, leaving a 53px track at
+  282px wide with a unit in the format. The track reserves a minimum now and the
+  label yields, clipped so it cannot paint over the control it gave way to.
+
+- **`operable` contradicted `useNearest` on the same door.** With no pointer on
+  it the getter knows no distance, so a reach veto blocks — while `useNearest`,
+  which measures the distance itself, opens that same door 1 m away. Nothing in
+  the behaviour knows where your actor is standing, so `operableFor(info)` is
+  the question to ask for a "press E" prompt; it runs the same veto pass as
+  `activate()`, so a check and the act cannot disagree.
+
+- **A terrain attribute change no longer rebuilds the whole world every frame,
+  and a retained tile is the cell it claims to be.**
+  tosijs queues one render per animation frame and `slider3d` writes on every
+  pointer move, so an attribute-driven rebuild that cleared the tile pool and
+  refilled it unbounded cost a FULL rebuild per frame for as long as you dragged
+  — ~50 ms of noise alone at the high tier, ~6.3 ms at the quest tier inside a
+  13.9 ms VR frame, before skirts, normals and the vertex uploads. It now marks
+  the pool stale and re-cuts under the ordinary `fillBudget`/`tileBuildMs` cap,
+  so the world morphs instead of blinking out. `regenerate()` keeps its
+  documented unbounded behaviour, and now adopts the generation key so "set the
+  attributes, then call `regenerate()`" stops paying for two rebuilds.
+
+  Retaining tiles rather than clearing them exposed a second thing: a tile's
+  key is `(level, gx, gz)` and says nothing about SIZE or PLACE, so after a
+  `tileSize`/`horizScale` change an old tile key-matched a desired cell that was
+  a different size somewhere else — and the world came out gapped and
+  wrong-scale while the streamer reported itself finished. A retained tile now
+  adopts the whole desired cell and marks itself stale when its geometry moved,
+  so the two rebuild paths agree about what the world is.
+
+- **`disposeMeshTree` could dispose a texture a library model was still
+  drawing.** The material guard asks `scene.meshes` and was right; the texture
+  guard asked `scene.materials`, which cannot see a library-instantiated model's
+  materials — those belong to the `AssetContainer` while their meshes are in the
+  scene. A texture shared with a hand-made material was disposed under the
+  library model, which went black, silently. The in-use set is now derived from
+  the meshes that remain.
+- **The attribute index lost three elements' documentation to one legend
+  table.** The generator rejects a table whose header names an identifier
+  (`touch-gamepad` maps `data-part` values to gamepad fields — its rows are
+  values, not attributes), but applied the rejection to the whole DOCUMENT on
+  the strength of the first table it found. `b3d-lamp` opens with a capability
+  matrix, so the point, spot and area lights all shipped bare attribute names
+  with no default and no prose. Each table is judged on its own header now.
+- **`operable` and `debugState` contradicted what a pointer press actually
+  did.** Both were routed through the same helper as a scripted `activate()`,
+  which reports an unknown distance as `Infinity` so a reach veto fails closed.
+  That is right for an activation and wrong for an inspection: a hovered door
+  reported `operable: false` and `out-of-reach:blocks` at the moment a press
+  opened it. While the pointer is on it they now judge with the real hover, and
+  `debugState` prints the info it judged with — it is the only debug readout
+  that exists in a headset.
+- **The attribute index ships inside the package.** `static/attributes.txt` and
+  `attributes.json` are in `files` now, so an agent already in a consumer
+  project reads `node_modules/tosijs-3d/static/attributes.txt` with no network
+  and no proxy. It was published to the doc site only, which is the one place
+  the actor it was built for cannot reach.
+
+- **`b3d-destroyable` could not place a library piece properly** — three
+  reports from `tosijs-3d-ensemble` against one function, and one bug family:
+  the async load treated its callback as if nothing could change underneath it.
+  - **Rotation was dropped** (#48). Only x/y/z reached `instantiate`. It looks
+    like it should not matter, since `AbstractMesh.render()` syncs `rx/ry/rz` —
+    but that is a COMPONENT render, and it had already run by the time the
+    async callback assigned `this.mesh`. Position applied, rotation did not.
+    Now forwarded, and the transform is re-synced once the node exists.
+  - **No scale** (#47). `size` is the placeholder cube's edge length and does
+    nothing once `library` is set, so a placed model could not be resized at
+    all — ensemble measured a piece at 5.273 units for `scale` 1, 2 and 4
+    alike. New `scale` attribute, uniform, applied to the instance root.
+  - **A removed element orphaned its node permanently** (#49). Remove it inside
+    the load window and the disconnect handler found nothing to dispose, then
+    the pending callback built a node owned by no element — a ghost nothing
+    would ever move or free. Guarded with `loadGeneration`, the mechanism
+    `b3d-aircraft` already used; the retry poll stops on a stale generation too.
+- **Two engines on one canvas are now impossible, and a lost context says so**
+  (#56). Building an engine over a live one disposed nothing and failed
+  silently — the first context's shader programs go invalid while every uniform
+  still reads back correctly, which is why it presented as four different bugs
+  (white meshes, dark sky, empty scene, half-loaded scene). It now disposes the
+  old engine and warns. Separately, `webglcontextlost` is reported to the
+  console and the debug ring instead of just rendering wrong.
+- **The flat scene panel now closes on a background press**, like every other
+  transient overlay here. A press inside it, or on the gear, still does not —
+  the gear toggles, so closing first would make it look inert.
+- **A still sky never found a late sun** (#55). `updateSky` writes
+  `sunPosition`, `rayleigh` and `turbidity` only when a sun element's light
+  exists, and the frame gate re-ran it only when `timeOfDay` moved — so
+  `realtimeScale: 0`, which is what a reproducible authored scene wants, ran it
+  once and came up dark about four loads in five. The default `realtimeScale:
+10` hid it, because a drifting clock reopens the gate until some pass catches
+  the sun. The retry is now gated on the OUTCOME rather than the clock, and
+  bounded so a scene with no sun does not retry forever.
+- **A flat popup could open off-screen with no way back** (#57). The DOM layer
+  set `left`/`top` straight from the anchor with no bounds check, so a field in
+  a right-hand panel opened a keyboard 112px past the right edge — rightmost
+  column of keys unreachable, and unrecoverable, because the move/close chrome
+  is drawn by picking and picking exists only in the scene. It now places
+  through `placePopup`, the same pure flip/clamp the in-scene presentation
+  uses, **and the holder can be dragged** — which is the better fix, since only
+  the person typing knows what the popup is covering. A press that lands on a
+  widget still belongs to the widget, or you could never type.
+- **`chaseDistance` / `chaseHeight` / `chaseMinHeight` / `hudSize` accepted a
+  write and did nothing** (#43). All four were consumed when the rig and HUD
+  plane were built and never read again, so a settings slider bound to any of
+  them read back correctly and moved nothing — ensemble measured bit-identical
+  framing across a 3× change. Worse than an ordinary no-op because
+  `chasePitchFollow` on the same element IS live, so the element looked
+  responsive and only some of it was. The chase geometry now comes from one
+  path used at build AND every frame; the HUD remounts when its geometry
+  changes, instead of latching on a boolean.
+- **`select3d` looked like a cycler** (#37). It has opened a popup list all
+  along — nothing said so, so a consumer counted 23 taps to reach the 24th
+  option. It now draws a downward chevron, the whole control opens the list,
+  and the arrows are gone. Stepping survives only where a panel gives no host
+  and a menu is impossible.
+- **An icon name colliding with `Object.prototype` threw** rather than falling
+  back — `iconGlyph('constructor')` and friends. 0.8.0 was the first release
+  where table DATA becomes an icon name, with no `catch` in the repaint path.
+  Fixed at all three unsafe sites, including `registerIcons`, where `__proto__`
+  was an assignment that would have corrupted the map rather than failing.
+- **`spinner3d` leaked into a module-global ticker.** `Widget3d` gained
+  `dispose?()`, and `B3d` releases the widget set it replaces on each repaint.
+  Reaping by `el.isConnected` would have been wrong: an in-scene panel's SVG is
+  never attached, so a visible VR spinner would have been culled.
+- Panels size to their content, the in-scene icon bar is pinned, and the theme
+  editor no longer follows you between demos (from the 0.8.0 headset pass).
+
+### Added
+
+- **A spatial panel can be dragged, and the drag is aimed at where you POINT.**
+  `orbitFromAim` walks the controller ray to the sphere's radius and asks which
+  way that point lies from the anchor. Using the ray's DIRECTION instead treats
+  your hand as if it were at your eyes: the panel sat where the arithmetic said
+  rather than where you pointed, and hand wobble swung it by the whole
+  head-to-hand offset.
+
+  The seat lives on the element, so a structural refresh — pressing Pause, say —
+  no longer snaps the panel back to its default. A seat names an EDGE and the
+  pin BLENDS across the horizon: a hard switch moved the panel by its entire
+  height in one frame as you dragged through eye level. The grip is
+  `iconGlyph('move')`, the same mark a torn-off popup already uses.
+
+- **A spatial panel can be dragged, on the sphere around its rig anchor.** Two
+  properties fall out rather than being built: the distance cannot drift (so it
+  can never be shoved into your face or out of reach) and the facing comes free.
+  `panel-orbit` is the pure half — no Babylon, no DOM — so the placement rule is
+  testable without a headset.
+
+  A drag past a limit **follows you and stiffens**, and letting go springs back:
+  a hard stop is the right resting behaviour and the wrong live one, because a
+  panel that simply stops following your hand reads as a dropped drag rather
+  than a limit. The band and the clamp deliberately disagree — the panel may
+  PASS a limit and may never come to REST past one, since out there its own Exit
+  VR and Re-seat buttons are hard to reach.
+
+  A seat names an EDGE, not a centre: below the equator it is bottom-relative
+  and above it top-relative, so a tall panel's extra height always grows back
+  toward eye level instead of trailing into the floor or pushing past the
+  ceiling it was just clamped to. The ceiling is 60°, which is the default seat
+  exactly, so the panel can only ever be dragged somewhere more comfortable than
+  where it started.
+
+- **`budgetedReach(reach, tileSize)` and `MAX_TILES_ACROSS` are exported from
+  `tosijs-3d/terrain-grid`**, so a UI can clamp its own slider against the same
+  limit `<tosi-b3d-terrain>` enforces rather than guessing. `reach` × `tileSize`
+  is the footgun and neither looks dangerous alone: reach 5000 at tileSize 10 is
+  a million finest tiles, which is the slider that killed a tab (#66) and got
+  capped at "400 m" as a guess. Pure, no scene needed. The element's own
+  `_budgetedReach` is now a call to it, so they cannot drift.
+
+- **A manipulator — translate, rotate and scale handles you can grab** (#38),
+  ported from `tosijs-3d-ensemble` where it was shaken out against real
+  authoring, including on a phone. Three files on the usual split:
+  `manipulator.ts` (pure — the five grip readings, snapping, the drag reducer),
+  `manipulator-view.ts` (the Babylon handles, with the two-pass pick and the
+  euler composition folded in so a consumer no longer writes either), and
+  `<tosi-b3d-manipulator>`. The flat pointer is wired; `grab`/`grabNear`/
+  `drag`/`release` take world rays so a controller or a hand drives the same
+  code. Note `move`/`turn` rather than `translate`/`rotate`: `translate` is a
+  real `HTMLElement` property and declaring it gives one word two owners.
+- **`<tosi-b3d-beacon>`** — a clickable hull for anything with a position and
+  no geometry: a lamp, a positional sound, a spawn point (#70). Invisible via
+  `visibility = 0` rather than `isVisible = false`, which is the whole trick —
+  Babylon's default pick test is `isEnabled && isVisible && isPickable`, so the
+  obvious way to hide a hull makes it unpickable, and the failure returns
+  _whatever is behind it_ rather than nothing. `beaconOwner(mesh)` is the entire
+  reading-side API.
+- **`angle3d` and `arc3d`** — dial a bearing, dial a firing arc (#71). An angle
+  on a linear track has ends where the quantity does not, so 359° and 1° sit at
+  opposite ends of the slider. `arc.ts` is the pure model, and an arc is a
+  CENTRE and a WIDTH rather than a start and an end — which makes "is this
+  bearing inside" and "does that arc contain this one" one line each, and makes
+  straddling north unrepresentable rather than special-cased. An envelope is
+  drawn, not merely clamped against, so a turret's restricted arc explains the
+  ship instead of silently snapping.
+- **`picker3d`** — choosing one of five hundred (#37). A `table` for the
+  virtualized filterable list, an `inputField` for the query, a `select3d` for
+  the family: two levels without a tree, because a tree needs a pointer to
+  expand and two flat controls work from a D-pad. Filtering is AND across terms
+  over the whole name, so word order cannot matter.
+- **`terrainEditor3d`** — a terrain editor built FROM `sceneSchemas.terrain()`
+  (#66), so a range cannot disagree with the element it edits. Curated, not
+  generated: most of the schema's thirty properties are performance internals,
+  and a panel showing all of them is a settings dump.
+- **`FieldType: 'color'` and a swatch on `inputField`** (#72). Tolerant in,
+  canonical out — `#abc`, `red` and `rgb(255,128,0)` all commit as `#rrggbb`,
+  and a five-digit hex is valid WHILE TYPING and refused at commit rather than
+  silently accepted. The swatch holds the last good colour while the text does
+  not parse, so a half-typed value does not read as a lost one.
+- **One wind for the scene** (#73) — `windSpeed`, `windBearingDeg`, `windGust`
+  on `<tosi-b3d>`, with `wind="scene|own"` on clouds, water and ambient.
+  Clouds, water and leaves each carried their own wind in three spellings and
+  could silently disagree. `wind.ts` is pure: Cartesian inside, degrees at the
+  edge, and that IS the composition rule — a valley funnelling, a lee
+  sheltering and a headland curling are all just contributions that add.
+- **Combat attribution** (#8) — `Cause {by, kind, via, hops}` on `damaged` and
+  `destroyed`, threaded through chain links, `tick` and `deathBlast`, and
+  stored on the `Destroyable` so a reaction a frame later can still ask. `by`
+  is the ORIGINATOR however many hops back, because re-attributing each hop to
+  the thing next to it launders the credit away. Measured on the 48-drum
+  cascade: one hit, 48 kills, all credited, hop counts 1/3/5/7/9/11/6/6.
+- **`b3d-aircraft` can be damaged and locked** (#23) — `destroyable="on"`
+  attaches the same behaviour `b3d-loader` uses, and `blip="on"` mounts a radar
+  blip, without which an enemy cannot be missile-locked and a player reports
+  that "missiles don't work".
+- **A veto is told about the activation** (#36) — `blocks(info)` receives
+  `{actor, source, distance, …}`, so one door can answer differently for an NPC
+  holding the key and a player who is not, and can tell a hand within reach
+  from a ray across the room. A veto that ignores its argument is unaffected.
+- **A configured terrain now draws itself** (#66). `<tosi-b3d-terrain>` built a
+  tile pool and filled it only when told, so a terrain with its attributes set
+  rendered nothing until someone called `regenerate()` — a silent failure that
+  every consumer worked around with their own bounded retry. Ordinary attribute
+  changes now regenerate on the next frame, like every other element. Keyed on
+  the GENERATION attributes only, so a `wireframe` toggle stays a material tweak,
+  and relying on tosijs's own render batching for bursts rather than
+  reimplementing it — five writes in a task are already one `render()`.
+- **`b3d-turret` and `b3d-launcher` take a `library`** (#34), so a piece that
+  IS a turret no longer renders as a cylinder and a box. Which node aims is
+  declared by the MODEL — a `_barrel` suffix, resolved like `_centerOfGravity`
+  and the collider suffixes — because a rigger declares moving parts in Blender,
+  not in scene markup. `_muzzle` is separate and says where rounds leave: the
+  same node on a simple gun, a different one on a multi-barrel mount. A model
+  with neither still works — it yaws as a unit and the muzzle falls back to the
+  existing forward offset.
+- **`b3d-spawner` can spawn at an authored PLACE**, not only on a ring around
+  the player (#40). `anchor="place"` plus `x`/`y`/`z` and `facingDeg` — a
+  carrier deck, a hangar door, a dungeon entrance. Mutually exclusive with the
+  distances by construction rather than by warning, and a placed spawn does not
+  consume the RNG, so adding a launchpad cannot shift the encounters in a scene
+  that promises "same seed, same battles".
+- **`<tosi-b3d-prop>`** — a library model in the scene and nothing else (#68).
+  Every existing route to a library-backed mesh brought behaviour with it: a
+  plain prop had to be a `<tosi-b3d-destroyable>` carrying `capacity`, `armor`,
+  `explode` and a combat id for something nothing will ever shoot.
+
+  It matters more than a convenience element, because it is the difference
+  between the CDN's 5,108 models being reachable or not **from a page that
+  cannot run JavaScript**. Every model in those kit libraries sits at the origin
+  with no translation (the format is built for `clone()`), so a consumer with a
+  JS build reaches all of them and a consumer writing declarative HTML reached
+  none. `library-url` covers the one-model case without a separate
+  `<tosi-b3d-library>` and a `type` handshake, sharing one library element per
+  URL so ten props do not fetch the kit ten times.
+
+- **Collision GROUPS** — `markCollisionGroup(mesh, 'water')` plus
+  `collidable(reject, { ignoreGroups: ['water'] })` (#44). The single
+  `b3dNoCollide` boolean answered "does anything hit this", which is one answer
+  for every asker — and a sea needs two, since _"the aircraft should not treat
+  water as ground"_ and _"shells should splash on water"_ were the same switch.
+  Groups move the answer to the ASKER: the mesh says what it is, each mover says
+  what it treats as solid, so one sea answers differently for a seaplane and a
+  submarine on the same frame. Additive, and composes with the existing UI
+  exclusion and reject hook rather than replacing either. `b3d-water` now tags
+  itself `'water'`.
+- **`color3d` — a colour picker that exists in a headset**, and `color.ts`, the
+  pure model under it (parse/format, RGB↔HSV, `contrastInk`; no DOM, so a
+  consumer can validate a document's colours headlessly). This was the one
+  control the SVG UI did not have: the only two ways to pick a colour were
+  `<input type="color">` (which cannot express alpha) or a consumer injecting
+  one, and **neither exists in an immersive session** — so the theme editor, of
+  all things, had no colour control in the presentation this library is for.
+- **Colour icons for scene concepts** — `sky`, `sun`, `water`, `terrain`,
+  `fog`, `mesh`, `decor` (#64). Unlike the stroked/filled sets these carry
+  literal colours and no `currentColor`, so they do not follow the theme.
+
+## 0.8.0
+
+Lights, editors, and the schema surface `tosijs-3d-ensemble` asked for — plus
+the two renames that were waiting for a minor.
+
+### ⚠️ Breaking
+
+- **Peer dependency: `tosijs` is now `^1.9.2`** (was `^1.7.8`). Upgrade tosijs
+  alongside this. The floor moved because 1.9 fixes five issues we filed
+  (tosijs#14/#15/#22/#24/#27) and holding it down only defers the work.
+
+  Behaviour that changed with it, verified rather than assumed: a wrong-typed
+  write to an `initAttributes` prop used to be **silently discarded** and now
+  **warns and applies the value**. So `foo: false` on an `'on'|'off'` attribute
+  genuinely sets `false` where it used to quietly default — use `isOff()`,
+  which accepts `'off'`, `false` and `'false'`.
+
+- **Callbacks are `handleX`, not `onX`.** `handleChange`, `handleClick`,
+  `handleSelect`. **Both spellings work through 0.8.x** and the old one warns
+  once per name; `onX` is removed in 0.9.
+
+  Not a style preference: these are plain factories today, but the moment one
+  becomes a tosijs component the element creator binds an `on*` prop as a DOM
+  event **listener** and the class field is silently never called. `handleX`
+  cannot be mistaken for an event name. Giving both, the new one wins.
+
+  **Migrated in this release** — `inputField`, `keyboard`, `table`,
+  `box`/`surface`, popups, debug actions and the curve/footprint/vector fields.
+  In other words: all of them. `b3d-trigger` gains `whenEnter`/`whenExit`
+  instead, because components use `when*` (see Fixed).
+
+### Added
+
+- **`handlerOf`** (`handler-of.ts`, exported from the barrel) — the shim behind
+  the `handleX`/`onX` rule, in its own dependency-free module so the smallest
+  widget can adopt it without importing `widgets3d`. Use it for your own
+  widgets: `handlerOf(config, 'handleChange', 'onChange')?.(value)`.
+
+- **Lamps** — `b3dPointLight`, `b3dSpotLight`, `b3dAreaLight`: a placed light
+  with its own fixture geometry, which **tracks the light** (a fluorescent's
+  bulb stutters as it strikes and dims to a red ember as it dies). Shadows where
+  Babylon allows, **gels** where it allows (spot only), and a generated cone
+  `shape` (`circle`/`square` + `shapeAspect`, `shapeSoftness`) plus a true
+  `innerAngle` penumbra.
+
+- **Light programs** — one curve per channel (brightness, hue, saturation,
+  range) split into attack / sustain / decay by two markers. `duration` divides
+  by those markers, so dragging one **retimes** the lamp. Presets: `steady`,
+  `fluorescent`, `flickery`, `brownout`, `candle`, `fireplace`. `timeSource`
+  picks the real clock (default — a flicker should not freeze when the world
+  pauses) or the world's.
+
+- **Editors** — `curveProgram3d` (several curves sharing one pair of draggable
+  split markers), `lightEditor3d` (the whole lamp), and `curveMarkers`.
+  Controlled, with `handleCommit(value, describe)` once per gesture carrying
+  canonical values and a verb phrase, so a document records one undo step.
+
+- **`scene-schemas`** — JSON Schema for all nine scene primitives: skybox, sun,
+  water, ground, fog, clouds, ambient, terrain, reflections (and the hemispheric
+  light). **No DOM, no Babylon.** So nobody hand-copies our
+  attributes: a consumer's hand-written skybox schema carried 6 of 16 and
+  disagreed on a default. Drift is caught by a test, not promised.
+
+- **`province-climate`** — water, temperature and volcanism as bipolar bias
+  curves (`0.5` leaves the base alone) plus water presence and level as scalars,
+  because "there is a lake here at 12 m" is not something a curve can say.
+
+- **`spinner3d` / `progress3d`** — the widget set could say what a value IS but
+  not that work was under way. The spinner animates as GEOMETRY, not CSS,
+  because a keyframe animation does not run once the SVG is rasterised to a
+  texture — it would look right flat and freeze in a headset.
+
+- **Filtered tables** — `filter` / `setFilter(predicate)` and `counts`. A filter
+  never drops a selection: hiding is a view state, and losing a selection to it
+  would make typing in a search box destructive.
+
+- **`table` button columns** — `kind: 'button'` with `menu(row)` opens an action
+  menu anchored to the cell. The button takes the press instead of the row, so
+  a row's ⋯ does not also select it.
+
+- **`registerIcons`** — consumers add icons every widget resolves by name.
+- **Log sliders** — `scale: 'log' | 'log2'`, `snap`, and `zeroStop` for a
+  quantity that spans decades and can still be switched off.
+- **Action menus** — `openMenu3d`, `button3d({ menu })`, `iconGrid3d` menu
+  cells; `disabled` takes a predicate so a menu can be a constant.
+- **`table`** — `ColumnSpec.kind: 'icon'`.
+
+### Fixed
+
+- A **move** no longer costs a scene, and a genuine removal now disposes the
+  engine — a leaked WebGL context is not just memory (Chrome caps them near 16
+  and force-loses the oldest).
+- `shadows`, the gel and `geometry` each accepted a write and did nothing; all
+  three now sync per render. Lamps also never marked shadow **receivers**, so a
+  shadow map was rendered that nothing read.
+- `canonicalProgram` silently dropped `duration`, so a committed edit turned a
+  flickering lamp steady.
+- A nested widget's popup opened at the top of its container rather than beside
+  the control.
+- `lightEditor3d` shipped demo copy into every consumer's panel; the hint is now
+  opt-in.
+- The aircraft chase camera sat too close after content moved to human scale.
+- **`themeEditor` never called back.** It read `config.onChange` while its
+  callers passed `handleChange`, so the theme table updated and the host's
+  rebuild never ran — the controls moved and the panels they edit did not.
+  `handleChange` is now the option; `onChange` still works, deprecated.
+- A metric typed **out of range** left the slider on the cap and the number
+  field above it, with the theme taking the out-of-range value — the exact
+  drift a paired slider-and-field exists to prevent. Values are clamped now.
+- Two demos (`w3d-theme`, `keyboard`) passed `handleChange` to `inputField`,
+  which reads `onChange` — so typing updated nothing. Demo code lives in doc
+  comments and is **not type-checked**, which is why this class of mistake
+  reaches a page instead of the compiler.
+- **The `curve-program` demo was truncated on the published site.** Its doc
+  comment contained a nested `/* … */`, and block comments do not nest — the
+  inner `*/` closed the page early, so roughly half the demo silently vanished.
+- **The in-scene panel was sized by a guess, and the guess was wrong for the
+  one panel that mattered.** Height was `46 + rows × 48`, which assumes a row is
+  about 48px. `lightEditor3d` is ONE row that lays out over 1200px, so its panel
+  was built ~142px tall and you scrolled a postage stamp. It now sizes to its
+  content (`height: 'fit'`) with a cap, so the same panel is 620px — Tonio, from
+  the headset: _"crammed into a tiny tiny view so you have to scroll it
+  constantly… I didn't try messing with curves because they were too far down."_
+- **The in-scene panel's icon bar no longer scrolls away.** It carries Exit VR,
+  and a control you need in order to LEAVE is the one thing a headset panel
+  cannot afford to lose. `panel3d` gained a `header` option — rows pinned above
+  the scrolling body — which also ends a divergence, since the flat
+  presentation has always pinned its bar by rendering it as DOM.
+- **The theme editor no longer follows you to other demos.** It edits the global
+  table deliberately (that is what makes both panels re-theme live), but the doc
+  site is one page, so walking away left everything else wearing your palette.
+  The demo now restores it on unmount.
+- **`dist` could not be imported by Node at all** — 394 relative specifiers were
+  written without an extension (`from './tosi-b3d'`), which every bundler and
+  Bun resolves and Node's ESM resolver does not. Reported by
+  `tosijs-3d-ensemble` (#69) after they fixed the identical fault in their own
+  package and the failure moved one level down into ours.
+
+  Source specifiers now carry `.js` — the TypeScript convention, passed through
+  by `tsc` and resolved fine by bundlers, so it works everywhere and keeps the
+  per-file `dist` we ship deliberately. That covers deep package subpaths too
+  (`@babylonjs/core/Misc/observable.js`), which failed the same way. Verified by
+  importing the built package under Node 24, not by reasoning about it.
+
+  A test now asserts it **of the source**, so it fails at authoring time rather
+  than after a publish — the only moment anyone was going to notice, since every
+  loop here is a bundler or Bun.
+
+- **Subpath exports** — `import { validateLight } from 'tosijs-3d/light-settings'`
+  now works. The pure modules were split from their editors precisely so a
+  consumer could validate documents headlessly, but the only export was the
+  barrel, which defines custom elements on import and needs `HTMLElement`. So
+  the headless half was still behind a browser. It is not now.
+
+  ⚠️ **This is a wildcard** (`"./*"` → `./dist/*.js`), so **every module in
+  `dist/` is now a supported specifier** and covered by semver — renaming one is
+  a breaking change from here on. 142 of them were already public through the
+  barrel; the genuinely new surface is nine. The three superseded modules
+  (`reflections`, `dynamic-shadows`, `rippling-water`) are explicitly blocked so
+  the wildcard cannot resurrect them.
+
+- **`handleX` now works on every callback option, and `onX` is deprecated.**
+  It used to depend on which widget you were holding — `curve3d` took
+  `handleChange`, `inputField` took `onChange`, and neither complained about the
+  other — which is what made three of the bugs above possible. Migrated:
+  `table` (`handleSelect`/`handleActivate`), `box`'s `BoxChild` and `button`
+  (`handleActivate`), `surface`'s `MenuItem` (`handleSelect`), `inputField`
+  (`handleChange`/`handleEnter`/`handleFocus`, on the object as well as in
+  config), `keyboard` (`handleKey`/`handleAction`/`handleCaretMove`), popups
+  (`handleClose`), and debug-source actions (`handleClick`). Every `onX` still
+  works, warns **once per name**, and is removed in 0.9.
+- `b3d-trigger` gains **`whenEnter`/`whenExit`** (components use `when*`, like
+  `whenImpact`). Passing `onEnter` to the element creator never set the field at
+  all — it added a listener for the `'enter'` CustomEvent, so the callback got
+  an Event while `trigger.onEnter = fn` got the trigger. Same callback, two
+  different arguments depending on how you attached it.
+- The `curve-program` and `curve-field` editors did not exist inside a headset:
+  both put their controls in flat DOM beside the canvas, which an immersive
+  session does not render. Both now also build through `scenePanel`.
+
+### Changed
+
+- Doc pages are named for what they are (`Light program editor`, `Curve
+editor`, `Lamps`) rather than for their module. URLs are unchanged.
+- ⚠️ `shadows="on"` is not free — one extra render of the caster list per lamp
+  per frame, worse with a large `range`. Prefer `off` for dynamically inserted
+  content.
+
+## 0.7.8
+
+Lights you can see, edit and animate — and the editor surface `tosijs-3d-ensemble`
+asked for, built to their spec so they can adopt it without writing widgets.
+
+### Added
+
+- **Lamps.** `b3dPointLight`, `b3dSpotLight`, `b3dAreaLight` — a placed light
+  that comes with its own fixture geometry (toggle it, scale it, bring a GLB, or
+  parent your own to the lamp's `node`). Shadows where Babylon allows them
+  (point/spot; `RectAreaLight` is not a `ShadowLight`) and **gels** where it does
+  (spot only — `projectionTexture`, bitmap or SVG). The two gaps warn once rather
+  than being faked.
+
+  The fixture **tracks its light**: a fluorescent's bulb stutters as it strikes
+  and dims to a red ember as it dies.
+
+- **Light programs** (`light-modulation`). A lamp's whole life as ONE curve per
+  channel — brightness, hue, saturation, range — divided into attack / sustain /
+  decay by two markers. The seams cannot jump because there is only one curve, so
+  **the curve's value at `attackEnd` IS the sustain level**.
+
+  ⚠️ **Contract:** if `sustainEnd` precedes `attackEnd` the sustain collapses to
+  zero width AT `attackEnd`, deterministically. Stated because a consumer's
+  validator reports it as a warning rather than an error, which is only correct
+  while the behaviour is specified. Changing it is a breaking change.
+
+- **`curveProgram3d`** — several curves sharing one pair of draggable split
+  markers, as a single field. **`lightEditor3d`** wraps it with the lamp's static
+  properties (power switch, type, colour, intensity, range, shadows).
+
+- **`light-settings`** — a lamp as DATA: schema, canonical form, validator. **No
+  DOM and no Babylon**, so it works in a headless runner.
+
+- **Curve interop**, to `tosijs-3d-ensemble`'s specification: `canonicalCurve`
+  (4dp, stable bytes), `readCurve` (accepts the bare array or a `{kind, points}`
+  wrapper), `validateCurve` / `validateProgram` / `validateLight` (never throw;
+  `error`/`warning` only; relative JSON Pointer paths), and `curveSchema` /
+  `lightProgramSchema` / `lightSettingsSchema` emitting `x-widget` +
+  `x-curve-kind` for panels generated from JSON Schema.
+
+- **`handleCommit`** alongside the live `onChange` on `curve3d`, `curveMarkers`,
+  `curveProgram3d` and `lightEditor3d` — one commit per gesture, carrying
+  canonical values and a bare verb phrase (`'move attack split'`), so a document
+  records one undo step per edit instead of one per pointer-move.
+
+- **Log sliders.** `slider3d({ scale: 'log' | 'log2' })` gives every decade or
+  octave equal travel, plus `snap` to quantise the value. For intensity, noise
+  scale, grid size — anything where a linear track puts everything you want in
+  its first few percent.
+
+- **Action menus.** `openMenu3d` / `menu3d`, `button3d({ menu })`, and a `menu`
+  on an `iconGrid3d` cell. `disabled` takes a **predicate**, so a menu can be a
+  module-level constant instead of being rebuilt whenever its state moves.
+  `WidgetHost` is now exported — it was unnameable from outside.
+
+### Fixed
+
+- **Lamps never marked shadow RECEIVERS**, so a `shadows="on"` lamp rendered a
+  shadow map nothing read — a full extra render pass that presented as lights
+  shining through solid objects.
+- **`shadows` accepted a write and did nothing.** It was set up once at scene
+  ready and never re-read, so toggling it in an editor had no effect.
+- **A pale lamp could not be reddened.** Rotating a hue preserves saturation and
+  the saturation curve is `[0,1]`, so it could only desaturate — "pale tube dies
+  as a red ember" was inexpressible. Added `saturationScale`.
+- **The aircraft chase camera** sat too close after content moved to human
+  scale; pulled back 30% with the framing angle preserved (0.13° drift).
+- Log slider values no longer carry float noise (`0.010000000000000009`), which
+  matters because they are serialised and diffed.
+
+### Changed
+
+- ⚠️ **`shadows="on"` is not free**, and the cost is worst where it is least
+  visible: every such lamp is an extra render of the caster list, per frame, and
+  large `range` sweeps more of the world into it. Prefer `off` for dynamically
+  inserted content. See `TODO.md` → arbitration for inserted lights.
+
+## 0.7.7
+
+A lifecycle release. `<tosi-b3d>` now distinguishes being **moved** from being
+**removed**, which fixes an engine leak and a scene-corruption bug that were the
+same root cause seen from two ends.
+
+### Fixed
+
+- **A MOVE no longer costs a scene** (#58, and the real cause of the black sky
+  in #51). `connectedCallback` built an Engine and a Scene unconditionally, so
+  re-parenting built a SECOND pair — and disposing the first deleted its
+  materials' shader programs, after which the surviving scene rendered black
+  while every uniform read correct and `isReady()` returned `true`.
+
+  Re-parenting fires `disconnectedCallback` then `connectedCallback` in the same
+  task, and it need not touch the element at all: moving any **ancestor** does it
+  to every descendant. Ensemble hit this with a `<tosi-b3d>` inside their own
+  shadow root, re-parented by the doc system — their MutationObserver recorded no
+  `tosi-b3d` add or remove at all while two scenes were being built.
+
+  Teardown is now deferred by a task, so a reconnect cancels it and reuses the
+  engine.
+
+- **A genuine removal disposes the Engine and Scene.** Teardown released the XR
+  helper, the quality subscription and the debug timers, but never the engine —
+  so every removed scene left a live render loop turning over a detached canvas
+  forever. A WebGL context is not just memory: Chrome caps them near 16 per page
+  and force-loses the _oldest_, so an SPA that visits scene pages works for a
+  dozen route changes and then a scene that was fine goes black.
+
+  This is also the better explanation for doc-site slowdown after visiting
+  several demos, and possibly for headset degradation — N abandoned render loops
+  compete for frame time, which retained VRAM does not.
+
+- **`whenReady` no longer drops queued callbacks.** Asking for the scene and
+  having it torn down before it was ready lost the callback silently — no call,
+  no error, nothing to observe. It now survives and fires against the next scene.
+
+- **`addSceneListener` is no longer handed dead meshes.** Past additions outlived
+  their scene, so after a rebuild a late subscriber received nodes belonging to
+  the disposed one.
+
+### Added
+
+- **`b3d.whenDisposed(cb)` → unsubscribe** — the other half of `whenReady`, and
+  the half that did not exist. Fires on a genuine disposal, **not** on a move.
+  Durable across rebuilds, so register once.
+
+  Use it for anything holding a reference _into_ the scene that a child's
+  `sceneDispose()` does not cover — a timer closing over a mesh, a material
+  cache, an observer on a node. After disposal those point at a dead scene, and
+  Babylon's failure mode there is a black material that still reports
+  `isReady()`: silent, not loud.
+
+  One rule governs both hooks: **subscriptions are durable, scene state is not.**
+
+## 0.7.6
+
+An adoption-feedback release: everything here came from `tosijs-3d-ensemble`
+hitting it for real.
+
+### Fixed
+
+- **The icon LANGUAGE now works on the texture path** (#54). `icon-data` stores
+  every value with a trailing space, and a redirect is re-parsed as a _name_
+  where that space is fatal — so `parseStyleSuffixes('cornerUpRight0f ')`
+  returned `null` while the trimmed form resolves. Every **mirrored** icon failed
+  to resolve, which is the whole left-facing set (they are all stored as
+  `<rightVariant>0f`), on both the DOM and texture paths.
+
+  `iconGlyph` also computed the composed style and then discarded it with a
+  warning; it now applies it as an SVG transform. So a plain NAME carries the
+  whole language everywhere — `cornerUpLeft`, `chevron270r` — and the
+  `KeyDef.iconRotate`/`iconFlipX` workaround is deleted rather than copied into
+  `IconGridItem`.
+
+- **`iconExists(name)`** is exported, because the alternative is guessing:
+  `name in iconData` says no to every composed name, and inspecting the stored
+  value says no to every mirror.
+
+- **`b3d-shadows` no longer writes `receiveShadows` on instanced meshes** (#53) —
+  Babylon warns once per instance and ensemble measured ~10,000 messages on one
+  load. The write was already a no-op (an instance takes the flag from its
+  source), so nothing that received shadows before stops now.
+
+- **You can swim up again.** Head depth was derived twice and the two disagreed:
+  the up-thrust gate included `bodyBottom`, the up-AIM clamp did not. A swim pose
+  puts the root at the waterline with the body below it, so the aim clamp thought
+  the head was a body-length shallower than it was and clamped upward aim to
+  nothing — you could push up but not aim up.
+
+- **The keyboard works with ONE presentation.** `useDomLayer` was opt-in, so a
+  flat-only consumer got no keyboard at all on a `height: 'fit'` panel and a
+  cropped one on a tall panel. The DOM layer now installs itself when the panel
+  is on the page.
+
+- **The sky advances by measured time**, not by the interval it asked for — a
+  backgrounded tab throttles timers, so the day cycle ran ~10x slow and never
+  caught up.
+
+### Changed
+
+- **Underwater fog eases toward the surface** rather than being full-strength
+  until the crossing band.
+- **Console hygiene**: icon warnings fire once per problem rather than once per
+  draw (they run from drawing code), demos report on the page instead of logging,
+  and our own deprecated tosijs usages are gone — `elementCreator({tag})` →
+  `static preferredTagName`, `static styleSpec` → `shadowStyleSpec`.
+- **`b3d-physics` imports `PhysicsViewer` from the barrel** rather than mixing a
+  deep path with it in the same module — the classic route to two Babylon module
+  instances in a consumer's bundle.
+
+## 0.7.5
+
+### Added
+
+- **`iconGrid3d` — segmented select, tool palette and mode picker in one.**
+  Three widgets collapse into one because the difference between them was never
+  layout, it was **semantics**: the grid owns layout, hit-testing and focus, and
+  `handleChange` lets you impose your own rule. It receives what _would_ happen
+  and returns what should; returning `previous` is the veto, because one way to
+  say no is easier to get right than two.
+
+  Cell size is two cases — 48px touch, 24px pointer, from `(pointer: coarse)`.
+  **XR is deliberately not a third size**: growing targets in UI units leaves the
+  glyphs where they are and inflates the buttons around them, buying hit accuracy
+  by making the panel harder to read. Scale the panel in world space instead and
+  both move together.
+
+- **An on-screen keyboard you can summon.** `inputField` draws a ⌨ affordance,
+  and it is a **toggle** for a shared preference rather than a one-shot: you are
+  not asking for a keyboard once, you are saying that reaching a real one is
+  inconvenient, and that stays true for the next field. Auto-open follows the
+  same preference (`autoKeyboardEnabled`/`setAutoKeyboard`, both exported).
+
+  The glyph is always drawn because the DEVICE cannot tell you whether a keyboard
+  is within REACH — a console, a laptop docked to a screen across the room, a
+  headset with a desk under it. Sniffing gets all of those wrong in the same
+  direction.
+
+  **Caps lock by holding shift.** A tap stays one-shot; a hold locks; a tap while
+  locked unlocks. The key tints accent while locked, because a mode you cannot
+  see is a mode you will be surprised by.
+
+- **Popups can escape their panel — a real layer, in both presentations.**
+  `panel3d.useDomLayer(container)` mounts flat popups as positioned siblings
+  outside the panel's `<svg>`; `panelScene` mounts them as their own plane, with
+  genuine z-separation. A layer belongs to a PRESENTATION, and there are two of
+  them, so `showLayer` fans out and closing closes both — one popup wearing two
+  faces, exactly as the panel already is.
+
+- **`data-presentation` — one UI, two appearances.** Mark a node `dom` or
+  `texture`: `svg-texture` strips `dom`-only nodes when it rasterises, and the
+  DOM layer hides `texture`-only ones by stylesheet (a serialised SVG inherits no
+  page CSS, which is what makes that work). Popup chrome uses it — the move and
+  close glyphs are handled by picking, which exists only in the scene, so flat
+  they were decoration you could press with no effect.
+
+  It deliberately cannot make a widget _behave_ differently between
+  presentations. Differing in what you draw is safe; differing in what you do is
+  how the two drift.
+
+- **`select3d` opens a menu from its value**, keeping its steppers. Nudging to
+  the next option while watching it is a different gesture from picking a named
+  one out of a list, and a stepper is better at it.
+
+  This needed a seam: a widget cannot reach its own panel, because it is
+  constructed before the panel that will hold it. `Widget3d.setHost()` and
+  `WidgetHost` (`showPopup`/`showLayer`/`closePopup`/`bounds`/`top`/`hasLayer`)
+  are that seam.
+
+- **A kitchen-sink demo and an overview on the UI page**, with the doc order
+  sorted so features come first and the pure models sort to the bottom.
+
+### Changed
+
+- **The scene-panel button wears the tosijs-3d owl**, not a gear. The
+  `scenePanelGear` part name is unchanged — a consumer may be styling it, and a
+  part is an anchor rather than a description.
+- **Keyboard keys use SVG icons** for enter, backspace and shift instead of
+  unicode glyphs. A codepoint is at the mercy of whatever font the panel
+  resolved, and a rasterised texture is its own document with its own fallback,
+  so `⏎` could arrive as a box.
+
+### Fixed
+
+- **Nested panel pointer events were handled twice** — once by the inner panel,
+  then again when they bubbled to the outer one, which routed them back in by
+  coordinates. A tap survives that; a HOLD does not, so press-hold-drag on the
+  spacebar never fired in the DOM (3D worked, because a texture has no DOM
+  events).
+- **`vector3d` did not forward its host**, so the fields inside a coordinate row
+  could never summon a keyboard — and therefore never showed a numpad.
+- **The keyboard follows focus** between fields, and its layout reverts: a
+  takeover cleared the shared record but not the previous owner's, so returning
+  to a text field left the numpad up.
+- **It dismisses** when the host makes something else the receiver
+  (`setActive(false)`, which is distinct from `focusClear` — D-pad focus moving
+  on does not stop text arriving).
+- **Placement follows the FIELD, not the panel**, and the scene layer no longer
+  clamps to the panel: a plane is not cropped by anything, so a keyboard for a
+  field low in the panel hangs below it rather than being pushed up over the
+  field it types into.
+- **The popup close target no longer shrinks with its glyph.** `chromeHit` tests
+  a boundary, not the glyph box, so making the × smaller quietly made it harder
+  to hit — wrong for a controller ray. The target is now sized on its own terms.
+- **The return key drew a box.** `icons/stroked/corner-down-left.svg` is an
+  18-byte file containing the TEXT `cornerDownRight0f` — a mirror reference that
+  `svgIcons` resolves and `iconGlyph` cannot. The icon guard now checks that a
+  name RENDERS, not merely that it exists.
+
+## 0.7.4
+
+### Added
+
+- **`curve3d` + `footprint3d` — author a terrain province instead of coding
+  one.** A province is a **footprint** (extent by direction) plus **one curve
+  per layer**: a `shape` that remaps the height sample, and a `falloff` that
+  says how far its say extends. The pure model is `curve.ts` (Babylon-free,
+  55 tests); the province editor demo lives on `/curve-field/`.
+
+  **The range is closed on purpose.** A curve maps `[0,1]` to `[0,1]` and a drag
+  clamps rather than pushing the range, because a profile that can return 1.4
+  silently changes the height a province occupies — which is exactly what
+  `carve`/`patch-field` must agree about, and it fails as _geometry_ while
+  reporting nothing. Amplitude belongs to the block; shape belongs to the curve.
+  `blendSample` composes them convexly, so a tile's bounds are known before
+  anything is evaluated, however many provinces overlap.
+
+  **A falloff is pinned to 0 at its edge; a profile is not.** A province still
+  carrying weight at its boundary does not blend into the terrain around it —
+  another silent step. Not monotonic, though: a crater rim and a volcano cone
+  are non-monotonic falloffs, so the edge is pinned and the middle left alone.
+
+  **A footprint is a polygon, not a sampled curve.** `ngon(6)` is six vertices,
+  and `polygonExtent` casts a real ray at the straight edge — interpolating
+  radius against angle bows every edge inward, which is why an earlier draft
+  carried twelve samples per edge to avoid doing one intersection. A circle is
+  therefore the expensive shape: a 16-gon, indistinguishable at province scale.
+  Vertices cannot pass their neighbours or reach the centre, which keeps the
+  polygon star-shaped — the property that makes "extent in this direction" have
+  an answer.
+
+  Presets are named for what they **are**: `shelf + mountains`, `desert
+terraces`, `plateau`, `smooth edge`, `abrupt edge`, `messy circle`. "ease
+  in-out" describes a graph; "smooth edge" describes a province.
+
+- **`vector3d` / `euler3d` — a coordinate on ONE row.** Three stacked labelled
+  fields is why an inspector panel ends up three times taller than it needs to
+  be. `euler3d` is not a styling variant: it **wraps** into `(-180, 180]` where
+  `vector3d` clamps, because a clamp fights you at exactly the angles you most
+  want to scrub through. Degrees, per the angle rule.
+
+  A row is **three tab stops**, not one: the host tracks focus per widget, so
+  the row keeps its own axis index and lights exactly one caret — all three at
+  once says focus is everywhere, which says nothing.
+
+### Fixed
+
+- **A yielded camera is always given back.** Dragging a popup detaches the
+  camera so it does not orbit inside the same gesture, but the restore sat
+  behind an empty-popup-list early return — so anything that emptied the list
+  mid-gesture stranded the camera detached, with no way back. A detached camera
+  is a dead scene, not a glitch. Also added a `window` pointerup/pointercancel
+  backstop, because a pointer released outside the canvas produces no scene
+  event at all, and dragging toward the edge is how you leave the canvas.
+
+- **`openPopup` threw when opened by a click.** It called `attachDrag()` from a
+  `whenMesh` callback declared above it — fine while that callback defers, which
+  is what happens at mount. But `whenReady` fires immediately when the scene is
+  already up, and appending a plane to a live scene runs its `sceneReady`
+  synchronously too, so opening a popup from a click completed the whole chain
+  inside `openPopup` and hit `attachDrag` in its temporal dead zone. Minified,
+  that reads `Cannot access 'E' before initialization`. The throw escaped before
+  the function returned, so the caller got no popup **and** no drag — one
+  exception, two symptoms, neither pointing at declaration order.
+
+- **Dragging a popup no longer re-centres it under the pointer.** Babylon's
+  `_startDrag` falls back to a ray from the camera position when `fromRay` is
+  omitted, so passing only `startPickedPoint` was not enough: it still
+  recomputed the drag plane from a default. Both are needed — the ray says where
+  the gesture points, the point says where on the panel it took hold.
+
+- **A panel owns its background.** It painted nothing of its own, so the seam
+  between the title bar and the content box leaked two ways: `box` draws its
+  background rounded, so its top corners curve away from the square-bottomed
+  bar, and it insets by `borderWidth / 2`, giving a hairline down both sides.
+  A panel is an opaque thing; the parts now sit on top of it. Panel chrome also
+  reads the theme, which it never did — it was hardcoded.
+
+- **Popups have a rim, since they cannot have a drop shadow.** The panel is
+  emissive so it is unlit, and a cast shadow needs a receiver — a popup floating
+  in front of a scene has nothing to fall on. Drawn at **double** stroke width
+  so the clip discards the outer half of a stroke that straddles its path,
+  leaving the intended width with no half-pixel arithmetic. `muted` is a mid
+  grey deliberately: the backdrop is arbitrary 3D, so a light rim vanishes on a
+  pale scene and a dark one on a dark scene.
+
+- **Numeric fields scrub** — `inputField({type:'number', scrub, step, min, max})`
+  drags to adjust and clicks to type (tosijs-3d#50). Scrubbing lives on the
+  field rather than in a separate control because a typed field already knows it
+  is numeric; otherwise every numeric widget needs its own copy of parse, format
+  and commit.
+
+  **Tap versus drag is a distance, not a mode** — a press that never travels
+  places the caret, one that moves scrubs. No modifier and no separate hit zone,
+  which matters most in XR where aiming is the expensive part.
+
+- **`slider3d`'s `step` is documented** — it always quantised the drag _and_ the
+  reported value, but nothing said so, so a consumer generating panels from JSON
+  Schema concluded sliders were continuous and turned snap settings into
+  cyclers. There is now a **widget reference table** covering every widget's
+  options, plus the methods on a panel and a field.
+- **⚠️ `b3dWater`'s normal map is now PROCEDURAL by default** (tosijs-3d#46).
+  It defaulted to `/waterbump.png` — a file that ships in this repo's `static/`
+  and **not in the published package** — so every consumer taking the default
+  pointed at something they had never been told to serve. Babylon falls back
+  when a texture will not decode, so the sea rendered as a **checkerboard**,
+  which reads as a style rather than a fault; it was reported as _"is the water
+  supposed to look like a checkerboard (it actually looks awesome…)"_.
+
+  Shipping the PNG would have fixed the missing file and left the real problem:
+  a default that depends on a fixed URL resolving in someone else's app. The
+  built-in map is now generated from this library's own Perlin noise — no file,
+  no network, no path, and it works offline and in a headset. It tiles by
+  construction (sampled on a torus), so there is no seam to hide.
+
+  An explicit `normalMap` that fails to load now **logs an error** instead of
+  silently becoming a checkerboard. Pass `normalMap` to override.
+
+- **`panel.openPopup()` — a popup is just another panel** (tosijs-3d#37, item
+  4). This was the seam blocking a real `select`, the colour picker, and any
+  in-panel menu: `panel3d` returned a bare `<svg>` while `openPopup`/`openMenu`
+  wanted a `Surface`, so a control inside a panel had nowhere to put its list.
+
+  Nothing new was needed to build one — it is a `panel3d` with `height: 'fit'`
+  placed by `placePopup` (which already flips and clamps). It returns the panel
+  plus **where** it goes; mounting stays the host's job, because that is the
+  part that genuinely differs: flat it is a positioned sibling, in a scene it is
+  another plane. A popup living inside its opener would be clipped by the
+  opener's own viewBox, which is exactly why it has to be its own panel.
+
+  The popup is capped at its bounds, so a long list scrolls rather than growing
+  past the surface it must land on — flipping cannot rescue a popup that is
+  taller than both sides.
+
+- **Fixed: injected colour controls set tokens to `[object Event]`.** A tosijs
+  `Component` binds any `on*` prop as a **DOM event listener**, so an injected
+  `colorInput({onChange})` calls back with an `Event` rather than a colour.
+  Setting a token to one throws nothing — it stringifies, fails to parse, and
+  the widget paints **black**. `themeEditor` now accepts either and ignores
+  anything it cannot read as a colour.
+- **⚠️ Panels no longer cast shadows by default.** `register()` is the
+  shadow-caster contract and a panel registers like any other mesh, so every
+  in-scene panel threw a hard-edged rectangle across whatever it faced.
+
+  It is the right default for what a panel _is_: UI is not scenery — a HUD or an
+  inspector is something you look **through** the world at, and a shadow makes
+  it furniture. It is also the worst case for the shadow map, being a large flat
+  quad that (when camera-relative) never leaves `activeDistance` and so never
+  culls. Set `castShadow` for a panel that really is scenery — a sign on a wall,
+  a screen in a room.
+
+- **The scene panel sits in the top-left corner**, inset equally from top and
+  left, instead of hanging below the gear button. It sat clear of the button
+  that opens it, which pushed its own content off the bottom on a short scene —
+  and covering the gear is fine, because the panel carries its own close box.
+- **The scene panel updates when pause state changes elsewhere.** The transport
+  row picks its label and icon from `paused`, but nothing repainted the panel
+  when that flipped — so resuming from the pause _dialog_ left the panel still
+  offering **Play**. It only looked right before because the common path is
+  pressing the panel's own button, which reopens the panel afterwards; a second
+  route to the same state had no reason to.
+- **The `surface` demo's debug readout is a real 3D popup**, not an overlay
+  painted into the opener's own SVG — so in the scene it is a panel with depth
+  that can sit in front of the surface and be dragged in world space, rather
+  than a picture of one stuck to the plane. The flat view keeps the in-panel
+  form, because in a document a popup _is_ a box drawn over another box.
+- **`buttonActiveText`** — the label colour while a clickable is held or
+  selected. Separate from `text` because the background under it has changed: a
+  theme whose `buttonActive` is a strong accent needs a light label on it, and
+  baking that into `text` would force every label in the panel to follow a
+  decision that is only about buttons. A held `button3d` and a selected icon
+  both take it.
+- **"button" means any CLICKABLE**, and now says so in the source.
+  `buttonBg`/`buttonHover`/`buttonActive`/`buttonActiveText` style every widget
+  you can press — buttons, icon buttons, toggles, list rows, select cyclers.
+  `widget*` would be vaguer (a label is a widget and has no press state) and
+  `clickable*` is what they mean but longer than anyone will type.
+- **`iconBar3d` colours like a button.** It used `buttonActive` — the _press_
+  colour — for the selected item, so a selected icon looked permanently held and
+  pressing one showed nothing new. Now three escalating states (`buttonBg` →
+  `buttonHover` → `buttonActive` while held) plus **`selectedBg`** for "this one
+  is on", which is a different axis and why the theme has a separate token for
+  it. Release clears the pressed look _before_ the handler runs, so a handler
+  that rebuilds the panel cannot leave a button stuck looking held; and a press
+  that drifts off its button no longer fires it.
+- **`strokeWidth` reaches icons.** `iconGlyph` hardcoded `2`, so the token
+  affected nothing but the text caret — a themed panel could not make its icons
+  match its own line weight. It now defaults to `w3dTheme.strokeWidth`, and an
+  explicit option still wins (an icon used as a mark may want its own weight).
+- **Web fonts now reach in-scene panels** — `registerSvgFont(family, url)`
+  fetches the face, base64s it, and injects an `@font-face` **into the
+  serialised SVG**, which is the only place a rasterised copy can find it.
+
+  A serialised SVG is its own document: it inherits neither the page's font
+  faces nor its custom properties (the second half is why `w3d-theme` bakes
+  literals). The symptom was quiet — a scene panel in the fallback family while
+  the identical flat panel rendered correctly.
+
+  Only faces the markup actually mentions are injected, because the payload is
+  re-parsed on every rasterisation; a woff2 is 20–100 KB and base64 adds a
+  third, so carrying every registered font on every texture would be the real
+  cost. Cached per URL, and a failed fetch is not cached as the answer.
+
+- **`withTheme(partial, build)` — one default, per-panel overrides.**
+  `setW3dTheme` sets the default; this builds something under an override and
+  restores it afterwards (in a `finally`, so a throw cannot leave the palette
+  changed — a theme that silently persists after an error makes the _next_
+  widget look wrong for no visible reason).
+
+  It works because of the property that makes a single global table safe: a
+  widget reads the theme when it is **built**. So a scope is just set-build-
+  restore — no plumbing, no second table, and a widget built inside keeps its
+  colours forever, since they were baked into its attributes.
+
+  **Why not `panel3d({ theme })`:** a panel's children are constructed as
+  _arguments_, so they already exist by the time the panel function runs. An
+  option on the panel could only recolour the panel's own background while its
+  contents kept the default — worse than not offering it. Wrapping the
+  construction puts the children inside the scope, because that is when they
+  evaluate.
+
+- **`themeEditor()` — the palette editor is a component**, not demo code. An
+  adopter theming an app wants exactly this UI, and copying it out of a doc
+  comment is how it drifts from the palette it edits. Its own module, so it
+  tree-shakes out of a build that never imports it.
+
+  Every metric has a **slider and a number field, kept in sync** — a slider
+  alone hides the value you are setting, and you cannot drag an exact 0.05.
+  The colour control is **injected**: alpha matters (`panelBg`, `rowHover` and
+  `selectedBg` are `rgba()`) and `<input type="color">` silently drops it, but
+  tosijs-ui is deliberately not a dependency — so pass its `colorInput`, or take
+  the native fallback knowing what it costs.
+
+- **⚠️ The theme now actually reaches the widgets.** Every `--w3d-*` value was
+  captured in a module-level `const` at **import** time, so `setW3dTheme` could
+  never affect anything — colours, fonts and metrics alike. Only
+  `roundedRadius` appeared to work, because it happened to be read inline.
+  Reads are now live (getters), so a widget takes the theme in force when it is
+  **built**, which is what the docs always claimed.
+- **The SVG UI is themeable** — 21 tokens, up from 17. Added `focus`,
+  `selectedBg`, `disabledBg`, `disabledText`, `strokeWidth`, `roundedRadius`,
+  `spacing`, `lineHeight`, `codeFontFamily`, `codeFontWeight`, plus `overlay`,
+  `divider`, `placeholder` and `caret`.
+
+  **`setW3dTheme(partial)` overrides at runtime.** The `--w3d-*` variables are
+  read once at load and deliberately so — an SVG destined for a texture is
+  serialised away from the document, where `var(--w3d-text)` resolves against
+  nothing and paints black. This is the way back in, and what a theme editor
+  needs. Widgets read the theme when they are **built**, so rebuild them after
+  calling it; a widget that re-read its colours would have to re-resolve them
+  per rasterised texture, which is the cost this design exists to avoid.
+
+  The four interaction states (`rowHover`, `focus`, `selectedBg`, `disabledBg`)
+  are separate tokens because they must stay tellable apart — `focus` is a
+  **stroke** rather than a fill, since a focus ring has to be visible on a
+  hovered row _and_ a selected one. Live demo on the `w3d-theme` page.
+
+- **20 more icons**, for the ensemble editor: `mousePointer`, `refreshCcw`/`Cw`,
+  `move`, `copy`, `delete`, `trash`/`trash2`, `plus`/`plusCircle`,
+  `rotateCw`/`Ccw`, and the complete `corner*` family (8). 61 total.
+- **`fieldGroup.attach(target?)`** wires real `keydown` events to the focused
+  field and returns a detacher. Opt-in — the library still never grabs the
+  document by itself — but without it every flat host writes the same six lines,
+  and a field you can click into that then refuses every character is a bad
+  first impression. It was one: the theme demo shipped with an unusable field.
+
+  It maps the event's modifier flags explicitly rather than passing the event,
+  so `keyIntent` keeps taking a plain shape and stays testable without a DOM.
+
+- **⚠️ `fieldGroup` moved under `ui.*`** (`ui.fieldGroup`), alongside
+  `ui.inputField` and `ui.keyboard` — it is part of the same SVG UI surface and
+  was inconsistently top-level. Unreleased, so nothing external moves.
+- **`fieldGroup` — one keyboard, many fields.** Three chores that always travel
+  together and were hand-rolled in every host (tosijs-3d#37, items 1 and 7):
+  **exclusivity** (focusing one un-focuses the rest — two lit fields both
+  claiming the keyboard is worse than none), **commit on leave** (so a
+  half-typed `1.` never survives the move), and **layout** (the incoming field's
+  `type` picks the keyboard mode, which is the point of having a type).
+
+  `handleKey(key, mods)` takes a key NAME rather than an event, so the same
+  routing serves a DOM listener, a synthetic source or a test — and it returns
+  whether the key was consumed, so a host knows when to `preventDefault`.
+  Attaching a real listener stays the host's choice; this library never grabs
+  the document.
+
+- **`keyIntent`** — pure DOM-key → field-intent mapping. Named keys (`Tab`,
+  `Escape`, `F5`) and anything with Ctrl/Cmd/Alt are **not consumed**: swallowing
+  a shortcut because a field happens to have focus is worse than handling no
+  keys at all.
+- **`inputField.onFocus` is settable on the object** (mirroring `onChange`), so
+  a manager learns about focus it did not initiate. Without it a tap and a
+  programmatic focus disagree about who is active, and keys go to the wrong
+  field — silently, and only sometimes.
+- **`inputField` has a `type`** — `'text' | 'number' | 'integer' | 'email' |
+'url' | 'tel'`, HTML's `inputmode` idea. **One property, three jobs**: the
+  host raises the matching keyboard layout on focus
+  (`field.keyboardMode` → `keyboard.setMode`), `commit()` normalises or refuses
+  the value, and `isValid()` answers without the host knowing the field's kind.
+  This is why there is no separate `numberField` — a number field is this one,
+  configured (tosijs-3d#37, item 2).
+
+  The layouts already existed (`numpad`, `dial`, `email`, `url`) and nothing
+  chose between them, so focusing a numeric field raised `alpha` and left you to
+  find the numpad — two deliberate taps per field, and worse in a headset where
+  there is no physical keyboard to fall back on.
+
+  **Validity while typing and validity as an answer are different questions**,
+  and conflating them is what makes typed fields either unusable or liars: `-`
+  and `1.` are legitimate things to have typed and illegitimate things to have
+  meant. So `isValid()` accepts them and `commit()` does not — and a refused
+  commit restores the last good value rather than writing `NaN` into the
+  document. Enter commits _before_ `onEnter` fires, so no handler has to re-do
+  the parse.
+
+- **`slider3d` can show its value permanently** — `showValue: 'peek' | 'always'
+| 'never'` (default `'peek'`, the existing behaviour) plus a `format` hook for
+  units. ensemble's coordinates were unreadable because a handle position is not
+  a number (tosijs-3d#37, item 3).
+
+  `'always'` reserves width for the **widest** value in the range (measured
+  through `format`, so units and precision count) and shortens the track to
+  clear it. Sizing to the _current_ value would make the track twitch mid-drag,
+  which reads as the slider fighting you.
+
+- **`row3d` — lay widgets side by side.** A panel only stacks, so a
+  label-and-field pair cost two rows and eight fields became sixteen rows of
+  mostly whitespace (tosijs-3d#37, item 5). `weights` give the usual label/field
+  split; children are middle-aligned by default, since top-aligning a short
+  label beside a taller control makes it look detached from what it names.
+
+  Pointer routing is **by column**, delegating in each child's own coordinates —
+  a widget cannot know it has been put in a row, so it must still receive
+  `(0,0)` at its own top-left. Hit-testing follows the same path, which keeps
+  "grab between the controls to scroll" working inside a row.
+
+- **`panel3d` sizes itself: `height: 'fit'` is the new default**, with
+  `maxHeight` to cap it (past the cap it scrolls rather than growing — fitting
+  and scrolling are the same mechanism seen from either side of a limit).
+- **`panel.measure()` → `{content, viewport, overflow, fits}`.** The panel has
+  always known this (`stackLayout` returns the total) and simply never said, so
+  every consumer sizing a panel was guessing at a number the panel could have
+  told them.
+
+  Both exist because **clipping is silent**: a panel too short for its content
+  looks exactly like a panel missing its last control. The ensemble editor got
+  three heights wrong in one sitting — a command hidden behind another panel, an
+  option cut in half, a list showing five of eight rows — and noticed none of
+  them at the time (tosijs-3d#37, item 6).
+
+  The ordering is the whole trick: widgets measure against the inner WIDTH,
+  which is known from `width` alone, so the stack can be measured before the
+  panel has a height and the height derived from it. The previous code fixed the
+  height first and had no way to discover it was wrong.
+
+  **Behaviour change:** a `panel3d` with no explicit `height` used to be 480 and
+  now fits its content. All nine call sites in this repo pass a height, so
+  nothing here changed; an adopter relying on the old default should pass
+  `height: 480`.
+
+## 0.7.3
+
+### Added
+
+- **⚠️ The biped uses the GTA V control layout.** Left stick moves and
+  **strafes**; right stick **turns the body** and pitches. It was tank-controlled
+  (left stick X turned), which nobody has muscle memory for any more and which
+  left the right stick doing camera work that could not steer. Turning the body
+  with the right stick makes **swim direction and body facing one thing** rather
+  than two that can disagree — the thing that made look-directed swimming fiddly.
+  The camera now sits straight behind the body and has no yaw of its own, so it
+  cannot end up pointing somewhere the character is not. Measured: strafe moves
+  4.65 m sideways with the yaw unchanged; turn rotates 34° with zero translation.
+- **The biped's right stick is a LOOK control**, and jump and sneak exist.
+  Tonio spotted that look-directed swimming had nothing to aim with on a flat
+  screen: the right stick was bound to `cameraZoom` (Y) and a snap-back peek (X),
+  so a character had no aim at all. Now `lookX`/`lookY`, **persistent rather than
+  sprung** — a character's camera is how you look _around_, where the aircraft's
+  springs back because there it is a glance off the flight path. A `FollowCamera`
+  has no pitch of its own, so pitch is height: raise the camera and it looks down
+  at its locked target. Zoom moves to the d-pad, which sneak vacated.
+  - **Swim aim now reads that look** rather than integrating the stick
+    separately, so "swim where you are looking" is literally true flat and is the
+    same rule the headset already followed with your head.
+  - **Jump** — right bumper only. `A` briefly aliased it, and Tonio removed the
+    alias: the face buttons are **reserved for actions** (they are primary and
+    secondary fire on the aircraft), and a control vocabulary that changes
+    meaning per vehicle is one you have to relearn. The ground snap swallowed the
+    first version whole — the impulse lifted the body ~7 cm, the probe still saw
+    ground 0.6 m below, and the snap put it straight back, a jump that rose
+    exactly 0.00 m. The snap now yields while you are rising.
+  - **Standing jumps brace; running jumps fire on the press.** A running jump's
+    anticipation _is the run_ — the character is already loaded and moving, so a
+    wind-up can only read as a stumble. A standing jump has no run-up to borrow
+    from, so holding scrubs the clip into the braced pose and **parks there**,
+    and releasing launches. The hold is not a delay tax: it **scales the jump**
+    (`jumpMinScale` 0.45 → full), so it is a choice rather than a wait. Measured:
+    full brace 1.13 m, short hold 0.45 m, nothing at all while held.
+  - **The animation is retimed to the jump, not the jump to the animation.**
+    Physics stays fixed at `jumpSpeed`, and the clip's `speedRatio` is set so it
+    lasts exactly the flight time. Measured: `running-jump` plays at **1.02×**
+    (0.93 s clip over 0.92 s of flight). The first attempt had this backwards —
+    sizing the launch from the clip length — which made the jump a consequence of
+    whatever the animator exported.
+  - The jump clip holds for the **whole airborne period**, and the clip is chosen
+    at the press and never re-picked, so a standing jump cannot switch to the
+    running clip in mid-air.
+  - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
+    stance you adopt for a while versus a thing you do continuously, and a toggle
+    whose state you must remember with your head underwater is worse than useless.
+- **⚠️ Jumping is instantaneous again, and animated in three phases.** The
+  crouch-on-press/launch-on-release model was an adaptation to the stock rig's
+  single one-shot clip that happened to open with a crouch. Quaternius ships
+  `Jump_Start` / `Jump_Loop` / `Jump_Land`, where **start is a takeoff, not a
+  wind-up** — Tonio: _"it's basically designed for instantaneous jumps where
+  once you jump you enter the jump state and that's it."_ That is also the
+  platform-jumper contract in `MOBILITY-DESIGN.md`: the character does exactly
+  what you pressed, now; anticipation belongs to the intent model, where the
+  character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
+  so is the `speedRatio` retiming — each clip now plays for as long as it is
+  actually true instead of being stretched to fit a flight it could not know.
+- **`b3d-library` surfaces the glb's own catalogue** (#45). `getManifest()`
+  returns `{count, categories, items:[{name, category, tags, size}]}` built from
+  the loaded nodes; `getInfo(name)` answers `{category, tags, clips}` **without
+  instantiating**, which is what a clip picker needs (`metadata.animationGroups`
+  requires an instance to exist first). `getNames()` now narrows to the declared
+  items when a catalogue is present — the data-driven twin of the `.model`
+  convention, and a packed kit badly over-reports without it (measured: 559 raw
+  nodes vs 131 declared items). `getRootNames()`/`getHierarchy()` still expose
+  everything, so sub-part targets keep working, and `instantiate()` carries the
+  extras onto what it returns — including the `canonical: true` wrapper, which
+  was the actual reason the data looked unreachable.
+- **`glb-manifest`** — the pure half: category/tag/size queries over a library
+  catalogue, plus GLB JSON-chunk parsing for the case where you want a
+  library's contents _without_ loading it into a scene. Note Babylon surfaces
+  per-**node** extras and drops per-**scene** ones, so `manifestFromNodes` is
+  the path that needs no parsing at all.
+- **Mantling — the biped climbs onto a ledge too high to step onto.** No button:
+  push into it and the character solves it, which is the intent model rather
+  than the platform jumper. `mantle.ts` is the pure half (Babylon-free, 13
+  tests): `canMantle` (every clause a way of NOT being a ledge — too low is a
+  step, too high a wall, no landing is a fence you would be stranded on),
+  `mantlePath` (an ARC — rise leads translation, because a straight line drives
+  the body through the lip) and `mantleClip` (picks `ClimbUp_1m`/`_2m` by
+  MEASURING the ledge, since Quaternius indexes those clips by height).
+
+  It arrived as _"when you swim to the water's edge, you just pop instantly to
+  the surface onto the land"_, but it is not a water feature — climbing out of a
+  pond is mantling a lip of height h, so the bank, the low wall and the crate
+  are one verb. A swimmer's reach is measured from the **waterline**, not the
+  dangling feet: your hands are at the surface, and the feet reading made every
+  bank in the demo 3 m tall.
+
+  New attribute `climbReach` (2.2 m). The probe is throttled to 12 Hz — see
+  MOBILITY-DESIGN → "Probes: one budgeted read of the surroundings".
+
+- **The wade↔swim transition is verified** — it had been the one untestable
+  case, because no water in the 0.2–0.9 m band existed anywhere in the demo.
+  With the canal's variable depth it now does: walking deep → shelf → deep
+  across a HARD step (4.24 m → 0.37 m → 4.56 m, the worst case for flicker)
+  produces exactly two state changes over 304 samples, one at each edge.
+- **`wadeDepth` is a biped attribute** (`0.45` = fraction of standing height,
+  ~0.8 m on a 1.83 m rig). Below it you wade; above it buoyancy takes over.
+  Tonio set the band — _"about 0.4-0.5 (it's hard to swim in water less than
+  waist deep)"_ — which is the real constraint: swimming shallower than that
+  is not a choice a person gets to make, the bottom is in the way. A fraction
+  rather than metres because it is a fact about the **body**, so a smaller
+  character starts swimming sooner in the same pond for free.
+- **Camera zoom-IN works.** `cameraZoom` was `Math.max(0, dpadUp - dpadDown)`,
+  which discarded the whole zoom-in half — down produced `0`, not `−1`, so the
+  camera could only retreat. The unit test asserted the broken value, having
+  been written beside the broken line.
+- **Vertical look moves the chase rig in XR.** Flat, `lookY` tilts the
+  `FollowCamera` via `heightOffset`; in a headset there is no `FollowCamera`, so
+  it did nothing. A regression from moving camera zoom onto the D-pad — XR
+  controllers have no D-pad, so the headset lost both the zoom and the tilt in
+  one move. Same formula as flat, clamped, so the two feel alike.
+
+  **Known gap:** camera zoom is now unreachable in VR. It needs a home that
+  exists on an XR controller — most likely a slider on the in-headset scene
+  panel.
+
+- **Strafing is a toggle, `strafing="off"` by default.** Both sticks then turn
+  you — the left while moving or not, the right without moving — and the
+  sidestep clips never play. Off on principle: sidestepping is a shooter idiom
+  that reads oddly on a character meant to move like a person. That it also
+  avoids the weakest clips in the Quaternius set is a bonus, not the reason.
+- **The pose is averaged over the cycle, not sampled once** — the fix for
+  _"I seem to porpoise out of the water"_. A swim cycle is not a fixed shape:
+  over `Swim_Fwd_Loop`'s 1.33 s the body's lowest point swings from −1.26 to
+  −0.28 as the legs kick. A single sample landed wherever the settle timer fell,
+  and the shallow end of that swing drove the derived buoyancy to its clamp and
+  fired the swimmer out of the water — intermittently, because it depended on
+  the phase.
+- **`buoyancy` is METRES, not a multiplier** (`0` default = waterline at the
+  head; `0.1` floats ten centimetres higher). A multiplier is not authorable —
+  its effect depends on how tall the pose happens to be, so the same number
+  means different things for a tread and a crawl. Tonio: _"we can keep buoyancy
+  as a strict z offset for a given figure in water."_
+- **The waterline is anchored at the swimmer's HEAD.** Which is what swimming
+  _is_ — you keep your head at the surface, and you do it by swimming rather
+  than by floating — so it is a fact about the activity, not about a clip, and
+  it holds for any humanoid rig without per-animation tuning. Treading now sits
+  with the water just above the neck and the head clear; a front crawl breaks
+  the surface. Both from one rule.
+- **Swimmers float where the ANIMATION says, not where a constant says.** The
+  swim clips are authored with the **root at the waterline** — measured on the
+  Quaternius rig, `Swim_Idle_Loop` spans −1.37…+0.50 about the root and
+  `Swim_Fwd_Loop` −0.60…+0.31, so floating the root on the surface gives a tread
+  with head and shoulders out and a crawl with the head just breaking. The
+  equilibrium is now READ from the pose rather than tuned, so any standard
+  animation set floats correctly untouched.
+
+  The root itself is **not** a usable anchor: it means different things in
+  different clips — feet when standing, roughly waterline when swimming — and
+  taking it literally floated this rig at armpit height, since its root sits 73%
+  up the treading pose. It is still what tells us a pose _is_ a swim pose (the
+  body hangs below it), just not where the water goes.
+
+  Three bugs fell out of the old assumption that the root is at the feet, which
+  is true only while standing: the real head sat ~1.2 m under while treading;
+  the legs were buried in the seabed (the floor clamped the root, not the body's
+  lowest point); and `buoyancy` appeared to do nothing, because clearing that
+  head needed a submersion of 0.14 — `buoyancy ≈ 7`.
+
+- **`buoyancy` is a biped attribute** — now a **trim** on the animation's
+  waterline (`1` = as authored, higher rides higher), because the absolute is
+  not ours to choose: the clip already encodes it, and a number here would be a
+  second opinion that goes stale with the next animation set.
+- **A clip change no longer briefly makes a swimmer stand.** A newly-started
+  clip cannot be measured until its pose settles, and falling back to the
+  standing assumption for those frames put the root back at the feet — so a
+  swimmer floating at the waterline read as barely submerged and walked off
+  across it. Moving is exactly what changes the clip, which is why it showed as
+  _"when you move he tends to jump up to the surface and walk"_. An unmeasured
+  clip now inherits the last swim pose, `height / -bottom` is clamped so a
+  mid-blend reading cannot launch anyone, and **no floor under you means you
+  cannot stand** — full stop, rather than a number derived from where the body
+  drifted to.
+- **The swim/stand test no longer feeds back on itself.** It asks how deep the
+  water is **at your feet on the floor**, which is stable across the switch —
+  the previous form measured the current pose, so raising buoyancy raised the
+  body, flipped the pose upright, and the upright reading locked the flip in:
+  at `buoyancy` 1.3 the character corked out and stood on the surface.
+- **Neutral buoyancy starts at 1.5 m of head depth, not 0.5 m.** Holding depth
+  is for DIVING; at half a metre a swimmer whose head dipped barely under went
+  neutral and stayed there, with the up-thrust throttled near the surface too —
+  Tonio: _"still treading water with head underwater and it's hard to swim up."_
+- **Sidestepping uses the lateral clips** rather than the forward walk — the
+  slide is gone. UAL ships a full eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd,
+  Bwd_L/R) for jog, crouch **and** crawl; the biped now picks the lateral one
+  when sideways motion dominates, crouched or not, and falls back to walking on
+  a rig that has no such clip. Sneaking at rest holds `Crouch_Idle_Loop`.
+- **⚠️ The right stick's Y is inverted by default** (`invertLookY: 'off'` to
+  restore) — pushing away tips the view down, the way a camera head works.
+- **The follow camera can no longer go underground.** Pitch drives its HEIGHT,
+  so looking up walked it downward until the world vanished; `cameraMinHeight`
+  (0.5 m) floors it.
+- **`ualAnimationStates()`** — the clip-name map for Quaternius UAL rigs, so
+  adopting that library is one line rather than twelve hand-written states. It
+  retires two fakes: `walkBackwards` becomes a real `Jog_Bwd_Loop` instead of
+  the walk cycle played in reverse, and `sneak` gets a `Crouch_Idle_Loop` that
+  holds at rest. `Jump_Start` / `Jump_Loop` / `Jump_Land` are mapped separately,
+  which is what will let the jump's brace genuinely hold rather than scrubbing a
+  one-shot — addressable now, not yet wired.
+- **⚠️ The `tosi-b3d` demo uses a 1.83 m rig** from the CDN
+  (`quaternius/UAL1_core.glb`) instead of `omnidude.glb`, which measured
+  **0.88 m** — half human scale. **Camera framing roughly doubled** to match
+  (`cameraHeightOffset`, `cameraTargetHeight`, follow distances): that is the one
+  part of the tuning genuinely scale-bound, because it is in metres. Everything
+  else — run speed, step height, jump, the collision ellipsoid — was already
+  human-scale and is now _correct_ rather than needing adjustment. A project
+  using its own small rig will want the camera numbers back down.
+- **The biped swims.** Water was already a medium rather than a boundary line
+  (underwater fog with a continuous crossing); the biped now treats it as one
+  too. Tonio: _"can we change the rate at which the biped falls in water. And
+  while we are at it the biped could learn to tread water and swim."_ Both
+  animations were already in the standard set, so this is one equation plus
+  wiring.
+  - **`buoyancy.ts`** — pure, tested. A body is slightly less dense than water,
+    so it is pushed up in proportion to how much of it is submerged and rests
+    where that balances its weight. Everything readable falls out of that one
+    equation instead of being special-cased: plunge-and-bob when you drop in, a
+    head that ends up **above** the surface (equilibrium is partial submersion —
+    nothing targets a head height), and wading that does nothing until the water
+    is deep enough to lift you. Sinking is ~1.5 m/s against ~20 m/s in air, and
+    drag blends by submersion rather than switching at the waterline, so
+    crossing the surface does not read as bouncing off it.
+  - **Swimming is deep enough AND not resting on the floor** — _resting on_,
+    not _within reach of_. The first version asked "is there ground below me?"
+    and left the character standing on the seabed under six metres of water.
+    The floor stops you sinking; it does not hold you down.
+  - `swim` while moving, `tread-water` while holding station.
+  - **Fixed after report: swimming broke when you pitched and turned at once.**
+    The body's yaw was read back out of the _pitched_ matrix, and
+    `atan2(forward.x, forward.z)` is ill-conditioned there — at 70° the
+    horizontal part is scaled by `cos 70° = 0.34`, so x and z collapse toward
+    zero, the recovered yaw gets noisy, and writing it straight back compounds
+    the noise into a body that wanders. The yaw is now **captured once from the
+    level matrix** and integrated from the turn input thereafter, so the only
+    reading happens while well conditioned. It hid because pitching _and_
+    turning together is one stick on a controller and two hands on a keyboard.
+  - Also fixed: the **mouse wheel** still fed `rightStickY`, which had become
+    `lookY` — so a scroll tipped the swimmer, since the swim aim is the look
+    pitch. It feeds the zoom axis now, so "the wheel zooms" survives remapping.
+  - **Look-directed swimming** (`swim-aim.ts`, pure + tested): the BODY pitches,
+    and the stroke follows for free — the biped already swims along its own
+    forward vector, so there is no separate vertical term and no way for aim and
+    motion to disagree. Aim comes from your **head** in a headset, and from the
+    right stick flat, because the biped's `FollowCamera` has a fixed pitch and
+    there is nothing to read. The stick **integrates** rather than mapping to an
+    absolute angle, so releasing it holds the descent instead of springing back
+    to level. Leaving the water unwinds the pitch on its own.
+  - **You can dive.** `sneak` down, `jump` up — crouch-to-descend matches the
+    GTA-V control vocabulary this project follows and leaves the triggers free.
+    Thrust competes with buoyancy rather than replacing it, so letting go hands
+    the vertical back to physics instead of pinning you.
+  - **Released, you HOLD depth and drift up slowly** rather than corking to the
+    surface (Tonio's call). Once your head is properly under, buoyancy blends
+    toward neutral — but stays just above 1, so you surface if you stop paying
+    attention. You also glide a little deeper after letting go: that is
+    momentum, and letting go is not a brake. Measured live in 12 m of water:
+    dive to the seabed, release, drift up at **0.2 m/s**; hold `jump` and it
+    becomes **0.65 m/s**.
+  - Verified live: released on a seabed under 6 m of water the biped rose and
+    settled at **0.866** submersion against a predicted 0.870, and a walk
+    downhill waded in and began swimming on its own.
+
+### Changed
+
+- **Toolchain bumped** — `tosijs` 1.7.8 → 1.8.0, `tosijs-ui` 1.9.8 → 1.12.3,
+  `haltija` 1.11.2 → 1.12.5, and **`tjs-lang` 0.13.6 added explicitly**: it is a
+  peer of tosijs-ui and was **not installed here at all**, which nothing warned
+  about. The site built anyway, so "works" and "works properly" were
+  indistinguishable — installing it changed the build output (`tjs-lang bundles
+served same-origin at /tjs/` is new).
+
+  `peerDependencies` is deliberately unchanged: `tosijs ^1.7.8` already admits
+  1.8.0, so developing against the newer one costs consumers nothing and this
+  stays a **patch**.
+
+  Fallout, all fixed: an unused variable in `wreck-fall` failed lint, which
+  `bun start` runs first — so the dev server would not start, and because
+  `bun format` is `eslint && prettier`, **prettier had been silently skipped**
+  on every file since. Also: `bun run typecheck` is **green again** (the
+  standing `model-transform.test.ts:449` red is gone).
+
+- **`.haltija.json` pins agent commands to this project's origin.** A shared
+  haltija server holds tabs from several repos and commands followed browser
+  FOCUS, so a command run from this directory could silently drive another
+  project's page — which happened repeatedly. New in haltija 1.12.
+
+### Fixed
+
+- **Entering water flipped your heading 180°.** With a mirrored glTF root
+  (`scaling.z = −1`) world forward is `−(R·ẑ)`, so reading yaw back gives
+  `θ + π` and writing it produces `−F`. I had reasoned this round-tripped; it
+  does not. On land nothing rewrites the quaternion, so it only showed the
+  instant pitch engaged — which is the instant you start swimming.
+- **You could wade on top of the water.** Holding surface-thrust lifted you
+  until submersion fell under the swim threshold, at which point you were
+  classed as standing and got a walk cycle while still afloat. Up-thrust is now
+  gated by head depth, exactly as the upward aim is: you cannot push yourself
+  out of water, and surfacing is buoyancy's job anyway.
+- **The swim/stand switch twitched at the waterline.** Walking down a ramp,
+  submersion hovers around the threshold and the mode flickered. `isSwimming`
+  now enters at 0.5 and holds until 0.35.
+
+- **`setAnimationState` could pick the wrong clip.** The lookup was
+  `group.name.endsWith(animation)`, and a suffix match is ambiguous the moment
+  one clip's name ends with another's. Asking a Quaternius rig for `Idle_Loop`
+  played **`Crouch_Idle_Loop`** — but it was already latent in the stock set,
+  where `running-jump` ends with `jump`, so `setAnimationState('jump')` could
+  match the running jump depending on array order. Now an exact name match
+  (after stripping Babylon's `Clone of ` prefix), with the suffix behaviour kept
+  only as a fallback for rigs whose exporter adds some other prefix.
+
+- **A `_collideCylinder` child of a `_collideMesh` parent built a cylinder around
+  the PARENT's whole subtree.** Reported as _"I put a collideMesh on the hull and
+  collideCylinders on each mast but the ship just seems to have a single giant
+  squat cylinder"_ — and the effect was a **34.4 m wide, 26 m tall** invisible
+  barrier you could not walk within twenty metres of. Two independent faults,
+  both in how a collider's bounds are chosen:
+
+  - The root-walk climbed while the parent had **any** collide annotation, so
+    each mast climbed onto the hull. The shape came from the leaf and the bounds
+    from the root, so it built the mast's _cylinder_ around the hull's _subtree_
+    — and one `processed` entry then swallowed the other two masts, which is why
+    there was exactly one. It now climbs only across the **same** annotation.
+    (The tell was the generated mesh's name: `Hull_collideMesh_collider` should
+    be impossible, because `_collideMesh` never builds a primitive.)
+  - Bounds combined the annotated node's children even when the node had its own
+    geometry. A mast is a Mesh 0.55 × 20.6 × 0.64 carrying the Crow's Nest, Flag,
+    Spars and SquareSails, so combining gave a 10.2 m cylinder around each mast
+    — the deck still walled off. Children are combined only when the annotated
+    node has no geometry of its own, which is the GLB TransformNode case the
+    behaviour was written for.
+
+  Ship colliders now measure **0.58–0.64 m across** at mast height, and the hull
+  keeps its mesh collider.
+
+- **Ambient particles spawned on the wrong side of the water** — leaves below it,
+  bubbles above, and a lot of them. Reported while swimming, which is what made
+  it constant: third person parks the camera right at the surface. Intensity was
+  never the problem; it already ramps correctly on the camera's depth. The
+  **spawn box** was: a cube of side 2·radius centred on the eye, so with the eye
+  near the surface half of it sits in the wrong medium. Intensity says how much
+  to emit and cannot say where, so no amount of ramping could have fixed it. The
+  box is now clipped at the waterline — measured with the camera on the surface,
+  `leaves/above` spawns from −0.20 up and both `underwater` presets from −0.20
+  down, against a surface at −0.20. Same lesson as the biped's plane-vs-volume
+  submersion test, one layer along: a medium with a boundary needs a volume with
+  one too.
+
+- **World-placed dialogs rendered MIRRORED** — the death/respawn panel read
+  "NWOD", and so did the pause panel in any scene using `placement="world"`.
+  Reported from a headset, but not headset-specific: it was mirrored flat too,
+  and had been since 0.7.2. A Babylon plane's visible face is local **−Z**, so
+  aiming `atan2(dx, dz)` at the eye — which points local **+Z** at it — shows you
+  the panel's **back**, and a `doubleSided` back reuses the front's UVs rather
+  than vanishing. Hence a mirror instead of a missing dialog, which is why it
+  survived a release. Now `dialog-placement.facingYawDeg`, tested on the property
+  that matters: turn the plane's visible face by this yaw and it points at the
+  eye. The same change fixes touch, which was mirrored with it — every
+  right-aligned control on a world dialog was mapping to the left.
+
+- **The pause/continue panel is DOM on a flat screen**, and stays an in-scene
+  plane in VR — the scene panel's rule (one widget list, two presentations)
+  applied to the modal that most needed it. Tonio: _"in flat 3d the continue
+  should be presented in the dom like the scene panel."_ On a monitor the DOM
+  overlay is better on every axis that has bitten this panel: it cannot be
+  occluded, cannot be put somewhere odd by a line-of-sight cast, needs no raycast
+  to be clicked, and is exactly where you are already looking. All that machinery
+  exists because a headset has no DOM, which is the only place it earns its cost.
+  The same `panel3d` SVG serves both — its widgets' listeners work natively in
+  the DOM, and `handlePointer` serves the in-scene path.
+- **Death and world-placed dialogs now survive a floating-origin rebase.**
+  Neither had opted in, so in a terrain scene — the only kind big enough to
+  rebase, which is why it hid — a shift mid-death slid the spectate camera, the
+  fire emitters and the dialog away from the crash while the world moved out
+  from under them. That reads exactly like the origin-teleport fixed above ("the
+  wreck is way off, I am looking at nothing"), and two causes producing one
+  description is how a fixed bug looks unfixed. Both use an origin LISTENER
+  rather than `registerWorldRoot`, because both hold world coordinates in JS and
+  the element owns the transform (shifting the node would be undone next render).
+  The falling wreck needed nothing — it re-reads its position from the node every
+  frame, so a shift is absorbed.
+- **Leaving VR now pauses in EVERY scene**, not only those with
+  `enterXrOnResume`. Taking the headset off is a departure, not a view change.
+  The gate existed on the reasoning that a flat scene which merely visited XR
+  shouldn't acquire a pause panel on the way out; superseded by the symmetry,
+  which is the stronger argument (Tonio: _"just as entering VR should unpause,
+  exiting VR should probably pause"_) — one gesture means resume, its inverse
+  means stop, and a rule you opt into is not a pair. `enterXrOnResume` still owns
+  resume → enter.
+- **The biped got stuck on slopes** — the cost of the fix below, found and fixed
+  in the same session. Snapping the feet onto the surface put the collision
+  ellipsoid's bottom exactly ON it, so moving into rising ground embedded it and
+  Babylon refused the move. The old 15 cm float had been acting as the clearance.
+  The body now starts a step above the feet (`STEP_OFFSET`, which is Unity's Step
+  Offset): anything lower than a step is walked over, the probe stands you on it
+  afterwards, and a wall is still a wall.
+- **The biped floated above or sank into slopes, and never corrected.** Tonio,
+  on a long-standing one: _"you often end up a little offset from the ground …
+  this never really corrects. It just gets randomly messed up again when you
+  navigate another slope."_ Not random — the ground check was a **dead band with
+  no corrective term**: it probed 0.15 m down from just above the feet and, if
+  it found anything, did nothing. So the biped fell until the probe happened to
+  see ground and then stopped wherever in that 0.15 m window it landed, and any
+  error inside the band was permanent.
+
+  Slopes made it worse both ways. Going up, `moveWithCollisions` slides the body
+  up the ellipsoid and leaves it high in the band. Going down — "especially
+  down" — gravity moved at most `min(0.1, 9.81·dt)`, a hard **0.1 m per frame**
+  clamp, so a brisk descent outran it and it floated the whole way.
+
+  Now it probes a step up and a step down and puts the feet **on** the surface,
+  and a real fall accumulates velocity instead of moving a fixed amount per
+  frame (with the probe extended by the frame's fall so it cannot step over the
+  ground between frames). Measured on the b3d demo scene: **390 consecutive
+  frames walking a slope at offset 0.00000**, where before the error wandered
+  freely inside a 15 cm band. The probe also goes through `collidable()` now, so
+  a UI panel is no longer something you can stand on.
+
+- **Dying in VR teleported you to the world origin.** Tonio: _"I collided with
+  wreckage high up and respawned at the origin or starting point with the wrecked
+  plane hanging in mid-air off in the distance."_ He was not moved away from the
+  wreck — the wreck stayed exactly where he died (measured: a corpse drifts 0.05 m
+  in 10 s); **he** was moved. `releaseFocus()` nulls the focused entity, so the
+  next XR frame finds nothing piloted and falls through to free locomotion, which
+  did `rig.parent = null`. That KEEPS THE LOCAL POSE and reinterprets it as world,
+  so a rig at local `(0, 2, −5)` behind its parent lands at `(0, 2, −5)` in the
+  world. Now `rig.setParent(null)`, which preserves the world transform.
+
+  It had been latent since 0.7.0 as the cockpit-only oddity in `TODO.md`
+  ("the aircraft was moved way away from me"); parenting the chase rig — the
+  jitter fix above — made it reachable from the view people actually fly in,
+  which is how a five-month-old note finally got diagnosed. Both spellings are
+  now pinned in `babylon-orientation.test.ts`, because they look interchangeable
+  and the wrong one is shorter.
+
+- **`B3dControllable.halt()`** — tell an entity it is dead, rather than relying on
+  `releaseFocus()` nulling its input provider and `_update` short-circuiting on
+  that. `b3d-death` calls it. Belt and braces for the focus-managed case; the only
+  thing that stops a `die()` handed an entity the focus manager never held.
+- **A wreck hung in the air where it died.** Tonio, from a headset: _"I collided
+  with wreckage high up … the wrecked plane hanging in mid-air (it should really
+  tumble to the ground)."_ Hanging wreckage is worse than untidy — it is a solid
+  object in the sky, so the debris of one death becomes the cause of the next.
+  A wreck now falls: a tumbling ballistic descent on the velocity it died with,
+  one bad bounce, a skid, and a rest. The fires and the spectate camera go down
+  with it (a smoke column left at the kill point with the wreck 100 m below it
+  is worse than no fire at all). Rules are pure and tested in **`wreck-fall`**;
+  the spin is DERIVED from the velocity, never random, so the same crash looks
+  the same twice.
+  - **How you died decides how far it goes.** Flying into something is an
+    inelastic collision that eats most of the energy (`carry: 0.25`); being shot
+    down leaves you with nearly all of it (`0.7`). At full carry a 90 m/s crash
+    from 130 m travelled ~450 m before landing — a glide, not a crash, and it
+    dragged the spectate camera across that much terrain. Tonio: _"The plane
+    went flying off into the distance … pretty funny but not as expected."_
+  - Drag settled at `0.005` (≈44 m/s terminal). `0.02` was ten times too much (a
+    wreck shed its speed in half a second); `0.002` is the figure for a
+    STREAMLINED body, and a broken airframe tumbles broadside. Each was
+    plausible in isolation; only a real crash told them apart.
+  - New seam **`B3dControllable.getWorldVelocity()`**. `b3d-aircraft`'s own
+    `velocity` field reads ZERO in wing-borne flight — the fly-by-wire path
+    moves the node directly — so a wreck launched from it dropped straight down
+    out of a 60 m/s dive.
+  - A wreck with **nothing under it** (the edge of a finite ground, a kill over
+    open water) is abandoned after 1500 m rather than falling forever with the
+    camera chasing it down. Found by killing outside a 600 m ground plane: it
+    reached y = −25 and kept going.
+- **The VR chase camera jittered and drifted with speed** — Tonio, in a headset:
+  _"throttle up the aircraft gets further away, throttle down it gets closer",_
+  and it jitters climbing, diving and turning. Three faults, all in the XR rig
+  and none in the flat one (which measures rigid to 0.2 mm):
+
+  - It was **not parented**. The XR rig runs in `onXRFrameObservable`, which
+    fires BEFORE `scene.render()`, while an entity moves in
+    `registerBeforeRender`, which fires inside it — so the rig was positioned
+    from last frame's aircraft position, every frame, and a variable frame time
+    turns that fixed lag into jitter.
+  - It **eased toward a world-space target**, and a first-order tracker sits
+    `v/k` behind — ~6.8 m at 61 m/s, proportional to speed. Hence the throttle
+    symptom.
+  - The easing used `lerp(a, b, k*dt)`, which is **not frame-rate independent**
+    (`1 - exp(-k*dt)` is).
+
+  The rig is now a CHILD of a level position+heading anchor the entity updates in
+  the same tick it moves, at a fixed local offset, with no easing at all — rigid
+  by construction rather than by good timing. New seam:
+  **`B3dControllable.getChaseAnchor()`**, `null` by default; `b3d-aircraft`
+  provides one. Entities without an anchor keep the eased path, now with the
+  correct exponential form.
+
+- **All three panel sites now aim themselves the same way**, through
+  `dialog-placement.faceViewer`. `frame-panel` and the XR settings panel used to
+  face you with their BACK and cancel the resulting mirror with
+  `tex.uScale = -1` — the settings panel also flipping `1 - uv.x` on every pick,
+  two compensations for one avoidable cause. Both are gone. No visible change
+  (they were correct on screen and under the finger); it removes the trap that
+  produced the world-dialog bug above, since the knowledge lived in a comment in
+  two files and comments do not travel.
+  - **`rollDeg` keeps its meaning**: turning a panel around reverses how a roll
+    reads, so `faceViewer` negates it. Worth stating because reasoning said the
+    flips cancelled and they do not — the only roll in the library is `180°`,
+    which is symmetric and agrees with the wrong answer.
+
+### Added
+
+- **`<tosi-b3d-interactive>` — a mesh you can touch** (#36), the substrate doors,
+  knobs, switches, levers, consoles and lamps all stand on. `b3d-button` is a
+  floating Babylon GUI widget; this is the other thing — world geometry you reach
+  out to. Requested by tosijs-3d-ensemble, whose framing was fair and lands:
+  _tosijs-3d has almost nothing for building a PLACE, as opposed to a battle._
+  Point at a mesh (or a named sub-mesh — the knob, not the door), reach it, use
+  it; `hover` / `unhover` / `activate` / `refused` arrive as bubbling events or
+  `whenX` callbacks.
+  - **One implementation, flat and immersive.** Babylon routes XR controller rays
+    through `scene.onPointerObservable`, the same observable a mouse feeds, so
+    there is no XR branch and no second path to keep in step.
+  - **Composition, not a god-feature.** `vetoes` is the seam ensemble asked for:
+    a `lockable` pushes one, `interactive` never learns what a lock is, and the
+    refusal NAMES the refuser — the difference between a locked door and a broken
+    one. Vetoes run at activation, not at hover, so a locked door still highlights
+    and still reports being tried; silence is a bug report.
+  - **It never touches the transform.** An element that manages a node owns its
+    transform (the rule #35 was a violation of), so this reads the scene and never
+    writes to it. A door that opens moves its ELEMENT.
+- **`interaction.ts`** — the pure, Babylon-free rules (`interactStep`,
+  `activationVeto`, `withinReach`), unit tested, so what counts as "you used it"
+  can be argued about without a scene. Activation is press-then-**release** on the
+  thing, because a press you drag off and release elsewhere is how anyone recovers
+  from touching the wrong thing — and aim wanders more in a headset, not less.
+- **`InteractiveBehavior`** — the attachable form, for anything that already owns
+  a mesh (a loader, a biped, a vehicle), plus `nearestInteractive` / `useNearest`
+  for the "walk up and press E" control that wires to `ControlInput.interact`.
+
+## 0.7.2
+
+### Fixed
+
+- **`placement="world"` left dialogs at the WORLD ORIGIN** (#35) — so the pause
+  and respawn panels were unreachable in any scene not centred on `(0,0,0)`, and
+  a `startPaused` scene opened with no visible way out. The panel is created
+  parented to the camera and then un-parented, leaving the camera-LOCAL offset
+  `(0, 0, 2.2)` behind as a world position. Worse, it was re-applied every
+  render: **`AbstractMesh` rewrites `mesh.position` from the element's
+  `x`/`y`/`z`** (and rotation from yaw/pitch/roll), so anything that moves the
+  MESH is silently undone. Both the placement and the easing now write the
+  ELEMENT, which is what owns the transform.
+
+### Added
+
+- **`destroyable="off"` on `<tosi-b3d-destroyable>`** — place a library mesh
+  without enrolling it in combat. Same knob and spelling `b3d-loader` already
+  had. This element is the only way to place a library mesh BY NAME, so scenery
+  had no way out: an ensemble is mostly structure, and every wall and floor was
+  getting a combat record whether or not anything could shoot it. Requested by
+  tosijs-3d-ensemble, whose stopgap was `armor: 100_000` — buying "cannot be
+  killed" by paying for a combatant.
+
+## 0.7.1
+
+### Fixed
+
+- **Modal dialogs are WORLD-PLACED and follow you if you look away.** The
+  respawn and pause panels sit at a spot with clear line of sight, face you, and
+  ease to a fresh spot after ~2s outside a generous cone. `placement="world"` on
+  `<tosi-b3d-svg-plane>`; the rules are pure and tested in `dialog-placement`.
+
+  This replaces three compensations that were each fixing a symptom: head-locking
+  (jittered with a jostling death-cam), riding the body frame (put it at knee
+  height), and rendering on top (painted in front but became **untouchable**,
+  because picking is geometric). It also fixes the case none of them could —
+  dying in cockpit view with the camera inside a hillside, where nothing "just
+  in front of you" helps.
+
+- **`turnRateDeg` returns exactly what you set.** Converting through radians is
+  lossy — `30` derived back as `29.999999999999996`, which is what a slider
+  readout or a saved scene would show. It now remembers the value you supplied
+  together with the radians it produced, so a later write to `turnRate` is
+  detected exactly and the view derives fresh. Still one stored value.
+
+### Added
+
+- **`flightStage()`** — a setting an aircraft can actually operate in: ground,
+  sky and fog at flight scale, a library, a sun configured for the ground it
+  lights, and **a death panel that respawns you**. Takes a plane FACTORY, not an
+  instance, because respawn has to build a new one — passing an instance is what
+  made a crash unrecoverable. Returns `{ elements, aircraft }` rather than an
+  array, since the current aircraft changes on respawn and a captured reference
+  goes stale. The clouds demo lost 22 lines converting to it.
+- **`tosijs-3d/demo-utils`** — the scene-setup helpers every live example uses
+  are now published, so **code copied off a doc page resolves in your project**.
+  Previously 38 examples across 33 files imported a bare `demo-utils` that no
+  consumer could resolve, and since the demo goes first on every page it was the
+  first thing anyone copied.
+
+  They ship with an explicit stability disclaimer: **dev helpers, not API.** They
+  can change or vanish in a patch, they are tuned to flatter a doc page rather
+  than your game, and production code should compose `b3dSun`/`b3dSkybox`/
+  `b3dGround` directly.
+
+  Vetted rather than published wholesale — the module was not shippable as-is:
+
+  - `orbitCam` takes **`alphaDeg`/`betaDeg`**; the radian `alpha`/`beta` still
+    work and are converted, so existing snippets keep running.
+  - Options are typed — the two `Record<string, unknown>` signatures are gone.
+  - Ground helpers take a **`texture` URL** instead of exporting root-absolute
+    asset paths that resolve only on this site.
+  - `demoSun` uses the **auto shadow-size sentinel** rather than hard-wiring
+    2048 over the device-tier budget.
+  - `volumetricDemo`, `impactMarker` and the asset constants stay **private** —
+    they are page-specific, not API.
+
+## 0.7.0
+
+> **Prereleases, and why the numbering looks backwards.** `0.7.0-rc.1` was cut
+> first, then work continued as `-beta.1…beta.6`. Semver sorts beta BELOW rc, so
+> `bun add tosijs-3d@next` wrote `^0.7.0-beta.6` and RESOLVED BACKWARDS to the
+> older rc.1 — silently, and `bun update` even reported the downgrade as an
+> upgrade. **Publishing 0.7.0 is what un-inverts the channel**, since it sorts
+> above every prerelease.
+>
+> The rule taken from it: **a prerelease channel never moves backwards** — the
+> successor to `-rc.N` is `-rc.N+1`, never a beta. If you pinned any
+> `^0.7.0-beta.*` or `0.7.0-rc.1`, move to `0.7.0`.
+>
+> - **0.7.0-beta.6** (2026-08-17) — carved landforms (the sdf-lattice page, the
+>   volcano cutaway, strata, 3D volcanic veins), portal math, and four
+>   manta-reported fixes: the explode+library crash that seized the scene (#24),
+>   mutual death eating the panel (#25), blasts blind to library destroyables
+>   (#28), and pitch authority becoming configurable and asymmetric (#26).
+> - **0.7.0-beta.5** (2026-08-15) — `MediumOptics` + `fogLayerFor`
+>   (⚠️ experimental, not load-bearing: water publishes its optics but still
+>   computes its own fog layer). Otherwise identical to beta.4 — the rest is
+>   design notes.
+> - **0.7.0-beta.4** (2026-08-15) — the `medium` primitive (space/air/water/
+>   mercury, plane or sphere), medium-aware projectiles closing #13, and pause
+>   marked EXPERIMENTAL pending a headset.
+> - **0.7.0-beta.3** (2026-08-15) — pause (backgrounding, start-paused, the VR
+>   entry gesture, a centred panel), the stick-sign contract test + `kind`, and
+>   four more manta reports: #17/#18 ambient spawn bias, #19 authored projectile
+>   meshes, #22 destroyable library models. Plus the HUD circle's portrait
+>   sizing and both panels' camera/viewport fixes.
+> - **0.7.0-beta.2** (2026-08-15) — adds #13's missile-guide composition, the
+>   gear gadget for the glass gamepad, and the live `fade`. #14 investigated and
+>   NOT changed: the glass source measures correct on desktop from four
+>   independent angles, so no sign was flipped (see the issue).
+> - **0.7.0-beta.1** (2026-08-14) — everything below, including the four
+>   manta-recon issues fixed that day: #9 (crashed aircraft eats input) and the
+>   `b3d-death` latching bug behind it, #10 (`aircraftMapping` ignored its
+>   config), #11 (probe and ambient watchdog measuring during load), #12 (the sky
+>   ignored the water you were under).
+
+**Aircraft that fly like aircraft, and the substrate for volumetric terrain.**
+No peer-dependency changes, but this is a **behaviour** release: the throttle,
+the right stick and the on-screen gamepad all work differently, and one
+attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene that
+was tuned around the old feel.
+
+### ⚠️ Breaking
+
+- **`canonicalize` now drops the CONTENT node's scene transform, so a model
+  placed away from the origin in its source file lands differently.** The
+  contract always said it "drops the node's SCENE transform" and it only ever
+  zeroed the node it was handed — on the glTF path that is `__root__`, the
+  loader's own wrapper — while the authored object underneath kept its scene
+  placement.
+
+  **Who is affected:** anyone whose model sits somewhere other than the origin
+  inside its `.glb` AND who compensated for the resulting offset. The
+  compensation is now doubled.
+
+  **How it shows up:** the control node used to sit a fixed distance from the
+  airframe it steers (1.7 m for our own scout), so collision rays started beside
+  the model and a `_centerOfGravity` marker measured against the control node
+  folded that offset into the PIVOT. The perverse consequence: a marker authored
+  dead on the centreline — the documented way — installed a pivot 1.75 m out,
+  while an odd-looking hand-tuned marker silently netted out correct. Our scout
+  was re-exported "properly" and started crashing on every bank.
+
+  **Migration:** author content in the model's LOCAL frame, as
+  `CLAUDE.md` has always said, and delete compensating offsets. If a vehicle
+  now flies or pivots oddly, look for a marker or a placement that was tuned
+  against the old behaviour before assuming a regression. Models authored at the
+  origin (the common case) are unaffected.
+
+- **Angles in the AUTHORING surface are DEGREES.** "We should use degrees
+  everywhere. Not even mathematicians visualize radians." Two APIs took radians
+  and now take degrees: `landform`'s `gulley`/`cover` `heading`, and the library
+  rotation below. **Migration:** multiply by `180 / Math.PI`.
+  Pure math modules (`spatial-transform`, `guidance`, `portal-transform`,
+  `fly-by-wire`'s internals) keep radians deliberately — that is mathematics,
+  not a dial an author turns. And `b3d-skybox`'s `azimuth` is neither: it is
+  Babylon's 0–1 fraction of a turn, passed straight through, now documented as
+  such rather than left to be guessed at.
+- **⚠️ `library.instantiate()` / `library.make.*` rotation: WAS IGNORED, now
+  works — and is DEGREES.** The single most disruptive change in this release,
+  because it is the only one that can move a scene which previously looked
+  **correct**. Everything else here either errors or looks obviously wrong.
+
+  Two things happened to one option:
+
+  1. **It never applied on the default path.** `instantiate()` wrote
+     `result.rotation`, but Babylon's glTF loader always assigns a
+     `rotationQuaternion`, and a `TransformNode` ignores `.rotation` while one is
+     present. Measured on a real model: `ry: 0`, `ry: 140` and `ry: -90` gave
+     **bit-identical** orientations — you got the GLB's own baked rotation
+     whatever you asked for. `position` worked, which is precisely what made it
+     look wired up. (`canonical: true` was unaffected throughout.)
+  2. **It is now degrees**, matching `AbstractMesh`'s `rx`/`ry`/`rz` and
+     `el.make.*`. The library was the only surface in the framework that
+     disagreed, and a bare number is valid in either unit — so it failed by
+     producing a different orientation rather than an error. It got past us in
+     this repo's own collision demo, where `ry: 140` meant 140 radians.
+
+  **Migration.** If you passed rotation and it _appeared_ to work, it was not
+  your value doing it — something else was (baked rotation in the model, a parent
+  transform, a compensating tweak downstream), and that compensation is now
+  **doubled up**. Check every placement before calling it a regression. If you
+  passed rotation and gave up because nothing happened, it works now: your values
+  are radians, so multiply by `180 / Math.PI`. If you never passed rotation,
+  nothing changes. Quickest triage: grep for `instantiate(` and `make.` with an
+  `r[xyz]` key — no hits means this does not apply to you.
+
+  See `Migration.md`, which ships inside the package.
+
+- **`b3dPatch` / `B3dPatch` are removed.** The volumetric-patch element stitched
+  an SDF extraction into the heightfield and never worked: two surfaces meeting
+  at a grazing angle have no well-defined boundary, so every fix aimed at one
+  crossing created another elsewhere. It shipped EXPERIMENTAL and undemoed, and
+  the design that replaces it (TUNNEL-DESIGN.md) removes the boundary rather
+  than reconciling it. The pure modules it was built on — `carve.*`,
+  `sdf-lattice`, `patch-field` — are **kept**: they are the substrate the
+  replacement uses.
+
+- **`hudChase` → `hudChaseOff`, with the polarity inverted.** The old attribute
+  is gone (no alias — HTML boolean semantics can't express a default-true flag,
+  which is why the negative name exists). It shipped in 0.6.2's `dist`, and
+  because tosijs props end in an index signature a stale `hudChase` **compiles
+  and is silently ignored**, so this will not error for you.
+  - `hudChase: true` → delete it; the chase HUD is now the default.
+  - `hudChase: false` → `hudChaseOff: true`.
+  - Chase view now shows the HUD **without the artificial horizon** (which
+    only tells the truth from inside the cockpit).
+- **The glass gamepad hides itself** once a **keyboard or hardware gamepad** is
+  used, returning after `idleSeconds` (10) of silence. The POINTER never fades
+  it — not touch, not mouse, not trackpad: the pad is operable by pointer, so
+  fading on pointer movement made it vanish exactly as you reached for it.
+  Set `fade="off"` to pin it — worth knowing if you screenshot or demo.
+- **The right stick is the camera**, not aux roll. `strafe` still sums into
+  roll, so a custom mapping can restore a dedicated roll axis.
+- **`carve` is a NAMESPACE, not 13 bare exports.** New in this cycle, so this
+  affects only the handful of people who took `0.7.0-rc.1` off the `next` tag:
+  that tarball exported `applyCarve`, `sphere`, `capsule`, `tube`, `box`,
+  `union`, `smoothUnion`, `flange`, `subtract`, `intersect`, `roughen`, `warp`
+  and `shaft` at top level; they now live on `carve.*`. Coming from the rc you
+  get a link error, which is the intended loud failure — `box` in particular
+  shadowed the UI container of the same name.
+  - `import { sphere, tube } from 'tosijs-3d'` → `import { carve } from
+'tosijs-3d'`, then `carve.sphere(…)`, `carve.tube(…)`.
+  - Types stay top-level: `Carve`, `NoiseOptions`, `Vec3Like`.
+- **`getNames()` returns different strings.** Behaviour suffixes no longer
+  leak into the public name, so `Hull_collideMesh.model` lists as `Hull` and
+  `instantiate('Hull')` resolves it (fixes #7, reported by manta-recon).
+  Exact and `.model` matches still win first, so existing calls that used the
+  raw name keep working — but code that PARSED the returned string, or
+  compared it to an authored name with its suffix, needs updating.
+
+### Added
+
+- **Re-seat is now a two-step, confirmed gesture — and it finally works.**
+  Re-seating takes your CURRENT head yaw as forward, but you had to LOOK AT the
+  button to press it, so a panel that had drifted left re-seated you facing
+  left: the gesture defeated itself exactly when you needed it. Pressing
+  **Re-seat** now raises a prompt pinned to the **face frame** (head-locked, so
+  it stays readable WHILE you turn your head — the one case that earns
+  face-locking): _1. Look comfortably ahead. 2. Pull right trigger to reseat.
+  Or, pull left trigger to cancel._ The yaw is captured on the trigger, from
+  wherever you are looking THEN.
+  - **`reseatFreeze`** (new `<tosi-b3d>` attribute, `'on' | 'off'`, default
+    `'on'`) freezes the clock while the prompt is up, so you are not shot mid
+    re-seat. **Set `'off'` for multiplayer** — freezing is a decision a local
+    world can make and a networked one cannot honour. The dialog always gates
+    YOUR input (`b3d.suppressInput`), which is the half that works in any
+    topology, so the trigger that confirms never also fires your gun.
+  - `b3d.freeze(on)` and `b3d.suppressInput(on)` are public: a modal that
+    borrows a control you also play with can use them. `freeze()` stops the
+    clock without raising the pause panel and without pause's resume semantics
+    — a scene paused underneath stays paused.
+- **The package is licensed** — **Apache-2.0**, with a LICENSE file, plus
+  `description`, `homepage` and `bugs`. Every release since 0.2.1 shipped with
+  no licence at all, which legally means all-rights-reserved: SCA tooling flags
+  an unknown-licence dependency, and adopters consuming this as a `file:` dep
+  had nothing to point at. Apache-2.0 rather than MIT/BSD for the explicit
+  patent grant and retaliation clause.
+- **A `startPaused` scene renders its own fog, not Babylon's default** (#31). A
+  paused frame still RENDERS — that is the point, the panel has to be visible —
+  so everything the render reads has to be correct. `_updateFog` sat past the
+  paused branch's early return and `startPaused` pauses in the same synchronous
+  setup block, so a scene that booted paused had never run it once.
+- **Entering VR unpauses a paused scene.** Putting the headset on is the resume
+  — and a world you deliberately stepped into has no reason to be frozen. It
+  also removed a broken state: entering while paused showed no pause panel
+  in-session, so you arrived in a stopped world with no visible way out. You can
+  still pause in VR from the scene panel's transport toggle.
+- **Camera-relative dialogs are no longer buried by the world.** The respawn and
+  pause panels could end up inside terrain — you die on a hillside and the panel
+  offering you a way out is in the hill. They now render in group 1 (drawn after
+  the scene, depth auto-cleared between groups), so a modal is always readable.
+  World-anchored panels and popups keep normal depth sorting.
+- **VR altitude on the BUMPERS** — left down, right up, analog (squeeze
+  pressure, so you can ease onto a height). Same hand logic as brake/accelerate
+  on the triggers. The right stick's vertical still flies, but it doubles as
+  panel scroll, so in any scene with a scrollable panel open — most demos — the
+  stick scrolled and the rig did not move, and altitude appeared to be missing
+  entirely. Two dedicated buttons cannot be stolen by a panel.
+- **Pause/resume in the standard scene panel.** Pause was a one-way door: the
+  pause panel offers _Continue_, so it was a state you could LEAVE and never
+  ENTER — nothing in the panel stopped a running scene, and `startPaused` is an
+  initial condition, not a control. The icon bar now carries a transport toggle
+  (`play` when paused, `pause` when running — it shows what pressing it DOES,
+  not what the scene currently is). It is a panel GADGET, so it appears in the
+  flat overlay **and** the in-VR panel from one definition, and in a headset it
+  is the only way to stop the world at all.
+- **Status surfaces in the theme** — `--w3d-info`, `--w3d-warning`,
+  `--w3d-error` (`w3dTheme.info` / `.warning` / `.error`). Backgrounds, not text
+  colours: a status panel in a dark theme is a tinted SURFACE that `text` still
+  reads on, and the bright hue you would put on a label is unreadable behind
+  one. Opaque on purpose, so the panel underneath cannot show through the
+  message interrupting you.
+- **`markUiMesh()` / `isNoCollide()`** (`b3d-utils`) — mark a mesh as UI:
+  pointer-pickable, but invisible to COLLISION. See the phantom-collision fix
+  below for why those are different questions. The first of the collision
+  GROUPS described in the new `COLLISION-DESIGN.md`.
+- **`xrFrame`** on `<tosi-b3d-svg-plane>` — when `cameraRelative` and in a
+  headset, ride an XR reference frame instead of the head camera. `'body'`
+  (damped yaw) keeps a panel in front of you without jittering on every head
+  movement; leave it unset for a HUD that should stay head-locked.
+- **A diagnostic ring buffer** — `b3d.logDebug(tag, event)`,
+  `b3d.debugCapture(tag)`, `b3d.debugLog`. There is no console in a headset and
+  `window.rAF` is suspended in-session, so this records structured events IN the
+  page for readback afterwards. Plus always-on Perf-panel rows: **aircraft
+  ground** (what the ground ray is calling ground, and a full crash report) and
+  **xr input** (per-hand thumbstick axes, rig pose, movement scale).
+
+- **Popups are their own SURFACES — `el.openPopup()`** (`popup-surface`). A menu,
+  a dropdown's list or a debug readout spawns a second plane above its opener
+  rather than being laid out inside its SVG. Owned popups travel and die with
+  their opener; `tearOff()` promotes one to world space preserving pose, after
+  which it stays where you put it — and **dragging an owned popup tears it off**,
+  like pulling a tab out of a window. Click-to-front, `modal` (blocks pointer
+  access to what's behind it, never the camera), a title-bar grip so the rest of
+  the panel can stay interactive, and injected move/close glyphs.
+
+  This retired a constraint we had recorded as absolute: a dropdown "MUST grow
+  the panel's layout … because a popover won't rasterize into the VR texture".
+  True of a popover inside ONE texture; the escape is another texture on another
+  plane. See `UI-DESIGN-NOTES.md`.
+
+- **`rounded-rect` + `cornerRadius` / `transparent` on `b3d-svg-plane`** — rounded
+  corners as GEOMETRY so a UI panel can be **opaque**. A transparent mesh is not
+  depth-written, so Babylon re-sorts it per frame by camera distance and
+  near-coplanar panels flip order as you orbit: it looks exactly like z-fighting
+  and no amount of correct depth ordering fixes it. Three quads plus four
+  quarter-disc fans, 22 triangles at 4 segments. **The general rule: in 3D,
+  express shape as geometry and reserve alpha for things that are genuinely
+  see-through.**
+
+- **`el.make.*`** (`make-mesh`) — Babylon primitives with the forgettable parts
+  done: material from `color`/`glow`, `register()` so the sun and reflection
+  probes see it, and `computeWorldMatrix` (a mesh positioned but never rendered
+  has no world matrix, so a ray cast this frame finds it AT THE ORIGIN and
+  answers confidently and wrongly). A Proxy forwarding to `MeshBuilder`, so all
+  26 shapes are reachable plus whatever Babylon adds later.
+
+- **`library.make.<name>()`** — a library's contents as callable names,
+  `lib.make.scout({ y: 1 })`. Same option vocabulary as `el.make.*`.
+
+- **`glow` / `glowColor` on `b3dBox` / `b3dSphere`** — self-illumination as a
+  fraction of `color`. Both primitives now share one `primitiveMaterial`, which
+  is how the sphere came to be missing `glow` ninety seconds after the box got
+  it.
+
+- **`B3d.BABYLON` (static) and `BABYLON` re-exported from the barrel.** Babylon
+  is a PEER dependency, so a consumer importing `@babylonjs/core` separately can
+  end up with a second copy — two `Vector3` classes that fail `instanceof`
+  against each other. Taking it from the library that already holds one is the
+  guarantee.
+
+- **`shadowNormalBias` / `shadowBias` on `b3dSun`**, defaulting to `0.05`.
+  Babylon's CSM ships `normalBias: 0`, which is not a tuned value for a large
+  receiver: a 40×40 ground self-shadowed into a dense stipple across its whole
+  surface. Measured at 0 / 0.02 / 0.05 on a live scene.
+
+- **`b3d-collisions` gains its first live demo** — hail on the scout, impacts
+  found by a SWEPT ray, each marked with a disc lying on the surface plus a
+  stalk along the normal. Ground hits count too, in a cooler colour.
+
+- **`b3d-aircraft` gains `chasePitchFollow` / `chasePitchLag`** — how much of the
+  nose's pitch the chase camera inherits. `0` (default) keeps the level pivot;
+  `1` is as if the camera were bolted to the airframe. A dial rather than a
+  reparent, because the flat pivot is what fixed the jittery chase, and the lag
+  term is what passes the intention while dropping the per-frame wobble.
+
+- **`b3d-aircraft` gains `maxPitch` / `maxDive`** (#26). Pitch authority was a
+  module constant at a symmetric 35° — a gentle airliner descent, unreachable by
+  any adopter, and unable to express a craft that should fall out of the sky
+  readily and climb reluctantly. `maxDive` defaults to `maxPitch`, so nothing
+  changes unless asked.
+
+- **⚠️ EXPERIMENTAL — `portalTransform`**: see-through portal math (virtual
+  camera pose, the oblique clip plane, a step-test crossing, and recursion
+  budgeted by a falloff CURVE rather than a hard depth limit — linear, geometric
+  or accelerating, so first-bounce quality and pass count stop being welded
+  together).
+- **Sedimentary strata** in the volcanic rock (`strata`, `strataScale`,
+  `strataTilt`), visible on any cut face — only possible because the plate noise
+  is now sampled in 3D, since bedding means nothing to a shader that knows only
+  x/z.
+- **Carved landforms** — the `sdf-lattice` page is now a real doc page with the
+  theory (SDF composition, marching cubes vs dual contouring vs surface nets, and
+  why this uses surface nets), a **volcano in cross-section** with lava tubes and
+  a sweeping cutaway, and a **volumetric-vs-heightfield comparison** with a bore
+  punched through an authored ridge. `demo-utils.volumetricDemo` is the shared
+  fixture behind both.
+
+- **⚠️ EXPERIMENTAL — `portalTransform`**, the pure math for see-through
+  portals: `portalCamera` (where the render-target camera goes so a doorway
+  shows another place), `clipPlaneFor` (the oblique near plane, without which
+  the far room leaks into the doorway), `crossedPortal` (a _step_ test — a jeep
+  is past a doorway within one frame, and a context swap one frame late is one
+  frame of the wrong world), and `depthLimit`/`attenuationAt` for recursion.
+
+  Recursion terminates the way real mirrors do — each traversal is slightly
+  lossy, so the tunnel darkens instead of hitting a hard cutoff that pops.
+  Calibration worth knowing: **real glass is ~95% transmissive**, which is why
+  mirror corridors look infinite — at 0.95 it takes 77 bounces to fall below 2%.
+  So the physics gives the right look and a useless budget; the device cap is
+  load-bearing, and a portal that should visibly fade out has to be markedly
+  dirtier than glass (~0.5–0.7). That trade is documented rather than hidden
+  behind a physical-sounding parameter.
+
+  The falloff is a **curve, not a ratio** — `geometricFalloff`, `linearFalloff`
+  (state the level count instead of solving for it: `0.1` means exactly ten) and
+  `acceleratingFalloff` (the loss grows with depth — dirtier where nobody
+  looks). That decoupling is the point: geometric-at-0.95 and
+  accelerating-from-0.05 keep an identical 95% at the first bounce, the one
+  anyone actually inspects, but cost **77 levels versus 5**.
+
+  No renderer yet: applying the clip plane, the passes and stencil framing are
+  deliberately out of scope for a pure module.
+
+- **⚠️ EXPERIMENTAL — `MediumOptics` + `fogLayerFor`** (MEDIUM-DESIGN.md §3).
+  A medium can describe how it LOOKS (colour, density, murk-with-depth,
+  visibility floor), and one derivation turns that into a fog layer for the
+  compositor that already exists. Weight is `submergence`, so the fog and
+  anything else keyed off the same medium cannot disagree about where the
+  surface is — that disagreement is what produced the fogged-sky vs
+  transparent-window conflict.
+
+  **Not load-bearing yet, on purpose.** `b3d-water` publishes its optics but
+  still computes its own fog layer, because that path is verified and swapping
+  it is a visual change that wants an eye on it. What's proven so far is the
+  falsifier from the design doc: one derivation reproduces water's numbers
+  (including thickening with depth), a cloud bank's soft edge, and vacuum
+  contributing nothing. Three hand-rolled contributions collapse onto it _in
+  the tests_; collapsing them in the code is the next step.
+
+- **Projectiles understand medium** (#13 — ⚠️ EXPERIMENTAL, unflown). A round
+  now picks up drag from whatever it is passing through (`dragAt`, blended
+  across the band so entry is a ramp), and gains three options that turn the
+  same round into four weapons:
+
+  - `whenCrossing(kind, medium, at)` — the entry splash, the breakout plume,
+    the audio. Yours to dress; the engine only tells you it happened.
+  - `detonateDepth` — a **depth charge**: a fuse on depth rather than impact.
+  - `stayIn: 'water'` — a **torpedo**, for which the surface is a ceiling. Held
+    just inside rather than reflected: a round that bounces off water reads as a
+    skipping stone, which is a different weapon.
+
+  A **sub-launched missile** needs no option at all — it is a `whenCrossing`
+  handler that swaps its own behaviour on `'exited'`. That the four fall out of
+  three small options is the argument for the primitive being shared rather than
+  per-weapon.
+
+- **[medium](https://3d.tosijs.net/medium/) — the substance you're moving
+  through**, pure and Babylon-free (#13, and the seam #3/#15/#16 were all
+  converging on). It answers three questions and owns nothing else: how deep am
+  I (`depthIn`, signed — depth and altitude are one measurement), how much of me
+  is in it (`submergence`, smoothed across a band), and did I just cross the
+  surface (`crossing`, a _step_ test, because at 200 m/s a round is above the
+  water one frame and 3 m under it the next).
+
+  - **Two geometries**: `plane` (a sea, a fog bank, the top of a mercury vat)
+    and `sphere` (a planet's ocean or atmosphere, the edge of space). A plane is
+    NOT a very large sphere — at a 6371 km radius the arithmetic loses the
+    centimetres that decide whether you're above or below a wave.
+  - `innermost` resolves space → air → water the way you'd say it aloud, and
+    vacuum is simply the absence of a match. `dragAt` blends a projectile's drag
+    coefficient across the band, which is why depth charges and torpedoes need
+    no new integrator.
+  - **`b3d.media` / `b3d.addMedium()`**, and `b3d-water` registers itself — so
+    nothing has to re-derive where the surface is. Two subsystems deriving that
+    separately is exactly how the fogged sky and the transparent window ended up
+    disagreeing (#12/#15).
+
+- **`b3d-ambient` spawns where you're LOOKING and where you're GOING** (#17,
+  #18): `lookAhead` (0.35 of `radius`, along the view) and `lead` (0.25s of
+  travel, along motion), capped by `speedCap`. A camera sees a frustum, not a
+  sphere, so a box centred on the eye births most of its particles behind and
+  beside you — they live and are culled unseen, paying full budget for a
+  fraction of the result — and at speed you outrun the box entirely, emptying
+  the view ahead exactly when you want it fullest. Velocity is measured from the
+  camera's own displacement, so nothing has to be plumbed in; in a chase view
+  that's the right signal anyway. Set either to 0 for the old centred box.
+
+- **`b3d-destroyable` takes `library` + `meshName`** (#22) — a static,
+  destroyable thing that uses a library mesh is most of what populates a level,
+  and there was no route to it: `b3d-loader` takes a `url` (which also loses the
+  canonical frame), `b3d-aircraft` gets the frame right but flies. Absent
+  `library`, you still get the placeholder cube, so nothing existing changes.
+  The model is left **pickable** on purpose — damage resolves from the warhead
+  gathering destroyables near the detonation, not from which mesh the ray hit,
+  so the model can simply be the target and the hidden-cube-plus-skin dance
+  isn't needed.
+- **`spawnProjectile`/`spawnMissile` take a `mesh`** (#19) — draw the round as
+  an authored model, with the engine still owning motion, collision, lifetime
+  and disposal. It is also **oriented along velocity**, which a sphere never
+  needed: the engine moved a sphere, a sphere has no facing, so a modelled
+  missile flew sideways. Yaw and pitch only — a round has no reason to bank.
+  Supplied meshes and their children are made non-pickable, like the default.
+
+- **`panelFitWidth(fov, aspect, z, want, fill)`** — how wide a camera-relative
+  panel may be and stay on screen. Shared because there are two such panels and
+  a constant copied into both is a constant that will disagree with itself.
+
+- **PAUSE — ⚠️ EXPERIMENTAL.** The flat path is confirmed on a real browser
+  (start paused, continue, background, return, repeat) but the VR path — the
+  Continue tap carrying the user gesture into `enterXRAsync`, and removing the
+  headset pausing — is **unvalidated**, and it is the reason the feature exists.
+  Treat the API as unsettled until it's been through a headset; nothing else
+  depends on it.
+
+  `b3d.pause(reason)` / `.resume()` / `.togglePause()` / `.paused`,
+  a centred in-scene pause panel, and the attributes around them:
+
+  - `pauseWhenHidden` (default **on**) — backgrounding the tab holds the scene,
+    so a player returns to a held frame and a panel rather than to a world that
+    carried on without them. Suppressed while immersive, since some browsers
+    report the page hidden during an XR session.
+  - `startPaused` — come up paused: the "press Start" shape.
+  - `enterXrOnResume` — resume enters VR, and leaving VR pauses. **This is why
+    starting paused matters**: `enterXRAsync` requires a user gesture, so a
+    scene that tried to enter XR on load would simply be refused. The Continue
+    tap is the gesture, which makes "leave it paused, put the headset on, press
+    Continue" the only shape that reliably works.
+  - `pausePanel(host, resume)` — replace the default rows (a title and Continue)
+    with your own: a title screen, settings, a "you were away" summary. `resume`
+    is handed in, because a pause panel with no way out is the failure this
+    feature exists to prevent.
+  - `pause` / `resume` / `orientation` events. `pause` carries a `reason`
+    (`'user' | 'hidden' | 'xr' | 'start'`) so a game can tell "the player asked"
+    from "the tab went away". `orientation` is derived from the **viewport**
+    (`innerWidth`/`innerHeight` swapping), not from `screen.orientation` — that
+    API is patchy on iOS, so a scene depending on it hears nothing on the
+    devices that rotate most; it's still read for `type`/`angle` when present,
+    as detail rather than trigger. Fires only when the classification actually
+    flips, so dragging a desktop window edge isn't a rotation.
+
+  Rendering continues while paused — the panel has to be drawn and picked —
+  but nothing advances: no combat tick, no fog, no `update` hook, and
+  controllables read empty input, so a held stick can't steer a stopped world.
+  Orientation changes are **reported, not acted on**: a rotating phone is
+  sometimes a pause and sometimes nothing, and only the game knows which. (Tilt
+  is a separate, permissioned API on iOS and deliberately untouched.)
+
+- **The stick sign contract is now a test** (`stick-sign.test.ts`) — every
+  source must report **up/forward as positive**, and all of them must agree.
+  This was documented in three places and enforced in none, which is what let
+  #14 run for a day: a source that disagrees is internally consistent, so only
+  a player with two devices notices, and what they report is "the framework is
+  broken". Verified by deliberately flipping the touch and hardware signs in
+  turn and watching it fail. `STICK_UP_IS_POSITIVE` names the convention.
+- **`GamepadSource.kind`** — a stable `'keyboard' | 'hardware' | 'touch' | 'xr'
+| 'glass'` marker, because the obvious alternative fails silently: an adopter
+  matched our glass pad with `constructor.name`, their bundler mangled it, the
+  lookup never matched, and every experiment built on it was a no-op that
+  looked like a result. Class names are not API.
+
+- **A gamepad gadget in the gear panel** — one tap to pin the glass pad visible
+  or hand it back to the auto-hide. The fade is production-correct and
+  development-hostile: once a mouse or trackpad is present the pad goes away and
+  doesn't come back, so checking it on a laptop meant switching Chrome into
+  responsive mode. It sits in the same icon bar as the debug tools, so it works
+  in a headset too. `B3dGamepad.setFade()` / `.hidden` are the API behind it.
+
+- **`b3d.sceneBusy`** and **`terrain.busy`** — is the world still building? Any
+  frame-rate judgement taken while these are true is a measurement of the loading,
+  not of the device.
+- **`b3d.ambientPoolScale` is now readable AND settable**, so a game can say "that
+  was the loading screen, try again" instead of reaching into two privates (#11).
+- **`aircraftMapping` honours its config** — it accepted one and had zero
+  references to it. `AircraftMappingConfig` adds `invertPitch` (the arcade pitch
+  convention), `invertRoll` and `invertCameraY`. Meaning belongs in the mapping:
+  every source passes through it, so one setting can't leave the keyboard inverted
+  and the glass gamepad not (#10, manta-recon).
+
+- **The pure flight model is exported**: `flyByWireStep`, `regime`,
+  `targetVelocity`, `chaseVelocity`, **`equilibriumSpeed`** and the
+  `FlyByWireConfig`/`Command`/`State` types. `equilibriumSpeed` is what the
+  HUD's new set-point mark is drawn from — a mission planner wants the same
+  number, and until now it was unreachable from the package.
+- **`isIgnored(name)`** — one matcher for the `-ignore` convention, used by the
+  loader, the library and `publicName`.
+
+- **[carve](https://3d.tosijs.net/carve/)** — the cave vocabulary, exported as
+  the **`carve.*`** namespace (see ⚠️ Breaking): `carve.sphere`,
+  `carve.capsule`, `carve.tube`, `carve.box`, `carve.smoothUnion` (fillets a
+  junction so a passage flares into a chamber), `carve.subtract`,
+  `carve.intersect`, plus the two perturbations that stop a carve looking
+  carved: `carve.roughen` (texture the wall, silhouette stays) and
+  `carve.warp` (bend the space so nothing reads as a primitive).
+- **[sdf-lattice](https://3d.tosijs.net/sdf-lattice/)** — surface-nets
+  extraction over ONE global hash-jittered lattice, so chunks weld
+  bit-identically and cross-tile/cross-LOD seams are unrepresentable rather
+  than stitched. Includes the chunk-weld proof as a test.
+- **[patch-field](https://3d.tosijs.net/patch-field/)** — `landform`'s
+  volumetric sibling: `(x, y, z, d) => d'` carving composed against the
+  terrain's own hooked height sampler.
+- **`landform`** gains `gulley` (a height FORCING function ending in a
+  predictable cliff), `cover` (forced ground over a tunnel so it stays
+  buried), and `pad` from 0.6.2's family.
+- **`b3d-terrain`**: `patchMask`/`patches` hooks, `biomeLapseRate` (the lapse
+  is coupled to vertical scale — a 340m world on the small-world default
+  renders entirely as snow), and a public `heightSampler()`.
+- **Landing gear, found by NAME** — AnimationGroups mentioning "gear" and
+  "retract" are cycled from height above ground, with hysteresis and an
+  optional `gearSound`. The animation is SCRUBBED, not played, because glTF
+  animations arrive with a cyclic loop mode and a played group can snap back
+  to frame 0.
+- **`arcDashArray`** + `hud.setMeterMarks` — reference marks on any meter,
+  drawn on the meter's own arc. Used for the throttle set point, sea level,
+  and the ground beneath you.
+- **`equilibriumSpeed(cfg, throttle, afterburner)`** — where a lever will
+  settle.
+- **`sceneDelta(scene)` is now actually exported.** 0.6.2 announced it and
+  shipped it unreachable — `dist/index.d.ts` had no such symbol — so anyone
+  following those notes hit a link error. It's the correct frame delta for
+  anything ticking inside a scene observer (see 0.6.2's note on
+  `getDeltaTime`), and the six doc demos that still taught the broken idiom
+  now use it.
+
+### Changed
+
+- **tosijs-ui devDependency → ^1.9.8**, for serve-time gzip on the dev server:
+  it was sending the 10.7 MB bundle uncompressed even to clients asking for
+  gzip, so over a thin link a doc page showed its pre-rendered HTML and then
+  never hydrated — the bundle never finished arriving. 2.56 MB now. Doc-site
+  tooling only; nothing in the published library changes.
+
+- **⚠️ The aircraft throttle is a LEVER, not a speed setpoint.** It commands
+  an equilibrium: a climb settles at a new lower speed instead of stalling,
+  and lowering the nose returns you to the speed you had, untouched. Full
+  lever is MILITARY thrust; afterburner lights only while the trigger is held
+  past a detent and drops back when released. Releasing the trigger holds the
+  setting, so speed no longer self-sustains at idle — set the lever where you
+  want to cruise.
+- **⚠️ The right stick is the CAMERA**, not aux roll: it orbits the chase
+  camera around the aircraft and turns the pilot's head in the cockpit,
+  springing back on release. (`strafe` still sums into roll for anyone who
+  maps a dedicated axis.)
+- Hover gained a brake (the trigger's negative half sheds speed to a stop)
+  and slow reverse (nose-up lean), with the trigger staying purely vertical
+  so stopping never fights altitude. `hoverCeiling` 50 → 140.
+- Speed gauges read 0..100% of the FULL envelope, afterburner included.
+- Terrain defaults: bigger gross features carrying less gross amplitude, with
+  the detail layer doing real work — the old defaults read as pudding.
+- `worldV` defaults to 0.25: `CylinderSampler` reflects v, so `worldV = 0`
+  put every scene ON a mirror plane with a seam running to the horizon.
+
+### Fixed
+
+- **Phantom collisions: an aircraft "collided with something it was nowhere
+  near".** Flying high, banking in cockpit view, you died instantly — in any
+  scene, terrain or not. The impact sweep was hitting the **spatial UI panel**
+  floating in front of the cockpit and treating it as terrain, and that sweep
+  crashes on ANY hit above `crashSpeed` with no slope test. It only bit in
+  cockpit view (that is where the camera, and the panels riding its reference
+  frames, sit inside a ~2m sweep) and fired on bank (which swings the velocity
+  vector into the panel). A panel must stay `isPickable` — that is how a
+  controller ray targets it — so the fix separates the two questions:
+  `markUiMesh` marks it collision-invisible, and both aircraft predicates filter
+  it.
+- **Collision rays fired from `node.position`.** Under a `_centerOfGravity`
+  pivot that is the STANCE ORIGIN, not where the airframe is — the model swings
+  about the CoG under attitude, so banking moved the aircraft out from under its
+  own rays. Both rays now go through the world matrix, which is bit-identical to
+  `node.position` when there is no pivot.
+- **`canonicalize` did not drop the CONTENT node's scene transform** — see
+  ⚠️ Breaking above. This is also why the scout's centre of gravity appeared
+  wrong.
+- **Ambient effects could never recover from a pool of zero.** The watchdog
+  bailed one line before the recovery path written for exactly that state, so a
+  scene that shed its garnish to nothing stayed dead for the session — no
+  leaves, bubbles or motes on hardware that had been drawing them a second
+  earlier.
+- **VR: exiting dropped the flat camera's altitude.** Babylon carries the walked
+  headset pose back into the non-XR camera, which for an orbit camera recomputes
+  a low angle — you left VR looking at the scene from the floor. The orbit state
+  is now snapshotted on entry and restored on exit; free/walkable cameras keep
+  the carry-back.
+- **VR: orbit demos dropped you in facing a random direction.** Both piloted
+  paths seeded the rig's yaw against your head; free locomotion never did, so a
+  demo with no piloted entity left the panel behind you and the subject out of
+  sight. Now seeded on the first frame with a real viewer pose, facing what the
+  flat camera was looking at.
+- **VR: re-seat did nothing in an aircraft's chase view.** Three camera paths
+  capture yaw separately and re-seat only re-armed two; toggling cockpit↔chase
+  appeared to "fix" it because the view-change path re-armed the third.
+- **VR: locomotion was scale-blind.** Free-fly walked at a fixed 2.5 m/s, which
+  in a 512-unit landscape is ~0.5% of the scene per second — indistinguishable
+  from a broken stick, while turning (angular, therefore scale-free) felt fine.
+  Speed now scales with the orbit camera's radius; small demos are unchanged.
+- **VR: the grid floor sat at the world origin**, so in any scene whose subject
+  is elsewhere it read as a mystery grid off in the distance, visible only in
+  VR. It now sits under the subject.
+- **VR: the respawn panel was pinned to your face and jittered** with every head
+  movement. It rides the `body` frame now.
+- **`bun run typecheck` was red at the release commit** — a one-argument call to
+  a three-argument `canonicalize` in a test, invisible to `bun test` (which
+  strips types) and to the build tsconfig (which excludes test files).
+
+- **Shadow acne on large receivers** — see `shadowNormalBias` above. It was also
+  why scenes looked dull: the stipple darkened roughly half the ground.
+
+- **`b3d-svg-plane` cleared a parent it never set.** Its `cameraRelative` sync ran
+  `mesh.parent = null` unconditionally whenever the flag was off, so anything
+  parented to a plane was silently torn off a frame later, with no error. Same
+  shape as the pause bug below: **a guard must record what you DID, not observe
+  what state the object is in.**
+
+- **The glass gamepad no longer fades when you move the mouse.** It is operable
+  by pointer — `pointerdown` drives the sticks — so it vanished exactly as you
+  reached for it. Only a keypress or a physical gamepad fades it now.
+
+- **`publicName` leaked loader and Blender artifacts.** The library picker showed
+  `building_collideCylinder_primitive0`; `_primitiveN` is the glTF loader
+  splitting a multi-material mesh, and Blender's `.001` sat AFTER the behaviour
+  suffix so no `endsWith` matched it. `.001` is preserved (it is a different
+  object) while the annotation is removed.
+
+- **`ry` is DEGREES, and now says so.** `AbstractMesh.render()` multiplies
+  rx/ry/rz by `DEG_TO_RAD`; nothing documented it, and the b3d pause demo had
+  been adding radians per second for its whole life — about one revolution per
+  ten minutes, which read as "the cube doesn't spin".
+
+- **Impacts now report the surface NORMAL, not just the point** (#29) —
+  `spawnProjectile`/`spawnMissile` take `whenImpact({ point, normal, mesh })`.
+  The swept ray already computed the normal and the launcher was throwing it
+  away, so anything that wanted an oriented effect (a scorch mark, a dent, a
+  ricochet) had to re-cast the same ray to get it back. `normal`/`mesh` are
+  `null` when there is genuinely no surface — a depth fuse in open water, a
+  timed round in mid-air. The old `onImpact(point)` still fires with a one-shot
+  deprecation warning; it was renamed off the `on*` prefix because such a key
+  becomes an `addEventListener` call the moment the shape is lifted onto an
+  element, and then silently never runs.
+- **Pause didn't pause** (#30) — an adopter measured a player travelling 66.58 m
+  during a 3-second pause with `paused === true` throughout. Two clocks leaked,
+  not one. `sceneDelta` accepted a published frame delta only when `> 0`, so the
+  one value meaning "stopped" was the one value it discarded, falling back to
+  the live engine clock — everything on the render observable (projectiles,
+  water, ambient) kept running. And `B3dControllable` runs its own `Date.now`
+  clock that a stopped scene delta cannot reach: it was fed empty input, but
+  with no input an aircraft COASTS, which is indistinguishable from cruising. A
+  paused scene now publishes a delta of zero and controllables halt outright.
+- **Blasts could not see library-backed destroyables** (#28) — a third
+  consequence of `library`. `detonateWarhead` resolved targets with
+  `scene.getMeshByName`, which searches meshes only, so a `library`
+  destroyable's TransformNode root was filtered out of every AOE. manta measured
+  it at 4 of 4 targets. It now uses the element's own node, which was always
+  right there.
+
+- **`library` + `explode` on a destroyable was a guaranteed crash** (#24) — and a
+  nasty one. The exploder read vertex buffers off whatever it was handed, and a
+  library instance's root is a geometry-less transform node. Worse than a throw:
+  it happened inside a render observer, so every observer after it was skipped —
+  camera follow, flight integration, all of it — and the scene stopped advancing
+  while input kept responding. It presents as "the game seized but the controls
+  still work". `explodeMesh` now takes a `TransformNode` and shatters the
+  descendants that have geometry (a multi-part model comes apart properly instead
+  of one piece shattering while the rest hangs in the air), warns once rather than
+  throwing when there is nothing to shatter, and the death path wraps the call
+  because a cosmetic must never be able to stop the frame loop.
+- **Mutual death produced no death panel** (#25). The already-dying _recovery_
+  added in 0.7.0 ran before the "only OUR death matters" filter, so any other
+  entity dying while the player was dead tore the panel down — ram an enemy and
+  you both die, and you got nothing. Relevance is checked first now.
+
+- **Volcanic veins were absent from every vertical surface** (3D Worley), the
+  **rock stopped warming** at dark brown so a fully volcanic face read as black,
+  **verticals could never exceed stage 2** so the top of the ladder was
+  unreachable on a cliff or cut face, and the **glow pulse touched only the
+  molten channel** — a fraction of a fraction, which is invisible in practice.
+
+- **Volcanic veins were missing from every vertical surface.** The plate pattern
+  was sampled from world **XZ only**, so a cliff or a cut face barely moves
+  through the noise — its xz coordinate is near-constant across the surface —
+  and you got vertical streaks instead of a vein web. Now sampled with a true
+  **3D Worley**, which costs the same neighbourhood as blending three 2D
+  projections (27 cells either way, a 3-wide hash instead of 2-wide) and is
+  strictly better: no projection seams, no ghosting where planes blend, and a
+  cut face shows the veins' real cross-sections because the veins are genuinely
+  three-dimensional. Only the volcanism branch reaches it, so non-volcanic
+  surfaces pay nothing.
+
+- **The HUD circle dominated a portrait viewport.** It was already sized off the
+  _smaller_ dimension — that part was right — but a single percentage of the
+  small side means 36% of the width in landscape and **70% of it in portrait**,
+  the same rule with twice the visual weight. It's now capped at half that
+  fraction of the long side as well, so turning the device doesn't change how
+  much of the screen the circle eats: measured 490px (was 499) at 1400x713, and
+  265px (was 350) at 500x757. `hudSizePx` in `hud-math.ts`, unit-tested.
+
+- **`b3d-death`'s Respawn panel had both of the pause panel's problems**, and at
+  a worse moment. Its spectator camera was attached to the canvas, so a tap
+  meant for Respawn also drove the camera (Tonio, on a phone: _"the view
+  pivots"_), and it used the same fixed 1.1-unit width that overflows a portrait
+  viewport. The camera is now set with `{ attach: false }` — the orbit still
+  runs, it's driven by an observable, you just can't wrestle it — and the width
+  comes from the camera's FOV and aspect via the shared `panelFitWidth`.
+
+- **The pause panel fought the camera for your tap.** It lives in the scene, so
+  a press on it is also a press on the canvas, and the camera's input got it
+  too: on a phone the first attempt to press Continue read as a pinch-zoom,
+  which moved the camera through the panel and hid it, so the button had to be
+  un-zoomed back into reach. The camera is now detached while the panel is up
+  (which is also what "paused" ought to mean) and restored on resume.
+- **The pause panel was wider than a phone's viewport.** Sized at a fixed 1.1
+  world units, it fits a 16:9 monitor and overflows a portrait phone — at the
+  default FOV only ~0.86 units are visible across, so the edges and the button
+  sat off-screen. It now derives its width from the camera's real FOV and
+  aspect. `panel-fit.test.ts` pins it, including the portrait case that broke.
+
+- **`B3dGamepad.fade` was read once at connect**, so toggling it at runtime did
+  nothing in either direction — including from a `scenePanel` toggle, which is
+  this repo's own recommended way to expose a tweakable. A settings control that
+  silently does nothing is worse than no control. Now evaluated live, and
+  `setFade()` reconciles on the tap rather than on the next pointer move.
+
+- **A guided missile consumed the caller's `guide` hook** (#13), so a game could
+  give medium behaviour — water drag, a depth floor — to a dumb shell but not to
+  a missile. The seeker is now a named function the caller's hook composes with,
+  and the caller runs **last** so it can constrain what homing asked for: the
+  seeker wants to go fast, the water says no. `MissileOpts.guide` is new.
+
+- **The sky ignored the water you were under** (#12, manta-recon: _"can't see
+  anything underwater except for the skybox"_). A skybox is built
+  `applyFog = false` with `infiniteDistance = true` — right in air, where a long
+  fog layer would swallow it — so submerged, the fog worked on everything except
+  the thing filling most of the screen. `b3d-water` now turns the sky's fog on
+  while the camera is under it, keyed off the same band weight as the fog layer
+  so the two can't disagree about where the surface is, and hands it back on the
+  way out. Note the trap it set: turning `underwaterFog` DOWN made it worse,
+  because the murk had been the only thing disguising an unfogged sky.
+
+- **The device probe measured the machine while it was still loading, then cached
+  the verdict for 30 days** (#11, manta-recon). It went out on `setTimeout(…, 0)`
+  — one task, not one idle moment — so the benchmark ran during terrain build and
+  shader compile. It times work against a fixed reference and calls anything under
+  ~1.67× the medium baseline **low**, so the machine that loads the biggest scene
+  contends the most and tiers worst: an M5 Max holding 120fps was being given
+  low-tier budgets for terrain, shadows, reflections and ambient at once. It now
+  waits for ~1s of settled frames (`sceneBusy`), gives up after 30s, and caches a
+  measurement it had to take under load with a short life so the next visit
+  re-measures.
+- **Ambient was shed during the loading screen and never came back** (#11). The
+  watchdog's 10s warmup was a fixed timer where the question is "has the scene
+  settled" — a streaming world loads for longer, so the one-way ratchet fired on
+  frames that said nothing about the hardware and ambient stayed at zero for the
+  session. The warmup clock now runs only while the scene is quiet.
+
+- **`b3d-death` latched after the first death if the game respawned by its own
+  route.** `_dying` is cleared only by `resume()`, which only the panel's
+  Respawn button calls — and that button doesn't exist without a `respawn`
+  callback. So a scene that respawns from its own `crash` listener (a
+  documented pattern) left the component stuck, and it then swallowed every
+  later death: no panel, no focus release, welded to the wreck. That is the
+  exact failure this component exists to prevent, one level up. A death from an
+  entity that isn't the wreck it's holding now tears down and handles the new
+  one, and a panel built with no way out says so in the console. (Found by
+  manta-recon crashing a respawned aircraft.)
+
+- **`Foo_ignore` was half-honoured**: the loader disposed only the hyphen form
+  while `publicName` stripped only the underscore one, so an underscore-form
+  node survived the load AND collapsed to `Foo` — colliding with a real `Foo`,
+  which made `instantiate('Foo')` resolve to whichever came first. Both
+  separators now go through `isIgnored`.
+- **`spinner()` in the demo helpers** still used `engine.getDeltaTime()`, so on
+  any page importing it (the water demo among them) crates spun ~4× slow at the
+  default `frameRate: 30` — the one call site the `sceneDelta` sweep missed.
+
+- **A crashed aircraft releases input focus so a respawn can take over** (#9). A wreck keeps input
+  focus and ignores it, so with no `<tosi-b3d-death>` in the scene the player
+  held a dead controller — which reads as broken controls rather than as
+  dying. The crash now releases focus if nothing else handled the event.
+- **`recenter()` reset `worldV` to 0**, which is the `CylinderSampler` mirror
+  plane — undoing the new default and putting a seam through the world, hours
+  into a session where nobody would connect the two.
+
+- **Tile skirts hung 344m through tunnels** — depth came from world amplitude
+  rather than the tile's own relief.
+- `_centerOfGravity` markers, cave shading (`interior` as a depth ramp,
+  flooding by `waterTable`, `noWater`), volcanism confined to its caldera.
+
+## 0.7.0-rc.1
+
+Published to npm under the `next` tag on 2026-08-13, superseded by 0.7.0.
+Everything in 0.7.0 above applies, with two differences that matter if you
+installed it:
+
+- It exported the 13 `carve` functions as **bare top-level names**; 0.7.0 moves
+  them to `carve.*` (see ⚠️ Breaking).
+- It did **not** export `sceneDelta`, despite the notes promising it — the
+  `getDeltaTime`-in-a-scene-observer fix was unusable from the package.
+
+It was tagged **before** the pre-release review ran, deliberately, to get it
+into an adopter's hands sooner. The review found no blocker in the shipped
+behaviour; what it found were the two release-artifact gaps above.
+
+## 0.6.2
+
+Terrain gets **volcanism** and **authored landforms**, clouds get real shapes, and a
+systemic timing bug that made half the engine run in slow motion is fixed. Additive
+only — no API removals, no peer-dependency changes. (The full terrain-system upgrade
+lands as 0.7.0 once its remaining pieces are in.)
+
+### Added
+
+- **Volcanism intensity ladder** ([biome-plugin](https://3d.tosijs.net/biome-plugin/)) —
+  the `volcanism` dial now climbs stages rather than scaling one look: near-black basalt
+  with dark-brown voronoi seams → dark-brown rock with glowing seams → patchy open lava.
+  Verticals lag one stage behind horizontals (lava pools flat; cliff faces drain and
+  crust over), veins widen as the ladder climbs so pools form by veins merging, and the
+  glow is subtly animated (spatially-phased pulse + drifting 3D-noise churn — never a
+  global blink). Water pushes the ladder down half a stage and mutes the glow with depth
+  instead of cancelling it: smouldering veins under shallow water.
+- **`volcanicPalette`** + `LAVA_PALETTE` / `CRYOVOLCANIC_PALETTE` — the seven ladder
+  colours are data, so a frozen world venting molten _water_ (pale ice rock, teal veins,
+  glowing blue-white melt) is a palette swap, not a new shader.
+- **Local volcanic provinces** — `b3dTerrain.provinceField = (x, z) => 0..1` marks
+  _this_ island volcanic independently of the global dial. Sampled per tile vertex in
+  origin-stable coordinates and carried to the shader in the colour buffer's (visually
+  inert) alpha channel.
+- **[landform](https://3d.tosijs.net/landform/)** — authored landforms FORCED through
+  the terrain noise via the new `b3dTerrain.landform` hook, where
+  [slope-profile](https://3d.tosijs.net/slope-profile/)s only _remap_ it. `volcano()`
+  and `impactCrater()` each return a matched pair — the height shape **and** the
+  volcanism province that makes it glow — so a volcano goes anywhere and an explosion
+  leaves a glowing crater. `pad()` claims flat ground for cities and bases;
+  `composeLandforms` / `mergeProvinces` chain them. Pure, deterministic, unit-tested.
+- **`_centerOfGravity` model convention** — a child node with that suffix declares where
+  a vehicle pivots in flight, while the root origin stays its on-ground stance point, so
+  one model conveys both how it flies and how it plants.
+  `findCenterOfGravity`/`applyCenterOfGravity` are exported; `b3d-aircraft` applies it
+  on both load paths.
+- **`b3dClouds({ model })`** — an authored GLB mesh becomes the cloud lobe (normalized
+  on load, bottom-aligned), and clouds are now built as **clusters** of 2–4 overlapping
+  lobes laid out by size rank (biggest low, smallest on top straddling the pair) with
+  aligned bases, since cumulus condense at a level.
+- **`B3d.frameDelta`** + **`sceneDelta(scene)`** — the authoritative inter-render delta
+  (see Fixed).
+
+### Fixed
+
+- **Everything ticking in a scene observer ran in slow motion.** Babylon's
+  `getDeltaTime()` measures the engine's rAF tick, but scene observers only fire when
+  `scene.render()` runs — and `<tosi-b3d>` throttles rendering to `frameRate`. At
+  `frameRate: 60` on a 120Hz display that's **half speed**; at the default 30, a
+  **quarter**. Measured live: a dropped bomb inherited exactly 50% of the aircraft's
+  velocity. B3d now publishes the real delta and 14 call sites use it — projectiles,
+  missiles, turret, radar, warhead FX, spawner, clouds, ambient, death orbit, exploder,
+  star / star-system / planet / black-hole.
+- **`canonicalize` applied a spurious 180° yaw**, flying correctly-authored (Blender
+  −Y-forward) models backwards. Babylon reads node-local data raw — the handedness flip
+  lives only on the discarded `__root__` — so the collapse now applies **no rotation**,
+  it only cleans. Pinned against real content in `model-frame.test.ts`.
+- **Weapons inherited a phantom velocity.** `this.velocity` is only the aircraft's
+  hover/ground integrator and reads zero in wing-borne flight; weapons now inherit the
+  true world velocity, so bombs fall with you and cannon rounds lead correctly.
+- **Weapon muzzles are computed through the world matrix**, so shots leave the visible
+  airframe under any attitude or centre-of-gravity pivot.
+- **Flying into a cliff face passed through it** — the ground check was a single
+  downward ray, which reports the valley floor while a wall fills the windscreen.
+  Airborne frames now also sweep along the velocity; steep contacts crash.
+- **Death could strand you in the wreck.** Charring the wreck cloned a material carrying
+  an unregistered plugin, Babylon threw, and the sequence aborted _after_ the explosion
+  but _before_ releasing input focus — no spectate camera, no respawn panel. Material
+  plugins are now registered for cloning, and death's exit is shielded so cosmetics can
+  never block it again.
+- Volcano calderas are flat-floored basins with the melt confined to the floor and a
+  crusted rim (a smoothed shading normal can't make the rim read as open lava).
+- Library instances carry their animations, retargeted onto the instance.
+
+## 0.6.1
+
+First consumer-reported fixes — both filed by **manta-recon** (tosijs-3d's first
+external adopter) with root-cause analyses read from the 0.6.0 dist. No API changes.
+
+### Fixed
+
+- **Aircraft chase camera never created when focus adoption lands after a fast
+  mesh load** ([#1](https://github.com/tonioloewald/tosijs-3d/issues/1)). Both
+  sides deferred to the other: `setupMesh` skipped the camera when
+  `inputProvider` wasn't set yet, and `inputFocus` early-returned for any
+  self-managed entity — an ordering hole between them left the player flying
+  blind on `default-camera`. The focus side now nudges entities using the
+  deferral pattern (idempotent `setupFollowCamera`), so whichever side runs
+  last completes the setup.
+- **fly-by-wire: zero-speed deadlock above `hoverCeiling`**
+  ([#2](https://github.com/tonioloewald/tosijs-3d/issues/2)). At full nose-up,
+  pitch decay (`diveBoost·sin(pitch)`) could exceed thrust, pinning speed at
+  the 0 clamp with the throttle held — a craft frozen mid-air. Held thrust is
+  now floored to make progress below `vtolSpeed` (a nose-high climb-out labors
+  instead of freezing); the throttle-released zoom-climb stall — the deliberate
+  "hard way into high-altitude hover" — is untouched.
+
+## 0.6.0
+
+Cut as rc.1 → rc.3 (each reviewed; rc consumers see the per-rc sections in git
+history), finalized after the nine-lens review's follow-up fixes landed.
+
+The **SVG UI surface** release: a first-class, VR-ready UI substrate — container,
+overlay, widgets seam, table, keyboard — plus the interaction contracts that make
+the same surface work identically in the DOM, on a 3D plane, and under an XR
+controller ray. No peer-dependency changes.
+
+### Added
+
+- **`box`** — the flow container: blocks + inline items + wrapped text, background/
+  border/radius, resize-with-reflow, scroll regions, a coordinate-based event model
+  (press/activate, raw capturing `handlePointer` for drags), and D-pad focus
+  traversal with a visible ring.
+- **`surface`** — content box + overlay layer: cascade **menus** and persistent
+  draggable/closable **panels**, `placePopup` flip/clamp positioning.
+- **`widget-box`** — the seam that lets `widgets3d` controls (sliders, toggles…)
+  live inside a `box`/`surface` unchanged.
+- **`table` / `table-layout`** — sticky header, virtualized body, drag-to-scroll,
+  icon **selection** (see `selection`), D-pad row traversal with the escape
+  contract.
+- **`keyboard` / `key-layout` / `text-edit`** — the on-screen typing surface for a
+  headset: long-press accent strips (sticky on lift, generous ray-tolerant taps),
+  spacebar caret-trackpad (slow taps still type), pressed-key tint, hold-signifier
+  glyphs (▾ accents, ↔ caret drag), per-key D-pad focus; `inputField` with
+  code-point-correct editing and the **receiver-caret** model (lit = where text
+  lands, dim = not; `setActive`/`onFocus` for host exclusivity). `key-layout` grew
+  `numpad`/`dial`/`email`/`url` modes, gap-absorbing multi-unit keys (equal units ⇒
+  equal width), and vertical key spans (the numpad's tall enter).
+- **`gamepad-focus`** — the D-pad → focus wire: edge-triggered with typematic
+  repeat (pure, testable `createFocusPulse`), menu/A activates, and `claim` scopes
+  one physical pad to the last-touched UI when several live on a page.
+- **Inner-focus protocol** on `BoxChild`/`Widget3d` — `focusMove(dx, dy) → boolean`
+  (false = focus escaped, host moves on), `focusActivate`, `focusClear`, `setState`
+  reflection — so a composite widget (the keyboard) is one child but many focus
+  stops.
+- **`panelScene`** — dual-presentation in two lines: textured plane + orbit camera
+  - pick routing (mouse AND XR-controller ray) → `handlePointer`, with one gesture
+    contract: a `claim(x, y)` policy for orbit-vs-UI, gestures collected on a stable
+    catcher quad via the **pick ray** (screen coordinates don't exist in a headset),
+    mapped through the gesture-start frame so a target that rescales its own plane
+    stays stable, camera-yield during claimed presses, off-plane release ends the
+    gesture.
+- **`svgIcons.resize`** glyph (from tosijs-ui), used by the resizable-box demo's
+  in-corner grip.
+
+### Changed
+
+- **`b3dSvgPlane`** routes the texture's alpha to the mesh (`opacityTexture`) —
+  transparent svg regions (outside rounded corners) are transparent on the plane,
+  not an opaque black substrate.
+- Pick-forwarded events (`pointerEvents: 'on'`) carry a **synthetic pointerId**,
+  never the physical pointer's — a listener's `setPointerCapture` on a forwarded
+  event can no longer hijack the real mouse/ray stream.
+- Panel demos are side-by-side DOM + 3D (50/50) throughout, built on `panelScene`.
+
+### Fixed
+
+- **The lost-pointerup chain**: demos passing `pointerEvents: false` were silently
+  running with forwarding ON (tosijs discards wrong-typed prop writes — filed as
+  tosijs#24); the forwarded events carried the real pointerId, so the flat mirror
+  captured the physical mouse and the canvas stopped receiving pointerups. Fixed at
+  every layer, and routing is now **self-healing**: a fresh down while a gesture is
+  outstanding flushes the stale gesture (keyboard/box/surface), so a lost up costs
+  nothing instead of wedging the session.
+- **`SvgTexture`**: a failed rasterize no longer freezes the plane for the session
+  — the busy latch always releases and the frame retries on the next tick.
+- Keyboard: accent strips stay inside the keyboard's rect (top row opens below the
+  key); a strip tap can't fall through to the key behind it; releasing on the held
+  key with jitter goes sticky instead of inserting a random accent; focus follows
+  the click (ring on the tapped key); Space presses the focused key.
+- Arrow keys no longer orbit demo cameras (`ArcRotateCameraKeyboardMoveInput`
+  removed — arrows drive the UI).
+
+### Added (post-rc, from the review follow-ups)
+
+- **`ui.*` namespace** — the SVG UI family's value exports live on one
+  container (`ui.box`, `ui.table`, `ui.keyboard`, …): common nouns don't leak
+  from the barrel. Types stay top-level. Migration from any rc:
+  `import { ui } from 'tosijs-3d'` and destructure.
+- `Box.interactiveAt` / `Surface.interactiveAt`, and `panelScene`'s **default
+  claim policy** asks them — pressing a button/panel claims the gesture,
+  pressing static prose orbits the camera, consistently across every demo.
+- `panelGesture` + `uvToViewBox` + `planeLocalToViewBox` exported pure (the
+  gesture contract is unit-pinned); named option types (`TableOptions`,
+  `KeyboardOptions`, `InputFieldOptions`, `PanelSceneOptions`,
+  `GamepadFocusOptions`); `panelScene` takes `updateInterval`; `w3dTheme`
+  (one place reads the `--w3d-*` variables).
+
+### Fixed (post-rc)
+
+- `table.focusMove` speaks the protocol's `(dx, dy)` (rc.1 trapped D-pad focus
+  in a hosted table); menu leaf-select no longer destroys persistent panels
+  (`Surface.closeMenus`).
+- box hover no longer sticks on raw children; a claimless `gamepadFocus`
+  instance is no longer starved (click-away releases the claim).
+- Table scrolling within the window is transform-only and hover restyles
+  surgically (the virtualized body no longer rebuilds per drag-move);
+  `textBlock` caches its wrap per width.
+- `SvgTexture` warns once per instance when rasterizes fail (self-healing had
+  made it silent); deploy/tunnel host reads `TOSIJS_DEPLOY_HOST` instead of a
+  committed address.
+
+### ⚠️ Changed
+
+- **`B3d.onResize()` / `B3dHud.onResize()` → `handleResize()`** (the `on*`
+  prefix is reserved by the element-creator's listener sugar). A 0.5.x
+  consumer calling `onResize()` must call `handleResize()`.
+
+## 0.5.2
+
+### ⚠️ Breaking — peer dependency (`tosijs` ≥ 1.7.8)
+
+- **`tosijs` peer range `^1.6.9` → `^1.7.8`.** Consumers must be on `tosijs`
+  **≥ 1.7.8**; a project on `1.6.x` will hit `ERESOLVE`. (1.7.6/1.7.7 are
+  **deprecated on npm** — a `parts`-resolution regression; 1.7.8 fixes it, and
+  tosijs-ui 1.7.4 requires it.) As with 0.5.1, this ships under a **patch**
+  deliberately — `0.x` narrative versioning, with `0.5.0` reserved for the
+  playable-game cut — so it's flagged here rather than forced to a minor.
+- _Dev/build only, no consumer action:_ `tosijs-ui` `1.6.23` → `1.7.4`, and
+  `chokidar` added to `devDependencies` (tosijs-ui 1.7.x's shipped doc-site
+  pipeline imports it at runtime but declares it dev-only — filed upstream).
+
+### Added
+
+- **`svgIcons`** (`svg-icons.ts`) — an SVG **icon proxy** (`svgIcons.<name>()` →
+  an SVG `ElementCreator`) over a focused, **generated** icon set
+  (`icons/{color,stroked,filled}/*.svg` → `icon-data.ts` via tosijs-ui's
+  `tosijs-make-icons`; `bun run icons`). A composition-suffix subset
+  (rotate/flip/scale/translate/opacity/stroke-width/colour) + the generator's
+  directional redirects + hand-authored aliases (`iconAliases`, e.g.
+  `moreHorizontal`). ~30 icons incl. `tosijs3d`, `xrColor`, `tosiXr`, keyboard,
+  checkbox/stats/status marks.
+- **`iconGlyph`** — a **texture-safe** icon primitive (explicit-colour SVG `<g>`)
+  for embedding icons in in-scene `widgets3d` / `SvgTexture` UI, where
+  `currentColor` and CSS vars don't resolve in the raster.
+- **`flowLayout`** (`flow-layout.ts`) — a pure **CSS block/inline-block flow**
+  layout core: the substrate for a first-class SVG UI surface that lives in the
+  DOM and on a 3D texture. Babylon/DOM-free, unit-tested.
+- **`b3d.snapshot()`** — capture the current view as a PNG **data URL**
+  (resolution-independent, via Babylon's render-target screenshot; works flat,
+  including in-scene panels).
+- **`icon-name.ts`** — the pure composition-suffix parser behind `svgIcons`.
+
+### Changed
+
+- **Scene chrome → icon lozenge.** The top-left toolbar is now one rounded pill
+  with two `svgIcons` buttons (settings + `xrColor` Enter-VR); the scene-panel `×`
+  close is a `close` icon. The doc-browser **header logo** = `tosiXr` and the
+  **favicon** = the teal cube, both via tosijs-ui 1.7.4's new `logo` option.
+- **README** gained a 280px logo and its stale `xinjs-3d` links were fixed.
+
+### Fixed
+
+- **keyboard icon** rendering — the generator strips `fill-rule` from non-`color`
+  icons, so its evenodd key-holes broke; moved to `color/` with `currentColor`
+  (filed upstream). `iconGlyph` bakes `currentColor` to an explicit colour so it
+  renders in the texture raster too.
+- **Lozenge visible without `:has()`** — it defaulted to `display:none` and
+  revealed via `:has()`, so a browser lacking `:has()` (older Firefox) never
+  showed the toolbar. Now default-visible; `:has()` only suppresses the empty-pill
+  flash.
+- The svg-icons "composition suffixes" snippet is a **static** code block (was an
+  erroring live example).
+
+## 0.5.1
+
+### ⚠️ Breaking — renamed public methods (`on*` → `add*Listener` / `handle*`)
+
+No peer-dependency changes this release. The break is a **method rename**: tosijs's
+`elementCreator` treats any `on<Event>`-named member as `addEventListener` sugar and
+**shadows** a component method of the same name (it now fires a live warning, and it was a
+latent bug — the handler silently never ran). So the multi-listener subscribe methods and the
+lifecycle hooks moved off the `on*` prefix. The new names are also more honest: the subscribe
+methods **push to a listener list** (add/remove semantics), not a single-handler setter.
+
+| Old (0.5.0)                            | New (0.5.1)                                  | On                                 |
+| -------------------------------------- | -------------------------------------------- | ---------------------------------- |
+| `onSceneAddition` / `offSceneAddition` | `addSceneListener` / `removeSceneListener`   | `B3d` (scene owner)                |
+| `onOriginShift` / `offOriginShift`     | `addOriginListener` / `removeOriginListener` | `B3d` (scene owner)                |
+| `onGainFocus` / `onLoseFocus`          | `handleGainFocus` / `handleLoseFocus`        | `B3dControllable`                  |
+| `onButton`                             | `handleButton`                               | `TouchGamepadSource`, `B3dGamepad` |
+
+**What a consumer must do:** if you wrote a custom scene child that called
+`owner.onSceneAddition(cb)` / `owner.onOriginShift(cb)`, or subclassed `B3dControllable` and
+overrode `onGainFocus`/`onLoseFocus`, or a gamepad source with an `onButton` callback, rename to
+the new members. It's a pure rename — signatures are unchanged. Built-in components are all
+migrated; this only affects code you wrote against these surfaces.
+
+### Added
+
+- **Coordinate-free `MinSimApi`** (`world-contract.ts` §8) — a world-simulation boundary where
+  **coordinates never cross the membrane**: a driver (an AI narrative engine, a scripted demo)
+  sees _topology + a qualitative distance ladder_, never `x/y/z`. Places, portals, a 7-rung
+  proximity ladder (`same-spot`…`present`, `elsewhere` for a different place), a `SchematicView`
+  ("where am I", exits, contents-with-rung), and `route()`. `WorldStore` now implements it
+  alongside its existing surface — the sim keeps real geometry sim-private and answers only in
+  qualities.
+- **`world-topology.ts`** — the pure, Babylon-free, deterministic spatial math behind the
+  surface: `proximityRung(distance, extent)` (a distance in, an adjective out; bands scale with
+  a place's `extent`), `rungNominal` (the inverse, for placement), `routePortals` (cheapest
+  portal path, bidirectional, locked portals impassable — Dijkstra, deterministic tie-break),
+  `containmentPath` (root→here breadcrumb). Unit-tested without a store or an engine.
+- **`min-sim-conformance.ts`** — a **framework-agnostic shared conformance kit**
+  (`runMinSimConformance(makeApi, harness)`) that pins the contract behaviour identically for
+  any `MinSimApi` implementation. It imports no test runner (so it ships in the library) and
+  takes the `describe`/`test`/`expect` harness as an argument — the same kit runs in this repo
+  and in a driver's repo (the Ariosto use case), proving both stores behave the same at the seam.
+- **Clouds drift with wind** — the cloud layer now moves with the wind vector, so the sky is
+  alive rather than a still image.
+
+### Changed
+
+- **Demo cameras** migrated to a shared `demo-utils` `orbitCam` helper (tilt-clamped so an orbit
+  can't dip below the horizon) instead of 24 hand-rolled per-demo cameras. Authoring-only — no
+  library-API impact.
+
+### Fixed
+
+- **Cloud whiteout** now behaves correctly: it ramps to full **earlier** (less "snaps on at the
+  moment of entry", denser once inside), **blots out the sky** (not just scene geometry), and
+  **mutes projected cloud shadows** under the whiteout (fogged fragments no longer darken through
+  the fog).
+- **`b3d-controller`** `player` now defaults to `false`. tosijs began **throwing** on an
+  `initAttributes` boolean that defaults to `true` (an absent HTML boolean attribute is `false`,
+  so a `true` default can never turn on) — the old `player: true` default made the controller
+  throw at construction and silently never wire input.
+
+## 0.5.0
+
+### ⚠️ Breaking — peer dependencies
+
+- **Babylon.js 8 → 9.** Peer range for `@babylonjs/core`, `@babylonjs/gui`,
+  `@babylonjs/loaders`, `@babylonjs/materials` moved `^8` → `^9`. **Consumers must
+  upgrade their Babylon to `9.x`.** A project still on Babylon 8 will hit an
+  `ERESOLVE` on install.
+- **Jolt physics `^1.0` → `^1.1`** (Jolt 5.6.0 — the friction model moved). Only
+  relevant if you use `<tosi-b3d-physics>`; retune friction if grip/slide changed.
+- **Packaging fix:** `@babylonjs/*` and `jolt-physics` are now **peer-only** (they
+  were previously declared in both `dependencies` and `peerDependencies`). A hard
+  Babylon dependency would nest a _second_ engine copy in a consumer holding a
+  direct Babylon dep — silently breaking `instanceof`, engine singletons, and
+  plugin registration. No action needed by consumers; this just makes install
+  resolution correct.
+
+### Added
+
+- **Clouds** (`<tosi-b3d-clouds>`) — an opaque blob cloud layer you can _fly into_
+  and lose the world inside (a fog whiteout, not a texture). A `coverage` weather
+  dial from wisps to thunderheads, and `insideCloud` so a cloud is a _tactic_
+  (break a radar lock, shake a pursuer).
+- **Projected cloud shadows** (`cloud-shadows.ts`) — the field painted top-down
+  into one texture, sampled by world position in a material plugin, so shadows
+  conform to terrain and fall on elevated receivers (the aircraft) too. Reusable.
+- **Shadow decals** (`shadow-decal.ts`) — a reusable soft blob-shadow for a single
+  caster (character, vehicle, dropped item).
+- **Death** (`<tosi-b3d-death>`) — death's exit: explode + burning wreckage,
+  release input, a third-person spectate shot, then a respawn panel. Flat and VR.
+- **Encounters** — `<tosi-b3d-spawner>` (seeded, "same seed, same battles"),
+  `formations.ts` (pure placement math), and a named `prefab` registry with
+  `spawnPrefab` for the set-dressing a death or spawn drops.
+- **Ambient effects** (`<tosi-b3d-ambient>`) — device-budgeted garnish (motes,
+  bubbles, tumbling leaves) that competes for one pool and switches **off** rather
+  than thinning into a lie. Pure budget allocator in `ambient-budget.ts`.
+- **Atmosphere** (`atmosphere.ts`) — pure fog compositing so underwater / cloud /
+  space whiteouts layer over the base fog instead of fighting it.
+- **`setGameplayCamera`** — an XR-safe viewpoint affordance (move the rig in a
+  headset, swap the camera when flat), so chase/death/vehicle transitions stop
+  breaking in VR.
+- **`PLATFORM.md`** — the platform bet (stay on the web, don't abstract the
+  renderer; the real risk of the Android XR / Vision Pro shift is _input_).
+
+### Changed
+
+- **Aircraft** — the stick is dead on the ground (only the throttle lifts off);
+  you can't crash-land until you've actually cleared the pad; chase camera banks
+  smoothly and no longer jitters on throttle.
+- **Water** follows the camera as an endless sea; **terrain** auto-centers so a sea
+  at `y=0` floods the valleys.
+- **HUD** survives respawn.
+- Babylon `8.56 → 9.16`, Jolt `1.0 → 1.1`, tosijs-ui `1.6.22 → 1.6.23`, tosijs
+  `1.6.8 → 1.6.9` (dev-server/haltija reliability), haltija `→ 1.4.0`.
+
+### Fixed
+
+- Death explosion/wreck FX land at the real wreck; a respawn is no longer charred
+  (char a cloned material, not the shared library one).
+- The aircraft ground-ray no longer picks a cloud blob as "ground" (mid-air
+  "crash"); cloud whiteout is opaque under LINEAR fog and builds from every
+  direction; the live-debug timer is cleared on scene disconnect (no leak).

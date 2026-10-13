@@ -272,7 +272,7 @@ one owner, so chunks tile without overlapping geometry — while still computing
 the neighbouring cells' vertices (the one-cell apron) so the boundary quad has
 real corners.
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "terrain", "order": 30 }*/
 /** A lattice's identity: what two chunks must share to weld. `clip` is not
  * part of it; clipping divides work, not content. */
 export function latticeIdentity(cfg) {

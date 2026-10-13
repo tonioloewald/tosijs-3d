@@ -259,18 +259,16 @@ preview.append(
 > text re-wraps as the box narrows and then scrolls once it runs out of room —
 > the same layout pass in both panes.
 */
-/*{ "parent": "UI", "order": 200 }*/
+/*{ "parent": "ui-containers", "order": 10 }*/
 import { svgElements } from 'tosijs';
 import { handlerOf } from './handler-of.js';
 import { flowLayout, nearestInDirection, } from './flow-layout.js';
 import { measureTextWrap, measureTextWidth, clampScroll, } from './widgets3d-layout.js';
 import { iconGlyph } from './svg-icons.js';
 /**
- * A child's activation callback under either spelling.
- *
- * `BoxChild` is a contract other modules implement, so both names must be READ
- * here: a consumer that wrote `onActivate` against 0.7 keeps working, and one
- * reaching for `handleActivate` is not silently ignored.
+ * A child's activation callback. `BoxChild` is a contract other modules
+ * implement, so an implementation still carrying the removed `onActivate` is
+ * reported here, once, instead of silently never activating.
  */
 const activateOf = (c) => handlerOf(c, 'handleActivate', 'onActivate');
 /** Inline style every drag-driven SVG surface wears (box, surface, panel3d). */
@@ -754,7 +752,7 @@ export function inlineItem(el, width, height) {
 }
 /**
  * A **button** — a focusable, inline pill (rounded rect + centred label) that
- * fires `onActivate` on pointer up-over or focus + activate. Width hugs the label;
+ * fires `handleActivate` on pointer up-over or focus + activate. Width hugs the label;
  * it flows and wraps like any inline item.
  */
 export function button(label, opts = {}) {

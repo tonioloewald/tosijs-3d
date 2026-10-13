@@ -10,7 +10,7 @@ Two problems that look unrelated and are the same problem:
   the character backs into a corner; now you are looking at the inside of a
   wall, or through it at nothing.
 - **The camera at a medium boundary.** Half the frame should be underwater and
-  is not, because fog is one value per frame ([[MEDIUM-DESIGN]] §6a).
+  is not, because fog is one value per frame (`MEDIUM-DESIGN.md` §6a).
 
 Both are *the camera is somewhere it should not be*, and both are fixed by
 moving it — pull it in, or push it out of the band. Tonio, joining them up:
@@ -42,7 +42,7 @@ Which side it goes to is decided by **the subject**, not by the camera: if the
 swimmer is under, the camera goes under. A camera that picked the nearer side
 would cross the surface every time the character bobbed.
 */
-/*{ "parent": "Vehicles", "order": 170 }*/
+/*{ "parent": "b3d-biped", "order": 90 }*/
 /**
  * How far back the camera may sit, given what a ray from the subject hit.
  *

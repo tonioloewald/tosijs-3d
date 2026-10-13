@@ -39,7 +39,7 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Vehicles" }*/
+/*{ "parent": "characters-and-vehicles", "order": 30 }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dControllable } from './b3d-controllable.js';
 import { carMapping } from './virtual-gamepad.js';

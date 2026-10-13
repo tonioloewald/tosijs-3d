@@ -35,7 +35,7 @@ has no colour picker of its own yet. So the control is a parameter: pass
 what it costs. When the SVG UI grows its own picker this defaults to that
 instead.
 */
-/*{ "parent": "UI", "order": 270 }*/
+/*{ "parent": "w3d-theme", "order": 10 }*/
 import { handlerOf } from './handler-of.js';
 import { elements } from 'tosijs';
 import { setW3dTheme, w3dTheme } from './w3d-theme.js';
@@ -143,9 +143,9 @@ const FONT_LABELS = {
 export function themeEditor(config = {}) {
     // What the page looked like before anyone touched a control — see `restore`.
     const snapshot = { ...w3dTheme };
-    const { title = 'Theme Editor', handleChange, onChange, colours = COLOURS, metrics = METRICS, } = config;
+    const { title = 'Theme Editor', colours = COLOURS, metrics = METRICS, } = config;
     /*
-    `handleChange` FIRST, `onChange` only as the deprecated alias.
+    `handleChange`. (`onChange` was the old alias, removed in 0.10.)
   
     This is the `onFoo` footgun landing on a plain factory rather than a
     component: the option was named `onChange` while every caller — the w3d-theme
@@ -154,7 +154,7 @@ export function themeEditor(config = {}) {
     table, and the callback that rebuilds the panels was simply never called, so
     the controls moved and the thing they were editing did not.
     */
-    const changed = () => handlerOf({ handleChange, onChange }, 'handleChange', 'onChange')?.(w3dTheme);
+    const changed = () => handlerOf(config, 'handleChange', 'onChange')?.(w3dTheme);
     /**
      * Accept either a value or a DOM event from an injected control.
      *

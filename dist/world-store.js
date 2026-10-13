@@ -10,6 +10,12 @@ queries. A Babylon scene is later a *view* reconciled from this state — the
 store never imports a 3D engine, so it is fully unit-testable and can host a
 headless driver.
 
+**Queries return copies.** `getState()`, `getEntity()` and `query()` hand back
+a deep copy every call, so nothing a driver does to a result can reach the
+sim. Read once and keep the result, not once per entity. The engine's own
+systems (the view, which reconciles every frame) read `store.liveState`, which
+is the live object: never write to it, and never hand it to a driver.
+
 ## Demo
 
 The store holds state; a [world-view](?world-view.ts) reconciles one mesh per entity from it every
@@ -59,7 +65,7 @@ Two method groups make the boundary legible in code:
 Determinism: ids come from a counter and time advances only via `tick()` — no
 `Date.now`/`Math.random` — so the same inputs always produce the same trace.
 */
-/*{ "parent": "World Sim", "order": 100 }*/
+/*{ "parent": "world-sim", "order": 20 }*/
 import { proximityRung, routePortals, containmentPath, rungNominal, } from './world-topology.js';
 const PLAYER_ID = 'player';
 function distance(a, b) {
@@ -67,6 +73,19 @@ function distance(a, b) {
     const dy = a.y - b.y;
     const dz = a.z - b.z;
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+/** A deep copy of plain data. `ref` is opaque to the sim and is not copied. */
+function snapshot(value) {
+    if (Array.isArray(value))
+        return value.map(snapshot);
+    if (value == null || typeof value !== 'object')
+        return value;
+    const out = {};
+    for (const k in value) {
+        const v = value[k];
+        out[k] = k === 'ref' ? v : snapshot(v);
+    }
+    return out;
 }
 export class WorldStore {
     state;
@@ -133,14 +152,31 @@ export class WorldStore {
         delete this.state.zones[id];
     }
     // --- WorldApi: queries (authoritative) -----------------------------------
+    /*
+    Every query returns a COPY. `Readonly<T>` is a type, not a guarantee: an
+    in-process driver handed the live object could rewrite the clock or teleport
+    the player through the READ api, and nothing would say so until that driver
+    moved to a worker, where the same line does nothing. A copy makes in-process
+    and across-a-worker behave the same, which is what the contract promises.
+    `ref` is the driver's own opaque value, so it is passed through, not copied.
+    */
     getState() {
+        return snapshot(this.state);
+    }
+    /**
+     * The LIVE state, for the engine's own systems (the view reconciles from it
+     * every frame, where a copy of the whole world would be waste). Not part of
+     * `WorldApi`: a driver must never hold this. Do not write to it.
+     */
+    get liveState() {
         return this.state;
     }
     getEntity(id) {
-        return this.state.entities[id];
+        const e = this.state.entities[id];
+        return e == null ? undefined : snapshot(e);
     }
     query(predicate) {
-        return Object.values(this.state.entities).filter(predicate);
+        return Object.values(this.state.entities).filter(predicate).map(snapshot);
     }
     // --- WorldApi: events (best-effort) --------------------------------------
     subscribe(handler) {
@@ -446,7 +482,9 @@ export class WorldStore {
                 if (here != null && here !== target.toPlace) {
                     const r = this.route(here, target.toPlace);
                     if (r != null && r.portals.length > 0) {
-                        this.traverse(id, r.portals[0]);
+                        const next = r.portals[0];
+                        if (next != null)
+                            this.traverse(id, next);
                         continue;
                     }
                 }

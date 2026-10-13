@@ -59,7 +59,7 @@ preview.append(pre(output))
 | `pick(array, weights?)` | `T` | Weighted random selection from array |
 
 */
-/*{ "parent": "Utilities", "order": 900 }*/
+/*{ "parent": "reference", "order": 10 }*/
 /**
  * Mersenne Twister MT19937 pseudo-random number generator.
  *
@@ -75,10 +75,19 @@ export class MersenneTwister {
     LOWER_MASK = 0x7fffffff;
     mt;
     mti;
+    /*
+    The seed is REQUIRED (0.10). It used to default to `Date.now()`, which in a
+    library whose promise is "same seed, same result" turned one forgotten
+    argument into a different world every run, with nothing to say so. If you
+    want a different sequence each time, say so: `new MersenneTwister(Date.now())`.
+    */
     constructor(seed) {
+        if (typeof seed !== 'number' || Number.isNaN(seed)) {
+            throw new Error('MersenneTwister: a numeric seed is required (pass Date.now() if you want a different sequence each run)');
+        }
         this.mt = new Array(this.N);
         this.mti = this.N + 1;
-        this.initGenrand(seed ?? Date.now());
+        this.initGenrand(seed);
     }
     initGenrand(s) {
         this.mt[0] = s >>> 0;

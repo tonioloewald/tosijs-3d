@@ -33,6 +33,7 @@ export declare class B3dLightShafts extends B3dChild {
     private _seq;
     private _pool;
     private _time;
+    private _waterReach;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     private _material;
     /** The light's colour, normalised so its brightest channel is 1. */

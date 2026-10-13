@@ -116,5 +116,5 @@ export function mergeIconStyle(into, add) {
             into[k] = add[k];
     }
 }
-/*{ "parent": "Utilities", "order": 900 }*/
+/*{ "parent": "svg-icons", "order": 10 }*/
 //# sourceMappingURL=icon-name.js.map

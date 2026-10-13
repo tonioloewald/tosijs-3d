@@ -28,10 +28,6 @@ export declare class B3dManipulator extends B3dChild {
     whenChange: ((t: ManipulatorTransform) => void) | null;
     /** Once on release, snapped, and only when something changed. */
     whenCommit: ((t: ManipulatorTransform) => void) | null;
-    /** @deprecated use `whenChange` — removed in 0.10. */
-    handleChange: ((t: ManipulatorTransform) => void) | null;
-    /** @deprecated use `whenCommit` — removed in 0.10. */
-    handleCommit: ((t: ManipulatorTransform) => void) | null;
     /** The node being manipulated. Set this directly to skip `target`. */
     node: BABYLON.TransformNode | null;
     private _view;

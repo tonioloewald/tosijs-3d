@@ -178,7 +178,7 @@ preview.append(scene)
   fog density formula** (`underwaterFog + underwaterMurk · depth/30`, EXP2), so
   growth visibly stops exactly where the light dies. Coherence for free.
 */
-/*{ "parent": "environment", "order": 900 }*/
+/*{ "parent": "b3d-terrain", "order": 10 }*/
 /** The two chart axes for a position. `tNoise`/`mNoise` are INJECTED noise
  * values (the shader's fBm; tests use constants) — noise feeds the inputs,
  * never the classification output. */

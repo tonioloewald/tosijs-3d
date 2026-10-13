@@ -12,6 +12,12 @@ export type ConformanceHarness = {
  */
 export type TickableMinSim = MinSimApi & {
     tick(deltaSeconds: number): void;
+    /**
+     * The player-side act of picking an option. Like `tick` it is a simulation
+     * method, not a driver command: the driver presents (`presentChoice`) and
+     * hears the pick (`choiceMade`); the sim never resolves the choice.
+     */
+    chooseOption(choiceId: string, optionId: string): void;
 };
 /**
  * Run the MinSimApi conformance suite against `makeApi()`, using the caller's test harness. Every

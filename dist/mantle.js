@@ -48,7 +48,7 @@ Timing is the one thing here that is a choice rather than a measurement, and it
 is expressed as fractions of the clip so it retimes itself when the animation
 set changes.
 */
-/*{ "parent": "Vehicles" }*/
+/*{ "parent": "b3d-biped", "order": 10 }*/
 export const defaultMantleLimits = {
     stepUp: 0.5,
     reach: 2.2,

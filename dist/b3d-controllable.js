@@ -30,7 +30,7 @@ class Spinner extends B3dControllable {
 - `getCameraTarget()` — returns the node cameras should follow
 - `handleGainFocus()` / `handleLoseFocus()` — lifecycle hooks for input switching
 */
-/*{ "parent": "Input", "order": 900 }*/
+/*{ "parent": "input-internals", "order": 20 }*/
 import { AbstractMesh, simHalted, controlsLive, } from './b3d-utils.js';
 import { emptyInput } from './control-input.js';
 export class B3dControllable extends AbstractMesh {

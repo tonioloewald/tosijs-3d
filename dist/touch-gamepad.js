@@ -105,7 +105,7 @@ const source = new TouchGamepadSource(svg)
 provider.addSource(source)
 ```
 */
-/*{ "parent": "Input", "order": 900 }*/
+/*{ "parent": "input-internals", "order": 70 }*/
 import { emptyGamepad } from './virtual-gamepad.js';
 // data-part value → VirtualGamepad button field
 const BUTTON_MAP = {

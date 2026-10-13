@@ -123,7 +123,7 @@ Nothing stops you clamping quietly; this just makes the ship visible.
 | `handleChange` | | live, every frame the pointer moves |
 | `handleCommit` | | once per gesture — your undo step |
 */
-/*{ "parent": "UI", "order": 272 }*/
+/*{ "parent": "ui-controls", "order": 20 }*/
 import { svgElements } from 'tosijs';
 import { FULL_CIRCLE, arcOf, arcComplement, arcEnd, arcStart, clampAngleToArc, clampArc, dragArc, nearestArcGrip, normaliseDegrees, } from './arc.js';
 import { w3dTheme } from './w3d-theme.js';

@@ -64,7 +64,7 @@ every mesh with `receiveShadows` — the scene's existing "I receive shadows" de
 exactly the right opt-in. Sun-direction offset is applied at *paint* time (blob positions are
 projected along the light before stamping), so the shader stays a plain straight-down lookup.
 */
-/*{ "parent": "Effects" }*/
+/*{ "parent": "b3d-cloud-deck", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
 /** Where a blob's shadow lands: slide from its altitude down the sun direction to the ground
  * plane. `sunDir` is the light's TRAVEL direction (y < 0 when shining down); a sun at/below
@@ -190,7 +190,18 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
 // mid-sequence, so the player kept input focus and never got a respawn panel:
 // a cosmetic clone took the whole death exit down with it (2026-08-11).
 BABYLON.RegisterMaterialPlugin('CloudShadowPlugin', (material) => new CloudShadowPlugin(material));
+/*
+Receivers that cannot wear the plugin (Babylon's WaterMaterial routes no plugin
+events) ask for the scene's map by name instead, and sample it themselves.
+*/
+const sceneMaps = new WeakMap();
+/** The cloud shadow map currently live in a scene (the newest), or null. */
+export function cloudShadowMapOf(scene) {
+    const maps = sceneMaps.get(scene);
+    return maps != null && maps.length > 0 ? maps[maps.length - 1] : null;
+}
 export class CloudShadowMap {
+    _scene;
     texture;
     resolution;
     /** World size (metres) of the square window the texture covers. */
@@ -240,6 +251,10 @@ export class CloudShadowMap {
     constructor(scene, worldSize, resolution = 256) {
         this.worldSize = worldSize;
         this.resolution = resolution;
+        this._scene = scene;
+        const maps = sceneMaps.get(scene) ?? [];
+        maps.push(this);
+        sceneMaps.set(scene, maps);
         this.texture = new BABYLON.DynamicTexture('cloud-shadow-map', { width: resolution, height: resolution }, scene, false);
         this.texture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
         this.texture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
@@ -326,6 +341,12 @@ export class CloudShadowMap {
         for (const p of this._plugins)
             p.isEnabled = false;
         this._plugins = [];
+        const maps = sceneMaps.get(this._scene);
+        if (maps != null) {
+            const at = maps.indexOf(this);
+            if (at >= 0)
+                maps.splice(at, 1);
+        }
         this.texture.dispose();
     }
 }

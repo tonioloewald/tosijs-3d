@@ -9,9 +9,9 @@ triggers.
 Set `whenEnter` and `whenExit` callback properties from JavaScript, or listen
 for `'enter'` / `'exit'` CustomEvents on the element.
 
-⚠️ The old `onEnter` / `onExit` still work and are removed in 0.10 — but only by
-DIRECT assignment. Passed to the element creator, an `on*` prop becomes a DOM
-event listener, so it is called with an Event rather than the trigger.
+⚠️ The `onEnter` / `onExit` properties were removed in 0.10. Passed to the
+element creator, an `on*` prop is a DOM event listener, so `b3dTrigger({ onEnter })`
+is a listener for the `'enter'` event and is called with an Event, not the trigger.
 
 ## Demo
 
@@ -146,7 +146,7 @@ preview.append(
 | `debug` | `false` | Show wireframe sphere |
 | `once` | `false` | Fire `whenEnter` once then deactivate |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "interacting", "order": 20 }*/
 import { B3dChild } from './b3d-utils.js';
 import { handlerOf } from './handler-of.js';
 import * as BABYLON from '@babylonjs/core';
@@ -182,15 +182,11 @@ export class B3dTrigger extends B3dChild {
     got two different arguments depending on how you attached it.
   
     `whenEnter` cannot be read as an event name, which is the same reason
-    `whenImpact` and `whenDestroyed` are spelled that way. Both still work; the
-    old pair is removed in 0.10.
+    `whenImpact` and `whenDestroyed` are spelled that way. The old pair was
+    removed in 0.10.
     */
     whenEnter = null;
     whenExit = null;
-    /** @deprecated use `whenEnter` — removed in 0.10. */
-    onEnter = null;
-    /** @deprecated use `whenExit` — removed in 0.10. */
-    onExit = null;
     _inside = false;
     _beforeRender = null;
     debugMesh = null;
@@ -251,8 +247,8 @@ export class B3dTrigger extends B3dChild {
         const dist = BABYLON.Vector3.Distance(targetPos, triggerPos);
         if (dist < attrs.radius && !this._inside) {
             this._inside = true;
-            // ONE of them — new name wins, and the old one warns once (handler-of).
-            handlerOf(this, 'whenEnter', 'onEnter')?.(this);
+            // The removed `on*` name is reported once if someone still assigns it.
+            handlerOf(this, 'whenEnter', 'onEnter', '<tosi-b3d-trigger>')?.(this);
             this.dispatchEvent(new CustomEvent('enter', { detail: { trigger: this }, bubbles: true }));
             if (attrs.once) {
                 ;
@@ -261,8 +257,8 @@ export class B3dTrigger extends B3dChild {
         }
         else if (dist >= attrs.radius && this._inside) {
             this._inside = false;
-            // ONE of them — new name wins, and the old one warns once (handler-of).
-            handlerOf(this, 'whenExit', 'onExit')?.(this);
+            // The removed `on*` name is reported once if someone still assigns it.
+            handlerOf(this, 'whenExit', 'onExit', '<tosi-b3d-trigger>')?.(this);
             this.dispatchEvent(new CustomEvent('exit', { detail: { trigger: this }, bubbles: true }));
         }
     }

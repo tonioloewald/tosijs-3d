@@ -46,7 +46,7 @@ disposal rather than only on success.
   builds a node owned by nobody — a permanent ghost. Guarded with the caller's
   `loadGeneration`, which `AbstractMesh` bumps on `sceneDispose` (#49).
 */
-/*{ "parent": "Core", "order": 145 }*/
+/*{ "parent": "b3d-library", "order": 10 }*/
 /**
  * Instantiate `meshName` from library `type`, retrying until the library exists.
  *

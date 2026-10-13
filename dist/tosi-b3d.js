@@ -272,6 +272,9 @@ document.body.append(
 |-----------|---------|-------------|
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `frameRate` | `30` | Target frame rate |
+| `xrRenderScale` | `0` | In a headset: the fraction of each eye's width and height drawn. `0` is auto (from the device tier: 0.67 on the low tier). Engine hardware scaling does not reach a headset; this does. Read on entering a session |
+| `xrFoveation` | `-1` | In a headset: fixed foveation, 0-1. `-1` is auto (low tier 1, medium 0.5, high 0). Read on entering a session |
+| `groundDetail` | `'auto'` | The ground shader's form: `full`, `lite` (three noise samples a pixel for eight, for a GPU that cannot afford the full one), or `auto` (from the device tier: lite on the low tier, and in a headset on the medium one) |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
@@ -279,7 +282,7 @@ document.body.append(
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
-/*{ "parent": "Core", "order": 100 }*/
+/*{ "parent": "core", "order": 10 }*/
 import { Component, elements, updates } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
@@ -291,11 +294,12 @@ import { fitPanel, panel3d, button3d, iconBar3d, label3d, textBlock3d, foldSecti
 import { handlerOf } from './handler-of.js';
 import { panelFitWidth } from './widgets3d-layout.js';
 import { w3dTheme } from './w3d-theme.js';
-import { SvgTexture } from './svg-texture.js';
+import { SvgTexture, svgTextureCost } from './svg-texture.js';
+import { sendDebug } from './debug-sink.js';
 import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
-import { cameraIsAttached, isNoCollide, isOff, markUiMesh, replaceKeepingLayers, } from './b3d-utils.js';
+import { cameraIsAttached, isNoCollide, insideCarrier, isOff, markUiMesh, replaceKeepingLayers, refuseOwnAncestor, } from './b3d-utils.js';
 import { NO_WIND, gustAt, windFromPolar } from './wind.js';
 import { CALM, weatherAt as composeWeather, } from './weather.js';
 import { faceViewer } from './dialog-placement.js';
@@ -312,6 +316,10 @@ import { compositeFog, approachFog, } from './atmosphere.js';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, renderScalingLevel, } from './b3d-quality.js';
 import { SsaoController, ssaoActive } from './b3d-ssao.js';
 import { ProjectedAoController } from './b3d-ssao-projected.js';
+import { costSweep, formatRuns, formatSweep, recordRun, } from './cost-sweep.js';
+import { nearFirst } from './draw-order.js';
+import { setBiomeLite, biomeLite, setBiomeComputedNoise, biomeComputedNoise, } from './biome-plugin.js';
+const SWEEP_KEY = 'tosi-b3d-cost-sweep';
 import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget.js';
 const { canvas, div, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
@@ -419,6 +427,19 @@ export class B3d extends Component {
         // Projected only: redraws per second (0 = every frame). The lookup is by
         // world position, so a stale drawing stays put while the view moves.
         ssaoRate: 30,
+        /*
+        IN A HEADSET, resolution is the XR layer's, not the engine's: hardware
+        scaling does not reach it. These two do.
+        `xrRenderScale` is the fraction of each eye's width and height drawn
+        (`0` is AUTO: 1 / the tier's hardware scaling, so 0.67 on the low tier).
+        `xrFoveation` is fixed foveation, 0-1 (`-1` is AUTO: the tier's).
+        Both apply on entering a session and can be changed during one.
+        */
+        xrRenderScale: 0,
+        xrFoveation: -1,
+        // The ground (biome) shader's form. `auto` is the device tier's: the
+        // cheap one on the low tier, and in a headset on the medium tier.
+        groundDetail: 'auto',
         /*
         Device pixels per CSS pixel to render at, flat. `0` is AUTO: the display's
         own ratio, capped by the device tier (high 2, medium 1.5, low 1 — see
@@ -772,6 +793,8 @@ export class B3d extends Component {
     glowLayer;
     static _warnedSsaoAlways = false;
     _ssao;
+    /** Whether occlusion is actually being drawn (the setting can say `on` where it cannot run). */
+    _ssaoRunning = false;
     _projectedAo;
     _ssaoCamObs;
     xrHelper;
@@ -1935,8 +1958,10 @@ export class B3d extends Component {
             this._probeWhenIdle();
         }
         this._applyHardwareScaling(this.xrActive);
+        this._applyGroundDetail(this.xrActive);
         this._qualityOff = onQualityChange(() => {
             this._applyHardwareScaling(this.xrActive);
+            this._applyGroundDetail(this.xrActive);
             this._reallocAmbient(); // a new tier is a new pool
             this._applySsao();
         });
@@ -1980,6 +2005,83 @@ export class B3d extends Component {
             });
         };
         requestAnimationFrame(tick);
+    }
+    _xrViewportOff = null;
+    /** What a session is drawn at right now: `{ scale, foveation }`. */
+    xrResolution = { scale: 1, foveation: 0 };
+    /*
+    THE HEADSET'S RESOLUTION LEVERS. The XR layer owns the framebuffer, so the
+    engine's hardware scaling (above) changes nothing in a session: the tier's
+    "XR-biased scaling" was a number nobody read, and every tier drew both eyes
+    at full size. Measured on a Quest in Land and Sky (90 ms a frame): half the
+    pixels saved 19 ms, full foveation 12 ms.
+  
+    The viewport is asked for per frame because that is the only form WebXR
+    offers after a session starts (`XRView.requestViewportScale`); a browser
+    without it draws at full size and nothing is lost.
+    */
+    _applyXrResolution() {
+        const session = this.xrHelper?.baseExperience?.sessionManager;
+        if (session == null || !this.xrActive)
+            return;
+        const b = qualityBudgets({ xr: true });
+        const askedScale = Number(this.xrRenderScale) || 0;
+        const scale = Math.min(1, Math.max(0.3, askedScale > 0 ? askedScale : 1 / b.hardwareScaling));
+        const askedFov = Number(this.xrFoveation);
+        const foveation = Math.min(1, Math.max(0, askedFov >= 0 ? askedFov : b.xrFoveation));
+        this.xrResolution = { scale, foveation };
+        try {
+            session.fixedFoveation = foveation;
+        }
+        catch {
+            /* not offered by this browser */
+        }
+        this._xrViewportOff?.();
+        this._xrViewportOff = null;
+        const ask = (frame) => {
+            const pose = frame.getViewerPose(session.referenceSpace);
+            for (const v of pose?.views ?? [])
+                v.requestViewportScale?.(scale);
+        };
+        if (scale >= 1) {
+            // Once: a smaller viewport asked for earlier stays until it is undone.
+            session.onXRFrameObservable.addOnce(ask);
+            return;
+        }
+        const obs = session.onXRFrameObservable.add(ask);
+        this._xrViewportOff = () => session.onXRFrameObservable.remove(obs);
+    }
+    // What each headset lever is saving: put it back to full and measure.
+    _xrLeverExperiments() {
+        if (!this.xrActive)
+            return [];
+        const lever = (name, attr, full) => ({
+            name,
+            apply: () => {
+                const was = this[attr];
+                this[attr] = full;
+                this._applyXrResolution();
+                return () => {
+                    ;
+                    this[attr] = was;
+                    this._applyXrResolution();
+                };
+            },
+        });
+        const out = [];
+        if (this.xrResolution.scale < 1)
+            out.push(lever('+ full resolution', 'xrRenderScale', 1));
+        if (this.xrResolution.foveation > 0)
+            out.push(lever('+ no foveation', 'xrFoveation', 0));
+        return out;
+    }
+    _applyGroundDetail(xr) {
+        if (this.scene == null)
+            return;
+        const asked = this.groundDetail;
+        const lite = asked === 'lite' ||
+            (asked !== 'full' && qualityBudgets({ xr }).groundDetail < 0.5);
+        setBiomeLite(this.scene, lite);
     }
     _applyHardwareScaling(xr) {
         if (this.engine == null)
@@ -2222,7 +2324,184 @@ export class B3d extends Component {
         this._reallocAmbient();
     }
     _statsBaseScale = null;
+    // The last few sweeps, kept across page loads: one that hung the device
+    // left its journal, naming the experiment it stopped at.
+    _sweepRuns = (() => {
+        try {
+            const j = JSON.parse(localStorage.getItem(SWEEP_KEY) ?? 'null');
+            // Only what has the shape of a run: this is storage, and a bad entry
+            // would stop Perf Stats building until it was cleared by hand.
+            if (Array.isArray(j?.runs))
+                return j.runs.filter((r) => r != null &&
+                    typeof r.n === 'number' &&
+                    Array.isArray(r.lines));
+            // The journal before runs were numbered.
+            if (Array.isArray(j?.lines))
+                return [{ n: 0, began: 0, lines: j.lines, starting: j.starting }];
+        }
+        catch {
+            /* unreadable: start clean */
+        }
+        return [];
+    })();
+    _sweepRun = null;
+    get _sweepLines() {
+        return formatRuns(this._sweepRuns, this._sweepRun);
+    }
+    _sweepNow = null;
+    _sweepStep = 'sweep: not running';
+    /** The rows of the last {@link costSweep}, for reading over a debug bridge. */
+    lastCostSweep = [];
+    /**
+     * Where this scene's frame goes, measured here: see [[cost-sweep]]. Also the
+     * **Cost sweep** button in Perf Stats, so it runs inside a headset session.
+     */
+    async costSweep(seconds = 2, what = 'scene') {
+        if (this.scene == null)
+            return [];
+        const rate = this.frameRate;
+        const run = {
+            n: this._sweepRuns.reduce((m, r) => Math.max(m, r.n), 0) + 1,
+            began: Date.now(),
+            lines: [],
+            starting: 'baseline',
+            kind: what,
+        };
+        this._sweepRun = run.n;
+        const keep = () => {
+            this._sweepRuns = recordRun(this._sweepRuns, { ...run });
+            try {
+                localStorage.setItem(SWEEP_KEY, JSON.stringify({ runs: this._sweepRuns }));
+            }
+            catch {
+                /* private mode: the sweep still runs, it just leaves no trace */
+            }
+        };
+        // Before the first repaint, so the panel shows this run and not the last.
+        keep();
+        let rows;
+        try {
+            rows = await costSweep(this.scene, {
+                seconds,
+                xr: this.xrHelper,
+                // The render throttle would be what is measured, not the scene.
+                unthrottle: (on) => {
+                    ;
+                    this.frameRate = on ? 1000 : rate;
+                },
+                // The panel the sweep is run from, the hands and their rays stay.
+                skip: (m) => m.renderingGroupId > 0 ||
+                    /^xr-|panel|controller|laser|pointer|teleport|hand/i.test(m.name) ||
+                    /^controller/i.test(m.material?.name ?? ''),
+                /*
+              TWO repaints, not one per experiment. Repainting rebuilds the panel and
+              redraws its texture, and doing that eighteen times inside a session on a
+              device already at its limit is its own load (a panel rebuild has hung a
+              Quest before, #3135).
+              */
+                progress: (name, done, total) => {
+                    // A LIVE line (rewritten in place, no rebuild): the step it is on.
+                    this._sweepStep =
+                        name == null
+                            ? `sweep: run ${run.n} finished`
+                            : `sweep: run ${run.n}, ${done + 1} of ${total}: ${name}`;
+                    const was = this._sweepNow;
+                    this._sweepNow = name == null ? null : 'Sweeping, about a minute';
+                    if (name == null || (was == null && done === 0))
+                        this._repaintPanels();
+                },
+                /*
+                The ground shader's other form, whichever is not in use: its cost (or
+                its saving) on this device. Asked for separately (**Shader sweep**):
+                each one recompiles every ground and decoration shader twice, and the
+                sweeps that included them hung a Quest.
+                */
+                only: what === 'shaders' ? 'extra' : undefined,
+                extra: what !== 'shaders'
+                    ? this._xrLeverExperiments()
+                    : [
+                        {
+                            name: biomeLite(this.scene)
+                                ? '+ full ground shader'
+                                : '- ground detail',
+                            apply: () => {
+                                const scene = this.scene;
+                                const was = biomeLite(scene);
+                                setBiomeLite(scene, !was);
+                                return () => setBiomeLite(scene, was);
+                            },
+                        },
+                        {
+                            name: biomeComputedNoise(this.scene)
+                                ? '- computed noise (texture)'
+                                : '+ computed ground noise',
+                            apply: () => {
+                                const scene = this.scene;
+                                const was = biomeComputedNoise(scene);
+                                setBiomeComputedNoise(scene, !was);
+                                return () => setBiomeComputedNoise(scene, was);
+                            },
+                        },
+                    ],
+                journal: (soFar, starting, phase) => {
+                    run.lines = formatSweep(soFar);
+                    run.starting = starting;
+                    run.phase = phase;
+                    keep();
+                    sendDebug('sweep', {
+                        run: run.n,
+                        kind: what,
+                        phase,
+                        starting,
+                        last: run.lines[run.lines.length - 1] ?? null,
+                    });
+                },
+            });
+        }
+        finally {
+            this._sweepRun = null;
+        }
+        this.lastCostSweep = rows;
+        sendDebug('sweep', { run: run.n, kind: what, finished: true, rows });
+        console.log('cost sweep\n' + this._sweepLines.join('\n'));
+        this._repaintPanels();
+        return rows;
+    }
     _perfMeter = null;
+    // SVG texture repaints (the HUD, panels) over the last second or so, on the
+    // main thread: the counters are page-wide, so this is every scene's.
+    _svgCostAt = { t: 0, checks: 0, repaints: 0, ms: 0 };
+    _svgCostText = 'svg textures: measuring';
+    _svgCostLine() {
+        const now = performance.now();
+        const was = this._svgCostAt;
+        const dt = (now - was.t) / 1000;
+        if (dt >= 1) {
+            if (was.t > 0) {
+                const repaints = (svgTextureCost.repaints - was.repaints) / dt;
+                const ms = (svgTextureCost.ms - was.ms) / dt;
+                // One decimal below 10: a popup redrawn every 2 s read as "0".
+                this._svgCostText = `svg textures: ${repaints.toFixed(repaints < 10 ? 1 : 0)} repaints/s  ${ms.toFixed(0)}ms/s on this thread`;
+            }
+            this._svgCostAt = { t: now, ...svgTextureCost };
+        }
+        return this._svgCostText;
+    }
+    /**
+     * JS heap now and against the first reading, with the redraw count: a number
+     * that climbs while the scene sits still is a leak on this side. GPU memory
+     * is not in it (no browser reports that to a page).
+     */
+    _heapWas = null;
+    _heapLine() {
+        const used = performance.memory?.usedJSHeapSize;
+        if (used == null)
+            return `heap ?  redraws ${svgTextureCost.repaints}`;
+        const mb = used / 1048576;
+        this._heapWas ??= mb;
+        const d = mb - this._heapWas;
+        return `heap ${mb.toFixed(0)}MB (${d >= 0 ? '+' : ''}${d.toFixed(0)})  redraws ${svgTextureCost.repaints}`;
+    }
     // Which debug tools (Perf Stats + registered sources) are expanded, by id. Empty
     // by default — the panel opens with the debug data collapsed to its icon bar, so
     // a demo's own controls aren't buried under diagnostics you didn't ask to see.
@@ -2544,6 +2823,52 @@ export class B3d extends Component {
     */
     _errors = [];
     _errorCaptureOff = null;
+    /**
+     * A node that is its own ancestor, if the scene has one: the names round the
+     * loop. Babylon does not refuse such a parent, and the next `setEnabled` or
+     * `dispose` anywhere on the loop recurses until the stack runs out (#3135).
+     */
+    _parentCycle() {
+        const scene = this.scene;
+        if (scene == null)
+            return null;
+        const nodes = [
+            ...scene.meshes,
+            ...scene.transformNodes,
+            ...scene.cameras,
+            ...scene.lights,
+        ];
+        const clear = new Set();
+        for (const start of nodes) {
+            const path = [];
+            const seen = new Set();
+            let n = start;
+            while (n != null && !clear.has(n)) {
+                if (seen.has(n)) {
+                    return path
+                        .slice(path.indexOf(n))
+                        .map((x) => `${x.name || '(unnamed)'} [${x.getClassName()}]`);
+                }
+                seen.add(n);
+                path.push(n);
+                n = n.parent;
+            }
+            for (const x of path)
+                clear.add(x);
+        }
+        return null;
+    }
+    _cycleReported = false;
+    _reportParentCycle(when) {
+        if (this._cycleReported)
+            return;
+        const cycle = this._parentCycle();
+        if (cycle == null)
+            return;
+        this._cycleReported = true;
+        console.warn('tosi-b3d: a node is its own ancestor:', cycle.join(' <- '));
+        sendDebug('parent-cycle', { when, cycle });
+    }
     _installErrorCapture() {
         const onError = (e) => {
             const where = e.filename
@@ -2556,7 +2881,21 @@ export class B3d extends Component {
             });
             if (this._errors.length > 8)
                 this._errors.shift();
-            this.logDebug('error', { msg: String(e.message), at: where });
+            /*
+            With the stack, top and bottom: a stack overflow's top is the function
+            that recurses and its bottom is what started it, and the middle is the
+            same frame a thousand times.
+            */
+            const stack = String(e.error?.stack ?? '');
+            if (/call stack/i.test(String(e.message)))
+                this._reportParentCycle('error');
+            this.logDebug('error', {
+                msg: String(e.message),
+                at: `${where}:${e.colno}`,
+                stack: stack.length > 5000
+                    ? `${stack.slice(0, 2500)}\n…\n${stack.slice(-2500)}`
+                    : stack,
+            });
         };
         const onRejection = (e) => {
             this._errors.push({
@@ -2566,6 +2905,10 @@ export class B3d extends Component {
             });
             if (this._errors.length > 8)
                 this._errors.shift();
+            this.logDebug('rejection', {
+                msg: String(e.reason),
+                stack: String(e.reason?.stack ?? '').slice(0, 4000),
+            });
         };
         window.addEventListener('error', onError);
         window.addEventListener('unhandledrejection', onRejection);
@@ -2594,6 +2937,7 @@ export class B3d extends Component {
     }
     /** Record a diagnostic event if its tag is armed. Cheap no-op otherwise. */
     logDebug(tag, event) {
+        sendDebug(tag, event);
         if (!this._debugCapture.has(tag))
             return;
         this._debugRing.push({ f: this._debugFrame, tag, ...event });
@@ -2714,6 +3058,7 @@ export class B3d extends Component {
     }
     /** Popups currently open, by tool id — see `_syncDebugPopups`. */
     _debugPopups = new Map();
+    _rebuildingXrPanel = false;
     /** The live rows each open popup registered, so closing can retire them. */
     _popupLive = new Map();
     /**
@@ -2726,6 +3071,8 @@ export class B3d extends Component {
      */
     /** The in-scene panel, while a session is running. See `_attachXrPanel`. */
     _xrPanelEl = null;
+    /** The XR rig node: the camera's parent, and what a vehicle carries. */
+    _xrRig = null;
     _livePanelEl() {
         // In a session the in-scene panel IS the panel — the flat overlay is not
         // visible, so a popup opened against it would be opened into nothing.
@@ -2794,6 +3141,9 @@ export class B3d extends Component {
                 above the other, which is what it looked like.
                 */
                 handleClose: () => {
+                    // The panel being rebuilt under it is not a dismissal.
+                    if (this._rebuildingXrPanel)
+                        return;
                     // Dismissed from outside: clear the flag so the icon un-lights.
                     this._debugOpen.delete(t.id);
                     this._retirePopup(t.id);
@@ -2855,7 +3205,21 @@ export class B3d extends Component {
     _startLiveDebug() {
         if (this._liveDebugTimer != null)
             return;
+        let last = 0;
         this._liveDebugTimer = setInterval(() => {
+            /*
+            In a headset, once every two seconds. Each change redraws the popup's
+            texture (SVG to image to canvas to GPU), and a Quest that hung within a
+            minute or two with Perf Stats open ran indefinitely with it closed
+            (#3135). The cause inside that path is not known; this only does it less.
+            */
+            const now = performance.now();
+            if (this.xrActive && now - last < 2000)
+                return;
+            last = now;
+            // While a readout is up, so the loop is named when it forms and not
+            // when something trips over it.
+            this._reportParentCycle('tick');
             const rows = [...this._liveDebug.flat, ...this._liveDebug.xr];
             if (rows.length === 0) {
                 clearInterval(this._liveDebugTimer);
@@ -2873,6 +3237,9 @@ export class B3d extends Component {
                 // The block re-wraps in place. A source that changes its LINE COUNT still needs a
                 // rebuild to reflow the rows below it; the block itself stays live regardless.
                 row.update(lines);
+                // Sent before the redraw it causes: if that hangs, this is the last line.
+                if (this.xrActive)
+                    sendDebug('live', { lines });
             }
         }, 400);
     }
@@ -2914,9 +3281,17 @@ export class B3d extends Component {
             const draws = meter?.drawCallsCounter.current ?? '?';
             return [
                 `fps ${d.fps}  frame ${frame}ms  cpu ${cpu}ms${d.xrActive ? '  [XR]' : ''}`,
+                this._sweepStep,
                 `draws ${draws}  meshes ${this.scene.getActiveMeshes().length}`,
                 `render ${d.renderWidth}×${d.renderHeight}  (css ${d.cssWidth}×${d.cssHeight})`,
                 `dpr ${d.devicePixelRatio}  scale ${d.hardwareScaling?.toFixed(2)}  ${d.tier}  resizes ${d.resizeCount}`,
+                this._svgCostLine(),
+                this._heapLine(),
+                ...(d.xrActive
+                    ? [
+                        `xr scale ${this.xrResolution.scale.toFixed(2)}  foveation ${this.xrResolution.foveation.toFixed(2)}`,
+                    ]
+                    : []),
             ];
         };
         const block = textBlock3d({ lines: lines(), muted: true });
@@ -2941,14 +3316,17 @@ export class B3d extends Component {
                     }),
                 ]
                 : []),
-            // One-tap discriminator: swap between the engine's real hardware scaling and
-            // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
-            // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
             // Occlusion on or off, from inside any demo and any headset: what it
             // costs is a question about THIS scene on THIS device, and most demos
-            // have no control for it.
+            // have no control for it. The label is what is RUNNING, not what was
+            // asked for: `on` with the flat-only method does nothing in a headset,
+            // and a button that said "on" there measured nothing.
             button3d({
-                label: `Occlusion: ${isOff(this.ssao) ? 'off' : 'on'}`,
+                label: `Occlusion: ${this._ssaoRunning
+                    ? 'on'
+                    : isOff(this.ssao)
+                        ? 'off'
+                        : 'on, not running here'}`,
                 handleClick: () => {
                     ;
                     this.ssao = isOff(this.ssao) ? 'on' : 'off';
@@ -2956,6 +3334,26 @@ export class B3d extends Component {
                     this._repaintPanels();
                 },
             }),
+            button3d({
+                label: this._sweepNow ?? 'Cost sweep',
+                handleClick: () => {
+                    if (this._sweepNow == null)
+                        void this.costSweep().catch(() => { });
+                },
+            }),
+            button3d({
+                label: this._sweepNow ?? 'Shader sweep',
+                handleClick: () => {
+                    if (this._sweepNow == null)
+                        void this.costSweep(2, 'shaders').catch(() => { });
+                },
+            }),
+            ...(this._sweepLines.length > 0
+                ? [textBlock3d({ lines: this._sweepLines, muted: true })]
+                : []),
+            // One-tap discriminator: swap between the engine's real hardware scaling and
+            // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
+            // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
             button3d({
                 label: scaled ? 'Reset scale' : 'Force scale ×3',
                 handleClick: () => {
@@ -3275,6 +3673,10 @@ export class B3d extends Component {
         this._applyClearColor();
         this.scene.collisionsEnabled = true;
         this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0);
+        // Nearest first, the sky last: a covered pixel is rejected before it is
+        // shaded (see draw-order.ts). Babylon's default is creation order.
+        const order = nearFirst(this.scene);
+        this.scene.setRenderingOrder(0, order, order);
         // Seed device quality BEFORE any child component builds, so terrain/shadows/
         // reflections resolve their `auto` defaults against the right budget on frame 1.
         // Never let quality setup break the scene — fall back to the safe default.
@@ -3424,6 +3826,28 @@ export class B3d extends Component {
             disableDefaultUI: true,
         });
         this.xrHelper = xr;
+        /*
+        THE POINTER DOES NOT PICK WHAT YOU ARE SITTING IN.
+    
+        In a cockpit the hull is all around you and nearer than any panel, so the
+        controller's ray landed on the canopy: the laser dot sat on the cockpit,
+        and on a Quest the panel behind it could be hovered but not pressed or
+        dragged, with no way out of the session (Tonio, 0.9.0 run-through, board
+        #3198). The panel re-picks past an occluder, which is why an emulated
+        controller could still press it, but that is a second pick standing in for
+        a first one that should never have hit the hull.
+    
+        So anything beneath the node the rig is parented to (the vehicle you are
+        riding) is not a pointer target. The rig's own children (the panels) still
+        are. On foot, or in a chase view, the rig is parented to nothing you could
+        be inside, and nothing changes.
+        */
+        if (xr.pointerSelection != null) {
+            xr.pointerSelection.raySelectionPredicate = (m) => m.isEnabled() &&
+                m.isVisible &&
+                m.isPickable &&
+                !insideCarrier(m, this._xrRig);
+        }
         if (flatCamera != null && this.scene.activeCamera !== flatCamera) {
             this.scene.activeCamera = flatCamera;
         }
@@ -3542,6 +3966,8 @@ export class B3d extends Component {
                 // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
                 // back to the flat one on exit (the cheap lever that's safe to change live).
                 this._applyHardwareScaling(true);
+                this._applyXrResolution();
+                this._applyGroundDetail(true);
                 // Same reason: the XR tier is a smaller ambient pool, so re-divide it. A snowstorm
                 // that was honest on a monitor may only afford to be nothing at all in a headset.
                 this._reallocAmbient();
@@ -3569,6 +3995,9 @@ export class B3d extends Component {
                 }
                 this._flatOrbitState = null;
                 this._applyHardwareScaling(false);
+                this._applyGroundDetail(false);
+                this._xrViewportOff?.();
+                this._xrViewportOff = null;
                 this._reallocAmbient();
                 xrSession?.dispose();
                 xrSession = undefined;
@@ -3614,6 +4043,8 @@ export class B3d extends Component {
         const scene = this.scene;
         const cam = base.camera;
         const rig = new BABYLON.TransformNode('xr-rig', scene);
+        this._xrRig = rig;
+        refuseOwnAncestor(rig);
         /*
         ARRIVE WHERE YOU WERE LOOKING FROM — height included.
     
@@ -3656,16 +4087,30 @@ export class B3d extends Component {
         // through here — those update the <text> nodes in place.
         let panel = this._attachXrPanel(base, frames.eye);
         this._refreshXrPanel = () => {
-            panel.dispose();
             /*
             AND THE POPUPS GO WITH IT. This presentation really does destroy them —
             the plane is disposed and rebuilt — where the flat one preserves its
-            holders across a rebuild. So the handles are dropped rather than closed
-            (closing a disposed layer is a no-op at best), and `_syncDebugPopups`
-            re-opens whatever `_debugOpen` still asks for against the new panel.
+            holders across a rebuild, and `_syncDebugPopups` re-opens whatever
+            `_debugOpen` still asks for against the new panel.
+      
+            CLOSED, not dropped. Dropping the handles relied on every popup being a
+            child of the plane and dying with it. One that was not (torn off, or
+            asked for and not yet mounted when the next rebuild came) stayed in the
+            scene with nothing holding it: a second Perf Stats that never updated
+            and could not be closed, seen on a Quest after a sweep. Closed BEFORE
+            the plane goes, and quietly: this is not the user closing the tool.
             */
-            for (const id of [...this._debugPopups.keys()])
-                this._retirePopup(id);
+            this._rebuildingXrPanel = true;
+            try {
+                for (const [id, handle] of [...this._debugPopups]) {
+                    handle.close();
+                    this._retirePopup(id);
+                }
+            }
+            finally {
+                this._rebuildingXrPanel = false;
+            }
+            panel.dispose();
             this._xrPanelEl = null;
             panel = this._attachXrPanel(base, frames.eye);
         };
@@ -5218,6 +5663,7 @@ export class B3d extends Component {
             budgetAllows: budgets.ssao,
             xrCapable: projected,
         });
+        this._ssaoRunning = active;
         const params = {
             strength: Number(a.ssaoStrength) || 0,
             radius: Number(a.ssaoRadius) || 2,

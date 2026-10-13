@@ -54,6 +54,22 @@ export declare const ICE_BEARS = 0.5;
  * floating in it, so you fall through and swim.
  */
 export declare function iceBears(temperature: number, depth: number): boolean;
+/**
+ * The triangles of a shore grid that carry weight, as an index list for the
+ * ice collision mesh.
+ *
+ * A triangle is kept when the solidity AVERAGED over its corners bears, which
+ * is where the drawn ice (interpolated across the triangle) crosses the same
+ * threshold. Requiring all three corners to bear left a band a whole cell wide
+ * where the ice was drawn solid, `iceBearsAt` said yes and the mesh had a hole;
+ * on the coarse outer grid that band is 16 m and more, enough for a car or a
+ * shell to fall through. A triangle wholly over land is dropped: land is at
+ * least as solid by the rule, and a colliding plane at sea level under a
+ * hillside is nobody's ice.
+ *
+ * `data` is `shoreData`'s output: `[depth, cover, solid, distance]` per vertex.
+ */
+export declare function bearingTriangles(indices: ArrayLike<number>, data: ArrayLike<number>): number[];
 /** Which side of bearing ice a body is on; `none` where the ice does not bear. */
 export type IceSide = 'none' | 'over' | 'under';
 /**

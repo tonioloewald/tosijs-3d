@@ -14,6 +14,7 @@ import { type FramePanelSpec } from './frame-panel.js';
 import { type FogState, type FogLayer } from './atmosphere.js';
 import { type QualitySetting } from './b3d-quality.js';
 import { type SsaoSetting } from './b3d-ssao.js';
+import { type SweepRow } from './cost-sweep.js';
 import { type AmbientEffect } from './ambient-budget.js';
 export declare const showB3dStats: (on?: boolean) => void;
 /**
@@ -30,8 +31,6 @@ export type DebugPanelSource = {
     actions?: Array<{
         label: string | (() => string);
         handleClick?: () => void;
-        /** @deprecated use `handleClick` — removed in 0.10. */
-        onClick?: () => void;
     }>;
     /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
      * name — see [[svg-icons]]). Defaults to `'bug'`. */
@@ -132,6 +131,9 @@ export declare class B3d extends Component {
         ssaoRadius: number;
         ssaoMethod: "screen" | "projected";
         ssaoRate: number;
+        xrRenderScale: number;
+        xrFoveation: number;
+        groundDetail: "auto" | "full" | "lite";
         pixelRatio: number;
         stats: boolean;
         /** Pause automatically when the tab/window goes to the background.
@@ -362,6 +364,8 @@ export declare class B3d extends Component {
     glowLayer?: BABYLON.GlowLayer;
     private static _warnedSsaoAlways;
     private _ssao?;
+    /** Whether occlusion is actually being drawn (the setting can say `on` where it cannot run). */
+    private _ssaoRunning;
     private _projectedAo?;
     private _ssaoCamObs?;
     xrHelper?: BABYLON.WebXRDefaultExperience;
@@ -749,6 +753,15 @@ export declare class B3d extends Component {
      * of waiting for quiet — see DECISIONS.md. This is the fix that doesn't need one.
      */
     private _probeWhenIdle;
+    private _xrViewportOff;
+    /** What a session is drawn at right now: `{ scale, foveation }`. */
+    xrResolution: {
+        scale: number;
+        foveation: number;
+    };
+    private _applyXrResolution;
+    private _xrLeverExperiments;
+    private _applyGroundDetail;
     private _applyHardwareScaling;
     private _appliedPixelRatio;
     private _pixelRatioQuery;
@@ -806,7 +819,29 @@ export declare class B3d extends Component {
      */
     private _ambientWatchdog;
     private _statsBaseScale;
+    private _sweepRuns;
+    private _sweepRun;
+    private get _sweepLines();
+    private _sweepNow;
+    private _sweepStep;
+    /** The rows of the last {@link costSweep}, for reading over a debug bridge. */
+    lastCostSweep: SweepRow[];
+    /**
+     * Where this scene's frame goes, measured here: see [[cost-sweep]]. Also the
+     * **Cost sweep** button in Perf Stats, so it runs inside a headset session.
+     */
+    costSweep(seconds?: number, what?: 'scene' | 'shaders'): Promise<SweepRow[]>;
     private _perfMeter;
+    private _svgCostAt;
+    private _svgCostText;
+    private _svgCostLine;
+    /**
+     * JS heap now and against the first reading, with the redraw count: a number
+     * that climbs while the scene sits still is a leak on this side. GPU memory
+     * is not in it (no browser reports that to a page).
+     */
+    private _heapWas;
+    private _heapLine;
     private _debugOpen;
     private _debugSources;
     private _liveDebug;
@@ -935,6 +970,14 @@ export declare class B3d extends Component {
     addDebugSource(source: DebugPanelSource): () => void;
     private _errors;
     private _errorCaptureOff;
+    /**
+     * A node that is its own ancestor, if the scene has one: the names round the
+     * loop. Babylon does not refuse such a parent, and the next `setEnabled` or
+     * `dispose` anywhere on the loop recurses until the stack runs out (#3135).
+     */
+    private _parentCycle;
+    private _cycleReported;
+    private _reportParentCycle;
     private _installErrorCapture;
     private _debugRing;
     private _debugCapture;
@@ -961,6 +1004,7 @@ export declare class B3d extends Component {
     private _panelGadgets;
     /** Popups currently open, by tool id — see `_syncDebugPopups`. */
     private _debugPopups;
+    private _rebuildingXrPanel;
     /** The live rows each open popup registered, so closing can retire them. */
     private _popupLive;
     /**
@@ -973,6 +1017,8 @@ export declare class B3d extends Component {
      */
     /** The in-scene panel, while a session is running. See `_attachXrPanel`. */
     private _xrPanelEl;
+    /** The XR rig node: the camera's parent, and what a vehicle carries. */
+    private _xrRig;
     private _livePanelEl;
     /**
      * Open and close debug popups so they match `_debugOpen`.

@@ -112,12 +112,6 @@ export declare class B3dGalaxy extends B3dChild {
     getStarSystem(index: number): StarSystemData | null;
     /** Get the galaxy data */
     getGalaxyData(): GalaxyData | null;
-    /**
-     * @deprecated There is no particle system any more — stars are billboarded
-     * in the vertex shader. Use {@link pickStar} to pick. Returns null; removed
-     * in 0.10.
-     */
-    getStarSPS(): null;
     /** The star mesh — hide it, fade it, or compare against it. */
     getStarMesh(): BABYLON.Mesh | null;
     /**

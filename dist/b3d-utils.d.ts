@@ -178,6 +178,17 @@ export declare function markUiMesh(mesh: BABYLON.AbstractMesh): void;
  */
 export declare function isNoCollide(mesh: BABYLON.AbstractMesh): boolean;
 /**
+ * Whether `node` is part of what is CARRYING `rig`: beneath the rig's parent
+ * (the vehicle you ride) without being beneath the rig itself (your own
+ * panels). False when the rig has no parent. Structural, so it is testable
+ * with plain `{ parent }` objects.
+ */
+export declare function insideCarrier(node: {
+    parent?: unknown;
+} | null, rig: {
+    parent?: unknown;
+} | null): boolean;
+/**
  * THE collision predicate. Everything physical picks through this.
  *
  * Excludes UI **by default** — you opt IN to hitting it, never out. That
@@ -471,4 +482,22 @@ export declare const cameraIsAttached: (cam: {
  * fields in `sceneSchemas`).
  */
 export declare function fetchedUrl(value: unknown, where: string): string;
+/**
+ * Make a node refuse a parent that is itself or one of its own descendants,
+ * and say once who asked (console, and the debug sink).
+ *
+ * Babylon accepts such a parent. The node is then its own ancestor, and the
+ * next `setEnabled` or `dispose` that reaches it recurses until the stack runs
+ * out, which stops the render loop.
+ *
+ * Use it on any node an XR camera is parented to. Babylon's hand tracking
+ * (9.16) does this to that node: `WebXRHand.setHandMesh` takes the TOPMOST
+ * ancestor of the hand mesh as its root, and every frame parents that root to
+ * `xrCamera.parent`. The first time hands appear the root is the hand model's
+ * own; that parents it beneath the camera's parent. The hand meshes are shared
+ * and reused, so the second time hands appear (put a controller down, pick it
+ * up, put it down again) the walk goes one step further and the root IS the
+ * camera's parent, which is then parented to itself. Found on a Quest (#3135).
+ */
+export declare function refuseOwnAncestor(node: BABYLON.Node): void;
 //# sourceMappingURL=b3d-utils.d.ts.map

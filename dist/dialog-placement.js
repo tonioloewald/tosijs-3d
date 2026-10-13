@@ -30,7 +30,7 @@ unpleasant.
 **Eased, never snapped.** A dialog that teleports reads as a glitch; one that
 moves reads as deliberate.
 */
-/*{ "parent": "UI", "order": 900 }*/
+/*{ "parent": "b3d-panel", "order": 40 }*/
 const sub = (a, b) => ({
     x: a.x - b.x,
     y: a.y - b.y,

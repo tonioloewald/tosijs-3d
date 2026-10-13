@@ -22,7 +22,7 @@ the SAME model.
   not closed (1+). And the gaps set the width: broad shafts from the ragged
   sky at the threshold, very narrow ones as the cover closes toward 1.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-light-shafts", "order": 10 }*/
 const smooth = (a, b, x) => {
     const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
     return t * t * (3 - 2 * t);

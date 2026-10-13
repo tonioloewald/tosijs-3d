@@ -16,9 +16,46 @@ Attach via [[b3d-terrain]]'s `biome="on"` attribute, or `attachBiomePlugin`
 on any material for authored tiles. Being a plugin (not a ShaderMaterial),
 scene lighting, shadows, and fog keep composing — the same reason
 [[cloud-shadows]] is a plugin.
+
+## Roles: one climate, several kinds of material
+
+The same plugin shades the ground, the rocks on it and the trees, so that all
+of them follow the planet. What differs is the plugin's `role`, which is a
+property of the MATERIAL and is set on the plugin, never in `params` (a
+decorator shares one `params` object between the terrain and everything it
+places):
+
+| `role` | What it does |
+| --- | --- |
+| `'ground'` (default) | Classified by slope and climate, like terrain. Rocks use this |
+| `'leaf'` | Keeps its own colour, pulled toward the ground's by `leafBlend`; turns in autumn and is bare in winter |
+| `'evergreen'` | A leaf that does not turn or drop (needles, palms, cacti); whitens under snow |
+| `'bark'` | Keeps its own colour, lightly tinted by the ground |
+
+```javascript
+const plugin = attachBiomePlugin(leafMaterial)
+plugin.params = terrainPlugin.params // the SAME object: one climate
+plugin.role = 'leaf'
+```
+
+[[b3d-decorator]] does this for you, by material name (`roles`).
+
+## Seasons
+
+`params.season` is where in the year it is (`0` spring equinox, `0.25`
+midsummer, `0.5` autumn, `0.75` midwinter) and `params.seasonality` is how far
+the year swings the temperature (`0`, the default, is no seasons; `0.2` is
+temperate). Winter cools the whole chart: where that takes a moist place below
+freezing, snow lies on level ground and on evergreens, and the sea can freeze
+([[water-shore]]). `seasonOf(season, seasonality)` is the pure rule. On a
+terrain these are `biomeSeason` and `biomeSeasonality`.
+
+Both are in CHART units (see [[biome-chart]], "Two temperature scales"), not
+the degrees an author sets with `biomeTemperature`.
 */
-/*{ "parent": "environment", "order": 900 }*/
+/*{ "parent": "b3d-terrain", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
+import { noiseVolume } from './noise-volume.js';
 /**
  * What a point in the year does to the chart: a temperature offset (summer
  * warm, winter cold) and how far into AUTUMN it is (0 outside it, 1 at the
@@ -224,9 +261,49 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
      */
     role = 'ground';
     _isEnabled = false;
+    _lite;
+    _computed;
     _t0 = performance.now();
     constructor(material) {
-        super(material, 'Biome', 210, { BIOME: false });
+        super(material, 'Biome', 210, {
+            BIOME: false,
+            BIOME_LITE: false,
+            BIOME_NOISETEX: false,
+        });
+        this._lite = liteScenes.get(material.getScene()) === true;
+        this._computed = computedScenes.get(material.getScene()) === true;
+    }
+    /**
+     * Compute the fine 3D noise in the shader instead of reading it from the
+     * shared noise texture. The texture is the default wherever 3D textures
+     * exist (WebGL 2) and is several times cheaper a pixel; this is the way
+     * back, and what the cost sweep switches to measure the difference.
+     */
+    get computedNoise() {
+        return this._computed;
+    }
+    set computedNoise(on) {
+        if (this._computed === on)
+            return;
+        this._computed = on;
+        this.markAllDefinesAsDirty();
+    }
+    /**
+     * The cheap form of the shader, for a GPU that cannot afford the full one:
+     * three noise samples a pixel where the full form takes eight. Climate
+     * noise loses its second octave, the colour patches are sampled flat (so
+     * they streak on a vertical face, which the cliff colour mostly covers) and
+     * the fine brightness breakup reuses the edge dither. Normally set for the
+     * whole scene by `setBiomeLite`, from the device tier.
+     */
+    get lite() {
+        return this._lite;
+    }
+    set lite(on) {
+        if (this._lite === on)
+            return;
+        this._lite = on;
+        this.markAllDefinesAsDirty();
     }
     get isEnabled() {
         return this._isEnabled;
@@ -240,6 +317,14 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
     }
     prepareDefines(defines) {
         defines.BIOME = this._isEnabled;
+        defines.BIOME_LITE = this._isEnabled && this._lite;
+        defines.BIOME_NOISETEX =
+            this._isEnabled &&
+                !this._computed &&
+                has3dTextures(this._material.getScene());
+    }
+    getSamplers(samplers) {
+        samplers.push('biomeNoiseTex');
     }
     getClassName() {
         return 'BiomePlugin';
@@ -286,6 +371,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         if (!this._isEnabled)
             return;
         const p = this.params;
+        const scene = this._material.getScene();
+        if (!this._computed && has3dTextures(scene))
+            uniformBuffer.setTexture('biomeNoiseTex', noiseTextureOf(scene));
         uniformBuffer.updateFloat4('biomeCfg', p.seaLevel, p.baseTemperature, p.lapseRate, p.mapMoisture);
         uniformBuffer.updateFloat4('biomeNoise', p.tNoiseScale, p.tNoiseAmp, p.mNoiseScale, p.mNoiseAmp);
         uniformBuffer.updateFloat4('biomeDither', p.ditherScale, p.ditherAmp, p.cliffStart, p.cliffFull);
@@ -374,6 +462,20 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       // classification fBm stays 2D deliberately — climate is a MAP (and the
       // altitude term already varies it vertically); 4 upgraded evals ≈ the
       // budgeted cost, to be confirmed on-device in the design's step 6 pass.
+      #ifdef BIOME_NOISETEX
+      // One read of a tiling noise block (noise-volume.ts: 64 texels a side,
+      // 4 a cell) instead of eight hashed corners. The texel fraction is
+      // eased before the lookup so the linear filter does not show as creases
+      // where a low-frequency sample is magnified.
+      uniform highp sampler3D biomeNoiseTex;
+      float bioSimplex3(vec3 p) {
+        vec3 uv = p * 4.0 + 0.5;
+        vec3 i = floor(uv);
+        vec3 f = uv - i;
+        uv = i + f * f * (3.0 - 2.0 * f);
+        return texture(biomeNoiseTex, (uv - 0.5) / 64.0).r * 2.0 - 1.0;
+      }
+      #else
       vec3 bioHash3(vec3 p) {
         p = vec3(
           dot(p, vec3(127.1, 311.7, 74.7)),
@@ -400,6 +502,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           u.z
         );
       }
+      #endif
       // Worley/cellular noise for the volcanic plates: F1 = distance to the
       // nearest cell point, F2 the second — F2−F1 → 0 exactly on the borders
       // between plates, which is where the lava veins live.
@@ -458,7 +561,11 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
         // after profiling on mid-range mobile Safari.
-        return bioSimplex(p) + 0.5 * bioSimplex(p * 2.03 + 17.7);
+        #ifdef BIOME_LITE
+          return 1.3 * bioSimplex(p);
+        #else
+          return bioSimplex(p) + 0.5 * bioSimplex(p * 2.03 + 17.7);
+        #endif
       }
       // --- the pure model, mirrored (see biome-chart.ts for the tests) ---
       float bioSlopeMask(float normalUp, float cliffStart, float cliffFull) {
@@ -556,10 +663,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         float landM = clamp(effMapM + mN * mGate, 0.0, 1.0) * 0.75;
         float moisture = underwater ? mix(landM, 1.0, mGate) : landM;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
-        float dith = bioSimplex3(wp * biomeDither.x) * biomeDither.y;
+        float dithRaw = bioSimplex3(wp * biomeDither.x);
+        float dith = dithRaw * biomeDither.y;
         // Within-biome variation: medium-frequency patches select between each
         // cell's A/B colours (coral pink ↔ orange, kelp olive ↔ brown).
-        float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
+        #if defined(BIOME_LITE) && !defined(BIOME_NOISETEX)
+          float varN = 0.5 + 0.5 * bioSimplex(wp.xz * (biomeNoise.x * 3.1) + 31.7);
+        #else
+          float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
+        #endif
         vec3 biome = bioChartColour(temperature + dith, moisture + dith, varN);
         // What grows here, before slope and rock get a say — a leaf takes it.
         vec3 bioGround = biome;
@@ -595,8 +707,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // surface, and the extra frequency also visually breaks any residual
         // shading banding on steep faces.
         if (biomePlanetB.w > 0.0) {
-          float det = 0.7 * bioSimplex3(wp * biomePlanetB.z)
-                    + 0.3 * bioSimplex3(wp * (biomePlanetB.z * 0.13) + 5.7);
+          #ifdef BIOME_LITE
+            // The edge dither is already a fine 3D noise: use it twice.
+            float det = dithRaw;
+          #else
+            float det = 0.7 * bioSimplex3(wp * biomePlanetB.z)
+                      + 0.3 * bioSimplex3(wp * (biomePlanetB.z * 0.13) + 5.7);
+          #endif
           biome *= 1.0 + biomePlanetB.w * det;
         }
         // slope override OUTSIDE the chart: cliffs at any altitude/depth; cave
@@ -858,6 +975,58 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       #endif`,
         };
     }
+}
+const liteScenes = new WeakMap();
+const computedScenes = new WeakMap();
+const noiseTextures = new WeakMap();
+function has3dTextures(scene) {
+    return ((scene.getEngine().webGLVersion ??
+        0) >= 2);
+}
+/** The scene's one noise block, made on first use. */
+function noiseTextureOf(scene) {
+    let tex = noiseTextures.get(scene);
+    if (tex == null) {
+        tex = new BABYLON.RawTexture3D(noiseVolume(64, 16), 64, 64, 64, BABYLON.Constants.TEXTUREFORMAT_R, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        tex.name = 'biome-noise';
+        tex.wrapU = tex.wrapV = tex.wrapR = BABYLON.Texture.WRAP_ADDRESSMODE;
+        noiseTextures.set(scene, tex);
+        tex.onDisposeObservable.add(() => noiseTextures.delete(scene));
+    }
+    return tex;
+}
+/**
+ * Have every biome material in a scene compute its fine noise in the shader
+ * (`true`) or read it from the noise texture (`false`, the default).
+ */
+export function setBiomeComputedNoise(scene, on) {
+    computedScenes.set(scene, on);
+    for (const m of scene.materials) {
+        const plugin = m.pluginManager?.getPlugin('Biome');
+        if (plugin != null)
+            plugin.computedNoise = on;
+    }
+}
+/** Whether a scene's biome materials compute their fine noise. */
+export function biomeComputedNoise(scene) {
+    return computedScenes.get(scene) === true;
+}
+/**
+ * Switch every biome material in a scene to the cheap form of the shader (or
+ * back), and have ones made later start that way. `<tosi-b3d>` calls this
+ * from the device tier and again on entering and leaving a headset.
+ */
+export function setBiomeLite(scene, on) {
+    liteScenes.set(scene, on);
+    for (const m of scene.materials) {
+        const plugin = m.pluginManager?.getPlugin('Biome');
+        if (plugin != null)
+            plugin.lite = on;
+    }
+}
+/** Whether a scene's biome materials are on the cheap form of the shader. */
+export function biomeLite(scene) {
+    return liteScenes.get(scene) === true;
 }
 // Registered so `Material.clone()` can re-instantiate it (see the note in
 // cloud-shadows.ts — an unregistered plugin makes cloning THROW).

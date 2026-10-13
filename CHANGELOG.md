@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.0 (unreleased)
+## 0.10.0
 
 **A quality release: the deprecated names are gone, and a long list of bugs
 with them.** No new elements; what was added is tooling for measuring and
@@ -16,6 +16,9 @@ defaults** below). Most of what breaks was announced in 0.8 and
 `new MersenneTwister()` without a seed, `WorldStore` queries returning copies,
 and `surface.openPanel`'s `onClose`. [Migration.md](https://3d.tosijs.net/Migration/) has every
 pair and what to do.
+
+Size: barrel (min, packages external) 970.3 KB raw / 327.2 KB gz, +2.30% on
+0.9.0.
 
 ### ⚠️ Breaking
 

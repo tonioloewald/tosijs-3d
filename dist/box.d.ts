@@ -25,18 +25,16 @@ export interface BoxChild {
     focusable?: boolean;
     /** Called when the child is activated (pointer up-over, or focus + menu/Enter). */
     handleActivate?: () => void;
-    /** @deprecated use `handleActivate` — removed in 0.10. */
-    onActivate?: () => void;
     /** The box calls this when the child's hover/press/focus state changes. */
     setState?: (state: BoxChildState) => void;
     /**
      * Take the pointer **raw**, in child-local coords, instead of the box's
      * press→activate semantics. For controls that need the whole gesture — a slider
-     * tracks `move` between `down` and `up`, which `onActivate` can't express.
+     * tracks `move` between `down` and `up`, which `handleActivate` can't express.
      *
      * A child that defines this **captures**: once pressed it keeps receiving `move`
      * and `up` even when the pointer leaves its rect, so a drag doesn't die the moment
-     * you slip off the track. It also never fires `onActivate` (it owns the gesture),
+     * you slip off the track. It also never fires `handleActivate` (it owns the gesture),
      * and is implicitly focusable.
      */
     handlePointer?: (kind: PointerKind, x: number, y: number) => void;
@@ -178,13 +176,11 @@ export declare function blockItem(el: SVGElement, height: number): BoxChild;
 export declare function inlineItem(el: SVGElement, width: number, height: number): BoxChild;
 /**
  * A **button** — a focusable, inline pill (rounded rect + centred label) that
- * fires `onActivate` on pointer up-over or focus + activate. Width hugs the label;
+ * fires `handleActivate` on pointer up-over or focus + activate. Width hugs the label;
  * it flows and wraps like any inline item.
  */
 export declare function button(label: string, opts?: {
     handleActivate?: () => void;
-    /** @deprecated use `handleActivate` — removed in 0.10. */
-    onActivate?: () => void;
     font?: FontSpec;
     color?: string;
     background?: string;

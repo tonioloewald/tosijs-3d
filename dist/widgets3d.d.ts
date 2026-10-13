@@ -240,8 +240,6 @@ export interface WidgetHost {
         maxHeight?: number;
         /** Called when this popup goes away — including dismissal from outside. */
         handleClose?: () => void;
-        /** @deprecated use `handleClose` — removed in 0.10. */
-        onClose?: () => void;
     }, ...items: Widget3d[]) => {
         close: () => void;
     };
@@ -326,8 +324,6 @@ export interface WidgetHost {
         chrome?: boolean;
         /** Called when it goes away, however it went. */
         handleClose?: () => void;
-        /** @deprecated use `handleClose` — removed in 0.10. */
-        onClose?: () => void;
     }, ...items: Widget3d[]) => {
         close: () => void;
     };
@@ -435,11 +431,9 @@ export declare function button3d(config: {
     label: string;
     /** Fired on release, on the thing pressed. */
     handleClick?: () => void;
-    /** @deprecated use `handleClick` — removed in 0.10. */
-    onClick?: () => void;
     /**
      * Make this a MENU button: pressing it opens these actions anchored to the
-     * button, instead of (not as well as) firing `onClick`.
+     * button, instead of (not as well as) firing `handleClick`.
      *
      * Both would be a trap — a control that sometimes acts and sometimes opens
      * has no reliable meaning, and you find out which by pressing it.
@@ -473,8 +467,6 @@ export declare function iconBar3d(config: {
         dim?: boolean;
         /** Fired on release, on the thing pressed. */
         handleClick?: () => void;
-        /** @deprecated use `handleClick` — removed in 0.10. */
-        onClick?: () => void;
     }>;
 }): Widget3d;
 /** A labelled on/off switch bound to a boolean. */
@@ -483,8 +475,6 @@ export declare function toggle3d(config: {
     value: Bindable<boolean>;
     /** Fired as the value changes. */
     handleChange?: (v: boolean) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (v: boolean) => void;
 }): Widget3d;
 /** A horizontal slider bound to a number in [min, max], optionally stepped. */
 export declare function slider3d(config: {
@@ -551,8 +541,6 @@ export declare function slider3d(config: {
     precision?: number;
     /** Fired as the value changes. */
     handleChange?: (v: number) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (v: number) => void;
     /**
      * Where the number lives.
      *
@@ -595,8 +583,6 @@ export declare function select3d(config: {
     wrap?: boolean;
     /** Fired as the value changes. */
     handleChange?: (v: string | number) => void;
-    /** @deprecated use `handleChange` — removed in 0.10. */
-    onChange?: (v: string | number) => void;
 }): Widget3d;
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export declare function list3d<T extends {
@@ -607,8 +593,6 @@ export declare function list3d<T extends {
     items: T[];
     /** Fired when a row is chosen. */
     handleSelect?: (item: T, index: number) => void;
-    /** @deprecated use `handleSelect` — removed in 0.10. */
-    onSelect?: (item: T, index: number) => void;
     rowHeight?: number;
 }): Widget3d;
 export interface Spinner3d extends Widget3d {
@@ -709,8 +693,6 @@ export declare function openMenu3d(host: WidgetHost, anchor: {
     /** Fired after an item is chosen (the menu has already closed). */
     handleSelect?: (item: MenuAction, index: number) => void;
     handleClose?: () => void;
-    /** @deprecated use `handleClose` — removed in 0.10. */
-    onClose?: () => void;
 }): {
     close: () => void;
 } | null;

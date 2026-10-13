@@ -14,6 +14,7 @@ export declare class B3dWater extends AbstractMesh {
         follow: boolean;
         shore: "on" | "off";
         shoreFine: boolean;
+        receiveShadows: "on" | "off";
         normalMap: string;
         windForce: number;
         waveHeight: number;
@@ -57,6 +58,8 @@ export declare class B3dWater extends AbstractMesh {
     private _skyFogged;
     /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
     private _skyWasFogged;
+    /** The view-projection each water target was last drawn with. */
+    private _targetViews;
     private _followTick?;
     private _ceilingTick?;
     private _caustics;
@@ -130,6 +133,7 @@ export declare class B3dWater extends AbstractMesh {
     private _pauseWindow;
     private _buildCeiling;
     private _refreshObserver;
+    private _wireCloudShadows;
     sceneDispose(): void;
     /** Reposition the plane under the camera — but SNAPPED to a coarse grid, so it moves
      * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.

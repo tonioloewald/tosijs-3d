@@ -33,7 +33,7 @@ DOM. Formatting emits ONE shape: `#rrggbb`, or `#rrggbbaa` when alpha is not
 fully opaque. That asymmetry is deliberate — a document that round-trips through
 an editor should not churn its bytes because someone typed `#ABC`.
 */
-/*{ "parent": "UI", "order": 268 }*/
+/*{ "parent": "color-field", "order": 10 }*/
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 /** Wrap a hue into `[0, 360)` — a hue is a circle, so 370 is 10. */
 export function wrapHue(h) {

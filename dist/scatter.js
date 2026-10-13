@@ -17,7 +17,9 @@ where the shader paints cold forest, palms at a warm shoreline, cacti in hot
 dry country, and bare rock on the steep and high.
 
 Each axis is a soft band (`[lo, hi]`, eased over `soft`), and a rule's
-suitability at a point is the product of its bands times its `density`.
+suitability at a point is the product of its bands times its `density`. A
+rule with a `thirst` is also thinned where it is drier, so wetter country
+carries more trees and undergrowth among the same rocks.
 
 ## Budget, not density
 
@@ -43,7 +45,7 @@ field** multiplies its weight, high in about a third of the ground and low
 
 | Rule option | Default | Description |
 |-------------|---------|-------------|
-| `clump` | `0.85` | 0 = even spread, 1 = clumps only |
+| `clump` | `0.95` | 0 = even spread, 1 = clumps only |
 | `clumpScale` | `1` | This rule's clump size relative to the scatter's |
 | `clumpGroup` | the rule's `kind` | Rules in one group gather in the SAME places: stones around boulders |
 | `sink` | `0.02` | How much of the model's height the decorator buries. Rocks use a quarter or more |
@@ -64,7 +66,7 @@ coordinates and the seed. The same place always gets the same answer, however
 the region moves, so re-scattering around a moving camera changes what is at
 the EDGE and nothing that stays in view. Stable is the point.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "b3d-decorator", "order": 10 }*/
 import { rockNames } from './procedural-rock.js';
 /*
 Cache keys are NUMBERS — the two cell indices packed into one (±2^20 cells a
@@ -150,23 +152,84 @@ function hashString(text) {
  * round. Tonio: "copses and little regions of detail play much better than
  * random scatter whether it's rocks or trees."
  */
-export function clumpAt(seed, group, x, z, size = 90) {
-    return clumpField(hash(seed, hashString(group)), x, z, size);
+export function clumpAt(seed, group, x, z, size = 90, centre = CLUMP_CENTRE) {
+    return clumpRamp(clumpNoise(hash(seed, hashString(group)), x, z, size), centre, 
+    // Past the normal threshold it is a thinned clump, with its harder edge.
+    centre > CLUMP_CENTRE ? CLUMP_THINNED_EDGE : CLUMP_EDGE);
 }
 /** `clumpAt` with the group already hashed (`hash(seed, hashString(group))`). */
 function clumpField(s, x, z, size) {
+    return clumpRamp(clumpNoise(s, x, z, size), CLUMP_CENTRE);
+}
+/** The noise under the clump field, before its threshold: about 0 … 1. */
+function clumpNoise(s, x, z, size) {
     const u = x / size;
     const v = z / size;
-    const n = 0.7 * valueNoise(s, u, v) + 0.3 * valueNoise(s + 1, u * 2.7, v * 2.7);
-    const t = (n - 0.5) / 0.14;
+    return 0.7 * valueNoise(s, u, v) + 0.3 * valueNoise(s + 1, u * 2.7, v * 2.7);
+}
+const CLUMP_CENTRE = 0.5;
+const CLUMP_EDGE = 0.14;
+/** The threshold that turns the noise into a clump with a soft edge. */
+function clumpRamp(n, centre, edge = CLUMP_EDGE) {
+    const t = (n - centre) / edge;
     return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 }
+/*
+The clump noise's values, sorted: how much ground lies above any threshold.
+Sampled once (4,096 points of one fixed seed); the distribution does not depend
+on the seed, only on the two octaves.
+*/
+let clumpSorted = null;
+function clumpValues() {
+    if (clumpSorted != null)
+        return clumpSorted;
+    const out = new Float64Array(4096);
+    for (let i = 0; i < 64; i++)
+        for (let j = 0; j < 64; j++)
+            out[i * 64 + j] = clumpNoise(7919, i * 1.37 + 0.11, j * 1.37 + 0.53, 1);
+    out.sort();
+    return (clumpSorted = out);
+}
+/**
+ * The threshold at which clumps cover `share` of the ground they cover at the
+ * normal one (`0.5`). Raising the threshold removes the weaker clumps and
+ * shrinks the rest, and leaves the middle of a surviving clump as full as it
+ * was: FEWER CLUMPS, not thinner ones. That is how a scatter is thinned (a
+ * device's share, a dry place). Tonio: "having a tree here and there looks
+ * lame. But having clumps of three or four trees that are more widely
+ * scattered works."
+ */
+export function clumpCentreFor(share) {
+    if (share >= 1)
+        return CLUMP_CENTRE;
+    const v = clumpValues();
+    const half = CLUMP_EDGE / 2;
+    // Ground counted as clump: past the middle of the soft edge.
+    let lo = 0;
+    let hi = v.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (v[mid] < CLUMP_CENTRE + half)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    const above = (v.length - lo) * Math.max(0, share);
+    const at = Math.min(v.length - 1, Math.max(0, Math.round(v.length - above)));
+    return Math.max(CLUMP_CENTRE, v[at] - CLUMP_THINNED_EDGE / 2);
+}
+/*
+A thinned clump has a harder edge than a whole one. With the soft edge most of
+what is left of a small clump is edge, and it is thin all through: the opposite
+of what thinning by the clump is for.
+*/
+const CLUMP_THINNED_EDGE = 0.05;
 /**
  * What a rule's weight is multiplied by at a point: `1 - clump` in a gap (the
  * outliers), rising to well over 1 inside a clump. The scatter's budget solver
  * rescales everything afterwards, so only the RATIO matters.
  */
-export function clumpWeight(rule, seed, x, z, size = 90, strength = rule.clump ?? 0.85) {
+export function clumpWeight(rule, seed, x, z, size = 90, strength = rule.clump ?? 0.95) {
     const s = Math.max(0, Math.min(1, strength));
     if (s === 0)
         return 1;
@@ -181,6 +244,19 @@ export function clumpWeight(rule, seed, x, z, size = 90, strength = rule.clump ?
 export function autoClumpSize(budget, radius) {
     const spacing = Math.sqrt((Math.PI * radius * radius) / Math.max(1, budget));
     return Math.pow(2, Math.round(Math.log2(spacing * 2.5) * 2) / 2);
+}
+/**
+ * The share of a rule's placements that survive at this moisture: 1 for a rule
+ * with no `thirst`, and for a thirsty one `(1 + thirst × m) / (1 + thirst)`.
+ * Applied AFTER a place is chosen, because suitability is only ever compared
+ * with other suitability: scaling every plant up together changes nothing.
+ */
+export function moistureCover(rule, moisture) {
+    const thirst = rule.thirst ?? 0;
+    if (thirst <= 0)
+        return 1;
+    const m = moisture < 0 ? 0 : moisture > 1 ? 1 : moisture;
+    return (1 + thirst * m) / (1 + thirst);
 }
 /** How suitable a point is for a rule — its density times every band. */
 export function suitability(rule, c, slopeDeg) {
@@ -221,6 +297,7 @@ export function scatterPlacements(o) {
         ? o.clumpSize
         : autoClumpSize(o.budget, o.radius);
     const clumpAll = o.clump != null && o.clump >= 0 ? o.clump : undefined;
+    const share = o.share != null ? Math.max(0, Math.min(1, o.share)) : 1;
     const cands = [];
     const R = o.rules.length;
     /*
@@ -236,7 +313,7 @@ export function scatterPlacements(o) {
     const fieldKeys = new Map();
     for (let ri = 0; ri < R; ri++) {
         const r = o.rules[ri];
-        clumpStrength[ri] = Math.max(0, Math.min(1, clumpAll ?? r.clump ?? 0.85));
+        clumpStrength[ri] = Math.max(0, Math.min(1, clumpAll ?? r.clump ?? 0.95));
         const group = r.clumpGroup ?? r.kind;
         const size = clumpSize * (r.clumpScale ?? 1);
         const key = `${group}|${size}`;
@@ -319,6 +396,7 @@ export function scatterPlacements(o) {
                 ny: g.ny,
                 nz: g.nz,
                 w: wAt,
+                m: c.wetness ?? c.moisture,
                 total,
                 h: hash(o.seed, ix, iz, 3),
             });
@@ -385,6 +463,32 @@ export function scatterPlacements(o) {
                     break;
             }
             const rule = o.rules[ri];
+            /*
+            THINNED, BY THE CLUMP. `cover` is the share that should remain: the
+            caller's share (a device that can draw less) times how wet it is here for
+            a thirsty kind. It is applied after the place is chosen (suitability is
+            only ever compared with other suitability, so scaling it does nothing),
+            and it is applied to the clump field's threshold: the weaker clumps go
+            and the middle of the others stays as full as it was. Thinning each
+            place independently instead leaves a tree here and a tree there.
+            */
+            const cover = share * (rule.thirst != null ? moistureCover(rule, c.m) : 1);
+            if (cover < 1) {
+                const strength = clumpStrength[ri];
+                let keep = cover;
+                if (strength > 0) {
+                    const fi = fieldOf[ri];
+                    const n = clumpNoise(fieldSeed[fi], c.x, c.z, fieldSize[fi]);
+                    const was = 1 - strength + strength * 3 * clumpRamp(n, CLUMP_CENTRE);
+                    const left = clumpRamp(n, clumpCentreFor(cover), CLUMP_THINNED_EDGE);
+                    // The outliers' part thins to `cover` in a gap and not at all in
+                    // the middle of a clump that is still there.
+                    const now = (1 - strength) * (cover + (1 - cover) * left) + strength * 3 * left;
+                    keep = now / was;
+                }
+                if (unit(hash(c.h, 15)) >= keep)
+                    continue;
+            }
             const model = rule.models[Math.floor(unit(hash(c.h, 12)) * rule.models.length)];
             const [s0, s1] = rule.scale;
             out.push({
@@ -444,6 +548,7 @@ const numbered = (prefix, count) => Array.from({ length: count }, (_, i) => `${p
 export const NATURE_RULES = [
     {
         kind: 'pine',
+        thirst: 4,
         collider: 'trunk',
         models: numbered('PineTree', 5),
         density: 1,
@@ -455,6 +560,7 @@ export const NATURE_RULES = [
     },
     {
         kind: 'broadleaf',
+        thirst: 8,
         collider: 'trunk',
         models: [...numbered('CommonTree', 5), ...numbered('BirchTree', 5)],
         density: 1,
@@ -467,6 +573,7 @@ export const NATURE_RULES = [
     {
         // Willows keep to low wet ground: the waterside.
         kind: 'willow',
+        thirst: 6,
         collider: 'trunk',
         models: numbered('Willow', 5),
         density: 0.6,
@@ -479,6 +586,7 @@ export const NATURE_RULES = [
     },
     {
         kind: 'palm',
+        thirst: 3,
         collider: 'trunk',
         models: numbered('PalmTree', 4),
         density: 1.4,
@@ -507,6 +615,7 @@ export const NATURE_RULES = [
     },
     {
         kind: 'bush',
+        thirst: 4,
         models: ['Bush_1', 'Bush_2', 'BushBerries_1', 'BushBerries_2'],
         density: 1.4,
         temperature: [0.25, 0.85],
@@ -519,6 +628,7 @@ export const NATURE_RULES = [
     },
     {
         kind: 'undergrowth',
+        thirst: 6,
         models: [
             'Grass',
             'Grass_2',
@@ -771,5 +881,16 @@ export function pruneScatterCache(cache, center, keep) {
         if (dx * dx + dz * dz > k2)
             cache.delete(key);
     }
+}
+/**
+ * Whether `url` names the default decoration library: unset, the resolved
+ * default itself, or any host serving the same path. Asked of the URL in use,
+ * so that naming the default library explicitly is still the default library.
+ */
+export function isDefaultLibrary(url, resolvedDefault, path) {
+    if (!url)
+        return true;
+    const bare = url.split(/[?#]/)[0];
+    return bare === resolvedDefault || bare === path || bare.endsWith('/' + path);
 }
 //# sourceMappingURL=scatter.js.map

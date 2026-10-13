@@ -11,18 +11,24 @@ the harness (`describe`/`test`/`expect`) as an argument. A `.test.ts` in either 
 own `bun:test` hooks and a factory for its store:
 
 ```javascript
-import { runMinSimConformance } from 'tosijs-3d'
+// Subpaths, not the barrel: the barrel defines elements and needs a DOM.
+import { runMinSimConformance } from 'tosijs-3d/min-sim-conformance'
 import { describe, test, expect } from 'bun:test'
-import { WorldStore } from 'tosijs-3d'
+import { WorldStore } from 'tosijs-3d/world-store'
 // runMinSimConformance(() => new WorldStore(), { describe, test, expect })
 ```
 
 What it pins is the **contract behaviour**, not the geometry: place membership, portal routing
 (cheapest, bidirectional, locked = impassable), the proximity ladder (a rung in-place, `elsewhere`
-across places), the `SchematicView` shape, `traverse` → `placeEntered`, and that steering toward an
-entity actually *closes the distance*. It never asserts a coordinate — coordinates never cross.
+across places), the `SchematicView` shape, `traverse` → `placeEntered`, that steering toward an
+entity actually *closes the distance*, and the **choice primitive**: a pick emits exactly one
+`choiceMade`, an option that is not on the menu emits nothing, a choice is reported once, and the
+sim resolves nothing. It never asserts a coordinate — coordinates never cross.
+
+A store handed to the kit needs two simulation-side methods that are not part of `MinSimApi`:
+`tick(seconds)` and `chooseOption(choiceId, optionId)` (the player's pick).
 */
-/*{ "parent": "World-Sim", "order": 900 }*/
+/*{ "parent": "world-sim", "order": 50 }*/
 const room = (id, label, parent, extent = 'small') => ({
     id,
     kind: 'room',
@@ -183,6 +189,40 @@ export function runMinSimConformance(makeApi, { describe, test, expect }) {
             api.placeEntity({ id: 'ghost', kind: 'npc', label: 'Ghost' }, { place: 'study' });
             api.traverse('ghost', 'window'); // locked → stays put
             expect(api.placeOf('ghost')).toBe('study');
+        });
+        test('choice: a pick emits exactly one choiceMade, and nothing else happens', () => {
+            const api = makeApi();
+            stage(api);
+            const seen = [];
+            api.subscribe((e) => seen.push(e));
+            const before = api.placeOf('player');
+            api.presentChoice({
+                id: 'wolfMenu',
+                at: 'wolf',
+                options: [
+                    { id: 'fight', label: 'Fight' },
+                    { id: 'flee', label: 'Flee' },
+                ],
+            });
+            // presenting is not an event: the sim reports PICKS
+            expect(seen.filter((e) => e.type === 'choiceMade')).toEqual([]);
+            // an option that is not on the menu emits nothing and leaves it open
+            api.chooseOption('wolfMenu', 'negotiate');
+            expect(seen.filter((e) => e.type === 'choiceMade')).toEqual([]);
+            api.chooseOption('wolfMenu', 'flee');
+            const made = seen.filter((e) => e.type === 'choiceMade');
+            expect(made.length).toBe(1);
+            const pick = made[0];
+            expect(pick.choiceId).toBe('wolfMenu');
+            expect(pick.optionId).toBe('flee');
+            // reported once: the choice is closed, so a second pick is not heard
+            api.chooseOption('wolfMenu', 'fight');
+            expect(seen.filter((e) => e.type === 'choiceMade').length).toBe(1);
+            // the sim NEVER resolves the choice: picking "flee" moved nobody and
+            // produced no other event. Adjudication is the driver's.
+            expect(seen.length).toBe(1);
+            expect(api.placeOf('player')).toBe(before);
+            expect(api.placeOf('wolf')).toBe('garden');
         });
         test('steer toward an entity closes the distance over ticks', () => {
             const api = makeApi();

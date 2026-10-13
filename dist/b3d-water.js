@@ -45,7 +45,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `textureSize` | `0` (auto) | Size of the reflection and refraction textures. Each is the whole scene drawn again. `0` follows the device tier: 1024 / 512 / 256 |
-| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. Flat only: inside a headset session it is always every frame, because skipping one eye's reflection breaks stereo |
+| `reflectionRefresh` | `0` (auto) | Redraw those textures every Nth frame. `0` follows the device tier: 1 / 2 / 3. `1` is every frame. It applies in a headset too: one drawing serves both eyes and later frames, looked up through the view it was drawn from |
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
@@ -59,6 +59,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `causticsScale` | `6` | Metres per caustic cell: bigger is coarser and calmer |
 | `shore` | `'off'` | `'on'` gives the surface the depth of the water under it, from the scene's terrain, and draws a shoreline from it: surf running in, pale shallows, and ice that spreads out from the land when the climate at sea level is below freezing. See [water-shore](/water-shore/). Not for `spherical` water. Set at build time |
 | `shoreFine` | `false` | With `shore="on"`: a water vertex every 2 m near the viewer where there is otherwise one every 4 m (about 16,600 vertices, up from 9,400). The surf follows a winding shore more closely; each refresh of the shore data (when the water re-centres, every 32 m travelled) costs about two thirds more. Set at build time |
+| `receiveShadows` | `'on'` | The surface (and the ice on it) takes shadows from the sun and from clouds. `'off'` skips both lookups per water pixel |
 | `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
@@ -84,18 +85,20 @@ document.body.append(
 )
 ```
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "water", "order": 10 }*/
 import { plane as mediumPlane } from './medium.js';
 import * as BABYLON from '@babylonjs/core';
 import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
-import { AbstractMesh, fetchedUrl, markCollisionGroup, sceneDelta, } from './b3d-utils.js';
+import { AbstractMesh, fetchedUrl, markCollisionGroup, sceneDelta, isOff, } from './b3d-utils.js';
 import { inheritedWind, waterWind } from './wind.js';
 import { band } from './atmosphere.js';
 import { CausticsMap } from './caustics.js';
-import { shoreGrid, shoreData, iceBears, ICE_BEARS, } from './water-shore.js';
-import { registerShoreWater, IceUndersidePlugin } from './water-shore-shader.js';
+import { shoreGrid, shoreData, iceBears, bearingTriangles, } from './water-shore.js';
+import { registerShoreWater, IceUndersidePlugin, CLOUD_UNIFORMS, CLOUD_SAMPLER, REFRACTION_VP, waterTargetsShareable, } from './water-shore-shader.js';
+import { cloudShadowMapOf } from './cloud-shadows.js';
+import { nearFirst } from './draw-order.js';
 import { seasonOf } from './biome-plugin.js';
 import { planetTemperature } from './biome-chart.js';
 export class B3dWater extends AbstractMesh {
@@ -165,6 +168,16 @@ export class B3dWater extends AbstractMesh {
         // Twice the vertices near the viewer, for a shoreline you stand at.
         shoreFine: false,
         /*
+        THE SURFACE TAKES SHADOWS. It never did: the water does not register with
+        the scene the way a loaded mesh does, so the sun never marked it as a
+        receiver, and a cliff, a hull or a tree threw no shadow on the sea. On
+        open water that is easy to miss. On ICE it is not: a white sheet with
+        nothing on it casting a shadow reads as a flat cut-out (Tonio: "ice on
+        water surface doesn't receive shadows"). `'off'` restores the old look
+        and saves the shadow lookup per water pixel.
+        */
+        receiveShadows: 'on',
+        /*
         EMPTY MEANS PROCEDURAL, and that is the default on purpose.
     
         It used to default to `/waterbump.png` — root-absolute so it resolved the
@@ -213,6 +226,8 @@ export class B3dWater extends AbstractMesh {
     _skyFogged = false;
     /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
     _skyWasFogged = new WeakMap();
+    /** The view-projection each water target was last drawn with. */
+    _targetViews = [];
     _followTick;
     _ceilingTick;
     _caustics = null;
@@ -318,7 +333,10 @@ export class B3dWater extends AbstractMesh {
         const attrs = this;
         // `shore` asked for and not given must say so: the water is otherwise
         // simply plain, with no surf, no ice and nothing to explain it.
-        const shoreReady = attrs.shore === 'on' && registerShoreWater();
+        // Patched for every water, not only a shore: the patch is also where the
+        // surface takes cloud shadows.
+        const patched = registerShoreWater();
+        const shoreReady = attrs.shore === 'on' && patched;
         if (attrs.shore === 'on' && attrs.spherical) {
             console.warn('tosi-b3d-water: shore="on" does nothing on spherical water.');
         }
@@ -386,6 +404,7 @@ export class B3dWater extends AbstractMesh {
             }, scene);
         }
         this.mesh.checkCollisions = false;
+        this.mesh.receiveShadows = !isOff(attrs.receiveShadows);
         /*
         MARK IT AS WATER.
     
@@ -425,17 +444,51 @@ export class B3dWater extends AbstractMesh {
             xr,
         });
         this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(textureSize, textureSize));
+        if (patched)
+            this._wireCloudShadows(this.waterMaterial, scene);
         const refresh = Math.max(1, Math.round(resolveBudget(attrs.reflectionRefresh, 'waterRefresh', { xr })));
         const targets = this.waterMaterial.getRenderTargetTextures?.().data ?? [];
+        // A target keeps its own draw order; give it the scene's (draw-order.ts).
+        const order = nearFirst(scene);
+        for (const target of targets)
+            target?.setRenderingOrder(0, order, order);
         /*
-        EVERY FRAME WHILE A SESSION IS PRESENTING. Babylon advances a target's
-        refresh counter once per CAMERA, and a headset has two: a rate of 2 drew
-        the reflection for the left eye only (and saved nothing), a rate of 3
-        alternated eyes, and the skipped eye showed the other eye's reflection.
-        Found by the 0.8.15 review; skipping whole frames for both eyes together
-        is the real fix and is not built yet. The smaller TEXTURE still applies
-        in a headset, which is where most of the saving was.
+        ONE DRAWING FOR BOTH EYES, EVERY Nth FRAME. Each target is the scene drawn
+        again, and Babylon redraws it once per CAMERA: in a headset that is four
+        extra scene passes a frame. Its own refresh counter also counts cameras,
+        so a rate of 2 drew for the left eye only and a rate of 3 alternated eyes.
+    
+        So the decision is made per FRAME here, and the view each target was
+        drawn from is kept and used to look it up (the stock shader looks the
+        refraction up with the view being drawn now, and the reflection with the
+        projection being drawn now, which is right only if it is redrawn for
+        every camera every frame). A lookup through the view it was drawn from
+        lands on the right place in the world from either eye and on any later
+        frame; what goes stale is only what moved.
         */
+        const shareable = patched && waterTargetsShareable();
+        this._targetViews = [];
+        for (const target of targets) {
+            if (target == null)
+                continue;
+            const view = BABYLON.Matrix.Identity();
+            this._targetViews.push(view);
+            target.onBeforeRenderObservable.add(() => {
+                view.copyFrom(scene.getTransformMatrix());
+            });
+            if (!shareable)
+                continue;
+            target.refreshRate = 1;
+            let drawn = -1;
+            target._shouldRender =
+                () => {
+                    const frame = scene.getFrameId();
+                    if (drawn >= 0 && frame - drawn < refresh)
+                        return false;
+                    drawn = frame;
+                    return true;
+                };
+        }
         const applyRefresh = () => {
             const rate = this.owner?.xrActive === true ? 1 : refresh;
             for (const target of targets) {
@@ -443,11 +496,16 @@ export class B3dWater extends AbstractMesh {
                     target.refreshRate = rate;
             }
         };
-        applyRefresh();
         if (this._refreshObserver != null)
             scene.onBeforeRenderObservable.remove(this._refreshObserver);
-        this._refreshObserver =
-            refresh > 1 ? scene.onBeforeRenderObservable.add(applyRefresh) : null;
+        this._refreshObserver = null;
+        if (!shareable) {
+            // Babylon's shader has changed shape: the old rule (every frame in a
+            // headset, the tier's rate flat).
+            applyRefresh();
+            if (refresh > 1)
+                this._refreshObserver = scene.onBeforeRenderObservable.add(applyRefresh);
+        }
         const normalMap = fetchedUrl(attrs.normalMap, 'b3d-water normalMap');
         this.waterMaterial.bumpTexture = normalMap
             ? // An explicit path: load it, but SAY SO if it fails. The checkerboard
@@ -978,6 +1036,55 @@ export class B3dWater extends AbstractMesh {
         return ceiling;
     }
     _refreshObserver = null;
+    /*
+    CLOUD SHADOWS ON THE SURFACE. WaterMaterial builds its effect from a fixed
+    list of uniforms and samplers and offers no hook to extend it, so the names
+    the patched shader added are appended as the effect is created; without that
+    the locations are never looked up and every set is a silent no-op.
+    */
+    _wireCloudShadows(mat, scene) {
+        const ready = mat.isReadyForSubMesh.bind(mat);
+        mat.isReadyForSubMesh = (mesh, subMesh, useInstances) => {
+            const engine = scene.getEngine();
+            const create = engine.createEffect;
+            engine.createEffect = function (name, options) {
+                if (name === 'water' && Array.isArray(options?.uniformsNames)) {
+                    options.uniformsNames.push(...CLOUD_UNIFORMS, REFRACTION_VP);
+                    options.samplers?.push(CLOUD_SAMPLER);
+                }
+                // eslint-disable-next-line prefer-rest-params
+                return create.apply(this, arguments);
+            };
+            try {
+                return ready(mesh, subMesh, useInstances);
+            }
+            finally {
+                engine.createEffect = create;
+            }
+        };
+        mat.onBindObservable.add(() => {
+            const effect = mat.getEffect();
+            if (effect == null)
+                return;
+            // Targets are [reflection, refraction]: look each up through the view
+            // it was drawn from (see where `_targetViews` is filled).
+            const [reflection, refraction] = this._targetViews;
+            if (refraction != null)
+                effect.setMatrix(REFRACTION_VP, refraction);
+            if (reflection != null && waterTargetsShareable())
+                effect.setMatrix('reflectionViewProjection', reflection);
+            const map = cloudShadowMapOf(scene);
+            if (map == null || this.mesh?.receiveShadows !== true) {
+                effect.setFloat('b3dCloudStrength', 0);
+                return;
+            }
+            effect.setFloat4('b3dCloudWindow', map.centerX, map.centerZ, 1 / map.worldSize, map.layerTop);
+            effect.setFloat4('b3dCloudSun', map.sunX, map.sunY, map.sunZ, map.groundY);
+            const st = map.strengthSource?.() ?? 1;
+            effect.setFloat('b3dCloudStrength', Number.isFinite(st) ? Math.max(0, Math.min(1, st)) : 1);
+            effect.setTexture(CLOUD_SAMPLER, map.sourceTexture ?? map.texture);
+        });
+    }
     sceneDispose() {
         if (this._refreshObserver != null)
             this.owner?.scene?.onBeforeRenderObservable.remove(this._refreshObserver);
@@ -1144,19 +1251,7 @@ export class B3dWater extends AbstractMesh {
         const mesh = this.mesh;
         if (ice == null || mesh == null)
             return;
-        const { indices } = shore.grid;
-        const data = shore.data;
-        // Over water only: land is at least as "solid" by the rule, and a
-        // colliding plane at sea level under a hillside is nobody's ice.
-        const bears = (v) => data[v * 4 + 2] >= ICE_BEARS && data[v * 4] > -0.5;
-        const kept = [];
-        for (let i = 0; i < indices.length; i += 3) {
-            const a = indices[i];
-            const b = indices[i + 1];
-            const c = indices[i + 2];
-            if (bears(a) && bears(b) && bears(c))
-                kept.push(a, b, c);
-        }
+        const kept = bearingTriangles(shore.grid.indices, shore.data);
         ice.position.copyFrom(mesh.position);
         if (kept.length === 0) {
             ice.setEnabled(false);
