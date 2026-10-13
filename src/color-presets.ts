@@ -11,18 +11,20 @@ export interface ColorPreset {
 }
 
 /**
- * A small general set: five greys, then seven dull, greyed colours in the
- * order of the spectrum. Muted on purpose: a scene's colours are mostly
+ * A small general set: five greys from whitish to blackish, then seven dull,
+ * greyed colours in the order of the spectrum. No pure white and no pure
+ * black: a lit surface that is already at the limit has nowhere to go, so
+ * white blows out under any light and black shows no shading at all. Muted on purpose: a scene's colours are mostly
  * earths and hazes, and a saturated swatch is rarely the one you want but
  * always the one that catches the eye. The picker above is one tap away for
  * anything brighter, and `+` keeps what you make.
  */
 export const COLOR_PRESETS: string[] = [
-  '#ffffff',
-  '#c0c0c0',
+  '#e8e8e8', // whitish
+  '#b4b4b4',
   '#808080',
-  '#404040',
-  '#000000',
+  '#4c4c4c',
+  '#1c1c1c', // blackish
   '#9c4a44', // dull red
   '#a8703e', // dull orange
   '#a89a4a', // ochre
