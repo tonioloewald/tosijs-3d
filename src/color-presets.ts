@@ -11,28 +11,25 @@ export interface ColorPreset {
 }
 
 /**
- * A general set: greys, the spectrum at one strength, and the earths and
- * skies a scene keeps reaching for.
+ * A small general set: five greys, then seven dull, greyed colours in the
+ * order of the spectrum. Muted on purpose: a scene's colours are mostly
+ * earths and hazes, and a saturated swatch is rarely the one you want but
+ * always the one that catches the eye. The picker above is one tap away for
+ * anything brighter, and `+` keeps what you make.
  */
 export const COLOR_PRESETS: string[] = [
   '#ffffff',
-  '#c8c8c8',
+  '#c0c0c0',
   '#808080',
-  '#383838',
+  '#404040',
   '#000000',
-  '#e53935',
-  '#fb8c00',
-  '#fdd835',
-  '#43a047',
-  '#00acc1',
-  '#1e88e5',
-  '#5e35b1',
-  '#d81b60',
-  '#8d6e63',
-  '#d7c4a0',
-  '#6b8e4e',
-  '#87b5e8',
-  '#1a2a4a',
+  '#9c4a44', // dull red
+  '#a8703e', // dull orange
+  '#a89a4a', // ochre
+  '#5c8a50', // dull green
+  '#458a86', // dull teal
+  '#4a6a9c', // dull blue
+  '#74559c', // dull purple
 ]
 
 /** Normalise, drop what does not parse, and keep the first of any repeat. */
