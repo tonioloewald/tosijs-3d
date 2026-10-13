@@ -466,18 +466,14 @@ export class B3dPlanet extends B3dChild {
     */
     const unified = !!attrs.colorMap || isOff(attrs.biome)
     let heightData: Float32Array | null = null
-    let seaAt = 0
     let hasSea = false
     let highest = 1e-3
     let deepest = 1e-3
     if (unified) {
       this.vertexHeights = heights
-      hasSea =
-        this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0
-      seaAt =
-        this.surface != null || !hasSea
-          ? 0
-          : this.heightPercentile(attrs.ocean)
+      hasSea = this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0
+      const seaAt =
+        this.surface != null || !hasSea ? 0 : this.heightPercentile(attrs.ocean)
       heightData = new Float32Array(totalVerts * 2)
       for (let i = 0; i < totalVerts; i++) {
         const above = heights[i] - seaAt
