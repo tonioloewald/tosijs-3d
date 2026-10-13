@@ -190,7 +190,7 @@ let shared: SwatchStore | null = null
 /** The page's one store, kept in `localStorage` where there is one. */
 export function sharedSwatches(): SwatchStore {
   if (shared == null) {
-    let storage: SwatchStorage | null = null
+    let storage: SwatchStorage | null
     try {
       storage = (globalThis as any).localStorage ?? null
     } catch {
