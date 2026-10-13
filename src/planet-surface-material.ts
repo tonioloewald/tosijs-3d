@@ -92,6 +92,7 @@ uniform vec4 psLight;
 uniform vec3 psEye;
 uniform vec4 psK;
 uniform vec4 psSea;
+uniform float psLakes;
 uniform mat4 world;
 ${biomeDecl}
 ${GAS_GIANT_GLSL}
@@ -123,6 +124,19 @@ void main(){
   if(psK.w>0.5){
     vec2 uv=vec2(atan(d.z,d.x)/6.2831853+0.5,1.0-acos(clamp(d.y,-1.0,1.0))/3.14159265);
     land=texture2D(psColor,uv).rgb;
+    /*
+    INLAND WATER, guessed from the map's COLOUR (optional): the height map
+    knows the sea, but a lake sits above sea level and reads as land. Two
+    tells. Blue above both red and green (the Caspian, a coast). And NEARLY
+    BLACK: NASA's Blue Marble paints deep lakes about 0/7/2 out of 255,
+    darker than any land on it (the Congo forest is 21/35/10), which is how
+    Victoria, Tanganyika, Superior and Baikal are found. Either is taken for
+    water: it keeps the map's colour and gains the sea's glint. A guess, so
+    it is a setting: blue ice or a black lava field can pass for a lake.
+    */
+    float mx=max(land.r,max(land.g,land.b));
+    float blue=max(smoothstep(0.06,0.2,(land.b-max(land.r,land.g))/(land.b+0.02)),1.0-smoothstep(0.04,0.075,mx));
+    sea=max(sea,psLakes*blue);
   }else if(psSea.x<-0.5){
     land=vec3(0.5);
   }else{
@@ -206,6 +220,11 @@ export interface PlanetSurfaceOptions {
   glint?: number
   /** 0…1: sea ice toward the poles. Default 0. */
   seaIce?: number
+  /**
+   * Guess INLAND water from the colour map: where the picture is blue, draw
+   * it as water (the map's colour, with the glint). Needs `colorUrl`.
+   */
+  inlandWater?: boolean
   seed?: number
   /**
    * Classify the land with the BIOME SHADER (the plugin from
@@ -239,6 +258,7 @@ export function createPlanetSurfaceMaterial(
         'psEye',
         'psK',
         'psSea',
+        'psLakes',
         ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
       samplers: ['psColor'],
@@ -310,6 +330,7 @@ export function createPlanetSurfaceMaterial(
       (performance.now() * 0.001) % 1000
     )
     mat.setVector4('psSea', sea)
+    mat.setFloat('psLakes', options.inlandWater === true ? 1 : 0)
   }
   mat.onDisposeObservable.add(() => tex.dispose())
   return mat

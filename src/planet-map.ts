@@ -14,17 +14,20 @@ turn them. `relief` exaggerates the heights: at 1 a planet is as smooth as a
 billiard ball, which is the truth, and somewhere past 10 it becomes a relief
 map.
 
+The Earth's weather is not part of the picture: `clouds` and `storms` are
+dials, and the cover and the cyclones are worked out as you watch.
+
 ```js
 import { b3d, b3dPlanet, b3dSun, b3dSkybox, select3d, slider3d, label3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const WORLDS = {
-  Moon: { heightMap: 'nasa/moon/height-2k.png', colorMap: 'nasa/moon/color-2k.jpg', bodyRadiusKm: 1737.4, flatSea: 'off', clouds: 0, atmosphere: 0, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 12 },
-  Mars: { heightMap: 'nasa/mars/height-2k.png', colorMap: 'nasa/mars/color-2k.jpg', bodyRadiusKm: 3389.5, flatSea: 'off', clouds: 0, atmosphere: 0.006, atmosphereColor: 'rgba(225,165,115,0.04)', relief: 14 },
+  Moon: { heightMap: 'nasa/moon/height-2k.png', colorMap: 'nasa/moon/color-2k.jpg', bodyRadiusKm: 1737.4, flatSea: 'off', inlandWater: 'off', clouds: 0, atmosphere: 0, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 12 },
+  Mars: { heightMap: 'nasa/mars/height-2k.png', colorMap: 'nasa/mars/color-2k.jpg', bodyRadiusKm: 3389.5, flatSea: 'off', inlandWater: 'off', clouds: 0, atmosphere: 0.006, atmosphereColor: 'rgba(225,165,115,0.04)', relief: 14 },
   // NOAA's heights include the sea floor; `flatSea` fills the oceans level.
-  Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', clouds: 0.45, atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
+  Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', inlandWater: 'on', clouds: 0.45, atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
 }
-const { real } = tosi({ real: { world: 'Earth', relief: WORLDS.Earth.relief, spin: 0.03 } })
+const { real } = tosi({ real: { world: 'Earth', relief: WORLDS.Earth.relief, spin: 0.03, clouds: WORLDS.Earth.clouds, storms: 1 } })
 const planet = b3dPlanet({ radius: 50, subdivisions: 160, ocean: 0, rotationSpeed: real.spin, ...WORLDS.Earth })
 
 // Storms on the Earth: a hurricane off the Caribbean and a cyclone in the
@@ -40,13 +43,25 @@ const STORMS = {
     { lat: 9.5, lon: -71.5, size: 2.2, intensity: 0.8, lightning: 4, cyclone: 0 },
   ],
 }
-planet.storms = STORMS[real.world.value] ?? []
+// None of the weather is a picture: the cloud cover and the storms are
+// computed as you watch, so both are dials.
+const setStorms = () => {
+  const k = real.storms.value
+  planet.storms = k <= 0 ? [] : (STORMS[real.world.value] ?? []).map((s) => ({ ...s, intensity: s.intensity * k, lightning: s.lightning * k }))
+}
+setStorms()
+real.storms.observe(setStorms)
+real.clouds.observe(() => {
+  planet.clouds = real.clouds.value
+  planet.updateOptions()
+})
 
 real.world.observe(() => {
   const w = WORLDS[real.world.value]
-  planet.storms = STORMS[real.world.value] ?? []
+  setStorms()
   Object.assign(planet, w)
   real.relief.value = w.relief
+  real.clouds.value = w.clouds
   planet.regenerate()
 })
 real.relief.observe(() => {
@@ -63,6 +78,8 @@ preview.append(
         select3d({ label: 'world', value: real.world, options: Object.keys(WORLDS) }),
         slider3d({ label: 'relief (× true)', value: real.relief, min: 1, max: 60, step: 1 }),
         slider3d({ label: 'rotation', value: real.spin, min: 0, max: 0.3, step: 0.01 }),
+        slider3d({ label: 'clouds', value: real.clouds, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'storms', value: real.storms, min: 0, max: 1.5, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera('orbit', -Math.PI / 2.4, Math.PI / 2.3, 150, BABYLON.Vector3.Zero(), el.scene)

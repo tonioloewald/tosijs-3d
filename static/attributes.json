@@ -2855,6 +2855,11 @@
         "description": "Sea ice toward the poles, `0…1`"
       },
       {
+        "name": "inlandWater",
+        "default": "'off'",
+        "description": "`'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake"
+      },
+      {
         "name": "relief",
         "default": "1",
         "description": "With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map"

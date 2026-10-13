@@ -151,6 +151,7 @@ tosi-b3d {
 | `flatSea` | `'off'` | `'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth) |
 | `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
+| `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
@@ -245,6 +246,8 @@ export class B3dPlanet extends B3dChild {
     // The sun's glint on the sea, 0…1, and sea ice toward the poles, 0…1.
     seaGlint: 1,
     seaIce: 0,
+    // Guess lakes from a colour map's blue, and give them the sea's glint.
+    inlandWater: 'off' as 'on' | 'off',
     // With `surface` set: how much its true relief is exaggerated (1 = to
     // scale, which on a globe is flat to the eye).
     relief: 1,
@@ -567,6 +570,7 @@ export class B3dPlanet extends B3dChild {
         depthScale: Math.max(deepest * 0.6, radius * 0.004),
         glint: attrs.seaGlint,
         seaIce: attrs.seaIce,
+        inlandWater: !isOff(attrs.inlandWater) && attrs.inlandWater != null,
         seed: 1 + (Math.abs(attrs.seed) % 83),
       })
       mapped.wireframe = attrs.wireframe

@@ -30,6 +30,23 @@ versions may carry breaking peer-dependency changes — each is called out in a
   is in it; and `biomePlugin.params` is one object for the life of the
   element, so a control bound to it survives a rebuild.
 
+- **Lakes glint.** `inlandWater="on"` on a planet with a `colorMap` guesses
+  inland water from the picture (blue, or the near-black NASA's Blue Marble
+  paints deep lakes) and gives it the sea's glint. The height map only knows
+  the sea. The real-worlds Earth has it on, and that demo gained `clouds`
+  and `storms` sliders.
+
+### Fixed
+
+- **Cloud broke into mismatched tiles on a Quest.** The shader noise's
+  lattice hash now snaps to the integer first, so every cell hashes a shared
+  corner to the identical value. (A compiler folding the corner offset into
+  the hash made neighbours disagree.) Gas giants and the sea glint share the
+  noise and the fix.
+- **A hard edge in planet cloud along the equator**, where a weather cell
+  lying across it was wound opposite ways on either side.
+- The cost sweep lists a planet's cloud shell as its own row.
+
 ### Changed
 
 - **Planet storms look like storms.** The winding is a vortex's (tightest
