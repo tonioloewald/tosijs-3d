@@ -24,11 +24,27 @@ const WORLDS = {
   // NOAA's heights include the sea floor; `flatSea` fills the oceans level.
   Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', clouds: 0.45, atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
 }
-const { real } = tosi({ real: { world: 'Mars', relief: WORLDS.Mars.relief, spin: 0.03 } })
-const planet = b3dPlanet({ radius: 50, subdivisions: 160, ocean: 0, rotationSpeed: real.spin, ...WORLDS.Mars })
+const { real } = tosi({ real: { world: 'Earth', relief: WORLDS.Earth.relief, spin: 0.03 } })
+const planet = b3dPlanet({ radius: 50, subdivisions: 160, ocean: 0, rotationSpeed: real.spin, ...WORLDS.Earth })
+
+// Storms on the Earth: a hurricane off the Caribbean and a cyclone in the
+// south-west Pacific, each turning the right way for its hemisphere. And one
+// that is real: the Catatumbo lightning over Lake Maracaibo in Venezuela,
+// a thunderstorm that stands in the same place most nights of the year
+// (`cyclone: 0`: it does not turn). Swing round to the night side to see
+// them flicker.
+const STORMS = {
+  Earth: [
+    { lat: 24, lon: -62, size: 6, intensity: 1, lightning: 1.5 },
+    { lat: -17, lon: 160, size: 5, intensity: 0.9, lightning: 1 },
+    { lat: 9.5, lon: -71.5, size: 2.2, intensity: 0.8, lightning: 4, cyclone: 0 },
+  ],
+}
+planet.storms = STORMS[real.world.value] ?? []
 
 real.world.observe(() => {
   const w = WORLDS[real.world.value]
+  planet.storms = STORMS[real.world.value] ?? []
   Object.assign(planet, w)
   real.relief.value = w.relief
   planet.regenerate()

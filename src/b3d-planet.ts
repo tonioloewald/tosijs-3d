@@ -167,6 +167,7 @@ tosi-b3d {
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
 | `clouds` | `0` | Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
+| `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0 |
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
 | `ocean` | `0.6` | Ocean coverage (0=none, 0.6=60% of surface underwater) |
 | `wireframe` | `false` | Debug: render as wireframe |
@@ -181,7 +182,7 @@ import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
 import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
-import { createPlanetClouds } from './planet-clouds.js'
+import { createPlanetClouds, type PlanetStorm } from './planet-clouds.js'
 import { createMappedPlanetMaterial } from './planet-map-material.js'
 import { assetUrl } from './asset-url.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
@@ -279,6 +280,14 @@ export class B3dPlanet extends B3dChild {
    * settings are unused and the sea sits at the surface's sea level.
    */
   surface: PlanetSurface | null = null
+  /**
+   * STORMS placed on the weather (needs `clouds` above 0): up to four, each
+   * `{ lat, lon, size, intensity, lightning }`. A storm is a cyclone that
+   * turns the right way for its hemisphere, with an eye, and lightning
+   * flickering inside it, which on the night side is all you see of it.
+   * Read every frame, so move one by changing its `lat` and `lon`.
+   */
+  storms: PlanetStorm[] = []
   grossFilter: GradientFilter = new PiecewiseLinearFilter()
   detailFilter: GradientFilter = new PiecewiseLinearFilter()
 
@@ -733,6 +742,7 @@ export class B3dPlanet extends B3dChild {
         color,
         speed: attrs.cloudSpeed,
         seed: 1 + (Math.abs(attrs.seed) % 89),
+        storms: () => this.storms,
       }
     )
   }

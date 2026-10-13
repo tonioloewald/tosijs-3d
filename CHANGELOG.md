@@ -29,7 +29,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Weather from orbit.** `<tosi-b3d-planet clouds="0.5">` puts a shell of
   cloud inside the air: one coverage dial, winds that reverse with latitude,
   more cloud along the equator and the storm tracks, and a shadow on the
-  ground beneath. `cloudColor`, `cloudSpeed`.
+  ground beneath. `cloudColor`, `cloudSpeed`. `planet.storms` places up to
+  four cyclones by latitude and longitude, each with an eye, turning the
+  right way for its hemisphere, with lightning inside.
 - `planet.rootNode` is public, for placing a planet.
 
 ### Fixed

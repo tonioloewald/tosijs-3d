@@ -27,6 +27,7 @@ the same field a little way toward the sun.
 import * as BABYLON from '@babylonjs/core'
 import { GAS_GIANT_GLSL } from './gas-giant.js'
 import { sceneLight } from './gas-giant-material.js'
+import { latLonToDirection } from './sphere-map.js'
 
 const NAME = 'b3dPlanetClouds'
 
@@ -58,6 +59,8 @@ uniform vec4 pcLight;
 uniform vec3 pcSunBody;
 uniform vec3 pcColor;
 uniform vec4 pcK;
+uniform vec4 pcStormA[4];
+uniform vec4 pcStormB[4];
 ${GAS_GIANT_GLSL}
 // Rodrigues: turn p about a unit axis.
 vec3 pcAbout(vec3 p,vec3 ax,float a){float c=cos(a);float s=sin(a);return p*c+cross(ax,p)*s+ax*dot(ax,p)*(1.0-c);}
@@ -95,8 +98,36 @@ float pcF(vec3 d,float tt){
   float mid=exp(-pow((abs(latDeg)-52.0)/17.0,2.0));
   float twist=2.6*wind*wind*(0.25+0.75*mid)*(0.4+0.9*b3dGgHash(g+vec3(3.0)));
   q=pcAbout(q,normalize(ctr),twist*(d.y>=0.0?1.0:-1.0));
+  /*
+  PLACED STORMS (planet.storms): a cyclone where the caller says. Inside its
+  radius the sky is wound hard about its centre and keeps turning (the turn
+  rides the same resetting clock as the winds, so it never winds up tight),
+  the cloud is thickened into a solid disc with spiral arms, and the middle
+  is cleared for an eye.
+  */
+  float storm=0.0;
+  for(int i=0;i<4;i++){
+    vec4 sa=pcStormA[i];
+    if(sa.w<=0.0)continue;
+    float ang=acos(clamp(dot(d,sa.xyz),-1.0,1.0));
+    float u=ang/sa.w;
+    if(u>=2.6)continue;
+    // The winding reaches well past the storm's nominal radius and dies away
+    // slowly, so the arms trail off into the weather around it.
+    float inside=1.0-smoothstep(0.0,1.7,u);
+    float power=pcStormB[i].x;
+    // How much of a CYCLONE it is: 0 is a thunderstorm complex, a mass of
+    // cloud that does not turn and has no eye.
+    float cyc=pcStormB[i].w;
+    float turn=(4.5*inside*inside+0.06*tt*inside)*power*cyc*(sa.y>=0.0?1.0:-1.0);
+    q=pcAbout(q,b3dGgTurn(sa.xyz,-pcK.y*0.003+tt*0.012*cos(lat*3.0)),turn);
+    // Thickest at the middle and thinning like a bell, not cut off at a
+    // rim: at the nominal radius the extra cloud is down to a third, and it
+    // is the ordinary broken sky that shows through the outer arms.
+    storm=max(storm,power*(0.40*exp(-u*u*1.15)-0.9*cyc*(1.0-smoothstep(0.03,0.11,u))));
+  }
   // Big systems, then two finer layers for the texture a deck has close to.
-  float f=0.46*b3dGgFbm(q*7.5+sd)
+  float f=storm+0.46*b3dGgFbm(q*7.5+sd)
     +0.32*b3dGgFbm(q*22.0+sd*2.1)
     +0.22*b3dGgFbm(q*60.0+sd*3.3);
   // A lean, not a rule: the belts are cloudier and the deserts clearer, but
@@ -156,10 +187,57 @@ void main(){
   float lit=smoothstep(-0.12,0.3,nl)*(0.5+0.5*max(nl,0.0));
   // Premultiplied: cloud is added, and what is behind is dimmed by cloud
   // and by its shadow.
-  vec3 rgb=pcColor*(lit*1.3*body*mix(0.78,1.12,relief)+0.015)*c;
+  // On the night side cloud is a little BRIGHTER than the ground it hides
+  // (it is pale, and the ground is dim, not black); darker, it showed as
+  // black holes punched in the planet.
+  vec3 rgb=pcColor*(lit*1.3*body*mix(0.78,1.12,relief)+0.07)*c;
+  /*
+  LIGHTNING, inside the placed storms: each flash is a patch of cloud lit
+  from within for a fraction of a second, somewhere in the storm, on a
+  schedule drawn from the storm's own seed. By day it is a flicker; on the
+  night side it is the only light there is, which is how it looks from orbit.
+  */
+  for(int i=0;i<4;i++){
+    vec4 sa=pcStormA[i];
+    vec4 st=pcStormB[i];
+    if(sa.w<=0.0||st.y<=0.0)continue;
+    for(int k=0;k<2;k++){
+      float clock=pcK.y*st.y*2.0+float(k)*0.37+st.z*3.1;
+      float slot=floor(clock);
+      float h=b3dGgHash(vec3(slot,st.z,float(k)*5.0));
+      if(h<0.45)continue;
+      float age=fract(clock);
+      float pulse=exp(-age*9.0)*(0.6+0.4*sin(age*70.0));
+      vec3 e1=normalize(cross(sa.xyz,abs(sa.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));
+      vec3 e2=cross(sa.xyz,e1);
+      float fa=b3dGgHash(vec3(slot,st.z,11.0))*6.2832;
+      float fr=sqrt(b3dGgHash(vec3(slot,st.z,23.0)))*0.8*sa.w;
+      vec3 at=normalize(sa.xyz+(e1*cos(fa)+e2*sin(fa))*fr);
+      float dist=acos(clamp(dot(d,at),-1.0,1.0))/(0.16*sa.w);
+      rgb+=vec3(0.75,0.82,1.0)*pulse*exp(-dist*dist)*c*1.6;
+    }
+  }
   float a=c+(1.0-c)*sh;
   gl_FragColor=vec4(rgb,a);
 }`
+}
+
+/** A storm placed on a planet's weather: see `planet.storms`. */
+export interface PlanetStorm {
+  /** Where its eye is, degrees. */
+  lat: number
+  lon: number
+  /** Its radius in degrees of arc. Default 8 (a large hurricane is 5 to 10). */
+  size?: number
+  /** 0…1: how hard it winds and how thick its cloud. Default 1. */
+  intensity?: number
+  /** Lightning flashes a second, about. 0 = none. Default 1. */
+  lightning?: number
+  /**
+   * How much of a cyclone it is, 0…1. Default 1: it turns and has an eye.
+   * 0 is a thunderstorm complex: a mass of cloud that sits and flashes.
+   */
+  cyclone?: number
 }
 
 export interface PlanetCloudOptions {
@@ -172,6 +250,8 @@ export interface PlanetCloudOptions {
   seed?: number
   /** How dark the ground is under cloud, 0…1. Default 0.45. */
   shadow?: number
+  /** Up to four placed storms, read every frame (so they can move). */
+  storms?: () => PlanetStorm[]
 }
 
 /** A cloud shell of `radius` (in the parent's units), parented to `parent`. */
@@ -200,6 +280,8 @@ export function createPlanetClouds(
         'pcSunBody',
         'pcColor',
         'pcK',
+        'pcStormA',
+        'pcStormB',
       ],
       needAlphaBlending: true,
     }
@@ -224,6 +306,23 @@ export function createPlanetClouds(
     } else toSun.set(light.x, light.y, light.z)
     BABYLON.Vector3.TransformNormalToRef(toSun, inv, toSun)
     mat.setVector3('pcSunBody', toSun)
+    const sa = new Array(16).fill(0)
+    const sb = new Array(16).fill(0)
+    ;(options.storms?.() ?? []).slice(0, 4).forEach((storm, i) => {
+      const d = latLonToDirection(storm.lat, storm.lon)
+      const size = Math.max(0.5, storm.size ?? 8) * (Math.PI / 180)
+      sa.splice(i * 4, 4, d.x, d.y, d.z, size)
+      sb.splice(
+        i * 4,
+        4,
+        Math.max(0, Math.min(1.5, storm.intensity ?? 1)),
+        Math.max(0, storm.lightning ?? 1),
+        i + 1 + (options.seed ?? 1) * 0.37,
+        Math.max(0, Math.min(1, storm.cyclone ?? 1))
+      )
+    })
+    mat.setArray4('pcStormA', sa)
+    mat.setArray4('pcStormB', sb)
     mat.setVector4(
       'pcK',
       new BABYLON.Vector4(

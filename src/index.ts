@@ -430,6 +430,11 @@ export {
 } from './planet-map.js'
 export { createMappedPlanetMaterial } from './planet-map-material.js'
 export {
+  createPlanetClouds,
+  type PlanetStorm,
+  type PlanetCloudOptions,
+} from './planet-clouds.js'
+export {
   uvToDirection,
   directionToUv,
   latLonToDirection,
