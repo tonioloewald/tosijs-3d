@@ -110,11 +110,6 @@ for (const key of ['animate', 'showOrbits']) {
 }
 updateInfo()
 ```
-> The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
-> is rendered as a CODE BLOCK there — light background, its own colour — and
-> inside a panel that sets `color: white` it came out white-on-white and simply
-> invisible.
-
 ```css
 tosi-b3d {
   width: 100%;
@@ -142,6 +137,11 @@ tosi-b3d {
 }
 ```
 
+> The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
+> is rendered as a CODE BLOCK there — light background, its own colour — and
+> inside a panel that sets `color: white` it came out white-on-white and simply
+> invisible.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -158,6 +158,8 @@ tosi-b3d {
 */
 /*{ "parent": "space", "order": 20 }*/
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js';
+import { GAS_GIANTS, resolveGasGiant } from './gas-giant.js';
+import { createGasGiantMaterial } from './gas-giant-material.js';
 import * as BABYLON from '@babylonjs/core';
 import { generateStarSystem } from './galaxy-data.js';
 import { voxelGalaxy } from './voxel-galaxy.js';
@@ -404,7 +406,15 @@ export class B3dStarSystem extends B3dChild {
         // Point light from star
         const light = new BABYLON.PointLight('system-star-light', BABYLON.Vector3.Zero(), scene);
         light.parent = this.rootNode;
-        light.intensity = Math.min(star.luminosity * 0.5, 5);
+        /*
+        NOT PROPORTIONAL TO LUMINOSITY. Luminosity spans a millionfold between an
+        M dwarf and an O star, and a light that followed it left every planet of
+        a K star nearly black (a K0 at 0.24 suns got 0.12; Tonio: "the planet
+        doesn't seem to be lit"). A camera, like an eye, exposes for the scene:
+        the fourth root keeps dim stars dimmer and bright ones brighter while
+        every system stays readable.
+        */
+        light.intensity = Math.min(3.5, Math.max(1.2, 1.6 * Math.pow(Math.max(0, star.luminosity), 0.25)));
         light.range = 500;
         light.diffuse = new BABYLON.Color3(cr, cg, cb);
         light.excludedMeshes.push(starMesh);
@@ -419,10 +429,11 @@ export class B3dStarSystem extends B3dChild {
             // Real planet radius in km, Earth = 6357km
             // Make smallest planets visible: min 0.3, max 3 scene units
             const planetVisualRadius = Math.max(0.3, Math.min(3, (planet.radius / 6357) * 1.5)) * scale * 0.3;
-            const planetMesh = BABYLON.MeshBuilder.CreateSphere(`planet-${i}`, { diameter: planetVisualRadius * 2, segments: 16 }, scene);
+            const isGiant = planet.classification === 'gas giant';
+            const planetMesh = BABYLON.MeshBuilder.CreateSphere(`planet-${i}`, { diameter: planetVisualRadius * 2, segments: isGiant ? 32 : 16 }, scene);
             // Color by classification
             const planetMat = new BABYLON.StandardMaterial(`planet-mat-${i}`, scene);
-            if (planet.classification === 'gas giant') {
+            if (isGiant) {
                 planetMat.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.4);
             }
             else if (planet.classification === 'brown dwarf') {
@@ -450,6 +461,29 @@ export class B3dStarSystem extends B3dChild {
             planetMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
             planetMesh.material = planetMat;
             planetMesh.parent = this.rootNode;
+            if (isGiant) {
+                /*
+                A GAS GIANT IS BANDED, and which kind it is follows from its seed:
+                one of the four looks, with its own band count and its own weather.
+                Lit from the star at this system's centre, wherever the system sits.
+                */
+                const kinds = Object.keys(GAS_GIANTS);
+                const kind = kinds[Math.abs(planet.seed) % kinds.length];
+                const base = GAS_GIANTS[kind];
+                const vary = ((Math.abs(planet.seed) >> 3) % 7) - 3;
+                planetMat.dispose();
+                planetMesh.material = createGasGiantMaterial(scene, resolveGasGiant(kind, {
+                    bands: Math.max(3, base.bands + vary),
+                    seed: 1 + (Math.abs(planet.seed) % 97),
+                }), {
+                    light: () => {
+                        const p = this.rootNode.getAbsolutePosition();
+                        return { x: p.x, y: p.y, z: p.z, w: 1 };
+                    },
+                });
+                // Giants spin fast enough to bulge at the equator.
+                planetMesh.scaling.y = 0.93;
+            }
             // Rings for gas giants
             if (planet.rings > 0) {
                 this.buildPlanetRing(planetMesh, planetVisualRadius, planet.rings, planet.seed, scene);

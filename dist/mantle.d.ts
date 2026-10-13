@@ -43,7 +43,22 @@ export declare function canMantle(reading: LedgeReading, limits?: MantleLimits):
  * translation follows, and they overlap — see the note above about why a
  * straight line is wrong.
  */
-export declare function mantlePath(from: Vec3, to: Vec3, t: number, riseEnds?: number, moveStarts?: number): Vec3;
+export declare function mantlePath(from: Vec3, to: Vec3, t: number, riseEnds?: number, moveStarts?: number, riseStarts?: number): Vec3;
+/**
+ * When the body travels within a CLIMB CLIP, as fractions of its length.
+ *
+ * The clips are played in place (their root motion is not used), and each
+ * opens with a wind-up: a crouch, then the pull. Measured on Quaternius'
+ * `ClimbUp_2m`, the hips dip for the first quarter, rise through the middle
+ * and settle back over the last third, which is the root arriving on top.
+ * Starting the rise at 0, as the path did, slid a crouching body up the face
+ * before it had begun to climb.
+ */
+export declare const CLIMB_PHASE: {
+    riseStarts: number;
+    riseEnds: number;
+    moveStarts: number;
+};
 /**
  * Which climb clip suits this height, from whatever the rig actually has.
  *

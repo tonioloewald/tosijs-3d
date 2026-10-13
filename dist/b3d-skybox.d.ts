@@ -262,6 +262,10 @@ export declare class B3dSkybox extends AbstractMesh {
     /** A `<tosi-b3d-moon>` changed (or came or went): redraw the moons. */
     moonsChanged(): void;
     private _vacuumNow;
+    /** The scene's terrain draws this far (0 = no terrain): see the fog layer. */
+    private _groundReach;
+    /** How far the camera has climbed out of the air, 0…1 — see `_vacuumNow`. */
+    private _climbed;
     /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
     private _gasNow;
     private _gas;

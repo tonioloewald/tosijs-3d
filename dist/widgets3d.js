@@ -27,10 +27,10 @@ reach, since tosijs needs a DOM.
 ```js
 import { tosi, elements } from 'tosijs'
 import {
-  panel3d, label3d, slider3d, toggle3d, button3d, text3d, list3d,
+  panel3d, label3d, slider3d, toggle3d, button3d, text3d, list3d, colorPicker3d,
 } from 'tosijs-3d'
 
-const { ui } = tosi({ ui: { time: 8, fog: true } })
+const { ui } = tosi({ ui: { time: 8, fog: true, tint: '#4a6a9c99' } })
 const { div, label, input } = elements
 
 const panel = panel3d(
@@ -38,6 +38,8 @@ const panel = panel3d(
   label3d({ text: 'Scene settings' }),
   slider3d({ label: 'time of day', value: ui.time, min: 0, max: 24, step: 0.5 }),
   toggle3d({ label: 'fog', value: ui.fog }),
+  // A colour WITH alpha: tap the swatch for the picker and its swatches.
+  colorPicker3d({ label: 'fog tint', value: ui.tint }),
   button3d({ label: 'Reset', handleClick: () => { ui.time.value = 8; ui.fog.value = true } }),
   text3d({ text: 'Drag the slider — the native control below is bound to the same value.' }),
   list3d({
@@ -50,6 +52,12 @@ const panel = panel3d(
 )
 
 const readout = div({ style: { padding: '0 16px 12px', font: '13px system-ui', opacity: '0.75' } }, 'Pick a list item.')
+// The tint laid over stripes, so its alpha is something you can see.
+const chip = div({ style: { width: '120px', height: '60px', borderRadius: '8px', background: 'repeating-linear-gradient(45deg, #222 0 8px, #ddd 8px 16px)' } },
+  div({ style: { width: '100%', height: '100%', borderRadius: '8px' } }))
+const showTint = () => { chip.firstChild.style.background = ui.tint.value }
+ui.tint.observe(showTint)
+showTint()
 
 preview.append(
   div(
@@ -60,7 +68,9 @@ preview.append(
       alignItems: 'flex-start'
     } },
     panel,
-    label('native, same binding ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: ui.time }))
+    div({ style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      label('native, same binding ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: ui.time })),
+      chip),
   ),
   readout
 )
@@ -2626,6 +2636,18 @@ export function panel3d(config, ...widgets) {
             const alwaysDraws = hosts.some((h) => h.drawsChrome === true);
             const chromeBand = alwaysDraws || config.chrome === true ? POPUP_CHROME_BAND : 0;
             const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand, config.maxHeight);
+            // The caption goes IN the sheet, which every presentation shares, so
+            // it reads the same flat and on a plane. Between the two glyphs.
+            const title = String(config.title ?? '');
+            if (chromeBand > 0 && title !== '') {
+                const cap = baseText(title);
+                cap.setAttribute('x', String(chromeBand + 2));
+                cap.setAttribute('y', String(chromeBand / 2 + 1));
+                cap.setAttribute('fill', TH.MUTED);
+                cap.setAttribute('font-size', String(Math.round(TH.FONT * 0.85)));
+                cap.setAttribute('pointer-events', 'none');
+                sheet.appendChild(cap);
+            }
             /*
             ONE CLOSE, however it starts.
       

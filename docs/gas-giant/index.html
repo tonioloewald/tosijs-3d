@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=a52dffbd3e65" data-tosi-doc-system />
+  <title>gas-giant — tosijs-3d</title>
+  <meta name="description" content="The cloud tops of a gas giant, as one shader function. Banded, sheared by winds that alternate direction from belt to belt, with a long-lived storm." />
+  <link rel="canonical" href="https://3d.tosijs.net/gas-giant/" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="gas-giant — tosijs-3d (markdown)" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="gas-giant — tosijs-3d" />
+  <meta property="og:description" content="The cloud tops of a gas giant, as one shader function. Banded, sheared by winds that alternate direction from belt to belt, with a long-lived storm." />
+  <meta property="og:url" content="https://3d.tosijs.net/gas-giant/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"gas-giant","description":"The cloud tops of a gas giant, as one shader function. Banded, sheared by winds that alternate direction from belt to belt, with a long-lived storm.","url":"https://3d.tosijs.net/gas-giant/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json?v=80e3e550f075" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content">
+<h1 id="gas-giant">gas-giant</h1>
+<p><strong>The cloud tops of a gas giant, as one shader function.</strong> Banded, sheared by
+winds that alternate direction from belt to belt, with a long-lived storm.
+It colours a point on a sphere, so the same code draws a giant hanging in a
+moon&#39;s sky (<a href="/b3d-moon/"><code>&lt;tosi-b3d-moon gas=&quot;jupiter&quot;&gt;</code></a>) and one you orbit.</p>
+<h2 id="demo">Demo</h2>
+<p>A giant as a body you can fly round:
+<a href="/b3d-planet/"><code>&lt;tosi-b3d-planet gas=&quot;saturn&quot;&gt;</code></a>. Drag to orbit it. The sun
+is where the scene&#39;s sun is, so swing round to the night side. The bands&#39;
+three colours and the ring are yours to set: pick another planet and note how
+thin and faint every ring but Saturn&#39;s is.</p>
+<pre><code class="language-js">import { b3d, b3dPlanet, b3dSun, b3dSkybox, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const start = GAS_GIANTS.saturn
+const { orbit } = tosi({ orbit: {
+  kind: &#39;saturn&#39;, seed: 7, spin: 0.03,
+  bands: start.bands, turbulence: start.turbulence, storm: start.storm,
+  zones: start.colors[0], belts: start.colors[1], accent: start.colors[2],
+  rings: 1, ringInner: start.rings.inner, ringOuter: start.rings.outer, ringOpacity: start.rings.opacity, ringColor: start.rings.color,
+} })
+const planet = b3dPlanet({ gas: orbit.kind, seed: orbit.seed, rotationSpeed: orbit.spin, radius: 50 })
+
+// Everything that changes the planet&#39;s look rebuilds it (a sphere: cheap).
+const rebuild = () =&gt; {
+  Object.assign(planet, {
+    bands: orbit.bands.value, turbulence: orbit.turbulence.value, storm: orbit.storm.value,
+    bandColors: [orbit.zones.value, orbit.belts.value, orbit.accent.value].join(&#39;,&#39;),
+    rings: orbit.rings.value, ringInner: orbit.ringInner.value, ringOuter: orbit.ringOuter.value,
+    ringOpacity: orbit.ringOpacity.value, ringColor: orbit.ringColor.value,
+  })
+  planet.regenerate()
+}
+// Choosing a planet sets every dial to that planet&#39;s own numbers.
+orbit.kind.observe(() =&gt; {
+  const look = GAS_GIANTS[orbit.kind.value]
+  Object.assign(orbit, {
+    bands: look.bands, turbulence: look.turbulence, storm: look.storm,
+    zones: look.colors[0], belts: look.colors[1], accent: look.colors[2],
+    ringInner: look.rings.inner, ringOuter: look.rings.outer, ringOpacity: look.rings.opacity, ringColor: look.rings.color,
+  })
+})
+for (const key of Object.keys(orbit.valueOf())) if (key !== &#39;spin&#39;) orbit[key].observe(rebuild)
+
+const planetColours = Object.values(GAS_GIANTS).flatMap((look) =&gt; look.colors)
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;From space&#39; }),
+        select3d({ label: &#39;planet&#39;, value: orbit.kind, options: Object.keys(GAS_GIANTS) }),
+        slider3d({ label: &#39;bands&#39;, value: orbit.bands, min: 1, max: 30, step: 1 }),
+        slider3d({ label: &#39;turbulence&#39;, value: orbit.turbulence, min: 0, max: 1.5, step: 0.05 }),
+        slider3d({ label: &#39;storm&#39;, value: orbit.storm, min: 0, max: 2, step: 0.05 }),
+        colorPicker3d({ label: &#39;zones&#39;, value: orbit.zones, alpha: false, presets: planetColours }),
+        colorPicker3d({ label: &#39;belts&#39;, value: orbit.belts, alpha: false, presets: planetColours }),
+        colorPicker3d({ label: &#39;accent&#39;, value: orbit.accent, alpha: false, presets: planetColours }),
+        label3d({ text: &#39;Rings&#39; }),
+        slider3d({ label: &#39;amount&#39;, value: orbit.rings, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: &#39;inner edge (radii)&#39;, value: orbit.ringInner, min: 1.05, max: 3, step: 0.05 }),
+        slider3d({ label: &#39;outer edge (radii)&#39;, value: orbit.ringOuter, min: 1.1, max: 4, step: 0.05 }),
+        slider3d({ label: &#39;opacity&#39;, value: orbit.ringOpacity, min: 0, max: 1, step: 0.01 }),
+        colorPicker3d({ label: &#39;ring colour&#39;, value: orbit.ringColor, alpha: false }),
+        label3d({ text: &#39;Motion&#39; }),
+        slider3d({ label: &#39;seed&#39;, value: orbit.seed, min: 1, max: 96, step: 1 }),
+        slider3d({ label: &#39;rotation&#39;, value: orbit.spin, min: 0, max: 0.3, step: 0.01 }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(&#39;orbit&#39;, -Math.PI / 3, Math.PI / 2.4, 220, BABYLON.Vector3.Zero(), el.scene)
+        camera.lowerRadiusLimit = 70
+        camera.upperRadiusLimit = 700
+        camera.maxZ = 3000
+        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dSun(),
+    b3dSkybox({ timeOfDay: 15, realtimeScale: 0, atmosphere: 0, starfieldCube: &#39;/sky/nebula&#39;, starfieldData: &#39;/sky/stars&#39; }),
+    planet,
+  )
+)
+rebuild()
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+<h2 id="in-a-moons-sky">In a moon&#39;s sky</h2>
+<p>The same planet hanging over the horizon of one of its moons,
+<a href="/b3d-moon/"><code>&lt;tosi-b3d-moon gas=&quot;jupiter&quot;&gt;</code></a>. Pick a planet, then pull it
+about: the dials start at the preset&#39;s own values.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dGround, GAS_GIANTS, slider3d, select3d, label3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { gg } = tosi({ gg: { kind: &#39;jupiter&#39;, size: 28, time: 16, tilt: 10, ...GAS_GIANTS.jupiter } })
+const planet = b3dMoon({
+  frame: &#39;ground&#39;, azimuth: 22, elevation: 22,
+  gas: gg.kind, size: gg.size, axisTilt: gg.tilt,
+  bands: gg.bands, turbulence: gg.turbulence, storm: gg.storm,
+})
+// Choosing a planet resets the dials to that planet&#39;s numbers.
+gg.kind.observe(() =&gt; {
+  const look = GAS_GIANTS[gg.kind.value]
+  gg.bands.value = look.bands
+  gg.turbulence.value = look.turbulence
+  gg.storm.value = look.storm
+})
+
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Gas giant&#39; }),
+        select3d({ label: &#39;planet&#39;, value: gg.kind, options: Object.keys(GAS_GIANTS) }),
+        slider3d({ label: &#39;bands&#39;, value: gg.bands, min: 1, max: 30, step: 1 }),
+        slider3d({ label: &#39;turbulence&#39;, value: gg.turbulence, min: 0, max: 1.5, step: 0.05 }),
+        slider3d({ label: &#39;storm&#39;, value: gg.storm, min: 0, max: 2, step: 0.05 }),
+        slider3d({ label: &#39;tilt&#39;, value: gg.tilt, min: -45, max: 45, step: 1 }),
+        slider3d({ label: &#39;size (degrees)&#39;, value: gg.size, min: 2, max: 80, step: 1 }),
+        slider3d({ label: &#39;time of day (its phase)&#39;, value: gg.time, min: 0, max: 24, step: 0.25 }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera(&#39;c&#39;, new BABYLON.Vector3(0, 2, 0), el.scene)
+        cam.setTarget(new BABYLON.Vector3(0, 6, 10))
+        cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(cam)
+      },
+    },
+    b3dSun({}),
+    b3dSkybox(
+      { timeOfDay: gg.time, realtimeScale: 0, atmosphere: 0, starfieldCube: &#39;/sky/nebula&#39;, starfieldData: &#39;/sky/stars&#39;, starfieldTilt: &#39;12,25,58&#39; },
+      planet,
+    ),
+    b3dGround({ width: 80, height: 80, color: &#39;#6a6250&#39; }),
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+<h2 id="how-it-works">How it works</h2>
+<p>It is the <a href="/b3d-cloud-deck/">cloud deck</a>&#39;s idea turned on its side: a noise
+field advected by wind. There the wind blows across a plane; here each
+latitude has its own wind, which is what draws the bands out into streaks.</p>
+<h2 id="what-the-numbers-mean">What the numbers mean</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>bands</code></td>
+<td>How many light and dark stripes from pole to pole, counting both. Jupiter is about 14, Neptune 6. Those near the equator are the broadest</td>
+</tr>
+<tr>
+<td><code>turbulence</code></td>
+<td>How far the edges of the bands are torn, <code>0…1</code>. 0 is ruled lines; 1 is Jupiter</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td>Size of the great storm, <code>0…1</code> of a band&#39;s width. 0 is none</td>
+</tr>
+<tr>
+<td><code>colors</code></td>
+<td>Three: the bright zones, the dark belts, and the accent (the storm, the poles)</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td>A different planet with the same look</td>
+</tr>
+<tr>
+<td><code>rings</code></td>
+<td>The preset&#39;s ring: <code>inner</code> and <code>outer</code> edge in planet radii, <code>opacity</code> and <code>color</code>. Saturn&#39;s is broad and bright; the others are thin and nearly invisible, which is true to life</td>
+</tr>
+</tbody></table>
+<h2 id="presets">Presets</h2>
+<p><code>GAS_GIANTS</code> has <code>jupiter</code>, <code>saturn</code>, <code>uranus</code> and <code>neptune</code>. <code>resolveGasGiant</code>
+takes a preset name and any overrides and returns the numbers the shader
+wants.</p>
+<h2 id="the-shader">The shader</h2>
+<p><code>GAS_GIANT_GLSL</code> defines</p>
+<pre><code class="language-glsl">vec3 b3dGasGiant(vec3 n, vec4 k, vec3 c0, vec3 c1, vec3 c2, float t)
+</code></pre>
+<p><code>n</code> is the unit normal in the planet&#39;s own frame (Y is the spin axis), <code>k</code> is
+<code>(bands, turbulence, storm, seed)</code>, the colours are linear RGB and <code>t</code> is
+seconds. It returns the unlit colour. No textures and no other functions are
+needed: it carries its own noise.</p>
+<pre><code class="language-glsl">vec3 b3dGasGiantLit(vec3 albedo, float nDotL, float nDotV, vec3 haze)
+</code></pre>
+<p>lights it as a ball of gas: brightness falls away from the point under the
+sun and again toward the limb, and a thin rim of <code>haze</code> shows on the day
+side. A flat disc with a hard terminator reads as a coin; this is what makes
+it a sphere. <a href="/gas-giant-material/">gas-giant-material</a> wraps both for a mesh.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../getting-started/">Getting started</a></li>
+    <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
+      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
+      <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-primitives/">Primitives: box, sphere, ground</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-library/">b3d-library</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+        <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../sky-and-light/">Sky and light</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-moon/">b3d-moon</a></li>
+        <li><a class="doc-link" href="../starfield-codec/">starfield-codec</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-shadows/">Sun and shadows (b3d-shadows)</a></li>
+      <li><a class="doc-link" href="../b3d-light/">Ambient light (b3d-light)</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lamp/">Lamps</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-light-shafts/">b3d-light-shafts</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../light-rays/">light-rays</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-fog/">b3d-fog</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../b3d-ssao/">Ambient occlusion (SSAO)</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../weather-and-clouds/">Weather and clouds</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-cloud-deck/">b3d-cloud-deck</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../cloud-field/">cloud-field</a></li>
+        <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-weather-cell/">b3d-weather-cell</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../weather/">weather</a></li>
+        <li><a class="doc-link" href="../wind/">wind</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-lightning/">b3d-lightning</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../lightning/">lightning</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+        <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../terrain/">Terrain</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+        <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+        <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+        <li><a class="doc-link" href="../landform/">landform</a></li>
+        <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+        <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+        <li><a class="doc-link" href="../terrain-grid/">terrain-grid</a></li>
+        <li><a class="doc-link" href="../gradient-filter/">gradient-filter</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-decorator/">b3d-decorator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../scatter/">scatter</a></li>
+        <li><a class="doc-link" href="../procedural-rock/">procedural-rock</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carve/">carve</a></li>
+        <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../water/">Water</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-water/">b3d-water</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../water-shore/">water-shore</a></li>
+        <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+        <li><a class="doc-link" href="../caustics/">caustics</a></li>
+        <li><a class="doc-link" href="../medium/">medium</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-trail/">b3d-trail</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../characters-and-vehicles/">Characters and vehicles</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-biped/">b3d-biped</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../mantle/">mantle</a></li>
+        <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+        <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+        <li><a class="doc-link" href="../aim/">aim</a></li>
+        <li><a class="doc-link" href="../bone-mask/">bone-mask</a></li>
+        <li><a class="doc-link" href="../animation-layers/">animation-layers</a></li>
+        <li><a class="doc-link" href="../surroundings/">surroundings</a></li>
+        <li><a class="doc-link" href="../surroundings-probe/">surroundings-probe</a></li>
+        <li><a class="doc-link" href="../camera-fit/">camera-fit</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../fly-by-wire/">fly-by-wire</a></li>
+        <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+        <li><a class="doc-link" href="../hud/">hud</a></li>
+        <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../b3d-elevator/">b3d-elevator</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-crowd/">b3d-crowd</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vertex-animation/">vertex-animation</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><details><summary><a class="doc-link" href="../touch-orbit/">touch-orbit</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../touch-gesture/">touch-gesture</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><details><summary><a class="doc-link" href="../input-internals/">How input works</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../control-input/">control-input</a></li>
+        <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+        <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+        <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+        <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+        <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+        <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+        <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+        <li><a class="doc-link" href="../text-entry/">text-entry</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../interacting/">Interacting with the world</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../interaction/">interaction</a></li>
+        <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+        <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+        <li><a class="doc-link" href="../destroyable/">destroyable</a></li>
+        <li><a class="doc-link" href="../resource/">resource</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../ballistics/">ballistics</a></li>
+        <li><a class="doc-link" href="../guidance/">guidance</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../warhead/">warhead</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-radar/">b3d-radar</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+        <li><a class="doc-link" href="../radar/">Radar model</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../formations/">formations</a></li>
+        <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../b3d-death/">b3d-death</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../widgets3d/">widgets3d</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+        <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+        <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+        <li><details><summary><a class="doc-link" href="../angle-field/">angle-field</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../arc/">arc</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../curve-field/">Curve editor</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../curve/">curve</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
+        <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+        <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../color/">color</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../picker/">picker</a></li>
+        <li><details><summary><a class="doc-link" href="../keyboard/">keyboard</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+          <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../table/">table</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+          <li><a class="doc-link" href="../selection/">selection</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../light-editor/">Light editor</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+          <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-containers/">Containers</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../surface/">surface</a></li>
+        <li><details><summary><a class="doc-link" href="../popup-surface/">popup-surface</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+          <li><a class="doc-link" href="../panel-layer/">panel-layer</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-in-scene/">In the scene and XR</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../b3d-panel/">b3d-panel</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+          <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+          <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+        <li><details><summary><a class="doc-link" href="../svg-texture/">svg-texture</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+          <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+        </ul>
+        </details></li>
+        <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../ui-theme/">Theme and icons</a></summary>
+      <ul>
+        <li><details><summary><a class="doc-link" href="../w3d-theme/">w3d-theme</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+        </ul>
+        </details></li>
+        <li><details><summary><a class="doc-link" href="../svg-icons/">svg-icons</a></summary>
+        <ul>
+          <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+        </ul>
+        </details></li>
+      </ul>
+      </details></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../voxel-galaxy/">voxel-galaxy</a></li>
+        <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+        <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><details open><summary><a class="doc-link current" href="../gas-giant/" aria-current="page">gas-giant</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><details><summary><a class="doc-link" href="../b3d-probe/">b3d-probe</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+        <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      </ul>
+      </details></li>
+      <li><a class="doc-link" href="../cost-sweep/">Cost sweep</a></li>
+      <li><a class="doc-link" href="../draw-order/">Draw order</a></li>
+      <li><a class="doc-link" href="../debug-sink/">debug-sink</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+      <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
+      <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate-ez94ca2n.js"></script>
+</body>
+</html>

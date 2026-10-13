@@ -644,6 +644,15 @@ b3d-moon
   size  = 0.5  — Angular DIAMETER in degrees (the real moon is about 0.5)
   color  = '#dddddd'  — Its colour where lit
   brightness  = 1  — Multiplies the lit side
+  frame  = 'stars'  — `'stars'`: it rides the star sphere, rising and setting. `'ground'`: `azimuth` and `elevation` are against the HORIZON (azimuth 0 is +Z) and it stays put while the sky turns, like the planet a tide-locked moon orbits
+  gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. Banded, with winds and a storm; see [gas-giant](/gas-giant/). `color` is then unused
+  bands  = 0  — Gas giant: stripes from pole to pole. `0` = the preset's
+  turbulence  = -1  — Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's
+  storm  = -1  — Gas giant: size of the great storm, `0` = none. `-1` = the preset's
+  bandColors  = ''  — Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's
+  axisTilt  = 0  — Gas giant: degrees its bands lean from level. It is always seen equator-on, as a moon sees its planet
+  spin  = 1  — Gas giant: how fast its clouds run. `0` freezes them
+  seed  = 0  — Gas giant: a different planet with the same look. `0` = the preset's
 
 ## b3d-panel — <tosi-b3d-panel>
 b3d-panel
@@ -711,6 +720,15 @@ b3d-physics
 b3d-planet
 
   biome
+  gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)
+  bands  = 0  — Gas giant: stripes from pole to pole. `0` = the preset's
+  turbulence  = -1  — Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's
+  storm  = -1  — Gas giant: size of the great storm, `0` = none. `-1` = the preset's
+  bandColors  = ''  — Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's
+  ringInner  = 0  — Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge
+  ringOuter  = 0  — Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`
+  ringOpacity  = -1  — `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's
+  ringColor  = ''  — `#rrggbb`. Blank = the gas giant preset's, else a pale tan
   seed  = 12345  — Noise seed
   radius  = 50  — Base sphere radius
   subdivisions  = 64  — Grid subdivisions per cube face
@@ -1176,6 +1194,18 @@ b3d-weather-cell
   lifetime  = 0  — Seconds; grows, holds and dies over it (`0` = permanent). An ended cell does nothing and fires `ended`
   grow  = 0  — Seconds to GATHER from nothing to full (`0` = at once). Independent of `lifetime`, so a permanent storm can still build; with both, it gathers and then ends on its lifetime
 
+## color-picker
+colorPicker3d
+
+  label  = ''  — The caption on the row
+  value  = '#ffffff'  — A colour, or a reactive value holding one
+  alpha  = true  — Offer the alpha strip. Off, the value is always `#rrggbb`
+  presets  — Colours offered first in the popup: hex strings, or `{ name, value }`
+  defaultPresets  = 'on'  — `'off'` leaves out the general set, showing only yours
+  swatches  = shared  — Where `+` saves to. Unset, one store for the page, kept in `localStorage` under `tosijs-3d:color-swatches`. Pass `createSwatchStore(yourStorage)` to keep them yourself, or `null` to keep nothing
+  handleChange  — Live, including mid-drag. Canonical hex
+  handleCommit  — Once per gesture or preset, with the settled value: one undo step
+
 ## control-input
 control-input
 
@@ -1215,6 +1245,13 @@ gamepad-svg
   fillB  = #fcee22  — B button (yellow)
   fillX  = #8cc63f  — X button (green)
   fillY  = #3ea9f5  — Y button (blue)
+
+## gas-giant
+gas-giant
+
+  bands  = How many light and dark stripes from pole to pole, counting both. Jupiter is about 14, Neptune 6. Those near the equator are the broadest
+  storm  = 0…1
+  seed  = A different planet with the same look
 
 ## glass-gamepad — <tosi-b3d-gamepad>
 glass-gamepad (b3dGamepad)

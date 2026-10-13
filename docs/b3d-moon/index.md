@@ -57,3 +57,56 @@ preview.append(
 | `size` | `0.5` | Angular DIAMETER in degrees (the real moon is about 0.5) |
 | `color` | `'#dddddd'` | Its colour where lit |
 | `brightness` | `1` | Multiplies the lit side |
+| `frame` | `'stars'` | `'stars'`: it rides the star sphere, rising and setting. `'ground'`: `azimuth` and `elevation` are against the HORIZON (azimuth 0 is +Z) and it stays put while the sky turns, like the planet a tide-locked moon orbits |
+| `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. Banded, with winds and a storm; see [gas-giant](/gas-giant/). `color` is then unused |
+| `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
+| `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
+| `storm` | `-1` | Gas giant: size of the great storm, `0` = none. `-1` = the preset's |
+| `bandColors` | `''` | Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's |
+| `axisTilt` | `0` | Gas giant: degrees its bands lean from level. It is always seen equator-on, as a moon sees its planet |
+| `spin` | `1` | Gas giant: how fast its clouds run. `0` freezes them |
+| `seed` | `0` | Gas giant: a different planet with the same look. `0` = the preset's |
+
+## A giant in a moon's sky
+
+Seen from a close moon a giant planet is enormous: Jupiter from Io is about
+19° across, forty times the width of our moon. Give it that `size` and it is
+the sky.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dGround, slider3d, select3d, label3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { giant } = tosi({ giant: { time: 21, kind: 'jupiter', size: 19 } })
+// frame: 'ground' — it hangs over the horizon ahead and does not set.
+const planet = b3dMoon({ frame: 'ground', azimuth: 0, elevation: 32, size: giant.size, gas: giant.kind, axisTilt: 12 })
+
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () => [
+        label3d({ text: 'A giant in the sky' }),
+        select3d({ label: 'planet', value: giant.kind, options: ['jupiter', 'saturn', 'uranus', 'neptune'] }),
+        slider3d({ label: 'size (degrees)', value: giant.size, min: 1, max: 60, step: 1 }),
+        slider3d({ label: 'time of day', value: giant.time, min: 0, max: 24, step: 0.25 }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera('c', new BABYLON.Vector3(0, 2, 0), el.scene)
+        cam.setTarget(new BABYLON.Vector3(0, 7, 10))
+        cam.attachControl(el.querySelector('canvas'), true)
+        el.setActiveCamera(cam)
+      },
+    },
+    b3dSun({}),
+    b3dSkybox(
+      { timeOfDay: giant.time, realtimeScale: 0, atmosphere: 0, starfieldCube: '/sky/nebula', starfieldData: '/sky/stars', starfieldTilt: '12,25,58' },
+      planet,
+    ),
+    b3dGround({ width: 60, height: 60, color: '#6a6250' }),
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```

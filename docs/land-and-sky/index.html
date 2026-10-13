@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8928b0a894ba" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=a52dffbd3e65" data-tosi-doc-system />
   <title>Land and Sky — tosijs-3d</title>
   <meta name="description" content="THE KITCHEN SINK — one world that grows with the world-sim layer. Terrain (with live dials), a sea, weather over both, and the encoded sky behind." />
   <link rel="canonical" href="https://3d.tosijs.net/land-and-sky/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=73041c218643" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=80e3e550f075" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="land-and-sky">Land and Sky</h1>
 <p><strong>THE KITCHEN SINK</strong> — one world that grows with the world-sim layer. Terrain
@@ -39,7 +39,7 @@ provinces, weather systems and the simulation land, they land HERE first: this
 page is where the pieces meet, so it is also where their disagreements show
 first — which is the point.</p>
 <h2 id="demo">Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces, ROCK_RULES } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { demo } = tosi({
@@ -101,6 +101,8 @@ const { sky } = tosi({
     world: &#39;Earth&#39;, atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: &#39;#ffffff&#39;, horizonTint: &#39;#ffffff&#39;, tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
+    // Does anything GROW here? Off, the decorator places rocks alone.
+    decoLife: true,
     decoBudget: 2000, decoRadius: 900, decoShadows: false, decoClump: 0.85, decoClumpSize: 0,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
     // Extra (cosmetic) moons: a set, swung round the sky together.
@@ -145,6 +147,12 @@ const MOONS = {
   // (Moons ride the star sphere; this sits up ahead of the default view in
   // the morning.)
   Earth: [{ azimuth: 60, elevation: 22, size: 3.7, color: &#39;#6f9ad8&#39; }],
+  // A giant planet from a close moon: Jupiter from Io is about 19 degrees
+  // across. `gas` makes the body a banded gas giant (see gas-giant).
+  // `frame: &#39;ground&#39;`: the moon is tide-locked, so its planet never sets.
+  Jupiter: [{ frame: &#39;ground&#39;, azimuth: 90, elevation: 13, size: 19, gas: &#39;jupiter&#39;, axisTilt: 8 }],
+  Saturn: [{ frame: &#39;ground&#39;, azimuth: 90, elevation: 12, size: 11, gas: &#39;saturn&#39;, axisTilt: 20 }],
+  Neptune: [{ frame: &#39;ground&#39;, azimuth: 90, elevation: 12, size: 8, gas: &#39;neptune&#39;, axisTilt: 25 }],
   &#39;Alien trio&#39;: [
     { azimuth: 0, elevation: 30, size: 6, color: &#39;#e0b090&#39; },
     { azimuth: 25, elevation: 12, size: 2, color: &#39;#a0c8ff&#39; },
@@ -183,7 +191,9 @@ function placeMoons() {
       moonEls[i] = b3dMoon()
       skybox.append(moonEls[i])
     }
-    Object.assign(moonEls[i], m, {
+    // Every field, so a body left over from another set does not keep its
+    // colour or stay a gas giant.
+    Object.assign(moonEls[i], { color: &#39;#dddddd&#39;, gas: &#39;&#39;, axisTilt: 0, frame: &#39;stars&#39; }, m, {
       azimuth: m.azimuth + sky.moonAz.value,
       elevation: m.elevation + sky.moonEl.value,
     })
@@ -211,7 +221,7 @@ sky.world.observe(() =&gt; {
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
   demo: [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;seaLevel&#39;, &#39;sea&#39;, &#39;waterColor&#39;, &#39;waterFog&#39;, &#39;waterTint&#39;, &#39;palette&#39;, &#39;volcano&#39;, &#39;volcanoes&#39;, &#39;craters&#39;, &#39;temperature&#39;, &#39;moisture&#39;, &#39;volcanicScale&#39;, &#39;season&#39;, &#39;seasonality&#39;],
-  sky: [&#39;coverage&#39;, &#39;altitude&#39;, &#39;timeOfDay&#39;, &#39;orographic&#39;, &#39;wind&#39;, &#39;cirrus&#39;, &#39;evolve&#39;, &#39;atmosphere&#39;, &#39;dust&#39;, &#39;turbidity&#39;, &#39;rayleigh&#39;, &#39;mieCoefficient&#39;, &#39;luminance&#39;, &#39;zenithTint&#39;, &#39;horizonTint&#39;, &#39;tintStrength&#39;, &#39;starSize&#39;, &#39;starGain&#39;, &#39;starFloor&#39;, &#39;twinkle&#39;, &#39;moons&#39;, &#39;moonAz&#39;, &#39;moonEl&#39;, &#39;deckColor&#39;, &#39;deckUnderColor&#39;, &#39;sunSize&#39;, &#39;sunBrightness&#39;, &#39;decoBudget&#39;, &#39;stormX&#39;, &#39;stormZ&#39;, &#39;stormRadius&#39;, &#39;stormCoverage&#39;, &#39;lightningRate&#39;, &#39;stormRain&#39;,
+  sky: [&#39;coverage&#39;, &#39;altitude&#39;, &#39;timeOfDay&#39;, &#39;orographic&#39;, &#39;wind&#39;, &#39;cirrus&#39;, &#39;evolve&#39;, &#39;atmosphere&#39;, &#39;dust&#39;, &#39;turbidity&#39;, &#39;rayleigh&#39;, &#39;mieCoefficient&#39;, &#39;luminance&#39;, &#39;zenithTint&#39;, &#39;horizonTint&#39;, &#39;tintStrength&#39;, &#39;starSize&#39;, &#39;starGain&#39;, &#39;starFloor&#39;, &#39;twinkle&#39;, &#39;moons&#39;, &#39;moonAz&#39;, &#39;moonEl&#39;, &#39;deckColor&#39;, &#39;deckUnderColor&#39;, &#39;sunSize&#39;, &#39;sunBrightness&#39;, &#39;decoBudget&#39;, &#39;decoLife&#39;, &#39;stormX&#39;, &#39;stormZ&#39;, &#39;stormRadius&#39;, &#39;stormCoverage&#39;, &#39;lightningRate&#39;, &#39;stormRain&#39;,
     // LAST: switching the storm on builds it from the values above.
     &#39;storm&#39;],
 }
@@ -256,7 +266,7 @@ const BUILT_IN = {
     // (No volcano for now: Earth&#39;s province, a stand-in until each world
     // gets its own landforms.)
     demo: { seaLevel: 0, temperature: 0.8, moisture: 0, sea: false, volcano: false, craters: 0.35 },
-    sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: &#39;#c8a070&#39;, horizonTint: &#39;#e0b080&#39;, tintStrength: 1, deckColor: &#39;#f0e0d0&#39;, deckUnderColor: &#39;#8a7060&#39;, sunSize: 0.66, sunBrightness: sunLight(1.52), moons: &#39;Mars pair&#39;, decoBudget: 0 },
+    sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: &#39;#c8a070&#39;, horizonTint: &#39;#e0b080&#39;, tintStrength: 1, deckColor: &#39;#f0e0d0&#39;, deckUnderColor: &#39;#8a7060&#39;, sunSize: 0.66, sunBrightness: sunLight(1.52), moons: &#39;Mars pair&#39;, decoBudget: 1500, decoLife: false },
   },
   // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
   // cover maxed: a storm 8 km across centred on you, striking four times as
@@ -282,16 +292,16 @@ Object.assign(BUILT_IN, {
     // FLATTISH, so the craters carry the shape (Earth&#39;s 230 m relief buried
     // them). Jagged highlands would be a mountain province on top.
     demo: { sea: false, volcano: false, craters: 0.9, temperature: -0.45, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
-    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: &#39;Earth&#39;, decoBudget: 0, wind: 0 },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: &#39;Earth&#39;, decoBudget: 1500, decoLife: false, wind: 0 },
   },
   // Sulfur and fire: yellow, orange and white ground, black lava, a field of
-  // hot volcanoes, a tiny sun. No air to speak of. (Plumes, and Jupiter in
-  // the sky, to come.)
+  // hot volcanoes, a tiny sun, and Jupiter filling a fifth of the sky. No air
+  // to speak of. (Plumes to come.)
   Io: {
     name: &#39;Io&#39;,
     // (A hack: 9 °C picks the sulfur palette&#39;s middle row. Io is about -130 °C.)
     demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.175, moisture: 0, palette: &#39;sulfur&#39; },
-    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: &#39;None&#39;, decoBudget: 0, wind: 0 },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: &#39;Jupiter&#39;, decoBudget: 0, wind: 0 },
   },
   // Thick orange haze over dark methane seas, a tiny, dim sun barely there.
   Titan: {
@@ -433,6 +443,13 @@ const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius,
 sky.decoShadows.observe(() =&gt; {
   decorator.shadows = sky.decoShadows.value ? &#39;on&#39; : &#39;off&#39;
 })
+// A dead world keeps its rocks: the rules without the plants.
+const applyLife = () =&gt; {
+  decorator.rules = sky.decoLife.value ? null : ROCK_RULES
+  decorator.rebuild?.()
+}
+sky.decoLife.observe(applyLife)
+applyLife()
 
 let water
 const terrain = b3dTerrain({
@@ -602,6 +619,7 @@ const scene = b3d(
       // THE BUDGET is the performance dial: a count, not a density. Watch the
       // Perf Stats panel&#39;s decorator row (placed, draw calls, build ms).
       slider3d({ label: &#39;rocks &amp; trees&#39;, value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
+      toggle3d({ label: &#39;plants (off = rocks only)&#39;, value: sky.decoLife }),
       slider3d({ label: &#39;reach (m)&#39;, value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
       // Tighter or looser: how strongly things gather, and how big a clump
       // is (0 = auto, sized from how far apart things are).
@@ -1022,6 +1040,7 @@ to populate — the same one a visitor just reshaped.</li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
         <ul>
@@ -1113,6 +1132,11 @@ to populate — the same one a visitor just reshaped.</li>
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
     </ul>
     </details></li>
@@ -1146,6 +1170,6 @@ to populate — the same one a visitor just reshaped.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0akytav6.js"></script>
+  <script type="module" src="../hydrate-ez94ca2n.js"></script>
 </body>
 </html>

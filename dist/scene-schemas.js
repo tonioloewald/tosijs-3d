@@ -943,15 +943,27 @@ export function moonSchema(extra = {}) {
     return schema('Moon', {
         azimuth: num(0, { minimum: 0, maximum: 360, ...DEG }),
         elevation: num(20, { minimum: -90, maximum: 90, ...DEG }),
-        // Angular size; the real moon is about half a degree.
+        // Angular size; the real moon is about half a degree, and a giant
+        // planet seen from a close moon can be 20 or more.
         size: num(0.5, {
             minimum: 0.05,
-            maximum: 20,
-            'x-useful': [0.2, 6],
+            maximum: 90,
+            'x-useful': [0.2, 30],
             ...DEG,
         }),
         color: color('#dddddd'),
         brightness: num(1, { minimum: 0, maximum: 3 }),
+        // Against the stars (it rises and sets) or against the horizon.
+        frame: choice('stars', ['stars', 'ground']),
+        // A gas giant: a preset, then overrides. 0 / -1 / '' mean the preset's.
+        gas: choice('', ['', 'jupiter', 'saturn', 'uranus', 'neptune']),
+        bands: num(0, { minimum: 0, maximum: 40, multipleOf: 1 }),
+        turbulence: num(-1, { minimum: -1, maximum: 1.5 }),
+        storm: num(-1, { minimum: -1, maximum: 2 }),
+        bandColors: { type: 'string', default: '' },
+        axisTilt: num(0, { minimum: -90, maximum: 90, ...DEG }),
+        spin: num(1, { minimum: 0, maximum: 20 }),
+        seed: num(0, { minimum: 0, maximum: 9999, multipleOf: 1 }),
     }, extra);
 }
 /**

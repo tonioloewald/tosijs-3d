@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.2 (unreleased)
+## 0.10.2
 
 ### Added
 
@@ -71,6 +71,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Docs: the star system and panel pages each showed an empty live example.**
   A note between a demo and its CSS split the CSS off into an example of its
   own, and left the demo without its styles.
+
+Size: barrel (min, packages external) 987.8 KB raw / 333.6 KB gz, +1.6% on 0.10.1.
 
 ## 0.10.1
 

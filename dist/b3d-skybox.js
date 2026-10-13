@@ -144,6 +144,7 @@ that is already up works. `skyboxSize` is the one that is still read once.
 /*{ "parent": "sky-and-light", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
 import { PRNG } from './mersenne-twister.js';
+import { GAS_GIANT_GLSL, gasGiantRgb } from './gas-giant.js';
 import { SkyMaterial } from '@babylonjs/materials';
 import { BRIGHT_GAMMA, paletteGlsl, spectralGlsl } from './starfield-codec.js';
 /*
@@ -561,9 +562,12 @@ function registerForkedSky() {
         'uniform vec3 b3dSunDir;uniform float b3dSunDisc;uniform float b3dMoonDisc;uniform vec3 b3dSunDiscColor;uniform float b3dSunHdr;uniform float b3dSunSize;' +
         'uniform vec3 b3dVeilColor;uniform float b3dVeil;' +
         'uniform vec4 b3dMoonsA[4];uniform vec4 b3dMoonsB[4];uniform vec3 b3dSunLocal;' +
-        MOONS_GLSL +
+        'uniform vec4 b3dMoonsK[4];uniform vec4 b3dMoonsC1[4];uniform vec4 b3dMoonsC2[4];uniform vec4 b3dMoonsX[4];' +
         'uniform vec3 b3dTintZ;uniform vec3 b3dTintH;uniform float b3dTintAmt;uniform float b3dDustGrey;' +
-        starDecodeGlsl(paletteGlsl() + spectralGlsl()))
+        starDecodeGlsl(paletteGlsl() + spectralGlsl()) +
+        // After the star decoder: the gas giants read its `b3dTime`.
+        GAS_GIANT_GLSL +
+        MOONS_GLSL)
         // The GRADIENT keeps the WORLD direction — its horizon must stay aligned
         // with the planet, not with the stars (the dome's rotation would turn
         // the horizon into a diagonal). Only the backdrop (stars + moon, below)
@@ -690,6 +694,13 @@ disc coordinates, and it is lit where that normal faces the sun. A moon near
 the sun is a crescent; one opposite it is full. The dark side keeps a trace of
 light (planetshine), which reads as a body rather than a hole, and hides the
 stars behind it (the returned coverage).
+
+A moon with `gas` set is a GAS GIANT: `b3dMoonsK[i]` is `(bands, turbulence,
+storm, seed)` with bands 0 meaning "a plain moon", `b3dMoonsC1/C2` are its
+second and third colours (C1.w is how fast its clouds run), and `b3dMoonsX`
+is its spin axis. The normal is turned into the planet's own frame and
+[[gas-giant]] colours it and lights it (`b3dGasGiantLit`): a soft
+terminator, a limb that darkens and a rim of haze, which a rock has none of.
 */
 const MOONS_GLSL = 'vec3 b3dMoonsAt(vec3 d,out float occ){vec3 c=vec3(0.0);occ=0.0;' +
     'for(int i=0;i<4;i++){vec4 a=b3dMoonsA[i];if(a.w<=0.0)continue;' +
@@ -701,8 +712,13 @@ const MOONS_GLSL = 'vec3 b3dMoonsAt(vec3 d,out float occ){vec3 c=vec3(0.0);occ=0
     'float aa=clamp(0.0007/a.w,0.01,0.4);float cov=1.0-smoothstep(1.0-aa,1.0,r);' +
     'vec3 n=p.x*t1+p.y*t2-sqrt(max(0.0,1.0-r*r))*a.xyz;' +
     'float lit=smoothstep(-0.04,0.08,dot(n,b3dSunLocal));' +
-    'vec4 b=b3dMoonsB[i];' +
-    'c=mix(c,b.rgb*(b.w*lit+0.025),cov);occ=max(occ,cov);}' +
+    'vec4 b=b3dMoonsB[i];vec3 alb=b.rgb;vec4 k=b3dMoonsK[i];' +
+    'vec3 body=alb*(b.w*lit+0.025);' +
+    'if(k.x>0.0){vec3 ax=b3dMoonsX[i].xyz;' +
+    'vec3 e1=normalize(cross(ax,abs(ax.y)<0.99?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));vec3 e2=cross(ax,e1);' +
+    'alb=b3dGasGiant(vec3(dot(n,e1),dot(n,ax),dot(n,e2)),k,b.rgb,b3dMoonsC1[i].rgb,b3dMoonsC2[i].rgb,b3dTime*b3dMoonsC1[i].w);' +
+    'body=b3dGasGiantLit(alb,dot(n,b3dSunLocal),sqrt(max(0.0,1.0-r*r)),mix(b.rgb,vec3(1.0),0.4))*b.w*1.25+alb*0.02;}' +
+    'c=mix(c,body,cov);occ=max(occ,cov);}' +
     'return c;}';
 function makeForkedSkyMaterial(scene) {
     const mat = new BABYLON.ShaderMaterial('b3d-skybox', scene, { vertex: B3D_SKY, fragment: B3D_SKY }, {
@@ -743,6 +759,10 @@ function makeForkedSkyMaterial(scene) {
             'b3dDustGrey',
             'b3dMoonsA',
             'b3dMoonsB',
+            'b3dMoonsK',
+            'b3dMoonsC1',
+            'b3dMoonsC2',
+            'b3dMoonsX',
             'b3dSunLocal',
         ],
         samplers: ['b3dStars', 'b3dStarData'],
@@ -773,6 +793,8 @@ function makeForkedSkyMaterial(scene) {
     mat.setFloat('b3dMoonDisc', 0);
     mat.setArray4('b3dMoonsA', new Array(16).fill(0));
     mat.setArray4('b3dMoonsB', new Array(16).fill(0));
+    for (const n of ['b3dMoonsK', 'b3dMoonsC1', 'b3dMoonsC2', 'b3dMoonsX'])
+        mat.setArray4(n, new Array(16).fill(0));
     mat.setVector3('b3dSunLocal', new BABYLON.Vector3(0, 1, 0));
     mat.setColor3('b3dSunDiscColor', new BABYLON.Color3(3, 2.9, 2.7));
     const num = (name, initial) => {
@@ -1652,13 +1674,28 @@ export class B3dSkybox extends AbstractMesh {
             return;
         const a = new Array(16).fill(0);
         const b = new Array(16).fill(0);
+        const k = new Array(16).fill(0);
+        const c1 = new Array(16).fill(0);
+        const c2 = new Array(16).fill(0);
+        const x = new Array(16).fill(0);
         const moons = Array.from(this.querySelectorAll('tosi-b3d-moon')).slice(0, 4);
         // The day moon is real but pale: the sky's own light washes it out.
         // Not the 1.6 of the built-in disc — a coloured moon must stay below
         // clipping or every colour reads as white.
         const exposure = 0.85 * (1 - 0.75 * daylight);
+        const toDome = BABYLON.Quaternion.Inverse(this._domeQuat);
         moons.forEach((m, i) => {
-            const d = m.direction();
+            /*
+            WHICH SKY IT HANGS IN. A moon rides the star sphere and so rises and
+            sets. A body with `frame="ground"` is placed against the horizon and
+            stays there while the stars and the sun go round: the planet a
+            tide-locked moon orbits, which never moves in that moon's sky.
+            */
+            const grounded = m.frame === 'ground';
+            const raw = m.direction();
+            const d = grounded
+                ? new BABYLON.Vector3(raw.x, raw.y, raw.z).applyRotationQuaternion(toDome)
+                : new BABYLON.Vector3(raw.x, raw.y, raw.z);
             const radius = (Math.max(0, m.size) / 2) * DEG_TO_RAD;
             a.splice(i * 4, 4, d.x, d.y, d.z, Math.sin(Math.min(radius, 1.5)));
             let c;
@@ -1669,14 +1706,43 @@ export class B3dSkybox extends AbstractMesh {
                 c = new BABYLON.Color3(0.87, 0.87, 0.87);
             }
             b.splice(i * 4, 4, c.r, c.g, c.b, Math.max(0, m.brightness) * exposure);
+            const look = m.gasLook?.();
+            if (look != null) {
+                const [z, belt, accent] = look.colors.map(gasGiantRgb);
+                b.splice(i * 4, 3, ...z);
+                k.splice(i * 4, 4, look.bands, look.turbulence, look.storm, look.seed);
+                c1.splice(i * 4, 4, ...belt, Number(m.spin) || 0);
+                c2.splice(i * 4, 4, ...accent, 0);
+                /*
+                Seen EQUATOR-ON, which is how a moon sees its planet (moons orbit over
+                the equator): the spin axis is "up" (the horizon's, or the sky pole's)
+                with the part along the line of sight taken out, then leaned by
+                `axisTilt` about that line. So the bands lie level and `axisTilt`
+                is the angle you see them at.
+                */
+                const up = grounded
+                    ? BABYLON.Vector3.Up().applyRotationQuaternion(toDome)
+                    : BABYLON.Vector3.Up();
+                let ax = up.subtract(d.scale(BABYLON.Vector3.Dot(up, d)));
+                if (ax.lengthSquared() < 1e-4)
+                    ax = new BABYLON.Vector3(1, 0, 0);
+                ax.normalize();
+                const tilt = (Number(m.axisTilt) || 0) * DEG_TO_RAD;
+                const side = BABYLON.Vector3.Cross(d, ax);
+                ax = ax.scale(Math.cos(tilt)).add(side.scale(Math.sin(tilt)));
+                x.splice(i * 4, 4, ax.x, ax.y, ax.z, 0);
+            }
         });
         sm.setArray4('b3dMoonsA', a);
         sm.setArray4('b3dMoonsB', b);
+        sm.setArray4('b3dMoonsK', k);
+        sm.setArray4('b3dMoonsC1', c1);
+        sm.setArray4('b3dMoonsC2', c2);
+        sm.setArray4('b3dMoonsX', x);
         const sun = sunVector.clone().normalize();
         if (!isDay)
             sun.scaleInPlace(-1);
-        const inv = BABYLON.Quaternion.Inverse(this._domeQuat);
-        sm.setVector3?.('b3dSunLocal', sun.applyRotationQuaternion(inv));
+        sm.setVector3?.('b3dSunLocal', sun.applyRotationQuaternion(toDome));
     }
     /** A `<tosi-b3d-moon>` changed (or came or went): redraw the moons. */
     moonsChanged() {
@@ -1703,6 +1769,7 @@ export class B3dSkybox extends AbstractMesh {
         const cam = this.owner?.scene?.activeCamera;
         if (full > start && cam != null)
             climbed = band(cam.globalPosition.y, start, full);
+        this._climbed = climbed;
         /*
         GAS AND DUST, which scatter differently (Tonio: "Mars should have almost
         no air"). Gas (`atmosphere`) is Rayleigh scattering, the blue; dust
@@ -1716,6 +1783,14 @@ export class B3dSkybox extends AbstractMesh {
         this._gasNow = gas;
         return 1 - (1 - (1 - gas) * (1 - dust));
     }
+    /** The scene's terrain draws this far (0 = no terrain): see the fog layer. */
+    _groundReach() {
+        const terrain = this.owner?.querySelector('tosi-b3d-terrain');
+        const r = Number(terrain?.drawnReach);
+        return Number.isFinite(r) && r > 0 ? r : 0;
+    }
+    /** How far the camera has climbed out of the air, 0…1 — see `_vacuumNow`. */
+    _climbed = 0;
     /** Gas alone (Rayleigh) — see `_vacuumNow`. Set alongside it. */
     _gasNow = 1;
     _gas = 1;
@@ -2389,14 +2464,27 @@ export class B3dSkybox extends AbstractMesh {
         */
         this._removeFogLayer = owner.addFogLayer(() => {
             const w = this._vacuum;
+            /*
+            NO AIR, BUT THE GROUND STILL ENDS. With the haze pushed out to millions
+            of metres nothing hid the far edge of a terrain, and on the Moon its
+            tiles popped in against the black (Tonio: "doesn't fade out to black
+            or whatever in the distance. Mars does"). So where there is a terrain
+            the clear air stops at its edge: the last third of what is drawn fades
+            to the black it stands against. Nothing in front of that is touched, but
+            anything fogged that stands BEYOND the ground's edge goes with it (fog
+            is one setting for the scene), and it needs linear fog to act at all.
+            */
+            // Only for a world that HAS no air. Climbing out of one that does
+            // must not draw a black curtain over the ground you left.
+            const reach = this._climbed > 0.01 ? 0 : this._groundReach();
             return w <= 0
                 ? null
                 : {
                     weight: w,
                     color: { r: 0, g: 0, b: 0 },
                     density: 0,
-                    start: 1e6,
-                    end: 1e7,
+                    start: reach > 0 ? reach * 0.66 : 1e6,
+                    end: reach > 0 ? reach : 1e7,
                     // Mixed as strengths, so a LITTLE less air is a little less haze
                     // (see FogLayer.reciprocal).
                     reciprocal: true,

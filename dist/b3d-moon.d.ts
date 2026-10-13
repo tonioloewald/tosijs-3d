@@ -1,4 +1,5 @@
 import { Component } from 'tosijs';
+import { type GasGiantLook } from './gas-giant.js';
 export declare class B3dMoon extends Component {
     static preferredTagName: string;
     static initAttributes: {
@@ -7,6 +8,15 @@ export declare class B3dMoon extends Component {
         size: number;
         color: string;
         brightness: number;
+        frame: "stars" | "ground";
+        gas: string;
+        bands: number;
+        turbulence: number;
+        storm: number;
+        bandColors: string;
+        axisTilt: number;
+        spin: number;
+        seed: number;
     };
     static shadowStyleSpec: {
         ':host': {
@@ -18,7 +28,19 @@ export declare class B3dMoon extends Component {
     size: number;
     color: string;
     brightness: number;
-    /** Its direction on the star sphere (the sky dome's local frame). */
+    frame: 'stars' | 'ground';
+    gas: string;
+    bands: number;
+    turbulence: number;
+    storm: number;
+    bandColors: string;
+    axisTilt: number;
+    spin: number;
+    seed: number;
+    /** What the sky shader draws when this is a gas giant; null for a moon. */
+    gasLook(): GasGiantLook | null;
+    /** Its direction: on the star sphere (the sky dome's local frame), or in
+     * the world when `frame` is `'ground'`. */
     direction(): {
         x: number;
         y: number;

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8928b0a894ba" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=a52dffbd3e65" data-tosi-doc-system />
   <title>b3d-moon — tosijs-3d</title>
   <meta name="description" content="Extra moons, cosmetic. Put up to four inside a &lt;tosi-b3d-skybox&gt;. Each is a colour and a size at a place on the star sphere." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-moon/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=73041c218643" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=80e3e550f075" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-moon">b3d-moon</h1>
 <p><strong>Extra moons, cosmetic.</strong> Put up to four inside a
@@ -109,7 +109,91 @@ preview.append(
 <td><code>1</code></td>
 <td>Multiplies the lit side</td>
 </tr>
+<tr>
+<td><code>frame</code></td>
+<td><code>&#39;stars&#39;</code></td>
+<td><code>&#39;stars&#39;</code>: it rides the star sphere, rising and setting. <code>&#39;ground&#39;</code>: <code>azimuth</code> and <code>elevation</code> are against the HORIZON (azimuth 0 is +Z) and it stays put while the sky turns, like the planet a tide-locked moon orbits</td>
+</tr>
+<tr>
+<td><code>gas</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Make it a GAS GIANT: <code>&#39;jupiter&#39;</code>, <code>&#39;saturn&#39;</code>, <code>&#39;uranus&#39;</code> or <code>&#39;neptune&#39;</code>. Banded, with winds and a storm; see <a href="/gas-giant/">gas-giant</a>. <code>color</code> is then unused</td>
+</tr>
+<tr>
+<td><code>bands</code></td>
+<td><code>0</code></td>
+<td>Gas giant: stripes from pole to pole. <code>0</code> = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>turbulence</code></td>
+<td><code>-1</code></td>
+<td>Gas giant: how torn the band edges are, <code>0…1</code>. <code>-1</code> = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td><code>-1</code></td>
+<td>Gas giant: size of the great storm, <code>0</code> = none. <code>-1</code> = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>bandColors</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Gas giant: up to three <code>#rrggbb</code>, comma separated (zones, belts, accent). Blank = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>axisTilt</code></td>
+<td><code>0</code></td>
+<td>Gas giant: degrees its bands lean from level. It is always seen equator-on, as a moon sees its planet</td>
+</tr>
+<tr>
+<td><code>spin</code></td>
+<td><code>1</code></td>
+<td>Gas giant: how fast its clouds run. <code>0</code> freezes them</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td><code>0</code></td>
+<td>Gas giant: a different planet with the same look. <code>0</code> = the preset&#39;s</td>
+</tr>
 </tbody></table>
+<h2 id="a-giant-in-a-moons-sky">A giant in a moon&#39;s sky</h2>
+<p>Seen from a close moon a giant planet is enormous: Jupiter from Io is about
+19° across, forty times the width of our moon. Give it that <code>size</code> and it is
+the sky.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dGround, slider3d, select3d, label3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { giant } = tosi({ giant: { time: 21, kind: &#39;jupiter&#39;, size: 19 } })
+// frame: &#39;ground&#39; — it hangs over the horizon ahead and does not set.
+const planet = b3dMoon({ frame: &#39;ground&#39;, azimuth: 0, elevation: 32, size: giant.size, gas: giant.kind, axisTilt: 12 })
+
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;A giant in the sky&#39; }),
+        select3d({ label: &#39;planet&#39;, value: giant.kind, options: [&#39;jupiter&#39;, &#39;saturn&#39;, &#39;uranus&#39;, &#39;neptune&#39;] }),
+        slider3d({ label: &#39;size (degrees)&#39;, value: giant.size, min: 1, max: 60, step: 1 }),
+        slider3d({ label: &#39;time of day&#39;, value: giant.time, min: 0, max: 24, step: 0.25 }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const cam = new BABYLON.FreeCamera(&#39;c&#39;, new BABYLON.Vector3(0, 2, 0), el.scene)
+        cam.setTarget(new BABYLON.Vector3(0, 7, 10))
+        cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(cam)
+      },
+    },
+    b3dSun({}),
+    b3dSkybox(
+      { timeOfDay: giant.time, realtimeScale: 0, atmosphere: 0, starfieldCube: &#39;/sky/nebula&#39;, starfieldData: &#39;/sky/stars&#39;, starfieldTilt: &#39;12,25,58&#39; },
+      planet,
+    ),
+    b3dGround({ width: 60, height: 60, color: &#39;#6a6250&#39; }),
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -402,6 +486,7 @@ preview.append(
         </ul>
         </details></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
         <ul>
@@ -493,6 +578,11 @@ preview.append(
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
     </ul>
     </details></li>
@@ -526,6 +616,6 @@ preview.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0akytav6.js"></script>
+  <script type="module" src="../hydrate-ez94ca2n.js"></script>
 </body>
 </html>

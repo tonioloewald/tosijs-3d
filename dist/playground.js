@@ -259,11 +259,12 @@ export function playground(options = {}) {
     // comparison. The posts hold it up and leave the gap you get shot through.
     wall('rail-top', 24, line, 7, 0.22, 0.3, METAL, 1.1), wall('rail-post-a', 21, line, 0.18, 1.1, 0.18, METAL), wall('rail-post-b', 24, line, 0.18, 1.1, 0.18, METAL), wall('rail-post-c', 27, line, 0.18, 1.1, 0.18, METAL));
     /*
-    THE CLIMB — three crates at a step, a mantle and a "no".
+    THE CLIMB — three crates: a step, a mantle and a pull-up.
   
     0.4 is a stair you walk up without noticing, 0.9 is the band `mantle` exists
-    for, and 1.6 is above it: the character should refuse rather than levitate,
-    and refusing visibly is the behaviour worth being able to watch.
+    for, and 1.6 was the "no" until the rig gained `ClimbUp_2m` and `climbReach`
+    went to 2.2: it is now the tall climb, a pull-up over your own head. The
+    refusal to watch is the tower beside the lifts.
     */
     parts.push(wall('crate-step', -14, 10, 1.6, 0.4, 1.6, CRATE), wall('crate-mantle', -12, 12.5, 1.6, 0.9, 1.6, CRATE), wall('crate-high', -10, 15, 1.6, 1.6, 1.6, CRATE), 
     // …and one stack that gets you onto the catwalk, if you take them in order.

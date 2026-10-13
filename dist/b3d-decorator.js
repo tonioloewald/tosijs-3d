@@ -96,7 +96,7 @@ import { resolveBudget } from './b3d-quality.js';
 import { mantaAxes } from './biome-chart.js';
 import { attachBiomePlugin } from './biome-plugin.js';
 import { rockFromName, rockGeometry } from './procedural-rock.js';
-import { isDefaultLibrary, scatterPlacements, NearIndex, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
+import { isDefaultLibrary, scatterPlacements, NearIndex, seatDip, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
 /*
 A layer bit the camera does not see (its default mask is 0x0FFFFFFF). The shadow
 pass renders its explicit caster list WITHOUT checking layer masks
@@ -148,6 +148,7 @@ export class B3dDecorator extends B3dChild {
     get rules() {
         return (this._rules ?? (this._defaultLibrary ? NATURE_RULES : NATURE_KIT_RULES));
     }
+    /** `null` goes back to the library's own rules. */
     set rules(rules) {
         this._rules = rules;
     }
@@ -639,6 +640,20 @@ export class B3dDecorator extends B3dChild {
                 }
                 : undefined,
         });
+        /*
+        SEAT THEM ON THE GROUND THAT IS DRAWN, which is not the ground that was
+        sampled. `height` is the true surface; what you see is a mesh whose
+        vertices are metres apart, and a straight edge between two of them cuts
+        UNDER any bump that sits between. A rock placed on the bump floated
+        (Tonio: "rocks are often floating above the terrain. We should err towards
+        slightly under"). So each placement is lowered by how far the surface
+        around it falls below its own tangent plane, one mesh cell out (`seatDip`).
+        The cell is the terrain's own (`meshCell`), which counts `horizScale`:
+        left out, the correction was a tenth of what it should be in Land and Sky.
+        */
+        const cell = Number(terrain.meshCell) || 0;
+        for (const p of this.placements)
+            p.y += seatDip(height, p, cell);
         this.near = new NearIndex(this.placements, 32);
         pruneScatterCache(this._cache, here, this.radius * 1.5);
         this._center = here;

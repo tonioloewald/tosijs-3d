@@ -12,6 +12,15 @@ export declare class B3dPlanet extends B3dChild {
     };
     static initAttributes: {
         biome: "on" | "off";
+        gas: string;
+        bands: number;
+        turbulence: number;
+        storm: number;
+        bandColors: string;
+        ringInner: number;
+        ringOuter: number;
+        ringOpacity: number;
+        ringColor: string;
         seed: number;
         radius: number;
         subdivisions: number;

@@ -194,6 +194,26 @@ export interface GroundSample {
 }
 export declare function scatterPlacements(o: ScatterOptions): Placement[];
 /**
+ * How far to LOWER something placed on the true surface so that it sits on
+ * the mesh that is drawn (zero or negative, metres).
+ *
+ * `height` is the true surface; the drawn ground has vertices `cell` apart
+ * and a straight edge between two of them cuts under any bump between. This
+ * is how far the surface falls below the placement's own tangent plane, most
+ * of a cell out: the bump the mesh does not have. Slope is not counted (the
+ * tangent plane takes it out), so standing on a hillside buries nothing.
+ */
+export declare function seatDip(height: (x: number, z: number) => number, p: {
+    x: number;
+    y: number;
+    z: number;
+    normal: {
+        x: number;
+        y: number;
+        z: number;
+    };
+}, cell: number): number;
+/**
  * Boulders and stones, made procedurally (procedural-rock) and coloured by the
  * terrain. Shared by both rule sets below.
  */

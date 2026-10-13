@@ -11,7 +11,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces, ROCK_RULES } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -73,6 +73,8 @@ const { sky } = tosi({
     world: 'Earth', atmosphere: 1, dust: 0, turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, luminance: 1,
     zenithTint: '#ffffff', horizonTint: '#ffffff', tintStrength: 0,
     // The stars: size (1 = the default point), brightness, and the faint floor.
+    // Does anything GROW here? Off, the decorator places rocks alone.
+    decoLife: true,
     decoBudget: 2000, decoRadius: 900, decoShadows: false, decoClump: 0.85, decoClumpSize: 0,
     starSize: 1, starGain: 0.9, starFloor: 0.4, starSharpness: 3, twinkle: 0.35,
     // Extra (cosmetic) moons: a set, swung round the sky together.
@@ -117,6 +119,12 @@ const MOONS = {
   // (Moons ride the star sphere; this sits up ahead of the default view in
   // the morning.)
   Earth: [{ azimuth: 60, elevation: 22, size: 3.7, color: '#6f9ad8' }],
+  // A giant planet from a close moon: Jupiter from Io is about 19 degrees
+  // across. `gas` makes the body a banded gas giant (see gas-giant).
+  // `frame: 'ground'`: the moon is tide-locked, so its planet never sets.
+  Jupiter: [{ frame: 'ground', azimuth: 90, elevation: 13, size: 19, gas: 'jupiter', axisTilt: 8 }],
+  Saturn: [{ frame: 'ground', azimuth: 90, elevation: 12, size: 11, gas: 'saturn', axisTilt: 20 }],
+  Neptune: [{ frame: 'ground', azimuth: 90, elevation: 12, size: 8, gas: 'neptune', axisTilt: 25 }],
   'Alien trio': [
     { azimuth: 0, elevation: 30, size: 6, color: '#e0b090' },
     { azimuth: 25, elevation: 12, size: 2, color: '#a0c8ff' },
@@ -155,7 +163,9 @@ function placeMoons() {
       moonEls[i] = b3dMoon()
       skybox.append(moonEls[i])
     }
-    Object.assign(moonEls[i], m, {
+    // Every field, so a body left over from another set does not keep its
+    // colour or stay a gas giant.
+    Object.assign(moonEls[i], { color: '#dddddd', gas: '', axisTilt: 0, frame: 'stars' }, m, {
       azimuth: m.azimuth + sky.moonAz.value,
       elevation: m.elevation + sky.moonEl.value,
     })
@@ -183,7 +193,7 @@ sky.world.observe(() => {
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
   demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale', 'season', 'seasonality'],
-  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
+  sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'decoLife', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
     // LAST: switching the storm on builds it from the values above.
     'storm'],
 }
@@ -228,7 +238,7 @@ const BUILT_IN = {
     // (No volcano for now: Earth's province, a stand-in until each world
     // gets its own landforms.)
     demo: { seaLevel: 0, temperature: 0.8, moisture: 0, sea: false, volcano: false, craters: 0.35 },
-    sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 0 },
+    sky: { coverage: 0.06, cirrus: 0.6, atmosphere: 0.03, dust: 0.85, zenithTint: '#c8a070', horizonTint: '#e0b080', tintStrength: 1, deckColor: '#f0e0d0', deckUnderColor: '#8a7060', sunSize: 0.66, sunBrightness: sunLight(1.52), moons: 'Mars pair', decoBudget: 1500, decoLife: false },
   },
   // ONE GIANT LIGHTNING STORM under a closed deck of sulfur-yellow cloud,
   // cover maxed: a storm 8 km across centred on you, striking four times as
@@ -254,16 +264,16 @@ Object.assign(BUILT_IN, {
     // FLATTISH, so the craters carry the shape (Earth's 230 m relief buried
     // them). Jagged highlands would be a mountain province on top.
     demo: { sea: false, volcano: false, craters: 0.9, temperature: -0.45, moisture: 0, grossAmplitude: 30, detailAmplitude: 4 },
-    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: 'Earth', decoBudget: 0, wind: 0 },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 1, sunBrightness: 1, moons: 'Earth', decoBudget: 1500, decoLife: false, wind: 0 },
   },
   // Sulfur and fire: yellow, orange and white ground, black lava, a field of
-  // hot volcanoes, a tiny sun. No air to speak of. (Plumes, and Jupiter in
-  // the sky, to come.)
+  // hot volcanoes, a tiny sun, and Jupiter filling a fifth of the sky. No air
+  // to speak of. (Plumes to come.)
   Io: {
     name: 'Io',
     // (A hack: 9 °C picks the sulfur palette's middle row. Io is about -130 °C.)
     demo: { sea: false, volcano: false, volcanoes: 8, craters: 0, temperature: 0.175, moisture: 0, palette: 'sulfur' },
-    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: 'None', decoBudget: 0, wind: 0 },
+    sky: { atmosphere: 0, dust: 0, coverage: 0, cirrus: 0, orographic: 0, sunSize: 0.19, sunBrightness: sunLight(5.2), moons: 'Jupiter', decoBudget: 0, wind: 0 },
   },
   // Thick orange haze over dark methane seas, a tiny, dim sun barely there.
   Titan: {
@@ -405,6 +415,13 @@ const decorator = b3dDecorator({ budget: sky.decoBudget, radius: sky.decoRadius,
 sky.decoShadows.observe(() => {
   decorator.shadows = sky.decoShadows.value ? 'on' : 'off'
 })
+// A dead world keeps its rocks: the rules without the plants.
+const applyLife = () => {
+  decorator.rules = sky.decoLife.value ? null : ROCK_RULES
+  decorator.rebuild?.()
+}
+sky.decoLife.observe(applyLife)
+applyLife()
 
 let water
 const terrain = b3dTerrain({
@@ -574,6 +591,7 @@ const scene = b3d(
       // THE BUDGET is the performance dial: a count, not a density. Watch the
       // Perf Stats panel's decorator row (placed, draw calls, build ms).
       slider3d({ label: 'rocks & trees', value: sky.decoBudget, min: 0, max: 20000, step: 500 }),
+      toggle3d({ label: 'plants (off = rocks only)', value: sky.decoLife }),
       slider3d({ label: 'reach (m)', value: sky.decoRadius, min: 200, max: 3000, step: 100 }),
       // Tighter or looser: how strongly things gather, and how big a clump
       // is (0 = auto, sized from how far apart things are).

@@ -38,6 +38,7 @@
   <url><loc>https://3d.tosijs.net/fly-by-wire/</loc></url>
   <url><loc>https://3d.tosijs.net/formations/</loc></url>
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
+  <url><loc>https://3d.tosijs.net/gas-giant-material/</loc></url>
   <url><loc>https://3d.tosijs.net/handler-of/</loc></url>
   <url><loc>https://3d.tosijs.net/icon-name/</loc></url>
   <url><loc>https://3d.tosijs.net/interaction/</loc></url>
@@ -160,6 +161,8 @@
   <url><loc>https://3d.tosijs.net/terrain/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-orbit/</loc></url>
   <url><loc>https://3d.tosijs.net/world-topology/</loc></url>
+  <url><loc>https://3d.tosijs.net/gas-giant/</loc></url>
+  <url><loc>https://3d.tosijs.net/color-picker/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-beacon/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-black-hole/</loc></url>

@@ -225,7 +225,7 @@ document.body.append(
 /*{ "parent": "characters-and-vehicles", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
 import { collidable, isOff, markUiMesh, refuseOwnAncestor, } from './b3d-utils.js';
-import { canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
+import { CLIMB_PHASE, canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
 import { buoyantStep, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
 import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim.js';
 import { iceSide } from './water-shore.js';
@@ -1435,7 +1435,7 @@ export class B3dBiped extends B3dControllable {
         const headroom = headHit?.hit && headHit.pickedPoint != null
             ? headHit.pickedPoint.y - top.pickedPoint.y
             : defaultMantleLimits.clearance + 0.5;
-        return { height, distance, headroom, landing };
+        return { height, distance, headroom, landing, surface: top.pickedMesh };
     }
     /**
      * Try to start a climb. Returns true if one began, in which case the caller
@@ -1459,7 +1459,14 @@ export class B3dBiped extends B3dControllable {
         // The clip's own length, so the climb retimes itself when the animation
         // set changes rather than needing a matching constant here.
         const dur = Math.max(0.4, Math.min(2.5, this._clipSeconds(clip) || 0.9));
-        this._mantle = { t: 0, dur, from, to };
+        this._mantle = {
+            t: 0,
+            dur,
+            from,
+            to,
+            surface: reading.surface,
+            surfaceAt: reading.surface?.absolutePosition.clone() ?? null,
+        };
         this._swimming = false;
         this._fallVel = 0;
         this._inAir = false;
@@ -1658,8 +1665,22 @@ export class B3dBiped extends B3dControllable {
             const m = this._mantle;
             m.t += dt / m.dur;
             const node = this.entries.rootNodes[0];
-            const p = mantlePath(m.from, m.to, m.t);
+            const p = mantlePath(m.from, m.to, m.t, CLIMB_PHASE.riseEnds, CLIMB_PHASE.moveStarts, CLIMB_PHASE.riseStarts);
             node.position.set(p.x, p.y, p.z);
+            /*
+            THE LEDGE MAY BE MOVING. The landing spot was measured when the climb
+            began; a lift keeps rising for the second the climb takes, and arriving
+            where its deck used to be put the body through the deck, waist deep,
+            to be squeezed out slowly by the collider (Tonio: "a bit
+            embarrassing"). So the landing travels with the thing being climbed,
+            eased in with the rise so the start of the path stays where the feet are.
+            */
+            if (m.surface != null && m.surfaceAt != null && !m.surface.isDisposed()) {
+                const moved = m.surface.absolutePosition.subtract(m.surfaceAt);
+                const rise = m.to.y - m.from.y;
+                const k = Math.abs(rise) > 1e-3 ? (p.y - m.from.y) / rise : m.t;
+                node.position.addInPlace(moved.scaleInPlace(k));
+            }
             if (m.t >= 1) {
                 this._mantle = null;
                 this._fallVel = 0;

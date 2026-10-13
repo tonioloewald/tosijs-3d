@@ -12,6 +12,7 @@ these are the ones big enough to need their own.
 - [angle-field](/angle-field/)
 - [Curve editor](/curve-field/)
 - [Footprint editor](/footprint-field/)
+- [colorPicker3d](/color-picker/)
 - [Icon grid](/icon-grid/)
 - [color3d](/color-field/)
 - [picker](/picker/)

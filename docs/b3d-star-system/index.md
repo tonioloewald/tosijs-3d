@@ -109,11 +109,6 @@ for (const key of ['animate', 'showOrbits']) {
 }
 updateInfo()
 ```
-> The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
-> is rendered as a CODE BLOCK there — light background, its own colour — and
-> inside a panel that sets `color: white` it came out white-on-white and simply
-> invisible.
-
 ```css
 tosi-b3d {
   width: 100%;
@@ -140,6 +135,11 @@ tosi-b3d {
   margin: 0;
 }
 ```
+
+> The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
+> is rendered as a CODE BLOCK there — light background, its own colour — and
+> inside a panel that sets `color: white` it came out white-on-white and simply
+> invisible.
 
 ## Attributes
 

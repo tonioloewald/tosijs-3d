@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.1
+# tosijs-3d v0.10.2
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -190,6 +190,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   canonical formatting.** Pure: no DOM, no Babylon, so a consumer can validate a
 - https://3d.tosijs.net/color-field/ — color3d
   strip, optional alpha strip, and a swatch — all SVG, so it works as a flat DOM
+- https://3d.tosijs.net/color-picker/ — colorPicker3d
+  a grid of presets, because most of the time the colour you want is one you
 - https://3d.tosijs.net/combat/ — Combat
   Damage, destruction, and weapons. Each element here is a thin scene-side
 - https://3d.tosijs.net/ui-containers/ — Containers
@@ -244,6 +246,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
 - https://3d.tosijs.net/gamepad-svg/ — gamepad-svg
   Generates a gamepad SVG using tosijs element creators. All colors and stroke
+- https://3d.tosijs.net/gas-giant/ — gas-giant
+  winds that alternate direction from belt to belt, with a long-lived storm.
+- https://3d.tosijs.net/gas-giant-material/ — gas-giant-material
+  a material for a sphere, drawn by the same [gas-giant](/gas-giant/) function
 - https://3d.tosijs.net/getting-started/ — Getting started
   Babylon (`^9`) and `tosijs` (`^1.9.2`) are peer dependencies: you install them,
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)

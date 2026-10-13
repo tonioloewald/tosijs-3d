@@ -56,7 +56,8 @@ export declare class B3dDecorator extends B3dChild {
      * before the default library changed).
      */
     get rules(): ScatterRule[];
-    set rules(rules: ScatterRule[]);
+    /** `null` goes back to the library's own rules. */
+    set rules(rules: ScatterRule[] | null);
     /**
      * Material name → role (`'leaf'`, `'evergreen'` or `'bark'`); see
      * `NATURE_ROLES` for the key forms. A library material with a role is drawn

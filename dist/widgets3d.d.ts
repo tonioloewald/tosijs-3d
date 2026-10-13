@@ -322,6 +322,11 @@ export interface WidgetHost {
          * room at all.
          */
         chrome?: boolean;
+        /**
+         * A caption for the title band, so two popups open at once can be
+         * told apart. Only drawn where there is a band (`chrome`).
+         */
+        title?: string;
         /** Called when it goes away, however it went. */
         handleClose?: () => void;
     }, ...items: Widget3d[]) => {

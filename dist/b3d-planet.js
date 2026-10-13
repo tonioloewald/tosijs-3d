@@ -142,6 +142,15 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
+| `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
+| `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
+| `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
+| `storm` | `-1` | Gas giant: size of the great storm, `0` = none. `-1` = the preset's |
+| `bandColors` | `''` | Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's |
+| `ringInner` | `0` | Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge |
+| `ringOuter` | `0` | Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings` |
+| `ringOpacity` | `-1` | `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's |
+| `ringColor` | `''` | `#rrggbb`. Blank = the gas giant preset's, else a pale tan |
 | `subdivisions` | `64` | Grid subdivisions per cube face |
 | `grossScale` | `0.005` | Gross noise frequency |
 | `detailScale` | `0.02` | Detail noise frequency |
@@ -157,6 +166,8 @@ tosi-b3d {
 import { Color } from 'tosijs';
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js';
 import { attachBiomePlugin } from './biome-plugin.js';
+import { gasGiantRgb, resolveGasGiant } from './gas-giant.js';
+import { createGasGiantMaterial } from './gas-giant-material.js';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
 import { PiecewiseLinearFilter } from './gradient-filter.js';
@@ -189,6 +200,19 @@ export class B3dPlanet extends B3dChild {
         // radial altitude around the planet centre, radial-up slope, insolation.
         // seaRadius auto-derives from the `ocean` percentile.
         biome: 'off',
+        // A gas giant: 'jupiter' | 'saturn' | 'uranus' | 'neptune'. A smooth,
+        // banded sphere in place of terrain and sea (see gas-giant).
+        gas: '',
+        // Gas giant overrides; 0 / -1 / '' mean the preset's own.
+        bands: 0,
+        turbulence: -1,
+        storm: -1,
+        bandColors: '',
+        // The ring's shape; 0 / -1 / '' mean the preset's (or the old rule).
+        ringInner: 0,
+        ringOuter: 0,
+        ringOpacity: -1,
+        ringColor: '',
         seed: 12345,
         radius: 50,
         subdivisions: 64,
@@ -259,6 +283,30 @@ export class B3dPlanet extends B3dChild {
         const attrs = this;
         const radius = attrs.radius;
         const subs = attrs.subdivisions;
+        if (attrs.gas) {
+            /*
+            A GAS GIANT HAS NO GROUND. A smooth sphere, slightly flattened (giants
+            spin fast enough to bulge), drawn by the gas giant material: no
+            terrain, no sea, no air shell. `rings` still works.
+            */
+            const mesh = BABYLON.MeshBuilder.CreateSphere('planet', { diameter: radius * 2, segments: 48 }, this.owner.scene);
+            mesh.scaling.y = 0.93;
+            mesh.material = createGasGiantMaterial(this.owner.scene, resolveGasGiant(attrs.gas, {
+                seed: 1 + (Math.abs(attrs.seed) % 97),
+                bands: attrs.bands,
+                turbulence: attrs.turbulence,
+                storm: attrs.storm,
+                colors: attrs.bandColors,
+            }));
+            mesh.parent = this.rootNode;
+            this.planetMesh = mesh;
+            this.vertexHeights = null;
+            if (!this.registered) {
+                this.registered = true;
+                this.owner.register({ meshes: [mesh] });
+            }
+            return;
+        }
         const vertsPerFace = (subs + 1) * (subs + 1);
         const totalVerts = vertsPerFace * 6;
         const positions = new Float32Array(totalVerts * 3);
@@ -369,7 +417,7 @@ export class B3dPlanet extends B3dChild {
             return;
         const attrs = this;
         const atmoFrac = attrs.atmosphere;
-        if (atmoFrac <= 0)
+        if (atmoFrac <= 0 || attrs.gas)
             return;
         const scene = this.owner.scene;
         // Register atmosphere shader once
@@ -496,7 +544,7 @@ export class B3dPlanet extends B3dChild {
             return;
         const attrs = this;
         const oceanPct = attrs.ocean;
-        if (oceanPct <= 0)
+        if (oceanPct <= 0 || attrs.gas)
             return;
         // Ocean radius: height at the given percentile of vertices
         // e.g. ocean=0.6 means 60% of surface is underwater
@@ -521,8 +569,8 @@ export class B3dPlanet extends B3dChild {
         const scene = this.owner.scene;
         const radius = attrs.radius;
         // Register ring shader once
-        if (!BABYLON.Effect.ShadersStore['planetRingVertexShader']) {
-            BABYLON.Effect.ShadersStore['planetRingVertexShader'] = `
+        if (!BABYLON.Effect.ShadersStore['planetRing2VertexShader']) {
+            BABYLON.Effect.ShadersStore['planetRing2VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec2 uv;
@@ -533,11 +581,12 @@ export class B3dPlanet extends B3dChild {
           vUV = uv;
         }
       `;
-            BABYLON.Effect.ShadersStore['planetRingFragmentShader'] = `
+            BABYLON.Effect.ShadersStore['planetRing2FragmentShader'] = `
         precision highp float;
         varying vec2 vUV;
         uniform vec3 ringColor;
         uniform float ringOpacity;
+        uniform float ringInner;
         uniform float seed;
 
         float hash(float p) {
@@ -548,10 +597,10 @@ export class B3dPlanet extends B3dChild {
           // Radial distance from center of disc (0=inner, 1=outer)
           vec2 uv = vUV * 2.0 - 1.0;
           float r = length(uv);
-          if (r < 0.45 || r > 1.0) discard;
+          if (r < ringInner || r > 1.0) discard;
 
           // Normalize to ring band
-          float t = (r - 0.45) / 0.55;
+          float t = (r - ringInner) / (1.0 - ringInner);
 
           // Procedural ring bands from seed
           float bands = 0.0;
@@ -575,19 +624,42 @@ export class B3dPlanet extends B3dChild {
         }
       `;
         }
-        // Ring disc: inner radius ~1.3x planet, outer ~2.5x, scaled by ringValue
-        const _innerRadius = radius * 1.3;
-        const outerRadius = radius * (1.5 + ringValue * 1.5);
+        /*
+        THE RING'S SHAPE: the four ring attributes, else the gas giant preset's
+        own ring (Saturn's is broad and bright, the rest thin and faint), else
+        the old rule: a disc out to 1.5 to 3 radii by `rings`. For a gas giant
+        `rings` is how much of the preset's brightness to show.
+        */
+        const look = attrs.gas ? resolveGasGiant(attrs.gas).rings : null;
+        const outerRadii = attrs.ringOuter > 0
+            ? attrs.ringOuter
+            : look?.outer ?? 1.5 + ringValue * 1.5;
+        const innerRadii = Math.min(outerRadii * 0.98, attrs.ringInner > 0 ? attrs.ringInner : look?.inner ?? outerRadii * 0.45);
+        // `rings` always scales it, an explicit `ringOpacity` included, so one
+        // dial fades the ring whichever way its brightness was chosen.
+        const amount = Math.min(1, ringValue * 1.2);
+        const opacity = (attrs.ringOpacity >= 0 ? attrs.ringOpacity : look?.opacity ?? 1) * amount;
+        const ringRgb = gasGiantRgb(/^#[0-9a-f]{6}/i.test(attrs.ringColor)
+            ? String(attrs.ringColor).slice(0, 7)
+            : look?.color ?? '#ccb380');
+        const outerRadius = radius * outerRadii;
         const mesh = BABYLON.MeshBuilder.CreateDisc('planet-ring', { radius: outerRadius, tessellation: 64 }, scene);
         mesh.rotation.x = Math.PI / 2; // Flat in XZ plane
         mesh.rotation.z = 0.15 + (attrs.seed % 10) * 0.02; // Slight tilt
-        const mat = new BABYLON.ShaderMaterial('planet-ring-mat', scene, { vertex: 'planetRing', fragment: 'planetRing' }, {
+        const mat = new BABYLON.ShaderMaterial('planet-ring-mat', scene, { vertex: 'planetRing2', fragment: 'planetRing2' }, {
             attributes: ['position', 'uv'],
-            uniforms: ['worldViewProjection', 'ringColor', 'ringOpacity', 'seed'],
+            uniforms: [
+                'worldViewProjection',
+                'ringColor',
+                'ringOpacity',
+                'ringInner',
+                'seed',
+            ],
             needAlphaBlending: true,
         });
-        mat.setVector3('ringColor', new BABYLON.Vector3(0.8, 0.7, 0.5));
-        mat.setFloat('ringOpacity', Math.min(1, ringValue * 1.2));
+        mat.setVector3('ringColor', new BABYLON.Vector3(...ringRgb));
+        mat.setFloat('ringOpacity', Math.max(0, Math.min(1, opacity)));
+        mat.setFloat('ringInner', innerRadii / outerRadii);
         mat.setFloat('seed', attrs.seed % 100);
         mat.backFaceCulling = false;
         mat.alphaMode = BABYLON.Constants.ALPHA_COMBINE;
@@ -613,19 +685,20 @@ export class B3dPlanet extends B3dChild {
     /** Rebuild planet mesh with current noise settings */
     regenerate() {
         if (this.planetMesh) {
-            this.planetMesh.dispose();
+            // With its material: each build makes a new one.
+            this.planetMesh.dispose(false, true);
             this.planetMesh = null;
         }
         if (this.atmosphereMesh) {
-            this.atmosphereMesh.dispose();
+            this.atmosphereMesh.dispose(false, true);
             this.atmosphereMesh = null;
         }
         if (this.oceanMesh) {
-            this.oceanMesh.dispose();
+            this.oceanMesh.dispose(false, true);
             this.oceanMesh = null;
         }
         if (this.ringMesh) {
-            this.ringMesh.dispose();
+            this.ringMesh.dispose(false, true);
             this.ringMesh = null;
         }
         this.registered = false;
@@ -639,11 +712,11 @@ export class B3dPlanet extends B3dChild {
         const attrs = this;
         // Rebuild atmosphere/ocean since their radii depend on parameters
         if (this.atmosphereMesh) {
-            this.atmosphereMesh.dispose();
+            this.atmosphereMesh.dispose(false, true);
             this.atmosphereMesh = null;
         }
         if (this.oceanMesh) {
-            this.oceanMesh.dispose();
+            this.oceanMesh.dispose(false, true);
             this.oceanMesh = null;
         }
         this.buildAtmosphere();

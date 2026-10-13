@@ -141,6 +141,15 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
+| `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
+| `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
+| `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
+| `storm` | `-1` | Gas giant: size of the great storm, `0` = none. `-1` = the preset's |
+| `bandColors` | `''` | Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's |
+| `ringInner` | `0` | Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge |
+| `ringOuter` | `0` | Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings` |
+| `ringOpacity` | `-1` | `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's |
+| `ringColor` | `''` | `#rrggbb`. Blank = the gas giant preset's, else a pale tan |
 | `subdivisions` | `64` | Grid subdivisions per cube face |
 | `grossScale` | `0.005` | Gross noise frequency |
 | `detailScale` | `0.02` | Detail noise frequency |

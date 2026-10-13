@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8928b0a894ba" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=a52dffbd3e65" data-tosi-doc-system />
   <title>b3d-planet — tosijs-3d</title>
   <meta name="description" content="Procedural planet mesh using a subdivided cube projected onto a sphere. Height displacement from 3D Perlin noise (gross + detail layers) with gradient filters…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-planet/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=73041c218643" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=80e3e550f075" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-planet">b3d-planet</h1>
 <p>Procedural planet mesh using a subdivided cube projected onto a sphere.
@@ -180,6 +180,51 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
 <td><code>radius</code></td>
 <td><code>50</code></td>
 <td>Base sphere radius</td>
+</tr>
+<tr>
+<td><code>gas</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Make it a GAS GIANT: <code>&#39;jupiter&#39;</code>, <code>&#39;saturn&#39;</code>, <code>&#39;uranus&#39;</code> or <code>&#39;neptune&#39;</code>. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; <code>seed</code> gives a different planet of the same kind and <code>rings</code> still applies. See <a href="/gas-giant/">gas-giant</a></td>
+</tr>
+<tr>
+<td><code>bands</code></td>
+<td><code>0</code></td>
+<td>Gas giant: stripes from pole to pole. <code>0</code> = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>turbulence</code></td>
+<td><code>-1</code></td>
+<td>Gas giant: how torn the band edges are, <code>0…1</code>. <code>-1</code> = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td><code>-1</code></td>
+<td>Gas giant: size of the great storm, <code>0</code> = none. <code>-1</code> = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>bandColors</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Gas giant: up to three <code>#rrggbb</code>, comma separated (zones, belts, accent). Blank = the preset&#39;s</td>
+</tr>
+<tr>
+<td><code>ringInner</code></td>
+<td><code>0</code></td>
+<td>Inner edge of the ring, in planet radii from the centre. <code>0</code> = the gas giant preset&#39;s, else 45% of the outer edge</td>
+</tr>
+<tr>
+<td><code>ringOuter</code></td>
+<td><code>0</code></td>
+<td>Outer edge of the ring, in planet radii. <code>0</code> = the gas giant preset&#39;s, else 1.5 to 3 by <code>rings</code></td>
+</tr>
+<tr>
+<td><code>ringOpacity</code></td>
+<td><code>-1</code></td>
+<td><code>0…1</code>, always multiplied by <code>rings</code> (which reaches full strength at about 0.85). <code>-1</code> = the gas giant preset&#39;s</td>
+</tr>
+<tr>
+<td><code>ringColor</code></td>
+<td><code>&#39;&#39;</code></td>
+<td><code>#rrggbb</code>. Blank = the gas giant preset&#39;s, else a pale tan</td>
 </tr>
 <tr>
 <td><code>subdivisions</code></td>
@@ -519,6 +564,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
         </ul>
         </details></li>
         <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+        <li><a class="doc-link" href="../color-picker/">colorPicker3d</a></li>
         <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
         <li><details><summary><a class="doc-link" href="../color-field/">color3d</a></summary>
         <ul>
@@ -610,6 +656,11 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
       <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link current" href="../b3d-planet/" aria-current="page">b3d-planet</a></li>
+      <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
     </ul>
     </details></li>
@@ -643,6 +694,6 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0akytav6.js"></script>
+  <script type="module" src="../hydrate-ez94ca2n.js"></script>
 </body>
 </html>

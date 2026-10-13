@@ -252,6 +252,18 @@ export declare class B3dTerrain extends B3dChild {
      * recoverable and visibly odd, where one that refuses to draw looks broken
      * and reads as a different bug entirely.
      */
+    /**
+     * How far the ground is drawn from the viewer, in metres. Whatever hides
+     * the world's edge (fog, or the fade an airless sky uses) should finish
+     * here.
+     */
+    /**
+     * The spacing of the drawn mesh's vertices on the finest tiles, in metres.
+     * Between two of them the ground you see is a straight edge, whatever the
+     * surface does: anything seated on the ground wants this (the decorator).
+     */
+    get meshCell(): number;
+    get drawnReach(): number;
     private _budgetedReach;
     private _warnedReach;
     private coarsestTileSize;

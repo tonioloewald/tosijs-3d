@@ -505,6 +505,38 @@ export function scatterPlacements(o) {
         return out;
     }
 }
+/** Where the ground is read around a placement to seat it: see `seatDip`. */
+const SEAT_RING = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+];
+/**
+ * How far to LOWER something placed on the true surface so that it sits on
+ * the mesh that is drawn (zero or negative, metres).
+ *
+ * `height` is the true surface; the drawn ground has vertices `cell` apart
+ * and a straight edge between two of them cuts under any bump between. This
+ * is how far the surface falls below the placement's own tangent plane, most
+ * of a cell out: the bump the mesh does not have. Slope is not counted (the
+ * tangent plane takes it out), so standing on a hillside buries nothing.
+ */
+export function seatDip(height, p, cell) {
+    if (!(cell > 0))
+        return 0;
+    const r = cell * 0.7;
+    const ny = Math.max(0.2, p.normal.y);
+    const gx = -p.normal.x / ny;
+    const gz = -p.normal.z / ny;
+    let dip = 0;
+    for (const [dx, dz] of SEAT_RING) {
+        const under = height(p.x + dx * r, p.z + dz * r) - (p.y + (gx * dx + gz * dz) * r);
+        if (under < dip)
+            dip = under;
+    }
+    return dip;
+}
 const range = (prefix, letters) => letters.split('').map((l) => `${prefix}${l}`);
 /**
  * Boulders and stones, made procedurally (procedural-rock) and coloured by the

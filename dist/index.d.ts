@@ -84,6 +84,8 @@ export { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, excludeFrom
 export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
+export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, type GasGiantLook, type GasGiantOverrides, } from './gas-giant.js';
+export { createGasGiantMaterial, type GasGiantMaterialOptions, } from './gas-giant-material.js';
 export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js';
 export { B3dWeatherCell, b3dWeatherCell } from './b3d-weather-cell.js';
 export { B3dLightning, b3dLightning } from './b3d-lightning.js';
@@ -109,6 +111,8 @@ export { color3d } from './color-field.js';
 export { terrainEditor3d } from './terrain-editor.js';
 export type { TerrainSettings, TerrainEditor3dOptions, TerrainEditorField, } from './terrain-editor.js';
 export type { Color3dOptions, ColorField } from './color-field.js';
+export { colorPicker3d, type ColorPicker, type ColorPicker3dOptions, } from './color-picker.js';
+export { COLOR_PRESETS, SWATCH_KEY, presetList, presetCells, createSwatchStore, sharedSwatches, type ColorPreset, type SwatchStore, type SwatchStorage, } from './color-presets.js';
 export { NO_TRANSFORMS, RING_BASIS, WORLD_FRAME, noTransforms, otherAxes, axisVector, axisComponent, axisClosestApproach, angleAboutAxis, rayPlanePoint, rayPerpendicularDistance, snap, snapVec3, normaliseDegrees, scaleFactor, beginDrag, updateDrag, commitTransform, dragChanged, } from './manipulator.js';
 export type { Axis, AxisFrame, ComposeRotation, Drag, DragOptions, Grip, GripKind, ManipulatorRay, ManipulatorTransform, TransformSet, } from './manipulator.js';
 export { createHandles, composeRotation, axisFrameOf, HANDLE_TAG, DRAWN_TAG, NEAR_RADIUS, } from './manipulator-view.js';

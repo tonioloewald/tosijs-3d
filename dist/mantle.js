@@ -80,10 +80,10 @@ export function canMantle(reading, limits = defaultMantleLimits) {
  * translation follows, and they overlap — see the note above about why a
  * straight line is wrong.
  */
-export function mantlePath(from, to, t, riseEnds = 0.65, moveStarts = 0.35) {
+export function mantlePath(from, to, t, riseEnds = 0.65, moveStarts = 0.35, riseStarts = 0) {
     const c = t <= 0 ? 0 : t >= 1 ? 1 : t;
     const ease = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u)); // smoothstep
-    const up = ease(c / Math.max(0.01, riseEnds));
+    const up = ease((c - riseStarts) / Math.max(0.01, riseEnds - riseStarts));
     const inward = ease((c - moveStarts) / Math.max(0.01, 1 - moveStarts));
     return {
         x: from.x + (to.x - from.x) * inward,
@@ -91,6 +91,17 @@ export function mantlePath(from, to, t, riseEnds = 0.65, moveStarts = 0.35) {
         z: from.z + (to.z - from.z) * inward,
     };
 }
+/**
+ * When the body travels within a CLIMB CLIP, as fractions of its length.
+ *
+ * The clips are played in place (their root motion is not used), and each
+ * opens with a wind-up: a crouch, then the pull. Measured on Quaternius'
+ * `ClimbUp_2m`, the hips dip for the first quarter, rise through the middle
+ * and settle back over the last third, which is the root arriving on top.
+ * Starting the rise at 0, as the path did, slid a crouching body up the face
+ * before it had begun to climb.
+ */
+export const CLIMB_PHASE = { riseStarts: 0.3, riseEnds: 0.85, moveStarts: 0.6 };
 /**
  * Which climb clip suits this height, from whatever the rig actually has.
  *
