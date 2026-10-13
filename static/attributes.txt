@@ -720,6 +720,7 @@ b3d-physics
 b3d-planet
 
   biome
+  gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)
   seed  = 12345  — Noise seed
   radius  = 50  — Base sphere radius
   subdivisions  = 64  — Grid subdivisions per cube face

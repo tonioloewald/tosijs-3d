@@ -732,8 +732,8 @@ A moon with `gas` set is a GAS GIANT: `b3dMoonsK[i]` is `(bands, turbulence,
 storm, seed)` with bands 0 meaning "a plain moon", `b3dMoonsC1/C2` are its
 second and third colours (C1.w is how fast its clouds run), and `b3dMoonsX`
 is its spin axis. The normal is turned into the planet's own frame and
-[[gas-giant]] colours it. It also gets what a ball of gas has and a rock does
-not: a soft terminator and a limb that darkens.
+[[gas-giant]] colours it and lights it (`b3dGasGiantLit`): a soft
+terminator, a limb that darkens and a rim of haze, which a rock has none of.
 */
 const MOONS_GLSL =
   'vec3 b3dMoonsAt(vec3 d,out float occ){vec3 c=vec3(0.0);occ=0.0;' +
@@ -747,12 +747,12 @@ const MOONS_GLSL =
   'vec3 n=p.x*t1+p.y*t2-sqrt(max(0.0,1.0-r*r))*a.xyz;' +
   'float lit=smoothstep(-0.04,0.08,dot(n,b3dSunLocal));' +
   'vec4 b=b3dMoonsB[i];vec3 alb=b.rgb;vec4 k=b3dMoonsK[i];' +
+  'vec3 body=alb*(b.w*lit+0.025);' +
   'if(k.x>0.0){vec3 ax=b3dMoonsX[i].xyz;' +
   'vec3 e1=normalize(cross(ax,abs(ax.y)<0.99?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));vec3 e2=cross(ax,e1);' +
   'alb=b3dGasGiant(vec3(dot(n,e1),dot(n,ax),dot(n,e2)),k,b.rgb,b3dMoonsC1[i].rgb,b3dMoonsC2[i].rgb,b3dTime*b3dMoonsC1[i].w);' +
-  'float sun=dot(n,b3dSunLocal);' +
-  'lit=smoothstep(-0.12,0.75,sun)*pow(max(0.0,1.0-r*r),0.18);}' +
-  'c=mix(c,alb*(b.w*lit+0.025),cov);occ=max(occ,cov);}' +
+  'body=b3dGasGiantLit(alb,dot(n,b3dSunLocal),sqrt(max(0.0,1.0-r*r)),mix(b.rgb,vec3(1.0),0.4))*b.w*1.25+alb*0.02;}' +
+  'c=mix(c,body,cov);occ=max(occ,cov);}' +
   'return c;}'
 
 function makeForkedSkyMaterial(scene: BABYLON.Scene): BABYLON.ShaderMaterial {

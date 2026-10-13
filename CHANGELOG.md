@@ -15,8 +15,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   belt to belt and a great storm, lit by the real sun so its phase is right.
   `bands`, `turbulence`, `storm`, `bandColors`, `axisTilt`, `spin` and `seed`
   override the preset. The shader is one function in the new `gas-giant`
-  module (`GAS_GIANT_GLSL`, `resolveGasGiant`), for reuse on a planet you
-  orbit.
+  module (`GAS_GIANT_GLSL`, `resolveGasGiant`).
+- **Gas giants in space.** `<tosi-b3d-planet gas="saturn">` is the same
+  planet as a body you can fly round, and the star system's gas giants are
+  now banded (which of the four looks each gets follows from its seed).
+  `createGasGiantMaterial(scene, look)` puts one on any sphere. In both
+  places the planet is lit as a ball of gas: the limb darkens and the day
+  side has a thin rim of haze.
 - **`<tosi-b3d-moon frame="ground">`**: the body is placed against the
   horizon and stays there while the stars and sun go round, like the planet a
   tide-locked moon orbits. Land and Sky's Io has Jupiter in its sky.

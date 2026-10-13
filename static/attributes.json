@@ -2820,6 +2820,11 @@
         "name": "biome"
       },
       {
+        "name": "gas",
+        "default": "''",
+        "description": "Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)"
+      },
+      {
         "name": "seed",
         "default": "12345",
         "description": "Noise seed"

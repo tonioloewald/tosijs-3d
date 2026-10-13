@@ -63,6 +63,50 @@ preview.append(
 .preview { height: 100%; }
 ```
 
+## From space
+
+The same planet as a body you can fly round:
+[`<tosi-b3d-planet gas="saturn">`](/b3d-planet/). Drag to orbit it. The sun
+is where the scene's sun is, so swing round to the night side.
+
+```js
+import { b3d, b3dPlanet, b3dSun, b3dSkybox, GAS_GIANTS, select3d, slider3d, label3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { orbit } = tosi({ orbit: { kind: 'saturn', rings: 0.8, spin: 0.03, seed: 7 } })
+const planet = b3dPlanet({ gas: orbit.kind, seed: orbit.seed, rings: orbit.rings, rotationSpeed: orbit.spin, radius: 50 })
+for (const key of ['kind', 'rings', 'seed']) orbit[key].observe(() => planet.regenerate())
+
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () => [
+        label3d({ text: 'From space' }),
+        select3d({ label: 'planet', value: orbit.kind, options: Object.keys(GAS_GIANTS) }),
+        slider3d({ label: 'rings', value: orbit.rings, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'seed', value: orbit.seed, min: 1, max: 96, step: 1 }),
+        slider3d({ label: 'rotation', value: orbit.spin, min: 0, max: 0.3, step: 0.01 }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera('orbit', -Math.PI / 3, Math.PI / 2.4, 190, BABYLON.Vector3.Zero(), el.scene)
+        camera.lowerRadiusLimit = 70
+        camera.upperRadiusLimit = 600
+        camera.maxZ = 3000
+        camera.attachControl(el.querySelector('canvas'), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dSun(),
+    b3dSkybox({ timeOfDay: 15, realtimeScale: 0, atmosphere: 0, starfieldCube: '/sky/nebula', starfieldData: '/sky/stars' }),
+    planet,
+  )
+)
+```
+```css
+.preview { height: 100%; }
+```
+
 ## How it works
 
 It is the [cloud deck](/b3d-cloud-deck/)'s idea turned on its side: a noise
@@ -95,8 +139,17 @@ vec3 b3dGasGiant(vec3 n, vec4 k, vec3 c0, vec3 c1, vec3 c2, float t)
 
 `n` is the unit normal in the planet's own frame (Y is the spin axis), `k` is
 `(bands, turbulence, storm, seed)`, the colours are linear RGB and `t` is
-seconds. It returns the unlit colour; lighting is the caller's. No textures
-and no other functions are needed: it carries its own noise.
+seconds. It returns the unlit colour. No textures and no other functions are
+needed: it carries its own noise.
+
+```glsl
+vec3 b3dGasGiantLit(vec3 albedo, float nDotL, float nDotV, vec3 haze)
+```
+
+lights it as a ball of gas: brightness falls away from the point under the
+sun and again toward the limb, and a thin rim of `haze` shows on the day
+side. A flat disc with a hard terminator reads as a coin; this is what makes
+it a sphere. [gas-giant-material](/gas-giant-material/) wraps both for a mesh.
 */
 /*{ "parent": "space", "order": 45 }*/
 
@@ -250,4 +303,10 @@ col=mix(col,c2*(0.82+0.3*sw),m);
 }
 col=mix(col,mix(c1,c2,0.35)*0.72,smoothstep(0.72,1.0,abs(u)));
 return col;}
+vec3 b3dGasGiantLit(vec3 alb,float nl,float nv,vec3 haze){
+float l=max(nl,0.0);float e=clamp(nv,0.0,1.0);
+float lit=pow(l,0.8)+0.05*smoothstep(-0.2,0.0,nl)*(1.0-l);
+vec3 c=alb*lit*pow(e,0.35);
+c+=haze*pow(1.0-e,2.5)*smoothstep(-0.15,0.35,nl)*0.45;
+return c;}
 `

@@ -142,6 +142,7 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
+| `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `subdivisions` | `64` | Grid subdivisions per cube face |
 | `grossScale` | `0.005` | Gross noise frequency |
 | `detailScale` | `0.02` | Detail noise frequency |
@@ -158,6 +159,8 @@ tosi-b3d {
 import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
+import { resolveGasGiant } from './gas-giant.js'
+import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 import { PerlinNoise } from './perlin-noise.js'
@@ -196,6 +199,9 @@ export class B3dPlanet extends B3dChild {
     // radial altitude around the planet centre, radial-up slope, insolation.
     // seaRadius auto-derives from the `ocean` percentile.
     biome: 'off' as 'on' | 'off',
+    // A gas giant: 'jupiter' | 'saturn' | 'uranus' | 'neptune'. A smooth,
+    // banded sphere in place of terrain and sea (see gas-giant).
+    gas: '',
     seed: 12345,
     radius: 50,
     subdivisions: 64,
@@ -274,6 +280,31 @@ export class B3dPlanet extends B3dChild {
     const attrs = this as any
     const radius: number = attrs.radius
     const subs: number = attrs.subdivisions
+    if (attrs.gas) {
+      /*
+      A GAS GIANT HAS NO GROUND. A smooth sphere, slightly flattened (giants
+      spin fast enough to bulge), drawn by the gas giant material: no
+      terrain, no sea, no air shell. `rings` still works.
+      */
+      const mesh = BABYLON.MeshBuilder.CreateSphere(
+        'planet',
+        { diameter: radius * 2, segments: 48 },
+        this.owner.scene
+      )
+      mesh.scaling.y = 0.93
+      mesh.material = createGasGiantMaterial(
+        this.owner.scene,
+        resolveGasGiant(attrs.gas, { seed: 1 + (Math.abs(attrs.seed) % 97) })
+      )
+      mesh.parent = this.rootNode
+      this.planetMesh = mesh
+      this.vertexHeights = null
+      if (!this.registered) {
+        this.registered = true
+        this.owner.register({ meshes: [mesh] })
+      }
+      return
+    }
 
     const vertsPerFace = (subs + 1) * (subs + 1)
     const totalVerts = vertsPerFace * 6
@@ -404,7 +435,7 @@ export class B3dPlanet extends B3dChild {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
     const atmoFrac: number = attrs.atmosphere
-    if (atmoFrac <= 0) return
+    if (atmoFrac <= 0 || attrs.gas) return
 
     const scene = this.owner.scene
 
@@ -550,7 +581,7 @@ export class B3dPlanet extends B3dChild {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
     const oceanPct: number = attrs.ocean
-    if (oceanPct <= 0) return
+    if (oceanPct <= 0 || attrs.gas) return
 
     // Ocean radius: height at the given percentile of vertices
     // e.g. ocean=0.6 means 60% of surface is underwater
@@ -693,7 +724,8 @@ export class B3dPlanet extends B3dChild {
   /** Rebuild planet mesh with current noise settings */
   regenerate() {
     if (this.planetMesh) {
-      this.planetMesh.dispose()
+      // With its material: each build makes a new one.
+      this.planetMesh.dispose(false, true)
       this.planetMesh = null
     }
     if (this.atmosphereMesh) {

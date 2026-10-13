@@ -121,9 +121,9 @@ const MOONS = {
   // A giant planet from a close moon: Jupiter from Io is about 19 degrees
   // across. `gas` makes the body a banded gas giant (see gas-giant).
   // `frame: 'ground'`: the moon is tide-locked, so its planet never sets.
-  Jupiter: [{ frame: 'ground', azimuth: 90, elevation: 18, size: 19, gas: 'jupiter', axisTilt: 8 }],
-  Saturn: [{ frame: 'ground', azimuth: 90, elevation: 18, size: 11, gas: 'saturn', axisTilt: 20 }],
-  Neptune: [{ frame: 'ground', azimuth: 90, elevation: 18, size: 8, gas: 'neptune', axisTilt: 25 }],
+  Jupiter: [{ frame: 'ground', azimuth: 90, elevation: 13, size: 19, gas: 'jupiter', axisTilt: 8 }],
+  Saturn: [{ frame: 'ground', azimuth: 90, elevation: 12, size: 11, gas: 'saturn', axisTilt: 20 }],
+  Neptune: [{ frame: 'ground', azimuth: 90, elevation: 12, size: 8, gas: 'neptune', axisTilt: 25 }],
   'Alien trio': [
     { azimuth: 0, elevation: 30, size: 6, color: '#e0b090' },
     { azimuth: 25, elevation: 12, size: 2, color: '#a0c8ff' },

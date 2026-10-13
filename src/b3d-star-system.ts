@@ -159,6 +159,8 @@ tosi-b3d {
 /*{ "parent": "space", "order": 20 }*/
 
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
+import { GAS_GIANTS, resolveGasGiant } from './gas-giant.js'
+import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 import { generateStarSystem, type StarSystemData } from './galaxy-data.js'
@@ -500,15 +502,16 @@ export class B3dStarSystem extends B3dChild {
       const planetVisualRadius =
         Math.max(0.3, Math.min(3, (planet.radius / 6357) * 1.5)) * scale * 0.3
 
+      const isGiant = planet.classification === 'gas giant'
       const planetMesh = BABYLON.MeshBuilder.CreateSphere(
         `planet-${i}`,
-        { diameter: planetVisualRadius * 2, segments: 16 },
+        { diameter: planetVisualRadius * 2, segments: isGiant ? 32 : 16 },
         scene
       )
 
       // Color by classification
       const planetMat = new BABYLON.StandardMaterial(`planet-mat-${i}`, scene)
-      if (planet.classification === 'gas giant') {
+      if (isGiant) {
         planetMat.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.4)
       } else if (planet.classification === 'brown dwarf') {
         planetMat.diffuseColor = new BABYLON.Color3(0.5, 0.2, 0.1)
@@ -534,6 +537,33 @@ export class B3dStarSystem extends B3dChild {
       planetMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1)
       planetMesh.material = planetMat
       planetMesh.parent = this.rootNode
+      if (isGiant) {
+        /*
+        A GAS GIANT IS BANDED, and which kind it is follows from its seed:
+        one of the four looks, with its own band count and its own weather.
+        Lit from the star at this system's centre, wherever the system sits.
+        */
+        const kinds = Object.keys(GAS_GIANTS)
+        const kind = kinds[Math.abs(planet.seed) % kinds.length]
+        const base = GAS_GIANTS[kind]
+        const vary = ((Math.abs(planet.seed) >> 3) % 7) - 3
+        planetMat.dispose()
+        planetMesh.material = createGasGiantMaterial(
+          scene,
+          resolveGasGiant(kind, {
+            bands: Math.max(3, base.bands + vary),
+            seed: 1 + (Math.abs(planet.seed) % 97),
+          }),
+          {
+            light: () => {
+              const p = this.rootNode!.getAbsolutePosition()
+              return { x: p.x, y: p.y, z: p.z, w: 1 }
+            },
+          }
+        )
+        // Giants spin fast enough to bulge at the equator.
+        planetMesh.scaling.y = 0.93
+      }
 
       // Rings for gas giants
       if (planet.rings > 0) {
