@@ -73,6 +73,7 @@
     "tunnel": "tosijs-tunnel",
     "xr": "bun bin/xr-emulate.ts",
     "deploy": "tosijs-deploy",
+    "check": "bun --bun eslint --cache --cache-location node_modules/.cache/eslint src bin && bunx tsc -p tsconfig.json --noEmit && bun test",
     "format": "bun --bun eslint --cache --cache-location node_modules/.cache/eslint src bin --fix && bun --bun prettier --cache --write .",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "stop": "bun bin/site.ts --stop",
