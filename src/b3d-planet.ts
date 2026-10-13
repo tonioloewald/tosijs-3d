@@ -573,6 +573,19 @@ export class B3dPlanet extends B3dChild {
         seaIce: attrs.seaIce,
         inlandWater: !isOff(attrs.inlandWater) && attrs.inlandWater != null,
         seed: 1 + (Math.abs(attrs.seed) % 83),
+        /*
+        The detail noise CARRIED ON past what the mesh can hold: heightAt
+        sums three octaves of it, and these are the next three, at the
+        weights they would have had (a little over, because a coast that
+        only just wiggles does not read as one).
+        */
+        fine:
+          this.surface == null
+            ? {
+                scale: attrs.detailScale * radius * 8,
+                amplitude: attrs.detailAmplitude * 0.12,
+              }
+            : undefined,
       })
       mapped.wireframe = attrs.wireframe
       mesh.material = mapped

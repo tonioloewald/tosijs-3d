@@ -30,6 +30,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   is in it; and `biomePlugin.params` is one object for the life of the
   element, so a control bound to it survives a rebuild.
 
+- **Crinkly coastlines on a procedural planet.** The mesh cannot hold a
+  coast that turns tighter than about two of its cells, so the octaves of
+  detail it cannot carry are added per pixel, to the height that decides
+  where the sea ends, how deep it is and how high the land is. They follow
+  `detailScale` and `detailAmplitude`: turn those up and the coast breaks
+  into inlets and islands. Slope still comes from the mesh's heights.
 - **Lakes glint.** `inlandWater="on"` on a planet with a `colorMap` guesses
   inland water from the picture (blue, or the near-black NASA's Blue Marble
   paints deep lakes) and gives it the sea's glint. The height map only knows

@@ -104,6 +104,7 @@ uniform vec3 psEye;
 uniform vec4 psK;
 uniform vec4 psSea;
 uniform float psLakes;
+uniform vec2 psFine;
 uniform mat4 world;
 ${biomeDecl}
 ${GAS_GIANT_GLSL}
@@ -114,18 +115,33 @@ void main(){
   vec3 l=psLight.w>0.5?normalize(psLight.xyz-vWorld):normalize(psLight.xyz);
   vec3 v=normalize(psEye-vWorld);
   float nl=dot(n,l);
+  /*
+  FINER THAN THE MESH. The mesh carries the height at its vertices, and a
+  coast drawn from that alone cannot turn tighter than about two of its
+  cells: asked for more detail, it gives facets. So the octaves the mesh
+  cannot hold are added HERE, per pixel, to the height everything below
+  reads: where the sea ends, how deep it is, how high and how steep the land
+  is. psFine is (frequency, amplitude); zero amplitude is a mapped world,
+  whose heights are the truth.
+  */
+  float hgt=vHeight;
+  if(psFine.y>0.0)hgt+=psFine.y*(b3dVnFbm(d*psFine.x+vec3(psK.z*3.1))-0.5)*2.0;
   // How much of this pixel is sea: the height crossing zero, softened over
   // about a pixel. psSea.x is 0 for a world with no sea at all.
-  float edge=max(fwidth(vHeight)*0.9,1e-5);
-  float sea=psSea.x*(1.0-smoothstep(-edge,edge,vHeight));
+  float edge=max(fwidth(hgt)*0.9,1e-5);
+  float sea=psSea.x*(1.0-smoothstep(-edge,edge,hgt));
   float lat=asin(clamp(d.y,-1.0,1.0));
 
 #ifdef BIOME
   // Outside any branch: a derivative taken inside one is undefined.
   vec3 hfC=biomePlanet.xyz;
   vec3 hfUp=normalize(vWorld-hfC);
-  vec3 hfPos=hfC+hfUp*(biomePlanet.w+vHeight);
-  vec3 hfNormal=cross(dFdx(hfPos),dFdy(hfPos));
+  vec3 hfPos=hfC+hfUp*(biomePlanet.w+hgt);
+  // The SLOPE is the mesh's heights alone. The fine octaves are small and
+  // quick, so their slope is steep everywhere: read for steepness, they
+  // turned the whole land to cliff.
+  vec3 hfFlat=hfC+hfUp*(biomePlanet.w+vHeight);
+  vec3 hfNormal=cross(dFdx(hfFlat),dFdy(hfFlat));
   float hfLen=length(hfNormal);
   hfNormal=hfLen>0.0?hfNormal/hfLen:hfUp;
   if(dot(hfNormal,hfUp)<0.0)hfNormal=-hfNormal;
@@ -155,7 +171,7 @@ void main(){
     ${biome ? '' : '/*'}
     ${biomeLand}
     ${biome ? '/*' : '*/'}
-    float alt=clamp(vHeight/max(psK.x,1e-4),0.0,1.0);
+    float alt=clamp(hgt/max(psK.x,1e-4),0.0,1.0);
     float wet=b3dVnFbm(d*3.1+vec3(psK.z))*0.7+b3dVn(d*11.0)*0.3;
     float temp=1.0-abs(lat)/1.45-alt*0.55+(b3dVn(d*5.0+vec3(3.0))-0.5)*0.18;
     vec3 desert=vec3(0.76,0.66,0.44);
@@ -172,7 +188,7 @@ void main(){
   }
 
   // --- water --------------------------------------------------------------
-  float depth=clamp(-vHeight/max(psK.y,1e-4),0.0,1.0);
+  float depth=clamp(-hgt/max(psK.y,1e-4),0.0,1.0);
   vec3 water=mix(vec3(0.09,0.42,0.5),vec3(0.012,0.06,0.2),1.0-exp(-depth*3.2));
   // With a colour map the map's own sea colour is the truth; deepen it only.
   if(psK.w>0.5)water=land*mix(1.0,0.82,depth);
@@ -242,6 +258,12 @@ export interface PlanetSurfaceOptions {
    * it as water (the map's colour, with the glint). Needs `colorUrl`.
    */
   inlandWater?: boolean
+  /**
+   * Height detail finer than the mesh, added per pixel: `scale` is its
+   * frequency across the unit sphere, `amplitude` its reach in planet units.
+   * For a made-up world; a mapped one's heights are the truth.
+   */
+  fine?: { scale: number; amplitude: number }
   seed?: number
   /**
    * Classify the land with the BIOME SHADER (the plugin from
@@ -276,6 +298,7 @@ export function createPlanetSurfaceMaterial(
         'psK',
         'psSea',
         'psLakes',
+        'psFine',
         ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
       samplers: ['psColor', NOISE_TEXTURE_SAMPLER, 'biomeNoiseTex'],
@@ -324,6 +347,10 @@ export function createPlanetSurfaceMaterial(
     )
   )
   const light = new BABYLON.Vector4(0, 1, 0, 0)
+  const fine = new BABYLON.Vector2(
+    options.fine?.scale ?? 0,
+    options.colorUrl ? 0 : options.fine?.amplitude ?? 0
+  )
   const sea = new BABYLON.Vector4()
   /*
   The plugin binds its uniforms into a uniform BUFFER. This material has
@@ -359,6 +386,7 @@ export function createPlanetSurfaceMaterial(
     )
     mat.setVector4('psSea', sea)
     mat.setFloat('psLakes', options.inlandWater === true ? 1 : 0)
+    mat.setVector2('psFine', fine)
   }
   mat.onDisposeObservable.add(() => tex.dispose())
   return mat
