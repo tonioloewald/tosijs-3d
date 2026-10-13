@@ -2942,7 +2942,7 @@
       {
         "name": "atmosphere",
         "default": "0.08",
-        "description": "Atmosphere thickness (fraction of radius, 0=none)"
+        "description": "Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it"
       },
       {
         "name": "atmosphereColor"

@@ -167,7 +167,7 @@ tosi-b3d {
 | `detailScale` | `0.02` | Detail noise frequency |
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
-| `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
+| `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
 | `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
@@ -186,6 +186,7 @@ import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
 import { createPlanetClouds, type PlanetStorm } from './planet-clouds.js'
+import { sceneLight } from './gas-giant-material.js'
 import {
   createPlanetBiome,
   createPlanetSurfaceMaterial,
@@ -689,6 +690,7 @@ export class B3dPlanet extends B3dChild {
         uniform float atmoOpacity;
         uniform float time;
         uniform float turbulence;
+        uniform vec4 atmoLight;
         ${GAS_GIANT_GLSL}
         void main() {
           vec3 viewDir = normalize(cameraPosition - vWorldPos);
@@ -704,6 +706,12 @@ export class B3dPlanet extends B3dChild {
 
           float alpha = glow * atmoOpacity + turb * 0.3;
           alpha = clamp(alpha, 0.0, 1.0);
+          // AIR GLOWS BECAUSE THE SUN IS IN IT. This shell is added to what
+          // is behind it, and it used to be added at full strength all the
+          // way round, so the night side was a blue disc. It reaches a little
+          // past the terminator (twilight) and is nearly nothing beyond.
+          vec3 l = atmoLight.w > 0.5 ? normalize(atmoLight.xyz - vWorldPos) : normalize(atmoLight.xyz);
+          alpha *= mix(0.03, 1.0, smoothstep(-0.3, 0.3, dot(vWorldNormal, l)));
 
           vec3 col = atmoColor * (glow + turb * 0.5);
           gl_FragColor = vec4(col, alpha);
@@ -741,6 +749,7 @@ export class B3dPlanet extends B3dChild {
           'atmoOpacity',
           'time',
           'turbulence',
+          'atmoLight',
         ],
         needAlphaBlending: true,
       }
@@ -762,9 +771,12 @@ export class B3dPlanet extends B3dChild {
     mat.backFaceCulling = false
     mat.alphaMode = BABYLON.Constants.ALPHA_ADD
     mat.disableDepthWrite = true
+    const light = new BABYLON.Vector4(0, 1, 0, 0)
     mat.onBind = () => {
       const cam = this.owner!.scene.activeCamera
       if (cam) mat.setVector3('cameraPosition', cam.globalPosition)
+      sceneLight(scene, light)
+      mat.setVector4('atmoLight', light)
       mat.setFloat('time', performance.now() / 1000)
     }
 
@@ -804,7 +816,8 @@ export class B3dPlanet extends B3dChild {
     } catch {
       color = new BABYLON.Color3(1, 1, 1)
     }
-    const lift = Math.max(0.004, Math.min(0.02, attrs.atmosphere * 0.3))
+    // Half way up the air, so a deeper atmosphere carries its weather higher.
+    const lift = Math.max(0.004, attrs.atmosphere * 0.5)
     this.cloudMesh = createPlanetClouds(
       this.owner.scene,
       this.rootNode,

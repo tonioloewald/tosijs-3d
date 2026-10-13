@@ -46,6 +46,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A hard edge in planet cloud along the equator**, where a weather cell
   lying across it was wound opposite ways on either side.
 - The cost sweep lists a planet's cloud shell as its own row.
+- **A planet's air no longer glows on the night side.** The atmosphere shell
+  is added to what is behind it and was added at full strength all the way
+  round. It is lit by the sun now, with a little twilight past the
+  terminator.
+- **(behaviour) A planet's clouds ride half way up its atmosphere** (they
+  were capped at 2% of the radius), so a deeper `atmosphere` lifts them.
 
 ### Changed
 

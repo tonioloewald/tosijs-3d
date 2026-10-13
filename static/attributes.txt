@@ -744,7 +744,7 @@ b3d-planet
   detailScale  = 0.02  — Detail noise frequency
   grossAmplitude  = 5  — Gross height multiplier
   detailAmplitude  = 1  — Detail height multiplier
-  atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none)
+  atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it
   atmosphereColor
   atmosphereTurbulence
   clouds  = 0  — (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
