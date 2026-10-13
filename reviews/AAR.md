@@ -33,3 +33,27 @@
 - **The bump went in "awaiting gate" and the tag waited** — the RELEASING
   allowance worked as intended: the release commit was reviewable, the
   BLOCK cost a remediation commit, not a re-tag.
+
+## 0.10.0 cycle
+
+- **The gate blocked on the version letter only.** The work had been called a
+  patch while it removed API; released as 0.10.0, no code change was needed.
+  Two verified majors (draw-order sort keys recomputed inside the comparison;
+  the attribute index giving one element another's defaults) were fixed with
+  tests before the tag.
+- **A headset freeze was found by a stack trace, after several wrong guesses.**
+  Babylon's hand tracking parents the XR camera's parent to itself the second
+  time hands appear. What found it was the debug sink (the page posts errors
+  with stacks to the dev server); what did not was reasoning about the popup
+  that happened to be open. Two of my stated causes were wrong before that.
+- **Device-found fixes shipped without regression tests** (the rig guard, the
+  underwater rays, the popup staying owned). Filed as #3236 with the reason:
+  each needs a session or a device.
+- **Process slips.** A test run was read by its last line and a red suite went
+  unseen for a commit (the 0.8.3 lesson, again). release-doctor was run with
+  the dev server up, against the rule. A background shell waiting on the
+  server log took the server with it when stopped. Two headless page runs
+  hung for hours with nothing bounding them.
+- **The owner's demo pass found three biped bugs, all older than this
+  release** (#3241 to #3243). The 220-page headless sweep could not have:
+  it checks that pages load without throwing, not that a wall stops you.
