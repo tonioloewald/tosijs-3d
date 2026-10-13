@@ -485,9 +485,14 @@ export {
 } from './color-picker.js'
 export {
   COLOR_PRESETS,
+  SWATCH_KEY,
   presetList,
   presetCells,
+  createSwatchStore,
+  sharedSwatches,
   type ColorPreset,
+  type SwatchStore,
+  type SwatchStorage,
 } from './color-presets.js'
 
 // Manipulator — pure maths, the Babylon handles, and the element that wires them

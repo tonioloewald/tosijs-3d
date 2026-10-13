@@ -1260,6 +1260,11 @@ export interface WidgetHost {
        * room at all.
        */
       chrome?: boolean
+      /**
+       * A caption for the title band, so two popups open at once can be
+       * told apart. Only drawn where there is a band (`chrome`).
+       */
+      title?: string
       /** Called when it goes away, however it went. */
       handleClose?: () => void
     },
@@ -3491,6 +3496,18 @@ export function panel3d(
         chromeBand,
         config.maxHeight
       )
+      // The caption goes IN the sheet, which every presentation shares, so
+      // it reads the same flat and on a plane. Between the two glyphs.
+      const title = String((config as { title?: string }).title ?? '')
+      if (chromeBand > 0 && title !== '') {
+        const cap = baseText(title)
+        cap.setAttribute('x', String(chromeBand + 2))
+        cap.setAttribute('y', String(chromeBand / 2 + 1))
+        cap.setAttribute('fill', TH.MUTED)
+        cap.setAttribute('font-size', String(Math.round(TH.FONT * 0.85)))
+        cap.setAttribute('pointer-events', 'none')
+        sheet.appendChild(cap)
+      }
       /*
       ONE CLOSE, however it starts.
 

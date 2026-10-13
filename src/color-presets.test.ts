@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { COLOR_PRESETS, presetCells, presetList } from './color-presets.js'
+import {
+  COLOR_PRESETS,
+  SWATCH_KEY,
+  createSwatchStore,
+  presetCells,
+  presetList,
+} from './color-presets.js'
 
 describe('presetList', () => {
   test("the caller's presets come first, then the general set", () => {
@@ -43,5 +49,76 @@ describe('presetCells', () => {
   test('never zero columns, and no height for nothing', () => {
     expect(presetCells(3, 0).columns).toBe(1)
     expect(presetCells(0, 200).height).toBe(0)
+  })
+})
+
+describe('createSwatchStore', () => {
+  const memory = () => {
+    const data = new Map<string, string>()
+    return {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+    }
+  }
+
+  test("a saved colour sits after the caller's and before the general set", () => {
+    const s = createSwatchStore()
+    expect(s.add('#123456')).toBe(true)
+    const list = s.list(['#abcdef']).map((p) => p.value)
+    expect(list.slice(0, 2)).toEqual(['#abcdef', '#123456'])
+    expect(list[2]).toBe(COLOR_PRESETS[0])
+  })
+
+  test('adding one already saved does nothing, and nonsense is refused', () => {
+    const s = createSwatchStore()
+    s.add('#123456')
+    expect(s.add('#123456')).toBe(false)
+    expect(s.add('nope')).toBe(false)
+    expect(s.added).toEqual(['#123456'])
+  })
+
+  test('removing takes out a saved colour, a general one and a caller one alike', () => {
+    const s = createSwatchStore()
+    s.add('#123456')
+    s.remove('#123456')
+    s.remove(COLOR_PRESETS[0])
+    s.remove('#abcdef')
+    const list = s.list(['#abcdef']).map((p) => p.value)
+    expect(list).not.toContain('#123456')
+    expect(list).not.toContain(COLOR_PRESETS[0])
+    expect(list).not.toContain('#abcdef')
+    expect(s.added).toEqual([])
+  })
+
+  test('adding a removed colour puts it back', () => {
+    const s = createSwatchStore()
+    s.remove(COLOR_PRESETS[2])
+    expect(s.add(COLOR_PRESETS[2])).toBe(true)
+    expect(s.list().map((p) => p.value)).toContain(COLOR_PRESETS[2])
+    // …without a second copy of a general colour in the saved list.
+    expect(s.added).toEqual([])
+  })
+
+  test('it survives a reload, and a broken record starts empty', () => {
+    const store = memory()
+    const a = createSwatchStore(store)
+    a.add('#123456')
+    a.remove(COLOR_PRESETS[1])
+    const b = createSwatchStore(store)
+    expect(b.added).toEqual(['#123456'])
+    expect(b.removed).toEqual([COLOR_PRESETS[1]])
+    store.setItem(SWATCH_KEY, '{not json')
+    expect(createSwatchStore(store).added).toEqual([])
+  })
+
+  test('listeners hear every change until they leave', () => {
+    const s = createSwatchStore()
+    let n = 0
+    const off = s.subscribe(() => n++)
+    s.add('#123456')
+    s.remove('#123456')
+    off()
+    s.add('#654321')
+    expect(n).toBe(2)
   })
 })

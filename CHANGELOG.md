@@ -33,7 +33,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   `bandColors`.
 - **`colorPicker3d`**: a colour as one row. Tap the swatch and a popup opens
   with the HSV(A) picker and a grid of presets (yours first, then a general
-  set). Takes a reactive value, like the other controls.
+  set). Takes a reactive value, like the other controls. **+** saves the
+  colour you are on as a swatch and the bin takes swatches away; saved
+  swatches are shared by every picker on the page and kept in the browser
+  (`sharedSwatches()`, or `createSwatchStore(storage)` for your own). The
+  popup has a title bar with close and move, captioned with the row's label.
+- **A popup's title band can carry a caption**: `title` on `showLayer`.
 
 ### Fixed
 
