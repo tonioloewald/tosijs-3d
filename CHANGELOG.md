@@ -28,6 +28,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
   `loadPlanetMap`, `decodeGray16Png`, `mapSurface`.
 - `planet.rootNode` is public, for placing a planet.
 
+### Fixed
+
+- **A planet's air no longer pinches at the poles.** Its clouds were 2D noise
+  over latitude and longitude, which converges to a point at each pole and has
+  a seam down the back. They are 3D noise read on the sphere itself now, and
+  in the planet's own frame, so they turn with a rotating planet where they
+  used to stand still while it turned beneath them.
+
 ## 0.10.2
 
 ### Added

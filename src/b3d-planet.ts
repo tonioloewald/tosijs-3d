@@ -172,7 +172,7 @@ tosi-b3d {
 import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
-import { gasGiantRgb, resolveGasGiant } from './gas-giant.js'
+import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
 import { createMappedPlanetMaterial } from './planet-map-material.js'
@@ -555,9 +555,16 @@ export class B3dPlanet extends B3dChild {
 
     const scene = this.owner.scene
 
-    // Register atmosphere shader once
-    if (!BABYLON.Effect.ShadersStore['planetAtmoVertexShader']) {
-      BABYLON.Effect.ShadersStore['planetAtmoVertexShader'] = `
+    /*
+    Register the atmosphere shader once. Its clouds are 3D noise read ON THE
+    SPHERE, at the point itself, in the planet's own frame. They used to be
+    2D noise over latitude and longitude, which pinches to a point at each
+    pole and has a seam down the back; and they were read from the WORLD
+    normal, so they stood still while a rotating planet turned under them.
+    The winds are the point turned about the axis before the noise is read.
+    */
+    if (!BABYLON.Effect.ShadersStore['planetAtmo2VertexShader']) {
+      BABYLON.Effect.ShadersStore['planetAtmo2VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec3 normal;
@@ -565,62 +572,36 @@ export class B3dPlanet extends B3dChild {
         uniform mat4 world;
         varying vec3 vWorldPos;
         varying vec3 vWorldNormal;
+        varying vec3 vBody;
         void main() {
           gl_Position = worldViewProjection * vec4(position, 1.0);
           vWorldPos = (world * vec4(position, 1.0)).xyz;
           vWorldNormal = normalize((world * vec4(normal, 0.0)).xyz);
+          vBody = position;
         }
       `
-      BABYLON.Effect.ShadersStore['planetAtmoFragmentShader'] = `
+      BABYLON.Effect.ShadersStore['planetAtmo2FragmentShader'] = `
         precision highp float;
         varying vec3 vWorldPos;
         varying vec3 vWorldNormal;
+        varying vec3 vBody;
         uniform vec3 cameraPosition;
         uniform vec3 atmoColor;
         uniform float atmoOpacity;
         uniform float time;
         uniform float turbulence;
-
-        float hash(vec2 p) {
-          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-          p3 += dot(p3, p3.yzx + 33.33);
-          return fract((p3.x + p3.y) * p3.z);
-        }
-
-        float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-        }
-
-        float fbm(vec2 p) {
-          float v = 0.0;
-          float amp = 0.5;
-          for (int i = 0; i < 4; i++) {
-            v += amp * noise(p);
-            p *= 2.0;
-            amp *= 0.5;
-          }
-          return v;
-        }
-
+        ${GAS_GIANT_GLSL}
         void main() {
           vec3 viewDir = normalize(cameraPosition - vWorldPos);
           float facing = abs(dot(viewDir, vWorldNormal));
           // Transparent at edges (dot→0), visible when facing camera
           float glow = pow(facing, 0.5);
 
-          // Turbulent cloud patterns
-          vec3 n = normalize(vWorldNormal);
-          float lat = asin(n.y) * 3.0;
-          float lon = atan(n.z, n.x) * 3.0;
-          float turb = fbm(vec2(lon + time * 0.02, lat) * 3.0) * turbulence;
-          turb += fbm(vec2(lon - time * 0.01, lat * 1.5 + time * 0.005) * 5.0) * turbulence * 0.5;
+          // Turbulent cloud patterns: two layers drifting opposite ways.
+          vec3 d = normalize(vBody);
+          float turb = b3dGgFbm(b3dGgTurn(d, time * 0.02) * 9.0) * turbulence;
+          turb += b3dGgFbm(b3dGgTurn(d, -time * 0.01) * vec3(15.0, 22.0, 15.0)
+            + vec3(0.0, time * 0.025, 3.1)) * turbulence * 0.5;
 
           float alpha = glow * atmoOpacity + turb * 0.3;
           alpha = clamp(alpha, 0.0, 1.0);
@@ -650,7 +631,7 @@ export class B3dPlanet extends B3dChild {
     const mat = new BABYLON.ShaderMaterial(
       'atmo-shader-mat',
       scene,
-      { vertex: 'planetAtmo', fragment: 'planetAtmo' },
+      { vertex: 'planetAtmo2', fragment: 'planetAtmo2' },
       {
         attributes: ['position', 'normal'],
         uniforms: [
