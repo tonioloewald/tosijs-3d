@@ -16,4 +16,6 @@ export interface GasGiantMaterialOptions {
 }
 /** A material that draws `look` on a sphere. Dispose it with the mesh. */
 export declare function createGasGiantMaterial(scene: BABYLON.Scene, look: GasGiantLook, options?: GasGiantMaterialOptions): BABYLON.ShaderMaterial;
+/** The scene's first point light (a star) or directional light (a sun). */
+export declare function sceneLight(scene: BABYLON.Scene, out: BABYLON.Vector4): void;
 //# sourceMappingURL=gas-giant-material.d.ts.map

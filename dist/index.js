@@ -113,6 +113,10 @@ export { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, excludeFrom
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, } from './gas-giant.js';
+export { decodeGray16Png, mapSurface, loadPlanetMap, } from './planet-map.js';
+export { createMappedPlanetMaterial } from './planet-map-material.js';
+export { createPlanetClouds, } from './planet-clouds.js';
+export { uvToDirection, directionToUv, latLonToDirection, directionToLatLon, groundToUv, uvToGround, groundToDirection, directionToGround, groundToLatLon, latLonToGround, } from './sphere-map.js';
 export { createGasGiantMaterial, } from './gas-giant-material.js';
 export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js';
 export { B3dWeatherCell, b3dWeatherCell } from './b3d-weather-cell.js';

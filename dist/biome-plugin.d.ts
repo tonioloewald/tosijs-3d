@@ -277,7 +277,8 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
         }[];
         fragment: string;
     };
-    bindForSubMesh(uniformBuffer: BABYLON.UniformBuffer): void;
+    private _body;
+    bindForSubMesh(uniformBuffer: BABYLON.UniformBuffer, _scene?: BABYLON.Scene, _engine?: BABYLON.AbstractEngine, subMesh?: BABYLON.SubMesh): void;
     getCustomCode(shaderType: string): {
         [pointName: string]: string;
     } | null;

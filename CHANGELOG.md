@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.3 (unreleased)
+## 0.10.3
 
 ### Added
 
@@ -57,6 +57,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   a seam down the back. They are 3D noise read on the sphere itself now, and
   in the planet's own frame, so they turn with a rotating planet where they
   used to stand still while it turned beneath them.
+
+Size: barrel (min, packages external) 1005.5 KB raw / 340.6 KB gz, +1.8% on 0.10.2.
 
 ## 0.10.2
 

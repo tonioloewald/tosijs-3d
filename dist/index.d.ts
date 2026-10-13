@@ -85,6 +85,10 @@ export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, type GasGiantLook, type GasGiantOverrides, } from './gas-giant.js';
+export { decodeGray16Png, mapSurface, loadPlanetMap, type HeightMap, type MapSurfaceOptions, } from './planet-map.js';
+export { createMappedPlanetMaterial } from './planet-map-material.js';
+export { createPlanetClouds, type PlanetStorm, type PlanetCloudOptions, } from './planet-clouds.js';
+export { uvToDirection, directionToUv, latLonToDirection, directionToLatLon, groundToUv, uvToGround, groundToDirection, directionToGround, groundToLatLon, latLonToGround, type SphereFrame, type PlanetSurface, } from './sphere-map.js';
 export { createGasGiantMaterial, type GasGiantMaterialOptions, } from './gas-giant-material.js';
 export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js';
 export { B3dWeatherCell, b3dWeatherCell } from './b3d-weather-cell.js';

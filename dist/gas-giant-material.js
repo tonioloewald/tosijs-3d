@@ -105,7 +105,7 @@ export function createGasGiantMaterial(scene, look, options = {}) {
     return mat;
 }
 /** The scene's first point light (a star) or directional light (a sun). */
-function sceneLight(scene, out) {
+export function sceneLight(scene, out) {
     for (const l of scene.lights) {
         if (!l.isEnabled())
             continue;

@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.2
+# tosijs-3d v0.10.3
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -344,6 +344,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   is what terrain, clouds and everything else procedural here is built on.
 - https://3d.tosijs.net/picker/ — picker
   scroll for five hundred; this is the other end. It composes controls that
+- https://3d.tosijs.net/planet-map/ — planet-map
+  Mars and the Earth as flat images, one pixel per patch of latitude and
 - https://3d.tosijs.net/popup-chrome/ — popup-chrome
   Pure, in viewBox units — the one place both answers come from.
 - https://3d.tosijs.net/popup-surface/ — popup-surface
@@ -386,6 +388,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   for any star in it, [planets](/b3d-planet/) with atmospheres, and a
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/sphere-map/ — sphere-map
+  `surfaceType="sphere"` is a flat sheet wrapped round a planet: walk far enough
 - https://3d.tosijs.net/star-populations/ — star-populations
   Pure — no Babylon, no DOM.
 - https://3d.tosijs.net/starfield-codec/ — starfield-codec

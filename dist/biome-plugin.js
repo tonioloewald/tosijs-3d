@@ -338,6 +338,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, glowAnimation, cliffCling
                 { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
                 { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
+                { name: 'biomeBody', size: 16, type: 'mat4' }, // world -> the planet's own frame (identity on flat ground)
                 { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, volcanism, volcanicScale, veinWidth
                 { name: 'biomeStrata', size: 4, type: 'vec4' }, // strength, scale, tilt, unused
                 { name: 'biomePlanetC', size: 4, type: 'vec4' }, // equatorTemp, temperateTemp, poleTemp, slopeExaggeration
@@ -355,6 +356,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeWater;
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
+        uniform mat4 biomeBody;
         uniform vec4 biomeSurf;
         uniform vec4 biomeStrata;
         uniform vec4 biomePlanetC;
@@ -367,10 +369,28 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       #endif`,
         };
     }
-    bindForSubMesh(uniformBuffer) {
+    _body = BABYLON.Matrix.Identity();
+    bindForSubMesh(uniformBuffer, _scene, _engine, subMesh) {
         if (!this._isEnabled)
             return;
         const p = this.params;
+        /*
+        A PLANET IS SHADED IN ITS OWN FRAME. Everything below samples noise by
+        position, and by WORLD position a rotating planet turned under its own
+        climate: coasts crawled and the land shimmered (#3228). So on a planet
+        the shader is handed the way back from the world to the mesh's own
+        space, and reads its noise there. Flat ground gets the identity.
+        */
+        const mesh = p.seaRadius > 0 ? subMesh?.getMesh() : null;
+        if (mesh != null)
+            mesh.getWorldMatrix().invertToRef(this._body);
+        else
+            BABYLON.Matrix.IdentityToRef(this._body);
+        // …and the planet's centre is wherever the planet IS. `planetCenter` was
+        // only ever the origin, so a planet that had been moved was shaded as if
+        // it had not: altitude and latitude measured from the wrong place.
+        const at = mesh?.getAbsolutePosition() ?? p.planetCenter;
+        uniformBuffer.updateMatrix('biomeBody', this._body);
         const scene = this._material.getScene();
         if (!this._computed && has3dTextures(scene))
             uniformBuffer.setTexture('biomeNoiseTex', noiseTextureOf(scene));
@@ -384,7 +404,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // loses precision on a long-running page (the motion is periodic-ish
         // noise, so the wrap seam is invisible)
         uniformBuffer.updateFloat4('biomePlanetD', p.rainShadow, p.windAzimuth, p.moistureDryHeight, ((performance.now() - this._t0) / 1000) % 3600);
-        uniformBuffer.updateFloat4('biomePlanet', p.planetCenter.x, p.planetCenter.y, p.planetCenter.z, p.seaRadius);
+        uniformBuffer.updateFloat4('biomePlanet', at.x, at.y, at.z, p.seaRadius);
         uniformBuffer.updateFloat4('biomePlanetB', p.latWarpScale, p.latWarpAmp, p.detailNoiseScale, p.detailNoiseAmp);
         uniformBuffer.updateFloat4('biomeSurf', p.surfDepth, p.volcanism, p.volcanicScale, p.veinWidth);
         const pack = (src) => {
@@ -604,18 +624,32 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // flat = worldY − seaLevel with world-up; planetary (seaRadius > 0) =
         // RADIAL altitude with radial up + insolation over warped latitude.
         bool planetary = biomePlanet.w > 0.0;
-        vec3 rel = wp - biomePlanet.xyz;
+        vec3 nW = normalize(vNormalW);
+        vec3 centre = biomePlanet.xyz;
+        if (planetary) {
+          // Into the planet's own frame: see bindForSubMesh.
+          wp = (biomeBody * vec4(vPositionW, 1.0)).xyz;
+          centre = (biomeBody * vec4(biomePlanet.xyz, 1.0)).xyz;
+          nW = normalize(mat3(biomeBody) * nW);
+        }
+        // The volcanic patterns are sized in METRES of terrain. A planet is
+        // a few dozen units across, so they are read as if it were 600
+        // across: provinces a twentieth of the way round, plates you can see.
+        vec3 vp = planetary ? (wp - centre) * (600.0 / biomePlanet.w) : wp;
+        vec3 rel = wp - centre;
         float r = length(rel);
         vec3 up = planetary ? rel / max(r, 1e-5) : vec3(0.0, 1.0, 0.0);
         float altitude = planetary ? (r - biomePlanet.w) : (wp.y - biomeCfg.x);
         // mantaAxes: |altitude| lapse (peaks at sea level, cools both ways) +
         // fBm axis noise — noise feeds the INPUTS, never the classification.
-        float tN = bioFbm(wp.xz * biomeNoise.x) * biomeNoise.y;
+        // On a sphere the noise is read in 3D: XZ alone is constant along
+        // the axis and smears down the sides of a planet.
+        float tN = (planetary ? bioSimplex3(rel * biomeNoise.x) : bioFbm(wp.xz * biomeNoise.x)) * biomeNoise.y;
         // Moisture noise scales with AVAILABLE moisture: an airless world has
         // no damp patches, so mapMoisture 0 is EXACTLY the dead row (moon
         // grey when cold — never phantom ice). Just above zero, cold regions
         // grow polar ice naturally: Mars with ice caps, which is correct.
-        float mN = bioFbm(wp.xz * biomeNoise.z + 71.3) * biomeNoise.w;
+        float mN = (planetary ? bioSimplex3(rel * biomeNoise.z + 71.3) : bioFbm(wp.xz * biomeNoise.z + 71.3)) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN + biomeSeason.x;
         float effMapM = biomeCfg.w;
         if (planetary) {
@@ -637,7 +671,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float oro = 0.0;
           #ifdef NORMAL
             vec3 wind = vec3(cos(biomePlanetD.y), 0.0, sin(biomePlanetD.y));
-            oro = biomePlanetD.x * dot(normalize(vNormalW), -wind);
+            oro = biomePlanetD.x * dot(nW, -wind);
           #endif
           effMapM = clamp(biomeCfg.w * dry + oro, 0.0, 1.0);
         }
@@ -727,7 +761,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // slopeExaggeration scales the DEVIATION from up before the cliff
           // test — planet-scale contours are gentle, so raw normals would
           // never read as cliffs at planetary radii.
-          float cosUp = 1.0 - (1.0 - dot(normalize(vNormalW), up)) * biomePlanetC.w;
+          float cosUp = 1.0 - (1.0 - dot(nW, up)) * biomePlanetC.w;
           float cliff = bioSlopeMask(cosUp + dith, biomeDither.z, biomeDither.w);
           // In the DEAD band the exposed rock itself changes world: warm dead
           // = Mars red rock, cold dead = Moon dark grey — the dust (chart row)
@@ -783,7 +817,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             // slides the threshold, so 1.0 approaches everywhere and 0.3
             // gives scattered volcanic zones in a living landscape. The local
             // field ORs in as its own mask at its own intensity.
-            float vn = 0.5 + 0.5 * bioSimplex(wp.xz * 0.006 + 3.3);
+            float vn = 0.5 + 0.5 * (planetary ? bioSimplex3(vp * 0.006 + 3.3) : bioSimplex(wp.xz * 0.006 + 3.3));
             float volcG = biomeSurf.y > 0.0
               ? smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn)
               : 0.0;
@@ -825,7 +859,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // or a cut face got vertical STREAKS instead of cells and the vein
               // web simply was not there. Reported on a cutaway volcano, where
               // every interior wall is vertical.
-              vec2 wF = bioWorley3(wp * biomeSurf.z);
+              vec2 wF = bioWorley3(vp * biomeSurf.z);
               // Width spread across the ladder: 0.8x → 2.6x → 11x. The top end
               // is deliberately steep so pools read as veins FATTENING until
               // they merge, and the bottom slightly thinner than before so the
@@ -846,7 +880,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // 3D-noise churn drifting through time — shimmer, never a
               // global blink. glowAnimation (biomeWater.z) dials it; 0 = still.
               float tAnim = biomePlanetD.w;
-              float churn = bioSimplex3(vec3(wp.xz * 0.05, tAnim * 0.11));
+              float churn = bioSimplex3(planetary ? vp * 0.05 + vec3(0.0, tAnim * 0.11, 0.0) : vec3(wp.xz * 0.05, tAnim * 0.11));
               // Applied to BOTH ember and molten: it used to touch only the
               // molten channel, which is a fraction of a fraction of the
               // surface, so the "slow pulse" was invisible in practice.
@@ -899,7 +933,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // it is taking over the rock instead of a fixed set of seams
               // getting hotter.
               float liveLo = 0.55 - 0.34 * t23;
-              float live = smoothstep(liveLo, liveLo + 0.17, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
+              float live = smoothstep(liveLo, liveLo + 0.17, 0.5 + 0.5 * (planetary ? bioSimplex3(vp * 0.025 + 9.1) : bioSimplex(wp.xz * 0.025 + 9.1)));
               float glow = vein * t12 * damp;
               vec3 ember = mix(base, biomeVolcPal[3].rgb * pulse, glow);
               // …and the molten colour itself intensifies through stage 3, so
@@ -911,7 +945,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // pools whose edges creep with the churn (crust breaking and
               // reforming); crusted rock between keeps its glowing seams.
               // (lavaPatch, not patch — 'patch' is a GLSL reserved word)
-              float lavaPatch = smoothstep(0.35, 0.7, 0.5 + 0.5 * bioSimplex(wp.xz * 0.018 + 5.7) + 0.08 * churn * biomeWater.z);
+              float lavaPatch = smoothstep(0.35, 0.7, 0.5 + 0.5 * (planetary ? bioSimplex3(vp * 0.018 + 5.7) : bioSimplex(wp.xz * 0.018 + 5.7)) + 0.08 * churn * biomeWater.z);
               vec3 pool = mix(biomeVolcPal[5].rgb, biomeVolcPal[6].rgb * pulse, clamp(0.55 + dith * 5.0 + 0.25 * churn, 0.0, 1.0));
               volcCol = mix(volcCol, pool, t23 * lavaPatch * damp);
               biome = mix(biome, volcCol, volc);

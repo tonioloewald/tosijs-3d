@@ -22,6 +22,7 @@ const { demo } = tosi({
     grossAmplitude: 5,
     detailAmplitude: 1,
     atmosphere: 0.08,
+    clouds: 0.45,
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
@@ -39,6 +40,7 @@ const planet = b3dPlanet({
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
   atmosphere: demo.atmosphere,
+  clouds: demo.clouds,
   ocean: demo.ocean,
   wireframe: demo.wireframe,
   rotationSpeed: demo.rotationSpeed,
@@ -55,6 +57,7 @@ const scene = b3d(
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
+      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -110,7 +113,7 @@ for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitu
     planet.regenerate()
   })
 }
-for (const key of ['atmosphere', 'ocean', 'wireframe', 'rotationSpeed']) {
+for (const key of ['atmosphere', 'clouds', 'ocean', 'wireframe', 'rotationSpeed']) {
   demo[key].observe(() => {
     planet.updateOptions()
   })
@@ -142,6 +145,11 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
+| `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
+| `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
+| `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
+| `flatSea` | `'off'` | `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth) |
+| `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
@@ -157,16 +165,24 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
+| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
+| `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
+| `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
+| `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
 | `ocean` | `0.6` | Ocean coverage (0=none, 0.6=60% of surface underwater) |
 | `wireframe` | `false` | Debug: render as wireframe |
-| `rotationSpeed` | `0` | Auto-rotation speed (radians/sec) |
+| `rotationSpeed` | `0` | Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way |
 
 */
 /*{ "parent": "space", "order": 40 }*/
 import { Color } from 'tosijs';
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js';
 import { attachBiomePlugin } from './biome-plugin.js';
-import { gasGiantRgb, resolveGasGiant } from './gas-giant.js';
+import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js';
+import { loadPlanetMap } from './planet-map.js';
+import { createPlanetClouds } from './planet-clouds.js';
+import { createMappedPlanetMaterial } from './planet-map-material.js';
+import { assetUrl } from './asset-url.js';
 import { createGasGiantMaterial } from './gas-giant-material.js';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
@@ -203,6 +219,19 @@ export class B3dPlanet extends B3dChild {
         // A gas giant: 'jupiter' | 'saturn' | 'uranus' | 'neptune'. A smooth,
         // banded sphere in place of terrain and sea (see gas-giant).
         gas: '',
+        // A real world from its maps (planet-map): a 16-bit height PNG and an
+        // equirectangular colour image. Paths resolve through `assetUrl`.
+        heightMap: '',
+        colorMap: '',
+        // The real body's radius, km: what the heights are measured against.
+        // 0 = the height map's own `body-radius-km` header, where it can be read.
+        bodyRadiusKm: 0,
+        // Fill the seas level (heights below 0 read as 0): for a world whose
+        // colour map shows water.
+        flatSea: 'off',
+        // With `surface` set: how much its true relief is exaggerated (1 = to
+        // scale, which on a globe is flat to the eye).
+        relief: 1,
         // Gas giant overrides; 0 / -1 / '' mean the preset's own.
         bands: 0,
         turbulence: -1,
@@ -223,21 +252,44 @@ export class B3dPlanet extends B3dChild {
         atmosphere: 0.08,
         atmosphereColor: 'rgba(77,128,230,0.15)',
         atmosphereTurbulence: 0.5,
+        // Weather seen from orbit: how much of the sky is cloud, 0 = none.
+        clouds: 0,
+        cloudColor: '#ffffff',
+        cloudSpeed: 1,
         ocean: 0.6,
         rings: 0,
         wireframe: false,
         rotationSpeed: 0,
     };
     owner = null;
+    /**
+     * ANOTHER WORLD'S SURFACE, to draw this planet from: set it to a terrain's
+     * `planetSurface()` and the globe is that terrain seen from orbit (then
+     * `regenerate()`). Its heights are true metres on a planet of its own
+     * radius; `relief` says how much to exaggerate them, because real relief
+     * is invisible at this size. With a surface set, the planet's own noise
+     * settings are unused and the sea sits at the surface's sea level.
+     */
+    surface = null;
+    /**
+     * STORMS placed on the weather (needs `clouds` above 0): up to four, each
+     * `{ lat, lon, size, intensity, lightning }`. A storm is a cyclone that
+     * turns the right way for its hemisphere, with an eye, and lightning
+     * flickering inside it, which on the night side is all you see of it.
+     * Read every frame, so move one by changing its `lat` and `lon`.
+     */
+    storms = [];
     grossFilter = new PiecewiseLinearFilter();
     detailFilter = new PiecewiseLinearFilter();
     noise;
     planetMesh = null;
     atmosphereMesh = null;
     oceanMesh = null;
+    cloudMesh = null;
     /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
     biomePlugin = null;
     ringMesh = null;
+    /** The node everything of this planet hangs from: move it to place the planet. */
     rootNode = null;
     registered = false;
     _beforeRender = null;
@@ -248,9 +300,11 @@ export class B3dPlanet extends B3dChild {
         const attrs = this;
         this.noise = new PerlinNoise(attrs.seed);
         this.rootNode = new BABYLON.TransformNode('planet-root', scene);
+        this._loadHeightMap();
         this.buildPlanet();
         this.buildAtmosphere();
         this.buildOcean();
+        this.buildClouds();
         this.buildRings();
         this._beforeRender = () => this.update();
         scene.registerBeforeRender(this._beforeRender);
@@ -264,7 +318,10 @@ export class B3dPlanet extends B3dChild {
         this.planetMesh = null;
         this.atmosphereMesh = null;
         this.oceanMesh = null;
+        this.cloudMesh = null;
         this.ringMesh = null;
+        // So a planet put back in a scene fetches its heights again.
+        this._heightMapLoaded = '';
         this.owner = null;
     }
     update() {
@@ -272,9 +329,14 @@ export class B3dPlanet extends B3dChild {
             return;
         const attrs = this;
         const speed = attrs.rotationSpeed;
-        if (speed > 0) {
+        // Negative runs it the other way (the direction it had before 0.10.3).
+        if (speed !== 0) {
             const dt = sceneDelta(this.owner.scene);
-            this.rootNode.rotation.y += speed * dt;
+            // WEST TO EAST, as planets turn: seen from above the north pole,
+            // anticlockwise. East is +longitude, toward +Z from +X, and in
+            // Babylon's left-handed frame that is a NEGATIVE turn about Y. (It was
+            // positive, and the Earth ran backwards.)
+            this.rootNode.rotation.y -= speed * dt;
         }
     }
     buildPlanet() {
@@ -331,7 +393,7 @@ export class B3dPlanet extends B3dChild {
                     const ny = cy / len;
                     const nz = cz / len;
                     // Height from noise
-                    const h = this.heightAt(nx, ny, nz);
+                    const h = this._heightFor(nx, ny, nz);
                     heights[vertOffset] = h;
                     const r = radius + h;
                     const vi = vertOffset * 3;
@@ -364,6 +426,21 @@ export class B3dPlanet extends B3dChild {
         vertexData.indices = indices;
         vertexData.normals = normals;
         vertexData.applyToMesh(mesh, true);
+        if (attrs.colorMap) {
+            // A REAL WORLD'S COLOUR: the map, looked up by direction (planet-map).
+            const mapped = createMappedPlanetMaterial(this.owner.scene, assetUrl(String(attrs.colorMap)));
+            mapped.wireframe = attrs.wireframe;
+            mesh.material = mapped;
+            mesh.parent = this.rootNode;
+            this.planetMesh = mesh;
+            this.vertexHeights = heights;
+            this.biomePlugin = null;
+            if (!this.registered) {
+                this.registered = true;
+                this.owner.register({ meshes: [mesh] });
+            }
+            return;
+        }
         const mat = new BABYLON.StandardMaterial('planet-mat', this.owner.scene);
         mat.diffuseColor = new BABYLON.Color3(0.6, 0.75, 0.45);
         mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
@@ -376,7 +453,8 @@ export class B3dPlanet extends B3dChild {
             // crawls if the planet SPINS — fine for a static planet; a rotating one
             // wants object-space sampling (a step-5 concern with triplanar).
             const seaRadius = attrs.ocean > 0
-                ? attrs.radius + this.heightPercentile(attrs.ocean)
+                ? attrs.radius +
+                    (this.surface != null ? 0 : this.heightPercentile(attrs.ocean))
                 : 0.001;
             this.biomePlugin = attachBiomePlugin(mat, {
                 seaRadius,
@@ -404,6 +482,53 @@ export class B3dPlanet extends B3dChild {
             this.owner.register({ meshes: [mesh] });
         }
     }
+    _heightMapLoaded = '';
+    _surfaceFromMap = false;
+    /**
+     * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
+     * planet shows as a smooth ball, in its colours, until the heights arrive.
+     */
+    _loadHeightMap() {
+        const attrs = this;
+        const url = attrs.heightMap ? assetUrl(String(attrs.heightMap)) : '';
+        const key = `${url}|${attrs.flatSea}|${attrs.bodyRadiusKm}`;
+        if (key === this._heightMapLoaded)
+            return;
+        // A change of map (or none) drops the heights of the last one: the planet
+        // is its own noise, in the new colours, until the new heights arrive.
+        if (this._surfaceFromMap) {
+            this.surface = null;
+            this._surfaceFromMap = false;
+        }
+        this._heightMapLoaded = key;
+        if (url === '')
+            return;
+        loadPlanetMap(url, {
+            ...(isOff(attrs.flatSea) ? {} : { floor: 0 }),
+            ...(attrs.bodyRadiusKm > 0 ? { radius: attrs.bodyRadiusKm * 1000 } : {}),
+        })
+            .then((surface) => {
+            if (this.owner == null || key !== this._heightMapLoaded)
+                return;
+            this.surface = surface;
+            this._surfaceFromMap = true;
+            this.regenerate();
+        })
+            .catch((err) => {
+            console.warn(`b3d-planet: could not load heightMap "${url}"`, err);
+        });
+    }
+    /** A vertex's height above the base sphere, in this planet's own units. */
+    _heightFor(nx, ny, nz) {
+        const s = this.surface;
+        if (s == null)
+            return this.heightAt(nx, ny, nz);
+        const attrs = this;
+        const relief = attrs.relief > 0 ? attrs.relief : 1;
+        return (((s.heightAt({ x: nx, y: ny, z: nz }) - s.seaLevel) / s.radius) *
+            attrs.radius *
+            relief);
+    }
     /** Get the height at a given percentile (0..1) of all vertex heights */
     heightPercentile(p) {
         if (this.vertexHeights == null)
@@ -420,9 +545,16 @@ export class B3dPlanet extends B3dChild {
         if (atmoFrac <= 0 || attrs.gas)
             return;
         const scene = this.owner.scene;
-        // Register atmosphere shader once
-        if (!BABYLON.Effect.ShadersStore['planetAtmoVertexShader']) {
-            BABYLON.Effect.ShadersStore['planetAtmoVertexShader'] = `
+        /*
+        Register the atmosphere shader once. Its clouds are 3D noise read ON THE
+        SPHERE, at the point itself, in the planet's own frame. They used to be
+        2D noise over latitude and longitude, which pinches to a point at each
+        pole and has a seam down the back; and they were read from the WORLD
+        normal, so they stood still while a rotating planet turned under them.
+        The winds are the point turned about the axis before the noise is read.
+        */
+        if (!BABYLON.Effect.ShadersStore['planetAtmo2VertexShader']) {
+            BABYLON.Effect.ShadersStore['planetAtmo2VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec3 normal;
@@ -430,62 +562,36 @@ export class B3dPlanet extends B3dChild {
         uniform mat4 world;
         varying vec3 vWorldPos;
         varying vec3 vWorldNormal;
+        varying vec3 vBody;
         void main() {
           gl_Position = worldViewProjection * vec4(position, 1.0);
           vWorldPos = (world * vec4(position, 1.0)).xyz;
           vWorldNormal = normalize((world * vec4(normal, 0.0)).xyz);
+          vBody = position;
         }
       `;
-            BABYLON.Effect.ShadersStore['planetAtmoFragmentShader'] = `
+            BABYLON.Effect.ShadersStore['planetAtmo2FragmentShader'] = `
         precision highp float;
         varying vec3 vWorldPos;
         varying vec3 vWorldNormal;
+        varying vec3 vBody;
         uniform vec3 cameraPosition;
         uniform vec3 atmoColor;
         uniform float atmoOpacity;
         uniform float time;
         uniform float turbulence;
-
-        float hash(vec2 p) {
-          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-          p3 += dot(p3, p3.yzx + 33.33);
-          return fract((p3.x + p3.y) * p3.z);
-        }
-
-        float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-        }
-
-        float fbm(vec2 p) {
-          float v = 0.0;
-          float amp = 0.5;
-          for (int i = 0; i < 4; i++) {
-            v += amp * noise(p);
-            p *= 2.0;
-            amp *= 0.5;
-          }
-          return v;
-        }
-
+        ${GAS_GIANT_GLSL}
         void main() {
           vec3 viewDir = normalize(cameraPosition - vWorldPos);
           float facing = abs(dot(viewDir, vWorldNormal));
           // Transparent at edges (dot→0), visible when facing camera
           float glow = pow(facing, 0.5);
 
-          // Turbulent cloud patterns
-          vec3 n = normalize(vWorldNormal);
-          float lat = asin(n.y) * 3.0;
-          float lon = atan(n.z, n.x) * 3.0;
-          float turb = fbm(vec2(lon + time * 0.02, lat) * 3.0) * turbulence;
-          turb += fbm(vec2(lon - time * 0.01, lat * 1.5 + time * 0.005) * 5.0) * turbulence * 0.5;
+          // Turbulent cloud patterns: two layers drifting opposite ways.
+          vec3 d = normalize(vBody);
+          float turb = b3dGgFbm(b3dGgTurn(d, time * 0.02) * 9.0) * turbulence;
+          turb += b3dGgFbm(b3dGgTurn(d, -time * 0.01) * vec3(15.0, 22.0, 15.0)
+            + vec3(0.0, time * 0.025, 3.1)) * turbulence * 0.5;
 
           float alpha = glow * atmoOpacity + turb * 0.3;
           alpha = clamp(alpha, 0.0, 1.0);
@@ -508,7 +614,7 @@ export class B3dPlanet extends B3dChild {
         }
         const atmoRadius = attrs.radius + maxH + atmoFrac * attrs.radius;
         const mesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', { diameter: atmoRadius * 2, segments: 32 }, scene);
-        const mat = new BABYLON.ShaderMaterial('atmo-shader-mat', scene, { vertex: 'planetAtmo', fragment: 'planetAtmo' }, {
+        const mat = new BABYLON.ShaderMaterial('atmo-shader-mat', scene, { vertex: 'planetAtmo2', fragment: 'planetAtmo2' }, {
             attributes: ['position', 'normal'],
             uniforms: [
                 'worldViewProjection',
@@ -539,16 +645,60 @@ export class B3dPlanet extends B3dChild {
         mesh.parent = this.rootNode;
         this.atmosphereMesh = mesh;
     }
+    /** The highest ground above the base sphere, in this planet's units. */
+    _maxHeight() {
+        const attrs = this;
+        if (this.vertexHeights == null || this.vertexHeights.length === 0)
+            return attrs.gas ? 0 : attrs.grossAmplitude + attrs.detailAmplitude;
+        let max = -Infinity;
+        for (const h of this.vertexHeights)
+            if (h > max)
+                max = h;
+        return max;
+    }
+    /**
+     * The weather, seen from orbit (planet-clouds): a shell just above the
+     * highest ground and INSIDE the air shell, which stays outside it as the
+     * glow at the limb.
+     */
+    buildClouds() {
+        if (this.cloudMesh) {
+            this.cloudMesh.dispose(false, true);
+            this.cloudMesh = null;
+        }
+        if (this.owner == null || this.rootNode == null)
+            return;
+        const attrs = this;
+        if (!(attrs.clouds > 0) || attrs.gas)
+            return;
+        let color;
+        try {
+            color = BABYLON.Color3.FromHexString(String(attrs.cloudColor || '#ffffff').slice(0, 7));
+        }
+        catch {
+            color = new BABYLON.Color3(1, 1, 1);
+        }
+        const lift = Math.max(0.004, Math.min(0.02, attrs.atmosphere * 0.3));
+        this.cloudMesh = createPlanetClouds(this.owner.scene, this.rootNode, attrs.radius + Math.max(0, this._maxHeight()) + lift * attrs.radius, {
+            coverage: Math.min(1, attrs.clouds),
+            color,
+            speed: attrs.cloudSpeed,
+            seed: 1 + (Math.abs(attrs.seed) % 89),
+            storms: () => this.storms,
+        });
+    }
     buildOcean() {
         if (this.owner == null || this.rootNode == null)
             return;
         const attrs = this;
         const oceanPct = attrs.ocean;
-        if (oceanPct <= 0 || attrs.gas)
+        // A colour map already shows its seas.
+        if (oceanPct <= 0 || attrs.gas || attrs.colorMap)
             return;
         // Ocean radius: height at the given percentile of vertices
         // e.g. ocean=0.6 means 60% of surface is underwater
-        const oceanHeight = this.heightPercentile(oceanPct);
+        // A borrowed surface says where its sea is: the datum, height 0 here.
+        const oceanHeight = this.surface != null ? 0 : this.heightPercentile(oceanPct);
         const oceanRadius = attrs.radius + oceanHeight;
         const mesh = BABYLON.MeshBuilder.CreateSphere('ocean', { diameter: oceanRadius * 2, segments: 32 }, this.owner.scene);
         const mat = new BABYLON.StandardMaterial('ocean-mat', this.owner.scene);
@@ -702,9 +852,11 @@ export class B3dPlanet extends B3dChild {
             this.ringMesh = null;
         }
         this.registered = false;
+        this._loadHeightMap();
         this.buildPlanet();
         this.buildAtmosphere();
         this.buildOcean();
+        this.buildClouds();
         this.buildRings();
     }
     /** Update atmosphere/ocean/wireframe/rotation */
@@ -721,6 +873,7 @@ export class B3dPlanet extends B3dChild {
         }
         this.buildAtmosphere();
         this.buildOcean();
+        this.buildClouds();
         if (this.planetMesh?.material) {
             ;
             this.planetMesh.material.wireframe =

@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d.js';
 import type { GradientFilter } from './gradient-filter.js';
+import { type PlanetSurface, type SphereFrame } from './sphere-map.js';
 import { BiomePlugin } from './biome-plugin.js';
 export declare class B3dTerrain extends B3dChild {
     static preferredTagName: string;
@@ -150,6 +151,35 @@ export declare class B3dTerrain extends B3dChild {
         x: number;
         z: number;
     };
+    /**
+     * How this terrain's sheet is laid on its planet, or null when it is not
+     * on one (`surfaceType` other than `'sphere'`). See [[sphere-map]].
+     */
+    get sphereFrame(): SphereFrame | null;
+    /**
+     * Latitude and longitude (degrees) of a spot on the ground; null off a
+     * sphere. `x`, `z` are the terrain's own unshifting coordinates: a scene
+     * position plus `originOffset`. +x is east and +z is north.
+     */
+    latLonAt(x: number, z: number): {
+        lat: number;
+        lon: number;
+    } | null;
+    /** Where on the ground a latitude and longitude is; null off a sphere. */
+    groundAt(lat: number, lon: number): {
+        x: number;
+        z: number;
+    } | null;
+    /**
+     * THIS WORLD AS A GLOBE: its height in any direction from the centre, from
+     * the very function the ground is built with (the same noise, profiles and
+     * landforms), so a planet drawn from it is the planet you are standing on.
+     * Hand it to `<tosi-b3d-planet>`'s `surface`. Null off a sphere.
+     *
+     * Taken when called: ask again after the terrain's shape changes
+     * (`generationKey`).
+     */
+    planetSurface(): PlanetSurface | null;
     heightSampler(): (x: number, z: number) => number;
     /**
      * Changes whenever the terrain's SHAPE does — any rebuild, including a

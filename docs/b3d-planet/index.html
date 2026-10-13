@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a52dffbd3e65" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=9d3a03170327" data-tosi-doc-system />
   <title>b3d-planet — tosijs-3d</title>
   <meta name="description" content="Procedural planet mesh using a subdivided cube projected onto a sphere. Height displacement from 3D Perlin noise (gross + detail layers) with gradient filters…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-planet/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=80e3e550f075" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=69f009bc448f" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-planet">b3d-planet</h1>
 <p>Procedural planet mesh using a subdivided cube projected onto a sphere.
@@ -50,6 +50,7 @@ const { demo } = tosi({
     grossAmplitude: 5,
     detailAmplitude: 1,
     atmosphere: 0.08,
+    clouds: 0.45,
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
@@ -67,6 +68,7 @@ const planet = b3dPlanet({
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
   atmosphere: demo.atmosphere,
+  clouds: demo.clouds,
   ocean: demo.ocean,
   wireframe: demo.wireframe,
   rotationSpeed: demo.rotationSpeed,
@@ -83,6 +85,7 @@ const scene = b3d(
       slider3d({ label: &#39;detail amp&#39;, value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: &#39;rotation&#39;, value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: &#39;atmosphere&#39;, value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
+      slider3d({ label: &#39;clouds&#39;, value: demo.clouds, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: &#39;ocean&#39;, value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -138,7 +141,7 @@ for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;grossAmplit
     planet.regenerate()
   })
 }
-for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &#39;rotationSpeed&#39;]) {
+for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &#39;rotationSpeed&#39;]) {
   demo[key].observe(() =&gt; {
     planet.updateOptions()
   })
@@ -180,6 +183,31 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
 <td><code>radius</code></td>
 <td><code>50</code></td>
 <td>Base sphere radius</td>
+</tr>
+<tr>
+<td><code>heightMap</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>A real world&#39;s HEIGHTS: a 16-bit greyscale PNG, 2:1, <code>metres = value − 32768</code> (see <a href="/planet-map/">planet-map</a>). A full URL, or a path resolved by <code>assetUrl</code>: call <code>setAssetBase(&#39;https://cdn.tosijs.net&#39;)</code> once and <code>nasa/moon/height-2k.png</code>, <code>nasa/mars/…</code> and <code>noaa/earth/…</code> are there. Sets <code>surface</code> when it has loaded. Those maps are NASA&#39;s and NOAA&#39;s and free to use with credit, which is yours to show</td>
+</tr>
+<tr>
+<td><code>bodyRadiusKm</code></td>
+<td><code>0</code></td>
+<td>The real body&#39;s radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). <code>0</code> reads the height map&#39;s <code>body-radius-km</code> header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host</td>
+</tr>
+<tr>
+<td><code>colorMap</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>A real world&#39;s COLOUR: a 2:1 image, longitude −180° to 180° left to right. <code>nasa/moon/color-2k.jpg</code> and so on. Replaces the biome shading and the sea sphere</td>
+</tr>
+<tr>
+<td><code>flatSea</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> fills everything below 0 m level, for a world whose colour map shows water (the Earth)</td>
+</tr>
+<tr>
+<td><code>relief</code></td>
+<td><code>1</code></td>
+<td>With a <code>heightMap</code> or a <code>surface</code> set: how much its true relief is exaggerated. <code>1</code> is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map</td>
 </tr>
 <tr>
 <td><code>gas</code></td>
@@ -257,6 +285,26 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
 <td>Atmosphere thickness (fraction of radius, 0=none)</td>
 </tr>
 <tr>
+<td><code>clouds</code></td>
+<td><code>0</code></td>
+<td>(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world&#39;s ground.) Weather seen from orbit: how much of the sky is cloud, <code>0…1</code>. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. <code>0</code> = none</td>
+</tr>
+<tr>
+<td><code>cloudColor</code></td>
+<td><code>&#39;#ffffff&#39;</code></td>
+<td>The cloud&#39;s colour where lit</td>
+</tr>
+<tr>
+<td><code>storms</code> (property)</td>
+<td><code>[]</code></td>
+<td>Storms placed on the weather, up to four: <code>planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]</code>. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; <code>cyclone: 0</code> makes it a thunderstorm complex that sits and flashes. Needs <code>clouds</code> above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is</td>
+</tr>
+<tr>
+<td><code>cloudSpeed</code></td>
+<td><code>1</code></td>
+<td>How fast the weather moves. <code>0</code> holds it still</td>
+</tr>
+<tr>
 <td><code>ocean</code></td>
 <td><code>0.6</code></td>
 <td>Ocean coverage (0=none, 0.6=60% of surface underwater)</td>
@@ -269,7 +317,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
 <tr>
 <td><code>rotationSpeed</code></td>
 <td><code>0</code></td>
-<td>Auto-rotation speed (radians/sec)</td>
+<td>Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way</td>
 </tr>
 </tbody></table>
 
@@ -662,6 +710,8 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
       </ul>
       </details></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
+      <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
@@ -694,6 +744,6 @@ for (const key of [&#39;atmosphere&#39;, &#39;ocean&#39;, &#39;wireframe&#39;, &
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-ez94ca2n.js"></script>
+  <script type="module" src="../hydrate-vzjzb3qx.js"></script>
 </body>
 </html>
