@@ -56,7 +56,9 @@ the degrees an author sets with `biomeTemperature`.
 /*{ "parent": "b3d-terrain", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { noiseVolume } from './noise-volume.js'
+import { noiseVolume, sampleNoiseVolume } from './noise-volume.js'
+import { mantaAxes, planetaryAxes } from './biome-chart.js'
+import { groundToDirection } from './sphere-map.js'
 import {
   CLIMATE_CELLS,
   CLIMATE_GAIN,
@@ -1022,7 +1024,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // temperate (45°) → pole, over latWarped asin latitude (the warp
           // runs BEFORE the calc, so banding wobbles instead of painting on).
           float lat = asin(clamp(rel.y / max(r, 1e-5), -1.0, 1.0));
-          float latW = lat + bioSimplex(rel.xz * biomePlanetB.x) * biomePlanetB.y;
+          // 3D, and from the noise block where there is one, so code can
+          // work out the same wobble (sheetClimateAt).
+          float latW = lat + bioSimplex3(rel * biomePlanetB.x + 23.7) * biomePlanetB.y;
           float alat = clamp(abs(latW) / 1.5707963, 0.0, 1.0);
           float latT = alat < 0.5
             ? mix(biomePlanetC.x, biomePlanetC.y, alat * 2.0)
@@ -1389,6 +1393,67 @@ function has3dTextures(scene: BABYLON.Scene): boolean {
   )
 }
 
+let volume: Uint8Array | null = null
+/** The one noise block: the texture every scene reads, and what code samples. */
+function sharedVolume(): Uint8Array {
+  volume ??= noiseVolume(64, 16)
+  return volume
+}
+
+/**
+ * THE CLIMATE AT A PLACE ON THE GROUND, as the shader works it out: the two
+ * chart axes for a spot at world `x`, `z` (scene position plus the terrain's
+ * `originOffset`) and height `y`. On a sheet (`sheetRadius`) that is the
+ * planet's climate at that point of the sphere; otherwise the flat one. The
+ * decorator places by it, so what grows agrees with how the ground is drawn.
+ *
+ * The slope's share of the rain shadow is left out (a caller here has no
+ * normal), and the seasons; with the noise computed in the shader instead of
+ * read from the block (`setBiomeComputedNoise`, or no 3D textures) a sheet's
+ * noise differs.
+ */
+export function groundClimateAt(
+  p: BiomeParams,
+  x: number,
+  y: number,
+  z: number
+): { temperature: number; moisture: number } {
+  if (!(p.sheetRadius > 0)) {
+    const n = climateNoiseAt(p, x, z)
+    return mantaAxes(y, p, n.temperature, n.moisture)
+  }
+  const R = p.sheetRadius
+  const d = groundToDirection(x, z, {
+    radius: R,
+    worldU: p.sheetU,
+    worldV: p.sheetV,
+  })
+  const r = R + y
+  const rel = { x: d.x * r, y: d.y * r, z: d.z * r }
+  const vol = sharedVolume()
+  const noise = (scale: number, offset: number) =>
+    sampleNoiseVolume(
+      vol,
+      64,
+      rel.x * scale + offset,
+      rel.y * scale + offset,
+      rel.z * scale + offset
+    )
+  // The wind is fixed in the planet's frame, so most of the rain shadow is
+  // which side of the planet you are on.
+  const rain =
+    -p.rainShadow *
+    (d.x * Math.cos(p.windAzimuth) + d.z * Math.sin(p.windAzimuth))
+  return planetaryAxes(
+    rel,
+    { ...p, seaLevel: R + p.seaLevel },
+    noise(p.tNoiseScale, 0) * p.tNoiseAmp,
+    noise(p.mNoiseScale, 71.3) * p.mNoiseAmp,
+    noise(p.latWarpScale, 23.7) * p.latWarpAmp,
+    rain
+  )
+}
+
 const climateTextures = new WeakMap<BABYLON.Scene, BABYLON.RawTexture>()
 const sharedLattice = climateLattice()
 
@@ -1450,7 +1515,7 @@ export function noiseTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture3D {
   let tex = noiseTextures.get(scene)
   if (tex == null) {
     tex = new BABYLON.RawTexture3D(
-      noiseVolume(64, 16),
+      sharedVolume(),
       64,
       64,
       64,

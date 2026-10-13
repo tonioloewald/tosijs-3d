@@ -140,3 +140,45 @@ export function latticeVolume(cells = 64, seed = 1): Uint8Array {
   }
   return out
 }
+
+/**
+ * Read a `noiseVolume` block in code the way the biome shader reads it as a
+ * texture (four texels a lattice cell, the fraction eased, linear between
+ * texels, wrapping): about -1…1. So a climate drawn from the block can be
+ * worked out away from the GPU, by the decorator for one.
+ */
+export function sampleNoiseVolume(
+  volume: Uint8Array,
+  size: number,
+  x: number,
+  y: number,
+  z: number
+): number {
+  const axis = (p: number): [number, number, number] => {
+    const uv = p * 4 + 0.5
+    const i = Math.floor(uv)
+    const f = uv - i
+    const lo = (((i - 1) % size) + size) % size
+    return [lo, (lo + 1) % size, f * f * (3 - 2 * f)]
+  }
+  const [x0, x1, wx] = axis(x)
+  const [y0, y1, wy] = axis(y)
+  const [z0, z1, wz] = axis(z)
+  const at = (ix: number, iy: number, iz: number) =>
+    volume[ix + size * (iy + size * iz)]
+  const mix = (a: number, b: number, t: number) => a + (b - a) * t
+  const value = mix(
+    mix(
+      mix(at(x0, y0, z0), at(x1, y0, z0), wx),
+      mix(at(x0, y1, z0), at(x1, y1, z0), wx),
+      wy
+    ),
+    mix(
+      mix(at(x0, y0, z1), at(x1, y0, z1), wx),
+      mix(at(x0, y1, z1), at(x1, y1, z1), wx),
+      wy
+    ),
+    wz
+  )
+  return (value / 255) * 2 - 1
+}

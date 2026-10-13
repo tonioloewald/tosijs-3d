@@ -269,7 +269,9 @@ export function planetaryAxes(
   },
   tNoise = 0,
   mNoise = 0,
-  latWarpNoise = 0
+  latWarpNoise = 0,
+  /** Rain shadow: added to the map moisture (wet windward, dry leeward). */
+  rain = 0
 ): { temperature: number; moisture: number; latitude: number } {
   const r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z)
   const altitude = r - cfg.seaLevel // RADIAL — the planet's worldY − seaLevel
@@ -288,7 +290,11 @@ export function planetaryAxes(
   const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
   const g = clamp01(cfg.mapMoisture / 0.25)
   const mGate = g * g * (3 - 2 * g)
-  const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75
+  // Height dries the land, as in mantaAxes; then the rain shadow.
+  const dryH = cfg.moistureDryHeight ?? 0
+  const dry = dryH > 0 ? Math.exp(-Math.max(altitude, 0) / dryH) : 1
+  const eff = clamp01(cfg.mapMoisture * dry + rain)
+  const landM = clamp01(eff + mNoise * mGate) * 0.75
   const moisture = underwater ? landM + (1 - landM) * mGate : landM
   return { temperature, moisture, latitude }
 }

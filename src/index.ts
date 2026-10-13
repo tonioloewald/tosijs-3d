@@ -1282,6 +1282,7 @@ export {
   attachBiomePlugin,
   setBiomeLite,
   climateNoiseAt,
+  groundClimateAt,
   biomeLite,
   setBiomeComputedNoise,
   biomeComputedNoise,
@@ -1535,7 +1536,7 @@ export {
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js'
 export { debugSink, sendDebug } from './debug-sink.js'
 export { nearFirst, drawKey } from './draw-order.js'
-export { noiseVolume } from './noise-volume.js'
+export { noiseVolume, sampleNoiseVolume } from './noise-volume.js'
 export {
   CLIMATE_CELLS,
   climateLattice,

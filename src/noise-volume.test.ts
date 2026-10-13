@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { noiseVolume, latticeVolume } from './noise-volume.js'
+import {
+  noiseVolume,
+  sampleNoiseVolume,
+  latticeVolume,
+} from './noise-volume.js'
 
 describe('noiseVolume', () => {
   const size = 32
@@ -66,5 +70,44 @@ describe('latticeVolume', () => {
     expect(lo).toBeLessThan(4)
     expect(hi).toBeGreaterThan(251)
     expect(Math.abs(sum / v.length / 255 - 0.5)).toBeLessThan(0.01)
+  })
+})
+
+describe('reading the block in code, as the shader reads the texture', () => {
+  const size = 64
+  const vol = noiseVolume(size, 16)
+  const texel = (ix: number, iy: number, iz: number) =>
+    (vol[ix + size * (iy + size * iz)] / 255) * 2 - 1
+
+  test('where the shader lands on a texel, so does this', () => {
+    // The shader's lookup is p * 4 + 0.5. At p = (k + 0.5) / 4 that is the
+    // whole number k + 1 with no fraction, which reads texel k alone.
+    const p = (k: number) => (k + 0.5) / 4
+    expect(sampleNoiseVolume(vol, size, p(5), p(9), p(20))).toBeCloseTo(
+      texel(5, 9, 20),
+      10
+    )
+  })
+
+  test('it wraps every 16 units, and across zero', () => {
+    const a = sampleNoiseVolume(vol, size, 1.23, 4.56, 7.89)
+    expect(
+      sampleNoiseVolume(vol, size, 1.23 + 16, 4.56 - 16, 7.89)
+    ).toBeCloseTo(a, 9)
+    expect(sampleNoiseVolume(vol, size, -0.1, -0.1, -0.1)).toBeCloseTo(
+      sampleNoiseVolume(vol, size, 15.9, 15.9, 15.9),
+      9
+    )
+  })
+
+  test('it is continuous', () => {
+    let worst = 0
+    for (let i = 0; i < 3000; i++) {
+      const x = i * 0.0113
+      const a = sampleNoiseVolume(vol, size, x, x * 0.6, x * 0.3)
+      const b = sampleNoiseVolume(vol, size, x + 0.001, x * 0.6, x * 0.3)
+      worst = Math.max(worst, Math.abs(a - b))
+    }
+    expect(worst).toBeLessThan(0.02)
   })
 })

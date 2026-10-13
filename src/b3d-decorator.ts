@@ -98,7 +98,7 @@ import { resolveBudget } from './b3d-quality.js'
 import { mantaAxes } from './biome-chart.js'
 import {
   attachBiomePlugin,
-  climateNoiseAt,
+  groundClimateAt,
   type BiomePlugin,
 } from './biome-plugin.js'
 import { rockFromName, rockGeometry } from './procedural-rock.js'
@@ -405,6 +405,13 @@ export class B3dDecorator extends B3dChild {
             p.mNoiseScale,
             p.mNoiseAmp,
             p.moistureDryHeight,
+            p.sheetRadius,
+            p.sheetU,
+            p.sheetV,
+            p.equatorTemp,
+            p.temperateTemp,
+            p.poleTemp,
+            p.rainShadow,
           ].join(',')
         : '',
     ].join('|')
@@ -726,15 +733,12 @@ export class B3dDecorator extends B3dChild {
       radius: this.radius,
       height,
       climate: (x, z, y) => {
-        // The same regional noise the ground is drawn with, so the forest
-        // stands where the ground is green.
-        const n = noisy ? climateNoiseAt(cfg, x, z) : null
-        const { temperature, moisture } = mantaAxes(
-          y,
-          cfg,
-          n?.temperature ?? 0,
-          n?.moisture ?? 0
-        )
+        // The climate the ground is drawn with (its regions, and on a
+        // sphere world its latitude), so the forest stands where the
+        // ground is green.
+        const { temperature, moisture } = noisy
+          ? groundClimateAt(cfg, x, y, z)
+          : mantaAxes(y, cfg)
         return {
           temperature,
           moisture,
