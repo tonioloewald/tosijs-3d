@@ -56,14 +56,14 @@ const scene = b3d(
 )
 preview.append(scene)
 ```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 > **The coloured axes are a readout, not a manipulator.** They show the cube's
 > orientation. Babylon ships a real position/rotation gizmo (`GizmoManager`)
 > and exposing it — so a panel can be PLACED by dragging rather than by typing
 > numbers — is on the list, not in 0.7.0.
-
-```css
-tosi-b3d { width: 100%; height: 100%; }
-```
 
 ## Three ways to place a panel
 

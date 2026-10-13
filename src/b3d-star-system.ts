@@ -110,11 +110,6 @@ for (const key of ['animate', 'showOrbits']) {
 }
 updateInfo()
 ```
-> The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
-> is rendered as a CODE BLOCK there — light background, its own colour — and
-> inside a panel that sets `color: white` it came out white-on-white and simply
-> invisible.
-
 ```css
 tosi-b3d {
   width: 100%;
@@ -141,6 +136,11 @@ tosi-b3d {
   margin: 0;
 }
 ```
+
+> The panel's readout opts out of the doc system's `<pre>` styling. A `<pre>`
+> is rendered as a CODE BLOCK there — light background, its own colour — and
+> inside a panel that sets `color: white` it came out white-on-white and simply
+> invisible.
 
 ## Attributes
 
@@ -467,7 +467,18 @@ export class B3dStarSystem extends B3dChild {
       scene
     )
     light.parent = this.rootNode
-    light.intensity = Math.min(star.luminosity * 0.5, 5)
+    /*
+    NOT PROPORTIONAL TO LUMINOSITY. Luminosity spans a millionfold between an
+    M dwarf and an O star, and a light that followed it left every planet of
+    a K star nearly black (a K0 at 0.24 suns got 0.12; Tonio: "the planet
+    doesn't seem to be lit"). A camera, like an eye, exposes for the scene:
+    the fourth root keeps dim stars dimmer and bright ones brighter while
+    every system stays readable.
+    */
+    light.intensity = Math.min(
+      3.5,
+      Math.max(1.2, 1.6 * Math.pow(Math.max(0, star.luminosity), 0.25))
+    )
     light.range = 500
     light.diffuse = new BABYLON.Color3(cr, cg, cb)
     light.excludedMeshes.push(starMesh)

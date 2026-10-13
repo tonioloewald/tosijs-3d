@@ -17,6 +17,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   open with a wind-up, and the path rose from the first frame. It now waits
   for the pull (`CLIMB_PHASE` in `mantle`; `mantlePath` takes a `riseStarts`).
 
+- **Planets in a star system are lit.** The star's light followed its
+  luminosity, so anything dimmer than the sun left its planets nearly black
+  (a K0 star gave 0.12). It now follows the fourth root, between 1.2 and 3.5.
+- **Docs: the star system and panel pages each showed an empty live example.**
+  A note between a demo and its CSS split the CSS off into an example of its
+  own, and left the demo without its styles.
+
 ## 0.10.1
 
 Five requests from manta-recon. Nothing changes unless you set the new dials,
