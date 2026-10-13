@@ -50,9 +50,15 @@ function registerShader(biome: BiomePlugin | null): string {
   It is given the position this pixel would have had WITHOUT the sea holding
   the mesh level (so its altitude is the true one, and the sea bed is
   classified as sea bed), and its answer is the land's colour.
+
+  Its SLOPE comes from the height field too, never from the mesh: the normal
+  is the cross product of how that reconstructed position changes across the
+  screen. The mesh's own normals know nothing of the sea bed (it is held
+  flat), and a planet drawn on a plain sphere has none worth reading at all,
+  so what is steep is decided by the heights alone.
   */
   const biomeLand = biome
-    ? `{vec3 pc=biomePlanet.xyz;vec3 vPositionW=pc+normalize(vWorld-pc)*(biomePlanet.w+vHeight);vec3 diffuseColor=vec3(1.0);
+    ? `{vec3 pc=biomePlanet.xyz;vec3 vPositionW=hfPos;vec3 vNormalW=hfNormal;vec3 diffuseColor=vec3(1.0);
 ${code?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE ?? ''}
 land=diffuseColor;}`
     : ''
@@ -100,6 +106,17 @@ void main(){
   float edge=max(fwidth(vHeight)*0.9,1e-5);
   float sea=psSea.x*(1.0-smoothstep(-edge,edge,vHeight));
   float lat=asin(clamp(d.y,-1.0,1.0));
+
+#ifdef BIOME
+  // Outside any branch: a derivative taken inside one is undefined.
+  vec3 hfC=biomePlanet.xyz;
+  vec3 hfUp=normalize(vWorld-hfC);
+  vec3 hfPos=hfC+hfUp*(biomePlanet.w+vHeight);
+  vec3 hfNormal=cross(dFdx(hfPos),dFdy(hfPos));
+  float hfLen=length(hfNormal);
+  hfNormal=hfLen>0.0?hfNormal/hfLen:hfUp;
+  if(dot(hfNormal,hfUp)<0.0)hfNormal=-hfNormal;
+#endif
 
   // --- land ---------------------------------------------------------------
   vec3 land;

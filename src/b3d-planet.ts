@@ -308,6 +308,7 @@ export class B3dPlanet extends B3dChild {
   biomePlugin: BiomePlugin | null = null
   /** The undrawn material the biome plugin lives on (planet-surface-material). */
   private _biomeHost: BABYLON.StandardMaterial | null = null
+  private _biomeParams: BiomePlugin['params'] | null = null
   private ringMesh: BABYLON.Mesh | null = null
   /** The node everything of this planet hangs from: move it to place the planet. */
   rootNode: BABYLON.TransformNode | null = null
@@ -324,6 +325,7 @@ export class B3dPlanet extends B3dChild {
     this.noise = new PerlinNoise(attrs.seed)
 
     this.rootNode = new BABYLON.TransformNode('planet-root', scene)
+    this._builtSea = this._seaKey()
     this._loadHeightMap()
     this.buildPlanet()
     this.buildAtmosphere()
@@ -541,6 +543,21 @@ export class B3dPlanet extends B3dChild {
         })
         this.biomePlugin = made.plugin
         this._biomeHost = made.host
+        /*
+        ONE params object for the life of the element. Each build makes a
+        new plugin, and a slider (or a caller) that took `biomePlugin.params`
+        before a rebuild would otherwise go on writing to the dead one. Only
+        what follows from the new geometry is refreshed; the climate someone
+        set is kept.
+        */
+        if (this._biomeParams != null) {
+          this._biomeParams.seaRadius = made.plugin.params.seaRadius
+          this._biomeParams.moistureDryHeight =
+            made.plugin.params.moistureDryHeight
+          made.plugin.params = this._biomeParams
+        } else {
+          this._biomeParams = made.plugin.params
+        }
       }
       const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
         biome: this.biomePlugin ?? undefined,
@@ -565,6 +582,12 @@ export class B3dPlanet extends B3dChild {
   }
 
   private _heightMapLoaded = ''
+  /** The sea the mesh was built with: it is IN the mesh, so a change rebuilds. */
+  private _builtSea = ''
+  private _seaKey(): string {
+    const attrs = this as any
+    return `${attrs.ocean}|${attrs.flatSea}`
+  }
   private _surfaceFromMap = false
   /**
    * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
@@ -969,6 +992,7 @@ export class B3dPlanet extends B3dChild {
       this.ringMesh = null
     }
     this.registered = false
+    this._builtSea = this._seaKey()
     this._loadHeightMap()
     this.buildPlanet()
     this.buildAtmosphere()
@@ -981,7 +1005,14 @@ export class B3dPlanet extends B3dChild {
   updateOptions() {
     const attrs = this as any
 
-    // Rebuild atmosphere/ocean since their radii depend on parameters
+    // The sea is part of the planet's one mesh (where it lies is in the
+    // vertices), so moving it is a rebuild, not a visual tweak.
+    if (this.planetMesh != null && this._seaKey() !== this._builtSea) {
+      this.regenerate()
+      return
+    }
+
+    // Rebuild the atmosphere since its radius depends on parameters
     if (this.atmosphereMesh) {
       this.atmosphereMesh.dispose(false, true)
       this.atmosphereMesh = null

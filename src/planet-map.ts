@@ -20,7 +20,7 @@ import { tosi } from 'tosijs'
 
 const WORLDS = {
   Moon: { heightMap: 'nasa/moon/height-2k.png', colorMap: 'nasa/moon/color-2k.jpg', bodyRadiusKm: 1737.4, flatSea: 'off', clouds: 0, atmosphere: 0, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 12 },
-  Mars: { heightMap: 'nasa/mars/height-2k.png', colorMap: 'nasa/mars/color-2k.jpg', bodyRadiusKm: 3389.5, flatSea: 'off', clouds: 0, atmosphere: 0.012, atmosphereColor: 'rgba(225,165,115,0.10)', relief: 14 },
+  Mars: { heightMap: 'nasa/mars/height-2k.png', colorMap: 'nasa/mars/color-2k.jpg', bodyRadiusKm: 3389.5, flatSea: 'off', clouds: 0, atmosphere: 0.006, atmosphereColor: 'rgba(225,165,115,0.04)', relief: 14 },
   // NOAA's heights include the sea floor; `flatSea` fills the oceans level.
   Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', clouds: 0.45, atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
 }

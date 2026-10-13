@@ -23,6 +23,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   chart, palettes, parameters and volcanism as terrain, and
   `planet.biomePlugin.params` is live as before. Every planet that is not a
   gas giant is drawn this way now; the translucent sea sphere is gone.
+  What is steep is decided from the heights alone (the slope the biome
+  shader reads is taken from the height field per pixel, not from the
+  mesh's normals), so the sea bed has slopes too. Changing `ocean` or
+  `flatSea` and calling `updateOptions()` rebuilds the mesh, since the sea
+  is in it; and `biomePlugin.params` is one object for the life of the
+  element, so a control bound to it survives a rebuild.
 
 ### Changed
 
