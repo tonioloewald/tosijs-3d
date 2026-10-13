@@ -6,6 +6,16 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.4 (unreleased)
+
+### Changed
+
+- **Planet storms look like storms.** The winding is a vortex's (tightest
+  round the eye, barely bending the outer arms; it used to shear hardest at
+  the rim), the disc has spiral rainbands and shows its relief, and the eye
+  is a shaded funnel with a hard inner edge where it was a hole in a white
+  plate.
+
 ## 0.10.3
 
 ### Added

@@ -112,19 +112,37 @@ float pcF(vec3 d,float tt){
     float ang=acos(clamp(dot(d,sa.xyz),-1.0,1.0));
     float u=ang/sa.w;
     if(u>=2.6)continue;
-    // The winding reaches well past the storm's nominal radius and dies away
-    // slowly, so the arms trail off into the weather around it.
-    float inside=1.0-smoothstep(0.0,1.7,u);
     float power=pcStormB[i].x;
     // How much of a CYCLONE it is: 0 is a thunderstorm complex, a mass of
     // cloud that does not turn and has no eye.
     float cyc=pcStormB[i].w;
-    float turn=(4.5*inside*inside+0.06*tt*inside)*power*cyc*(sa.y>=0.0?1.0:-1.0);
-    q=pcAbout(q,b3dGgTurn(sa.xyz,-pcK.y*0.003+tt*0.012*cos(lat*3.0)),turn);
-    // Thickest at the middle and thinning like a bell, not cut off at a
-    // rim: at the nominal radius the extra cloud is down to a third, and it
-    // is the ordinary broken sky that shows through the outer arms.
-    storm=max(storm,power*(0.40*exp(-u*u*1.15)-0.9*cyc*(1.0-smoothstep(0.03,0.11,u))));
+    float hemi=sa.y>=0.0?1.0:-1.0;
+    /*
+    WOUND LIKE A VORTEX: fastest near the middle and falling away with
+    distance (about 1/r), so the tight curl is round the eye and the outer
+    arms are barely bent. It was a bell that was flat in the middle and
+    steepest half way out, which put the hardest shearing at the rim, where
+    a storm is weakest.
+    */
+    float reach=1.0-smoothstep(0.9,2.2,u);
+    float turn=(1.05/(u+0.16)+0.012*tt/(u+0.3))*reach*power*cyc*hemi;
+    vec3 sc=b3dGgTurn(sa.xyz,-pcK.y*0.003+tt*0.012*cos(lat*3.0));
+    q=pcAbout(q,sc,turn);
+    // RAINBANDS: the disc is not one slab. Its depth rises and falls along
+    // spiral arms, which is what the light then picks out as texture.
+    vec3 e1=normalize(cross(sa.xyz,abs(sa.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));
+    vec3 e2=cross(sa.xyz,e1);
+    float az=atan(dot(d,e2),dot(d,e1));
+    float arms=sin(2.0*az*hemi+7.0*log(u+0.06)-0.02*tt);
+    float bell=exp(-u*u*1.15);
+    /*
+    THE EYE IS A FUNNEL, not a hole punched in a disc. The cloud is deepest
+    at the eye wall, and from there it slopes down INTO the eye over a
+    visible distance before the edge; the slope is what the light shades.
+    */
+    float wall=smoothstep(0.05,0.2,u);
+    float depth=0.40*bell*(0.86+0.14*arms*cyc)*mix(1.0,0.7+0.3*wall,cyc)+0.05*cyc*bell*exp(-pow((u-0.22)/0.1,2.0));
+    storm=max(storm,power*(depth-0.95*cyc*(1.0-smoothstep(0.035,0.075,u))));
   }
   // Big systems, then two finer layers for the texture a deck has close to.
   float f=storm+0.46*b3dGgFbm(q*7.5+sd)
@@ -176,7 +194,7 @@ void main(){
   // its own shade; falling, it is a lit flank. That is what gives a deck its
   // texture, and without it cloud is a white stencil.
   float toward=pcField(normalize(d+t*0.010));
-  float relief=clamp(0.5+(f-toward)*7.0,0.0,1.0);
+  float relief=clamp(0.5+(f-toward)*9.0,0.0,1.0);
   // Thick cloud is bright on top; thin cloud is a grey veil.
   float body=mix(0.84,1.0,smoothstep(0.0,0.25,f-mix(0.74,0.3,clamp(pcK.x,0.0,1.0))));
   // Where the sun reaches the GROUND through cloud: the same field, further
@@ -190,7 +208,18 @@ void main(){
   // On the night side cloud is a little BRIGHTER than the ground it hides
   // (it is pale, and the ground is dim, not black); darker, it showed as
   // black holes punched in the planet.
-  vec3 rgb=pcColor*(lit*1.3*body*mix(0.78,1.12,relief)+0.07)*c;
+  // Deep cloud shows its relief hardest: a storm's core is all cloud top,
+  // and with nothing but white there it read as a paper disc.
+  float deep=smoothstep(0.1,0.45,f-mix(0.74,0.3,clamp(pcK.x,0.0,1.0)));
+  vec3 rgb=pcColor*(lit*1.3*body*mix(mix(0.78,0.6,deep),1.12,relief)+0.07)*c;
+  // Down the eye wall the cloud falls away from the light: shade it, so the
+  // eye reads as the bottom of a funnel and not a hole in a white plate.
+  for(int i=0;i<4;i++){
+    vec4 sa=pcStormA[i];
+    if(sa.w<=0.0)continue;
+    float u=acos(clamp(dot(d,sa.xyz),-1.0,1.0))/sa.w;
+    rgb*=1.0-0.5*pcStormB[i].w*pcStormB[i].x*(1.0-smoothstep(0.05,0.24,u));
+  }
   /*
   LIGHTNING, inside the placed storms: each flash is a patch of cloud lit
   from within for a fraction of a second, somewhere in the storm, on a
