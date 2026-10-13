@@ -404,3 +404,19 @@ describe('a table the doc happens to open with cannot eat the whole page', () =>
     expect(names.has('data-part')).toBe(false)
   })
 })
+
+describe('a page that documents several elements', () => {
+  // The primitives page has a table per element with the same names in each.
+  // Read as one table, every element got the FIRST table's rows: the index
+  // said the ground's `size` defaults to 1 and its colour to red (the box's).
+  const index = buildIndex()
+  const attr = (tag: string, name: string) =>
+    index.find((e) => e.tag === tag)?.attributes.find((a) => a.name === name)
+
+  test('each element gets the defaults from its own section', () => {
+    expect(attr('tosi-b3d-box', 'size')?.default).toBe('1')
+    expect(attr('tosi-b3d-ground', 'size')?.default).toBe('0')
+    expect(attr('tosi-b3d-ground', 'width')?.default).toBe('4')
+    expect(attr('tosi-b3d-ground', 'color')?.default).toBe("'#888888'")
+  })
+})

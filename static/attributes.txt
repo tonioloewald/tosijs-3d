@@ -775,10 +775,10 @@ Primitives: box, sphere, ground
   rz
   axes
   meshName
-  size  = 1  — Edge length of a cube
-  width  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
-  height  = 0  — Set any of them to make it a slab or a post; `0` uses `size`
-  color  = '#ff0000'
+  size  = 0  — A square of this side; overrides `width` and `height`
+  width  = 4
+  height  = 4
+  color  = '#888888'
   texture  = ''  — An image URL, or `'checker'` (a ruler you can count) or `'noise'` (mottled natural ground)
   textureTiles  = 8  — Repeats across the plane; for `'noise'`, the number of features
 

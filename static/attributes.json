@@ -2993,22 +2993,20 @@
       },
       {
         "name": "size",
-        "default": "1",
-        "description": "Edge length of a cube"
+        "default": "0",
+        "description": "A square of this side; overrides `width` and `height`"
       },
       {
         "name": "width",
-        "default": "0",
-        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
+        "default": "4"
       },
       {
         "name": "height",
-        "default": "0",
-        "description": "Set any of them to make it a slab or a post; `0` uses `size`"
+        "default": "4"
       },
       {
         "name": "color",
-        "default": "'#ff0000'"
+        "default": "'#888888'"
       },
       {
         "name": "texture",

@@ -101,6 +101,46 @@ function stripComments(code: string): string {
  * table row exists it wins; anything only in `initAttributes` is still listed,
  * so an undocumented attribute shows up as a gap rather than vanishing.
  */
+/**
+ * The part of a doc page that is about ONE element, when the page documents
+ * several under their own headings.
+ *
+ * `b3d-primitives` has `## \`b3dBox\``, `## \`b3dSphere\`` and
+ * `## \`b3dGround\``, each with a table, and the same names in each (`size`,
+ * `width`, `color`). Reading the page as one table gave every element the
+ * FIRST table's rows, so the index said the ground's `size` defaults to 1 and
+ * its colour to red: the box's. A confident wrong default is the one thing
+ * this file must not ship.
+ *
+ * A heading counts when it names the element: its tag, its creator
+ * (`b3dGround` for `tosi-b3d-ground`) or its class. No such heading: the whole
+ * page, as before.
+ */
+export function sectionFor(doc: string, names: string[]): string {
+  const lines = doc.split('\n')
+  const wanted = names.map((n) => n.toLowerCase())
+  for (let i = 0; i < lines.length; i++) {
+    const h = /^(#{2,6})\s+(.*)$/.exec(lines[i])
+    if (h == null) continue
+    const words = h[2].toLowerCase().match(/[a-z0-9-]+/g) ?? []
+    if (!wanted.some((w) => words.includes(w))) continue
+    let end = i + 1
+    for (; end < lines.length; end++) {
+      const next = /^(#{1,6})\s/.exec(lines[end])
+      if (next != null && next[1].length <= h[1].length) break
+    }
+    return lines.slice(i, end).join('\n')
+  }
+  return doc
+}
+
+/** `tosi-b3d-ground` -> `b3dGround`: the creator a page's heading uses. */
+export function creatorName(tag: string): string {
+  return tag
+    .replace(/^tosi-/, '')
+    .replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+}
+
 export function tableRows(doc: string): Map<string, AttributeDoc> {
   const out = new Map<string, AttributeDoc>()
   /*
@@ -411,6 +451,14 @@ export function buildIndex(srcDir = 'src'): ElementDoc[] {
     if (elements.length > 0) {
       for (const { className, tag } of elements) {
         const declared = resolve(className)
+        // This element's own section of the page, when it has one.
+        // A section with no table of its own ("the same as the box, with…")
+        // reads the page's, which is what its prose says.
+        const own =
+          doc == null
+            ? new Map<string, AttributeDoc>()
+            : tableRows(sectionFor(doc, [tag, creatorName(tag), className]))
+        const documented = own.size > 0 || doc == null ? own : tableRows(doc)
         /*
         FOR AN ELEMENT, `initAttributes` IS THE AUTHORITY and a table only
         supplies prose.
