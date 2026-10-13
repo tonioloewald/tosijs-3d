@@ -36,7 +36,8 @@ export function sendDebug(tag: string, event: Record<string, unknown>): void {
   try {
     navigator.sendBeacon(
       debugSink.url,
-      JSON.stringify({ t: Date.now(), tag, ...event })
+      // `page`: three sweeps in a row say nothing about which scene each was.
+      JSON.stringify({ t: Date.now(), page: location.pathname, tag, ...event })
     )
   } catch {
     /* a diagnostic must never be what breaks the page */
