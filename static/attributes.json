@@ -2825,6 +2825,46 @@
         "description": "Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)"
       },
       {
+        "name": "bands",
+        "default": "0",
+        "description": "Gas giant: stripes from pole to pole. `0` = the preset's"
+      },
+      {
+        "name": "turbulence",
+        "default": "-1",
+        "description": "Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's"
+      },
+      {
+        "name": "storm",
+        "default": "-1",
+        "description": "Gas giant: size of the great storm, `0` = none. `-1` = the preset's"
+      },
+      {
+        "name": "bandColors",
+        "default": "''",
+        "description": "Gas giant: up to three `#rrggbb`, comma separated (zones, belts, accent). Blank = the preset's"
+      },
+      {
+        "name": "ringInner",
+        "default": "0",
+        "description": "Inner edge of the ring, in planet radii from the centre. `0` = the gas giant preset's, else 45% of the outer edge"
+      },
+      {
+        "name": "ringOuter",
+        "default": "0",
+        "description": "Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`"
+      },
+      {
+        "name": "ringOpacity",
+        "default": "-1",
+        "description": "`0…1`. `-1` = the gas giant preset's scaled by `rings`, else by `rings` alone"
+      },
+      {
+        "name": "ringColor",
+        "default": "''",
+        "description": "`#rrggbb`. Blank = the gas giant preset's, else a pale tan"
+      },
+      {
         "name": "seed",
         "default": "12345",
         "description": "Noise seed"
@@ -4666,6 +4706,44 @@
     ]
   },
   {
+    "module": "color-picker",
+    "summary": "colorPicker3d",
+    "attributes": [
+      {
+        "name": "label",
+        "default": "''",
+        "description": "The caption on the row"
+      },
+      {
+        "name": "value",
+        "default": "'#ffffff'",
+        "description": "A colour, or a reactive value holding one"
+      },
+      {
+        "name": "alpha",
+        "default": "true",
+        "description": "Offer the alpha strip. Off, the value is always `#rrggbb`"
+      },
+      {
+        "name": "presets",
+        "description": "Colours offered first in the popup: hex strings, or `{ name, value }`"
+      },
+      {
+        "name": "defaultPresets",
+        "default": "'on'",
+        "description": "`'off'` leaves out the general set, showing only yours"
+      },
+      {
+        "name": "handleChange",
+        "description": "Live, including mid-drag. Canonical hex"
+      },
+      {
+        "name": "handleCommit",
+        "description": "Once per gesture or preset, with the settled value: one undo step"
+      }
+    ]
+  },
+  {
     "module": "control-input",
     "summary": "control-input",
     "attributes": [
@@ -4822,11 +4900,15 @@
     "attributes": [
       {
         "name": "bands",
-        "default": "How many light and dark stripes from pole to pole. Jupiter is about 12, Neptune 5"
+        "default": "How many light and dark stripes from pole to pole, counting both. Jupiter is about 14, Neptune 6. Those near the equator are the broadest"
       },
       {
         "name": "storm",
         "default": "0…1"
+      },
+      {
+        "name": "seed",
+        "default": "A different planet with the same look"
       }
     ]
   },

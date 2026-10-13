@@ -26,6 +26,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
   horizon and stays there while the stars and sun go round, like the planet a
   tide-locked moon orbits. Land and Sky's Io has Jupiter in its sky.
 
+- **`<tosi-b3d-planet>` rings are configurable**: `ringInner`, `ringOuter`
+  (planet radii), `ringOpacity` and `ringColor`. A gas giant takes its
+  preset's ring by default: Saturn's broad and bright, the others thin and
+  nearly invisible. The planet also takes `bands`, `turbulence`, `storm` and
+  `bandColors`.
+- **`colorPicker3d`**: a colour as one row. Tap the swatch and a popup opens
+  with the HSV(A) picker and a grid of presets (yours first, then a general
+  set). Takes a reactive value, like the other controls.
+
 ### Fixed
 
 - **Climbing onto a moving lift no longer leaves the biped waist deep in its

@@ -67,16 +67,45 @@ preview.append(
 
 The same planet as a body you can fly round:
 [`<tosi-b3d-planet gas="saturn">`](/b3d-planet/). Drag to orbit it. The sun
-is where the scene's sun is, so swing round to the night side.
+is where the scene's sun is, so swing round to the night side. The bands'
+three colours and the ring are yours to set: pick another planet and note how
+thin and faint every ring but Saturn's is.
 
 ```js
-import { b3d, b3dPlanet, b3dSun, b3dSkybox, GAS_GIANTS, select3d, slider3d, label3d } from 'tosijs-3d'
+import { b3d, b3dPlanet, b3dSun, b3dSkybox, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { orbit } = tosi({ orbit: { kind: 'saturn', rings: 0.8, spin: 0.03, seed: 7 } })
-const planet = b3dPlanet({ gas: orbit.kind, seed: orbit.seed, rings: orbit.rings, rotationSpeed: orbit.spin, radius: 50 })
-for (const key of ['kind', 'rings', 'seed']) orbit[key].observe(() => planet.regenerate())
+const start = GAS_GIANTS.saturn
+const { orbit } = tosi({ orbit: {
+  kind: 'saturn', seed: 7, spin: 0.03,
+  bands: start.bands, turbulence: start.turbulence, storm: start.storm,
+  zones: start.colors[0], belts: start.colors[1], accent: start.colors[2],
+  rings: 1, ringInner: start.rings.inner, ringOuter: start.rings.outer, ringOpacity: start.rings.opacity, ringColor: start.rings.color,
+} })
+const planet = b3dPlanet({ gas: orbit.kind, seed: orbit.seed, rotationSpeed: orbit.spin, radius: 50 })
 
+// Everything that changes the planet's look rebuilds it (a sphere: cheap).
+const rebuild = () => {
+  Object.assign(planet, {
+    bands: orbit.bands.value, turbulence: orbit.turbulence.value, storm: orbit.storm.value,
+    bandColors: [orbit.zones.value, orbit.belts.value, orbit.accent.value].join(','),
+    rings: orbit.rings.value, ringInner: orbit.ringInner.value, ringOuter: orbit.ringOuter.value,
+    ringOpacity: orbit.ringOpacity.value, ringColor: orbit.ringColor.value,
+  })
+  planet.regenerate()
+}
+// Choosing a planet sets every dial to that planet's own numbers.
+orbit.kind.observe(() => {
+  const look = GAS_GIANTS[orbit.kind.value]
+  Object.assign(orbit, {
+    bands: look.bands, turbulence: look.turbulence, storm: look.storm,
+    zones: look.colors[0], belts: look.colors[1], accent: look.colors[2],
+    ringInner: look.rings.inner, ringOuter: look.rings.outer, ringOpacity: look.rings.opacity, ringColor: look.rings.color,
+  })
+})
+for (const key of Object.keys(orbit.valueOf())) if (key !== 'spin') orbit[key].observe(rebuild)
+
+const planetColours = Object.values(GAS_GIANTS).flatMap((look) => look.colors)
 preview.append(
   b3d(
     {
@@ -84,14 +113,26 @@ preview.append(
       scenePanel: () => [
         label3d({ text: 'From space' }),
         select3d({ label: 'planet', value: orbit.kind, options: Object.keys(GAS_GIANTS) }),
-        slider3d({ label: 'rings', value: orbit.rings, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'bands', value: orbit.bands, min: 1, max: 30, step: 1 }),
+        slider3d({ label: 'turbulence', value: orbit.turbulence, min: 0, max: 1.5, step: 0.05 }),
+        slider3d({ label: 'storm', value: orbit.storm, min: 0, max: 2, step: 0.05 }),
+        colorPicker3d({ label: 'zones', value: orbit.zones, alpha: false, presets: planetColours }),
+        colorPicker3d({ label: 'belts', value: orbit.belts, alpha: false, presets: planetColours }),
+        colorPicker3d({ label: 'accent', value: orbit.accent, alpha: false, presets: planetColours }),
+        label3d({ text: 'Rings' }),
+        slider3d({ label: 'amount', value: orbit.rings, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: 'inner edge (radii)', value: orbit.ringInner, min: 1.05, max: 3, step: 0.05 }),
+        slider3d({ label: 'outer edge (radii)', value: orbit.ringOuter, min: 1.1, max: 4, step: 0.05 }),
+        slider3d({ label: 'opacity', value: orbit.ringOpacity, min: 0, max: 1, step: 0.01 }),
+        colorPicker3d({ label: 'ring colour', value: orbit.ringColor, alpha: false }),
+        label3d({ text: 'Motion' }),
         slider3d({ label: 'seed', value: orbit.seed, min: 1, max: 96, step: 1 }),
         slider3d({ label: 'rotation', value: orbit.spin, min: 0, max: 0.3, step: 0.01 }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera('orbit', -Math.PI / 3, Math.PI / 2.4, 190, BABYLON.Vector3.Zero(), el.scene)
+        const camera = new BABYLON.ArcRotateCamera('orbit', -Math.PI / 3, Math.PI / 2.4, 220, BABYLON.Vector3.Zero(), el.scene)
         camera.lowerRadiusLimit = 70
-        camera.upperRadiusLimit = 600
+        camera.upperRadiusLimit = 700
         camera.maxZ = 3000
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
@@ -102,6 +143,7 @@ preview.append(
     planet,
   )
 )
+rebuild()
 ```
 ```css
 .preview { height: 100%; }
@@ -117,11 +159,12 @@ latitude has its own wind, which is what draws the bands out into streaks.
 
 | | |
 | --- | --- |
-| `bands` | How many light and dark stripes from pole to pole. Jupiter is about 12, Neptune 5 |
+| `bands` | How many light and dark stripes from pole to pole, counting both. Jupiter is about 14, Neptune 6. Those near the equator are the broadest |
 | `turbulence` | How far the edges of the bands are torn, `0…1`. 0 is ruled lines; 1 is Jupiter |
 | `storm` | Size of the great storm, `0…1` of a band's width. 0 is none |
 | `colors` | Three: the bright zones, the dark belts, and the accent (the storm, the poles) |
 | `seed` | A different planet with the same look |
+| `rings` | The preset's ring: `inner` and `outer` edge in planet radii, `opacity` and `color`. Saturn's is broad and bright; the others are thin and nearly invisible, which is true to life |
 
 ## Presets
 
@@ -163,36 +206,53 @@ export interface GasGiantLook {
   /** Zones, belts, accent: three `#rrggbb`. */
   colors: [string, string, string]
   seed: number
+  /** What its ring looks like, where a ring is asked for. */
+  rings: GasGiantRing
+}
+
+export interface GasGiantRing {
+  /** Inner edge, in planet radii from the centre. */
+  inner: number
+  /** Outer edge, in planet radii. */
+  outer: number
+  /** 0…1. */
+  opacity: number
+  color: string
 }
 
 export const GAS_GIANTS: Record<string, GasGiantLook> = {
   jupiter: {
-    bands: 12,
+    bands: 14,
     turbulence: 1,
     storm: 0.9,
     colors: ['#e9dcc1', '#a9774c', '#b4502f'],
     seed: 1,
+    rings: { inner: 1.4, outer: 1.8, opacity: 0.05, color: '#a08c78' },
   },
+  // Saturn's bands are there, but only just: three close creams under haze.
   saturn: {
-    bands: 16,
-    turbulence: 0.35,
+    bands: 20,
+    turbulence: 0.3,
     storm: 0,
-    colors: ['#ecdcae', '#cdae72', '#b99a62'],
+    colors: ['#e8d8ac', '#dcc896', '#cfb884'],
     seed: 2,
+    rings: { inner: 1.25, outer: 2.3, opacity: 0.9, color: '#d8c8a0' },
   },
   uranus: {
     bands: 4,
-    turbulence: 0.15,
+    turbulence: 0.1,
     storm: 0,
-    colors: ['#b4e6e8', '#9ad6dc', '#c8f0f0'],
+    colors: ['#b4e6e8', '#a8dfe3', '#c8f0f0'],
     seed: 3,
+    rings: { inner: 1.65, outer: 2.0, opacity: 0.1, color: '#8c98a0' },
   },
   neptune: {
-    bands: 5,
+    bands: 6,
     turbulence: 0.5,
     storm: 0.6,
     colors: ['#4a78dc', '#2c4fb8', '#dfe9ff'],
     seed: 4,
+    rings: { inner: 1.7, outer: 2.5, opacity: 0.07, color: '#8090a8' },
   },
 }
 
@@ -247,6 +307,7 @@ export function resolveGasGiant(
     ),
     colors,
     seed: num(over.seed, (n) => n > 0, base.seed),
+    rings: { ...base.rings },
   }
 }
 
@@ -266,10 +327,13 @@ Sampled in 3D on the sphere itself, so there is no seam and no pinch at the
 poles. The streaks come from squashing the sample space along the spin axis:
 a blob of noise that is round there is long and thin on the planet.
 
-The winds: `sin(latitude * bands * pi)` is the band pattern, and the same
-wave a quarter turn on is the wind (fastest at the middle of a band, reversing
-at each edge), which is the arrangement on Jupiter. Each latitude is turned
-about the axis by its own wind before the noise is read.
+The bands are a cosine of latitude, so the equator sits in a bright zone, and
+latitude is bent first so that the stripes near the equator are the broad
+ones, as they are on Jupiter and Saturn. The same wave is the wind: fastest
+at the middle of a stripe and reversing at each edge. Each latitude is turned
+about the axis by its own wind before the noise is read, and the point being
+read is itself pushed about by a coarser noise, which is what curls the band
+edges over into eddies where a plain offset would only make them wavy.
 */
 export const GAS_GIANT_GLSL = `
 float b3dGgHash(vec3 p){p=fract(p*0.3183099+vec3(0.1,0.2,0.3));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -280,14 +344,19 @@ float b3dGgFbm(vec3 p){float a=0.5;float s=0.0;for(int i=0;i<3;i++){s+=a*b3dGgNo
 vec3 b3dGgTurn(vec3 n,float a){float c=cos(a);float s=sin(a);return vec3(n.x*c-n.z*s,n.y,n.x*s+n.z*c);}
 vec3 b3dGasGiant(vec3 n,vec4 k,vec3 c0,vec3 c1,vec3 c2,float t){
 float u=asin(clamp(n.y,-1.0,1.0))/1.5708;
-float ph=u*k.x*3.14159;
+float au=abs(u);
+float e=sign(u)*mix(au,pow(au,1.6),0.65);
+float ph=e*k.x*1.5708;
 vec3 sd=vec3(k.w*13.1,k.w*7.7,k.w*3.3);
 vec3 q=b3dGgTurn(n,t*0.012*cos(ph));
+vec3 sp=q*vec3(4.0,11.0,4.0)+sd;
+q+=k.y*0.11*(vec3(b3dGgNoise(sp),b3dGgNoise(sp+vec3(17.0)),b3dGgNoise(sp+vec3(31.0)))-0.5);
 float w=b3dGgFbm(q*vec3(1.7,8.0,1.7)+sd)-0.5;
 float w2=b3dGgFbm(q*vec3(5.0,34.0,5.0)+sd*1.7+vec3(w*2.0))-0.5;
-float v=u+k.y*(0.05*w+0.022*w2);
-float tone=b3dGgNoise(vec3(floor(v*k.x*0.5+0.5)*3.7,k.w*5.1,1.3));
-float band=0.5+0.5*sin(v*k.x*3.14159+(tone-0.5)*1.4);
+float w3=b3dGgNoise(q*vec3(16.0,70.0,16.0)+sd*2.3)-0.5;
+float v=e+k.y*(0.1*w+0.05*w2+0.016*w3);
+float tone=b3dGgNoise(vec3(floor(v*k.x*0.25+0.5)*3.7,k.w*5.1,1.3));
+float band=0.5+0.5*cos(v*k.x*1.5708+(tone-0.5)*1.2);
 vec3 col=mix(c1,c0,smoothstep(0.25,0.75,band));
 col=mix(col,mix(c0,c2,0.5),(1.0-band)*tone*0.55);
 col*=0.93+0.22*w2*k.y+0.08*(tone-0.5);

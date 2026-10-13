@@ -71,6 +71,17 @@ describe('gasGiantRgb', () => {
 describe('the shader source', () => {
   test('defines the one entry point and carries its own noise', () => {
     expect(GAS_GIANT_GLSL).toContain('vec3 b3dGasGiant(vec3 n,vec4 k,')
+    expect(GAS_GIANT_GLSL).toContain('vec3 b3dGasGiantLit(')
+    // Every local is declared before it is assigned. (A splice once dropped
+    // `vec3` from `col`, and both the planet and the whole sky went black.)
+    const body = GAS_GIANT_GLSL.replace(/\s+/g, ' ')
+    const declared = new Set(
+      [...body.matchAll(/\b(?:float|vec2|vec3|vec4)\s+(\w+)\s*[=;,)]/g)].map(
+        (m) => m[1]
+      )
+    )
+    for (const m of body.matchAll(/[;{}]\s*(\w+)\s*[-+*]?=[^=]/g))
+      expect(declared.has(m[1]) ? 'declared' : m[1]).toBe('declared')
     // Balanced, and no integer literal where GLSL ES 1 wants a float.
     const open = GAS_GIANT_GLSL.split('{').length
     expect(GAS_GIANT_GLSL.split('}').length).toBe(open)

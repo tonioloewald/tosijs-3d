@@ -478,6 +478,17 @@ export type {
   TerrainEditorField,
 } from './terrain-editor.js'
 export type { Color3dOptions, ColorField } from './color-field.js'
+export {
+  colorPicker3d,
+  type ColorPicker,
+  type ColorPicker3dOptions,
+} from './color-picker.js'
+export {
+  COLOR_PRESETS,
+  presetList,
+  presetCells,
+  type ColorPreset,
+} from './color-presets.js'
 
 // Manipulator — pure maths, the Babylon handles, and the element that wires them
 export {
