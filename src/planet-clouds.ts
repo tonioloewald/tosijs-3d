@@ -97,7 +97,12 @@ float pcF(vec3 d,float tt){
   float wind=1.0-smoothstep(0.0,0.42,rr);
   float mid=exp(-pow((abs(latDeg)-52.0)/17.0,2.0));
   float twist=2.6*wind*wind*(0.25+0.75*mid)*(0.4+0.9*b3dGgHash(g+vec3(3.0)));
-  q=pcAbout(q,normalize(ctr),twist*(d.y>=0.0?1.0:-1.0));
+  // Which way it turns is the CELL's hemisphere, not the pixel's, and it
+  // fades through nothing at the equator (there is no Coriolis turning
+  // there). Taken per pixel, a cell lying across the equator was wound one
+  // way above the line and the other way below: a hard edge along it.
+  vec3 cax=normalize(ctr);
+  q=pcAbout(q,cax,twist*clamp(cax.y*7.0,-1.0,1.0));
   /*
   PLACED STORMS (planet.storms): a cyclone where the caller says. Inside its
   radius the sky is wound hard about its centre and keeps turning (the turn
