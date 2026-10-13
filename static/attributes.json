@@ -2936,6 +2936,21 @@
         "name": "atmosphereTurbulence"
       },
       {
+        "name": "clouds",
+        "default": "0",
+        "description": "Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
+      },
+      {
+        "name": "cloudColor",
+        "default": "'#ffffff'",
+        "description": "The cloud's colour where lit"
+      },
+      {
+        "name": "cloudSpeed",
+        "default": "1",
+        "description": "How fast the weather moves. `0` holds it still"
+      },
+      {
         "name": "ocean",
         "default": "0.6",
         "description": "Ocean coverage (0=none, 0.6=60% of surface underwater)"

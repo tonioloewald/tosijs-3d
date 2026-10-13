@@ -744,6 +744,9 @@ b3d-planet
   atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none)
   atmosphereColor
   atmosphereTurbulence
+  clouds  = 0  — Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
+  cloudColor  = '#ffffff'  — The cloud's colour where lit
+  cloudSpeed  = 1  — How fast the weather moves. `0` holds it still
   ocean  = 0.6  — Ocean coverage (0=none, 0.6=60% of surface underwater)
   rings
   wireframe  = false  — Debug: render as wireframe

@@ -19,10 +19,10 @@ import { b3d, b3dPlanet, b3dSun, b3dSkybox, select3d, slider3d, label3d } from '
 import { tosi } from 'tosijs'
 
 const WORLDS = {
-  Moon: { heightMap: 'nasa/moon/height-2k.png', colorMap: 'nasa/moon/color-2k.jpg', bodyRadiusKm: 1737.4, flatSea: 'off', atmosphere: 0, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 12 },
-  Mars: { heightMap: 'nasa/mars/height-2k.png', colorMap: 'nasa/mars/color-2k.jpg', bodyRadiusKm: 3389.5, flatSea: 'off', atmosphere: 0.012, atmosphereColor: 'rgba(225,165,115,0.10)', relief: 14 },
+  Moon: { heightMap: 'nasa/moon/height-2k.png', colorMap: 'nasa/moon/color-2k.jpg', bodyRadiusKm: 1737.4, flatSea: 'off', clouds: 0, atmosphere: 0, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 12 },
+  Mars: { heightMap: 'nasa/mars/height-2k.png', colorMap: 'nasa/mars/color-2k.jpg', bodyRadiusKm: 3389.5, flatSea: 'off', clouds: 0, atmosphere: 0.012, atmosphereColor: 'rgba(225,165,115,0.10)', relief: 14 },
   // NOAA's heights include the sea floor; `flatSea` fills the oceans level.
-  Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
+  Earth: { heightMap: 'noaa/earth/height-2k.png', colorMap: 'nasa/earth/color-2k.jpg', bodyRadiusKm: 6371, flatSea: 'on', clouds: 0.45, atmosphere: 0.03, atmosphereColor: 'rgba(77,128,230,0.15)', relief: 30 },
 }
 const { real } = tosi({ real: { world: 'Mars', relief: WORLDS.Mars.relief, spin: 0.03 } })
 const planet = b3dPlanet({ radius: 50, subdivisions: 160, ocean: 0, rotationSpeed: real.spin, ...WORLDS.Mars })

@@ -22,6 +22,7 @@ const { demo } = tosi({
     grossAmplitude: 5,
     detailAmplitude: 1,
     atmosphere: 0.08,
+    clouds: 0.45,
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
@@ -39,6 +40,7 @@ const planet = b3dPlanet({
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
   atmosphere: demo.atmosphere,
+  clouds: demo.clouds,
   ocean: demo.ocean,
   wireframe: demo.wireframe,
   rotationSpeed: demo.rotationSpeed,
@@ -55,6 +57,7 @@ const scene = b3d(
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
+      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -110,7 +113,7 @@ for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitu
     planet.regenerate()
   })
 }
-for (const key of ['atmosphere', 'ocean', 'wireframe', 'rotationSpeed']) {
+for (const key of ['atmosphere', 'clouds', 'ocean', 'wireframe', 'rotationSpeed']) {
   demo[key].observe(() => {
     planet.updateOptions()
   })
@@ -162,6 +165,9 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
+| `clouds` | `0` | Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
+| `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
+| `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
 | `ocean` | `0.6` | Ocean coverage (0=none, 0.6=60% of surface underwater) |
 | `wireframe` | `false` | Debug: render as wireframe |
 | `rotationSpeed` | `0` | Auto-rotation speed (radians/sec) |
@@ -175,6 +181,7 @@ import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
 import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
 import type { PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
+import { createPlanetClouds } from './planet-clouds.js'
 import { createMappedPlanetMaterial } from './planet-map-material.js'
 import { assetUrl } from './asset-url.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
@@ -252,6 +259,10 @@ export class B3dPlanet extends B3dChild {
     atmosphere: 0.08,
     atmosphereColor: 'rgba(77,128,230,0.15)',
     atmosphereTurbulence: 0.5,
+    // Weather seen from orbit: how much of the sky is cloud, 0 = none.
+    clouds: 0,
+    cloudColor: '#ffffff',
+    cloudSpeed: 1,
     ocean: 0.6,
     rings: 0,
     wireframe: false,
@@ -275,6 +286,7 @@ export class B3dPlanet extends B3dChild {
   private planetMesh: BABYLON.Mesh | null = null
   private atmosphereMesh: BABYLON.Mesh | null = null
   private oceanMesh: BABYLON.Mesh | null = null
+  private cloudMesh: BABYLON.Mesh | null = null
   /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
   biomePlugin: BiomePlugin | null = null
   private ringMesh: BABYLON.Mesh | null = null
@@ -297,6 +309,7 @@ export class B3dPlanet extends B3dChild {
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
+    this.buildClouds()
     this.buildRings()
 
     this._beforeRender = () => this.update()
@@ -312,6 +325,7 @@ export class B3dPlanet extends B3dChild {
     this.planetMesh = null
     this.atmosphereMesh = null
     this.oceanMesh = null
+    this.cloudMesh = null
     this.ringMesh = null
     this.owner = null
   }
@@ -674,6 +688,51 @@ export class B3dPlanet extends B3dChild {
     this.atmosphereMesh = mesh
   }
 
+  /** The highest ground above the base sphere, in this planet's units. */
+  private _maxHeight(): number {
+    const attrs = this as any
+    if (this.vertexHeights == null || this.vertexHeights.length === 0)
+      return attrs.gas ? 0 : attrs.grossAmplitude + attrs.detailAmplitude
+    let max = -Infinity
+    for (const h of this.vertexHeights) if (h > max) max = h
+    return max
+  }
+
+  /**
+   * The weather, seen from orbit (planet-clouds): a shell just above the
+   * highest ground and INSIDE the air shell, which stays outside it as the
+   * glow at the limb.
+   */
+  private buildClouds() {
+    if (this.cloudMesh) {
+      this.cloudMesh.dispose(false, true)
+      this.cloudMesh = null
+    }
+    if (this.owner == null || this.rootNode == null) return
+    const attrs = this as any
+    if (!(attrs.clouds > 0) || attrs.gas) return
+    let color: BABYLON.Color3
+    try {
+      color = BABYLON.Color3.FromHexString(
+        String(attrs.cloudColor || '#ffffff').slice(0, 7)
+      )
+    } catch {
+      color = new BABYLON.Color3(1, 1, 1)
+    }
+    const lift = Math.max(0.004, Math.min(0.02, attrs.atmosphere * 0.3))
+    this.cloudMesh = createPlanetClouds(
+      this.owner.scene,
+      this.rootNode,
+      attrs.radius + Math.max(0, this._maxHeight()) + lift * attrs.radius,
+      {
+        coverage: Math.min(1, attrs.clouds),
+        color,
+        speed: attrs.cloudSpeed,
+        seed: 1 + (Math.abs(attrs.seed) % 89),
+      }
+    )
+  }
+
   private buildOcean() {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
@@ -876,6 +935,7 @@ export class B3dPlanet extends B3dChild {
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
+    this.buildClouds()
     this.buildRings()
   }
 
@@ -894,6 +954,7 @@ export class B3dPlanet extends B3dChild {
     }
     this.buildAtmosphere()
     this.buildOcean()
+    this.buildClouds()
 
     if (this.planetMesh?.material) {
       ;(this.planetMesh.material as BABYLON.StandardMaterial).wireframe =
