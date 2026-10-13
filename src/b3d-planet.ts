@@ -142,6 +142,7 @@ tosi-b3d {
 | --- | --- | --- |
 | `seed` | `12345` | Noise seed |
 | `radius` | `50` | Base sphere radius |
+| `relief` | `1` | With a `surface` set (see below): how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
@@ -168,6 +169,7 @@ import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
 import { gasGiantRgb, resolveGasGiant } from './gas-giant.js'
+import type { PlanetSurface } from './sphere-map.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
@@ -210,6 +212,9 @@ export class B3dPlanet extends B3dChild {
     // A gas giant: 'jupiter' | 'saturn' | 'uranus' | 'neptune'. A smooth,
     // banded sphere in place of terrain and sea (see gas-giant).
     gas: '',
+    // With `surface` set: how much its true relief is exaggerated (1 = to
+    // scale, which on a globe is flat to the eye).
+    relief: 1,
     // Gas giant overrides; 0 / -1 / '' mean the preset's own.
     bands: 0,
     turbulence: -1,
@@ -237,6 +242,15 @@ export class B3dPlanet extends B3dChild {
   }
 
   owner: B3d | null = null
+  /**
+   * ANOTHER WORLD'S SURFACE, to draw this planet from: set it to a terrain's
+   * `planetSurface()` and the globe is that terrain seen from orbit (then
+   * `regenerate()`). Its heights are true metres on a planet of its own
+   * radius; `relief` says how much to exaggerate them, because real relief
+   * is invisible at this size. With a surface set, the planet's own noise
+   * settings are unused and the sea sits at the surface's sea level.
+   */
+  surface: PlanetSurface | null = null
   grossFilter: GradientFilter = new PiecewiseLinearFilter()
   detailFilter: GradientFilter = new PiecewiseLinearFilter()
 
@@ -247,7 +261,8 @@ export class B3dPlanet extends B3dChild {
   /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
   biomePlugin: BiomePlugin | null = null
   private ringMesh: BABYLON.Mesh | null = null
-  private rootNode: BABYLON.TransformNode | null = null
+  /** The node everything of this planet hangs from: move it to place the planet. */
+  rootNode: BABYLON.TransformNode | null = null
   private registered = false
   private _beforeRender: (() => void) | null = null
   private vertexHeights: Float32Array | null = null
@@ -359,7 +374,7 @@ export class B3dPlanet extends B3dChild {
           const nz = cz / len
 
           // Height from noise
-          const h = this.heightAt(nx, ny, nz)
+          const h = this._heightFor(nx, ny, nz)
           heights[vertOffset] = h
           const r = radius + h
 
@@ -416,7 +431,8 @@ export class B3dPlanet extends B3dChild {
       // wants object-space sampling (a step-5 concern with triplanar).
       const seaRadius =
         attrs.ocean > 0
-          ? attrs.radius + this.heightPercentile(attrs.ocean)
+          ? attrs.radius +
+            (this.surface != null ? 0 : this.heightPercentile(attrs.ocean))
           : 0.001
       this.biomePlugin = attachBiomePlugin(mat, {
         seaRadius,
@@ -445,6 +461,19 @@ export class B3dPlanet extends B3dChild {
       this.registered = true
       this.owner.register({ meshes: [mesh] })
     }
+  }
+
+  /** A vertex's height above the base sphere, in this planet's own units. */
+  private _heightFor(nx: number, ny: number, nz: number): number {
+    const s = this.surface
+    if (s == null) return this.heightAt(nx, ny, nz)
+    const attrs = this as any
+    const relief = attrs.relief > 0 ? attrs.relief : 1
+    return (
+      ((s.heightAt({ x: nx, y: ny, z: nz }) - s.seaLevel) / s.radius) *
+      attrs.radius *
+      relief
+    )
   }
 
   /** Get the height at a given percentile (0..1) of all vertex heights */
@@ -609,7 +638,9 @@ export class B3dPlanet extends B3dChild {
 
     // Ocean radius: height at the given percentile of vertices
     // e.g. ocean=0.6 means 60% of surface is underwater
-    const oceanHeight = this.heightPercentile(oceanPct)
+    // A borrowed surface says where its sea is: the datum, height 0 here.
+    const oceanHeight =
+      this.surface != null ? 0 : this.heightPercentile(oceanPct)
     const oceanRadius = attrs.radius + oceanHeight
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       'ocean',

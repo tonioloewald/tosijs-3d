@@ -6,6 +6,21 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.3 (unreleased)
+
+### Added
+
+- **One world, two views.** A terrain in `surfaceType="sphere"` can hand out
+  its own surface as a globe (`terrain.planetSurface()`), and
+  `<tosi-b3d-planet>` draws from it (`planet.surface`, with `relief` to
+  exaggerate the heights). The planet you see from orbit is then the ground
+  you land on: the same height function, checked to agree to the centimetre.
+- **Places.** `terrain.latLonAt(x, z)` and `terrain.groundAt(lat, lon)`, and
+  the pure `sphere-map` module behind them (ground, latitude and longitude,
+  and direction on the globe, each from the others), so a pin on the globe is
+  a spot on the ground.
+- `planet.rootNode` is public, for placing a planet.
+
 ## 0.10.2
 
 ### Added

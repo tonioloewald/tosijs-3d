@@ -386,6 +386,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   for any star in it, [planets](/b3d-planet/) with atmospheres, and a
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/sphere-map/ — sphere-map
+  `surfaceType="sphere"` is a flat sheet wrapped round a planet: walk far enough
 - https://3d.tosijs.net/star-populations/ — star-populations
   Pure — no Babylon, no DOM.
 - https://3d.tosijs.net/starfield-codec/ — starfield-codec

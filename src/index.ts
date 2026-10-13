@@ -422,6 +422,20 @@ export {
   type GasGiantOverrides,
 } from './gas-giant.js'
 export {
+  uvToDirection,
+  directionToUv,
+  latLonToDirection,
+  directionToLatLon,
+  groundToUv,
+  uvToGround,
+  groundToDirection,
+  directionToGround,
+  groundToLatLon,
+  latLonToGround,
+  type SphereFrame,
+  type PlanetSurface,
+} from './sphere-map.js'
+export {
   createGasGiantMaterial,
   type GasGiantMaterialOptions,
 } from './gas-giant-material.js'

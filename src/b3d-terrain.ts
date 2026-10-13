@@ -366,6 +366,13 @@ import {
 } from './surface-sampler.js'
 import type { SurfaceSampler } from './surface-sampler.js'
 import {
+  directionToGround,
+  groundToLatLon,
+  latLonToGround,
+  type PlanetSurface,
+  type SphereFrame,
+} from './sphere-map.js'
+import {
   buildTileField,
   tileIndexPlan,
   patchResident,
@@ -673,6 +680,51 @@ export class B3dTerrain extends B3dChild {
    */
   get originOffset(): { x: number; z: number } {
     return { x: this.originOffsetX, z: this.originOffsetZ }
+  }
+
+  /**
+   * How this terrain's sheet is laid on its planet, or null when it is not
+   * on one (`surfaceType` other than `'sphere'`). See [[sphere-map]].
+   */
+  get sphereFrame(): SphereFrame | null {
+    const attrs = this as any
+    if (attrs.surfaceType !== 'sphere') return null
+    return { radius: attrs.radius, worldU: this.worldU, worldV: this.worldV }
+  }
+
+  /** Latitude and longitude (degrees) of a spot on the ground; null off a sphere. */
+  latLonAt(x: number, z: number): { lat: number; lon: number } | null {
+    const frame = this.sphereFrame
+    return frame == null ? null : groundToLatLon(x, z, frame)
+  }
+
+  /** Where on the ground a latitude and longitude is; null off a sphere. */
+  groundAt(lat: number, lon: number): { x: number; z: number } | null {
+    const frame = this.sphereFrame
+    return frame == null ? null : latLonToGround(lat, lon, frame)
+  }
+
+  /**
+   * THIS WORLD AS A GLOBE: its height in any direction from the centre, from
+   * the very function the ground is built with (the same noise, profiles and
+   * landforms), so a planet drawn from it is the planet you are standing on.
+   * Hand it to `<tosi-b3d-planet>`'s `surface`. Null off a sphere.
+   *
+   * Taken when called: ask again after the terrain's shape changes
+   * (`generationKey`).
+   */
+  planetSurface(): PlanetSurface | null {
+    const frame = this.sphereFrame
+    if (frame == null) return null
+    const height = this.heightSampler()
+    return {
+      radius: frame.radius,
+      seaLevel: Number(this.biomePlugin?.params?.seaLevel) || 0,
+      heightAt: (d) => {
+        const g = directionToGround(d, frame)
+        return height(g.x, g.z)
+      },
+    }
   }
 
   heightSampler(): (x: number, z: number) => number {

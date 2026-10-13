@@ -721,6 +721,7 @@ b3d-planet
 
   biome
   gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)
+  relief  = 1  — With a `surface` set (see below): how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map
   bands  = 0  — Gas giant: stripes from pole to pole. `0` = the preset's
   turbulence  = -1  — Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's
   storm  = -1  — Gas giant: size of the great storm, `0` = none. `-1` = the preset's
