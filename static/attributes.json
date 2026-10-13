@@ -178,7 +178,17 @@
       {
         "name": "maxPitch",
         "default": "35",
-        "description": "Max nose-UP attitude the stick commands (degrees)"
+        "description": "Max nose-UP attitude the stick commands (degrees). A climb steeper than `asin(acceleration / (climbCost × maxSpeed))` cannot be held without reheat: speed falls to the stall floor. With the defaults (12, 0.4, 50) that is 37°, just above the default 35°"
+      },
+      {
+        "name": "climbCost",
+        "default": "0.4",
+        "description": "What a climb costs in speed, and what a dive gives back, as a fraction of `maxSpeed` per second at vertical. Steady speed in a climb is `maxSpeed × sqrt(1 − (climbCost × maxSpeed / acceleration) × sin(pitch))`. Lower it for a craft that holds speed uphill without changing how fast it spools up; `0` makes climbing free"
+      },
+      {
+        "name": "chaseLookAhead",
+        "default": "0",
+        "description": "Where the chase camera AIMS: a point this many metres ahead of the craft, at the craft's height. `0` aims at the craft itself, which with the default camera looks down 22.6° and puts anything level with you near the top of the screen. Raise it to look down the track (30 gives about 4°). Does not move the camera"
       },
       {
         "name": "maxDive",
@@ -1674,6 +1684,16 @@
         "name": "pxPerDeg",
         "default": "8",
         "description": "Pitch-ladder pixels per degree"
+      },
+      {
+        "name": "blend",
+        "default": "'plus-lighter'",
+        "description": "How the flat overlay is mixed with the scene (any CSS `mix-blend-mode`). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. `'normal'` paints it on top"
+      },
+      {
+        "name": "opacity",
+        "default": "0.5",
+        "description": "Opacity of the flat overlay, `0…1`. With `blend=\"normal\"` about `0.85` reads well"
       }
     ]
   },

@@ -52,7 +52,9 @@ b3d-aircraft
   gearVolume  = 0.6  — Volume for `gearSound`
   gearTime  = 2.5  — Seconds for a full gear cycle
   lookRange  = 120  — How far the right stick can swing the view (degrees each way)
-  maxPitch  = 35  — Max nose-UP attitude the stick commands (degrees)
+  maxPitch  = 35  — Max nose-UP attitude the stick commands (degrees). A climb steeper than `asin(acceleration / (climbCost × maxSpeed))` cannot be held without reheat: speed falls to the stall floor. With the defaults (12, 0.4, 50) that is 37°, just above the default 35°
+  climbCost  = 0.4  — What a climb costs in speed, and what a dive gives back, as a fraction of `maxSpeed` per second at vertical. Steady speed in a climb is `maxSpeed × sqrt(1 − (climbCost × maxSpeed / acceleration) × sin(pitch))`. Lower it for a craft that holds speed uphill without changing how fast it spools up; `0` makes climbing free
+  chaseLookAhead  = 0  — Where the chase camera AIMS: a point this many metres ahead of the craft, at the craft's height. `0` aims at the craft itself, which with the default camera looks down 22.6° and puts anything level with you near the top of the screen. Raise it to look down the track (30 gives about 4°). Does not move the camera
   maxDive  = 0  — Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch`
   lookRate  = 150  — Look slew rate (degrees/sec at full stick)
   lookReturn  = 4  — How fast the view springs back to centre when released
@@ -437,6 +439,8 @@ b3d-hud
   url  = ''  — Empty = the built-in code HUD (fully wired); set to a designer SVG to load one
   size  = 70  — HUD height as a % of the canvas's smaller dimension
   pxPerDeg  = 8  — Pitch-ladder pixels per degree
+  blend  = 'plus-lighter'  — How the flat overlay is mixed with the scene (any CSS `mix-blend-mode`). The default ADDS light, which reads as a projected display over mid tones and goes faint over a black sky or a white one. `'normal'` paints it on top
+  opacity  = 0.5  — Opacity of the flat overlay, `0…1`. With `blend="normal"` about `0.85` reads well
 
 ## b3d-input-focus — <tosi-b3d-input-focus>
 b3d-input-focus

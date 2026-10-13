@@ -125,6 +125,23 @@ that actually implies an on-screen fallback isn't needed.
 
 If the pad is disappearing on you during development, `fade="off"` (or
 `setFade(false)`) pins it; `faded` reports the current state.
+
+## Getting out of the way of a menu
+
+The pad sits over the canvas, so a menu drawn in the scene would be under it
+and a button beneath a stick could not be pressed. The pad therefore steps
+aside by itself while the scene is paused and while a death panel is up. For
+your own modal, say so:
+
+```javascript
+const pad = scene.querySelector('tosi-b3d-gamepad')
+pad.suppress('shop') // gone, and it reports no input
+pad.release('shop') // back, unless something else still holds it
+```
+
+Each caller names its own reason, so two menus cannot release each other's
+hold. This is separate from the fade: `setFade` is about a real keyboard or
+controller being in use.
 */
 /*{ "parent": "input", "order": 30 }*/
 
@@ -505,6 +522,28 @@ export class B3dGamepad extends Component implements GamepadSource {
     this.style.pointerEvents = faded ? 'none' : ''
   }
 
+  private _suppressedBy = new Set<string>()
+
+  /** Is the pad stepping aside for a menu (see `suppress`)? */
+  get suppressed(): boolean {
+    return this._suppressedBy.size > 0
+  }
+
+  /**
+   * Hide the pad and stop it reporting input until `release` is called with
+   * the same reason. For a modal drawn in the scene, which would otherwise sit
+   * under the pad. Reasons are counted separately.
+   */
+  suppress(reason = 'modal'): void {
+    this._suppressedBy.add(reason)
+    this.style.visibility = 'hidden'
+  }
+
+  release(reason = 'modal'): void {
+    this._suppressedBy.delete(reason)
+    if (this._suppressedBy.size === 0) this.style.visibility = ''
+  }
+
   private _inputWatch: (() => void) | null = null
   private _idleTimer: number | null = null
   private _faded = false
@@ -558,6 +597,8 @@ export class B3dGamepad extends Component implements GamepadSource {
 
   poll(): VirtualGamepad {
     let merged = emptyGamepad()
+    // A stick held when a menu came up must not keep steering behind it.
+    if (this._suppressedBy.size > 0) return merged
     for (const s of this.sources) merged = mergeGamepads(merged, s.poll())
     return merged
   }

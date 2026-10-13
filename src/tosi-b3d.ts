@@ -1242,6 +1242,7 @@ export class B3d extends Component {
   pause(reason: 'user' | 'hidden' | 'xr' | 'start' | string = 'user'): void {
     if (this._paused) return
     this._paused = true
+    this._suppressGamepad('pause', true)
     this._showPausePanel()
     // The transport row reads `paused` to choose its label and icon, so the
     // panel has to be told the state moved — see `resume` for the report.
@@ -1257,6 +1258,7 @@ export class B3d extends Component {
   resume(): void {
     if (!this._paused) return
     this._paused = false
+    this._suppressGamepad('pause', false)
     this._hidePausePanel()
     /*
     REPAINT THE PANEL — the state it displays has changed underneath it.
@@ -1295,6 +1297,17 @@ export class B3d extends Component {
    * the camera. Camera-relative so it works flat AND in a headset without a
    * second implementation — the same choice `b3d-death` makes.
    */
+  /** Ask the glass gamepad to step aside for a menu, or come back. Named
+   * reasons, so the pause panel and a death panel do not undo each other. */
+  _suppressGamepad(reason: string, on: boolean): void {
+    const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
+      suppress?: (reason: string) => void
+      release?: (reason: string) => void
+    } | null
+    if (on) pad?.suppress?.(reason)
+    else pad?.release?.(reason)
+  }
+
   private _showPausePanel(): void {
     if (this._pausePanel != null || this.scene == null) return
     /*
@@ -5645,6 +5658,8 @@ export class B3d extends Component {
         fade: (this as any).gamepadFade ?? 'on',
       })
     )
+    // A scene that starts paused got there before the pad existed.
+    if (this._paused) this._suppressGamepad('pause', true)
   }
 
   // In-scene surface: render the panel onto a plane positioned each frame in
