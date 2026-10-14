@@ -421,6 +421,8 @@ export {
   type GasGiantLook,
   type GasGiantOverrides,
 } from './gas-giant.js'
+export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js'
+export type { RockyWorldLook, RockyCraters, RockyClimate } from './rocky-world.js'
 export {
   decodeGray16Png,
   mapSurface,
@@ -1193,10 +1195,13 @@ export {
   profileField,
 } from './slope-profile.js'
 export type { LocalizedFilter } from './slope-profile.js'
+export type { SphereCraterOptions } from './landform.js'
 export {
   volcano,
   impactCrater,
   craterField,
+  craterProfile,
+  sphereCraters,
   pad,
   gulley,
   cover,

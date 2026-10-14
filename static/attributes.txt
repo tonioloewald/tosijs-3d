@@ -737,6 +737,11 @@ b3d-planet
   ringOuter  = 0  — Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`
   ringOpacity  = -1  — `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's
   ringColor  = ''  — `#rrggbb`. Blank = the gas giant preset's, else a pale tan
+  world
+  craters
+  craterSize
+  craterWear
+  craterAsymmetry
   seed  = 12345  — Noise seed
   radius  = 50  — Base sphere radius
   subdivisions  = 64  — Grid subdivisions per cube face
@@ -1364,6 +1369,14 @@ Rocket Ascent
   nebulae  = 0  — Sprite nebulae, OFF — superseded by baking the galaxy
   rocketScale  = 4  — Uniform scale on the Kenney parts
   timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
+
+## rocky-world
+rocky-world
+
+  ocean  = 0…1
+  atmosphereColor  = rgba(…)
+  grossAmplitude  = Relief, in the planet's own units (its radius is 50 in the demos)
+  detailAmplitude  = Relief, in the planet's own units (its radius is 50 in the demos)
 
 ## scatter
 scatter

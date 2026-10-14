@@ -13,6 +13,7 @@ for any star in it, [planets](/b3d-planet/) with atmospheres, and a
 - [b3d-star](/b3d-star/)
 - [b3d-planet](/b3d-planet/)
 - [gas-giant](/gas-giant/)
+- [rocky-world](/rocky-world/)
 - [b3d-black-hole](/b3d-black-hole/)
 - [sphere-map](/sphere-map/)
 - [planet-map](/planet-map/)

@@ -63,11 +63,11 @@ function registerShader(biome: BiomePlugin | null): string {
   the mesh level (so its altitude is the true one, and the sea bed is
   classified as sea bed), and its answer is the land's colour.
 
-  Its SLOPE comes from the height field too, never from the mesh: the normal
-  is the cross product of how that reconstructed position changes across the
-  screen. The mesh's own normals know nothing of the sea bed (it is held
-  flat), and a planet drawn on a plain sphere has none worth reading at all,
-  so what is steep is decided by the heights alone.
+  Its SLOPE under the sea comes from the height field: the normal is the
+  cross product of how that reconstructed position changes across the
+  screen, because the mesh is held flat there and its normals know nothing
+  of the sea bed. On land the mesh IS the ground, and its own normal is
+  used: smooth, where the derivative one is constant per triangle.
   */
   const biomeLand = biome
     ? `{vec3 pc=biomePlanet.xyz;vec3 vPositionW=hfPos;vec3 vNormalW=hfNormal;vec3 diffuseColor=vec3(1.0);
@@ -146,6 +146,11 @@ void main(){
   float hfLen=length(hfNormal);
   hfNormal=hfLen>0.0?hfNormal/hfLen:hfUp;
   if(dot(hfNormal,hfUp)<0.0)hfNormal=-hfNormal;
+  // ON LAND the mesh is the true ground, and its normal is smooth: the
+  // screen-derivative one is constant across each triangle, so a slope
+  // threshold read from it stepped triangle by triangle (blocky rock on a
+  // cratered moon). Only the sea bed, held flat in the mesh, needs it.
+  if(vHeight>0.0)hfNormal=n;
 #endif
 
   // --- land ---------------------------------------------------------------

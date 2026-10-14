@@ -518,3 +518,48 @@ describe('craterField — a cratered surface (board #2442)', () => {
     expect(depthOf(1)).toBeLessThan(depthOf(0))
   })
 })
+
+describe('sphereCraters', () => {
+  const { sphereCraters } = require('./landform.js')
+  // Points spread over the sphere (a Fibonacci spiral).
+  const points = (n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const y = 1 - (2 * (i + 0.5)) / n
+      const r = Math.sqrt(1 - y * y)
+      const a = i * 2.399963
+      return { x: r * Math.cos(a), y, z: r * Math.sin(a) }
+    })
+
+  test('density 0 is a smooth sphere', () => {
+    const f = sphereCraters({ density: 0 })
+    for (const p of points(50)) expect(f(p.x, p.y, p.z)).toBe(0)
+  })
+
+  test('the same seed gives the same craters, another seed others', () => {
+    const a = sphereCraters({ seed: 3 })
+    const b = sphereCraters({ seed: 3 })
+    const c = sphereCraters({ seed: 4 })
+    const pts = points(400)
+    expect(pts.map((p) => a(p.x, p.y, p.z))).toEqual(pts.map((p) => b(p.x, p.y, p.z)))
+    expect(pts.map((p) => a(p.x, p.y, p.z))).not.toEqual(pts.map((p) => c(p.x, p.y, p.z)))
+  })
+
+  test('craters dig in: they remove more than their rims pile up', () => {
+    const f = sphereCraters({ density: 0.8 })
+    const h = points(3000).map((p) => f(p.x, p.y, p.z)).filter((v) => v !== 0)
+    expect(h.length).toBeGreaterThan(300)
+    expect(h.reduce((a, b) => a + b, 0)).toBeLessThan(0)
+  })
+
+  test('asymmetry puts more craters on the facing side', () => {
+    const f = sphereCraters({ density: 0.4, asymmetry: 0.9, facing: { x: 0, y: 0, z: 1 } })
+    let front = 0
+    let back = 0
+    for (const p of points(6000)) {
+      if (f(p.x, p.y, p.z) === 0) continue
+      if (p.z > 0) front++
+      else back++
+    }
+    expect(front).toBeGreaterThan(back * 1.5)
+  })
+})

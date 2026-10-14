@@ -193,6 +193,8 @@ import {
   createPlanetSurfaceMaterial,
 } from './planet-surface-material.js'
 import { assetUrl } from './asset-url.js'
+import { resolveRockyWorld, type RockyWorldLook } from './rocky-world.js'
+import { sphereCraters } from './landform.js'
 import { createGasGiantMaterial } from './gas-giant-material.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
@@ -263,6 +265,17 @@ export class B3dPlanet extends B3dChild {
     ringOuter: 0,
     ringOpacity: -1,
     ringColor: '',
+    // A ROCKY WORLD's look (rocky-world): 'moon', 'mercury', 'mars',
+    // 'venus', 'earth'. It decides the sea, air, clouds, relief, craters and
+    // climate; '' leaves them to the attributes.
+    world: '',
+    // Craters (when no `world` decides them): density 0…1, the largest's
+    // radius as a fraction of the planet's, wear, and how many more fall
+    // on the local +Z side (-1…1).
+    craters: 0,
+    craterSize: 0.15,
+    craterWear: 0.6,
+    craterAsymmetry: 0,
     seed: 12345,
     radius: 50,
     subdivisions: 64,
@@ -412,6 +425,7 @@ export class B3dPlanet extends B3dChild {
     const attrs = this as any
     const radius: number = attrs.radius
     const subs: number = attrs.subdivisions
+    this._makeCraters()
     if (attrs.gas) {
       /*
       A GAS GIANT HAS NO GROUND. A smooth sphere, slightly flattened (giants
@@ -514,9 +528,9 @@ export class B3dPlanet extends B3dChild {
     let deepest = 1e-3
     this.vertexHeights = heights
     const hasSea: boolean =
-      this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0
+      this.surface != null ? !isOff(attrs.flatSea) : this._val('ocean') > 0
     const seaAt =
-      this.surface != null || !hasSea ? 0 : this.heightPercentile(attrs.ocean)
+      this.surface != null || !hasSea ? 0 : this.heightPercentile(this._val('ocean'))
     const heightData = new Float32Array(totalVerts * 2)
     for (let i = 0; i < totalVerts; i++) {
       const above = heights[i] - seaAt
@@ -582,7 +596,7 @@ export class B3dPlanet extends B3dChild {
           slopeExaggeration: 6,
           // Moisture dries over roughly the relief height: coasts wet,
           // highlands dry.
-          moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
+          moistureDryHeight: Math.max(2, this._val('grossAmplitude') * 1.2),
           rainShadow: 0.3,
         })
         this.biomePlugin = made.plugin
@@ -601,6 +615,13 @@ export class B3dPlanet extends B3dChild {
           made.plugin.params = this._biomeParams
         } else {
           this._biomeParams = made.plugin.params
+        }
+        // A world's climate, written when the world changes: after that
+        // the params are anyone's to tune, as they are without one.
+        const climate = this._look()?.climate
+        if (attrs.world !== this._climateOf) {
+          this._climateOf = attrs.world
+          if (climate) Object.assign(made.plugin.params, climate)
         }
       }
       const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
@@ -623,7 +644,7 @@ export class B3dPlanet extends B3dChild {
           this.surface == null
             ? {
                 scale: attrs.detailScale * radius * 8,
-                amplitude: attrs.detailAmplitude * 0.12,
+                amplitude: this._val('detailAmplitude') * 0.12,
               }
             : undefined,
       })
@@ -644,7 +665,7 @@ export class B3dPlanet extends B3dChild {
   private _builtSea = ''
   private _seaKey(): string {
     const attrs = this as any
-    return `${attrs.ocean}|${attrs.flatSea}`
+    return `${this._val('ocean')}|${attrs.flatSea}|${attrs.world}`
   }
   private _surfaceFromMap = false
   /**
@@ -703,7 +724,7 @@ export class B3dPlanet extends B3dChild {
   private buildAtmosphere() {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
-    const atmoFrac: number = attrs.atmosphere
+    const atmoFrac: number = this._val('atmosphere')
     if (atmoFrac <= 0 || attrs.gas) return
 
     const scene = this.owner.scene
@@ -776,7 +797,7 @@ export class B3dPlanet extends B3dChild {
     // A LOOP, not Math.max(...): spreading every vertex height into call
     // arguments overflows the stack past the engine's argument limit (a page
     // that would not start at subdivisions 160, board #2745).
-    let maxH = attrs.grossAmplitude + attrs.detailAmplitude
+    let maxH = this._val('grossAmplitude') + this._val('detailAmplitude')
     if (this.vertexHeights && this.vertexHeights.length > 0) {
       maxH = -Infinity
       for (const h of this.vertexHeights) if (h > maxH) maxH = h
@@ -808,7 +829,7 @@ export class B3dPlanet extends B3dChild {
       }
     )
     const atmoColor = Color.fromCss(
-      attrs.atmosphereColor || 'rgba(77,128,230,0.15)'
+      this._val('atmosphereColor') || 'rgba(77,128,230,0.15)'
     )
     mat.setVector3(
       'atmoColor',
@@ -842,7 +863,7 @@ export class B3dPlanet extends B3dChild {
   private _maxHeight(): number {
     const attrs = this as any
     if (this.vertexHeights == null || this.vertexHeights.length === 0)
-      return attrs.gas ? 0 : attrs.grossAmplitude + attrs.detailAmplitude
+      return attrs.gas ? 0 : this._val('grossAmplitude') + this._val('detailAmplitude')
     let max = -Infinity
     for (const h of this.vertexHeights) if (h > max) max = h
     return max
@@ -860,23 +881,23 @@ export class B3dPlanet extends B3dChild {
     }
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
-    if (!(attrs.clouds > 0) || attrs.gas) return
+    if (!(this._val('clouds') > 0) || attrs.gas) return
     let color: BABYLON.Color3
     try {
       color = BABYLON.Color3.FromHexString(
-        String(attrs.cloudColor || '#ffffff').slice(0, 7)
+        String(this._val('cloudColor') || '#ffffff').slice(0, 7)
       )
     } catch {
       color = new BABYLON.Color3(1, 1, 1)
     }
     // Half way up the air, so a deeper atmosphere carries its weather higher.
-    const lift = Math.max(0.004, attrs.atmosphere * 0.5)
+    const lift = Math.max(0.004, this._val('atmosphere') * 0.5)
     this.cloudMesh = createPlanetClouds(
       this.owner.scene,
       this.rootNode,
       attrs.radius + Math.max(0, this._maxHeight()) + lift * attrs.radius,
       {
-        coverage: Math.min(1, attrs.clouds),
+        coverage: Math.min(1, this._val('clouds')),
         color,
         speed: attrs.cloudSpeed,
         seed: 1 + (Math.abs(attrs.seed) % 89),
@@ -1068,6 +1089,48 @@ export class B3dPlanet extends B3dChild {
     this.ringMesh = mesh
   }
 
+  /** The rocky world's look, when `world` names one (and it is not a gas giant). */
+  private _look(): RockyWorldLook | null {
+    const attrs = this as any
+    return attrs.gas ? null : resolveRockyWorld(attrs.world)
+  }
+
+  /** A setting the world's look decides when there is one, else the attribute. */
+  private _val(key: keyof RockyWorldLook & string): any {
+    const look = this._look()
+    return look != null && key in look ? (look as any)[key] : (this as any)[key]
+  }
+
+  /** The craters' height function for this build, or null for none. */
+  private _craters: ((x: number, y: number, z: number) => number) | null = null
+  /** Which world's climate was last written into the params. */
+  private _climateOf = ''
+
+  private _makeCraters() {
+    const attrs = this as any
+    const look = this._look()
+    const c = look
+      ? look.craters
+      : {
+          density: attrs.craters,
+          size: attrs.craterSize,
+          wear: attrs.craterWear,
+          asymmetry: attrs.craterAsymmetry,
+        }
+    this._craters =
+      c.density > 0
+        ? sphereCraters({
+            seed: 1 + (Math.abs(attrs.seed) % 9973),
+            density: c.density,
+            maxRadius: c.size,
+            minRadius: Math.max(0.012, c.size / 16),
+            complexRadius: c.size * 0.4,
+            wear: c.wear,
+            asymmetry: c.asymmetry,
+          })
+        : null
+  }
+
   private heightAt(nx: number, ny: number, nz: number): number {
     const attrs = this as any
 
@@ -1084,8 +1147,9 @@ export class B3dPlanet extends B3dChild {
     const detailNorm = detailRaw * 0.5 + 0.5
 
     return (
-      this.grossFilter.evaluate(grossNorm) * attrs.grossAmplitude +
-      this.detailFilter.evaluate(detailNorm) * attrs.detailAmplitude
+      this.grossFilter.evaluate(grossNorm) * this._val('grossAmplitude') +
+      this.detailFilter.evaluate(detailNorm) * this._val('detailAmplitude') +
+      (this._craters ? this._craters(nx, ny, nz) * attrs.radius * 0.6 : 0)
     )
   }
 

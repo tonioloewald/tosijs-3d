@@ -2905,6 +2905,21 @@
         "description": "`#rrggbb`. Blank = the gas giant preset's, else a pale tan"
       },
       {
+        "name": "world"
+      },
+      {
+        "name": "craters"
+      },
+      {
+        "name": "craterSize"
+      },
+      {
+        "name": "craterWear"
+      },
+      {
+        "name": "craterAsymmetry"
+      },
+      {
         "name": "seed",
         "default": "12345",
         "description": "Noise seed"
@@ -5291,6 +5306,28 @@
         "name": "timeOfDay",
         "default": "14",
         "description": "Broad daylight — so the stars appear because the AIR ran out, not because night fell"
+      }
+    ]
+  },
+  {
+    "module": "rocky-world",
+    "summary": "rocky-world",
+    "attributes": [
+      {
+        "name": "ocean",
+        "default": "0…1"
+      },
+      {
+        "name": "atmosphereColor",
+        "default": "rgba(…)"
+      },
+      {
+        "name": "grossAmplitude",
+        "default": "Relief, in the planet's own units (its radius is 50 in the demos)"
+      },
+      {
+        "name": "detailAmplitude",
+        "default": "Relief, in the planet's own units (its radius is 50 in the demos)"
       }
     ]
   },
