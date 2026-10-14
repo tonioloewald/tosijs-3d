@@ -11,6 +11,15 @@ A container can be drawn as a **schematic**: an SVG (a paper doll, a craft
 from above, an SSD) whose sockets are its slots, so the art decides where
 things go. Lists are scrolling lists.
 
+Colour the art with CSS variables that have defaults, e.g.
+`fill: var(--schematic-body, #59647a)`. On the page a panel's host can
+restyle it (`host.style.setProperty('--schematic-body', '#7a4a3a')`); drawn
+as a texture (where page variables do not reach), it uses the defaults. The
+demo art uses `--schematic-body`, `--schematic-socket`,
+`--schematic-socket-edge` and `--schematic-label`. (Never write `--` inside
+an XML comment in the art: the file stops being XML and will not draw as an
+image.)
+
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
