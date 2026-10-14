@@ -1039,7 +1039,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float dry = biomePlanetD.z > 0.0 ? exp(-max(altitude, 0.0) / biomePlanetD.z) : 1.0;
           float oro = 0.0;
           #ifdef NORMAL
+            // The wind blows ALONG the ground: its part along up is
+            // dropped, or level ground on one side of the planet would read
+            // as a leeward slope everywhere (it dried a sphere world's
+            // whole start region by about 0.12).
             vec3 wind = vec3(cos(biomePlanetD.y), 0.0, sin(biomePlanetD.y));
+            wind -= up * dot(wind, up);
             oro = biomePlanetD.x * dot(nW, -wind);
           #endif
           effMapM = clamp(biomeCfg.w * dry + oro, 0.0, 1.0);
@@ -1439,11 +1444,10 @@ export function groundClimateAt(
       rel.y * scale + offset,
       rel.z * scale + offset
     )
-  // The wind is fixed in the planet's frame, so most of the rain shadow is
-  // which side of the planet you are on.
-  const rain =
-    -p.rainShadow *
-    (d.x * Math.cos(p.windAzimuth) + d.z * Math.sin(p.windAzimuth))
+  // No rain shadow: the shader's comes from the slope against a wind along
+  // the ground, which is zero on level ground, and this has no slope (the
+  // flat case has none either).
+  const rain = 0
   return planetaryAxes(
     rel,
     { ...p, seaLevel: R + p.seaLevel },

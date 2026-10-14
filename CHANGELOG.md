@@ -63,6 +63,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A sphere world was drier than a flat one.** The rain shadow's wind was fixed in the planet's frame, so level ground on one side of the planet read as a leeward slope everywhere, about 0.12 off the moisture. The wind now blows along the ground: slopes still get wet and dry sides, level ground gets neither. The decorator's mirror of it had the same bias and now has none.
 - **Changing a terrain's `surfaceType` or radius rebuilds its surface.** The sampler was built once at scene-ready, so the tiles kept the old shape while everything that reads the radius live moved on.
 - **Land and Sky: the eye height slider works in a headset.** It moved the flat camera only; the headset's rig took its height once, on entry.
 - **Climate regions stay put when the origin moves.** The ground's temperature and moisture noise was read at the render position, so a floating-origin reset shifted it. It is read at the world position now (`worldOffsetX`/`worldOffsetZ` on the biome params, which the terrain keeps up to date).
