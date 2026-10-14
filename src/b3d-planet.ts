@@ -890,9 +890,14 @@ export class B3dPlanet extends B3dChild {
           vec3 gold = normalize(rest * rest + 0.01) * 1.3;
           float limb = pow(1.0 - facing, 3.0);
           float low = smoothstep(0.0, 0.14, ndl) * (1.0 - smoothstep(0.14, 0.45, ndl));
-          float k = clamp(limb * low * 1.6, 0.0, 1.0) * 0.7;
+          // AND ONLY WHEN THE SUN IS SETTING FROM WHERE YOU ARE: going behind
+          // the planet. The points where the terminator meets the rim always
+          // have the sun low on them, so without this they were in sunset
+          // from every angle.
+          float setting = smoothstep(0.1, 0.55, dot(-viewDir, l));
+          float k = clamp(limb * low * 2.2, 0.0, 1.0) * 0.9 * setting;
           col = mix(col, gold * (glow + 0.6), k);
-          alpha = max(alpha, clamp(k * atmoOpacity * 2.5, 0.0, 1.0));
+          alpha = max(alpha, clamp(k * atmoOpacity * 3.5, 0.0, 1.0));
           gl_FragColor = vec4(col, alpha);
         }
       `
