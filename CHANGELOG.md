@@ -91,6 +91,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 - **A dry world's crater floors were drawn as sea bed**, a flat dark patch: the classifier took the zero height for a sea. A world with no sea now has none under its ground, and its classifier works at the planet's own scale (a datum at 0.001 had put its noise past float precision).
 - **Small bodies in a star system were coarse** (a belt body's mesh was 16 divisions a face, so crater rims drew straight lines across Ceres); moons and named asteroids are 40 now.
+- **A large planet was frozen and speckled.** The biome's lengths (height cooling, climate noise, dither, strata, the latitude wobble, surf) were tuned on radius 50; they scale with the planet's radius now, so a radius-3000 world reads as one at 50 does (board #3280, from Manta).
 - **A world's volcanism outlived it**: Io's glowing plates stayed on the next world chosen.
 - **A planet's cooling with height stuck from its first build**, so a dry world chosen after one with a sea was frozen pale.
 - **Planet clouds can close**: `clouds` runs past 1, to 3 for a solid deck (Venus); at 1 it still left holes.
