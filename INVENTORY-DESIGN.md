@@ -233,10 +233,15 @@ only one of its users:
    mounting-dependent arcs, boxes, power balance, refits), not its letter.
    The demo is a generic starship designer; spells and crafting are the same
    model and get a demo each later.
-2. **Manta:** is the loadout per craft and per mission, chosen from a stock
-   the carrier holds (so spending missiles in a mission depletes the
-   armoury)? That decides whether "the other side" is unlimited or counted.
-3. **RPG depth:** durability and repair, item quality and randomised stats,
-   or keep items to their kind plus a few overrides for now?
+2. ~~Manta~~ Answered: yes, a counted stock the carrier holds; missiles
+   spent in a mission are gone from it.
+3. ~~RPG depth~~ Answered: things like durability, quality and random stats
+   are the consumer's, added through the plug-in points (an item carries
+   whatever overrides it is given; contributions and totals read them). What
+   the library owes them is a way to SHOW them: an item's view takes
+   DECORATIONS: small status bars (durability, charge, ammo), an outline
+   state (damaged, broken, a destroyed system), a badge (a count, a quality
+   mark). The consumer says what each item shows; the interface draws it the
+   same way on every surface.
 4. ~~Where it lives~~ Answered: here, general only, with plug-in points;
    drag and drop and socketed targets come out of it as general UI.
