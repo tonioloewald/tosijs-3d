@@ -553,6 +553,56 @@ type LiveDebugRow = {
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0)
 
+/*
+WHICHEVER HAND YOU PRESS WITH, THE PRESS COUNTS.
+
+Babylon points with ONE controller at a time. A press on the other one only
+switches the pointer to it, and the press itself is dropped. A Quest decides for
+itself which controller is active, so in practice a press now and then did
+nothing, and a player just learns that the pointer is flaky (Tonio: "I think I
+and most users just internalize flaky pointer behavior"). Nobody should have
+to know which hand is "active".
+
+So: a press on a controller that is not pointing switches to it AND is
+delivered, once its ray has picked something (on the next frame or two).
+Babylon's own release pairs with it, because by then that controller is the one
+pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
+`pointerDownTriggered`), which is private: if a Babylon upgrade renames it, this
+quietly does nothing and the old behaviour (a dropped first press) returns.
+*/
+function pressWithEitherHand(xr: BABYLON.WebXRDefaultExperience, scene: BABYLON.Scene): void {
+  const sel = xr.pointerSelection as any
+  const frames = xr.baseExperience?.sessionManager.onXRFrameObservable
+  xr.input.onControllerAddedObservable.add((controller) => {
+    const watch = (mc: BABYLON.WebXRAbstractMotionController) => {
+      const main = mc.getMainComponent()
+      if (main == null || frames == null) return
+      main.onButtonStateChangedObservable.add(
+        (c) => {
+          if (!c.changes.pressed?.current) return
+          const id = controller.uniqueId
+          if (sel._attachedController === id || !sel.setAttachedController?.(id)) return
+          let tries = 0
+          const obs = frames.add(() => {
+            const data = sel._controllers?.[id]
+            if (data?.pick || ++tries > 5) frames.remove(obs)
+            if (!data?.pick) return
+            const init = { pointerId: data.id, pointerType: 'xr' }
+            scene.simulatePointerDown(data.pick, init)
+            data.pointerDownTriggered = true
+            // Let go already? Then it was a tap.
+            if (!main.pressed) scene.simulatePointerUp(data.pick, init)
+          })
+        },
+        undefined,
+        true // ahead of Babylon's own observer, which drops it
+      )
+    }
+    if (controller.motionController) watch(controller.motionController)
+    else controller.onMotionControllerInitObservable.addOnce(watch)
+  })
+}
+
 export class B3d extends Component {
   static preferredTagName = 'tosi-b3d'
 
@@ -4284,6 +4334,15 @@ export class B3d extends Component {
     const flatCamera = this.scene.activeCamera
     const xr = await this.scene.createDefaultXRExperienceAsync({
       disableDefaultUI: true,
+      /*
+      THE RIGHT HAND POINTS FIRST. Babylon points with ONE controller, the
+      first to connect (often the left), and the first trigger press on the
+      other one only SWITCHES to it: the press itself is dropped. So a
+      right-handed player's first press in a session did nothing (seen in the
+      emulated headset as "the first press after entry is lost"). The left
+      hand still takes over the first time it is used.
+      */
+      pointerSelectionOptions: { preferredHandedness: 'right' } as any,
     })
     this.xrHelper = xr
     /*
@@ -4309,6 +4368,7 @@ export class B3d extends Component {
         m.isPickable &&
         !insideCarrier(m, this._xrRig)
     }
+    if (xr.pointerSelection != null) pressWithEitherHand(xr, this.scene)
     if (flatCamera != null && this.scene.activeCamera !== flatCamera) {
       this.scene.activeCamera = flatCamera
     }

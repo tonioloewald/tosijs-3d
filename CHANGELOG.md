@@ -35,6 +35,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A trigger press in VR always counts, whichever hand it is.** Babylon points with one controller, the first to connect, and a press on the other one only switched to it: the press was dropped, so the first press of a session (and any press after the headset swapped controllers) did nothing. Now the right hand points first, and a press on the hand that is not pointing switches to it and is delivered. It reads Babylon's private per-controller state; a Babylon upgrade that renames it brings back the dropped press rather than breaking anything (#3290).
 - An inventory panel's totals line is always there, so the first thing worn no longer pushes the schematic down (#3290).
 - **Dragging between inventory panels works with a finger or a headset's laser.** Both are captured by the element they press, so the moves and the release never reached another panel; `inventoryPanel` now lets the capture go as it arrives (a mouse was never captured, which is why it worked on a desktop). And on a page the ghost is drawn in one overlay above every panel (`carryOverlay(carry)`, with `carryPanel(…, { ghost: false })`), so it crosses from one panel to the next instead of being clipped by each. A panel on a 3D plane keeps its own ghost (#3290).
 
