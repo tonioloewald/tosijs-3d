@@ -294,6 +294,11 @@ export interface CarrySocketOptions<T> {
    * held tile fills it.
    */
   look?: 'row' | 'art'
+  /**
+   * `holding` is drawn faded: it is not IN this socket but takes it up too (a
+   * two-handed weapon in the other hand). It can still be picked up here.
+   */
+  echo?: boolean
 }
 
 /** A socket that would take what is held, and the one under the pointer. */
@@ -345,7 +350,7 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
   if (!art) parts.push(frame, caption)
   if (holding) {
     // In a row, under the caption and clear of the reason line; on art, filling it.
-    parts.push(g({ transform: art ? '' : 'translate(10, 20)' }, holding.el))
+    parts.push(g({ transform: art ? '' : 'translate(10, 20)', opacity: opts.echo ? '0.4' : '1' }, holding.el))
   }
   // On art the frame and words go OVER what it holds.
   if (art) parts.push(frame, caption)
@@ -506,6 +511,46 @@ function whenDropMisses<T>(carry: Carry<T>, mine: () => boolean, then: (why: str
   })
 }
 
+export interface CarryGhostLayer {
+  /** Feed it the pointer, in `layer`'s coordinates. */
+  handlePointer: (kind: PointerKind, x: number, y: number) => void
+  dispose: () => void
+}
+
+/**
+ * The ghost for several panels drawn in ONE SVG (`layer`): it follows the
+ * pointer across all of them, and a drop that misses springs back to where
+ * the drag began. Feed it the same pointer the panels get, in the layer's
+ * coordinates (give each `carryPanel` `ghost: false`). This is how panels on
+ * one 3D plane share a ghost; `carryOverlay` is the same on a page.
+ */
+export function carryGhostLayer<T>(carry: Carry<T>, layer: Element): CarryGhostLayer {
+  const ghost = carryGhost(layer)
+  let press: Pt | null = null
+  let home: Pt | null = null
+  let last: Pt | null = null
+  const stop = whenDropMisses(carry, () => true, (why) => {
+    ghost.hide()
+    if (why != null && home && last) ghost.springBack(last, home, why)
+    home = null
+  })
+  return {
+    handlePointer(kind, x, y) {
+      if (kind === 'down') press = { x, y }
+      else if (kind === 'up') last = { x, y }
+      else if (kind === 'move' && carry.state.thing != null && carry.state.mode === 'drag') {
+        home ??= press
+        last = { x, y }
+        ghost.show(x, y, String(carry.state.thing))
+      }
+    },
+    dispose() {
+      stop()
+      ghost.hide()
+    },
+  }
+}
+
 const overlays = new WeakMap<Carry<any>, { dispose: () => void }>()
 
 /**
@@ -513,7 +558,7 @@ const overlays = new WeakMap<Carry<any>, { dispose: () => void }>()
  * the pointer across panels (give each `carryPanel` `ghost: false`). A drop
  * that misses springs back to where the drag began, wherever that was. One
  * per carry; calling it again returns the same one. Panels on a 3D plane
- * have no page to draw on and keep their own ghosts.
+ * use `carryGhostLayer` in the plane's SVG instead.
  */
 export function carryOverlay<T>(carry: Carry<T>): { dispose: () => void } {
   const had = overlays.get(carry)
@@ -523,32 +568,22 @@ export function carryOverlay<T>(carry: Carry<T>): { dispose: () => void } {
     'style',
     'position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:2147483647; overflow:visible'
   )
-  const ghost = carryGhost(layer)
-  let press: Pt | null = null
-  let home: Pt | null = null
-  let last: Pt | null = null
-  const down = (e: PointerEvent) => (press = { x: e.clientX, y: e.clientY })
-  const move = (e: PointerEvent) => {
-    if (carry.state.thing == null || carry.state.mode !== 'drag') return
-    if (!layer.isConnected) document.body.append(layer)
-    home ??= press
-    last = { x: e.clientX, y: e.clientY }
-    ghost.show(last.x, last.y, String(carry.state.thing))
-  }
+  const ghosts = carryGhostLayer(carry, layer)
   // Capture phase: a panel's handler drops on release, and the ghost must
   // know where that was first.
-  const up = (e: PointerEvent) => (last = { x: e.clientX, y: e.clientY })
+  const feed = (kind: PointerKind) => (e: PointerEvent) => {
+    if (kind === 'move' && carry.state.thing != null && !layer.isConnected) document.body.append(layer)
+    ghosts.handlePointer(kind, e.clientX, e.clientY)
+  }
+  const down = feed('down')
+  const move = feed('move')
+  const up = feed('up')
   window.addEventListener('pointerdown', down, true)
   window.addEventListener('pointermove', move, true)
   window.addEventListener('pointerup', up, true)
-  const stop = whenDropMisses(carry, () => true, (why) => {
-    ghost.hide()
-    if (why != null && home && last) ghost.springBack(last, home, why)
-    home = null
-  })
   const it = {
     dispose() {
-      stop()
+      ghosts.dispose()
       window.removeEventListener('pointerdown', down, true)
       window.removeEventListener('pointermove', move, true)
       window.removeEventListener('pointerup', up, true)

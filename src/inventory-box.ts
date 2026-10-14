@@ -25,8 +25,9 @@ image.)
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
-from the bag onto the body, or tap, then tap. The rifle needs both hands, a
-helm only goes on a head, and anything worn can be dragged back off.
+from the bag onto the body, or tap, then tap. The rifle needs both hands
+(and shows, faded, in the other one), a helm only goes on a head, and
+anything worn can be dragged back off.
 
 ```js
 import { createCarry, createInventory, inventoryPanel } from 'tosijs-3d'
@@ -87,7 +88,10 @@ const bodyHost = svg({ width: 410, height: 540, style: 'touch-action:none; flex:
 const bagHost = svg({ width: 200, height: 540, style: 'touch-action:none; flex:none' })
 preview.append(bodyHost, bagHost)
 fetch('/person-loadout.svg').then((r) => r.text()).then((art) => {
-  inventoryPanel({ inv, carry, holder: 'hero', host: bodyHost, title: 'hero', decorations, schematics: { body: art }, hide: ['bag'] })
+  // A two-handed weapon shows, faded, in the other hand too.
+  const alsoIn = (item, kind, at) =>
+    kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
+  inventoryPanel({ inv, carry, holder: 'hero', host: bodyHost, title: 'hero', decorations, alsoIn, schematics: { body: art }, hide: ['bag'] })
   inventoryPanel({ inv, carry, holder: 'hero', host: bagHost, decorations, only: ['bag'], totals: false, height: 540 })
 })
 window.addEventListener('pointerup', () => carry.cancel())
@@ -269,6 +273,83 @@ window.addEventListener('pointerup', () => carry.cancel())
 .preview { height: 100%; }
 ```
 
+## In 3D
+
+The same loadout on a plane in the scene, flat and in a headset. Closed, it
+is just the figure, small; tap it and it opens, with the bag beside it to
+drag to and from. The button at its corner closes it. `inventoryDock` draws
+both into one SVG, so a drag between them is a drag on one plane; give it
+no `list` for a craft fitted from a carrier's stock, and it opens to the
+schematic alone.
+
+```js
+import { b3d, b3dLight, panelScene, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div } = elements
+
+const kind = (id, tags, mass) => ({ id, name: id, tags, mass })
+const kinds = {
+  helm: kind('helm', ['helmet'], 2), cuirass: kind('cuirass', ['chest'], 8), pack: kind('pack', ['back'], 1),
+  knife: kind('knife', ['side', 'hand'], 1), pistol: kind('pistol', ['side', 'hand'], 1),
+  boots: kind('boots', ['feet'], 2), sword: kind('sword', ['hand'], 3),
+  rifle: kind('rifle', ['hand', 'two-handed'], 4), shield: kind('shield', ['hand'], 5),
+}
+const slot = (...accepts) => ({ accepts, holds: null })
+const body = {
+  type: 'slots',
+  slots: {
+    helmet: slot('helmet'), face: slot('face'), chest: slot('chest'), shoulder: slot('shoulder'),
+    back: slot('back'), waist: slot('waist'), left_side: slot('side'), right_side: slot('side'),
+    legs: slot('legs'), feet: slot('feet'), hand_left: slot('hand'), hand_right: slot('hand'),
+  },
+}
+const items = {}
+for (const k of Object.keys(kinds)) items[k] = { id: k, kind: k, qty: 1 }
+const inv = createInventory(
+  { items, holders: { hero: { id: 'hero', containers: { body, bag: { type: 'list', holds: Object.keys(items) } } } } },
+  {
+    kinds,
+    rules: [({ doc, kinds }) => {
+      const s = doc.holders.hero.containers.body.slots
+      const hands = [s.hand_left.holds, s.hand_right.holds]
+      const two = hands.find((id) => id && kinds[doc.items[id].kind].tags.includes('two-handed'))
+      return two && hands[0] && hands[1] ? ['two-handed: both hands must be free'] : []
+    }],
+  }
+)
+const alsoIn = (item, kind, at) =>
+  kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
+
+// Closed it is this wide (metres); open, everything is this much bigger.
+const CLOSED_WIDTH = 0.7
+const OPEN_SCALE = 2
+
+preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
+fetch('/person-loadout.svg').then((r) => r.text()).then((art) => {
+  let plane, closed
+  const dock = inventoryDock({
+    inv, carry: createCarry(), holder: 'hero', title: 'hero', alsoIn,
+    schematic: { container: 'body', art }, list: 'bag',
+    // The plane keeps its units: grow it with the dock.
+    handleResize: ({ width, height, open }) => {
+      const k = open ? OPEN_SCALE : 1
+      plane.mesh.scaling.x = (k * width) / closed.width
+      plane.mesh.scaling.y = (k * height) / closed.height
+    },
+  })
+  closed = { width: dock.svg.viewBox.baseVal.width, height: dock.svg.viewBox.baseVal.height }
+  // Laid out on the page (text is measured there), out of sight.
+  preview.append(div({ style: 'position:absolute; left:-10000px; top:0' }, dock.svg))
+  const made = panelScene({ svg: dock.svg, target: dock, width: CLOSED_WIDTH, resolution: 1024, camera: { radius: 3.4 } })
+  plane = made.plane
+  preview.append(b3d({ sceneCreated: made.sceneCreated }, b3dLight({ intensity: 1 }), plane))
+})
+```
+```css
+.preview { height: 100%; position: relative; }
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Options
 
 | | |
@@ -283,13 +364,20 @@ window.addEventListener('pointerup', () => carry.cancel())
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
 | `height` | a fixed height that scrolls, instead of growing to fit |
 | `totals` | show the holder's purse and totals under its title (default on) |
+| `alsoIn(item, kind, at)` | other slots an item takes up, where it is drawn faded (a two-handed weapon in both hands) |
+| `overlay` | draw the drag's ghost in a page overlay above every panel (default); off inside a 3D plane |
+
+`inventoryDock` takes the same model options plus `schematic: { container,
+art }`, `list` (the container shown beside it when open, or none), `width`,
+`listWidth`, `height` and `handleResize({ width, height, open })`. It returns
+`svg` (for the plane), `open`, `setOpen` and `handlePointer`.
 */
 /*{ "parent": "inventory", "order": 10 }*/
 
 import { svgElements } from 'tosijs'
 import { box, textBlock, svgPoint } from './box.js'
-import type { BoxChild } from './box.js'
-import { carryOverlay, carryPanel, carrySocket, carryTile, type CarryDecorations } from './carry-box.js'
+import type { BoxChild, PointerKind } from './box.js'
+import { carryGhostLayer, carryOverlay, carryPanel, carrySocket, carryTile, type CarryDecorations } from './carry-box.js'
 import type { Carry, CarryTarget } from './carry.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 
@@ -321,6 +409,24 @@ export interface InventoryPanelOptions {
   only?: string[]
   /** Do not draw these containers. */
   hide?: string[]
+  /**
+   * Other slots (in the same container) an item takes up besides its own,
+   * where it is drawn faded: a two-handed weapon shown in both hands. The
+   * game decides; the panel only draws it. An empty slot only.
+   */
+  alsoIn?: (item: Item, kind: ItemKind | undefined, at: Place) => string[]
+  /**
+   * Draw the drag's ghost in a page overlay above every panel (default).
+   * Off for a panel inside a 3D plane, which shares a `carryGhostLayer` in
+   * the plane's SVG and is fed through `handlePointer`.
+   */
+  overlay?: boolean
+}
+
+export interface InventoryPanel {
+  /** Pointer input in the host's own coordinates (a plane feeds it this way). */
+  handlePointer: (kind: PointerKind, x: number, y: number) => void
+  dispose: () => void
 }
 
 /** Where a schematic's sockets are, in its viewBox. */
@@ -488,7 +594,7 @@ function artChild(s: Schematic, avail: number): BoxChild {
 const enc = (p: Place) => JSON.stringify(p)
 
 /** Draw one holder of an inventory into `host`, redrawn whenever the inventory changes. */
-export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => void } {
+export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   const { inv, carry, holder, host } = opts
   const width = Number(host.getAttribute('width')) || 300
   const kinds = inv.kinds
@@ -573,6 +679,22 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
       if (c.type === 'slots') {
         const art = opts.schematics?.[cname]
         const drawn = new Set<string>()
+        // Which empty slots show an item that takes them up too, faded.
+        const echoes = new Map<string, { id: string; at: Place }>()
+        for (const [s, slot] of Object.entries(c.slots)) {
+          if (!slot.holds || !opts.alsoIn) continue
+          const item = inv.doc.items[slot.holds]
+          const at: Place = { holder, container: cname, slot: s }
+          for (const o of opts.alsoIn(item, kinds[item.kind], at)) {
+            if (c.slots[o] && !c.slots[o].holds) echoes.set(o, { id: slot.holds, at })
+          }
+        }
+        const holdingOf = (s: string, at: Place, size?: { width: number; height: number }) => {
+          const here = c.slots[s].holds
+          if (here) return { holding: tile(here, at, size), echo: false }
+          const e = echoes.get(s)
+          return e ? { holding: tile(e.id, e.at, size), echo: true } : { holding: null, echo: false }
+        }
         if (art) {
           // The art flows; its sockets are placed over it, where it drew them.
           const sch = readSchematic(art)
@@ -591,14 +713,14 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
               label: sk.slot.replace(/_/g, ' '),
               look: 'art',
               ...size,
-              holding: slot.holds ? tile(slot.holds, at, size) : null,
+              ...holdingOf(sk.slot, at, size),
             })
             socket.at = fit.at(sk.x, sk.y)
             disposers.push(socket.dispose)
             children.push(socket)
           }
         }
-        for (const [s, slot] of Object.entries(c.slots)) {
+        for (const s of Object.keys(c.slots)) {
           if (drawn.has(s)) continue
           const at: Place = { holder, container: cname, slot: s }
           const socket = carrySocket({
@@ -606,7 +728,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
             target: target(at, `${holder}/${cname}/${s}`),
             label: s,
             width: width - 24,
-            holding: slot.holds ? tile(slot.holds, at) : null,
+            ...holdingOf(s, at),
           })
           disposers.push(socket.dispose)
           children.push(socket)
@@ -659,7 +781,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     return [p.x, p.y]
   }
   // On a page, one overlay draws the ghost across every panel.
-  carryOverlay(carry)
+  if (opts.overlay !== false) carryOverlay(carry)
   const down = (e: PointerEvent) => panel?.handlePointer('down', ...at(e))
   // A finger or a headset's laser is captured by the element it pressed (a
   // tile's rect, after the press is handled), so its moves and its release
@@ -681,6 +803,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
   host.addEventListener('pointerup', up)
   host.addEventListener('pointerleave', leave)
   return {
+    handlePointer(kind, x, y) {
+      panel?.handlePointer(kind, x, y)
+    },
     dispose() {
       stop()
       stopGlow()
@@ -692,6 +817,170 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
       host.removeEventListener('pointermove', move)
       host.removeEventListener('pointerup', up)
       host.removeEventListener('pointerleave', leave)
+    },
+  }
+}
+
+export interface InventoryDockOptions
+  extends Pick<InventoryPanelOptions, 'inv' | 'carry' | 'holder' | 'title' | 'decorations' | 'moveFor' | 'refuse' | 'alsoIn'> {
+  /** The slots container drawn as a schematic, and its art. */
+  schematic: { container: string; art: string | SVGSVGElement }
+  /** The list shown beside it when open (a bag); none for a craft fitted from a carrier's stock. */
+  list?: string | null
+  /** The schematic panel's width (default 410), the list's (200) and the height of both (540). */
+  width?: number
+  listWidth?: number
+  height?: number
+  /** Called whenever the dock opens or closes, with its size in its own units. */
+  handleResize?: (size: { width: number; height: number; open: boolean }) => void
+}
+
+export interface InventoryDock {
+  /** The dock's SVG: give it to a plane (its viewBox is its size). */
+  svg: SVGSVGElement
+  readonly open: boolean
+  setOpen: (open: boolean) => void
+  /** Pointer input in the dock's viewBox coordinates (what a plane routes). */
+  handlePointer: (kind: PointerKind, x: number, y: number) => void
+  dispose: () => void
+}
+
+/**
+ * A loadout that lives in the world: closed, it is the schematic and nothing
+ * else (a plane shows it small); a tap opens it, and the list appears beside
+ * it to drag to and from. A button closes it. Both panels are drawn in ONE
+ * SVG, so a drag between them is a drag on one plane, with one ghost.
+ */
+export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
+  const { carry } = opts
+  const W = opts.width ?? 410
+  const LW = opts.listWidth ?? 200
+  const H = opts.height ?? 540
+  const GAP = 12
+  const { svg, g, circle, rect } = svgElements
+  const root = svg({ xmlns: 'http://www.w3.org/2000/svg' }) as unknown as SVGSVGElement
+  const nested = (x: number, w: number) => {
+    const s = svg({ x, y: 0, width: w, height: H }) as unknown as SVGSVGElement
+    root.append(s)
+    return s
+  }
+  const mainHost = nested(0, W)
+  const listHost = opts.list ? nested(W + GAP, LW) : null
+  const common = {
+    inv: opts.inv,
+    carry,
+    holder: opts.holder,
+    decorations: opts.decorations,
+    moveFor: opts.moveFor,
+    refuse: opts.refuse,
+    alsoIn: opts.alsoIn,
+    overlay: false,
+  }
+  const main = inventoryPanel({
+    ...common,
+    host: mainHost,
+    title: opts.title,
+    schematics: { [opts.schematic.container]: opts.schematic.art },
+    only: [opts.schematic.container],
+  })
+  const list =
+    listHost && opts.list
+      ? inventoryPanel({ ...common, host: listHost, only: [opts.list], totals: false, height: H })
+      : null
+  const closeButton = g(
+    { cursor: 'pointer' },
+    circle({ r: 14, fill: '#2c3546', stroke: '#9fb0c8', 'stroke-width': 1.5 }),
+    rect({ x: -7, y: -1.5, width: 14, height: 3, rx: 1.5, fill: '#dfe6f2' })
+  ) as unknown as SVGGElement
+  const ghosts = carryGhostLayer(carry, root)
+
+  let open = false
+  let size = { width: W, height: H }
+  const layout = () => {
+    const h = Math.max(Number(mainHost.getAttribute('height')) || H, open && listHost ? H : 0)
+    const w = open && listHost ? W + GAP + LW : W
+    if (listHost) listHost.style.display = open ? '' : 'none'
+    closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
+    if (open) root.append(closeButton)
+    else closeButton.remove()
+    root.setAttribute('viewBox', `0 0 ${w} ${h}`)
+    root.setAttribute('width', String(w))
+    root.setAttribute('height', String(h))
+    const changed = w !== size.width || h !== size.height
+    size = { width: w, height: h }
+    return changed
+  }
+  layout()
+  const stop = opts.inv.subscribe(() => {
+    if (layout()) opts.handleResize?.({ ...size, open })
+  })
+
+  const parts = [
+    { host: mainHost, panel: main, x: 0 },
+    ...(listHost && list ? [{ host: listHost, panel: list, x: W + GAP }] : []),
+  ]
+  let under: (typeof parts)[number] | null = null
+  let tapped = false
+  let closing = false
+  const onClose = (x: number, y: number) => Math.hypot(x - (size.width - 22), y - 22) <= 18
+  const setOpen = (v: boolean) => {
+    if (v === open) return
+    open = v
+    under?.panel.handlePointer('leave', 0, 0)
+    under = null
+    carry.cancel()
+    layout()
+    opts.handleResize?.({ ...size, open })
+  }
+  return {
+    svg: root,
+    get open() {
+      return open
+    },
+    setOpen,
+    handlePointer(kind, x, y) {
+      // Closed, the whole dock is one button.
+      if (!open) {
+        if (kind === 'down') tapped = true
+        else if (kind === 'up' && tapped) {
+          tapped = false
+          setOpen(true)
+        } else if (kind === 'leave') tapped = false
+        return
+      }
+      if (kind === 'down' && onClose(x, y)) {
+        closing = true
+        return
+      }
+      if (closing) {
+        if (kind === 'up' || kind === 'leave') {
+          closing = false
+          if (kind === 'up' && onClose(x, y)) setOpen(false)
+        }
+        return
+      }
+      ghosts.handlePointer(kind, x, y)
+      const now =
+        kind === 'leave'
+          ? null
+          : parts.find((p) => {
+              const w = Number(p.host.getAttribute('width'))
+              const h = Number(p.host.getAttribute('height'))
+              return p.host.style.display !== 'none' && x >= p.x && x < p.x + w && y >= 0 && y < h
+            }) ?? null
+      if (now !== under) {
+        under?.panel.handlePointer('leave', 0, 0)
+        under = now
+      }
+      if (now && kind !== 'leave') now.panel.handlePointer(kind, x - now.x, y)
+      // Let go between the panels: nothing takes it, so it goes back.
+      if (kind === 'up' && !now && carry.state.thing != null) carry.cancel()
+    },
+    dispose() {
+      stop()
+      ghosts.dispose()
+      main.dispose()
+      list?.dispose()
     },
   }
 }
