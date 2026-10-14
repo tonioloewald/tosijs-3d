@@ -878,21 +878,21 @@ export class B3dPlanet extends B3dChild {
 
           vec3 col = atmoColor * (glow + turb * 0.5);
           /*
-          GOLDEN HOUR: SUBTLE, AND AT THE LIMB ONLY. Where you see the air
-          edge on and the sun is low over it, or behind the planet, the
-          air's own colour shifts a little toward red (the long path
-          scatters out the blue end). Not a different colour and not a glow:
-          the rim warms slightly, and face on you see no change at all.
+          GOLDEN HOUR, AT THE LIMB. Where you see the air edge on and the
+          sun is low over it, the long path has scattered the air's own
+          colour out and left its complement: blue air goes gold (Mars's red
+          dust goes blue). It peaks where the sun is low but still up and is
+          gone by the terminator itself: peaking AT the terminator lit the two
+          points where it meets the rim, which read as glowing poles. Face on
+          there is too little air for any of it.
           */
-          vec3 warm = atmoColor * vec3(1.3, 0.92, 0.62);
+          vec3 rest = vec3(1.0) - atmoColor;
+          vec3 gold = normalize(rest * rest + 0.01) * 1.3;
           float limb = pow(1.0 - facing, 3.0);
-          // Peaks where the sun is low but still up, and is gone by the
-          // terminator: peaking AT it lit the two points where the terminator
-          // meets the rim, which read as glowing poles.
           float low = smoothstep(0.0, 0.14, ndl) * (1.0 - smoothstep(0.14, 0.45, ndl));
-          float behind = smoothstep(0.2, 0.9, dot(-viewDir, l));
-          float k = clamp(limb * max(low, behind), 0.0, 1.0) * 0.6;
-          col = mix(col, warm, k);
+          float k = clamp(limb * low * 1.6, 0.0, 1.0) * 0.7;
+          col = mix(col, gold * (glow + 0.6), k);
+          alpha = max(alpha, clamp(k * atmoOpacity * 2.5, 0.0, 1.0));
           gl_FragColor = vec4(col, alpha);
         }
       `
