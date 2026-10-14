@@ -289,7 +289,7 @@ window.addEventListener('pointerup', () => carry.cancel())
 import { svgElements } from 'tosijs'
 import { box, textBlock, svgPoint } from './box.js'
 import type { BoxChild } from './box.js'
-import { carryPanel, carrySocket, carryTile, type CarryDecorations } from './carry-box.js'
+import { carryOverlay, carryPanel, carrySocket, carryTile, type CarryDecorations } from './carry-box.js'
 import type { Carry, CarryTarget } from './carry.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 
@@ -649,7 +649,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     host.append(glow)
     lightUp()
     panel?.dispose()
-    panel = carryPanel(b, carry, { fallback: whole?.target })
+    panel = carryPanel(b, carry, { fallback: whole?.target, ghost: false })
   }
   build()
   const stop = inv.subscribe(() => build())
@@ -658,7 +658,14 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     const p = svgPoint(host, e.clientX, e.clientY)
     return [p.x, p.y]
   }
+  // On a page, one overlay draws the ghost across every panel.
+  carryOverlay(carry)
   const down = (e: PointerEvent) => panel?.handlePointer('down', ...at(e))
+  // A finger or a headset's laser is captured by the element it pressed (a
+  // tile's rect, after the press is handled), so its moves and its release
+  // would never reach another panel: let it go as it arrives.
+  const captured = (e: PointerEvent) => (e.target as Element).releasePointerCapture(e.pointerId)
+  host.addEventListener('gotpointercapture', captured)
   const move = (e: PointerEvent) => panel?.handlePointer('move', ...at(e))
   const up = (e: PointerEvent) => panel?.handlePointer('up', ...at(e))
   const leave = () => panel?.handlePointer('leave', 0, 0)
@@ -681,6 +688,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
       for (const d of disposers) d()
       host.removeEventListener('wheel', wheel)
       host.removeEventListener('pointerdown', down)
+      host.removeEventListener('gotpointercapture', captured)
       host.removeEventListener('pointermove', move)
       host.removeEventListener('pointerup', up)
       host.removeEventListener('pointerleave', leave)

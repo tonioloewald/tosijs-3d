@@ -28,6 +28,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Dragging between inventory panels works with a finger or a headset's laser.** Both are captured by the element they press, so the moves and the release never reached another panel; `inventoryPanel` now lets the capture go as it arrives (a mouse was never captured, which is why it worked on a desktop). And on a page the ghost is drawn in one overlay above every panel (`carryOverlay(carry)`, with `carryPanel(…, { ghost: false })`), so it crosses from one panel to the next instead of being clipped by each. A panel on a 3D plane keeps its own ghost (#3290).
+
 - **A thing can be dragged out of a socket** (it could only be dragged out of a list), and a thing in a list is itself a place to drop into that list, so a long, scrolled list takes a drop anywhere. A thing put back in a list joins a stack of its kind with room (a missile returned to the carrier is counted again); one drawn from a stack swaps with what a slot held.
 
 ## 0.10.5

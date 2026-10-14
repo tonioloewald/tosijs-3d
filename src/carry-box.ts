@@ -434,6 +434,132 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
   }
 }
 
+type Pt = { x: number; y: number }
+
+/**
+ * The thing being dragged, drawn in `parent` (a panel's own SVG, or the page
+ * overlay). It hangs ABOVE the pointer, so the socket you are over stays in
+ * sight (and on a touch screen, out from under the finger).
+ */
+function carryGhost(parent: Element) {
+  const LIFT = 46
+  let run = 0
+  const el = g(
+    { 'pointer-events': 'none', opacity: '0.85' },
+    rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
+  ) as unknown as SVGGElement
+  const font = { 'text-anchor': 'middle', 'font-family': 'system-ui, sans-serif' }
+  const label = text({ x: 0, y: -41, fill: '#fff', 'font-size': '12', ...font }, '')
+  const why = text({ x: 0, y: -18, fill: '#f0907c', 'font-size': '11', ...font, ...HALO }, '')
+  el.append(label, why)
+  const place = (x: number, y: number) => {
+    if (!el.isConnected) parent.append(el)
+    el.setAttribute('transform', `translate(${x}, ${y})`)
+  }
+  const hide = () => el.remove()
+  return {
+    show(x: number, y: number, name: string) {
+      run++
+      label.textContent = name
+      why.textContent = ''
+      place(x, y)
+    },
+    hide,
+    // Back to where it was picked up, settling ON the thing (the lift eases
+    // away as it goes), and showing why for a moment.
+    springBack(from: Pt, to: Pt, reason: string) {
+      const mine = ++run
+      why.textContent = reason
+      const t0 = performance.now()
+      const step = () => {
+        if (mine !== run) return
+        const t = Math.min(1, (performance.now() - t0) / SPRING_MS)
+        const e = 1 - (1 - t) ** 3
+        place(from.x + (to.x - from.x) * e, from.y + (to.y + LIFT - from.y) * e)
+        if (t < 1) requestAnimationFrame(step)
+        else setTimeout(() => mine === run && hide(), reason ? LINGER_MS : 60)
+      }
+      step()
+    },
+  }
+}
+
+/**
+ * Calls `then` each time the carry empties: with the reason (possibly empty)
+ * when a drag that `mine()` claims did not land, and with null otherwise.
+ */
+function whenDropMisses<T>(carry: Carry<T>, mine: () => boolean, then: (why: string | null) => void) {
+  let held = false
+  return carry.subscribe((s) => {
+    if (s.thing != null) {
+      if (s.mode === 'drag' && mine()) held = true
+      return
+    }
+    if (!held) return then(null)
+    held = false
+    // The panel that let go records why after the carry empties; read it then.
+    queueMicrotask(() => {
+      const why = lastRefusal.get(carry)
+      lastRefusal.delete(carry)
+      then(why ? why.join(' ') : null)
+    })
+  })
+}
+
+const overlays = new WeakMap<Carry<any>, { dispose: () => void }>()
+
+/**
+ * The ghost for panels ON A PAGE: one overlay above everything, following
+ * the pointer across panels (give each `carryPanel` `ghost: false`). A drop
+ * that misses springs back to where the drag began, wherever that was. One
+ * per carry; calling it again returns the same one. Panels on a 3D plane
+ * have no page to draw on and keep their own ghosts.
+ */
+export function carryOverlay<T>(carry: Carry<T>): { dispose: () => void } {
+  const had = overlays.get(carry)
+  if (had) return had
+  const layer = svgElements.svg() as unknown as SVGSVGElement
+  layer.setAttribute(
+    'style',
+    'position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:2147483647; overflow:visible'
+  )
+  const ghost = carryGhost(layer)
+  let press: Pt | null = null
+  let home: Pt | null = null
+  let last: Pt | null = null
+  const down = (e: PointerEvent) => (press = { x: e.clientX, y: e.clientY })
+  const move = (e: PointerEvent) => {
+    if (carry.state.thing == null || carry.state.mode !== 'drag') return
+    if (!layer.isConnected) document.body.append(layer)
+    home ??= press
+    last = { x: e.clientX, y: e.clientY }
+    ghost.show(last.x, last.y, String(carry.state.thing))
+  }
+  // Capture phase: a panel's handler drops on release, and the ghost must
+  // know where that was first.
+  const up = (e: PointerEvent) => (last = { x: e.clientX, y: e.clientY })
+  window.addEventListener('pointerdown', down, true)
+  window.addEventListener('pointermove', move, true)
+  window.addEventListener('pointerup', up, true)
+  const stop = whenDropMisses(carry, () => true, (why) => {
+    ghost.hide()
+    if (why != null && home && last) ghost.springBack(last, home, why)
+    home = null
+  })
+  const it = {
+    dispose() {
+      stop()
+      window.removeEventListener('pointerdown', down, true)
+      window.removeEventListener('pointermove', move, true)
+      window.removeEventListener('pointerup', up, true)
+      layer.remove()
+      overlays.delete(carry)
+    },
+  }
+  overlays.set(carry, it)
+  return it
+}
+
 export interface CarryPanel {
   /** Feed the panel's pointer events here instead of to the box. */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
@@ -453,95 +579,35 @@ export function carryPanel<T>(
   opts: {
     /** Where a drop goes when the pointer is over no socket or tile of its own (a list's whole panel). */
     fallback?: CarryTarget<T>
+    /**
+     * Draw the ghost in this panel (default). Panels on a page pass `false`
+     * and share a `carryOverlay`, so the ghost crosses from one to the next
+     * instead of being clipped by each.
+     */
+    ghost?: boolean
   } = {}
 ): CarryPanel {
   const self = {}
+  const drawGhost = opts.ghost !== false
   let press: { x: number; y: number } | null = null
   // Where the drag was picked up and where its ghost was last seen HERE.
   let home: { x: number; y: number } | null = null
   let last: { x: number; y: number } | null = null
-  let held = false
-  let springing = 0
   /*
   "A DRAG IS ON" BELONGS TO THE CARRY, not to this panel: a drag that starts
   here and is let go over another panel must drop there, and that panel did
   not see it start. So every panel asks the shared carry.
   */
   const dragging = () => carry.state.thing != null && carry.state.mode === 'drag'
-  // The ghost hangs ABOVE the pointer, so the socket you are over stays in
-  // sight (and on a touch screen, out from under the finger).
-  const LIFT = 46
-  const ghost = g(
-    { 'pointer-events': 'none', opacity: '0.85' },
-    rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
-  ) as unknown as SVGGElement
-  const ghostText = text(
-    {
-      x: 0,
-      y: -41,
-      fill: '#fff',
-      'text-anchor': 'middle',
-      'font-family': 'system-ui, sans-serif',
-      'font-size': '12',
-    },
-    ''
-  )
-  const ghostWhy = text(
-    {
-      x: 0,
-      y: -18,
-      fill: '#f0907c',
-      'text-anchor': 'middle',
-      'font-family': 'system-ui, sans-serif',
-      'font-size': '11',
-      ...HALO,
-    },
-    ''
-  )
-  ghost.append(ghostText, ghostWhy)
-  const place = (x: number, y: number) => {
-    if (!ghost.isConnected) box.el.append(ghost)
-    ghost.setAttribute('transform', `translate(${x}, ${y})`)
-  }
+  const ghost = carryGhost(box.el)
   const showGhost = (x: number, y: number) => {
-    springing++
-    ghostText.textContent = String(carry.state.thing)
-    ghostWhy.textContent = ''
     last = { x, y }
-    place(x, y)
+    if (drawGhost) ghost.show(x, y, String(carry.state.thing))
   }
-  const hideGhost = () => ghost.remove()
-  // From where it was last seen here back to where it was picked up, so it
-  // settles ON the thing (the lift eases away as it goes).
-  const springBack = (from: { x: number; y: number }, to: { x: number; y: number }, why: string) => {
-    const run = ++springing
-    ghostWhy.textContent = why
-    const t0 = performance.now()
-    const step = () => {
-      if (run !== springing) return
-      const t = Math.min(1, (performance.now() - t0) / SPRING_MS)
-      const e = 1 - (1 - t) ** 3
-      place(from.x + (to.x - from.x) * e, from.y + (to.y + LIFT - from.y) * e)
-      if (t < 1) requestAnimationFrame(step)
-      else setTimeout(() => run === springing && hideGhost(), why ? LINGER_MS : 60)
-    }
-    step()
-  }
-  const stop = carry.subscribe((s) => {
-    if (s.thing != null) {
-      if (s.mode === 'drag' && dragOrigin.get(carry) === self) held = true
-      return
-    }
-    // Whichever panel the drop happened in, every other ghost goes.
+  const hideGhost = () => ghost.hide()
+  const stop = whenDropMisses(carry, () => dragOrigin.get(carry) === self, (why) => {
     hideGhost()
-    if (!held) return
-    held = false
-    // The panel that let go records why after the carry empties; read it then.
-    queueMicrotask(() => {
-      const why = lastRefusal.get(carry)
-      lastRefusal.delete(carry)
-      if (why && home && last) springBack(last, home, why.join(' '))
-    })
+    if (drawGhost && why != null && home && last) ghost.springBack(last, home, why)
   })
   return {
     handlePointer(kind, x, y) {
