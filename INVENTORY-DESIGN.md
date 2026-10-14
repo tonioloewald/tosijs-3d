@@ -1,0 +1,141 @@
+# Inventory — design, for review
+
+Board #3290. Tonio, 2026-10-14: *"A general purpose inventory system including
+the ability to move things between an inventory and a schematic (such as a
+character equipment display or an aircraft loadout) — the three use cases in
+mind are general rpg (including say equipping a companion or mount), assigning
+a load out to a manta, and designing / customizing a spacecraft in SFB."*
+
+Status: **design, not built.** Nothing here is code yet. The questions at the
+end are the ones only you can answer.
+
+## The three users, and what each one needs
+
+| | RPG | Manta loadout | SFB ship |
+| --- | --- | --- | --- |
+| **Holder** | a character, a companion, a mount, a chest | a craft | a ship |
+| **Schematic** | a paper doll: head, hands, body, rings | a top view: hardpoints, internal bays | the SSD: a hull of boxes |
+| **The other side** | bags (which are items too) | the carrier's armoury | the parts catalogue |
+| **Rules** | two-handed takes both hands; a mount takes saddle and barding only | weight, type per hardpoint, left and right must match | point budget, power balance, what fits where on the hull |
+| **What it adds up to** | armour, damage, encumbrance | mass, drag, range, what you can shoot | BPV, power, firing arcs |
+| **During play** | swap a weapon mid-fight | spend missiles | boxes are destroyed one at a time |
+
+The last row matters most. An SSD is not only a design surface: in play its
+boxes are crossed off. So the thing in a slot can be **damaged**, which is the
+role-carrying destroyable MINIATURES-DESIGN asks for ("the radio operator died"
+becomes "the forward phaser is gone").
+
+## One model under all three
+
+Five ideas, nothing else:
+
+1. **An item** is an instance of a kind from a catalogue: `{ id, kind, qty }`,
+   plus anything that differs from its kind (damage, charges, a name). The
+   kind carries the facts: tags (`weapon`, `two-handed`, `missile`,
+   `phaser`), size, mass, cost, and what it contributes.
+2. **A holder** owns containers: a character, a craft, a ship, a chest, and
+   also a bag, because a bag is an item that is also a holder. Nesting is
+   free.
+3. **A container** is one of three shapes, and they are the same idea at
+   different strictness:
+   - **slots**: named sockets, each accepting by tag (`head`, `left-wing-outer`,
+     `phaser-mount-1`). A paper doll and a hardpoint list.
+   - **a list**: a bag, with optional caps on count, mass or volume.
+   - **a grid**: cells, and an item covers a footprint (Diablo's bag; the SSD's
+     hull, where a warp engine is six boxes).
+4. **A rule** is a pure function from a proposed state to reasons it is
+   wrong: `(state) => string[]`. Per-slot accepts, per-holder budgets (mass,
+   points, power), and relations (two-handed fills both hands; the wings
+   match; no more than one cloak). Reasons, not booleans, because the
+   interface has to say WHY something will not go there.
+5. **A move** is a transaction: take this from there and put it here (with a
+   swap if the place is full and the swap is allowed). It is checked against
+   every rule it touches, and either all of it happens or none of it does. It
+   emits a COMMITMENT event (`equipped`, `unequipped`, `transferred`,
+   `damaged`) in world-contract's sense: an act, never a proximity.
+
+Everything a loadout ADDS UP TO is derived, never stored: a reducer over what
+is fitted (`mass`, `armour`, `bpv`, `range`). Each game writes its own; the
+library ships the plumbing and a sum of numeric contributions.
+
+**Pure and Babylon-free**, in the world-store tradition: deterministic, unit
+tested, runs headless (a server can validate a loadout, a driver can reason
+about one). **The state is a plain JSON document** with a JSON Schema and a
+validator, like `light-settings`, so loadouts save, load, share and diff.
+
+world-store's `InventoryEntry` (an item id and a count on an actor) stays as
+the simple case; the store gains an adapter rather than a second model.
+
+## The interface: one UI, flat and in a headset
+
+Two panels side by side, on the SVG surface (so the same UI works on a
+monitor, a phone and in VR):
+
+- **The schematic** is a picture with sockets on it. It is authored as SVG:
+  any element with `data-slot="left-hand"` (or a grid's cells) becomes a
+  socket, so the art is a designer's, and `svg-to-code` already turns an SVG
+  into a parameterised builder. A paper doll, a craft from above, an SSD.
+- **The inventory** is a list or a grid (`table.ts` / a grid box), filtered
+  and sorted.
+
+Moving things, three ways, all one model:
+
+- **Drag** from one to the other (pointer, touch, a controller ray).
+- **Two taps**: pick the thing, then pick where it goes. This is the path for
+  a gamepad and the one that works best in a headset, where dragging at arm's
+  length is tiring.
+- **Context menu** on a thing: Equip, Unequip, Give to…, Drop.
+
+While something is held, every place it could go lights, and every place it
+cannot is dimmed, with the rule's reason on hover. A second holder opens as
+a second schematic beside the first: that is "equip the companion", "fit the
+horse" and "give it to someone" in one gesture.
+
+## In the world
+
+A slot can name WHERE it is on the model: a bone (`hand.R`) or a node by
+naming convention (a `_hardpoint` suffix, in the tradition of
+`_centerOfGravity`). What is fitted there is shown there, by the spatial
+attachment SPATIAL-DESIGN describes: the sword in the hand, the missiles
+under the wing, the phaser on the hull. That is phase 4, and optional: a
+loadout is useful long before it is visible.
+
+## Order
+
+1. **The model** (`inventory.ts`, pure): items, holders, the three container
+   shapes, rules with reasons, moves as transactions with swap, derived
+   totals, events, the JSON schema. Tested against all three users' rules.
+2. **The interface**: schematic-from-SVG, the inventory list and grid, drag,
+   two-tap and menu, flat and in VR.
+3. **Three demos**, each a test of the model: an RPG party (a hero, a
+   companion, a horse, a chest), a Manta loadout (hardpoints, weight,
+   symmetry), a ship designer (a hull grid, a point budget, then damage
+   crossing off boxes).
+4. **Attachment** in 3D.
+
+## What would show this is wrong
+
+- If the SSD needs rules a reasons-function cannot express (an order-
+  dependent build, a rule that reads the whole fleet), the rule shape is too
+  small.
+- If the two-tap path feels second-class in a headset, the interface is a
+  mouse UI with VR bolted on, and the order of the two paths should flip.
+- If Manta's loadout wants a single dropdown per hardpoint and nothing more,
+  the schematic is overbuilt for it; it should then be a skin over the same
+  model, not a reason to change the model.
+
+## Questions for you
+
+1. **SFB:** Star Fleet Battles, and if so, how close to its real rules (box
+   types, BPV, power, refits) should the demo go? The rules and the SSD
+   format are ADB's; I would build a generic starship designer the model
+   can express and leave the real rules to your game's project, unless you
+   want otherwise.
+2. **Manta:** is the loadout per craft and per mission, chosen from a stock
+   the carrier holds (so spending missiles in a mission depletes the
+   armoury)? That decides whether "the other side" is unlimited or counted.
+3. **RPG depth:** durability and repair, item quality and randomised stats,
+   or keep items to their kind plus a few overrides for now?
+4. **Where it lives:** `inventory.ts` and its UI in this library, with the
+   three demos here too? (The test MINIATURES-DESIGN sets: would a second,
+   unrelated game want it? All three would.)

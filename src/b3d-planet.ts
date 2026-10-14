@@ -884,11 +884,14 @@ export class B3dPlanet extends B3dChild {
           scatters out the blue end). Not a different colour and not a glow:
           the rim warms slightly, and face on you see no change at all.
           */
-          vec3 warm = atmoColor * vec3(1.2, 0.95, 0.75);
+          vec3 warm = atmoColor * vec3(1.3, 0.92, 0.62);
           float limb = pow(1.0 - facing, 3.0);
-          float low = smoothstep(-0.15, 0.03, ndl) * (1.0 - smoothstep(0.03, 0.4, ndl));
+          // Peaks where the sun is low but still up, and is gone by the
+          // terminator: peaking AT it lit the two points where the terminator
+          // meets the rim, which read as glowing poles.
+          float low = smoothstep(0.0, 0.14, ndl) * (1.0 - smoothstep(0.14, 0.45, ndl));
           float behind = smoothstep(0.2, 0.9, dot(-viewDir, l));
-          float k = clamp(limb * max(low, behind), 0.0, 1.0) * 0.35;
+          float k = clamp(limb * max(low, behind), 0.0, 1.0) * 0.6;
           col = mix(col, warm, k);
           gl_FragColor = vec4(col, alpha);
         }
