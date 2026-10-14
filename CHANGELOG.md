@@ -22,6 +22,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **Stars look like stars.** `<tosi-b3d-star>` and a star system's star share one surface material (`star-material`): limb darkening that dims and reddens toward the edge, slowly boiling granulation and a few sunspots. They were a flat emissive colour, a white ball.
 - **Gas giants tear at their band edges.** Turbulence is eddies where the wind reverses, in patches along the edges, instead of a warp that made every band wavy; inside a band the texture is billow filaments along the wind. A storm brighter than the zones (Neptune's) is dark with bright cloud at its rim.
 - **A planet's ring lies in its equator.** It was tipped off it, and as the planet turned the ring precessed.
 
@@ -89,6 +90,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ### Fixed
 
 - **A dry world's crater floors were drawn as sea bed**, a flat dark patch: the classifier took the zero height for a sea. A world with no sea now has none under its ground, and its classifier works at the planet's own scale (a datum at 0.001 had put its noise past float precision).
+- **Small bodies in a star system were coarse** (a belt body's mesh was 16 divisions a face, so crater rims drew straight lines across Ceres); moons and named asteroids are 40 now.
 - **A world's volcanism outlived it**: Io's glowing plates stayed on the next world chosen.
 - **A planet's cooling with height stuck from its first build**, so a dry world chosen after one with a sea was frozen pale.
 - **Planet clouds can close**: `clouds` runs past 1, to 3 for a solid deck (Venus); at 1 it still left holes.

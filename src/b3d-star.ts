@@ -139,6 +139,7 @@ tosi-b3d {
 
 import { B3dChild, sceneDelta } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
+import { createStarMaterial } from './star-material.js'
 import type { B3d } from './tosi-b3d.js'
 import { PerlinNoise } from './perlin-noise.js'
 
@@ -339,16 +340,7 @@ export class B3dStar extends B3dChild {
     vertexData.colors = colors
     vertexData.applyToMesh(mesh, true)
 
-    const mat = new BABYLON.StandardMaterial('star-mat', this.owner.scene)
-    mat.disableLighting = true
-    mat.maxSimultaneousLights = 0
-    const [er, eg, eb] = getSpectralColor(attrs.spectralClass)
-    mat.emissiveColor = new BABYLON.Color3(er * glow, eg * glow, eb * glow)
-    mat.diffuseColor = BABYLON.Color3.Black()
-    mat.specularColor = BABYLON.Color3.Black()
-    mat.backFaceCulling = false
-    mat.wireframe = attrs.wireframe
-    mesh.material = mat
+    mesh.material = this.surfaceMaterial()
     mesh.parent = this.rootNode
 
     this.starMesh = mesh
@@ -489,57 +481,30 @@ export class B3dStar extends B3dChild {
     this.buildLight()
   }
 
+  /*
+  THE SURFACE (star-material): limb darkening, granulation and spots in a
+  shader. It was vertex colours under a flat emissive colour, which read as
+  a white disc.
+  */
+  private surfaceMaterial(): BABYLON.ShaderMaterial {
+    const attrs = this as any
+    const mat = createStarMaterial(this.owner!.scene, {
+      rgb: getSpectralColor(attrs.spectralClass) as [number, number, number],
+      seed: 1 + (Math.abs(attrs.seed) % 97),
+      // The old default glow (1.1) is the material's 1.
+      glow: attrs.glowIntensity / 1.1,
+      detail: attrs.surfaceDetail,
+    })
+    mat.wireframe = attrs.wireframe
+    return mat
+  }
+
   /** Update colors, corona, wireframe without full rebuild */
   updateOptions() {
-    const attrs = this as any
-    const [cr, cg, cb] = getSpectralColor(attrs.spectralClass)
-    const glow: number = attrs.glowIntensity
-
-    // Update star material
-    if (this.starMesh?.material) {
-      const mat = this.starMesh.material as BABYLON.StandardMaterial
-      mat.emissiveColor = new BABYLON.Color3(cr * glow, cg * glow, cb * glow)
-      mat.wireframe = attrs.wireframe
-
-      // Update vertex colors for new spectral class / glow
-      const detail: number = attrs.surfaceDetail
-      const subs: number = attrs.subdivisions
-      const vertsPerFace = (subs + 1) * (subs + 1)
-      const totalVerts = vertsPerFace * 6
-      const colors = new Float32Array(totalVerts * 4)
-
-      let vertOffset = 0
-      for (let face = 0; face < 6; face++) {
-        const f = CUBE_FACES[face]
-        for (let iy = 0; iy <= subs; iy++) {
-          for (let ix = 0; ix <= subs; ix++) {
-            const u = ix / subs
-            const v = iy / subs
-            const cx = f.origin[0] + f.right[0] * u + f.up[0] * v
-            const cy = f.origin[1] + f.right[1] * u + f.up[1] * v
-            const cz = f.origin[2] + f.right[2] * u + f.up[2] * v
-            const len = Math.sqrt(cx * cx + cy * cy + cz * cz)
-            const nx = cx / len
-            const ny = cy / len
-            const nz = cz / len
-
-            const noiseVal = this.noise.fractal(nx * 3, ny * 3, nz * 3, 4)
-            const brightness = 1.0 - detail * 0.4 * (noiseVal * 0.5 + 0.5)
-
-            const ci = vertOffset * 4
-            colors[ci] = cr * brightness * glow
-            colors[ci + 1] = cg * brightness * glow
-            colors[ci + 2] = cb * brightness * glow
-            colors[ci + 3] = 1.0
-            vertOffset++
-          }
-        }
-      }
-      this.starMesh.setVerticesData(
-        BABYLON.VertexBuffer.ColorKind,
-        colors,
-        true
-      )
+    // The surface material carries the colour, glow and detail: remade.
+    if (this.starMesh) {
+      this.starMesh.material?.dispose()
+      this.starMesh.material = this.surfaceMaterial()
     }
 
     // Rebuild corona (size/color may have changed)

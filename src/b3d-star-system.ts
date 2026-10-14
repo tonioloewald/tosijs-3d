@@ -196,6 +196,7 @@ import { generateStarSystem, type StarSystemData } from './galaxy-data.js'
 import { voxelGalaxy } from './voxel-galaxy.js'
 import { PerlinNoise } from './perlin-noise.js'
 import { b3dPlanet } from './b3d-planet.js'
+import { createStarMaterial } from './star-material.js'
 import { rockyWorldFor } from './rocky-world.js'
 import {
   layoutSystem,
@@ -518,13 +519,12 @@ export class B3dStarSystem extends B3dChild {
     vertexData.colors = colors
     vertexData.applyToMesh(starMesh, true)
 
-    const starMat = new BABYLON.StandardMaterial('system-star-mat', scene)
-    starMat.disableLighting = true
-    starMat.emissiveColor = new BABYLON.Color3(cr * glow, cg * glow, cb * glow)
-    starMat.diffuseColor = BABYLON.Color3.Black()
-    starMat.specularColor = BABYLON.Color3.Black()
-    starMat.backFaceCulling = false
-    starMesh.material = starMat
+    // Limb darkening and granulation (star-material): a flat emissive
+    // colour read as a white ball.
+    starMesh.material = createStarMaterial(scene, {
+      rgb: [cr, cg, cb],
+      seed: 1 + (Math.abs(star.seed) % 97),
+    })
     starMesh.parent = this.rootNode
     this.starMesh = starMesh
 
@@ -669,7 +669,9 @@ export class B3dStarSystem extends B3dChild {
         const moonEl = b3dPlanet({
           seed: 1 + (moon.seed % 9973),
           radius: moon.visualRadius,
-          subdivisions: 24,
+          // Fine enough that a crater's rim is a curve, not a ridge along
+          // the triangles (it drew lines across Ceres at 16).
+          subdivisions: 40,
           biome: 'on',
           // A giant's moons are a mixed family (Io, Titan, cratered ice);
           // a rock's moon is a smaller rock.
@@ -821,7 +823,7 @@ export class B3dStarSystem extends B3dChild {
       const rockEl = b3dPlanet({
         seed: 1 + (rock.seed % 9973),
         radius: rock.visualRadius,
-        subdivisions: 16,
+        subdivisions: 40,
         biome: 'on',
         world: 'moon',
       }) as any
