@@ -190,8 +190,14 @@ float pcField(vec3 d){
   float f=wa*pcF(d,(a-0.5)*T)+wb*pcF(d,(b-0.5)*T);
   return 0.5+(f-0.5)/sqrt(wa*wa+wb*wb);
 }
+// THE THRESHOLD the coverage dial slides: 0 is clear, 1 is mostly cloud
+// with breaks, and on past 1 the breaks close, until 3 is a solid deck
+// (Venus). It used to stop at 1, which still left holes.
+float pcTh(){
+  return 0.74-0.44*clamp(pcK.x,0.0,1.0)-0.25*clamp(pcK.x-1.0,0.0,2.0);
+}
 float pcCut(float f){
-  float th=mix(0.74,0.3,clamp(pcK.x,0.0,1.0));
+  float th=pcTh();
   return smoothstep(th-0.05,th+0.1,f);
 }
 void main(){
@@ -211,7 +217,7 @@ void main(){
   float toward=pcField(normalize(d+t*0.010));
   float relief=clamp(0.5+(f-toward)*9.0,0.0,1.0);
   // Thick cloud is bright on top; thin cloud is a grey veil.
-  float body=mix(0.84,1.0,smoothstep(0.0,0.25,f-mix(0.74,0.3,clamp(pcK.x,0.0,1.0))));
+  float body=mix(0.84,1.0,smoothstep(0.0,0.25,f-pcTh()));
   // Where the sun reaches the GROUND through cloud: the same field, further
   // toward the sun.
   float sh=pcCut(pcField(normalize(d+t*0.035)))*smoothstep(-0.05,0.25,nl)*pcK.w;
@@ -225,7 +231,7 @@ void main(){
   // black holes punched in the planet.
   // Deep cloud shows its relief hardest: a storm's core is all cloud top,
   // and with nothing but white there it read as a paper disc.
-  float deep=smoothstep(0.1,0.45,f-mix(0.74,0.3,clamp(pcK.x,0.0,1.0)));
+  float deep=smoothstep(0.1,0.45,f-pcTh());
   vec3 rgb=pcColor*(lit*1.3*body*mix(mix(0.78,0.6,deep),1.12,relief)+0.07)*c;
   // Down the eye wall the cloud falls away from the light: shade it, so the
   // eye reads as the bottom of a funnel and not a hole in a white plate.

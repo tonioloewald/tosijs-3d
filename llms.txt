@@ -371,7 +371,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/rocket-ascent/ — Rocket Ascent
   through the cloud deck, and keeps going until the air runs out and the stars
 - https://3d.tosijs.net/rocky-world/ — rocky-world
-  an Earth, each a sea, an air, clouds, relief, craters and a climate.
+  Io, Titan and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
 - https://3d.tosijs.net/scatter/ — scatter

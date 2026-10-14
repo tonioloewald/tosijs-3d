@@ -2905,19 +2905,39 @@
         "description": "`#rrggbb`. Blank = the gas giant preset's, else a pale tan"
       },
       {
-        "name": "world"
+        "name": "world",
+        "default": "''",
+        "description": "A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet"
       },
       {
-        "name": "craters"
+        "name": "craters",
+        "default": "0",
+        "description": "How cratered, `0…1` (see landform's `sphereCraters`)"
       },
       {
-        "name": "craterSize"
+        "name": "seaShallow",
+        "default": "''",
+        "description": "The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)"
       },
       {
-        "name": "craterWear"
+        "name": "seaDeep",
+        "default": "''",
+        "description": "The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)"
       },
       {
-        "name": "craterAsymmetry"
+        "name": "craterSize",
+        "default": "0.15",
+        "description": "The largest crater's radius, a fraction of the planet's"
+      },
+      {
+        "name": "craterWear",
+        "default": "0.6",
+        "description": "How worn the old craters are, `0…1`"
+      },
+      {
+        "name": "craterAsymmetry",
+        "default": "0",
+        "description": "More craters on the planet's local +Z side, `-1…1` (a locked moon's leading side)"
       },
       {
         "name": "seed",
@@ -2968,7 +2988,7 @@
       {
         "name": "clouds",
         "default": "0",
-        "description": "(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
+        "description": "(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
       },
       {
         "name": "cloudColor",
@@ -5333,6 +5353,10 @@
       {
         "name": "detailAmplitude",
         "default": "Relief, in the planet's own units (its radius is 50 in the demos)"
+      },
+      {
+        "name": "sea",
+        "default": "{ shallow, deep }"
       }
     ]
   },

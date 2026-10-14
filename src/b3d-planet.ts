@@ -61,7 +61,7 @@ const scene = b3d(
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
-      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -113,7 +113,17 @@ preview.append(
   div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
-for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude', 'world']) {
+// Choosing a world sets the dials to its numbers (the planet writes the
+// same ones into itself), and they are yours to move from there.
+demo.world.observe(() => {
+  const look = ROCKY_WORLDS[demo.world.value]
+  if (look) Object.assign(demo, { grossAmplitude: look.grossAmplitude, detailAmplitude: look.detailAmplitude, atmosphere: look.atmosphere, clouds: look.clouds, ocean: look.ocean })
+  // Written straight away: a bound attribute arrives a frame later, after
+  // this rebuild.
+  planet.world = demo.world.value
+  planet.regenerate()
+})
+for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude']) {
   demo[key].observe(() => {
     planet.regenerate()
   })
@@ -158,6 +168,12 @@ tosi-b3d {
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
+| `world` | `''` | A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet |
+| `craters` | `0` | How cratered, `0…1` (see landform's `sphereCraters`) |
+| `seaShallow` / `seaDeep` | `''` | The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's) |
+| `craterSize` | `0.15` | The largest crater's radius, a fraction of the planet's |
+| `craterWear` | `0.6` | How worn the old craters are, `0…1` |
+| `craterAsymmetry` | `0` | More craters on the planet's local +Z side, `-1…1` (a locked moon's leading side) |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
@@ -173,7 +189,7 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
-| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
+| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
@@ -270,13 +286,17 @@ export class B3dPlanet extends B3dChild {
     ringOpacity: -1,
     ringColor: '',
     // A ROCKY WORLD's look (rocky-world): 'moon', 'mercury', 'mars',
-    // 'venus', 'earth'. It decides the sea, air, clouds, relief, craters and
-    // climate; '' leaves them to the attributes.
+    // 'venus', 'earth'. A preset: choosing one writes its sea, air, clouds,
+    // relief, craters and climate into this planet's own settings, which
+    // are then yours to tune.
     world: '',
     // Craters (when no `world` decides them): density 0…1, the largest's
     // radius as a fraction of the planet's, wear, and how many more fall
     // on the local +Z side (-1…1).
     craters: 0,
+    // The sea's colour, shallow and deep ('' = an Earth's).
+    seaShallow: '',
+    seaDeep: '',
     craterSize: 0.15,
     craterWear: 0.6,
     craterAsymmetry: 0,
@@ -435,6 +455,7 @@ export class B3dPlanet extends B3dChild {
     const attrs = this as any
     const radius: number = attrs.radius
     const subs: number = attrs.subdivisions
+    this._applyWorld()
     this._makeCraters()
     if (attrs.gas) {
       /*
@@ -587,8 +608,13 @@ export class B3dPlanet extends B3dChild {
       if (!attrs.colorMap && !isOff(attrs.biome)) {
         const made = createPlanetBiome(this.owner.scene, {
           // The classifier's coastline is the sea's own level.
-          seaRadius: hasSea ? radius + seaAt : 0.001,
-          lapseRate: 0.06,
+          // With no sea, the planet's own radius: the classifier's sizes
+          // are scaled by it (a datum at 0.001 put its noise out past
+          // float precision: grids of lines on Io, Mars drained of colour).
+          seaRadius: hasSea ? radius + seaAt : radius,
+          // No sea, no datum to cool with height from (the ground is held
+          // far above any sea, see planet-surface-material).
+          lapseRate: hasSea ? 0.06 : 1e-7, // (0 reads as unset: the default lapse)
           tNoiseScale: 0.05,
           /*
           Moisture varies in broad regions and by a lot: about three across
@@ -620,6 +646,9 @@ export class B3dPlanet extends B3dChild {
         */
         if (this._biomeParams != null) {
           this._biomeParams.seaRadius = made.plugin.params.seaRadius
+          // The lapse follows the sea (none on a dry world): kept from an
+          // earlier build with a sea, it froze every dry world chosen after.
+          this._biomeParams.lapseRate = made.plugin.params.lapseRate
           this._biomeParams.moistureDryHeight =
             made.plugin.params.moistureDryHeight
           made.plugin.params = this._biomeParams
@@ -633,6 +662,13 @@ export class B3dPlanet extends B3dChild {
           this._climateOf = attrs.world
           if (climate) Object.assign(made.plugin.params, climate)
         }
+        // A world's own ground colours (Io's sulfur): one row of four for
+        // every moisture row. The plugin is new each build, so every time.
+        const palette = this._look()?.palette
+        if (palette) {
+          made.plugin.palette = Array.from({ length: 5 }, () => palette.a).flat() as any
+          made.plugin.paletteB = Array.from({ length: 5 }, () => palette.b).flat() as any
+        }
       }
       const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
         biome: this.biomePlugin ?? undefined,
@@ -643,6 +679,10 @@ export class B3dPlanet extends B3dChild {
         glint: attrs.seaGlint,
         seaIce: attrs.seaIce,
         inlandWater: !isOff(attrs.inlandWater) && attrs.inlandWater != null,
+        water:
+          /^#[0-9a-f]{6}/i.test(attrs.seaShallow) && /^#[0-9a-f]{6}/i.test(attrs.seaDeep)
+            ? { shallow: gasGiantRgb(attrs.seaShallow.slice(0, 7)), deep: gasGiantRgb(attrs.seaDeep.slice(0, 7)) }
+            : undefined,
         seed: 1 + (Math.abs(attrs.seed) % 83),
         /*
         The detail noise CARRIED ON past what the mesh can hold: heightAt
@@ -907,7 +947,7 @@ export class B3dPlanet extends B3dChild {
       this.rootNode,
       attrs.radius + Math.max(0, this._maxHeight()) + lift * attrs.radius,
       {
-        coverage: Math.min(1, this._val('clouds')),
+        coverage: Math.min(3, this._val('clouds')),
         color,
         speed: attrs.cloudSpeed,
         seed: 1 + (Math.abs(attrs.seed) % 89),
@@ -1108,10 +1148,41 @@ export class B3dPlanet extends B3dChild {
       : look
   }
 
-  /** A setting the world's look decides when there is one, else the attribute. */
+  /** A look setting: the attribute (a `world` writes its own in once). */
   private _val(key: keyof RockyWorldLook & string): any {
+    return (this as any)[key]
+  }
+
+  /** Which world's look was last written into the attributes. */
+  private _worldOf = ''
+
+  /*
+  A WORLD IS A PRESET, written into the planet's own attributes when it
+  changes, and theirs to tune after that: a slider still moves the clouds on
+  a Venus. (It used to win over them every build, which left every dial dead
+  once a world was chosen.)
+  */
+  private _applyWorld() {
+    const attrs = this as any
+    if (attrs.world === this._worldOf) return
+    this._worldOf = attrs.world
     const look = this._look()
-    return look != null && key in look ? (look as any)[key] : (this as any)[key]
+    if (look == null) return
+    Object.assign(this, {
+      ocean: look.ocean,
+      atmosphere: look.atmosphere,
+      atmosphereColor: look.atmosphereColor,
+      clouds: look.clouds,
+      cloudColor: look.cloudColor,
+      grossAmplitude: look.grossAmplitude,
+      detailAmplitude: look.detailAmplitude,
+      craters: look.craters.density,
+      craterSize: look.craters.size,
+      craterWear: look.craters.wear,
+      craterAsymmetry: look.craters.asymmetry,
+      seaShallow: look.sea?.shallow ?? '',
+      seaDeep: look.sea?.deep ?? '',
+    })
   }
 
   /** The craters' height function for this build, or null for none. */
@@ -1121,15 +1192,12 @@ export class B3dPlanet extends B3dChild {
 
   private _makeCraters() {
     const attrs = this as any
-    const look = this._look()
-    const c = look
-      ? look.craters
-      : {
-          density: attrs.craters,
-          size: attrs.craterSize,
-          wear: attrs.craterWear,
-          asymmetry: attrs.craterAsymmetry,
-        }
+    const c = {
+      density: attrs.craters,
+      size: attrs.craterSize,
+      wear: attrs.craterWear,
+      asymmetry: attrs.craterAsymmetry,
+    }
     this._craters =
       c.density > 0
         ? sphereCraters({

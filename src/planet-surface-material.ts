@@ -105,6 +105,8 @@ uniform vec3 psEye;
 uniform vec4 psK;
 uniform vec4 psSea;
 uniform float psLakes;
+uniform vec3 psWaterS;
+uniform vec3 psWaterD;
 uniform vec2 psFine;
 uniform mat4 world;
 ${biomeDecl}
@@ -137,7 +139,10 @@ void main(){
   // Outside any branch: a derivative taken inside one is undefined.
   vec3 hfC=biomePlanet.xyz;
   vec3 hfUp=normalize(vWorld-hfC);
-  vec3 hfPos=hfC+hfUp*(biomePlanet.w+hgt);
+  // A WORLD WITH NO SEA has nothing under water: its crater floors dip
+  // below the zero height, and read as sea bed (a flat dark patch) until
+  // the classifier is told the ground is all far above any sea.
+  vec3 hfPos=hfC+hfUp*(biomePlanet.w+hgt+(psSea.x>0.5?0.0:biomePlanet.w*0.25));
   // The SLOPE is the mesh's heights alone. The fine octaves are small and
   // quick, so their slope is steep everywhere: read for steepness, they
   // turned the whole land to cliff.
@@ -196,7 +201,7 @@ void main(){
 
   // --- water --------------------------------------------------------------
   float depth=clamp(-hgt/max(psK.y,1e-4),0.0,1.0);
-  vec3 water=mix(vec3(0.09,0.42,0.5),vec3(0.012,0.06,0.2),1.0-exp(-depth*3.2));
+  vec3 water=mix(psWaterS,psWaterD,1.0-exp(-depth*3.2));
   // With a colour map the map's own sea colour is the truth; deepen it only.
   if(psK.w>0.5)water=land*mix(1.0,0.82,depth);
   ${
@@ -271,6 +276,8 @@ export interface PlanetSurfaceOptions {
    * For a made-up world; a mapped one's heights are the truth.
    */
   fine?: { scale: number; amplitude: number }
+  /** The sea's colour in the shallows and the deep, linear RGB 0…1. */
+  water?: { shallow: number[]; deep: number[] }
   seed?: number
   /**
    * Classify the land with the BIOME SHADER (the plugin from
@@ -305,6 +312,8 @@ export function createPlanetSurfaceMaterial(
         'psK',
         'psSea',
         'psLakes',
+        'psWaterS',
+        'psWaterD',
         'psFine',
         ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
@@ -362,6 +371,12 @@ export function createPlanetSurfaceMaterial(
       options.colorUrl ? 1 : 0
     )
   )
+  // The sea's colour, shallow to deep: an Earth's by default, a methane
+  // sea's (Titan) or any other when given.
+  const ws = options.water?.shallow ?? [0.09, 0.42, 0.5]
+  const wd = options.water?.deep ?? [0.012, 0.06, 0.2]
+  mat.setVector3('psWaterS', new BABYLON.Vector3(ws[0], ws[1], ws[2]))
+  mat.setVector3('psWaterD', new BABYLON.Vector3(wd[0], wd[1], wd[2]))
   const light = new BABYLON.Vector4(0, 1, 0, 0)
   const fine = new BABYLON.Vector2(
     options.fine?.scale ?? 0,

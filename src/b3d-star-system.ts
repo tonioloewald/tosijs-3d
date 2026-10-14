@@ -599,7 +599,13 @@ export class B3dStarSystem extends B3dChild {
             radius: moon.visualRadius,
             subdivisions: 24,
             biome: 'on',
-            world: planet.insolation > 1.6 ? 'mercury' : 'moon',
+            // A giant's moons are a mixed family (Io, Titan, cratered ice);
+            // a rock's moon is a smaller rock.
+            world: giant
+              ? ['moon', 'io', 'titan', 'moon'][moon.seed % 4]
+              : planet.insolation > 1.6
+              ? 'mercury'
+              : 'moon',
           }) as any,
           at,
           `${planet.name} ${'abcdefgh'[m]}`,
