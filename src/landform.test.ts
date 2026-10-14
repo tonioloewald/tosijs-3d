@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import {
+  sphereCraters,
   volcano,
   impactCrater,
   pad,
@@ -520,7 +521,6 @@ describe('craterField — a cratered surface (board #2442)', () => {
 })
 
 describe('sphereCraters', () => {
-  const { sphereCraters } = require('./landform.js')
   // Points spread over the sphere (a Fibonacci spiral).
   const points = (n: number) =>
     Array.from({ length: n }, (_, i) => {
