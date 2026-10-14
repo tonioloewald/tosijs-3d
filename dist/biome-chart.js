@@ -201,7 +201,13 @@ export function mantaAxes(worldY, cfg, tNoise = 0, mNoise = 0) {
     // zero, cold regions grow polar ice naturally.
     const g = clamp01(cfg.mapMoisture / 0.25);
     const mGate = g * g * (3 - 2 * g);
-    const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75;
+    // Height dries the land. The gate above reads the SCENE's moisture, not
+    // this: a dry summit still belongs to a world with seas.
+    const dryH = cfg.moistureDryHeight ?? 0;
+    const eff = dryH > 0
+        ? cfg.mapMoisture * Math.exp(-Math.max(altitude, 0) / dryH)
+        : cfg.mapMoisture;
+    const landM = clamp01(eff + mNoise * mGate) * 0.75;
     // The gate also owns the OCEAN: airless worlds have no sea, so "underwater"
     // saturation itself fades out — below sea level is just lower dead land.
     const moisture = underwater ? landM + (1 - landM) * mGate : landM;
@@ -221,7 +227,9 @@ export function latitudeTemperature(latitude, equatorTemp, temperateTemp, poleTe
 /** Planetary front-end: radial altitude, asin latitude from 3D position, the
  * three-point latitude temperature curve. `latWarpNoise` domain-warps
  * latitude BEFORE the temperature calc (gulf-stream wobble). */
-export function planetaryAxes(p, cfg, tNoise = 0, mNoise = 0, latWarpNoise = 0) {
+export function planetaryAxes(p, cfg, tNoise = 0, mNoise = 0, latWarpNoise = 0, 
+/** Rain shadow: added to the map moisture (wet windward, dry leeward). */
+rain = 0) {
     const r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
     const altitude = r - cfg.seaLevel; // RADIAL — the planet's worldY − seaLevel
     const latitude = r > 0 ? Math.asin(p.y / r) : 0;
@@ -233,7 +241,11 @@ export function planetaryAxes(p, cfg, tNoise = 0, mNoise = 0, latWarpNoise = 0) 
     const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
     const g = clamp01(cfg.mapMoisture / 0.25);
     const mGate = g * g * (3 - 2 * g);
-    const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75;
+    // Height dries the land, as in mantaAxes; then the rain shadow.
+    const dryH = cfg.moistureDryHeight ?? 0;
+    const dry = dryH > 0 ? Math.exp(-Math.max(altitude, 0) / dryH) : 1;
+    const eff = clamp01(cfg.mapMoisture * dry + rain);
+    const landM = clamp01(eff + mNoise * mGate) * 0.75;
     const moisture = underwater ? landM + (1 - landM) * mGate : landM;
     return { temperature, moisture, latitude };
 }

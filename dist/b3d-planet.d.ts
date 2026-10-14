@@ -1,6 +1,6 @@
 import { B3dChild } from './b3d-utils.js';
-import { BiomePlugin } from './biome-plugin.js';
-import type { PlanetSurface } from './sphere-map.js';
+import type { BiomePlugin } from './biome-plugin.js';
+import { type PlanetSurface } from './sphere-map.js';
 import { type PlanetStorm } from './planet-clouds.js';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d.js';
@@ -19,6 +19,9 @@ export declare class B3dPlanet extends B3dChild {
         colorMap: string;
         bodyRadiusKm: number;
         flatSea: "on" | "off";
+        seaGlint: number;
+        seaIce: number;
+        inlandWater: "on" | "off";
         relief: number;
         bands: number;
         turbulence: number;
@@ -73,6 +76,9 @@ export declare class B3dPlanet extends B3dChild {
     private cloudMesh;
     /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
     biomePlugin: BiomePlugin | null;
+    /** The undrawn material the biome plugin lives on (planet-surface-material). */
+    private _biomeHost;
+    private _biomeParams;
     private ringMesh;
     /** The node everything of this planet hangs from: move it to place the planet. */
     rootNode: BABYLON.TransformNode | null;
@@ -82,9 +88,18 @@ export declare class B3dPlanet extends B3dChild {
     content: () => string;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
+    /**
+     * A globe OF a ground (a `surface` that carries its climate) is coloured
+     * as that ground is: the same settings in the globe's units, and the same
+     * colours, copied each frame so the ground's dials move the globe.
+     */
+    private _followGroundClimate;
     private update;
     private buildPlanet;
     private _heightMapLoaded;
+    /** The sea the mesh was built with: it is IN the mesh, so a change rebuilds. */
+    private _builtSea;
+    private _seaKey;
     private _surfaceFromMap;
     /**
      * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
@@ -104,6 +119,10 @@ export declare class B3dPlanet extends B3dChild {
      * glow at the limb.
      */
     private buildClouds;
+    /**
+     * There is no sea sphere: the one-mesh planet draws its own sea (see
+     * buildPlanet). Kept as a named step so the build order still reads.
+     */
     private buildOcean;
     private buildRings;
     private heightAt;

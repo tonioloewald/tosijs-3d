@@ -15,7 +15,7 @@ describe('climate noise', () => {
     expect(lattice.length).toBe(CLIMATE_CELLS * CLIMATE_CELLS)
   })
 
-  test('at a lattice point an octave is that point\'s byte', () => {
+  test("at a lattice point an octave is that point's byte", () => {
     expect(climateOctave(lattice, 5, 9)).toBeCloseTo(
       (lattice[9 * CLIMATE_CELLS + 5] / 255) * 2 - 1,
       10

@@ -10,6 +10,24 @@ export interface BiomeParams {
     tNoiseAmp: number;
     mNoiseScale: number;
     mNoiseAmp: number;
+    /**
+     * Where the scene's origin is in the world (flat ground). The climate noise
+     * is read at world position plus this, so regions stay where they are when
+     * a floating origin moves everything. The terrain keeps it up to date.
+     */
+    worldOffsetX: number;
+    worldOffsetZ: number;
+    /**
+     * A SHEET: flat ground wrapped round a planet of this radius (m), its
+     * origin at `sheetU`, `sheetV` of a turn (the terrain's `radius`, `worldU`,
+     * `worldV` in `surfaceType="sphere"`, which sets these). The climate is
+     * then the planetary one, read at the point of the sphere each piece of
+     * ground is, and the lengths below (`lapseRate`, the noise scales,
+     * `moistureDryHeight`) are in metres. `0`: not a sheet.
+     */
+    sheetRadius: number;
+    sheetU: number;
+    sheetV: number;
     /** High-frequency single-octave dither on the crossfade inputs. */
     ditherScale: number;
     ditherAmp: number;
@@ -283,6 +301,35 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
         [pointName: string]: string;
     } | null;
 }
+/**
+ * THE CLIMATE AT A PLACE ON THE GROUND, as the shader works it out: the two
+ * chart axes for a spot at world `x`, `z` (scene position plus the terrain's
+ * `originOffset`) and height `y`. On a sheet (`sheetRadius`) that is the
+ * planet's climate at that point of the sphere; otherwise the flat one. The
+ * decorator places by it, so what grows agrees with how the ground is drawn.
+ *
+ * The slope's share of the rain shadow is left out (a caller here has no
+ * normal), and the seasons; with the noise computed in the shader instead of
+ * read from the block (`setBiomeComputedNoise`, or no 3D textures) a sheet's
+ * noise differs.
+ */
+export declare function groundClimateAt(p: BiomeParams, x: number, y: number, z: number): {
+    temperature: number;
+    moisture: number;
+};
+/**
+ * The climate noise at a world position on flat ground, as the shader reads
+ * it: what to add to temperature (chart units) and to map moisture. Pass the
+ * results to `mantaAxes` as its `tNoise` and `mNoise`.
+ */
+export declare function climateNoiseAt(params: Pick<BiomeParams, 'tNoiseScale' | 'tNoiseAmp' | 'mNoiseScale' | 'mNoiseAmp'>, x: number, z: number): {
+    temperature: number;
+    moisture: number;
+};
+/** The scene's climate lattice as a texture, made on first use. */
+export declare function climateTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture;
+/** The scene's one noise block, made on first use. */
+export declare function noiseTextureOf(scene: BABYLON.Scene): BABYLON.RawTexture3D;
 /**
  * Have every biome material in a scene compute its fine noise in the shader
  * (`true`) or read it from the noise texture (`false`, the default).

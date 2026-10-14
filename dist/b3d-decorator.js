@@ -94,7 +94,7 @@ import { B3dChild, fetchedUrl, isOff, publicName } from './b3d-utils.js';
 import { assetUrl } from './asset-url.js';
 import { resolveBudget } from './b3d-quality.js';
 import { mantaAxes } from './biome-chart.js';
-import { attachBiomePlugin } from './biome-plugin.js';
+import { attachBiomePlugin, groundClimateAt, } from './biome-plugin.js';
 import { rockFromName, rockGeometry } from './procedural-rock.js';
 import { isDefaultLibrary, scatterPlacements, NearIndex, seatDip, pruneScatterCache, NATURE_KIT_RULES, NATURE_RULES, NATURE_ROLES, roleFor, } from './scatter.js';
 /*
@@ -330,7 +330,24 @@ export class B3dDecorator extends B3dChild {
             terrain?.generationKey ?? '',
             terrain?.provinceField != null ? 'province' : '',
             p
-                ? [p.seaLevel, p.baseTemperature, p.lapseRate, p.mapMoisture].join(',')
+                ? [
+                    p.seaLevel,
+                    p.baseTemperature,
+                    p.lapseRate,
+                    p.mapMoisture,
+                    p.tNoiseScale,
+                    p.tNoiseAmp,
+                    p.mNoiseScale,
+                    p.mNoiseAmp,
+                    p.moistureDryHeight,
+                    p.sheetRadius,
+                    p.sheetU,
+                    p.sheetV,
+                    p.equatorTemp,
+                    p.temperateTemp,
+                    p.poleTemp,
+                    p.rainShadow,
+                ].join(',')
                 : '',
         ].join('|');
     }
@@ -579,6 +596,7 @@ export class B3dDecorator extends B3dChild {
             lapseRate: 0.004,
             mapMoisture: 0.5,
         };
+        const noisy = terrain.biomePlugin != null;
         // The cache holds GROUND only, so it is stale only when the terrain is.
         const groundKey = String(terrain?.generationKey ?? '');
         if (groundKey !== this._cacheKey) {
@@ -601,8 +619,13 @@ export class B3dDecorator extends B3dChild {
             center: here,
             radius: this.radius,
             height,
-            climate: (_x, _z, y) => {
-                const { temperature, moisture } = mantaAxes(y, cfg);
+            climate: (x, z, y) => {
+                // The climate the ground is drawn with (its regions, and on a
+                // sphere world its latitude), so the forest stands where the
+                // ground is green.
+                const { temperature, moisture } = noisy
+                    ? groundClimateAt(cfg, x, y, z)
+                    : mantaAxes(y, cfg);
                 return {
                     temperature,
                     moisture,

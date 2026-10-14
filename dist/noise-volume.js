@@ -76,4 +76,45 @@ export function noiseVolume(size = 64, cells = 16, seed = 1, gain = 1.3) {
     }
     return out;
 }
+/**
+ * `cells`³ bytes of VALUE noise: one random value at each lattice point and
+ * nothing between, wrapped, so it tiles. A shader eases the fraction and lets
+ * the linear filter do the interpolation, which gives exactly the noise the
+ * eight-hashed-corners arithmetic computes, from one read (`noise-texture`).
+ */
+export function latticeVolume(cells = 64, seed = 1) {
+    let state = seed >>> 0 || 1;
+    const out = new Uint8Array(cells * cells * cells);
+    for (let i = 0; i < out.length; i++) {
+        state ^= state << 13;
+        state >>>= 0;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        state >>>= 0;
+        out[i] = state >>> 24;
+    }
+    return out;
+}
+/**
+ * Read a `noiseVolume` block in code the way the biome shader reads it as a
+ * texture (four texels a lattice cell, the fraction eased, linear between
+ * texels, wrapping): about -1…1. So a climate drawn from the block can be
+ * worked out away from the GPU, by the decorator for one.
+ */
+export function sampleNoiseVolume(volume, size, x, y, z) {
+    const axis = (p) => {
+        const uv = p * 4 + 0.5;
+        const i = Math.floor(uv);
+        const f = uv - i;
+        const lo = (((i - 1) % size) + size) % size;
+        return [lo, (lo + 1) % size, f * f * (3 - 2 * f)];
+    };
+    const [x0, x1, wx] = axis(x);
+    const [y0, y1, wy] = axis(y);
+    const [z0, z1, wz] = axis(z);
+    const at = (ix, iy, iz) => volume[ix + size * (iy + size * iz)];
+    const mix = (a, b, t) => a + (b - a) * t;
+    const value = mix(mix(mix(at(x0, y0, z0), at(x1, y0, z0), wx), mix(at(x0, y1, z0), at(x1, y1, z0), wx), wy), mix(mix(at(x0, y0, z1), at(x1, y0, z1), wx), mix(at(x0, y1, z1), at(x1, y1, z1), wx), wy), wz);
+    return (value / 255) * 2 - 1;
+}
 //# sourceMappingURL=noise-volume.js.map

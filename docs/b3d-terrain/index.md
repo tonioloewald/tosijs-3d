@@ -284,7 +284,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
 | `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
-| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
+| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest)**. Land sits on the chart at three quarters of this (the top row is the sea's), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
 | `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
 | `biomeSeasonality` | `0` | How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE |

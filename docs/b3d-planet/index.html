@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9d3a03170327" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=a9c4a8c27974" data-tosi-doc-system />
   <title>b3d-planet — tosijs-3d</title>
   <meta name="description" content="Procedural planet mesh using a subdivided cube projected onto a sphere. Height displacement from 3D Perlin noise (gross + detail layers) with gradient filters…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-planet/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=69f009bc448f" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=160cfa198378" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-planet">b3d-planet</h1>
 <p>Procedural planet mesh using a subdivided cube projected onto a sphere.
@@ -79,7 +79,7 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () =&gt; [
       label3d({ text: &#39;Planet&#39; }),
-      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.001, max: 0.05, scale: &#39;log&#39; }),
+      slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.001, max: 0.1, scale: &#39;log&#39; }),
       slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.005, max: 0.1, scale: &#39;log&#39; }),
       slider3d({ label: &#39;gross amp&#39;, value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: &#39;detail amp&#39;, value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
@@ -102,6 +102,7 @@ const scene = b3d(
               bind(&#39;temperate temp&#39;, &#39;temperateTemp&#39;, 0, 1, 0.01),
               bind(&#39;pole temp&#39;, &#39;poleTemp&#39;, 0, 1, 0.01),
               bind(&#39;moisture&#39;, &#39;mapMoisture&#39;, 0, 1, 0.01),
+              bind(&#39;moisture variation&#39;, &#39;mNoiseAmp&#39;, 0, 1, 0.01),
               bind(&#39;rain shadow&#39;, &#39;rainShadow&#39;, 0, 0.6, 0.01),
               bind(&#39;volcanism&#39;, &#39;volcanism&#39;, 0, 1, 0.01),
             ]
@@ -202,7 +203,22 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
 <tr>
 <td><code>flatSea</code></td>
 <td><code>&#39;off&#39;</code></td>
-<td><code>&#39;on&#39;</code> fills everything below 0 m level, for a world whose colour map shows water (the Earth)</td>
+<td><code>&#39;on&#39;</code> says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth)</td>
+</tr>
+<tr>
+<td><code>seaGlint</code></td>
+<td><code>1</code></td>
+<td>The sun&#39;s glint on the sea, <code>0…1</code>: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move</td>
+</tr>
+<tr>
+<td><code>seaIce</code></td>
+<td><code>0</code></td>
+<td>Sea ice toward the poles, <code>0…1</code></td>
+</tr>
+<tr>
+<td><code>inlandWater</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> guesses LAKES from a <code>colorMap</code>: where the picture is blue, or nearly black (how NASA&#39;s Blue Marble paints deep lakes), it is drawn as water: the map&#39;s colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake</td>
 </tr>
 <tr>
 <td><code>relief</code></td>
@@ -282,7 +298,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
 <tr>
 <td><code>atmosphere</code></td>
 <td><code>0.08</code></td>
-<td>Atmosphere thickness (fraction of radius, 0=none)</td>
+<td>Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it</td>
 </tr>
 <tr>
 <td><code>clouds</code></td>
@@ -734,6 +750,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
+      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
     </ul>
     </details></li>
   </ul>
@@ -744,6 +761,6 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-vzjzb3qx.js"></script>
+  <script type="module" src="../hydrate-zsxgjpf3.js"></script>
 </body>
 </html>

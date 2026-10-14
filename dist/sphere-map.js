@@ -30,7 +30,9 @@ const terrain = b3dTerrain({
   grossScale: 0.0016, detailScale: 0.012, grossAmplitude: 320, detailAmplitude: 24,
   center: true,
 })
-const globe = b3dPlanet({ radius: 40, relief: 2, ocean: 0.5, atmosphere: 0.05, subdivisions: 96 })
+// biome: 'on' so the globe shades with the ground's own climate and colours;
+// flatSea because this world has a sea at 0 m (the water below).
+const globe = b3dPlanet({ radius: 40, relief: 2, flatSea: 'on', atmosphere: 0.05, subdivisions: 96, biome: 'on' })
 
 preview.append(
   b3d(
@@ -126,6 +128,40 @@ east-to-west toward the poles. It is exact at the equator and good across the
 middle latitudes; a pole is a line, not a point.
 */
 /*{ "parent": "space", "order": 60 }*/
+/** What is the same number on the globe; the rest are lengths, converted. */
+const CLIMATE_KEYS = [
+    'equatorTemp',
+    'temperateTemp',
+    'poleTemp',
+    'mapMoisture',
+    'tNoiseAmp',
+    'mNoiseAmp',
+    'latWarpAmp',
+    'rainShadow',
+    'windAzimuth',
+    'volcanism',
+    'volcanicScale',
+    'season',
+    'seasonality',
+];
+/**
+ * A ground climate (metres) as a globe of `globeRadius` units needs it, the
+ * globe's relief exaggerated `relief` times. Noise is read at the same place
+ * on both, so its scale is per unit of the globe; heights are stretched by
+ * the relief, so what is measured against height is too.
+ */
+export function climateForGlobe(climate, trueRadius, globeRadius, relief = 1) {
+    const metresPerUnit = trueRadius / globeRadius;
+    const out = {};
+    for (const key of CLIMATE_KEYS)
+        out[key] = climate[key];
+    out.tNoiseScale = climate.tNoiseScale * metresPerUnit;
+    out.mNoiseScale = climate.mNoiseScale * metresPerUnit;
+    out.latWarpScale = climate.latWarpScale * metresPerUnit;
+    out.lapseRate = (climate.lapseRate * metresPerUnit) / relief;
+    out.moistureDryHeight = (climate.moistureDryHeight * relief) / metresPerUnit;
+    return out;
+}
 const TWO_PI = Math.PI * 2;
 const wrap01 = (t) => t - Math.floor(t);
 /** Fractions of a turn (u east, v from the north pole down) to a unit vector. */

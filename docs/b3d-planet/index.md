@@ -50,7 +50,7 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () => [
       label3d({ text: 'Planet' }),
-      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.05, scale: 'log' }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.1, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),
       slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
@@ -73,6 +73,7 @@ const scene = b3d(
               bind('temperate temp', 'temperateTemp', 0, 1, 0.01),
               bind('pole temp', 'poleTemp', 0, 1, 0.01),
               bind('moisture', 'mapMoisture', 0, 1, 0.01),
+              bind('moisture variation', 'mNoiseAmp', 0, 1, 0.01),
               bind('rain shadow', 'rainShadow', 0, 0.6, 0.01),
               bind('volcanism', 'volcanism', 0, 1, 0.01),
             ]
@@ -147,7 +148,10 @@ tosi-b3d {
 | `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
 | `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
 | `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
-| `flatSea` | `'off'` | `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth) |
+| `flatSea` | `'off'` | `'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth) |
+| `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
+| `seaIce` | `0` | Sea ice toward the poles, `0…1` |
+| `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
@@ -163,7 +167,7 @@ tosi-b3d {
 | `detailScale` | `0.02` | Detail noise frequency |
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
-| `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
+| `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
 | `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |

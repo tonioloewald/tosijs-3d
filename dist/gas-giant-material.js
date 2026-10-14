@@ -23,6 +23,7 @@ planet, and tilting it tilts the bands.
 /*{ "parent": "gas-giant", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
 import { GAS_GIANT_GLSL, gasGiantRgb } from './gas-giant.js';
+import { sceneSeconds } from './b3d-utils.js';
 const NAME = 'b3dGasGiant';
 function registerShader() {
     const store = BABYLON.Effect.ShadersStore;
@@ -100,7 +101,7 @@ export function createGasGiantMaterial(scene, look, options = {}) {
         else
             sceneLight(scene, light);
         mat.setVector4('ggLight', light);
-        mat.setFloat('ggTime', performance.now() * 0.001 * spin);
+        mat.setFloat('ggTime', sceneSeconds(scene) * spin);
     };
     return mat;
 }

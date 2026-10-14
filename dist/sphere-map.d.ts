@@ -24,7 +24,46 @@ export interface PlanetSurface {
     seaLevel: number;
     /** Ground height in metres, in a direction from the centre (any length). */
     heightAt(direction: Vec3): number;
+    /**
+     * The ground's climate, in metres (a terrain's `biomePlugin.params`). A
+     * planet with `biome="on"` shades from it, so the globe is coloured as the
+     * ground is. Read every frame, so changing the ground changes the globe.
+     */
+    climate?: SurfaceClimate;
+    /** The ground's biome colours (the plugin's `palette` and `paletteB`), now. */
+    palettes?: () => {
+        palette: number[][];
+        paletteB: number[][];
+    };
 }
+/** The climate settings a globe takes from the ground it is a globe of. */
+export interface SurfaceClimate {
+    equatorTemp: number;
+    temperateTemp: number;
+    poleTemp: number;
+    lapseRate: number;
+    mapMoisture: number;
+    tNoiseScale: number;
+    tNoiseAmp: number;
+    mNoiseScale: number;
+    mNoiseAmp: number;
+    latWarpScale: number;
+    latWarpAmp: number;
+    moistureDryHeight: number;
+    rainShadow: number;
+    windAzimuth: number;
+    volcanism: number;
+    volcanicScale: number;
+    season: number;
+    seasonality: number;
+}
+/**
+ * A ground climate (metres) as a globe of `globeRadius` units needs it, the
+ * globe's relief exaggerated `relief` times. Noise is read at the same place
+ * on both, so its scale is per unit of the globe; heights are stretched by
+ * the relief, so what is measured against height is too.
+ */
+export declare function climateForGlobe(climate: SurfaceClimate, trueRadius: number, globeRadius: number, relief?: number): SurfaceClimate;
 /** Fractions of a turn (u east, v from the north pole down) to a unit vector. */
 export declare function uvToDirection(u: number, v: number): Vec3;
 /** A direction (any length) to fractions of a turn; `u` in 0…1, `v` in 0…1. */

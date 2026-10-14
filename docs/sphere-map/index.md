@@ -29,7 +29,9 @@ const terrain = b3dTerrain({
   grossScale: 0.0016, detailScale: 0.012, grossAmplitude: 320, detailAmplitude: 24,
   center: true,
 })
-const globe = b3dPlanet({ radius: 40, relief: 2, ocean: 0.5, atmosphere: 0.05, subdivisions: 96 })
+// biome: 'on' so the globe shades with the ground's own climate and colours;
+// flatSea because this world has a sea at 0 m (the water below).
+const globe = b3dPlanet({ radius: 40, relief: 2, flatSea: 'on', atmosphere: 0.05, subdivisions: 96, biome: 'on' })
 
 preview.append(
   b3d(

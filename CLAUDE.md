@@ -655,6 +655,11 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/biome-chart.ts` | **Two temperature scales, on purpose.** What an author sets (`biomeTemperature`, and what the ice rule reads) is a TEMPERATURE: 0 = 0 °C, a unit = 50 °C, unbounded. The chart, `BiomePlugin.params.baseTemperature`, province climate and scatter bands are CHART units (`0…1` = -22.5…40 °C, freezing at 0.36). `chartTemperature`/`planetTemperature` convert; the terrain converts on the way in. Mars, Io and Titan presets in Land and Sky still set a warm temperature to pick a palette row (marked as hacks) until each has its own palette. Pure biome-classification model (TERRAIN-SHADER-DESIGN.md): chart axes (Manta + planetary-stub front-ends), cell blend, slope + photic overrides; unit-tested |
 | `src/biome-plugin.ts` | `BiomePlugin`/`attachBiomePlugin` — the GLSL mirror as a MaterialPlugin (flat-colour chart, fBm axis noise, edgeDither, cliff mask, photic cutoff sharing water's fog curve) |
 | `src/b3d-planet.ts` | Procedural planet rendering |
+| `src/planet-surface-material.ts` | One mesh for land and sea: the vertex carries its true height, so each pixel knows if it is land (colour map, or rules by latitude/height/moisture) or water (shallows, deeps, sun glint) |
+| `src/planet-clouds.ts` | A planet's weather from orbit — a cloud shell read in 3D in the planet's frame (no pole, no seam), winds reversing with latitude, one coverage dial |
+| `src/planet-map.ts` | A real world from its maps: an equirectangular height (and colour) image → a `PlanetSurface` (NASA/NOAA Moon, Mars, Earth) |
+| `src/sphere-map.ts` | Where a place on a sphere-mode terrain is on the globe and back, as pure functions; `PlanetSurface`, `climateForGlobe` (a globe copies its ground's climate in its own units) |
+| `src/gas-giant.ts` / `src/gas-giant-material.ts` | Gas giant cloud tops as ONE shader function (bands, alternating winds, a storm) — the same code draws one in a moon's sky and one you orbit; the material lights itself |
 | `src/b3d-star.ts` / `b3d-star-system.ts` | Star and star system rendering |
 | `src/b3d-galaxy.ts` / `galaxy-data.ts` | Galaxy visualization |
 | `src/voxel-galaxy.ts` | The VOXEL galaxy (GALAXY-DESIGN.md) — density sampled from the spiral model (`sampleSpiral`) and propagated so every voxel is non-zero; each voxel derives a bright and a dim seed; `brightStars()` is the global pass, `dimStarsNear(point, r)` the local one the baker needs; stars addressed `population:voxel:n`. Pure, unit-tested (incl. the falsifier: it reproduces the sampled galaxy) |
@@ -732,6 +737,8 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/debug-sink.ts` | `debugSink.url` + `sendDebug(tag, event)`: a page posts its readings (sweep steps, Perf Stats lines, errors with stacks) to the dev server's `/__debug-sink`, which appends them to a JSONL file outside the repo. **How a headset's numbers reach an agent**: read the file, do not ask for them aloud |
 | `src/draw-order.ts` | Opaque meshes are drawn nearest first and the sky last, so a covered pixel is rejected by depth before its shader runs. Same picture; the saving is whatever was hidden |
 | `src/noise-volume.ts` | A tiling block of 3D gradient noise as bytes, for a shader to SAMPLE instead of compute (the ground shader's fine detail). Pure, seeded |
+| `src/noise-texture.ts` | Shader noise READ instead of computed: `noise-volume`'s byte lattice as a 3D texture, the shader eases the fraction and the linear filter blends the corners (`b3dVn`, `b3dVnFbm`) |
+| `src/climate-noise.ts` | The regional climate noise as a seeded 256² byte lattice the ground shader reads as a texture AND code evaluates (`climateNoise`), so the decorator puts the forest where the ground is drawn green |
 | `src/b3d-physics.ts` / `jolt-plugin.ts` | Jolt Physics integration layer |
 
 **Combat (shipped v0.4.0 — pure models bridged to Babylon, spec in `COMBAT-DESIGN.md`):**

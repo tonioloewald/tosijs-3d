@@ -1476,8 +1476,11 @@ export function climateNoiseAt(
 ): { temperature: number; moisture: number } {
   return {
     temperature:
-      climateNoise(sharedLattice, x * params.tNoiseScale, z * params.tNoiseScale) *
-      params.tNoiseAmp,
+      climateNoise(
+        sharedLattice,
+        x * params.tNoiseScale,
+        z * params.tNoiseScale
+      ) * params.tNoiseAmp,
     moisture:
       climateNoise(
         sharedLattice,

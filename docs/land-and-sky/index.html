@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9d3a03170327" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=a9c4a8c27974" data-tosi-doc-system />
   <title>Land and Sky — tosijs-3d</title>
   <meta name="description" content="THE KITCHEN SINK — one world that grows with the world-sim layer. Terrain (with live dials), a sea, weather over both, and the encoded sky behind." />
   <link rel="canonical" href="https://3d.tosijs.net/land-and-sky/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=69f009bc448f" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=160cfa198378" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="land-and-sky">Land and Sky</h1>
 <p><strong>THE KITCHEN SINK</strong> — one world that grows with the world-sim layer. Terrain
@@ -58,10 +58,12 @@ const { demo } = tosi({
     // CLIMATE, above water. Moisture is the one that matters most: the biome
     // chart&#39;s default 0.45 sits between the dry row (dune) and the medium
     // row (steppe), which is why a warm world with a coral reef below the
-    // waterline read as barren above it. 0.72 is the wet row — forest.
+    // waterline read as barren above it. Land sits on the chart&#39;s rows at
+    // three quarters of its moisture (the top row is the sea&#39;s), so forest
+    // wants nearly 1: 0.95, which height and the regions then dry in places.
     // TEMPERATURE: 0 is 0 °C and a unit is 50 °C, so this is 22.5 °C.
     temperature: 0.45,
-    moisture: 0.72,
+    moisture: 0.95,
     // Plates sized to THIS volcano (420 m). The plugin&#39;s 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,
@@ -81,6 +83,12 @@ const { demo } = tosi({
     // Is there a sea at all? A dry world (Mars, Venus) has none: no water
     // plane, and no shoreline or seafloor colours.
     sea: true,
+    // A SPHERE WORLD: the same ground laid on a planet of this radius, so
+    // latitude has a climate (cooler toward the poles, ice at them) and a
+    // globe built from the terrain shows the same places. Off, the ground
+    // is flat and the climate is the same everywhere but for its regions.
+    sphere: false,
+    planetRadius: 50, // km
     wireframe: false,
   },
 })
@@ -220,7 +228,7 @@ sky.world.observe(() =&gt; {
 // 300 times brighter than the full moon. So its disc shrinks for real (1 /
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
-  demo: [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;seaLevel&#39;, &#39;sea&#39;, &#39;waterColor&#39;, &#39;waterFog&#39;, &#39;waterTint&#39;, &#39;palette&#39;, &#39;volcano&#39;, &#39;volcanoes&#39;, &#39;craters&#39;, &#39;temperature&#39;, &#39;moisture&#39;, &#39;volcanicScale&#39;, &#39;season&#39;, &#39;seasonality&#39;],
+  demo: [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;seaLevel&#39;, &#39;sea&#39;, &#39;waterColor&#39;, &#39;waterFog&#39;, &#39;waterTint&#39;, &#39;palette&#39;, &#39;volcano&#39;, &#39;volcanoes&#39;, &#39;craters&#39;, &#39;temperature&#39;, &#39;moisture&#39;, &#39;volcanicScale&#39;, &#39;season&#39;, &#39;seasonality&#39;, &#39;sphere&#39;, &#39;planetRadius&#39;],
   sky: [&#39;coverage&#39;, &#39;altitude&#39;, &#39;timeOfDay&#39;, &#39;orographic&#39;, &#39;wind&#39;, &#39;cirrus&#39;, &#39;evolve&#39;, &#39;atmosphere&#39;, &#39;dust&#39;, &#39;turbidity&#39;, &#39;rayleigh&#39;, &#39;mieCoefficient&#39;, &#39;luminance&#39;, &#39;zenithTint&#39;, &#39;horizonTint&#39;, &#39;tintStrength&#39;, &#39;starSize&#39;, &#39;starGain&#39;, &#39;starFloor&#39;, &#39;twinkle&#39;, &#39;moons&#39;, &#39;moonAz&#39;, &#39;moonEl&#39;, &#39;deckColor&#39;, &#39;deckUnderColor&#39;, &#39;sunSize&#39;, &#39;sunBrightness&#39;, &#39;decoBudget&#39;, &#39;decoLife&#39;, &#39;stormX&#39;, &#39;stormZ&#39;, &#39;stormRadius&#39;, &#39;stormCoverage&#39;, &#39;lightningRate&#39;, &#39;stormRain&#39;,
     // LAST: switching the storm on builds it from the values above.
     &#39;storm&#39;],
@@ -455,8 +463,8 @@ let water
 const terrain = b3dTerrain({
   seed: demo.seed,
   biome: &#39;on&#39;,
-  surfaceType: &#39;cylinder&#39;,
-  radius: 1000,
+  surfaceType: demo.sphere.valueOf() ? &#39;sphere&#39; : &#39;cylinder&#39;,
+  radius: demo.sphere.valueOf() ? demo.planetRadius.valueOf() * 1000 : 1000,
   cylinderHeight: 1000,
   tileSize: 128,
   lodLevels: 3,
@@ -568,6 +576,10 @@ const scene = b3d(
       // The swing either side of the yearly mean. Stored in the biome chart&#39;s
       // units, where 1 spans 62.5 °C.
       slider3d({ label: &#39;season strength&#39;, value: demo.seasonality, min: 0, max: 0.6, step: 0.01, format: (v) =&gt; &#39;±&#39; + Math.round(v * 62.5) + &#39; °C&#39; }),
+      // Flat, or the same ground on a planet: you start at 45° north, and
+      // the pole is a quarter of the way round.
+      toggle3d({ label: &#39;sphere world&#39;, value: demo.sphere }),
+      slider3d({ label: &#39;planet radius&#39;, value: demo.planetRadius, min: 2, max: 6400, scale: &#39;log&#39;, format: (v) =&gt; Math.round(v) + &#39; km&#39; }),
       label3d({ text: &#39;Terrain&#39;, icon: &#39;terrain&#39;, collapsible: true }),
       slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.005, max: 0.3, scale: &#39;log&#39; }),
       slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.02, max: 1, scale: &#39;log&#39; }),
@@ -587,6 +599,10 @@ const scene = b3d(
       label3d({ text: &#39;Climate&#39;, icon: &#39;thermometer&#39;, collapsible: true }),
       slider3d({ label: &#39;temperature&#39;, value: demo.temperature, min: -1, max: 1, step: 0.02, format: (v) =&gt; Math.round(v * 50) + &#39; °C&#39; }),
       slider3d({ label: &#39;moisture&#39;, value: demo.moisture, min: 0, max: 1, step: 0.01 }),
+      // How much one region differs from the next, and how big a region is.
+      // Straight onto the shader&#39;s settings: the decorator reads the same ones.
+      slider3d({ label: &#39;moisture variation&#39;, value: terrain.biomePlugin?.params.mNoiseAmp ?? 0.5, min: 0, max: 1, step: 0.01, handleChange: (v) =&gt; { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseAmp = v } }),
+      slider3d({ label: &#39;region size&#39;, value: 0.001 / (terrain.biomePlugin?.params.mNoiseScale ?? 0.001), min: 0.1, max: 10, scale: &#39;log&#39;, format: (v) =&gt; v.toFixed(1) + &#39; km&#39;, handleChange: (v) =&gt; { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseScale = 0.001 / v } }),
       slider3d({ label: &#39;volcanic scale&#39;, value: demo.volcanicScale, min: 0.005, max: 0.15, scale: &#39;log&#39; }),
       label3d({ text: &#39;Weather&#39;, icon: &#39;cloud&#39;, collapsible: true }),
       // With the clouds it is made of, not under Terrain where it used to be.
@@ -673,6 +689,11 @@ const scene = b3d(
       // THE EYE IS PINNED: the slider means what it says.
       el.scene.registerBeforeRender(() =&gt; {
         cam.position.y = sky.eye.valueOf()
+        // In a headset the view is the XR camera on its rig, which took its
+        // height from this camera ONCE, on entry: the slider moved nothing.
+        // The rig is the floor, so it sits a nominal eye height lower.
+        const rig = el.xrFrames?.rig
+        if (rig != null) rig.position.y = Math.max(0, sky.eye.valueOf() - 1.6)
       })
     },
   },
@@ -718,6 +739,15 @@ const scene = b3d(
 )
 
 preview.append(scene)
+
+// Flat or a sphere: both are generation attributes, so the terrain rebuilds
+// itself on its next render.
+function applySurface() {
+  terrain.surfaceType = demo.sphere.valueOf() ? &#39;sphere&#39; : &#39;cylinder&#39;
+  terrain.radius = demo.sphere.valueOf() ? demo.planetRadius.valueOf() * 1000 : 1000
+}
+demo.sphere.observe(applySurface)
+demo.planetRadius.observe(applySurface)
 
 // Regenerate the terrain when its dials move, and keep the sea at the same
 // FRACTION of the terrain&#39;s height.
@@ -1162,6 +1192,7 @@ to populate — the same one a visitor just reshaped.</li>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
+      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
     </ul>
     </details></li>
   </ul>
@@ -1172,6 +1203,6 @@ to populate — the same one a visitor just reshaped.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-vzjzb3qx.js"></script>
+  <script type="module" src="../hydrate-zsxgjpf3.js"></script>
 </body>
 </html>

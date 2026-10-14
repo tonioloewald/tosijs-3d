@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.4 (unreleased)
+## 0.10.4
 
 ### Added
 
@@ -92,6 +92,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   the rim), the disc has spiral rainbands and shows its relief, and the eye
   is a shaded funnel with a hard inner edge where it was a hole in a white
   plate.
+
+Size: barrel (min, packages external) 1025.1 KB raw / 347.8 KB gz, +1.95% on 0.10.3.
 
 ## 0.10.3
 

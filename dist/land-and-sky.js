@@ -30,10 +30,12 @@ const { demo } = tosi({
     // CLIMATE, above water. Moisture is the one that matters most: the biome
     // chart's default 0.45 sits between the dry row (dune) and the medium
     // row (steppe), which is why a warm world with a coral reef below the
-    // waterline read as barren above it. 0.72 is the wet row — forest.
+    // waterline read as barren above it. Land sits on the chart's rows at
+    // three quarters of its moisture (the top row is the sea's), so forest
+    // wants nearly 1: 0.95, which height and the regions then dry in places.
     // TEMPERATURE: 0 is 0 °C and a unit is 50 °C, so this is 22.5 °C.
     temperature: 0.45,
-    moisture: 0.72,
+    moisture: 0.95,
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,
@@ -53,6 +55,12 @@ const { demo } = tosi({
     // Is there a sea at all? A dry world (Mars, Venus) has none: no water
     // plane, and no shoreline or seafloor colours.
     sea: true,
+    // A SPHERE WORLD: the same ground laid on a planet of this radius, so
+    // latitude has a climate (cooler toward the poles, ice at them) and a
+    // globe built from the terrain shows the same places. Off, the ground
+    // is flat and the climate is the same everywhere but for its regions.
+    sphere: false,
+    planetRadius: 50, // km
     wireframe: false,
   },
 })
@@ -192,7 +200,7 @@ sky.world.observe(() => {
 // 300 times brighter than the full moon. So its disc shrinks for real (1 /
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
-  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale', 'season', 'seasonality'],
+  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale', 'season', 'seasonality', 'sphere', 'planetRadius'],
   sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'decoLife', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
     // LAST: switching the storm on builds it from the values above.
     'storm'],
@@ -427,8 +435,8 @@ let water
 const terrain = b3dTerrain({
   seed: demo.seed,
   biome: 'on',
-  surfaceType: 'cylinder',
-  radius: 1000,
+  surfaceType: demo.sphere.valueOf() ? 'sphere' : 'cylinder',
+  radius: demo.sphere.valueOf() ? demo.planetRadius.valueOf() * 1000 : 1000,
   cylinderHeight: 1000,
   tileSize: 128,
   lodLevels: 3,
@@ -540,6 +548,10 @@ const scene = b3d(
       // The swing either side of the yearly mean. Stored in the biome chart's
       // units, where 1 spans 62.5 °C.
       slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01, format: (v) => '±' + Math.round(v * 62.5) + ' °C' }),
+      // Flat, or the same ground on a planet: you start at 45° north, and
+      // the pole is a quarter of the way round.
+      toggle3d({ label: 'sphere world', value: demo.sphere }),
+      slider3d({ label: 'planet radius', value: demo.planetRadius, min: 2, max: 6400, scale: 'log', format: (v) => Math.round(v) + ' km' }),
       label3d({ text: 'Terrain', icon: 'terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
@@ -559,6 +571,10 @@ const scene = b3d(
       label3d({ text: 'Climate', icon: 'thermometer', collapsible: true }),
       slider3d({ label: 'temperature', value: demo.temperature, min: -1, max: 1, step: 0.02, format: (v) => Math.round(v * 50) + ' °C' }),
       slider3d({ label: 'moisture', value: demo.moisture, min: 0, max: 1, step: 0.01 }),
+      // How much one region differs from the next, and how big a region is.
+      // Straight onto the shader's settings: the decorator reads the same ones.
+      slider3d({ label: 'moisture variation', value: terrain.biomePlugin?.params.mNoiseAmp ?? 0.5, min: 0, max: 1, step: 0.01, handleChange: (v) => { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseAmp = v } }),
+      slider3d({ label: 'region size', value: 0.001 / (terrain.biomePlugin?.params.mNoiseScale ?? 0.001), min: 0.1, max: 10, scale: 'log', format: (v) => v.toFixed(1) + ' km', handleChange: (v) => { if (terrain.biomePlugin) terrain.biomePlugin.params.mNoiseScale = 0.001 / v } }),
       slider3d({ label: 'volcanic scale', value: demo.volcanicScale, min: 0.005, max: 0.15, scale: 'log' }),
       label3d({ text: 'Weather', icon: 'cloud', collapsible: true }),
       // With the clouds it is made of, not under Terrain where it used to be.
@@ -645,6 +661,11 @@ const scene = b3d(
       // THE EYE IS PINNED: the slider means what it says.
       el.scene.registerBeforeRender(() => {
         cam.position.y = sky.eye.valueOf()
+        // In a headset the view is the XR camera on its rig, which took its
+        // height from this camera ONCE, on entry: the slider moved nothing.
+        // The rig is the floor, so it sits a nominal eye height lower.
+        const rig = el.xrFrames?.rig
+        if (rig != null) rig.position.y = Math.max(0, sky.eye.valueOf() - 1.6)
       })
     },
   },
@@ -690,6 +711,15 @@ const scene = b3d(
 )
 
 preview.append(scene)
+
+// Flat or a sphere: both are generation attributes, so the terrain rebuilds
+// itself on its next render.
+function applySurface() {
+  terrain.surfaceType = demo.sphere.valueOf() ? 'sphere' : 'cylinder'
+  terrain.radius = demo.sphere.valueOf() ? demo.planetRadius.valueOf() * 1000 : 1000
+}
+demo.sphere.observe(applySurface)
+demo.planetRadius.observe(applySurface)
 
 // Regenerate the terrain when its dials move, and keep the sea at the same
 // FRACTION of the terrain's height.

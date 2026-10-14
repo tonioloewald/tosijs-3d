@@ -9,6 +9,11 @@ export interface BiomeChartConfig {
     lapseRate: number;
     /** Above-water moisture constant (0..1) — the map's overall wetness. */
     mapMoisture: number;
+    /**
+     * Height (m) over which land dries to 1/e of the map moisture: valleys and
+     * coasts wet, heights dry. `0` or unset: height does not dry the land.
+     */
+    moistureDryHeight?: number;
 }
 /** The two chart axes for a position. `tNoise`/`mNoise` are INJECTED noise
  * values (the shader's fBm; tests use constants) — noise feeds the inputs,
@@ -34,7 +39,9 @@ export declare function planetaryAxes(p: {
     equatorTemp: number;
     temperateTemp: number;
     poleTemp: number;
-}, tNoise?: number, mNoise?: number, latWarpNoise?: number): {
+}, tNoise?: number, mNoise?: number, latWarpNoise?: number, 
+/** Rain shadow: added to the map moisture (wet windward, dry leeward). */
+rain?: number): {
     temperature: number;
     moisture: number;
     latitude: number;

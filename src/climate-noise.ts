@@ -50,7 +50,11 @@ export function climateLattice(seed = 7): Uint8Array {
 }
 
 /** One octave: the lattice blended with an eased fraction, -1…1. */
-export function climateOctave(lattice: Uint8Array, x: number, y: number): number {
+export function climateOctave(
+  lattice: Uint8Array,
+  x: number,
+  y: number
+): number {
   const n = CLIMATE_CELLS
   const ix = Math.floor(x)
   const iy = Math.floor(y)
@@ -75,7 +79,11 @@ export function climateOctave(lattice: Uint8Array, x: number, y: number): number
  * The climate noise at a point: two octaves, about -1…1. The ground shader's
  * `bioClimate` is this sum, term for term.
  */
-export function climateNoise(lattice: Uint8Array, x: number, y: number): number {
+export function climateNoise(
+  lattice: Uint8Array,
+  x: number,
+  y: number
+): number {
   return (
     CLIMATE_GAIN *
     (climateOctave(lattice, x, y) +

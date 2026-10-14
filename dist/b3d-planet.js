@@ -51,7 +51,7 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () => [
       label3d({ text: 'Planet' }),
-      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.05, scale: 'log' }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.1, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),
       slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
@@ -74,6 +74,7 @@ const scene = b3d(
               bind('temperate temp', 'temperateTemp', 0, 1, 0.01),
               bind('pole temp', 'poleTemp', 0, 1, 0.01),
               bind('moisture', 'mapMoisture', 0, 1, 0.01),
+              bind('moisture variation', 'mNoiseAmp', 0, 1, 0.01),
               bind('rain shadow', 'rainShadow', 0, 0.6, 0.01),
               bind('volcanism', 'volcanism', 0, 1, 0.01),
             ]
@@ -148,7 +149,10 @@ tosi-b3d {
 | `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
 | `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
 | `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
-| `flatSea` | `'off'` | `'on'` fills everything below 0 m level, for a world whose colour map shows water (the Earth) |
+| `flatSea` | `'off'` | `'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth) |
+| `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
+| `seaIce` | `0` | Sea ice toward the poles, `0…1` |
+| `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
@@ -164,7 +168,7 @@ tosi-b3d {
 | `detailScale` | `0.02` | Detail noise frequency |
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
-| `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none) |
+| `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
 | `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
@@ -176,12 +180,13 @@ tosi-b3d {
 */
 /*{ "parent": "space", "order": 40 }*/
 import { Color } from 'tosijs';
-import { isOff, B3dChild, sceneDelta } from './b3d-utils.js';
-import { attachBiomePlugin } from './biome-plugin.js';
+import { isOff, B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js';
 import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js';
+import { climateForGlobe } from './sphere-map.js';
 import { loadPlanetMap } from './planet-map.js';
 import { createPlanetClouds } from './planet-clouds.js';
-import { createMappedPlanetMaterial } from './planet-map-material.js';
+import { sceneLight } from './gas-giant-material.js';
+import { createPlanetBiome, createPlanetSurfaceMaterial, } from './planet-surface-material.js';
 import { assetUrl } from './asset-url.js';
 import { createGasGiantMaterial } from './gas-giant-material.js';
 import * as BABYLON from '@babylonjs/core';
@@ -229,6 +234,11 @@ export class B3dPlanet extends B3dChild {
         // Fill the seas level (heights below 0 read as 0): for a world whose
         // colour map shows water.
         flatSea: 'off',
+        // The sun's glint on the sea, 0…1, and sea ice toward the poles, 0…1.
+        seaGlint: 1,
+        seaIce: 0,
+        // Guess lakes from a colour map's blue, and give them the sea's glint.
+        inlandWater: 'off',
         // With `surface` set: how much its true relief is exaggerated (1 = to
         // scale, which on a globe is flat to the eye).
         relief: 1,
@@ -288,6 +298,9 @@ export class B3dPlanet extends B3dChild {
     cloudMesh = null;
     /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
     biomePlugin = null;
+    /** The undrawn material the biome plugin lives on (planet-surface-material). */
+    _biomeHost = null;
+    _biomeParams = null;
     ringMesh = null;
     /** The node everything of this planet hangs from: move it to place the planet. */
     rootNode = null;
@@ -300,6 +313,7 @@ export class B3dPlanet extends B3dChild {
         const attrs = this;
         this.noise = new PerlinNoise(attrs.seed);
         this.rootNode = new BABYLON.TransformNode('planet-root', scene);
+        this._builtSea = this._seaKey();
         this._loadHeightMap();
         this.buildPlanet();
         this.buildAtmosphere();
@@ -322,9 +336,35 @@ export class B3dPlanet extends B3dChild {
         this.ringMesh = null;
         // So a planet put back in a scene fetches its heights again.
         this._heightMapLoaded = '';
+        this._biomeHost?.dispose();
+        this._biomeHost = null;
         this.owner = null;
     }
+    /**
+     * A globe OF a ground (a `surface` that carries its climate) is coloured
+     * as that ground is: the same settings in the globe's units, and the same
+     * colours, copied each frame so the ground's dials move the globe.
+     */
+    _followGroundClimate() {
+        const s = this.surface;
+        const plugin = this.biomePlugin;
+        if (s?.climate == null || plugin == null)
+            return;
+        const attrs = this;
+        Object.assign(plugin.params, climateForGlobe(s.climate, s.radius, attrs.radius, attrs.relief > 0 ? attrs.relief : 1));
+        // The globe's slopes are the ground's, steepened by the relief; the
+        // cliff test reads 1 - cos, which goes as the slope squared. (The 6 a
+        // synthetic planet uses is for its own gentle noise.)
+        const relief = attrs.relief > 0 ? attrs.relief : 1;
+        plugin.params.slopeExaggeration = 1 / (relief * relief);
+        const colours = s.palettes?.();
+        if (colours != null) {
+            plugin.palette = colours.palette;
+            plugin.paletteB = colours.paletteB;
+        }
+    }
     update() {
+        this._followGroundClimate();
         if (this.rootNode == null)
             return;
         const attrs = this;
@@ -418,6 +458,37 @@ export class B3dPlanet extends B3dChild {
                 }
             }
         }
+        /*
+        ONE MESH FOR LAND AND SEA (planet-surface-material, board #3271), for a
+        planet with a colour map or without the biome shading. Every vertex
+        under the sea is brought up TO the sea, and each keeps its true height
+        as data (uv.x), so the shader can tell land from water per pixel and
+        knows how deep the water is. There is no sea sphere.
+        */
+        let highest = 1e-3;
+        let deepest = 1e-3;
+        this.vertexHeights = heights;
+        const hasSea = this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0;
+        const seaAt = this.surface != null || !hasSea ? 0 : this.heightPercentile(attrs.ocean);
+        const heightData = new Float32Array(totalVerts * 2);
+        for (let i = 0; i < totalVerts; i++) {
+            const above = heights[i] - seaAt;
+            heightData[i * 2] = hasSea ? above : Math.max(above, 1e-4);
+            if (above > highest)
+                highest = above;
+            if (-above > deepest)
+                deepest = -above;
+            if (hasSea && above < 0) {
+                const x = positions[i * 3];
+                const y = positions[i * 3 + 1];
+                const z = positions[i * 3 + 2];
+                const k = (radius + seaAt) / (Math.hypot(x, y, z) || 1);
+                positions[i * 3] = x * k;
+                positions[i * 3 + 1] = y * k;
+                positions[i * 3 + 2] = z * k;
+                heights[i] = seaAt;
+            }
+        }
         // Recompute normals from geometry for proper lighting
         BABYLON.VertexData.ComputeNormals(positions, indices, normals);
         const mesh = new BABYLON.Mesh('planet', this.owner.scene);
@@ -425,64 +496,103 @@ export class B3dPlanet extends B3dChild {
         vertexData.positions = positions;
         vertexData.indices = indices;
         vertexData.normals = normals;
+        vertexData.uvs = heightData;
         vertexData.applyToMesh(mesh, true);
-        if (attrs.colorMap) {
-            // A REAL WORLD'S COLOUR: the map, looked up by direction (planet-map).
-            const mapped = createMappedPlanetMaterial(this.owner.scene, assetUrl(String(attrs.colorMap)));
+        {
+            /*
+            The land's colour: a real world's map, looked up by direction
+            (planet-map); or the BIOME SHADER, the same one terrain uses, run
+            inside this material with the planetary front end (`biome="on"`); or,
+            with neither, a few plain rules.
+            */
+            this._biomeHost?.dispose();
+            this._biomeHost = null;
+            this.biomePlugin = null;
+            if (!attrs.colorMap && !isOff(attrs.biome)) {
+                const made = createPlanetBiome(this.owner.scene, {
+                    // The classifier's coastline is the sea's own level.
+                    seaRadius: hasSea ? radius + seaAt : 0.001,
+                    lapseRate: 0.06,
+                    tNoiseScale: 0.05,
+                    /*
+                    Moisture varies in broad regions and by a lot: about three across
+                    a hemisphere, enough to cross the chart from desert to forest. At
+                    0.07 and the plugin's 0.18 a continent was one colour (the patches
+                    were small and too faint to change biome).
+                    */
+                    mNoiseScale: 0.035,
+                    mNoiseAmp: 0.5,
+                    ditherScale: 0.6,
+                    detailNoiseScale: 1.2,
+                    surfDepth: 0.6,
+                    // Planet-scale contours are gentle: exaggerate slope deviation so
+                    // steep flanks still read as rock at this radius.
+                    slopeExaggeration: 6,
+                    // Moisture dries over roughly the relief height: coasts wet,
+                    // highlands dry.
+                    moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
+                    rainShadow: 0.3,
+                });
+                this.biomePlugin = made.plugin;
+                this._biomeHost = made.host;
+                /*
+                ONE params object for the life of the element. Each build makes a
+                new plugin, and a slider (or a caller) that took `biomePlugin.params`
+                before a rebuild would otherwise go on writing to the dead one. Only
+                what follows from the new geometry is refreshed; the climate someone
+                set is kept.
+                */
+                if (this._biomeParams != null) {
+                    this._biomeParams.seaRadius = made.plugin.params.seaRadius;
+                    this._biomeParams.moistureDryHeight =
+                        made.plugin.params.moistureDryHeight;
+                    made.plugin.params = this._biomeParams;
+                }
+                else {
+                    this._biomeParams = made.plugin.params;
+                }
+            }
+            const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
+                biome: this.biomePlugin ?? undefined,
+                colorUrl: attrs.colorMap ? assetUrl(String(attrs.colorMap)) : '',
+                sea: hasSea,
+                heightScale: highest,
+                depthScale: Math.max(deepest * 0.6, radius * 0.004),
+                glint: attrs.seaGlint,
+                seaIce: attrs.seaIce,
+                inlandWater: !isOff(attrs.inlandWater) && attrs.inlandWater != null,
+                seed: 1 + (Math.abs(attrs.seed) % 83),
+                /*
+                The detail noise CARRIED ON past what the mesh can hold: heightAt
+                sums three octaves of it, and these are the next three, at the
+                weights they would have had (a little over, because a coast that
+                only just wiggles does not read as one).
+                */
+                fine: this.surface == null
+                    ? {
+                        scale: attrs.detailScale * radius * 8,
+                        amplitude: attrs.detailAmplitude * 0.12,
+                    }
+                    : undefined,
+            });
             mapped.wireframe = attrs.wireframe;
             mesh.material = mapped;
             mesh.parent = this.rootNode;
             this.planetMesh = mesh;
             this.vertexHeights = heights;
-            this.biomePlugin = null;
             if (!this.registered) {
                 this.registered = true;
                 this.owner.register({ meshes: [mesh] });
             }
-            return;
-        }
-        const mat = new BABYLON.StandardMaterial('planet-mat', this.owner.scene);
-        mat.diffuseColor = new BABYLON.Color3(0.6, 0.75, 0.45);
-        mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
-        mat.backFaceCulling = false;
-        mat.wireframe = attrs.wireframe;
-        if (!isOff(attrs.biome)) {
-            // Planetary front-end: seaRadius = the same percentile the ocean sphere
-            // uses, so the classifier's coastline IS the visible waterline. Noise
-            // frequencies scale to planet-sized relief. Caveat: world-space noise
-            // crawls if the planet SPINS — fine for a static planet; a rotating one
-            // wants object-space sampling (a step-5 concern with triplanar).
-            const seaRadius = attrs.ocean > 0
-                ? attrs.radius +
-                    (this.surface != null ? 0 : this.heightPercentile(attrs.ocean))
-                : 0.001;
-            this.biomePlugin = attachBiomePlugin(mat, {
-                seaRadius,
-                lapseRate: 0.06,
-                tNoiseScale: 0.05,
-                mNoiseScale: 0.07,
-                ditherScale: 0.6,
-                detailNoiseScale: 1.2,
-                surfDepth: 0.6,
-                // Planet-scale contours are gentle — exaggerate slope deviation so
-                // steep flanks still read as rock at this radius.
-                slopeExaggeration: 6,
-                // moisture dries over roughly the relief height: coasts wet,
-                // highlands dry (the rough proximity-to-water estimate)
-                moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
-                rainShadow: 0.3,
-            });
-        }
-        mesh.material = mat;
-        mesh.parent = this.rootNode;
-        this.planetMesh = mesh;
-        this.vertexHeights = heights;
-        if (!this.registered) {
-            this.registered = true;
-            this.owner.register({ meshes: [mesh] });
         }
     }
     _heightMapLoaded = '';
+    /** The sea the mesh was built with: it is IN the mesh, so a change rebuilds. */
+    _builtSea = '';
+    _seaKey() {
+        const attrs = this;
+        return `${attrs.ocean}|${attrs.flatSea}`;
+    }
     _surfaceFromMap = false;
     /**
      * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
@@ -503,8 +613,8 @@ export class B3dPlanet extends B3dChild {
         this._heightMapLoaded = key;
         if (url === '')
             return;
+        // No floor: the sea floor's depth is kept, for the colour of the water.
         loadPlanetMap(url, {
-            ...(isOff(attrs.flatSea) ? {} : { floor: 0 }),
             ...(attrs.bodyRadiusKm > 0 ? { radius: attrs.bodyRadiusKm * 1000 } : {}),
         })
             .then((surface) => {
@@ -580,6 +690,7 @@ export class B3dPlanet extends B3dChild {
         uniform float atmoOpacity;
         uniform float time;
         uniform float turbulence;
+        uniform vec4 atmoLight;
         ${GAS_GIANT_GLSL}
         void main() {
           vec3 viewDir = normalize(cameraPosition - vWorldPos);
@@ -595,6 +706,12 @@ export class B3dPlanet extends B3dChild {
 
           float alpha = glow * atmoOpacity + turb * 0.3;
           alpha = clamp(alpha, 0.0, 1.0);
+          // AIR GLOWS BECAUSE THE SUN IS IN IT. This shell is added to what
+          // is behind it, and it used to be added at full strength all the
+          // way round, so the night side was a blue disc. It reaches a little
+          // past the terminator (twilight) and is nearly nothing beyond.
+          vec3 l = atmoLight.w > 0.5 ? normalize(atmoLight.xyz - vWorldPos) : normalize(atmoLight.xyz);
+          alpha *= mix(0.03, 1.0, smoothstep(-0.3, 0.3, dot(vWorldNormal, l)));
 
           vec3 col = atmoColor * (glow + turb * 0.5);
           gl_FragColor = vec4(col, alpha);
@@ -624,6 +741,7 @@ export class B3dPlanet extends B3dChild {
                 'atmoOpacity',
                 'time',
                 'turbulence',
+                'atmoLight',
             ],
             needAlphaBlending: true,
         });
@@ -635,11 +753,14 @@ export class B3dPlanet extends B3dChild {
         mat.backFaceCulling = false;
         mat.alphaMode = BABYLON.Constants.ALPHA_ADD;
         mat.disableDepthWrite = true;
+        const light = new BABYLON.Vector4(0, 1, 0, 0);
         mat.onBind = () => {
             const cam = this.owner.scene.activeCamera;
             if (cam)
                 mat.setVector3('cameraPosition', cam.globalPosition);
-            mat.setFloat('time', performance.now() / 1000);
+            sceneLight(scene, light);
+            mat.setVector4('atmoLight', light);
+            mat.setFloat('time', sceneSeconds(scene));
         };
         mesh.material = mat;
         mesh.parent = this.rootNode;
@@ -678,7 +799,8 @@ export class B3dPlanet extends B3dChild {
         catch {
             color = new BABYLON.Color3(1, 1, 1);
         }
-        const lift = Math.max(0.004, Math.min(0.02, attrs.atmosphere * 0.3));
+        // Half way up the air, so a deeper atmosphere carries its weather higher.
+        const lift = Math.max(0.004, attrs.atmosphere * 0.5);
         this.cloudMesh = createPlanetClouds(this.owner.scene, this.rootNode, attrs.radius + Math.max(0, this._maxHeight()) + lift * attrs.radius, {
             coverage: Math.min(1, attrs.clouds),
             color,
@@ -687,27 +809,12 @@ export class B3dPlanet extends B3dChild {
             storms: () => this.storms,
         });
     }
+    /**
+     * There is no sea sphere: the one-mesh planet draws its own sea (see
+     * buildPlanet). Kept as a named step so the build order still reads.
+     */
     buildOcean() {
-        if (this.owner == null || this.rootNode == null)
-            return;
-        const attrs = this;
-        const oceanPct = attrs.ocean;
-        // A colour map already shows its seas.
-        if (oceanPct <= 0 || attrs.gas || attrs.colorMap)
-            return;
-        // Ocean radius: height at the given percentile of vertices
-        // e.g. ocean=0.6 means 60% of surface is underwater
-        // A borrowed surface says where its sea is: the datum, height 0 here.
-        const oceanHeight = this.surface != null ? 0 : this.heightPercentile(oceanPct);
-        const oceanRadius = attrs.radius + oceanHeight;
-        const mesh = BABYLON.MeshBuilder.CreateSphere('ocean', { diameter: oceanRadius * 2, segments: 32 }, this.owner.scene);
-        const mat = new BABYLON.StandardMaterial('ocean-mat', this.owner.scene);
-        mat.diffuseColor = new BABYLON.Color3(0.1, 0.3, 0.7);
-        mat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-        mat.alpha = 0.7;
-        mesh.material = mat;
-        mesh.parent = this.rootNode;
-        this.oceanMesh = mesh;
+        this.oceanMesh = null;
     }
     buildRings() {
         if (this.owner == null || this.rootNode == null)
@@ -852,6 +959,7 @@ export class B3dPlanet extends B3dChild {
             this.ringMesh = null;
         }
         this.registered = false;
+        this._builtSea = this._seaKey();
         this._loadHeightMap();
         this.buildPlanet();
         this.buildAtmosphere();
@@ -862,7 +970,13 @@ export class B3dPlanet extends B3dChild {
     /** Update atmosphere/ocean/wireframe/rotation */
     updateOptions() {
         const attrs = this;
-        // Rebuild atmosphere/ocean since their radii depend on parameters
+        // The sea is part of the planet's one mesh (where it lies is in the
+        // vertices), so moving it is a rebuild, not a visual tweak.
+        if (this.planetMesh != null && this._seaKey() !== this._builtSea) {
+            this.regenerate();
+            return;
+        }
+        // Rebuild the atmosphere since its radius depends on parameters
         if (this.atmosphereMesh) {
             this.atmosphereMesh.dispose(false, true);
             this.atmosphereMesh = null;

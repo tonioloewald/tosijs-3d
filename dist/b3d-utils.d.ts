@@ -88,6 +88,12 @@ export declare const sceneDelta: (scene: BABYLON.Scene) => number;
  * Falls back to a sane package for scenes `<tosi-b3d>` does not drive (tests,
  * standalone Babylon), where `dt` and `realDt` are simply the same number.
  */
+/**
+ * The clock for a shader's animation: the scene's SIM seconds, so weather and
+ * waves stop when the world is paused and slow with `timeScale`. Wall-clock
+ * seconds in a scene `<tosi-b3d>` does not drive.
+ */
+export declare const sceneSeconds: (scene: BABYLON.Scene) => number;
 export declare const sceneFrame: (scene: BABYLON.Scene) => FrameInfo;
 export declare const conventionName: (name: string) => string;
 /**

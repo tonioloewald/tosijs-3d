@@ -302,7 +302,12 @@ export function createPlanetSurfaceMaterial(
         'psFine',
         ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
       ],
-      samplers: ['psColor', NOISE_TEXTURE_SAMPLER, 'biomeNoiseTex', 'biomeClimateTex'],
+      samplers: [
+        'psColor',
+        NOISE_TEXTURE_SAMPLER,
+        'biomeNoiseTex',
+        'biomeClimateTex',
+      ],
       // The noise is READ where the engine has 3D textures: this shader's
       // own (noise-texture) and the biome shader's fine noise, as on terrain.
       defines: hasNoiseTexture(scene)
@@ -315,7 +320,8 @@ export function createPlanetSurfaceMaterial(
     // Bound NOW, not at the first draw (where the plugin would bind it): a 3D
     // sampler left on the unit a 2D one is using is an invalid draw, and the
     // planet was dropped for a frame each time it was rebuilt.
-    if (biome != null) mat.setTexture('biomeNoiseTex', biomeNoiseTextureOf(scene))
+    if (biome != null)
+      mat.setTexture('biomeNoiseTex', biomeNoiseTextureOf(scene))
   }
   // The biome shader declares its flat-ground climate texture whether or not
   // a planet reads it, and an unbound sampler is an invalid draw.

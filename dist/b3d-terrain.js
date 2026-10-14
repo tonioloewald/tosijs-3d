@@ -285,7 +285,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
 | `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
-| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
+| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest)**. Land sits on the chart at three quarters of this (the top row is the sea's), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
 | `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
 | `biomeSeasonality` | `0` | How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE |
@@ -366,6 +366,8 @@ const BIOME_AUTO = defaultBiomeParams();
 let warnedOldTemperature = false;
 const freshBiomeMemo = () => ({
     sea: NaN,
+    relief: NaN,
+    sheet: NaN,
     lapse: NaN,
     temperature: NaN,
     moisture: NaN,
@@ -630,6 +632,15 @@ export class B3dTerrain extends B3dChild {
         return {
             radius: frame.radius,
             seaLevel: Number(this.biomePlugin?.params?.seaLevel) || 0,
+            // The ground's own climate settings, live: a globe that shades with
+            // the biome shader copies them, in its own units, every frame.
+            climate: this.biomePlugin?.params,
+            palettes: this.biomePlugin != null
+                ? () => ({
+                    palette: this.biomePlugin.palette,
+                    paletteB: this.biomePlugin.paletteB,
+                })
+                : undefined,
             heightAt: (d) => {
                 const g = directionToGround(d, frame);
                 return height(g.x, g.z);
@@ -1846,6 +1857,27 @@ export class B3dTerrain extends B3dChild {
             this.biomePlugin.isEnabled = true;
         const sea = Number.isFinite(a.biomeSeaLevel) ? a.biomeSeaLevel : 0;
         const memo = this._biomeMemo;
+        // Where the origin has travelled to: the climate noise is read in world
+        // coordinates, so its regions stay put across a floating-origin reset.
+        this.biomePlugin.params.worldOffsetX = this.originOffsetX;
+        this.biomePlugin.params.worldOffsetZ = this.originOffsetZ;
+        // Height dries the land over the LAND's height: from the sea to
+        // the highest the ground can reach, not the whole relief (most of which
+        // may be under water). Coasts and valleys green, heights dry. Written
+        // when that height changes, so a panel setting the param directly is
+        // not stomped.
+        const relief = Math.abs(Number(a.grossAmplitude) || 0) +
+            Math.abs(Number(a.detailAmplitude) || 0);
+        const top = (Number(a.baseHeight) || 0) +
+            (a.center ? -(Number(a.grossAmplitude) || 0) / 2 : 0) +
+            relief;
+        // Never below a tenth of the relief, so a world nearly drowned still
+        // has a scale to dry over.
+        const land = Math.max(top - sea, relief * 0.1);
+        if (land !== memo.relief) {
+            memo.relief = land;
+            this.biomePlugin.params.moistureDryHeight = land;
+        }
         if (sea !== memo.sea) {
             memo.sea = sea;
             this.biomePlugin.params.seaLevel = sea;
@@ -1869,6 +1901,30 @@ export class B3dTerrain extends B3dChild {
         // written back, so returning to -1 after a value really returns to auto
         // (as the lapse branch does). Temperature has no auto.
         const p = this.biomePlugin.params;
+        /*
+        ON A SPHERE the ground's climate is its planet's: the shader reads it at
+        the point of the globe each piece of ground is (see `sheetRadius`), so a
+        globe built from `planetSurface()` is coloured as the ground is.
+        */
+        const frame = this.sphereFrame;
+        p.sheetRadius = frame?.radius ?? 0;
+        p.sheetU = frame?.worldU ?? 0;
+        p.sheetV = frame?.worldV ?? 0;
+        const sheet = frame?.radius ?? 0;
+        if (t !== memo.temperature || sheet !== memo.sheet) {
+            memo.sheet = sheet;
+            if (sheet > 0 && Number.isFinite(t)) {
+                // One dial for a planet's three: the attribute is the world's mean,
+                // the equator is warmer and the poles far colder. At the default
+                // these are the planet's own defaults (0.85, 0.55, 0.05).
+                const base = chartTemperature(t);
+                p.equatorTemp = base + 0.13;
+                p.temperateTemp = base - 0.17;
+                p.poleTemp = base - 0.67;
+                // The wobble in the climate bands, sized to the planet.
+                p.latWarpScale = 1 / sheet;
+            }
+        }
         if (t !== memo.temperature) {
             memo.temperature = t;
             // The attribute is on the temperature scale (0 = 0 °C, 1 = 50 °C); the
@@ -1930,6 +1986,9 @@ export class B3dTerrain extends B3dChild {
             this.noiseSeed = attrs.seed;
             this.noise = new PerlinNoise(attrs.seed);
         }
+        // The surface too: `surfaceType` and the radii are generation attributes,
+        // and a sampler built at scene-ready kept the old shape after they moved.
+        this.sampler = this.createSampler();
         if (unbounded) {
             this.clearPool();
             this.update(this.pool.length);

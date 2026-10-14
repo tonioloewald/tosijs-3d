@@ -87,8 +87,9 @@ export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, type GasGiantLook, type GasGiantOverrides, } from './gas-giant.js';
 export { decodeGray16Png, mapSurface, loadPlanetMap, type HeightMap, type MapSurfaceOptions, } from './planet-map.js';
 export { createMappedPlanetMaterial } from './planet-map-material.js';
+export { createPlanetSurfaceMaterial, type PlanetSurfaceOptions, } from './planet-surface-material.js';
 export { createPlanetClouds, type PlanetStorm, type PlanetCloudOptions, } from './planet-clouds.js';
-export { uvToDirection, directionToUv, latLonToDirection, directionToLatLon, groundToUv, uvToGround, groundToDirection, directionToGround, groundToLatLon, latLonToGround, type SphereFrame, type PlanetSurface, } from './sphere-map.js';
+export { uvToDirection, directionToUv, latLonToDirection, directionToLatLon, groundToUv, uvToGround, groundToDirection, directionToGround, groundToLatLon, latLonToGround, type SphereFrame, type PlanetSurface, climateForGlobe, } from './sphere-map.js';
 export { createGasGiantMaterial, type GasGiantMaterialOptions, } from './gas-giant-material.js';
 export { B3dTrail, b3dTrail, attachTrail } from './b3d-trail.js';
 export { B3dWeatherCell, b3dWeatherCell } from './b3d-weather-cell.js';
@@ -278,7 +279,7 @@ export { terrainDensity, composePatches, circleFootprint, marginBlend, } from '.
 export type { PatchField, Footprint } from './patch-field.js';
 export type { SdfField, LatticeConfig, ChunkSpec, ExtractedMesh, } from './sdf-lattice.js';
 export type { AuthoredLandform, Extent, Bounded, LandformFn, ProvinceFn, VolcanoOptions, CraterOptions, CraterFieldOptions, PadOptions, GulleyOptions, CoverOptions, } from './landform.js';
-export { BiomePlugin, attachBiomePlugin, setBiomeLite, biomeLite, setBiomeComputedNoise, biomeComputedNoise, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, seasonOf, } from './biome-plugin.js';
+export { BiomePlugin, attachBiomePlugin, setBiomeLite, climateNoiseAt, groundClimateAt, biomeLite, setBiomeComputedNoise, biomeComputedNoise, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, seasonOf, } from './biome-plugin.js';
 export type { BiomeParams, BiomeRole } from './biome-plugin.js';
 export { B3dParticles, b3dParticles } from './b3d-particles.js';
 export { B3dSound, b3dSound } from './b3d-sound.js';
@@ -367,6 +368,7 @@ export { twoFingerGesture, type TwoFingerGesture, type TwoFingerStep, type Touch
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js';
 export { debugSink, sendDebug } from './debug-sink.js';
 export { nearFirst, drawKey } from './draw-order.js';
-export { noiseVolume } from './noise-volume.js';
+export { noiseVolume, sampleNoiseVolume } from './noise-volume.js';
+export { CLIMATE_CELLS, climateLattice, climateNoise, climateOctave, } from './climate-noise.js';
 export type { SweepRow, SweepOptions, SweepRun } from './cost-sweep.js';
 //# sourceMappingURL=index.d.ts.map

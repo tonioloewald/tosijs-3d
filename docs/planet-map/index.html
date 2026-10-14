@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=9d3a03170327" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=a9c4a8c27974" data-tosi-doc-system />
   <title>planet-map — tosijs-3d</title>
   <meta name="description" content="A real world from its maps. NASA and NOAA publish the height of the Moon, Mars and the Earth as flat images, one pixel per patch of latitude and longitude." />
   <link rel="canonical" href="https://3d.tosijs.net/planet-map/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=69f009bc448f" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=160cfa198378" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="planet-map">planet-map</h1>
 <p><strong>A real world from its maps.</strong> NASA and NOAA publish the height of the Moon,
@@ -43,20 +43,25 @@ planet&#39;s <code>heightMap</code> and <code>colorMap</code> and it is that wor
 turn them. <code>relief</code> exaggerates the heights: at 1 a planet is as smooth as a
 billiard ball, which is the truth, and somewhere past 10 it becomes a relief
 map.</p>
+<p>The Earth&#39;s weather is not part of the picture: <code>clouds</code>, <code>storms</code> (how
+many) and <code>storm intensity</code> are dials, and the cover and the cyclones are
+worked out as you watch.</p>
 <pre><code class="language-js">import { b3d, b3dPlanet, b3dSun, b3dSkybox, select3d, slider3d, label3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const WORLDS = {
-  Moon: { heightMap: &#39;nasa/moon/height-2k.png&#39;, colorMap: &#39;nasa/moon/color-2k.jpg&#39;, bodyRadiusKm: 1737.4, flatSea: &#39;off&#39;, clouds: 0, atmosphere: 0, atmosphereColor: &#39;rgba(77,128,230,0.15)&#39;, relief: 12 },
-  Mars: { heightMap: &#39;nasa/mars/height-2k.png&#39;, colorMap: &#39;nasa/mars/color-2k.jpg&#39;, bodyRadiusKm: 3389.5, flatSea: &#39;off&#39;, clouds: 0, atmosphere: 0.012, atmosphereColor: &#39;rgba(225,165,115,0.10)&#39;, relief: 14 },
+  Moon: { heightMap: &#39;nasa/moon/height-2k.png&#39;, colorMap: &#39;nasa/moon/color-2k.jpg&#39;, bodyRadiusKm: 1737.4, flatSea: &#39;off&#39;, inlandWater: &#39;off&#39;, clouds: 0, atmosphere: 0, atmosphereColor: &#39;rgba(77,128,230,0.15)&#39;, relief: 12 },
+  Mars: { heightMap: &#39;nasa/mars/height-2k.png&#39;, colorMap: &#39;nasa/mars/color-2k.jpg&#39;, bodyRadiusKm: 3389.5, flatSea: &#39;off&#39;, inlandWater: &#39;off&#39;, clouds: 0, atmosphere: 0.006, atmosphereColor: &#39;rgba(225,165,115,0.04)&#39;, relief: 14 },
   // NOAA&#39;s heights include the sea floor; `flatSea` fills the oceans level.
-  Earth: { heightMap: &#39;noaa/earth/height-2k.png&#39;, colorMap: &#39;nasa/earth/color-2k.jpg&#39;, bodyRadiusKm: 6371, flatSea: &#39;on&#39;, clouds: 0.45, atmosphere: 0.03, atmosphereColor: &#39;rgba(77,128,230,0.15)&#39;, relief: 30 },
+  Earth: { heightMap: &#39;noaa/earth/height-2k.png&#39;, colorMap: &#39;nasa/earth/color-2k.jpg&#39;, bodyRadiusKm: 6371, flatSea: &#39;on&#39;, inlandWater: &#39;on&#39;, clouds: 0.45, atmosphere: 0.03, atmosphereColor: &#39;rgba(77,128,230,0.15)&#39;, relief: 30 },
 }
-const { real } = tosi({ real: { world: &#39;Earth&#39;, relief: WORLDS.Earth.relief, spin: 0.03 } })
+const { real } = tosi({ real: { world: &#39;Earth&#39;, relief: WORLDS.Earth.relief, spin: 0.03, clouds: WORLDS.Earth.clouds, storms: 3, stormIntensity: 1 } })
 const planet = b3dPlanet({ radius: 50, subdivisions: 160, ocean: 0, rotationSpeed: real.spin, ...WORLDS.Earth })
 
-// Storms on the Earth: a hurricane off the Caribbean and a cyclone in the
-// south-west Pacific, each turning the right way for its hemisphere. And one
+// Storms on the Earth: a hurricane off the Caribbean, a cyclone in the
+// south-west Pacific and a typhoon in the Philippine Sea (the fourth, and
+// four is as many as a planet takes), each turning the right way for its
+// hemisphere. And one
 // that is real: the Catatumbo lightning over Lake Maracaibo in Venezuela,
 // a thunderstorm that stands in the same place most nights of the year
 // (`cyclone: 0`: it does not turn). Swing round to the night side to see
@@ -66,15 +71,31 @@ const STORMS = {
     { lat: 24, lon: -62, size: 6, intensity: 1, lightning: 1.5 },
     { lat: -17, lon: 160, size: 5, intensity: 0.9, lightning: 1 },
     { lat: 9.5, lon: -71.5, size: 2.2, intensity: 0.8, lightning: 4, cyclone: 0 },
+    { lat: 17, lon: 133, size: 7, intensity: 1, lightning: 1.2 },
   ],
 }
-planet.storms = STORMS[real.world.value] ?? []
+// None of the weather is a picture: the cloud cover and the storms are
+// computed as you watch, so all of it is dials. A stronger storm winds
+// harder, flashes more and is wider.
+const setStorms = () =&gt; {
+  const k = real.stormIntensity.value
+  const wide = 0.6 + 0.4 * k
+  planet.storms = k &lt;= 0 ? [] : (STORMS[real.world.value] ?? []).slice(0, real.storms.value).map((s) =&gt; ({ ...s, size: s.size * wide, intensity: s.intensity * k, lightning: s.lightning * k }))
+}
+setStorms()
+real.storms.observe(setStorms)
+real.stormIntensity.observe(setStorms)
+real.clouds.observe(() =&gt; {
+  planet.clouds = real.clouds.value
+  planet.updateOptions()
+})
 
 real.world.observe(() =&gt; {
   const w = WORLDS[real.world.value]
-  planet.storms = STORMS[real.world.value] ?? []
+  setStorms()
   Object.assign(planet, w)
   real.relief.value = w.relief
+  real.clouds.value = w.clouds
   planet.regenerate()
 })
 real.relief.observe(() =&gt; {
@@ -91,6 +112,9 @@ preview.append(
         select3d({ label: &#39;world&#39;, value: real.world, options: Object.keys(WORLDS) }),
         slider3d({ label: &#39;relief (× true)&#39;, value: real.relief, min: 1, max: 60, step: 1 }),
         slider3d({ label: &#39;rotation&#39;, value: real.spin, min: 0, max: 0.3, step: 0.01 }),
+        slider3d({ label: &#39;clouds&#39;, value: real.clouds, min: 0, max: 1, step: 0.05 }),
+        slider3d({ label: &#39;storms&#39;, value: real.storms, min: 0, max: 4, step: 1 }),
+        slider3d({ label: &#39;storm intensity&#39;, value: real.stormIntensity, min: 0, max: 2, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(&#39;orbit&#39;, -Math.PI / 2.4, Math.PI / 2.3, 150, BABYLON.Vector3.Zero(), el.scene)
@@ -573,6 +597,7 @@ no DOM, no engine.</p>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
+      <li><a class="doc-link" href="../climate-noise/">climate-noise</a></li>
     </ul>
     </details></li>
   </ul>
@@ -583,6 +608,6 @@ no DOM, no engine.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-vzjzb3qx.js"></script>
+  <script type="module" src="../hydrate-zsxgjpf3.js"></script>
 </body>
 </html>

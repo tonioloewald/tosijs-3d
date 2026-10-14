@@ -55,7 +55,10 @@ the degrees an author sets with `biomeTemperature`.
 */
 /*{ "parent": "b3d-terrain", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
-import { noiseVolume } from './noise-volume.js';
+import { noiseVolume, sampleNoiseVolume } from './noise-volume.js';
+import { mantaAxes, planetaryAxes } from './biome-chart.js';
+import { groundToDirection } from './sphere-map.js';
+import { CLIMATE_CELLS, CLIMATE_GAIN, climateLattice, climateNoise, } from './climate-noise.js';
 /**
  * What a point in the year does to the chart: a temperature offset (summer
  * warm, winter cold) and how far into AUTUMN it is (0 outside it, 1 at the
@@ -93,8 +96,14 @@ export const defaultBiomeParams = () => ({
     mapMoisture: 0.45,
     tNoiseScale: 0.013,
     tNoiseAmp: 0.1,
-    mNoiseScale: 0.02,
-    mNoiseAmp: 0.18,
+    // Regions a few kilometres across, strong enough to change biome.
+    mNoiseScale: 0.001,
+    mNoiseAmp: 0.5,
+    worldOffsetX: 0,
+    worldOffsetZ: 0,
+    sheetRadius: 0,
+    sheetU: 0,
+    sheetV: 0,
     ditherScale: 0.35,
     ditherAmp: 0.045,
     cliffStart: 0.7,
@@ -108,7 +117,9 @@ export const defaultBiomeParams = () => ({
     poleTemp: 0.05,
     rainShadow: 0.25,
     windAzimuth: 0.8,
-    moistureDryHeight: 8,
+    // Off by default (flat ground): the terrain sets it from its relief, and
+    // a planet from its own.
+    moistureDryHeight: 0,
     slopeExaggeration: 1,
     latWarpScale: 0.02,
     latWarpAmp: 0.12,
@@ -324,7 +335,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 has3dTextures(this._material.getScene());
     }
     getSamplers(samplers) {
-        samplers.push('biomeNoiseTex');
+        samplers.push('biomeNoiseTex', 'biomeClimateTex');
     }
     getClassName() {
         return 'BiomePlugin';
@@ -348,6 +359,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 },
                 { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, role (0 ground, 1 leaf, 2 bark, 3 evergreen)
                 { name: 'biomeSeason', size: 4, type: 'vec4' }, // temperature offset, autumn 0…1, leafBlend, bare 0…1
+                { name: 'biomeOrigin', size: 4, type: 'vec4' }, // world offset x, z (flat ground), unused, unused
+                { name: 'biomeSphere', size: 4, type: 'vec4' }, // sheet: planet radius (0 = not a sheet), worldU, worldV, unused
             ],
             fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -366,6 +379,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeVolcPal[7];
         uniform vec4 biomeExtra;
         uniform vec4 biomeSeason;
+        uniform vec4 biomeOrigin;
+        uniform vec4 biomeSphere;
       #endif`,
         };
     }
@@ -394,6 +409,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         const scene = this._material.getScene();
         if (!this._computed && has3dTextures(scene))
             uniformBuffer.setTexture('biomeNoiseTex', noiseTextureOf(scene));
+        uniformBuffer.setTexture('biomeClimateTex', climateTextureOf(scene));
+        uniformBuffer.updateFloat4('biomeOrigin', p.worldOffsetX, p.worldOffsetZ, 0, 0);
+        uniformBuffer.updateFloat4('biomeSphere', p.seaRadius > 0 ? 0 : p.sheetRadius, p.sheetU, p.sheetV, 0);
         uniformBuffer.updateFloat4('biomeCfg', p.seaLevel, p.baseTemperature, p.lapseRate, p.mapMoisture);
         uniformBuffer.updateFloat4('biomeNoise', p.tNoiseScale, p.tNoiseAmp, p.mNoiseScale, p.mNoiseAmp);
         uniformBuffer.updateFloat4('biomeDither', p.ditherScale, p.ditherAmp, p.cliffStart, p.cliffFull);
@@ -578,6 +596,20 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         }
         return vec2(F1, F2);
       }
+      // The CLIMATE noise (temperature and moisture regions on flat ground):
+      // a grid of seeded bytes, so code can work out the same value
+      // (climate-noise.ts, term for term) and put the forest where the
+      // ground is green.
+      uniform sampler2D biomeClimateTex;
+      float bioClimate1(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = p - i;
+        f = f * f * (3.0 - 2.0 * f);
+        return texture2D(biomeClimateTex, (i + f + 0.5) / ${CLIMATE_CELLS}.0).r * 2.0 - 1.0;
+      }
+      float bioClimate(vec2 p) {
+        return ${CLIMATE_GAIN} * (bioClimate1(p) + 0.5 * bioClimate1(p * 2.03 + 17.7));
+      }
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
         // after profiling on mid-range mobile Safari.
@@ -623,41 +655,71 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // The two front-ends share everything but the AXES (biome-chart.ts):
         // flat = worldY − seaLevel with world-up; planetary (seaRadius > 0) =
         // RADIAL altitude with radial up + insolation over warped latitude.
-        bool planetary = biomePlanet.w > 0.0;
+        // A SHEET is flat ground wrapped round a planet (a terrain with
+        // surfaceType sphere). Its climate is the planet's: the same front
+        // end a globe of that world uses, at the point of the sphere this
+        // piece of ground is, so the two views agree (sphere-map.ts).
+        bool sheet = biomeSphere.x > 0.0;
+        bool planetary = biomePlanet.w > 0.0 || sheet;
         vec3 nW = normalize(vNormalW);
         vec3 centre = biomePlanet.xyz;
-        if (planetary) {
+        float seaR = biomePlanet.w;
+        // The position the CLIMATE is read at; wp stays the drawn position.
+        vec3 pp = wp;
+        if (sheet) {
+          vec2 g = wp.xz + biomeOrigin.xy;
+          float th = (biomeSphere.y + g.x / (6.2831853 * biomeSphere.x)) * 6.2831853;
+          float ph = (biomeSphere.z + g.y / (3.1415927 * biomeSphere.x)) * 3.1415927;
+          // groundToDirection: the sampler's sphere, mirrored so +z is north.
+          vec3 dir = vec3(sin(ph) * cos(th), -cos(ph), sin(ph) * sin(th));
+          vec3 east = vec3(-sin(th), 0.0, cos(th));
+          vec3 north = vec3(cos(ph) * cos(th), sin(ph), cos(ph) * sin(th));
+          centre = vec3(0.0);
+          seaR = biomeSphere.x + biomeCfg.x;
+          pp = dir * (biomeSphere.x + wp.y);
+          nW = normalize(east * nW.x + dir * nW.y + north * nW.z);
+        } else if (planetary) {
           // Into the planet's own frame: see bindForSubMesh.
           wp = (biomeBody * vec4(vPositionW, 1.0)).xyz;
+          pp = wp;
           centre = (biomeBody * vec4(biomePlanet.xyz, 1.0)).xyz;
           nW = normalize(mat3(biomeBody) * nW);
         }
+        vec3 rel = pp - centre;
         // The volcanic patterns are sized in METRES of terrain. A planet is
         // a few dozen units across, so they are read as if it were 600
         // across: provinces a twentieth of the way round, plates you can see.
-        vec3 vp = planetary ? (wp - centre) * (600.0 / biomePlanet.w) : wp;
-        vec3 rel = wp - centre;
+        vec3 vp = planetary ? rel * (600.0 / seaR) : wp;
         float r = length(rel);
         vec3 up = planetary ? rel / max(r, 1e-5) : vec3(0.0, 1.0, 0.0);
-        float altitude = planetary ? (r - biomePlanet.w) : (wp.y - biomeCfg.x);
+        float altitude = planetary ? (r - seaR) : (wp.y - biomeCfg.x);
         // mantaAxes: |altitude| lapse (peaks at sea level, cools both ways) +
         // fBm axis noise — noise feeds the INPUTS, never the classification.
         // On a sphere the noise is read in 3D: XZ alone is constant along
         // the axis and smears down the sides of a planet.
-        float tN = (planetary ? bioSimplex3(rel * biomeNoise.x) : bioFbm(wp.xz * biomeNoise.x)) * biomeNoise.y;
+        // Flat ground reads it at the WORLD position (render position plus
+        // the floating origin's travel), so a region does not move when the
+        // origin does.
+        vec2 cp = wp.xz + biomeOrigin.xy;
+        float tN = (planetary ? bioSimplex3(rel * biomeNoise.x) : bioClimate(cp * biomeNoise.x)) * biomeNoise.y;
         // Moisture noise scales with AVAILABLE moisture: an airless world has
         // no damp patches, so mapMoisture 0 is EXACTLY the dead row (moon
         // grey when cold — never phantom ice). Just above zero, cold regions
         // grow polar ice naturally: Mars with ice caps, which is correct.
-        float mN = (planetary ? bioSimplex3(rel * biomeNoise.z + 71.3) : bioFbm(wp.xz * biomeNoise.z + 71.3)) * biomeNoise.w;
+        float mN = (planetary ? bioSimplex3(rel * biomeNoise.z + 71.3) : bioClimate(cp * biomeNoise.z + 71.3)) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN + biomeSeason.x;
-        float effMapM = biomeCfg.w;
+        // Height dries the land (valleys and coasts wet, heights dry); 0 is off.
+        float effMapM = biomePlanetD.z > 0.0
+          ? biomeCfg.w * exp(-max(altitude, 0.0) / biomePlanetD.z)
+          : biomeCfg.w;
         if (planetary) {
           // The three-point latitude curve authors think in: equator →
           // temperate (45°) → pole, over latWarped asin latitude (the warp
           // runs BEFORE the calc, so banding wobbles instead of painting on).
           float lat = asin(clamp(rel.y / max(r, 1e-5), -1.0, 1.0));
-          float latW = lat + bioSimplex(rel.xz * biomePlanetB.x) * biomePlanetB.y;
+          // 3D, and from the noise block where there is one, so code can
+          // work out the same wobble (sheetClimateAt).
+          float latW = lat + bioSimplex3(rel * biomePlanetB.x + 23.7) * biomePlanetB.y;
           float alat = clamp(abs(latW) / 1.5707963, 0.0, 1.0);
           float latT = alat < 0.5
             ? mix(biomePlanetC.x, biomePlanetC.y, alat * 2.0)
@@ -667,10 +729,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // with altitude — coasts wet, highlands dry) + orographic rain
           // shadow (windward slopes wet, leeward dry, off the surface normal
           // — the classic no-upstream-sampling approximation).
-          float dry = exp(-max(altitude, 0.0) / max(biomePlanetD.z, 1e-3));
+          float dry = biomePlanetD.z > 0.0 ? exp(-max(altitude, 0.0) / biomePlanetD.z) : 1.0;
           float oro = 0.0;
           #ifdef NORMAL
+            // The wind blows ALONG the ground: its part along up is
+            // dropped, or level ground on one side of the planet would read
+            // as a leeward slope everywhere (it dried a sphere world's
+            // whole start region by about 0.12).
             vec3 wind = vec3(cos(biomePlanetD.y), 0.0, sin(biomePlanetD.y));
+            wind -= up * dot(wind, up);
             oro = biomePlanetD.x * dot(nW, -wind);
           #endif
           effMapM = clamp(biomeCfg.w * dry + oro, 0.0, 1.0);
@@ -1017,15 +1084,97 @@ function has3dTextures(scene) {
     return ((scene.getEngine().webGLVersion ??
         0) >= 2);
 }
+let volume = null;
+/** The one noise block: the texture every scene reads, and what code samples. */
+function sharedVolume() {
+    volume ??= noiseVolume(64, 16);
+    return volume;
+}
+/**
+ * THE CLIMATE AT A PLACE ON THE GROUND, as the shader works it out: the two
+ * chart axes for a spot at world `x`, `z` (scene position plus the terrain's
+ * `originOffset`) and height `y`. On a sheet (`sheetRadius`) that is the
+ * planet's climate at that point of the sphere; otherwise the flat one. The
+ * decorator places by it, so what grows agrees with how the ground is drawn.
+ *
+ * The slope's share of the rain shadow is left out (a caller here has no
+ * normal), and the seasons; with the noise computed in the shader instead of
+ * read from the block (`setBiomeComputedNoise`, or no 3D textures) a sheet's
+ * noise differs.
+ */
+export function groundClimateAt(p, x, y, z) {
+    if (!(p.sheetRadius > 0)) {
+        const n = climateNoiseAt(p, x, z);
+        return mantaAxes(y, p, n.temperature, n.moisture);
+    }
+    const R = p.sheetRadius;
+    const d = groundToDirection(x, z, {
+        radius: R,
+        worldU: p.sheetU,
+        worldV: p.sheetV,
+    });
+    const r = R + y;
+    const rel = { x: d.x * r, y: d.y * r, z: d.z * r };
+    const vol = sharedVolume();
+    const noise = (scale, offset) => sampleNoiseVolume(vol, 64, rel.x * scale + offset, rel.y * scale + offset, rel.z * scale + offset);
+    // No rain shadow: the shader's comes from the slope against a wind along
+    // the ground, which is zero on level ground, and this has no slope (the
+    // flat case has none either).
+    const rain = 0;
+    return planetaryAxes(rel, { ...p, seaLevel: R + p.seaLevel }, noise(p.tNoiseScale, 0) * p.tNoiseAmp, noise(p.mNoiseScale, 71.3) * p.mNoiseAmp, noise(p.latWarpScale, 23.7) * p.latWarpAmp, rain);
+}
+const climateTextures = new WeakMap();
+const sharedLattice = climateLattice();
+/**
+ * The climate noise at a world position on flat ground, as the shader reads
+ * it: what to add to temperature (chart units) and to map moisture. Pass the
+ * results to `mantaAxes` as its `tNoise` and `mNoise`.
+ */
+export function climateNoiseAt(params, x, z) {
+    return {
+        temperature: climateNoise(sharedLattice, x * params.tNoiseScale, z * params.tNoiseScale) * params.tNoiseAmp,
+        moisture: climateNoise(sharedLattice, x * params.mNoiseScale + 71.3, z * params.mNoiseScale + 71.3) * params.mNoiseAmp,
+    };
+}
+/** The scene's climate lattice as a texture, made on first use. */
+export function climateTextureOf(scene) {
+    let tex = climateTextures.get(scene);
+    if (tex == null) {
+        tex = BABYLON.RawTexture.CreateLuminanceTexture(sharedLattice, CLIMATE_CELLS, CLIMATE_CELLS, scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+        tex.name = 'biome-climate';
+        tex.wrapU = tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+        climateTextures.set(scene, tex);
+        // Shared, so it goes with the scene (see noiseTextureOf).
+        const dispose = tex.dispose.bind(tex);
+        tex.dispose = () => { };
+        scene.onDisposeObservable.addOnce(() => {
+            climateTextures.delete(scene);
+            dispose();
+        });
+    }
+    return tex;
+}
 /** The scene's one noise block, made on first use. */
-function noiseTextureOf(scene) {
+export function noiseTextureOf(scene) {
     let tex = noiseTextures.get(scene);
     if (tex == null) {
-        tex = new BABYLON.RawTexture3D(noiseVolume(64, 16), 64, 64, 64, BABYLON.Constants.TEXTUREFORMAT_R, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        tex = new BABYLON.RawTexture3D(sharedVolume(), 64, 64, 64, BABYLON.Constants.TEXTUREFORMAT_R, scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE);
         tex.name = 'biome-noise';
         tex.wrapU = tex.wrapV = tex.wrapR = BABYLON.Texture.WRAP_ADDRESSMODE;
         noiseTextures.set(scene, tex);
-        tex.onDisposeObservable.add(() => noiseTextures.delete(scene));
+        /*
+        SHARED, so it belongs to the scene and not to whoever holds it. A mesh
+        disposed "with its material and textures" would otherwise take this away
+        from every other material reading it (a planet rebuilding its clouds
+        left its own surface with a dead texture, and a material with a dead
+        texture is never ready: the planet vanished). It goes with the scene.
+        */
+        const dispose = tex.dispose.bind(tex);
+        tex.dispose = () => { };
+        scene.onDisposeObservable.addOnce(() => {
+            noiseTextures.delete(scene);
+            dispose();
+        });
     }
     return tex;
 }
