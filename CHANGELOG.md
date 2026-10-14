@@ -6,6 +6,19 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.5 (unreleased)
+
+### Changed
+
+- **Gas giants tear at their band edges.** Turbulence is eddies where the wind reverses, in patches along the edges, instead of a warp that made every band wavy; inside a band the texture is billow filaments along the wind. A storm brighter than the zones (Neptune's) is dark with bright cloud at its rim.
+- **A planet's ring lies in its equator.** It was tipped off it, and as the planet turned the ring precessed.
+
+### Fixed
+
+- **A gas giant's storm had a seam** where its swirl read noise at an angle that jumps a full turn.
+- **Gas giant poles had a dark blotch**, a cap of a different colour; the bands now close in on the pole, a little darker.
+- **A ring's fine bands and gaps fade where they would be finer than a pixel**, and its band frequency no longer grows with the seed.
+
 ## 0.10.4
 
 ### Added

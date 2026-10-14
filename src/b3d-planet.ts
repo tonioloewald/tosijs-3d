@@ -903,8 +903,8 @@ export class B3dPlanet extends B3dChild {
     const radius: number = attrs.radius
 
     // Register ring shader once
-    if (!BABYLON.Effect.ShadersStore['planetRing2VertexShader']) {
-      BABYLON.Effect.ShadersStore['planetRing2VertexShader'] = `
+    if (!BABYLON.Effect.ShadersStore['planetRing3VertexShader']) {
+      BABYLON.Effect.ShadersStore['planetRing3VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec2 uv;
@@ -915,7 +915,8 @@ export class B3dPlanet extends B3dChild {
           vUV = uv;
         }
       `
-      BABYLON.Effect.ShadersStore['planetRing2FragmentShader'] = `
+      BABYLON.Effect.ShadersStore['planetRing3FragmentShader'] = `
+        #extension GL_OES_standard_derivatives : enable
         precision highp float;
         varying vec2 vUV;
         uniform vec3 ringColor;
@@ -936,18 +937,23 @@ export class B3dPlanet extends B3dChild {
           // Normalize to ring band
           float t = (r - ringInner) / (1.0 - ringInner);
 
-          // Procedural ring bands from seed
+          // Procedural ring bands from seed. A band finer than a pixel
+          // fades to its average instead of aliasing: drawn, it shimmered
+          // into moire and flickered as the camera moved. (The frequency
+          // also used to grow with the seed, to some 300 ripples.)
+          float px = fwidth(t);
           float bands = 0.0;
           for (float i = 1.0; i < 6.0; i++) {
-            float freq = i * 7.0 + seed * 3.0;
+            float freq = i * 7.0 + hash(seed + 3.0) * 6.0;
             float amp = hash(i * seed + 0.5) * 0.3;
-            bands += sin(t * freq) * amp;
+            float alias = 1.0 - smoothstep(0.15, 0.35, freq * px);
+            bands += sin(t * freq) * amp * alias;
           }
           bands = 0.5 + bands;
 
-          // Gaps
-          float gap1 = smoothstep(0.0, 0.02, abs(t - hash(seed) * 0.6 - 0.2));
-          float gap2 = smoothstep(0.0, 0.015, abs(t - hash(seed + 1.0) * 0.4 - 0.5));
+          // Gaps, never narrower than about a pixel
+          float gap1 = smoothstep(0.0, max(0.02, px * 1.5), abs(t - hash(seed) * 0.6 - 0.2));
+          float gap2 = smoothstep(0.0, max(0.015, px * 1.5), abs(t - hash(seed + 1.0) * 0.4 - 0.5));
           bands *= gap1 * gap2;
 
           // Fade at edges
@@ -991,12 +997,13 @@ export class B3dPlanet extends B3dChild {
       scene
     )
     mesh.rotation.x = Math.PI / 2 // Flat in XZ plane
-    mesh.rotation.z = 0.15 + (attrs.seed % 10) * 0.02 // Slight tilt
+    // In the equator, as rings are. It used to be tipped off it, and as
+    // the planet turned (the ring is its child) the ring precessed.
 
     const mat = new BABYLON.ShaderMaterial(
       'planet-ring-mat',
       scene,
-      { vertex: 'planetRing2', fragment: 'planetRing2' },
+      { vertex: 'planetRing3', fragment: 'planetRing3' },
       {
         attributes: ['position', 'uv'],
         uniforms: [
