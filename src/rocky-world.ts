@@ -2,7 +2,7 @@
 # rocky-world
 
 **What kind of rock a planet is**, as data: the Moon, Mercury, Mars, Venus,
-Io, Titan and an Earth, each a sea, an air, clouds, relief, craters and a climate.
+Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 [`<tosi-b3d-planet world="moon">`](/b3d-planet/) draws one; the
 [star system](/b3d-star-system/) picks one for each rocky planet it makes.
 
@@ -162,6 +162,23 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     palette: {
       a: [[0.22, 0.17, 0.12], [0.3, 0.22, 0.14], [0.4, 0.29, 0.17], [0.5, 0.37, 0.22]],
       b: [[0.32, 0.27, 0.22], [0.2, 0.15, 0.1], [0.46, 0.34, 0.2], [0.36, 0.26, 0.15]],
+    },
+  },
+  // Ice moons (Europa, Enceladus, Triton): bright, cracked, hardly cratered,
+  // no air.
+  ice: {
+    ocean: 0,
+    atmosphere: 0,
+    atmosphereColor: '',
+    clouds: 0,
+    cloudColor: '#ffffff',
+    grossAmplitude: 1.2,
+    detailAmplitude: 0.5,
+    craters: { density: 0.12, size: 0.07, wear: 0.8, asymmetry: 0 },
+    climate: { equatorTemp: 0.5, temperateTemp: 0.4, poleTemp: 0.2, mapMoisture: 0, slopeExaggeration: 2 },
+    palette: {
+      a: [[0.86, 0.87, 0.86], [0.82, 0.84, 0.86], [0.78, 0.76, 0.72], [0.66, 0.56, 0.46]],
+      b: [[0.76, 0.8, 0.84], [0.62, 0.5, 0.4], [0.86, 0.85, 0.82], [0.55, 0.42, 0.32]],
     },
   },
   // Seas, blue air, weather; the biome shader's own climate.

@@ -423,6 +423,9 @@ export {
 } from './gas-giant.js'
 export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js'
 export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js'
+export { SOL } from './sol.js'
+export { layoutSystem } from './system-layout.js'
+export type { SystemSpec, SystemPlanetSpec, SystemBodySpec, SystemLayout } from './system-layout.js'
 export type { SpaceBackdropOptions } from './space-backdrop.js'
 export type { RockyWorldLook, RockyCraters, RockyClimate } from './rocky-world.js'
 export {
@@ -784,7 +787,6 @@ export {
   type FaceUv,
   type SkyObject,
 } from './starfield-codec.js'
-export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js'
 export { pngEncode, crc32, adler32 } from './png.js'
 export {
   bakeSkyboxCube,

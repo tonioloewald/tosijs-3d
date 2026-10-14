@@ -368,10 +368,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   What changed, how to upgrade, and the seeded random sources everything
 - https://3d.tosijs.net/resource/ — resource
   destroyable's health and a launcher's energy: it regenerates, but only once it
-- https://3d.tosijs.net/rocket-ascent/ — Rocket Ascent
-  through the cloud deck, and keeps going until the air runs out and the stars
 - https://3d.tosijs.net/rocky-world/ — rocky-world
-  Io, Titan and an Earth, each a sea, an air, clouds, relief, craters and a climate.
+  Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
 - https://3d.tosijs.net/scatter/ — scatter
@@ -388,6 +386,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   become a cube map — a starfield with real structure, for the cost of a texture
 - https://3d.tosijs.net/slope-profile/ — slope-profile
   noise field before amplitude. A profile remaps normalized height (0..1 → 0..1),
+- https://3d.tosijs.net/sol/ — sol
+  moons worth drawing and the asteroid belt's four biggest bodies, each with
+- https://3d.tosijs.net/solar-system/ — Solar System
+  Our own solar system, built from the parts the rest of this site documents:
 - https://3d.tosijs.net/space/ — Space
   for any star in it, [planets](/b3d-planet/) with atmospheres, and a
 - https://3d.tosijs.net/space-backdrop/ — space-backdrop

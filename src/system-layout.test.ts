@@ -74,3 +74,13 @@ describe('rockyWorldFor', () => {
     expect(rockyWorldFor({ hydrographics: 0, atmosphere: 'Inert', insolation: 0.4 }).world).toBe('mars')
   })
 })
+
+describe('a known system', () => {
+  test('named moons and belt bodies are used as given', () => {
+    const planets = sol.map((p, i) => (i === 2 ? { ...p, moons: [1737] } : i === 3 ? { ...p, moons: [11, 6] } : p))
+    const layout = layoutSystem(planets, { starRadius: 10, belt: [473, 263, 256, 217] })
+    expect(layout.planets[2].moons.map((m) => m.radiusKm)).toEqual([1737])
+    expect(layout.planets[3].moons.map((m) => m.radiusKm)).toEqual([11, 6])
+    expect(layout.belt!.notable.map((n) => n.radiusKm)).toEqual([473, 263, 256, 217])
+  })
+})

@@ -663,6 +663,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/rocky-world.ts` | `ROCKY_WORLDS`: the Moon, Mercury, Mars, Venus and an Earth as data (sea, air, clouds, relief, craters, climate); `<tosi-b3d-planet world="moon">` draws one. Colours come from the biome chart's rows (a dry warm world is red, a dry cold one grey) |
 | `src/space-backdrop.ts` | `spaceBackdrop()`: a sun and the airless star sky, galaxy tilted off the scene's plane (untilted, the Milky Way ran along every planet's equator and ring). Defaults to the pinned versioned sky; demos pass `sky: '/sky'` |
 | `src/system-layout.ts` | Where a star system's bodies go, pure: log distances, square-root sizes, moons per planet, the belt reserved in the gap before the first giant, Kepler periods sped up. `b3d-star-system` draws what it says |
+| `src/sol.ts` | `SOL`: our own solar system as a `SystemSpec` (true radii and order, named moons, the belt's big four; Earth/Moon/Mars carry NASA/NOAA `maps`). A star system draws it with `system = SOL`; `maps="on"` uses the real maps |
 | `src/b3d-star.ts` / `b3d-star-system.ts` | Star and star system rendering |
 | `src/b3d-galaxy.ts` / `galaxy-data.ts` | Galaxy visualization |
 | `src/voxel-galaxy.ts` | The VOXEL galaxy (GALAXY-DESIGN.md) — density sampled from the spiral model (`sampleSpiral`) and propagated so every voxel is non-zero; each voxel derives a bright and a dim seed; `brightStars()` is the global pass, `dimStarsNear(point, r)` the local one the baker needs; stars addressed `population:voxel:n`. Pure, unit-tested (incl. the falsifier: it reproduces the sampled galaxy) |
@@ -797,7 +798,6 @@ missile its target (no lock ⇒ the round flies ballistic).
 | `src/surroundings-probe.ts` | Takes the measurement `surroundings` answers questions about — separate so the pure module stays renderer-free                                                                                                                  |
 | `src/b3d-elevator.ts`       | `<tosi-b3d-elevator>` — a moving platform you stand on, ride or switch; the arena's three behaviours                                                                                                                            |
 | `src/playground.ts`         | The combat playground — ground, light, cover, crates, a catwalk — as ordinary scene children, composing into any demo                                                                                                           |
-| `src/rocket-ascent.ts`      | The medium-crossing demo — through the deck, out of the air, stars come through; the one scene that crosses more than one medium                                                                                                |
 | `src/land-and-sky.ts`       | THE KITCHEN SINK ("Land and Sky") — live-dialed terrain + sea + weather + the encoded sky; where provinces, weather systems and the simulation land first                                                                       |
 
 ### Convention-Based Mesh/Light Configuration

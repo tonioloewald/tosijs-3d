@@ -84,7 +84,8 @@ const scene = b3d(
       el.scene.onBeforeRenderObservable.add(() => {
         const body = starSystem.bodies.find((b) => b.name === demo.focus.value)
         const to = body ? body.node.getAbsolutePosition() : BABYLON.Vector3.Zero()
-        camera.target = BABYLON.Vector3.Lerp(camera.target, to, 0.15)
+        // In place: assigning an orbit camera's target moves its distance.
+        BABYLON.Vector3.LerpToRef(camera.target, to, 0.15, camera.target)
         if (demo.focus.value !== following) {
           following = demo.focus.value
           camera.radius = body ? Math.max(3, body.radius * 7) : 100
@@ -181,6 +182,7 @@ tosi-b3d {
 | `orbitScale` | `3` | Multiplier for orbital distances |
 | `animate` | `'on'` | Animate planet orbital motion |
 | `showOrbits` | `'on'` | Show orbital path lines |
+| `maps` | `'off'` | `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them |
 | `beltCount` | `1500` | Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant) |
 
 */
@@ -195,9 +197,22 @@ import { voxelGalaxy } from './voxel-galaxy.js'
 import { PerlinNoise } from './perlin-noise.js'
 import { b3dPlanet } from './b3d-planet.js'
 import { rockyWorldFor } from './rocky-world.js'
-import { layoutSystem, type BeltLayout, type SystemLayout } from './system-layout.js'
+import {
+  layoutSystem,
+  type BeltLayout,
+  type SystemBodySpec,
+  type SystemLayout,
+  type SystemSpec,
+} from './system-layout.js'
 import { rockGeometry } from './procedural-rock.js'
 import { PRNG } from './mersenne-twister.js'
+
+/** A stable seed from a name, so a named body looks the same every time. */
+function nameSeed(name: string): number {
+  let h = 2166136261
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619)
+  return Math.abs(h) % 100000
+}
 
 export class B3dStarSystem extends B3dChild {
   static preferredTagName = 'tosi-b3d-star-system'
@@ -221,6 +236,9 @@ export class B3dStarSystem extends B3dChild {
     showOrbits: 'on' as 'on' | 'off',
     // Rocks drawn in the asteroid belt (when the system has one).
     beltCount: 1500,
+    // 'on': bodies that have real maps (our own system's Earth, Moon and
+    // Mars) are drawn from them.
+    maps: 'off' as 'on' | 'off',
     x: 0,
     y: 0,
     z: 0,
@@ -245,6 +263,12 @@ export class B3dStarSystem extends B3dChild {
   declare animate: any
   declare showOrbits: 'on' | 'off'
   declare beltCount: number
+  declare maps: 'on' | 'off'
+  /**
+   * A system given as DATA (`SOL`, or your own `SystemSpec`) instead of a
+   * star from the galaxy. Set it, then `regenerate()`.
+   */
+  system: SystemSpec | null = null
   declare x: number
   declare y: number
   declare z: number
@@ -363,18 +387,45 @@ export class B3dStarSystem extends B3dChild {
     which is a position in a list, and moves if the budget does. Only THE
     star's system is generated, right below.
     */
-    const galaxy = voxelGalaxy({
-      seed: attrs.galaxySeed,
-      brightBudget: attrs.starCount,
-    })
-    let star = attrs.star ? galaxy.star(attrs.star) : null
-    if (star == null) {
-      const stars = galaxy.view().stars
-      star = stars[Math.min(Math.max(0, attrs.starIndex), stars.length - 1)]
+    const spec = this.system
+    let star: any
+    if (spec != null) {
+      // A system given as data (our own: SOL): no galaxy, no generator.
+      star = { ...spec.star, seed: 1, bestHI: 0 }
+      this.systemData = {
+        star,
+        planets: spec.planets.map((p) => ({
+          name: p.name,
+          seed: nameSeed(p.name),
+          orbitalRadius: p.au,
+          radius: p.radiusKm,
+          classification: p.look.gas ? 'gas giant' : 'rocky',
+          insolation: spec.star.luminosity / (p.au * p.au),
+          rings: p.rings ?? 0,
+          hydrographics: 0,
+          atmosphere: '',
+          HI: 0,
+          description: '',
+          g: '',
+          albedo: 0,
+          tempC: '',
+          temp: '',
+          density: 0,
+        })),
+      } as StarSystemData
+    } else {
+      const galaxy = voxelGalaxy({
+        seed: attrs.galaxySeed,
+        brightBudget: attrs.starCount,
+      })
+      star = attrs.star ? galaxy.star(attrs.star) : null
+      if (star == null) {
+        const stars = galaxy.view().stars
+        star = stars[Math.min(Math.max(0, attrs.starIndex), stars.length - 1)]
+      }
+      if (!star) return
+      this.systemData = generateStarSystem(star)
     }
-    if (!star) return
-
-    this.systemData = generateStarSystem(star)
     const { planets } = this.systemData
     const scale: number = attrs.scale
     const orbitScale: number = attrs.orbitScale
@@ -546,11 +597,24 @@ export class B3dStarSystem extends B3dChild {
     they go, how big they are and their moons come from system-layout, which
     compresses the distances so there is something to see.
     */
-    const layout = layoutSystem(planets, {
-      starRadius,
-      spacing: scale * orbitScale * 1.3,
-      earthSize: scale * 0.9,
-    })
+    const layout = layoutSystem(
+      spec
+        ? planets.map((p, i) => ({
+            ...p,
+            moons: spec.planets[i].moons?.map((m) => m.radiusKm) ?? [],
+          }))
+        : planets,
+      {
+        starRadius,
+        spacing: scale * orbitScale * 1.3,
+        earthSize: scale * 0.9,
+        belt: spec?.belt?.map((b) => b.radiusKm),
+      }
+    )
+    const useMaps = !isOff(attrs.maps)
+    // A body's attributes from the spec: its maps when drawing from maps.
+    const lookOf = (b: SystemBodySpec) =>
+      useMaps && b.maps ? b.maps : b.look
     this.layout = layout
     const kinds = Object.keys(GAS_GIANTS)
     for (let i = 0; i < planets.length; i++) {
@@ -568,7 +632,10 @@ export class B3dStarSystem extends B3dChild {
         biome: 'on',
         rotationSpeed: giant ? 0.15 : 0.08,
       }) as any
-      if (giant) {
+      if (spec) {
+        Object.assign(el, lookOf(spec.planets[i]))
+        if (giant) el.rings = planet.rings
+      } else if (giant) {
         const kind = kinds[Math.abs(planet.seed) % kinds.length]
         el.gas = kind
         el.bands = Math.max(3, GAS_GIANTS[kind].bands + ((Math.abs(planet.seed) >> 3) % 7) - 3)
@@ -593,24 +660,27 @@ export class B3dStarSystem extends B3dChild {
         this.moonPivots.push({ pivot, period: moon.period })
         // A moon is locked to its planet (its pivot carries it round), so
         // it keeps one face inward and its leading side takes the craters.
-        this.adopt(
-          b3dPlanet({
-            seed: 1 + (moon.seed % 9973),
-            radius: moon.visualRadius,
-            subdivisions: 24,
-            biome: 'on',
-            // A giant's moons are a mixed family (Io, Titan, cratered ice);
-            // a rock's moon is a smaller rock.
-            world: giant
-              ? ['moon', 'io', 'titan', 'moon'][moon.seed % 4]
-              : planet.insolation > 1.6
-              ? 'mercury'
-              : 'moon',
-          }) as any,
-          at,
-          `${planet.name} ${'abcdefgh'[m]}`,
-          moon.visualRadius
-        )
+        const given = spec?.planets[i].moons?.[m]
+        const name = given?.name ?? `${planet.name} ${'abcdefgh'[m]}`
+        if (given?.look.shape === 'rock') {
+          this.adoptRock(at, name, moon.visualRadius, moon.seed, scene)
+          return
+        }
+        const moonEl = b3dPlanet({
+          seed: 1 + (moon.seed % 9973),
+          radius: moon.visualRadius,
+          subdivisions: 24,
+          biome: 'on',
+          // A giant's moons are a mixed family (Io, Titan, cratered ice);
+          // a rock's moon is a smaller rock.
+          world: giant
+            ? ['moon', 'io', 'titan', 'moon'][moon.seed % 4]
+            : planet.insolation > 1.6
+            ? 'mercury'
+            : 'moon',
+        }) as any
+        if (given) Object.assign(moonEl, lookOf(given))
+        this.adopt(moonEl, at, name, moon.visualRadius)
       })
       if (!isOff(attrs.showOrbits)) this.buildOrbitLine(place.distance, i)
     }
@@ -634,6 +704,47 @@ export class B3dStarSystem extends B3dChild {
     // not applied yet, and it would report the default.
     this.planetEls.push({ el, holder, name, radius })
     this.owner?.append(el)
+  }
+
+  /*
+  A BODY TOO SMALL TO BE ROUND (Phobos, Vesta): a procedural rock, lumpy and
+  cut, rather than a planet. It stands in the same list as the planets, so
+  the camera can follow it and it fades with them.
+  */
+  private adoptRock(
+    holder: BABYLON.TransformNode,
+    name: string,
+    radius: number,
+    seed: number,
+    scene: BABYLON.Scene
+  ) {
+    const g = rockGeometry({ seed, detail: 3, cuts: 9, roughness: 0.2, squash: 0.7, sink: 0 })
+    const mesh = new BABYLON.Mesh(`rock-${name}`, scene)
+    const vd = new BABYLON.VertexData()
+    vd.positions = g.positions
+    vd.normals = g.normals
+    const idx = new Uint16Array(g.indices.length)
+    for (let t = 0; t < g.indices.length; t += 3) {
+      idx[t] = g.indices[t]
+      idx[t + 1] = g.indices[t + 2]
+      idx[t + 2] = g.indices[t + 1]
+    }
+    vd.indices = idx
+    vd.applyToMesh(mesh)
+    mesh.scaling.setAll(radius)
+    const mat = new BABYLON.StandardMaterial(`rock-${name}`, scene)
+    mat.diffuseColor = new BABYLON.Color3(0.45, 0.4, 0.36)
+    mat.specularColor = BABYLON.Color3.Black()
+    mesh.material = mat
+    this.planetEls.push({
+      el: {
+        rootNode: mesh,
+        remove: () => mesh.dispose(false, true),
+      },
+      holder,
+      name,
+      radius,
+    })
   }
 
   /*
@@ -697,22 +808,25 @@ export class B3dStarSystem extends B3dChild {
       mesh.thinInstanceRefreshBoundingInfo(false)
       this.beltMeshes.push(mesh)
     }
-    for (const rock of belt.notable) {
+    for (const [k, rock] of belt.notable.entries()) {
+      const given = this.system?.belt?.[k]
       const at = new BABYLON.TransformNode(`asteroid-${rock.name}`, scene)
       at.parent = node
       at.position.set(Math.cos(rock.phase) * rock.distance, 0, Math.sin(rock.phase) * rock.distance)
-      this.adopt(
-        b3dPlanet({
-          seed: 1 + (rock.seed % 9973),
-          radius: rock.visualRadius,
-          subdivisions: 16,
-          biome: 'on',
-          world: 'moon',
-        }) as any,
-        at,
-        `asteroid ${rock.name}`,
-        rock.visualRadius
-      )
+      const name = given?.name ?? `asteroid ${rock.name}`
+      if (given?.look.shape === 'rock') {
+        this.adoptRock(at, name, rock.visualRadius, rock.seed, scene)
+        continue
+      }
+      const rockEl = b3dPlanet({
+        seed: 1 + (rock.seed % 9973),
+        radius: rock.visualRadius,
+        subdivisions: 16,
+        biome: 'on',
+        world: 'moon',
+      }) as any
+      if (given) Object.assign(rockEl, given.look)
+      this.adopt(rockEl, at, name, rock.visualRadius)
     }
   }
 

@@ -1001,6 +1001,7 @@ b3d-star-system
   animate  = 'on'  — Animate planet orbital motion
   showOrbits  = 'on'  — Show orbital path lines
   beltCount  = 1500  — Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)
+  maps  = 'off'  — `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them
   x
   y
   z
@@ -1358,20 +1359,6 @@ procedural-rock
   roughness  = 0.07  — Depth of the noise, as a fraction of the radius
   squash  = 0.7  — Height relative to width. Low values give slabs
   sink  = 0.15  — Fraction of the height that sits below the ground
-
-## rocket-ascent
-Rocket Ascent
-
-  cloudAltitude  = 140  — Centre of the cloud deck (m)
-  spaceStart  = 500  — Where the sky begins to fade (m)
-  spaceFull  = 2400  — Full vacuum (m)
-  apogee  = 3200  — Where it stops and resets (m)
-  accel  = 9  — Net acceleration (m/s²) — thrust already minus gravity
-  holdSeconds  = 2.5  — Pause on the pad, and again at apogee
-  starfield  = 2500  — Background stars (see [b3d-skybox](?b3d-skybox.ts))
-  nebulae  = 0  — Sprite nebulae, OFF — superseded by baking the galaxy
-  rocketScale  = 4  — Uniform scale on the Kenney parts
-  timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
 
 ## rocky-world
 rocky-world

@@ -43,6 +43,9 @@ export interface PlanetInput {
   insolation: number
   /** 0…1 when the planet has rings. */
   rings: number
+  /** Its moons' radii in km, inmost first, when they are known (our own
+   * system); otherwise they follow from the seed. */
+  moons?: number[]
 }
 
 export interface MoonLayout {
@@ -103,6 +106,11 @@ export interface LayoutOptions {
   earthSize?: number
   /** Seconds for a planet at 1 AU to go round. */
   year?: number
+  /**
+   * The belt's big bodies' radii in km, when they are known (Ceres, Vesta,
+   * …): it then always has a belt before the first giant, with these.
+   */
+  belt?: number[]
 }
 
 /** Drawn radius from a true one: Earth is `earthSize`, the rest by a square root. */
@@ -119,15 +127,17 @@ function moonsFor(p: PlanetInput, vr: number, earthSize: number): MoonLayout[] {
   const prng = new PRNG(p.seed * 31 + 7)
   const giant = p.classification !== 'rocky'
   let count = 0
-  if (giant) count = 2 + prng.range(0, 2)
+  if (p.moons) count = p.moons.length
+  else if (giant) count = 2 + prng.range(0, 2)
   else if (p.radius > 4000 && prng.probability(0.45)) count = prng.probability(0.25) ? 2 : 1
   const moons: MoonLayout[] = []
   // Clear of the planet and of any ring (a ring reaches ~2.3 radii).
   let d = vr * (p.rings > 0 ? 2.8 : 2.0)
   for (let i = 0; i < count; i++) {
-    const radiusKm = giant
+    const rolled = giant
       ? prng.realRange(700, 2700)
       : p.radius * prng.realRange(0.12, 0.3)
+    const radiusKm = p.moons ? p.moons[i] : rolled
     const mr = visualRadius(radiusKm, earthSize)
     d += mr * 1.6 + vr * 0.25
     moons.push({
@@ -162,7 +172,8 @@ export function layoutSystem(
   const giant = planets.findIndex((p) => p.classification !== 'rocky')
   const beltAt =
     giant > 0 &&
-    planets[giant].orbitalRadius / planets[giant - 1].orbitalRadius > 1.8
+    (opts.belt != null ||
+      planets[giant].orbitalRadius / planets[giant - 1].orbitalRadius > 1.8)
       ? giant
       : -1
   const beltHalf = spacing * 0.35
@@ -176,9 +187,10 @@ export function layoutSystem(
       const mid = Math.max(logDistance(au, base, spacing), edge + beltHalf * 1.2)
       const prng = new PRNG(a.seed * 13 + p.seed)
       const notable: NotableAsteroid[] = []
-      const count = 2 + prng.range(0, 2)
+      const count = opts.belt ? opts.belt.length : 2 + prng.range(0, 2)
       for (let k = 0; k < count; k++) {
-        const radiusKm = prng.realRange(200, 500)
+        const rolled = prng.realRange(200, 500)
+        const radiusKm = opts.belt ? opts.belt[k] : rolled
         notable.push({
           name: `(${k + 1})`,
           seed: prng.range(1, 99999),
@@ -212,4 +224,40 @@ export function layoutSystem(
   }
 
   return { planets: out, belt }
+}
+
+/**
+ * A SYSTEM GIVEN AS DATA rather than generated: a star, its planets in
+ * order, their moons, and the belt's big bodies. `look` is the attributes
+ * a `<tosi-b3d-planet>` is made with (`{ gas: 'saturn' }`, `{ world: 'mars' }`),
+ * or `{ shape: 'rock' }` for a body too small to be round (Phobos), drawn
+ * as a procedural rock. `maps` are the attributes it takes instead when the
+ * system is drawn from real maps.
+ */
+export interface SystemBodySpec {
+  name: string
+  radiusKm: number
+  look: Record<string, unknown>
+  maps?: Record<string, unknown>
+}
+
+export interface SystemPlanetSpec extends SystemBodySpec {
+  /** AU from the star. */
+  au: number
+  /** Ring strength, 0…1. */
+  rings?: number
+  moons?: SystemBodySpec[]
+}
+
+export interface SystemSpec {
+  star: {
+    name: string
+    /** 0…255. */
+    rgb: [number, number, number]
+    /** Relative to the Sun's. */
+    luminosity: number
+    spectralType: string
+  }
+  planets: SystemPlanetSpec[]
+  belt?: SystemBodySpec[]
 }

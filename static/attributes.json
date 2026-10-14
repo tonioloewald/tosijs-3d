@@ -3943,6 +3943,11 @@
         "description": "Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)"
       },
       {
+        "name": "maps",
+        "default": "'off'",
+        "description": "`'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them"
+      },
+      {
         "name": "x"
       },
       {
@@ -5275,62 +5280,6 @@
         "name": "sink",
         "default": "0.15",
         "description": "Fraction of the height that sits below the ground"
-      }
-    ]
-  },
-  {
-    "module": "rocket-ascent",
-    "summary": "Rocket Ascent",
-    "attributes": [
-      {
-        "name": "cloudAltitude",
-        "default": "140",
-        "description": "Centre of the cloud deck (m)"
-      },
-      {
-        "name": "spaceStart",
-        "default": "500",
-        "description": "Where the sky begins to fade (m)"
-      },
-      {
-        "name": "spaceFull",
-        "default": "2400",
-        "description": "Full vacuum (m)"
-      },
-      {
-        "name": "apogee",
-        "default": "3200",
-        "description": "Where it stops and resets (m)"
-      },
-      {
-        "name": "accel",
-        "default": "9",
-        "description": "Net acceleration (m/s²) — thrust already minus gravity"
-      },
-      {
-        "name": "holdSeconds",
-        "default": "2.5",
-        "description": "Pause on the pad, and again at apogee"
-      },
-      {
-        "name": "starfield",
-        "default": "2500",
-        "description": "Background stars (see [b3d-skybox](?b3d-skybox.ts))"
-      },
-      {
-        "name": "nebulae",
-        "default": "0",
-        "description": "Sprite nebulae, OFF — superseded by baking the galaxy"
-      },
-      {
-        "name": "rocketScale",
-        "default": "4",
-        "description": "Uniform scale on the Kenney parts"
-      },
-      {
-        "name": "timeOfDay",
-        "default": "14",
-        "description": "Broad daylight — so the stars appear because the AIR ran out, not because night fell"
       }
     ]
   },
