@@ -496,6 +496,16 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
   let disposers: (() => void)[] = []
   let scroll = 0
   let current: ReturnType<typeof box> | null = null
+  // A panel showing ONE list takes a drop anywhere on it, and is outlined
+  // while it would take what is carried (brighter while the pointer is on it).
+  let whole: { target: CarryTarget<string>; from: string } | null = null
+  const glow = svgElements.rect({ x: 1.5, y: 1.5, rx: 10, fill: 'none', 'stroke-width': 3, 'pointer-events': 'none' })
+  const lightUp = () => {
+    const s = carry.state
+    const v = whole && s.thing != null && s.from !== whole.from ? carry.verdictFor(whole.target) : null
+    glow.setAttribute('stroke', v?.ok ? (s.target === whole?.target ? '#c4f5d2' : '#6fd08c') : 'none')
+  }
+  const stopGlow = carry.subscribe(lightUp)
 
   // By default a slot takes ONE from a stack; a list takes the lot.
   const moveTo = (item: string, to: Place): Move =>
@@ -545,6 +555,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     for (const d of disposers) d()
     disposers = []
     const children: BoxChild[] = []
+    const lists: { target: CarryTarget<string>; from: string }[] = []
+    let shown = 0
     if (opts.title) children.push(textBlock(opts.title, { font: { size: 15, weight: 700 }, color: '#e8e8e8' }))
     if (opts.totals !== false) {
       const t = { ...h.purse, ...inv.totals(holder) }
@@ -556,6 +568,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     for (const [cname, c] of Object.entries(h.containers)) {
       if (opts.only && !opts.only.includes(cname)) continue
       if (opts.hide?.includes(cname)) continue
+      shown++
       children.push(textBlock(cname, { font: { size: 12, weight: 600 }, color: '#aab4c8' }))
       if (c.type === 'slots') {
         const art = opts.schematics?.[cname]
@@ -601,6 +614,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
       } else if (c.type === 'list') {
         const at: Place = { holder, container: cname }
         const into = target(at, `${holder}/${cname}`)
+        lists.push({ target: into, from: enc(at) })
         for (const id of c.holds) children.push(tile(id, at, undefined, into))
         const socket = carrySocket({
           carry,
@@ -629,7 +643,12 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     host.setAttribute('height', String(tall))
     host.setAttribute('viewBox', `0 0 ${width} ${tall}`)
     current = b
-    panel = carryPanel(b, carry)
+    whole = lists.length === 1 && shown === 1 ? lists[0] : null
+    glow.setAttribute('width', String(width - 3))
+    glow.setAttribute('height', String(tall - 3))
+    host.append(glow)
+    lightUp()
+    panel = carryPanel(b, carry, { fallback: whole?.target })
   }
   build()
   const stop = inv.subscribe(() => build())
@@ -656,6 +675,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
   return {
     dispose() {
       stop()
+      stopGlow()
       for (const d of disposers) d()
       host.removeEventListener('wheel', wheel)
       host.removeEventListener('pointerdown', down)

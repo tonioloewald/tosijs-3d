@@ -434,7 +434,14 @@ export interface CarryPanel {
  * drag; a ghost follows the pointer; letting go drops it on the socket under
  * the pointer. Everything else is the box's own pointer handling.
  */
-export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
+export function carryPanel<T>(
+  box: Box,
+  carry: Carry<T>,
+  opts: {
+    /** Where a drop goes when the pointer is over no socket or tile of its own (a list's whole panel). */
+    fallback?: CarryTarget<T>
+  } = {}
+): CarryPanel {
   let press: { x: number; y: number } | null = null
   /*
   "A DRAG IS ON" BELONGS TO THE CARRY, not to this panel: a drag that starts
@@ -492,6 +499,7 @@ export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
         // The box keeps its hover bookkeeping, which is how a socket knows
         // the pointer is on it.
         box.handlePointer(kind, x, y)
+        if (dragging() && opts.fallback && carry.state.target == null) carry.over(opts.fallback)
         return
       }
       if (kind === 'up') {
