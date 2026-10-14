@@ -29,8 +29,9 @@ import {
   createCarry,
   createInventory,
   inventoryDock,
+  b3dPanel,
 } from '../src/index'
-import type { InventoryDock, FramePanelSpec } from '../src/index'
+import type { InventoryDock, B3dPanel } from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -414,15 +415,16 @@ export function impactMarker(
 }
 
 /**
- * A person's loadout for a scene's VR body panels: the person schematic and a
- * bag, as an `inventoryDock`, and the default body panels with it on the left
- * shoulder in place of the inventory placeholder. Touch it and it comes front
- * and centre, open. Resolves once the art has loaded.
+ * A person's loadout pinned up and to the left (over the shoulder in a
+ * headset, the top left of a monitor's view), with the scene's other body
+ * panels: touch it and it comes front and centre, open, with the bag beside
+ * it. Put `panels()` inside the `<tosi-b3d>`; declared panels replace the
+ * default set, so the journal, quick access and wrist menu come with it.
  *
  *   const loadout = demoLoadout()
- *   b3d({ bodyPanels: loadout.bodyPanels }, …)
+ *   b3d({}, …, ...loadout.panels())
  */
-export function demoLoadout(): { bodyPanels: () => FramePanelSpec[]; dock: () => InventoryDock | null } {
+export function demoLoadout(): { panels: () => B3dPanel[]; dock: () => InventoryDock | null } {
   const kind = (id: string, tags: string[], mass: number) => ({ id, name: id, tags, mass })
   const kinds = {
     helm: kind('helm', ['helmet'], 2),
@@ -464,7 +466,7 @@ export function demoLoadout(): { bodyPanels: () => FramePanelSpec[]; dock: () =>
     } as any
   )
   let dock: InventoryDock | null = null
-  Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())])
+  const ready: Promise<InventoryDock> = Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())])
     .then(([art, icons]) => {
       for (const k of Object.keys(kinds)) (kinds as Record<string, { icon?: string }>)[k].icon = icons[k]
       dock = inventoryDock({
@@ -484,16 +486,31 @@ export function demoLoadout(): { bodyPanels: () => FramePanelSpec[]; dock: () =>
       park.style.cssText = 'position:fixed; left:-10000px; top:0'
       park.append(dock.svg)
       document.body.append(park)
+      return dock
     })
+  // Until the art arrives it is the placeholder card.
+  const pinned = b3dPanel({
+    frame: 'eye',
+    preset: 'left-shoulder',
+    title: 'Inventory',
+    reveal: 'always',
+    presence: 'both',
+    flatFrame: 'face',
+    width: 0.3,
+    resolution: 1024,
+  }) as B3dPanel
+  pinned.flatAnchor = { azimuthDeg: -24, elevationDeg: 8, distance: 1.4 }
+  ready.then((d) => {
+    pinned.title = ''
+    pinned.svg = d.svg
+  })
   return {
     dock: () => dock,
-    bodyPanels: () => [
-      dock
-        ? { frame: 'eye', anchor: 'left-shoulder', svg: dock.svg, width: 0.3, resolution: 1024 }
-        : { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
-      { frame: 'eye', anchor: 'right-shoulder', title: 'Journal' },
-      { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
-      { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
+    panels: () => [
+      pinned,
+      b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'Journal' }) as B3dPanel,
+      b3dPanel({ frame: 'eye', preset: 'waist', title: 'Quick Access' }) as B3dPanel,
+      b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'Menu', width: 0.09 }) as B3dPanel,
     ],
   }
 }

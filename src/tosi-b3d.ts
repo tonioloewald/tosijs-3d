@@ -37,8 +37,8 @@ const scene = '/test-3.glb'
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
-// In VR, the panel over your left shoulder is your loadout (see inventory-box):
-// touch it and it comes front and centre, with your bag beside it.
+// Your loadout, pinned up and to the left (over your shoulder in VR): touch it
+// and it comes front and centre, with your bag beside it (see inventory-box).
 const loadout = demoLoadout()
 
 const formatTime = (v) => {
@@ -55,7 +55,6 @@ preview.append(
     {
       glowLayerIntensity: 1,
       gamepad: true,
-      bodyPanels: loadout.bodyPanels,
       scenePanel: () => [
         toggle3d({ label: 'show colliders', value: demo.showColliders }),
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
@@ -84,7 +83,8 @@ preview.append(
     b3dAmbient({ preset: 'motes', where: 'underwater', radius: 8, color: '#3c5238' }),
     b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 8 }),
     b3dReflections(),
-    b3dCollisions({ debug: demo.showColliders })
+    b3dCollisions({ debug: demo.showColliders }),
+    ...loadout.panels()
   ),
   div(
     { class: 'debug-panel' },
@@ -2086,7 +2086,7 @@ export class B3d extends Component {
                 scene,
                 cam as BABYLON.TargetCamera,
                 frames.get(frame),
-                spec
+                spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec
               )
             )
           }

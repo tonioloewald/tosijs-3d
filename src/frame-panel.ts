@@ -132,14 +132,21 @@ export interface FramePanelSpec {
   blend?: 'composite' | 'add'
   /**
    * Where the panel goes while its content asks for FOCUS: front and centre
-   * by default. Content asks by dispatching a `panelfocus` event on its SVG
+   * by default (straight ahead, a little low, 0.75 m). Content asks by dispatching a `panelfocus` event on its SVG
    * with `detail: { focus: boolean }` (an inventory dock does as it opens and
    * closes); the panel comes here, enlarged by `focusScale`, always revealed,
    * and goes back to its anchor when focus ends.
    */
   focusAnchor?: AnchorPreset | AnchorSpec
-  /** How much bigger a focused panel is drawn. Default 1.6. */
+  /** How much bigger a focused panel is drawn. Default 1.9. */
   focusScale?: number
+  /**
+   * Where it goes in the FLAT view, in place of `anchor` (with `presence:
+   * 'both'`): the shoulder a headset turns to is off a monitor's edge, so a
+   * panel pinned there in VR names a place in view flat (e.g. up and left in
+   * the `face` frame).
+   */
+  flatAnchor?: AnchorPreset | AnchorSpec
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
   /** Custom panel SVG element (live/dynamic content). */
@@ -396,19 +403,46 @@ export function attachFramePanel(
   const focusAnchor: AnchorSpec =
     typeof spec.focusAnchor === 'string'
       ? PRESETS[spec.focusAnchor]
-      : spec.focusAnchor ?? { azimuthDeg: 0, elevationDeg: -8, distance: 0.85 }
-  const focusScale = spec.focusScale ?? 1.6
+      : spec.focusAnchor ?? { azimuthDeg: 0, elevationDeg: -6, distance: 0.75 }
+  const focusScale = spec.focusScale ?? 1.9
   let focused = false
+  // A focused panel nearer than the camera's near plane would be clipped away
+  // (a flat follow camera's is often a metre): push it out past the plane and
+  // scale it by the same ratio, so it looks the same size.
+  let pushed = 1
+  const focusPlace = (): AnchorSpec => {
+    const near = ((scene.activeCamera ?? cam) as BABYLON.Camera).minZ ?? 0
+    const d = focusAnchor.distance ?? 0.5
+    pushed = focusAnchor.position == null && d < near * 1.25 ? (near * 1.25) / d : 1
+    return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed }
+  }
   const fit = () => {
     if (!el || !baseVb) return
     const vb = el.viewBox.baseVal
-    const k = focused ? focusScale : 1
-    plane.scaling.x = (k * (vb.width || baseVb.w)) / baseVb.w
-    plane.scaling.y = (k * (vb.height || baseVb.h)) / baseVb.h
+    const sx = (vb.width || baseVb.w) / baseVb.w
+    const sy = (vb.height || baseVb.h) / baseVb.h
+    let k = focused ? focusScale * pushed : 1
+    // Focused, it fits the view (90% of it at its distance) rather than being
+    // cropped by it: a monitor sees far less than a headset.
+    const c = (scene.activeCamera ?? cam) as BABYLON.Camera
+    if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
+      // Room either side of its centre, less how far off-centre it sits.
+      const p = plane.position
+      const d = p.length()
+      const halfTall = d * Math.tan(c.fov / 2) * 0.92
+      const halfWide = halfTall * scene.getEngine().getAspectRatio(c)
+      const tall = 2 * Math.max(0.01, halfTall - Math.abs(p.y))
+      const wide = 2 * Math.max(0.01, halfWide - Math.abs(p.x))
+      const w = width * sx
+      const h = width * aspect * sy
+      k = Math.min(k, tall / h, wide / w)
+    }
+    plane.scaling.x = k * sx
+    plane.scaling.y = k * sy
   }
   const onFocus = (e: Event) => {
     focused = !!(e as CustomEvent<{ focus?: boolean }>).detail?.focus
-    placeAt(focused ? focusAnchor : anchor)
+    placeAt(focused ? focusPlace() : anchor)
     fit()
   }
   el?.addEventListener('panelfocus', onFocus)
