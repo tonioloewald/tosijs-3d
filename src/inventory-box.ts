@@ -91,8 +91,8 @@ const decorations = (item) => ({
 })
 preview.style.cssText = 'display:flex; gap:12px; align-items:flex-start; overflow:auto; padding:8px'
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560px')
-const bodyHost = svg({ width: 410, height: 540, style: 'touch-action:none; flex:none' })
-const bagHost = svg({ width: 200, height: 540, style: 'touch-action:none; flex:none' })
+const bodyHost = svg({ width: 410, height: 540, style: 'touch-action:none' })
+const bagHost = svg({ width: 200, height: 540, style: 'touch-action:none' })
 preview.append(bodyHost, bagHost)
 // The art, and a picture per kind (SVG markup; see the note on icons below).
 Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())]).then(([art, icons]) => {
@@ -157,8 +157,8 @@ const carry = createCarry()
 const decorations = (item) => ({ badge: item.qty > 1 ? '×' + item.qty : undefined })
 preview.style.cssText = 'display:flex; gap:12px; align-items:flex-start; overflow:auto; padding:8px'
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560px')
-const craftHost = svg({ width: 480, height: 420, style: 'touch-action:none; flex:none' })
-const stockHost = svg({ width: 200, height: 420, style: 'touch-action:none; flex:none' })
+const craftHost = svg({ width: 480, height: 420, style: 'touch-action:none' })
+const stockHost = svg({ width: 200, height: 420, style: 'touch-action:none' })
 preview.append(craftHost, stockHost)
 // The art, and a picture per kind (SVG markup; see the note on icons below).
 Promise.all([fetch('/manta-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())]).then(([art, icons]) => {
@@ -232,12 +232,12 @@ const refuse = (id, from, to) => {
 const decorations = (it) => ({ badge: it.qty > 1 ? '×' + it.qty : (kinds[it.kind].cost + 'g') })
 preview.style.cssText = 'display:flex; gap:10px; align-items:flex-start; overflow:auto; padding:8px'
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '420px')
-const host = (w, h) => svg({ width: w, height: h, style: 'touch-action:none; flex:none' })
+const host = (w, h, style = '') => svg({ width: w, height: h, style: 'touch-action:none;' + style })
 const shopHost = host(190, 360)
 const middle = document.createElement('div')
-middle.style.cssText = 'display:flex; flex-direction:column; gap:8px; flex:none'
+middle.style.cssText = 'display:flex; flex-direction:column; gap:8px; flex:0 1 210px; min-width:0'
 const counterHost = host(210, 280)
-const dealHost = host(210, 96)
+const dealHost = host(210, 96, 'width:100%; height:auto')
 middle.append(counterHost, dealHost)
 const meHost = host(190, 360)
 preview.append(shopHost, middle, meHost)
@@ -431,6 +431,14 @@ export interface InventoryPanelOptions {
    * game decides; the panel only draws it. An empty slot only.
    */
   alsoIn?: (item: Item, kind: ItemKind | undefined, at: Place) => string[]
+  /**
+   * Shrink to fit the space the page gives it, keeping its shape, rather than
+   * being cropped (default on). Panels side by side in a row shrink in
+   * proportion; in a column it is no wider than the column; it is never
+   * taller than its container. Never larger than it is drawn. Anything the
+   * page sets inline on the host wins. Off for a host inside another SVG.
+   */
+  fit?: boolean
   /**
    * What the info floater says about a thing (a title, then lines), shown
    * while it is pointed at or selected. Default: its name, its description,
@@ -628,6 +636,16 @@ const defaultInfo = (item: Item, kind: ItemKind | undefined): string[] => {
 export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   const { inv, carry, holder, host } = opts
   const width = Number(host.getAttribute('width')) || 300
+  if (opts.fit !== false && !(host.parentNode instanceof SVGElement)) {
+    const st = host.style
+    const set = (k: string, v: string) => st.getPropertyValue(k) || st.setProperty(k, v)
+    set('flex', '0 1 auto')
+    set('width', `${width}px`)
+    set('max-width', '100%')
+    set('min-width', '0')
+    set('height', 'auto')
+    set('max-height', '100%')
+  }
   const kinds = inv.kinds
   let panel: ReturnType<typeof carryPanel> | null = null
   let disposers: (() => void)[] = []

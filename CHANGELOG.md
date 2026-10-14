@@ -24,6 +24,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **An inventory panel on a page fits the space it is given** instead of being cropped (`fit`, default on): side by side they shrink in proportion, in a column it is no wider than the column, never taller than its container, never larger than drawn, always the same shape. Anything the page sets inline on the host wins (#3290).
 - The default body panels are an inventory over the left shoulder and a **journal** over the right (both were "Inventory") (#3290).
 - `panelScene`'s orbit camera stops at half its starting distance (`camera.minRadius`), so zooming cannot pass through the panel (#3290).
 - **A planet's edge has a golden hour.** Where you see its air edge on and the sun is low over it, the air takes the colour left when its own is scattered out: Earth's goes gold, Mars's dusty air goes blue. The whole lit rim takes it together, by how far the sun has gone behind the planet from where you are: lit from the side, the rim (its "poles" included) stays the air's own colour. Face on, nothing changes (#3285).
