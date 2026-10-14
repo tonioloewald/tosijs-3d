@@ -154,19 +154,67 @@ attachment SPATIAL-DESIGN describes: the sword in the hand, the missiles
 under the wing, the phaser on the hull. That is phase 4, and optional: a
 loadout is useful long before it is visible.
 
+## What this library builds, and what it leaves room for
+
+Tonio, 2026-10-14: *"Inventory system goes here in this library. We don't
+build specific stuff here but leave space (plugins, callbacks) for it. But
+this leaves us with other general functionality (drag and drop for example
+and socketed targets)."*
+
+**Here:** the general model and its interface, plus two pieces of interface
+that are not inventory at all and are wanted everywhere.
+
+**Left to each game, through plug-in points:**
+
+| plug-in | what the game supplies | an example |
+| --- | --- | --- |
+| the catalogue | its kinds: tags, size, mass, cost, contributions | a phaser, a longsword, a fire glyph |
+| rules | `(proposed state) => reasons[]` | two-handed, power balance, wings match |
+| contributions | `(item, slot) => numbers`, so mounting can matter | a phaser's arc from its mount |
+| totals | reducers over what is fitted | BPV, encumbrance, mana |
+| damage | which box a hit takes (the model answers "first undamaged box of this type") | SFB's damage allocation chart |
+| recipes | inputs, tools, outputs | three iron and a hammer at a forge |
+| compile | a finished design to a new kind | a ship class, a learned spell |
+| the schematic | its SVG art with `data-slot` sockets | a paper doll, an SSD |
+
+No game's rules ship in the library. The demos are small worked examples of
+the plug-in points (a party, a loadout, a ship), sized to prove the model,
+not to be anyone's game.
+
+**General functionality this surfaces**, built first because inventory is
+only one of its users:
+
+- **Drag and drop across all three surfaces** (the DOM, a panel in a flat 3D
+  scene, a panel in a headset): pick up a thing, carry it, and drop it on a
+  target, including from one panel to another and from a panel into the
+  world. What exists today is pieces: `widget-box`'s pointer capture (a
+  slider survives leaving its track), `popup-surface`'s title-bar drag, the
+  XR pointer's ray. A drag in a headset starts at the hand, not the eye (the
+  asymmetry CLAUDE.md records), and the two-tap path is the same gesture
+  without the carry.
+- **Socketed targets**: a place that accepts some things and not others,
+  says why, and shows it while something is held (lit, dimmed, a reason on
+  hover). A slot on a paper doll, a hardpoint, a cell of a grid; also a
+  keyhole, a puzzle socket, a holster, a drop zone in an editor. In a scene as
+  well as on a panel: a socket can be a node on a model (a hand bone, a
+  `_hardpoint`), which is how a fitted thing appears in the world.
+
 ## Order
 
-1. **The model** (`inventory.ts`, pure): items, holders, the three container
-   shapes, rules with reasons, moves as transactions with swap, derived
-   totals, events, the JSON schema. Tested against all three users' rules.
-2. **The interface**: schematic-from-SVG, the inventory list and grid, drag,
-   two-tap and menu, flat and in VR.
-3. **Three demos**, each a test of the model: an RPG party (a hero, a
-   companion, a horse, a chest), a Manta loadout (hardpoints, weight,
-   symmetry), a ship designer (a hull, a catalogue, a point budget and power
-   balance, arcs by mounting, then damage crossing off boxes). Later: a spell
-   builder and a crafting bench (with and without recipes).
-4. **Attachment** in 3D.
+1. **Drag and drop, and socketed targets**, as general UI: one model of a
+   carry (what is held, from where, by which pointer), sockets with
+   accepts-functions and reasons, the lit/dimmed/why states, drag and two-tap
+   on all three surfaces, and sockets on panels and on nodes in the scene.
+2. **The inventory model** (`inventory.ts`, pure), built with its plug-in
+   points from the start: items, holders and templates, the three container
+   shapes, catalogue and counted sources, rules with reasons, moves (and
+   recipes) as transactions, slot-dependent contributions, totals, boxes and
+   damage, designs that compile to kinds, the JSON schema.
+3. **The inventory interface**: a schematic from SVG and the inventory list
+   and grid, made of the pieces in step 1.
+4. **Worked examples**: a party, a loadout, a ship; later a spell builder
+   and a crafting bench.
+5. **In the world**: fitted things shown on the model through scene sockets.
 
 ## What would show this is wrong
 
@@ -190,6 +238,5 @@ loadout is useful long before it is visible.
    armoury)? That decides whether "the other side" is unlimited or counted.
 3. **RPG depth:** durability and repair, item quality and randomised stats,
    or keep items to their kind plus a few overrides for now?
-4. **Where it lives:** `inventory.ts` and its UI in this library, with the
-   three demos here too? (The test MINIATURES-DESIGN sets: would a second,
-   unrelated game want it? All three would.)
+4. ~~Where it lives~~ Answered: here, general only, with plug-in points;
+   drag and drop and socketed targets come out of it as general UI.
