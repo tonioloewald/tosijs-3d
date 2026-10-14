@@ -17,7 +17,7 @@ screen without being empty.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, voxelGalaxy, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, voxelGalaxy, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p, pre } = elements
 
@@ -30,6 +30,8 @@ const { demo } = tosi({
     orbitScale: 3,
     animate: true,
     showOrbits: true,
+    // Which body the camera follows ('' = the whole system).
+    focus: '',
   },
 })
 
@@ -58,6 +60,8 @@ const scene = b3d(
       slider3d({ label: 'orbit scale', value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
       toggle3d({ label: 'animate', value: demo.animate }),
       toggle3d({ label: 'show orbits', value: demo.showOrbits }),
+      // Look at one body: the camera follows it round its orbit.
+      select3d({ label: 'look at', value: demo.focus, options: ['', ...starSystem.bodies.map((b) => b.name)] }),
     ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
@@ -68,15 +72,29 @@ const scene = b3d(
         BABYLON.Vector3.Zero(),
         el.scene
       )
-      camera.lowerRadiusLimit = 10
-      camera.upperRadiusLimit = 500
+      camera.lowerRadiusLimit = 1
+      camera.upperRadiusLimit = 600
       camera.minZ = 0.1
-      camera.maxZ = 2000
+      camera.maxZ = 5000
       camera.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(camera)
+      // FOLLOW THE CHOSEN BODY: ease the camera's target onto it each frame,
+      // and on choosing, pull in to a few of its radii.
+      let following = ''
+      el.scene.onBeforeRenderObservable.add(() => {
+        const body = starSystem.bodies.find((b) => b.name === demo.focus.value)
+        const to = body ? body.node.getAbsolutePosition() : BABYLON.Vector3.Zero()
+        camera.target = BABYLON.Vector3.Lerp(camera.target, to, 0.15)
+        if (demo.focus.value !== following) {
+          following = demo.focus.value
+          camera.radius = body ? Math.max(3, body.radius * 7) : 100
+        }
+      })
     },
   },
   b3dLight({ intensity: 0.2 }),
+  // The star sky, without a sun: the system's own star lights it.
+  ...spaceBackdrop({ sky: '/sky', sun: false }),
   starSystem,
 )
 
@@ -106,7 +124,10 @@ function updateInfo() {
 for (const key of ['starIndex', 'scale', 'orbitScale']) {
   demo[key].observe(() => {
     starSystem.regenerate()
+    demo.focus.value = ''
     updateInfo()
+    // The 'look at' list is this system's bodies.
+    scene.refreshScenePanel?.()
   })
 }
 for (const key of ['animate', 'showOrbits']) {
@@ -235,7 +256,12 @@ export class B3dStarSystem extends B3dChild {
   private starMesh: BABYLON.Mesh | null = null
   private coronaMesh: BABYLON.Mesh | null = null
   private starLight: BABYLON.PointLight | null = null
-  private planetEls: { el: any; holder: BABYLON.TransformNode }[] = []
+  private planetEls: {
+    el: any
+    holder: BABYLON.TransformNode
+    name: string
+    radius: number
+  }[] = []
   private holders: BABYLON.TransformNode[] = []
   private moonPivots: { pivot: BABYLON.TransformNode; period: number }[] = []
   private belt: { node: BABYLON.TransformNode; period: number } | null = null
@@ -556,7 +582,7 @@ export class B3dStarSystem extends B3dChild {
         el.world = pick.world
         el.worldOverrides = pick.overrides
       }
-      this.adopt(el, holder)
+      this.adopt(el, holder, planet.name, place.visualRadius)
       place.moons.forEach((moon, m) => {
         const pivot = new BABYLON.TransformNode(`moon-pivot-${i}-${m}`, scene)
         pivot.parent = holder
@@ -575,7 +601,9 @@ export class B3dStarSystem extends B3dChild {
             biome: 'on',
             world: planet.insolation > 1.6 ? 'mercury' : 'moon',
           }) as any,
-          at
+          at,
+          `${planet.name} ${'abcdefgh'[m]}`,
+          moon.visualRadius
         )
       })
       if (!isOff(attrs.showOrbits)) this.buildOrbitLine(place.distance, i)
@@ -590,8 +618,15 @@ export class B3dStarSystem extends B3dChild {
   }
 
   /** Planets are elements: put one in the scene and hang it on `holder` once it is built. */
-  private adopt(el: any, holder: BABYLON.TransformNode) {
-    this.planetEls.push({ el, holder })
+  private adopt(
+    el: any,
+    holder: BABYLON.TransformNode,
+    name: string,
+    radius: number
+  ) {
+    // The radius is passed, not read back: a new element's attributes are
+    // not applied yet, and it would report the default.
+    this.planetEls.push({ el, holder, name, radius })
     this.owner?.append(el)
   }
 
@@ -668,7 +703,9 @@ export class B3dStarSystem extends B3dChild {
           biome: 'on',
           world: 'moon',
         }) as any,
-        at
+        at,
+        `asteroid ${rock.name}`,
+        rock.visualRadius
       )
     }
   }
@@ -729,6 +766,19 @@ export class B3dStarSystem extends B3dChild {
     this.placePlanets()
     for (const m of this.moonPivots) m.pivot.rotation.y -= (dt / m.period) * Math.PI * 2
     if (this.belt) this.belt.node.rotation.y -= (dt / this.belt.period) * Math.PI * 2
+  }
+
+  /**
+   * Every body you can look at: the star, then each planet, moon and named
+   * asteroid, with the node that carries it (its world position is where it
+   * is now) and its drawn radius. For a camera to follow one.
+   */
+  get bodies(): { name: string; node: BABYLON.TransformNode; radius: number }[] {
+    const out: { name: string; node: BABYLON.TransformNode; radius: number }[] = []
+    if (this.rootNode && this.systemData)
+      out.push({ name: this.systemData.star.name, node: this.rootNode, radius: this.starRadius })
+    for (const p of this.planetEls) out.push({ name: p.name, node: p.holder, radius: p.radius })
+    return out
   }
 
   /** Get the generated system data */

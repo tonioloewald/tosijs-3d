@@ -42,15 +42,16 @@ export interface SpaceBackdropOptions {
   tilt?: string
   /** More skybox attributes. */
   skybox?: Record<string, unknown>
-  /** Sun attributes. */
-  sun?: Record<string, unknown>
+  /** Sun attributes, or `false` for none (a star system lights itself). */
+  sun?: Record<string, unknown> | false
 }
 
 /** A sun and an airless star sky, to spread into a `b3d(…)`. */
 export function spaceBackdrop(opts: SpaceBackdropOptions = {}): HTMLElement[] {
   const sky = opts.sky ?? PINNED_SKY_URL
+  const sun = opts.sun === false ? [] : [b3dSun(opts.sun ?? {})]
   return [
-    b3dSun(opts.sun ?? {}),
+    ...sun,
     b3dSkybox({
       timeOfDay: opts.timeOfDay ?? 15,
       realtimeScale: 0,
