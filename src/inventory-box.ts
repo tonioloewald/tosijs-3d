@@ -648,6 +648,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     glow.setAttribute('height', String(tall - 3))
     host.append(glow)
     lightUp()
+    panel?.dispose()
     panel = carryPanel(b, carry, { fallback: whole?.target })
   }
   build()
@@ -676,6 +677,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
     dispose() {
       stop()
       stopGlow()
+      panel?.dispose()
       for (const d of disposers) d()
       host.removeEventListener('wheel', wheel)
       host.removeEventListener('pointerdown', down)

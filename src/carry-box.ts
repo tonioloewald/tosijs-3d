@@ -105,8 +105,10 @@ window.addEventListener('pointerup', () => carry.cancel())
 - **`carryPanel(box, carry)`** goes between the host's pointer events and the
   box: a press on a tile that moves `DRAG_THRESHOLD` becomes a drag, a
   ghost follows the pointer, and letting go drops it on the socket under the
-  pointer (or puts it back). A tap on a tile and then a tap on a socket does
-  the same without carrying it.
+  pointer. A drop that is refused, lands on nothing or is cancelled
+  outside every panel springs back: the ghost returns to where it was picked
+  up, carrying the reason it was refused. A tap on a tile and then a tap on a
+  socket does the same without carrying it.
 
 Several panels share one `carry`, which is how a drag goes from one to
 another (the demo's bag and hands are two): each reports what its own
@@ -139,6 +141,14 @@ const { g, rect, text } = svgElements
 
 /** The tile a press began on, per carry (set from the tile's pressed state). */
 const pressedTile = new WeakMap<Carry<any>, CarryTileChild<any>>()
+/** The panel a drag began in, per carry: the one that springs it back. */
+const dragOrigin = new WeakMap<Carry<any>, object>()
+/** Why the last drop did not land, per carry (absent: it landed). */
+const lastRefusal = new WeakMap<Carry<any>, string[]>()
+
+/** How long a refused thing takes to spring back, and how long its reason stays. */
+const SPRING_MS = 220
+const LINGER_MS = 900
 
 export interface CarryTileChild<T> extends BoxChild {
   carryThing: T
@@ -427,12 +437,15 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
 export interface CarryPanel {
   /** Feed the panel's pointer events here instead of to the box. */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /** Stop listening to the carry (a panel that is rebuilt makes a new one). */
+  dispose: () => void
 }
 
 /**
  * Drag and drop for one box: a press on a tile that moves far enough is a
  * drag; a ghost follows the pointer; letting go drops it on the socket under
- * the pointer. Everything else is the box's own pointer handling.
+ * the pointer, and a drop that does not land springs back. Everything else is
+ * the box's own pointer handling.
  */
 export function carryPanel<T>(
   box: Box,
@@ -442,7 +455,13 @@ export function carryPanel<T>(
     fallback?: CarryTarget<T>
   } = {}
 ): CarryPanel {
+  const self = {}
   let press: { x: number; y: number } | null = null
+  // Where the drag was picked up and where its ghost was last seen HERE.
+  let home: { x: number; y: number } | null = null
+  let last: { x: number; y: number } | null = null
+  let held = false
+  let springing = 0
   /*
   "A DRAG IS ON" BELONGS TO THE CARRY, not to this panel: a drag that starts
   here and is let go over another panel must drop there, and that panel did
@@ -451,6 +470,7 @@ export function carryPanel<T>(
   const dragging = () => carry.state.thing != null && carry.state.mode === 'drag'
   // The ghost hangs ABOVE the pointer, so the socket you are over stays in
   // sight (and on a touch screen, out from under the finger).
+  const LIFT = 46
   const ghost = g(
     { 'pointer-events': 'none', opacity: '0.85' },
     rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
@@ -466,16 +486,62 @@ export function carryPanel<T>(
     },
     ''
   )
-  ghost.append(ghostText)
-  const showGhost = (x: number, y: number) => {
-    ghostText.textContent = String(carry.state.thing)
+  const ghostWhy = text(
+    {
+      x: 0,
+      y: -18,
+      fill: '#f0907c',
+      'text-anchor': 'middle',
+      'font-family': 'system-ui, sans-serif',
+      'font-size': '11',
+      ...HALO,
+    },
+    ''
+  )
+  ghost.append(ghostText, ghostWhy)
+  const place = (x: number, y: number) => {
     if (!ghost.isConnected) box.el.append(ghost)
     ghost.setAttribute('transform', `translate(${x}, ${y})`)
   }
+  const showGhost = (x: number, y: number) => {
+    springing++
+    ghostText.textContent = String(carry.state.thing)
+    ghostWhy.textContent = ''
+    last = { x, y }
+    place(x, y)
+  }
   const hideGhost = () => ghost.remove()
-  // Whichever panel the drop happened in, every ghost goes.
-  carry.subscribe((s) => {
-    if (s.thing == null) hideGhost()
+  // From where it was last seen here back to where it was picked up, so it
+  // settles ON the thing (the lift eases away as it goes).
+  const springBack = (from: { x: number; y: number }, to: { x: number; y: number }, why: string) => {
+    const run = ++springing
+    ghostWhy.textContent = why
+    const t0 = performance.now()
+    const step = () => {
+      if (run !== springing) return
+      const t = Math.min(1, (performance.now() - t0) / SPRING_MS)
+      const e = 1 - (1 - t) ** 3
+      place(from.x + (to.x - from.x) * e, from.y + (to.y + LIFT - from.y) * e)
+      if (t < 1) requestAnimationFrame(step)
+      else setTimeout(() => run === springing && hideGhost(), why ? LINGER_MS : 60)
+    }
+    step()
+  }
+  const stop = carry.subscribe((s) => {
+    if (s.thing != null) {
+      if (s.mode === 'drag' && dragOrigin.get(carry) === self) held = true
+      return
+    }
+    // Whichever panel the drop happened in, every other ghost goes.
+    hideGhost()
+    if (!held) return
+    held = false
+    // The panel that let go records why after the carry empties; read it then.
+    queueMicrotask(() => {
+      const why = lastRefusal.get(carry)
+      lastRefusal.delete(carry)
+      if (why && home && last) springBack(last, home, why.join(' '))
+    })
   })
   return {
     handlePointer(kind, x, y) {
@@ -493,6 +559,11 @@ export function carryPanel<T>(
           tile &&
           Math.hypot(x - press.x, y - press.y) > DRAG_THRESHOLD
         ) {
+          home = press
+          dragOrigin.set(carry, self)
+          // Until a drop lands, assume it will not (a release outside every
+          // panel is a cancel nobody reports).
+          lastRefusal.set(carry, [])
           carry.pickUp(tile.carryThing, tile.carryFrom, 'drag')
         }
         if (dragging()) showGhost(x, y)
@@ -506,8 +577,10 @@ export function carryPanel<T>(
         press = null
         pressedTile.delete(carry)
         if (dragging()) {
-          hideGhost()
-          carry.drop()
+          last = { x, y }
+          const r = carry.drop()
+          if (r.done) lastRefusal.delete(carry)
+          else lastRefusal.set(carry, r.reasons.filter((w) => w !== 'dropped on nothing'))
           // Clear the box's press without activating anything.
           box.handlePointer('leave', 0, 0)
           return
@@ -524,5 +597,6 @@ export function carryPanel<T>(
       }
       box.handlePointer(kind, x, y)
     },
+    dispose: stop,
   }
 }

@@ -24,6 +24,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **The Solar System's sky is tilted as ours is**: the planets orbit about 60.2° to the galaxy's plane, so the Milky Way crosses the orbits steeply instead of running along them (`spaceBackdrop({ tilt })`).
 - **While you carry something, the sockets that would take it light up**, the one under the pointer brighter and named, and the rest go dark. The ghost hangs above the pointer, so the socket you are over stays in sight (#3290).
 - **A panel that shows one list takes a drop anywhere on it**, not just on its tiles or the "put in" row at the bottom of a scrolled list, and is outlined while it would take what you carry. Dragging a thing off a socket back into the bag is a drop on the bag (`carryPanel(box, carry, { fallback })`) (#3290).
+- **A drop that does not land springs back.** Refused by its target, let go on nothing, or released outside every panel, the ghost returns to where it was picked up and shows why it was refused there for a moment. `carryPanel` now returns `dispose`, and `inventoryPanel` calls it on each rebuild (a rebuilt panel used to leave its old carry subscription behind) (#3290).
 
 ### Fixed
 
