@@ -286,6 +286,9 @@ export interface CarrySocketOptions<T> {
   look?: 'row' | 'art'
 }
 
+/** A socket that would take what is held, and the one under the pointer. */
+const FITS = '#6fd08c'
+const LIT = '#c4f5d2'
 const HALO = { stroke: '#0b0e14', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }
 
 /** A place a carried thing can go: lights, dims and says why. */
@@ -339,6 +342,15 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
   parts.push(why)
   const el = g({ 'data-carry-socket': '' }, ...parts) as unknown as SVGGElement
   let hovered = false
+  // On art the frame grows past the drawn socket's edge so a lit or darkened
+  // socket covers it.
+  const setFrame = (inset: number, stroke: number) => {
+    frame.setAttribute('x', String(inset))
+    frame.setAttribute('y', String(inset))
+    frame.setAttribute('width', String(w - 2 * inset))
+    frame.setAttribute('height', String(h - 2 * inset))
+    frame.setAttribute('stroke-width', String(stroke))
+  }
   const holdsHeld = () => {
     const t = (holding as CarryTileChild<T> | null | undefined)?.carryThing
     return t !== undefined && carry.state.thing === t
@@ -347,6 +359,11 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
     const s = carry.state
     if (s.thing == null || holdsHeld()) {
       el.setAttribute('opacity', '1')
+      if (art) setFrame(1, 2.5)
+      else {
+        frame.setAttribute('stroke-width', '1.5')
+        frame.setAttribute('stroke-dasharray', '5 4')
+      }
       frame.setAttribute('stroke', art ? (hovered ? '#9fb0c8' : 'none') : '#55607a')
       frame.setAttribute('fill', art ? 'none' : '#161b25')
       frame.removeAttribute('fill-opacity')
@@ -356,15 +373,20 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
     }
     const v = carry.verdictFor(target)
     const ok = !!v?.ok
+    // While something is held, every socket that would take it lights and
+    // the one under the pointer lights brighter; the rest go dark.
     if (art) {
-      frame.setAttribute('stroke', ok ? '#6fd08c' : 'none')
-      frame.setAttribute('fill', ok ? (hovered ? '#6fd08c' : 'none') : '#05070b')
-      frame.setAttribute('fill-opacity', ok ? '0.25' : '0.55')
+      setFrame(ok ? -2 : -3, ok ? (hovered ? 4 : 3) : 0)
+      frame.setAttribute('stroke', ok ? (hovered ? LIT : FITS) : 'none')
+      frame.setAttribute('fill', ok ? FITS : '#05070b')
+      frame.setAttribute('fill-opacity', ok ? (hovered ? '0.55' : '0.22') : '0.78')
       caption.textContent = hovered ? label : ''
     } else {
       el.setAttribute('opacity', ok ? '1' : '0.45')
-      frame.setAttribute('stroke', ok ? '#6fd08c' : '#55607a')
-      frame.setAttribute('fill', hovered && ok ? '#1f3328' : '#161b25')
+      frame.setAttribute('stroke', ok ? (hovered ? LIT : FITS) : '#55607a')
+      frame.setAttribute('stroke-width', ok ? (hovered ? '3' : '2') : '1.5')
+      frame.setAttribute('stroke-dasharray', ok && hovered ? '' : '5 4')
+      frame.setAttribute('fill', ok ? (hovered ? '#2c5a3c' : '#1a2b22') : '#161b25')
     }
     why.textContent = hovered && v && !ok ? v.reasons[0] ?? '' : ''
   }
@@ -420,14 +442,16 @@ export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
   not see it start. So every panel asks the shared carry.
   */
   const dragging = () => carry.state.thing != null && carry.state.mode === 'drag'
+  // The ghost hangs ABOVE the pointer, so the socket you are over stays in
+  // sight (and on a touch screen, out from under the finger).
   const ghost = g(
     { 'pointer-events': 'none', opacity: '0.85' },
-    rect({ x: -50, y: -14, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
+    rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
   ) as unknown as SVGGElement
   const ghostText = text(
     {
       x: 0,
-      y: 5,
+      y: -41,
       fill: '#fff',
       'text-anchor': 'middle',
       'font-family': 'system-ui, sans-serif',
