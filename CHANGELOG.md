@@ -10,6 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **A frame panel can come to you.** Content that dispatches `panelfocus` (`detail: { focus: true }`) on its SVG brings its panel front and centre (`focusAnchor`, default straight ahead and a little low), enlarged (`focusScale`, default 1.6) and always revealed; `focus: false` sends it back. A frame panel also grows with its SVG's viewBox now, so content that opens wider gets a wider plane. `inventoryDock` asks for focus as it opens, and the main `tosi-b3d` demo's left-shoulder panel is now your loadout: touch it in VR and it comes front and centre with your bag (#3290).
 - **An inventory in 3D: `inventoryDock`.** A loadout that lives on a plane in the scene, flat and in a headset. Closed, it is the schematic alone, small; a tap opens it, with the list beside it (a bag) to drag to and from, and a button closes it. Both are drawn in one SVG, so a drag between them is one plane with one ghost (`carryGhostLayer`). Without a `list` it opens to the schematic alone (a craft fitted from a carrier's stock). Demo: "In 3D" on the inventory-box page (#3290).
 - **A two-handed weapon shows in both hands**: `inventoryPanel`'s `alsoIn(item, kind, at)` names the other slots an item takes up, where it is drawn faded (and can be picked up from either). The game decides which; the panel only draws it (#3290).
 - **Drag and drop, as a model and on a panel** (INVENTORY-DESIGN step 1). `createCarry` is picking up and putting down with nothing drawn: what is carried and from where, the target under the pointer, and its verdict as REASONS; drop is all or nothing; dragging and two taps are one model, and one carry spans every panel. `carryTile`, `carrySocket` and `carryPanel` draw it on a box: things with decorations (a status bar, a damaged or broken outline, a badge), sockets that light when the held thing would fit, dim when not and say why, and a ghost that follows the pointer. A drag goes from one panel to another (they share the carry), and letting go outside every panel puts the thing back.
@@ -22,6 +23,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- The default body panels are an inventory over the left shoulder and a **journal** over the right (both were "Inventory") (#3290).
+- `panelScene`'s orbit camera stops at half its starting distance (`camera.minRadius`), so zooming cannot pass through the panel (#3290).
 - **A planet's edge has a golden hour.** Where you see its air edge on and the sun is low over it, the air takes the colour left when its own is scattered out: Earth's goes gold, Mars's dusty air goes blue. The whole lit rim takes it together, by how far the sun has gone behind the planet from where you are: lit from the side, the rim (its "poles" included) stays the air's own colour. Face on, nothing changes (#3285).
 - **The Solar System's sky is tilted as ours is**: the planets orbit about 60.2° to the galaxy's plane, so the Milky Way crosses the orbits steeply instead of running along them (`spaceBackdrop({ tilt })`).
 - **While you carry something, the sockets that would take it light up**, the one under the pointer brighter and named, and the rest go dark. The ghost hangs above the pointer, so the socket you are over stays in sight (#3290).
@@ -30,6 +33,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- An inventory panel's totals line is always there, so the first thing worn no longer pushes the schematic down (#3290).
 - **Dragging between inventory panels works with a finger or a headset's laser.** Both are captured by the element they press, so the moves and the release never reached another panel; `inventoryPanel` now lets the capture go as it arrives (a mouse was never captured, which is why it worked on a desktop). And on a page the ghost is drawn in one overlay above every panel (`carryOverlay(carry)`, with `carryPanel(…, { ghost: false })`), so it crosses from one panel to the next instead of being clipped by each. A panel on a 3D plane keeps its own ghost (#3290).
 
 - **A thing can be dragged out of a socket** (it could only be dragged out of a list), and a thing in a list is itself a place to drop into that list, so a long, scrolled list takes a drop anywhere. A thing put back in a list joins a stack of its kind with room (a missile returned to the carrier is counted again); one drawn from a stack swaps with what a slot held.

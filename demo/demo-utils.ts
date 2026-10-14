@@ -26,7 +26,11 @@ import {
   sceneDelta,
   extractChunk,
   attachBiomePlugin,
+  createCarry,
+  createInventory,
+  inventoryDock,
 } from '../src/index'
+import type { InventoryDock, FramePanelSpec } from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -407,4 +411,89 @@ export function impactMarker(
     disc.scaling.setAll(1 + (1 - k) * 0.8) // a small outward pop
   }
   scene.onBeforeRenderObservable.add(tick)
+}
+
+/**
+ * A person's loadout for a scene's VR body panels: the person schematic and a
+ * bag, as an `inventoryDock`, and the default body panels with it on the left
+ * shoulder in place of the inventory placeholder. Touch it and it comes front
+ * and centre, open. Resolves once the art has loaded.
+ *
+ *   const loadout = demoLoadout()
+ *   b3d({ bodyPanels: loadout.bodyPanels }, …)
+ */
+export function demoLoadout(): { bodyPanels: () => FramePanelSpec[]; dock: () => InventoryDock | null } {
+  const kind = (id: string, tags: string[], mass: number) => ({ id, name: id, tags, mass })
+  const kinds = {
+    helm: kind('helm', ['helmet'], 2),
+    goggles: kind('goggles', ['face'], 0.5),
+    cuirass: kind('cuirass', ['chest'], 8),
+    pack: kind('pack', ['back'], 1),
+    belt: kind('belt', ['waist'], 0.5),
+    knife: kind('knife', ['side', 'hand'], 1),
+    pistol: kind('pistol', ['side', 'hand'], 1),
+    greaves: kind('greaves', ['legs'], 3),
+    boots: kind('boots', ['feet'], 2),
+    sword: kind('sword', ['hand'], 3),
+    rifle: kind('rifle', ['hand', 'two-handed'], 4),
+    shield: kind('shield', ['hand'], 5),
+  }
+  const slot = (...accepts: string[]) => ({ accepts, holds: null })
+  const body = {
+    type: 'slots' as const,
+    slots: {
+      helmet: slot('helmet'), face: slot('face'), chest: slot('chest'), shoulder: slot('shoulder'),
+      back: slot('back'), waist: slot('waist'), left_side: slot('side'), right_side: slot('side'),
+      legs: slot('legs'), feet: slot('feet'), hand_left: slot('hand'), hand_right: slot('hand'),
+    },
+  }
+  const items: Record<string, { id: string; kind: string; qty: number }> = {}
+  for (const k of Object.keys(kinds)) items[k] = { id: k, kind: k, qty: 1 }
+  const inv = createInventory(
+    { items, holders: { hero: { id: 'hero', containers: { body, bag: { type: 'list', holds: Object.keys(items) } } } } } as any,
+    {
+      kinds,
+      rules: [
+        ({ doc, kinds: ks }: any) => {
+          const s = doc.holders.hero.containers.body.slots
+          const hands = [s.hand_left.holds, s.hand_right.holds]
+          const two = hands.find((id: string | null) => id && ks[doc.items[id].kind].tags.includes('two-handed'))
+          return two && hands[0] && hands[1] ? ['two-handed: both hands must be free'] : []
+        },
+      ],
+    } as any
+  )
+  let dock: InventoryDock | null = null
+  fetch('/person-loadout.svg')
+    .then((r) => r.text())
+    .then((art) => {
+      dock = inventoryDock({
+        inv,
+        carry: createCarry(),
+        holder: 'hero',
+        title: 'hero',
+        schematic: { container: 'body', art },
+        list: 'bag',
+        alsoIn: (_item, k, at) =>
+          k?.tags?.includes('two-handed') && at.slot?.startsWith('hand_')
+            ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left']
+            : [],
+      })
+      // Laid out on the page (text is measured there), out of sight.
+      const park = document.createElement('div')
+      park.style.cssText = 'position:fixed; left:-10000px; top:0'
+      park.append(dock.svg)
+      document.body.append(park)
+    })
+  return {
+    dock: () => dock,
+    bodyPanels: () => [
+      dock
+        ? { frame: 'eye', anchor: 'left-shoulder', svg: dock.svg, width: 0.3, resolution: 1024 }
+        : { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
+      { frame: 'eye', anchor: 'right-shoulder', title: 'Journal' },
+      { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
+      { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
+    ],
+  }
 }

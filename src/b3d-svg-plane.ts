@@ -1265,7 +1265,11 @@ export interface PanelSceneOptions {
    */
   updateInterval?: number
   /** Orbit camera placement overrides. */
-  camera?: { alpha?: number; beta?: number; radius?: number }
+  /**
+   * The orbit camera. `minRadius` is as close as it zooms (default: half its
+   * starting radius), so a wheel or a pinch cannot pass through the panel.
+   */
+  camera?: { alpha?: number; beta?: number; radius?: number; minRadius?: number }
 }
 
 export function panelScene(opts: PanelSceneOptions): {
@@ -1330,6 +1334,7 @@ export function panelScene(opts: PanelSceneOptions): {
       BABYLON.Vector3.Zero(),
       el.scene
     )
+    cam.lowerRadiusLimit = opts.camera?.minRadius ?? cam.radius * 0.5
     el.setActiveCamera(cam)
     cam.attachControl(canvas, true)
     // Arrows belong to the UI (D-pad traversal), not the orbit.

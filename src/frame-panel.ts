@@ -130,6 +130,16 @@ export interface FramePanelSpec {
   /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
    * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
   blend?: 'composite' | 'add'
+  /**
+   * Where the panel goes while its content asks for FOCUS: front and centre
+   * by default. Content asks by dispatching a `panelfocus` event on its SVG
+   * with `detail: { focus: boolean }` (an inventory dock does as it opens and
+   * closes); the panel comes here, enlarged by `focusScale`, always revealed,
+   * and goes back to its anchor when focus ends.
+   */
+  focusAnchor?: AnchorPreset | AnchorSpec
+  /** How much bigger a focused panel is drawn. Default 1.6. */
+  focusScale?: number
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
   /** Custom panel SVG element (live/dynamic content). */
@@ -319,7 +329,6 @@ export function attachFramePanel(
 } {
   const anchor: AnchorSpec =
     typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor
-  const focus = anchor.focus ?? DEFAULT_FOCUS
   const startDeg = anchor.revealStartDeg ?? 50
   const fullDeg = anchor.revealFullDeg ?? 25
   const cosStart = Math.cos(startDeg * DEG)
@@ -327,17 +336,14 @@ export function attachFramePanel(
   const alwaysOn = spec.reveal === 'always'
 
   // Resolve position: explicit, or by azimuth/elevation/distance off the focus.
-  let pos = anchor.position
-  if (pos == null) {
-    const az = (anchor.azimuthDeg ?? 0) * DEG
-    const el = (anchor.elevationDeg ?? 0) * DEG
-    const d = anchor.distance ?? 0.5
+  const resolve = (a: AnchorSpec): [number, number, number] => {
+    if (a.position != null) return a.position
+    const f = a.focus ?? DEFAULT_FOCUS
+    const az = (a.azimuthDeg ?? 0) * DEG
+    const el = (a.elevationDeg ?? 0) * DEG
+    const d = a.distance ?? 0.5
     const horiz = d * Math.cos(el)
-    pos = [
-      focus[0] + horiz * Math.sin(az),
-      focus[1] + d * Math.sin(el),
-      focus[2] + horiz * Math.cos(az),
-    ]
+    return [f[0] + horiz * Math.sin(az), f[1] + d * Math.sin(el), f[2] + horiz * Math.cos(az)]
   }
 
   const el =
@@ -346,6 +352,9 @@ export function attachFramePanel(
     ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
     : spec.aspect ?? 1
   const width = spec.width ?? 0.26
+  // The viewBox it was built at: content that grows (a dock opening) grows
+  // the plane by the same ratio, so its units keep their size.
+  const baseVb = el ? { w: el.viewBox.baseVal.width || 1, h: el.viewBox.baseVal.height || 1 } : null
 
   const plane = BABYLON.MeshBuilder.CreatePlane(
     'frame-panel',
@@ -357,10 +366,10 @@ export function attachFramePanel(
   // so in cockpit view it sits right in front of the airframe — and the
   // aircraft's impact sweep crashed on it. See markUiMesh.
   markUiMesh(plane)
-  plane.position.set(pos[0], pos[1], pos[2])
   plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE
-  // Orient ONCE to face the focus point (your head), tilted to its height. The
-  // panel doesn't rotate after this — the frame carries it.
+  // Orient to face the focus point (your head), tilted to its height. The
+  // panel doesn't rotate after this — the frame carries it (until focus moves
+  // it, which places it again).
   //
   // `faceViewer` and not a local atan2: a plane's visible face is local -Z, so
   // aiming +Z at your head shows its BACK, which a double-sided plane renders
@@ -372,16 +381,37 @@ export function attachFramePanel(
   // (`rollDeg: 180`, which rights the grip-space anchors, is symmetric and
   // agrees either way — which is exactly why this needed a test rather than an
   // argument.)
-  const { yaw, pitch, roll } = faceViewer(
-    { x: pos[0], y: pos[1], z: pos[2] },
-    { x: focus[0], y: focus[1], z: focus[2] },
-    (anchor.rollDeg ?? 0) * DEG
-  )
-  plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-    yaw,
-    pitch,
-    roll
-  )
+  const placeAt = (a: AnchorSpec) => {
+    const pos = resolve(a)
+    const f = a.focus ?? DEFAULT_FOCUS
+    plane.position.set(pos[0], pos[1], pos[2])
+    const { yaw, pitch, roll } = faceViewer(
+      { x: pos[0], y: pos[1], z: pos[2] },
+      { x: f[0], y: f[1], z: f[2] },
+      (a.rollDeg ?? 0) * DEG
+    )
+    plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, roll)
+  }
+  placeAt(anchor)
+  const focusAnchor: AnchorSpec =
+    typeof spec.focusAnchor === 'string'
+      ? PRESETS[spec.focusAnchor]
+      : spec.focusAnchor ?? { azimuthDeg: 0, elevationDeg: -8, distance: 0.85 }
+  const focusScale = spec.focusScale ?? 1.6
+  let focused = false
+  const fit = () => {
+    if (!el || !baseVb) return
+    const vb = el.viewBox.baseVal
+    const k = focused ? focusScale : 1
+    plane.scaling.x = (k * (vb.width || baseVb.w)) / baseVb.w
+    plane.scaling.y = (k * (vb.height || baseVb.h)) / baseVb.h
+  }
+  const onFocus = (e: Event) => {
+    focused = !!(e as CustomEvent<{ focus?: boolean }>).detail?.focus
+    placeAt(focused ? focusAnchor : anchor)
+    fit()
+  }
+  el?.addEventListener('panelfocus', onFocus)
 
   const tex = el
     ? new SvgTexture({
@@ -528,6 +558,13 @@ export function attachFramePanel(
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
       debug.updates++
+      fit()
+      // Focused content is in front of you because you asked for it.
+      if (focused) {
+        plane.visibility = 1
+        debug.reveal = 1
+        return
+      }
       const fp = ctx?.firstPerson ?? true
       if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
         plane.visibility = 0
@@ -575,6 +612,7 @@ export function attachFramePanel(
       debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl)
     },
     dispose() {
+      el?.removeEventListener('panelfocus', onFocus)
       if (pointerObs != null) scene.onPointerObservable.remove(pointerObs)
       tex.dispose()
       mat.dispose()

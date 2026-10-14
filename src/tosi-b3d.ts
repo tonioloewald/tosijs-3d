@@ -12,6 +12,7 @@ import {
   b3dBiped, ualAnimationStates, assetUrl, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
+import { demoLoadout } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 
@@ -36,6 +37,10 @@ const scene = '/test-3.glb'
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
+// In VR, the panel over your left shoulder is your loadout (see inventory-box):
+// touch it and it comes front and centre, with your bag beside it.
+const loadout = demoLoadout()
+
 const formatTime = (v) => {
   const h = Math.floor(v)
   const m = Math.round((v % 1) * 60)
@@ -50,6 +55,7 @@ preview.append(
     {
       glowLayerIntensity: 1,
       gamepad: true,
+      bodyPanels: loadout.bodyPanels,
       scenePanel: () => [
         toggle3d({ label: 'show colliders', value: demo.showColliders }),
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
@@ -1544,8 +1550,8 @@ export class B3d extends Component {
 
   // Body-anchored XR panels for the embodied player: pinned to a reference frame
   // (default `body`) and revealed by looking toward them. Defaults to placeholder
-  // inventory panels over each shoulder and a quick-access/holster panel at the
-  // waist; override to supply your own (positions, presets, custom SVG). Like
+  // inventory and journal panels over the shoulders and a quick-access/holster
+  // panel at the waist; override to supply your own (positions, presets, custom SVG). Like
   // scenePanel, defaults to a function so the element creator treats it as a prop.
   bodyPanels: (host: B3d) => FramePanelSpec[] = (host) => {
     // Declarative <tosi-b3d-panel> children, if any, take over entirely — so a
@@ -1561,7 +1567,7 @@ export class B3d extends Component {
     // you stand/sit or glance — only swinging when you actually turn.
     const panels: FramePanelSpec[] = [
       { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
-      { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
+      { frame: 'eye', anchor: 'right-shoulder', title: 'Journal' },
       { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
       { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
     ]

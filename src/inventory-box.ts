@@ -669,7 +669,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       const line = Object.entries(t)
         .map(([k, v]) => `${k} ${Math.round(v * 10) / 10}`)
         .join(' · ')
-      if (line) children.push(textBlock(line, { font: { size: 11 }, color: '#8a96ad' }))
+      // Always there, empty or not, so the first thing worn does not push
+      // everything under it down.
+      children.push(textBlock(line || '\u00a0', { font: { size: 11 }, color: '#8a96ad' }))
     }
     for (const [cname, c] of Object.entries(h.containers)) {
       if (opts.only && !opts.only.includes(cname)) continue
@@ -931,14 +933,10 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     carry.cancel()
     layout()
     opts.handleResize?.({ ...size, open })
+    // A frame panel holding this comes front and centre while it is open.
+    root.dispatchEvent(new CustomEvent('panelfocus', { detail: { focus: open } }))
   }
-  return {
-    svg: root,
-    get open() {
-      return open
-    },
-    setOpen,
-    handlePointer(kind, x, y) {
+  const handlePointer = (kind: PointerKind, x: number, y: number) => {
       // Closed, the whole dock is one button.
       if (!open) {
         if (kind === 'down') tapped = true
@@ -975,7 +973,17 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
       if (now && kind !== 'leave') now.panel.handlePointer(kind, x - now.x, y)
       // Let go between the panels: nothing takes it, so it goes back.
       if (kind === 'up' && !now && carry.state.thing != null) carry.cancel()
+  }
+  // A frame panel (b3d's body panels) routes its picks to the SVG's own
+  // `handlePointer`, as it does for a panel3d.
+  ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer = handlePointer
+  return {
+    svg: root,
+    get open() {
+      return open
     },
+    setOpen,
+    handlePointer,
     dispose() {
       stop()
       ghosts.dispose()
