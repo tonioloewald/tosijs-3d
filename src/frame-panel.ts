@@ -524,6 +524,25 @@ export function attachFramePanel(
   const target = el as unknown as {
     handlePointer?: (k: string, x: number, y: number) => void
   } | null
+  /*
+  A PRESS ON THE PANEL IS NOT A PRESS ON THE WORLD. Flat, the camera's own
+  controls take the same pointer, so dragging a thing across a panel orbited
+  the view behind it. Hold the camera's controls for the gesture and give
+  them back on release. (A headset's camera has none attached; nothing to do.)
+  */
+  let held: BABYLON.Camera | null = null
+  const holdCamera = () => {
+    const c = scene.activeCamera as BABYLON.Camera | null
+    if (c && (c.inputs as any)?.attachedToElement) {
+      c.detachControl()
+      held = c
+    }
+  }
+  const releaseCamera = () => {
+    if (held == null) return
+    ;(held as any).attachControl(scene.getEngine().getRenderingCanvas(), true)
+    held = null
+  }
   let pointerObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.PointerInfo>> = null
   if (target != null && typeof target.handlePointer === 'function' && el) {
     scene.constantlyUpdateMeshUnderPointer = true
@@ -564,6 +583,7 @@ export function attachFramePanel(
       if (kind === 'down') {
         if (!uv) return
         pressing = true
+        holdCamera()
         target.handlePointer!('down', lastX, lastY)
         repaint(true)
       } else if (kind === 'move') {
@@ -579,6 +599,7 @@ export function attachFramePanel(
         }
       } else if (pressing) {
         pressing = false
+        releaseCamera()
         target.handlePointer!('up', lastX, lastY)
         repaint(true)
       }
@@ -646,6 +667,7 @@ export function attachFramePanel(
       debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl)
     },
     dispose() {
+      releaseCamera()
       el?.removeEventListener('panelfocus', onFocus)
       if (pointerObs != null) scene.onPointerObservable.remove(pointerObs)
       tex.dispose()

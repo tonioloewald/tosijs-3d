@@ -289,17 +289,17 @@ window.addEventListener('pointerup', () => carry.cancel())
 
 ## In 3D
 
-The same loadout on a plane in the scene, flat and in a headset. Closed, it
-is just the figure, small; tap it and it opens, with the bag beside it to
-drag to and from. The button at its corner closes it. `inventoryDock` draws
-both into one SVG, so a drag between them is a drag on one plane; give it
-no `list` for a craft fitted from a carrier's stock, and it opens to the
-schematic alone.
+The same loadout in a scene, flat and in a headset, as the panel over your
+left shoulder (the top left of the view on a monitor) in place of the
+"Inventory" placeholder. Touch or click it and it comes front and centre,
+bigger, with the bag beside it to drag to and from; the button at its corner
+sends it back. `inventoryDock` draws both into one SVG, so a drag between
+them is one panel; give it no `list` for a craft fitted from a carrier's
+stock, and it opens to the schematic alone. A `<tosi-b3d-panel>` takes the
+dock's `svg`, and the dock asks it to come forward (`panelfocus`).
 
 ```js
-import { b3d, b3dLight, panelScene, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
-import { elements } from 'tosijs'
-const { div } = elements
+import { b3d, b3dLight, b3dGround, b3dPanel, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
 
 const kind = (id, tags, mass) => ({ id, name: id, tags, mass })
 const kinds = {
@@ -334,31 +334,41 @@ const inv = createInventory(
 const alsoIn = (item, kind, at) =>
   kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
 
-// Closed it is this wide (metres); open, everything is this much bigger.
-const CLOSED_WIDTH = 0.7
-const OPEN_SCALE = 2
+// Over your left shoulder in a headset; on a monitor, up and to the left.
+// Until the art arrives it is the placeholder card.
+const loadout = b3dPanel({
+  frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
+  presence: 'both', flatFrame: 'face', width: 0.3, resolution: 1024,
+})
+loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 10, distance: 1.4 }
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
-// The art, and a picture per kind (SVG markup; see the note on icons below).
+preview.append(
+  b3d(
+    {},
+    b3dLight({ intensity: 1 }),
+    b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+    loadout,
+    // Declared panels replace the default set: the rest of it, as it was.
+    b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'Journal' }),
+    b3dPanel({ frame: 'eye', preset: 'waist', title: 'Quick Access' }),
+    b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'Menu', width: 0.09 }),
+  )
+)
+
 Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())]).then(([art, icons]) => {
   for (const k of Object.keys(kinds)) kinds[k].icon = icons[k]
-  let plane, closed
   const dock = inventoryDock({
     inv, carry: createCarry(), holder: 'hero', title: 'hero', alsoIn,
     schematic: { container: 'body', art }, list: 'bag',
-    // The plane keeps its units: grow it with the dock.
-    handleResize: ({ width, height, open }) => {
-      const k = open ? OPEN_SCALE : 1
-      plane.mesh.scaling.x = (k * width) / closed.width
-      plane.mesh.scaling.y = (k * height) / closed.height
-    },
   })
-  closed = { width: dock.svg.viewBox.baseVal.width, height: dock.svg.viewBox.baseVal.height }
   // Laid out on the page (text is measured there), out of sight.
-  preview.append(div({ style: 'position:absolute; left:-10000px; top:0' }, dock.svg))
-  const made = panelScene({ svg: dock.svg, target: dock, width: CLOSED_WIDTH, resolution: 1024, camera: { radius: 3.4 } })
-  plane = made.plane
-  preview.append(b3d({ sceneCreated: made.sceneCreated }, b3dLight({ intensity: 1 }), plane))
+  const park = document.createElement('div')
+  park.style.cssText = 'position:absolute; left:-10000px; top:0'
+  park.append(dock.svg)
+  preview.append(park)
+  loadout.title = ''
+  loadout.svg = dock.svg
 })
 ```
 ```css

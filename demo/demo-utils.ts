@@ -499,7 +499,7 @@ export function demoLoadout(): { panels: () => B3dPanel[]; dock: () => Inventory
     width: 0.3,
     resolution: 1024,
   }) as B3dPanel
-  pinned.flatAnchor = { azimuthDeg: -24, elevationDeg: 8, distance: 1.4 }
+  pinned.flatAnchor = { azimuthDeg: -16, elevationDeg: 10, distance: 1.4 }
   ready.then((d) => {
     pinned.title = ''
     pinned.svg = d.svg
