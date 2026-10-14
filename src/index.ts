@@ -422,6 +422,8 @@ export {
   type GasGiantOverrides,
 } from './gas-giant.js'
 export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js'
+export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js'
+export type { SpaceBackdropOptions } from './space-backdrop.js'
 export type { RockyWorldLook, RockyCraters, RockyClimate } from './rocky-world.js'
 export {
   decodeGray16Png,

@@ -390,6 +390,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   noise field before amplitude. A profile remaps normalized height (0..1 → 0..1),
 - https://3d.tosijs.net/space/ — Space
   for any star in it, [planets](/b3d-planet/) with atmospheres, and a
+- https://3d.tosijs.net/space-backdrop/ — space-backdrop
+  galaxy's band tipped off the scene's horizontal plane. Every demo that hangs
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
 - https://3d.tosijs.net/sphere-map/ — sphere-map

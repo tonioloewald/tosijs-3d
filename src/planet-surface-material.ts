@@ -149,8 +149,9 @@ void main(){
   // ON LAND the mesh is the true ground, and its normal is smooth: the
   // screen-derivative one is constant across each triangle, so a slope
   // threshold read from it stepped triangle by triangle (blocky rock on a
-  // cratered moon). Only the sea bed, held flat in the mesh, needs it.
-  if(vHeight>0.0)hfNormal=n;
+  // cratered moon). Only the sea bed, held flat in the mesh, needs it; a
+  // world with no sea has none, however deep its crater floors go.
+  if(vHeight>0.0||psSea.x<0.5)hfNormal=n;
 #endif
 
   // --- land ---------------------------------------------------------------

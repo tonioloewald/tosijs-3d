@@ -15,7 +15,7 @@ three colours and the ring are yours to set: pick another planet and note how
 thin and faint every ring but Saturn's is.
 
 ```js
-import { b3d, b3dPlanet, b3dSun, b3dSkybox, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from 'tosijs-3d'
+import { b3d, b3dPlanet, spaceBackdrop, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const start = GAS_GIANTS.saturn
@@ -81,8 +81,7 @@ preview.append(
         el.setActiveCamera(camera)
       },
     },
-    b3dSun(),
-    b3dSkybox({ timeOfDay: 15, realtimeScale: 0, atmosphere: 0, starfieldCube: '/sky/nebula', starfieldData: '/sky/stars' }),
+    ...spaceBackdrop({ sky: '/sky' }),
     planet,
   )
 )

@@ -11,6 +11,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ### Added
 
 - **Rocky worlds: `<tosi-b3d-planet world="moon">`.** `ROCKY_WORLDS` has the Moon, Mercury, Mars, Venus and an Earth as data (sea, air, clouds, relief, craters, climate), the rocky half of `GAS_GIANTS`; `world` makes the planet that kind, and its `seed` another of the kind. The colours are the biome chart's (a dry warm world is red, a dry cold one grey).
+- **`spaceBackdrop()`: space, set up once.** A sun and the airless star sky with the galaxy tilted off the scene's plane, to spread into a `b3d(…)`. The planet, gas giant and planet-map demos share it (untilted, the Milky Way ran exactly along Saturn's rings). Defaults to the pinned versioned sky, `PINNED_SKY_URL`. The planet demo has a world picker.
 - **Craters on a planet.** `sphereCraters` (landform) is `craterField` on a whole body: no seam, no squeeze at the poles, and an `asymmetry` toward a direction, for a tidally locked moon's leading side. A planet takes `craters`, `craterSize`, `craterWear` and `craterAsymmetry`, or its `world`'s. `craterProfile` is the one crater shape both share.
 
 ### Changed
@@ -81,7 +82,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
-- **Rock on a planet was blocky.** The cliff test read a slope that was constant across each triangle (from screen derivatives), so bare rock stepped in squares. On land it reads the mesh's own smooth normal now; only the sea bed, held flat in the mesh, still needs the derivative one.
+- **Rock on a planet was blocky.** The cliff test read a slope that was constant across each triangle (from screen derivatives), so bare rock stepped in squares. On land, and anywhere on a world with no sea, it reads the mesh's own smooth normal now; only a sea bed, held flat in the mesh, still needs the derivative one.
 - **A sphere world was drier than a flat one.** The rain shadow's wind was fixed in the planet's frame, so level ground on one side of the planet read as a leeward slope everywhere, about 0.12 off the moisture. The wind now blows along the ground: slopes still get wet and dry sides, level ground gets neither. The decorator's mirror of it had the same bias and now has none.
 - **Changing a terrain's `surfaceType` or radius rebuilds its surface.** The sampler was built once at scene-ready, so the tiles kept the old shape while everything that reads the radius live moved on.
 - **Land and Sky: the eye height slider works in a headset.** It moved the flat camera only; the headset's rig took its height once, on entry.

@@ -11,7 +11,7 @@ Optional atmosphere (glow shell) and ocean (water sphere at sea level).
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p } = elements
 
@@ -26,6 +26,8 @@ const { demo } = tosi({
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
+    // A rocky world's look ('' = these dials): see rocky-world.
+    world: '',
   },
 })
 
@@ -34,6 +36,7 @@ const planet = b3dPlanet({
   radius: 50,
   subdivisions: 64,
   biome: 'on', // the biome shader's planetary front-end — radial altitude, insolation
+  world: demo.world,
 
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
@@ -51,6 +54,7 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () => [
       label3d({ text: 'Planet' }),
+      select3d({ label: 'world', value: demo.world, options: ['', ...Object.keys(ROCKY_WORLDS)] }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.1, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),
       slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
@@ -98,9 +102,9 @@ const scene = b3d(
       el.setActiveCamera(camera)
     },
   },
-  b3dSun(),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
-  b3dLight({ intensity: 0.3 }),
+  ...spaceBackdrop({ sky: '/sky' }),
+  // A little fill, so the night side is not a hole in the stars.
+  b3dLight({ intensity: 0.15 }),
   planet,
 )
 
@@ -109,7 +113,7 @@ preview.append(
   div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
-for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude']) {
+for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude', 'world']) {
   demo[key].observe(() => {
     planet.regenerate()
   })
