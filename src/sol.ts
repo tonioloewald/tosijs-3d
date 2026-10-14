@@ -35,10 +35,11 @@ export const SOL: SystemSpec = {
     spectralType: 'G2V',
   },
   planets: [
-    { name: 'Mercury', au: 0.39, radiusKm: 2440, look: { world: 'mercury' } },
-    { name: 'Venus', au: 0.72, radiusKm: 6052, look: { world: 'venus' } },
+    { name: 'Mercury', au: 0.39, radiusKm: 2440, day: 58.65, look: { world: 'mercury' } },
+    { name: 'Venus', au: 0.72, radiusKm: 6052, day: -243.0, look: { world: 'venus' } },
     {
       name: 'Earth',
+      day: 0.997,
       au: 1,
       radiusKm: 6371,
       look: { world: 'earth' },
@@ -64,6 +65,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Mars',
+      day: 1.026,
       au: 1.52,
       radiusKm: 3390,
       look: { world: 'mars' },
@@ -84,6 +86,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Jupiter',
+      day: 0.414,
       au: 5.2,
       radiusKm: 69911,
       rings: 0.1,
@@ -101,6 +104,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Saturn',
+      day: 0.444,
       au: 9.54,
       radiusKm: 58232,
       rings: 1,
@@ -114,6 +118,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Uranus',
+      day: -0.718,
       au: 19.2,
       radiusKm: 25362,
       rings: 0.15,
@@ -125,6 +130,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Neptune',
+      day: 0.671,
       au: 30.1,
       radiusKm: 24622,
       rings: 0.1,

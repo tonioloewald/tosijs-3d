@@ -114,6 +114,22 @@ export interface LayoutOptions {
 }
 
 /** Drawn radius from a true one: Earth is `earthSize`, the rest by a square root. */
+/**
+ * Seconds an Earth day takes in a drawn system. The orbits are sped up so an
+ * Earth year is about a minute (`layoutSystem`); a day must be short against
+ * that, or a planet turns more slowly than it goes round its star and looks
+ * still. Six seconds is ten days a year: not the real 365, but plainly a day.
+ */
+export const EARTH_DAY_SECONDS = 6
+
+/**
+ * How fast a body turns (radians a second, the planet's `rotationSpeed`) for a
+ * day `day` Earth days long. Negative for a backwards day; 0 for no day.
+ */
+export function spinSpeed(day: number): number {
+  return day === 0 ? 0 : (2 * Math.PI) / (EARTH_DAY_SECONDS * day)
+}
+
 export function visualRadius(radiusKm: number, earthSize = 1): number {
   return earthSize * Math.min(5, Math.max(0.2, Math.sqrt(radiusKm / 6371)))
 }
@@ -251,6 +267,11 @@ export interface SystemBodySpec {
 export interface SystemPlanetSpec extends SystemBodySpec {
   /** AU from the star. */
   au: number
+  /**
+   * How long its day is, in Earth days (sidereal); negative turns it
+   * backwards (Venus, Uranus). Default: 1 for a rock, 0.42 for a giant.
+   */
+  day?: number
   /** Ring strength, 0…1. */
   rings?: number
   moons?: SystemBodySpec[]

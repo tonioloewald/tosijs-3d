@@ -200,6 +200,7 @@ import { createStarMaterial } from './star-material.js'
 import { rockyWorldFor } from './rocky-world.js'
 import {
   layoutSystem,
+  spinSpeed,
   type BeltLayout,
   type SystemBodySpec,
   type SystemLayout,
@@ -639,7 +640,9 @@ export class B3dStarSystem extends B3dChild {
         radius: place.visualRadius,
         subdivisions: giant ? 48 : 40,
         biome: 'on',
-        rotationSpeed: giant ? 0.15 : 0.08,
+        // Its own day (real for Sol), short against its year so it is seen to
+        // turn; a generated rock has an Earth day, a giant a Jupiter one.
+        rotationSpeed: spinSpeed(spec?.planets[i].day ?? (giant ? 0.42 : 1)),
       }) as any
       if (spec) {
         Object.assign(el, lookOf(spec.planets[i]))

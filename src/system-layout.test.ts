@@ -1,10 +1,13 @@
 import { describe, test, expect } from 'bun:test'
 import {
+  EARTH_DAY_SECONDS,
   layoutSystem,
   logDistance,
+  spinSpeed,
   visualRadius,
   type PlanetInput,
 } from './system-layout.js'
+import { SOL } from './sol.js'
 import { rockyWorldFor } from './rocky-world.js'
 
 const sol: PlanetInput[] = [
@@ -161,5 +164,24 @@ describe('a known system', () => {
     expect(layout.belt!.notable.map((n) => n.radiusKm)).toEqual([
       473, 263, 256, 217,
     ])
+  })
+})
+
+describe('a body’s day', () => {
+  test('an Earth day is EARTH_DAY_SECONDS, a turn of 2π', () => {
+    expect(spinSpeed(1) * EARTH_DAY_SECONDS).toBeCloseTo(2 * Math.PI)
+  })
+  test('a backwards day turns the other way; no day, no turn', () => {
+    expect(spinSpeed(-1)).toBeCloseTo(-spinSpeed(1))
+    expect(spinSpeed(0)).toBe(0)
+  })
+  test('Sol’s planets turn faster than they go round the Sun (or they look still)', () => {
+    // Except where the truth says otherwise: Mercury and Venus barely turn.
+    // Kepler, as layoutSystem has it: a 60-second Earth year.
+    for (const p of SOL.planets) {
+      if (Math.abs(p.day ?? 1) > 10) continue
+      const day = Math.abs(EARTH_DAY_SECONDS * (p.day ?? 1))
+      expect(day).toBeLessThan((60 * p.au ** 1.5) / 5)
+    }
   })
 })
