@@ -1305,6 +1305,8 @@ inventory-box
   inv  = the model and the carry (share both between panels)
   carry  = the model and the carry (share both between panels)
   host  = <svg>
+  schematics  = art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)
+  height  = a fixed height that scrolls, instead of growing to fit
 
 ## inventory
 inventory

@@ -290,15 +290,35 @@ function occupant(doc: InventoryDoc, kinds: Record<string, ItemKind>, p: Place):
   return null
 }
 
-function putIn(doc: InventoryDoc, id: string, p: Place) {
+/** Put `id` at `p`; returns the id it ended up as (it may join a stack). */
+function putIn(doc: InventoryDoc, id: string, p: Place, kinds?: Record<string, ItemKind>): string {
   const c = containerOf(doc, p)
   if (!c) throw new Error(`no container ${p.holder}/${p.container}`)
   if (c.type === 'slots') {
     const slot = c.slots[p.slot ?? '']
     if (!slot) throw new Error(`no slot ${p.slot}`)
     slot.holds = id
-  } else if (c.type === 'list') c.holds.push(id)
-  else c.holds.push({ item: id, x: p.x ?? 0, y: p.y ?? 0 })
+  } else if (c.type === 'list') {
+    // Counted stock: a thing joins a stack of its kind with room for it, if
+    // neither is damaged or carries props of its own.
+    const item = doc.items[id]
+    const cap = kinds?.[item.kind]?.stack ?? 1
+    const plain = (i: Item) => !i.damaged && !i.props
+    const into =
+      cap > 1 && plain(item)
+        ? c.holds.find((o) => {
+            const other = doc.items[o]
+            return o !== id && other.kind === item.kind && plain(other) && other.qty + item.qty <= cap
+          })
+        : undefined
+    if (into) {
+      doc.items[into].qty += item.qty
+      delete doc.items[id]
+      return into
+    }
+    c.holds.push(id)
+  } else c.holds.push({ item: id, x: p.x ?? 0, y: p.y ?? 0 })
+  return id
 }
 
 /** The shapes' own rules: what a slot accepts, a list's cap, a grid's bounds and overlaps. */
@@ -404,35 +424,39 @@ export function createInventory(
           continue
         }
         from = findItem(d, id)
-        // Part of a stack: split it.
+        // Part of a stack: split it. What it displaces can still go back to
+        // the stack's list (where it would join it), but not into a slot the
+        // rest of the stack still fills.
         const item = d.items[id]
         if (m.qty != null && m.qty < item.qty) {
           item.qty -= m.qty
           const part = newId(d, item.kind)
           d.items[part] = { ...clone(item), id: part, qty: m.qty }
           id = part
-          from = null
+          if (from && containerOf(d, from)?.type !== 'list') from = null
         } else takeOut(d, id)
       }
+      // What moved, as it was before it joined any stack (the price is for this).
+      const moved = d.items[id]
       if (m.to) {
         const there = occupant(d, kinds, m.to)
         if (there && there !== id) {
           if (m.swap && from) {
             takeOut(d, there)
-            putIn(d, there, from)
+            putIn(d, there, from, kinds)
             events.push({ type: 'moved', item: there, from: m.to, to: from })
           } else {
             reasons.push('something is already there')
             continue
           }
         }
-        putIn(d, id, m.to)
+        id = putIn(d, id, m.to, kinds)
       } else {
         delete d.items[id]
       }
       events.push({ type: 'moved', item: id, from, to: m.to })
       if (plugins.price && m.pay) {
-        const amount = plugins.price(d.items[id] ?? { id, kind: m.kind ?? '', qty: 1 }, from, m.to)
+        const amount = plugins.price(moved ?? { id, kind: m.kind ?? '', qty: 1 }, from, m.to)
         const payer = d.holders[m.pay.holder]
         if (!payer) reasons.push(`no such holder: ${m.pay.holder}`)
         else {

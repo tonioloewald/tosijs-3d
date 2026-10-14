@@ -5116,6 +5116,14 @@
       {
         "name": "host",
         "default": "<svg>"
+      },
+      {
+        "name": "schematics",
+        "default": "art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)"
+      },
+      {
+        "name": "height",
+        "default": "a fixed height that scrolls, instead of growing to fit"
       }
     ]
   },

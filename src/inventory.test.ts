@@ -325,3 +325,43 @@ describe('inventory: crafting and designs', () => {
     expect(cls).toEqual({ id: 'frigate', name: undefined, tags: ['ship'], cost: 14, mass: undefined, contributes: { power: 11, firepower: 3 } })
   })
 })
+
+describe('inventory: counted stock', () => {
+  const doc = (): InventoryDoc => ({
+    items: { m: { id: 'm', kind: 'aam', qty: 6 }, b: { id: 'b', kind: 'bomb', qty: 2 } },
+    holders: { manta: craft(), armoury: { id: 'armoury', containers: { stock: { type: 'list', holds: ['m', 'b'] } } } },
+  })
+  const L1 = { holder: 'manta', container: 'wings', slot: 'L1' }
+  const stock = { holder: 'armoury', container: 'stock' }
+
+  test('a thing put back joins its stack', () => {
+    const inv = createInventory(doc(), { kinds: mantaKinds })
+    inv.move({ item: 'm', qty: 1, to: L1 })
+    expect(inv.doc.items.m.qty).toBe(5)
+    const fitted = (inv.doc.holders.manta.containers.wings as any).slots.L1.holds
+    inv.move({ item: fitted, to: stock })
+    expect(inv.doc.items.m.qty).toBe(6)
+    expect(inv.doc.items[fitted]).toBeUndefined()
+    expect((inv.doc.holders.armoury.containers.stock as any).holds).toEqual(['m', 'b'])
+  })
+
+  test('one drawn from a stack swaps with what the hardpoint holds, which goes back to stock', () => {
+    const inv = createInventory(doc(), { kinds: mantaKinds })
+    inv.move({ item: 'm', qty: 1, to: L1 })
+    const r = inv.move({ item: 'b', qty: 1, to: L1, swap: true })
+    expect(r.ok).toBe(true)
+    expect(inv.doc.items.m.qty).toBe(6)
+    expect(inv.doc.items.b.qty).toBe(1)
+  })
+
+  test('a damaged one stays apart', () => {
+    const d = doc()
+    d.items.x = { id: 'x', kind: 'aam', qty: 1, damaged: 1 }
+    const wings = d.holders.manta.containers.wings
+    if (wings.type === 'slots') wings.slots.L1.holds = 'x'
+    const inv = createInventory(d, { kinds: mantaKinds })
+    inv.move({ item: 'x', to: stock })
+    expect(inv.doc.items.x.qty).toBe(1)
+    expect(inv.doc.items.m.qty).toBe(6)
+  })
+})

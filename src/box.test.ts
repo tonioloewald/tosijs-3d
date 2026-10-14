@@ -98,6 +98,53 @@ describe('box — inline children flow', () => {
   })
 })
 
+describe('box — placed children (at)', () => {
+  const spot = (w: number, h: number, at?: { x: number; y: number }, hit?: () => void) => ({
+    el: document.createElementNS('http://www.w3.org/2000/svg', 'g') as unknown as SVGElement,
+    kind: 'block' as const,
+    focusable: true,
+    at,
+    measure: () => ({ width: w, height: h }),
+    handleActivate: hit,
+  })
+
+  test('sit over the flowed child before them and take no flow space', () => {
+    const b = mod.box(
+      { width: 200, padding: 10, gap: 5 },
+      mod.textBlock('title'),
+      spot(180, 100), // the art
+      spot(20, 20, { x: 30, y: 40 }),
+      spot(180, 10)
+    )
+    const art = b.childRect(1)!
+    const placed = b.childRect(2)!
+    expect(placed.x).toBe(art.x + 30)
+    expect(placed.y).toBe(art.y + 40)
+    // The next flowed child follows the art directly.
+    expect(b.childRect(3)!.y).toBe(art.y + art.height + 5)
+  })
+
+  test('are hit before the flowed child under them', () => {
+    let which = ''
+    const b = mod.box(
+      { width: 200 },
+      spot(200, 100, undefined, () => (which = 'art')),
+      spot(20, 20, { x: 30, y: 40 }, () => (which = 'socket'))
+    )
+    b.handlePointer('down', 35, 45)
+    b.handlePointer('up', 35, 45)
+    expect(which).toBe('socket')
+    b.handlePointer('down', 100, 90)
+    b.handlePointer('up', 100, 90)
+    expect(which).toBe('art')
+  })
+
+  test('extend the content height when they overhang', () => {
+    const b = mod.box({ width: 200 }, spot(200, 50), spot(20, 20, { x: 0, y: 60 }))
+    expect(b.contentHeight).toBe(80)
+  })
+})
+
 describe('box — event model', () => {
   test('focusMove focuses the first focusable, then navigates by direction', () => {
     let activated = ''

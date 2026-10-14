@@ -6,8 +6,11 @@ character equipment display or an aircraft loadout) — the three use cases in
 mind are general rpg (including say equipping a companion or mount), assigning
 a load out to a manta, and designing / customizing a spacecraft in SFB."*
 
-Status: **design, not built** (revised with Tonio's SFB, spell and crafting notes). Nothing here is code yet. The questions at the
-end are the ones only you can answer.
+Status (2026-10-14): **steps 1–3 built, step 4 under way.** `carry` and `carry-box` (drag
+and drop, two-tap, sockets that say why), `inventory` (the model), and `inventory-box`
+(panels, schematics from Tonio's SVGs, scrolling lists, a shop). Worked examples on its
+page: a person, a Manta and a shop. Not yet: the headset ray on panels, sockets on scene
+nodes, a grid drawn as cells, the ship, spell and crafting examples.
 
 ## The three users, and what each one needs
 

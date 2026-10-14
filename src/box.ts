@@ -19,6 +19,9 @@ A `BoxChild` is `{ el, kind, measure, paint? }`:
 
 - **block** — fills the content width, `measure(width) → { height }`, stacks.
 - **inline** — `measure() → { width, height }`, flows left-to-right and wraps.
+- **placed** — any child with `at: { x, y }`: drawn at that offset over the
+  flowed child before it, taking no space in the flow and hit first (sockets
+  on a schematic sit on its art this way).
 
 Helpers build the common ones: `textBlock` (wraps text to the width via
 [[widgets3d-layout]]'s real glyph measurer), `inlineIcon` (an `iconGlyph`), and
@@ -352,6 +355,13 @@ export interface BoxChild {
   focusActivate?: () => void
   /** Drop inner focus — the box's focus left this child. */
   focusClear?: () => void
+  /**
+   * PLACED rather than flowed: drawn at this offset from the top-left of the
+   * last flowed child before it, taking no space in the flow. Sockets on a
+   * schematic are this (the art flows; the sockets sit where the art says).
+   * Placed children are hit before flowed ones, last first, as they paint.
+   */
+  at?: { x: number; y: number }
 }
 
 /** Pointer phase fed to {@link Box.handlePointer}. */
@@ -501,23 +511,43 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   const relayout = (): void => {
     const contentW = Math.max(0, width - 2 * padding)
 
-    // measure → flow items
-    const items: FlowItem[] = children.map((c) => {
-      const m = c.measure(contentW)
-      return c.kind === 'block'
+    // measure → flow items (placed children are left out of the flow)
+    const sizes = children.map((c) => c.measure(contentW))
+    const flowed = children.flatMap((c, i) => (c.at ? [] : [i]))
+    const items: FlowItem[] = flowed.map((i) => {
+      const m = sizes[i]
+      return children[i].kind === 'block'
         ? { kind: 'block', height: m.height }
         : { kind: 'inline', width: m.width ?? 0, height: m.height }
     })
     const laid = flowLayout(items, { width: contentW, gap, align })
-    laidBoxes = laid.boxes
-    contentHeight = laid.height + 2 * padding
+    laidBoxes = new Array(children.length)
+    flowed.forEach((i, k) => (laidBoxes[i] = laid.boxes[k]))
+    let bottom = laid.height
+    let anchor: FlowBox = { x: 0, y: 0, width: 0, height: 0 }
+    children.forEach((c, i) => {
+      if (!c.at) {
+        anchor = laidBoxes[i]
+        return
+      }
+      const m = sizes[i]
+      const b = {
+        x: anchor.x + c.at.x,
+        y: anchor.y + c.at.y,
+        width: m.width ?? contentW,
+        height: m.height,
+      }
+      laidBoxes[i] = b
+      bottom = Math.max(bottom, b.y + b.height)
+    })
+    contentHeight = bottom + 2 * padding
     viewportHeight = fixedHeight ?? contentHeight
 
     // (re)build the positioned children
     content.textContent = ''
     children.forEach((c, i) => {
-      const b = laid.boxes[i]
-      c.paint?.(c.kind === 'block' ? contentW : b.width)
+      const b = laidBoxes[i]
+      c.paint?.(c.kind === 'block' && !c.at ? contentW : b.width)
       const wrap = svgElements.g({
         transform: `translate(${padding + b.x} ${padding + b.y})`,
       })
@@ -603,7 +633,14 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   const hitTest = (x: number, y: number): number => {
     if (x < 0 || x > width || y < 0 || y > viewportHeight) return -1
     const cy = y + scroll // screen → content space
-    for (let i = 0; i < laidBoxes.length; i++) {
+    // Placed children first, last first (they paint over the flow).
+    const order = laidBoxes.map((_, i) => i)
+    order.sort(
+      (a, b) =>
+        Number(!!children[b].at) - Number(!!children[a].at) ||
+        (children[a].at ? b - a : a - b)
+    )
+    for (const i of order) {
       if (!isFocusable(i)) continue
       const b = laidBoxes[i]
       const bx = padding + b.x

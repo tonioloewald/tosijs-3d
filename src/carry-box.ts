@@ -143,6 +143,8 @@ const pressedTile = new WeakMap<Carry<any>, CarryTileChild<any>>()
 export interface CarryTileChild<T> extends BoxChild {
   carryThing: T
   carryFrom: string
+  /** Stop listening to the carry (call when the tile is thrown away). */
+  dispose: () => void
 }
 
 export interface CarryTileOptions<T> {
@@ -154,6 +156,12 @@ export interface CarryTileOptions<T> {
   width?: number
   height?: number
   decorations?: () => CarryDecorations | undefined
+  /**
+   * The place this tile is in, as a target: something dropped ON the tile
+   * goes there. A long (scrolled) list is all tiles, so this is what makes
+   * the whole list a place to drop.
+   */
+  target?: CarryTarget<T>
 }
 
 /** A thing you can pick up: a label and its decorations. */
@@ -163,6 +171,12 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
   const h = opts.height ?? 34
   const deco = opts.decorations?.() ?? {}
   const outline = deco.outline ? OUTLINES[deco.outline] ?? deco.outline : null
+  // A small tile (in a socket on a schematic) centres a shortened label.
+  const small = w < 80
+  const fontSize = small ? 10 : 13
+  const fit = small ? Math.max(2, Math.floor((w - 6) / (fontSize * 0.55))) : Infinity
+  const shown = label.length > fit ? label.slice(0, fit - 1) + '…' : label
+  const inset = Math.min(10, w * 0.12)
   const bg = rect({
     x: 0.5,
     y: 0.5,
@@ -177,28 +191,30 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
     bg,
     text(
       {
-        x: 10,
-        y: deco.bar != null ? h / 2 + 1 : h / 2 + 5,
+        x: small ? w / 2 : 10,
+        y: deco.bar != null && !small ? h / 2 + 1 : h / 2 + fontSize * 0.38,
         fill: '#e8e8e8',
+        'text-anchor': small ? 'middle' : 'start',
         'font-family': 'system-ui, sans-serif',
-        'font-size': '13',
+        'font-size': String(fontSize),
       },
-      label
+      shown
     ),
   ]
   if (deco.bar != null) {
     const v = Math.max(0, Math.min(1, deco.bar))
+    const bw = w - 2 * inset
     parts.push(
-      rect({ x: 10, y: h - 9, width: w - 20, height: 4, rx: 2, fill: '#141a24' }),
-      rect({ x: 10, y: h - 9, width: (w - 20) * v, height: 4, rx: 2, fill: deco.barColor ?? '#5fbf6a' })
+      rect({ x: inset, y: h - 9, width: bw, height: 4, rx: 2, fill: '#141a24' }),
+      rect({ x: inset, y: h - 9, width: bw * v, height: 4, rx: 2, fill: deco.barColor ?? '#5fbf6a' })
     )
   }
   if (deco.badge) {
     parts.push(
       text(
         {
-          x: w - 8,
-          y: 14,
+          x: w - (small ? 3 : 8),
+          y: small ? 11 : 14,
           fill: '#9fb0c8',
           'text-anchor': 'end',
           'font-family': 'system-ui, sans-serif',
@@ -214,7 +230,7 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
     const held = carry.state.thing === thing
     el.setAttribute('opacity', held ? '0.35' : '1')
   }
-  carry.subscribe(restyle)
+  const stop = carry.subscribe(restyle)
   const child: CarryTileChild<T> = {
     el,
     kind: 'inline',
@@ -225,18 +241,28 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
     setState(s: BoxChildState) {
       if (s.pressed) pressedTile.set(carry, child)
       bg.setAttribute('fill', s.pressed ? '#3b4860' : s.hovered || s.focused ? '#344054' : '#2c3546')
+      const t = opts.target
+      if (t && carry.state.thing != null && carry.state.thing !== thing) {
+        if (s.hovered || s.focused) carry.over(t)
+        else if (carry.state.target === t) carry.over(null)
+      }
     },
-    // The two-tap path: tap to pick up, tap it again to put it down.
+    // The two-tap path: tap to pick up, tap it again to put it down, or tap
+    // another thing in a place to put what is held there.
     handleActivate() {
       if (carry.state.thing === thing) carry.cancel()
+      else if (carry.state.thing != null && opts.target) carry.drop(opts.target)
       else carry.pickUp(thing, from, 'tap')
     },
+    dispose: stop,
   }
   return child
 }
 
 export interface CarrySocketChild<T> extends BoxChild {
   carryTarget: CarryTarget<T>
+  /** Stop listening to the carry (call when the socket is thrown away). */
+  dispose: () => void
 }
 
 export interface CarrySocketOptions<T> {
@@ -245,72 +271,105 @@ export interface CarrySocketOptions<T> {
   label: string
   width?: number
   height?: number
-  /** What is in it now, drawn inside it. */
+  /**
+   * What is in it now, drawn inside it. A tile here can be picked up from
+   * the socket: pressed and dragged, or tapped.
+   */
   holding?: BoxChild | null
+  /**
+   * `'row'` (default) draws a framed row with its label inside. `'art'` draws
+   * nothing at rest, because a picture under it (a schematic) already shows
+   * the socket: it outlines when it would take what is held, darkens when it
+   * would not, and shows its label and the reason beneath it on hover. The
+   * held tile fills it.
+   */
+  look?: 'row' | 'art'
 }
+
+const HALO = { stroke: '#0b0e14', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }
 
 /** A place a carried thing can go: lights, dims and says why. */
 export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T> {
-  const { carry, target, label } = opts
+  const { carry, target, label, holding } = opts
+  const art = opts.look === 'art'
   const w = opts.width ?? 160
-  const h = opts.height ?? (opts.holding ? 66 : 52)
+  const h = opts.height ?? (holding ? 66 : 52)
   const frame = rect({
     x: 1,
     y: 1,
     width: w - 2,
     height: h - 2,
-    rx: 8,
-    fill: '#161b25',
-    stroke: '#55607a',
-    'stroke-width': 1.5,
-    'stroke-dasharray': '5 4',
+    rx: art ? 4 : 8,
+    fill: art ? 'none' : '#161b25',
+    stroke: art ? 'none' : '#55607a',
+    'stroke-width': art ? 2.5 : 1.5,
+    'stroke-dasharray': art ? '' : '5 4',
   })
+  const textAt = art
+    ? { x: w / 2, 'text-anchor': 'middle', ...HALO }
+    : { x: 10 }
   const caption = text(
     {
-      x: 10,
-      y: 14,
-      fill: '#8a96ad',
+      ...textAt,
+      y: art ? h + 13 : 14,
+      fill: art ? '#dfe6f2' : '#8a96ad',
       'font-family': 'system-ui, sans-serif',
       'font-size': '11',
     },
-    label
+    art ? '' : label
   )
   const why = text(
     {
-      x: 10,
-      y: h - 8,
+      ...textAt,
+      y: art ? h + 26 : h - 8,
       fill: '#f0907c',
       'font-family': 'system-ui, sans-serif',
       'font-size': '11',
     },
     ''
   )
-  const parts: Element[] = [frame, caption]
-  if (opts.holding) {
-    // Under the caption, clear of the reason line.
-    const inner = g({ transform: 'translate(10, 20)' }, opts.holding.el)
-    parts.push(inner)
+  const parts: Element[] = []
+  if (!art) parts.push(frame, caption)
+  if (holding) {
+    // In a row, under the caption and clear of the reason line; on art, filling it.
+    parts.push(g({ transform: art ? '' : 'translate(10, 20)' }, holding.el))
   }
+  // On art the frame and words go OVER what it holds.
+  if (art) parts.push(frame, caption)
   parts.push(why)
   const el = g({ 'data-carry-socket': '' }, ...parts) as unknown as SVGGElement
   let hovered = false
+  const holdsHeld = () => {
+    const t = (holding as CarryTileChild<T> | null | undefined)?.carryThing
+    return t !== undefined && carry.state.thing === t
+  }
   const restyle = () => {
     const s = carry.state
-    if (s.thing == null) {
+    if (s.thing == null || holdsHeld()) {
       el.setAttribute('opacity', '1')
-      frame.setAttribute('stroke', '#55607a')
-      frame.setAttribute('fill', '#161b25')
+      frame.setAttribute('stroke', art ? (hovered ? '#9fb0c8' : 'none') : '#55607a')
+      frame.setAttribute('fill', art ? 'none' : '#161b25')
+      frame.removeAttribute('fill-opacity')
+      if (art) caption.textContent = hovered ? label : ''
       why.textContent = ''
       return
     }
     const v = carry.verdictFor(target)
     const ok = !!v?.ok
-    el.setAttribute('opacity', ok ? '1' : '0.45')
-    frame.setAttribute('stroke', ok ? '#6fd08c' : '#55607a')
-    frame.setAttribute('fill', hovered && ok ? '#1f3328' : '#161b25')
+    if (art) {
+      frame.setAttribute('stroke', ok ? '#6fd08c' : 'none')
+      frame.setAttribute('fill', ok ? (hovered ? '#6fd08c' : 'none') : '#05070b')
+      frame.setAttribute('fill-opacity', ok ? '0.25' : '0.55')
+      caption.textContent = hovered ? label : ''
+    } else {
+      el.setAttribute('opacity', ok ? '1' : '0.45')
+      frame.setAttribute('stroke', ok ? '#6fd08c' : '#55607a')
+      frame.setAttribute('fill', hovered && ok ? '#1f3328' : '#161b25')
+    }
     why.textContent = hovered && v && !ok ? v.reasons[0] ?? '' : ''
   }
-  carry.subscribe(restyle)
+  const stop = carry.subscribe(restyle)
+  restyle()
   return {
     el,
     kind: 'block',
@@ -319,15 +378,26 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
     measure: () => ({ width: w, height: h }),
     setState(s: BoxChildState) {
       hovered = s.hovered || s.focused
+      // A press on a filled socket is a press on what it holds: that is how
+      // a thing is dragged OUT of a socket.
+      holding?.setState?.(s)
       if (carry.state.thing != null) {
         if (hovered) carry.over(target)
         else if (carry.state.target === target) carry.over(null)
       }
       restyle()
     },
-    // The second tap of the two-tap path.
     handleActivate() {
-      if (carry.state.thing != null) carry.drop(target)
+      // Tapping the socket that holds what is carried puts it back.
+      if (holdsHeld()) carry.cancel()
+      // The second tap of the two-tap path.
+      else if (carry.state.thing != null) carry.drop(target)
+      // The first: pick up what it holds.
+      else holding?.handleActivate?.()
+    },
+    dispose() {
+      stop()
+      ;(holding as CarryTileChild<T> | null | undefined)?.dispose?.()
     },
   }
 }
