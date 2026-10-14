@@ -9,7 +9,9 @@ over one inventory and one carry are a party, a trade, a shop.
 
 A container can be drawn as a **schematic**: an SVG (a paper doll, a craft
 from above, an SSD) whose sockets are its slots, so the art decides where
-things go. Lists are scrolling lists.
+things go. It is drawn at the art's own scale, cropped to what is drawn and
+shrunk only if the panel is too narrow, so a socket designed 44 units square
+is a 44-unit target. Lists are scrolling lists.
 
 Colour the art with CSS variables that have defaults, e.g.
 `fill: var(--schematic-body, #59647a)`. On the page a panel's host can
@@ -80,13 +82,13 @@ const decorations = (item) => ({
   outline: item.damaged ? 'damaged' : undefined,
 })
 preview.style.cssText = 'display:flex; gap:12px; align-items:flex-start; overflow:auto; padding:8px'
-preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '470px')
-const bodyHost = svg({ width: 380, height: 420, style: 'touch-action:none; flex:none' })
-const bagHost = svg({ width: 200, height: 420, style: 'touch-action:none; flex:none' })
+preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560px')
+const bodyHost = svg({ width: 410, height: 540, style: 'touch-action:none; flex:none' })
+const bagHost = svg({ width: 200, height: 540, style: 'touch-action:none; flex:none' })
 preview.append(bodyHost, bagHost)
 fetch('/person-loadout.svg').then((r) => r.text()).then((art) => {
   inventoryPanel({ inv, carry, holder: 'hero', host: bodyHost, title: 'hero', decorations, schematics: { body: art }, hide: ['bag'] })
-  inventoryPanel({ inv, carry, holder: 'hero', host: bagHost, decorations, only: ['bag'], totals: false, height: 420 })
+  inventoryPanel({ inv, carry, holder: 'hero', host: bagHost, decorations, only: ['bag'], totals: false, height: 540 })
 })
 window.addEventListener('pointerup', () => carry.cancel())
 ```
@@ -141,8 +143,8 @@ const inv = createInventory(
 const carry = createCarry()
 const decorations = (item) => ({ badge: item.qty > 1 ? '×' + item.qty : undefined })
 preview.style.cssText = 'display:flex; gap:12px; align-items:flex-start; overflow:auto; padding:8px'
-preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '470px')
-const craftHost = svg({ width: 380, height: 420, style: 'touch-action:none; flex:none' })
+preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560px')
+const craftHost = svg({ width: 480, height: 420, style: 'touch-action:none; flex:none' })
 const stockHost = svg({ width: 200, height: 420, style: 'touch-action:none; flex:none' })
 preview.append(craftHost, stockHost)
 fetch('/manta-loadout.svg').then((r) => r.text()).then((art) => {
@@ -332,6 +334,8 @@ export interface SchematicSocket {
 
 export interface Schematic {
   viewBox: [number, number, number, number]
+  /** What is actually drawn (the art's own bounds, a little padded), in its units. */
+  content: [number, number, number, number]
   /** The art's root, to clone from. */
   root: SVGSVGElement
   sockets: SchematicSocket[]
@@ -385,11 +389,18 @@ export function readSchematic(src: string | SVGSVGElement): Schematic {
   // Measured in a hidden copy on the page, mapped back into the art's own units.
   let measure: ((el: Element) => [number, number, number, number] | null) | null = null
   let cleanup = () => {}
+  let drawn: [number, number, number, number] | null = null
   if (typeof document !== 'undefined' && document.body && typeof (root as any).getBBox === 'function') {
     const copy = root.cloneNode(true) as SVGSVGElement
     copy.setAttribute('style', 'position:absolute; left:-10000px; top:0; visibility:hidden')
     document.body.append(copy)
     cleanup = () => copy.remove()
+    try {
+      const b = copy.getBBox()
+      if (b.width > 0) drawn = [b.x, b.y, b.width, b.height]
+    } catch {
+      drawn = null
+    }
     measure = (el) => {
       const twin = el.getAttribute('data-slot')
         ? copy.querySelector(`[data-slot="${el.getAttribute('data-slot')}"]`)
@@ -419,24 +430,58 @@ export function readSchematic(src: string | SVGSVGElement): Schematic {
     const b = measure?.(el) ?? roughBox(el)
     if (b) sockets.push({ slot, x: b[0], y: b[1], width: b[2], height: b[3] })
   }
+  // The drawing's own bounds, so empty margins in the file cost no space.
+  const boxes = drawn
+    ? [drawn]
+    : Array.from(root.querySelectorAll('path, rect, circle, ellipse, polygon, polyline'))
+        .filter((el) => !el.closest('defs, clipPath, mask'))
+        .map(roughBox)
+        .filter((b): b is [number, number, number, number] => !!b)
+  let content = viewBox
+  if (boxes.length) {
+    const pad = 4
+    const x0 = Math.min(...boxes.map((b) => b[0])) - pad
+    const y0 = Math.min(...boxes.map((b) => b[1])) - pad
+    const x1 = Math.max(...boxes.map((b) => b[0] + b[2])) + pad
+    const y1 = Math.max(...boxes.map((b) => b[1] + b[3])) + pad
+    content = [x0, y0, x1 - x0, y1 - y0]
+  }
   cleanup()
-  const out = { viewBox, root, sockets }
+  const out = { viewBox, content, root, sockets }
   schematicCache.set(src, out)
   return out
 }
 
-/** The art as a box child, `width` wide. */
-function artChild(s: Schematic, width: number): BoxChild {
-  const [, , vw, vh] = s.viewBox
-  const height = (width * vh) / vw
+/**
+ * How a schematic sits in `avail` panel units: at the art's OWN scale (a
+ * socket drawn 44 units square is 44 on the panel, the size it was designed
+ * as a target), shrunk only when the panel is too narrow, and centred.
+ */
+export function schematicFit(s: Schematic, avail: number) {
+  const [cx, cy, cw, ch] = s.content
+  const k = Math.min(1, avail / cw)
+  const ox = (avail - cw * k) / 2
+  return {
+    k,
+    height: ch * k,
+    /** A point in the art's units to panel units, relative to the art's box. */
+    at: (x: number, y: number) => ({ x: ox + (x - cx) * k, y: (y - cy) * k }),
+  }
+}
+
+/** The art as a box child, `avail` wide. */
+function artChild(s: Schematic, avail: number): BoxChild {
+  const fit = schematicFit(s, avail)
+  const o = fit.at(s.content[0], s.content[1])
   const el = svgElements.svg({
-    width,
-    height,
-    viewBox: s.viewBox.join(' '),
+    x: o.x,
+    width: s.content[2] * fit.k,
+    height: fit.height,
+    viewBox: s.content.join(' '),
     'pointer-events': 'none',
   }) as unknown as SVGElement
   for (const c of Array.from(s.root.childNodes)) el.append(c.cloneNode(true))
-  return { el, kind: 'block', measure: () => ({ height }) }
+  return { el, kind: 'block', measure: () => ({ height: fit.height }) }
 }
 
 /** Places are passed through the carry as strings. */
@@ -518,7 +563,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
         if (art) {
           // The art flows; its sockets are placed over it, where it drew them.
           const sch = readSchematic(art)
-          const k = (width - 24) / sch.viewBox[2]
+          const fit = schematicFit(sch, width - 24)
+          const k = fit.k
           children.push(artChild(sch, width - 24))
           for (const sk of sch.sockets) {
             const slot = c.slots[sk.slot]
@@ -534,7 +580,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): { dispose: () => vo
               ...size,
               holding: slot.holds ? tile(slot.holds, at, size) : null,
             })
-            socket.at = { x: (sk.x - sch.viewBox[0]) * k, y: (sk.y - sch.viewBox[1]) * k }
+            socket.at = fit.at(sk.x, sk.y)
             disposers.push(socket.dispose)
             children.push(socket)
           }
