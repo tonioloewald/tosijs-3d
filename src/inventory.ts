@@ -198,6 +198,8 @@ export interface MoveResult {
 
 export interface InventoryApi {
   readonly doc: InventoryDoc
+  /** The catalogue it was made with. */
+  readonly kinds: Record<string, ItemKind>
   where: (item: string) => Place | null
   /** Why these moves would be refused; empty means they would go. */
   check: (...moves: Move[]) => string[]
@@ -472,6 +474,7 @@ export function createInventory(
     get doc() {
       return doc
     },
+    kinds,
     where: (item) => findItem(doc, item),
     check: (...moves) => apply(doc, moves).reasons,
     move: (...moves) => commit(moves),

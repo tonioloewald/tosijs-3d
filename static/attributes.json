@@ -5102,6 +5102,24 @@
     ]
   },
   {
+    "module": "inventory-box",
+    "summary": "inventory-box",
+    "attributes": [
+      {
+        "name": "inv",
+        "default": "the model and the carry (share both between panels)"
+      },
+      {
+        "name": "carry",
+        "default": "the model and the carry (share both between panels)"
+      },
+      {
+        "name": "host",
+        "default": "<svg>"
+      }
+    ]
+  },
+  {
     "module": "inventory",
     "summary": "inventory",
     "attributes": [

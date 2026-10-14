@@ -428,6 +428,8 @@ export { createCarry, DRAG_THRESHOLD } from './carry.js'
 export type { Carry, CarryTarget, CarryState, CarryVerdict, CarryResult } from './carry.js'
 export { carryTile, carrySocket, carryPanel } from './carry-box.js'
 export { createInventory } from './inventory.js'
+export { inventoryPanel } from './inventory-box.js'
+export type { InventoryPanelOptions } from './inventory-box.js'
 // Common nouns, so prefixed as they leave the barrel (CLAUDE.md: bare
 // common nouns don't leak); the module itself keeps the short names.
 export type {

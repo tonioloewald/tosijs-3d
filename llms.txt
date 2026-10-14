@@ -292,6 +292,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **attachable** interactive — the scene-side bridge over the pure rules in
 - https://3d.tosijs.net/inventory/ — inventory
   Pure and Babylon-free: things, the holders they are in, and moves between
+- https://3d.tosijs.net/inventory-box/ — inventory-box
+  tiles with a place to drop, and every drop is checked and made by the model,
 - https://3d.tosijs.net/key-layout/ — key-layout
   The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard/ — keyboard

@@ -1299,6 +1299,13 @@ icon-name
   y  = translateY N%  — `plus_10y`
   o  = opacity N%  — `camera50o`
 
+## inventory-box
+inventory-box
+
+  inv  = the model and the carry (share both between panels)
+  carry  = the model and the carry (share both between panels)
+  host  = <svg>
+
 ## inventory
 inventory
 
