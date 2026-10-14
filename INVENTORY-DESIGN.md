@@ -25,6 +25,26 @@ boxes are crossed off. So the thing in a slot can be **damaged**, which is the
 role-carrying destroyable MINIATURES-DESIGN asks for ("the radio operator died"
 becomes "the forward phaser is gone").
 
+## A shopkeeper is the same thing with a price
+
+Tonio, 2026-10-14: *"We also probably want a "shopkeeper" ui which is along
+the same lines."*
+
+Two holders side by side (yours and the shop's), and a move between them
+carries a PRICE: the thing goes one way and money (an item like any other,
+or a number on the holder) goes the other, in the same all-or-nothing
+transaction. Two things it adds:
+
+- **Prices are a plug-in**: `(item, from, to) => cost`, so a shop can buy
+  cheap and sell dear, charge more to a stranger, or refuse what it does
+  not deal in (a rule with a reason: "I don't buy stolen goods").
+- **Staging**: moves can be PROPOSED before they are made: a cart, or a
+  barter table where both sides put things down. The running totals show
+  what it would cost and whether you can afford it; nothing changes until
+  someone accepts, and then all of it happens or none does. The same
+  staging is a ship design you have not committed yet, and a recipe you are
+  laying out on a bench.
+
 ## What SFB adds, and why it makes the model general
 
 Tonio, 2026-10-14: *"I'd look at SFB to see what its requirements are but
