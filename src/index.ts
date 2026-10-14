@@ -424,6 +424,8 @@ export {
 export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js'
 export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js'
 export { SOL } from './sol.js'
+export { createCarry, DRAG_THRESHOLD } from './carry.js'
+export type { Carry, CarryTarget, CarryState, CarryVerdict, CarryResult } from './carry.js'
 export { layoutSystem } from './system-layout.js'
 export type {
   SystemSpec,
