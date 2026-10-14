@@ -12,6 +12,7 @@ implements it and the [view](/world-view/) that draws it.
 - [world-contract](/world-contract/)
 - [world-store](/world-store/)
 - [world-view](/world-view/)
+- [inventory](/inventory/)
 - [world-topology](/world-topology/)
 - [min-sim-conformance](/min-sim-conformance/)
 - [b3d-spawner](/b3d-spawner/)

@@ -11,6 +11,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ### Added
 
 - **Drag and drop, as a model and on a panel** (INVENTORY-DESIGN step 1). `createCarry` is picking up and putting down with nothing drawn: what is carried and from where, the target under the pointer, and its verdict as REASONS; drop is all or nothing; dragging and two taps are one model, and one carry spans every panel. `carryTile`, `carrySocket` and `carryPanel` draw it on a box: things with decorations (a status bar, a damaged or broken outline, a badge), sockets that light when the held thing would fit, dim when not and say why, and a ghost that follows the pointer. A drag goes from one panel to another (they share the carry), and letting go outside every panel puts the thing back.
+- **An inventory model** (`createInventory`, INVENTORY-DESIGN step 2): pure, with the game's catalogue, rules, contributions and prices plugged in. Holders hold slots (a paper doll, hardpoints, mounts), lists (a bag, a stock) and grids (a hull of boxes). A move is checked against every rule on a copy and kept only if all pass, so it happens completely or not at all; it can swap, split a stack, take from the catalogue, or pay. `stage()` is a draft that may be incomplete (a cart, a barter, a design not yet committed); `totals` adds up what is fitted (and what its mount adds); `damage` crosses off a system's boxes. Tested against a party, a loadout, a starship design and a shop.
 
 ### Changed
 

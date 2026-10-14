@@ -595,6 +595,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/world-topology.ts` | Pure spatial math behind `MinSimApi`: `proximityRung`/`rungNominal` (distance ↔ adjective, extent-scaled), `routePortals` (cheapest portal path, locked = impassable), `containmentPath`; Babylon-free, unit-tested |
 | `src/min-sim-conformance.ts` | Framework-agnostic shared conformance kit (`runMinSimConformance(makeApi, harness)`) — ships in the library, takes the test harness as an arg; pins `MinSimApi` behaviour identically for this store and a driver's |
 | `src/world-store.ts` | Pure, deterministic, Babylon-free reference simulation (implements `WorldApi` **and** `MinSimApi`) |
+| `src/inventory.ts` | **Inventory**, pure (INVENTORY-DESIGN step 2): kinds (catalogue), items, holders with slots / list / grid containers, moves applied to a COPY and kept only if every rule (shape rules + consumer `rules` returning reasons) passes, swap, stack split, catalogue creation, prices and purses, `stage()` drafts (cart, barter, uncommitted design), `totals` (mass, cost, `contributes`, slot-dependent `contribution`), box `damage`. No game rules ship |
 | `src/world-view.ts` | Babylon projection — one mesh per entity, reconciled `store → meshes` |
 | `src/b3d-death.ts` | `<tosi-b3d-death>` — death's exit: explode + wreckage, release input, third-person spectate (orbit/chase), respawn panel; flat + VR |
 | `src/b3d-spawner.ts` | `<tosi-b3d-spawner>` — seeded encounter spawning (ring placement, group death), "same seed, same battles" |

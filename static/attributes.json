@@ -5102,6 +5102,20 @@
     ]
   },
   {
+    "module": "inventory",
+    "summary": "inventory",
+    "attributes": [
+      {
+        "name": "kinds",
+        "default": "the catalogue"
+      },
+      {
+        "name": "contribution",
+        "default": "(item, kind, place) => numbers"
+      }
+    ]
+  },
+  {
     "module": "key-layout",
     "summary": "key-layout",
     "attributes": [

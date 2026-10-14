@@ -1299,6 +1299,12 @@ icon-name
   y  = translateY N%  — `plus_10y`
   o  = opacity N%  — `camera50o`
 
+## inventory
+inventory
+
+  kinds  = the catalogue
+  contribution  = (item, kind, place) => numbers
+
 ## key-layout
 key-layout
 

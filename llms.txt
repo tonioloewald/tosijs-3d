@@ -290,6 +290,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Babylon-free, deterministic, unit tested, so what counts as "you used it" can be
 - https://3d.tosijs.net/interactive-behavior/ — interactive-behavior
   The **attachable** interactive — the scene-side bridge over the pure rules in
+- https://3d.tosijs.net/inventory/ — inventory
+  Pure and Babylon-free: things, the holders they are in, and moves between
 - https://3d.tosijs.net/key-layout/ — key-layout
   The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard/ — keyboard
