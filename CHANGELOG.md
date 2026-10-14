@@ -10,6 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **A planet's edge warms at golden hour.** Where you see its air edge on and the sun is low over it, or behind the planet, the air's colour shifts slightly toward red; face on, nothing changes (#3285).
 - **The Solar System's sky is tilted as ours is**: the planets orbit about 60.2° to the galaxy's plane, so the Milky Way crosses the orbits steeply instead of running along them (`spaceBackdrop({ tilt })`).
 
 ## 0.10.5

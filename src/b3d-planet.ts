@@ -825,8 +825,8 @@ export class B3dPlanet extends B3dChild {
     normal, so they stood still while a rotating planet turned under them.
     The winds are the point turned about the axis before the noise is read.
     */
-    if (!BABYLON.Effect.ShadersStore['planetAtmo2VertexShader']) {
-      BABYLON.Effect.ShadersStore['planetAtmo2VertexShader'] = `
+    if (!BABYLON.Effect.ShadersStore['planetAtmo3VertexShader']) {
+      BABYLON.Effect.ShadersStore['planetAtmo3VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec3 normal;
@@ -842,7 +842,7 @@ export class B3dPlanet extends B3dChild {
           vBody = position;
         }
       `
-      BABYLON.Effect.ShadersStore['planetAtmo2FragmentShader'] = `
+      BABYLON.Effect.ShadersStore['planetAtmo3FragmentShader'] = `
         precision highp float;
         varying vec3 vWorldPos;
         varying vec3 vWorldNormal;
@@ -873,9 +873,23 @@ export class B3dPlanet extends B3dChild {
           // way round, so the night side was a blue disc. It reaches a little
           // past the terminator (twilight) and is nearly nothing beyond.
           vec3 l = atmoLight.w > 0.5 ? normalize(atmoLight.xyz - vWorldPos) : normalize(atmoLight.xyz);
-          alpha *= mix(0.03, 1.0, smoothstep(-0.3, 0.3, dot(vWorldNormal, l)));
+          float ndl = dot(vWorldNormal, l);
+          alpha *= mix(0.03, 1.0, smoothstep(-0.3, 0.3, ndl));
 
           vec3 col = atmoColor * (glow + turb * 0.5);
+          /*
+          GOLDEN HOUR: SUBTLE, AND AT THE LIMB ONLY. Where you see the air
+          edge on and the sun is low over it, or behind the planet, the
+          air's own colour shifts a little toward red (the long path
+          scatters out the blue end). Not a different colour and not a glow:
+          the rim warms slightly, and face on you see no change at all.
+          */
+          vec3 warm = atmoColor * vec3(1.2, 0.95, 0.75);
+          float limb = pow(1.0 - facing, 3.0);
+          float low = smoothstep(-0.15, 0.03, ndl) * (1.0 - smoothstep(0.03, 0.4, ndl));
+          float behind = smoothstep(0.2, 0.9, dot(-viewDir, l));
+          float k = clamp(limb * max(low, behind), 0.0, 1.0) * 0.35;
+          col = mix(col, warm, k);
           gl_FragColor = vec4(col, alpha);
         }
       `
@@ -900,7 +914,7 @@ export class B3dPlanet extends B3dChild {
     const mat = new BABYLON.ShaderMaterial(
       'atmo-shader-mat',
       scene,
-      { vertex: 'planetAtmo2', fragment: 'planetAtmo2' },
+      { vertex: 'planetAtmo3', fragment: 'planetAtmo3' },
       {
         attributes: ['position', 'normal'],
         uniforms: [
