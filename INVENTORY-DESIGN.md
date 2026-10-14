@@ -6,7 +6,7 @@ character equipment display or an aircraft loadout) — the three use cases in
 mind are general rpg (including say equipping a companion or mount), assigning
 a load out to a manta, and designing / customizing a spacecraft in SFB."*
 
-Status: **design, not built.** Nothing here is code yet. The questions at the
+Status: **design, not built** (revised with Tonio's SFB, spell and crafting notes). Nothing here is code yet. The questions at the
 end are the ones only you can answer.
 
 ## The three users, and what each one needs
@@ -24,6 +24,60 @@ The last row matters most. An SSD is not only a design surface: in play its
 boxes are crossed off. So the thing in a slot can be **damaged**, which is the
 role-carrying destroyable MINIATURES-DESIGN asks for ("the radio operator died"
 becomes "the forward phaser is gone").
+
+## What SFB adds, and why it makes the model general
+
+Tonio, 2026-10-14: *"I'd look at SFB to see what its requirements are but
+not be too concerned with matching it exactly. The big difference with SFB is
+that your inventory is essentially a bottomless pit but you build up a cost
+for the design and derivative values. SFB is nice because it has requirements
+that make a general solution interesting. Eg it could be used for a magic
+spell system or a crafting system (and a crafting system with or without
+recipes is worth considering too)."*
+
+What Star Fleet Battles' ship design actually asks of a model (from its
+rules as I know them; the demo follows the shape, not the letter):
+
+- **The source is a catalogue, not a stock.** Phasers, photon torpedoes,
+  shields, warp engines, impulse, batteries, labs, shuttle bays: you take as
+  many as the rules allow. What builds up is a COST (BPV, the battle point
+  value) and DERIVED values (power, movement cost, firing arcs).
+- **Where a thing is mounted changes what it does.** A phaser's firing arc
+  is a property of its mounting position, not of the phaser. So what an item
+  contributes is a function of the item AND its slot.
+- **The holder has a template.** The hull (a size class, its mounting
+  positions, its base systems and limits) is chosen first; changing it
+  re-checks everything fitted.
+- **Rules compare totals.** Power generated must cover power used; shields
+  and weapons draw on the same budget. A rule can read the derived values,
+  not only the slots.
+- **A system is a number of boxes, each destroyed on its own** in play, and
+  damage goes to the first undamaged box of a type (the damage allocation
+  chart is the game's rule; "first undamaged box of this type" is the
+  model's query).
+- **Variants are designs derived from designs** (refits): a design is a
+  document, and a refit is that document with changes.
+
+The same shape is a **spell builder** (a form, an element, a range and an
+area from a catalogue; mana is the cost; damage and reach are derived; some
+components exclude others) and a **crafting system**, in two modes:
+
+- **Without recipes:** a design. Components go into a schematic (a blade, a
+  guard, a grip; a hull and its systems), the result's properties are
+  derived from them, and a finished design is **compiled into a new kind** in
+  the catalogue: a ship class, a learned spell, a crafted sword you can now
+  make or own.
+- **With recipes:** a recipe is a transformation. It names inputs by kind or
+  tag and quantity, tools that must be present but are not used up, perhaps
+  a station; applied to a holder it consumes the inputs and produces the
+  outputs, as one transaction like any move.
+
+So the model grows four ideas beyond the five below: a **catalogue source**
+(unlimited, priced) beside a counted stock; **contributions that depend on
+the slot** as well as the item; a **holder template** (a hull, a body, a
+spell form) that supplies its containers and limits; and **designs that
+compile to kinds**, with **recipes** as transactions that consume and
+produce.
 
 ## One model under all three
 
@@ -109,8 +163,9 @@ loadout is useful long before it is visible.
    two-tap and menu, flat and in VR.
 3. **Three demos**, each a test of the model: an RPG party (a hero, a
    companion, a horse, a chest), a Manta loadout (hardpoints, weight,
-   symmetry), a ship designer (a hull grid, a point budget, then damage
-   crossing off boxes).
+   symmetry), a ship designer (a hull, a catalogue, a point budget and power
+   balance, arcs by mounting, then damage crossing off boxes). Later: a spell
+   builder and a crafting bench (with and without recipes).
 4. **Attachment** in 3D.
 
 ## What would show this is wrong
@@ -126,11 +181,10 @@ loadout is useful long before it is visible.
 
 ## Questions for you
 
-1. **SFB:** Star Fleet Battles, and if so, how close to its real rules (box
-   types, BPV, power, refits) should the demo go? The rules and the SSD
-   format are ADB's; I would build a generic starship designer the model
-   can express and leave the real rules to your game's project, unless you
-   want otherwise.
+1. ~~SFB~~ Answered: follow its shape (catalogue, cost, derived values,
+   mounting-dependent arcs, boxes, power balance, refits), not its letter.
+   The demo is a generic starship designer; spells and crafting are the same
+   model and get a demo each later.
 2. **Manta:** is the loadout per craft and per mission, chosen from a stock
    the carrier holds (so spending missiles in a mission depletes the
    armoury)? That decides whether "the other side" is unlimited or counted.
