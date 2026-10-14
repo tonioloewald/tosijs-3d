@@ -285,3 +285,43 @@ describe('inventory: events', () => {
     expect(heard).toEqual(['moved', 'created', 'moved'])
   })
 })
+
+describe('inventory: crafting and designs', () => {
+  const kinds: Record<string, ItemKind> = {
+    iron: { id: 'iron', tags: ['metal'], stack: 20 },
+    hammer: { id: 'hammer', tags: ['tool'] },
+    blade: { id: 'blade', tags: ['hand', 'weapon'], contributes: { damage: 5 } },
+  }
+  const recipe = { id: 'forge-blade', inputs: [{ tag: 'metal', qty: 3 }], tools: [{ kind: 'hammer' }], outputs: [{ kind: 'blade' }] }
+  const smithy = (iron = 5): InventoryDoc => ({
+    items: { i: { id: 'i', kind: 'iron', qty: iron }, h: { id: 'h', kind: 'hammer', qty: 1 } },
+    holders: { smith: { id: 'smith', containers: { bench: { type: 'list', holds: ['i', 'h'] } } } },
+  })
+
+  test('a recipe uses up its inputs, keeps its tools and makes its outputs', () => {
+    const inv = createInventory(smithy(), { kinds })
+    const r = inv.craft(recipe, 'smith', { holder: 'smith', container: 'bench' })
+    expect(r.ok).toBe(true)
+    expect(inv.doc.items.i.qty).toBe(2)
+    expect(inv.doc.items.h).toBeDefined()
+    expect(Object.values(inv.doc.items).some((it) => it.kind === 'blade')).toBe(true)
+  })
+
+  test('a recipe says what is missing', () => {
+    const inv = createInventory(smithy(2), { kinds })
+    expect(inv.craft({ ...recipe, tools: [{ kind: 'anvil' }] }, 'smith', { holder: 'smith', container: 'bench' }).reasons).toEqual([
+      'needs: anvil',
+      'not enough metal',
+    ])
+  })
+
+  test('a finished design compiles to a kind you can then make and fit', () => {
+    const inv = createInventory(hull(), { kinds: shipKinds })
+    inv.move(
+      { kind: 'warp', to: { holder: 'ship', container: 'hull', x: 0, y: 0 } },
+      { kind: 'phaser', to: { holder: 'ship', container: 'mounts', slot: 'fwd' } }
+    )
+    const cls = inv.compile('ship', { id: 'frigate', tags: ['ship'] })
+    expect(cls).toEqual({ id: 'frigate', name: undefined, tags: ['ship'], cost: 14, mass: undefined, contributes: { power: 11, firepower: 3 } })
+  })
+})

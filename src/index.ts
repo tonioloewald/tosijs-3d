@@ -446,6 +446,8 @@ export type {
   MoveResult as InventoryMoveResult,
   Rule as InventoryRule,
   RuleContext as InventoryRuleContext,
+  Recipe as InventoryRecipe,
+  RecipePart as InventoryRecipePart,
 } from './inventory.js'
 export type { CarryDecorations, CarryTileOptions, CarrySocketOptions, CarryTileChild, CarrySocketChild, CarryPanel } from './carry-box.js'
 export { layoutSystem } from './system-layout.js'

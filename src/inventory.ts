@@ -146,6 +146,20 @@ export interface Move {
   payee?: string
 }
 
+/** Inputs and tools are matched by kind id or by tag. */
+export interface RecipePart {
+  kind?: string
+  tag?: string
+  qty?: number
+}
+
+export interface Recipe {
+  id: string
+  inputs: RecipePart[]
+  tools?: RecipePart[]
+  outputs: { kind: string; qty?: number }[]
+}
+
 export interface RuleContext {
   doc: InventoryDoc
   kinds: Record<string, ItemKind>
@@ -192,6 +206,17 @@ export interface InventoryApi {
   /** A draft that collects moves and commits them together. */
   stage: () => InventoryDraft
   totals: (holder: string) => Record<string, number>
+  /**
+   * A RECIPE: use up its inputs from `holder`, require its tools there (not
+   * used up), and make its outputs into `into`, as one move: all or none.
+   */
+  craft: (recipe: Recipe, holder: string, into: Place) => MoveResult
+  /**
+   * A finished DESIGN as a new kind: what `holder` adds up to becomes the
+   * kind's `contributes` (and its cost), so a ship class, a learned spell or a
+   * forged sword can be made, owned and fitted like anything else.
+   */
+  compile: (holder: string, as: { id: string; name?: string; tags?: string[] }) => ItemKind
   /** Destroy `boxes` boxes of the first undamaged item with `tag` on `holder`. */
   damage: (holder: string, tag: string, boxes?: number) => MoveResult
   subscribe: (fn: (doc: InventoryDoc, events: InventoryEvent[]) => void) => () => void
@@ -475,6 +500,53 @@ export function createInventory(
           if (r.ok) moves.length = 0
           return r
         },
+      }
+    },
+    craft(recipe, holder, into) {
+      const h = doc.holders[holder]
+      if (!h) return { ok: false, reasons: [`no such holder: ${holder}`], events: [] }
+      const held: string[] = []
+      for (const c of Object.values(h.containers))
+        held.push(
+          ...(c.type === 'slots'
+            ? Object.values(c.slots).flatMap((s) => (s.holds ? [s.holds] : []))
+            : c.type === 'list'
+            ? c.holds
+            : c.holds.map((e) => e.item))
+        )
+      const matches = (id: string, p: RecipePart) => {
+        const it = doc.items[id]
+        return p.kind ? it.kind === p.kind : !!kinds[it.kind]?.tags?.includes(p.tag ?? '')
+      }
+      const missing: string[] = []
+      for (const t of recipe.tools ?? [])
+        if (!held.some((id) => matches(id, t))) missing.push(`needs: ${t.kind ?? t.tag}`)
+      const moves: Move[] = []
+      for (const p of recipe.inputs) {
+        let need = p.qty ?? 1
+        for (const id of held) {
+          if (need <= 0) break
+          if (!matches(id, p)) continue
+          const take = Math.min(need, doc.items[id].qty)
+          moves.push({ item: id, qty: take, to: null })
+          need -= take
+        }
+        if (need > 0) missing.push(`not enough ${p.kind ?? p.tag}`)
+      }
+      if (missing.length) return { ok: false, reasons: missing, events: [] }
+      for (const o of recipe.outputs) moves.push({ kind: o.kind, qty: o.qty ?? 1, to: into })
+      return commit(moves)
+    },
+    compile(holder, as) {
+      const t = totalsOf(doc, holder)
+      const { cost, mass, ...rest } = t
+      return {
+        id: as.id,
+        name: as.name,
+        tags: as.tags ?? [],
+        cost,
+        mass,
+        contributes: rest,
       }
     },
     damage(holder, tag, boxes = 1) {
