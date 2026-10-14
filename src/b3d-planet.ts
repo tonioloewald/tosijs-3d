@@ -606,6 +606,13 @@ export class B3dPlanet extends B3dChild {
       this._biomeHost = null
       this.biomePlugin = null
       if (!attrs.colorMap && !isOff(attrs.biome)) {
+        /*
+        THE CLASSIFIER'S LENGTHS ARE SCALED TO THE PLANET. They were tuned
+        on the demo's radius 50, and a radius-3000 planet with the same
+        numbers was frozen (a 100 m hill six chart units colder) and
+        speckled (climate noise sixty times too fine). Board #3280.
+        */
+        const k = 50 / radius
         const made = createPlanetBiome(this.owner.scene, {
           // The classifier's coastline is the sea's own level.
           // With no sea, the planet's own radius: the classifier's sizes
@@ -614,19 +621,21 @@ export class B3dPlanet extends B3dChild {
           seaRadius: hasSea ? radius + seaAt : radius,
           // No sea, no datum to cool with height from (the ground is held
           // far above any sea, see planet-surface-material).
-          lapseRate: hasSea ? 0.06 : 1e-7, // (0 reads as unset: the default lapse)
-          tNoiseScale: 0.05,
+          lapseRate: hasSea ? 0.06 * k : 1e-7, // (0 reads as unset: the default lapse)
+          tNoiseScale: 0.05 * k,
           /*
           Moisture varies in broad regions and by a lot: about three across
           a hemisphere, enough to cross the chart from desert to forest. At
           0.07 and the plugin's 0.18 a continent was one colour (the patches
           were small and too faint to change biome).
           */
-          mNoiseScale: 0.035,
+          mNoiseScale: 0.035 * k,
           mNoiseAmp: 0.5,
-          ditherScale: 0.6,
-          detailNoiseScale: 1.2,
-          surfDepth: 0.6,
+          ditherScale: 0.6 * k,
+          detailNoiseScale: 1.2 * k,
+          strataScale: 0.06 * k,
+          latWarpScale: 0.02 * k,
+          surfDepth: 0.6 / k,
           // Planet-scale contours are gentle: exaggerate slope deviation so
           // steep flanks still read as rock at this radius.
           slopeExaggeration: 6,
@@ -649,12 +658,26 @@ export class B3dPlanet extends B3dChild {
           // The lapse follows the sea (none on a dry world): kept from an
           // earlier build with a sea, it froze every dry world chosen after.
           this._biomeParams.lapseRate = made.plugin.params.lapseRate
+          // The lengths follow the radius (above), when it changes.
+          if (radius !== this._paramsRadius) {
+            for (const key of [
+              'tNoiseScale',
+              'mNoiseScale',
+              'ditherScale',
+              'detailNoiseScale',
+              'strataScale',
+              'latWarpScale',
+              'surfDepth',
+            ] as const)
+              (this._biomeParams as any)[key] = made.plugin.params[key]
+          }
           this._biomeParams.moistureDryHeight =
             made.plugin.params.moistureDryHeight
           made.plugin.params = this._biomeParams
         } else {
           this._biomeParams = made.plugin.params
         }
+        this._paramsRadius = radius
         // A world's climate, written when the world changes: after that
         // the params are anyone's to tune, as they are without one.
         const climate = this._look()?.climate
@@ -1190,6 +1213,8 @@ export class B3dPlanet extends B3dChild {
 
   /** The craters' height function for this build, or null for none. */
   private _craters: ((x: number, y: number, z: number) => number) | null = null
+  /** The radius the biome params' lengths were last scaled for. */
+  private _paramsRadius = 0
   /** Which world's climate was last written into the params. */
   private _climateOf = ''
 

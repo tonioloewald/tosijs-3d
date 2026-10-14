@@ -153,12 +153,18 @@ const CUBE_FACES: { origin: number[]; right: number[]; up: number[] }[] = [
 ]
 
 // Spectral class → base color (RGB)
+/*
+STYLISED, not a blackbody: each class reads as its own colour. A real
+blackbody runs blue-white → white → yellow → orange → red, and a star never
+looks violet (violet is mixed in the eye, there is no violet light to see),
+so O and B carry only a trace of it, as a hint that they are the hottest.
+*/
 const SPECTRAL_COLORS: Record<string, [number, number, number]> = {
-  O: [0.7, 0.8, 1.0],
-  B: [0.8, 0.85, 1.0],
-  A: [0.95, 0.95, 1.0],
-  F: [1.0, 1.0, 0.92],
-  G: [1.0, 0.95, 0.75],
+  O: [0.95, 0.92, 1.0],
+  B: [0.72, 0.74, 1.0],
+  A: [0.55, 0.72, 1.0],
+  F: [0.76, 1.0, 0.7],
+  G: [1.0, 0.94, 0.55],
   K: [1.0, 0.75, 0.45],
   M: [1.0, 0.5, 0.25],
 }
@@ -369,7 +375,7 @@ export class B3dStar extends B3dChild {
     )
 
     // Fresnel shader: alpha = 0 when facing camera, bright at edges
-    BABYLON.Effect.ShadersStore['coronaVertexShader'] = `
+    BABYLON.Effect.ShadersStore['corona2VertexShader'] = `
       precision highp float;
       attribute vec3 position;
       attribute vec3 normal;
@@ -383,16 +389,23 @@ export class B3dStar extends B3dChild {
         vNormalW = normalize((world * vec4(normal, 0.0)).xyz);
       }
     `
-    BABYLON.Effect.ShadersStore['coronaFragmentShader'] = `
+    BABYLON.Effect.ShadersStore['corona2FragmentShader'] = `
       precision highp float;
       uniform vec3 cameraPosition;
       uniform vec3 coronaColor;
+      uniform float coronaLimb;
       varying vec3 vNormalW;
       varying vec3 vPositionW;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vPositionW);
         float facing = abs(dot(viewDir, vNormalW));
-        float glow = pow(facing, 2.0);
+        // BRIGHTEST AT THE STAR'S EDGE (coronaLimb: where the limb falls on
+        // this shell), fading outward, and faint over the disc: brightest
+        // in the middle, it was added on top of the star and washed its
+        // centre out to flat white.
+        float glow = 0.5 * (facing < coronaLimb
+          ? pow(facing / coronaLimb, 2.5)
+          : mix(1.0, 0.08, smoothstep(coronaLimb, 1.0, facing)));
         gl_FragColor = vec4(coronaColor * glow, glow);
       }
     `
@@ -400,7 +413,7 @@ export class B3dStar extends B3dChild {
     const mat = new BABYLON.ShaderMaterial(
       'corona-mat',
       this.owner.scene,
-      { vertex: 'corona', fragment: 'corona' },
+      { vertex: 'corona2', fragment: 'corona2' },
       {
         attributes: ['position', 'normal'],
         uniforms: [
@@ -408,6 +421,7 @@ export class B3dStar extends B3dChild {
           'world',
           'cameraPosition',
           'coronaColor',
+          'coronaLimb',
         ],
         needAlphaBlending: true,
       }
@@ -416,6 +430,8 @@ export class B3dStar extends B3dChild {
       'coronaColor',
       new BABYLON.Vector3(cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6)
     )
+    // Where the star's edge falls on the shell, as the cosine the shader reads.
+    mat.setFloat('coronaLimb', Math.sqrt(Math.max(0.01, 1 - (radius / coronaRadius) ** 2)))
     mat.backFaceCulling = false
     mat.alphaMode = BABYLON.Constants.ALPHA_ADD
     mat.disableDepthWrite = true

@@ -28,7 +28,7 @@ const MOON_MAPS = {
 }
 
 export const SOL: SystemSpec = {
-  star: { name: 'Sol', rgb: [255, 244, 234], luminosity: 1, spectralType: 'G2V' },
+  star: { name: 'Sol', rgb: [255, 242, 175], luminosity: 1, spectralType: 'G2V' },
   planets: [
     { name: 'Mercury', au: 0.39, radiusKm: 2440, look: { world: 'mercury' } },
     { name: 'Venus', au: 0.72, radiusKm: 6052, look: { world: 'venus' } },

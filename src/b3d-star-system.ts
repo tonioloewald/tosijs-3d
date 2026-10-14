@@ -345,9 +345,9 @@ export class B3dStarSystem extends B3dChild {
   }
 
   private registerShaders() {
-    if (BABYLON.Effect.ShadersStore['starSystemCoronaVertexShader']) return
+    if (BABYLON.Effect.ShadersStore['starSystemCorona2VertexShader']) return
 
-    BABYLON.Effect.ShadersStore['starSystemCoronaVertexShader'] = `
+    BABYLON.Effect.ShadersStore['starSystemCorona2VertexShader'] = `
       precision highp float;
       attribute vec3 position;
       attribute vec3 normal;
@@ -361,16 +361,23 @@ export class B3dStarSystem extends B3dChild {
         vNormalW = normalize((world * vec4(normal, 0.0)).xyz);
       }
     `
-    BABYLON.Effect.ShadersStore['starSystemCoronaFragmentShader'] = `
+    BABYLON.Effect.ShadersStore['starSystemCorona2FragmentShader'] = `
       precision highp float;
       uniform vec3 cameraPosition;
       uniform vec3 coronaColor;
+      uniform float coronaLimb;
       varying vec3 vNormalW;
       varying vec3 vPositionW;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vPositionW);
         float facing = abs(dot(viewDir, vNormalW));
-        float glow = pow(facing, 2.0);
+        // BRIGHTEST AT THE STAR'S EDGE (coronaLimb: where the limb falls on
+        // this shell), fading outward, and faint over the disc: brightest
+        // in the middle, it was added on top of the star and washed its
+        // centre out to flat white.
+        float glow = 0.5 * (facing < coronaLimb
+          ? pow(facing / coronaLimb, 2.5)
+          : mix(1.0, 0.08, smoothstep(coronaLimb, 1.0, facing)));
         gl_FragColor = vec4(coronaColor * glow, glow);
       }
     `
@@ -538,7 +545,7 @@ export class B3dStarSystem extends B3dChild {
     const coronaMat = new BABYLON.ShaderMaterial(
       'system-corona-mat',
       scene,
-      { vertex: 'starSystemCorona', fragment: 'starSystemCorona' },
+      { vertex: 'starSystemCorona2', fragment: 'starSystemCorona2' },
       {
         attributes: ['position', 'normal'],
         uniforms: [
@@ -546,6 +553,7 @@ export class B3dStarSystem extends B3dChild {
           'world',
           'cameraPosition',
           'coronaColor',
+          'coronaLimb',
         ],
         needAlphaBlending: true,
       }
@@ -554,6 +562,7 @@ export class B3dStarSystem extends B3dChild {
       'coronaColor',
       new BABYLON.Vector3(cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6)
     )
+    coronaMat.setFloat('coronaLimb', Math.sqrt(1 - 1 / (1.3 * 1.3)))
     coronaMat.backFaceCulling = false
     coronaMat.alphaMode = BABYLON.Constants.ALPHA_ADD
     coronaMat.disableDepthWrite = true

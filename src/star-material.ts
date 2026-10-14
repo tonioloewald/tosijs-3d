@@ -63,11 +63,24 @@ void main(){
   float lat=abs(d.y);
   float sp=smoothstep(0.66,0.74,b3dGgFbm(d*5.0+sd*2.0))*(1.0-smoothstep(0.35,0.6,lat));
   gran*=1.0-0.75*sp*starK.w;
-  // Limb darkening (the Sun's, roughly), and the edge reddens.
-  float limb=1.0-0.62*(1.0-mu)-0.18*(1.0-mu*mu);
-  vec3 edge=starColor*vec3(1.0,0.62,0.36);
-  vec3 col=mix(edge,starColor,smoothstep(0.0,0.65,mu));
-  gl_FragColor=vec4(col*limb*gran*starK.z*0.97,1.0);
+  // Limb darkening (the Sun's, roughly), and the edge warms. Gently: the
+  // middle is kept under white so it shades off rather than sitting as a
+  // flat clipped disc, and the warming spreads over most of the radius.
+  float limb=1.0-0.5*(1.0-mu)-0.15*(1.0-mu*mu);
+  // Only a warm star reddens at its edge; a hot one just darkens (warmed,
+  // a blue-white star went brown).
+  float warm=clamp(starColor.r-starColor.b+0.2,0.0,1.0);
+  vec3 edge=starColor*mix(vec3(0.92),vec3(1.0,0.8,0.62),warm);
+  vec3 col=mix(edge,starColor,smoothstep(0.0,0.9,mu));
+  // BLINDING IN THE MIDDLE, and getting there gradually: the disc is
+  // driven well past white, and the colour blends into white as it goes
+  // over (rather than clipping, which was a flat disc with a sudden edge),
+  // so the star keeps its colour toward the limb and burns white at the
+  // centre.
+  vec3 c=col*limb*gran*starK.z*1.75;
+  float m=max(max(c.r,c.g),c.b);
+  c=mix(min(c,vec3(1.0)),vec3(1.0),smoothstep(0.85,1.75,m));
+  gl_FragColor=vec4(c,1.0);
 }
 `
 

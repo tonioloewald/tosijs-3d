@@ -22,7 +22,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
-- **Stars look like stars.** `<tosi-b3d-star>` and a star system's star share one surface material (`star-material`): limb darkening that dims and reddens toward the edge, slowly boiling granulation and a few sunspots. They were a flat emissive colour, a white ball.
+- **Stars look like stars.** `<tosi-b3d-star>` and a star system's star share one surface material (`star-material`): white-hot in the middle and shading into the star's own colour toward a darker limb (only a warm star reddens there), slowly boiling granulation and a few sunspots; the glow peaks at the edge and fades outward instead of washing the disc out. They were a flat emissive colour, a white ball. The spectral colours are stylised so each class reads as its own: O white with a trace of violet, B violet-blue, A blue, F green, G a clear yellow (the Sun too), K orange, M red.
 - **Gas giants tear at their band edges.** Turbulence is eddies where the wind reverses, in patches along the edges, instead of a warp that made every band wavy; inside a band the texture is billow filaments along the wind. A storm brighter than the zones (Neptune's) is dark with bright cloud at its rim.
 - **A planet's ring lies in its equator.** It was tipped off it, and as the planet turned the ring precessed.
 
