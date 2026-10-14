@@ -771,6 +771,18 @@ export function carryPanel<T>(
     if (drawGhost) ghost.show(x, y, dragLooks.get(carry) ?? { label: String(carry.state.thing) })
   }
   const hideGhost = () => ghost.hide()
+  const startDrag = () => {
+    const tile = pressedTile.get(carry)
+    if (!press || dragging() || !tile) return
+    home = press
+    dragOrigin.set(carry, self)
+    // Until a drop lands, assume it will not (a release outside every
+    // panel is a cancel nobody reports).
+    lastRefusal.set(carry, [])
+    dragLooks.set(carry, tile.carryLook)
+    infoLayers.get(carry)?.hide()
+    carry.pickUp(tile.carryThing, tile.carryFrom, 'drag')
+  }
   const stop = whenDropMisses(carry, () => dragOrigin.get(carry) === self, (why) => {
     hideGhost()
     if (drawGhost && why != null && home && last) ghost.springBack(last, home, why)
@@ -784,22 +796,7 @@ export function carryPanel<T>(
         return
       }
       if (kind === 'move') {
-        const tile = pressedTile.get(carry)
-        if (
-          press &&
-          !dragging() &&
-          tile &&
-          Math.hypot(x - press.x, y - press.y) > DRAG_THRESHOLD
-        ) {
-          home = press
-          dragOrigin.set(carry, self)
-          // Until a drop lands, assume it will not (a release outside every
-          // panel is a cancel nobody reports).
-          lastRefusal.set(carry, [])
-          dragLooks.set(carry, tile.carryLook)
-          infoLayers.get(carry)?.hide()
-          carry.pickUp(tile.carryThing, tile.carryFrom, 'drag')
-        }
+        if (press && Math.hypot(x - press.x, y - press.y) > DRAG_THRESHOLD) startDrag()
         if (dragging()) showGhost(x, y)
         // The box keeps its hover bookkeeping, which is how a socket knows
         // the pointer is on it.
@@ -823,7 +820,10 @@ export function carryPanel<T>(
         return
       }
       // leave: the drag goes on (into another panel, perhaps); only this
-      // panel's view of it ends.
+      // panel's view of it ends. Leaving with a thing still pressed IS a drag,
+      // however far the pointer jumped: a controller ray moves in big steps,
+      // and a fast flick can leave before it has moved far enough here.
+      if (press) startDrag()
       press = null
       if (dragging()) {
         hideGhost()
