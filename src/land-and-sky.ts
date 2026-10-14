@@ -52,6 +52,12 @@ const { demo } = tosi({
     // Is there a sea at all? A dry world (Mars, Venus) has none: no water
     // plane, and no shoreline or seafloor colours.
     sea: true,
+    // A SPHERE WORLD: the same ground laid on a planet of this radius, so
+    // latitude has a climate (cooler toward the poles, ice at them) and a
+    // globe built from the terrain shows the same places. Off, the ground
+    // is flat and the climate is the same everywhere but for its regions.
+    sphere: false,
+    planetRadius: 50, // km
     wireframe: false,
   },
 })
@@ -191,7 +197,7 @@ sky.world.observe(() => {
 // 300 times brighter than the full moon. So its disc shrinks for real (1 /
 // distance) while its light only dims gently, on a log curve.
 const PRESET_KEYS = {
-  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale', 'season', 'seasonality'],
+  demo: ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'seaLevel', 'sea', 'waterColor', 'waterFog', 'waterTint', 'palette', 'volcano', 'volcanoes', 'craters', 'temperature', 'moisture', 'volcanicScale', 'season', 'seasonality', 'sphere', 'planetRadius'],
   sky: ['coverage', 'altitude', 'timeOfDay', 'orographic', 'wind', 'cirrus', 'evolve', 'atmosphere', 'dust', 'turbidity', 'rayleigh', 'mieCoefficient', 'luminance', 'zenithTint', 'horizonTint', 'tintStrength', 'starSize', 'starGain', 'starFloor', 'twinkle', 'moons', 'moonAz', 'moonEl', 'deckColor', 'deckUnderColor', 'sunSize', 'sunBrightness', 'decoBudget', 'decoLife', 'stormX', 'stormZ', 'stormRadius', 'stormCoverage', 'lightningRate', 'stormRain',
     // LAST: switching the storm on builds it from the values above.
     'storm'],
@@ -426,8 +432,8 @@ let water
 const terrain = b3dTerrain({
   seed: demo.seed,
   biome: 'on',
-  surfaceType: 'cylinder',
-  radius: 1000,
+  surfaceType: demo.sphere.valueOf() ? 'sphere' : 'cylinder',
+  radius: demo.sphere.valueOf() ? demo.planetRadius.valueOf() * 1000 : 1000,
   cylinderHeight: 1000,
   tileSize: 128,
   lodLevels: 3,
@@ -539,6 +545,10 @@ const scene = b3d(
       // The swing either side of the yearly mean. Stored in the biome chart's
       // units, where 1 spans 62.5 °C.
       slider3d({ label: 'season strength', value: demo.seasonality, min: 0, max: 0.6, step: 0.01, format: (v) => '±' + Math.round(v * 62.5) + ' °C' }),
+      // Flat, or the same ground on a planet: you start at 45° north, and
+      // the pole is a quarter of the way round.
+      toggle3d({ label: 'sphere world', value: demo.sphere }),
+      slider3d({ label: 'planet radius', value: demo.planetRadius, min: 2, max: 6400, scale: 'log', format: (v) => Math.round(v) + ' km' }),
       label3d({ text: 'Terrain', icon: 'terrain', collapsible: true }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
@@ -698,6 +708,15 @@ const scene = b3d(
 )
 
 preview.append(scene)
+
+// Flat or a sphere: both are generation attributes, so the terrain rebuilds
+// itself on its next render.
+function applySurface() {
+  terrain.surfaceType = demo.sphere.valueOf() ? 'sphere' : 'cylinder'
+  terrain.radius = demo.sphere.valueOf() ? demo.planetRadius.valueOf() * 1000 : 1000
+}
+demo.sphere.observe(applySurface)
+demo.planetRadius.observe(applySurface)
 
 // Regenerate the terrain when its dials move, and keep the sea at the same
 // FRACTION of the terrain's height.

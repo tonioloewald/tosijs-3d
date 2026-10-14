@@ -10,6 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Land and Sky: a sphere world switch.** The World tab has `sphere world` and `planet radius` (2 to 6,400 km): the same ground laid on a planet, starting at 45° north, with the latitude climate above. Presets save both.
 - **A sphere world's ground and its globe share one climate.** A terrain in `surfaceType="sphere"` now takes the planet's climate: temperature by latitude (walk toward a pole and it gets colder, to ice), with the regional noise read at the point of the sphere each piece of ground is. A `<tosi-b3d-planet biome="on">` given that terrain's `planetSurface()` copies the ground's climate settings and colours every frame, in its own units (`climateForGlobe`), so the forest, desert and ice you see from orbit are the ones you land on. `biomeTemperature` on such a terrain is the world's mean: the equator is warmer and the poles far colder. ⚠️ This changes how an existing sphere-mode terrain is coloured. The decorator places by the same climate (`groundClimateAt(params, x, y, z)`, which is also the way to ask what the climate is at a place).
 - **One mesh for land and sea.** A planet with a colour map, or without the
   biome shading, is now a single sphere drawn by one shader
@@ -61,6 +62,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Changing a terrain's `surfaceType` or radius rebuilds its surface.** The sampler was built once at scene-ready, so the tiles kept the old shape while everything that reads the radius live moved on.
 - **Land and Sky: the eye height slider works in a headset.** It moved the flat camera only; the headset's rig took its height once, on entry.
 - **Climate regions stay put when the origin moves.** The ground's temperature and moisture noise was read at the render position, so a floating-origin reset shifted it. It is read at the world position now (`worldOffsetX`/`worldOffsetZ` on the biome params, which the terrain keeps up to date).
 - **Cloud broke into mismatched tiles on a Quest.** The shader noise's

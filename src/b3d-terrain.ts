@@ -2225,6 +2225,9 @@ export class B3dTerrain extends B3dChild {
       this.noiseSeed = attrs.seed
       this.noise = new PerlinNoise(attrs.seed)
     }
+    // The surface too: `surfaceType` and the radii are generation attributes,
+    // and a sampler built at scene-ready kept the old shape after they moved.
+    this.sampler = this.createSampler()
     if (unbounded) {
       this.clearPool()
       this.update(this.pool.length)
