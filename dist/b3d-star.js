@@ -138,6 +138,7 @@ tosi-b3d {
 /*{ "parent": "space", "order": 30 }*/
 import { B3dChild, sceneDelta } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
+import { createStarMaterial } from './star-material.js';
 import { PerlinNoise } from './perlin-noise.js';
 const CUBE_FACES = [
     { origin: [1, -1, 1], right: [0, 0, -2], up: [0, 2, 0] },
@@ -148,12 +149,18 @@ const CUBE_FACES = [
     { origin: [1, -1, -1], right: [-2, 0, 0], up: [0, 2, 0] },
 ];
 // Spectral class → base color (RGB)
+/*
+STYLISED, not a blackbody: each class reads as its own colour. A real
+blackbody runs blue-white → white → yellow → orange → red, and a star never
+looks violet (violet is mixed in the eye, there is no violet light to see),
+so O and B carry only a trace of it, as a hint that they are the hottest.
+*/
 const SPECTRAL_COLORS = {
-    O: [0.7, 0.8, 1.0],
-    B: [0.8, 0.85, 1.0],
-    A: [0.95, 0.95, 1.0],
-    F: [1.0, 1.0, 0.92],
-    G: [1.0, 0.95, 0.75],
+    O: [0.95, 0.92, 1.0],
+    B: [0.72, 0.74, 1.0],
+    A: [0.55, 0.72, 1.0],
+    F: [0.76, 1.0, 0.7],
+    G: [1.0, 0.94, 0.55],
     K: [1.0, 0.75, 0.45],
     M: [1.0, 0.5, 0.25],
 };
@@ -293,16 +300,7 @@ export class B3dStar extends B3dChild {
         vertexData.normals = normals;
         vertexData.colors = colors;
         vertexData.applyToMesh(mesh, true);
-        const mat = new BABYLON.StandardMaterial('star-mat', this.owner.scene);
-        mat.disableLighting = true;
-        mat.maxSimultaneousLights = 0;
-        const [er, eg, eb] = getSpectralColor(attrs.spectralClass);
-        mat.emissiveColor = new BABYLON.Color3(er * glow, eg * glow, eb * glow);
-        mat.diffuseColor = BABYLON.Color3.Black();
-        mat.specularColor = BABYLON.Color3.Black();
-        mat.backFaceCulling = false;
-        mat.wireframe = attrs.wireframe;
-        mesh.material = mat;
+        mesh.material = this.surfaceMaterial();
         mesh.parent = this.rootNode;
         this.starMesh = mesh;
         if (!this.registered) {
@@ -323,7 +321,7 @@ export class B3dStar extends B3dChild {
         const glow = attrs.glowIntensity;
         const mesh = BABYLON.MeshBuilder.CreateSphere('corona', { diameter: coronaRadius * 2, segments: 32 }, this.owner.scene);
         // Fresnel shader: alpha = 0 when facing camera, bright at edges
-        BABYLON.Effect.ShadersStore['coronaVertexShader'] = `
+        BABYLON.Effect.ShadersStore['corona2VertexShader'] = `
       precision highp float;
       attribute vec3 position;
       attribute vec3 normal;
@@ -337,30 +335,40 @@ export class B3dStar extends B3dChild {
         vNormalW = normalize((world * vec4(normal, 0.0)).xyz);
       }
     `;
-        BABYLON.Effect.ShadersStore['coronaFragmentShader'] = `
+        BABYLON.Effect.ShadersStore['corona2FragmentShader'] = `
       precision highp float;
       uniform vec3 cameraPosition;
       uniform vec3 coronaColor;
+      uniform float coronaLimb;
       varying vec3 vNormalW;
       varying vec3 vPositionW;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vPositionW);
         float facing = abs(dot(viewDir, vNormalW));
-        float glow = pow(facing, 2.0);
+        // BRIGHTEST AT THE STAR'S EDGE (coronaLimb: where the limb falls on
+        // this shell), fading outward, and faint over the disc: brightest
+        // in the middle, it was added on top of the star and washed its
+        // centre out to flat white.
+        float glow = 0.5 * (facing < coronaLimb
+          ? pow(facing / coronaLimb, 2.5)
+          : mix(1.0, 0.08, smoothstep(coronaLimb, 1.0, facing)));
         gl_FragColor = vec4(coronaColor * glow, glow);
       }
     `;
-        const mat = new BABYLON.ShaderMaterial('corona-mat', this.owner.scene, { vertex: 'corona', fragment: 'corona' }, {
+        const mat = new BABYLON.ShaderMaterial('corona-mat', this.owner.scene, { vertex: 'corona2', fragment: 'corona2' }, {
             attributes: ['position', 'normal'],
             uniforms: [
                 'worldViewProjection',
                 'world',
                 'cameraPosition',
                 'coronaColor',
+                'coronaLimb',
             ],
             needAlphaBlending: true,
         });
         mat.setVector3('coronaColor', new BABYLON.Vector3(cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6));
+        // Where the star's edge falls on the shell, as the cosine the shader reads.
+        mat.setFloat('coronaLimb', Math.sqrt(Math.max(0.01, 1 - (radius / coronaRadius) ** 2)));
         mat.backFaceCulling = false;
         mat.alphaMode = BABYLON.Constants.ALPHA_ADD;
         mat.disableDepthWrite = true;
@@ -417,48 +425,29 @@ export class B3dStar extends B3dChild {
         this.buildCorona();
         this.buildLight();
     }
+    /*
+    THE SURFACE (star-material): limb darkening, granulation and spots in a
+    shader. It was vertex colours under a flat emissive colour, which read as
+    a white disc.
+    */
+    surfaceMaterial() {
+        const attrs = this;
+        const mat = createStarMaterial(this.owner.scene, {
+            rgb: getSpectralColor(attrs.spectralClass),
+            seed: 1 + (Math.abs(attrs.seed) % 97),
+            // The old default glow (1.1) is the material's 1.
+            glow: attrs.glowIntensity / 1.1,
+            detail: attrs.surfaceDetail,
+        });
+        mat.wireframe = attrs.wireframe;
+        return mat;
+    }
     /** Update colors, corona, wireframe without full rebuild */
     updateOptions() {
-        const attrs = this;
-        const [cr, cg, cb] = getSpectralColor(attrs.spectralClass);
-        const glow = attrs.glowIntensity;
-        // Update star material
-        if (this.starMesh?.material) {
-            const mat = this.starMesh.material;
-            mat.emissiveColor = new BABYLON.Color3(cr * glow, cg * glow, cb * glow);
-            mat.wireframe = attrs.wireframe;
-            // Update vertex colors for new spectral class / glow
-            const detail = attrs.surfaceDetail;
-            const subs = attrs.subdivisions;
-            const vertsPerFace = (subs + 1) * (subs + 1);
-            const totalVerts = vertsPerFace * 6;
-            const colors = new Float32Array(totalVerts * 4);
-            let vertOffset = 0;
-            for (let face = 0; face < 6; face++) {
-                const f = CUBE_FACES[face];
-                for (let iy = 0; iy <= subs; iy++) {
-                    for (let ix = 0; ix <= subs; ix++) {
-                        const u = ix / subs;
-                        const v = iy / subs;
-                        const cx = f.origin[0] + f.right[0] * u + f.up[0] * v;
-                        const cy = f.origin[1] + f.right[1] * u + f.up[1] * v;
-                        const cz = f.origin[2] + f.right[2] * u + f.up[2] * v;
-                        const len = Math.sqrt(cx * cx + cy * cy + cz * cz);
-                        const nx = cx / len;
-                        const ny = cy / len;
-                        const nz = cz / len;
-                        const noiseVal = this.noise.fractal(nx * 3, ny * 3, nz * 3, 4);
-                        const brightness = 1.0 - detail * 0.4 * (noiseVal * 0.5 + 0.5);
-                        const ci = vertOffset * 4;
-                        colors[ci] = cr * brightness * glow;
-                        colors[ci + 1] = cg * brightness * glow;
-                        colors[ci + 2] = cb * brightness * glow;
-                        colors[ci + 3] = 1.0;
-                        vertOffset++;
-                    }
-                }
-            }
-            this.starMesh.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors, true);
+        // The surface material carries the colour, glow and detail: remade.
+        if (this.starMesh) {
+            this.starMesh.material?.dispose();
+            this.starMesh.material = this.surfaceMaterial();
         }
         // Rebuild corona (size/color may have changed)
         if (this.coronaMesh) {

@@ -431,7 +431,10 @@ export class B3dStar extends B3dChild {
       new BABYLON.Vector3(cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6)
     )
     // Where the star's edge falls on the shell, as the cosine the shader reads.
-    mat.setFloat('coronaLimb', Math.sqrt(Math.max(0.01, 1 - (radius / coronaRadius) ** 2)))
+    mat.setFloat(
+      'coronaLimb',
+      Math.sqrt(Math.max(0.01, 1 - (radius / coronaRadius) ** 2))
+    )
     mat.backFaceCulling = false
     mat.alphaMode = BABYLON.Constants.ALPHA_ADD
     mat.disableDepthWrite = true

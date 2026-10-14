@@ -561,7 +561,9 @@ export class B3dPlanet extends B3dChild {
     const hasSea: boolean =
       this.surface != null ? !isOff(attrs.flatSea) : this._val('ocean') > 0
     const seaAt =
-      this.surface != null || !hasSea ? 0 : this.heightPercentile(this._val('ocean'))
+      this.surface != null || !hasSea
+        ? 0
+        : this.heightPercentile(this._val('ocean'))
     const heightData = new Float32Array(totalVerts * 2)
     for (let i = 0; i < totalVerts; i++) {
       const above = heights[i] - seaAt
@@ -692,8 +694,14 @@ export class B3dPlanet extends B3dChild {
         // every moisture row. The plugin is new each build, so every time.
         const palette = this._look()?.palette
         if (palette) {
-          made.plugin.palette = Array.from({ length: 5 }, () => palette.a).flat() as any
-          made.plugin.paletteB = Array.from({ length: 5 }, () => palette.b).flat() as any
+          made.plugin.palette = Array.from(
+            { length: 5 },
+            () => palette.a
+          ).flat() as any
+          made.plugin.paletteB = Array.from(
+            { length: 5 },
+            () => palette.b
+          ).flat() as any
         }
       }
       const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
@@ -706,8 +714,12 @@ export class B3dPlanet extends B3dChild {
         seaIce: attrs.seaIce,
         inlandWater: !isOff(attrs.inlandWater) && attrs.inlandWater != null,
         water:
-          /^#[0-9a-f]{6}/i.test(attrs.seaShallow) && /^#[0-9a-f]{6}/i.test(attrs.seaDeep)
-            ? { shallow: gasGiantRgb(attrs.seaShallow.slice(0, 7)), deep: gasGiantRgb(attrs.seaDeep.slice(0, 7)) }
+          /^#[0-9a-f]{6}/i.test(attrs.seaShallow) &&
+          /^#[0-9a-f]{6}/i.test(attrs.seaDeep)
+            ? {
+                shallow: gasGiantRgb(attrs.seaShallow.slice(0, 7)),
+                deep: gasGiantRgb(attrs.seaDeep.slice(0, 7)),
+              }
             : undefined,
         seed: 1 + (Math.abs(attrs.seed) % 83),
         /*
@@ -939,7 +951,9 @@ export class B3dPlanet extends B3dChild {
   private _maxHeight(): number {
     const attrs = this as any
     if (this.vertexHeights == null || this.vertexHeights.length === 0)
-      return attrs.gas ? 0 : this._val('grossAmplitude') + this._val('detailAmplitude')
+      return attrs.gas
+        ? 0
+        : this._val('grossAmplitude') + this._val('detailAmplitude')
     let max = -Infinity
     for (const h of this.vertexHeights) if (h > max) max = h
     return max

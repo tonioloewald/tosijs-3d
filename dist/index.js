@@ -113,6 +113,10 @@ export { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, excludeFrom
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, } from './gas-giant.js';
+export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js';
+export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js';
+export { SOL } from './sol.js';
+export { layoutSystem } from './system-layout.js';
 export { decodeGray16Png, mapSurface, loadPlanetMap, } from './planet-map.js';
 export { createMappedPlanetMaterial } from './planet-map-material.js';
 export { createPlanetSurfaceMaterial, } from './planet-surface-material.js';
@@ -194,7 +198,6 @@ export { rockGeometry, rockFromName, rockNames, ROCK_KINDS, } from './procedural
 export { scatterPlacements, clumpAt, autoClumpSize, NATURE_RULES, NATURE_ROLES, roleFor, ROCK_RULES, NearIndex, NATURE_KIT_RULES, } from './scatter.js';
 export { cloudField, cloudOpacity, } from './cloud-field.js';
 export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, } from './starfield-codec.js';
-export { rocketAscent } from './rocket-ascent.js';
 export { pngEncode, crc32, adler32 } from './png.js';
 export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, starsFromVoxelGalaxy, facesToPngs, facesToZip, defaultBakePose, SHIPPED_SKY, } from './skybox-baker.js';
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, } from './surroundings-probe.js';
@@ -327,7 +330,7 @@ export const ui = {
 export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, chartTemperature, planetTemperature, CELSIUS_PER_UNIT, } from './biome-chart.js';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
-export { volcano, impactCrater, craterField, pad, gulley, cover, composeLandforms, mergeProvinces, 
+export { volcano, impactCrater, craterField, craterProfile, sphereCraters, pad, gulley, cover, composeLandforms, mergeProvinces, 
 // A field knows where it stops — see landform's "A field knows where it stops".
 withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)

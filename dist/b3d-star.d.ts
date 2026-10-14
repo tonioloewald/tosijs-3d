@@ -51,6 +51,7 @@ export declare class B3dStar extends B3dChild {
     private buildLight;
     /** Rebuild star mesh with current settings */
     regenerate(): void;
+    private surfaceMaterial;
     /** Update colors, corona, wireframe without full rebuild */
     updateOptions(): void;
 }

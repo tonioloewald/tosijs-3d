@@ -101,12 +101,23 @@ export function createStarMaterial(
     { vertex: 'b3dStarSurface', fragment: 'b3dStarSurface' },
     {
       attributes: ['position', 'normal'],
-      uniforms: ['world', 'worldViewProjection', 'starColor', 'cameraPosition', 'starK'],
+      uniforms: [
+        'world',
+        'worldViewProjection',
+        'starColor',
+        'cameraPosition',
+        'starK',
+      ],
     }
   )
   const [r, g, b] = options.rgb
   mat.setVector3('starColor', new BABYLON.Vector3(r, g, b))
-  const k = new BABYLON.Vector4(0, options.seed ?? 1, options.glow ?? 1, options.detail ?? 0.6)
+  const k = new BABYLON.Vector4(
+    0,
+    options.seed ?? 1,
+    options.glow ?? 1,
+    options.detail ?? 0.6
+  )
   mat.onBind = () => {
     const cam = scene.activeCamera
     if (cam) mat.setVector3('cameraPosition', cam.globalPosition)

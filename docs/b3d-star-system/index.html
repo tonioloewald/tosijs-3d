@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a9c4a8c27974" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
   <title>b3d-star-system — tosijs-3d</title>
   <meta name="description" content="Renders an individual star system with a procedural star and its planets. Given a galaxy seed and a star&#39;s ADDRESS (star, stable) or index (starIndex) in the…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-star-system/" />
@@ -30,16 +30,22 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=160cfa198378" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-star-system">b3d-star-system</h1>
 <p>Renders an individual star system with a procedural star and its planets.
 Given a galaxy seed and a star&#39;s ADDRESS (<code>star</code>, stable) or index
 (<code>starIndex</code>) in the <a href="/voxel-galaxy/">voxel galaxy</a>, it creates <code>b3d-star</code> and <code>b3d-planet</code> child components with
 deterministic seeds.</p>
-<p>Planets orbit at scaled distances and can optionally animate.</p>
+<p>Every body is a real <a href="/b3d-planet/">planet</a>: giants banded and ringed, rocky
+worlds picked from what the generator says about each one (airless rock,
+seas, a toxic hot sky, or dust; see <a href="/rocky-world/">rocky-world</a>&#39;s
+<code>rockyWorldFor</code>), moons locked to their planets, and an asteroid belt where
+there is room for one. Where they go is <a href="/system-layout/">system-layout</a>:
+distances on a log scale and sizes on a square root, so the system fits on a
+screen without being empty.</p>
 <h2 id="demo">Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, voxelGalaxy, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, voxelGalaxy, label3d, slider3d, toggle3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, p, pre } = elements
 
@@ -52,6 +58,8 @@ const { demo } = tosi({
     orbitScale: 3,
     animate: true,
     showOrbits: true,
+    // Which body the camera follows (&#39;&#39; = the whole system).
+    focus: &#39;&#39;,
   },
 })
 
@@ -80,6 +88,8 @@ const scene = b3d(
       slider3d({ label: &#39;orbit scale&#39;, value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
       toggle3d({ label: &#39;animate&#39;, value: demo.animate }),
       toggle3d({ label: &#39;show orbits&#39;, value: demo.showOrbits }),
+      // Look at one body: the camera follows it round its orbit.
+      select3d({ label: &#39;look at&#39;, value: demo.focus, options: [&#39;&#39;, ...starSystem.bodies.map((b) =&gt; b.name)] }),
     ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
@@ -90,15 +100,30 @@ const scene = b3d(
         BABYLON.Vector3.Zero(),
         el.scene
       )
-      camera.lowerRadiusLimit = 10
-      camera.upperRadiusLimit = 500
+      camera.lowerRadiusLimit = 1
+      camera.upperRadiusLimit = 600
       camera.minZ = 0.1
-      camera.maxZ = 2000
+      camera.maxZ = 5000
       camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
       el.setActiveCamera(camera)
+      // FOLLOW THE CHOSEN BODY: ease the camera&#39;s target onto it each frame,
+      // and on choosing, pull in to a few of its radii.
+      let following = &#39;&#39;
+      el.scene.onBeforeRenderObservable.add(() =&gt; {
+        const body = starSystem.bodies.find((b) =&gt; b.name === demo.focus.value)
+        const to = body ? body.node.getAbsolutePosition() : BABYLON.Vector3.Zero()
+        // In place: assigning an orbit camera&#39;s target moves its distance.
+        BABYLON.Vector3.LerpToRef(camera.target, to, 0.15, camera.target)
+        if (demo.focus.value !== following) {
+          following = demo.focus.value
+          camera.radius = body ? Math.max(3, body.radius * 7) : 100
+        }
+      })
     },
   },
   b3dLight({ intensity: 0.2 }),
+  // The star sky, without a sun: the system&#39;s own star lights it.
+  ...spaceBackdrop({ sky: &#39;/sky&#39;, sun: false }),
   starSystem,
 )
 
@@ -128,7 +153,10 @@ function updateInfo() {
 for (const key of [&#39;starIndex&#39;, &#39;scale&#39;, &#39;orbitScale&#39;]) {
   demo[key].observe(() =&gt; {
     starSystem.regenerate()
+    demo.focus.value = &#39;&#39;
     updateInfo()
+    // The &#39;look at&#39; list is this system&#39;s bodies.
+    scene.refreshScenePanel?.()
   })
 }
 for (const key of [&#39;animate&#39;, &#39;showOrbits&#39;]) {
@@ -218,6 +246,16 @@ invisible.</p>
 <td><code>&#39;on&#39;</code></td>
 <td>Show orbital path lines</td>
 </tr>
+<tr>
+<td><code>maps</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code>: bodies with real maps in a <code>system</code> (our own Earth, Moon and Mars, see <a href="/sol/">sol</a>) are drawn from them</td>
+</tr>
+<tr>
+<td><code>beltCount</code></td>
+<td><code>1500</code></td>
+<td>Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)</td>
+</tr>
 </tbody></table>
 
   </article>
@@ -228,7 +266,7 @@ invisible.</p>
     <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
     <ul>
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
-      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
       <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
@@ -600,7 +638,12 @@ invisible.</p>
         <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link current" href="../b3d-star-system/" aria-current="page">b3d-star-system</a></li>
+      <li><details open><summary><a class="doc-link current" href="../b3d-star-system/" aria-current="page">b3d-star-system</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
+        <li><a class="doc-link" href="../sol/">sol</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
       <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
@@ -608,9 +651,11 @@ invisible.</p>
         <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
       </ul>
       </details></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
       <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
@@ -644,6 +689,6 @@ invisible.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-zsxgjpf3.js"></script>
+  <script type="module" src="../hydrate-qq04he1d.js"></script>
 </body>
 </html>

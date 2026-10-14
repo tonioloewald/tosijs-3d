@@ -211,7 +211,8 @@ import { PRNG } from './mersenne-twister.js'
 /** A stable seed from a name, so a named body looks the same every time. */
 function nameSeed(name: string): number {
   let h = 2166136261
-  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619)
+  for (let i = 0; i < name.length; i++)
+    h = Math.imul(h ^ name.charCodeAt(i), 16777619)
   return Math.abs(h) % 100000
 }
 
@@ -622,8 +623,7 @@ export class B3dStarSystem extends B3dChild {
     )
     const useMaps = !isOff(attrs.maps)
     // A body's attributes from the spec: its maps when drawing from maps.
-    const lookOf = (b: SystemBodySpec) =>
-      useMaps && b.maps ? b.maps : b.look
+    const lookOf = (b: SystemBodySpec) => (useMaps && b.maps ? b.maps : b.look)
     this.layout = layout
     const kinds = Object.keys(GAS_GIANTS)
     for (let i = 0; i < planets.length; i++) {
@@ -647,7 +647,10 @@ export class B3dStarSystem extends B3dChild {
       } else if (giant) {
         const kind = kinds[Math.abs(planet.seed) % kinds.length]
         el.gas = kind
-        el.bands = Math.max(3, GAS_GIANTS[kind].bands + ((Math.abs(planet.seed) >> 3) % 7) - 3)
+        el.bands = Math.max(
+          3,
+          GAS_GIANTS[kind].bands + ((Math.abs(planet.seed) >> 3) % 7) - 3
+        )
         el.rings = planet.rings
       } else {
         const pick = rockyWorldFor({
@@ -729,7 +732,14 @@ export class B3dStarSystem extends B3dChild {
     seed: number,
     scene: BABYLON.Scene
   ) {
-    const g = rockGeometry({ seed, detail: 3, cuts: 9, roughness: 0.2, squash: 0.7, sink: 0 })
+    const g = rockGeometry({
+      seed,
+      detail: 3,
+      cuts: 9,
+      roughness: 0.2,
+      squash: 0.7,
+      sink: 0,
+    })
     const mesh = new BABYLON.Mesh(`rock-${name}`, scene)
     const vd = new BABYLON.VertexData()
     vd.positions = g.positions
@@ -779,7 +789,14 @@ export class B3dStarSystem extends B3dChild {
     const width = belt.outer - belt.inner
     const mid = (belt.inner + belt.outer) / 2
     for (let k = 0; k < 3; k++) {
-      const g = rockGeometry({ seed: 100 + k, detail: 1, cuts: 5, roughness: 0.15, squash: 0.8, sink: 0 })
+      const g = rockGeometry({
+        seed: 100 + k,
+        detail: 1,
+        cuts: 5,
+        roughness: 0.15,
+        squash: 0.8,
+        sink: 0,
+      })
       const mesh = new BABYLON.Mesh(`belt-rock-${k}`, scene)
       const vd = new BABYLON.VertexData()
       vd.positions = g.positions
@@ -801,10 +818,19 @@ export class B3dStarSystem extends B3dChild {
       const q = new BABYLON.Quaternion()
       for (let j = 0; j < n; j++) {
         const a = prng.realRange(0, Math.PI * 2)
-        const r = mid + (prng.value() + prng.value() + prng.value() - 1.5) * width * 0.66
+        const r =
+          mid +
+          (prng.value() + prng.value() + prng.value() - 1.5) * width * 0.66
         const y = (prng.value() + prng.value() - 1) * width * 0.08
-        const size = attrs.scale * 0.22 * Math.pow(prng.realRange(0.2, 1), 2.5) + attrs.scale * 0.04
-        BABYLON.Quaternion.RotationYawPitchRollToRef(prng.realRange(0, 6.3), prng.realRange(0, 6.3), prng.realRange(0, 6.3), q)
+        const size =
+          attrs.scale * 0.22 * Math.pow(prng.realRange(0.2, 1), 2.5) +
+          attrs.scale * 0.04
+        BABYLON.Quaternion.RotationYawPitchRollToRef(
+          prng.realRange(0, 6.3),
+          prng.realRange(0, 6.3),
+          prng.realRange(0, 6.3),
+          q
+        )
         BABYLON.Matrix.ComposeToRef(
           new BABYLON.Vector3(size, size * prng.realRange(0.6, 1), size),
           q,
@@ -823,7 +849,11 @@ export class B3dStarSystem extends B3dChild {
       const given = this.system?.belt?.[k]
       const at = new BABYLON.TransformNode(`asteroid-${rock.name}`, scene)
       at.parent = node
-      at.position.set(Math.cos(rock.phase) * rock.distance, 0, Math.sin(rock.phase) * rock.distance)
+      at.position.set(
+        Math.cos(rock.phase) * rock.distance,
+        0,
+        Math.sin(rock.phase) * rock.distance
+      )
       const name = given?.name ?? `asteroid ${rock.name}`
       if (given?.look.shape === 'rock') {
         this.adoptRock(at, name, rock.visualRadius, rock.seed, scene)
@@ -848,7 +878,11 @@ export class B3dStarSystem extends B3dChild {
     for (let i = 0; i < this.holders.length; i++) {
       const p = layout.planets[i]
       const angle = (this.time / p.period) * Math.PI * 2 + p.phase
-      this.holders[i].position.set(Math.cos(angle) * p.distance, 0, Math.sin(angle) * p.distance)
+      this.holders[i].position.set(
+        Math.cos(angle) * p.distance,
+        0,
+        Math.sin(angle) * p.distance
+      )
     }
   }
 
@@ -895,8 +929,10 @@ export class B3dStarSystem extends B3dChild {
     const dt = sceneDelta(this.owner!.scene)
     this.time += dt
     this.placePlanets()
-    for (const m of this.moonPivots) m.pivot.rotation.y -= (dt / m.period) * Math.PI * 2
-    if (this.belt) this.belt.node.rotation.y -= (dt / this.belt.period) * Math.PI * 2
+    for (const m of this.moonPivots)
+      m.pivot.rotation.y -= (dt / m.period) * Math.PI * 2
+    if (this.belt)
+      this.belt.node.rotation.y -= (dt / this.belt.period) * Math.PI * 2
   }
 
   /**
@@ -904,11 +940,21 @@ export class B3dStarSystem extends B3dChild {
    * asteroid, with the node that carries it (its world position is where it
    * is now) and its drawn radius. For a camera to follow one.
    */
-  get bodies(): { name: string; node: BABYLON.TransformNode; radius: number }[] {
-    const out: { name: string; node: BABYLON.TransformNode; radius: number }[] = []
+  get bodies(): {
+    name: string
+    node: BABYLON.TransformNode
+    radius: number
+  }[] {
+    const out: { name: string; node: BABYLON.TransformNode; radius: number }[] =
+      []
     if (this.rootNode && this.systemData)
-      out.push({ name: this.systemData.star.name, node: this.rootNode, radius: this.starRadius })
-    for (const p of this.planetEls) out.push({ name: p.name, node: p.holder, radius: p.radius })
+      out.push({
+        name: this.systemData.star.name,
+        node: this.rootNode,
+        radius: this.starRadius,
+      })
+    for (const p of this.planetEls)
+      out.push({ name: p.name, node: p.holder, radius: p.radius })
     return out
   }
 
@@ -935,7 +981,8 @@ export class B3dStarSystem extends B3dChild {
     const v = this.visibility
     if (this.starMesh) this.starMesh.visibility = v
     if (this.coronaMesh) this.coronaMesh.visibility = v
-    for (const h of this.holders) for (const m of h.getChildMeshes()) m.visibility = v
+    for (const h of this.holders)
+      for (const m of h.getChildMeshes()) m.visibility = v
     for (const m of this.beltMeshes) m.visibility = v
     for (const p of this.planetEls) {
       const root = p.el.rootNode as BABYLON.TransformNode | null

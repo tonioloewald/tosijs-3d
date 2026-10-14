@@ -15,7 +15,7 @@ three colours and the ring are yours to set: pick another planet and note how
 thin and faint every ring but Saturn's is.
 
 ```js
-import { b3d, b3dPlanet, b3dSun, b3dSkybox, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from 'tosijs-3d'
+import { b3d, b3dPlanet, spaceBackdrop, GAS_GIANTS, select3d, slider3d, label3d, colorPicker3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const start = GAS_GIANTS.saturn
@@ -81,8 +81,7 @@ preview.append(
         el.setActiveCamera(camera)
       },
     },
-    b3dSun(),
-    b3dSkybox({ timeOfDay: 15, realtimeScale: 0, atmosphere: 0, starfieldCube: '/sky/nebula', starfieldData: '/sky/stars' }),
+    ...spaceBackdrop({ sky: '/sky' }),
     planet,
   )
 )
@@ -272,9 +271,20 @@ The bands are a cosine of latitude, so the equator sits in a bright zone, and
 latitude is bent first so that the stripes near the equator are the broad
 ones, as they are on Jupiter and Saturn. The same wave is the wind: fastest
 at the middle of a stripe and reversing at each edge. Each latitude is turned
-about the axis by its own wind before the noise is read, and the point being
-read is itself pushed about by a coarser noise, which is what curls the band
-edges over into eddies where a plain offset would only make them wavy.
+about the axis by its own wind before the noise is read.
+
+TURBULENCE GOES WHERE THE SHEAR IS. The wind reverses at a band's edge, so
+that is where it tears: eddies are a warp that is the same in every
+direction (so it curls rather than waves), gated to the band edges and to
+patches along them. A warp applied everywhere made every band wavy. Inside
+a band the texture is billow noise (the cloud deck's lesson: the absolute
+value creases it into filaments), stretched along the wind.
+
+THE STORM SPINS ITS POSITION, not an angle: the swirl turns the point about
+the storm's centre, more toward the middle, and reads noise there. Reading
+noise at atan's angle left a seam where the angle jumps a full turn. A storm
+whose accent is brighter than the zones (Neptune's) is dark, with the bright
+cloud at its rim; a darker accent (Jupiter's red) colours it.
 */
 /*
 THE LATTICE HASH SNAPS TO THE INTEGER FIRST (b3dGgHashL). A corner of the
@@ -302,28 +312,39 @@ float e=sign(u)*mix(au,pow(au,1.6),0.65);
 float ph=e*k.x*1.5708;
 vec3 sd=vec3(k.w*13.1,k.w*7.7,k.w*3.3);
 vec3 q=b3dGgTurn(n,t*0.012*cos(ph));
-vec3 sp=q*vec3(4.0,11.0,4.0)+sd;
-q+=k.y*0.11*(vec3(b3dGgNoise(sp),b3dGgNoise(sp+vec3(17.0)),b3dGgNoise(sp+vec3(31.0)))-0.5);
 float w=b3dGgFbm(q*vec3(1.7,8.0,1.7)+sd)-0.5;
-float w2=b3dGgFbm(q*vec3(5.0,34.0,5.0)+sd*1.7+vec3(w*2.0))-0.5;
-float w3=b3dGgNoise(q*vec3(16.0,70.0,16.0)+sd*2.3)-0.5;
-float v=e+k.y*(0.1*w+0.05*w2+0.016*w3);
+float wb=abs(b3dGgFbm(q*vec3(4.0,18.0,4.0)+sd*1.7+vec3(w*2.0))-0.5)*2.0;
+float edge=1.0-abs(cos(ph));edge*=edge;
+float eddy=edge*smoothstep(0.42,0.75,b3dGgNoise(q*vec3(2.5,5.0,2.5)+sd*0.7));
+vec3 ep=q*10.0+sd;
+vec3 ew=vec3(b3dGgNoise(ep),b3dGgNoise(ep+vec3(17.0)),b3dGgNoise(ep+vec3(31.0)))-0.5;
+float cw=b3dGgFbm(ep+ew*2.5+sd*0.3)-0.5;
+float v=e+k.y*(0.025*w+0.012*(wb-0.5)+eddy*cw*(2.4/k.x));
 float tone=b3dGgNoise(vec3(floor(v*k.x*0.25+0.5)*3.7,k.w*5.1,1.3));
 float band=0.5+0.5*cos(v*k.x*1.5708+(tone-0.5)*1.2);
 vec3 col=mix(c1,c0,smoothstep(0.25,0.75,band));
 col=mix(col,mix(c0,c2,0.5),(1.0-band)*tone*0.55);
-col*=0.93+0.22*w2*k.y+0.08*(tone-0.5);
+col*=0.95+0.07*(wb-0.5)*k.y+0.08*(tone-0.5)+0.1*eddy*cw*k.y;
 if(k.z>0.0){
 float la=-0.36;
 vec3 sn=b3dGgTurn(n,t*0.004+k.w*2.1);
 float lon=atan(sn.z,sn.x);
 vec2 d=vec2(lon*cos(la)*0.55,(asin(clamp(n.y,-1.0,1.0))-la))*(k.x/(3.2*k.z));
 float r=length(d);
-float sw=b3dGgNoise(vec3(atan(d.y,d.x)*1.5+r*9.0-t*0.05,r*5.0,k.w));
-float m=1.0-smoothstep(0.55,1.0,r+0.12*(sw-0.5));
+float sa=(1.0-smoothstep(0.0,1.1,r))*3.5-t*0.05;
+vec2 dr=vec2(d.x*cos(sa)-d.y*sin(sa),d.x*sin(sa)+d.y*cos(sa));
+float sw=b3dGgFbm(vec3(dr*3.0,k.w*1.7));
+float m=1.0-smoothstep(0.55,1.0,r+0.3*(sw-0.5));
+vec3 lw=vec3(0.3,0.59,0.11);
+if(dot(c2,lw)<dot(c0,lw)){
 col=mix(col,c2*(0.82+0.3*sw),m);
+}else{
+col=mix(col,c1*(0.5+0.25*sw),m);
+float rim=smoothstep(0.55,0.85,r)*(1.0-smoothstep(0.85,1.25,r))*smoothstep(0.45,0.7,sw);
+col=mix(col,c2,rim*0.8);
 }
-col=mix(col,mix(c1,c2,0.35)*0.72,smoothstep(0.72,1.0,abs(u)));
+}
+col=mix(col,col*0.6+c1*0.25,smoothstep(0.6,1.0,abs(u))*0.6);
 return col;}
 vec3 b3dGasGiantLit(vec3 alb,float nl,float nv,vec3 haze){
 float l=max(nl,0.0);float e=clamp(nv,0.0,1.0);

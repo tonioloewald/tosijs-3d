@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d.js';
 import { type StarSystemData } from './galaxy-data.js';
+import { type SystemSpec } from './system-layout.js';
 export declare class B3dStarSystem extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {
@@ -19,6 +20,8 @@ export declare class B3dStarSystem extends B3dChild {
         orbitScale: number;
         animate: "on" | "off";
         showOrbits: "on" | "off";
+        beltCount: number;
+        maps: "on" | "off";
         x: number;
         y: number;
         z: number;
@@ -41,6 +44,13 @@ export declare class B3dStarSystem extends B3dChild {
      */
     animate: any;
     showOrbits: 'on' | 'off';
+    beltCount: number;
+    maps: 'on' | 'off';
+    /**
+     * A system given as DATA (`SOL`, or your own `SystemSpec`) instead of a
+     * star from the galaxy. Set it, then `regenerate()`.
+     */
+    system: SystemSpec | null;
     x: number;
     y: number;
     z: number;
@@ -50,8 +60,13 @@ export declare class B3dStarSystem extends B3dChild {
     private starMesh;
     private coronaMesh;
     private starLight;
-    private planetMeshes;
-    private planetPhases;
+    private planetEls;
+    private holders;
+    private moonPivots;
+    private belt;
+    private beltMeshes;
+    private layout;
+    private visibility;
     private orbitLines;
     private systemData;
     private registered;
@@ -63,15 +78,31 @@ export declare class B3dStarSystem extends B3dChild {
     private disposeMeshes;
     private registerShaders;
     private buildSystem;
-    private buildPlanetRing;
+    /** Planets are elements: put one in the scene and hang it on `holder` once it is built. */
+    private adopt;
+    private adoptRock;
+    private buildBelt;
+    /** Each planet at its place on its orbit for the current time. */
+    private placePlanets;
     private buildOrbitLine;
     private update;
+    /**
+     * Every body you can look at: the star, then each planet, moon and named
+     * asteroid, with the node that carries it (its world position is where it
+     * is now) and its drawn radius. For a camera to follow one.
+     */
+    get bodies(): {
+        name: string;
+        node: BABYLON.TransformNode;
+        radius: number;
+    }[];
     /** Get the generated system data */
     getSystemData(): StarSystemData | null;
     /** Rebuild the entire system with current attributes */
     regenerate(): void;
     /** Set visibility of all meshes in the star system (0–1) */
     setVisibility(v: number): void;
+    private applyVisibility;
     /** Update non-geometry options (animation, orbit visibility) */
     updateOptions(): void;
 }

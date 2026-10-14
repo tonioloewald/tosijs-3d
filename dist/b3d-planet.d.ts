@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils.js';
 import type { BiomePlugin } from './biome-plugin.js';
 import { type PlanetSurface } from './sphere-map.js';
 import { type PlanetStorm } from './planet-clouds.js';
+import { type RockyWorldLook } from './rocky-world.js';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d.js';
 import type { GradientFilter } from './gradient-filter.js';
@@ -31,6 +32,13 @@ export declare class B3dPlanet extends B3dChild {
         ringOuter: number;
         ringOpacity: number;
         ringColor: string;
+        world: string;
+        craters: number;
+        seaShallow: string;
+        seaDeep: string;
+        craterSize: number;
+        craterWear: number;
+        craterAsymmetry: number;
         seed: number;
         radius: number;
         subdivisions: number;
@@ -59,6 +67,12 @@ export declare class B3dPlanet extends B3dChild {
      * settings are unused and the sea sits at the surface's sea level.
      */
     surface: PlanetSurface | null;
+    /**
+     * Changes to the `world`'s look for THIS planet (`{ ocean: 0.3 }`), read
+     * at the next build. The star system uses it to give each Earth-like
+     * world its own share of sea.
+     */
+    worldOverrides: Partial<RockyWorldLook> | null;
     /**
      * STORMS placed on the weather (needs `clouds` above 0): up to four, each
      * `{ lat, lon, size, intensity, lightning }`. A storm is a cyclone that
@@ -125,6 +139,20 @@ export declare class B3dPlanet extends B3dChild {
      */
     private buildOcean;
     private buildRings;
+    /** The rocky world's look, when `world` names one (and it is not a gas giant). */
+    private _look;
+    /** A look setting: the attribute (a `world` writes its own in once). */
+    private _val;
+    /** Which world's look was last written into the attributes. */
+    private _worldOf;
+    private _applyWorld;
+    /** The craters' height function for this build, or null for none. */
+    private _craters;
+    /** The radius the biome params' lengths were last scaled for. */
+    private _paramsRadius;
+    /** Which world's climate was last written into the params. */
+    private _climateOf;
+    private _makeCraters;
     private heightAt;
     /** Rebuild planet mesh with current noise settings */
     regenerate(): void;

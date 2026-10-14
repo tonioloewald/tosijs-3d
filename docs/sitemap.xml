@@ -55,6 +55,7 @@
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-chrome/</loc></url>
   <url><loc>https://3d.tosijs.net/scatter/</loc></url>
+  <url><loc>https://3d.tosijs.net/system-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/table-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gesture/</loc></url>
@@ -101,10 +102,11 @@
   <url><loc>https://3d.tosijs.net/prefab/</loc></url>
   <url><loc>https://3d.tosijs.net/procedural-rock/</loc></url>
   <url><loc>https://3d.tosijs.net/radar/</loc></url>
-  <url><loc>https://3d.tosijs.net/rocket-ascent/</loc></url>
   <url><loc>https://3d.tosijs.net/rounded-rect/</loc></url>
   <url><loc>https://3d.tosijs.net/selection/</loc></url>
   <url><loc>https://3d.tosijs.net/sky-and-light/</loc></url>
+  <url><loc>https://3d.tosijs.net/sol/</loc></url>
+  <url><loc>https://3d.tosijs.net/solar-system/</loc></url>
   <url><loc>https://3d.tosijs.net/starfield-codec/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-shadows/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
@@ -164,6 +166,7 @@
   <url><loc>https://3d.tosijs.net/world-topology/</loc></url>
   <url><loc>https://3d.tosijs.net/gas-giant/</loc></url>
   <url><loc>https://3d.tosijs.net/color-picker/</loc></url>
+  <url><loc>https://3d.tosijs.net/rocky-world/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-beacon/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-black-hole/</loc></url>
@@ -197,6 +200,7 @@
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/picker/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
+  <url><loc>https://3d.tosijs.net/space-backdrop/</loc></url>
   <url><loc>https://3d.tosijs.net/surroundings/</loc></url>
   <url><loc>https://3d.tosijs.net/terrain-grid/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>

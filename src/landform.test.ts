@@ -540,19 +540,29 @@ describe('sphereCraters', () => {
     const b = sphereCraters({ seed: 3 })
     const c = sphereCraters({ seed: 4 })
     const pts = points(400)
-    expect(pts.map((p) => a(p.x, p.y, p.z))).toEqual(pts.map((p) => b(p.x, p.y, p.z)))
-    expect(pts.map((p) => a(p.x, p.y, p.z))).not.toEqual(pts.map((p) => c(p.x, p.y, p.z)))
+    expect(pts.map((p) => a(p.x, p.y, p.z))).toEqual(
+      pts.map((p) => b(p.x, p.y, p.z))
+    )
+    expect(pts.map((p) => a(p.x, p.y, p.z))).not.toEqual(
+      pts.map((p) => c(p.x, p.y, p.z))
+    )
   })
 
   test('craters dig in: they remove more than their rims pile up', () => {
     const f = sphereCraters({ density: 0.8 })
-    const h = points(3000).map((p) => f(p.x, p.y, p.z)).filter((v) => v !== 0)
+    const h = points(3000)
+      .map((p) => f(p.x, p.y, p.z))
+      .filter((v) => v !== 0)
     expect(h.length).toBeGreaterThan(300)
     expect(h.reduce((a, b) => a + b, 0)).toBeLessThan(0)
   })
 
   test('asymmetry puts more craters on the facing side', () => {
-    const f = sphereCraters({ density: 0.4, asymmetry: 0.9, facing: { x: 0, y: 0, z: 1 } })
+    const f = sphereCraters({
+      density: 0.4,
+      asymmetry: 0.9,
+      facing: { x: 0, y: 0, z: 1 },
+    })
     let front = 0
     let back = 0
     for (const p of points(6000)) {

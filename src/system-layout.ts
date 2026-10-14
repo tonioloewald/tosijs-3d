@@ -129,7 +129,8 @@ function moonsFor(p: PlanetInput, vr: number, earthSize: number): MoonLayout[] {
   let count = 0
   if (p.moons) count = p.moons.length
   else if (giant) count = 2 + prng.range(0, 2)
-  else if (p.radius > 4000 && prng.probability(0.45)) count = prng.probability(0.25) ? 2 : 1
+  else if (p.radius > 4000 && prng.probability(0.45))
+    count = prng.probability(0.25) ? 2 : 1
   const moons: MoonLayout[] = []
   // Clear of the planet and of any ring (a ring reaches ~2.3 radii).
   let d = vr * (p.rings > 0 ? 2.8 : 2.0)
@@ -184,7 +185,10 @@ export function layoutSystem(
     if (i === beltAt) {
       const a = planets[i - 1]
       const au = Math.sqrt(a.orbitalRadius * p.orbitalRadius)
-      const mid = Math.max(logDistance(au, base, spacing), edge + beltHalf * 1.2)
+      const mid = Math.max(
+        logDistance(au, base, spacing),
+        edge + beltHalf * 1.2
+      )
       const prng = new PRNG(a.seed * 13 + p.seed)
       const notable: NotableAsteroid[] = []
       const count = opts.belt ? opts.belt.length : 2 + prng.range(0, 2)
@@ -211,7 +215,10 @@ export function layoutSystem(
       vr * (p.rings > 0 ? 2.5 : 1.3),
       last ? last.distance + last.visualRadius : 0
     )
-    const distance = Math.max(logDistance(p.orbitalRadius, base, spacing), edge + reach * 1.2)
+    const distance = Math.max(
+      logDistance(p.orbitalRadius, base, spacing),
+      edge + reach * 1.2
+    )
     edge = distance + reach * 1.2
     out.push({
       distance,

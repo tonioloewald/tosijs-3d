@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.4
+# tosijs-3d v0.10.5
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -368,8 +368,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   What changed, how to upgrade, and the seeded random sources everything
 - https://3d.tosijs.net/resource/ — resource
   destroyable's health and a launcher's energy: it regenerates, but only once it
-- https://3d.tosijs.net/rocket-ascent/ — Rocket Ascent
-  through the cloud deck, and keeps going until the air runs out and the stars
+- https://3d.tosijs.net/rocky-world/ — rocky-world
+  Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
 - https://3d.tosijs.net/scatter/ — scatter
@@ -386,8 +386,14 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   become a cube map — a starfield with real structure, for the cost of a texture
 - https://3d.tosijs.net/slope-profile/ — slope-profile
   noise field before amplitude. A profile remaps normalized height (0..1 → 0..1),
+- https://3d.tosijs.net/sol/ — sol
+  moons worth drawing and the asteroid belt's four biggest bodies, each with
+- https://3d.tosijs.net/solar-system/ — Solar System
+  Our own solar system, built from the parts the rest of this site documents:
 - https://3d.tosijs.net/space/ — Space
   for any star in it, [planets](/b3d-planet/) with atmospheres, and a
+- https://3d.tosijs.net/space-backdrop/ — space-backdrop
+  galaxy's band tipped off the scene's horizontal plane. Every demo that hangs
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
 - https://3d.tosijs.net/sphere-map/ — sphere-map
@@ -410,6 +416,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
 - https://3d.tosijs.net/swim-aim/ — swim-aim
   an aim input into a body pitch, easing it, and unwinding it when you stand up
+- https://3d.tosijs.net/system-layout/ — system-layout
+  planet is drawn, how big, how fast it goes round, its moons, and the
 - https://3d.tosijs.net/table/ — table
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
 - https://3d.tosijs.net/table-layout/ — table-layout

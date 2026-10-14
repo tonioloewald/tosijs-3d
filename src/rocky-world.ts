@@ -78,7 +78,12 @@ export interface RockyWorldLook {
   palette?: { a: number[][]; b: number[][] }
 }
 
-const NO_CRATERS: RockyCraters = { density: 0, size: 0.15, wear: 0.6, asymmetry: 0 }
+const NO_CRATERS: RockyCraters = {
+  density: 0,
+  size: 0.15,
+  wear: 0.6,
+  asymmetry: 0,
+}
 
 export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
   // Grey, airless, saturated with craters, more on the far side.
@@ -91,7 +96,13 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 2,
     detailAmplitude: 0.6,
     craters: { density: 0.85, size: 0.18, wear: 0.7, asymmetry: 0.25 },
-    climate: { equatorTemp: 0.02, temperateTemp: 0.01, poleTemp: 0, mapMoisture: 0, slopeExaggeration: 1.5 },
+    climate: {
+      equatorTemp: 0.02,
+      temperateTemp: 0.01,
+      poleTemp: 0,
+      mapMoisture: 0,
+      slopeExaggeration: 1.5,
+    },
   },
   // Like the Moon but darker, browner and less worn: no air, no weather.
   mercury: {
@@ -103,7 +114,13 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 2.5,
     detailAmplitude: 0.6,
     craters: { density: 0.9, size: 0.16, wear: 0.45, asymmetry: 0 },
-    climate: { equatorTemp: 0.42, temperateTemp: 0.36, poleTemp: 0.25, mapMoisture: 0, slopeExaggeration: 1.5 },
+    climate: {
+      equatorTemp: 0.42,
+      temperateTemp: 0.36,
+      poleTemp: 0.25,
+      mapMoisture: 0,
+      slopeExaggeration: 1.5,
+    },
   },
   // Red dust, thin pink air, old worn craters, ice at the poles.
   mars: {
@@ -115,7 +132,13 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 5,
     detailAmplitude: 1,
     craters: { density: 0.35, size: 0.12, wear: 0.85, asymmetry: 0 },
-    climate: { equatorTemp: 0.78, temperateTemp: 0.72, poleTemp: 0.15, mapMoisture: 0, slopeExaggeration: 2.5 },
+    climate: {
+      equatorTemp: 0.78,
+      temperateTemp: 0.72,
+      poleTemp: 0.15,
+      mapMoisture: 0,
+      slopeExaggeration: 2.5,
+    },
   },
   // Hidden under a closed yellow deck; the ground is hot rock.
   venus: {
@@ -127,7 +150,13 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 3,
     detailAmplitude: 0.8,
     craters: { density: 0.1, size: 0.08, wear: 0.9, asymmetry: 0 },
-    climate: { equatorTemp: 1, temperateTemp: 1, poleTemp: 0.95, mapMoisture: 0, slopeExaggeration: 2 },
+    climate: {
+      equatorTemp: 1,
+      temperateTemp: 1,
+      poleTemp: 0.95,
+      mapMoisture: 0,
+      slopeExaggeration: 2,
+    },
   },
   // Sulfur: frost white, pale and deep yellow, orange-red, black lava, and
   // glowing plates. Young ground, so hardly a crater; no air.
@@ -140,10 +169,27 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 3,
     detailAmplitude: 0.8,
     craters: { density: 0.04, size: 0.06, wear: 0.9, asymmetry: 0 },
-    climate: { equatorTemp: 0.55, temperateTemp: 0.48, poleTemp: 0.2, mapMoisture: 0, slopeExaggeration: 2, volcanism: 0.12 },
+    climate: {
+      equatorTemp: 0.55,
+      temperateTemp: 0.48,
+      poleTemp: 0.2,
+      mapMoisture: 0,
+      slopeExaggeration: 2,
+      volcanism: 0.12,
+    },
     palette: {
-      a: [[0.92, 0.9, 0.82], [0.9, 0.84, 0.42], [0.86, 0.68, 0.18], [0.74, 0.38, 0.14]],
-      b: [[0.8, 0.78, 0.7], [0.14, 0.12, 0.1], [0.7, 0.55, 0.15], [0.3, 0.14, 0.06]],
+      a: [
+        [0.92, 0.9, 0.82],
+        [0.9, 0.84, 0.42],
+        [0.86, 0.68, 0.18],
+        [0.74, 0.38, 0.14],
+      ],
+      b: [
+        [0.8, 0.78, 0.7],
+        [0.14, 0.12, 0.1],
+        [0.7, 0.55, 0.15],
+        [0.3, 0.14, 0.06],
+      ],
     },
   },
   // Under a thick orange haze: dark dunes of tar and ice, and seas of
@@ -157,11 +203,27 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 2.5,
     detailAmplitude: 0.7,
     craters: { density: 0.05, size: 0.08, wear: 0.9, asymmetry: 0 },
-    climate: { equatorTemp: 0.6, temperateTemp: 0.5, poleTemp: 0.3, mapMoisture: 0.3, slopeExaggeration: 3 },
+    climate: {
+      equatorTemp: 0.6,
+      temperateTemp: 0.5,
+      poleTemp: 0.3,
+      mapMoisture: 0.3,
+      slopeExaggeration: 3,
+    },
     sea: { shallow: '#4a3010', deep: '#140a03' },
     palette: {
-      a: [[0.22, 0.17, 0.12], [0.3, 0.22, 0.14], [0.4, 0.29, 0.17], [0.5, 0.37, 0.22]],
-      b: [[0.32, 0.27, 0.22], [0.2, 0.15, 0.1], [0.46, 0.34, 0.2], [0.36, 0.26, 0.15]],
+      a: [
+        [0.22, 0.17, 0.12],
+        [0.3, 0.22, 0.14],
+        [0.4, 0.29, 0.17],
+        [0.5, 0.37, 0.22],
+      ],
+      b: [
+        [0.32, 0.27, 0.22],
+        [0.2, 0.15, 0.1],
+        [0.46, 0.34, 0.2],
+        [0.36, 0.26, 0.15],
+      ],
     },
   },
   // Ice moons (Europa, Enceladus, Triton): bright, cracked, hardly cratered,
@@ -175,10 +237,26 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     grossAmplitude: 1.2,
     detailAmplitude: 0.5,
     craters: { density: 0.12, size: 0.07, wear: 0.8, asymmetry: 0 },
-    climate: { equatorTemp: 0.5, temperateTemp: 0.4, poleTemp: 0.2, mapMoisture: 0, slopeExaggeration: 2 },
+    climate: {
+      equatorTemp: 0.5,
+      temperateTemp: 0.4,
+      poleTemp: 0.2,
+      mapMoisture: 0,
+      slopeExaggeration: 2,
+    },
     palette: {
-      a: [[0.86, 0.87, 0.86], [0.82, 0.84, 0.86], [0.78, 0.76, 0.72], [0.66, 0.56, 0.46]],
-      b: [[0.76, 0.8, 0.84], [0.62, 0.5, 0.4], [0.86, 0.85, 0.82], [0.55, 0.42, 0.32]],
+      a: [
+        [0.86, 0.87, 0.86],
+        [0.82, 0.84, 0.86],
+        [0.78, 0.76, 0.72],
+        [0.66, 0.56, 0.46],
+      ],
+      b: [
+        [0.76, 0.8, 0.84],
+        [0.62, 0.5, 0.4],
+        [0.86, 0.85, 0.82],
+        [0.55, 0.42, 0.32],
+      ],
     },
   },
   // Seas, blue air, weather; the biome shader's own climate.
@@ -193,7 +271,13 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
     craters: NO_CRATERS,
     // The shader's own defaults, written out so that leaving another
     // world for this one resets the climate rather than keeping its.
-    climate: { equatorTemp: 0.85, temperateTemp: 0.55, poleTemp: 0.05, mapMoisture: 0.45, slopeExaggeration: 6 },
+    climate: {
+      equatorTemp: 0.85,
+      temperateTemp: 0.55,
+      poleTemp: 0.05,
+      mapMoisture: 0.45,
+      slopeExaggeration: 6,
+    },
   },
 }
 
@@ -224,7 +308,8 @@ export function rockyWorldFor(facts: RockyPlanetFacts): {
 } {
   const { hydrographics, atmosphere, insolation } = facts
   const hot = insolation > 1.6
-  if (atmosphere === 'Trace') return { world: hot ? 'mercury' : 'moon', overrides: {} }
+  if (atmosphere === 'Trace')
+    return { world: hot ? 'mercury' : 'moon', overrides: {} }
   if (hydrographics >= 20 && insolation > 0.3 && insolation < 2.2) {
     return {
       world: 'earth',

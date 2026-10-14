@@ -49,11 +49,11 @@ function registerShader(biome) {
     the mesh level (so its altitude is the true one, and the sea bed is
     classified as sea bed), and its answer is the land's colour.
   
-    Its SLOPE comes from the height field too, never from the mesh: the normal
-    is the cross product of how that reconstructed position changes across the
-    screen. The mesh's own normals know nothing of the sea bed (it is held
-    flat), and a planet drawn on a plain sphere has none worth reading at all,
-    so what is steep is decided by the heights alone.
+    Its SLOPE under the sea comes from the height field: the normal is the
+    cross product of how that reconstructed position changes across the
+    screen, because the mesh is held flat there and its normals know nothing
+    of the sea bed. On land the mesh IS the ground, and its own normal is
+    used: smooth, where the derivative one is constant per triangle.
     */
     const biomeLand = biome
         ? `{vec3 pc=biomePlanet.xyz;vec3 vPositionW=hfPos;vec3 vNormalW=hfNormal;vec3 diffuseColor=vec3(1.0);
@@ -91,6 +91,8 @@ uniform vec3 psEye;
 uniform vec4 psK;
 uniform vec4 psSea;
 uniform float psLakes;
+uniform vec3 psWaterS;
+uniform vec3 psWaterD;
 uniform vec2 psFine;
 uniform mat4 world;
 ${biomeDecl}
@@ -123,7 +125,10 @@ void main(){
   // Outside any branch: a derivative taken inside one is undefined.
   vec3 hfC=biomePlanet.xyz;
   vec3 hfUp=normalize(vWorld-hfC);
-  vec3 hfPos=hfC+hfUp*(biomePlanet.w+hgt);
+  // A WORLD WITH NO SEA has nothing under water: its crater floors dip
+  // below the zero height, and read as sea bed (a flat dark patch) until
+  // the classifier is told the ground is all far above any sea.
+  vec3 hfPos=hfC+hfUp*(biomePlanet.w+hgt+(psSea.x>0.5?0.0:biomePlanet.w*0.25));
   // The SLOPE is the mesh's heights alone. The fine octaves are small and
   // quick, so their slope is steep everywhere: read for steepness, they
   // turned the whole land to cliff.
@@ -132,6 +137,12 @@ void main(){
   float hfLen=length(hfNormal);
   hfNormal=hfLen>0.0?hfNormal/hfLen:hfUp;
   if(dot(hfNormal,hfUp)<0.0)hfNormal=-hfNormal;
+  // ON LAND the mesh is the true ground, and its normal is smooth: the
+  // screen-derivative one is constant across each triangle, so a slope
+  // threshold read from it stepped triangle by triangle (blocky rock on a
+  // cratered moon). Only the sea bed, held flat in the mesh, needs it; a
+  // world with no sea has none, however deep its crater floors go.
+  if(vHeight>0.0||psSea.x<0.5)hfNormal=n;
 #endif
 
   // --- land ---------------------------------------------------------------
@@ -176,7 +187,7 @@ void main(){
 
   // --- water --------------------------------------------------------------
   float depth=clamp(-hgt/max(psK.y,1e-4),0.0,1.0);
-  vec3 water=mix(vec3(0.09,0.42,0.5),vec3(0.012,0.06,0.2),1.0-exp(-depth*3.2));
+  vec3 water=mix(psWaterS,psWaterD,1.0-exp(-depth*3.2));
   // With a colour map the map's own sea colour is the truth; deepen it only.
   if(psK.w>0.5)water=land*mix(1.0,0.82,depth);
   ${biome
@@ -242,6 +253,8 @@ export function createPlanetSurfaceMaterial(scene, options) {
             'psK',
             'psSea',
             'psLakes',
+            'psWaterS',
+            'psWaterD',
             'psFine',
             ...(biome ? biome.getUniforms().ubo.map((u) => u.name) : []),
         ],
@@ -278,6 +291,12 @@ export function createPlanetSurfaceMaterial(scene, options) {
     tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     mat.setTexture('psColor', tex);
     mat.setVector4('psK', new BABYLON.Vector4(options.heightScale, options.depthScale, (options.seed ?? 1) * 1.37, options.colorUrl ? 1 : 0));
+    // The sea's colour, shallow to deep: an Earth's by default, a methane
+    // sea's (Titan) or any other when given.
+    const ws = options.water?.shallow ?? [0.09, 0.42, 0.5];
+    const wd = options.water?.deep ?? [0.012, 0.06, 0.2];
+    mat.setVector3('psWaterS', new BABYLON.Vector3(ws[0], ws[1], ws[2]));
+    mat.setVector3('psWaterD', new BABYLON.Vector3(wd[0], wd[1], wd[2]));
     const light = new BABYLON.Vector4(0, 1, 0, 0);
     const fine = new BABYLON.Vector2(options.fine?.scale ?? 0, options.colorUrl ? 0 : options.fine?.amplitude ?? 0);
     const sea = new BABYLON.Vector4();

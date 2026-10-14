@@ -28,6 +28,11 @@ export interface PlanetSurfaceOptions {
         scale: number;
         amplitude: number;
     };
+    /** The sea's colour in the shallows and the deep, linear RGB 0…1. */
+    water?: {
+        shallow: number[];
+        deep: number[];
+    };
     seed?: number;
     /**
      * Classify the land with the BIOME SHADER (the plugin from

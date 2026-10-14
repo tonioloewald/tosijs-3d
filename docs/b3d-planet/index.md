@@ -10,7 +10,7 @@ Optional atmosphere (glow shell) and ocean (water sphere at sea level).
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p } = elements
 
@@ -25,6 +25,8 @@ const { demo } = tosi({
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
+    // A rocky world's look ('' = these dials): see rocky-world.
+    world: '',
   },
 })
 
@@ -33,6 +35,7 @@ const planet = b3dPlanet({
   radius: 50,
   subdivisions: 64,
   biome: 'on', // the biome shader's planetary front-end — radial altitude, insolation
+  world: demo.world,
 
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
@@ -50,13 +53,14 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () => [
       label3d({ text: 'Planet' }),
+      select3d({ label: 'world', value: demo.world, options: ['', ...Object.keys(ROCKY_WORLDS)] }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.1, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),
       slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
-      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -97,9 +101,9 @@ const scene = b3d(
       el.setActiveCamera(camera)
     },
   },
-  b3dSun(),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
-  b3dLight({ intensity: 0.3 }),
+  ...spaceBackdrop({ sky: '/sky' }),
+  // A little fill, so the night side is not a hole in the stars.
+  b3dLight({ intensity: 0.15 }),
   planet,
 )
 
@@ -108,6 +112,16 @@ preview.append(
   div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
+// Choosing a world sets the dials to its numbers (the planet writes the
+// same ones into itself), and they are yours to move from there.
+demo.world.observe(() => {
+  const look = ROCKY_WORLDS[demo.world.value]
+  if (look) Object.assign(demo, { grossAmplitude: look.grossAmplitude, detailAmplitude: look.detailAmplitude, atmosphere: look.atmosphere, clouds: look.clouds, ocean: look.ocean })
+  // Written straight away: a bound attribute arrives a frame later, after
+  // this rebuild.
+  planet.world = demo.world.value
+  planet.regenerate()
+})
 for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude']) {
   demo[key].observe(() => {
     planet.regenerate()
@@ -153,6 +167,12 @@ tosi-b3d {
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
+| `world` | `''` | A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet |
+| `craters` | `0` | How cratered, `0…1` (see landform's `sphereCraters`) |
+| `seaShallow` / `seaDeep` | `''` | The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's) |
+| `craterSize` | `0.15` | The largest crater's radius, a fraction of the planet's |
+| `craterWear` | `0.6` | How worn the old craters are, `0…1` |
+| `craterAsymmetry` | `0` | More craters on the planet's local +Z side, `-1…1` (a locked moon's leading side) |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
@@ -168,7 +188,7 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
-| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
+| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |

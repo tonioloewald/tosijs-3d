@@ -28,7 +28,12 @@ const MOON_MAPS = {
 }
 
 export const SOL: SystemSpec = {
-  star: { name: 'Sol', rgb: [255, 242, 175], luminosity: 1, spectralType: 'G2V' },
+  star: {
+    name: 'Sol',
+    rgb: [255, 242, 175],
+    luminosity: 1,
+    spectralType: 'G2V',
+  },
   planets: [
     { name: 'Mercury', au: 0.39, radiusKm: 2440, look: { world: 'mercury' } },
     { name: 'Venus', au: 0.72, radiusKm: 6052, look: { world: 'venus' } },
@@ -48,7 +53,14 @@ export const SOL: SystemSpec = {
         atmosphere: 0.03,
         clouds: 0.45,
       },
-      moons: [{ name: 'Moon', radiusKm: 1737, look: { world: 'moon' }, maps: MOON_MAPS }],
+      moons: [
+        {
+          name: 'Moon',
+          radiusKm: 1737,
+          look: { world: 'moon' },
+          maps: MOON_MAPS,
+        },
+      ],
     },
     {
       name: 'Mars',
@@ -80,7 +92,11 @@ export const SOL: SystemSpec = {
         { name: 'Io', radiusKm: 1822, look: { world: 'io' } },
         { name: 'Europa', radiusKm: 1561, look: { world: 'ice' } },
         { name: 'Ganymede', radiusKm: 2634, look: { world: 'moon' } },
-        { name: 'Callisto', radiusKm: 2410, look: { world: 'moon', craters: 0.95 } },
+        {
+          name: 'Callisto',
+          radiusKm: 2410,
+          look: { world: 'moon', craters: 0.95 },
+        },
       ],
     },
     {

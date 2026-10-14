@@ -737,6 +737,13 @@ b3d-planet
   ringOuter  = 0  — Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`
   ringOpacity  = -1  — `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's
   ringColor  = ''  — `#rrggbb`. Blank = the gas giant preset's, else a pale tan
+  world  = ''  — A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet
+  craters  = 0  — How cratered, `0…1` (see landform's `sphereCraters`)
+  seaShallow  = ''  — The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)
+  seaDeep  = ''  — The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)
+  craterSize  = 0.15  — The largest crater's radius, a fraction of the planet's
+  craterWear  = 0.6  — How worn the old craters are, `0…1`
+  craterAsymmetry  = 0  — More craters on the planet's local +Z side, `-1…1` (a locked moon's leading side)
   seed  = 12345  — Noise seed
   radius  = 50  — Base sphere radius
   subdivisions  = 64  — Grid subdivisions per cube face
@@ -747,7 +754,7 @@ b3d-planet
   atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it
   atmosphereColor
   atmosphereTurbulence
-  clouds  = 0  — (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
+  clouds  = 0  — (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none
   cloudColor  = '#ffffff'  — The cloud's colour where lit
   cloudSpeed  = 1  — How fast the weather moves. `0` holds it still
   ocean  = 0.6  — Ocean coverage (0=none, 0.6=60% of surface underwater)
@@ -993,6 +1000,8 @@ b3d-star-system
   orbitScale  = 3  — Multiplier for orbital distances
   animate  = 'on'  — Animate planet orbital motion
   showOrbits  = 'on'  — Show orbital path lines
+  beltCount  = 1500  — Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)
+  maps  = 'off'  — `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them
   x
   y
   z
@@ -1351,19 +1360,14 @@ procedural-rock
   squash  = 0.7  — Height relative to width. Low values give slabs
   sink  = 0.15  — Fraction of the height that sits below the ground
 
-## rocket-ascent
-Rocket Ascent
+## rocky-world
+rocky-world
 
-  cloudAltitude  = 140  — Centre of the cloud deck (m)
-  spaceStart  = 500  — Where the sky begins to fade (m)
-  spaceFull  = 2400  — Full vacuum (m)
-  apogee  = 3200  — Where it stops and resets (m)
-  accel  = 9  — Net acceleration (m/s²) — thrust already minus gravity
-  holdSeconds  = 2.5  — Pause on the pad, and again at apogee
-  starfield  = 2500  — Background stars (see [b3d-skybox](?b3d-skybox.ts))
-  nebulae  = 0  — Sprite nebulae, OFF — superseded by baking the galaxy
-  rocketScale  = 4  — Uniform scale on the Kenney parts
-  timeOfDay  = 14  — Broad daylight — so the stars appear because the AIR ran out, not because night fell
+  ocean  = 0…1
+  atmosphereColor  = rgba(…)
+  grossAmplitude  = Relief, in the planet's own units (its radius is 50 in the demos)
+  detailAmplitude  = Relief, in the planet's own units (its radius is 50 in the demos)
+  sea  = { shallow, deep }
 
 ## scatter
 scatter

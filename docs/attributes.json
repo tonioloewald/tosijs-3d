@@ -2905,6 +2905,41 @@
         "description": "`#rrggbb`. Blank = the gas giant preset's, else a pale tan"
       },
       {
+        "name": "world",
+        "default": "''",
+        "description": "A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet"
+      },
+      {
+        "name": "craters",
+        "default": "0",
+        "description": "How cratered, `0…1` (see landform's `sphereCraters`)"
+      },
+      {
+        "name": "seaShallow",
+        "default": "''",
+        "description": "The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)"
+      },
+      {
+        "name": "seaDeep",
+        "default": "''",
+        "description": "The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)"
+      },
+      {
+        "name": "craterSize",
+        "default": "0.15",
+        "description": "The largest crater's radius, a fraction of the planet's"
+      },
+      {
+        "name": "craterWear",
+        "default": "0.6",
+        "description": "How worn the old craters are, `0…1`"
+      },
+      {
+        "name": "craterAsymmetry",
+        "default": "0",
+        "description": "More craters on the planet's local +Z side, `-1…1` (a locked moon's leading side)"
+      },
+      {
         "name": "seed",
         "default": "12345",
         "description": "Noise seed"
@@ -2953,7 +2988,7 @@
       {
         "name": "clouds",
         "default": "0",
-        "description": "(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
+        "description": "(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none"
       },
       {
         "name": "cloudColor",
@@ -3901,6 +3936,16 @@
         "name": "showOrbits",
         "default": "'on'",
         "description": "Show orbital path lines"
+      },
+      {
+        "name": "beltCount",
+        "default": "1500",
+        "description": "Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)"
+      },
+      {
+        "name": "maps",
+        "default": "'off'",
+        "description": "`'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them"
       },
       {
         "name": "x"
@@ -5239,58 +5284,28 @@
     ]
   },
   {
-    "module": "rocket-ascent",
-    "summary": "Rocket Ascent",
+    "module": "rocky-world",
+    "summary": "rocky-world",
     "attributes": [
       {
-        "name": "cloudAltitude",
-        "default": "140",
-        "description": "Centre of the cloud deck (m)"
+        "name": "ocean",
+        "default": "0…1"
       },
       {
-        "name": "spaceStart",
-        "default": "500",
-        "description": "Where the sky begins to fade (m)"
+        "name": "atmosphereColor",
+        "default": "rgba(…)"
       },
       {
-        "name": "spaceFull",
-        "default": "2400",
-        "description": "Full vacuum (m)"
+        "name": "grossAmplitude",
+        "default": "Relief, in the planet's own units (its radius is 50 in the demos)"
       },
       {
-        "name": "apogee",
-        "default": "3200",
-        "description": "Where it stops and resets (m)"
+        "name": "detailAmplitude",
+        "default": "Relief, in the planet's own units (its radius is 50 in the demos)"
       },
       {
-        "name": "accel",
-        "default": "9",
-        "description": "Net acceleration (m/s²) — thrust already minus gravity"
-      },
-      {
-        "name": "holdSeconds",
-        "default": "2.5",
-        "description": "Pause on the pad, and again at apogee"
-      },
-      {
-        "name": "starfield",
-        "default": "2500",
-        "description": "Background stars (see [b3d-skybox](?b3d-skybox.ts))"
-      },
-      {
-        "name": "nebulae",
-        "default": "0",
-        "description": "Sprite nebulae, OFF — superseded by baking the galaxy"
-      },
-      {
-        "name": "rocketScale",
-        "default": "4",
-        "description": "Uniform scale on the Kenney parts"
-      },
-      {
-        "name": "timeOfDay",
-        "default": "14",
-        "description": "Broad daylight — so the stars appear because the AIR ran out, not because night fell"
+        "name": "sea",
+        "default": "{ shallow, deep }"
       }
     ]
   },

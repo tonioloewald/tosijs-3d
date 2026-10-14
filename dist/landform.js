@@ -318,17 +318,90 @@ export function craterField(opts = {}) {
             if (d >= reach)
                 continue;
             const age = hash01i(seed, ix, iz, k * 7 + 5) * Math.max(0, Math.min(1, wear));
-            const depth = radius * depthRatio * (1 - 0.75 * age);
-            const rimHeight = depth * 0.3 * (1 - 0.8 * age);
-            let bowl = Math.pow(smooth(1 - d / radius), 1.4);
-            if (radius > complexRadius) {
-                // COMPLEX: a flat floor (the bowl saturates) and a central peak.
-                bowl = Math.min(1, bowl * 1.6);
-                const peak = smooth(1 - d / (radius * 0.18));
-                acc += depth * 0.35 * peak;
-            }
-            const rt = 1 - Math.abs(d - radius * 0.9) / (radius * 0.35);
-            acc += -depth * bowl + rimHeight * smooth(rt);
+            acc += craterProfile(d, radius, depthRatio, age, complexRadius);
+        }
+        return acc;
+    };
+}
+/**
+ * ONE CRATER's height change at distance `d` from its centre: a bowl, a
+ * raised rim, and past `complexRadius` a flat floor and a central peak. `age`
+ * (0 fresh … 1 worn) makes it shallower with a softer rim. The flat field and
+ * the sphere's share it, so a crater is the same shape on either.
+ */
+export function craterProfile(d, radius, depthRatio, age, complexRadius) {
+    const depth = radius * depthRatio * (1 - 0.75 * age);
+    const rimHeight = depth * 0.3 * (1 - 0.8 * age);
+    let bowl = Math.pow(smooth(1 - d / radius), 1.4);
+    let acc = 0;
+    if (radius > complexRadius) {
+        // COMPLEX: a flat floor (the bowl saturates) and a central peak.
+        bowl = Math.min(1, bowl * 1.6);
+        const peak = smooth(1 - d / (radius * 0.18));
+        acc += depth * 0.35 * peak;
+    }
+    const rt = 1 - Math.abs(d - radius * 0.9) / (radius * 0.35);
+    return acc - depth * bowl + rimHeight * smooth(rt);
+}
+/**
+ * **Craters on a sphere.** `craterField` on a whole body: give it a point on
+ * the unit sphere and it returns the height change there, as a fraction of
+ * the body's radius.
+ *
+ * The cells are cubes in 3D, each crater's centre jittered inside its cube
+ * and pushed onto the sphere, and distance is measured between points on it,
+ * so there is no seam and no squeeze at the poles. A crater's centre can land
+ * up to half a cell outside its cube, so a sample checks its own cell and the
+ * 26 around it, per size class.
+ */
+export function sphereCraters(opts = {}) {
+    const { seed = 1, minRadius = 0.01, maxRadius = 0.2, density = 0.5, depthRatio = 0.4, wear = 0.6, complexRadius = 0.06, facing = { x: 0, y: 0, z: 1 }, asymmetry = 0, } = opts;
+    const p = Math.max(0, Math.min(1, density));
+    const classes = [];
+    for (let r = Math.max(1e-4, minRadius); r <= maxRadius * 1.0001; r *= 2)
+        classes.push(r);
+    classes.reverse();
+    const CELL = 7;
+    const fl = Math.hypot(facing.x, facing.y, facing.z) || 1;
+    const fx = facing.x / fl;
+    const fy = facing.y / fl;
+    const fz = facing.z / fl;
+    return (x, y, z) => {
+        if (p <= 0)
+            return 0;
+        let acc = 0;
+        for (let k = 0; k < classes.length; k++) {
+            const r0 = classes[k];
+            const cell = r0 * CELL;
+            const cx0 = Math.floor(x / cell);
+            const cy0 = Math.floor(y / cell);
+            const cz0 = Math.floor(z / cell);
+            for (let ix = cx0 - 1; ix <= cx0 + 1; ix++)
+                for (let iy = cy0 - 1; iy <= cy0 + 1; iy++)
+                    for (let iz = cz0 - 1; iz <= cz0 + 1; iz++) {
+                        const key = Math.imul(iy, 73856093) ^ Math.imul(iz, 19349663);
+                        const radius = r0 * (1 + hash01i(seed, ix, key, k * 7 + 2));
+                        const reach = radius * 1.25;
+                        const span = Math.max(0, cell - 2 * reach);
+                        const jx = ix * cell + reach + hash01i(seed, ix, key, k * 7 + 3) * span;
+                        const jy = iy * cell + reach + hash01i(seed, ix, key, k * 7 + 4) * span;
+                        const jz = iz * cell + reach + hash01i(seed, ix, key, k * 7 + 6) * span;
+                        const jl = Math.hypot(jx, jy, jz);
+                        // Only cubes the sphere passes through hold craters.
+                        if (jl === 0 || Math.abs(jl - 1) > cell * 0.5)
+                            continue;
+                        const sx = jx / jl;
+                        const sy = jy / jl;
+                        const sz = jz / jl;
+                        const bias = 1 + asymmetry * (sx * fx + sy * fy + sz * fz);
+                        if (hash01i(seed, ix, key, k * 7 + 1) >= p * bias)
+                            continue;
+                        const d = Math.hypot(x - sx, y - sy, z - sz);
+                        if (d >= reach)
+                            continue;
+                        const age = hash01i(seed, ix, key, k * 7 + 5) * Math.max(0, Math.min(1, wear));
+                        acc += craterProfile(d, radius, depthRatio, age, complexRadius);
+                    }
         }
         return acc;
     };

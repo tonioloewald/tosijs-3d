@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.5 (unreleased)
+## 0.10.5
 
 ### Added
 
@@ -31,6 +31,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A gas giant's storm had a seam** where its swirl read noise at an angle that jumps a full turn.
 - **Gas giant poles had a dark blotch**, a cap of a different colour; the bands now close in on the pole, a little darker.
 - **Rings are sharp, and no longer flicker.** The density along the radius is 1D noise at several scales, terraced into plateaus of different widths with edges about a pixel wide, under a broad profile (faint inside, brightest a little out), with a wide gap and a narrow one cut clean. A shepherd moon's wake ripples the edges either side of the narrow gap. Only detail finer than a pixel fades to its average, which is what stopped the flicker; the band frequency no longer grows with the seed.
+
+Size: barrel (min, packages external) 1042.5 KB raw / 353.5 KB gz, +3.67% on 0.10.4.
 
 ## 0.10.4
 

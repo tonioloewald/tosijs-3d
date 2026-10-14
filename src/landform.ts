@@ -583,9 +583,12 @@ export function sphereCraters(
             const radius = r0 * (1 + hash01i(seed, ix, key, k * 7 + 2))
             const reach = radius * 1.25
             const span = Math.max(0, cell - 2 * reach)
-            const jx = ix * cell + reach + hash01i(seed, ix, key, k * 7 + 3) * span
-            const jy = iy * cell + reach + hash01i(seed, ix, key, k * 7 + 4) * span
-            const jz = iz * cell + reach + hash01i(seed, ix, key, k * 7 + 6) * span
+            const jx =
+              ix * cell + reach + hash01i(seed, ix, key, k * 7 + 3) * span
+            const jy =
+              iy * cell + reach + hash01i(seed, ix, key, k * 7 + 4) * span
+            const jz =
+              iz * cell + reach + hash01i(seed, ix, key, k * 7 + 6) * span
             const jl = Math.hypot(jx, jy, jz)
             // Only cubes the sphere passes through hold craters.
             if (jl === 0 || Math.abs(jl - 1) > cell * 0.5) continue

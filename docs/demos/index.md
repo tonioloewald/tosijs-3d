@@ -12,7 +12,7 @@ reading the code.
 
 <!-- toc -->
 - [Biped Playground](/playground/)
-- [Rocket Ascent](/rocket-ascent/)
+- [Solar System](/solar-system/)
 - [Weapon Fit](/weapon-fit/)
 - [Skybox Baker](/skybox-baker/)
 - [Land and Sky](/land-and-sky/)

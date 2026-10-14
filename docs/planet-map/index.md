@@ -18,7 +18,7 @@ many) and `storm intensity` are dials, and the cover and the cyclones are
 worked out as you watch.
 
 ```js
-import { b3d, b3dPlanet, b3dSun, b3dSkybox, select3d, slider3d, label3d } from 'tosijs-3d'
+import { b3d, b3dPlanet, spaceBackdrop, select3d, slider3d, label3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const WORLDS = {
@@ -97,8 +97,7 @@ preview.append(
         el.setActiveCamera(camera)
       },
     },
-    b3dSun(),
-    b3dSkybox({ timeOfDay: 15, realtimeScale: 0, atmosphere: 0, starfieldCube: '/sky/nebula', starfieldData: '/sky/stars' }),
+    ...spaceBackdrop({ sky: '/sky' }),
     planet,
   )
 )

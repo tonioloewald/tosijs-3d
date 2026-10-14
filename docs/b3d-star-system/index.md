@@ -5,12 +5,18 @@ Given a galaxy seed and a star's ADDRESS (`star`, stable) or index
 (`starIndex`) in the [voxel galaxy](/voxel-galaxy/), it creates `b3d-star` and `b3d-planet` child components with
 deterministic seeds.
 
-Planets orbit at scaled distances and can optionally animate.
+Every body is a real [planet](/b3d-planet/): giants banded and ringed, rocky
+worlds picked from what the generator says about each one (airless rock,
+seas, a toxic hot sky, or dust; see [rocky-world](/rocky-world/)'s
+`rockyWorldFor`), moons locked to their planets, and an asteroid belt where
+there is room for one. Where they go is [system-layout](/system-layout/):
+distances on a log scale and sizes on a square root, so the system fits on a
+screen without being empty.
 
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, voxelGalaxy, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, voxelGalaxy, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p, pre } = elements
 
@@ -23,6 +29,8 @@ const { demo } = tosi({
     orbitScale: 3,
     animate: true,
     showOrbits: true,
+    // Which body the camera follows ('' = the whole system).
+    focus: '',
   },
 })
 
@@ -51,6 +59,8 @@ const scene = b3d(
       slider3d({ label: 'orbit scale', value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
       toggle3d({ label: 'animate', value: demo.animate }),
       toggle3d({ label: 'show orbits', value: demo.showOrbits }),
+      // Look at one body: the camera follows it round its orbit.
+      select3d({ label: 'look at', value: demo.focus, options: ['', ...starSystem.bodies.map((b) => b.name)] }),
     ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
@@ -61,15 +71,30 @@ const scene = b3d(
         BABYLON.Vector3.Zero(),
         el.scene
       )
-      camera.lowerRadiusLimit = 10
-      camera.upperRadiusLimit = 500
+      camera.lowerRadiusLimit = 1
+      camera.upperRadiusLimit = 600
       camera.minZ = 0.1
-      camera.maxZ = 2000
+      camera.maxZ = 5000
       camera.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(camera)
+      // FOLLOW THE CHOSEN BODY: ease the camera's target onto it each frame,
+      // and on choosing, pull in to a few of its radii.
+      let following = ''
+      el.scene.onBeforeRenderObservable.add(() => {
+        const body = starSystem.bodies.find((b) => b.name === demo.focus.value)
+        const to = body ? body.node.getAbsolutePosition() : BABYLON.Vector3.Zero()
+        // In place: assigning an orbit camera's target moves its distance.
+        BABYLON.Vector3.LerpToRef(camera.target, to, 0.15, camera.target)
+        if (demo.focus.value !== following) {
+          following = demo.focus.value
+          camera.radius = body ? Math.max(3, body.radius * 7) : 100
+        }
+      })
     },
   },
   b3dLight({ intensity: 0.2 }),
+  // The star sky, without a sun: the system's own star lights it.
+  ...spaceBackdrop({ sky: '/sky', sun: false }),
   starSystem,
 )
 
@@ -99,7 +124,10 @@ function updateInfo() {
 for (const key of ['starIndex', 'scale', 'orbitScale']) {
   demo[key].observe(() => {
     starSystem.regenerate()
+    demo.focus.value = ''
     updateInfo()
+    // The 'look at' list is this system's bodies.
+    scene.refreshScenePanel?.()
   })
 }
 for (const key of ['animate', 'showOrbits']) {
@@ -153,3 +181,5 @@ tosi-b3d {
 | `orbitScale` | `3` | Multiplier for orbital distances |
 | `animate` | `'on'` | Animate planet orbital motion |
 | `showOrbits` | `'on'` | Show orbital path lines |
+| `maps` | `'off'` | `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them |
+| `beltCount` | `1500` | Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant) |

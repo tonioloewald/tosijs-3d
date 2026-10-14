@@ -59,7 +59,9 @@ export function spaceBackdrop(opts: SpaceBackdropOptions = {}): HTMLElement[] {
       starfieldCube: `${sky}/nebula`,
       starfieldData: `${sky}/stars`,
       // The pinned pair's data size (the latest is baked the same).
-      ...(sky === PINNED_SKY_URL ? { starfieldDataSize: SHIPPED_SKY.dataSize } : {}),
+      ...(sky === PINNED_SKY_URL
+        ? { starfieldDataSize: SHIPPED_SKY.dataSize }
+        : {}),
       starfieldTilt: opts.tilt ?? SHIPPED_SKY.tilt,
       ...(opts.skybox ?? {}),
     }),

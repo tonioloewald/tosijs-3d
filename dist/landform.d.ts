@@ -158,6 +158,49 @@ export interface CraterFieldOptions {
  * Returns a landform (no province: craters do not glow), unbounded.
  */
 export declare function craterField(opts?: CraterFieldOptions): LandformFn;
+/**
+ * ONE CRATER's height change at distance `d` from its centre: a bowl, a
+ * raised rim, and past `complexRadius` a flat floor and a central peak. `age`
+ * (0 fresh … 1 worn) makes it shallower with a softer rim. The flat field and
+ * the sphere's share it, so a crater is the same shape on either.
+ */
+export declare function craterProfile(d: number, radius: number, depthRatio: number, age: number, complexRadius: number): number;
+export interface SphereCraterOptions {
+    seed?: number;
+    /** Smallest and largest crater radius, as fractions of the body's radius. */
+    minRadius?: number;
+    maxRadius?: number;
+    /** How cratered, 0…1, as `craterField`'s. */
+    density?: number;
+    depthRatio?: number;
+    wear?: number;
+    /** Above this radius (fraction of the body's) a crater is complex. */
+    complexRadius?: number;
+    /**
+     * WHERE THE CRATERS FALL MORE: a unit direction in the body's frame, and
+     * how much more, -1…1. A tidally locked moon is struck more on its leading
+     * side (facing its motion); one sheltered by its planet is struck less on
+     * the side toward it. 0 is even.
+     */
+    facing?: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    asymmetry?: number;
+}
+/**
+ * **Craters on a sphere.** `craterField` on a whole body: give it a point on
+ * the unit sphere and it returns the height change there, as a fraction of
+ * the body's radius.
+ *
+ * The cells are cubes in 3D, each crater's centre jittered inside its cube
+ * and pushed onto the sphere, and distance is measured between points on it,
+ * so there is no seam and no squeeze at the poles. A crater's centre can land
+ * up to half a cell outside its cube, so a sample checks its own cell and the
+ * 26 around it, per size class.
+ */
+export declare function sphereCraters(opts?: SphereCraterOptions): (x: number, y: number, z: number) => number;
 export interface PadOptions {
     /** Pad centre (world coords). */
     x: number;

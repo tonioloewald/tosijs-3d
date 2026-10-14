@@ -85,6 +85,13 @@ export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, type GasGiantLook, type GasGiantOverrides, } from './gas-giant.js';
+export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js';
+export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js';
+export { SOL } from './sol.js';
+export { layoutSystem } from './system-layout.js';
+export type { SystemSpec, SystemPlanetSpec, SystemBodySpec, SystemLayout, } from './system-layout.js';
+export type { SpaceBackdropOptions } from './space-backdrop.js';
+export type { RockyWorldLook, RockyCraters, RockyClimate, } from './rocky-world.js';
 export { decodeGray16Png, mapSurface, loadPlanetMap, type HeightMap, type MapSurfaceOptions, } from './planet-map.js';
 export { createMappedPlanetMaterial } from './planet-map-material.js';
 export { createPlanetSurfaceMaterial, type PlanetSurfaceOptions, } from './planet-surface-material.js';
@@ -148,7 +155,6 @@ export { rockGeometry, rockFromName, rockNames, ROCK_KINDS, type RockOptions, ty
 export { scatterPlacements, clumpAt, autoClumpSize, NATURE_RULES, NATURE_ROLES, roleFor, type DecorationRole, ROCK_RULES, NearIndex, NATURE_KIT_RULES, type ScatterRule, type ScatterClimate, type ScatterOptions, type Placement, } from './scatter.js';
 export { cloudField, cloudOpacity, type CloudFieldOptions, } from './cloud-field.js';
 export { BRIGHT_GAMMA, FACE_NAMES, PACKED_CAPACITY, PACKED_FLAG, STAR_PALETTE, decodeTexel, dirToFace, encodeStarfield, faceToDir, paletteGlsl, paletteIndex, spectralGlsl, spectralRamp, spectralValue, type DecodedObject, type EncodedStarfield, type FaceUv, type SkyObject, } from './starfield-codec.js';
-export { rocketAscent, type RocketAscentOptions } from './rocket-ascent.js';
 export { pngEncode, crc32, adler32 } from './png.js';
 export { bakeSkyboxCube, bakeSkyPair, starsFromGalaxy, starsFromVoxelGalaxy, facesToPngs, facesToZip, defaultBakePose, SHIPPED_SKY, type BakedFace, type SkyboxBakeOptions, } from './skybox-baker.js';
 export { SurroundingsProbe, makeProbeScratch, readSurroundings, type ProbeScratch, type ReadOptions, } from './surroundings-probe.js';
@@ -256,7 +262,8 @@ export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, 
 export type { BiomeChartConfig } from './biome-chart.js';
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
 export type { LocalizedFilter } from './slope-profile.js';
-export { volcano, impactCrater, craterField, pad, gulley, cover, composeLandforms, mergeProvinces, withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
+export type { SphereCraterOptions } from './landform.js';
+export { volcano, impactCrater, craterField, craterProfile, sphereCraters, pad, gulley, cover, composeLandforms, mergeProvinces, withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js';
 import { applyCarve, sphere, capsule, tube, box as carveBox, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft } from './carve.js';
 export declare const carve: {

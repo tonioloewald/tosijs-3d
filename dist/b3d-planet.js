@@ -11,7 +11,7 @@ Optional atmosphere (glow shell) and ocean (water sphere at sea level).
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, p } = elements
 
@@ -26,6 +26,8 @@ const { demo } = tosi({
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
+    // A rocky world's look ('' = these dials): see rocky-world.
+    world: '',
   },
 })
 
@@ -34,6 +36,7 @@ const planet = b3dPlanet({
   radius: 50,
   subdivisions: 64,
   biome: 'on', // the biome shader's planetary front-end — radial altitude, insolation
+  world: demo.world,
 
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
@@ -51,13 +54,14 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () => [
       label3d({ text: 'Planet' }),
+      select3d({ label: 'world', value: demo.world, options: ['', ...Object.keys(ROCKY_WORLDS)] }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.1, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),
       slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
-      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'clouds', value: demo.clouds, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -98,9 +102,9 @@ const scene = b3d(
       el.setActiveCamera(camera)
     },
   },
-  b3dSun(),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
-  b3dLight({ intensity: 0.3 }),
+  ...spaceBackdrop({ sky: '/sky' }),
+  // A little fill, so the night side is not a hole in the stars.
+  b3dLight({ intensity: 0.15 }),
   planet,
 )
 
@@ -109,6 +113,16 @@ preview.append(
   div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
+// Choosing a world sets the dials to its numbers (the planet writes the
+// same ones into itself), and they are yours to move from there.
+demo.world.observe(() => {
+  const look = ROCKY_WORLDS[demo.world.value]
+  if (look) Object.assign(demo, { grossAmplitude: look.grossAmplitude, detailAmplitude: look.detailAmplitude, atmosphere: look.atmosphere, clouds: look.clouds, ocean: look.ocean })
+  // Written straight away: a bound attribute arrives a frame later, after
+  // this rebuild.
+  planet.world = demo.world.value
+  planet.regenerate()
+})
 for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude']) {
   demo[key].observe(() => {
     planet.regenerate()
@@ -154,6 +168,12 @@ tosi-b3d {
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
+| `world` | `''` | A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet |
+| `craters` | `0` | How cratered, `0…1` (see landform's `sphereCraters`) |
+| `seaShallow` / `seaDeep` | `''` | The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's) |
+| `craterSize` | `0.15` | The largest crater's radius, a fraction of the planet's |
+| `craterWear` | `0.6` | How worn the old craters are, `0…1` |
+| `craterAsymmetry` | `0` | More craters on the planet's local +Z side, `-1…1` (a locked moon's leading side) |
 | `gas` | `''` | Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/) |
 | `bands` | `0` | Gas giant: stripes from pole to pole. `0` = the preset's |
 | `turbulence` | `-1` | Gas giant: how torn the band edges are, `0…1`. `-1` = the preset's |
@@ -169,7 +189,7 @@ tosi-b3d {
 | `grossAmplitude` | `5` | Gross height multiplier |
 | `detailAmplitude` | `1` | Detail height multiplier |
 | `atmosphere` | `0.08` | Atmosphere thickness (fraction of radius, 0=none). The clouds ride half way up it |
-| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud, `0…1`. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
+| `clouds` | `0` | (Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world's ground.) Weather seen from orbit: how much of the sky is cloud: `1` is mostly cloud with breaks, and on to `3`, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. `0` = none |
 | `cloudColor` | `'#ffffff'` | The cloud's colour where lit |
 | `storms` (property) | `[]` | Storms placed on the weather, up to four: `planet.storms = [{ lat: 22, lon: -60, size: 8, intensity: 1, lightning: 1 }]`. Each is a cyclone with an eye, turning the right way for its hemisphere, with lightning inside; `cyclone: 0` makes it a thunderstorm complex that sits and flashes. Needs `clouds` above 0. Provisional: a storm here is not yet a weather cell on the ground, and the shape of this may change when it is |
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
@@ -188,6 +208,8 @@ import { createPlanetClouds } from './planet-clouds.js';
 import { sceneLight } from './gas-giant-material.js';
 import { createPlanetBiome, createPlanetSurfaceMaterial, } from './planet-surface-material.js';
 import { assetUrl } from './asset-url.js';
+import { resolveRockyWorld } from './rocky-world.js';
+import { sphereCraters } from './landform.js';
 import { createGasGiantMaterial } from './gas-giant-material.js';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
@@ -252,6 +274,21 @@ export class B3dPlanet extends B3dChild {
         ringOuter: 0,
         ringOpacity: -1,
         ringColor: '',
+        // A ROCKY WORLD's look (rocky-world): 'moon', 'mercury', 'mars',
+        // 'venus', 'earth'. A preset: choosing one writes its sea, air, clouds,
+        // relief, craters and climate into this planet's own settings, which
+        // are then yours to tune.
+        world: '',
+        // Craters (when no `world` decides them): density 0…1, the largest's
+        // radius as a fraction of the planet's, wear, and how many more fall
+        // on the local +Z side (-1…1).
+        craters: 0,
+        // The sea's colour, shallow and deep ('' = an Earth's).
+        seaShallow: '',
+        seaDeep: '',
+        craterSize: 0.15,
+        craterWear: 0.6,
+        craterAsymmetry: 0,
         seed: 12345,
         radius: 50,
         subdivisions: 64,
@@ -281,6 +318,12 @@ export class B3dPlanet extends B3dChild {
      * settings are unused and the sea sits at the surface's sea level.
      */
     surface = null;
+    /**
+     * Changes to the `world`'s look for THIS planet (`{ ocean: 0.3 }`), read
+     * at the next build. The star system uses it to give each Earth-like
+     * world its own share of sea.
+     */
+    worldOverrides = null;
     /**
      * STORMS placed on the weather (needs `clouds` above 0): up to four, each
      * `{ lat, lon, size, intensity, lightning }`. A storm is a cyclone that
@@ -385,6 +428,8 @@ export class B3dPlanet extends B3dChild {
         const attrs = this;
         const radius = attrs.radius;
         const subs = attrs.subdivisions;
+        this._applyWorld();
+        this._makeCraters();
         if (attrs.gas) {
             /*
             A GAS GIANT HAS NO GROUND. A smooth sphere, slightly flattened (giants
@@ -468,8 +513,10 @@ export class B3dPlanet extends B3dChild {
         let highest = 1e-3;
         let deepest = 1e-3;
         this.vertexHeights = heights;
-        const hasSea = this.surface != null ? !isOff(attrs.flatSea) : attrs.ocean > 0;
-        const seaAt = this.surface != null || !hasSea ? 0 : this.heightPercentile(attrs.ocean);
+        const hasSea = this.surface != null ? !isOff(attrs.flatSea) : this._val('ocean') > 0;
+        const seaAt = this.surface != null || !hasSea
+            ? 0
+            : this.heightPercentile(this._val('ocean'));
         const heightData = new Float32Array(totalVerts * 2);
         for (let i = 0; i < totalVerts; i++) {
             const above = heights[i] - seaAt;
@@ -509,28 +556,42 @@ export class B3dPlanet extends B3dChild {
             this._biomeHost = null;
             this.biomePlugin = null;
             if (!attrs.colorMap && !isOff(attrs.biome)) {
+                /*
+                THE CLASSIFIER'S LENGTHS ARE SCALED TO THE PLANET. They were tuned
+                on the demo's radius 50, and a radius-3000 planet with the same
+                numbers was frozen (a 100 m hill six chart units colder) and
+                speckled (climate noise sixty times too fine). Board #3280.
+                */
+                const k = 50 / radius;
                 const made = createPlanetBiome(this.owner.scene, {
                     // The classifier's coastline is the sea's own level.
-                    seaRadius: hasSea ? radius + seaAt : 0.001,
-                    lapseRate: 0.06,
-                    tNoiseScale: 0.05,
+                    // With no sea, the planet's own radius: the classifier's sizes
+                    // are scaled by it (a datum at 0.001 put its noise out past
+                    // float precision: grids of lines on Io, Mars drained of colour).
+                    seaRadius: hasSea ? radius + seaAt : radius,
+                    // No sea, no datum to cool with height from (the ground is held
+                    // far above any sea, see planet-surface-material).
+                    lapseRate: hasSea ? 0.06 * k : 1e-7, // (0 reads as unset: the default lapse)
+                    tNoiseScale: 0.05 * k,
                     /*
                     Moisture varies in broad regions and by a lot: about three across
                     a hemisphere, enough to cross the chart from desert to forest. At
                     0.07 and the plugin's 0.18 a continent was one colour (the patches
                     were small and too faint to change biome).
                     */
-                    mNoiseScale: 0.035,
+                    mNoiseScale: 0.035 * k,
                     mNoiseAmp: 0.5,
-                    ditherScale: 0.6,
-                    detailNoiseScale: 1.2,
-                    surfDepth: 0.6,
+                    ditherScale: 0.6 * k,
+                    detailNoiseScale: 1.2 * k,
+                    strataScale: 0.06 * k,
+                    latWarpScale: 0.02 * k,
+                    surfDepth: 0.6 / k,
                     // Planet-scale contours are gentle: exaggerate slope deviation so
                     // steep flanks still read as rock at this radius.
                     slopeExaggeration: 6,
                     // Moisture dries over roughly the relief height: coasts wet,
                     // highlands dry.
-                    moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
+                    moistureDryHeight: Math.max(2, this._val('grossAmplitude') * 1.2),
                     rainShadow: 0.3,
                 });
                 this.biomePlugin = made.plugin;
@@ -544,12 +605,46 @@ export class B3dPlanet extends B3dChild {
                 */
                 if (this._biomeParams != null) {
                     this._biomeParams.seaRadius = made.plugin.params.seaRadius;
+                    // The lapse follows the sea (none on a dry world): kept from an
+                    // earlier build with a sea, it froze every dry world chosen after.
+                    this._biomeParams.lapseRate = made.plugin.params.lapseRate;
+                    // The lengths follow the radius (above), when it changes.
+                    if (radius !== this._paramsRadius) {
+                        for (const key of [
+                            'tNoiseScale',
+                            'mNoiseScale',
+                            'ditherScale',
+                            'detailNoiseScale',
+                            'strataScale',
+                            'latWarpScale',
+                            'surfDepth',
+                        ])
+                            this._biomeParams[key] = made.plugin.params[key];
+                    }
                     this._biomeParams.moistureDryHeight =
                         made.plugin.params.moistureDryHeight;
                     made.plugin.params = this._biomeParams;
                 }
                 else {
                     this._biomeParams = made.plugin.params;
+                }
+                this._paramsRadius = radius;
+                // A world's climate, written when the world changes: after that
+                // the params are anyone's to tune, as they are without one.
+                const climate = this._look()?.climate;
+                if (attrs.world !== this._climateOf) {
+                    this._climateOf = attrs.world;
+                    // Volcanism only where the world has it: left over from Io, an
+                    // Earth chosen after it glowed.
+                    if (climate)
+                        Object.assign(made.plugin.params, { volcanism: 0, ...climate });
+                }
+                // A world's own ground colours (Io's sulfur): one row of four for
+                // every moisture row. The plugin is new each build, so every time.
+                const palette = this._look()?.palette;
+                if (palette) {
+                    made.plugin.palette = Array.from({ length: 5 }, () => palette.a).flat();
+                    made.plugin.paletteB = Array.from({ length: 5 }, () => palette.b).flat();
                 }
             }
             const mapped = createPlanetSurfaceMaterial(this.owner.scene, {
@@ -561,6 +656,13 @@ export class B3dPlanet extends B3dChild {
                 glint: attrs.seaGlint,
                 seaIce: attrs.seaIce,
                 inlandWater: !isOff(attrs.inlandWater) && attrs.inlandWater != null,
+                water: /^#[0-9a-f]{6}/i.test(attrs.seaShallow) &&
+                    /^#[0-9a-f]{6}/i.test(attrs.seaDeep)
+                    ? {
+                        shallow: gasGiantRgb(attrs.seaShallow.slice(0, 7)),
+                        deep: gasGiantRgb(attrs.seaDeep.slice(0, 7)),
+                    }
+                    : undefined,
                 seed: 1 + (Math.abs(attrs.seed) % 83),
                 /*
                 The detail noise CARRIED ON past what the mesh can hold: heightAt
@@ -571,7 +673,7 @@ export class B3dPlanet extends B3dChild {
                 fine: this.surface == null
                     ? {
                         scale: attrs.detailScale * radius * 8,
-                        amplitude: attrs.detailAmplitude * 0.12,
+                        amplitude: this._val('detailAmplitude') * 0.12,
                     }
                     : undefined,
             });
@@ -591,7 +693,7 @@ export class B3dPlanet extends B3dChild {
     _builtSea = '';
     _seaKey() {
         const attrs = this;
-        return `${attrs.ocean}|${attrs.flatSea}`;
+        return `${this._val('ocean')}|${attrs.flatSea}|${attrs.world}`;
     }
     _surfaceFromMap = false;
     /**
@@ -651,7 +753,7 @@ export class B3dPlanet extends B3dChild {
         if (this.owner == null || this.rootNode == null)
             return;
         const attrs = this;
-        const atmoFrac = attrs.atmosphere;
+        const atmoFrac = this._val('atmosphere');
         if (atmoFrac <= 0 || attrs.gas)
             return;
         const scene = this.owner.scene;
@@ -722,7 +824,7 @@ export class B3dPlanet extends B3dChild {
         // A LOOP, not Math.max(...): spreading every vertex height into call
         // arguments overflows the stack past the engine's argument limit (a page
         // that would not start at subdivisions 160, board #2745).
-        let maxH = attrs.grossAmplitude + attrs.detailAmplitude;
+        let maxH = this._val('grossAmplitude') + this._val('detailAmplitude');
         if (this.vertexHeights && this.vertexHeights.length > 0) {
             maxH = -Infinity;
             for (const h of this.vertexHeights)
@@ -745,7 +847,7 @@ export class B3dPlanet extends B3dChild {
             ],
             needAlphaBlending: true,
         });
-        const atmoColor = Color.fromCss(attrs.atmosphereColor || 'rgba(77,128,230,0.15)');
+        const atmoColor = Color.fromCss(this._val('atmosphereColor') || 'rgba(77,128,230,0.15)');
         mat.setVector3('atmoColor', new BABYLON.Vector3(atmoColor.r / 255, atmoColor.g / 255, atmoColor.b / 255));
         mat.setFloat('atmoOpacity', atmoColor.a);
         mat.setFloat('time', 0);
@@ -770,7 +872,9 @@ export class B3dPlanet extends B3dChild {
     _maxHeight() {
         const attrs = this;
         if (this.vertexHeights == null || this.vertexHeights.length === 0)
-            return attrs.gas ? 0 : attrs.grossAmplitude + attrs.detailAmplitude;
+            return attrs.gas
+                ? 0
+                : this._val('grossAmplitude') + this._val('detailAmplitude');
         let max = -Infinity;
         for (const h of this.vertexHeights)
             if (h > max)
@@ -790,19 +894,19 @@ export class B3dPlanet extends B3dChild {
         if (this.owner == null || this.rootNode == null)
             return;
         const attrs = this;
-        if (!(attrs.clouds > 0) || attrs.gas)
+        if (!(this._val('clouds') > 0) || attrs.gas)
             return;
         let color;
         try {
-            color = BABYLON.Color3.FromHexString(String(attrs.cloudColor || '#ffffff').slice(0, 7));
+            color = BABYLON.Color3.FromHexString(String(this._val('cloudColor') || '#ffffff').slice(0, 7));
         }
         catch {
             color = new BABYLON.Color3(1, 1, 1);
         }
         // Half way up the air, so a deeper atmosphere carries its weather higher.
-        const lift = Math.max(0.004, attrs.atmosphere * 0.5);
+        const lift = Math.max(0.004, this._val('atmosphere') * 0.5);
         this.cloudMesh = createPlanetClouds(this.owner.scene, this.rootNode, attrs.radius + Math.max(0, this._maxHeight()) + lift * attrs.radius, {
-            coverage: Math.min(1, attrs.clouds),
+            coverage: Math.min(3, this._val('clouds')),
             color,
             speed: attrs.cloudSpeed,
             seed: 1 + (Math.abs(attrs.seed) % 89),
@@ -826,8 +930,8 @@ export class B3dPlanet extends B3dChild {
         const scene = this.owner.scene;
         const radius = attrs.radius;
         // Register ring shader once
-        if (!BABYLON.Effect.ShadersStore['planetRing2VertexShader']) {
-            BABYLON.Effect.ShadersStore['planetRing2VertexShader'] = `
+        if (!BABYLON.Effect.ShadersStore['planetRing6VertexShader']) {
+            BABYLON.Effect.ShadersStore['planetRing6VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec2 uv;
@@ -838,7 +942,8 @@ export class B3dPlanet extends B3dChild {
           vUV = uv;
         }
       `;
-            BABYLON.Effect.ShadersStore['planetRing2FragmentShader'] = `
+            BABYLON.Effect.ShadersStore['planetRing6FragmentShader'] = `
+        #extension GL_OES_standard_derivatives : enable
         precision highp float;
         varying vec2 vUV;
         uniform vec3 ringColor;
@@ -859,23 +964,68 @@ export class B3dPlanet extends B3dChild {
           // Normalize to ring band
           float t = (r - ringInner) / (1.0 - ringInner);
 
-          // Procedural ring bands from seed
-          float bands = 0.0;
-          for (float i = 1.0; i < 6.0; i++) {
-            float freq = i * 7.0 + seed * 3.0;
-            float amp = hash(i * seed + 0.5) * 0.3;
-            bands += sin(t * freq) * amp;
+          // SHARP, as rings are, and irregular: the density along the
+          // radius is 1D noise at several scales, TERRACED, so it holds
+          // plateaus of different widths and steps between them with edges
+          // about a pixel wide. Only detail finer than a pixel fades to its
+          // average (drawn, it shimmered into moire and flickered).
+          float px = max(fwidth(t), 1e-5);
+          float theta = atan(uv.y, uv.x);
+
+          // A shepherd moon in the narrow gap: the edges either side of it
+          // ripple round the ring, fading away from the gap. (The integer
+          // count keeps the ripple whole across atan's jump.)
+          float gapB = hash(seed + 1.0) * 0.15 + 0.8;
+          float near = abs(t - gapB);
+          t += 0.004 * sin(theta * 36.0) * exp(-near / 0.02);
+
+          float n = 0.0;
+          float a = 0.5;
+          float f = 6.0;
+          float norm = 0.0;
+          for (float i = 0.0; i < 5.0; i++) {
+            float x = t * f + seed * 13.1 + i * 7.3;
+            float c = floor(x);
+            float k = fract(x);
+            float vn = mix(hash(c), hash(c + 1.0), k * k * (3.0 - 2.0 * k));
+            float fade = 1.0 - smoothstep(0.3, 0.6, f * px);
+            n += a * fade * (vn - 0.5);
+            norm += a;
+            a *= 0.55;
+            f *= 2.7;
           }
-          bands = 0.5 + bands;
+          n = clamp(n / norm * 1.6 + 0.5, 0.0, 1.0);
+          float steps = n * 6.0;
+          float sw = max(fwidth(steps), 1e-4);
+          float terrace = (floor(steps) + smoothstep(1.0 - sw, 1.0, fract(steps))) / 6.0;
+          float density = mix(n, terrace, 0.75);
 
-          // Gaps
-          float gap1 = smoothstep(0.0, 0.02, abs(t - hash(seed) * 0.6 - 0.2));
-          float gap2 = smoothstep(0.0, 0.015, abs(t - hash(seed + 1.0) * 0.4 - 0.5));
-          bands *= gap1 * gap2;
+          // The broad profile: faint inside, brightest a little out.
+          float profile = 0.35 + 0.65 * sin(3.1416 * pow(t, 0.75));
+          float bands = profile * (0.3 + 1.1 * density) * 1.3;
 
-          // Fade at edges
-          float edgeFade = smoothstep(0.0, 0.1, t) * smoothstep(1.0, 0.85, t);
-          float alpha = bands * edgeFade * ringOpacity;
+          // Imperfect round the ring: a faint clumping by angle and radius.
+          vec2 cq = uv * 9.0 + seed;
+          vec2 ci = floor(cq);
+          vec2 cf = fract(cq);
+          cf = cf * cf * (3.0 - 2.0 * cf);
+          float h00 = hash(ci.x + ci.y * 57.0);
+          float h10 = hash(ci.x + 1.0 + ci.y * 57.0);
+          float h01 = hash(ci.x + (ci.y + 1.0) * 57.0);
+          float h11 = hash(ci.x + 1.0 + (ci.y + 1.0) * 57.0);
+          float clump = mix(mix(h00, h10, cf.x), mix(h01, h11, cf.x), cf.y);
+          bands *= 0.95 + 0.1 * clump;
+
+          // Gaps: the wide one (Cassini's) and the moon's narrow one,
+          // cut clean, a pixel soft.
+          float g1 = abs(t - hash(seed) * 0.4 - 0.45);
+          float gap1 = smoothstep(0.022 - px, 0.022 + px, g1);
+          float gap2 = smoothstep(0.005 - px, 0.005 + px, abs(t - gapB));
+          bands *= mix(0.04, 1.0, gap1) * mix(0.06, 1.0, gap2);
+
+          // Edges: crisp, a few pixels at most.
+          float edgeFade = smoothstep(0.0, max(0.015, px * 2.0), t) * smoothstep(1.0, 1.0 - max(0.01, px * 2.0), t);
+          float alpha = clamp(bands, 0.0, 1.0) * edgeFade * ringOpacity;
 
           gl_FragColor = vec4(ringColor * bands, alpha);
         }
@@ -902,8 +1052,9 @@ export class B3dPlanet extends B3dChild {
         const outerRadius = radius * outerRadii;
         const mesh = BABYLON.MeshBuilder.CreateDisc('planet-ring', { radius: outerRadius, tessellation: 64 }, scene);
         mesh.rotation.x = Math.PI / 2; // Flat in XZ plane
-        mesh.rotation.z = 0.15 + (attrs.seed % 10) * 0.02; // Slight tilt
-        const mat = new BABYLON.ShaderMaterial('planet-ring-mat', scene, { vertex: 'planetRing2', fragment: 'planetRing2' }, {
+        // In the equator, as rings are. It used to be tipped off it, and as
+        // the planet turned (the ring is its child) the ring precessed.
+        const mat = new BABYLON.ShaderMaterial('planet-ring-mat', scene, { vertex: 'planetRing6', fragment: 'planetRing6' }, {
             attributes: ['position', 'uv'],
             uniforms: [
                 'worldViewProjection',
@@ -924,6 +1075,77 @@ export class B3dPlanet extends B3dChild {
         mesh.parent = this.rootNode;
         this.ringMesh = mesh;
     }
+    /** The rocky world's look, when `world` names one (and it is not a gas giant). */
+    _look() {
+        const attrs = this;
+        const look = attrs.gas ? null : resolveRockyWorld(attrs.world);
+        return look && this.worldOverrides
+            ? { ...look, ...this.worldOverrides }
+            : look;
+    }
+    /** A look setting: the attribute (a `world` writes its own in once). */
+    _val(key) {
+        return this[key];
+    }
+    /** Which world's look was last written into the attributes. */
+    _worldOf = '';
+    /*
+    A WORLD IS A PRESET, written into the planet's own attributes when it
+    changes, and theirs to tune after that: a slider still moves the clouds on
+    a Venus. (It used to win over them every build, which left every dial dead
+    once a world was chosen.)
+    */
+    _applyWorld() {
+        const attrs = this;
+        if (attrs.world === this._worldOf)
+            return;
+        this._worldOf = attrs.world;
+        const look = this._look();
+        if (look == null)
+            return;
+        Object.assign(this, {
+            ocean: look.ocean,
+            atmosphere: look.atmosphere,
+            atmosphereColor: look.atmosphereColor,
+            clouds: look.clouds,
+            cloudColor: look.cloudColor,
+            grossAmplitude: look.grossAmplitude,
+            detailAmplitude: look.detailAmplitude,
+            craters: look.craters.density,
+            craterSize: look.craters.size,
+            craterWear: look.craters.wear,
+            craterAsymmetry: look.craters.asymmetry,
+            seaShallow: look.sea?.shallow ?? '',
+            seaDeep: look.sea?.deep ?? '',
+        });
+    }
+    /** The craters' height function for this build, or null for none. */
+    _craters = null;
+    /** The radius the biome params' lengths were last scaled for. */
+    _paramsRadius = 0;
+    /** Which world's climate was last written into the params. */
+    _climateOf = '';
+    _makeCraters() {
+        const attrs = this;
+        const c = {
+            density: attrs.craters,
+            size: attrs.craterSize,
+            wear: attrs.craterWear,
+            asymmetry: attrs.craterAsymmetry,
+        };
+        this._craters =
+            c.density > 0
+                ? sphereCraters({
+                    seed: 1 + (Math.abs(attrs.seed) % 9973),
+                    density: c.density,
+                    maxRadius: c.size,
+                    minRadius: Math.max(0.012, c.size / 16),
+                    complexRadius: c.size * 0.4,
+                    wear: c.wear,
+                    asymmetry: c.asymmetry,
+                })
+                : null;
+    }
     heightAt(nx, ny, nz) {
         const attrs = this;
         // Scale noise by frequency. The unit normal (nx,ny,nz) maps the
@@ -936,8 +1158,9 @@ export class B3dPlanet extends B3dChild {
         const detailRaw = this.noise.fractal(nx * ds, ny * ds, nz * ds, 3);
         const grossNorm = grossRaw * 0.5 + 0.5;
         const detailNorm = detailRaw * 0.5 + 0.5;
-        return (this.grossFilter.evaluate(grossNorm) * attrs.grossAmplitude +
-            this.detailFilter.evaluate(detailNorm) * attrs.detailAmplitude);
+        return (this.grossFilter.evaluate(grossNorm) * this._val('grossAmplitude') +
+            this.detailFilter.evaluate(detailNorm) * this._val('detailAmplitude') +
+            (this._craters ? this._craters(nx, ny, nz) * attrs.radius * 0.6 : 0));
     }
     /** Rebuild planet mesh with current noise settings */
     regenerate() {

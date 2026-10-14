@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a9c4a8c27974" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
   <title>b3d-planet — tosijs-3d</title>
   <meta name="description" content="Procedural planet mesh using a subdivided cube projected onto a sphere. Height displacement from 3D Perlin noise (gross + detail layers) with gradient filters…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-planet/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=160cfa198378" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-planet">b3d-planet</h1>
 <p>Procedural planet mesh using a subdivided cube projected onto a sphere.
@@ -39,7 +39,7 @@ gradient filters for terrain shaping. Same noise system as <code>b3d-terrain</co
 so ground-level and orbital views are consistent.</p>
 <p>Optional atmosphere (glow shell) and ocean (water sphere at sea level).</p>
 <h2 id="demo">Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, p } = elements
 
@@ -54,6 +54,8 @@ const { demo } = tosi({
     ocean: 0.6,
     wireframe: false,
     rotationSpeed: 0.05,
+    // A rocky world&#39;s look (&#39;&#39; = these dials): see rocky-world.
+    world: &#39;&#39;,
   },
 })
 
@@ -62,6 +64,7 @@ const planet = b3dPlanet({
   radius: 50,
   subdivisions: 64,
   biome: &#39;on&#39;, // the biome shader&#39;s planetary front-end — radial altitude, insolation
+  world: demo.world,
 
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
@@ -79,13 +82,14 @@ const scene = b3d(
     frameRate: 60,
     scenePanel: () =&gt; [
       label3d({ text: &#39;Planet&#39; }),
+      select3d({ label: &#39;world&#39;, value: demo.world, options: [&#39;&#39;, ...Object.keys(ROCKY_WORLDS)] }),
       slider3d({ label: &#39;gross scale&#39;, value: demo.grossScale, min: 0.001, max: 0.1, scale: &#39;log&#39; }),
       slider3d({ label: &#39;detail scale&#39;, value: demo.detailScale, min: 0.005, max: 0.1, scale: &#39;log&#39; }),
       slider3d({ label: &#39;gross amp&#39;, value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
       slider3d({ label: &#39;detail amp&#39;, value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: &#39;rotation&#39;, value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
       slider3d({ label: &#39;atmosphere&#39;, value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
-      slider3d({ label: &#39;clouds&#39;, value: demo.clouds, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: &#39;clouds&#39;, value: demo.clouds, min: 0, max: 3, step: 0.05 }),
       slider3d({ label: &#39;ocean&#39;, value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
       // The biome climate, in the terms you think in: temperature at the
@@ -126,9 +130,9 @@ const scene = b3d(
       el.setActiveCamera(camera)
     },
   },
-  b3dSun(),
-  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
-  b3dLight({ intensity: 0.3 }),
+  ...spaceBackdrop({ sky: &#39;/sky&#39; }),
+  // A little fill, so the night side is not a hole in the stars.
+  b3dLight({ intensity: 0.15 }),
   planet,
 )
 
@@ -137,6 +141,16 @@ preview.append(
   div({ class: &#39;debug-panel&#39; }, p(&#39;Scroll to zoom, drag to orbit&#39;))
 )
 
+// Choosing a world sets the dials to its numbers (the planet writes the
+// same ones into itself), and they are yours to move from there.
+demo.world.observe(() =&gt; {
+  const look = ROCKY_WORLDS[demo.world.value]
+  if (look) Object.assign(demo, { grossAmplitude: look.grossAmplitude, detailAmplitude: look.detailAmplitude, atmosphere: look.atmosphere, clouds: look.clouds, ocean: look.ocean })
+  // Written straight away: a bound attribute arrives a frame later, after
+  // this rebuild.
+  planet.world = demo.world.value
+  planet.regenerate()
+})
 for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;]) {
   demo[key].observe(() =&gt; {
     planet.regenerate()
@@ -226,6 +240,36 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
 <td>With a <code>heightMap</code> or a <code>surface</code> set: how much its true relief is exaggerated. <code>1</code> is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map</td>
 </tr>
 <tr>
+<td><code>world</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>A ROCKY WORLD preset: <code>&#39;moon&#39;</code>, <code>&#39;mercury&#39;</code>, <code>&#39;mars&#39;</code>, <code>&#39;venus&#39;</code>, <code>&#39;io&#39;</code>, <code>&#39;titan&#39;</code> or <code>&#39;earth&#39;</code> (see <a href="/rocky-world/">rocky-world</a>). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet&#39;s own settings, which stay yours to tune; <code>worldOverrides</code> (a property) changes the preset for this planet</td>
+</tr>
+<tr>
+<td><code>craters</code></td>
+<td><code>0</code></td>
+<td>How cratered, <code>0…1</code> (see landform&#39;s <code>sphereCraters</code>)</td>
+</tr>
+<tr>
+<td><code>seaShallow</code> / <code>seaDeep</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>The sea&#39;s colour in the shallows and the deep, <code>#rrggbb</code> (both, or neither: blank is an Earth&#39;s)</td>
+</tr>
+<tr>
+<td><code>craterSize</code></td>
+<td><code>0.15</code></td>
+<td>The largest crater&#39;s radius, a fraction of the planet&#39;s</td>
+</tr>
+<tr>
+<td><code>craterWear</code></td>
+<td><code>0.6</code></td>
+<td>How worn the old craters are, <code>0…1</code></td>
+</tr>
+<tr>
+<td><code>craterAsymmetry</code></td>
+<td><code>0</code></td>
+<td>More craters on the planet&#39;s local +Z side, <code>-1…1</code> (a locked moon&#39;s leading side)</td>
+</tr>
+<tr>
 <td><code>gas</code></td>
 <td><code>&#39;&#39;</code></td>
 <td>Make it a GAS GIANT: <code>&#39;jupiter&#39;</code>, <code>&#39;saturn&#39;</code>, <code>&#39;uranus&#39;</code> or <code>&#39;neptune&#39;</code>. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; <code>seed</code> gives a different planet of the same kind and <code>rings</code> still applies. See <a href="/gas-giant/">gas-giant</a></td>
@@ -303,7 +347,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
 <tr>
 <td><code>clouds</code></td>
 <td><code>0</code></td>
-<td>(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world&#39;s ground.) Weather seen from orbit: how much of the sky is cloud, <code>0…1</code>. A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. <code>0</code> = none</td>
+<td>(Provisional: this is the weather from ORBIT only. It is its own field, and does not yet agree with the cloud deck or the weather cells on that world&#39;s ground.) Weather seen from orbit: how much of the sky is cloud: <code>1</code> is mostly cloud with breaks, and on to <code>3</code>, a solid deck (Venus). A shell inside the air, with winds that reverse with latitude, more cloud along the equator and the storm tracks, and a shadow on the ground beneath. <code>0</code> = none</td>
 </tr>
 <tr>
 <td><code>cloudColor</code></td>
@@ -345,7 +389,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
     <li><details><summary><a class="doc-link" href="../demos/">Demos</a></summary>
     <ul>
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
-      <li><a class="doc-link" href="../rocket-ascent/">Rocket Ascent</a></li>
+      <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
       <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
@@ -717,7 +761,12 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
         <li><a class="doc-link" href="../star-populations/">star-populations</a></li>
       </ul>
       </details></li>
-      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><details><summary><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../system-layout/">system-layout</a></li>
+        <li><a class="doc-link" href="../sol/">sol</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
       <li><a class="doc-link current" href="../b3d-planet/" aria-current="page">b3d-planet</a></li>
       <li><details><summary><a class="doc-link" href="../gas-giant/">gas-giant</a></summary>
@@ -725,9 +774,11 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
         <li><a class="doc-link" href="../gas-giant-material/">gas-giant-material</a></li>
       </ul>
       </details></li>
+      <li><a class="doc-link" href="../rocky-world/">rocky-world</a></li>
       <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
       <li><a class="doc-link" href="../sphere-map/">sphere-map</a></li>
       <li><a class="doc-link" href="../planet-map/">planet-map</a></li>
+      <li><a class="doc-link" href="../space-backdrop/">space-backdrop</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
@@ -761,6 +812,6 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-zsxgjpf3.js"></script>
+  <script type="module" src="../hydrate-qq04he1d.js"></script>
 </body>
 </html>

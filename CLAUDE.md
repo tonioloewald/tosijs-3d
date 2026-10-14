@@ -800,6 +800,7 @@ missile its target (no lock ⇒ the round flies ballistic).
 | `src/b3d-elevator.ts`       | `<tosi-b3d-elevator>` — a moving platform you stand on, ride or switch; the arena's three behaviours                                                                                                                            |
 | `src/playground.ts`         | The combat playground — ground, light, cover, crates, a catwalk — as ordinary scene children, composing into any demo                                                                                                           |
 | `src/land-and-sky.ts`       | THE KITCHEN SINK ("Land and Sky") — live-dialed terrain + sea + weather + the encoded sky; where provinces, weather systems and the simulation land first                                                                       |
+| `src/solar-system.ts`      | The Solar System demo: `SOL` drawn by `b3d-star-system`, real maps for Earth/Moon/Mars on a toggle, a `look at` camera that follows a body from its sunlit side |
 
 ### Convention-Based Mesh/Light Configuration
 
