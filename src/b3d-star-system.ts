@@ -6,7 +6,13 @@ Given a galaxy seed and a star's ADDRESS (`star`, stable) or index
 (`starIndex`) in the [voxel galaxy](/voxel-galaxy/), it creates `b3d-star` and `b3d-planet` child components with
 deterministic seeds.
 
-Planets orbit at scaled distances and can optionally animate.
+Every body is a real [planet](/b3d-planet/): giants banded and ringed, rocky
+worlds picked from what the generator says about each one (airless rock,
+seas, a toxic hot sky, or dust; see [rocky-world](/rocky-world/)'s
+`rockyWorldFor`), moons locked to their planets, and an asteroid belt where
+there is room for one. Where they go is [system-layout](/system-layout/):
+distances on a log scale and sizes on a square root, so the system fits on a
+screen without being empty.
 
 ## Demo
 
@@ -154,18 +160,23 @@ tosi-b3d {
 | `orbitScale` | `3` | Multiplier for orbital distances |
 | `animate` | `'on'` | Animate planet orbital motion |
 | `showOrbits` | `'on'` | Show orbital path lines |
+| `beltCount` | `1500` | Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant) |
 
 */
 /*{ "parent": "space", "order": 20 }*/
 
 import { B3dChild, isOff, sceneDelta } from './b3d-utils.js'
-import { GAS_GIANTS, resolveGasGiant } from './gas-giant.js'
-import { createGasGiantMaterial } from './gas-giant-material.js'
+import { GAS_GIANTS } from './gas-giant.js'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
 import { generateStarSystem, type StarSystemData } from './galaxy-data.js'
 import { voxelGalaxy } from './voxel-galaxy.js'
 import { PerlinNoise } from './perlin-noise.js'
+import { b3dPlanet } from './b3d-planet.js'
+import { rockyWorldFor } from './rocky-world.js'
+import { layoutSystem, type BeltLayout, type SystemLayout } from './system-layout.js'
+import { rockGeometry } from './procedural-rock.js'
+import { PRNG } from './mersenne-twister.js'
 
 export class B3dStarSystem extends B3dChild {
   static preferredTagName = 'tosi-b3d-star-system'
@@ -187,6 +198,8 @@ export class B3dStarSystem extends B3dChild {
     // on-by-default toggles: string 'on'|'off' (a boolean can't default true)
     animate: 'on' as 'on' | 'off',
     showOrbits: 'on' as 'on' | 'off',
+    // Rocks drawn in the asteroid belt (when the system has one).
+    beltCount: 1500,
     x: 0,
     y: 0,
     z: 0,
@@ -210,6 +223,7 @@ export class B3dStarSystem extends B3dChild {
    */
   declare animate: any
   declare showOrbits: 'on' | 'off'
+  declare beltCount: number
   declare x: number
   declare y: number
   declare z: number
@@ -221,8 +235,13 @@ export class B3dStarSystem extends B3dChild {
   private starMesh: BABYLON.Mesh | null = null
   private coronaMesh: BABYLON.Mesh | null = null
   private starLight: BABYLON.PointLight | null = null
-  private planetMeshes: BABYLON.Mesh[] = []
-  private planetPhases: number[] = []
+  private planetEls: { el: any; holder: BABYLON.TransformNode }[] = []
+  private holders: BABYLON.TransformNode[] = []
+  private moonPivots: { pivot: BABYLON.TransformNode; period: number }[] = []
+  private belt: { node: BABYLON.TransformNode; period: number } | null = null
+  private beltMeshes: BABYLON.Mesh[] = []
+  private layout: SystemLayout | null = null
+  private visibility = 1
   private orbitLines: BABYLON.Mesh[] = []
   private systemData: StarSystemData | null = null
   private registered = false
@@ -260,9 +279,16 @@ export class B3dStarSystem extends B3dChild {
     this.coronaMesh = null
     this.starLight?.dispose()
     this.starLight = null
-    for (const m of this.planetMeshes) m.dispose()
-    this.planetMeshes = []
-    this.planetPhases = []
+    for (const p of this.planetEls) p.el.remove()
+    this.planetEls = []
+    for (const h of this.holders) h.dispose()
+    this.holders = []
+    this.moonPivots = []
+    for (const m of this.beltMeshes) m.dispose(false, true)
+    this.beltMeshes = []
+    this.belt?.node.dispose()
+    this.belt = null
+    this.layout = null
     for (const m of this.orbitLines) m.dispose()
     this.orbitLines = []
   }
@@ -487,205 +513,175 @@ export class B3dStarSystem extends B3dChild {
     light.excludedMeshes.push(coronaMesh)
     this.starLight = light
 
-    // Build planets
+    /*
+    THE PLANETS ARE PLANETS: each one a <tosi-b3d-planet>, a gas giant of a
+    kind its seed picks, or a rocky world chosen from what the generator says
+    about it (rockyWorldFor: airless, seas, a toxic hot sky, or dust). Where
+    they go, how big they are and their moons come from system-layout, which
+    compresses the distances so there is something to see.
+    */
+    const layout = layoutSystem(planets, {
+      starRadius,
+      spacing: scale * orbitScale * 1.3,
+      earthSize: scale * 0.9,
+    })
+    this.layout = layout
+    const kinds = Object.keys(GAS_GIANTS)
     for (let i = 0; i < planets.length; i++) {
       const planet = planets[i]
-      const minOrbit = starRadius * 1.5 + (i + 1) * starRadius * 0.4
-      const orbitalDist = Math.max(
-        minOrbit,
-        planet.orbitalRadius * orbitScale * scale
-      )
-
-      // Planet visual radius — scale for visibility
-      // Real planet radius in km, Earth = 6357km
-      // Make smallest planets visible: min 0.3, max 3 scene units
-      const planetVisualRadius =
-        Math.max(0.3, Math.min(3, (planet.radius / 6357) * 1.5)) * scale * 0.3
-
-      const isGiant = planet.classification === 'gas giant'
-      const planetMesh = BABYLON.MeshBuilder.CreateSphere(
-        `planet-${i}`,
-        { diameter: planetVisualRadius * 2, segments: isGiant ? 32 : 16 },
-        scene
-      )
-
-      // Color by classification
-      const planetMat = new BABYLON.StandardMaterial(`planet-mat-${i}`, scene)
-      if (isGiant) {
-        planetMat.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.4)
-      } else if (planet.classification === 'brown dwarf') {
-        planetMat.diffuseColor = new BABYLON.Color3(0.5, 0.2, 0.1)
-      } else {
-        // Rocky — color by habitability
-        switch (planet.HI) {
-          case 1: // earthlike
-            planetMat.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.8)
-            break
-          case 2: // survivable
-            planetMat.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.3)
-            break
-          case 3: // EVA
-            planetMat.diffuseColor = new BABYLON.Color3(0.6, 0.5, 0.4)
-            break
-          case 4: // robot
-            planetMat.diffuseColor = new BABYLON.Color3(0.5, 0.4, 0.3)
-            break
-          default: // inimical
-            planetMat.diffuseColor = new BABYLON.Color3(0.4, 0.3, 0.3)
-        }
-      }
-      planetMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1)
-      planetMesh.material = planetMat
-      planetMesh.parent = this.rootNode
-      if (isGiant) {
-        /*
-        A GAS GIANT IS BANDED, and which kind it is follows from its seed:
-        one of the four looks, with its own band count and its own weather.
-        Lit from the star at this system's centre, wherever the system sits.
-        */
-        const kinds = Object.keys(GAS_GIANTS)
+      const place = layout.planets[i]
+      const holder = new BABYLON.TransformNode(`planet-holder-${i}`, scene)
+      holder.parent = this.rootNode
+      this.holders.push(holder)
+      const giant = planet.classification !== 'rocky'
+      const seed = 1 + (Math.abs(planet.seed) % 9973)
+      const el = b3dPlanet({
+        seed,
+        radius: place.visualRadius,
+        subdivisions: giant ? 48 : 40,
+        biome: 'on',
+        rotationSpeed: giant ? 0.15 : 0.08,
+      }) as any
+      if (giant) {
         const kind = kinds[Math.abs(planet.seed) % kinds.length]
-        const base = GAS_GIANTS[kind]
-        const vary = ((Math.abs(planet.seed) >> 3) % 7) - 3
-        planetMat.dispose()
-        planetMesh.material = createGasGiantMaterial(
-          scene,
-          resolveGasGiant(kind, {
-            bands: Math.max(3, base.bands + vary),
-            seed: 1 + (Math.abs(planet.seed) % 97),
-          }),
-          {
-            light: () => {
-              const p = this.rootNode!.getAbsolutePosition()
-              return { x: p.x, y: p.y, z: p.z, w: 1 }
-            },
-          }
+        el.gas = kind
+        el.bands = Math.max(3, GAS_GIANTS[kind].bands + ((Math.abs(planet.seed) >> 3) % 7) - 3)
+        el.rings = planet.rings
+      } else {
+        const pick = rockyWorldFor({
+          hydrographics: planet.hydrographics,
+          atmosphere: planet.atmosphere,
+          insolation: planet.insolation,
+        })
+        el.world = pick.world
+        el.worldOverrides = pick.overrides
+      }
+      this.adopt(el, holder)
+      place.moons.forEach((moon, m) => {
+        const pivot = new BABYLON.TransformNode(`moon-pivot-${i}-${m}`, scene)
+        pivot.parent = holder
+        pivot.rotation.y = moon.phase
+        const at = new BABYLON.TransformNode(`moon-${i}-${m}`, scene)
+        at.parent = pivot
+        at.position.x = moon.distance
+        this.moonPivots.push({ pivot, period: moon.period })
+        // A moon is locked to its planet (its pivot carries it round), so
+        // it keeps one face inward and its leading side takes the craters.
+        this.adopt(
+          b3dPlanet({
+            seed: 1 + (moon.seed % 9973),
+            radius: moon.visualRadius,
+            subdivisions: 24,
+            biome: 'on',
+            world: planet.insolation > 1.6 ? 'mercury' : 'moon',
+          }) as any,
+          at
         )
-        // Giants spin fast enough to bulge at the equator.
-        planetMesh.scaling.y = 0.93
-      }
-
-      // Rings for gas giants
-      if (planet.rings > 0) {
-        this.buildPlanetRing(
-          planetMesh,
-          planetVisualRadius,
-          planet.rings,
-          planet.seed,
-          scene
-        )
-      }
-
-      // Seeded initial orbital phase
-      const phase = ((planet.seed % 1000) / 1000) * Math.PI * 2
-      this.planetPhases.push(phase)
-
-      // Initial position
-      planetMesh.position.x = Math.cos(phase) * orbitalDist
-      planetMesh.position.y = 0
-      planetMesh.position.z = Math.sin(phase) * orbitalDist
-
-      this.planetMeshes.push(planetMesh)
-
-      // Orbit line
-      if (!isOff(attrs.showOrbits)) {
-        this.buildOrbitLine(orbitalDist, i)
-      }
+      })
+      if (!isOff(attrs.showOrbits)) this.buildOrbitLine(place.distance, i)
     }
+    if (layout.belt) this.buildBelt(layout.belt, scene)
+    this.placePlanets()
 
     if (!this.registered) {
       this.registered = true
-      const meshes: BABYLON.AbstractMesh[] = [starMesh, coronaMesh]
-      meshes.push(...this.planetMeshes)
-      this.owner.register({ meshes, lights: [light] })
+      this.owner.register({ meshes: [starMesh, coronaMesh], lights: [light] })
     }
   }
 
-  private buildPlanetRing(
-    parentMesh: BABYLON.Mesh,
-    planetRadius: number,
-    ringValue: number,
-    seed: number,
-    scene: BABYLON.Scene
-  ) {
-    // Register ring shader once (shared with b3d-planet)
-    if (!BABYLON.Effect.ShadersStore['planetRingVertexShader']) {
-      BABYLON.Effect.ShadersStore['planetRingVertexShader'] = `
-        precision highp float;
-        attribute vec3 position;
-        attribute vec2 uv;
-        uniform mat4 worldViewProjection;
-        varying vec2 vUV;
-        void main() {
-          gl_Position = worldViewProjection * vec4(position, 1.0);
-          vUV = uv;
-        }
-      `
-      BABYLON.Effect.ShadersStore['planetRingFragmentShader'] = `
-        precision highp float;
-        varying vec2 vUV;
-        uniform vec3 ringColor;
-        uniform float ringOpacity;
-        uniform float seed;
+  /** Planets are elements: put one in the scene and hang it on `holder` once it is built. */
+  private adopt(el: any, holder: BABYLON.TransformNode) {
+    this.planetEls.push({ el, holder })
+    this.owner?.append(el)
+  }
 
-        float hash(float p) {
-          return fract(sin(p * 127.1) * 43758.5453);
-        }
-
-        void main() {
-          vec2 uv = vUV * 2.0 - 1.0;
-          float r = length(uv);
-          if (r < 0.45 || r > 1.0) discard;
-
-          float t = (r - 0.45) / 0.55;
-
-          float bands = 0.0;
-          for (float i = 1.0; i < 6.0; i++) {
-            float freq = i * 7.0 + seed * 3.0;
-            float amp = hash(i * seed + 0.5) * 0.3;
-            bands += sin(t * freq) * amp;
-          }
-          bands = 0.5 + bands;
-
-          float gap1 = smoothstep(0.0, 0.02, abs(t - hash(seed) * 0.6 - 0.2));
-          float gap2 = smoothstep(0.0, 0.015, abs(t - hash(seed + 1.0) * 0.4 - 0.5));
-          bands *= gap1 * gap2;
-
-          float edgeFade = smoothstep(0.0, 0.1, t) * smoothstep(1.0, 0.85, t);
-          float alpha = bands * edgeFade * ringOpacity;
-
-          gl_FragColor = vec4(ringColor * bands, alpha);
-        }
-      `
-    }
-
-    const outerRadius = planetRadius * (1.5 + ringValue * 1.5)
-    const mesh = BABYLON.MeshBuilder.CreateDisc(
-      'planet-ring',
-      { radius: outerRadius, tessellation: 64 },
-      scene
-    )
-    mesh.rotation.x = Math.PI / 2
-    mesh.rotation.z = 0.15 + (seed % 10) * 0.02
-
-    const mat = new BABYLON.ShaderMaterial(
-      'planet-ring-mat',
-      scene,
-      { vertex: 'planetRing', fragment: 'planetRing' },
-      {
-        attributes: ['position', 'uv'],
-        uniforms: ['worldViewProjection', 'ringColor', 'ringOpacity', 'seed'],
-        needAlphaBlending: true,
+  /*
+  THE BELT, overpopulated on purpose: a few thousand rocks from three
+  procedural shapes, as thin instances (one draw each), spread in a band
+  thicker in the middle, the whole band turning at the belt's year. Its big
+  bodies are planets of their own, cratered and airless, riding with it.
+  */
+  private buildBelt(belt: BeltLayout, scene: BABYLON.Scene) {
+    const attrs = this as any
+    const node = new BABYLON.TransformNode('belt', scene)
+    node.parent = this.rootNode
+    this.belt = { node, period: belt.notable[0]?.period ?? 120 }
+    const count = Math.max(0, Math.floor(attrs.beltCount))
+    const mat = new BABYLON.StandardMaterial('belt-rock', scene)
+    mat.diffuseColor = new BABYLON.Color3(0.62, 0.57, 0.52)
+    // A little self-light, so the far side of the belt is not lost in the dark.
+    mat.emissiveColor = new BABYLON.Color3(0.08, 0.075, 0.07)
+    mat.specularColor = BABYLON.Color3.Black()
+    const prng = new PRNG(Math.round(belt.au * 1000) + 17)
+    const width = belt.outer - belt.inner
+    const mid = (belt.inner + belt.outer) / 2
+    for (let k = 0; k < 3; k++) {
+      const g = rockGeometry({ seed: 100 + k, detail: 1, cuts: 5, roughness: 0.15, squash: 0.8, sink: 0 })
+      const mesh = new BABYLON.Mesh(`belt-rock-${k}`, scene)
+      const vd = new BABYLON.VertexData()
+      vd.positions = g.positions
+      vd.normals = g.normals
+      // procedural-rock winds counter-clockwise; Babylon wants clockwise.
+      const idx = new Uint16Array(g.indices.length)
+      for (let t = 0; t < g.indices.length; t += 3) {
+        idx[t] = g.indices[t]
+        idx[t + 1] = g.indices[t + 2]
+        idx[t + 2] = g.indices[t + 1]
       }
-    )
-    mat.setVector3('ringColor', new BABYLON.Vector3(0.8, 0.7, 0.5))
-    mat.setFloat('ringOpacity', Math.min(1, ringValue * 1.2))
-    mat.setFloat('seed', seed % 100)
-    mat.backFaceCulling = false
-    mat.alphaMode = BABYLON.Constants.ALPHA_COMBINE
+      vd.indices = idx
+      vd.applyToMesh(mesh)
+      mesh.material = mat
+      mesh.parent = node
+      const n = Math.floor(count / 3)
+      const matrices = new Float32Array(n * 16)
+      const m = new BABYLON.Matrix()
+      const q = new BABYLON.Quaternion()
+      for (let j = 0; j < n; j++) {
+        const a = prng.realRange(0, Math.PI * 2)
+        const r = mid + (prng.value() + prng.value() + prng.value() - 1.5) * width * 0.66
+        const y = (prng.value() + prng.value() - 1) * width * 0.08
+        const size = attrs.scale * 0.22 * Math.pow(prng.realRange(0.2, 1), 2.5) + attrs.scale * 0.04
+        BABYLON.Quaternion.RotationYawPitchRollToRef(prng.realRange(0, 6.3), prng.realRange(0, 6.3), prng.realRange(0, 6.3), q)
+        BABYLON.Matrix.ComposeToRef(
+          new BABYLON.Vector3(size, size * prng.realRange(0.6, 1), size),
+          q,
+          new BABYLON.Vector3(Math.cos(a) * r, y, Math.sin(a) * r),
+          m
+        )
+        m.copyToArray(matrices, j * 16)
+      }
+      mesh.thinInstanceSetBuffer('matrix', matrices, 16, true)
+      // The rock's own box is at the star: without this the whole belt is
+      // culled when the star leaves the screen.
+      mesh.thinInstanceRefreshBoundingInfo(false)
+      this.beltMeshes.push(mesh)
+    }
+    for (const rock of belt.notable) {
+      const at = new BABYLON.TransformNode(`asteroid-${rock.name}`, scene)
+      at.parent = node
+      at.position.set(Math.cos(rock.phase) * rock.distance, 0, Math.sin(rock.phase) * rock.distance)
+      this.adopt(
+        b3dPlanet({
+          seed: 1 + (rock.seed % 9973),
+          radius: rock.visualRadius,
+          subdivisions: 16,
+          biome: 'on',
+          world: 'moon',
+        }) as any,
+        at
+      )
+    }
+  }
 
-    mesh.material = mat
-    mesh.parent = parentMesh // Child of planet so it orbits with it
+  /** Each planet at its place on its orbit for the current time. */
+  private placePlanets() {
+    const layout = this.layout
+    if (layout == null) return
+    for (let i = 0; i < this.holders.length; i++) {
+      const p = layout.planets[i]
+      const angle = (this.time / p.period) * Math.PI * 2 + p.phase
+      this.holders[i].position.set(Math.cos(angle) * p.distance, 0, Math.sin(angle) * p.distance)
+    }
   }
 
   private buildOrbitLine(radius: number, index: number) {
@@ -719,31 +715,20 @@ export class B3dStarSystem extends B3dChild {
   private update() {
     if (this.rootNode == null || !this.systemData) return
     const attrs = this as any
-
-    if (!isOff(attrs.animate) && this.systemData.planets.length > 0) {
-      const dt = sceneDelta(this.owner!.scene)
-      this.time += dt
-
-      const scale: number = attrs.scale
-      const orbitScale: number = attrs.orbitScale
-
-      for (let i = 0; i < this.planetMeshes.length; i++) {
-        const planet = this.systemData.planets[i]
-        const minOrbit = this.starRadius * 1.5 + (i + 1) * this.starRadius * 0.4
-        const orbitalDist = Math.max(
-          minOrbit,
-          planet.orbitalRadius * orbitScale * scale
-        )
-
-        // Kepler's 3rd law approximation: period ∝ r^1.5
-        const period = Math.pow(planet.orbitalRadius, 1.5) * 200
-        const angle =
-          (this.time / period) * Math.PI * 2 + (this.planetPhases[i] || 0)
-
-        this.planetMeshes[i].position.x = Math.cos(angle) * orbitalDist
-        this.planetMeshes[i].position.z = Math.sin(angle) * orbitalDist
+    // Hang each planet on its holder once its element has built its root.
+    for (const p of this.planetEls) {
+      const root = p.el.rootNode as BABYLON.TransformNode | null
+      if (root != null && root.parent !== p.holder) {
+        root.parent = p.holder
+        this.applyVisibility()
       }
     }
+    if (isOff(attrs.animate)) return
+    const dt = sceneDelta(this.owner!.scene)
+    this.time += dt
+    this.placePlanets()
+    for (const m of this.moonPivots) m.pivot.rotation.y -= (dt / m.period) * Math.PI * 2
+    if (this.belt) this.belt.node.rotation.y -= (dt / this.belt.period) * Math.PI * 2
   }
 
   /** Get the generated system data */
@@ -761,10 +746,21 @@ export class B3dStarSystem extends B3dChild {
 
   /** Set visibility of all meshes in the star system (0–1) */
   setVisibility(v: number) {
+    this.visibility = v
+    this.applyVisibility()
+  }
+
+  private applyVisibility() {
+    const v = this.visibility
     if (this.starMesh) this.starMesh.visibility = v
     if (this.coronaMesh) this.coronaMesh.visibility = v
-    for (const mesh of this.planetMeshes) mesh.visibility = v
-    for (const line of this.orbitLines) line.visibility = v
+    for (const h of this.holders) for (const m of h.getChildMeshes()) m.visibility = v
+    for (const m of this.beltMeshes) m.visibility = v
+    for (const p of this.planetEls) {
+      const root = p.el.rootNode as BABYLON.TransformNode | null
+      if (root) for (const m of root.getChildMeshes()) m.visibility = v
+    }
+    for (const line of this.orbitLines) line.visibility = v * 0.3
     if (this.starLight)
       this.starLight.intensity =
         v * Math.min((this.systemData?.star.luminosity ?? 1) * 0.5, 5)
@@ -785,13 +781,7 @@ export class B3dStarSystem extends B3dChild {
       this.orbitLines.length === 0 &&
       this.systemData
     ) {
-      const scale: number = attrs.scale
-      const orbitScale: number = attrs.orbitScale
-      for (let i = 0; i < this.systemData.planets.length; i++) {
-        const orbitalDist =
-          this.systemData.planets[i].orbitalRadius * orbitScale * scale
-        this.buildOrbitLine(orbitalDist, i)
-      }
+      this.layout?.planets.forEach((p, i) => this.buildOrbitLine(p.distance, i))
     }
   }
 }

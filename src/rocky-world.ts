@@ -136,3 +136,38 @@ export const ROCKY_WORLDS: Record<string, RockyWorldLook> = {
 export function resolveRockyWorld(name: string): RockyWorldLook | null {
   return ROCKY_WORLDS[String(name || '').toLowerCase()] ?? null
 }
+
+/** What `rockyWorldFor` needs to know (galaxy-data's `PlanetData` has it). */
+export interface RockyPlanetFacts {
+  /** % of the surface under water, 0…100. */
+  hydrographics: number
+  /** galaxy-data's atmosphere type: `'Trace'` is none to speak of. */
+  atmosphere: string
+  /** Starlight relative to the Earth's. */
+  insolation: number
+}
+
+/**
+ * Which rocky world a generated planet looks like, and what of the preset to
+ * change: airless rock (the Moon, or Mercury close to its star), a world of
+ * seas in the warm band, a Venus under a hot toxic sky, and otherwise a Mars.
+ * The sea takes the planet's own share of water.
+ */
+export function rockyWorldFor(facts: RockyPlanetFacts): {
+  world: string
+  overrides: Partial<RockyWorldLook>
+} {
+  const { hydrographics, atmosphere, insolation } = facts
+  const hot = insolation > 1.6
+  if (atmosphere === 'Trace') return { world: hot ? 'mercury' : 'moon', overrides: {} }
+  if (hydrographics >= 20 && insolation > 0.3 && insolation < 2.2) {
+    return {
+      world: 'earth',
+      overrides: { ocean: Math.min(0.85, Math.max(0.2, hydrographics / 100)) },
+    }
+  }
+  if (hot && (atmosphere === 'Toxic' || atmosphere === 'Corrosive')) {
+    return { world: 'venus', overrides: {} }
+  }
+  return { world: 'mars', overrides: {} }
+}

@@ -3918,6 +3918,11 @@
         "description": "Show orbital path lines"
       },
       {
+        "name": "beltCount",
+        "default": "1500",
+        "description": "Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)"
+      },
+      {
         "name": "x"
       },
       {

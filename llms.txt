@@ -414,6 +414,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
 - https://3d.tosijs.net/swim-aim/ — swim-aim
   an aim input into a body pitch, easing it, and unwinding it when you stand up
+- https://3d.tosijs.net/system-layout/ — system-layout
+  planet is drawn, how big, how fast it goes round, its moons, and the
 - https://3d.tosijs.net/table/ — table
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
 - https://3d.tosijs.net/table-layout/ — table-layout

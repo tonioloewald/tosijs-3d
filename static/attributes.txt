@@ -998,6 +998,7 @@ b3d-star-system
   orbitScale  = 3  — Multiplier for orbital distances
   animate  = 'on'  — Animate planet orbital motion
   showOrbits  = 'on'  — Show orbital path lines
+  beltCount  = 1500  — Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)
   x
   y
   z

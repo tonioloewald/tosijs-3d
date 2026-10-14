@@ -311,6 +311,12 @@ export class B3dPlanet extends B3dChild {
    */
   surface: PlanetSurface | null = null
   /**
+   * Changes to the `world`'s look for THIS planet (`{ ocean: 0.3 }`), read
+   * at the next build. The star system uses it to give each Earth-like
+   * world its own share of sea.
+   */
+  worldOverrides: Partial<RockyWorldLook> | null = null
+  /**
    * STORMS placed on the weather (needs `clouds` above 0): up to four, each
    * `{ lat, lon, size, intensity, lightning }`. A storm is a cyclone that
    * turns the right way for its hemisphere, with an eye, and lightning
@@ -1096,7 +1102,10 @@ export class B3dPlanet extends B3dChild {
   /** The rocky world's look, when `world` names one (and it is not a gas giant). */
   private _look(): RockyWorldLook | null {
     const attrs = this as any
-    return attrs.gas ? null : resolveRockyWorld(attrs.world)
+    const look = attrs.gas ? null : resolveRockyWorld(attrs.world)
+    return look && this.worldOverrides
+      ? { ...look, ...this.worldOverrides }
+      : look
   }
 
   /** A setting the world's look decides when there is one, else the attribute. */
