@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.6 (unreleased)
+
+### Changed
+
+- **The Solar System's sky is tilted as ours is**: the planets orbit about 60.2° to the galaxy's plane, so the Milky Way crosses the orbits steeply instead of running along them (`spaceBackdrop({ tilt })`).
+
 ## 0.10.5
 
 ### Added

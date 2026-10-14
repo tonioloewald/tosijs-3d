@@ -101,8 +101,12 @@ preview.append(
     },
     // A little fill, so a night side is not a hole in the stars.
     b3dLight({ intensity: 0.12 }),
-    // The star sky, without a sun: the Sun is the system's own star.
-    ...spaceBackdrop({ sky: '/sky', sun: false }),
+    // The star sky, without a sun: the Sun is the system's own star. TILTED
+    // AS IT REALLY IS: the planets orbit about 60.2 degrees to the galaxy's
+    // plane. The sky's galaxy is baked level with its centre along -X, so a
+    // turn about X tips the band and leaves the centre on the line where the
+    // two planes cross (the real one is 5.5 degrees south of the ecliptic).
+    ...spaceBackdrop({ sky: '/sky', sun: false, tilt: '60.2,0,0' }),
     system
   )
 )
