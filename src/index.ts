@@ -426,6 +426,8 @@ export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js'
 export { SOL } from './sol.js'
 export { createCarry, DRAG_THRESHOLD } from './carry.js'
 export type { Carry, CarryTarget, CarryState, CarryVerdict, CarryResult } from './carry.js'
+export { carryTile, carrySocket, carryPanel } from './carry-box.js'
+export type { CarryDecorations, CarryTileOptions, CarrySocketOptions, CarryTileChild, CarrySocketChild, CarryPanel } from './carry-box.js'
 export { layoutSystem } from './system-layout.js'
 export type {
   SystemSpec,
