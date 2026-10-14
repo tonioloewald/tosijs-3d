@@ -567,12 +567,21 @@ So: a press on a controller that is not pointing switches to it AND is
 delivered, once its ray has picked something (on the next frame or two).
 Babylon's own release pairs with it, because by then that controller is the one
 pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
-`pointerDownTriggered`), which is private: if a Babylon upgrade renames it, this
-quietly does nothing and the old behaviour (a dropped first press) returns.
+`pointerDownTriggered`), which is private. `xr-press.test.ts` pins those names
+and the drop itself, so a Babylon upgrade that renames them (or fixes the drop)
+fails the suite and says which; in a live session it warns once instead.
 */
 function pressWithEitherHand(xr: BABYLON.WebXRDefaultExperience, scene: BABYLON.Scene): void {
   const sel = xr.pointerSelection as any
   const frames = xr.baseExperience?.sessionManager.onXRFrameObservable
+  // Pinned by xr-press.test.ts; this is the same check, live, so a Babylon
+  // that changed under us says so instead of quietly dropping presses again.
+  if (sel?._controllers == null || typeof sel.setAttachedController !== 'function') {
+    console.warn(
+      'tosi-b3d: Babylon XR pointer selection has changed (no _controllers / setAttachedController), so a press on the hand that is not pointing is dropped again. See pressWithEitherHand.'
+    )
+    return
+  }
   xr.input.onControllerAddedObservable.add((controller) => {
     const watch = (mc: BABYLON.WebXRAbstractMotionController) => {
       const main = mc.getMainComponent()
