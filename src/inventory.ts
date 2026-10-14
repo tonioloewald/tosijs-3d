@@ -75,6 +75,10 @@ export interface ItemKind {
   stack?: number
   /** Numbers it adds to its holder when fitted. */
   contributes?: Record<string, number>
+  /** Its picture, as SVG markup (a view draws it; the model never reads it). */
+  icon?: string
+  /** A line or two about it, for an info floater. */
+  description?: string
   [key: string]: unknown
 }
 

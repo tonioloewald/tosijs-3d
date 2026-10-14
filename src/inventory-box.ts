@@ -22,6 +22,13 @@ demo art uses `--schematic-body`, `--schematic-socket`,
 an XML comment in the art: the file stops being XML and will not draw as an
 image.)
 
+**Pictures and the info floater.** A kind's `icon` is SVG markup (the demos
+load theirs from one JSON file, a kind id to its picture). A row in a list
+shows the picture and the name; in a socket the picture fills it, and it is
+the picture a drag carries. Point at a thing, or select it with a gamepad,
+and a floater says what it is: by default its name, `description`, mass and
+what it adds (`info` replaces that).
+
 ## Equip a person
 
 The art is an SVG with a `Sockets` group; each socket's id is a slot. Drag
@@ -47,7 +54,7 @@ const kinds = {
   greaves: kind('greaves', ['legs'], { mass: 3, contributes: { armour: 2 } }),
   boots: kind('boots', ['feet'], { mass: 2 }),
   sword: kind('sword', ['hand'], { mass: 3, contributes: { damage: 6 } }),
-  rifle: kind('rifle', ['hand', 'two-handed'], { mass: 4, contributes: { damage: 9 } }),
+  rifle: kind('rifle', ['hand', 'two-handed'], { mass: 4, contributes: { damage: 9 }, description: 'needs both hands' }),
   shield: kind('shield', ['hand'], { mass: 5, contributes: { armour: 3 } }),
   potion: kind('potion', ['drink'], { stack: 9 }),
 }
@@ -87,7 +94,9 @@ preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560
 const bodyHost = svg({ width: 410, height: 540, style: 'touch-action:none; flex:none' })
 const bagHost = svg({ width: 200, height: 540, style: 'touch-action:none; flex:none' })
 preview.append(bodyHost, bagHost)
-fetch('/person-loadout.svg').then((r) => r.text()).then((art) => {
+// The art, and a picture per kind (SVG markup; see the note on icons below).
+Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())]).then(([art, icons]) => {
+  for (const k of Object.keys(kinds)) kinds[k].icon = icons[k]
   // A two-handed weapon shows, faded, in the other hand too.
   const alsoIn = (item, kind, at) =>
     kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
@@ -151,7 +160,9 @@ preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560
 const craftHost = svg({ width: 480, height: 420, style: 'touch-action:none; flex:none' })
 const stockHost = svg({ width: 200, height: 420, style: 'touch-action:none; flex:none' })
 preview.append(craftHost, stockHost)
-fetch('/manta-loadout.svg').then((r) => r.text()).then((art) => {
+// The art, and a picture per kind (SVG markup; see the note on icons below).
+Promise.all([fetch('/manta-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())]).then(([art, icons]) => {
+  for (const k of Object.keys(kinds)) kinds[k].icon = icons[k]
   inventoryPanel({ inv, carry, holder: 'manta', host: craftHost, title: 'Manta', decorations, schematics: { hardpoints: art } })
   inventoryPanel({ inv, carry, holder: 'carrier', host: stockHost, title: 'carrier', decorations, totals: false, height: 420 })
 })
@@ -231,9 +242,12 @@ middle.append(counterHost, dealHost)
 const meHost = host(190, 360)
 preview.append(shopHost, middle, meHost)
 const common = { inv, carry, decorations, moveFor, refuse }
-inventoryPanel({ ...common, holder: 'shop', host: shopHost, title: 'shop', height: 360 })
-inventoryPanel({ ...common, holder: 'counter', host: counterHost, title: 'counter', totals: false, height: 280 })
-inventoryPanel({ ...common, holder: 'me', host: meHost, title: 'you', height: 360 })
+fetch('/item-icons.json').then((r) => r.json()).then((icons) => {
+  for (const k of Object.keys(kinds)) kinds[k].icon = icons[k]
+  inventoryPanel({ ...common, holder: 'shop', host: shopHost, title: 'shop', height: 360 })
+  inventoryPanel({ ...common, holder: 'counter', host: counterHost, title: 'counter', totals: false, height: 280 })
+  inventoryPanel({ ...common, holder: 'me', host: meHost, title: 'you', height: 360 })
+})
 
 const onCounter = (c) => inv.doc.holders.counter.containers[c].holds
 // Sell first, so what yours fetch can pay for what you get.
@@ -325,7 +339,9 @@ const CLOSED_WIDTH = 0.7
 const OPEN_SCALE = 2
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
-fetch('/person-loadout.svg').then((r) => r.text()).then((art) => {
+// The art, and a picture per kind (SVG markup; see the note on icons below).
+Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())]).then(([art, icons]) => {
+  for (const k of Object.keys(kinds)) kinds[k].icon = icons[k]
   let plane, closed
   const dock = inventoryDock({
     inv, carry: createCarry(), holder: 'hero', title: 'hero', alsoIn,
@@ -415,6 +431,12 @@ export interface InventoryPanelOptions {
    * game decides; the panel only draws it. An empty slot only.
    */
   alsoIn?: (item: Item, kind: ItemKind | undefined, at: Place) => string[]
+  /**
+   * What the info floater says about a thing (a title, then lines), shown
+   * while it is pointed at or selected. Default: its name, its description,
+   * its mass and what it adds.
+   */
+  info?: (item: Item, kind: ItemKind | undefined) => string[]
   /**
    * Draw the drag's ghost in a page overlay above every panel (default).
    * Off for a panel inside a 3D plane, which shares a `carryGhostLayer` in
@@ -593,6 +615,15 @@ function artChild(s: Schematic, avail: number): BoxChild {
 /** Places are passed through the carry as strings. */
 const enc = (p: Place) => JSON.stringify(p)
 
+const defaultInfo = (item: Item, kind: ItemKind | undefined): string[] => {
+  const lines = [`${kind?.name ?? item.kind}${item.qty > 1 ? ` ×${item.qty}` : ''}`]
+  if (kind?.description) lines.push(kind.description)
+  if (kind?.mass != null) lines.push(`mass ${kind.mass}`)
+  for (const [k, v] of Object.entries(kind?.contributes ?? {})) lines.push(`${k} ${v > 0 ? '+' : ''}${v}`)
+  if (item.damaged) lines.push(`damaged (${item.damaged})`)
+  return lines
+}
+
 /** Draw one holder of an inventory into `host`, redrawn whenever the inventory changes. */
 export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   const { inv, carry, holder, host } = opts
@@ -647,6 +678,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       thing: id,
       from: enc(at),
       label: kind?.name ?? item.kind,
+      icon: kind?.icon,
+      info: () => (opts.info ?? defaultInfo)(item, kind),
       decorations: () => opts.decorations?.(item, kind),
       target: into,
       ...size,
@@ -824,7 +857,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
 }
 
 export interface InventoryDockOptions
-  extends Pick<InventoryPanelOptions, 'inv' | 'carry' | 'holder' | 'title' | 'decorations' | 'moveFor' | 'refuse' | 'alsoIn'> {
+  extends Pick<InventoryPanelOptions, 'inv' | 'carry' | 'holder' | 'title' | 'decorations' | 'moveFor' | 'refuse' | 'alsoIn' | 'info'> {
   /** The slots container drawn as a schematic, and its art. */
   schematic: { container: string; art: string | SVGSVGElement }
   /** The list shown beside it when open (a bag); none for a craft fitted from a carrier's stock. */
@@ -876,6 +909,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     moveFor: opts.moveFor,
     refuse: opts.refuse,
     alsoIn: opts.alsoIn,
+    info: opts.info,
     overlay: false,
   }
   const main = inventoryPanel({

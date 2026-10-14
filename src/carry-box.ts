@@ -143,6 +143,10 @@ const { g, rect, text } = svgElements
 const pressedTile = new WeakMap<Carry<any>, CarryTileChild<any>>()
 /** The panel a drag began in, per carry: the one that springs it back. */
 const dragOrigin = new WeakMap<Carry<any>, object>()
+/** What the drag in progress looks like, per carry (set as it starts). */
+const dragLooks = new WeakMap<Carry<any>, CarryLook>()
+/** Where a carry's info floater is drawn: the layer its ghost is drawn in. */
+const infoLayers = new WeakMap<Carry<any>, { show: (over: Element, lines: string[]) => void; hide: (over?: Element) => void }>()
 /** Why the last drop did not land, per carry (absent: it landed). */
 const lastRefusal = new WeakMap<Carry<any>, string[]>()
 
@@ -150,9 +154,16 @@ const lastRefusal = new WeakMap<Carry<any>, string[]>()
 const SPRING_MS = 220
 const LINGER_MS = 900
 
+/** How a thing looks while it is dragged: its picture, or its name. */
+export interface CarryLook {
+  label: string
+  icon?: string | SVGElement
+}
+
 export interface CarryTileChild<T> extends BoxChild {
   carryThing: T
   carryFrom: string
+  carryLook: CarryLook
   /** Stop listening to the carry (call when the tile is thrown away). */
   dispose: () => void
 }
@@ -172,9 +183,46 @@ export interface CarryTileOptions<T> {
    * the whole list a place to drop.
    */
   target?: CarryTarget<T>
+  /**
+   * Its picture (SVG markup or an element), drawn in a square. A row shows it
+   * beside the name; a small tile (in a socket) shows the picture alone, and
+   * the info floater names it. The picture is what a drag carries.
+   */
+  icon?: string | SVGElement
+  /** What the info floater says while the pointer is on it (or it is selected): a title, then lines. */
+  info?: () => string[]
 }
 
-/** A thing you can pick up: a label and its decorations. */
+const parsed = new Map<string, SVGSVGElement>()
+/** A picture as an element of its own, `size` square at (x, y). */
+function iconAt(src: string | SVGElement, x: number, y: number, size: number): SVGSVGElement {
+  let base: SVGElement
+  if (typeof src === 'string') {
+    let hit = parsed.get(src)
+    if (!hit) {
+      hit = new DOMParser().parseFromString(src, 'image/svg+xml').documentElement as unknown as SVGSVGElement
+      parsed.set(src, hit)
+    }
+    base = hit
+  } else base = src
+  const el = base.cloneNode(true) as SVGSVGElement
+  if (el.tagName.toLowerCase() !== 'svg') {
+    const wrap = svgElements.svg({ viewBox: '0 0 24 24' }) as unknown as SVGSVGElement
+    wrap.append(el)
+    return iconAt(wrap, x, y, size)
+  }
+  if (!el.getAttribute('viewBox')) {
+    el.setAttribute('viewBox', `0 0 ${el.getAttribute('width') ?? 24} ${el.getAttribute('height') ?? 24}`)
+  }
+  el.setAttribute('x', String(x))
+  el.setAttribute('y', String(y))
+  el.setAttribute('width', String(size))
+  el.setAttribute('height', String(size))
+  el.setAttribute('pointer-events', 'none')
+  return el
+}
+
+/** A thing you can pick up: its picture or label, and its decorations. */
 export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
   const { carry, thing, from, label } = opts
   const w = opts.width ?? 120
@@ -197,20 +245,29 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
     stroke: outline ?? '#4a5568',
     'stroke-width': outline ? 2 : 1,
   })
-  const parts: Element[] = [
-    bg,
-    text(
-      {
-        x: small ? w / 2 : 10,
-        y: deco.bar != null && !small ? h / 2 + 1 : h / 2 + fontSize * 0.38,
-        fill: '#e8e8e8',
-        'text-anchor': small ? 'middle' : 'start',
-        'font-family': 'system-ui, sans-serif',
-        'font-size': String(fontSize),
-      },
-      shown
-    ),
-  ]
+  const parts: Element[] = [bg]
+  const icon = opts.icon
+  if (icon && small) {
+    // In a socket: the picture alone, filling it (the floater names it).
+    const size = Math.min(w, h) - (deco.bar != null ? 14 : 8)
+    parts.push(iconAt(icon, (w - size) / 2, deco.bar != null ? 3 : (h - size) / 2, size))
+  } else {
+    const iconSize = Math.min(24, h - 8)
+    if (icon) parts.push(iconAt(icon, 6, deco.bar != null ? 3 : (h - iconSize) / 2, iconSize))
+    parts.push(
+      text(
+        {
+          x: small ? w / 2 : icon ? 12 + iconSize : 10,
+          y: deco.bar != null && !small ? h / 2 + 1 : h / 2 + fontSize * 0.38,
+          fill: '#e8e8e8',
+          'text-anchor': small ? 'middle' : 'start',
+          'font-family': 'system-ui, sans-serif',
+          'font-size': String(fontSize),
+        },
+        shown
+      )
+    )
+  }
   if (deco.bar != null) {
     const v = Math.max(0, Math.min(1, deco.bar))
     const bw = w - 2 * inset
@@ -247,9 +304,16 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
     focusable: true,
     carryThing: thing,
     carryFrom: from,
+    carryLook: { label, icon },
     measure: () => ({ width: w, height: h }),
     setState(s: BoxChildState) {
       if (s.pressed) pressedTile.set(carry, child)
+      // Pointed at or selected, and nothing in hand: say what it is.
+      const layer = infoLayers.get(carry)
+      if (layer && opts.info) {
+        if ((s.hovered || s.focused) && carry.state.thing == null && !s.pressed) layer.show(el, opts.info())
+        else layer.hide(el)
+      }
       bg.setAttribute('fill', s.pressed ? '#3b4860' : s.hovered || s.focused ? '#344054' : '#2c3546')
       const t = opts.target
       if (t && carry.state.thing != null && carry.state.thing !== thing) {
@@ -449,23 +513,39 @@ type Pt = { x: number; y: number }
 function carryGhost(parent: Element) {
   const LIFT = 46
   let run = 0
-  const el = g(
-    { 'pointer-events': 'none', opacity: '0.85' },
-    rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
-  ) as unknown as SVGGElement
+  let shownLook: CarryLook | null = null
+  const pill = rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
+  const el = g({ 'pointer-events': 'none', opacity: '0.85' }, pill) as unknown as SVGGElement
   const font = { 'text-anchor': 'middle', 'font-family': 'system-ui, sans-serif' }
   const label = text({ x: 0, y: -41, fill: '#fff', 'font-size': '12', ...font }, '')
   const why = text({ x: 0, y: -18, fill: '#f0907c', 'font-size': '11', ...font, ...HALO }, '')
+  let picture: Element | null = null
   el.append(label, why)
+  // A picture is carried as itself (a square tile); a name as a pill.
+  const dress = (look: CarryLook) => {
+    if (look === shownLook) return
+    shownLook = look
+    picture?.remove()
+    picture = null
+    if (look.icon) {
+      Object.entries({ x: -24, y: -70, width: 48, height: 48, rx: 8 }).forEach(([k, v]) => pill.setAttribute(k, String(v)))
+      picture = iconAt(look.icon, -18, -64, 36)
+      el.insertBefore(picture, label)
+      label.textContent = ''
+    } else {
+      Object.entries({ x: -50, y: -60, width: 100, height: 28, rx: 6 }).forEach(([k, v]) => pill.setAttribute(k, String(v)))
+      label.textContent = look.label
+    }
+  }
   const place = (x: number, y: number) => {
     if (!el.isConnected) parent.append(el)
     el.setAttribute('transform', `translate(${x}, ${y})`)
   }
   const hide = () => el.remove()
   return {
-    show(x: number, y: number, name: string) {
+    show(x: number, y: number, look: CarryLook) {
       run++
-      label.textContent = name
+      dress(look)
       why.textContent = ''
       place(x, y)
     },
@@ -526,6 +606,8 @@ export interface CarryGhostLayer {
  */
 export function carryGhostLayer<T>(carry: Carry<T>, layer: Element): CarryGhostLayer {
   const ghost = carryGhost(layer)
+  const floater = infoFloater(layer)
+  infoLayers.set(carry, floater)
   let press: Pt | null = null
   let home: Pt | null = null
   let last: Pt | null = null
@@ -541,12 +623,60 @@ export function carryGhostLayer<T>(carry: Carry<T>, layer: Element): CarryGhostL
       else if (kind === 'move' && carry.state.thing != null && carry.state.mode === 'drag') {
         home ??= press
         last = { x, y }
-        ghost.show(x, y, String(carry.state.thing))
+        ghost.show(x, y, dragLooks.get(carry) ?? { label: String(carry.state.thing) })
       }
     },
     dispose() {
       stop()
       ghost.hide()
+      floater.hide()
+      if (infoLayers.get(carry) === floater) infoLayers.delete(carry)
+    },
+  }
+}
+
+/**
+ * The info floater: a title and lines beside the thing it is about, drawn in
+ * `layer` (the ghost's layer, so nothing clips it). It goes to the right of
+ * the thing, or the left when the right has no room.
+ */
+function infoFloater(layer: Element) {
+  const box = g({ 'pointer-events': 'none' }) as unknown as SVGGElement
+  let about: Element | null = null
+  const toLayer = (x: number, y: number) => {
+    const m = (layer as SVGGraphicsElement).getScreenCTM?.()
+    if (!m) return { x, y }
+    const p = new DOMPoint(x, y).matrixTransform(m.inverse())
+    return { x: p.x, y: p.y }
+  }
+  return {
+    show(over: Element, lines: string[]) {
+      if (!lines.length) return
+      about = over
+      box.textContent = ''
+      const [title, ...rest] = lines
+      const width = Math.max(...lines.map((l, i) => l.length * (i ? 6.2 : 7.4))) + 20
+      const height = 26 + rest.length * 15
+      box.append(
+        rect({ x: 0, y: 0, width, height, rx: 6, fill: '#11151d', stroke: '#55607a', opacity: '0.96' }),
+        text({ x: 10, y: 18, fill: '#e8e8e8', 'font-family': 'system-ui, sans-serif', 'font-size': '13', 'font-weight': '700' }, title),
+        ...rest.map((l, i) =>
+          text({ x: 10, y: 34 + i * 15, fill: '#aab4c8', 'font-family': 'system-ui, sans-serif', 'font-size': '11' }, l)
+        )
+      )
+      const r = over.getBoundingClientRect()
+      const a = toLayer(r.right + 8, r.top)
+      const b = toLayer(r.left - 8, r.top)
+      const room = toLayer(window.innerWidth, 0).x
+      const lw = (layer as SVGSVGElement).viewBox?.baseVal?.width || room
+      const x = a.x + width <= Math.min(room, lw) ? a.x : b.x - width
+      box.setAttribute('transform', `translate(${x}, ${a.y})`)
+      layer.append(box)
+    },
+    hide(over?: Element) {
+      if (over && over !== about) return
+      about = null
+      box.remove()
     },
   }
 }
@@ -568,11 +698,12 @@ export function carryOverlay<T>(carry: Carry<T>): { dispose: () => void } {
     'style',
     'position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:2147483647; overflow:visible'
   )
+  // In the document from the start: the info floater measures against it.
+  document.body.append(layer)
   const ghosts = carryGhostLayer(carry, layer)
   // Capture phase: a panel's handler drops on release, and the ghost must
   // know where that was first.
   const feed = (kind: PointerKind) => (e: PointerEvent) => {
-    if (kind === 'move' && carry.state.thing != null && !layer.isConnected) document.body.append(layer)
     ghosts.handlePointer(kind, e.clientX, e.clientY)
   }
   const down = feed('down')
@@ -637,7 +768,7 @@ export function carryPanel<T>(
   const ghost = carryGhost(box.el)
   const showGhost = (x: number, y: number) => {
     last = { x, y }
-    if (drawGhost) ghost.show(x, y, String(carry.state.thing))
+    if (drawGhost) ghost.show(x, y, dragLooks.get(carry) ?? { label: String(carry.state.thing) })
   }
   const hideGhost = () => ghost.hide()
   const stop = whenDropMisses(carry, () => dragOrigin.get(carry) === self, (why) => {
@@ -665,6 +796,8 @@ export function carryPanel<T>(
           // Until a drop lands, assume it will not (a release outside every
           // panel is a cancel nobody reports).
           lastRefusal.set(carry, [])
+          dragLooks.set(carry, tile.carryLook)
+          infoLayers.get(carry)?.hide()
           carry.pickUp(tile.carryThing, tile.carryFrom, 'drag')
         }
         if (dragging()) showGhost(x, y)

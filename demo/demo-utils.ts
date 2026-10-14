@@ -464,9 +464,9 @@ export function demoLoadout(): { bodyPanels: () => FramePanelSpec[]; dock: () =>
     } as any
   )
   let dock: InventoryDock | null = null
-  fetch('/person-loadout.svg')
-    .then((r) => r.text())
-    .then((art) => {
+  Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())])
+    .then(([art, icons]) => {
+      for (const k of Object.keys(kinds)) (kinds as Record<string, { icon?: string }>)[k].icon = icons[k]
       dock = inventoryDock({
         inv,
         carry: createCarry(),
