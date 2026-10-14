@@ -53,26 +53,43 @@ const bagTarget = {
   },
 }
 
-const host = svg({ viewBox: '0 0 420 360', width: 420, height: 360, style: 'touch-action:none' })
-preview.append(host)
-let panel = null
-function build() {
+// TWO panels, one carry: the bag and the hands are separate surfaces, and a
+// drag goes from one to the other.
+const bagHost = svg({ viewBox: '0 0 300 190', width: 300, height: 190, style: 'touch-action:none' })
+const handHost = svg({ viewBox: '0 0 220 250', width: 220, height: 250, style: 'touch-action:none' })
+preview.append(bagHost, handHost)
+const tileOf = (t, from) => carryTile({ carry, thing: t, from, label: t, decorations: () => LOOK[t] })
+const panels = new Map()
+function mount(host, children) {
   host.textContent = ''
-  const tiles = [...bag].map((t) => carryTile({ carry, thing: t, from: 'bag', label: t, decorations: () => LOOK[t] }))
-  const sockets = ['left', 'right'].map((side) =>
-    carrySocket({ carry, target: handTarget(side), label: side + ' hand', width: 180, holding: hands[side] ? carryTile({ carry, thing: hands[side], from: side, label: hands[side], decorations: () => LOOK[hands[side]] }) : null })
-  )
-  const children = [ui.textBlock('Bag', { font: { size: 14, weight: 600 }, color: '#ddd' }), ...tiles, carrySocket({ carry, target: bagTarget, label: 'put back in the bag', width: 380, height: 30 }), ui.textBlock('Hands', { font: { size: 14, weight: 600 }, color: '#ddd' }), ...sockets]
-  const b = ui.box({ width: 420, padding: 12, gap: 10, background: '#1c2230', radius: 10 }, ...children)
+  const b = ui.box({ width: Number(host.getAttribute('width')), padding: 12, gap: 10, background: '#1c2230', radius: 10 }, ...children)
   host.append(b.el)
-  panel = carryPanel(b, carry)
+  panels.set(host, carryPanel(b, carry))
+}
+function build() {
+  mount(bagHost, [
+    ui.textBlock('Bag', { font: { size: 14, weight: 600 }, color: '#ddd' }),
+    ...[...bag].map((t) => tileOf(t, 'bag')),
+    carrySocket({ carry, target: bagTarget, label: 'put back in the bag', width: 270, height: 30 }),
+  ])
+  mount(handHost, [
+    ui.textBlock('Hands', { font: { size: 14, weight: 600 }, color: '#ddd' }),
+    ...['left', 'right'].map((side) =>
+      carrySocket({ carry, target: handTarget(side), label: side + ' hand', width: 190, holding: hands[side] ? tileOf(hands[side], side) : null })
+    ),
+  ])
 }
 build()
-const at = (e) => { const p = ui.svgPoint(host, e.clientX, e.clientY); return [p.x, p.y] }
-host.addEventListener('pointerdown', (e) => panel.handlePointer('down', ...at(e)))
-host.addEventListener('pointermove', (e) => panel.handlePointer('move', ...at(e)))
-host.addEventListener('pointerup', (e) => panel.handlePointer('up', ...at(e)))
-host.addEventListener('pointerleave', () => panel.handlePointer('leave', 0, 0))
+for (const host of [bagHost, handHost]) {
+  const at = (e) => { const p = ui.svgPoint(host, e.clientX, e.clientY); return [p.x, p.y] }
+  host.addEventListener('pointerdown', (e) => panels.get(host).handlePointer('down', ...at(e)))
+  host.addEventListener('pointermove', (e) => panels.get(host).handlePointer('move', ...at(e)))
+  host.addEventListener('pointerup', (e) => panels.get(host).handlePointer('up', ...at(e)))
+  host.addEventListener('pointerleave', () => panels.get(host).handlePointer('leave', 0, 0))
+}
+// Let go anywhere else: it goes back where it was. (A panel's own release
+// has already dropped it by the time this runs, so this only catches misses.)
+window.addEventListener('pointerup', () => carry.cancel())
 ```
 
 ## How it fits together
@@ -91,8 +108,10 @@ host.addEventListener('pointerleave', () => panel.handlePointer('leave', 0, 0))
   pointer (or puts it back). A tap on a tile and then a tap on a socket does
   the same without carrying it.
 
-Several panels can share one `carry`, which is how a drag goes from one to
-another: each reports what its own sockets see.
+Several panels share one `carry`, which is how a drag goes from one to
+another (the demo's bag and hands are two): each reports what its own
+sockets see, and whichever panel the pointer is let go over drops it. Let go
+outside every panel and the host cancels (the demo listens on `window`).
 */
 /*{ "parent": "carry", "order": 10 }*/
 
@@ -325,7 +344,12 @@ export interface CarryPanel {
  */
 export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
   let press: { x: number; y: number } | null = null
-  let dragging = false
+  /*
+  "A DRAG IS ON" BELONGS TO THE CARRY, not to this panel: a drag that starts
+  here and is let go over another panel must drop there, and that panel did
+  not see it start. So every panel asks the shared carry.
+  */
+  const dragging = () => carry.state.thing != null && carry.state.mode === 'drag'
   const ghost = g(
     { 'pointer-events': 'none', opacity: '0.85' },
     rect({ x: -50, y: -14, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
@@ -343,10 +367,15 @@ export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
   )
   ghost.append(ghostText)
   const showGhost = (x: number, y: number) => {
+    ghostText.textContent = String(carry.state.thing)
     if (!ghost.isConnected) box.el.append(ghost)
     ghost.setAttribute('transform', `translate(${x}, ${y})`)
   }
   const hideGhost = () => ghost.remove()
+  // Whichever panel the drop happened in, every ghost goes.
+  carry.subscribe((s) => {
+    if (s.thing == null) hideGhost()
+  })
   return {
     handlePointer(kind, x, y) {
       if (kind === 'down') {
@@ -359,15 +388,13 @@ export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
         const tile = pressedTile.get(carry)
         if (
           press &&
-          !dragging &&
+          !dragging() &&
           tile &&
           Math.hypot(x - press.x, y - press.y) > DRAG_THRESHOLD
         ) {
-          dragging = true
           carry.pickUp(tile.carryThing, tile.carryFrom, 'drag')
-          ghostText.textContent = String(tile.carryThing)
         }
-        if (dragging) showGhost(x, y)
+        if (dragging()) showGhost(x, y)
         // The box keeps its hover bookkeeping, which is how a socket knows
         // the pointer is on it.
         box.handlePointer(kind, x, y)
@@ -376,8 +403,7 @@ export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
       if (kind === 'up') {
         press = null
         pressedTile.delete(carry)
-        if (dragging) {
-          dragging = false
+        if (dragging()) {
           hideGhost()
           carry.drop()
           // Clear the box's press without activating anything.
@@ -387,8 +413,10 @@ export function carryPanel<T>(box: Box, carry: Carry<T>): CarryPanel {
         box.handlePointer(kind, x, y)
         return
       }
-      // leave
-      if (dragging) {
+      // leave: the drag goes on (into another panel, perhaps); only this
+      // panel's view of it ends.
+      press = null
+      if (dragging()) {
         hideGhost()
         carry.over(null)
       }

@@ -10,7 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
-- **Drag and drop, as a model and on a panel** (INVENTORY-DESIGN step 1). `createCarry` is picking up and putting down with nothing drawn: what is carried and from where, the target under the pointer, and its verdict as REASONS; drop is all or nothing; dragging and two taps are one model, and one carry spans every panel. `carryTile`, `carrySocket` and `carryPanel` draw it on a box: things with decorations (a status bar, a damaged or broken outline, a badge), sockets that light when the held thing would fit, dim when not and say why, and a ghost that follows the pointer.
+- **Drag and drop, as a model and on a panel** (INVENTORY-DESIGN step 1). `createCarry` is picking up and putting down with nothing drawn: what is carried and from where, the target under the pointer, and its verdict as REASONS; drop is all or nothing; dragging and two taps are one model, and one carry spans every panel. `carryTile`, `carrySocket` and `carryPanel` draw it on a box: things with decorations (a status bar, a damaged or broken outline, a badge), sockets that light when the held thing would fit, dim when not and say why, and a ghost that follows the pointer. A drag goes from one panel to another (they share the carry), and letting go outside every panel puts the thing back.
 
 ### Changed
 
