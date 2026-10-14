@@ -89,6 +89,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ### Fixed
 
 - **A dry world's crater floors were drawn as sea bed**, a flat dark patch: the classifier took the zero height for a sea. A world with no sea now has none under its ground, and its classifier works at the planet's own scale (a datum at 0.001 had put its noise past float precision).
+- **A world's volcanism outlived it**: Io's glowing plates stayed on the next world chosen.
 - **A planet's cooling with height stuck from its first build**, so a dry world chosen after one with a sea was frozen pale.
 - **Planet clouds can close**: `clouds` runs past 1, to 3 for a solid deck (Venus); at 1 it still left holes.
 - **Rock on a planet was blocky.** The cliff test read a slope that was constant across each triangle (from screen derivatives), so bare rock stepped in squares. On land, and anywhere on a world with no sea, it reads the mesh's own smooth normal now; only a sea bed, held flat in the mesh, still needs the derivative one.

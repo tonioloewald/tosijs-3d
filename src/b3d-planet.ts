@@ -660,7 +660,10 @@ export class B3dPlanet extends B3dChild {
         const climate = this._look()?.climate
         if (attrs.world !== this._climateOf) {
           this._climateOf = attrs.world
-          if (climate) Object.assign(made.plugin.params, climate)
+          // Volcanism only where the world has it: left over from Io, an
+          // Earth chosen after it glowed.
+          if (climate)
+            Object.assign(made.plugin.params, { volcanism: 0, ...climate })
         }
         // A world's own ground colours (Io's sulfur): one row of four for
         // every moisture row. The plugin is new each build, so every time.
