@@ -903,8 +903,8 @@ export class B3dPlanet extends B3dChild {
     const radius: number = attrs.radius
 
     // Register ring shader once
-    if (!BABYLON.Effect.ShadersStore['planetRing3VertexShader']) {
-      BABYLON.Effect.ShadersStore['planetRing3VertexShader'] = `
+    if (!BABYLON.Effect.ShadersStore['planetRing6VertexShader']) {
+      BABYLON.Effect.ShadersStore['planetRing6VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec2 uv;
@@ -915,7 +915,7 @@ export class B3dPlanet extends B3dChild {
           vUV = uv;
         }
       `
-      BABYLON.Effect.ShadersStore['planetRing3FragmentShader'] = `
+      BABYLON.Effect.ShadersStore['planetRing6FragmentShader'] = `
         #extension GL_OES_standard_derivatives : enable
         precision highp float;
         varying vec2 vUV;
@@ -937,28 +937,68 @@ export class B3dPlanet extends B3dChild {
           // Normalize to ring band
           float t = (r - ringInner) / (1.0 - ringInner);
 
-          // Procedural ring bands from seed. A band finer than a pixel
-          // fades to its average instead of aliasing: drawn, it shimmered
-          // into moire and flickered as the camera moved. (The frequency
-          // also used to grow with the seed, to some 300 ripples.)
-          float px = fwidth(t);
-          float bands = 0.0;
-          for (float i = 1.0; i < 6.0; i++) {
-            float freq = i * 7.0 + hash(seed + 3.0) * 6.0;
-            float amp = hash(i * seed + 0.5) * 0.3;
-            float alias = 1.0 - smoothstep(0.15, 0.35, freq * px);
-            bands += sin(t * freq) * amp * alias;
+          // SHARP, as rings are, and irregular: the density along the
+          // radius is 1D noise at several scales, TERRACED, so it holds
+          // plateaus of different widths and steps between them with edges
+          // about a pixel wide. Only detail finer than a pixel fades to its
+          // average (drawn, it shimmered into moire and flickered).
+          float px = max(fwidth(t), 1e-5);
+          float theta = atan(uv.y, uv.x);
+
+          // A shepherd moon in the narrow gap: the edges either side of it
+          // ripple round the ring, fading away from the gap. (The integer
+          // count keeps the ripple whole across atan's jump.)
+          float gapB = hash(seed + 1.0) * 0.15 + 0.8;
+          float near = abs(t - gapB);
+          t += 0.004 * sin(theta * 36.0) * exp(-near / 0.02);
+
+          float n = 0.0;
+          float a = 0.5;
+          float f = 6.0;
+          float norm = 0.0;
+          for (float i = 0.0; i < 5.0; i++) {
+            float x = t * f + seed * 13.1 + i * 7.3;
+            float c = floor(x);
+            float k = fract(x);
+            float vn = mix(hash(c), hash(c + 1.0), k * k * (3.0 - 2.0 * k));
+            float fade = 1.0 - smoothstep(0.3, 0.6, f * px);
+            n += a * fade * (vn - 0.5);
+            norm += a;
+            a *= 0.55;
+            f *= 2.7;
           }
-          bands = 0.5 + bands;
+          n = clamp(n / norm * 1.6 + 0.5, 0.0, 1.0);
+          float steps = n * 6.0;
+          float sw = max(fwidth(steps), 1e-4);
+          float terrace = (floor(steps) + smoothstep(1.0 - sw, 1.0, fract(steps))) / 6.0;
+          float density = mix(n, terrace, 0.75);
 
-          // Gaps, never narrower than about a pixel
-          float gap1 = smoothstep(0.0, max(0.02, px * 1.5), abs(t - hash(seed) * 0.6 - 0.2));
-          float gap2 = smoothstep(0.0, max(0.015, px * 1.5), abs(t - hash(seed + 1.0) * 0.4 - 0.5));
-          bands *= gap1 * gap2;
+          // The broad profile: faint inside, brightest a little out.
+          float profile = 0.35 + 0.65 * sin(3.1416 * pow(t, 0.75));
+          float bands = profile * (0.3 + 1.1 * density) * 1.3;
 
-          // Fade at edges
-          float edgeFade = smoothstep(0.0, 0.1, t) * smoothstep(1.0, 0.85, t);
-          float alpha = bands * edgeFade * ringOpacity;
+          // Imperfect round the ring: a faint clumping by angle and radius.
+          vec2 cq = uv * 9.0 + seed;
+          vec2 ci = floor(cq);
+          vec2 cf = fract(cq);
+          cf = cf * cf * (3.0 - 2.0 * cf);
+          float h00 = hash(ci.x + ci.y * 57.0);
+          float h10 = hash(ci.x + 1.0 + ci.y * 57.0);
+          float h01 = hash(ci.x + (ci.y + 1.0) * 57.0);
+          float h11 = hash(ci.x + 1.0 + (ci.y + 1.0) * 57.0);
+          float clump = mix(mix(h00, h10, cf.x), mix(h01, h11, cf.x), cf.y);
+          bands *= 0.95 + 0.1 * clump;
+
+          // Gaps: the wide one (Cassini's) and the moon's narrow one,
+          // cut clean, a pixel soft.
+          float g1 = abs(t - hash(seed) * 0.4 - 0.45);
+          float gap1 = smoothstep(0.022 - px, 0.022 + px, g1);
+          float gap2 = smoothstep(0.005 - px, 0.005 + px, abs(t - gapB));
+          bands *= mix(0.04, 1.0, gap1) * mix(0.06, 1.0, gap2);
+
+          // Edges: crisp, a few pixels at most.
+          float edgeFade = smoothstep(0.0, max(0.015, px * 2.0), t) * smoothstep(1.0, 1.0 - max(0.01, px * 2.0), t);
+          float alpha = clamp(bands, 0.0, 1.0) * edgeFade * ringOpacity;
 
           gl_FragColor = vec4(ringColor * bands, alpha);
         }
@@ -1003,7 +1043,7 @@ export class B3dPlanet extends B3dChild {
     const mat = new BABYLON.ShaderMaterial(
       'planet-ring-mat',
       scene,
-      { vertex: 'planetRing3', fragment: 'planetRing3' },
+      { vertex: 'planetRing6', fragment: 'planetRing6' },
       {
         attributes: ['position', 'uv'],
         uniforms: [

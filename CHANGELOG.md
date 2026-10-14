@@ -17,7 +17,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 - **A gas giant's storm had a seam** where its swirl read noise at an angle that jumps a full turn.
 - **Gas giant poles had a dark blotch**, a cap of a different colour; the bands now close in on the pole, a little darker.
-- **A ring's fine bands and gaps fade where they would be finer than a pixel**, and its band frequency no longer grows with the seed.
+- **Rings are sharp, and no longer flicker.** The density along the radius is 1D noise at several scales, terraced into plateaus of different widths with edges about a pixel wide, under a broad profile (faint inside, brightest a little out), with a wide gap and a narrow one cut clean. A shepherd moon's wake ripples the edges either side of the narrow gap. Only detail finer than a pixel fades to its average, which is what stopped the flicker; the band frequency no longer grows with the seed.
 
 ## 0.10.4
 
