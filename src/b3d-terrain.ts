@@ -285,7 +285,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
 | `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
-| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE |
+| `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest)**. Land sits on the chart at three quarters of this (the top row is the sea's), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |
 | `biomeSeason` | `0.25` | Where in the year it is, 0…1: 0 spring equinox, 0.25 midsummer, 0.5 autumn equinox, 0.75 midwinter. Does nothing while `biomeSeasonality` is 0. LIVE |
 | `biomeSeasonality` | `0` | How far the year swings the temperature axis, in chart units (0 = no seasons; 0.2 is temperate). Winter cools the whole chart; autumn turns decorator leaves. LIVE |
@@ -2102,16 +2102,24 @@ export class B3dTerrain extends B3dChild {
     // coordinates, so its regions stay put across a floating-origin reset.
     this.biomePlugin.params.worldOffsetX = this.originOffsetX
     this.biomePlugin.params.worldOffsetZ = this.originOffsetZ
-    // Height dries the land over half the relief setting (most ground sits
-    // well under it, and at the whole of it the effect could not be seen):
-    // coasts and valleys green, heights dry. Written when the relief
-    // changes, so a panel setting the param directly is not stomped.
+    // Height dries the land over the LAND's height: from the sea to
+    // the highest the ground can reach, not the whole relief (most of which
+    // may be under water). Coasts and valleys green, heights dry. Written
+    // when that height changes, so a panel setting the param directly is
+    // not stomped.
     const relief =
       Math.abs(Number(a.grossAmplitude) || 0) +
       Math.abs(Number(a.detailAmplitude) || 0)
-    if (relief !== memo.relief) {
-      memo.relief = relief
-      this.biomePlugin.params.moistureDryHeight = relief * 0.5
+    const top =
+      (Number(a.baseHeight) || 0) +
+      (a.center ? -(Number(a.grossAmplitude) || 0) / 2 : 0) +
+      relief
+    // Never below a tenth of the relief, so a world nearly drowned still
+    // has a scale to dry over.
+    const land = Math.max(top - sea, relief * 0.1)
+    if (land !== memo.relief) {
+      memo.relief = land
+      this.biomePlugin.params.moistureDryHeight = land
     }
     if (sea !== memo.sea) {
       memo.sea = sea

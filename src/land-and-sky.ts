@@ -29,10 +29,12 @@ const { demo } = tosi({
     // CLIMATE, above water. Moisture is the one that matters most: the biome
     // chart's default 0.45 sits between the dry row (dune) and the medium
     // row (steppe), which is why a warm world with a coral reef below the
-    // waterline read as barren above it. 0.72 is the wet row — forest.
+    // waterline read as barren above it. Land sits on the chart's rows at
+    // three quarters of its moisture (the top row is the sea's), so forest
+    // wants nearly 1: 0.95, which height and the regions then dry in places.
     // TEMPERATURE: 0 is 0 °C and a unit is 50 °C, so this is 22.5 °C.
     temperature: 0.45,
-    moisture: 0.72,
+    moisture: 0.95,
     // Plates sized to THIS volcano (420 m). The plugin's 0.09 was tuned on a
     // 55 m cone, where it gives ~11 m plates; here that is gravel.
     volcanicScale: 0.02,

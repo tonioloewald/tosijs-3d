@@ -4103,7 +4103,7 @@
       {
         "name": "biomeMoisture",
         "default": "-1",
-        "description": "Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest, ≈0.75)**. The default is steppe; a green world wants ~0.7. LIVE"
+        "description": "Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest)**. Land sits on the chart at three quarters of this (the top row is the sea's), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE"
       },
       {
         "name": "biomeVolcanicScale",
