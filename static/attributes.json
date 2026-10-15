@@ -5150,6 +5150,10 @@
       {
         "name": "height",
         "default": "a fixed height that scrolls, instead of growing to fit"
+      },
+      {
+        "name": "handleDrop",
+        "default": "(item, kind, from)"
       }
     ]
   },

@@ -361,6 +361,9 @@ Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-ic
   const dock = inventoryDock({
     inv, carry: createCarry(), holder: 'hero', title: 'hero', alsoIn,
     schematic: { container: 'body', art }, list: 'bag',
+    // A drop target under the bag: here the thing is just gone; a game puts
+    // it on the ground (return reasons to refuse instead).
+    handleDrop: (item) => console.log('dropped', item.kind),
   })
   // Laid out on the page (text is measured there), out of sight.
   const park = document.createElement('div')
@@ -390,6 +393,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `only`, `hide` | which containers this panel draws (one holder can be split over panels) |
 | `height` | a fixed height that scrolls, instead of growing to fit |
 | `totals` | show the holder's purse and totals under its title (default on) |
+| `handleDrop` | `(item, kind, from)`: adds a **drop** target at the top of the list; return reasons to refuse, else it leaves the inventory (put it in the world yourself) |
 | `alsoIn(item, kind, at)` | other slots an item takes up, where it is drawn faded (a two-handed weapon in both hands) |
 | `overlay` | draw the drag's ghost in a page overlay above every panel (default); off inside a 3D plane |
 
@@ -471,6 +475,14 @@ export interface InventoryPanelOptions {
    * the plane's SVG and is fed through `handlePointer`.
    */
   overlay?: boolean
+  /**
+   * Give the panel a DROP target ("drop", heading its list): a thing dropped
+   * there leaves the inventory. Called first with what is dropped and where
+   * from; return reasons to refuse (it springs back), or nothing to let it
+   * go, and put it in the world yourself (on the ground at the player's
+   * feet). No drop target without it.
+   */
+  handleDrop?: (item: Item, kind: ItemKind | undefined, from: Place) => string[] | void
 }
 
 export interface InventoryPanel {
@@ -814,6 +826,33 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         textBlock(line || '\u00a0', { font: { size: 11 }, color: '#8a96ad' })
       )
     }
+    /*
+    DROP: out of the inventory, through the game's handleDrop (which can
+    refuse, or put the thing on the ground).
+    */
+    const dropSocket = () => {
+      const drop: CarryTarget<string> = {
+        id: `${holder}/drop`,
+        accepts: (item) => inv.check({ item, to: null }),
+        receive: (item) => {
+          const it = inv.doc.items[item]
+          const from = inv.where(item)
+          const why = opts.handleDrop!(it, kinds[it?.kind], from as Place)
+          if (why && why.length) return why
+          const r = inv.move({ item, to: null })
+          return r.ok ? [] : r.reasons
+        },
+      }
+      const socket = carrySocket({
+        carry,
+        target: drop,
+        label: 'drop',
+        width: width - 24,
+        height: 30,
+      })
+      disposers.push(socket.dispose)
+      return socket
+    }
     for (const [cname, c] of Object.entries(h.containers)) {
       if (opts.only && !opts.only.includes(cname)) continue
       if (opts.hide?.includes(cname)) continue
@@ -902,6 +941,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           children.push(socket)
         }
       } else if (c.type === 'list') {
+        // The drop target heads the list: a scrolling list would take it
+        // out of sight at the bottom.
+        if (opts.handleDrop && !lists.length) children.push(dropSocket())
         const at: Place = { holder, container: cname }
         const into = target(at, `${holder}/${cname}`)
         lists.push({ target: into, from: enc(at) })
@@ -1024,12 +1066,17 @@ export interface InventoryDockOptions
     | 'refuse'
     | 'alsoIn'
     | 'info'
+    | 'handleDrop'
   > {
   /** The slots container drawn as a schematic, and its art. */
   schematic: { container: string; art: string | SVGSVGElement }
   /** The list shown beside it when open (a bag); none for a craft fitted from a carrier's stock. */
   list?: string | null
-  /** The schematic panel's width (default 410), the list's (200) and the height of both (540). */
+  /**
+   * The schematic panel's width (default 410) and the list's (200). The list
+   * is as tall as the schematic panel unless `height` says otherwise (it
+   * scrolls).
+   */
   width?: number
   listWidth?: number
   height?: number
@@ -1061,14 +1108,15 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const { carry } = opts
   const W = opts.width ?? 410
   const LW = opts.listWidth ?? 200
-  const H = opts.height ?? 540
   const GAP = 12
   const { svg, g, circle, rect } = svgElements
   const root = svg({
     xmlns: 'http://www.w3.org/2000/svg',
   }) as unknown as SVGSVGElement
+  // A panel grows from its host's height, so the schematic's starts at 0
+  // (it was the list's 540, which made the whole dock that tall).
   const nested = (x: number, w: number) => {
-    const s = svg({ x, y: 0, width: w, height: H }) as unknown as SVGSVGElement
+    const s = svg({ x, y: 0, width: w, height: 0 }) as unknown as SVGSVGElement
     root.append(s)
     return s
   }
@@ -1085,6 +1133,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     info: opts.info,
     overlay: false,
   }
+  const mainHeight = () => Number(mainHost.getAttribute('height')) || 400
   const main = inventoryPanel({
     ...common,
     host: mainHost,
@@ -1099,7 +1148,9 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
           host: listHost,
           only: [opts.list],
           totals: false,
-          height: H,
+          // As tall as the schematic beside it; the list scrolls.
+          height: opts.height ?? mainHeight(),
+          handleDrop: opts.handleDrop,
         })
       : null
   const closeButton = g(
@@ -1110,11 +1161,11 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const ghosts = carryGhostLayer(carry, root)
 
   let open = false
-  let size = { width: W, height: H }
+  let size = { width: W, height: mainHeight() }
   const layout = () => {
     const h = Math.max(
-      Number(mainHost.getAttribute('height')) || H,
-      open && listHost ? H : 0
+      mainHeight(),
+      open && listHost ? Number(listHost.getAttribute('height')) || 0 : 0
     )
     const w = open && listHost ? W + GAP + LW : W
     if (listHost) listHost.style.display = open ? '' : 'none'

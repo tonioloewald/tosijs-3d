@@ -1315,6 +1315,7 @@ inventory-box
   host  = <svg>
   schematics  = art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)
   height  = a fixed height that scrolls, instead of growing to fit
+  handleDrop  = (item, kind, from)
 
 ## inventory
 inventory

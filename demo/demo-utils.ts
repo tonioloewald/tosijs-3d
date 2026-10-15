@@ -516,6 +516,9 @@ export function demoLoadout(): {
         k?.tags?.includes('two-handed') && at.slot?.startsWith('hand_')
           ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left']
           : [],
+      // Nowhere to put it down in this scene: it is simply gone (a game puts
+      // it on the ground here).
+      handleDrop: (item) => console.log('dropped', item.kind),
     })
     // Laid out on the page (text is measured there), out of sight.
     const park = document.createElement('div')
