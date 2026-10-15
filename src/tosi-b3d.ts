@@ -1265,6 +1265,13 @@ export class B3d extends Component {
   // ─── Pause ────────────────────────────────────────────────────────────────
   private _paused = false
   private _pausePanel: B3dSvgPlane | null = null
+  // Flat, in-scene pause (flatUi 'scene'): a modal frame panel, its own frames,
+  // and the observer that poses them.
+  private _pauseModal: {
+    panel: { update: () => void; dispose: () => void }
+    frames: XrFrames
+    obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
+  } | null = null
   private _pauseWatch: (() => void) | null = null
   private _cameraWasAttached = false
   // Snapshot of the flat ORBIT camera taken on XR entry, restored on exit. An
@@ -1458,7 +1465,12 @@ export class B3d extends Component {
   }
 
   private _showPausePanel(): void {
-    if (this._pausePanel != null || this.scene == null) return
+    if (
+      this._pausePanel != null ||
+      this._pauseModal != null ||
+      this.scene == null
+    )
+      return
     /*
     TAKE THE CAMERA'S HANDS OFF THE POINTER FIRST.
 
@@ -1506,6 +1518,10 @@ export class B3d extends Component {
     const { svg, height: svgH } = fitPanel(rows, { width: 320, maxHeight: 560 })
 
     /*
+    (FLAT with `flat-ui="dom"`: the DOM. The default flat presentation is now
+    the modal in the scene, above; what follows is why the DOM was chosen
+    before the modal layer and screen pins existed.)
+
     FLAT: the DOM. IMMERSIVE: a plane in the scene.
 
     ONE widget list, two presentations — the scene panel's rule, applied to the
@@ -1520,6 +1536,39 @@ export class B3d extends Component {
     DOM node the widgets' own listeners work natively — the same element,
     unmodified, in both.
     */
+    /*
+    FLAT, IN THE SCENE (flatUi 'scene', the default; #3307): the same SVG as a
+    MODAL panel, over the world and over the ui layer, drawn and picked first,
+    pinned to the middle of the screen square to it. The reasons it once
+    moved to the DOM (occlusion, a line-of-sight placement, a raycast to
+    press it, landing somewhere odd) are each answered by the modal layer
+    and the screen pins. Its own head-locked frame, because a scene with no
+    other flat panels has none.
+    */
+    const cam0 = this.scene.activeCamera
+    if (!this.xrActive && (this as any).flatUi !== 'dom' && cam0 != null) {
+      const frames = XrFrames.flat(this.scene, cam0)
+      const cnv = this.parts.canvas as HTMLCanvasElement
+      const tall = Math.min(svgH, (cnv.clientHeight || 600) * 0.8)
+      const panel = attachFramePanel(this.scene, cam0 as BABYLON.TargetCamera, frames.get('face'), {
+        frame: 'face',
+        anchor: { position: [0, 0, 1] },
+        presence: 'both',
+        reveal: 'always',
+        layer: 'modal',
+        svg,
+        width: 0.3,
+        resolution: 1024,
+        screenAnchor: { left: '50%', top: '50%', anchor: 'center', height: tall },
+      })
+      const obs = this.scene.onBeforeCameraRenderObservable.add((rendering) => {
+        if (rendering !== cam0) return
+        frames.update(0)
+        panel.update()
+      })
+      this._pauseModal = { panel, frames, obs }
+      return
+    }
     if (!this.xrActive) {
       const host = this.parts.pauseHost as HTMLElement | undefined
       if (host != null) {
@@ -1572,6 +1621,12 @@ export class B3d extends Component {
     }
     this._pausePanel?.remove()
     this._pausePanel = null
+    if (this._pauseModal != null) {
+      this.scene?.onBeforeCameraRenderObservable.remove(this._pauseModal.obs)
+      this._pauseModal.panel.dispose()
+      this._pauseModal.frames.dispose()
+      this._pauseModal = null
+    }
     if (this._cameraWasAttached && this.camera != null) {
       this.camera.attachControl(this.parts.canvas as HTMLCanvasElement, false)
     }
