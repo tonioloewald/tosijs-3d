@@ -16,9 +16,9 @@ shot down — it:
 The panel is just widgets, so "what to do next" is entirely yours: `Respawn` is the default,
 but a game can offer _Rewind_, _Spectate_, _Eject and walk_, _Quit to menu_ — whatever. It's
 an in-scene SVG panel, so it works **flat and in VR** with the same coordinate-based
-picking, and needs no DOM overlay. Flat, it is the scene's modal (the pause's too): in
-the middle of the screen, over everything, so terrain cannot bury it. In a headset it is
-a plane ([b3d-svg-plane](?b3d-svg-plane.ts)) placed in the world in front of you.
+picking, and needs no DOM overlay. It is the scene's modal (the pause's too), drawn over
+everything so terrain cannot bury it: flat in the middle of the screen, in a headset in
+front of you.
 
 ## What it deliberately does NOT do
 
@@ -727,11 +727,11 @@ export class B3dDeath extends B3dChild {
     const { svg, height: svgH } = fitPanel(rows, { width: 320, maxHeight: 560 })
     // The glass gamepad sits over the canvas and would cover the buttons.
     this.owner._suppressGamepad?.('death', true)
-    // FLAT: the scene's modal, as the pause is (#3307): over everything, in the
-    // middle of the screen, square to it, so terrain and the wreck's own smoke
-    // cannot bury it. Null in a headset (and with flat-ui="dom"), where it
-    // stays the world-placed plane below.
-    const modal = this.owner.showFlatModal?.(svg, svgH)
+    // The scene's modal, as the pause is (#3307): over everything, so terrain
+    // and the wreck's own smoke cannot bury it; flat in the middle of the
+    // screen, in a headset in front of you. Null with flat-ui="dom" (or a
+    // custom XR rig), where it stays the world-placed plane below.
+    const modal = this.owner.showModal?.(svg, svgH)
     if (modal != null) {
       this._modal = modal
       return

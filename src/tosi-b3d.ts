@@ -1269,8 +1269,13 @@ export class B3d extends Component {
   // Flat, in-scene pause (flatUi 'scene'): a modal frame panel, its own frames,
   // and the observer that poses them.
   private _pauseModal: (() => void) | null = null
-  // Every flat in-scene modal open now (pause, a death's respawn panel…).
-  private _flatModals = new Set<() => void>()
+  // Every modal open now (pause, a death's respawn panel…), with what it
+  // shows, so it can move between the flat and headset presentations.
+  private _modals = new Set<{
+    svg: SVGSVGElement
+    height: number
+    close: (() => void) | null
+  }>()
   private _pauseWatch: (() => void) | null = null
   private _cameraWasAttached = false
   // Snapshot of the flat ORBIT camera taken on XR entry, restored on exit. An
@@ -1544,7 +1549,7 @@ export class B3d extends Component {
     and the screen pins. Its own head-locked frame, because a scene with no
     other flat panels has none.
     */
-    const modal = this.showFlatModal(svg, svgH)
+    const modal = this.showModal(svg, svgH)
     if (modal != null) {
       this._pauseModal = modal
       return
@@ -1594,21 +1599,78 @@ export class B3d extends Component {
   }
 
   /**
-   * Show `svg` (a `fitPanel`, `height` its viewBox height) as a flat in-scene
-   * MODAL: over the world and over the ui layer, drawn and picked first,
-   * centred on the screen and square to it. Returns its dispose, or `null`
-   * where there is no flat modal to give (in a headset, with
-   * `flat-ui="dom"`, or with no camera), so the caller falls back to its own.
+   * Show `svg` (a `fitPanel`, `height` its viewBox height) as the scene's
+   * MODAL: over the world and over the ui layer, drawn and picked first.
+   * Flat it is centred on the screen and square to it; in a headset it hangs
+   * in front of you at a comfortable distance, a little below eye level, and
+   * follows your body round. Returns its close, or `null` where there is no
+   * modal to give (`flat-ui="dom"` on a monitor, a custom `setupXr` with no
+   * frames, no camera yet), so the caller falls back to its own.
    *
    * The pause and a death's respawn panel both come through here, so they are
-   * one thing in one place. Each gets its own head-locked frame, because a
-   * scene with no other flat panels has none.
+   * one thing in one place. One that is open when you enter or leave a
+   * headset moves across with you.
    */
-  showFlatModal(svg: SVGSVGElement, height: number): (() => void) | null {
+  showModal(svg: SVGSVGElement, height: number): (() => void) | null {
+    const m = { svg, height, close: this._presentModal(svg, height) }
+    if (m.close == null) return null
+    this._modals.add(m)
+    this._syncGamepadCover()
+    return () => {
+      if (!this._modals.delete(m)) return
+      m.close?.()
+      this._syncGamepadCover()
+    }
+  }
+
+  /** Put each open modal in the presentation now running (flat or headset). */
+  private _representModals(): void {
+    for (const m of this._modals) {
+      m.close?.()
+      m.close = this._presentModal(m.svg, m.height)
+    }
+  }
+
+  /** One modal, in the presentation now running; returns its dispose. */
+  private _presentModal(
+    svg: SVGSVGElement,
+    height: number
+  ): (() => void) | null {
     const scene = this.scene
-    const cam = scene?.activeCamera
-    if (scene == null || cam == null || this.xrActive) return null
-    if ((this as any).flatUi === 'dom') return null
+    if (scene == null) return null
+    const xrFrames = this.xrFrames
+    const xrCam = this.xrHelper?.baseExperience?.camera
+    if (this.xrActive) {
+      if (xrFrames == null || xrCam == null) return null
+      // A panel you read and then press: in front, at arm's length and a
+      // touch low, riding the body frame so a glance away does not take it
+      // with you but turning round brings it along.
+      const panel = attachFramePanel(scene, xrCam, xrFrames.get('body'), {
+        frame: 'body',
+        // Measured from the eye: the body frame's origin is your feet.
+        anchor: {
+          azimuthDeg: 0,
+          elevationDeg: -10,
+          distance: 1.1,
+          focus: [0, 1.6, 0],
+        },
+        presence: 'both',
+        reveal: 'always',
+        layer: 'modal',
+        svg,
+        width: 0.6,
+        resolution: 1024,
+      })
+      const obs = scene.onBeforeRenderObservable.add(() => panel.update())
+      return () => {
+        scene.onBeforeRenderObservable.remove(obs)
+        panel.dispose()
+      }
+    }
+    const cam = scene.activeCamera
+    if (cam == null || (this as any).flatUi === 'dom') return null
+    // Its own head-locked frame, because a scene with no other flat panels
+    // has none.
     const frames = XrFrames.flat(scene, cam)
     const cnv = this.parts.canvas as HTMLCanvasElement
     const tall = Math.min(height, (cnv.clientHeight || 600) * 0.8)
@@ -1638,16 +1700,11 @@ export class B3d extends Component {
       frames.update(0)
       panel.update()
     })
-    const dispose = () => {
-      if (!this._flatModals.delete(dispose)) return
+    return () => {
       scene.onBeforeCameraRenderObservable.remove(obs)
       panel.dispose()
       frames.dispose()
-      this._syncGamepadCover()
     }
-    this._flatModals.add(dispose)
-    this._syncGamepadCover()
-    return dispose
   }
 
   private _hidePausePanel(): void {
@@ -4718,6 +4775,8 @@ export class B3d extends Component {
         // Keep tosijs's rAF-batched reactive bindings flushing while in-session.
         restoreRaf ??= this._installXrRafPump(base)
         xrSession ??= this._startDefaultXrExperience(base, controllers)
+        // A modal open on the monitor comes into the headset with you.
+        this._representModals()
       } else if (state === BABYLON.WebXRState.NOT_IN_XR) {
         // Restore the orbit camera Babylon has just carried the (low) headset
         // pose into. Runs after Babylon's restore; setting target then angles
@@ -4759,6 +4818,8 @@ export class B3d extends Component {
         Guarded on `paused` so exiting a scene you paused from INSIDE the headset
         does not re-enter the pause it is already in.
         */
+        // …and one open in the headset comes back out to the monitor.
+        this._representModals()
         if (!this.paused) this.pause('xr')
       }
     })
@@ -5915,7 +5976,7 @@ export class B3d extends Component {
   private _syncGamepadCover(): void {
     const pad = this.querySelector('tosi-b3d-gamepad') as HTMLElement | null
     if (pad == null) return
-    const covered = this._flatScenePanel != null || this._flatModals.size > 0
+    const covered = this._flatScenePanel != null || this._modals.size > 0
     pad.style.display = covered ? 'none' : ''
   }
   private _openFlatScenePanel(): boolean {
