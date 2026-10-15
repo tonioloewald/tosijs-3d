@@ -3943,6 +3943,11 @@
         "description": "Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)"
       },
       {
+        "name": "timeScale",
+        "default": "3600",
+        "description": "Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale`"
+      },
+      {
         "name": "maps",
         "default": "'off'",
         "description": "`'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them"

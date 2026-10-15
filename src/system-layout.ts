@@ -20,8 +20,11 @@ documented ways:
 - **The belt is wildly overpopulated.** A real asteroid belt is so sparse
   that you would see nothing from inside it; this one is a band of rock you
   can see, with its few large bodies picked out as bodies of their own.
-- **Periods follow Kepler** (a cube law in the real distance), sped up so a
-  year takes about a minute.
+- **Time is not squeezed.** Every period is the real one, in seconds: an
+  Earth year is 365.26 days, Jupiter's day under ten hours, the Moon's month
+  27.3 days. A planet's year follows Kepler from its true distance; a moon's
+  month follows Kepler from its true distance in planet radii (`moonPeriod`).
+  How fast it all runs is the star system's `timeScale`.
 
 Everything follows from each body's seed, so the same system lays out the
 same way every time.
@@ -46,6 +49,8 @@ export interface PlanetInput {
   /** Its moons' radii in km, inmost first, when they are known (our own
    * system); otherwise they follow from the seed. */
   moons?: number[]
+  /** Its moons' periods in Earth days (negative backwards), when known. */
+  moonDays?: number[]
 }
 
 export interface MoonLayout {
@@ -55,7 +60,7 @@ export interface MoonLayout {
   visualRadius: number
   /** From the planet's centre, scene units. */
   distance: number
-  /** Seconds to go round its planet. */
+  /** Seconds to go round its planet; negative goes round backwards (Triton). */
   period: number
   /** Where it starts, radians. */
   phase: number
@@ -104,7 +109,7 @@ export interface LayoutOptions {
   spacing?: number
   /** Scene units for an Earth-sized radius. */
   earthSize?: number
-  /** Seconds for a planet at 1 AU to go round. */
+  /** Seconds for a planet at 1 AU to go round. Default: the Earth's year. */
   year?: number
   /**
    * The belt's big bodies' radii in km, when they are known (Ceres, Vesta,
@@ -113,23 +118,38 @@ export interface LayoutOptions {
   belt?: number[]
 }
 
-/** Drawn radius from a true one: Earth is `earthSize`, the rest by a square root. */
-/**
- * Seconds an Earth day takes in a drawn system. The orbits are sped up so an
- * Earth year is about a minute (`layoutSystem`); a day must be short against
- * that, or a planet turns more slowly than it goes round its star and looks
- * still. Six seconds is ten days a year: not the real 365, but plainly a day.
- */
-export const EARTH_DAY_SECONDS = 6
+/** Seconds in an Earth day (a solar day: periods in days are multiplied by it). */
+export const DAY_SECONDS = 86400
+
+/** Seconds in an Earth year (sidereal). */
+export const YEAR_SECONDS = 365.256 * DAY_SECONDS
 
 /**
- * How fast a body turns (radians a second, the planet's `rotationSpeed`) for a
- * day `day` Earth days long. Negative for a backwards day; 0 for no day.
+ * How far round a body has turned (radians, west to east) after `time`
+ * seconds, for a day `day` Earth days long: negative turns backwards, 0 does
+ * not turn.
  */
-export function spinSpeed(day: number): number {
-  return day === 0 ? 0 : (2 * Math.PI) / (EARTH_DAY_SECONDS * day)
+export function spinAngle(time: number, day: number): number {
+  if (day === 0) return 0
+  const turns = time / (day * DAY_SECONDS)
+  return (turns - Math.trunc(turns)) * Math.PI * 2
 }
 
+/**
+ * Seconds for a moon `radii` planet radii out to go round, by Kepler. The
+ * planet's size cancels: only its density is left (a rock's 5.5 g/cm³, a
+ * giant's 1.3), so the Moon at 60 Earth radii takes 27 days and Io at 5.9
+ * Jupiter radii 1.8.
+ */
+export function moonPeriod(radii: number, giant: boolean): number {
+  const density = giant ? 1300 : 5500
+  const G = 6.674e-11
+  return (
+    2 * Math.PI * Math.sqrt((3 * radii ** 3) / (4 * Math.PI * G * density))
+  )
+}
+
+/** Drawn radius from a true one: Earth is `earthSize`, the rest by a square root. */
 export function visualRadius(radiusKm: number, earthSize = 1): number {
   return earthSize * Math.min(5, Math.max(0.2, Math.sqrt(radiusKm / 6371)))
 }
@@ -162,7 +182,11 @@ function moonsFor(p: PlanetInput, vr: number, earthSize: number): MoonLayout[] {
       radiusKm,
       visualRadius: mr,
       distance: d,
-      period: 12 * Math.pow(d / vr, 1.5),
+      // Its real month, or Kepler from a true distance made up from the
+      // drawn one (drawn moons sit 2-5 radii out, real ones 5-60).
+      period: p.moonDays?.[i]
+        ? p.moonDays[i] * DAY_SECONDS
+        : moonPeriod(4 * (d / vr) ** 2, giant),
       phase: prng.realRange(0, Math.PI * 2),
     })
     d += mr * 1.6
@@ -181,7 +205,7 @@ export function layoutSystem(
 ): SystemLayout {
   const spacing = opts.spacing ?? 30
   const earthSize = opts.earthSize ?? 2
-  const year = opts.year ?? 60
+  const year = opts.year ?? YEAR_SECONDS
   const base = opts.starRadius * 2
   const out: PlanetLayout[] = []
   // The belt, if any, goes in a wide gap before the first giant: its room
@@ -260,6 +284,11 @@ export function layoutSystem(
 export interface SystemBodySpec {
   name: string
   radiusKm: number
+  /**
+   * A moon's month in Earth days (sidereal); negative goes round backwards
+   * (Triton). Default: Kepler from where it is drawn.
+   */
+  period?: number
   look: Record<string, unknown>
   maps?: Record<string, unknown>
 }

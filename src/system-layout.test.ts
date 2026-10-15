@@ -1,9 +1,11 @@
 import { describe, test, expect } from 'bun:test'
 import {
-  EARTH_DAY_SECONDS,
+  DAY_SECONDS,
+  YEAR_SECONDS,
+  moonPeriod,
+  spinAngle,
   layoutSystem,
   logDistance,
-  spinSpeed,
   visualRadius,
   type PlanetInput,
 } from './system-layout.js'
@@ -167,21 +169,42 @@ describe('a known system', () => {
   })
 })
 
-describe('a body’s day', () => {
-  test('an Earth day is EARTH_DAY_SECONDS, a turn of 2π', () => {
-    expect(spinSpeed(1) * EARTH_DAY_SECONDS).toBeCloseTo(2 * Math.PI)
+describe('real periods', () => {
+  test('a turn is a whole day: none at the start or after one day, half after half', () => {
+    expect(spinAngle(0, 1)).toBe(0)
+    expect(spinAngle(DAY_SECONDS, 1)).toBeCloseTo(0)
+    expect(spinAngle(DAY_SECONDS / 2, 1)).toBeCloseTo(Math.PI)
+    expect(spinAngle(DAY_SECONDS / 4, -1)).toBeCloseTo(-Math.PI / 2)
+    expect(spinAngle(123456, 0)).toBe(0)
   })
-  test('a backwards day turns the other way; no day, no turn', () => {
-    expect(spinSpeed(-1)).toBeCloseTo(-spinSpeed(1))
-    expect(spinSpeed(0)).toBe(0)
+  test('Kepler round a planet: the Moon, Io and Titan get their real months', () => {
+    const days = (s: number) => s / DAY_SECONDS
+    expect(days(moonPeriod(60.3, false))).toBeCloseTo(27.3, 0)
+    expect(days(moonPeriod(5.9, true))).toBeGreaterThan(1.5)
+    expect(days(moonPeriod(5.9, true))).toBeLessThan(2.1)
   })
-  test('Sol’s planets turn faster than they go round the Sun (or they look still)', () => {
-    // Except where the truth says otherwise: Mercury and Venus barely turn.
-    // Kepler, as layoutSystem has it: a 60-second Earth year.
-    for (const p of SOL.planets) {
-      if (Math.abs(p.day ?? 1) > 10) continue
-      const day = Math.abs(EARTH_DAY_SECONDS * (p.day ?? 1))
-      expect(day).toBeLessThan((60 * p.au ** 1.5) / 5)
-    }
+  test('the Earth goes round in a year, Jupiter in about twelve', () => {
+    const layout = layoutSystem(
+      SOL.planets.map((p, i) => ({
+        seed: i + 1,
+        orbitalRadius: p.au,
+        radius: p.radiusKm,
+        classification: p.look.gas ? 'gas giant' : 'rocky',
+        insolation: 1 / p.au ** 2,
+        rings: p.rings ?? 0,
+        moons: p.moons?.map((m) => m.radiusKm) ?? [],
+        moonDays: p.moons?.map((m) => m.period ?? 0),
+      })),
+      { starRadius: 5 }
+    )
+    expect(layout.planets[2].period).toBeCloseTo(YEAR_SECONDS, -3)
+    expect(layout.planets[4].period / YEAR_SECONDS).toBeCloseTo(11.86, 0)
+    // Given months are used as they are, backwards included (Triton).
+    expect(layout.planets[2].moons[0].period / DAY_SECONDS).toBeCloseTo(27.32)
+    expect(layout.planets[7].moons[0].period).toBeLessThan(0)
+  })
+  test('every Sol moon has its month', () => {
+    for (const p of SOL.planets)
+      for (const m of p.moons ?? []) expect(m.period).toBeDefined()
   })
 })

@@ -56,7 +56,7 @@ export const SOL: SystemSpec = {
       },
       moons: [
         {
-          name: 'Moon',
+          name: 'Moon', period: 27.32,
           radiusKm: 1737,
           look: { world: 'moon' },
           maps: MOON_MAPS,
@@ -80,8 +80,8 @@ export const SOL: SystemSpec = {
         clouds: 0,
       },
       moons: [
-        { name: 'Phobos', radiusKm: 11, look: { shape: 'rock' } },
-        { name: 'Deimos', radiusKm: 6, look: { shape: 'rock' } },
+        { name: 'Phobos', period: 0.319, radiusKm: 11, look: { shape: 'rock' } },
+        { name: 'Deimos', period: 1.263, radiusKm: 6, look: { shape: 'rock' } },
       ],
     },
     {
@@ -92,11 +92,11 @@ export const SOL: SystemSpec = {
       rings: 0.1,
       look: { gas: 'jupiter' },
       moons: [
-        { name: 'Io', radiusKm: 1822, look: { world: 'io' } },
-        { name: 'Europa', radiusKm: 1561, look: { world: 'ice' } },
-        { name: 'Ganymede', radiusKm: 2634, look: { world: 'moon' } },
+        { name: 'Io', period: 1.769, radiusKm: 1822, look: { world: 'io' } },
+        { name: 'Europa', period: 3.551, radiusKm: 1561, look: { world: 'ice' } },
+        { name: 'Ganymede', period: 7.155, radiusKm: 2634, look: { world: 'moon' } },
         {
-          name: 'Callisto',
+          name: 'Callisto', period: 16.69,
           radiusKm: 2410,
           look: { world: 'moon', craters: 0.95 },
         },
@@ -110,10 +110,10 @@ export const SOL: SystemSpec = {
       rings: 1,
       look: { gas: 'saturn' },
       moons: [
-        { name: 'Enceladus', radiusKm: 252, look: { world: 'ice' } },
-        { name: 'Rhea', radiusKm: 764, look: { world: 'moon' } },
-        { name: 'Titan', radiusKm: 2575, look: { world: 'titan' } },
-        { name: 'Iapetus', radiusKm: 735, look: { world: 'moon' } },
+        { name: 'Enceladus', period: 1.37, radiusKm: 252, look: { world: 'ice' } },
+        { name: 'Rhea', period: 4.518, radiusKm: 764, look: { world: 'moon' } },
+        { name: 'Titan', period: 15.945, radiusKm: 2575, look: { world: 'titan' } },
+        { name: 'Iapetus', period: 79.32, radiusKm: 735, look: { world: 'moon' } },
       ],
     },
     {
@@ -124,8 +124,8 @@ export const SOL: SystemSpec = {
       rings: 0.15,
       look: { gas: 'uranus' },
       moons: [
-        { name: 'Titania', radiusKm: 789, look: { world: 'moon' } },
-        { name: 'Oberon', radiusKm: 761, look: { world: 'moon' } },
+        { name: 'Titania', period: 8.706, radiusKm: 789, look: { world: 'moon' } },
+        { name: 'Oberon', period: 13.463, radiusKm: 761, look: { world: 'moon' } },
       ],
     },
     {
@@ -135,7 +135,7 @@ export const SOL: SystemSpec = {
       radiusKm: 24622,
       rings: 0.1,
       look: { gas: 'neptune' },
-      moons: [{ name: 'Triton', radiusKm: 1353, look: { world: 'ice' } }],
+      moons: [{ name: 'Triton', period: -5.877, radiusKm: 1353, look: { world: 'ice' } }],
     },
   ],
   belt: [
