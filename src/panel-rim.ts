@@ -30,21 +30,23 @@ export const RIM_WIDTH = 2.5
 export function panelRim(
   width: number,
   height: number,
-  radius: number
+  radius: number,
+  /** Line width in viewBox units: more for art drawn much smaller than its units. */
+  stroke = RIM_WIDTH
 ): SVGElement {
-  const i = RIM_WIDTH / 2
+  const i = stroke / 2
   const r = Math.max(0, radius - i)
   const rim = svgElements.rect({
     'data-w3d-rim': '',
     x: i,
     y: i,
-    width: Math.max(0, width - RIM_WIDTH),
-    height: Math.max(0, height - RIM_WIDTH),
+    width: Math.max(0, width - stroke),
+    height: Math.max(0, height - stroke),
     rx: r,
     ry: r,
     fill: 'none',
     stroke: RIM_STROKE,
-    'stroke-width': RIM_WIDTH,
+    'stroke-width': stroke,
   }) as unknown as SVGElement
   rim.style.pointerEvents = 'none'
   return rim

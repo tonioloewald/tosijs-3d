@@ -297,6 +297,13 @@ export interface FramePanelSpec {
   layer?: PanelLayer
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
+  /**
+   * Its icon on the scene's VR toolbar, which has a button per body panel
+   * that has one (an `svgIcons` name). Unset, a title naming an inventory,
+   * a journal or a loadout picks `backpack`, `book` or `loadout`; anything
+   * else gets no button.
+   */
+  icon?: string
   /** Custom panel SVG element (live/dynamic content). */
   svg?: SVGSVGElement
   /** Or fetch a static SVG from this URL (e.g. a reticle). */
@@ -493,6 +500,8 @@ export function attachFramePanel(
   /** The mesh actually DRAWN: `mesh` itself, or its copy in a panel layer
    * (what a popup hangs from, which must be in the same scene). */
   readonly drawn: BABYLON.Mesh
+  /** Its SVG (null for a `url` panel). `panelfocus` on it brings it front and centre. */
+  readonly el: SVGSVGElement | null
   /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
    * the ONLY way to see why a panel is (or isn't) revealing. */
   readonly debug: {
@@ -1043,6 +1052,9 @@ export function attachFramePanel(
     debug,
     mesh: plane,
     drawn: shown,
+    // Its SVG (null for a `url` panel): send it `panelfocus` to bring the
+    // panel front and centre, as the scene's VR toolbar does.
+    el,
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {

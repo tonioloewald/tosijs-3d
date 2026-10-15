@@ -2625,6 +2625,11 @@
         "description": "Placeholder card title (ignored if `url` set)"
       },
       {
+        "name": "icon",
+        "default": "''",
+        "description": "Its button on the scene's VR toolbar (an `svgIcons` name, e.g. `backpack`, `book`, `loadout`), which brings it front and centre. Blank: one its title implies (an inventory, a journal, a loadout), else no button"
+      },
+      {
         "name": "url",
         "default": "''",
         "description": "SVG URL (e.g. a reticle)"

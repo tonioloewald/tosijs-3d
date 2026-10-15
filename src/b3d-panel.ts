@@ -101,6 +101,7 @@ so you have full control:
 | `blend` | `composite` | `composite` or `add` (additive HUD glyphs) |
 | `view` | `both` | `first` / `third` / `both` — restrict to a camera view |
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
+| `icon` | `''` | Its button on the scene's VR toolbar (an `svgIcons` name, e.g. `backpack`, `book`, `loadout`), which brings it front and centre. Blank: one its title implies (an inventory, a journal, a loadout), else no button |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
@@ -144,6 +145,7 @@ export class B3dPanel extends Component {
     blend: 'composite',
     view: 'both',
     title: '',
+    icon: '',
     url: '',
     width: 0.26,
     revealStart: 50,
@@ -173,6 +175,7 @@ export class B3dPanel extends Component {
   declare layer: string
   declare view: string
   declare title: string
+  declare icon: string
   declare url: string
   declare width: number
   declare revealStart: number
@@ -227,6 +230,7 @@ export class B3dPanel extends Component {
         this.layer === 'ui' || this.layer === 'modal' ? this.layer : 'world',
       view: this.view === 'first' || this.view === 'third' ? this.view : 'both',
       title: this.title || undefined,
+      icon: this.icon || undefined,
       url: this.url || undefined,
       width: this.width,
       maxDistance: this.maxDistance > 0 ? this.maxDistance : undefined,

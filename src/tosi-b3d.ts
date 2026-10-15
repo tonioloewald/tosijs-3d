@@ -4918,7 +4918,8 @@ export class B3d extends Component {
 
     // Body-anchored panels (inventory over the shoulders, quick-access at the
     // waist), pinned to their frame and revealed by looking toward them.
-    const bodyPanels = this.bodyPanels(this).map((spec) =>
+    const bodySpecs = this.bodyPanels(this)
+    const bodyPanels = bodySpecs.map((spec) =>
       attachFramePanel(
         scene,
         cam,
@@ -4931,14 +4932,20 @@ export class B3d extends Component {
     // _setupNameplates() — since a frame panel gaze-reveals off the active camera
     // and works on a monitor too, not just in a headset. Not created here.
 
-    // The in-scene settings panel (with an Exit-VR button), anchored to the eye
-    // frame 60° up so it sits consistently above your sight-line.
-    // Rebuildable: a structural change (expanding the perf stats, a debug source adding a
-    // line) DISPOSES and re-attaches, because the panel's pointer/scroll closures can't
-    // survive having their widgets swapped underneath them. Live numbers don't come
-    // through here — those update the <text> nodes in place.
-    let panel = this._attachXrPanel(base, frames.eye)
-    this._refreshXrPanel = () => {
+    /*
+    THE SETTINGS PANEL IS ASKED FOR, as it is flat. It used to hang 60° up
+    for the whole session; now the scene's TOOLBAR sits there (below) and
+    opens it, carries Exit VR, and brings the body panels (inventory,
+    journal) front and centre. Tonio: "more consistent and intuitive", and
+    the rig positions are kept free for other things.
+
+    Rebuildable while open: a structural change (expanding the perf stats, a
+    debug source adding a line) DISPOSES and re-attaches, because the
+    panel's pointer/scroll closures can't survive having their widgets
+    swapped underneath them. Live numbers update the <text> nodes in place.
+    */
+    let panel: ReturnType<typeof this._attachXrPanel> | null = null
+    const closeXrPopups = () => {
       /*
       AND THE POPUPS GO WITH IT. This presentation really does destroy them —
       the plane is disposed and rebuilt — where the flat one preserves its
@@ -4961,10 +4968,29 @@ export class B3d extends Component {
       } finally {
         this._rebuildingXrPanel = false
       }
+    }
+    const closeXrPanel = () => {
+      if (panel == null) return
+      closeXrPopups()
+      panel.dispose()
+      panel = null
+      this._xrPanelEl = null
+    }
+    const toggleXrPanel = () => {
+      if (panel != null) closeXrPanel()
+      else panel = this._attachXrPanel(base, frames.eye)
+    }
+    this._refreshXrPanel = () => {
+      if (panel == null) return
+      closeXrPopups()
       panel.dispose()
       this._xrPanelEl = null
       panel = this._attachXrPanel(base, frames.eye)
     }
+    const xrBar = this._xrToolbar(scene, cam, frames, bodySpecs, bodyPanels, {
+      settings: toggleXrPanel,
+      exit: () => void this.xrHelper?.baseExperience?.exitXRAsync(),
+    })
 
     // A subtle grid floor — something to stand on and judge motion against.
     // Show the grid when `xr-grid="on"`, or `"auto"` (default) UNLESS a player
@@ -5328,6 +5354,7 @@ export class B3d extends Component {
       // moved the rig last frame; before any UI reads them this frame).
       frames.update(dt)
       for (const p of bodyPanels) p.update(viewCtx)
+      xrBar.update()
 
       // getCameraTarget() (not .mesh) — the aircraft's node is `meshNode`, so
       // .mesh is undefined and it would never be chased.
@@ -5640,7 +5667,7 @@ export class B3d extends Component {
       vertical movement — which you are not using while reading a panel.
       */
       let rightScroll = false
-      if (panel.scrollable && panel.plane.visibility > 0.5) {
+      if (panel != null && panel.scrollable && panel.plane.visibility > 0.5) {
         const axes = right
         if (axes != null && Math.abs(axes.y) > DEAD) {
           panel.scrollBy(axes.y * SCROLL_SPEED * dt)
@@ -5715,7 +5742,8 @@ export class B3d extends Component {
         this._recenterXr = noop
         this._refreshXrPanel = noopRefresh
         this._xrPanelEl = null
-        panel.dispose()
+        panel?.dispose()
+        xrBar.dispose()
         for (const p of bodyPanels) p.dispose()
         frames.dispose()
         this.xrFrames = null
@@ -6231,6 +6259,98 @@ export class B3d extends Component {
   // up — so it never obstructs the forward view. Picks route via the scene
   // pointer observable (mouse and XR controllers alike) into the panel's own
   // viewBox coords. Returns a disposer.
+  /*
+  THE SCENE'S TOOLBAR IN A HEADSET, where the settings panel used to hang
+  for the whole session (#3307): the same `sceneToolbar` as the flat corner
+  one, over buttons of its own (the HTML ones mean nothing in a session).
+  Settings opens and closes the settings panel just under it, Exit VR, and a
+  button per body panel with an icon (`FramePanelSpec.icon`, or one its
+  title implies) that brings it front and centre and sends it back.
+
+  A body panel is asked with `panelopen` first: content that opens itself
+  (the loadout dock) cancels it and does its own open and focus, so it
+  OPENS rather than its closed picture being blown up. Otherwise the
+  toolbar sends `panelfocus`. `data-focus` on the SVG is the state either
+  way (the dock sets it; for the rest the toolbar does).
+  */
+  private _xrToolbar(
+    scene: BABYLON.Scene,
+    cam: BABYLON.TargetCamera,
+    frames: XrFrames,
+    specs: FramePanelSpec[],
+    handles: Array<{ el: SVGSVGElement | null }>,
+    act: { settings: () => void; exit: () => void }
+  ): { update: () => void; dispose: () => void } {
+    const icons = svgIcons as unknown as Record<string, () => Element>
+    const mk = (icon: string, title: string, click: () => void) => {
+      const b = button(
+        { type: 'button', title },
+        icons[icon]?.() ?? svgIcons.bug()
+      ) as HTMLButtonElement
+      b.addEventListener('click', click)
+      return b
+    }
+    const implied = (title = ''): string | null =>
+      /inventor|backpack|\bbag\b/i.test(title)
+        ? 'backpack'
+        : /journal|\bbook\b|\blog\b/i.test(title)
+        ? 'book'
+        : /loadout|equip/i.test(title)
+        ? 'loadout'
+        : null
+    const buttons = [
+      mk('settings', 'Settings', act.settings),
+      ...specs.flatMap((spec, i) => {
+        const el = handles[i]?.el
+        const icon = spec.icon ?? implied(spec.title)
+        if (el == null || icon == null) return []
+        return [
+          mk(icon, spec.title ?? icon, () => {
+            const open = el.getAttribute('data-focus') !== 'true'
+            const asked = new CustomEvent('panelopen', {
+              detail: { open },
+              cancelable: true,
+            })
+            // Content that opens itself cancels this and does the rest.
+            if (el.dispatchEvent(asked)) {
+              el.setAttribute('data-focus', String(open))
+              el.dispatchEvent(
+                new CustomEvent('panelfocus', { detail: { focus: open } })
+              )
+            }
+          }),
+        ]
+      }),
+      mk('logOut', 'Exit VR', act.exit),
+    ]
+    const bar = sceneToolbar(buttons)
+    this._xrBarSvg = bar.svg
+    const vb = bar.svg.viewBox.baseVal
+    // 46 viewBox units a button, about 5 cm each at arm's length-ish.
+    const width = 0.0011 * (vb.width || 100)
+    const panel = attachFramePanel(scene, cam, frames.eye, {
+      frame: 'eye',
+      // Just above where the settings panel's top edge sits (60° up), so it
+      // opens under the toolbar that opened it.
+      anchor: { azimuthDeg: 0, elevationDeg: 66, distance: 1.4 },
+      reveal: 'always',
+      layer: 'ui',
+      svg: bar.svg,
+      width,
+      resolution: 512,
+    })
+    return {
+      update: () => panel.update(),
+      dispose: () => {
+        if (this._xrBarSvg === bar.svg) this._xrBarSvg = null
+        panel.dispose()
+        bar.dispose()
+      },
+    }
+  }
+  /** The VR toolbar's SVG while a session has one (for tests and tools). */
+  private _xrBarSvg: SVGSVGElement | null = null
+
   private _attachXrPanel(
     base: BABYLON.WebXRExperienceHelper,
     anchorFrame: BABYLON.TransformNode

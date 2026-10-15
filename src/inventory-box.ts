@@ -334,7 +334,7 @@ const alsoIn = (item, kind, at) =>
 // Over your left shoulder in a headset; on a monitor, up and to the left.
 // Until the art arrives it is the placeholder card.
 const loadout = b3dPanel({
-  frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
+  frame: 'eye', preset: 'left-shoulder', title: 'Inventory', icon: 'loadout', reveal: 'always',
   presence: 'both', flatFrame: 'face', width: 0.125, resolution: 1024,
   // Over the world and pressed first (a nearer wall cannot hide it).
   layer: 'ui',
@@ -423,6 +423,7 @@ import {
 } from './carry-box.js'
 import type { Carry, CarryTarget } from './carry.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
+import { panelRim } from './panel-rim.js'
 
 export interface InventoryPanelOptions {
   inv: InventoryApi
@@ -1148,6 +1149,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   // Closed, the picture's corners are rounded well past the panel's own 10.
   const roundId = `dock-round-${++dockSeq}`
   const roundRect = svgElements.rect({ x: 0, y: 0, rx: 48, ry: 48 })
+  let closedRim: SVGElement | null = null
   root.prepend(
     svgElements.defs({}, svgElements.clipPath({ id: roundId }, roundRect))
   )
@@ -1212,6 +1214,13 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     roundRect.setAttribute('height', String(mh))
     if (open) mainHost.removeAttribute('clip-path')
     else mainHost.setAttribute('clip-path', `url(#${roundId})`)
+    // Closed, it wears the outline every panel does (the corner toolbar's),
+    // on its own rounder corners: a small picture over a scene needs an edge.
+    closedRim?.remove()
+    // Its line scaled to the art: closed it is shown a few dozen pixels
+    // across, so the panels' 2.5 units would be under a pixel.
+    closedRim = open ? null : panelRim(W, mh, 48, W * 0.04)
+    if (closedRim != null) root.append(closedRim)
     closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
     if (open) root.append(closeButton)
     else closeButton.remove()
@@ -1251,6 +1260,13 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
       new CustomEvent('panelfocus', { detail: { focus: open } })
     )
   }
+  // Asked to open or close from outside (the scene's VR toolbar): the dock
+  // does it itself, so it OPENS rather than its closed picture being blown
+  // up; cancelling says so.
+  root.addEventListener('panelopen', (e) => {
+    e.preventDefault()
+    setOpen(!!(e as CustomEvent<{ open?: boolean }>).detail?.open)
+  })
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
     // Closed, the whole dock is one button.
     if (!open) {

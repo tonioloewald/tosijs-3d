@@ -674,6 +674,7 @@ b3d-panel
   blend  = composite  — `composite` or `add` (additive HUD glyphs)
   view  = both  — `first` / `third` / `both` — restrict to a camera view
   title  = ''  — Placeholder card title (ignored if `url` set)
+  icon  = ''  — Its button on the scene's VR toolbar (an `svgIcons` name, e.g. `backpack`, `book`, `loadout`), which brings it front and centre. Blank: one its title implies (an inventory, a journal, a loadout), else no button
   url  = ''  — SVG URL (e.g. a reticle)
   width  = 0.26  — Panel width (m); height follows aspect
   revealStart

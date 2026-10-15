@@ -14,3 +14,8 @@ it. If copying recurs for more glyphs, consider a shared icon source instead.
 `stroked/feather/{moon,thermometer}.svg` copied from tosijs-ui's feather set
 (2026-09) for Land and Sky's section tabs. `stroked/tree.svg` is ours (Feather
 has no tree): a trunk and a two-tier conifer, Feather's 2px stroke.
+
+`stroked/feather/{book,book-open}.svg` copied from tosijs-ui's feather set
+(2026-10) for the journal. `stroked/backpack.svg` (inventory) and
+`stroked/loadout.svg` (a standing figure: what you are wearing and holding)
+are ours, Feather's 24 grid and 2px stroke; Feather has neither (2026-10).

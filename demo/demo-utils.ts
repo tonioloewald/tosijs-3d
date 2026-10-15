@@ -548,6 +548,7 @@ export function demoLoadout(
     frame: 'eye',
     preset: 'left-shoulder',
     title: 'Inventory',
+    icon: 'loadout',
     reveal: 'always',
     presence: 'both',
     flatFrame: 'face',
