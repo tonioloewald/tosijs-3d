@@ -1268,11 +1268,9 @@ export class B3d extends Component {
   private _pausePanel: B3dSvgPlane | null = null
   // Flat, in-scene pause (flatUi 'scene'): a modal frame panel, its own frames,
   // and the observer that poses them.
-  private _pauseModal: {
-    panel: { update: () => void; dispose: () => void }
-    frames: XrFrames
-    obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
-  } | null = null
+  private _pauseModal: (() => void) | null = null
+  // Every flat in-scene modal open now (pause, a death's respawn panel…).
+  private _flatModals = new Set<() => void>()
   private _pauseWatch: (() => void) | null = null
   private _cameraWasAttached = false
   // Snapshot of the flat ORBIT camera taken on XR entry, restored on exit. An
@@ -1546,29 +1544,9 @@ export class B3d extends Component {
     and the screen pins. Its own head-locked frame, because a scene with no
     other flat panels has none.
     */
-    const cam0 = this.scene.activeCamera
-    if (!this.xrActive && (this as any).flatUi !== 'dom' && cam0 != null) {
-      const frames = XrFrames.flat(this.scene, cam0)
-      const cnv = this.parts.canvas as HTMLCanvasElement
-      const tall = Math.min(svgH, (cnv.clientHeight || 600) * 0.8)
-      const panel = attachFramePanel(this.scene, cam0 as BABYLON.TargetCamera, frames.get('face'), {
-        frame: 'face',
-        anchor: { position: [0, 0, 1] },
-        presence: 'both',
-        reveal: 'always',
-        layer: 'modal',
-        svg,
-        width: 0.3,
-        resolution: 1024,
-        screenAnchor: { left: '50%', top: '50%', anchor: 'center', height: tall },
-      })
-      const obs = this.scene.onBeforeCameraRenderObservable.add((rendering) => {
-        if (rendering !== cam0) return
-        frames.update(0)
-        panel.update()
-      })
-      this._pauseModal = { panel, frames, obs }
-      this._syncGamepadCover()
+    const modal = this.showFlatModal(svg, svgH)
+    if (modal != null) {
+      this._pauseModal = modal
       return
     }
     if (!this.xrActive) {
@@ -1615,6 +1593,63 @@ export class B3d extends Component {
     this.appendChild(plane)
   }
 
+  /**
+   * Show `svg` (a `fitPanel`, `height` its viewBox height) as a flat in-scene
+   * MODAL: over the world and over the ui layer, drawn and picked first,
+   * centred on the screen and square to it. Returns its dispose, or `null`
+   * where there is no flat modal to give (in a headset, with
+   * `flat-ui="dom"`, or with no camera), so the caller falls back to its own.
+   *
+   * The pause and a death's respawn panel both come through here, so they are
+   * one thing in one place. Each gets its own head-locked frame, because a
+   * scene with no other flat panels has none.
+   */
+  showFlatModal(svg: SVGSVGElement, height: number): (() => void) | null {
+    const scene = this.scene
+    const cam = scene?.activeCamera
+    if (scene == null || cam == null || this.xrActive) return null
+    if ((this as any).flatUi === 'dom') return null
+    const frames = XrFrames.flat(scene, cam)
+    const cnv = this.parts.canvas as HTMLCanvasElement
+    const tall = Math.min(height, (cnv.clientHeight || 600) * 0.8)
+    const panel = attachFramePanel(
+      scene,
+      cam as BABYLON.TargetCamera,
+      frames.get('face'),
+      {
+        frame: 'face',
+        anchor: { position: [0, 0, 1] },
+        presence: 'both',
+        reveal: 'always',
+        layer: 'modal',
+        svg,
+        width: 0.3,
+        resolution: 1024,
+        screenAnchor: {
+          left: '50%',
+          top: '50%',
+          anchor: 'center',
+          height: tall,
+        },
+      }
+    )
+    const obs = scene.onBeforeCameraRenderObservable.add((rendering) => {
+      if (rendering !== cam) return
+      frames.update(0)
+      panel.update()
+    })
+    const dispose = () => {
+      if (!this._flatModals.delete(dispose)) return
+      scene.onBeforeCameraRenderObservable.remove(obs)
+      panel.dispose()
+      frames.dispose()
+      this._syncGamepadCover()
+    }
+    this._flatModals.add(dispose)
+    this._syncGamepadCover()
+    return dispose
+  }
+
   private _hidePausePanel(): void {
     const host = this.parts?.pauseHost as HTMLElement | undefined
     if (host != null) {
@@ -1623,13 +1658,8 @@ export class B3d extends Component {
     }
     this._pausePanel?.remove()
     this._pausePanel = null
-    if (this._pauseModal != null) {
-      this.scene?.onBeforeCameraRenderObservable.remove(this._pauseModal.obs)
-      this._pauseModal.panel.dispose()
-      this._pauseModal.frames.dispose()
-      this._pauseModal = null
-      this._syncGamepadCover()
-    }
+    this._pauseModal?.()
+    this._pauseModal = null
     if (this._cameraWasAttached && this.camera != null) {
       this.camera.attachControl(this.parts.canvas as HTMLCanvasElement, false)
     }
@@ -5885,7 +5915,7 @@ export class B3d extends Component {
   private _syncGamepadCover(): void {
     const pad = this.querySelector('tosi-b3d-gamepad') as HTMLElement | null
     if (pad == null) return
-    const covered = this._flatScenePanel != null || this._pauseModal != null
+    const covered = this._flatScenePanel != null || this._flatModals.size > 0
     pad.style.display = covered ? 'none' : ''
   }
   private _openFlatScenePanel(): boolean {

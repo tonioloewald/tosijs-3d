@@ -15,8 +15,10 @@ shot down — it:
 
 The panel is just widgets, so "what to do next" is entirely yours: `Respawn` is the default,
 but a game can offer _Rewind_, _Spectate_, _Eject and walk_, _Quit to menu_ — whatever. It's
-an in-scene SVG panel ([b3d-svg-plane](?b3d-svg-plane.ts)), so it works **flat and in VR**
-with the same coordinate-based picking, and needs no DOM overlay.
+an in-scene SVG panel, so it works **flat and in VR** with the same coordinate-based
+picking, and needs no DOM overlay. Flat, it is the scene's modal (the pause's too): in
+the middle of the screen, over everything, so terrain cannot bury it. In a headset it is
+a plane ([b3d-svg-plane](?b3d-svg-plane.ts)) placed in the world in front of you.
 
 ## What it deliberately does NOT do
 
@@ -188,6 +190,8 @@ export class B3dDeath extends B3dChild {
   private _orbitCam: BABYLON.Camera | null = null
   private _prevCam: BABYLON.Camera | null = null
   private _panel: B3dSvgPlane | null = null
+  // Flat: the scene's modal instead of `_panel`; this disposes it.
+  private _modal: (() => void) | null = null
   private _fires: BABYLON.ParticleSystem[] = []
   private _charMats: BABYLON.Material[] = []
   private _obs: BABYLON.Observer<BABYLON.Scene> | null = null
@@ -721,6 +725,17 @@ export class B3dDeath extends B3dChild {
     // Sized to its CONTENT — `choices()` is the consumer's, and this is the one
     // panel you cannot navigate away from if it comes out wrong.
     const { svg, height: svgH } = fitPanel(rows, { width: 320, maxHeight: 560 })
+    // The glass gamepad sits over the canvas and would cover the buttons.
+    this.owner._suppressGamepad?.('death', true)
+    // FLAT: the scene's modal, as the pause is (#3307): over everything, in the
+    // middle of the screen, square to it, so terrain and the wreck's own smoke
+    // cannot bury it. Null in a headset (and with flat-ui="dom"), where it
+    // stays the world-placed plane below.
+    const modal = this.owner.showFlatModal?.(svg, svgH)
+    if (modal != null) {
+      this._modal = modal
+      return
+    }
     // In-scene, camera-relative: ONE panel that works flat AND in VR, with the same
     // coordinate-based picking. A DOM overlay would simply not exist in a headset.
     //
@@ -760,8 +775,6 @@ export class B3dDeath extends B3dChild {
     plane.svgElement = svg
     this._panel = plane
     this.owner.appendChild(plane)
-    // The glass gamepad sits over the canvas and would cover the buttons.
-    this.owner._suppressGamepad?.('death', true)
   }
 
   /** Tear down the death state and hand control back — then run `next` (e.g. respawn). */
@@ -796,6 +809,8 @@ export class B3dDeath extends B3dChild {
     this._charMats = []
     this._panel?.remove()
     this._panel = null
+    this._modal?.()
+    this._modal = null
     this.owner?._suppressGamepad?.('death', false)
     // CAMERA HANDOFF. Do NOT restore `_prevCam`: that camera belonged to the aircraft we
     // just deleted, so restoring it points the scene at a corpse's disposed follow-cam.
