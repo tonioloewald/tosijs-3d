@@ -1,0 +1,60 @@
+import { beforeAll, describe, expect, test } from 'bun:test'
+import { Window } from 'happy-dom'
+
+let sceneToolbar: typeof import('./scene-toolbar.js').sceneToolbar
+beforeAll(async () => {
+  const win = new Window() as any
+  const g = globalThis as any
+  g.window ??= win
+  for (const k of Object.getOwnPropertyNames(win)) {
+    try {
+      g[k] ??= win[k]
+    } catch {
+      /* off-document getters */
+    }
+  }
+  sceneToolbar = (await import('./scene-toolbar.js')).sceneToolbar
+})
+
+const button = (opts: { hidden?: boolean; disabled?: boolean } = {}) => {
+  const b = document.createElement('button') as HTMLButtonElement
+  b.hidden = !!opts.hidden
+  b.disabled = !!opts.disabled
+  let clicks = 0
+  b.addEventListener('click', () => clicks++)
+  return { b, clicks: () => clicks }
+}
+// Button i's centre in the toolbar's own units (pad 4, size 40, gap 6).
+const at = (i: number) => [4 + i * 46 + 20, 24] as const
+
+describe('sceneToolbar mirrors HTML buttons', () => {
+  test('only the buttons that show are drawn, and a press clicks the right one', () => {
+    const a = button(), hidden = button({ hidden: true }), c = button()
+    const bar = sceneToolbar([a.b, hidden.b, c.b])
+    expect(bar.count).toBe(2)
+    const hp = (bar.svg as any).handlePointer
+    hp('down', ...at(1))
+    hp('up', ...at(1))
+    expect(c.clicks()).toBe(1)
+    expect(a.clicks()).toBe(0)
+    bar.dispose()
+  })
+  test('a disabled button is drawn but ignores a press', () => {
+    const a = button({ disabled: true })
+    const bar = sceneToolbar([a.b])
+    const hp = (bar.svg as any).handlePointer
+    hp('down', ...at(0))
+    hp('up', ...at(0))
+    expect(a.clicks()).toBe(0)
+    bar.dispose()
+  })
+  test('a press that ends on another button is not a click', () => {
+    const a = button(), c = button()
+    const bar = sceneToolbar([a.b, c.b])
+    const hp = (bar.svg as any).handlePointer
+    hp('down', ...at(0))
+    hp('up', ...at(1))
+    expect(a.clicks() + c.clicks()).toBe(0)
+    bar.dispose()
+  })
+})
