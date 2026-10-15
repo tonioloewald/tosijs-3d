@@ -822,6 +822,15 @@ export class B3dBiped extends B3dControllable {
    * a mode a consumer cannot set is a mode they have to fight.
    */
   setGunplay(on: boolean): void {
+    /*
+    RAISING THE WEAPON AIMS STRAIGHT AHEAD. The aim is the look pitch, and the
+    look pitch is whatever it was left at: walking around looking at the
+    ground, or the last dive, so the gun came up pointing at your feet. Tonio:
+    "It seems quite common for it to be aiming at your feet which is weird."
+    Levelled only on the way UP (lowering it leaves the view alone) and only
+    flat: in a headset the aim is the controller.
+    */
+    if (on && !this.gunplay && !this.owner?.xrActive) this._lookPitch = 0
     this.gunplay = on
     this._showWeapons(on)
   }
