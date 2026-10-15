@@ -407,6 +407,7 @@ export type { FrameName, XrFramesOptions } from './xr-frames.js'
 export {
   attachFramePanel,
   panelLayerScene,
+  pickPanelLayers,
   placeholderPanelSvg,
   opacityWeightedGlow,
   excludeFromGlow,
