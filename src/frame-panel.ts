@@ -475,6 +475,11 @@ export function attachFramePanel(
     const d = focusAnchor.distance ?? 0.5
     pushed =
       focusAnchor.position == null && d < near * 1.25 ? (near * 1.25) / d : 1
+    // A screen-pinned panel comes to the middle of the SCREEN, square to it:
+    // the tilt a focus anchor below eye level gives reads as a mistake on a
+    // monitor (Tonio: expand "to a flat pinned position and not the slightly
+    // tilted view").
+    if (spec.screenAnchor) return { position: [0, 0, d * pushed], flatOn: true }
     return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed }
   }
   const fit = () => {
