@@ -16,32 +16,53 @@ peer, needed only for [b3d-physics](/b3d-physics/).
 
 ## A first scene
 
-No model file needed:
+No model file needed. This is the whole app, running:
 
-```javascript
+```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
 
-document.body.append(
+preview.append(
   b3d(
     b3dSun({ shadowCascading: true }),
     b3dSkybox({ timeOfDay: 10 }),
-    b3dGround({ size: 24, texture: 'checker' }),
+    b3dGround({ size: 24, texture: 'checker', textureTiles: 12 }),
     b3dBox({ x: -1.5, y: 0.5, color: '#c8553d' }),
     b3dSphere({ x: 1.5, y: 1, diameter: 2, color: '#ffd166' })
   )
 )
 ```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
 
-Give the element a size in your CSS (`tosi-b3d { width: 100vw; height: 100vh; }`).
+In your own page, append to `document.body` instead of `preview`, and give the
+element a size in your CSS (`tosi-b3d { width: 100vw; height: 100vh; }`).
 
-That is the whole app. `b3d(...)` creates a `<tosi-b3d>` element, which owns the
-engine and the scene; everything nested inside it adds itself when the scene is
-ready and removes itself when it leaves the page. You get an orbit camera,
-shadows, and (on a device that supports it) an Enter VR button, without asking.
-The [Primitives](/b3d-primitives/) page is this scene, running.
+`b3d(...)` creates a `<tosi-b3d>` element, which owns the engine and the scene;
+everything nested inside it adds itself when the scene is ready and removes
+itself when it leaves the page. You get an orbit camera, shadows, and (on a
+device that supports it) an Enter VR button, without asking. The
+[Primitives](/b3d-primitives/) page has more of these shapes.
 
-The functions are element creators, so the same scene is also plain markup:
-`<tosi-b3d><tosi-b3d-sun shadow-cascading></tosi-b3d-sun>...</tosi-b3d>`.
+## The same scene as markup
+
+The functions are element creators, so the scene is also plain HTML: no
+script beyond importing the library once. An attribute is the property's name
+in kebab case (`timeOfDay` is `time-of-day`), and a boolean is there or not:
+
+```html
+<tosi-b3d style="width: 100%; height: 100%">
+  <tosi-b3d-sun shadow-cascading></tosi-b3d-sun>
+  <tosi-b3d-skybox time-of-day="14"></tosi-b3d-skybox>
+  <tosi-b3d-ground size="24" texture="checker" texture-tiles="12"></tosi-b3d-ground>
+  <tosi-b3d-box x="-1.5" y="0.5" color="#3d7ac8"></tosi-b3d-box>
+  <tosi-b3d-sphere x="1.5" y="1" diameter="2" color="#7bd166"></tosi-b3d-sphere>
+</tosi-b3d>
+```
+
+(The afternoon sky and the colours are changed only so you can tell the two
+apart.) In your own page, `import 'tosijs-3d'` once from your bundle; that
+defines the elements, and markup that is already there comes to life.
 
 ## Then what
 
