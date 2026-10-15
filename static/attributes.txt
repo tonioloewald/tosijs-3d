@@ -1053,6 +1053,7 @@ b3d-svg-plane
   placement
   xrFrame  = ''  — In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked
   pointerEvents  = 'on'  — Map 3D pick hits → SVG pointer events
+  layer
   doubleSided  = 'on'  — Render both faces
   cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below
   transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`

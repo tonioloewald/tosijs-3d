@@ -399,6 +399,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 /*{ "parent": "ui-in-scene", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { panelLayerScene } from './frame-panel.js'
 import {
   AbstractMesh,
   isOff,
@@ -468,6 +469,13 @@ export class B3dSvgPlane extends AbstractMesh {
      */
     xrFrame: '',
     pointerEvents: 'on' as 'on' | 'off',
+    /**
+     * Which layer it is drawn and picked in: `'world'` (default), or `'ui'` /
+     * `'modal'`, over the world and given the pointer first (see frame-panel's
+     * `layer`). A popup takes its opener's layer, so a popup from a ui panel is
+     * ui too and can hang from it. Set at build time.
+     */
+    layer: 'world' as 'world' | 'ui' | 'modal',
     doubleSided: 'on' as 'on' | 'off',
     /**
      * Corner radius in world units. `0` = a plain rectangle.
@@ -782,9 +790,15 @@ export class B3dSvgPlane extends AbstractMesh {
     return name
   }
 
-  sceneReady(owner: B3d, scene: BABYLON.Scene) {
-    super.sceneReady(owner, scene)
+  /** The scene it draws in: the owner's, or a panel layer over it. */
+  private _drawScene: BABYLON.Scene | null = null
+
+  sceneReady(owner: B3d, mainScene: BABYLON.Scene) {
+    super.sceneReady(owner, mainScene)
     const attrs = this as any
+    const layered = attrs.layer === 'ui' || attrs.layer === 'modal'
+    const scene = layered ? panelLayerScene(mainScene, attrs.layer) : mainScene
+    this._drawScene = scene
 
     if (attrs.cornerRadius > 0) {
       // Rounded corners as GEOMETRY. Same frame and UV mapping as CreatePlane,
@@ -859,7 +873,8 @@ export class B3dSvgPlane extends AbstractMesh {
     `stackLift`, but with a moving front edge. Do that before a second
     camera-relative panel can be open at once. Filed in TODO.
     */
-    if (attrs.cameraRelative) {
+    // (A layered plane is never buried, so it needs no pulling forward.)
+    if (attrs.cameraRelative && !layered) {
       if (attrs.placement === 'world') this._installWorldDialog(scene)
       else this._installDepthGuard(scene)
     }
@@ -886,7 +901,8 @@ export class B3dSvgPlane extends AbstractMesh {
       this._attachPointerObserver(scene)
     }
 
-    owner.register({ meshes: [this.mesh] })
+    // Shadows, reflections and the like are the world's; a layer is over it.
+    if (!layered) owner.register({ meshes: [this.mesh] })
   }
 
   sceneDispose() {
@@ -901,9 +917,12 @@ export class B3dSvgPlane extends AbstractMesh {
       this._depthObs = null
     }
     if (this._pointerObserver && this.owner) {
-      this.owner.scene.onPointerObservable.remove(this._pointerObserver)
+      ;(this._drawScene ?? this.owner.scene).onPointerObservable.remove(
+        this._pointerObserver
+      )
       this._pointerObserver = null
     }
+    this._drawScene = null
     this._svgTexture?.dispose()
     this._svgTexture = null
     this._material?.dispose()

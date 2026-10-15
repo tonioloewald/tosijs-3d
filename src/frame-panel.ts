@@ -110,6 +110,8 @@ export function panelLayerScene(
     }
     pair = { ui: make(), modal: make() }
     layers.set(scene, pair)
+    layerOfScene.set(pair.ui.utilityLayerScene, 'ui')
+    layerOfScene.set(pair.modal.utilityLayerScene, 'modal')
     scene.onDisposeObservable.addOnce(() => {
       pair!.ui.dispose()
       pair!.modal.dispose()
@@ -117,6 +119,24 @@ export function panelLayerScene(
     })
   }
   return pair[layer].utilityLayerScene
+}
+
+const layerOfScene = new WeakMap<BABYLON.Scene, 'ui' | 'modal'>()
+
+const claimed = new WeakSet<Event>()
+/**
+ * Did a panel in the scene take this pointer event? For DOM listeners that
+ * act on presses "on the background" (closing an overlay): a press on a
+ * frame panel is not one. (`defaultPrevented` cannot say: Babylon cancels
+ * every press on its canvas.)
+ */
+export function pointerClaimedByPanel(e: Event): boolean {
+  return claimed.has(e)
+}
+
+/** Which layer a mesh is in: a popup takes its opener's. */
+export function panelLayerOf(mesh: BABYLON.Node | null | undefined): PanelLayer {
+  return (mesh && layerOfScene.get(mesh.getScene())) || 'world'
 }
 
 /**
@@ -464,6 +484,9 @@ export function attachFramePanel(
   /** The plane itself — so a consumer never has to find it by diffing the
    * frame's children around the call (tosijs-3d#92). */
   readonly mesh: BABYLON.Mesh
+  /** The mesh actually DRAWN: `mesh` itself, or its copy in a panel layer
+   * (what a popup hangs from, which must be in the same scene). */
+  readonly drawn: BABYLON.Mesh
   /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
    * the ONLY way to see why a panel is (or isn't) revealing. */
   readonly debug: {
@@ -866,6 +889,9 @@ export function attachFramePanel(
         pointer picking (pointer events) carries on.
         */
         ;(info.event as PointerEvent | undefined)?.preventDefault?.()
+        // …and say so: Babylon cancels every canvas press itself, so being
+        // cancelled cannot tell a panel's press from a press on the world.
+        if (info.event) claimed.add(info.event as unknown as Event)
         target.handlePointer!('down', lastX, lastY)
         repaint(true)
       } else if (kind === 'move') {
@@ -949,6 +975,7 @@ export function attachFramePanel(
   return {
     debug,
     mesh: plane,
+    drawn: shown,
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {

@@ -69,13 +69,16 @@ export function sceneToolbar(buttons: HTMLButtonElement[]): SceneToolbar {
     // The lozenge behind them.
     root.append(
       rect({
-        x: 0.5,
-        y: 0.5,
-        width: w - 1,
-        height: h - 1,
+        x: 1.25,
+        y: 1.25,
+        width: w - 2.5,
+        height: h - 2.5,
         rx: h / 2,
         fill: 'rgba(20,24,32,0.72)',
-        stroke: 'rgba(255,255,255,0.18)',
+        // Heavier than the HTML lozenge's hairline: it is drawn into a
+        // texture and seen smaller than its pixels.
+        stroke: 'rgba(255,255,255,0.45)',
+        'stroke-width': 2.5,
       })
     )
     shown.forEach((b, i) => {

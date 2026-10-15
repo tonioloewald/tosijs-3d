@@ -162,6 +162,7 @@ rather than degrade.
 
 import * as BABYLON from '@babylonjs/core'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
+import { panelLayerOf } from './frame-panel.js'
 import { svgElements } from 'tosijs'
 import { iconGlyph } from './svg-icons.js'
 import { w3dTheme } from './w3d-theme.js'
@@ -713,6 +714,9 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     // The plane routes its own picks to the SVG's `handlePointer`; a popup with
     // no interactive content still wants this so it doesn't swallow the ray.
     pointerEvents: 'on',
+    // Its opener's layer: a popup from a ui panel is drawn and picked with it
+    // (and can hang from it, which a mesh in another scene could not).
+    layer: panelLayerOf(opener),
   }) as B3dSvgPlane
   plane.svgElement = svg
 

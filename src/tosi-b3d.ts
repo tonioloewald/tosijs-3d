@@ -356,6 +356,7 @@ import { XrFrames, EntityFrame } from './xr-frames.js'
 import {
   attachFramePanel,
   pickPanelLayers,
+  pointerClaimedByPanel,
   presentationSpec,
   placeholderPanelSvg,
   opacityWeightedGlow,
@@ -1567,6 +1568,7 @@ export class B3d extends Component {
         panel.update()
       })
       this._pauseModal = { panel, frames, obs }
+      this._syncGamepadCover()
       return
     }
     if (!this.xrActive) {
@@ -1626,6 +1628,7 @@ export class B3d extends Component {
       this._pauseModal.panel.dispose()
       this._pauseModal.frames.dispose()
       this._pauseModal = null
+      this._syncGamepadCover()
     }
     if (this._cameraWasAttached && this.camera != null) {
       this.camera.attachControl(this.parts.canvas as HTMLCanvasElement, false)
@@ -3732,6 +3735,8 @@ export class B3d extends Component {
     // In a session the in-scene panel IS the panel — the flat overlay is not
     // visible, so a popup opened against it would be opened into nothing.
     if (this.xrActive && this._xrPanelEl != null) return this._xrPanelEl
+    if (this._flatScenePanel != null)
+      return this._flatScenePanel.el as unknown as { popup?: PanelPopup }
     const host = this.parts?.scenePanelHost as HTMLElement | undefined
     if (host == null || host.hasAttribute('hidden')) return null
     /*
@@ -4558,6 +4563,8 @@ export class B3d extends Component {
     if (base == null) return
     base.onStateChangedObservable.add((state) => {
       if (state !== BABYLON.WebXRState.IN_XR) return
+      // The flat settings panel rides the flat camera; the headset has its own.
+      this._disposeFlatScenePanel()
       this._xrSessions += 1
       // Baseline from the FIRST entry only — the point is the trend across
       // sessions, so re-baselining each time would hide exactly what we want.
@@ -5778,8 +5785,8 @@ export class B3d extends Component {
     if (!this._scenePanelWired) {
       this._scenePanelWired = true
       gear.addEventListener('click', () => {
-        if (host.hasAttribute('hidden')) this._openScenePanel()
-        else this._closeScenePanel()
+        if (this._scenePanelOpen()) this._closeScenePanel()
+        else this._openScenePanel()
       })
       /*
       A PRESS ON THE BACKGROUND CLOSES IT.
@@ -5802,7 +5809,10 @@ export class B3d extends Component {
       dismiss another's panel.
       */
       this.addEventListener('pointerdown', (e) => {
-        if (host.hasAttribute('hidden')) return
+        if (!this._scenePanelOpen()) return
+        // A press a panel in the scene took (the settings panel itself, the
+        // corner toolbar) is theirs, not the background's.
+        if (pointerClaimedByPanel(e)) return
         /*
         `composedPath()`, NOT `e.target`.
 
@@ -5838,7 +5848,113 @@ export class B3d extends Component {
    * spent a whole row of a small panel on things you press once. They are the
    * same items either way (`_barItems`); only the flat LAYOUT changed.
    */
+  /*
+  THE SETTINGS PANEL, IN THE SCENE (flatUi 'scene'; #3307). The same panel the
+  headset gets (`_makePanel` with an icon bar), as a `ui`-layer frame panel
+  pinned under the corner toolbar, a little nearer than the loadout so two ui
+  panels never share a depth. Its popups are made in the same layer and hang
+  from its drawn mesh (`attachSceneLayer`). Rebuilt on refresh like the DOM one.
+  */
+  private _flatScenePanel: {
+    el: SVGSVGElement
+    panel: { update: () => void; dispose: () => void; drawn: BABYLON.Mesh }
+    frames: XrFrames
+    obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
+  } | null = null
+  private _scenePanelOpen(): boolean {
+    if (this._flatScenePanel != null) return true
+    const host = this.parts?.scenePanelHost as HTMLElement | undefined
+    return host != null && !host.hasAttribute('hidden')
+  }
+  private _disposeFlatScenePanel(): void {
+    const f = this._flatScenePanel
+    if (f == null) return
+    this.scene?.onBeforeCameraRenderObservable.remove(f.obs)
+    f.panel.dispose()
+    f.frames.dispose()
+    this._flatScenePanel = null
+    this._syncGamepadCover()
+  }
+  /*
+  THE GLASS GAMEPAD STANDS ASIDE while in-scene UI is up. It is HTML over the
+  canvas (it stays DOM, #3307), so it covers in-scene panels and takes their
+  presses where they overlap: a press on the settings panel under its bumper
+  closed the panel. While the settings panel or a pause is up you are not
+  playing, so it hides, and comes back after. (The DOM panel sat above it.)
+  */
+  private _syncGamepadCover(): void {
+    const pad = this.querySelector('tosi-b3d-gamepad') as HTMLElement | null
+    if (pad == null) return
+    const covered = this._flatScenePanel != null || this._pauseModal != null
+    pad.style.display = covered ? 'none' : ''
+  }
+  private _openFlatScenePanel(): boolean {
+    const scene = this.scene
+    const cam = scene?.activeCamera
+    if (scene == null || cam == null) return false
+    this._disposeFlatScenePanel()
+    const bar = iconBar3d({
+      items: [
+        ...this._barItems(),
+        {
+          icon: 'close',
+          title: 'Close',
+          active: false,
+          handleClick: () => this._closeScenePanel(),
+        },
+      ],
+    })
+    const el = this._makePanel(
+      this._panelWidgets(),
+      [bar],
+      false,
+      this._flatPanelMax() - 64
+    )
+    const vb = el.viewBox.baseVal
+    const W = 0.3
+    const H = W * ((vb.height || 1) / (vb.width || 1))
+    const frames = XrFrames.flat(scene, cam)
+    const panel = attachFramePanel(
+      scene,
+      cam as BABYLON.TargetCamera,
+      frames.get('face'),
+      {
+        frame: 'face',
+        anchor: { position: [0, 0, 1] },
+        presence: 'both',
+        reveal: 'always',
+        layer: 'ui',
+        svg: el,
+        width: W,
+        resolution: 1024,
+        // One viewBox unit per CSS pixel, as the DOM panel drew it.
+        screenAnchor: { left: 8, top: 64, height: vb.height, distance: 0.9 },
+      }
+    )
+    const obs = scene.onBeforeCameraRenderObservable.add((rendering) => {
+      if (rendering !== cam) return
+      frames.update(0)
+      panel.update()
+    })
+    attachSceneLayer({
+      svg: el,
+      owner: this as unknown as PopupOwner,
+      openerMesh: panel.drawn,
+      planeW: W,
+      planeH: H,
+    })
+    this._flatScenePanel = { el, panel, frames, obs }
+    this._syncGamepadCover()
+    return true
+  }
+
   private _openScenePanel(): void {
+    if (
+      (this as any).flatUi !== 'dom' &&
+      !this.xrActive &&
+      this._openFlatScenePanel()
+    )
+      return
     const host = this.parts.scenePanelHost as HTMLElement
     const mk = (
       title: string,
@@ -5922,6 +6038,7 @@ export class B3d extends Component {
   }
 
   private _closeScenePanel(): void {
+    this._disposeFlatScenePanel()
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
     // Debug tools collapse again on next open — kept out of the way by default.
     this._debugOpen.clear()
@@ -5936,10 +6053,7 @@ export class B3d extends Component {
    * Call after async state the panel reflects has changed (e.g. a library loaded,
    * or XR availability / session state) so an already-open panel updates. */
   refreshScenePanel(): void {
-    const host = this.parts?.scenePanelHost as HTMLElement | undefined
-    if (host && !host.hasAttribute('hidden')) {
-      this._openScenePanel()
-    }
+    if (this._scenePanelOpen()) this._openScenePanel()
   }
 
   // Mount the split touch "glass" gamepad when the `gamepad` attribute is
@@ -6475,6 +6589,7 @@ export class B3d extends Component {
     this._fullscreenOff = null
     this._sceneBar?.dispose()
     this._sceneBar = null
+    this._disposeFlatScenePanel()
     this._fullscreenWired = false
     if (this.xrHelper) {
       this._unpickLayers?.()

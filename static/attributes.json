@@ -4137,6 +4137,9 @@
         "description": "Map 3D pick hits → SVG pointer events"
       },
       {
+        "name": "layer"
+      },
+      {
         "name": "doubleSided",
         "default": "'on'",
         "description": "Render both faces"
