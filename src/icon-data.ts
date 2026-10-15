@@ -30,7 +30,7 @@ export default {
   arrowUpRight:
     '<svg class="stroked" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg> ',
   backpack:
-    '<svg class="stroked" viewBox="0 0 24 24"><path d="M9 6V4a3 3 0 0 1 6 0v2"></path><rect x="5" y="6" width="14" height="16" rx="4"></rect><path d="M8 22v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5"></path><path d="M5 11h14"></path></svg> ',
+    '<svg class="stroked" viewBox="0 0 24 24"><path d="M9 5V4a3 3 0 0 1 6 0v1"></path><path d="M6 9a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"></path><path d="M6 11c2 1.5 4 2 6 2s4-.5 6-2"></path><path d="M10 13v2"></path><path d="M14 13v2"></path><path d="M3 13v5"></path><path d="M21 13v5"></path></svg> ',
   bug: '<svg class="stroked" viewBox="0 0 24 24"><g><path style="" d="M8,6 C8,3.79,9.79,2,12,2 C14.21,2,16,3.79,16,6 C16,6,8,6,8,6 z"/><path style="" d="M20,7 C20,7,18,9,18,9"/><path style="" d="M20,19 C20,19,18,17,18,17"/><path style="" d="M21,13 C21,13,18,13,18,13"/><path style="" d="M16.44,9 C17.3,9,18,9.7,18,10.56 C18,10.56,18,15,18,15 C18,18.31,15.31,21,12,21 C8.69,21,6,18.31,6,15 C6,15,6,10.56,6,10.56 C6,9.7,6.7,9,7.56,9 C7.56,9,16.44,9,16.44,9 z"/><path style="" d="M4,7 C4,7,6,9,6,9"/><path style="" d="M4,19 C4,19,6,17,6,17"/><path style="" d="M3,13 C3,13,6,13,6,13"/><path style="" d="M12,12 C12,12,12,17,12,17"/></g></svg> ',
   camera:
     '<svg class="stroked" viewBox="0 0 24 24"><path d="M4 8h4l2-2h4l2 2h4v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg> ',

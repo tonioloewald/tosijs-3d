@@ -16,7 +16,7 @@ its viewBox: a stroke ON the bounds loses its outer half along the straight
 edges but keeps it at rounded corners, where the texture is still there and
 transparent, so the corners came out heavier than the sides.
 
-Its own module so `panel3d`, `popup-surface` and `scene-toolbar` share one
+Its own module so `panel3d`, `popup-surface` and `system-bar` share one
 without importing each other.
 */
 

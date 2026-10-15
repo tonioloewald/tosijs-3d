@@ -415,11 +415,9 @@ export function impactMarker(
 }
 
 /**
- * A person's loadout pinned up and to the left (over the shoulder in a
- * headset, the top left of a monitor's view), with the scene's other body
- * panels: touch it and it comes front and centre, open, with the bag beside
- * it. Put `panels()` inside the `<tosi-b3d>`; declared panels replace the
- * default set, so the journal, quick access and wrist menu come with it.
+ * A person's inventory (a loadout and a bag) on the scene's SYSTEM BAR: a
+ * backpack button that opens it under the bar, flat and in a headset. Put
+ * `panels()` inside the `<tosi-b3d>`.
  *
  *   const loadout = demoLoadout()
  *   b3d({}, …, ...loadout.panels())
@@ -543,61 +541,25 @@ export function demoLoadout(
     document.body.append(park)
     return dock
   })
-  // Until the art arrives it is the placeholder card.
+  /*
+  ON THE SYSTEM BAR, not pinned to the rig: a button (the backpack) that
+  opens it under the bar, flat and in a headset, with your bag beside it.
+  The small closed picture it used to be over your shoulder is gone; the
+  button is what reminds you it is there.
+  */
   const pinned = b3dPanel({
-    frame: 'eye',
-    preset: 'left-shoulder',
+    preset: 'system-bar',
     title: 'Inventory',
-    icon: 'loadout',
-    reveal: 'always',
+    icon: 'backpack',
     presence: 'both',
-    flatFrame: 'face',
-    // Small closed (it is a reminder, not a reading surface) …
-    width: 0.125,
     resolution: 1024,
-    // Over the world and pressed first: a wall between you and it cannot
-    // hide it or take the press.
-    layer: 'ui',
   }) as B3dPanel
-  // … and as big as before opened (0.3 x 1.9).
-  pinned.focusScale = 4.56
-  // Flat: at the top left, in SCREEN terms, under the scene's own corner
-  // toolbar (8 px in, 64 px down), 14% of the screen tall, whatever the
-  // window's shape.
-  pinned.screenAnchor = { left: 8, top: 64, height: '14%' }
-  // (Degrees, for a renderer without screen pins.)
-  pinned.flatAnchor = {
-    azimuthDeg: -16,
-    // The view's top edge is ~23 degrees up; the closed panel is ~3 tall.
-    elevationDeg: 18,
-    distance: 1.4,
-    flatOn: true,
-  }
   ready.then((d) => {
-    pinned.title = ''
     pinned.svg = d.svg
   })
   return {
     inv,
     dock: () => dock,
-    panels: () => [
-      pinned,
-      b3dPanel({
-        frame: 'eye',
-        preset: 'right-shoulder',
-        title: 'Journal',
-      }) as B3dPanel,
-      b3dPanel({
-        frame: 'eye',
-        preset: 'waist',
-        title: 'Quick Access',
-      }) as B3dPanel,
-      b3dPanel({
-        frame: 'left-hand',
-        preset: 'wrist',
-        title: 'Menu',
-        width: 0.09,
-      }) as B3dPanel,
-    ],
+    panels: () => [pinned],
   }
 }

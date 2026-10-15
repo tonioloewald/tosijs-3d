@@ -664,7 +664,7 @@ b3d-moon
 b3d-panel
 
   frame  = eye  — `eye` / `rig` / `world` / `body` / `neck` / `face` / `left-hand` / `right-hand`
-  preset  = ''  — A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields.
+  preset  = ''  — A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields; or `system-bar`, a button on the system bar that opens it under the bar
   azimuth  = 0  — Degrees off the frame's eye: +az right, +el up
   elevation  = 0  — Degrees off the frame's eye: +az right, +el up
   distance  = 1.4  — Metres from the eye

@@ -1,25 +1,25 @@
 /*#
-# scene-toolbar
+# system-bar
 
-**The scene's corner buttons, drawn in the scene.** A `<tosi-b3d>` has a small
-toolbar in its top-left corner: its own settings panel, Enter VR, full screen.
-On a page they were HTML laid over the canvas; flat, they are now this, a
-panel in the scene's `ui` layer pinned to the corner of the screen, so the one
-UI the scene draws in a headset is also the one it draws on a monitor.
+**The scene's system bar: one row of buttons, flat and in a headset.** Flat it
+sits in the top-left corner of the screen; in a headset, up ahead where the
+settings panel used to hang. It opens the scene's settings panel (the owl),
+the panels you put on it (`<tosi-b3d-panel preset="system-bar" icon="backpack">`
+for an inventory: it opens under the bar), and carries Enter or Exit VR and
+full screen. One UI, arranged a little differently on each.
 
-It does not re-implement the buttons. It MIRRORS a list of real HTML buttons
-(the ones `<tosi-b3d>` already has): a button that is hidden (by its `hidden`
-attribute or by a style, such as `::part(enterVrButton) { display: none }`) is
-not drawn, one
-that is disabled is drawn dimmed and ignores a press, its icon and title come
-along, and a press calls that button's own `click()`. So entering VR and going
-full screen keep their one definition, and both still run inside the press
-the browser requires for them. `<tosi-b3d flat-ui="dom">` keeps the HTML ones.
+It does not re-implement its buttons. It MIRRORS a list of real HTML buttons:
+a button that is hidden (by its `hidden` attribute or by a style, such as
+`::part(enterVrButton) { display: none }`) is not drawn, one that is disabled
+is drawn dimmed and ignores a press, its icon and title come along, and a press
+calls that button's own `click()`. So entering VR and going full screen keep
+their one definition, and both still run inside the press the browser requires
+for them. `<tosi-b3d flat-ui="dom">` keeps the HTML ones flat.
 
 ```javascript
-import { sceneToolbar } from 'tosijs-3d/scene-toolbar'
+import { systemBar } from 'tosijs-3d/system-bar'
 
-const bar = sceneToolbar([gearButton, vrButton, fullscreenButton])
+const bar = systemBar([gearButton, vrButton, fullscreenButton])
 // bar.svg: give it to a frame panel (its handlePointer is on it)
 // bar.dispose(): stop watching the buttons
 ```
@@ -40,7 +40,7 @@ const SIZE = 40
 const GAP = 6
 const PAD = 4
 
-export interface SceneToolbar {
+export interface SystemBar {
   /** The toolbar's SVG, with `handlePointer` for a frame panel to route to. */
   svg: SVGSVGElement
   /** How many buttons it is showing (0: nothing to show). */
@@ -49,7 +49,7 @@ export interface SceneToolbar {
 }
 
 /** Mirror `buttons` as an SVG toolbar: what shows, what is enabled, and a press is their click. */
-export function sceneToolbar(buttons: HTMLButtonElement[]): SceneToolbar {
+export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
   const { svg, g, rect } = svgElements
   const root = svg({
     xmlns: 'http://www.w3.org/2000/svg',

@@ -43,6 +43,7 @@ const DEG = Math.PI / 180
 
 export type { FrameName }
 export type AnchorPreset =
+  | 'system-bar'
   | 'waist'
   | 'left-shoulder'
   | 'right-shoulder'
@@ -298,10 +299,13 @@ export interface FramePanelSpec {
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
   /**
-   * Its icon on the scene's VR toolbar, which has a button per body panel
-   * that has one (an `svgIcons` name). Unset, a title naming an inventory,
-   * a journal or a loadout picks `backpack`, `book` or `loadout`; anything
-   * else gets no button.
+   * `false`: ignore `panelfocus` from its content (stay where it is placed).
+   * Default true.
+   */
+  focusable?: boolean
+  /**
+   * Its button on the scene's system bar (an `svgIcons` name), for a panel
+   * whose anchor is `'system-bar'`: the button opens it under the bar.
    */
   icon?: string
   /** Custom panel SVG element (live/dynamic content). */
@@ -328,6 +332,13 @@ export interface FramePanelSpec {
 const PANEL_DISTANCE = 1.4
 
 const PRESETS: Record<AnchorPreset, AnchorSpec> = {
+  // Not a rig spot: a `<tosi-b3d>` puts a system-bar panel under its system
+  // bar. This is only where one lands if mounted as a pin by something else.
+  'system-bar': {
+    azimuthDeg: 0,
+    elevationDeg: 40,
+    distance: PANEL_DISTANCE,
+  },
   // Quick access: 45° down (faces up at you — the opposite tilt of the overhead).
   waist: {
     azimuthDeg: 0,
@@ -651,6 +662,8 @@ export function attachFramePanel(
     if (spec.screenAnchor) return { position: [0, 0, d * pushed], flatOn: true }
     return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed }
   }
+  // The focused scale, fitted once (see below); cleared on every focus change.
+  let fitted: { key: string; k: number } | null = null
   const fit = () => {
     if (!el || !baseVb) return
     const vb = el.viewBox.baseVal
@@ -659,8 +672,17 @@ export function attachFramePanel(
     let k = focused ? focusScale * pushed : screenK
     // Focused, it fits the view (90% of it at its distance) rather than being
     // cropped by it: a monitor sees far less than a headset.
+    /*
+    ONCE PER FOCUS (and per content size), not per frame. The fit reads
+    where the panel sits in the camera's view, and a head is never still:
+    refitted every frame, a focused panel in a headset swelled and shrank
+    with every small head movement. Tonio: "jiggling in scale in vr".
+    */
     const c = (scene.activeCamera ?? cam) as BABYLON.Camera
-    if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
+    const fitKey = `${sx}|${sy}|${pushed}`
+    if (focused && fitted != null && fitted.key === fitKey) {
+      k = fitted.k
+    } else if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
       /*
       Room either side of its centre, less how far off-centre it sits, IN THE
       CAMERA'S VIEW. It used the panel's position in its frame, which is level
@@ -680,6 +702,7 @@ export function attachFramePanel(
       const w = width * sx
       const h = width * aspect * sy
       k = Math.min(k, tall / h, wide / w)
+      fitted = { key: fitKey, k }
     }
     plane.scaling.x = k * sx
     plane.scaling.y = k * sy
@@ -758,14 +781,18 @@ export function attachFramePanel(
   }
   const onFocus = (e: Event) => {
     focused = !!(e as CustomEvent<{ focus?: boolean }>).detail?.focus
+    fitted = null
     placeAt(focused ? focusPlace() : anchor)
     fit()
   }
-  el?.addEventListener('panelfocus', onFocus)
+  // A panel the scene places itself (a system-bar panel, under its bar)
+  // does not fly front and centre when its content asks to.
+  const focusable = spec.focusable !== false
+  if (focusable) el?.addEventListener('panelfocus', onFocus)
   // Content already focused before this panel existed (a session change
   // rebuilt it): start where it is. Without this the dock stayed open on a
   // small, unfocused panel, and its tap-to-open did nothing (it was open).
-  if (el?.getAttribute('data-focus') === 'true')
+  if (focusable && el?.getAttribute('data-focus') === 'true')
     onFocus(new CustomEvent('panelfocus', { detail: { focus: true } }))
 
   const tex = el

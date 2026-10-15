@@ -286,14 +286,14 @@ dealHost.addEventListener('pointerup', (e) => dealBox.handlePointer('up', ...at(
 
 ## In 3D
 
-The same loadout in a scene, flat and in a headset, as the panel over your
-left shoulder (the top left of the view on a monitor) in place of the
-"Inventory" placeholder. Touch or click it and it comes front and centre,
-bigger, with the bag beside it to drag to and from; the button at its corner
-sends it back. `inventoryDock` draws both into one SVG, so a drag between
-them is one panel; give it no `list` for a craft fitted from a carrier's
-stock, and it opens to the schematic alone. A `<tosi-b3d-panel>` takes the
-dock's `svg`, and the dock asks it to come forward (`panelfocus`).
+The same loadout in a scene, flat and in a headset, on the scene's SYSTEM
+BAR: the backpack button opens it under the bar, with the bag beside it to
+drag to and from; the button again, or the × at its corner, puts it away.
+`inventoryDock` draws both into one SVG, so a drag between them is one panel;
+give it no `list` for a craft fitted from a carrier's stock, and it opens to
+the schematic alone. A `<tosi-b3d-panel preset="system-bar">` takes the dock's
+`svg`; the bar asks the dock to open (`panelopen`), and the dock's own close
+puts the panel away (`panelfocus` with `focus: false`).
 
 ```js
 import { b3d, b3dLight, b3dGround, b3dPanel, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
@@ -331,22 +331,8 @@ const inv = createInventory(
 const alsoIn = (item, kind, at) =>
   kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
 
-// Over your left shoulder in a headset; on a monitor, up and to the left.
-// Until the art arrives it is the placeholder card.
-const loadout = b3dPanel({
-  frame: 'eye', preset: 'left-shoulder', title: 'Inventory', icon: 'loadout', reveal: 'always',
-  presence: 'both', flatFrame: 'face', width: 0.125, resolution: 1024,
-  // Over the world and pressed first (a nearer wall cannot hide it).
-  layer: 'ui',
-})
-// Small closed, as big as ever opened; flat, near the top-left corner and
-// square to the screen (flatOn).
-loadout.focusScale = 4.56
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 18, distance: 1.4, flatOn: true }
-// …or in screen terms, which wins flat: at the top left under the scene's
-// corner toolbar (8 px in, 64 px down), 14% of the screen tall, whatever the
-// window's shape.
-loadout.screenAnchor = { left: 8, top: 64, height: '14%' }
+// On the system bar: a backpack button that opens it under the bar.
+const loadout = b3dPanel({ preset: 'system-bar', title: 'Inventory', icon: 'backpack', presence: 'both', resolution: 1024 })
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -355,10 +341,6 @@ preview.append(
     b3dLight({ intensity: 1 }),
     b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
     loadout,
-    // Declared panels replace the default set: the rest of it, as it was.
-    b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'Journal' }),
-    b3dPanel({ frame: 'eye', preset: 'waist', title: 'Quick Access' }),
-    b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'Menu', width: 0.09 }),
   )
 )
 
@@ -376,7 +358,6 @@ Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-ic
   park.style.cssText = 'position:absolute; left:-10000px; top:0'
   park.append(dock.svg)
   preview.append(park)
-  loadout.title = ''
   loadout.svg = dock.svg
 })
 ```
@@ -1149,7 +1130,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   // Closed, the picture's corners are rounded well past the panel's own 10.
   const roundId = `dock-round-${++dockSeq}`
   const roundRect = svgElements.rect({ x: 0, y: 0, rx: 48, ry: 48 })
-  let closedRim: SVGElement | null = null
+  let closedRim: SVGElement | null = null // the outline, open or closed
   root.prepend(
     svgElements.defs({}, svgElements.clipPath({ id: roundId }, roundRect))
   )
@@ -1214,13 +1195,12 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     roundRect.setAttribute('height', String(mh))
     if (open) mainHost.removeAttribute('clip-path')
     else mainHost.setAttribute('clip-path', `url(#${roundId})`)
-    // Closed, it wears the outline every panel does (the corner toolbar's),
-    // on its own rounder corners: a small picture over a scene needs an edge.
+    // It wears the outline every panel does (the system bar's). Closed, on
+    // its own rounder corners and with the line scaled to the art, because
+    // the closed picture is shown a few dozen pixels across.
     closedRim?.remove()
-    // Its line scaled to the art: closed it is shown a few dozen pixels
-    // across, so the panels' 2.5 units would be under a pixel.
-    closedRim = open ? null : panelRim(W, mh, 48, W * 0.04)
-    if (closedRim != null) root.append(closedRim)
+    closedRim = open ? panelRim(w, h, 10) : panelRim(W, mh, 48, W * 0.04)
+    root.append(closedRim)
     closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
     if (open) root.append(closeButton)
     else closeButton.remove()

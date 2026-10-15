@@ -2577,7 +2577,7 @@
       {
         "name": "preset",
         "default": "''",
-        "description": "A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields."
+        "description": "A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields; or `system-bar`, a button on the system bar that opens it under the bar"
       },
       {
         "name": "azimuth",

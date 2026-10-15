@@ -65,6 +65,41 @@ tosi-b3d { width: 100%; height: 100%; }
 > and exposing it — so a panel can be PLACED by dragging rather than by typing
 > numbers — is on the list, not in 0.7.0.
 
+## Pins: named places on your body
+
+The rig has named places a panel can be pinned to, around you in a headset:
+**`left-shoulder`** and **`right-shoulder`** (45° up, 60° to each side),
+**`overhead`** (60° up), **`waist`** (45° down, facing up at you) and
+**`wrist`** (on the left hand). Each is revealed by looking toward it. None
+come filled: they are for your game's panels (a map, a journal, a radio).
+Here each one holds a card with its name; enter VR and look around.
+
+Not a pin: **`system-bar`** puts a panel on the scene's
+[system bar](?system-bar.ts) instead, a button (its `icon`) that opens it under
+the bar, flat and in a headset. That is where an inventory goes.
+
+```js
+import { b3d, b3dPanel, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+
+preview.append(
+  b3d(
+    {},
+    b3dLight({ y: 1, intensity: 0.8 }),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+    // One card per pin, named for it (pins are around you: a headset's).
+    b3dPanel({ frame: 'eye', preset: 'left-shoulder', title: 'left-shoulder' }),
+    b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'right-shoulder' }),
+    b3dPanel({ frame: 'eye', preset: 'overhead', title: 'overhead' }),
+    b3dPanel({ frame: 'eye', preset: 'waist', title: 'waist' }),
+    b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'wrist', width: 0.09 }),
+  )
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Three ways to place a panel
 
 - **World-anchored (`b3d-svg-plane`)** — a panel that IS a mesh in the scene: visible
@@ -75,8 +110,7 @@ tosi-b3d { width: 100%; height: 100%; }
   reference frame (`eye`/`body`/`left-hand`/…); follows you and exists only in a
   session. Use for HUDs, wrist menus, over-the-shoulder inventory.
 
-If ANY `<tosi-b3d-panel>` children are present they replace the built-in default set,
-so you have full control:
+The `<tosi-b3d-panel>` children are the set (none ship by default):
 
 ```html
 <tosi-b3d gamepad>
@@ -92,7 +126,7 @@ so you have full control:
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `frame` | `eye` | `eye` / `rig` / `world` / `body` / `neck` / `face` / `left-hand` / `right-hand` |
-| `preset` | `''` | A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields. |
+| `preset` | `''` | A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields; or `system-bar`, a button on the system bar that opens it under the bar |
 | `azimuth` / `elevation` | `0` / `0` | Degrees off the frame's eye: +az right, +el up |
 | `distance` | `1.4` | Metres from the eye |
 | `position` | `''` | Explicit `"x y z"` local position (overrides az/el/distance) |

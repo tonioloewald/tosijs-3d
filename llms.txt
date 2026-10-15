@@ -327,8 +327,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/medium/ — medium
   Babylon-free description of the *substance* a thing is moving through — air,
-- https://3d.tosijs.net/mersenne-twister/ — mersenne-twister
-  Seeded pseudo-random number generator based on the Mersenne Twister
 - https://3d.tosijs.net/Migration/ — Migration
   What to change when upgrading. Only breaking changes are listed — everything
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
@@ -365,6 +363,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   positions, normals and indices of one rock. The same seed always gives the same
 - https://3d.tosijs.net/province-climate/ — Province climate
   a curve over normalised distance from the province's centre. Pure: no DOM, no
+- https://3d.tosijs.net/mersenne-twister/ — Pseudo Random Numbers
+  planet's craters, where the rocks go, who spawns) is drawn from a generator
 - https://3d.tosijs.net/radar/ — Radar model
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 - https://3d.tosijs.net/reference/ — Reference
@@ -379,8 +379,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   climate.** The function is `scatterPlacements` (a bare `scatter` would leak a
 - https://3d.tosijs.net/scene-schemas/ — Scene schemas
   attributes.** No DOM, no Babylon — importable from a headless runner.
-- https://3d.tosijs.net/scene-toolbar/ — scene-toolbar
-  toolbar in its top-left corner: its own settings panel, Enter VR, full screen.
 - https://3d.tosijs.net/selection/ — selection
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal
@@ -421,6 +419,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
 - https://3d.tosijs.net/swim-aim/ — swim-aim
   an aim input into a body pitch, easing it, and unwinding it when you stand up
+- https://3d.tosijs.net/system-bar/ — system-bar
+  sits in the top-left corner of the screen; in a headset, up ahead where the
 - https://3d.tosijs.net/system-layout/ — system-layout
   planet is drawn, how big, how fast it goes round, its moons, and the
 - https://3d.tosijs.net/table/ — table
