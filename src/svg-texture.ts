@@ -85,6 +85,15 @@ export type SvgTextureOptions = {
   element?: SVGSVGElement
   /** Re-render interval in ms for dynamic mode. Default 30. */
   updateInterval?: number
+  /**
+   * Mipmapped, trilinear and anisotropic (default `true`). A panel is nearly
+   * always drawn SMALLER than its texture: a 1024 px panel 30 cm wide at
+   * 1.4 m covers about 300 px of a Quest 3's view, so unfiltered its text and
+   * hairlines alias and crawl as the head moves. Costs a third more texture
+   * memory and a mip rebuild per repaint. `false` for a texture always seen at
+   * about one texel per pixel.
+   */
+  mipmaps?: boolean
 }
 
 /**
@@ -151,6 +160,7 @@ export class SvgTexture {
       url,
       element,
       updateInterval = 30,
+      mipmaps = true,
     } = options
 
     this._resolution = resolution
@@ -161,7 +171,16 @@ export class SvgTexture {
       this.texture = new BABYLON.Texture(url, scene)
       this.texture.hasAlpha = true
     } else if (element) {
-      const dt = new BABYLON.DynamicTexture('svg-dt', resolution, scene, false)
+      const dt = new BABYLON.DynamicTexture(
+        'svg-dt',
+        resolution,
+        scene,
+        mipmaps,
+        mipmaps
+          ? BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+          : BABYLON.Texture.BILINEAR_SAMPLINGMODE
+      )
+      if (mipmaps) dt.anisotropicFilteringLevel = 4
       dt.hasAlpha = true
       this.texture = dt
       this.render()
