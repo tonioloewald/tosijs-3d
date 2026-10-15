@@ -343,7 +343,7 @@ const loadout = b3dPanel({
 // Small closed, as big as ever opened; flat, near the top-left corner and
 // square to the screen (flatOn).
 loadout.focusScale = 4.56
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 15, distance: 1.4, flatOn: true }
+loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 18, distance: 1.4, flatOn: true }
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -1190,15 +1190,14 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     const w = open && listHost ? W + GAP + LW : W
     if (listHost) listHost.style.display = open ? '' : 'none'
     // Closed it is a small picture: the heading over it is noise at that size,
-    // and so are the socket outlines (the art's own, through its CSS variable,
+    // and so are the sockets (the art's own, through its CSS variables,
     // set on the nested host because a texture drops the ROOT's style), and
     // its corners are rounder.
     for (const t of Array.from(mainHost.querySelectorAll('[data-heading]')))
       (t as SVGElement).style.display = open ? '' : 'none'
-    mainHost.style.setProperty(
-      '--schematic-socket-edge',
-      open ? '' : 'transparent'
-    )
+    // The sockets themselves go too (not what is in them): the body shows.
+    for (const v of ['--schematic-socket', '--schematic-socket-edge'])
+      mainHost.style.setProperty(v, open ? '' : 'transparent')
     const mh = mainHeight()
     roundRect.setAttribute('width', String(W))
     roundRect.setAttribute('height', String(mh))

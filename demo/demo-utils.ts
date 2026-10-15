@@ -559,7 +559,8 @@ export function demoLoadout(
   // Flat: near the top-left corner, square to the screen.
   pinned.flatAnchor = {
     azimuthDeg: -16,
-    elevationDeg: 15,
+    // The view's top edge is ~23 degrees up; the closed panel is ~3 tall.
+    elevationDeg: 18,
     distance: 1.4,
     flatOn: true,
   }
