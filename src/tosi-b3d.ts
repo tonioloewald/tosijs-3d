@@ -287,6 +287,7 @@ document.body.append(
 | `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
+| `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
 */
 /*{ "parent": "core", "order": 10 }*/
 
@@ -361,6 +362,7 @@ import {
   placeholderPanelSvg,
   opacityWeightedGlow,
   type FramePanelSpec,
+  type ScreenAnchor,
 } from './frame-panel.js'
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js'
 import {
@@ -402,7 +404,7 @@ import {
   type AmbientEffect,
 } from './ambient-budget.js'
 
-const { canvas, div, slot, button } = elements
+const { canvas, div, span, slot, button } = elements
 
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
@@ -718,6 +720,8 @@ export class B3d extends Component {
     xrReticle: 'off' as 'on' | 'off',
     // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
     scenePanelOpen: false,
+    // The settings panel's name, drawn in its title bar beside move and close.
+    panelTitle: '',
     /** How collapsible sections present: 'fold' (headers you open and close)
      * or 'tabs' (file tabs, one section at a time). */
     panelSections: 'fold' as 'fold' | 'tabs',
@@ -1021,9 +1025,23 @@ export class B3d extends Component {
       position: 'absolute',
       top: '4px',
       right: '4px',
+      // Across the top, so `panelTitle` sits at the left and the buttons stay
+      // right-aligned (the title takes the slack).
+      left: '12px',
       zIndex: '1',
       display: 'flex',
+      alignItems: 'center',
       gap: '4px',
+    },
+    ':host .scene-panel-title': {
+      marginRight: 'auto',
+      minWidth: '0',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      color: '#e8eef8',
+      fontWeight: '600',
+      fontSize: '14px',
     },
     ':host .scene-panel-btn': {
       width: '26px',
@@ -1242,6 +1260,7 @@ export class B3d extends Component {
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
+  declare panelTitle: string
   declare panelSections: 'fold' | 'tabs'
   /**
    * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
@@ -5728,11 +5747,17 @@ export class B3d extends Component {
   `header` keeps the icon bar out of that scroll. It carries Exit VR, and a
   control you need in order to LEAVE must not be the one that scrolls away.
   */
+  /*
+  IN THE SCENE it has a title bar: move, `panelTitle`, and (flat) close, as a
+  popup has, in the band that used to be empty headroom. The DOM panel keeps
+  its own HTML head over that band instead.
+  */
   private _makePanel(
     rows: Widget3d[],
     header: Widget3d[] = [],
     grip = false,
-    maxHeight = 620
+    maxHeight = 620,
+    handleClose?: () => void
   ): SVGSVGElement {
     return panel3d(
       {
@@ -5742,9 +5767,10 @@ export class B3d extends Component {
         // Only the in-scene panel is draggable — the flat one is a DOM overlay
         // the page already positions, and a grab bar there would do nothing.
         grip,
-        // Extra top padding so the first row clears the × close button
-        // (top-right) and the panel doesn't read footer-heavy.
-        paddingTop: 34,
+        title: grip ? (this as any).panelTitle || undefined : undefined,
+        handleClose,
+        // The DOM panel: room for the HTML head's buttons (top-right).
+        paddingTop: grip ? undefined : 34,
         header,
       },
       ...rows
@@ -5975,6 +6001,7 @@ export class B3d extends Component {
     frames: XrFrames
     obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
   } | null = null
+  private _flatPanelSpot: ScreenAnchor | null = null
   private _scenePanelOpen(): boolean {
     if (this._flatScenePanel != null) return true
     const host = this.parts?.scenePanelHost as HTMLElement | undefined
@@ -6005,27 +6032,24 @@ export class B3d extends Component {
     const cam = scene?.activeCamera
     if (scene == null || cam == null) return false
     this._disposeFlatScenePanel()
-    const bar = iconBar3d({
-      items: [
-        ...this._barItems(),
-        {
-          icon: 'close',
-          title: 'Close',
-          active: false,
-          handleClick: () => this._closeScenePanel(),
-        },
-      ],
-    })
+    // Close is in the title bar now, as a popup's is.
+    const items = this._barItems()
     const el = this._makePanel(
       this._panelWidgets(),
-      [bar],
-      false,
-      this._flatPanelMax() - 64
+      items.length > 0 ? [iconBar3d({ items })] : [],
+      true,
+      this._flatPanelMax() - 64,
+      () => this._closeScenePanel()
     )
     const vb = el.viewBox.baseVal
     const W = 0.3
     const H = W * ((vb.height || 1) / (vb.width || 1))
     const frames = XrFrames.flat(scene, cam)
+    // ONE anchor object, kept: a drag by the title bar writes its spot into
+    // it, so a rebuild (any icon press) leaves the panel where you put it.
+    const spot = (this._flatPanelSpot ??= { left: 8, top: 64, distance: 0.9 })
+    // One viewBox unit per CSS pixel, as the DOM panel drew it.
+    spot.height = vb.height
     const panel = attachFramePanel(
       scene,
       cam as BABYLON.TargetCamera,
@@ -6039,8 +6063,7 @@ export class B3d extends Component {
         svg: el,
         width: W,
         resolution: 1024,
-        // One viewBox unit per CSS pixel, as the DOM panel drew it.
-        screenAnchor: { left: 8, top: 64, height: vb.height, distance: 0.9 },
+        screenAnchor: spot,
       }
     )
     const obs = scene.onBeforeCameraRenderObservable.add((rendering) => {
@@ -6054,6 +6077,13 @@ export class B3d extends Component {
       openerMesh: panel.drawn,
       planeW: W,
       planeH: H,
+      // One viewBox unit per CSS pixel, so the screen is the canvas, offset
+      // by where the panel is pinned (or dragged to).
+      screenRoom: () => {
+        const h = this.parts.canvas?.clientHeight ?? 0
+        const top = Number(spot.top) || 0
+        return h > 0 ? { top: -top, bottom: h - top } : null
+      },
     })
     this._flatScenePanel = { el, panel, frames, obs }
     this._syncGamepadCover()
@@ -6126,7 +6156,11 @@ export class B3d extends Component {
     */
     replaceKeepingLayers(
       host,
-      div({ class: 'scene-panel-head' }, ...buttons),
+      div(
+        { class: 'scene-panel-head' },
+        span({ class: 'scene-panel-title' }, (this as any).panelTitle ?? ''),
+        ...buttons
+      ),
       this._makePanel(this._panelWidgets(), [], false, this._flatPanelMax())
     )
     host.removeAttribute('hidden')
@@ -6243,7 +6277,7 @@ export class B3d extends Component {
       handlePointer?: (kind: string, x: number, y: number) => void
       scrollBy?: (dy: number) => void
       scrollable?: boolean
-      gripHeight?: number
+      gripHit?: (x: number, y: number) => boolean
     }
     /*
     THE PANEL A POPUP SHOULD OPEN ON, while a session is running.
@@ -6620,8 +6654,7 @@ export class B3d extends Component {
       The panel is told 'leave' on the way into a drag, so a row that was hovered
       when you grabbed does not stay lit for the whole drag.
       */
-      const gripH = panelEl.gripHeight ?? 0
-      if (kind === 'down' && uv && gripH > 0 && vy < gripH) {
+      if (kind === 'down' && uv && panelEl.gripHit?.(vx, vy)) {
         dragging = true
         panelEl.handlePointer('leave', 0, 0)
         return

@@ -249,6 +249,7 @@ describe('a MENU is a popup too, not something the panel crops', () => {
     "The popup is good but it has a lot of wasted space up top."
 
     Measured on this exact shape: 180px tall before, 150 after — the whole band.
+    (Rows now stack with half the gap, so 162 and 132: still the 30px band.)
 
     It stays reserved when a chrome-drawing host IS mounting, because the sheet
     is SHARED by every presentation and two sheets would be the divergence this
@@ -262,7 +263,7 @@ describe('a MENU is a popup too, not something the panel crops', () => {
       ?.querySelector('svg')
     const h = Number(svg?.getAttribute('height'))
     // Three 40px rows plus the panel's own padding — and no chrome band.
-    expect(h).toBe(150)
+    expect(h).toBe(132)
   })
 
   test('...but a chrome-drawing host still gets its band', () => {
@@ -286,7 +287,7 @@ describe('a MENU is a popup too, not something the panel crops', () => {
     panel.handlePointer('down', 250, 50)
     panel.handlePointer('up', 250, 50)
     expect(sheet).toBeTruthy()
-    expect(Number(sheet!.getAttribute('height'))).toBe(180)
+    expect(Number(sheet!.getAttribute('height'))).toBe(162)
   })
 
   test('picking an option DISMISSES the menu', () => {

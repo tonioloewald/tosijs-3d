@@ -163,10 +163,9 @@ rather than degrade.
 import * as BABYLON from '@babylonjs/core'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import { panelLayerOf } from './frame-panel.js'
-import { svgElements } from 'tosijs'
 import { iconGlyph } from './svg-icons.js'
-import { w3dTheme } from './w3d-theme.js'
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome.js'
+import { panelRim } from './panel-rim.js'
 
 /** Tag a node as belonging to the TEXTURE presentation only. */
 function markPresentation<T extends Element>(el: T): T {
@@ -474,7 +473,23 @@ function wirePointer(owner: B3d): void {
     wired.delete(owner)
   })
 
-  scene.onPointerObservable.add((info) => {
+  /*
+  ON THE LAYER SCENES TOO. A utility layer that catches a press marks it
+  skipped for the main scene's observers, so a popup in a layer would never
+  be heard here. The same handler is added to each layer scene a popup is
+  made in (`listenIn`), once; `seen` stops one event being handled twice
+  where both scenes do get it.
+  */
+  let seen: Event | null = null
+  const onPointer = (info: BABYLON.PointerInfo): void => {
+    const ev = info.event as unknown as Event
+    if (
+      ev != null &&
+      ev === seen &&
+      info.type !== BABYLON.PointerEventTypes.POINTERUP
+    )
+      return
+    seen = ev
     const list = openPopups.get(owner)
 
     /*
@@ -531,13 +546,41 @@ function wirePointer(owner: B3d): void {
     session: length 1.4968695 against a hit at 1.4968695, no hit; the same
     origin and direction at full length, hit.
     */
-    const hit =
+    /*
+    IN EACH POPUP'S OWN SCENE, layers first. A popup opened from a panel in
+    the `ui` (or `modal`) layer is made in that layer, which is its own
+    Babylon scene: picked here in the main scene it was never hit, so its ×
+    and its title bar did nothing (Tonio: "I can't move it. I also can't
+    close it."). A layer is drawn over the world, so it is asked first.
+    */
+    const ray =
       pressRay != null
-        ? scene.pickWithRay(
-            new BABYLON.Ray(pressRay.origin, pressRay.direction, 1e4),
-            isPopup
+        ? new BABYLON.Ray(pressRay.origin, pressRay.direction, 1e4)
+        : scene.activeCamera != null
+        ? scene.createPickingRay(
+            scene.pointerX,
+            scene.pointerY,
+            BABYLON.Matrix.Identity(),
+            scene.activeCamera
           )
-        : scene.pick(scene.pointerX, scene.pointerY, isPopup)
+        : null
+    const scenes = [
+      ...new Set(
+        list
+          .map((p) => p.plane.mesh?.getScene())
+          .filter((s): s is BABYLON.Scene => s != null)
+      ),
+    ].sort((a, b) => Number(a === scene) - Number(b === scene))
+    let hit: BABYLON.Nullable<BABYLON.PickingInfo> = null
+    if (ray != null) {
+      for (const s of scenes) {
+        const h = s.pickWithRay(ray, isPopup)
+        if (h?.hit) {
+          hit = h
+          break
+        }
+      }
+    }
     const onPopup = hit?.hit === true ? hit.pickedMesh : null
 
     if (onPopup != null) {
@@ -582,8 +625,18 @@ function wirePointer(owner: B3d): void {
         pressRay ?? undefined
       )
     }
+  }
+  scene.onPointerObservable.add(onPointer)
+  const layers = new WeakSet<BABYLON.Scene>()
+  layerListeners.set(owner, (s: BABYLON.Scene) => {
+    if (s === scene || layers.has(s)) return
+    layers.add(s)
+    s.onPointerObservable.add(onPointer)
   })
 }
+
+/** Per owner: hear pointer events in a layer scene a popup was made in. */
+const layerListeners = new WeakMap<B3d, (s: BABYLON.Scene) => void>()
 
 export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   const {
@@ -616,12 +669,6 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   */
   const vbW = vb && vb.width > 0 ? vb.width : 100
   const vbH = vb && vb.height > 0 ? vb.height : 100
-  /*
-  The mesh's rounding, shared with the plane below so the drawn rim and the cut
-  silhouette agree. A rim on a radius the mesh does not have is worse than none:
-  it draws a corner where the geometry has an edge.
-  */
-  const cornerRadius = Math.min(0.05, width * 0.06)
   // ONE layout, used by the drawing below AND by the hit test in `wirePointer`.
   const layout = chromeLayout(vbW, vbH, gripHeight, draggable)
   if (chrome && layout.barHeight > 0) {
@@ -658,57 +705,37 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   }
 
   /*
-  A RIM, because we cannot have a drop shadow.
+  A RIM, because we cannot have a drop shadow: a popup floating in front of a
+  scene has nothing for one to fall on. Tonio: "Since we can't do nice drop
+  shadows around pop ups, I wonder if there's some other way we can make them
+  stand out."
 
-  Flat UI separates a popup from what is behind it with a shadow, and that is not
-  available here: the panel is emissive so it is unlit, and a real cast shadow
-  needs a receiver at a sensible distance — a popup floating in front of a scene
-  has nothing to fall on. Tonio: "Since we can't do nice drop shadows around pop
-  ups, I wonder if there's some other way we can make them stand out."
-
-  So: an edge instead of a shadow. `muted` is a mid grey deliberately — a light
-  rim vanishes on a pale scene and a dark one vanishes on a dark scene, while a
-  mid tone holds an edge against both, which matters because the backdrop here is
-  arbitrary 3D rather than a known page colour.
-
-  DOUBLE STROKE WIDTH, and the clip does the rest. An SVG stroke straddles its
-  path — half inside, half out — so on a rect at the viewBox bounds the outer
-  half falls outside the texture and is discarded. Drawing at 2× leaves exactly
-  the intended width visible, with no half-pixel inset arithmetic to get wrong.
-  Tonio again: "so it should be roughly correct thanks to clipping".
-
-  Rounded to match the MESH, converted through the same mapping the texture uses:
-  the plane is `width` world units across and `vbW` viewBox units, so the world
-  radius scales by `vbW / width`.
+  The one every panel wears (`panelRim`, the corner toolbar's outline), so a
+  popup and the panel it came from look like one family. A `panel3d` sheet
+  already has it; anything else gets one here.
   */
-  if (chrome) {
-    svg.appendChild(
-      svgElements.rect({
-        'data-popup-rim': '',
-        x: 0,
-        y: 0,
-        width: vbW,
-        height: vbH,
-        rx: (cornerRadius / width) * vbW,
-        ry: (cornerRadius / width) * vbW,
-        fill: 'none',
-        stroke: w3dTheme.muted,
-        'stroke-width': String(w3dTheme.strokeWidth * 2),
-      })
-    )
+  if (chrome && svg.querySelector(':scope > [data-w3d-rim]') == null) {
+    svg.appendChild(panelRim(vbW, vbH, 0))
   }
 
   const plane = b3dSvgPlane({
     width,
     height: width * aspect,
     resolution,
-    // OPAQUE, with the corners cut out of the mesh. A transparent panel does
-    // not write depth, so Babylon re-sorts it per frame by distance and
-    // near-coplanar popups swap order as you orbit — the "z-chasing" that no
-    // amount of correct depth ordering fixed. Geometry for the silhouette,
-    // z-buffer for the ordering.
-    cornerRadius,
-    transparent: 'off',
+    /*
+    ALPHA, AS EVERY OTHER PANEL IS, but in the z-buffer.
+
+    Popups were opaque meshes with their corners cut as geometry, because a
+    plain transparent panel does not write depth: Babylon re-sorts it per
+    frame by distance and near-coplanar popups swapped order as you orbited.
+    That made them the one kind of panel whose outline and corners were not
+    the SVG's, and the one kind a translucent theme could not see through.
+    Tonio: "use the same approach for all our panels as it will also allow
+    translucent themes". `'depth'` blends and still writes depth (its empty
+    corners are discarded), so the ordering stays the z-buffer's. The cost is
+    a discard test per pixel of a small quad.
+    */
+    transparent: 'depth',
     // Self-lit: a UI panel should read the same under any scene lighting.
     materialChannel: 'emissive',
     // The plane routes its own picks to the SVG's `handlePointer`; a popup with
@@ -815,6 +842,8 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     // to be TOLD rather than one you can discover.
     attachDrag()
     wirePointer(owner)
+    const ms = plane.mesh?.getScene()
+    if (ms != null) layerListeners.get(owner)?.(ms)
     applyModalBlocking(owner)
     mounted = true
     for (const fn of pending.splice(0)) fn()

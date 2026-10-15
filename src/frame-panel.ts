@@ -682,6 +682,15 @@ export function attachFramePanel(
   `face` one (local +x right, +y up, +z ahead), so a pixel is a fixed offset.
   */
   let screenK = 1
+  // Where it last went on screen, in CSS pixels, for a drag to start from.
+  let lastBox: {
+    x: number
+    y: number
+    w: number
+    h: number
+    W: number
+    H: number
+  } | null = null
   const placeScreen = () => {
     const sa = spec.screenAnchor
     const c = (scene.activeCamera ?? cam) as BABYLON.Camera
@@ -728,6 +737,7 @@ export function attachFramePanel(
       { width: W, height: H }
     )
     const b = boxes[0]
+    lastBox = { x: b.x, y: b.y, w: b.width, h: b.height, W, H }
     placeAt({
       position: [
         (b.x + b.width / 2 - W / 2) * perPx,
@@ -825,7 +835,30 @@ export function attachFramePanel(
   */
   const target = el as unknown as {
     handlePointer?: (k: string, x: number, y: number) => void
+    gripHit?: (x: number, y: number) => boolean
   } | null
+  /*
+  DRAGGED BY ITS TITLE BAR, on screen. A screen-anchored panel whose SVG
+  says where its grip is (`gripHit`, from `panel3d({ grip })`) moves with the
+  pointer, in pixels, and stays on screen. It writes `left`/`top` into the
+  spec's own `screenAnchor`, so a host that hands the same object to the
+  next build keeps the spot across a rebuild.
+  */
+  let screenDrag: { cx: number; cy: number; x: number; y: number } | null =
+    null
+  const dragScreen = (e: PointerEvent | undefined) => {
+    const sa = spec.screenAnchor
+    if (screenDrag == null || sa == null || lastBox == null || e == null) return
+    const { w, W, H } = lastBox
+    // Keep the bar reachable: at least 48px of it on screen, top never above.
+    const left = screenDrag.x + (e.clientX - screenDrag.cx)
+    const top = screenDrag.y + (e.clientY - screenDrag.cy)
+    sa.left = Math.round(Math.max(48 - w, Math.min(W - 48, left)))
+    sa.top = Math.round(Math.max(0, Math.min(H - 32, top)))
+    sa.right = sa.bottom = undefined
+    sa.anchorX = sa.anchorY = undefined
+    sa.anchor = undefined
+  }
   /*
   A PRESS ON THE PANEL IS NOT A PRESS ON THE WORLD. Flat, the camera's own
   controls take the same pointer, so dragging a thing across a panel orbited
@@ -882,8 +915,36 @@ export function attachFramePanel(
         lastX = uv.x * (vb.width || 1)
         lastY = (1 - uv.y) * (vb.height || 1)
       }
+      if (screenDrag != null) {
+        if (kind === 'move') dragScreen(info.event as PointerEvent)
+        else if (kind === 'up') {
+          screenDrag = null
+          releaseCamera()
+        }
+        return
+      }
       if (kind === 'down') {
         if (!uv) return
+        const ev = info.event as PointerEvent | undefined
+        if (
+          spec.screenAnchor != null &&
+          !focused &&
+          lastBox != null &&
+          ev != null &&
+          target.gripHit?.(lastX, lastY)
+        ) {
+          screenDrag = {
+            cx: ev.clientX,
+            cy: ev.clientY,
+            x: lastBox.x,
+            y: lastBox.y,
+          }
+          holdCamera()
+          ev.preventDefault?.()
+          claimPointer(ev as unknown as Event)
+          target.handlePointer!('leave', 0, 0)
+          return
+        }
         pressing = true
         holdCamera()
         /*

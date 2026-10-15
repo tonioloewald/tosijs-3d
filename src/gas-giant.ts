@@ -53,8 +53,8 @@ preview.append(
   b3d(
     {
       scenePanelOpen: true,
+      panelTitle: 'From space',
       scenePanel: () => [
-        label3d({ text: 'From space' }),
         select3d({ label: 'planet', value: orbit.kind, options: Object.keys(GAS_GIANTS) }),
         slider3d({ label: 'bands', value: orbit.bands, min: 1, max: 30, step: 1 }),
         slider3d({ label: 'turbulence', value: orbit.turbulence, min: 0, max: 1.5, step: 0.05 }),
@@ -119,8 +119,8 @@ preview.append(
   b3d(
     {
       scenePanelOpen: true,
+      panelTitle: 'Gas giant',
       scenePanel: () => [
-        label3d({ text: 'Gas giant' }),
         select3d({ label: 'planet', value: gg.kind, options: Object.keys(GAS_GIANTS) }),
         slider3d({ label: 'bands', value: gg.bands, min: 1, max: 30, step: 1 }),
         slider3d({ label: 'turbulence', value: gg.turbulence, min: 0, max: 1.5, step: 0.05 }),

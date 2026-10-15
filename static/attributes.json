@@ -4152,7 +4152,7 @@
       {
         "name": "transparent",
         "default": "'on'",
-        "description": "`'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`"
+        "description": "`'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through"
       }
     ]
   },
@@ -5496,6 +5496,11 @@
       },
       {
         "name": "scenePanelOpen"
+      },
+      {
+        "name": "panelTitle",
+        "default": "''",
+        "description": "The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)"
       },
       {
         "name": "panelSections"

@@ -28,6 +28,7 @@ const bar = sceneToolbar([gearButton, vrButton, fullscreenButton])
 
 import { svgElements } from 'tosijs'
 import type { PointerKind } from './box.js'
+import { panelRim } from './panel-rim.js'
 
 /** Is `b` set to `display: none` by a style (its own, or the page's)? */
 function styledAway(b: HTMLElement): boolean {
@@ -76,20 +77,12 @@ export function sceneToolbar(buttons: HTMLButtonElement[]): SceneToolbar {
     root.setAttribute('width', String(w))
     root.setAttribute('height', String(h))
     root.textContent = ''
-    // The lozenge behind them.
+    // The lozenge behind them, and the outline every panel wears (heavier
+    // than the HTML lozenge's hairline: it is drawn into a texture and seen
+    // smaller than its pixels).
     root.append(
-      rect({
-        x: 1.25,
-        y: 1.25,
-        width: w - 2.5,
-        height: h - 2.5,
-        rx: h / 2,
-        fill: 'rgba(20,24,32,0.72)',
-        // Heavier than the HTML lozenge's hairline: it is drawn into a
-        // texture and seen smaller than its pixels.
-        stroke: 'rgba(255,255,255,0.45)',
-        'stroke-width': 2.5,
-      })
+      rect({ x: 0, y: 0, width: w, height: h, rx: h / 2, fill: 'rgba(20,24,32,0.72)' }),
+      panelRim(w, h, h / 2)
     )
     shown.forEach((b, i) => {
       const x = PAD + i * (SIZE + GAP)

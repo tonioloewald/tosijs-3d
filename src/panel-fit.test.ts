@@ -811,7 +811,8 @@ describe('popups anchor where their row is DRAWN', () => {
       ...rows.map((r) => r.w)
     ) as any
     const seen = capture(panel)
-    const headerH = 30 + 6
+    // The header and a half-gap: the body's first row pads itself.
+    const headerH = 30 + 3
     rows[1].box.host.boundedPopup({ anchor })
     // row 1 is at offset 40 + gap in the body
     expect(seen[0].anchor.y).toBe(12 + headerH + 46)
@@ -953,9 +954,10 @@ describe('an icon bar wraps rather than running off the edge', () => {
     })
 
   test('a bar that fits stays one row', () => {
-    // 58 = one row plus the caption band these items carry.
+    // One row of 32px buttons, 2px either side: titles are hover tooltips
+    // now, not a caption band below, and the bar is not a control row.
     const b = bar(4)
-    expect(b.layout(296)).toBe(58)
+    expect(b.layout(296)).toBe(36)
   })
 
   test('a bar that does not fit grows a second row instead of overflowing', () => {
@@ -988,6 +990,64 @@ describe('an icon bar wraps rather than running off the edge', () => {
     b.handle!('down', 4, rowH + 4)
     b.handle!('up', 4, rowH + 4)
     expect(fired).toBeGreaterThanOrEqual(7) // first item of the second row
+  })
+
+  test('a title is a tooltip on hover, in full, gone on leave', () => {
+    // Captions were the first word under every icon; the tooltip is the whole
+    // title, drawn in the SVG so a texture (and a controller ray) shows it.
+    const b = w3d.iconBar3d({
+      items: [{ icon: 'compass', title: 'Re-seat (look forward first)' }],
+    })
+    b.layout(296)
+    const tip = b.el.querySelector('[data-w3d-tip]')!
+    expect(tip.getAttribute('visibility')).toBe('hidden')
+    b.handle!('move', 10, 10)
+    expect(tip.getAttribute('visibility')).toBe('visible')
+    expect(tip.textContent).toBe('Re-seat (look forward first)')
+    b.handle!('leave', 0, 0)
+    expect(tip.getAttribute('visibility')).toBe('hidden')
+  })
+})
+
+describe('a panel title bar: move, title, close', () => {
+  /*
+  The in-scene settings panel had an empty 34px band at the top and no way to
+  move it or close it from there. Tonio: "missing its move and close widgets,
+  and has a lot of waste space up top".
+  */
+  type Chrome = SVGSVGElement & {
+    handlePointer: (k: string, x: number, y: number) => void
+    gripHit: (x: number, y: number) => boolean
+  }
+  const make = (onClose: () => void) =>
+    w3d.panel3d(
+      { width: 320, grip: true, title: 'Solar System', handleClose: onClose },
+      w3d.label3d({ text: 'row' })
+    ) as Chrome
+
+  test('the title is drawn in the bar', () => {
+    const p = make(() => {})
+    const texts = [...p.querySelectorAll('text')].map((t) => t.textContent)
+    expect(texts).toContain('Solar System')
+  })
+
+  test('× closes on release over it, not on a press that slides off', () => {
+    let closed = 0
+    const p = make(() => closed++)
+    p.handlePointer('down', 310, 10)
+    p.handlePointer('up', 310, 10)
+    expect(closed).toBe(1)
+    p.handlePointer('down', 310, 10)
+    p.handlePointer('move', 100, 100)
+    p.handlePointer('up', 100, 100)
+    expect(closed).toBe(1)
+  })
+
+  test('the bar is the grip, except where × is', () => {
+    const p = make(() => {})
+    expect(p.gripHit(120, 10)).toBe(true)
+    expect(p.gripHit(310, 10)).toBe(false)
+    expect(p.gripHit(120, 60)).toBe(false) // below the bar: content
   })
 })
 
@@ -1026,10 +1086,10 @@ describe('a scrolling panel has a rail you can actually grab', () => {
   test('a panel that fits has NO rail — chrome that means nothing', () => {
     const short = packed(2)
     expect(short.querySelector('g[clip-path]')).toBeNull()
-    // The rail is the only thing appended AFTER the clipped body group, so its
+    // The rail is the only thing appended AFTER the panel's outline, so its
     // absence is structural rather than a rect count that other widgets share.
-    const kids = [...short.children].map((c) => c.tagName)
-    expect(kids[kids.length - 1]).toBe('g')
+    const last = short.lastElementChild!
+    expect(last.hasAttribute('data-w3d-rim')).toBe(true)
   })
 
   test('dragging the rail scrolls, and changes NO value', () => {

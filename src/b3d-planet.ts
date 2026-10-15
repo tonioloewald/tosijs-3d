@@ -52,8 +52,8 @@ const planet = b3dPlanet({
 const scene = b3d(
   {
     frameRate: 60,
+    panelTitle: 'Planet',
     scenePanel: () => [
-      label3d({ text: 'Planet' }),
       select3d({ label: 'world', value: demo.world, options: ['', ...Object.keys(ROCKY_WORLDS)] }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.1, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, scale: 'log' }),

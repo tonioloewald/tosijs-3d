@@ -42,8 +42,8 @@ const scene = b3d(
   {
     frameRate: 60,
     clearColor: '#000000',
+    panelTitle: 'Black hole',
     scenePanel: () => [
-      label3d({ text: 'Black hole' }),
       slider3d({ label: 'radius', value: demo.radius, min: 3, max: 20, step: 0.5 }),
       slider3d({ label: 'disk inner', value: demo.diskInnerRadius, min: 1.01, max: 2, step: 0.01 }),
       slider3d({ label: 'disk outer', value: demo.diskOuterRadius, min: 2, max: 8, step: 0.1 }),

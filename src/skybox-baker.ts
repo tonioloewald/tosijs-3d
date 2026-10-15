@@ -58,8 +58,8 @@ preview.append(
     {
       style: 'width:100%;height:100%',
       clearColor: '#01020a',
+      panelTitle: 'Bake a sky',
       scenePanel: () => [
-        label3d({ text: 'Bake a sky' }),
         // 10k to work with, 100k to finish with — see "Framing, then baking".
         slider3d({ label: 'stars', value: bake.stars, min: 5000, max: 100000, step: 5000 }),
         slider3d({ label: 'particle size', value: bake.particleSize, min: 0.1, max: 1.5, step: 0.05 }),

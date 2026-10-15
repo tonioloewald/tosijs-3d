@@ -30,9 +30,9 @@ const scene = b3d(
   {
     // Start with the flat panel open so it's visible without hunting for the ⚙.
     scenePanelOpen: true,
+    panelTitle: 'Settings',
     // DUAL-PRESENCE: a flat ⚙ overlay AND a floating VR panel, same values.
     scenePanel: () => [
-      label3d({ text: 'Settings' }),
       slider3d({ label: 'cube height', value: cfg.height, min: 0.5, max: 3, step: 0.1 }),
     ],
   },

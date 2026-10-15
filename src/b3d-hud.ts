@@ -38,8 +38,8 @@ const warnMap = {
 const scene = b3d(
   {
     scenePanelOpen: true,
+    panelTitle: 'HUD',
     scenePanel: () => [
-      label3d({ text: 'HUD', bold: true }),
       slider3d({ label: 'speed (red)', value: s.speed, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'altitude (blue)', value: s.altitude, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'health (green)', value: s.health, min: 0, max: 1, step: 0.01 }),

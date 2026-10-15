@@ -359,7 +359,7 @@ or implement your own shape-specific point-in-polygon tests.
 | `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
 | `doubleSided` | `'on'` | Render both faces |
 | `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below |
-| `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius` |
+| `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through |
 | `xrFrame` | `''` | In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked |
 
 ## Opaque panels
@@ -491,8 +491,12 @@ export class B3dSvgPlane extends AbstractMesh {
      * Whether the SVG's alpha drives the mesh's opacity. `'on'` (default,
      * unchanged) is what a panel with rounded corners drawn IN the SVG needs.
      * `'off'` makes the panel opaque — use it with `cornerRadius`.
+     * `'depth'` blends AND writes depth: pixels with (almost) no alpha are
+     * discarded, the rest blend and land in the z-buffer, so near-coplanar
+     * panels are ordered by depth rather than re-sorted by distance, and a
+     * translucent theme still shows through. What popups use.
      */
-    transparent: 'on' as 'on' | 'off',
+    transparent: 'on' as 'on' | 'off' | 'depth',
   }
 
   declare width: number
@@ -507,7 +511,7 @@ export class B3dSvgPlane extends AbstractMesh {
   declare pointerEvents: 'on' | 'off'
   declare doubleSided: 'on' | 'off'
   declare cornerRadius: number
-  declare transparent: 'on' | 'off'
+  declare transparent: 'on' | 'off' | 'depth'
 
   /** True only while WE have parented the mesh to the camera — so the
    * cameraRelative sync never clears a parent somebody else set. */
@@ -891,6 +895,14 @@ export class B3dSvgPlane extends AbstractMesh {
     mat.backFaceCulling = isOff(attrs.doubleSided)
     this._material = mat
     this._applyChannel(mat, attrs.materialChannel, isOff(attrs.transparent))
+    if (attrs.transparent === 'depth') {
+      // Corners are cut by the alpha test (no depth there), the body blends
+      // and writes depth. One material, so cost is a discard per pixel.
+      mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHATESTANDBLEND
+      mat.alphaCutOff = 0.02
+      mat.forceDepthWrite = true
+      mat.useAlphaFromDiffuseTexture = false
+    }
     this.mesh.material = mat
 
     if (attrs.cameraRelative && scene.activeCamera) {

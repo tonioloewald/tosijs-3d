@@ -15,8 +15,8 @@ const { sky } = tosi({ sky: { timeOfDay: 17 } })
 
 const scene = b3d(
   {
+    panelTitle: 'Sky',
     scenePanel: () => [
-      label3d({ text: 'Sky' }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
@@ -53,8 +53,8 @@ const { sky } = tosi({ sky: { timeOfDay: 23.5 } })
 
 const scene = b3d(
   {
+    panelTitle: 'Encoded sky',
     scenePanel: () => [
-      label3d({ text: 'Encoded sky' }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {

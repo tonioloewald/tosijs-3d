@@ -23,8 +23,8 @@ preview.append(
   b3d(
     {
       scenePanelOpen: true,
+      panelTitle: 'Moons',
       scenePanel: () => [
-        label3d({ text: 'Moons' }),
         slider3d({ label: 'time of day', value: moons.time, min: 0, max: 24, step: 0.25 }),
       ],
       sceneCreated(el, BABYLON) {
@@ -86,8 +86,8 @@ preview.append(
   b3d(
     {
       scenePanelOpen: true,
+      panelTitle: 'A giant in the sky',
       scenePanel: () => [
-        label3d({ text: 'A giant in the sky' }),
         select3d({ label: 'planet', value: giant.kind, options: ['jupiter', 'saturn', 'uranus', 'neptune'] }),
         slider3d({ label: 'size (degrees)', value: giant.size, min: 1, max: 60, step: 1 }),
         slider3d({ label: 'time of day', value: giant.time, min: 0, max: 24, step: 0.25 }),

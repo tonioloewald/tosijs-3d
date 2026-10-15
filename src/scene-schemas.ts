@@ -637,6 +637,8 @@ export const SCENE_OMITTED: Record<string, string[]> = {
     // presentation, not part of a scene.
     'flatUi',
     'panelSections',
+    // The settings panel's name: the app's chrome, not the scene.
+    'panelTitle',
     'gamepadScale',
     'gamepadFade',
     'quality',

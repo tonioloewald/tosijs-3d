@@ -1056,7 +1056,7 @@ b3d-svg-plane
   layer
   doubleSided  = 'on'  — Render both faces
   cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below
-  transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`
+  transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through
 
 ## b3d-terrain — <tosi-b3d-terrain>
 b3d-terrain
@@ -1427,6 +1427,7 @@ b3d
   xrGrid
   xrReticle
   scenePanelOpen
+  panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
   panelSections
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
