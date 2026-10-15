@@ -58,6 +58,12 @@ export interface AnchorSpec {
   focus?: [number, number, number]
   /** Roll about the panel's normal (deg) — e.g. 180 to flip an upside-down pin. */
   rollDeg?: number
+  /**
+   * Tip it about its own horizontal axis after it faces the viewer (deg):
+   * positive brings its TOP toward you, as a sign hung above eye level is
+   * tilted down to be read. Its place does not change; `focus` would move it.
+   */
+  tiltDeg?: number
   /** Gaze half-angle (deg) where the reveal begins / completes. */
   revealStartDeg?: number
   revealFullDeg?: number
@@ -408,7 +414,7 @@ export function attachFramePanel(
     )
     plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       yaw,
-      pitch,
+      pitch + (a.tiltDeg ?? 0) * DEG,
       roll
     )
   }

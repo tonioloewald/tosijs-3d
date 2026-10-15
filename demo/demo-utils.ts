@@ -550,10 +550,20 @@ export function demoLoadout(
     reveal: 'always',
     presence: 'both',
     flatFrame: 'face',
-    width: 0.3,
+    // Small closed (it is a reminder, not a reading surface) …
+    width: 0.25,
     resolution: 1024,
   }) as B3dPanel
-  pinned.flatAnchor = { azimuthDeg: -16, elevationDeg: 10, distance: 1.4 }
+  // … and as big as before opened (0.3 x 1.9).
+  pinned.focusScale = 2.28
+  // Flat: near the top-left corner, tipped down toward you like a sign above
+  // eye level (it leaned back, which read as tilted up).
+  pinned.flatAnchor = {
+    azimuthDeg: -16,
+    elevationDeg: 15,
+    distance: 1.4,
+    tiltDeg: 12,
+  }
   ready.then((d) => {
     pinned.title = ''
     pinned.svg = d.svg

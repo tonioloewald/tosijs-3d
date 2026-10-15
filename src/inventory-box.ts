@@ -338,9 +338,12 @@ const alsoIn = (item, kind, at) =>
 // Until the art arrives it is the placeholder card.
 const loadout = b3dPanel({
   frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
-  presence: 'both', flatFrame: 'face', width: 0.3, resolution: 1024,
+  presence: 'both', flatFrame: 'face', width: 0.25, resolution: 1024,
 })
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 10, distance: 1.4 }
+// Small closed, as big as ever opened; flat, near the top-left corner and
+// tipped down toward you (tiltDeg) like a sign above eye level.
+loadout.focusScale = 2.28
+loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 15, distance: 1.4, tiltDeg: 12 }
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -903,6 +906,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
             let y = 0
             for (const t of [...head, name]) {
               t.at = { x: corner.x, y }
+              // A dock hides these while closed (the picture says enough).
+              t.el.setAttribute('data-heading', '')
               y += t.measure(width - 24).height + 2
               children.push(t)
             }
@@ -1178,6 +1183,9 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     )
     const w = open && listHost ? W + GAP + LW : W
     if (listHost) listHost.style.display = open ? '' : 'none'
+    // Closed it is a small picture: the heading over it is noise at that size.
+    for (const t of Array.from(mainHost.querySelectorAll('[data-heading]')))
+      (t as SVGElement).style.display = open ? '' : 'none'
     closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
     if (open) root.append(closeButton)
     else closeButton.remove()
