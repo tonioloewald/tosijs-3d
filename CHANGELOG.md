@@ -44,6 +44,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A press on a panel in the scene no longer also works the game's controls.** The biped reads mouse buttons (the left button is A, a jump), so every press on the playground's loadout made the hero jump, and with a weapon up could fire it. A frame panel now cancels the `pointerdown` it takes, which by the web's own rule stops the matching `mousedown`/`mouseup`; the scene's picking is pointer events and carries on.
 - **A focused panel fits the view a looking-down camera actually has.** Its room was worked out from where it sits in its frame, which is level while a follow camera pitches down; it is now measured in the camera's own view.
 - **Swimmers ride lower.** The water sat at the head bone (the base of the skull), which left a treader's shoulders and arms out and a swimmer's head, shoulders and back riding on top. It now sits 10 cm higher on a treader (at the jaw: the head out) and 20 cm on a swimmer (over the back: the head breaking).
 - **Raising the weapon aims straight ahead.** The aim is the look pitch, which kept whatever it was left at (looking at the ground, the last dive), so the gun often came up pointing at your feet. `setGunplay(true)` levels it, flat only (in a headset the aim is the controller); lowering the weapon leaves the view alone.

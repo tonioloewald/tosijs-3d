@@ -612,6 +612,15 @@ export function attachFramePanel(
         if (!uv) return
         pressing = true
         holdCamera()
+        /*
+        THE PANEL HAS THIS PRESS, so the game does not also get it. The
+        biped's controls read MOUSE events (Mouse0 is the A button, a jump),
+        so every press on the loadout also jumped, or worse with a weapon up.
+        Cancelling the pointerdown is the web's own rule for this: the browser
+        then sends no compatibility mousedown/mouseup for it, while the scene's
+        pointer picking (pointer events) carries on.
+        */
+        ;(info.event as PointerEvent | undefined)?.preventDefault?.()
         target.handlePointer!('down', lastX, lastY)
         repaint(true)
       } else if (kind === 'move') {
