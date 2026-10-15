@@ -17,7 +17,7 @@ markup you can read:
 
 ```javascript
 b3d(
-  b3dSun({ shadowCascading: true }),
+  b3dSun(),
   b3dSkybox({ timeOfDay: 6 }),
   b3dLoader({ url: './scene.glb' }),
   b3dWater({ y: -0.2 })
@@ -45,7 +45,7 @@ import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
 
 document.body.append(
   b3d(
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 10 }),
     b3dGround({ size: 24, texture: 'checker' }),
     b3dBox({ x: -1.5, y: 0.5, color: '#c8553d' }),

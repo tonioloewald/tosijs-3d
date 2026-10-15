@@ -14,7 +14,7 @@ import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
 preview.append(
   b3d(
     { glowLayerIntensity: 0.6 },
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 10 }),
     b3dGround({ size: 24, texture: 'checker', textureTiles: 12 }),
     b3dBox({ x: -2, y: 0.75, size: 1.5, color: '#c8553d' }),

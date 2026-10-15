@@ -3451,6 +3451,11 @@
         "description": "Reduce shadow-edge \"swimming\" under motion"
       },
       {
+        "name": "shadows",
+        "default": "'on'",
+        "description": "`'off'`: the sun casts no shadows (the light stays). Shadows are always cascaded; there is no `shadowCascading` attribute, and passing one does nothing"
+      },
+      {
         "name": "lambda",
         "default": "0.8",
         "description": "Cascade split blend (0 = uniform, 1 = logarithmic)"

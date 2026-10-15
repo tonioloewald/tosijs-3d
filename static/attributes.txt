@@ -885,6 +885,7 @@ Sun and shadows (b3d-shadows)
   activeDistance  = 30  — Max camera-to-mesh distance a caster participates from
   numCascades  = auto  — Number of cascade splits (1–4); `auto` = device tier
   stabilizeCascades  = 'on'  — Reduce shadow-edge "swimming" under motion
+  shadows  = 'on'  — `'off'`: the sun casts no shadows (the light stays). Shadows are always cascaded; there is no `shadowCascading` attribute, and passing one does nothing
   lambda  = 0.8  — Cascade split blend (0 = uniform, 1 = logarithmic)
   cascadeBlendPercentage  = 0.1  — Soft blend across cascade seams
   x  = 0  — Sun direction X (overridden by skybox when present)

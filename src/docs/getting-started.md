@@ -23,7 +23,7 @@ import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
 
 preview.append(
   b3d(
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 10 }),
     b3dGround({ size: 24, texture: 'checker', textureTiles: 12 }),
     b3dBox({ x: -1.5, y: 0.5, color: '#c8553d' }),
@@ -48,11 +48,12 @@ device that supports it) an Enter VR button, without asking. The
 
 The functions are element creators, so the scene is also plain HTML: no
 script beyond importing the library once. An attribute is the property's name
-in kebab case (`timeOfDay` is `time-of-day`), and a boolean is there or not:
+in kebab case (`timeOfDay` is `time-of-day`); `shadows="off"` on the sun
+would turn its shadows off:
 
 ```html
 <tosi-b3d style="width: 100%; height: 100%">
-  <tosi-b3d-sun shadow-cascading></tosi-b3d-sun>
+  <tosi-b3d-sun></tosi-b3d-sun>
   <tosi-b3d-skybox time-of-day="14"></tosi-b3d-skybox>
   <tosi-b3d-ground size="24" texture="checker" texture-tiles="12"></tosi-b3d-ground>
   <tosi-b3d-box x="-1.5" y="0.5" color="#3d7ac8"></tosi-b3d-box>

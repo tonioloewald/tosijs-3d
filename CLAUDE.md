@@ -416,7 +416,7 @@ Scenes are built by nesting child components inside `<tosi-b3d>`:
 ```js
 b3d(
   { glowLayerIntensity: 1 },
-  b3dSun({ shadowCascading: true, shadowTextureSize: 2048 }),
+  b3dSun({ shadowTextureSize: 2048 }),
   b3dSkybox({ timeOfDay: 6, realtimeScale: 100 }),
   b3dLoader({ url: './scene.glb' }),
   inputFocus(

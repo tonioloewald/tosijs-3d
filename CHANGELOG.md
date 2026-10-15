@@ -35,6 +35,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A sun's shadows can be turned off**: `<tosi-b3d-sun shadows="off">` (`'on'` by default; live, so a toggle works). The demos, the README and this repo's notes passed `shadowCascading: true`, which was never an attribute: shadows are always cascaded, and `shadowCascading: false` silently did nothing. It is gone from every example.
 - **No more fine bands over every lit surface.** `<tosi-b3d-sun>`'s `shadowBias` default is 0.0005 (was Babylon's 0.00005). With `shadowNormalBias` at 0.02, which has to stay low or thin limbs lose their shadow, plain scenes (the primitives and getting-started demos) were striped with shadow acne on the ground, the boxes and the spheres. A character's shadow is unchanged. The attribute table also said `shadowNormalBias` defaulted to 0.05; it is 0.02.
 - **The checker ground is checkered.** `b3dGround({ texture: 'checker' })` drew one flat grey: the texture clamped at its edge instead of repeating, so every tile past the first was the edge colour. It repeats now, and is mipmapped so it does not shimmer toward the horizon. Its dark squares are 70% of the ground colour (they were a fixed grey barely darker than the default ground).
 - **Getting started opens on a running scene**: the first scene is a live example, and below it the same scene as plain HTML markup, live too.
