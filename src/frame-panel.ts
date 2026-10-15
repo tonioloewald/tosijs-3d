@@ -440,9 +440,18 @@ export function attachFramePanel(
     // cropped by it: a monitor sees far less than a headset.
     const c = (scene.activeCamera ?? cam) as BABYLON.Camera
     if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
-      // Room either side of its centre, less how far off-centre it sits.
-      const p = plane.position
-      const d = p.length()
+      /*
+      Room either side of its centre, less how far off-centre it sits, IN THE
+      CAMERA'S VIEW. It used the panel's position in its frame, which is level
+      while a follow camera looks down: the panel then sat lower on screen than
+      the sum said, and its bottom (the end of the bag list) went off the edge.
+      */
+      plane.computeWorldMatrix(true)
+      const p = BABYLON.Vector3.TransformCoordinates(
+        plane.getAbsolutePosition(),
+        c.getViewMatrix()
+      )
+      const d = Math.max(0.01, p.z)
       const halfTall = d * Math.tan(c.fov / 2) * 0.92
       const halfWide = halfTall * scene.getEngine().getAspectRatio(c)
       const tall = 2 * Math.max(0.01, halfTall - Math.abs(p.y))

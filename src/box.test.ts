@@ -414,3 +414,79 @@ describe('box — hover is maintained across raw children (the VR feedback fix)'
     expect(states[states.length - 1]).toBe(false)
   })
 })
+
+describe('box — the scrollbar', () => {
+  // Ten 40-high rows in a 100-high box: 400 of content, 300 of overflow.
+  const tall = () =>
+    mod.box(
+      { width: 200, height: 100, padding: 12 },
+      ...Array.from({ length: 10 }, () =>
+        mod.blockItem(document.createElementNS('http://www.w3.org/2000/svg', 'rect') as any, 40)
+      )
+    )
+  const content = (b: ReturnType<typeof tall>) =>
+    b.el.querySelector('[data-box-content]')!
+  const thumb = (b: ReturnType<typeof tall>) =>
+    b.el.querySelector('[data-box-thumb]')!
+
+  test('shown only when the content overflows a fixed height', () => {
+    expect(thumb(tall()).getAttribute('visibility')).toBe('visible')
+    const short = mod.box({ width: 200, height: 100 }, mod.textBlock('hi'))
+    expect(short.el.querySelector('[data-box-thumb]')!.getAttribute('visibility')).toBe('hidden')
+  })
+
+  test('dragging the thumb scrolls; the whole track is the whole overflow', () => {
+    const b = tall()
+    const y = Number(thumb(b).getAttribute('y')) + 2
+    b.handlePointer('down', 196, y)
+    b.handlePointer('move', 196, y + 1000)
+    expect(ty(content(b))).toBe(-(b.contentHeight - 100))
+    b.handlePointer('up', 196, y + 1000)
+    // The gesture is over: a move no longer scrolls.
+    b.handlePointer('move', 196, 0)
+    expect(ty(content(b))).toBe(-(b.contentHeight - 100))
+  })
+
+  test('pressing the track below the thumb pages down', () => {
+    const b = tall()
+    b.handlePointer('down', 196, 95)
+    expect(ty(content(b))).toBeLessThan(0)
+  })
+})
+
+describe('box — sticky children', () => {
+  const rows = (n: number) =>
+    Array.from({ length: n }, () =>
+      mod.blockItem(document.createElementNS('http://www.w3.org/2000/svg', 'rect') as any, 40)
+    )
+  test('a leading sticky run stays put while the rest scrolls under it', () => {
+    const [head, ...rest] = rows(10)
+    head.sticky = true
+    const b = mod.box({ width: 200, height: 100 }, head, ...rest)
+    b.scrollBy(60)
+    const pinned = b.el.querySelector('[data-box-pinned]')!
+    expect(pinned.contains(head.el)).toBe(true)
+    expect(b.el.querySelector('[data-box-content]')!.contains(rest[0].el)).toBe(true)
+  })
+  test('a sticky flag after a scrolling child is ignored', () => {
+    const [a, c] = rows(2)
+    c.sticky = true
+    const b = mod.box({ width: 200, height: 50 }, a, c)
+    expect(b.el.querySelector('[data-box-pinned]')!.contains(c.el)).toBe(false)
+  })
+  test('scrolled content under the sticky strip is not hit; the sticky child is', () => {
+    let pressed = ''
+    const mk = (id: string) => ({
+      ...mod.blockItem(document.createElementNS('http://www.w3.org/2000/svg', 'rect') as any, 40),
+      handlePointer: (k: string) => { if (k === 'down') pressed = id },
+    })
+    const head = { ...mk('head'), sticky: true }
+    const b = mod.box({ width: 200, height: 100 }, head, mk('a'), mk('b'), mk('c'), mk('d'))
+    b.scrollBy(40) // 'a' now sits under the header
+    b.handlePointer('down', 50, 20)
+    expect(pressed).toBe('head')
+    b.handlePointer('up', 50, 20)
+    b.handlePointer('down', 50, 60)
+    expect(pressed).toBe('b')
+  })
+})

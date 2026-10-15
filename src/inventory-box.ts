@@ -943,11 +943,20 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       } else if (c.type === 'list') {
         // The drop target heads the list: a scrolling list would take it
         // out of sight at the bottom.
-        if (opts.handleDrop && !lists.length) children.push(dropSocket())
+        // Both stay put while the list scrolls under them (a box keeps only a
+        // LEADING run sticky, so a list below a schematic is unaffected).
+        name.sticky = true
+        if (opts.handleDrop && !lists.length) {
+          const drop = dropSocket()
+          drop.sticky = true
+          children.push(drop)
+        }
         const at: Place = { holder, container: cname }
         const into = target(at, `${holder}/${cname}`)
         lists.push({ target: into, from: enc(at) })
-        for (const id of c.holds) children.push(tile(id, at, undefined, into))
+        // Full width: a row is a button you can hit anywhere along it.
+        const row = { width: width - 24, height: 34 }
+        for (const id of c.holds) children.push(tile(id, at, row, into))
         const socket = carrySocket({
           carry,
           target: into,

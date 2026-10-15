@@ -432,7 +432,7 @@ const SWIM_THRUST = 6
 // How far above the head bone the water sits, metres: treading (water at the
 // jaw, the head out) and stroking (over the back, the head breaking).
 const TREAD_SINK = 0.1
-const SWIM_SINK = 0.2
+const SWIM_SINK = 0.12
 /** Local +Z. Allocated once — this is read every frame while swimming. */
 const LOCAL_FORWARD = new BABYLON.Vector3(0, 0, 1)
 /** Scratch for the yaw read-back; never allocate inside the per-frame loop. */

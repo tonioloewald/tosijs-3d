@@ -362,6 +362,12 @@ export interface BoxChild {
    * Placed children are hit before flowed ones, last first, as they paint.
    */
   at?: { x: number; y: number }
+  /**
+   * STAYS PUT while the rest scrolls: a heading, a drop target. Only the
+   * LEADING children can be sticky (a run at the top, before anything that
+   * scrolls); the scrolling content passes under them.
+   */
+  sticky?: boolean
 }
 
 /** Pointer phase fed to {@link Box.handlePointer}. */
@@ -456,8 +462,40 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   clip.append(clipRect)
   const clipped = svgElements.g({ 'clip-path': `url(#${clipId})` })
   const content = svgElements.g({ 'data-box-content': '' })
-  clipped.append(content)
+  // Sticky children, over the scrolling content, on a strip of the box's own
+  // background so what scrolls under them is hidden.
+  const pinned = svgElements.g({ 'data-box-pinned': '' })
+  const pinnedBg = svgElements.rect({ x: 0, y: 0 })
+  clipped.append(content, pinned)
   el.append(svgElements.defs({}, clip), bgRect, clipped)
+  /*
+  A SCROLLBAR, when the content is taller than a fixed height. A wheel scrolls
+  a box on a page, but a panel in a scene gets no wheel and a headset has none
+  at all, so a list longer than its panel was cut off with no way to reach the
+  rest (Tonio: "the list pushes below the edge, crops, and doesn't scroll").
+  A thumb on the right edge works with a mouse, a finger and a controller ray
+  alike: drag it, or press the track above or below it to page. It sits in the
+  box's right padding, so it takes nothing from the children.
+  */
+  const BAR_W = 5
+  const BAR_HIT = 12
+  const BAR_M = 4
+  const track = svgElements.rect({
+    'data-box-track': '',
+    width: BAR_W,
+    rx: BAR_W / 2,
+    fill: 'rgba(255,255,255,0.08)',
+    visibility: 'hidden',
+  })
+  const thumb = svgElements.rect({
+    'data-box-thumb': '',
+    width: BAR_W,
+    rx: BAR_W / 2,
+    fill: 'rgba(200,214,235,0.55)',
+    visibility: 'hidden',
+  })
+  el.append(track, thumb)
+  let barDrag: { y: number; scroll: number } | null = null
 
   // Focus ring — lives INSIDE content so it scrolls with the focused child.
   const focusRing = svgElements.rect({
@@ -502,6 +540,12 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   let contentHeight = 0
   let viewportHeight = 0
   let scroll = 0
+  // How far down the sticky run reaches (content coords), 0 with none.
+  let stickyBottom = 0
+  const isSticky = (i: number) => {
+    for (let k = 0; k <= i; k++) if (!children[k]?.sticky) return false
+    return true
+  }
 
   const state = {
     contentHeight: 0,
@@ -545,6 +589,8 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
 
     // (re)build the positioned children
     content.textContent = ''
+    pinned.textContent = ''
+    stickyBottom = 0
     children.forEach((c, i) => {
       const b = laidBoxes[i]
       c.paint?.(c.kind === 'block' && !c.at ? contentW : b.width)
@@ -552,8 +598,17 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         transform: `translate(${padding + b.x} ${padding + b.y})`,
       })
       wrap.append(c.el)
-      content.append(wrap)
+      if (isSticky(i)) {
+        pinned.append(wrap)
+        stickyBottom = Math.max(stickyBottom, b.y + b.height + gap)
+      } else content.append(wrap)
     })
+    if (stickyBottom > 0) {
+      pinnedBg.setAttribute('width', String(width))
+      pinnedBg.setAttribute('height', String(padding + stickyBottom))
+      pinnedBg.setAttribute('fill', background ?? 'none')
+      pinned.prepend(pinnedBg)
+    }
     content.append(focusRing) // last → on top of the children
     positionRing()
 
@@ -581,9 +636,37 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
     applyScroll()
   }
 
+  const scrollable = () => contentHeight > viewportHeight + 0.5
+  const bar = () => {
+    const trackH = Math.max(0, viewportHeight - 2 * BAR_M)
+    const thumbH = Math.min(
+      trackH,
+      Math.max(24, (trackH * viewportHeight) / Math.max(1, contentHeight))
+    )
+    const range = Math.max(1, contentHeight - viewportHeight)
+    return {
+      trackH,
+      thumbH,
+      thumbY: BAR_M + ((trackH - thumbH) * scroll) / range,
+      perPx: range / Math.max(1, trackH - thumbH),
+    }
+  }
   const applyScroll = (): void => {
     scroll = clampScroll(scroll, contentHeight, viewportHeight)
     content.setAttribute('transform', `translate(0 ${-scroll})`)
+    const show = scrollable() ? 'visible' : 'hidden'
+    track.setAttribute('visibility', show)
+    thumb.setAttribute('visibility', show)
+    if (show === 'visible') {
+      const b = bar()
+      const x = String(width - BAR_M - BAR_W)
+      track.setAttribute('x', x)
+      track.setAttribute('y', String(BAR_M))
+      track.setAttribute('height', String(b.trackH))
+      thumb.setAttribute('x', x)
+      thumb.setAttribute('y', String(b.thumbY))
+      thumb.setAttribute('height', String(b.thumbH))
+    }
   }
 
   // The ring lives in `content` (already -scroll-translated), so position it in
@@ -606,9 +689,10 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   // Scroll just enough to bring child `i` fully into the viewport.
   const ensureVisible = (i: number): void => {
     const b = laidBoxes[i]
-    if (!b) return
-    const top = padding + b.y
-    const bot = top + b.height
+    if (!b || isSticky(i)) return
+    // Below the sticky strip, which covers the top of the viewport.
+    const top = padding + b.y - stickyBottom
+    const bot = padding + b.y + b.height
     if (top < scroll) {
       scroll = top
       applyScroll()
@@ -626,7 +710,8 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   ): { x: number; y: number } => {
     const b = laidBoxes[i]
     if (!b) return { x, y }
-    return { x: x - (padding + b.x), y: y + scroll - (padding + b.y) }
+    const s = isSticky(i) ? 0 : scroll
+    return { x: x - (padding + b.x), y: y + s - (padding + b.y) }
   }
 
   // (x,y) in box-local screen coords → the focusable child under it, or -1.
@@ -640,12 +725,17 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         Number(!!children[b].at) - Number(!!children[a].at) ||
         (children[a].at ? b - a : a - b)
     )
+    const underPins = stickyBottom > 0 && y < padding + stickyBottom
     for (const i of order) {
       if (!isFocusable(i)) continue
+      const stuck = isSticky(i)
+      // Scrolled content under the sticky strip is hidden, so not hit.
+      if (underPins && !stuck) continue
       const b = laidBoxes[i]
       const bx = padding + b.x
       const by = padding + b.y
-      if (x >= bx && x <= bx + b.width && cy >= by && cy <= by + b.height) {
+      const py = stuck ? y : cy
+      if (x >= bx && x <= bx + b.width && py >= by && py <= by + b.height) {
         // A child may claim only part of its row as the control; the rest stays
         // scroll surface (grab "between" two sliders to scroll).
         const ht = children[i].hitTest
@@ -696,6 +786,30 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
       applyScroll()
     },
     handlePointer(kind: PointerKind, x: number, y: number) {
+      // The scrollbar owns a gesture that starts on it.
+      if (barDrag) {
+        if (kind === 'move') {
+          scroll = barDrag.scroll + (y - barDrag.y) * bar().perPx
+          applyScroll()
+        } else barDrag = null
+        if (kind !== 'leave') return
+      } else if (
+        kind === 'down' &&
+        scrollable() &&
+        x >= width - BAR_HIT &&
+        x <= width &&
+        y >= 0 &&
+        y <= viewportHeight
+      ) {
+        const b = bar()
+        if (y >= b.thumbY && y <= b.thumbY + b.thumbH)
+          barDrag = { y, scroll }
+        else {
+          scroll += (y < b.thumbY ? -1 : 1) * viewportHeight * 0.85
+          applyScroll()
+        }
+        return
+      }
       if (kind === 'leave') {
         const p = pressedIdx
         const h = hoverIdx

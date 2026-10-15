@@ -167,12 +167,15 @@ export function isSwimming(
   flickers between swimming and standing — Tonio: "there's sometimes a twitch
   and you go back to standing as you ramp into water."
 
-  So: enter swimming at 0.5, keep it until 0.35. One bit of state, and the
+  So: enter swimming at 0.65 (chest deep), keep it until 0.5. (It was 0.5 and
+  0.35, waist deep, which put you into a swim stroke in water you would wade
+  through: Tonio, "the transition to/from walking should require a bit more
+  water depth.") One bit of state, and the
   narrowest kind — it changes when you SWITCH, never what you can do. The
   broader claim survives with a caveat rather than intact, which is worth more
   than pretending the falsifier did not fire.
   */
-  return submerged >= (wasSwimming ? 0.35 : 0.5)
+  return submerged >= (wasSwimming ? 0.5 : 0.65)
 }
 
 /**
