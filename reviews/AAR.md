@@ -99,3 +99,11 @@
   check `git status` before saying what state the tree is in.
 - **A stale browser cache cost three rounds.** Worth asking "is the dev
   tools pane open?" early when a fix that measures correct looks unfixed.
+
+## 0.10.6 — 2026-10-15
+
+- Went well: the owner drove the inventory on a Quest between rounds, and each report came back as a fix within the hour; flat checks with real mouse and touch input (CDP) reproduced most of them without a headset.
+- Didn't: the fast review found two majors in code with no view-layer tests (screen pins applied in VR; two-tap cancelled by the page examples' own pointerup). Both were fixed before the tag; the missing tests are on the board (#3312).
+- Surprised: what read as "the swimmer's stick does nothing" was buoyancy cancelling the stroke; what read as shadow banding was also a checker texture that never repeated (a DynamicTexture clamps).
+- Friction: stopping a background task killed the dev server it had started; a wait loop grepped a minified bundle for a function name; I stashed a file by mistake mid-fix and had to restore it.
+- Cycle: none.
