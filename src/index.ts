@@ -410,7 +410,13 @@ export {
   opacityWeightedGlow,
   excludeFromGlow,
 } from './frame-panel.js'
-export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
+export type {
+  FramePanelSpec,
+  AnchorSpec,
+  AnchorPreset,
+  ScreenAnchor,
+  ScreenLength,
+} from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js'
 export { B3dMoon, b3dMoon } from './b3d-moon.js'
 export {

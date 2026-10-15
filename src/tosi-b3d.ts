@@ -2137,7 +2137,9 @@ export class B3d extends Component {
             // `flatFrame` wins whenever it is given (the hands need it; a
             // pitched flat camera wants 'face'), and is required for a hand.
             let frame = spec.frame ?? 'body'
-            if (spec.flatFrame != null) frame = spec.flatFrame
+            // A screen-pinned panel lives in the head-locked frame.
+            if (spec.screenAnchor != null) frame = 'face'
+            else if (spec.flatFrame != null) frame = spec.flatFrame
             else if (frame === 'left-hand' || frame === 'right-hand') {
               const key = spec.title ?? spec.url ?? frame
               if (!this._flatHandWarned.has(key)) {

@@ -28,6 +28,7 @@ import { attachFramePanel } from 'tosijs-3d'
 /*{ "parent": "b3d-panel", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { anchorLayout, anchorLength, type AnchorLength } from './anchor-layout.js'
 import { SvgTexture } from './svg-texture.js'
 import { markUiMesh } from './b3d-utils.js'
 import { gazeReveal, type FrameName } from './xr-frames.js'
@@ -73,6 +74,26 @@ export interface AnchorSpec {
   /** Gaze half-angle (deg) where the reveal begins / completes. */
   revealStartDeg?: number
   revealFullDeg?: number
+}
+
+/** A length on screen: pixels, a fraction of the axis, or of the shorter side. */
+export type ScreenLength = number | `${number}%` | `${number}vmin`
+
+export interface ScreenAnchor {
+  left?: ScreenLength
+  right?: ScreenLength
+  top?: ScreenLength
+  bottom?: ScreenLength
+  /** The point of the panel a pin places (0 left … 1 right); default 0. */
+  anchorX?: number
+  /** The same, top to bottom; default 0. */
+  anchorY?: number
+  /** `'center'` is both at 0.5. */
+  anchor?: 'center'
+  /** Its height on screen; default its `width` at `distance`. */
+  height?: ScreenLength
+  /** Metres in front of the eye (pushed past the near plane). Default 1. */
+  distance?: number
 }
 
 export interface FramePanelSpec {
@@ -162,6 +183,17 @@ export interface FramePanelSpec {
    * the `face` frame).
    */
   flatAnchor?: AnchorPreset | AnchorSpec
+  /**
+   * Where it goes in the FLAT view in SCREEN terms, which wins over
+   * `flatAnchor`: pinned to the view's edges like an `anchorLayout` item, in
+   * pixels, a fraction of that axis (`'5%'`), or of the shorter side
+   * (`'3vmin'`), with an anchor point on the panel (default its top left).
+   * `height` sets its size on screen the same way (default: its `width` in
+   * metres at `distance`). Square to the screen, re-solved every frame, so a
+   * resize or a different shape of screen keeps it where you put it. Degrees
+   * are for a headset, where the panel is around you; a monitor is a rectangle.
+   */
+  screenAnchor?: ScreenAnchor
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
   /** Custom panel SVG element (live/dynamic content). */
@@ -450,7 +482,7 @@ export function attachFramePanel(
     const vb = el.viewBox.baseVal
     const sx = (vb.width || baseVb.w) / baseVb.w
     const sy = (vb.height || baseVb.h) / baseVb.h
-    let k = focused ? focusScale * pushed : 1
+    let k = focused ? focusScale * pushed : screenK
     // Focused, it fits the view (90% of it at its distance) rather than being
     // cropped by it: a monitor sees far less than a headset.
     const c = (scene.activeCamera ?? cam) as BABYLON.Camera
@@ -477,6 +509,68 @@ export function attachFramePanel(
     }
     plane.scaling.x = k * sx
     plane.scaling.y = k * sy
+  }
+  /*
+  SCREEN PLACEMENT (flat): solve the panel's rectangle on screen with the
+  anchored layout at its current pixel size, then put its centre at that pixel
+  on a plane `distance` in front of the eye. The frame is the head-locked
+  `face` one (local +x right, +y up, +z ahead), so a pixel is a fixed offset.
+  */
+  let screenK = 1
+  const placeScreen = () => {
+    const sa = spec.screenAnchor
+    const c = (scene.activeCamera ?? cam) as BABYLON.Camera
+    const canvas = scene.getEngine().getRenderingCanvas()
+    if (!sa || !c || !canvas || c.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
+      return
+    const W = canvas.clientWidth || scene.getEngine().getRenderWidth()
+    const H = canvas.clientHeight || scene.getEngine().getRenderHeight()
+    if (!W || !H) return
+    const vmin = Math.min(W, H)
+    const px = (v: ScreenLength | undefined) =>
+      typeof v === 'string' && v.endsWith('vmin')
+        ? (parseFloat(v) / 100) * vmin
+        : (v as AnchorLength | undefined)
+    const d = Math.max(sa.distance ?? 1, (c.minZ ?? 0) * 1.25)
+    // Metres per pixel at that distance, by whichever axis the fov fixes.
+    const perPx =
+      c.fovMode === BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED
+        ? (2 * d * Math.tan(c.fov / 2)) / W
+        : (2 * d * Math.tan(c.fov / 2)) / H
+    const vb = el?.viewBox.baseVal
+    const sx = el && baseVb ? (vb!.width || baseVb.w) / baseVb.w : 1
+    const sy = el && baseVb ? (vb!.height || baseVb.h) / baseVb.h : 1
+    const baseW = width * sx
+    const baseH = width * aspect * sy
+    screenK =
+      sa.height != null
+        ? (anchorLength(px(sa.height) as AnchorLength, H) * perPx) / baseH
+        : 1
+    const { boxes } = anchorLayout(
+      [
+        {
+          left: px(sa.left),
+          right: px(sa.right),
+          top: px(sa.top),
+          bottom: px(sa.bottom),
+          anchorX: sa.anchorX,
+          anchorY: sa.anchorY,
+          anchor: sa.anchor,
+          width: (baseW * screenK) / perPx,
+          height: (baseH * screenK) / perPx,
+        },
+      ],
+      { width: W, height: H }
+    )
+    const b = boxes[0]
+    placeAt({
+      position: [
+        (b.x + b.width / 2 - W / 2) * perPx,
+        (H / 2 - (b.y + b.height / 2)) * perPx,
+        d,
+      ],
+      flatOn: true,
+    })
   }
   const onFocus = (e: Event) => {
     focused = !!(e as CustomEvent<{ focus?: boolean }>).detail?.focus
@@ -665,6 +759,7 @@ export function attachFramePanel(
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
       debug.updates++
+      if (spec.screenAnchor && !focused) placeScreen()
       fit()
       // Focused content is in front of you because you asked for it.
       if (focused) {

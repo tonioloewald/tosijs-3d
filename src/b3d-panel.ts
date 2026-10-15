@@ -112,7 +112,7 @@ so you have full control:
 
 Four more are JavaScript properties, not attributes, because they are
 objects: `svg` (live content: an `<svg>` whose own `handlePointer(kind, x, y)`
-gets the panel's pointer, such as an `inventoryDock`'s), `flatAnchor` (where
+gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`), `flatAnchor` (where
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
 comes, and how much bigger, when its content asks for focus with a
 `panelfocus` event). The main `tosi-b3d` demo pins a loadout this way.
@@ -120,7 +120,12 @@ comes, and how much bigger, when its content asks for focus with a
 /*{ "parent": "ui-in-scene", "order": 10 }*/
 
 import { Component } from 'tosijs'
-import type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
+import type {
+  FramePanelSpec,
+  AnchorSpec,
+  AnchorPreset,
+  ScreenAnchor,
+} from './frame-panel.js'
 import type { FrameName } from './xr-frames.js'
 
 export class B3dPanel extends Component {
@@ -177,6 +182,8 @@ export class B3dPanel extends Component {
   svg: SVGSVGElement | null = null
   /** Where it goes in the flat view, in place of the anchor (JS only). */
   flatAnchor: AnchorPreset | AnchorSpec | null = null
+  /** Flat placement in screen terms (pixels / % / vmin pins); wins over `flatAnchor`. JS only. */
+  screenAnchor: ScreenAnchor | null = null
   /** Where it comes when its content asks for focus, and how much bigger (JS only). */
   focusAnchor: AnchorPreset | AnchorSpec | null = null
   focusScale = 0
@@ -222,6 +229,7 @@ export class B3dPanel extends Component {
       resolution: this.resolution > 0 ? this.resolution : undefined,
       svg: this.svg ?? undefined,
       flatAnchor: this.flatAnchor ?? undefined,
+      screenAnchor: this.screenAnchor ?? undefined,
       focusAnchor: this.focusAnchor ?? undefined,
       focusScale: this.focusScale > 0 ? this.focusScale : undefined,
     }
