@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>Getting started — tosijs-3d</title>
   <meta name="description" content="From nothing to a lit scene you can walk around, then where to go next." />
   <link rel="canonical" href="https://3d.tosijs.net/getting-started/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="getting-started">Getting started</h1>
 <!--{"order": 1}-->
@@ -43,27 +43,44 @@
 so your app has exactly one copy of the engine. <code>jolt-physics</code> is an optional
 peer, needed only for <a href="/b3d-physics/">b3d-physics</a>.</p>
 <h2 id="a-first-scene">A first scene</h2>
-<p>No model file needed:</p>
-<pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> b3d<span class="token punctuation">,</span> b3dSun<span class="token punctuation">,</span> b3dSkybox<span class="token punctuation">,</span> b3dGround<span class="token punctuation">,</span> b3dBox<span class="token punctuation">,</span> b3dSphere <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
+<p>No model file needed. This is the whole app, running:</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from &#39;tosijs-3d&#39;
 
-document<span class="token punctuation">.</span>body<span class="token punctuation">.</span><span class="token function">append</span><span class="token punctuation">(</span>
-  <span class="token function">b3d</span><span class="token punctuation">(</span>
-    <span class="token function">b3dSun</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">shadowCascading</span><span class="token operator">:</span> <span class="token boolean">true</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
-    <span class="token function">b3dSkybox</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">timeOfDay</span><span class="token operator">:</span> <span class="token number">10</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
-    <span class="token function">b3dGround</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">size</span><span class="token operator">:</span> <span class="token number">24</span><span class="token punctuation">,</span> <span class="token literal-property property">texture</span><span class="token operator">:</span> <span class="token string">'checker'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
-    <span class="token function">b3dBox</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">x</span><span class="token operator">:</span> <span class="token operator">-</span><span class="token number">1.5</span><span class="token punctuation">,</span> <span class="token literal-property property">y</span><span class="token operator">:</span> <span class="token number">0.5</span><span class="token punctuation">,</span> <span class="token literal-property property">color</span><span class="token operator">:</span> <span class="token string">'#c8553d'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
-    <span class="token function">b3dSphere</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">x</span><span class="token operator">:</span> <span class="token number">1.5</span><span class="token punctuation">,</span> <span class="token literal-property property">y</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span> <span class="token literal-property property">diameter</span><span class="token operator">:</span> <span class="token number">2</span><span class="token punctuation">,</span> <span class="token literal-property property">color</span><span class="token operator">:</span> <span class="token string">'#ffd166'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span>
-  <span class="token punctuation">)</span>
-<span class="token punctuation">)</span>
+preview.append(
+  b3d(
+    b3dSun(),
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dGround({ size: 24, texture: &#39;checker&#39;, textureTiles: 12 }),
+    b3dBox({ x: -1.5, y: 0.5, color: &#39;#c8553d&#39; }),
+    b3dSphere({ x: 1.5, y: 1, diameter: 2, color: &#39;#ffd166&#39; })
+  )
+)
 </code></pre>
-<p>Give the element a size in your CSS (<code>tosi-b3d { width: 100vw; height: 100vh; }</code>).</p>
-<p>That is the whole app. <code>b3d(...)</code> creates a <code>&lt;tosi-b3d&gt;</code> element, which owns the
-engine and the scene; everything nested inside it adds itself when the scene is
-ready and removes itself when it leaves the page. You get an orbit camera,
-shadows, and (on a device that supports it) an Enter VR button, without asking.
-The <a href="/b3d-primitives/">Primitives</a> page is this scene, running.</p>
-<p>The functions are element creators, so the same scene is also plain markup:
-<code>&lt;tosi-b3d&gt;&lt;tosi-b3d-sun shadow-cascading&gt;&lt;/tosi-b3d-sun&gt;...&lt;/tosi-b3d&gt;</code>.</p>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<p>In your own page, append to <code>document.body</code> instead of <code>preview</code>, and give the
+element a size in your CSS (<code>tosi-b3d { width: 100vw; height: 100vh; }</code>).</p>
+<p><code>b3d(...)</code> creates a <code>&lt;tosi-b3d&gt;</code> element, which owns the engine and the scene;
+everything nested inside it adds itself when the scene is ready and removes
+itself when it leaves the page. You get an orbit camera, shadows, and (on a
+device that supports it) an Enter VR button, without asking. The
+<a href="/b3d-primitives/">Primitives</a> page has more of these shapes.</p>
+<h2 id="the-same-scene-as-markup">The same scene as markup</h2>
+<p>The functions are element creators, so the scene is also plain HTML: no
+script beyond importing the library once. An attribute is the property&#39;s name
+in kebab case (<code>timeOfDay</code> is <code>time-of-day</code>); <code>shadows=&quot;off&quot;</code> on the sun
+would turn its shadows off:</p>
+<pre><code class="language-html">&lt;tosi-b3d style=&quot;width: 100%; height: 100%&quot;&gt;
+  &lt;tosi-b3d-sun&gt;&lt;/tosi-b3d-sun&gt;
+  &lt;tosi-b3d-skybox time-of-day=&quot;14&quot;&gt;&lt;/tosi-b3d-skybox&gt;
+  &lt;tosi-b3d-ground size=&quot;24&quot; texture=&quot;checker&quot; texture-tiles=&quot;12&quot;&gt;&lt;/tosi-b3d-ground&gt;
+  &lt;tosi-b3d-box x=&quot;-1.5&quot; y=&quot;0.5&quot; color=&quot;#3d7ac8&quot;&gt;&lt;/tosi-b3d-box&gt;
+  &lt;tosi-b3d-sphere x=&quot;1.5&quot; y=&quot;1&quot; diameter=&quot;2&quot; color=&quot;#7bd166&quot;&gt;&lt;/tosi-b3d-sphere&gt;
+&lt;/tosi-b3d&gt;
+</code></pre>
+<p>(The afternoon sky and the colours are changed only so you can tell the two
+apart.) In your own page, <code>import &#39;tosijs-3d&#39;</code> once from your bundle; that
+defines the elements, and markup that is already there comes to life.</p>
 <h2 id="then-what">Then what</h2>
 <table>
 <thead>
@@ -363,6 +380,11 @@ they are where the tests are, but you do not need them to get started.</p>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -385,6 +407,11 @@ they are where the tests are, but you do not need them to get started.</p>
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -434,6 +461,7 @@ they are where the tests are, but you do not need them to get started.</p>
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -541,6 +569,6 @@ they are where the tests are, but you do not need them to get started.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

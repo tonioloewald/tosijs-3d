@@ -477,7 +477,8 @@ export function demoLoadout(
   for (const k of Object.keys(kinds)) items[k] = { id: k, kind: k, qty: 1 }
   const worn = opts.equip ?? {}
   for (const [slotName, id] of Object.entries(worn))
-    (body.slots as Record<string, { holds: string | null }>)[slotName].holds = id
+    (body.slots as Record<string, { holds: string | null }>)[slotName].holds =
+      id
   const inv = createInventory(
     {
       items,

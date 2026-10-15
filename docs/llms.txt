@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.5
+# tosijs-3d v0.10.6
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -11,8 +11,8 @@ Declarative 3D/XR framework built on Babylon.js and the tosijs web component fra
 Full documentation, with live code examples, is at the links below.
 
 Pages below are also available as plain markdown: append `index.md` to the URL
-(for example `/carousel/index.md`). Prefer that if you only need the text. A page
-marked noindex has no markdown copy.
+(for example `/getting-started/index.md`).
+Prefer that if you only need the text. A page marked noindex has no markdown copy.
 
 Live examples run inline on the shared page by default (not sandboxed):
 each has its own `preview` element, but they share one tosijs module, so
@@ -20,13 +20,6 @@ each has its own `preview` element, but they share one tosijs module, so
 deliberate (it shows tosi isolation and lets you drive demos via the global
 singleton). Namespace example state with unique top-level keys so examples
 don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
-
-Running this project locally (`bun start`), the dev server injects a
-localhost-gated dev channel, so an agent can DRIVE the live page with the `hj`
-CLI — `hj navigate`, `hj eval`, `hj tree` — instead of inferring behaviour from
-source. Injected at serve time only, never in the built output. Note that no
-requestAnimationFrame runs under `hj eval`, and tosijs renders are rAF-driven, so
-use it to inspect STATE; a painted-output check needs a real test lane.
 
 ## Pages
 
@@ -40,6 +33,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
   The one ambient effect that is **not a sprite**.
+- https://3d.tosijs.net/anchor-layout/ — anchor-layout
+  Pure **anchored layout**: the third way to lay out the SVG UI, beside the
 - https://3d.tosijs.net/angle-field/ — angle-field
   rings, because the quantity is a circle and a slider track is not. The model is
 - https://3d.tosijs.net/animation-layers/ — animation-layers
@@ -172,6 +167,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   biped's swimming: how fast a body sinks, why it comes back up, and where it
 - https://3d.tosijs.net/camera-fit/ — camera-fit
   Babylon, no rays — so the rules can be tested without a scene.
+- https://3d.tosijs.net/carry/ — carry
+  in it: what is being carried, where it came from, which target the pointer
+- https://3d.tosijs.net/carry-box/ — carry-box
+  can pick up, sockets that take them, a ghost that follows the pointer, and
 - https://3d.tosijs.net/carve/ — carve
   Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/sdf-lattice/ — Carved landforms
@@ -286,6 +285,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Babylon-free, deterministic, unit tested, so what counts as "you used it" can be
 - https://3d.tosijs.net/interactive-behavior/ — interactive-behavior
   The **attachable** interactive — the scene-side bridge over the pure rules in
+- https://3d.tosijs.net/inventory/ — inventory
+  Pure and Babylon-free: things, the holders they are in, and moves between
+- https://3d.tosijs.net/inventory-box/ — inventory-box
+  tiles with a place to drop, and every drop is checked and made by the model,
 - https://3d.tosijs.net/key-layout/ — key-layout
   The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard/ — keyboard

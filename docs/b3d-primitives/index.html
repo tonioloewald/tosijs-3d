@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>Primitives: box, sphere, ground — tosijs-3d</title>
   <meta name="description" content="A box, a sphere and a ground plane, as elements. The quickest way to put something in a scene: no model file, a material already on it, and it casts and…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-primitives/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="primitives-box-sphere-ground">Primitives: box, sphere, ground</h1>
 <p><strong>A box, a sphere and a ground plane, as elements.</strong> The quickest way to put
@@ -43,7 +43,7 @@ starts with these.</p>
 preview.append(
   b3d(
     { glowLayerIntensity: 0.6 },
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 10 }),
     b3dGround({ size: 24, texture: &#39;checker&#39;, textureTiles: 12 }),
     b3dBox({ x: -2, y: 0.75, size: 1.5, color: &#39;#c8553d&#39; }),
@@ -138,6 +138,11 @@ dimensions.</p>
 <td><code>textureTiles</code></td>
 <td><code>8</code></td>
 <td>Repeats across the plane; for <code>&#39;noise&#39;</code>, the number of features</td>
+</tr>
+<tr>
+<td><code>holes</code> (JS)</td>
+<td><code>null</code></td>
+<td>Rectangles <code>{ x, z, width, depth }</code> cut out of it, for a pool or a pit; the texture runs on unbroken around them. Whole-metre edges</td>
 </tr>
 </tbody></table>
 <p>A ground is always solid. Boxes and spheres are scenery unless you say
@@ -401,6 +406,11 @@ the same conveniences: see <a href="/make-mesh/" class="wikilink">make-mesh</a>.
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -423,6 +433,11 @@ the same conveniences: see <a href="/make-mesh/" class="wikilink">make-mesh</a>.
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -472,6 +487,7 @@ the same conveniences: see <a href="/make-mesh/" class="wikilink">make-mesh</a>.
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -579,6 +595,6 @@ the same conveniences: see <a href="/make-mesh/" class="wikilink">make-mesh</a>.
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

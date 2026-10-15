@@ -226,7 +226,7 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core';
 import { collidable, isOff, markUiMesh, refuseOwnAncestor, } from './b3d-utils.js';
 import { CLIMB_PHASE, canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
-import { buoyantStep, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
+import { buoyantStep, diveBuoyancy, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
 import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim.js';
 import { iceSide } from './water-shore.js';
 import { fitChase } from './camera-fit.js';
@@ -374,6 +374,10 @@ const ICE_GROUP = ['ice'];
  * jetpack.
  */
 const SWIM_THRUST = 6;
+// How far above the head bone the water sits, metres: treading (water at the
+// jaw, the head out) and stroking (over the back, the head breaking).
+const TREAD_SINK = 0.1;
+const SWIM_SINK = 0.12;
 /** Local +Z. Allocated once — this is read every frame while swimming. */
 const LOCAL_FORWARD = new BABYLON.Vector3(0, 0, 1);
 /** Scratch for the yaw read-back; never allocate inside the per-frame loop. */
@@ -602,21 +606,32 @@ export class B3dBiped extends B3dControllable {
     /** Eye position for first-person: the head bone (or eyeHeight fallback) nudged
      * up + forward to roughly the eyes, so the camera sits at the eyes rather than
      * the neck / head-bone base — which would leave the head & neck in front of the
-     * view. Forward is body-facing (root-aligned), since the camera ignores the
-     * head's own animation. Returns a cached vector — read it now, don't retain. */
-    getHeadPosition() {
+     * view. Returns a cached vector — read it now, don't retain.
+     *
+     * ALONG THE HEAD'S OWN AXES, not the body's. A sprint leans the head 22°
+     * forward and a swim far more, and an offset along the body's level facing
+     * left the eye inside the skull: in first person the back of your own head
+     * filled the screen as you ran (Tonio: "first person view when swimming is a
+     * disaster and it's still a big problem when running"). The UAL head bone's
+     * forward is the face's, measured. Only the eye's POSITION follows the head;
+     * the view's orientation does not (no bob in the rotation, no roll). */
+    getHeadPosition(extraForward = 0) {
         if (this.mesh == null)
             return null;
-        const f = this.mesh.forward;
         const EYE_FWD = 0.12;
-        const EYE_UP = 0.06;
+        // The head bone is at the base of the skull; the eyes are ~10 cm up it.
+        const EYE_UP = 0.1;
         if (this.headNode != null) {
             const hp = this.headNode.getAbsolutePosition();
-            this._eyePos.set(hp.x + f.x * EYE_FWD, hp.y + EYE_UP, hp.z + f.z * EYE_FWD);
+            const hf = this.headNode.forward;
+            const hu = this.headNode.up;
+            const fwd = EYE_FWD + extraForward;
+            this._eyePos.set(hp.x + hf.x * fwd + hu.x * EYE_UP, hp.y + hf.y * fwd + hu.y * EYE_UP, hp.z + hf.z * fwd + hu.z * EYE_UP);
         }
         else {
+            const f = this.mesh.forward;
             const o = this.mesh.getAbsolutePosition();
-            this._eyePos.set(o.x + f.x * EYE_FWD, o.y + this.eyeHeight, o.z + f.z * EYE_FWD);
+            this._eyePos.set(o.x + f.x * (EYE_FWD + extraForward), o.y + this.eyeHeight, o.z + f.z * (EYE_FWD + extraForward));
         }
         return this._eyePos;
     }
@@ -704,12 +719,29 @@ export class B3dBiped extends B3dControllable {
     gunplay = false;
     weaponWasPressed = false;
     /**
+     * What the weapon button does, when a game decides (JS only). Called with
+     * whether the button asks for the weapon UP; the game moves it (draw from
+     * the hip, holster it) and calls `setGunplay` if and when it is in hand.
+     * Unset, the button toggles `gunplay` as before.
+     */
+    whenWeapon = null;
+    /**
      * Put the weapon up or down.
      *
      * Public because an AI, a cutscene or a pickup all want to do it, and because
      * a mode a consumer cannot set is a mode they have to fight.
      */
     setGunplay(on) {
+        /*
+        RAISING THE WEAPON AIMS STRAIGHT AHEAD. The aim is the look pitch, and the
+        look pitch is whatever it was left at: walking around looking at the
+        ground, or the last dive, so the gun came up pointing at your feet. Tonio:
+        "It seems quite common for it to be aiming at your feet which is weird."
+        Levelled only on the way UP (lowering it leaves the view alone) and only
+        flat: in a headset the aim is the controller.
+        */
+        if (on && !this.gunplay && !this.owner?.xrActive)
+            this._lookPitch = 0;
         this.gunplay = on;
         this._showWeapons(on);
     }
@@ -1694,7 +1726,12 @@ export class B3dBiped extends B3dControllable {
         */
         const weaponPressed = (input.weapon ?? 0) > 0.5;
         if (weaponPressed && !this.weaponWasPressed) {
-            this.setGunplay(!this.gunplay);
+            // A game that owns where the weapon IS (an inventory: on the hip, in
+            // the hand) answers the button itself, and calls setGunplay.
+            if (this.whenWeapon)
+                this.whenWeapon(!this.gunplay);
+            else
+                this.setGunplay(!this.gunplay);
         }
         this.weaponWasPressed = weaponPressed;
         /*
@@ -1739,6 +1776,20 @@ export class B3dBiped extends B3dControllable {
             this.setCameraView(this.cameraView === 'chase' ? 'fpv' : 'chase');
         }
         this.viewWasPressed = viewPressed;
+        /*
+        NO HEAD IN FIRST PERSON. Whatever the eye offset, a sprint or a stroke
+        swings the head through the view: the back and underside of your own skull
+        filled the screen as you ran. Every first-person game hides it, and the
+        standard way is to collapse the head BONE, which takes the head's geometry
+        with it and leaves the arms and body (you still see your hands swim). Set
+        every frame, after the clips have had their say; restored out of first
+        person. The cost is a headless shadow while you are in it.
+        */
+        if (this.headNode != null) {
+            const k = this.cameraView === 'fpv' ? 0.001 : 1;
+            if (this.headNode.scaling.x !== k)
+                this.headNode.scaling.setAll(k);
+        }
         // First-person camera tracks the head node — so it doesn't fall behind the
         // head when walking, or float above it when crouching. Orientation stays
         // root-aligned (yaw only) to avoid the head's animation bob/rotation. Flat
@@ -1747,7 +1798,8 @@ export class B3dBiped extends B3dControllable {
             this.fpvCamera != null &&
             this.mesh != null &&
             !this.owner?.xrActive) {
-            const eye = this.getHeadPosition();
+            // The extra `eyeForward` along the head too (see getHeadPosition).
+            const eye = this.getHeadPosition(attrs.eyeForward);
             this.fpvCamera.parent = null;
             if (eye != null) {
                 /*
@@ -1765,8 +1817,7 @@ export class B3dBiped extends B3dControllable {
                 any wall you stand against — and standing against walls is most of what
                 this arena is for.
                 */
-                const f = this.mesh.forward;
-                this.fpvCamera.position.set(eye.x + f.x * attrs.eyeForward, eye.y, eye.z + f.z * attrs.eyeForward);
+                this.fpvCamera.position.copyFrom(eye);
             }
             const f = this.mesh.forward;
             /*
@@ -2476,9 +2527,25 @@ export class B3dBiped extends B3dControllable {
                 Below, `swimBuoyancy` blends this toward neutral as you go deeper, so
                 diving still holds its depth; this only sets where the SURFACE is.
                 */
-                const poseBuoyancy = this._swimWaterline(pose, attrs.buoyancy);
+                /*
+                HOW DEEP THE BODY RIDES. Water at the head bone (the base of the
+                skull) left a treader's shoulders and arms out and a swimmer's head,
+                shoulders and back riding on top. Tonio: "They should be almost
+                completely submerged when swimming and just head mostly above water
+                when treading water." So the water sits higher up the body: at the jaw
+                treading, over the back with only the head breaking while stroking.
+                */
+                const stroking = this.animationState?.name === 'swim';
+                const poseBuoyancy = this._swimWaterline(pose, attrs.buoyancy - (stroking ? SWIM_SINK : TREAD_SINK));
+                /*
+                AIMING DOWN AND SWIMMING DIVES. That surface buoyancy floats the root
+                on the waterline, a lift of about 1.1 m/s, which cancelled a downward
+                stroke: the right stick tipped the swimmer and nothing happened. Tonio:
+                "I can't seem to steer swimming up or down with right stick." So a
+                stroke aimed down takes the vertical from buoyancy in proportion.
+                */
                 this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
-                    buoyancy: swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
+                    buoyancy: diveBuoyancy(swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }), (this._swimPitch * Math.PI) / 180, input.forward ?? 0),
                     thrust: (swimUp - swimDown) * SWIM_THRUST,
                 });
                 let nextY = node.position.y + this._fallVel * dt;
@@ -2788,6 +2855,8 @@ export class B3dBiped extends B3dControllable {
         // Create XR experience first
         const xr = await scene.createDefaultXRExperienceAsync({
             uiOptions: { sessionMode: mode },
+            // The right hand points first (see tosi-b3d: otherwise a first press is lost).
+            pointerSelectionOptions: { preferredHandedness: 'right' },
         });
         // Register controller observables BEFORE entering XR so we catch controller connect events
         this.setupXRInput(xr);

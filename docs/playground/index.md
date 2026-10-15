@@ -6,6 +6,7 @@ ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
 import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
+import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // WHERE IT RIDES ON HIM, and all three numbers were wrong.
 //
@@ -89,6 +90,25 @@ const hero = b3dBiped(
   gun
 )
 
+// THE PISTOL LIVES ON YOUR HIP. The loadout (over your left shoulder; tap it)
+// says where it is, and that decides the mode: in a hand, the gun is up; on
+// the hip, it is down; in the bag or dropped, there is nothing to raise. The
+// weapon button draws it from the hip or holsters it; dragging it into a hand
+// does the same.
+const loadout = demoLoadout({ equip: { right_side: 'pistol' } })
+const body = (slot) => ({ holder: 'hero', container: 'body', slot })
+const pistolAt = () => loadout.inv.where('pistol')?.slot
+hero.whenWeapon = (up) => {
+  const at = pistolAt()
+  if (up && (at === 'right_side' || at === 'left_side'))
+    loadout.inv.move({ item: 'pistol', to: body('hand_right'), swap: true })
+  else if (!up && (at === 'hand_right' || at === 'hand_left'))
+    loadout.inv.move({ item: 'pistol', to: body('right_side'), swap: true })
+}
+loadout.inv.subscribe(() =>
+  hero.setGunplay(pistolAt() === 'hand_right' || pistolAt() === 'hand_left')
+)
+
 preview.append(
   b3d(
     {
@@ -106,6 +126,7 @@ preview.append(
     },
     weapons,
     ...playground(),
+    ...loadout.panels(),
     inputFocus(hero)
   )
 )
@@ -114,8 +135,10 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**Two modes, and the right bumper is the switch.** With the weapon down you are walking:
-**R** sprints. Press **right bumper** and the gun comes up — now **R** fires, **Q**
+**Two modes, and the right bumper is the switch**, when there is a pistol to
+switch to: it starts on your hip (open the loadout over your left shoulder to
+see it). With the weapon down you are walking:
+**R** sprints. Press **right bumper** and you draw it, and the gun comes up — now **R** fires, **Q**
 aims down the sights, and a ring shows where the round will actually land,
 sinking as the range grows because it is the real ballistic arc rather than a
 dot in the middle of the screen. You cannot sprint with the gun up, which is why
@@ -125,7 +148,7 @@ the trigger is free to do both jobs.
 **E** interacts, **Y** switches between third and first person. (Read off
 `game-controller` and `bipedMapping` rather than remembered.)
 
-Things to try: climb the crates onto the catwalk; shoot from behind the low wall
+Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 
@@ -156,6 +179,7 @@ do, and the arrangement is a test you walk around in rather than one you read.
 | the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
 | the **catwalk** | verticality, a firing position, and something to fall off |
 | the **targets** | something to murder |
+| the **pool** | swimming, diving (aim down and swim), surfacing, and a shelving ramp to walk in on slowly |
 
 ## Everything is an ELEMENT, deliberately
 

@@ -354,6 +354,7 @@ import { XrGamepadSource } from './xr-gamepad.js'
 import { XrFrames, EntityFrame } from './xr-frames.js'
 import {
   attachFramePanel,
+  presentationSpec,
   placeholderPanelSvg,
   opacityWeightedGlow,
   type FramePanelSpec,
@@ -2157,9 +2158,7 @@ export class B3d extends Component {
                 scene,
                 cam as BABYLON.TargetCamera,
                 frames.get(frame),
-                spec.flatAnchor != null
-                  ? { ...spec, anchor: spec.flatAnchor }
-                  : spec
+                presentationSpec(spec, true)
               )
             )
           }
@@ -4628,7 +4627,12 @@ export class B3d extends Component {
     // Body-anchored panels (inventory over the shoulders, quick-access at the
     // waist), pinned to their frame and revealed by looking toward them.
     const bodyPanels = this.bodyPanels(this).map((spec) =>
-      attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), spec)
+      attachFramePanel(
+        scene,
+        cam,
+        frames.get(spec.frame ?? 'body'),
+        presentationSpec(spec, false)
+      )
     )
 
     // NPC nameplates run in a GENERAL manager now (flat + XR) — see

@@ -73,6 +73,20 @@ export function buoyantStep(vy, submerged, dt, params = {}) {
     return next - drag * Math.abs(next) * next * dt;
 }
 /**
+ * Buoyancy while STROKING DOWNWARD: blended toward neutral (1) by how steeply
+ * and how hard you swim down. At the surface a swimmer's buoyancy floats the
+ * swim pose's root on the waterline, a lift of about 1.1 m/s against drag,
+ * which cancelled a dive stroke almost exactly: aim down, swim, go nowhere.
+ * A real swimmer's stroke beats it (a duck dive), so this hands the stroke
+ * the vertical in proportion. `pitchDown` is radians below level, `stroke`
+ * 0..1 of forward effort. Level, upward, or not stroking: unchanged, so
+ * letting go gives the surfacing back to buoyancy.
+ */
+export function diveBuoyancy(buoyancy, pitchDown, stroke) {
+    const dive = Math.max(0, Math.sin(pitchDown)) * Math.min(1, Math.max(0, stroke));
+    return buoyancy + (1 - buoyancy) * dive;
+}
+/**
  * The submersion at which the push balances the weight — where a body floating
  * freely comes to rest. `1` (fully under, i.e. it sinks) when `buoyancy <= 1`.
  */
@@ -107,12 +121,15 @@ export function isSwimming(submerged, restingOnFloor, wasSwimming = false) {
     flickers between swimming and standing — Tonio: "there's sometimes a twitch
     and you go back to standing as you ramp into water."
   
-    So: enter swimming at 0.5, keep it until 0.35. One bit of state, and the
+    So: enter swimming at 0.65 (chest deep), keep it until 0.5. (It was 0.5 and
+    0.35, waist deep, which put you into a swim stroke in water you would wade
+    through: Tonio, "the transition to/from walking should require a bit more
+    water depth.") One bit of state, and the
     narrowest kind — it changes when you SWITCH, never what you can do. The
     broader claim survives with a caveat rather than intact, which is worth more
     than pretending the falsifier did not fire.
     */
-    return submerged >= (wasSwimming ? 0.35 : 0.5);
+    return submerged >= (wasSwimming ? 0.5 : 0.65);
 }
 /**
  * **Buoyancy for a swimmer, which is not buoyancy for a floating body.**

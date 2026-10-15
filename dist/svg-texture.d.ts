@@ -10,6 +10,15 @@ export type SvgTextureOptions = {
     element?: SVGSVGElement;
     /** Re-render interval in ms for dynamic mode. Default 30. */
     updateInterval?: number;
+    /**
+     * Mipmapped, trilinear and anisotropic (default `true`). A panel is nearly
+     * always drawn SMALLER than its texture: a 1024 px panel 30 cm wide at
+     * 1.4 m covers about 300 px of a Quest 3's view, so unfiltered its text and
+     * hairlines alias and crawl as the head moves. Costs a third more texture
+     * memory and a mip rebuild per repaint. `false` for a texture always seen at
+     * about one texel per pixel.
+     */
+    mipmaps?: boolean;
 };
 /**
  * What repainting SVG textures has cost on the main thread, across every

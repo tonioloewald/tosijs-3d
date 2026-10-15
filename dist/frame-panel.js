@@ -27,6 +27,7 @@ import { attachFramePanel } from 'tosijs-3d'
 */
 /*{ "parent": "b3d-panel", "order": 10 }*/
 import * as BABYLON from '@babylonjs/core';
+import { anchorLayout, anchorLength, } from './anchor-layout.js';
 import { SvgTexture } from './svg-texture.js';
 import { markUiMesh } from './b3d-utils.js';
 import { gazeReveal } from './xr-frames.js';
@@ -163,45 +164,63 @@ export function excludeFromGlow(scene, mesh) {
     }
 }
 /**
+ * The spec for ONE presentation of a panel that exists in both. Flat, a
+ * `flatAnchor` stands in for the anchor and the screen pins apply; in a
+ * headset the screen pins do NOT (there is no screen to pin to: they put the
+ * loadout a metre ahead, sized from the flat canvas, instead of on your
+ * shoulder, found by the 0.10.6 review). One rule, used by every attach site.
+ */
+export function presentationSpec(spec, flat) {
+    if (flat)
+        return spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec;
+    return spec.screenAnchor != null ? { ...spec, screenAnchor: undefined } : spec;
+}
+/**
  * Mount a panel on a frame node. Call `update()` each XR frame (drives the gaze
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.
  */
 export function attachFramePanel(scene, cam, frame, spec) {
     const anchor = typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor;
-    const focus = anchor.focus ?? DEFAULT_FOCUS;
     const startDeg = anchor.revealStartDeg ?? 50;
     const fullDeg = anchor.revealFullDeg ?? 25;
     const cosStart = Math.cos(startDeg * DEG);
     const cosFull = Math.cos(fullDeg * DEG);
     const alwaysOn = spec.reveal === 'always';
     // Resolve position: explicit, or by azimuth/elevation/distance off the focus.
-    let pos = anchor.position;
-    if (pos == null) {
-        const az = (anchor.azimuthDeg ?? 0) * DEG;
-        const el = (anchor.elevationDeg ?? 0) * DEG;
-        const d = anchor.distance ?? 0.5;
+    const resolve = (a) => {
+        if (a.position != null)
+            return a.position;
+        const f = a.focus ?? DEFAULT_FOCUS;
+        const az = (a.azimuthDeg ?? 0) * DEG;
+        const el = (a.elevationDeg ?? 0) * DEG;
+        const d = a.distance ?? 0.5;
         const horiz = d * Math.cos(el);
-        pos = [
-            focus[0] + horiz * Math.sin(az),
-            focus[1] + d * Math.sin(el),
-            focus[2] + horiz * Math.cos(az),
+        return [
+            f[0] + horiz * Math.sin(az),
+            f[1] + d * Math.sin(el),
+            f[2] + horiz * Math.cos(az),
         ];
-    }
+    };
     const el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''));
     const aspect = el
         ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
         : spec.aspect ?? 1;
     const width = spec.width ?? 0.26;
+    // The viewBox it was built at: content that grows (a dock opening) grows
+    // the plane by the same ratio, so its units keep their size.
+    const baseVb = el
+        ? { w: el.viewBox.baseVal.width || 1, h: el.viewBox.baseVal.height || 1 }
+        : null;
     const plane = BABYLON.MeshBuilder.CreatePlane('frame-panel', { width, height: width * aspect, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
     plane.parent = frame;
     // Pointer-pickable, collision-invisible. This panel rides a head/body frame,
     // so in cockpit view it sits right in front of the airframe — and the
     // aircraft's impact sweep crashed on it. See markUiMesh.
     markUiMesh(plane);
-    plane.position.set(pos[0], pos[1], pos[2]);
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
-    // Orient ONCE to face the focus point (your head), tilted to its height. The
-    // panel doesn't rotate after this — the frame carries it.
+    // Orient to face the focus point (your head), tilted to its height. The
+    // panel doesn't rotate after this — the frame carries it (until focus moves
+    // it, which places it again).
     //
     // `faceViewer` and not a local atan2: a plane's visible face is local -Z, so
     // aiming +Z at your head shows its BACK, which a double-sided plane renders
@@ -213,8 +232,139 @@ export function attachFramePanel(scene, cam, frame, spec) {
     // (`rollDeg: 180`, which rights the grip-space anchors, is symmetric and
     // agrees either way — which is exactly why this needed a test rather than an
     // argument.)
-    const { yaw, pitch, roll } = faceViewer({ x: pos[0], y: pos[1], z: pos[2] }, { x: focus[0], y: focus[1], z: focus[2] }, (anchor.rollDeg ?? 0) * DEG);
-    plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, roll);
+    const placeAt = (a) => {
+        const pos = resolve(a);
+        const f = a.focus ?? DEFAULT_FOCUS;
+        plane.position.set(pos[0], pos[1], pos[2]);
+        // Flat on: oriented as a panel straight ahead of the eye would be.
+        const { yaw, pitch, roll } = a.flatOn
+            ? faceViewer({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 0 }, (a.rollDeg ?? 0) * DEG)
+            : faceViewer({ x: pos[0], y: pos[1], z: pos[2] }, { x: f[0], y: f[1], z: f[2] }, (a.rollDeg ?? 0) * DEG);
+        plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch + (a.tiltDeg ?? 0) * DEG, roll);
+    };
+    placeAt(anchor);
+    const focusAnchor = typeof spec.focusAnchor === 'string'
+        ? PRESETS[spec.focusAnchor]
+        : spec.focusAnchor ?? { azimuthDeg: 0, elevationDeg: -6, distance: 0.75 };
+    const focusScale = spec.focusScale ?? 1.9;
+    let focused = false;
+    // A focused panel nearer than the camera's near plane would be clipped away
+    // (a flat follow camera's is often a metre): push it out past the plane and
+    // scale it by the same ratio, so it looks the same size.
+    let pushed = 1;
+    const focusPlace = () => {
+        const near = (scene.activeCamera ?? cam).minZ ?? 0;
+        const d = focusAnchor.distance ?? 0.5;
+        pushed =
+            focusAnchor.position == null && d < near * 1.25 ? (near * 1.25) / d : 1;
+        // A screen-pinned panel comes to the middle of the SCREEN, square to it:
+        // the tilt a focus anchor below eye level gives reads as a mistake on a
+        // monitor (Tonio: expand "to a flat pinned position and not the slightly
+        // tilted view").
+        if (spec.screenAnchor)
+            return { position: [0, 0, d * pushed], flatOn: true };
+        return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed };
+    };
+    const fit = () => {
+        if (!el || !baseVb)
+            return;
+        const vb = el.viewBox.baseVal;
+        const sx = (vb.width || baseVb.w) / baseVb.w;
+        const sy = (vb.height || baseVb.h) / baseVb.h;
+        let k = focused ? focusScale * pushed : screenK;
+        // Focused, it fits the view (90% of it at its distance) rather than being
+        // cropped by it: a monitor sees far less than a headset.
+        const c = (scene.activeCamera ?? cam);
+        if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
+            /*
+            Room either side of its centre, less how far off-centre it sits, IN THE
+            CAMERA'S VIEW. It used the panel's position in its frame, which is level
+            while a follow camera looks down: the panel then sat lower on screen than
+            the sum said, and its bottom (the end of the bag list) went off the edge.
+            */
+            plane.computeWorldMatrix(true);
+            const p = BABYLON.Vector3.TransformCoordinates(plane.getAbsolutePosition(), c.getViewMatrix());
+            const d = Math.max(0.01, p.z);
+            const halfTall = d * Math.tan(c.fov / 2) * 0.92;
+            const halfWide = halfTall * scene.getEngine().getAspectRatio(c);
+            const tall = 2 * Math.max(0.01, halfTall - Math.abs(p.y));
+            const wide = 2 * Math.max(0.01, halfWide - Math.abs(p.x));
+            const w = width * sx;
+            const h = width * aspect * sy;
+            k = Math.min(k, tall / h, wide / w);
+        }
+        plane.scaling.x = k * sx;
+        plane.scaling.y = k * sy;
+    };
+    /*
+    SCREEN PLACEMENT (flat): solve the panel's rectangle on screen with the
+    anchored layout at its current pixel size, then put its centre at that pixel
+    on a plane `distance` in front of the eye. The frame is the head-locked
+    `face` one (local +x right, +y up, +z ahead), so a pixel is a fixed offset.
+    */
+    let screenK = 1;
+    const placeScreen = () => {
+        const sa = spec.screenAnchor;
+        const c = (scene.activeCamera ?? cam);
+        const canvas = scene.getEngine().getRenderingCanvas();
+        if (!sa || !c || !canvas || c.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
+            return;
+        const W = canvas.clientWidth || scene.getEngine().getRenderWidth();
+        const H = canvas.clientHeight || scene.getEngine().getRenderHeight();
+        if (!W || !H)
+            return;
+        const vmin = Math.min(W, H);
+        const px = (v) => typeof v === 'string' && v.endsWith('vmin')
+            ? (parseFloat(v) / 100) * vmin
+            : v;
+        const d = Math.max(sa.distance ?? 1, (c.minZ ?? 0) * 1.25);
+        // Metres per pixel at that distance, by whichever axis the fov fixes.
+        const perPx = c.fovMode === BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED
+            ? (2 * d * Math.tan(c.fov / 2)) / W
+            : (2 * d * Math.tan(c.fov / 2)) / H;
+        const vb = el?.viewBox.baseVal;
+        const sx = el && baseVb ? (vb.width || baseVb.w) / baseVb.w : 1;
+        const sy = el && baseVb ? (vb.height || baseVb.h) / baseVb.h : 1;
+        const baseW = width * sx;
+        const baseH = width * aspect * sy;
+        screenK =
+            sa.height != null
+                ? (anchorLength(px(sa.height), H) * perPx) / baseH
+                : 1;
+        const { boxes } = anchorLayout([
+            {
+                left: px(sa.left),
+                right: px(sa.right),
+                top: px(sa.top),
+                bottom: px(sa.bottom),
+                anchorX: sa.anchorX,
+                anchorY: sa.anchorY,
+                anchor: sa.anchor,
+                width: (baseW * screenK) / perPx,
+                height: (baseH * screenK) / perPx,
+            },
+        ], { width: W, height: H });
+        const b = boxes[0];
+        placeAt({
+            position: [
+                (b.x + b.width / 2 - W / 2) * perPx,
+                (H / 2 - (b.y + b.height / 2)) * perPx,
+                d,
+            ],
+            flatOn: true,
+        });
+    };
+    const onFocus = (e) => {
+        focused = !!e.detail?.focus;
+        placeAt(focused ? focusPlace() : anchor);
+        fit();
+    };
+    el?.addEventListener('panelfocus', onFocus);
+    // Content already focused before this panel existed (a session change
+    // rebuilt it): start where it is. Without this the dock stayed open on a
+    // small, unfocused panel, and its tap-to-open did nothing (it was open).
+    if (el?.getAttribute('data-focus') === 'true')
+        onFocus(new CustomEvent('panelfocus', { detail: { focus: true } }));
     const tex = el
         ? new SvgTexture({
             scene,
@@ -288,6 +438,26 @@ export function attachFramePanel(scene, cam, frame, spec) {
     at most once per frame.
     */
     const target = el;
+    /*
+    A PRESS ON THE PANEL IS NOT A PRESS ON THE WORLD. Flat, the camera's own
+    controls take the same pointer, so dragging a thing across a panel orbited
+    the view behind it. Hold the camera's controls for the gesture and give
+    them back on release. (A headset's camera has none attached; nothing to do.)
+    */
+    let held = null;
+    const holdCamera = () => {
+        const c = scene.activeCamera;
+        if (c && c.inputs?.attachedToElement) {
+            c.detachControl();
+            held = c;
+        }
+    };
+    const releaseCamera = () => {
+        if (held == null)
+            return;
+        held.attachControl(scene.getEngine().getRenderingCanvas(), true);
+        held = null;
+    };
     let pointerObs = null;
     if (target != null && typeof target.handlePointer === 'function' && el) {
         scene.constantlyUpdateMeshUnderPointer = true;
@@ -330,6 +500,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
                 if (!uv)
                     return;
                 pressing = true;
+                holdCamera();
+                info.event?.preventDefault?.();
                 target.handlePointer('down', lastX, lastY);
                 repaint(true);
             }
@@ -348,6 +520,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
             }
             else if (pressing) {
                 pressing = false;
+                releaseCamera();
                 target.handlePointer('up', lastX, lastY);
                 repaint(true);
             }
@@ -360,6 +533,15 @@ export function attachFramePanel(scene, cam, frame, spec) {
         // panel can be limited to one. Defaults to visible if no context is given.
         update(ctx) {
             debug.updates++;
+            if (spec.screenAnchor && !focused)
+                placeScreen();
+            fit();
+            // Focused content is in front of you because you asked for it.
+            if (focused) {
+                plane.visibility = 1;
+                debug.reveal = 1;
+                return;
+            }
             const fp = ctx?.firstPerson ?? true;
             if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
                 plane.visibility = 0;
@@ -406,6 +588,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
             debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl);
         },
         dispose() {
+            releaseCamera();
+            el?.removeEventListener('panelfocus', onFocus);
             if (pointerObs != null)
                 scene.onPointerObservable.remove(pointerObs);
             tex.dispose();

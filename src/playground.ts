@@ -622,8 +622,7 @@ export function playground(options: PlaygroundOptions = {}) {
         // Its TOP face runs from the rim (y 0) to the floor: the centre sits
         // half a slab below the slope's midpoint, measured square to it.
         x: px - pw / 2 + run / 2,
-        y:
-          -deep / 2 - slab / 2 / Math.cos((SHELF_DEG * Math.PI) / 180),
+        y: -deep / 2 - slab / 2 / Math.cos((SHELF_DEG * Math.PI) / 180),
         z: pz,
         width: Math.hypot(deep, run),
         height: slab,

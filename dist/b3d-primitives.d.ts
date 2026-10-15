@@ -166,6 +166,19 @@ export declare class B3dGround extends AbstractMesh {
         rz: number;
         axes: boolean;
     };
+    /**
+     * Rectangles cut out of the ground (JS only, set before it is built), in
+     * the ground's own x/z: a pool, a pit, a stairwell. The ground is then a
+     * grid of 1 m cells with the cells inside a hole left out, so its texture
+     * runs on unbroken around the hole (separate slabs would each start their
+     * own). Give holes whole-metre edges, or a cell straddling one is kept.
+     */
+    holes: Array<{
+        x: number;
+        z: number;
+        width: number;
+        depth: number;
+    }> | null;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
 export declare const b3dGround: import("tosijs").ElementCreator<B3dGround>;

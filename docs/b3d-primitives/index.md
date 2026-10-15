@@ -13,7 +13,7 @@ import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
 preview.append(
   b3d(
     { glowLayerIntensity: 0.6 },
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 10 }),
     b3dGround({ size: 24, texture: 'checker', textureTiles: 12 }),
     b3dBox({ x: -2, y: 0.75, size: 1.5, color: '#c8553d' }),
@@ -56,6 +56,7 @@ dimensions.
 | `color` | `'#888888'` | |
 | `texture` | `''` | An image URL, or `'checker'` (a ruler you can count) or `'noise'` (mottled natural ground) |
 | `textureTiles` | `8` | Repeats across the plane; for `'noise'`, the number of features |
+| `holes` (JS) | `null` | Rectangles `{ x, z, width, depth }` cut out of it, for a pool or a pit; the texture runs on unbroken around them. Whole-metre edges |
 
 A ground is always solid. Boxes and spheres are scenery unless you say
 `solid: 'on'`, because a decorative box that quietly starts blocking a doorway

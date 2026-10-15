@@ -28,7 +28,11 @@ import { attachFramePanel } from 'tosijs-3d'
 /*{ "parent": "b3d-panel", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { anchorLayout, anchorLength, type AnchorLength } from './anchor-layout.js'
+import {
+  anchorLayout,
+  anchorLength,
+  type AnchorLength,
+} from './anchor-layout.js'
 import { SvgTexture } from './svg-texture.js'
 import { markUiMesh } from './b3d-utils.js'
 import { gazeReveal, type FrameName } from './xr-frames.js'
@@ -357,6 +361,22 @@ export function excludeFromGlow(
 }
 
 /**
+ * The spec for ONE presentation of a panel that exists in both. Flat, a
+ * `flatAnchor` stands in for the anchor and the screen pins apply; in a
+ * headset the screen pins do NOT (there is no screen to pin to: they put the
+ * loadout a metre ahead, sized from the flat canvas, instead of on your
+ * shoulder, found by the 0.10.6 review). One rule, used by every attach site.
+ */
+export function presentationSpec(
+  spec: FramePanelSpec,
+  flat: boolean
+): FramePanelSpec {
+  if (flat)
+    return spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec
+  return spec.screenAnchor != null ? { ...spec, screenAnchor: undefined } : spec
+}
+
+/**
  * Mount a panel on a frame node. Call `update()` each XR frame (drives the gaze
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.
  */
@@ -447,7 +467,11 @@ export function attachFramePanel(
     plane.position.set(pos[0], pos[1], pos[2])
     // Flat on: oriented as a panel straight ahead of the eye would be.
     const { yaw, pitch, roll } = a.flatOn
-      ? faceViewer({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 0 }, (a.rollDeg ?? 0) * DEG)
+      ? faceViewer(
+          { x: 0, y: 0, z: 1 },
+          { x: 0, y: 0, z: 0 },
+          (a.rollDeg ?? 0) * DEG
+        )
       : faceViewer(
           { x: pos[0], y: pos[1], z: pos[2] },
           { x: f[0], y: f[1], z: f[2] },

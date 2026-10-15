@@ -12,6 +12,7 @@ import {
   b3dBiped, ualAnimationStates, assetUrl, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
+import { demoLoadout } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 
@@ -35,6 +36,10 @@ const scene = '/test-3.glb'
 // Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
+
+// Your loadout, pinned up and to the left (over your shoulder in VR): touch it
+// and it comes front and centre, with your bag beside it (see inventory-box).
+const loadout = demoLoadout()
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -78,7 +83,8 @@ preview.append(
     b3dAmbient({ preset: 'motes', where: 'underwater', radius: 8, color: '#3c5238' }),
     b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 8 }),
     b3dReflections(),
-    b3dCollisions({ debug: demo.showColliders })
+    b3dCollisions({ debug: demo.showColliders }),
+    ...loadout.panels()
   ),
   div(
     { class: 'debug-panel' },
@@ -310,7 +316,7 @@ import { CombatWorld } from './destroyable.js';
 import { b3dGamepad } from './glass-gamepad.js';
 import { XrGamepadSource } from './xr-gamepad.js';
 import { XrFrames, EntityFrame } from './xr-frames.js';
-import { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, } from './frame-panel.js';
+import { attachFramePanel, presentationSpec, placeholderPanelSvg, opacityWeightedGlow, } from './frame-panel.js';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js';
 import { compositeFog, approachFog, } from './atmosphere.js';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, renderScalingLevel, } from './b3d-quality.js';
@@ -351,6 +357,69 @@ const noopRefresh = () => { };
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0);
+/*
+WHICHEVER HAND YOU PRESS WITH, THE PRESS COUNTS.
+
+Babylon points with ONE controller at a time. A press on the other one only
+switches the pointer to it, and the press itself is dropped. A Quest decides for
+itself which controller is active, so in practice a press now and then did
+nothing, and a player just learns that the pointer is flaky (Tonio: "I think I
+and most users just internalize flaky pointer behavior"). Nobody should have
+to know which hand is "active".
+
+So: a press on a controller that is not pointing switches to it AND is
+delivered, once its ray has picked something (on the next frame or two).
+Babylon's own release pairs with it, because by then that controller is the one
+pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
+`pointerDownTriggered`), which is private. `xr-press.test.ts` pins those names
+and the drop itself, so a Babylon upgrade that renames them (or fixes the drop)
+fails the suite and says which; in a live session it warns once instead.
+*/
+function pressWithEitherHand(xr, scene) {
+    const sel = xr.pointerSelection;
+    const frames = xr.baseExperience?.sessionManager.onXRFrameObservable;
+    // Pinned by xr-press.test.ts; this is the same check, live, so a Babylon
+    // that changed under us says so instead of quietly dropping presses again.
+    if (sel?._controllers == null ||
+        typeof sel.setAttachedController !== 'function') {
+        console.warn('tosi-b3d: Babylon XR pointer selection has changed (no _controllers / setAttachedController), so a press on the hand that is not pointing is dropped again. See pressWithEitherHand.');
+        return;
+    }
+    xr.input.onControllerAddedObservable.add((controller) => {
+        const watch = (mc) => {
+            const main = mc.getMainComponent();
+            if (main == null || frames == null)
+                return;
+            main.onButtonStateChangedObservable.add((c) => {
+                if (!c.changes.pressed?.current)
+                    return;
+                const id = controller.uniqueId;
+                if (sel._attachedController === id ||
+                    !sel.setAttachedController?.(id))
+                    return;
+                let tries = 0;
+                const obs = frames.add(() => {
+                    const data = sel._controllers?.[id];
+                    if (data?.pick || ++tries > 5)
+                        frames.remove(obs);
+                    if (!data?.pick)
+                        return;
+                    const init = { pointerId: data.id, pointerType: 'xr' };
+                    scene.simulatePointerDown(data.pick, init);
+                    data.pointerDownTriggered = true;
+                    // Let go already? Then it was a tap.
+                    if (!main.pressed)
+                        scene.simulatePointerUp(data.pick, init);
+                });
+            }, undefined, true // ahead of Babylon's own observer, which drops it
+            );
+        };
+        if (controller.motionController)
+            watch(controller.motionController);
+        else
+            controller.onMotionControllerInitObservable.addOnce(watch);
+    });
+}
 export class B3d extends Component {
     static preferredTagName = 'tosi-b3d';
     static initAttributes = {
@@ -1302,8 +1371,8 @@ export class B3d extends Component {
     pausePanel = () => null;
     // Body-anchored XR panels for the embodied player: pinned to a reference frame
     // (default `body`) and revealed by looking toward them. Defaults to placeholder
-    // inventory panels over each shoulder and a quick-access/holster panel at the
-    // waist; override to supply your own (positions, presets, custom SVG). Like
+    // inventory and journal panels over the shoulders and a quick-access/holster
+    // panel at the waist; override to supply your own (positions, presets, custom SVG). Like
     // scenePanel, defaults to a function so the element creator treats it as a prop.
     bodyPanels = (host) => {
         // Declarative <tosi-b3d-panel> children, if any, take over entirely — so a
@@ -1318,7 +1387,7 @@ export class B3d extends Component {
         // you stand/sit or glance — only swinging when you actually turn.
         const panels = [
             { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
-            { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
+            { frame: 'eye', anchor: 'right-shoulder', title: 'Journal' },
             { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
             { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
         ];
@@ -1766,7 +1835,10 @@ export class B3d extends Component {
                         // `flatFrame` wins whenever it is given (the hands need it; a
                         // pitched flat camera wants 'face'), and is required for a hand.
                         let frame = spec.frame ?? 'body';
-                        if (spec.flatFrame != null)
+                        // A screen-pinned panel lives in the head-locked frame.
+                        if (spec.screenAnchor != null)
+                            frame = 'face';
+                        else if (spec.flatFrame != null)
                             frame = spec.flatFrame;
                         else if (frame === 'left-hand' || frame === 'right-hand') {
                             const key = spec.title ?? spec.url ?? frame;
@@ -1778,7 +1850,7 @@ export class B3d extends Component {
                             }
                             continue;
                         }
-                        this._flatPanels.push(attachFramePanel(scene, cam, frames.get(frame), spec));
+                        this._flatPanels.push(attachFramePanel(scene, cam, frames.get(frame), presentationSpec(spec, true)));
                     }
                 }
             }
@@ -3844,6 +3916,15 @@ export class B3d extends Component {
         const flatCamera = this.scene.activeCamera;
         const xr = await this.scene.createDefaultXRExperienceAsync({
             disableDefaultUI: true,
+            /*
+            THE RIGHT HAND POINTS FIRST. Babylon points with ONE controller, the
+            first to connect (often the left), and the first trigger press on the
+            other one only SWITCHES to it: the press itself is dropped. So a
+            right-handed player's first press in a session did nothing (seen in the
+            emulated headset as "the first press after entry is lost"). The left
+            hand still takes over the first time it is used.
+            */
+            pointerSelectionOptions: { preferredHandedness: 'right' },
         });
         this.xrHelper = xr;
         /*
@@ -3868,6 +3949,8 @@ export class B3d extends Component {
                 m.isPickable &&
                 !insideCarrier(m, this._xrRig);
         }
+        if (xr.pointerSelection != null)
+            pressWithEitherHand(xr, this.scene);
         if (flatCamera != null && this.scene.activeCamera !== flatCamera) {
             this.scene.activeCamera = flatCamera;
         }
@@ -4095,7 +4178,7 @@ export class B3d extends Component {
         this.xrFrames = frames;
         // Body-anchored panels (inventory over the shoulders, quick-access at the
         // waist), pinned to their frame and revealed by looking toward them.
-        const bodyPanels = this.bodyPanels(this).map((spec) => attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), spec));
+        const bodyPanels = this.bodyPanels(this).map((spec) => attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), presentationSpec(spec, false)));
         // NPC nameplates run in a GENERAL manager now (flat + XR) — see
         // _setupNameplates() — since a frame panel gaze-reveals off the active camera
         // and works on a monitor too, not just in a headset. Not created here.

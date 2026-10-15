@@ -116,6 +116,10 @@ export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, } from './gas
 export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js';
 export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js';
 export { SOL } from './sol.js';
+export { createCarry, DRAG_THRESHOLD } from './carry.js';
+export { carryTile, carrySocket, carryPanel, carryOverlay, carryGhostLayer, } from './carry-box.js';
+export { createInventory } from './inventory.js';
+export { inventoryPanel, inventoryDock, readSchematic, schematicFit, } from './inventory-box.js';
 export { layoutSystem } from './system-layout.js';
 export { decodeGray16Png, mapSurface, loadPlanetMap, } from './planet-map.js';
 export { createMappedPlanetMaterial } from './planet-map-material.js';
@@ -256,6 +260,7 @@ export { parseStyleSuffixes, mergeIconStyle, } from './icon-name.js';
 // Decided at the 0.6.0 rc gate — see UI-DESIGN-NOTES.
 // ---------------------------------------------------------------------------
 import { flowLayout, nearestInDirection, placePopup } from './flow-layout.js';
+import { anchorLayout, anchorLength } from './anchor-layout.js';
 import { box, textBlock, inlineIcon, blockItem, inlineItem, button, svgPoint, } from './box.js';
 import { surface, openMenu } from './surface.js';
 import { widgetBox, widgetChild } from './widget-box.js';
@@ -271,6 +276,9 @@ export const ui = {
     flowLayout,
     nearestInDirection,
     placePopup,
+    // anchor-layout core (pure): positioned and layered
+    anchorLayout,
+    anchorLength,
     // box — the flow container (paint / resize / scroll)
     box,
     textBlock,

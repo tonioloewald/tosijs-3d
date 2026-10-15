@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>b3d-star-system — tosijs-3d</title>
   <meta name="description" content="Renders an individual star system with a procedural star and its planets. Given a galaxy seed and a star&#39;s ADDRESS (star, stable) or index (starIndex) in the…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-star-system/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-star-system">b3d-star-system</h1>
 <p>Renders an individual star system with a procedural star and its planets.
@@ -58,6 +58,7 @@ const { demo } = tosi({
     orbitScale: 3,
     animate: true,
     showOrbits: true,
+    time: 3600,
     // Which body the camera follows (&#39;&#39; = the whole system).
     focus: &#39;&#39;,
   },
@@ -73,9 +74,17 @@ const starSystem = b3dStarSystem({
   // boolean written straight into them warns (and means nothing).
   animate: &#39;on&#39;,
   showOrbits: &#39;on&#39;,
+  timeScale: demo.time,
 })
 demo.animate.observe(() =&gt; (starSystem.animate = demo.animate.value ? &#39;on&#39; : &#39;off&#39;))
 demo.showOrbits.observe(() =&gt; (starSystem.showOrbits = demo.showOrbits.value ? &#39;on&#39; : &#39;off&#39;))
+
+// Simulated time per real second, in the unit that reads best.
+const perSecond = (v) =&gt;
+  v &lt; 60 ? `${v.toPrecision(2)} s/s`
+  : v &lt; 3600 ? `${(v / 60).toPrecision(2)} min/s`
+  : v &lt; 86400 ? `${(v / 3600).toPrecision(2)} h/s`
+  : `${(v / 86400).toPrecision(3)} days/s`
 
 const scene = b3d(
   {
@@ -87,6 +96,7 @@ const scene = b3d(
       slider3d({ label: &#39;scale&#39;, value: demo.scale, min: 1, max: 20, step: 0.5 }),
       slider3d({ label: &#39;orbit scale&#39;, value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
       toggle3d({ label: &#39;animate&#39;, value: demo.animate }),
+      slider3d({ label: &#39;time&#39;, value: demo.time, min: 1, max: 3.16e6, scale: &#39;log&#39;, format: perSecond }),
       toggle3d({ label: &#39;show orbits&#39;, value: demo.showOrbits }),
       // Look at one body: the camera follows it round its orbit.
       select3d({ label: &#39;look at&#39;, value: demo.focus, options: [&#39;&#39;, ...starSystem.bodies.map((b) =&gt; b.name)] }),
@@ -250,6 +260,11 @@ invisible.</p>
 <td><code>maps</code></td>
 <td><code>&#39;off&#39;</code></td>
 <td><code>&#39;on&#39;</code>: bodies with real maps in a <code>system</code> (our own Earth, Moon and Mars, see <a href="/sol/">sol</a>) are drawn from them</td>
+</tr>
+<tr>
+<td><code>timeScale</code></td>
+<td><code>3600</code></td>
+<td>Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: <code>1</code> is real time, <code>3600</code> an hour a second, <code>3.16e6</code> a year in ten seconds. On top of the scene&#39;s own <code>timeScale</code></td>
 </tr>
 <tr>
 <td><code>beltCount</code></td>
@@ -511,6 +526,11 @@ invisible.</p>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -533,6 +553,11 @@ invisible.</p>
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -582,6 +607,7 @@ invisible.</p>
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -689,6 +715,6 @@ invisible.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

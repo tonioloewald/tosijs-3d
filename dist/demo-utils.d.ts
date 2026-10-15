@@ -12,7 +12,7 @@ export interface DemoSunOptions {
     intensity?: number;
     /** `0` (default) = the device-tier budget. Set a size only to override it. */
     shadowTextureSize?: number;
-    shadowCascading?: boolean;
+    shadows?: 'on' | 'off';
     shadowMaxZ?: number;
     y?: number;
 }

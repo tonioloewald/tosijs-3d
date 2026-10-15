@@ -276,10 +276,15 @@ export interface PanelSceneOptions {
      */
     updateInterval?: number;
     /** Orbit camera placement overrides. */
+    /**
+     * The orbit camera. `minRadius` is as close as it zooms (default: half its
+     * starting radius), so a wheel or a pinch cannot pass through the panel.
+     */
     camera?: {
         alpha?: number;
         beta?: number;
         radius?: number;
+        minRadius?: number;
     };
 }
 export declare function panelScene(opts: PanelSceneOptions): {

@@ -16,9 +16,39 @@ export interface AnchorSpec {
     focus?: [number, number, number];
     /** Roll about the panel's normal (deg) — e.g. 180 to flip an upside-down pin. */
     rollDeg?: number;
+    /**
+     * Tip it about its own horizontal axis after it faces the viewer (deg):
+     * positive brings its TOP toward you, as a sign hung above eye level is
+     * tilted down to be read. Its place does not change; `focus` would move it.
+     */
+    tiltDeg?: number;
+    /**
+     * Parallel to the frame's own view plane ("flat on") instead of turned to
+     * face the eye: on a head-locked frame (`face`), square to the screen, so an
+     * off-centre panel is not foreshortened. `rollDeg`/`tiltDeg` still apply.
+     */
+    flatOn?: boolean;
     /** Gaze half-angle (deg) where the reveal begins / completes. */
     revealStartDeg?: number;
     revealFullDeg?: number;
+}
+/** A length on screen: pixels, a fraction of the axis, or of the shorter side. */
+export type ScreenLength = number | `${number}%` | `${number}vmin`;
+export interface ScreenAnchor {
+    left?: ScreenLength;
+    right?: ScreenLength;
+    top?: ScreenLength;
+    bottom?: ScreenLength;
+    /** The point of the panel a pin places (0 left … 1 right); default 0. */
+    anchorX?: number;
+    /** The same, top to bottom; default 0. */
+    anchorY?: number;
+    /** `'center'` is both at 0.5. */
+    anchor?: 'center';
+    /** Its height on screen; default its `width` at `distance`. */
+    height?: ScreenLength;
+    /** Metres in front of the eye (pushed past the near plane). Default 1. */
+    distance?: number;
 }
 export interface FramePanelSpec {
     /** Which reference frame to pin to. Default `body`. */
@@ -87,6 +117,37 @@ export interface FramePanelSpec {
     /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
      * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
     blend?: 'composite' | 'add';
+    /**
+     * Where the panel goes while its content asks for FOCUS: front and centre
+     * by default (straight ahead, a little low, 0.75 m). Content asks by dispatching a `panelfocus` event on its SVG
+     * with `detail: { focus: boolean }` (an inventory dock does as it opens and
+     * closes); the panel comes here, enlarged by `focusScale`, always revealed,
+     * and goes back to its anchor when focus ends. Content that keeps its focus
+     * also marks its SVG `data-focus="true"` while it has it, so a panel made
+     * later (entering or leaving a headset rebuilds them) starts focused: an
+     * event is missed by a panel that did not exist yet.
+     */
+    focusAnchor?: AnchorPreset | AnchorSpec;
+    /** How much bigger a focused panel is drawn. Default 1.9. */
+    focusScale?: number;
+    /**
+     * Where it goes in the FLAT view, in place of `anchor` (with `presence:
+     * 'both'`): the shoulder a headset turns to is off a monitor's edge, so a
+     * panel pinned there in VR names a place in view flat (e.g. up and left in
+     * the `face` frame).
+     */
+    flatAnchor?: AnchorPreset | AnchorSpec;
+    /**
+     * Where it goes in the FLAT view in SCREEN terms, which wins over
+     * `flatAnchor`: pinned to the view's edges like an `anchorLayout` item, in
+     * pixels, a fraction of that axis (`'5%'`), or of the shorter side
+     * (`'3vmin'`), with an anchor point on the panel (default its top left).
+     * `height` sets its size on screen the same way (default: its `width` in
+     * metres at `distance`). Square to the screen, re-solved every frame, so a
+     * resize or a different shape of screen keeps it where you put it. Degrees
+     * are for a headset, where the panel is around you; a monitor is a rectangle.
+     */
+    screenAnchor?: ScreenAnchor;
     /** Placeholder title (ignored if `svg`/`url` is supplied). */
     title?: string;
     /** Custom panel SVG element (live/dynamic content). */
@@ -138,6 +199,14 @@ export declare function opacityWeightedGlow(layer: BABYLON.GlowLayer): void;
  * things that are emissive but are not light sources, like UI plaques.
  */
 export declare function excludeFromGlow(scene: BABYLON.Scene, mesh: BABYLON.AbstractMesh): void;
+/**
+ * The spec for ONE presentation of a panel that exists in both. Flat, a
+ * `flatAnchor` stands in for the anchor and the screen pins apply; in a
+ * headset the screen pins do NOT (there is no screen to pin to: they put the
+ * loadout a metre ahead, sized from the flat canvas, instead of on your
+ * shoulder, found by the 0.10.6 review). One rule, used by every attach site.
+ */
+export declare function presentationSpec(spec: FramePanelSpec, flat: boolean): FramePanelSpec;
 /**
  * Mount a panel on a frame node. Call `update()` each XR frame (drives the gaze
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.

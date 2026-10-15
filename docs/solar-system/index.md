@@ -18,10 +18,10 @@ import { b3d, b3dLight, b3dStarSystem, spaceBackdrop, SOL, label3d, slider3d, to
 import { tosi } from 'tosijs'
 
 const { sol } = tosi({
-  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500 },
+  sol: { maps: false, focus: 'Earth', animate: true, showOrbits: true, belt: 1500, time: 3600 },
 })
 
-const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: 'on', showOrbits: 'on', maps: 'off', beltCount: sol.belt.value })
+const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: 'on', showOrbits: 'on', maps: 'off', beltCount: sol.belt.value, timeScale: sol.time })
 // Our own system, as data, instead of a star from the galaxy.
 system.system = SOL
 
@@ -38,6 +38,13 @@ sol.showOrbits.observe(() => {
   system.showOrbits = sol.showOrbits.value ? 'on' : 'off'
   system.updateOptions()
 })
+
+// Simulated time per real second, in the unit that reads best.
+const perSecond = (v) =>
+  v < 60 ? `${v.toPrecision(2)} s/s`
+  : v < 3600 ? `${(v / 60).toPrecision(2)} min/s`
+  : v < 86400 ? `${(v / 3600).toPrecision(2)} h/s`
+  : `${(v / 86400).toPrecision(3)} days/s`
 
 // Every body, inmost first: the star, each planet then its moons, the belt.
 const names = [
@@ -56,6 +63,8 @@ preview.append(
         select3d({ label: 'look at', value: sol.focus, options: names }),
         toggle3d({ label: 'real maps (Earth, Moon, Mars)', value: sol.maps }),
         toggle3d({ label: 'orbit', value: sol.animate }),
+        // Real time up to a year every ten seconds.
+        slider3d({ label: 'time', value: sol.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
         toggle3d({ label: 'show orbits', value: sol.showOrbits }),
         slider3d({ label: 'belt rocks', value: sol.belt, min: 0, max: 6000, step: 250 }),
       ],
@@ -100,8 +109,12 @@ preview.append(
     },
     // A little fill, so a night side is not a hole in the stars.
     b3dLight({ intensity: 0.12 }),
-    // The star sky, without a sun: the Sun is the system's own star.
-    ...spaceBackdrop({ sky: '/sky', sun: false }),
+    // The star sky, without a sun: the Sun is the system's own star. TILTED
+    // AS IT REALLY IS: the planets orbit about 60.2 degrees to the galaxy's
+    // plane. The sky's galaxy is baked level with its centre along -X, so a
+    // turn about X tips the band and leaves the centre on the line where the
+    // two planes cross (the real one is 5.5 degrees south of the ecliptic).
+    ...spaceBackdrop({ sky: '/sky', sun: false, tilt: '60.2,0,0' }),
     system
   )
 )
@@ -117,8 +130,12 @@ preview.append(
   which planet, and with real maps on, the ground of the Earth, the Moon and
   Mars.
 - **Squeezed:** distances, on a log scale, or the planets would be specks a
-  screen apart (see [system-layout](/system-layout/)). A year takes about a
-  minute.
+  screen apart (see [system-layout](/system-layout/)).
+- **True:** every period. Each planet's day and year and each moon's month
+  are the real ones (Venus and Uranus turn backwards, Triton goes round
+  backwards); the **time** slider says how fast they run, from real time to a
+  year every ten seconds. Fast, a day is too quick to see; slow, a year
+  barely moves.
 - **Exaggerated:** the asteroid belt. The real one is so sparse that from
   inside it you would see nothing.
 - **Made up:** every surface without a map. The looks are right in kind

@@ -21,6 +21,7 @@ export declare class B3dStarSystem extends B3dChild {
         animate: "on" | "off";
         showOrbits: "on" | "off";
         beltCount: number;
+        timeScale: number;
         maps: "on" | "off";
         x: number;
         y: number;
@@ -45,6 +46,7 @@ export declare class B3dStarSystem extends B3dChild {
     animate: any;
     showOrbits: 'on' | 'off';
     beltCount: number;
+    timeScale: number;
     maps: 'on' | 'off';
     /**
      * A system given as DATA (`SOL`, or your own `SystemSpec`) instead of a

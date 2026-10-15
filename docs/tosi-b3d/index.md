@@ -11,6 +11,7 @@ import {
   b3dBiped, ualAnimationStates, assetUrl, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
+import { demoLoadout } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 
@@ -34,6 +35,10 @@ const scene = '/test-3.glb'
 // Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
+
+// Your loadout, pinned up and to the left (over your shoulder in VR): touch it
+// and it comes front and centre, with your bag beside it (see inventory-box).
+const loadout = demoLoadout()
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -77,7 +82,8 @@ preview.append(
     b3dAmbient({ preset: 'motes', where: 'underwater', radius: 8, color: '#3c5238' }),
     b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 8 }),
     b3dReflections(),
-    b3dCollisions({ debug: demo.showColliders })
+    b3dCollisions({ debug: demo.showColliders }),
+    ...loadout.panels()
   ),
   div(
     { class: 'debug-panel' },

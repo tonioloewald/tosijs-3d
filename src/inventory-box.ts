@@ -103,7 +103,6 @@ Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-ic
   inventoryPanel({ inv, carry, holder: 'hero', host: bodyHost, title: 'hero', decorations, alsoIn, schematics: { body: art }, hide: ['bag'] })
   inventoryPanel({ inv, carry, holder: 'hero', host: bagHost, decorations, only: ['bag'], totals: false, height: 540 })
 })
-window.addEventListener('pointerup', () => carry.cancel())
 ```
 ```css
 .preview { height: 100%; }
@@ -166,7 +165,6 @@ Promise.all([fetch('/manta-loadout.svg').then((r) => r.text()), fetch('/item-ico
   inventoryPanel({ inv, carry, holder: 'manta', host: craftHost, title: 'Manta', decorations, schematics: { hardpoints: art } })
   inventoryPanel({ inv, carry, holder: 'carrier', host: stockHost, title: 'carrier', decorations, totals: false, height: 420 })
 })
-window.addEventListener('pointerup', () => carry.cancel())
 ```
 ```css
 .preview { height: 100%; }
@@ -281,7 +279,6 @@ drawDeal()
 const at = (e) => { const p = ui.svgPoint(dealHost, e.clientX, e.clientY); return [p.x, p.y] }
 dealHost.addEventListener('pointerdown', (e) => dealBox.handlePointer('down', ...at(e)))
 dealHost.addEventListener('pointerup', (e) => dealBox.handlePointer('up', ...at(e)))
-window.addEventListener('pointerup', () => carry.cancel())
 ```
 ```css
 .preview { height: 100%; }
@@ -489,7 +486,11 @@ export interface InventoryPanelOptions {
    * go, and put it in the world yourself (on the ground at the player's
    * feet). No drop target without it.
    */
-  handleDrop?: (item: Item, kind: ItemKind | undefined, from: Place) => string[] | void
+  handleDrop?: (
+    item: Item,
+    kind: ItemKind | undefined,
+    from: Place
+  ) => string[] | void
 }
 
 export interface InventoryPanel {
@@ -1145,7 +1146,9 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   // Closed, the picture's corners are rounded well past the panel's own 10.
   const roundId = `dock-round-${++dockSeq}`
   const roundRect = svgElements.rect({ x: 0, y: 0, rx: 48, ry: 48 })
-  root.prepend(svgElements.defs({}, svgElements.clipPath({ id: roundId }, roundRect)))
+  root.prepend(
+    svgElements.defs({}, svgElements.clipPath({ id: roundId }, roundRect))
+  )
   const common = {
     inv: opts.inv,
     carry,

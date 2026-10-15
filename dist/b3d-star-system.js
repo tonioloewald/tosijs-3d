@@ -30,6 +30,7 @@ const { demo } = tosi({
     orbitScale: 3,
     animate: true,
     showOrbits: true,
+    time: 3600,
     // Which body the camera follows ('' = the whole system).
     focus: '',
   },
@@ -45,9 +46,17 @@ const starSystem = b3dStarSystem({
   // boolean written straight into them warns (and means nothing).
   animate: 'on',
   showOrbits: 'on',
+  timeScale: demo.time,
 })
 demo.animate.observe(() => (starSystem.animate = demo.animate.value ? 'on' : 'off'))
 demo.showOrbits.observe(() => (starSystem.showOrbits = demo.showOrbits.value ? 'on' : 'off'))
+
+// Simulated time per real second, in the unit that reads best.
+const perSecond = (v) =>
+  v < 60 ? `${v.toPrecision(2)} s/s`
+  : v < 3600 ? `${(v / 60).toPrecision(2)} min/s`
+  : v < 86400 ? `${(v / 3600).toPrecision(2)} h/s`
+  : `${(v / 86400).toPrecision(3)} days/s`
 
 const scene = b3d(
   {
@@ -59,6 +68,7 @@ const scene = b3d(
       slider3d({ label: 'scale', value: demo.scale, min: 1, max: 20, step: 0.5 }),
       slider3d({ label: 'orbit scale', value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
       toggle3d({ label: 'animate', value: demo.animate }),
+      slider3d({ label: 'time', value: demo.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
       toggle3d({ label: 'show orbits', value: demo.showOrbits }),
       // Look at one body: the camera follows it round its orbit.
       select3d({ label: 'look at', value: demo.focus, options: ['', ...starSystem.bodies.map((b) => b.name)] }),
@@ -183,6 +193,7 @@ tosi-b3d {
 | `animate` | `'on'` | Animate planet orbital motion |
 | `showOrbits` | `'on'` | Show orbital path lines |
 | `maps` | `'off'` | `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them |
+| `timeScale` | `3600` | Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale` |
 | `beltCount` | `1500` | Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant) |
 
 */
@@ -196,8 +207,13 @@ import { PerlinNoise } from './perlin-noise.js';
 import { b3dPlanet } from './b3d-planet.js';
 import { createStarMaterial } from './star-material.js';
 import { rockyWorldFor } from './rocky-world.js';
-import { layoutSystem, } from './system-layout.js';
+import { layoutSystem, spinAngle, } from './system-layout.js';
 import { rockGeometry } from './procedural-rock.js';
+/** Radians round an orbit after `time` seconds (negative period: backwards). */
+function orbitAngle(time, period) {
+    const turns = time / period;
+    return (turns - Math.trunc(turns)) * Math.PI * 2;
+}
 import { PRNG } from './mersenne-twister.js';
 /** A stable seed from a name, so a named body looks the same every time. */
 function nameSeed(name) {
@@ -226,6 +242,9 @@ export class B3dStarSystem extends B3dChild {
         showOrbits: 'on',
         // Rocks drawn in the asteroid belt (when the system has one).
         beltCount: 1500,
+        // Simulated seconds per real second: 3600 is an hour a second (an Earth
+        // day in 24 seconds); 3.16e6 is a year in ten.
+        timeScale: 3600,
         // 'on': bodies that have real maps (our own system's Earth, Moon and
         // Mars) are drawn from them.
         maps: 'off',
@@ -534,6 +553,7 @@ export class B3dStarSystem extends B3dChild {
             ? planets.map((p, i) => ({
                 ...p,
                 moons: spec.planets[i].moons?.map((m) => m.radiusKm) ?? [],
+                moonDays: spec.planets[i].moons?.map((m) => m.period ?? 0),
             }))
             : planets, {
             starRadius,
@@ -559,7 +579,8 @@ export class B3dStarSystem extends B3dChild {
                 radius: place.visualRadius,
                 subdivisions: giant ? 48 : 40,
                 biome: 'on',
-                rotationSpeed: giant ? 0.15 : 0.08,
+                // It does not turn itself: update() turns it on the system's clock
+                // (so it stops with the orbits, and keeps time with them).
             });
             if (spec) {
                 Object.assign(el, lookOf(spec.planets[i]));
@@ -581,15 +602,17 @@ export class B3dStarSystem extends B3dChild {
                 el.world = pick.world;
                 el.worldOverrides = pick.overrides;
             }
-            this.adopt(el, holder, planet.name, place.visualRadius);
+            // Its own day (real for Sol); a generated rock has an Earth day, a
+            // giant a Jupiter one.
+            const day = spec?.planets[i].day ?? (giant ? 0.42 : 1);
+            this.adopt(el, holder, planet.name, place.visualRadius, day);
             place.moons.forEach((moon, m) => {
                 const pivot = new BABYLON.TransformNode(`moon-pivot-${i}-${m}`, scene);
                 pivot.parent = holder;
-                pivot.rotation.y = moon.phase;
                 const at = new BABYLON.TransformNode(`moon-${i}-${m}`, scene);
                 at.parent = pivot;
                 at.position.x = moon.distance;
-                this.moonPivots.push({ pivot, period: moon.period });
+                this.moonPivots.push({ pivot, period: moon.period, phase: moon.phase });
                 // A moon is locked to its planet (its pivot carries it round), so
                 // it keeps one face inward and its leading side takes the craters.
                 const given = spec?.planets[i].moons?.[m];
@@ -629,10 +652,10 @@ export class B3dStarSystem extends B3dChild {
         }
     }
     /** Planets are elements: put one in the scene and hang it on `holder` once it is built. */
-    adopt(el, holder, name, radius) {
+    adopt(el, holder, name, radius, day = 0) {
         // The radius is passed, not read back: a new element's attributes are
         // not applied yet, and it would report the default.
-        this.planetEls.push({ el, holder, name, radius });
+        this.planetEls.push({ el, holder, name, radius, day });
         this.owner?.append(el);
     }
     /*
@@ -674,6 +697,7 @@ export class B3dStarSystem extends B3dChild {
             holder,
             name,
             radius,
+            day: 0,
         });
     }
     /*
@@ -770,7 +794,7 @@ export class B3dStarSystem extends B3dChild {
             return;
         for (let i = 0; i < this.holders.length; i++) {
             const p = layout.planets[i];
-            const angle = (this.time / p.period) * Math.PI * 2 + p.phase;
+            const angle = orbitAngle(this.time, p.period) + p.phase;
             this.holders[i].position.set(Math.cos(angle) * p.distance, 0, Math.sin(angle) * p.distance);
         }
     }
@@ -805,12 +829,20 @@ export class B3dStarSystem extends B3dChild {
         if (isOff(attrs.animate))
             return;
         const dt = sceneDelta(this.owner.scene);
-        this.time += dt;
+        this.time += dt * Math.max(0, Number(attrs.timeScale) || 0);
         this.placePlanets();
+        // Everything from the one clock, as angles (never accumulated turns): a
+        // body is where its period says, however fast the clock runs. West to
+        // east, seen from the north, is a NEGATIVE turn about Babylon's Y.
         for (const m of this.moonPivots)
-            m.pivot.rotation.y -= (dt / m.period) * Math.PI * 2;
+            m.pivot.rotation.y = -(orbitAngle(this.time, m.period) + m.phase);
         if (this.belt)
-            this.belt.node.rotation.y -= (dt / this.belt.period) * Math.PI * 2;
+            this.belt.node.rotation.y = -orbitAngle(this.time, this.belt.period);
+        for (const p of this.planetEls) {
+            const root = p.el.rootNode;
+            if (p.day !== 0 && root)
+                root.rotation.y = -spinAngle(this.time, p.day);
+        }
     }
     /**
      * Every body you can look at: the star, then each planet, moon and named

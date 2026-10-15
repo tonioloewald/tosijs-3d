@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.6 (unreleased)
+## 0.10.6
 
 ### Added
 
@@ -46,6 +46,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **In a headset, a screen-pinned panel is where its VR anchor says** (found by the release review). Screen pins are for a monitor: in a session they were still applied, putting the loadout a metre ahead, sized from the flat canvas, instead of on your left shoulder. `presentationSpec(spec, flat)` is now the one rule every attach site uses (flat: the flat anchor and screen pins; in VR: neither). Checked in the emulated headset.
+- **Two-tap works on a page** (found by the release review). The page examples cancelled the carry on every `pointerup`, and a tap pick-up happens ON a release, so it was put straight back. `carryOverlay` now cancels a drag let go over nothing itself, after the panels have had the release, and never a tap; the examples no longer add their own.
 - **A press on a panel in the scene no longer also works the game's controls.** The biped reads mouse buttons (the left button is A, a jump), so every press on the playground's loadout made the hero jump, and with a weapon up could fire it. A frame panel now cancels the `pointerdown` it takes, which by the web's own rule stops the matching `mousedown`/`mouseup`; the scene's picking is pointer events and carries on.
 - **A focused panel fits the view a looking-down camera actually has.** Its room was worked out from where it sits in its frame, which is level while a follow camera pitches down; it is now measured in the camera's own view.
 - **Swimmers ride lower.** The water sat at the head bone (the base of the skull), which left a treader's shoulders and arms out and a swimmer's head, shoulders and back riding on top. It now sits 10 cm higher on a treader (at the jaw: the head out) and 20 cm on a swimmer (over the back: the head breaking).
@@ -65,6 +67,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Dragging between inventory panels works with a finger or a headset's laser.** Both are captured by the element they press, so the moves and the release never reached another panel; `inventoryPanel` now lets the capture go as it arrives (a mouse was never captured, which is why it worked on a desktop). And on a page the ghost is drawn in one overlay above every panel (`carryOverlay(carry)`, with `carryPanel(…, { ghost: false })`), so it crosses from one panel to the next instead of being clipped by each. A panel on a 3D plane keeps its own ghost (#3290).
 
 - **A thing can be dragged out of a socket** (it could only be dragged out of a list), and a thing in a list is itself a place to drop into that list, so a long, scrolled list takes a drop anywhere. A thing put back in a list joins a stack of its kind with room (a missile returned to the carrier is counted again); one drawn from a stack swaps with what a slot held.
+
+Size: barrel (min, packages external) 1082.1 KB raw / 368.9 KB gz, +3.80% on 0.10.5.
 
 ## 0.10.5
 

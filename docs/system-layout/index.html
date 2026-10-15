@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>system-layout — tosijs-3d</title>
   <meta name="description" content="Where everything in a star system goes, as numbers: how far out each planet is drawn, how big, how fast it goes round, its moons, and the asteroid belt." />
   <link rel="canonical" href="https://3d.tosijs.net/system-layout/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="system-layout">system-layout</h1>
 <p><strong>Where everything in a star system goes</strong>, as numbers: how far out each
@@ -51,8 +51,11 @@ next planet out starts beyond that.</li>
 <li><strong>The belt is wildly overpopulated.</strong> A real asteroid belt is so sparse
 that you would see nothing from inside it; this one is a band of rock you
 can see, with its few large bodies picked out as bodies of their own.</li>
-<li><strong>Periods follow Kepler</strong> (a cube law in the real distance), sped up so a
-year takes about a minute.</li>
+<li><strong>Time is not squeezed.</strong> Every period is the real one, in seconds: an
+Earth year is 365.26 days, Jupiter&#39;s day under ten hours, the Moon&#39;s month
+27.3 days. A planet&#39;s year follows Kepler from its true distance; a moon&#39;s
+month follows Kepler from its true distance in planet radii (<code>moonPeriod</code>).
+How fast it all runs is the star system&#39;s <code>timeScale</code>.</li>
 </ul>
 <p>Everything follows from each body&#39;s seed, so the same system lays out the
 same way every time.</p>
@@ -310,6 +313,11 @@ same way every time.</p>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -332,6 +340,11 @@ same way every time.</p>
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -381,6 +394,7 @@ same way every time.</p>
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -488,6 +502,6 @@ same way every time.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

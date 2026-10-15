@@ -19,8 +19,11 @@ documented ways:
 - **The belt is wildly overpopulated.** A real asteroid belt is so sparse
   that you would see nothing from inside it; this one is a band of rock you
   can see, with its few large bodies picked out as bodies of their own.
-- **Periods follow Kepler** (a cube law in the real distance), sped up so a
-  year takes about a minute.
+- **Time is not squeezed.** Every period is the real one, in seconds: an
+  Earth year is 365.26 days, Jupiter's day under ten hours, the Moon's month
+  27.3 days. A planet's year follows Kepler from its true distance; a moon's
+  month follows Kepler from its true distance in planet radii (`moonPeriod`).
+  How fast it all runs is the star system's `timeScale`.
 
 Everything follows from each body's seed, so the same system lays out the
 same way every time.

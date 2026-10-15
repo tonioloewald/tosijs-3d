@@ -7,6 +7,7 @@ ordinary scene children, so it composes into any demo rather than being one.
 
 ```js
 import { assetUrl, b3d, b3dBiped, b3dLauncher, b3dLibrary, inputFocus, playground, ualAnimationStates } from 'tosijs-3d'
+import { demoLoadout } from 'tosijs-3d/demo-utils'
 
 // WHERE IT RIDES ON HIM, and all three numbers were wrong.
 //
@@ -90,6 +91,25 @@ const hero = b3dBiped(
   gun
 )
 
+// THE PISTOL LIVES ON YOUR HIP. The loadout (over your left shoulder; tap it)
+// says where it is, and that decides the mode: in a hand, the gun is up; on
+// the hip, it is down; in the bag or dropped, there is nothing to raise. The
+// weapon button draws it from the hip or holsters it; dragging it into a hand
+// does the same.
+const loadout = demoLoadout({ equip: { right_side: 'pistol' } })
+const body = (slot) => ({ holder: 'hero', container: 'body', slot })
+const pistolAt = () => loadout.inv.where('pistol')?.slot
+hero.whenWeapon = (up) => {
+  const at = pistolAt()
+  if (up && (at === 'right_side' || at === 'left_side'))
+    loadout.inv.move({ item: 'pistol', to: body('hand_right'), swap: true })
+  else if (!up && (at === 'hand_right' || at === 'hand_left'))
+    loadout.inv.move({ item: 'pistol', to: body('right_side'), swap: true })
+}
+loadout.inv.subscribe(() =>
+  hero.setGunplay(pistolAt() === 'hand_right' || pistolAt() === 'hand_left')
+)
+
 preview.append(
   b3d(
     {
@@ -107,6 +127,7 @@ preview.append(
     },
     weapons,
     ...playground(),
+    ...loadout.panels(),
     inputFocus(hero)
   )
 )
@@ -115,8 +136,10 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-**Two modes, and the right bumper is the switch.** With the weapon down you are walking:
-**R** sprints. Press **right bumper** and the gun comes up — now **R** fires, **Q**
+**Two modes, and the right bumper is the switch**, when there is a pistol to
+switch to: it starts on your hip (open the loadout over your left shoulder to
+see it). With the weapon down you are walking:
+**R** sprints. Press **right bumper** and you draw it, and the gun comes up — now **R** fires, **Q**
 aims down the sights, and a ring shows where the round will actually land,
 sinking as the range grows because it is the real ballistic arc rather than a
 dot in the middle of the screen. You cannot sprint with the gun up, which is why
@@ -126,7 +149,7 @@ the trigger is free to do both jobs.
 **E** interacts, **Y** switches between third and first person. (Read off
 `game-controller` and `bipedMapping` rather than remembered.)
 
-Things to try: climb the crates onto the catwalk; shoot from behind the low wall
+Things to try: put the pistol in the bag and try to raise it (nothing to raise), drag it back into your hand (it comes up); swim and dive in the pool; climb the crates onto the catwalk; shoot from behind the low wall
 and watch the ring disappear behind it until you stand; walk the cover line and
 compare the railing with the wall beside it.
 
@@ -157,6 +180,7 @@ do, and the arrangement is a test you walk around in rather than one you read.
 | the **crate steps** (0.4 / 0.9 / 1.6m) | the band between a step and a wall — `mantle` |
 | the **catwalk** | verticality, a firing position, and something to fall off |
 | the **targets** | something to murder |
+| the **pool** | swimming, diving (aim down and swim), surfacing, and a shelving ramp to walk in on slowly |
 
 ## Everything is an ELEMENT, deliberately
 
@@ -178,6 +202,7 @@ import { b3dDestroyable } from './b3d-destroyable.js';
 import { b3dLight } from './b3d-light.js';
 import { b3dSkybox } from './b3d-skybox.js';
 import { b3dSun } from './b3d-shadows.js';
+import { b3dWater } from './b3d-water.js';
 const STONE = '#8d8880';
 const DARK_STONE = '#6f6a63';
 const CRATE = '#9a7748';
@@ -213,14 +238,21 @@ export function playground(options = {}) {
         // from the ambient light however far you push `intensity`.
         b3dLight({ intensity: 0.55, groundColor: '#55604a' }));
     }
-    parts.push(b3dGround({
+    // THE POOL'S HOLE, in the far corner past the catwalk (whole metres: the
+    // ground is cut by 1 m cells).
+    const pool = options.pool !== false && size >= 60;
+    const POOL = { x: 23, z: 28, width: 14, depth: 10 };
+    const ground = b3dGround({
         meshName: 'ground_nocast',
         width: size,
         height: size,
         color: '#7f8a6c',
         texture: 'noise',
         textureTiles: Math.round(size / 8),
-    }));
+    });
+    if (pool)
+        ground.holes = [POOL];
+    parts.push(ground);
     /*
     THE COVER LINE — four kinds, in a row, so they can be compared by walking
     along it. The heights are the argument: 1.1 is crouch cover against a 1.8m
@@ -479,18 +511,48 @@ export function playground(options = {}) {
     callSwitch('lift-switch-call-low', liftX + 1.9, towerZ + 2.4, 0);
     callSwitch('lift-switch-call-high', towerX + 2.4, towerZ + 2.4, towerH);
     /*
-    NO POND, and the reason is worth recording rather than quietly omitting.
+    THE POOL: water to swim in, deep enough to dive under, with a shelving ramp
+    at one end so you can walk in slowly. The ramp is the point as much as the
+    water: `isSwimming` carries hysteresis because a gently shelving beach is
+    where a threshold flickers, and until now there was nowhere to test it.
   
-    `b3dGround` is ONE FLAT PLANE, so there is nowhere for water to go: a water
-    surface below it is hidden and one above it is a puddle sitting on the lawn. A
-    pond needs a floor that can dip, which means `b3dTerrain` with a landform
-    (`impactCrater` shapes exactly this bowl) — a bigger change than this arena
-    needs on its first pass, and the wrong thing to fake.
-  
-    It is worth having eventually: `isSwimming` carries hysteresis specifically
-    because a gently shelving beach is where a threshold flickers, and there is
-    currently nowhere to walk into water slowly enough to test it.
+    SUNK, NOT RAISED. A biped swims wherever it is below the water's surface,
+    scene-wide, so the water has to sit below the ground everywhere else: the
+    ground has a hole cut in it (`holes`), walled down to a floor. A raised tank
+    would have put the whole arena under water.
     */
+    if (pool) {
+        const { x: px, z: pz, width: pw, depth: pd } = POOL;
+        const deep = 3.5;
+        const t = 0.5;
+        const side = (name, x, z, w, d) => wall(name, x, z, w, deep, d, DARK_STONE, -deep / 2);
+        // A shelving end: 22 degrees, from the west rim down to the floor.
+        const SHELF_DEG = 22;
+        const run = deep / Math.tan((SHELF_DEG * Math.PI) / 180);
+        const slab = 0.8;
+        parts.push(side('pool-n', px, pz + pd / 2 + t / 2, pw + 2 * t, t), side('pool-s', px, pz - pd / 2 - t / 2, pw + 2 * t, t), side('pool-w', px - pw / 2 - t / 2, pz, t, pd), side('pool-e', px + pw / 2 + t / 2, pz, t, pd), wall('pool-floor', px, pz, pw, t, pd, DARK_STONE, -deep - t / 2), b3dBox({
+            meshName: 'pool-shelf',
+            // Its TOP face runs from the rim (y 0) to the floor: the centre sits
+            // half a slab below the slope's midpoint, measured square to it.
+            x: px - pw / 2 + run / 2,
+            y: -deep / 2 - slab / 2 / Math.cos((SHELF_DEG * Math.PI) / 180),
+            z: pz,
+            width: Math.hypot(deep, run),
+            height: slab,
+            depth: pd,
+            // Negative: the long axis goes DOWN as x grows, away from the rim.
+            rz: -SHELF_DEG,
+            color: '#6b6256',
+            solid: 'on',
+        }), b3dWater({
+            x: px,
+            z: pz,
+            y: -0.3,
+            // Square, and a little bigger than the hole: the rest is under the ground.
+            waterSize: Math.max(pw, pd) + 2,
+            twoSided: true,
+        }));
+    }
     /*
     TARGETS, placed so that shooting them MOVES you: some in the open, some behind
     the cover line, one on the catwalk. A range where every target is visible from

@@ -21,13 +21,20 @@ export declare class B3dSun extends B3dChild {
          * simply raised.
          */
         shadowNormalBias: number;
-        /** Depth-direction bias. Babylon's CSM default; normalBias is the one to
-         * reach for first, because depth bias peter-pans much sooner. */
+        /**
+         * Depth-direction bias. Babylon's CSM default is 0.00005, and with
+         * normalBias held at 0.02 (for thin limbs, above) that left fine acne bands
+         * over every lit surface of a plain scene (the primitives and getting-started
+         * demos: ground, boxes, spheres). 0.0005 clears them; a character's shadow
+         * at 0.0005 is unchanged (limbs solid, feet attached), checked in the
+         * playground. A mottled ground hides acne, which is why it went unseen there.
+         */
         shadowBias: number;
         shadowTextureSize: number;
         activeDistance: number;
         numCascades: number;
         stabilizeCascades: "on" | "off";
+        shadows: "on" | "off";
         lambda: number;
         cascadeBlendPercentage: number;
         x: number;

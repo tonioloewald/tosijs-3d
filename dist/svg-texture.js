@@ -120,7 +120,7 @@ export class SvgTexture {
     _lastXml = '';
     _warnedFailure = false;
     constructor(options) {
-        const { scene, resolution = 512, url, element, updateInterval = 30, } = options;
+        const { scene, resolution = 512, url, element, updateInterval = 30, mipmaps = true, } = options;
         this._resolution = resolution;
         this._element = element;
         this._scene = scene;
@@ -129,7 +129,11 @@ export class SvgTexture {
             this.texture.hasAlpha = true;
         }
         else if (element) {
-            const dt = new BABYLON.DynamicTexture('svg-dt', resolution, scene, false);
+            const dt = new BABYLON.DynamicTexture('svg-dt', resolution, scene, mipmaps, mipmaps
+                ? BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+                : BABYLON.Texture.BILINEAR_SAMPLINGMODE);
+            if (mipmaps)
+                dt.anisotropicFilteringLevel = 4;
             dt.hasAlpha = true;
             this.texture = dt;
             this.render();

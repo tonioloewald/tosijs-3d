@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>Solar System — tosijs-3d</title>
   <meta name="description" content="Our own solar system, built from the parts the rest of this site documents: every planet and moon a planet, the giants banded and ringed (gas-giant), the rocky…" />
   <link rel="canonical" href="https://3d.tosijs.net/solar-system/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="solar-system">Solar System</h1>
 <p>Our own solar system, built from the parts the rest of this site documents:
@@ -47,10 +47,10 @@ and NOAA&#39;s own height and colour maps instead of being made up.</p>
 import { tosi } from &#39;tosijs&#39;
 
 const { sol } = tosi({
-  sol: { maps: false, focus: &#39;Earth&#39;, animate: true, showOrbits: true, belt: 1500 },
+  sol: { maps: false, focus: &#39;Earth&#39;, animate: true, showOrbits: true, belt: 1500, time: 3600 },
 })
 
-const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: &#39;on&#39;, showOrbits: &#39;on&#39;, maps: &#39;off&#39;, beltCount: sol.belt.value })
+const system = b3dStarSystem({ scale: 5, orbitScale: 3, animate: &#39;on&#39;, showOrbits: &#39;on&#39;, maps: &#39;off&#39;, beltCount: sol.belt.value, timeScale: sol.time })
 // Our own system, as data, instead of a star from the galaxy.
 system.system = SOL
 
@@ -67,6 +67,13 @@ sol.showOrbits.observe(() =&gt; {
   system.showOrbits = sol.showOrbits.value ? &#39;on&#39; : &#39;off&#39;
   system.updateOptions()
 })
+
+// Simulated time per real second, in the unit that reads best.
+const perSecond = (v) =&gt;
+  v &lt; 60 ? `${v.toPrecision(2)} s/s`
+  : v &lt; 3600 ? `${(v / 60).toPrecision(2)} min/s`
+  : v &lt; 86400 ? `${(v / 3600).toPrecision(2)} h/s`
+  : `${(v / 86400).toPrecision(3)} days/s`
 
 // Every body, inmost first: the star, each planet then its moons, the belt.
 const names = [
@@ -85,6 +92,8 @@ preview.append(
         select3d({ label: &#39;look at&#39;, value: sol.focus, options: names }),
         toggle3d({ label: &#39;real maps (Earth, Moon, Mars)&#39;, value: sol.maps }),
         toggle3d({ label: &#39;orbit&#39;, value: sol.animate }),
+        // Real time up to a year every ten seconds.
+        slider3d({ label: &#39;time&#39;, value: sol.time, min: 1, max: 3.16e6, scale: &#39;log&#39;, format: perSecond }),
         toggle3d({ label: &#39;show orbits&#39;, value: sol.showOrbits }),
         slider3d({ label: &#39;belt rocks&#39;, value: sol.belt, min: 0, max: 6000, step: 250 }),
       ],
@@ -129,8 +138,12 @@ preview.append(
     },
     // A little fill, so a night side is not a hole in the stars.
     b3dLight({ intensity: 0.12 }),
-    // The star sky, without a sun: the Sun is the system&#39;s own star.
-    ...spaceBackdrop({ sky: &#39;/sky&#39;, sun: false }),
+    // The star sky, without a sun: the Sun is the system&#39;s own star. TILTED
+    // AS IT REALLY IS: the planets orbit about 60.2 degrees to the galaxy&#39;s
+    // plane. The sky&#39;s galaxy is baked level with its centre along -X, so a
+    // turn about X tips the band and leaves the centre on the line where the
+    // two planes cross (the real one is 5.5 degrees south of the ecliptic).
+    ...spaceBackdrop({ sky: &#39;/sky&#39;, sun: false, tilt: &#39;60.2,0,0&#39; }),
     system
   )
 )
@@ -144,8 +157,12 @@ by a square root so the small ones are still visible), which moons go with
 which planet, and with real maps on, the ground of the Earth, the Moon and
 Mars.</li>
 <li><strong>Squeezed:</strong> distances, on a log scale, or the planets would be specks a
-screen apart (see <a href="/system-layout/">system-layout</a>). A year takes about a
-minute.</li>
+screen apart (see <a href="/system-layout/">system-layout</a>).</li>
+<li><strong>True:</strong> every period. Each planet&#39;s day and year and each moon&#39;s month
+are the real ones (Venus and Uranus turn backwards, Triton goes round
+backwards); the <strong>time</strong> slider says how fast they run, from real time to a
+year every ten seconds. Fast, a day is too quick to see; slow, a year
+barely moves.</li>
 <li><strong>Exaggerated:</strong> the asteroid belt. The real one is so sparse that from
 inside it you would see nothing.</li>
 <li><strong>Made up:</strong> every surface without a map. The looks are right in kind
@@ -407,6 +424,11 @@ inside it you would see nothing.</li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -429,6 +451,11 @@ inside it you would see nothing.</li>
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -478,6 +505,7 @@ inside it you would see nothing.</li>
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -585,6 +613,6 @@ inside it you would see nothing.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

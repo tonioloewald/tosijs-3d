@@ -1,5 +1,5 @@
 import { Component } from 'tosijs';
-import type { FramePanelSpec } from './frame-panel.js';
+import type { FramePanelSpec, AnchorSpec, AnchorPreset, ScreenAnchor } from './frame-panel.js';
 export declare class B3dPanel extends Component {
     static preferredTagName: string;
     static initAttributes: {
@@ -48,6 +48,15 @@ export declare class B3dPanel extends Component {
     presence: string;
     flatFrame: string;
     resolution: number;
+    /** Live content (JS only): an SVG, with its own `handlePointer` if it takes the pointer. */
+    svg: SVGSVGElement | null;
+    /** Where it goes in the flat view, in place of the anchor (JS only). */
+    flatAnchor: AnchorPreset | AnchorSpec | null;
+    /** Flat placement in screen terms (pixels / % / vmin pins); wins over `flatAnchor`. JS only. */
+    screenAnchor: ScreenAnchor | null;
+    /** Where it comes when its content asks for focus, and how much bigger (JS only). */
+    focusAnchor: AnchorPreset | AnchorSpec | null;
+    focusScale: number;
     /** Build the FramePanelSpec this element declares. */
     toSpec(): FramePanelSpec;
 }

@@ -108,3 +108,10 @@ so you have full control:
 | `flatFrame` | `''` | The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera |
 | `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
 | `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
+
+Four more are JavaScript properties, not attributes, because they are
+objects: `svg` (live content: an `<svg>` whose own `handlePointer(kind, x, y)`
+gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`), `flatAnchor` (where
+it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
+comes, and how much bigger, when its content asks for focus with a
+`panelfocus` event). The main `tosi-b3d` demo pins a loadout this way.

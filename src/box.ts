@@ -802,8 +802,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         y <= viewportHeight
       ) {
         const b = bar()
-        if (y >= b.thumbY && y <= b.thumbY + b.thumbH)
-          barDrag = { y, scroll }
+        if (y >= b.thumbY && y <= b.thumbY + b.thumbH) barDrag = { y, scroll }
         else {
           scroll += (y < b.thumbY ? -1 : 1) * viewportHeight * 0.85
           applyScroll()

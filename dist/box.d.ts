@@ -65,6 +65,22 @@ export interface BoxChild {
     focusActivate?: () => void;
     /** Drop inner focus — the box's focus left this child. */
     focusClear?: () => void;
+    /**
+     * PLACED rather than flowed: drawn at this offset from the top-left of the
+     * last flowed child before it, taking no space in the flow. Sockets on a
+     * schematic are this (the art flows; the sockets sit where the art says).
+     * Placed children are hit before flowed ones, last first, as they paint.
+     */
+    at?: {
+        x: number;
+        y: number;
+    };
+    /**
+     * STAYS PUT while the rest scrolls: a heading, a drop target. Only the
+     * LEADING children can be sticky (a run at the top, before anything that
+     * scrolls); the scrolling content passes under them.
+     */
+    sticky?: boolean;
 }
 /** Pointer phase fed to {@link Box.handlePointer}. */
 export type PointerKind = 'down' | 'move' | 'up' | 'leave';

@@ -29,6 +29,7 @@ const { demo } = tosi({
     orbitScale: 3,
     animate: true,
     showOrbits: true,
+    time: 3600,
     // Which body the camera follows ('' = the whole system).
     focus: '',
   },
@@ -44,9 +45,17 @@ const starSystem = b3dStarSystem({
   // boolean written straight into them warns (and means nothing).
   animate: 'on',
   showOrbits: 'on',
+  timeScale: demo.time,
 })
 demo.animate.observe(() => (starSystem.animate = demo.animate.value ? 'on' : 'off'))
 demo.showOrbits.observe(() => (starSystem.showOrbits = demo.showOrbits.value ? 'on' : 'off'))
+
+// Simulated time per real second, in the unit that reads best.
+const perSecond = (v) =>
+  v < 60 ? `${v.toPrecision(2)} s/s`
+  : v < 3600 ? `${(v / 60).toPrecision(2)} min/s`
+  : v < 86400 ? `${(v / 3600).toPrecision(2)} h/s`
+  : `${(v / 86400).toPrecision(3)} days/s`
 
 const scene = b3d(
   {
@@ -58,6 +67,7 @@ const scene = b3d(
       slider3d({ label: 'scale', value: demo.scale, min: 1, max: 20, step: 0.5 }),
       slider3d({ label: 'orbit scale', value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
       toggle3d({ label: 'animate', value: demo.animate }),
+      slider3d({ label: 'time', value: demo.time, min: 1, max: 3.16e6, scale: 'log', format: perSecond }),
       toggle3d({ label: 'show orbits', value: demo.showOrbits }),
       // Look at one body: the camera follows it round its orbit.
       select3d({ label: 'look at', value: demo.focus, options: ['', ...starSystem.bodies.map((b) => b.name)] }),
@@ -182,4 +192,5 @@ tosi-b3d {
 | `animate` | `'on'` | Animate planet orbital motion |
 | `showOrbits` | `'on'` | Show orbital path lines |
 | `maps` | `'off'` | `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them |
+| `timeScale` | `3600` | Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale` |
 | `beltCount` | `1500` | Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant) |

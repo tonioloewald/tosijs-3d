@@ -18,6 +18,9 @@ A `BoxChild` is `{ el, kind, measure, paint? }`:
 
 - **block** — fills the content width, `measure(width) → { height }`, stacks.
 - **inline** — `measure() → { width, height }`, flows left-to-right and wraps.
+- **placed** — any child with `at: { x, y }`: drawn at that offset over the
+  flowed child before it, taking no space in the flow and hit first (sockets
+  on a schematic sit on its art this way).
 
 Helpers build the common ones: `textBlock` (wraps text to the width via
 [[widgets3d-layout]]'s real glyph measurer), `inlineIcon` (an `iconGlyph`), and

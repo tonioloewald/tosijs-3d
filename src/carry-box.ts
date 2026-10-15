@@ -87,9 +87,14 @@ for (const host of [bagHost, handHost]) {
   host.addEventListener('pointerup', (e) => panels.get(host).handlePointer('up', ...at(e)))
   host.addEventListener('pointerleave', () => panels.get(host).handlePointer('leave', 0, 0))
 }
-// Let go anywhere else: it goes back where it was. (A panel's own release
-// has already dropped it by the time this runs, so this only catches misses.)
-window.addEventListener('pointerup', () => carry.cancel())
+// Let go of a DRAG anywhere else: it goes back where it was. (A panel's own
+// release has already dropped it by the time this runs, so this only catches
+// misses.) Only a drag: a two-tap pick-up happens ON a release, and cancelling
+// every release would put it straight back. (A page using `carryOverlay`
+// gets this built in.)
+window.addEventListener('pointerup', () => {
+  if (carry.state.mode === 'drag') carry.cancel()
+})
 ```
 
 ## How it fits together
@@ -847,15 +852,27 @@ export function carryOverlay<T>(carry: Carry<T>): { dispose: () => void } {
   const down = feed('down')
   const move = feed('move')
   const up = feed('up')
+  /*
+  A DRAG LET GO OVER NOTHING goes back. Bubble phase on the window, so every
+  panel has already handled this release (a drop on one has cleared the
+  carry). Only a drag: a two-tap pick-up happens ON a release, and the page
+  examples' own "cancel on any pointerup" put every tap pick-up straight back
+  (found by the 0.10.6 review).
+  */
+  const missed = () => {
+    if (carry.state.thing != null && carry.state.mode === 'drag') carry.cancel()
+  }
   window.addEventListener('pointerdown', down, true)
   window.addEventListener('pointermove', move, true)
   window.addEventListener('pointerup', up, true)
+  window.addEventListener('pointerup', missed)
   const it = {
     dispose() {
       ghosts.dispose()
       window.removeEventListener('pointerdown', down, true)
       window.removeEventListener('pointermove', move, true)
       window.removeEventListener('pointerup', up, true)
+      window.removeEventListener('pointerup', missed)
       layer.remove()
       overlays.delete(carry)
     },

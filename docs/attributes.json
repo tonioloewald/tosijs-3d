@@ -1,5 +1,21 @@
 [
   {
+    "module": "anchor-layout",
+    "summary": "anchor-layout",
+    "attributes": [
+      {
+        "name": "left",
+        "default": "width",
+        "description": "its anchor point at `left`"
+      },
+      {
+        "name": "right",
+        "default": "the same",
+        "description": "its right edge at `right` from the right edge (its anchor point, if you give one)"
+      }
+    ]
+  },
+  {
     "module": "angle-field",
     "summary": "angle-field",
     "attributes": [
@@ -3422,13 +3438,13 @@
       },
       {
         "name": "shadowNormalBias",
-        "default": "0.05",
+        "default": "0.02",
         "description": "Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters"
       },
       {
         "name": "shadowBias",
-        "default": "0.00005",
-        "description": "Depth-direction bias; peter-pans sooner than `shadowNormalBias`, so tune that one first"
+        "default": "0.0005",
+        "description": "Depth-direction bias, in the cascade's depth range. With `shadowNormalBias` at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise `shadowNormalBias` instead and thin limbs lose their shadow"
       },
       {
         "name": "shadowTextureSize",
@@ -3449,6 +3465,11 @@
         "name": "stabilizeCascades",
         "default": "'on'",
         "description": "Reduce shadow-edge \"swimming\" under motion"
+      },
+      {
+        "name": "shadows",
+        "default": "'on'",
+        "description": "`'off'`: the sun casts no shadows (the light stays). Shadows are always cascaded; there is no `shadowCascading` attribute, and passing one does nothing"
       },
       {
         "name": "lambda",
@@ -3941,6 +3962,11 @@
         "name": "beltCount",
         "default": "1500",
         "description": "Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)"
+      },
+      {
+        "name": "timeScale",
+        "default": "3600",
+        "description": "Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale`"
       },
       {
         "name": "maps",
@@ -5098,6 +5124,50 @@
         "name": "o",
         "default": "opacity N%",
         "description": "`camera50o`"
+      }
+    ]
+  },
+  {
+    "module": "inventory-box",
+    "summary": "inventory-box",
+    "attributes": [
+      {
+        "name": "inv",
+        "default": "the model and the carry (share both between panels)"
+      },
+      {
+        "name": "carry",
+        "default": "the model and the carry (share both between panels)"
+      },
+      {
+        "name": "host",
+        "default": "<svg>"
+      },
+      {
+        "name": "schematics",
+        "default": "art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)"
+      },
+      {
+        "name": "height",
+        "default": "a fixed height that scrolls, instead of growing to fit"
+      },
+      {
+        "name": "handleDrop",
+        "default": "(item, kind, from)"
+      }
+    ]
+  },
+  {
+    "module": "inventory",
+    "summary": "inventory",
+    "attributes": [
+      {
+        "name": "kinds",
+        "default": "the catalogue"
+      },
+      {
+        "name": "contribution",
+        "default": "(item, kind, place) => numbers"
       }
     ]
   },

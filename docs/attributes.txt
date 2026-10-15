@@ -8,6 +8,12 @@ not be found.
 Format: `module` / `tag` — then one line per attribute:
 `name  default  description`
 
+## anchor-layout
+anchor-layout
+
+  left  = width  — its anchor point at `left`
+  right  = the same  — its right edge at `right` from the right edge (its anchor point, if you give one)
+
 ## angle-field
 angle-field
 
@@ -879,12 +885,13 @@ Sun and shadows (b3d-shadows)
 
   shadowMaxZ  = 100  — Far plane of the cascaded shadow frustum
   shadowDarkness  = 0.1  — 0 = fully dark shadow, 1 = no shadow
-  shadowNormalBias  = 0.05  — Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters
-  shadowBias  = 0.00005  — Depth-direction bias; peter-pans sooner than `shadowNormalBias`, so tune that one first
+  shadowNormalBias  = 0.02  — Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters
+  shadowBias  = 0.0005  — Depth-direction bias, in the cascade's depth range. With `shadowNormalBias` at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise `shadowNormalBias` instead and thin limbs lose their shadow
   shadowTextureSize  = auto  — Shadow map resolution (per cascade); `auto` = device tier
   activeDistance  = 30  — Max camera-to-mesh distance a caster participates from
   numCascades  = auto  — Number of cascade splits (1–4); `auto` = device tier
   stabilizeCascades  = 'on'  — Reduce shadow-edge "swimming" under motion
+  shadows  = 'on'  — `'off'`: the sun casts no shadows (the light stays). Shadows are always cascaded; there is no `shadowCascading` attribute, and passing one does nothing
   lambda  = 0.8  — Cascade split blend (0 = uniform, 1 = logarithmic)
   cascadeBlendPercentage  = 0.1  — Soft blend across cascade seams
   x  = 0  — Sun direction X (overridden by skybox when present)
@@ -1001,6 +1008,7 @@ b3d-star-system
   animate  = 'on'  — Animate planet orbital motion
   showOrbits  = 'on'  — Show orbital path lines
   beltCount  = 1500  — Rocks drawn in the asteroid belt, when the system has one (it sits in a wide gap between the rocky planets and the first giant)
+  timeScale  = 3600  — Simulated seconds per real second. Every period is real (a day, a month, a year), so this is how fast the system runs: `1` is real time, `3600` an hour a second, `3.16e6` a year in ten seconds. On top of the scene's own `timeScale`
   maps  = 'off'  — `'on'`: bodies with real maps in a `system` (our own Earth, Moon and Mars, see [sol](/sol/)) are drawn from them
   x
   y
@@ -1298,6 +1306,22 @@ icon-name
   x  = translateX N%  — `plus20x`
   y  = translateY N%  — `plus_10y`
   o  = opacity N%  — `camera50o`
+
+## inventory-box
+inventory-box
+
+  inv  = the model and the carry (share both between panels)
+  carry  = the model and the carry (share both between panels)
+  host  = <svg>
+  schematics  = art per container: `{ body: svgText }`; its sockets are the slots (`data-slot`, or ids in a `Sockets` group)
+  height  = a fixed height that scrolls, instead of growing to fit
+  handleDrop  = (item, kind, from)
+
+## inventory
+inventory
+
+  kinds  = the catalogue
+  contribution  = (item, kind, place) => numbers
 
 ## key-layout
 key-layout

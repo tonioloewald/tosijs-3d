@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="changelog">Changelog</h1>
 <!--{ "parent": "reference", "order": 20 }-->
@@ -38,8 +38,89 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
-<h2 id="0105">0.10.5</h2>
+<h2 id="0106">0.10.6</h2>
 <h3 id="added">Added</h3>
+<ul>
+<li><strong>Flat panels can be placed in screen terms</strong>: <code>screenAnchor</code> (on <code>b3dPanel</code> and frame panels) pins a panel to the view&#39;s edges in pixels, a fraction of the axis (<code>&#39;5%&#39;</code>) or of the shorter side (<code>&#39;3vmin&#39;</code>), with an anchor point, and <code>height</code> sets its size on screen. It is solved with <code>anchorLayout</code> every frame and placed square to the screen in the head-locked frame, so a resize or a different window shape keeps it where you put it; it wins over <code>flatAnchor</code>&#39;s degrees, which suit a headset, where a panel is around you. The demo loadouts use it: 64 px in, 2vmin down, 14% of the screen tall. Opened, a screen-pinned panel comes to the middle of the screen square to it, not tilted up from below eye level.</li>
+<li><strong>A box scrolls with a pointer alone</strong>: a scrollbar on its right edge when its content overflows a fixed height (drag the thumb; press the track to page). A wheel scrolls a box on a page, but a panel in a scene gets no wheel and a headset has none, so a long list was cut off with no way to reach the rest. <strong>Sticky children</strong> (<code>sticky: true</code> on a leading run) stay put while the rest scrolls under them: the inventory list&#39;s heading and drop row (#3290).</li>
+<li><strong>The Biped Playground has the loadout, and the pistol lives on your hip.</strong> Firing mode follows where the pistol is: in a hand the gun is up, on the hip it is down, in the bag or dropped there is nothing to raise. The weapon button draws it from the hip or holsters it, and dragging it into a hand does the same. <code>b3dBiped</code>&#39;s new <code>whenWeapon</code> (JS) lets a game answer the weapon button itself and call <code>setGunplay</code>; <code>demoLoadout({ equip })</code> starts with things worn and returns its <code>inv</code> (#3305).</li>
+<li><strong>The Biped Playground has a pool</strong>: 14 x 10 m, 3.5 m deep, in the far corner past the catwalk, with a shelving ramp at one end to walk in on (where <code>isSwimming</code>&#39;s hysteresis is tested) and caustics on the floor. Sunk into the ground, because a biped swims anywhere below the water&#39;s height: <code>b3dGround</code>&#39;s new <code>holes</code> (JS) cuts rectangles out of it, keeping its texture unbroken around them. <code>playground({ pool: false })</code> leaves it out.</li>
+<li><strong>A drop target.</strong> <code>inventoryPanel</code>/<code>inventoryDock</code> <code>handleDrop(item, kind, from)</code> adds a <strong>drop</strong> row at the top of the list: a thing dropped there leaves the inventory, after the game has had its say (return reasons to refuse and it springs back; otherwise put it in the world). Both demos have one (#3290).</li>
+<li><strong><code>ui.anchorLayout</code>, the third layout</strong> beside the flow: positioned and layered. An item is pinned to any edge with an offset (units or a fraction, <code>&#39;50%&#39;</code>), with a natural or fixed size; between two pins its size is what they leave and a stated size is a minimum. Its anchor (<code>anchorX</code>/<code>anchorY</code>, <code>anchor: &#39;center&#39;</code>; default the top left) is the point a pin places and the way a minimum that does not fit overflows. <code>within</code> pins it inside a rectangle of the container (a window in the artwork). Paint order is the order given or <code>z</code>. Pure and unit-tested; the box mode that uses it is next (#3309).</li>
+<li><strong>Things have pictures, and say what they are.</strong> An item kind&#39;s <code>icon</code> (SVG markup) is drawn on its tile: beside the name in a list, alone and filling a socket, and as the ghost a drag carries. Pointing at a thing, or selecting it with a gamepad, shows an info floater (its name, <code>description</code>, mass and what it adds by default; <code>info</code> replaces that), drawn in the ghost&#39;s layer so nothing clips it. <code>carryTile</code> takes <code>icon</code> and <code>info</code>. The demos load one picture per kind from <code>/item-icons.json</code> (#3290).</li>
+<li><strong>A frame panel can come to you.</strong> Content that dispatches <code>panelfocus</code> (<code>detail: { focus: true }</code>) on its SVG brings its panel front and centre (<code>focusAnchor</code>, default straight ahead and a little low), enlarged (<code>focusScale</code>, default 1.9, at 0.75 m) and always revealed; <code>focus: false</code> sends it back. A focused panel never sits inside the camera&#39;s near plane (it is pushed out and scaled to look the same size) and is never bigger than the view (it fits 92% of it, allowing for being off-centre), so a monitor shows all of it. <code>flatAnchor</code> places a panel somewhere else in the flat view (the shoulder is off a monitor&#39;s edge), and <code>&lt;tosi-b3d-panel&gt;</code> takes <code>svg</code>, <code>flatAnchor</code>, <code>focusAnchor</code> and <code>focusScale</code> as JS properties. A frame panel also grows with its SVG&#39;s viewBox now, so content that opens wider gets a wider plane. <code>inventoryDock</code> asks for focus as it opens, and the main <code>tosi-b3d</code> demo pins your loadout up and to the left (over the shoulder in VR, the top left flat): touch or click it and it comes front and centre with your bag (#3290).</li>
+<li><strong>An inventory in 3D: <code>inventoryDock</code>.</strong> A loadout that lives on a plane in the scene, flat and in a headset. Closed, it is the schematic alone, small; a tap opens it, with the list beside it (a bag) to drag to and from, and a button closes it. Both are drawn in one SVG, so a drag between them is one plane with one ghost (<code>carryGhostLayer</code>). Without a <code>list</code> it opens to the schematic alone (a craft fitted from a carrier&#39;s stock). Demo: &quot;In 3D&quot; on the inventory-box page, where the loadout replaces the &quot;Inventory&quot; placeholder over your shoulder (top left flat) and a touch brings it front and centre (#3290).</li>
+<li><strong>A two-handed weapon shows in both hands</strong>: <code>inventoryPanel</code>&#39;s <code>alsoIn(item, kind, at)</code> names the other slots an item takes up, where it is drawn faded (and can be picked up from either). The game decides which; the panel only draws it (#3290).</li>
+<li><strong>Drag and drop, as a model and on a panel</strong> (INVENTORY-DESIGN step 1). <code>createCarry</code> is picking up and putting down with nothing drawn: what is carried and from where, the target under the pointer, and its verdict as REASONS; drop is all or nothing; dragging and two taps are one model, and one carry spans every panel. <code>carryTile</code>, <code>carrySocket</code> and <code>carryPanel</code> draw it on a box: things with decorations (a status bar, a damaged or broken outline, a badge), sockets that light when the held thing would fit, dim when not and say why, and a ghost that follows the pointer. A drag goes from one panel to another (they share the carry), and letting go outside every panel puts the thing back.</li>
+<li><strong>An inventory model</strong> (<code>createInventory</code>, INVENTORY-DESIGN step 2): pure, with the game&#39;s catalogue, rules, contributions and prices plugged in. Holders hold slots (a paper doll, hardpoints, mounts), lists (a bag, a stock) and grids (a hull of boxes). A move is checked against every rule on a copy and kept only if all pass, so it happens completely or not at all; it can swap, split a stack, take from the catalogue, or pay. <code>stage()</code> is a draft that may be incomplete (a cart, a barter, a design not yet committed); <code>totals</code> adds up what is fitted (and what its mount adds); <code>damage</code> crosses off a system&#39;s boxes. <code>craft</code> runs a recipe (inputs used up, tools required but kept, outputs made, one move) and <code>compile</code> turns a finished design into a new kind (a ship class, a learned spell, a forged sword). Tested against a party, a loadout, a starship design, a shop and a smithy.</li>
+<li><strong><code>inventoryPanel</code></strong>: one holder of an inventory on a panel, with drag and drop wired to the model, so a socket lights, dims and explains with the game&#39;s own rules. Panels sharing an inventory and a carry are a party, a trade or (with <code>moveFor</code> adding a price) a shop.</li>
+<li><strong>Schematics</strong>: <code>inventoryPanel({ schematics: { body: svgText } })</code> draws a container as art, and its slots go where the art&#39;s sockets are (<code>data-slot=&quot;…&quot;</code>, or ids in a <code>Sockets</code> group; <code>readSchematic</code> reads one). Sockets on art draw nothing at rest, outline when what is held fits, darken when not, and name themselves and the reason on hover. Demos: equip a person, arm a Manta from a carrier&#39;s counted stock, and a shop (its goods left, yours right, the deal in the middle: one <code>move</code> that buys, sells and pays, or does none of it). Panels take <code>height</code> (a scrolling list), <code>only</code>/<code>hide</code> (split one holder across panels) and <code>refuse</code> (a view&#39;s own reasons), and show the holder&#39;s purse.</li>
+<li><strong>A schematic is drawn at the art&#39;s own scale</strong>, cropped to what it draws and shrunk only when the panel is too narrow (<code>schematicFit</code>), so a socket designed 44 units square is a 44-unit target, not whatever the file&#39;s margins left of it.</li>
+<li><strong>The demo schematics are coloured by CSS variables</strong> with defaults for a dark panel (<code>--schematic-body</code>, <code>--schematic-socket</code>, <code>--schematic-socket-edge</code>, <code>--schematic-label</code>): a host restyles them on the page, and a texture draws the defaults.</li>
+<li><strong>A box child can be placed</strong> (<code>at: { x, y }</code>): over the flowed child before it, at that offset, taking no flow space and hit first. Sockets on a schematic are this.</li>
+</ul>
+<h3 id="changed">Changed</h3>
+<ul>
+<li><strong>The closed loadout is a small picture</strong>: no heading over it and no sockets drawn, only what is in them (all return when open), corners rounded well past the panel&#39;s own, 0.125 m wide (was 0.3; <code>focusScale</code> 4.56 keeps the opened size), and flat it sits nearer the top-left corner (18° up, was 10°), square to the screen. Frame panel anchors gain <code>flatOn</code> (parallel to the frame&#39;s view plane rather than turned to face the eye) and <code>tiltDeg</code> (tip it about its own horizontal axis without moving it) (#3290).</li>
+<li><strong>Inventory list rows are full width</strong>, so a row is a button you can hit anywhere along it. <strong>Swimming starts chest deep</strong> (0.65 submerged, down to 0.5 to stand again; it was waist deep, 0.5 and 0.35), and a swimmer rides a little higher than the last change (12 cm of water above the head bone, was 20; treading unchanged) (#3290).</li>
+<li><strong>The opened dock&#39;s list is as tall as the loadout beside it</strong> (it scrolls), not a fixed 540 that made the whole dock taller than its picture. <code>height</code> still sets it explicitly (#3290).</li>
+<li><strong>An inventory panel&#39;s heading sits over its schematic&#39;s top left</strong> (title, totals, the container&#39;s name) instead of stacked above it, so the picture is larger, which matters most on the small pinned loadout. A panel whose first container is not a schematic keeps its heading above (#3290).</li>
+<li><strong>SVG panels are mipmapped</strong> (<code>SvgTexture</code> <code>mipmaps</code>, default <code>true</code>: trilinear, anisotropic 4). A panel is nearly always drawn smaller than its texture (1024 px over ~300 px of a Quest 3&#39;s view at arm&#39;s length), and unfiltered its hairlines broke up and its text crawled; the small pinned loadout&#39;s socket outlines were visibly broken and now draw whole. Every in-scene panel, popup and HUD goes through it. Mip generation measured under 0.1 ms per repaint at 1024 px; it costs a third more texture memory. <code>mipmaps: false</code> for a texture always seen at about a texel per pixel.</li>
+<li><strong>An inventory panel on a page fits the space it is given</strong> instead of being cropped (<code>fit</code>, default on): side by side they shrink in proportion, in a column it is no wider than the column, never taller than its container, never larger than drawn, always the same shape. Anything the page sets inline on the host wins (#3290).</li>
+<li>The default body panels are an inventory over the left shoulder and a <strong>journal</strong> over the right (both were &quot;Inventory&quot;) (#3290).</li>
+<li><code>panelScene</code>&#39;s orbit camera stops at half its starting distance (<code>camera.minRadius</code>), so zooming cannot pass through the panel (#3290).</li>
+<li><strong>A planet&#39;s edge has a golden hour.</strong> Where you see its air edge on and the sun is low over it, the air takes the colour left when its own is scattered out: Earth&#39;s goes gold, Mars&#39;s dusty air goes blue. The whole lit rim takes it together, by how far the sun has gone behind the planet from where you are: lit from the side, the rim (its &quot;poles&quot; included) stays the air&#39;s own colour. Face on, nothing changes (#3285).</li>
+<li><strong>The Solar System&#39;s sky is tilted as ours is</strong>: the planets orbit about 60.2° to the galaxy&#39;s plane, so the Milky Way crosses the orbits steeply instead of running along them (<code>spaceBackdrop({ tilt })</code>).</li>
+<li><strong>While you carry something, the sockets that would take it light up</strong>, the one under the pointer brighter and named, and the rest go dark. The ghost hangs above the pointer, so the socket you are over stays in sight (#3290).</li>
+<li><strong>A panel that shows one list takes a drop anywhere on it</strong>, not just on its tiles or the &quot;put in&quot; row at the bottom of a scrolled list, and is outlined while it would take what you carry. Dragging a thing off a socket back into the bag is a drop on the bag (<code>carryPanel(box, carry, { fallback })</code>) (#3290).</li>
+<li><strong>A drop that does not land springs back.</strong> Refused by its target, let go on nothing, or released outside every panel, the ghost returns to where it was picked up and shows why it was refused there for a moment. <code>carryPanel</code> now returns <code>dispose</code>, and <code>inventoryPanel</code> calls it on each rebuild (a rebuilt panel used to leave its old carry subscription behind) (#3290).</li>
+</ul>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li><p><strong>In a headset, a screen-pinned panel is where its VR anchor says</strong> (found by the release review). Screen pins are for a monitor: in a session they were still applied, putting the loadout a metre ahead, sized from the flat canvas, instead of on your left shoulder. <code>presentationSpec(spec, flat)</code> is now the one rule every attach site uses (flat: the flat anchor and screen pins; in VR: neither). Checked in the emulated headset.</p>
+</li>
+<li><p><strong>Two-tap works on a page</strong> (found by the release review). The page examples cancelled the carry on every <code>pointerup</code>, and a tap pick-up happens ON a release, so it was put straight back. <code>carryOverlay</code> now cancels a drag let go over nothing itself, after the panels have had the release, and never a tap; the examples no longer add their own.</p>
+</li>
+<li><p><strong>A press on a panel in the scene no longer also works the game&#39;s controls.</strong> The biped reads mouse buttons (the left button is A, a jump), so every press on the playground&#39;s loadout made the hero jump, and with a weapon up could fire it. A frame panel now cancels the <code>pointerdown</code> it takes, which by the web&#39;s own rule stops the matching <code>mousedown</code>/<code>mouseup</code>; the scene&#39;s picking is pointer events and carries on.</p>
+</li>
+<li><p><strong>A focused panel fits the view a looking-down camera actually has.</strong> Its room was worked out from where it sits in its frame, which is level while a follow camera pitches down; it is now measured in the camera&#39;s own view.</p>
+</li>
+<li><p><strong>Swimmers ride lower.</strong> The water sat at the head bone (the base of the skull), which left a treader&#39;s shoulders and arms out and a swimmer&#39;s head, shoulders and back riding on top. It now sits 10 cm higher on a treader (at the jaw: the head out) and 20 cm on a swimmer (over the back: the head breaking).</p>
+</li>
+<li><p><strong>Raising the weapon aims straight ahead.</strong> The aim is the look pitch, which kept whatever it was left at (looking at the ground, the last dive), so the gun often came up pointing at your feet. <code>setGunplay(true)</code> levels it, flat only (in a headset the aim is the controller); lowering the weapon leaves the view alone.</p>
+</li>
+<li><p><strong>First person shows the world, not the back of your head.</strong> Sprinting leans the head 22° forward and swimming far more, and the back and underside of the skull filled the view (measured in the playground: half the screen while sprinting). The head bone is collapsed while in first person, the way first-person games do it, so the arms and body stay (your hands show as you swim); it is restored out of first person, and the shadow is headless while you are in it. The eye now sits along the head&#39;s own axes, 10 cm up the skull, rather than offset along the body&#39;s level facing (#3291).</p>
+</li>
+<li><p><strong>Aiming down while swimming dives.</strong> At the surface a swimmer&#39;s buoyancy (set so the swim pose floats on the waterline) lifted about as fast as a downward stroke sank, so pitching down with the right stick and swimming went nowhere, and up is capped at the surface by design: the stick seemed to do nothing either way. A stroke aimed down now takes the vertical from buoyancy in proportion to how steeply and how hard you swim (<code>diveBuoyancy</code>); let go and buoyancy surfaces you as before. Measured in the new pool: 1.3 m deeper in two seconds, where it was 0.3.</p>
+</li>
+<li><p><strong>An open inventory survives entering or leaving a headset.</strong> Opened flat, then into VR, the loadout came up small on its shoulder still showing the bag, and a tap did nothing (it was already open), there and back out. A session change rebuilds the frame panels, and the new one never heard the dock&#39;s <code>panelfocus</code>. Content now also marks its SVG <code>data-focus=&quot;true&quot;</code> while focused, and a frame panel made later starts from it (#3290).</p>
+</li>
+<li><p><strong>A sun&#39;s shadows can be turned off</strong>: <code>&lt;tosi-b3d-sun shadows=&quot;off&quot;&gt;</code> (<code>&#39;on&#39;</code> by default; live, so a toggle works). The demos, the README and this repo&#39;s notes passed <code>shadowCascading: true</code>, which was never an attribute: shadows are always cascaded, and <code>shadowCascading: false</code> silently did nothing. It is gone from every example.</p>
+</li>
+<li><p><strong>No more fine bands over every lit surface.</strong> <code>&lt;tosi-b3d-sun&gt;</code>&#39;s <code>shadowBias</code> default is 0.0005 (was Babylon&#39;s 0.00005). With <code>shadowNormalBias</code> at 0.02, which has to stay low or thin limbs lose their shadow, plain scenes (the primitives and getting-started demos) were striped with shadow acne on the ground, the boxes and the spheres. A character&#39;s shadow is unchanged. The attribute table also said <code>shadowNormalBias</code> defaulted to 0.05; it is 0.02.</p>
+</li>
+<li><p><strong>The checker ground is checkered.</strong> <code>b3dGround({ texture: &#39;checker&#39; })</code> drew one flat grey: the texture clamped at its edge instead of repeating, so every tile past the first was the edge colour. It repeats now, and is mipmapped so it does not shimmer toward the horizon. Its dark squares are 70% of the ground colour (they were a fixed grey barely darker than the default ground).</p>
+</li>
+<li><p><strong>Getting started opens on a running scene</strong>: the first scene is a live example, and below it the same scene as plain HTML markup, live too.</p>
+</li>
+<li><p><strong>A star system keeps real time.</strong> Every day, month and year is the real one, and a new <code>timeScale</code> attribute (simulated seconds per real second, default 3600: an hour a second, an Earth day in 24 seconds) says how fast it runs; both demos have a log <strong>time</strong> slider from real time to a year every ten seconds. Planets used to turn once in about 80 seconds against a 60-second year, so they looked still, and moons took longer to go round their planet than the planet took to go round the Sun. Now <code>SystemPlanetSpec.day</code> (Earth days, negative backwards) and <code>SystemBodySpec.period</code> (a moon&#39;s month in days, negative backwards) carry the truth for Sol (Venus and Uranus turn backwards, Triton goes round backwards); a generated moon gets Kepler&#39;s month for a true distance (<code>moonPeriod</code>), a generated rock an Earth day, a giant a Jupiter one. Orbits, months and days are angles of one clock (<code>spinAngle</code>), so they keep time together and stop together with <code>animate</code>.</p>
+</li>
+<li><p><strong>Dragging on a frame panel no longer turns the camera.</strong> Flat, the camera&#39;s own controls took the same pointer, so a drag across a panel orbited the view behind it. A press on a frame panel now holds the camera&#39;s controls until release (#3290).</p>
+</li>
+<li><p><strong>A drag that leaves its panel at once still drags.</strong> A press on a thing, then a pointer that was already over another panel by its next move (a controller ray moves in big steps; so does a fast flick), forgot the press and dragged nothing. Leaving a panel with a thing pressed now starts the drag. Found driving the loadout with an emulated controller (#3290).</p>
+</li>
+<li><p><strong>A trigger press in VR always counts, whichever hand it is.</strong> Babylon points with one controller, the first to connect, and a press on the other one only switched to it: the press was dropped, so the first press of a session (and any press after the headset swapped controllers) did nothing. Now the right hand points first, and a press on the hand that is not pointing switches to it and is delivered. It reads Babylon&#39;s private per-controller state; a Babylon upgrade that renames it brings back the dropped press rather than breaking anything (#3290).</p>
+</li>
+<li><p>An inventory panel&#39;s totals line is always there, so the first thing worn no longer pushes the schematic down (#3290).</p>
+</li>
+<li><p><strong>Dragging between inventory panels works with a finger or a headset&#39;s laser.</strong> Both are captured by the element they press, so the moves and the release never reached another panel; <code>inventoryPanel</code> now lets the capture go as it arrives (a mouse was never captured, which is why it worked on a desktop). And on a page the ghost is drawn in one overlay above every panel (<code>carryOverlay(carry)</code>, with <code>carryPanel(…, { ghost: false })</code>), so it crosses from one panel to the next instead of being clipped by each. A panel on a 3D plane keeps its own ghost (#3290).</p>
+</li>
+<li><p><strong>A thing can be dragged out of a socket</strong> (it could only be dragged out of a list), and a thing in a list is itself a place to drop into that list, so a long, scrolled list takes a drop anywhere. A thing put back in a list joins a stack of its kind with room (a missile returned to the carrier is counted again); one drawn from a stack swaps with what a slot held.</p>
+</li>
+</ul>
+<p>Size: barrel (min, packages external) 1082.1 KB raw / 368.9 KB gz, +3.80% on 0.10.5.</p>
+<h2 id="0105">0.10.5</h2>
+<h3 id="added-1">Added</h3>
 <ul>
 <li><strong>The Solar System demo</strong> (Demos): our own system from the library&#39;s parts, every planet and moon a planet, Phobos, Deimos, Vesta and Pallas as lumpy rocks, the asteroid belt, a <code>look at</code> camera that follows a body from its sunlit side, and <strong>real maps</strong> for the Earth, the Moon and Mars at the flick of a toggle. <code>SOL</code> is the system as data; a star system draws any <code>SystemSpec</code> you give its <code>system</code> property (<code>maps=&quot;on&quot;</code> uses a body&#39;s real maps), and <code>layoutSystem</code> takes known moons and belt bodies. A new <code>ice</code> world (Europa, Enceladus, Triton).</li>
 <li><strong>Rocky worlds: <code>&lt;tosi-b3d-planet world=&quot;moon&quot;&gt;</code>.</strong> <code>ROCKY_WORLDS</code> has the Moon, Mercury, Mars, Venus, Io, Titan and an Earth as data (sea and its colour, air, clouds, relief, craters, climate, and for Io and Titan their own ground colours), the rocky half of <code>GAS_GIANTS</code>. <code>world</code> is a preset: choosing one writes its values into the planet&#39;s own settings, which stay yours to tune (<code>worldOverrides</code> changes the preset for one planet). A planet takes <code>seaShallow</code>/<code>seaDeep</code> for its sea&#39;s colour (Titan&#39;s methane). The colours are the biome chart&#39;s (a dry warm world is red, a dry cold one grey).</li>
@@ -51,13 +132,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 <ul>
 <li>⚠️ <strong>The Rocket Ascent demo and <code>rocketAscent()</code></strong>, outdated; the Solar System demo replaces it in the demos.</li>
 </ul>
-<h3 id="changed">Changed</h3>
+<h3 id="changed-1">Changed</h3>
 <ul>
 <li><strong>Stars look like stars.</strong> <code>&lt;tosi-b3d-star&gt;</code> and a star system&#39;s star share one surface material (<code>star-material</code>): white-hot in the middle and shading into the star&#39;s own colour toward a darker limb (only a warm star reddens there), slowly boiling granulation and a few sunspots; the glow peaks at the edge and fades outward instead of washing the disc out. They were a flat emissive colour, a white ball. The spectral colours are stylised so each class reads as its own: O white with a trace of violet, B violet-blue, A blue, F green, G a clear yellow (the Sun too), K orange, M red.</li>
 <li><strong>Gas giants tear at their band edges.</strong> Turbulence is eddies where the wind reverses, in patches along the edges, instead of a warp that made every band wavy; inside a band the texture is billow filaments along the wind. A storm brighter than the zones (Neptune&#39;s) is dark with bright cloud at its rim.</li>
 <li><strong>A planet&#39;s ring lies in its equator.</strong> It was tipped off it, and as the planet turned the ring precessed.</li>
 </ul>
-<h3 id="fixed">Fixed</h3>
+<h3 id="fixed-1">Fixed</h3>
 <ul>
 <li><strong>A gas giant&#39;s storm had a seam</strong> where its swirl read noise at an angle that jumps a full turn.</li>
 <li><strong>Gas giant poles had a dark blotch</strong>, a cap of a different colour; the bands now close in on the pole, a little darker.</li>
@@ -65,7 +146,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 </ul>
 <p>Size: barrel (min, packages external) 1042.5 KB raw / 353.5 KB gz, +3.67% on 0.10.4.</p>
 <h2 id="0104">0.10.4</h2>
-<h3 id="added-1">Added</h3>
+<h3 id="added-2">Added</h3>
 <ul>
 <li><p><strong>Land and Sky: a sphere world switch.</strong> The World tab has <code>sphere world</code> and <code>planet radius</code> (2 to 6,400 km): the same ground laid on a planet, starting at 45° north, with the latitude climate above. Presets save both.</p>
 </li>
@@ -105,7 +186,7 @@ the sea. The real-worlds Earth has it on, and that demo gained <code>clouds</cod
 <code>storms</code> (how many, up to four) and <code>storm intensity</code> sliders.</p>
 </li>
 </ul>
-<h3 id="changed-1">Changed</h3>
+<h3 id="changed-2">Changed</h3>
 <ul>
 <li><strong>Height dries the land over the land&#39;s own height</strong>, from the sea level to the highest the ground reaches, not over the whole relief (most of which may be under water). Land and Sky&#39;s moisture is 0.95, up from 0.72, which since the dead row was added had meant steppe rather than forest.</li>
 <li><strong>⚠️ The ground&#39;s climate varies by region, so worlds look different out of the box.</strong> The biome shader&#39;s moisture noise was patches 50 m across at ±0.18, too small and too faint to change a biome, so every island was the same mottle. It is now regions about a kilometre across at ±0.5 (<code>mNoiseScale</code> 0.001, <code>mNoiseAmp</code> 0.5 on <code>terrain.biomePlugin.params</code>): one island is forest, the next is dry. For the old look set them to 0.02 and 0.18. Land and Sky has <code>moisture variation</code> and <code>region size</code> sliders.</li>
@@ -122,7 +203,7 @@ shader&#39;s fine noise (as terrain already did) and the sea&#39;s glint. The
 glint is only worked out near the sun&#39;s reflection, which is a small part
 of an ocean. Not yet measured on a headset.</li>
 </ul>
-<h3 id="fixed-1">Fixed</h3>
+<h3 id="fixed-2">Fixed</h3>
 <ul>
 <li><strong>A dry world&#39;s crater floors were drawn as sea bed</strong>, a flat dark patch: the classifier took the zero height for a sea. A world with no sea now has none under its ground, and its classifier works at the planet&#39;s own scale (a datum at 0.001 had put its noise past float precision).</li>
 <li><strong>Small bodies in a star system were coarse</strong> (a belt body&#39;s mesh was 16 divisions a face, so crater rims drew straight lines across Ceres); moons and named asteroids are 40 now.</li>
@@ -153,7 +234,7 @@ terminator.</li>
 <li><strong>(behaviour) A planet&#39;s clouds ride half way up its atmosphere</strong> (they
 were capped at 2% of the radius), so a deeper <code>atmosphere</code> lifts them.</li>
 </ul>
-<h3 id="changed-2">Changed</h3>
+<h3 id="changed-3">Changed</h3>
 <ul>
 <li><strong>Planet storms look like storms.</strong> The winding is a vortex&#39;s (tightest
 round the eye, barely bending the outer arms; it used to shear hardest at
@@ -163,7 +244,7 @@ plate.</li>
 </ul>
 <p>Size: barrel (min, packages external) 1025.1 KB raw / 347.8 KB gz, +1.95% on 0.10.3.</p>
 <h2 id="0103">0.10.3</h2>
-<h3 id="added-2">Added</h3>
+<h3 id="added-3">Added</h3>
 <ul>
 <li><strong>One world, two views.</strong> A terrain in <code>surfaceType=&quot;sphere&quot;</code> can hand out
 its own surface as a globe (<code>terrain.planetSurface()</code>), and
@@ -191,7 +272,7 @@ the weather from orbit only, its own field and its own storms; it does not
 yet agree with the cloud deck and weather cells on that world&#39;s ground.</li>
 <li><code>planet.rootNode</code> is public, for placing a planet.</li>
 </ul>
-<h3 id="fixed-2">Fixed</h3>
+<h3 id="fixed-3">Fixed</h3>
 <ul>
 <li><strong>(behaviour) Planets turn west to east.</strong> <code>rotationSpeed</code> spun them the
 other way, so the Earth ran backwards. A negative <code>rotationSpeed</code> turns a
@@ -215,7 +296,7 @@ used to stand still while it turned beneath them.</li>
 </ul>
 <p>Size: barrel (min, packages external) 1005.5 KB raw / 340.6 KB gz, +1.8% on 0.10.2.</p>
 <h2 id="0102">0.10.2</h2>
-<h3 id="added-3">Added</h3>
+<h3 id="added-4">Added</h3>
 <ul>
 <li><p><strong>Gas giants in the sky.</strong> <code>&lt;tosi-b3d-moon gas=&quot;jupiter&quot;&gt;</code> (also <code>saturn</code>,
 <code>uranus</code>, <code>neptune</code>) draws a banded planet with winds that alternate from
@@ -252,7 +333,7 @@ popup has a title bar with close and move, captioned with the row&#39;s label.</
 <li><p><strong>A popup&#39;s title band can carry a caption</strong>: <code>title</code> on <code>showLayer</code>.</p>
 </li>
 </ul>
-<h3 id="fixed-3">Fixed</h3>
+<h3 id="fixed-4">Fixed</h3>
 <ul>
 <li><p><strong>Climbing onto a moving lift no longer leaves the biped waist deep in its
 deck.</strong> The climb aimed at where the deck was when it began; the landing now
@@ -294,7 +375,7 @@ own, and left the demo without its styles.</p>
 <h2 id="0101">0.10.1</h2>
 <p>Five requests from manta-recon. Nothing changes unless you set the new dials,
 with two exceptions marked <strong>(behaviour)</strong>.</p>
-<h3 id="added-4">Added</h3>
+<h3 id="added-5">Added</h3>
 <ul>
 <li><strong><code>&lt;tosi-b3d-aircraft climbCost&gt;</code></strong> (default <code>0.4</code>): what a climb costs in
 speed as a fraction of <code>maxSpeed</code>. It was fixed, so the only way to make a
@@ -310,7 +391,7 @@ went faint over a black sky.</li>
 <li><strong><code>pad.suppress(reason)</code> / <code>pad.release(reason)</code></strong> on the glass gamepad, for
 a menu drawn in the scene.</li>
 </ul>
-<h3 id="fixed-4">Fixed</h3>
+<h3 id="fixed-5">Fixed</h3>
 <ul>
 <li><strong>(behaviour) The glass gamepad steps aside while the scene is paused,
 while a death panel is up and while a modal popup is open.</strong> It sat over
@@ -405,7 +486,7 @@ dead. A test now fails on a link to a page that does not exist.</li>
 <li>Every section landing page says which page you want, where most were a bare
 list of links.</li>
 </ul>
-<h3 id="fixed-5">Fixed</h3>
+<h3 id="fixed-6">Fixed</h3>
 <ul>
 <li><strong>A headset is drawn at the device tier&#39;s resolution.</strong> It never was: the
 tier lowered the engine&#39;s hardware scaling for a session, and that does not
@@ -599,7 +680,7 @@ it. <code>chartTemperature</code> / <code>planetTemperature</code> convert. Ever
 biome shader, province climate and decorator bands is still in chart
 units. See <a href="https://3d.tosijs.net/Migration/">Migration</a>.</li>
 </ul>
-<h3 id="changed-3">Changed</h3>
+<h3 id="changed-4">Changed</h3>
 <ul>
 <li><strong>The deprecated <code>onX</code> callback names stay for one more minor.</strong> They were
 announced as &quot;removed in 0.9&quot;; they are removed in <strong>0.10</strong> instead, and
@@ -608,7 +689,7 @@ for removal in 0.9 (<code>whenEnter</code>/<code>whenExit</code>&#39;s old spell
 the manipulator&#39;s, <code>generateGalaxy</code>). Nothing to do yet beyond renaming at
 your own pace.</li>
 </ul>
-<h3 id="added-5">Added</h3>
+<h3 id="added-6">Added</h3>
 <ul>
 <li><strong>A shoreline, and sea ice.</strong> <code>&lt;tosi-b3d-water shore=&quot;on&quot;&gt;</code> gives the water
 the depth of the ground under each vertex (from the scene&#39;s terrain) and
@@ -638,7 +719,7 @@ where it collides. A biped swimming at the surface climbs onto solid ice;
 one that dived first goes under it, with the ice as a ceiling.
 <code>water.iceBearsAt(x, z)</code> asks for any point.</li>
 </ul>
-<h3 id="fixed-6">Fixed</h3>
+<h3 id="fixed-7">Fixed</h3>
 <ul>
 <li><strong>Water animates on every browser.</strong> Babylon&#39;s <code>WaterMaterial</code> advances
 its clock only on a frame whose duration differs from the last, so where
@@ -671,7 +752,7 @@ trees gathered into copses, and a biome shader that colours vegetation by the
 ground under it and by the season: autumn colour, bare winter branches, snow.</p>
 <p>Size: barrel (min, packages external) 932.0 KB raw / 313.0 KB gz, +1.85% on
 0.8.14.</p>
-<h3 id="added-6">Added</h3>
+<h3 id="added-7">Added</h3>
 <ul>
 <li><p><strong>Procedural rocks.</strong> <code>rockGeometry({ seed })</code> makes a rock from a seed
 (a sphere cut by random planes, roughened, squashed, sunk into the ground):
@@ -731,7 +812,7 @@ model&#39;s use of a shared material).</p>
 demo on any device; Land and Sky has its own control too.</p>
 </li>
 </ul>
-<h3 id="changed-4">Changed</h3>
+<h3 id="changed-5">Changed</h3>
 <ul>
 <li><p><strong>⚠️ The decorator&#39;s defaults changed: models, rocks and layout.</strong> See
 <a href="/Migration/">Migration</a> for the exact steps. In short:</p>
@@ -782,7 +863,7 @@ skipping one eye breaks stereo. Top-tier devices are unchanged. To keep the old 
 <li><p>Land and Sky&#39;s lightning storm toggle moved to the Weather tab.</p>
 </li>
 </ul>
-<h3 id="fixed-7">Fixed</h3>
+<h3 id="fixed-8">Fixed</h3>
 <ul>
 <li><p><strong>A small, distant sun is visible in an airless sky.</strong> Its disc is drawn at
 true size, which from Jupiter is under a pixel, so Io had no sun. A tight
@@ -807,7 +888,7 @@ Earth to Mars on a tap. (Seen in a headset, reproduced flat.)</p>
 </ul>
 <h2 id="0814">0.8.14</h2>
 <p><strong>Ambient occlusion that works in a headset, and it is the default.</strong></p>
-<h3 id="changed-5">Changed</h3>
+<h3 id="changed-6">Changed</h3>
 <ul>
 <li><strong><code>ssaoMethod</code> defaults to <code>projected</code>.</strong> Scenes with <code>ssao=&quot;on&quot;</code> or <code>&quot;auto&quot;</code>
 now get the projected method flat, which keeps antialiasing and concentrates
@@ -815,7 +896,7 @@ its darkening in contacts and corners. <strong><code>ssao=&quot;on&quot;</code> 
 headset</strong>, where it used to switch itself off. <code>auto</code> still never runs in a
 headset. Set <code>ssaoMethod=&quot;screen&quot;</code> for the previous behaviour exactly.</li>
 </ul>
-<h3 id="added-7">Added</h3>
+<h3 id="added-8">Added</h3>
 <ul>
 <li><strong>Projected ambient occlusion</strong> (<code>ssaoMethod</code>, <code>ssaoRate</code> on <code>&lt;tosi-b3d&gt;</code>):
 occlusion computed once from a camera between the eyes and looked up by every
@@ -832,7 +913,7 @@ was whatever it had been when the popup opened.</li>
 <li>The SSAO demo has a bust (on the CDN at <code>tosijs-3d/ariosto-bust.glb</code>) and a
 <code>method</code> selector; the scene loader demo has shadow, glow and SSAO toggles.</li>
 </ul>
-<h3 id="fixed-8">Fixed</h3>
+<h3 id="fixed-9">Fixed</h3>
 <ul>
 <li><strong>Opening a second menu in a panel left the first one open</strong>, one list over
 the other. A panel now has one anchored popup at a time. (Seen in a headset,
@@ -840,7 +921,7 @@ reproduced flat.)</li>
 </ul>
 <h2 id="0813">0.8.13</h2>
 <p><strong>A schema for <code>&lt;tosi-b3d&gt;</code> itself, and an emulated headset in the repo.</strong></p>
-<h3 id="added-8">Added</h3>
+<h3 id="added-9">Added</h3>
 <ul>
 <li><strong><code>sceneSchemas.b3d</code> / <code>b3dSchema()</code></strong>: the host&#39;s scene-level attributes,
 with ranges, units and useful bands: <code>clearColor</code>, <code>glowLayerIntensity</code>,
@@ -860,7 +941,7 @@ page, screenshots both eyes and drives controllers from script. It is how
 Also: headset popups can be dragged and closed, and a model no longer shields
 itself from a blast. The headset fixes were verified in an EMULATED headset
 (a fake WebXR device in headless Chrome), not yet on a device.</p>
-<h3 id="fixed-9">Fixed</h3>
+<h3 id="fixed-10">Fixed</h3>
 <ul>
 <li><strong>SSAO broke VR.</strong> With <code>ssao=&quot;always&quot;</code> a headset drew one image stretched
 across both eyes, and <code>on</code> put the same chain on the headset camera for the
@@ -887,7 +968,7 @@ own hull. An aircraft with <code>destroyable=&quot;on&quot;</code> took no blast
 bomb included. Anything beneath a destroyable is now not cover; a wall
 still is. From manta-recon (board #2906).</li>
 </ul>
-<h3 id="changed-6">Changed</h3>
+<h3 id="changed-7">Changed</h3>
 <ul>
 <li><strong>SSAO is flat-only, and <code>ssao=&quot;always&quot;</code> is deprecated.</strong> 0.8.11 said
 <code>always</code> ran in a headset. It is the setting that broke the frame. It is
@@ -897,7 +978,7 @@ still accepted, means <code>on</code>, and warns once.</li>
 <p><strong>Ambient occlusion.</strong> One attribute on <code>&lt;tosi-b3d&gt;</code>, off by default. Checked
 flat; <code>always</code> (the in-headset setting) is not yet verified per eye on a
 device, and this release is partly so that it can be.</p>
-<h3 id="added-9">Added</h3>
+<h3 id="added-10">Added</h3>
 <ul>
 <li><strong>Ambient occlusion: <code>&lt;tosi-b3d ssao&gt;</code>.</strong> <code>off</code> (default), <code>auto</code> (on where
 the device tier affords it), <code>on</code>, or <code>always</code>. <code>auto</code> and <code>on</code> are
@@ -921,7 +1002,7 @@ the cause of ensemble&#39;s <code>Cannot redefine property</code> error and our 
 site shadows.</p>
 <p>Size: barrel (min, packages external) 898.6 KB raw / 300.6 KB gz, +0.05% on
 0.8.9.</p>
-<h3 id="fixed-10">Fixed</h3>
+<h3 id="fixed-11">Fixed</h3>
 <ul>
 <li><strong>Glow no longer whites out the frame under a fading full-screen mesh</strong>
 (board #2742, from manta-recon). Babylon&#39;s glow layer ignores opacity: it
@@ -939,7 +1020,7 @@ The sky used to reset it to Babylon&#39;s default grey on every refresh, so
 manta&#39;s orbit view re-set black every frame. The sky re-applies its backdrop
 when the active camera changes back.</li>
 </ul>
-<h3 id="changed-7">Changed</h3>
+<h3 id="changed-8">Changed</h3>
 <ul>
 <li><strong>Dev: tosijs-ui 1.16.5 and tosijs 1.10.7.</strong> tosijs-ui 1.16 loads the doc
 site&#39;s entry once (tosijs-ui#191), so the static shadow-shader workaround in
@@ -950,7 +1031,7 @@ double load was also ensemble&#39;s <code>Cannot redefine property: onBeforeView
 declares <code>url</code>/<code>player</code>, and a dead <code>_jumpWas</code> store is gone. The peer range
 is unchanged (<code>tosijs ^1.9.2</code>).</li>
 </ul>
-<h3 id="added-10">Added</h3>
+<h3 id="added-11">Added</h3>
 <ul>
 <li><strong><code>opacityWeightedGlow(layer)</code></strong> installs the same rule on a <code>GlowLayer</code> you
 build yourself.</li>
@@ -963,7 +1044,7 @@ attributes refuse anything but a string. And the publish now runs under the
 practices template where only a code-free job can hold the npm credential.</p>
 <p>Size: barrel (min, packages external) 898.1 KB raw / 300.5 KB gz, +0.6% on
 0.8.8.</p>
-<h3 id="added-11">Added</h3>
+<h3 id="added-12">Added</h3>
 <ul>
 <li><strong>Schemas for the moon and the weather and decoration elements</strong>
 (tosijs-3d#93, #97, from ensemble): <code>moonSchema</code>, <code>weatherCellSchema</code>,
@@ -983,7 +1064,7 @@ the grouping. Tested: every key exists, none twice.</li>
 cloud deck&#39;s <code>coverage</code> past 1 is thickness, not more cover, and <code>cirrus</code>
 is signed, its sign picking the axis.</li>
 </ul>
-<h3 id="fixed-11">Fixed</h3>
+<h3 id="fixed-12">Fixed</h3>
 <ul>
 <li><strong><code>inputField</code> leaked itself and everything containing it</strong>
 (tosijs-3d#96, from ensemble): every field&#39;s keyboard-toggle repaint went
@@ -1011,7 +1092,7 @@ now fold or tab its sections (<code>foldSections</code>, from ensemble), and tab
 better when space is tight.</p>
 <p>Size: barrel (min, packages external) 891.7 KB raw / 298.6 KB gz, +0.1% on
 0.8.7.</p>
-<h3 id="added-12">Added</h3>
+<h3 id="added-13">Added</h3>
 <ul>
 <li><strong>Bomb and missile blast radii are attributes</strong> on <code>&lt;tosi-b3d-aircraft&gt;</code>
 (board #2808, manta-recon): <code>bombFullRadius</code> / <code>bombBlastRadius</code> (2 / 6)
@@ -1023,7 +1104,7 @@ collapsible sections, folded or as tabs, and asks for a rebuild when one
 toggles. <code>&lt;tosi-b3d&gt;</code>&#39;s scene panel is built on it, so a <code>panel3d</code> of your
 own folds the same way.</li>
 </ul>
-<h3 id="changed-8">Changed</h3>
+<h3 id="changed-9">Changed</h3>
 <ul>
 <li><strong>The active tab shrinks to its own caption</strong> when tabs are tight (Tonio):
 a short active tab no longer takes the width of the longest, and the space
@@ -1032,7 +1113,7 @@ Each side stays on its side: tabs left of the active one end under it and
 tabs right of it start under it, so a narrow active tab no longer lets the
 right side cover the left side&#39;s slices.</li>
 </ul>
-<h3 id="fixed-12">Fixed</h3>
+<h3 id="fixed-13">Fixed</h3>
 <ul>
 <li><strong>Aircraft crashed into explosion debris</strong> (board #2803, manta-recon): the
 sweep ray treated <code>fragment-N</code> meshes as solid, so flying through an
@@ -1050,7 +1131,7 @@ overlap and stacking of real file tabs. Land and Sky uses icon tabs and a
 preset menu. Also: a security pin for a build-only dependency.</p>
 <p>Size: barrel (min, packages external) 891.2 KB raw / 298.3 KB gz, +0.7% on
 0.8.6.</p>
-<h3 id="added-13">Added</h3>
+<h3 id="added-14">Added</h3>
 <ul>
 <li><strong>Scene panels fit the space they have</strong> (board #2466). The flat ⚙ panel
 is capped at the scene&#39;s height (it was a fixed 620 px, and ran off the
@@ -1087,7 +1168,7 @@ a sun whose size and brightness follow the world. Lightning casts shadows
 and darkens the day, and the aircraft demo has weather to fly in.</p>
 <p>Size: barrel (min, packages external) 885.2 KB raw / 296.3 KB gz, about
 +0.3% on 0.8.5.</p>
-<h3 id="added-14">Added</h3>
+<h3 id="added-15">Added</h3>
 <ul>
 <li><strong>Land and Sky presets</strong> (board #2442, stage 1): a whole world as data
 (terrain, sea, climate, weather, atmosphere, stars, moons, cloud colours,
@@ -1127,7 +1208,7 @@ the storm&#39;s rain is now a preset setting (<code>stormRain</code>).</li>
 across your starting heading, so you crab) and storminess (a storm cell
 over the whole arena), and a live turbulence readout.</li>
 </ul>
-<h3 id="fixed-13">Fixed</h3>
+<h3 id="fixed-14">Fixed</h3>
 <ul>
 <li><strong>Lightning bolts vanished into haze</strong> while their light still lit the
 ground (Tonio: &quot;I see flashes but never seem to see lightning strokes&quot;):
@@ -1149,7 +1230,7 @@ deck&#39;s local weather was mirrored north-south, and on the doc site no shadow
 map had rendered at all.</p>
 <p>Size: barrel (min, packages external) 883.2 KB raw / 295.6 KB gz (+5.7% gz),
 for lightning, light shafts, weather cells, trails and caustics.</p>
-<h3 id="fixed-14">Fixed</h3>
+<h3 id="fixed-15">Fixed</h3>
 <ul>
 <li><p><strong>Lightning lit the land through cloud-shaped shadows</strong> (Tonio: &quot;the
 directional light seems to be coming from above the cloud layer ... the
@@ -1218,7 +1299,7 @@ it. Pure: <code>cloud-field</code>&#39;s <code>orographicLift</code>, tested. <c
 the height above the sea.</p>
 </li>
 </ul>
-<h3 id="added-15">Added</h3>
+<h3 id="added-16">Added</h3>
 <ul>
 <li><strong>Lightning casts shadows</strong> (Tonio: &quot;spin up a shadow map and retain it
 between strokes and just use it for the brightest strike&quot;). ONE shadow map,
@@ -1415,7 +1496,7 @@ audio cues, and <strong><code>submerged</code></strong> (0–1) is readable. In 
 <code>FlyByWireConfig.mediumDrag</code>, and drag now clamps at rest instead of
 overshooting into reverse on a long frame.</li>
 </ul>
-<h3 id="fixed-15">Fixed</h3>
+<h3 id="fixed-16">Fixed</h3>
 <ul>
 <li><strong>Replacing the player left input focus on the removed one</strong> (board #2421,
 from manta-recon&#39;s respawn): the new craft got no input and its crash was
@@ -1463,7 +1544,7 @@ and warn once: <code>generateGalaxy</code> (use <code>voxelGalaxy</code>), <code
 the trigger, <code>handleChange</code>/<code>handleCommit</code> on the manipulator
 (<code>whenChange</code>/<code>whenCommit</code>). <code>registerIcons</code> now refuses markup that can run.</p>
 </blockquote>
-<h3 id="fixed-16">Fixed</h3>
+<h3 id="fixed-17">Fixed</h3>
 <ul>
 <li><strong>Dropdowns in a panel with a pinned header opened over their own
 control</strong> — body popups were anchored as if there were no header, too high
@@ -1583,7 +1664,7 @@ terrain rebuild; and the fly-into-cloud whiteout rebuilt the whole weather
 field — a fresh terrain height sampler — every frame to sample one point.
 The first bakes once; the second samples the field the bake already built.</li>
 </ul>
-<h3 id="added-16">Added</h3>
+<h3 id="added-17">Added</h3>
 <ul>
 <li><strong>Undo for the two page-global mutations.</strong> <code>themeEditor()</code>&#39;s element has
 <code>restore()</code> — the palette as it was when the editor was built, then
@@ -1610,7 +1691,7 @@ not guessed), and the distant shell. <code>bakeSkyPair</code> takes precomputed
 <code>objects</code>; <code>bin/bake-stars.ts</code> rebakes <code>static/sky/stars_*</code> without a
 browser in ~1 s for the tuning loop; <code>SHIPPED_SKY.voxel</code> holds the dials.</li>
 </ul>
-<h3 id="changed-9">Changed</h3>
+<h3 id="changed-10">Changed</h3>
 <ul>
 <li><strong><code>b3d-manipulator</code> callbacks are <code>whenChange</code> / <code>whenCommit</code></strong> — the
 component convention. <code>handleChange</code>/<code>handleCommit</code> still work, warn once,
@@ -1763,7 +1844,7 @@ kitchen-sink demo module <code>tosijs-3d/world-sim</code> is now <code>tosijs-3d
 reference sky (<code>/sky/default_*.png</code>) is no longer served — it lives in
 <code>reference/sky/</code> in the repo.</p>
 </blockquote>
-<h3 id="added-17">Added</h3>
+<h3 id="added-18">Added</h3>
 <ul>
 <li><strong><code>galaxy.pickStar(x, y)</code></strong> — the star under a screen point, or <code>-1</code>: the
 nearest star whose DRAWN disc the ray crosses (the old triangle pick also
@@ -1780,7 +1861,7 @@ in commit messages.</li>
 wants ~0.7. And <code>terrain.generationKey</code>, which changes whenever the
 terrain&#39;s shape does.</li>
 </ul>
-<h3 id="changed-10">Changed</h3>
+<h3 id="changed-11">Changed</h3>
 <ul>
 <li><strong><code>b3d-galaxy</code> billboards in the vertex shader.</strong> Stars and nebulae are
 static quads the shader turns to face the viewpoint; the per-frame
@@ -1819,7 +1900,7 @@ cover 0.10,
 arrows ROTATE (up = look up); it was an orbit camera, so up-arrow nose-dived
 and left/right swung the eye round a 300 m circle.</li>
 </ul>
-<h3 id="fixed-17">Fixed</h3>
+<h3 id="fixed-18">Fixed</h3>
 <ul>
 <li><strong>The sun ran a southern-hemisphere arc at a northern latitude.</strong> North is
 +Z (every heading is <code>atan2(x, z)</code>) and the latitude rotation leaned the arc
@@ -1858,7 +1939,7 @@ system. Use <code>pickStar</code>. <code>getDistantStarParticles()</code> /
 <code>position</code>/<code>scaling</code>/<code>color</code> subset of a <code>SolidParticle</code> the baker read).</li>
 </ul>
 <h2 id="082">0.8.2</h2>
-<h3 id="added-18">Added</h3>
+<h3 id="added-19">Added</h3>
 <ul>
 <li><strong>The encoded sky</strong> — <code>starfield-codec</code> + <code>skybox-baker</code>. A starfield is data,
 not a picture: six small RGBA faces carry sub-texel position, gamma brightness
@@ -1886,7 +1967,7 @@ as a fraction of v-size), weather, and the encoded sky, under Demos.</li>
 galaxy option — the colour follows the class, and planets (71% of galaxy
 generation time) are computed on demand via <code>generateStarSystem</code>.</li>
 </ul>
-<h3 id="changed-11">Changed</h3>
+<h3 id="changed-12">Changed</h3>
 <ul>
 <li><strong>Galaxy generation is ~70× faster</strong> — names derive from each star&#39;s own
 seed via a cheap PRNG (no collision retries, no name table), planets are
@@ -1899,7 +1980,7 @@ through the light&#39;s colour.</li>
 <li><strong>The baker downloads ONE zip</strong> — twelve separate downloads got silently
 dropped by the browser mid-burst.</li>
 </ul>
-<h3 id="fixed-18">Fixed</h3>
+<h3 id="fixed-19">Fixed</h3>
 <ul>
 <li>The biome classifier&#39;s sea level and lapse rate are LIVE dials — they
 move the snow line without re-cutting the tile pool (the shader reads the
@@ -1926,7 +2007,7 @@ see Migration.md for why that direction, and how to say otherwise.</li>
 <li><strong><code>select3d</code> no longer draws ‹ › stepper arrows.</strong> The popup it always had is
 now the only way in, and is discoverable.</li>
 </ul>
-<h3 id="changed-12">Changed</h3>
+<h3 id="changed-13">Changed</h3>
 <ul>
 <li><strong>Aircraft guns damage what they pass through, instead of firing an area
 effect</strong> (#23). Blast damage resolves by distance to a destroyable&#39;s
@@ -1951,7 +2032,7 @@ the same behaviour — were invisible to every explosion in the scene. The
 registry now lives on <code>DestroyableBehavior</code>, so anything attaching one is a
 target by construction.</li>
 </ul>
-<h3 id="fixed-19">Fixed</h3>
+<h3 id="fixed-20">Fixed</h3>
 <p>A second headset pass found the rest of these. Between the two, every one was
 invisible to a green suite — and the ones on panels were all reproducible flat,
 which is now written down rather than re-learned (CLAUDE.md, &quot;A PANEL IS NOT A
@@ -2176,7 +2257,7 @@ never attached, so a visible VR spinner would have been culled.</p>
 editor no longer follows you between demos (from the 0.8.0 headset pass).</p>
 </li>
 </ul>
-<h3 id="added-19">Added</h3>
+<h3 id="added-20">Added</h3>
 <ul>
 <li><p><strong>A spatial panel can be dragged, and the drag is aimed at where you POINT.</strong>
 <code>orbitFromAim</code> walks the controller ray to the sphere&#39;s radius and asks which
@@ -2374,7 +2455,7 @@ In other words: all of them. <code>b3d-trigger</code> gains <code>whenEnter</cod
 instead, because components use <code>when*</code> (see Fixed).</p>
 </li>
 </ul>
-<h3 id="added-20">Added</h3>
+<h3 id="added-21">Added</h3>
 <ul>
 <li><p><strong><code>handlerOf</code></strong> (<code>handler-of.ts</code>, exported from the barrel) — the shim behind
 the <code>handleX</code>/<code>onX</code> rule, in its own dependency-free module so the smallest
@@ -2434,7 +2515,7 @@ cells; <code>disabled</code> takes a predicate so a menu can be a constant.</p>
 <li><p><strong><code>table</code></strong> — <code>ColumnSpec.kind: &#39;icon&#39;</code>.</p>
 </li>
 </ul>
-<h3 id="fixed-20">Fixed</h3>
+<h3 id="fixed-21">Fixed</h3>
 <ul>
 <li><p>A <strong>move</strong> no longer costs a scene, and a genuine removal now disposes the
 engine — a leaked WebGL context is not just memory (Chrome caps them near 16
@@ -2540,7 +2621,7 @@ both put their controls in flat DOM beside the canvas, which an immersive
 session does not render. Both now also build through <code>scenePanel</code>.</p>
 </li>
 </ul>
-<h3 id="changed-13">Changed</h3>
+<h3 id="changed-14">Changed</h3>
 <ul>
 <li>Doc pages are named for what they are (<code>Light program editor</code>, <code>Curve editor</code>, <code>Lamps</code>) rather than for their module. URLs are unchanged.</li>
 <li>⚠️ <code>shadows=&quot;on&quot;</code> is not free — one extra render of the caster list per lamp
@@ -2550,7 +2631,7 @@ content.</li>
 <h2 id="078">0.7.8</h2>
 <p>Lights you can see, edit and animate — and the editor surface <code>tosijs-3d-ensemble</code>
 asked for, built to their spec so they can adopt it without writing widgets.</p>
-<h3 id="added-21">Added</h3>
+<h3 id="added-22">Added</h3>
 <ul>
 <li><p><strong>Lamps.</strong> <code>b3dPointLight</code>, <code>b3dSpotLight</code>, <code>b3dAreaLight</code> — a placed light
 that comes with its own fixture geometry (toggle it, scale it, bring a GLB, or
@@ -2600,7 +2681,7 @@ module-level constant instead of being rebuilt whenever its state moves.
 <code>WidgetHost</code> is now exported — it was unnameable from outside.</p>
 </li>
 </ul>
-<h3 id="fixed-21">Fixed</h3>
+<h3 id="fixed-22">Fixed</h3>
 <ul>
 <li><strong>Lamps never marked shadow RECEIVERS</strong>, so a <code>shadows=&quot;on&quot;</code> lamp rendered a
 shadow map nothing read — a full extra render pass that presented as lights
@@ -2615,7 +2696,7 @@ scale; pulled back 30% with the framing angle preserved (0.13° drift).</li>
 <li>Log slider values no longer carry float noise (<code>0.010000000000000009</code>), which
 matters because they are serialised and diffed.</li>
 </ul>
-<h3 id="changed-14">Changed</h3>
+<h3 id="changed-15">Changed</h3>
 <ul>
 <li>⚠️ <strong><code>shadows=&quot;on&quot;</code> is not free</strong>, and the cost is worst where it is least
 visible: every such lamp is an extra render of the caster list, per frame, and
@@ -2626,7 +2707,7 @@ inserted content. See <code>TODO.md</code> → arbitration for inserted lights.<
 <p>A lifecycle release. <code>&lt;tosi-b3d&gt;</code> now distinguishes being <strong>moved</strong> from being
 <strong>removed</strong>, which fixes an engine leak and a scene-corruption bug that were the
 same root cause seen from two ends.</p>
-<h3 id="fixed-22">Fixed</h3>
+<h3 id="fixed-23">Fixed</h3>
 <ul>
 <li><p><strong>A MOVE no longer costs a scene</strong> (#58, and the real cause of the black sky
 in #51). <code>connectedCallback</code> built an Engine and a Scene unconditionally, so
@@ -2660,7 +2741,7 @@ their scene, so after a rebuild a late subscriber received nodes belonging to
 the disposed one.</p>
 </li>
 </ul>
-<h3 id="added-22">Added</h3>
+<h3 id="added-23">Added</h3>
 <ul>
 <li><p><strong><code>b3d.whenDisposed(cb)</code> → unsubscribe</strong> — the other half of <code>whenReady</code>, and
 the half that did not exist. Fires on a genuine disposal, <strong>not</strong> on a move.
@@ -2676,7 +2757,7 @@ Babylon&#39;s failure mode there is a black material that still reports
 <h2 id="076">0.7.6</h2>
 <p>An adoption-feedback release: everything here came from <code>tosijs-3d-ensemble</code>
 hitting it for real.</p>
-<h3 id="fixed-23">Fixed</h3>
+<h3 id="fixed-24">Fixed</h3>
 <ul>
 <li><p><strong>The icon LANGUAGE now works on the texture path</strong> (#54). <code>icon-data</code> stores
 every value with a trailing space, and a redirect is re-parsed as a <em>name</em>
@@ -2715,7 +2796,7 @@ backgrounded tab throttles timers, so the day cycle ran ~10x slow and never
 caught up.</p>
 </li>
 </ul>
-<h3 id="changed-15">Changed</h3>
+<h3 id="changed-16">Changed</h3>
 <ul>
 <li><strong>Underwater fog eases toward the surface</strong> rather than being full-strength
 until the crossing band.</li>
@@ -2728,7 +2809,7 @@ deep path with it in the same module — the classic route to two Babylon module
 instances in a consumer&#39;s bundle.</li>
 </ul>
 <h2 id="075">0.7.5</h2>
-<h3 id="added-23">Added</h3>
+<h3 id="added-24">Added</h3>
 <ul>
 <li><p><strong><code>iconGrid3d</code> — segmented select, tool palette and mode picker in one.</strong>
 Three widgets collapse into one because the difference between them was never
@@ -2784,7 +2865,7 @@ are that seam.</p>
 sorted so features come first and the pure models sort to the bottom.</p>
 </li>
 </ul>
-<h3 id="changed-16">Changed</h3>
+<h3 id="changed-17">Changed</h3>
 <ul>
 <li><strong>The scene-panel button wears the tosijs-3d owl</strong>, not a gear. The
 <code>scenePanelGear</code> part name is unchanged — a consumer may be styling it, and a
@@ -2794,7 +2875,7 @@ unicode glyphs. A codepoint is at the mercy of whatever font the panel
 resolved, and a rasterised texture is its own document with its own fallback,
 so <code>⏎</code> could arrive as a box.</li>
 </ul>
-<h3 id="fixed-24">Fixed</h3>
+<h3 id="fixed-25">Fixed</h3>
 <ul>
 <li><strong>Nested panel pointer events were handled twice</strong> — once by the inner panel,
 then again when they bubbled to the outer one, which routed them back in by
@@ -2822,7 +2903,7 @@ to hit — wrong for a controller ray. The target is now sized on its own terms.
 name RENDERS, not merely that it exists.</li>
 </ul>
 <h2 id="074">0.7.4</h2>
-<h3 id="added-24">Added</h3>
+<h3 id="added-25">Added</h3>
 <ul>
 <li><p><strong><code>curve3d</code> + <code>footprint3d</code> — author a terrain province instead of coding
 one.</strong> A province is a <strong>footprint</strong> (extent by direction) plus <strong>one curve
@@ -2864,7 +2945,7 @@ the row keeps its own axis index and lights exactly one caret — all three at
 once says focus is everywhere, which says nothing.</p>
 </li>
 </ul>
-<h3 id="fixed-25">Fixed</h3>
+<h3 id="fixed-26">Fixed</h3>
 <ul>
 <li><p><strong>A yielded camera is always given back.</strong> Dragging a popup detaches the
 camera so it does not orbit inside the same gesture, but the restore sat
@@ -3171,7 +3252,7 @@ nothing here changed; an adopter relying on the old default should pass
 </li>
 </ul>
 <h2 id="073">0.7.3</h2>
-<h3 id="added-25">Added</h3>
+<h3 id="added-26">Added</h3>
 <ul>
 <li><p><strong>⚠️ The biped uses the GTA V control layout.</strong> Left stick moves and
 <strong>strafes</strong>; right stick <strong>turns the body</strong> and pitches. It was tank-controlled
@@ -3458,7 +3539,7 @@ downhill waded in and began swimming on its own.</li>
 </ul>
 </li>
 </ul>
-<h3 id="changed-17">Changed</h3>
+<h3 id="changed-18">Changed</h3>
 <ul>
 <li><p><strong>Toolchain bumped</strong> — <code>tosijs</code> 1.7.8 → 1.8.0, <code>tosijs-ui</code> 1.9.8 → 1.12.3,
 <code>haltija</code> 1.11.2 → 1.12.5, and <strong><code>tjs-lang</code> 0.13.6 added explicitly</strong>: it is a
@@ -3480,7 +3561,7 @@ FOCUS, so a command run from this directory could silently drive another
 project&#39;s page — which happened repeatedly. New in haltija 1.12.</p>
 </li>
 </ul>
-<h3 id="fixed-26">Fixed</h3>
+<h3 id="fixed-27">Fixed</h3>
 <ul>
 <li><p><strong>Entering water flipped your heading 180°.</strong> With a mirrored glTF root
 (<code>scaling.z = −1</code>) world forward is <code>−(R·ẑ)</code>, so reading yaw back gives
@@ -3707,7 +3788,7 @@ which is symmetric and agrees with the wrong answer.</li>
 </ul>
 </li>
 </ul>
-<h3 id="added-26">Added</h3>
+<h3 id="added-27">Added</h3>
 <ul>
 <li><strong><code>&lt;tosi-b3d-interactive&gt;</code> — a mesh you can touch</strong> (#36), the substrate doors,
 knobs, switches, levers, consoles and lamps all stand on. <code>b3d-button</code> is a
@@ -3740,7 +3821,7 @@ a mesh (a loader, a biped, a vehicle), plus <code>nearestInteractive</code> / <c
 for the &quot;walk up and press E&quot; control that wires to <code>ControlInput.interact</code>.</li>
 </ul>
 <h2 id="072">0.7.2</h2>
-<h3 id="fixed-27">Fixed</h3>
+<h3 id="fixed-28">Fixed</h3>
 <ul>
 <li><strong><code>placement=&quot;world&quot;</code> left dialogs at the WORLD ORIGIN</strong> (#35) — so the pause
 and respawn panels were unreachable in any scene not centred on <code>(0,0,0)</code>, and
@@ -3752,7 +3833,7 @@ render: <strong><code>AbstractMesh</code> rewrites <code>mesh.position</code> fr
 MESH is silently undone. Both the placement and the easing now write the
 ELEMENT, which is what owns the transform.</li>
 </ul>
-<h3 id="added-27">Added</h3>
+<h3 id="added-28">Added</h3>
 <ul>
 <li><strong><code>destroyable=&quot;off&quot;</code> on <code>&lt;tosi-b3d-destroyable&gt;</code></strong> — place a library mesh
 without enrolling it in combat. Same knob and spelling <code>b3d-loader</code> already
@@ -3763,7 +3844,7 @@ tosijs-3d-ensemble, whose stopgap was <code>armor: 100_000</code> — buying &qu
 killed&quot; by paying for a combatant.</li>
 </ul>
 <h2 id="071">0.7.1</h2>
-<h3 id="fixed-28">Fixed</h3>
+<h3 id="fixed-29">Fixed</h3>
 <ul>
 <li><p><strong>Modal dialogs are WORLD-PLACED and follow you if you look away.</strong> The
 respawn and pause panels sit at a spot with clear line of sight, face you, and
@@ -3783,7 +3864,7 @@ together with the radians it produced, so a later write to <code>turnRate</code>
 detected exactly and the view derives fresh. Still one stored value.</p>
 </li>
 </ul>
-<h3 id="added-28">Added</h3>
+<h3 id="added-29">Added</h3>
 <ul>
 <li><p><strong><code>flightStage()</code></strong> — a setting an aircraft can actually operate in: ground,
 sky and fog at flight scale, a library, a sun configured for the ground it
@@ -3974,7 +4055,7 @@ raw name keep working — but code that PARSED the returned string, or
 compared it to an authored name with its suffix, needs updating.</p>
 </li>
 </ul>
-<h3 id="added-29">Added</h3>
+<h3 id="added-30">Added</h3>
 <ul>
 <li><p><strong>Re-seat is now a two-step, confirmed gesture — and it finally works.</strong>
 Re-seating takes your CURRENT head yaw as forward, but you had to LOOK AT the
@@ -4380,7 +4461,7 @@ anything ticking inside a scene observer (see 0.6.2&#39;s note on
 now use it.</p>
 </li>
 </ul>
-<h3 id="changed-18">Changed</h3>
+<h3 id="changed-19">Changed</h3>
 <ul>
 <li><p><strong>tosijs-ui devDependency → ^1.9.8</strong>, for serve-time gzip on the dev server:
 it was sending the 10.7 MB bundle uncompressed even to clients asking for
@@ -4414,7 +4495,7 @@ the detail layer doing real work — the old defaults read as pudding.</p>
 put every scene ON a mirror plane with a seam running to the horizon.</p>
 </li>
 </ul>
-<h3 id="fixed-29">Fixed</h3>
+<h3 id="fixed-30">Fixed</h3>
 <ul>
 <li><p><strong>Phantom collisions: an aircraft &quot;collided with something it was nowhere
 near&quot;.</strong> Flying high, banking in cockpit view, you died instantly — in any
@@ -4685,7 +4766,7 @@ behaviour; what it found were the two release-artifact gaps above.</p>
 systemic timing bug that made half the engine run in slow motion is fixed. Additive
 only — no API removals, no peer-dependency changes. (The full terrain-system upgrade
 lands as 0.7.0 once its remaining pieces are in.)</p>
-<h3 id="added-30">Added</h3>
+<h3 id="added-31">Added</h3>
 <ul>
 <li><strong>Volcanism intensity ladder</strong> (<a href="https://3d.tosijs.net/biome-plugin/">biome-plugin</a>) —
 the <code>volcanism</code> dial now climbs stages rather than scaling one look: near-black basalt
@@ -4721,7 +4802,7 @@ aligned bases, since cumulus condense at a level.</li>
 <li><strong><code>B3d.frameDelta</code></strong> + <strong><code>sceneDelta(scene)</code></strong> — the authoritative inter-render delta
 (see Fixed).</li>
 </ul>
-<h3 id="fixed-30">Fixed</h3>
+<h3 id="fixed-31">Fixed</h3>
 <ul>
 <li><strong>Everything ticking in a scene observer ran in slow motion.</strong> Babylon&#39;s
 <code>getDeltaTime()</code> measures the engine&#39;s rAF tick, but scene observers only fire when
@@ -4755,7 +4836,7 @@ crusted rim (a smoothed shading normal can&#39;t make the rim read as open lava)
 <h2 id="061">0.6.1</h2>
 <p>First consumer-reported fixes — both filed by <strong>manta-recon</strong> (tosijs-3d&#39;s first
 external adopter) with root-cause analyses read from the 0.6.0 dist. No API changes.</p>
-<h3 id="fixed-31">Fixed</h3>
+<h3 id="fixed-32">Fixed</h3>
 <ul>
 <li><strong>Aircraft chase camera never created when focus adoption lands after a fast
 mesh load</strong> (<a href="https://github.com/tonioloewald/tosijs-3d/issues/1">#1</a>). Both
@@ -4780,7 +4861,7 @@ history), finalized after the nine-lens review&#39;s follow-up fixes landed.</p>
 overlay, widgets seam, table, keyboard — plus the interaction contracts that make
 the same surface work identically in the DOM, on a 3D plane, and under an XR
 controller ray. No peer-dependency changes.</p>
-<h3 id="added-31">Added</h3>
+<h3 id="added-32">Added</h3>
 <ul>
 <li><strong><code>box</code></strong> — the flow container: blocks + inline items + wrapped text, background/
 border/radius, resize-with-reflow, scroll regions, a coordinate-based event model
@@ -4820,7 +4901,7 @@ gesture.</li>
 <li><strong><code>svgIcons.resize</code></strong> glyph (from tosijs-ui), used by the resizable-box demo&#39;s
 in-corner grip.</li>
 </ul>
-<h3 id="changed-19">Changed</h3>
+<h3 id="changed-20">Changed</h3>
 <ul>
 <li><strong><code>b3dSvgPlane</code></strong> routes the texture&#39;s alpha to the mesh (<code>opacityTexture</code>) —
 transparent svg regions (outside rounded corners) are transparent on the plane,
@@ -4830,7 +4911,7 @@ never the physical pointer&#39;s — a listener&#39;s <code>setPointerCapture</c
 event can no longer hijack the real mouse/ray stream.</li>
 <li>Panel demos are side-by-side DOM + 3D (50/50) throughout, built on <code>panelScene</code>.</li>
 </ul>
-<h3 id="fixed-32">Fixed</h3>
+<h3 id="fixed-33">Fixed</h3>
 <ul>
 <li><strong>The lost-pointerup chain</strong>: demos passing <code>pointerEvents: false</code> were silently
 running with forwarding ON (tosijs discards wrong-typed prop writes — filed as
@@ -4896,7 +4977,7 @@ playable-game cut — so it&#39;s flagged here rather than forced to a minor.</l
 <code>chokidar</code> added to <code>devDependencies</code> (tosijs-ui 1.7.x&#39;s shipped doc-site
 pipeline imports it at runtime but declares it dev-only — filed upstream).</li>
 </ul>
-<h3 id="added-32">Added</h3>
+<h3 id="added-33">Added</h3>
 <ul>
 <li><strong><code>svgIcons</code></strong> (<code>svg-icons.ts</code>) — an SVG <strong>icon proxy</strong> (<code>svgIcons.&lt;name&gt;()</code> →
 an SVG <code>ElementCreator</code>) over a focused, <strong>generated</strong> icon set
@@ -4917,7 +4998,7 @@ DOM and on a 3D texture. Babylon/DOM-free, unit-tested.</li>
 including in-scene panels).</li>
 <li><strong><code>icon-name.ts</code></strong> — the pure composition-suffix parser behind <code>svgIcons</code>.</li>
 </ul>
-<h3 id="changed-20">Changed</h3>
+<h3 id="changed-21">Changed</h3>
 <ul>
 <li><strong>Scene chrome → icon lozenge.</strong> The top-left toolbar is now one rounded pill
 with two <code>svgIcons</code> buttons (settings + <code>xrColor</code> Enter-VR); the scene-panel <code>×</code>
@@ -4925,7 +5006,7 @@ close is a <code>close</code> icon. The doc-browser <strong>header logo</strong>
 <strong>favicon</strong> = the teal cube, both via tosijs-ui 1.7.4&#39;s new <code>logo</code> option.</li>
 <li><strong>README</strong> gained a 280px logo and its stale <code>xinjs-3d</code> links were fixed.</li>
 </ul>
-<h3 id="fixed-33">Fixed</h3>
+<h3 id="fixed-34">Fixed</h3>
 <ul>
 <li><strong>keyboard icon</strong> rendering — the generator strips <code>fill-rule</code> from non-<code>color</code>
 icons, so its evenodd key-holes broke; moved to <code>color/</code> with <code>currentColor</code>
@@ -4980,7 +5061,7 @@ methods <strong>push to a listener list</strong> (add/remove semantics), not a s
 overrode <code>onGainFocus</code>/<code>onLoseFocus</code>, or a gamepad source with an <code>onButton</code> callback, rename to
 the new members. It&#39;s a pure rename — signatures are unchanged. Built-in components are all
 migrated; this only affects code you wrote against these surfaces.</p>
-<h3 id="added-33">Added</h3>
+<h3 id="added-34">Added</h3>
 <ul>
 <li><strong>Coordinate-free <code>MinSimApi</code></strong> (<code>world-contract.ts</code> §8) — a world-simulation boundary where
 <strong>coordinates never cross the membrane</strong>: a driver (an AI narrative engine, a scripted demo)
@@ -5002,13 +5083,13 @@ and in a driver&#39;s repo (the Ariosto use case), proving both stores behave th
 <li><strong>Clouds drift with wind</strong> — the cloud layer now moves with the wind vector, so the sky is
 alive rather than a still image.</li>
 </ul>
-<h3 id="changed-21">Changed</h3>
+<h3 id="changed-22">Changed</h3>
 <ul>
 <li><strong>Demo cameras</strong> migrated to a shared <code>demo-utils</code> <code>orbitCam</code> helper (tilt-clamped so an orbit
 can&#39;t dip below the horizon) instead of 24 hand-rolled per-demo cameras. Authoring-only — no
 library-API impact.</li>
 </ul>
-<h3 id="fixed-34">Fixed</h3>
+<h3 id="fixed-35">Fixed</h3>
 <ul>
 <li><strong>Cloud whiteout</strong> now behaves correctly: it ramps to full <strong>earlier</strong> (less &quot;snaps on at the
 moment of entry&quot;, denser once inside), <strong>blots out the sky</strong> (not just scene geometry), and
@@ -5035,7 +5116,7 @@ direct Babylon dep — silently breaking <code>instanceof</code>, engine singlet
 plugin registration. No action needed by consumers; this just makes install
 resolution correct.</li>
 </ul>
-<h3 id="added-34">Added</h3>
+<h3 id="added-35">Added</h3>
 <ul>
 <li><strong>Clouds</strong> (<code>&lt;tosi-b3d-clouds&gt;</code>) — an opaque blob cloud layer you can <em>fly into</em>
 and lose the world inside (a fog whiteout, not a texture). A <code>coverage</code> weather
@@ -5062,7 +5143,7 @@ breaking in VR.</li>
 <li><strong><code>PLATFORM.md</code></strong> — the platform bet (stay on the web, don&#39;t abstract the
 renderer; the real risk of the Android XR / Vision Pro shift is <em>input</em>).</li>
 </ul>
-<h3 id="changed-22">Changed</h3>
+<h3 id="changed-23">Changed</h3>
 <ul>
 <li><strong>Aircraft</strong> — the stick is dead on the ground (only the throttle lifts off);
 you can&#39;t crash-land until you&#39;ve actually cleared the pad; chase camera banks
@@ -5073,7 +5154,7 @@ at <code>y=0</code> floods the valleys.</li>
 <li>Babylon <code>8.56 → 9.16</code>, Jolt <code>1.0 → 1.1</code>, tosijs-ui <code>1.6.22 → 1.6.23</code>, tosijs
 <code>1.6.8 → 1.6.9</code> (dev-server/haltija reliability), haltija <code>→ 1.4.0</code>.</li>
 </ul>
-<h3 id="fixed-35">Fixed</h3>
+<h3 id="fixed-36">Fixed</h3>
 <ul>
 <li>Death explosion/wreck FX land at the real wreck; a respawn is no longer charred
 (char a cloned material, not the shared library one).</li>
@@ -5335,6 +5416,11 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -5357,6 +5443,11 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -5406,6 +5497,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -5513,6 +5605,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

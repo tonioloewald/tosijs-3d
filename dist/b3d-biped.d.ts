@@ -219,9 +219,16 @@ export declare class B3dBiped extends B3dControllable {
     /** Eye position for first-person: the head bone (or eyeHeight fallback) nudged
      * up + forward to roughly the eyes, so the camera sits at the eyes rather than
      * the neck / head-bone base — which would leave the head & neck in front of the
-     * view. Forward is body-facing (root-aligned), since the camera ignores the
-     * head's own animation. Returns a cached vector — read it now, don't retain. */
-    getHeadPosition(): BABYLON.Vector3 | null;
+     * view. Returns a cached vector — read it now, don't retain.
+     *
+     * ALONG THE HEAD'S OWN AXES, not the body's. A sprint leans the head 22°
+     * forward and a swim far more, and an offset along the body's level facing
+     * left the eye inside the skull: in first person the back of your own head
+     * filled the screen as you ran (Tonio: "first person view when swimming is a
+     * disaster and it's still a big problem when running"). The UAL head bone's
+     * forward is the face's, measured. Only the eye's POSITION follows the head;
+     * the view's orientation does not (no bob in the rotation, no roll). */
+    getHeadPosition(extraForward?: number): BABYLON.Vector3 | null;
     xrStuff?: XRStuff;
     private xrInputProvider?;
     animationState?: AnimState;
@@ -302,6 +309,13 @@ export declare class B3dBiped extends B3dControllable {
      */
     gunplay: boolean;
     private weaponWasPressed;
+    /**
+     * What the weapon button does, when a game decides (JS only). Called with
+     * whether the button asks for the weapon UP; the game moves it (draw from
+     * the hip, holster it) and calls `setGunplay` if and when it is in hand.
+     * Unset, the button toggles `gunplay` as before.
+     */
+    whenWeapon: ((up: boolean) => void) | null;
     /**
      * Put the weapon up or down.
      *

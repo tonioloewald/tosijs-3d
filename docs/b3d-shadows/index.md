@@ -43,7 +43,7 @@ preview.append(
     },
     b3dLight({ intensity: 0.3 }),
     b3dSkybox({ timeOfDay: sun.timeOfDay, realtimeScale: 0 }),
-    b3dSun({ shadowCascading: true, shadowTextureSize: 2048 }),
+    b3dSun({ shadowTextureSize: 2048 }),
     b3dGround({ meshName: 'ground_nocast', width: 20, height: 20, color: '#7d9b6e' }),
     b3dSphere({ y: 1.2, diameter: 1.5, color: '#cc4422' }),
     b3dSphere({ y: 0.8, diameter: 1, x: 2, z: -1, color: '#4488cc' }),
@@ -62,11 +62,12 @@ tosi-b3d { width: 100%; height: 100%; }
 | `y` | `-1` | Sun direction Y |
 | `z` | `-0.5` | Sun direction Z |
 | `intensity` | `1` | Sun intensity (overridden by skybox when present) |
+| `shadows` | `'on'` | `'off'`: the sun casts no shadows (the light stays). Shadows are always cascaded; there is no `shadowCascading` attribute, and passing one does nothing |
 | `shadowTextureSize` | `auto` | Shadow map resolution (per cascade); `auto` = device tier |
 | `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
 | `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
-| `shadowNormalBias` | `0.05` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters |
-| `shadowBias` | `0.00005` | Depth-direction bias; peter-pans sooner than `shadowNormalBias`, so tune that one first |
+| `shadowNormalBias` | `0.02` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters |
+| `shadowBias` | `0.0005` | Depth-direction bias, in the cascade's depth range. With `shadowNormalBias` at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise `shadowNormalBias` instead and thin limbs lose their shadow |
 | `numCascades` | `auto` | Number of cascade splits (1–4); `auto` = device tier |
 | `stabilizeCascades` | `'on'` | Reduce shadow-edge "swimming" under motion |
 | `lambda` | `0.8` | Cascade split blend (0 = uniform, 1 = logarithmic) |

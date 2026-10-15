@@ -14,7 +14,7 @@ import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere } from 'tosijs-3d'
 preview.append(
   b3d(
     { glowLayerIntensity: 0.6 },
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 10 }),
     b3dGround({ size: 24, texture: 'checker', textureTiles: 12 }),
     b3dBox({ x: -2, y: 0.75, size: 1.5, color: '#c8553d' }),
@@ -57,6 +57,7 @@ dimensions.
 | `color` | `'#888888'` | |
 | `texture` | `''` | An image URL, or `'checker'` (a ruler you can count) or `'noise'` (mottled natural ground) |
 | `textureTiles` | `8` | Repeats across the plane; for `'noise'`, the number of features |
+| `holes` (JS) | `null` | Rectangles `{ x, z, width, depth }` cut out of it, for a pool or a pit; the texture runs on unbroken around them. Whole-metre edges |
 
 A ground is always solid. Boxes and spheres are scenery unless you say
 `solid: 'on'`, because a decorative box that quietly starts blocking a doorway
@@ -114,15 +115,27 @@ function addSolidProxy(mesh, scene) {
     proxy.doNotSyncBoundingInfo = true;
     return proxy;
 }
-/** A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via uScale/vScale. */
-function makeCheckerTexture(name, scene, colorA = '#9a9a9a', colorB = '#767676') {
+/**
+ * A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via
+ * uScale/vScale (it must WRAP, see below). The dark squares are the light ones at 70%: a fixed second
+ * grey (it was #767676) all but vanished against the default #888 ground.
+ * Mipmapped and anisotropic, or a tiled checker shimmers into moiré bands
+ * toward the horizon.
+ */
+function makeCheckerTexture(name, scene, color = '#9a9a9a') {
     const size = 128;
-    const tex = new BABYLON.DynamicTexture(name, { width: size, height: size }, scene, false);
+    const tex = new BABYLON.DynamicTexture(name, { width: size, height: size }, scene, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.anisotropicFilteringLevel = 8;
+    // A DynamicTexture CLAMPS by default, so with uScale above 1 every tile past
+    // the first was its edge colour: one flat grey, no checker at all.
+    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
     const ctx = tex.getContext();
     const half = size / 2;
-    ctx.fillStyle = colorA;
+    const light = BABYLON.Color3.FromHexString(color);
+    ctx.fillStyle = color;
     ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = colorB;
+    ctx.fillStyle = light.scale(0.7).toHexString();
     ctx.fillRect(0, 0, half, half);
     ctx.fillRect(half, half, half, half);
     tex.update();
@@ -365,14 +378,31 @@ export class B3dGround extends AbstractMesh {
         texture: '',
         textureTiles: 8,
     };
+    /**
+     * Rectangles cut out of the ground (JS only, set before it is built), in
+     * the ground's own x/z: a pool, a pit, a stairwell. The ground is then a
+     * grid of 1 m cells with the cells inside a hole left out, so its texture
+     * runs on unbroken around the hole (separate slabs would each start their
+     * own). Give holes whole-metre edges, or a cell straddling one is kept.
+     */
+    holes = null;
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
         const meshName = attrs.meshName || 'ground';
-        this.mesh = BABYLON.MeshBuilder.CreateGround(meshName, {
-            width: attrs.size || attrs.width,
-            height: attrs.size || attrs.height,
-        }, scene);
+        const w = attrs.size || attrs.width;
+        const h = attrs.size || attrs.height;
+        const holes = this.holes ?? [];
+        this.mesh = BABYLON.MeshBuilder.CreateGround(meshName, holes.length
+            ? {
+                width: w,
+                height: h,
+                subdivisionsX: Math.min(512, Math.round(w)),
+                subdivisionsY: Math.min(512, Math.round(h)),
+            }
+            : { width: w, height: h }, scene);
+        if (holes.length)
+            cutHoles(this.mesh, holes);
         const material = new BABYLON.StandardMaterial(meshName + '-mat', scene);
         material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
         const texture = fetchedUrl(attrs.texture, 'b3d-ground texture');
@@ -400,4 +430,21 @@ export class B3dGround extends AbstractMesh {
     }
 }
 export const b3dGround = B3dGround.elementCreator();
+/** Leave out every triangle whose centre is inside one of `holes` (local x/z). */
+function cutHoles(mesh, holes) {
+    const pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    const idx = mesh.getIndices();
+    if (!pos || !idx)
+        return;
+    const inside = (x, z) => holes.some((o) => Math.abs(x - o.x) < o.width / 2 && Math.abs(z - o.z) < o.depth / 2);
+    const kept = [];
+    for (let t = 0; t < idx.length; t += 3) {
+        const [a, b, c] = [idx[t], idx[t + 1], idx[t + 2]];
+        const x = (pos[a * 3] + pos[b * 3] + pos[c * 3]) / 3;
+        const z = (pos[a * 3 + 2] + pos[b * 3 + 2] + pos[c * 3 + 2]) / 3;
+        if (!inside(x, z))
+            kept.push(a, b, c);
+    }
+    mesh.setIndices(kept);
+}
 //# sourceMappingURL=b3d-primitives.js.map

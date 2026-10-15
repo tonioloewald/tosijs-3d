@@ -7,6 +7,8 @@ export interface PlaygroundOptions {
     targets?: number;
     /** Hour of the day for the skybox — low sun makes the cover read. */
     timeOfDay?: number;
+    /** The pool in the far corner (default on): swimming, diving, and a shelving ramp to walk in on. */
+    pool?: boolean;
 }
 /**
  * The arena, as scene children.

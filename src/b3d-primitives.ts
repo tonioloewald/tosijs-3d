@@ -511,8 +511,7 @@ function cutHoles(
   if (!pos || !idx) return
   const inside = (x: number, z: number) =>
     holes.some(
-      (o) =>
-        Math.abs(x - o.x) < o.width / 2 && Math.abs(z - o.z) < o.depth / 2
+      (o) => Math.abs(x - o.x) < o.width / 2 && Math.abs(z - o.z) < o.depth / 2
     )
   const kept: number[] = []
   for (let t = 0; t < idx.length; t += 3) {

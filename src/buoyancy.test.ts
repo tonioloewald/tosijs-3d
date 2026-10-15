@@ -313,11 +313,14 @@ describe('a stroke aimed down beats the surface', () => {
   test('a swimmer pitched 70 degrees down and stroking sinks from the surface', () => {
     const lift = (b: number) => {
       let vy = 0
-      for (let i = 0; i < 60; i++) vy = buoyantStep(vy, 1, 1 / 30, { buoyancy: b })
+      for (let i = 0; i < 60; i++)
+        vy = buoyantStep(vy, 1, 1 / 30, { buoyancy: b })
       return vy
     }
     // The lift left against the stroke is a fraction of what cancelled it
     // (the stroke itself moves the body ~1 m/s down at this pitch).
-    expect(lift(diveBuoyancy(1.5, (70 * Math.PI) / 180, 1))).toBeLessThan(lift(1.5) / 3)
+    expect(lift(diveBuoyancy(1.5, (70 * Math.PI) / 180, 1))).toBeLessThan(
+      lift(1.5) / 3
+    )
   })
 })

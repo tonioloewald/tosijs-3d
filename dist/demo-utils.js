@@ -202,7 +202,7 @@ export function flightStage(opts) {
         // altitude. `shadowTextureSize` stays on the auto sentinel so the device
         // tier decides — a hard-wired size is 4x the VRAM on the tier least able to
         // pay for it.
-        b3dSun({ intensity: 0.9, shadowCascading: true, shadowMaxZ: 600 }),
+        b3dSun({ intensity: 0.9, shadowMaxZ: 600 }),
         b3dSkybox({ timeOfDay }),
         ...(fog
             ? [b3dFog({ start: size / 10, end: size * 0.75, color: '#bfd9f2' })]

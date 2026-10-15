@@ -1154,6 +1154,7 @@ export function panelScene(opts) {
         });
         const canvas = el.scene.getEngine().getRenderingCanvas();
         const cam = new BABYLON.ArcRotateCamera('panel-cam', opts.camera?.alpha ?? -Math.PI / 2, opts.camera?.beta ?? Math.PI / 2.5, opts.camera?.radius ?? 3.2, BABYLON.Vector3.Zero(), el.scene);
+        cam.lowerRadiusLimit = opts.camera?.minRadius ?? cam.radius * 0.5;
         el.setActiveCamera(cam);
         cam.attachControl(canvas, true);
         // Arrows belong to the UI (D-pad traversal), not the orbit.

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=21eb72f584b4" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
   <title>Sun and shadows (b3d-shadows) — tosijs-3d</title>
   <meta name="description" content="B3dSun — directional light + cascaded shadow generator. Add a &lt;tosi-b3d-sun&gt; inside &lt;tosi-b3d&gt; and every registered mesh starts casting shadows onto every" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-shadows/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=4c1a8bb8ae76" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="sun-and-shadows-b3d-shadows">Sun and shadows (b3d-shadows)</h1>
 <p><code>B3dSun</code> — directional light + cascaded shadow generator. Add a <code>&lt;tosi-b3d-sun&gt;</code>
@@ -73,7 +73,7 @@ preview.append(
     },
     b3dLight({ intensity: 0.3 }),
     b3dSkybox({ timeOfDay: sun.timeOfDay, realtimeScale: 0 }),
-    b3dSun({ shadowCascading: true, shadowTextureSize: 2048 }),
+    b3dSun({ shadowTextureSize: 2048 }),
     b3dGround({ meshName: &#39;ground_nocast&#39;, width: 20, height: 20, color: &#39;#7d9b6e&#39; }),
     b3dSphere({ y: 1.2, diameter: 1.5, color: &#39;#cc4422&#39; }),
     b3dSphere({ y: 0.8, diameter: 1, x: 2, z: -1, color: &#39;#4488cc&#39; }),
@@ -112,6 +112,11 @@ preview.append(
 <td>Sun intensity (overridden by skybox when present)</td>
 </tr>
 <tr>
+<td><code>shadows</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;off&#39;</code>: the sun casts no shadows (the light stays). Shadows are always cascaded; there is no <code>shadowCascading</code> attribute, and passing one does nothing</td>
+</tr>
+<tr>
 <td><code>shadowTextureSize</code></td>
 <td><code>auto</code></td>
 <td>Shadow map resolution (per cascade); <code>auto</code> = device tier</td>
@@ -128,13 +133,13 @@ preview.append(
 </tr>
 <tr>
 <td><code>shadowNormalBias</code></td>
-<td><code>0.05</code></td>
+<td><code>0.02</code></td>
 <td>Offset along the surface normal — <strong>the shadow-acne knob</strong>. Lower it if shadows detach from small casters</td>
 </tr>
 <tr>
 <td><code>shadowBias</code></td>
-<td><code>0.00005</code></td>
-<td>Depth-direction bias; peter-pans sooner than <code>shadowNormalBias</code>, so tune that one first</td>
+<td><code>0.0005</code></td>
+<td>Depth-direction bias, in the cascade&#39;s depth range. With <code>shadowNormalBias</code> at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise <code>shadowNormalBias</code> instead and thin limbs lose their shadow</td>
 </tr>
 <tr>
 <td><code>numCascades</code></td>
@@ -438,6 +443,11 @@ preview.append(
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><details><summary><a class="doc-link" href="../inventory/">inventory</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../inventory-box/">inventory-box</a></li>
+      </ul>
+      </details></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><details><summary><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></summary>
@@ -460,6 +470,11 @@ preview.append(
         <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
         <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
         <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      </ul>
+      </details></li>
+      <li><details><summary><a class="doc-link" href="../carry/">carry</a></summary>
+      <ul>
+        <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
@@ -509,6 +524,7 @@ preview.append(
         <li><details><summary><a class="doc-link" href="../box/">box</a></summary>
         <ul>
           <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+          <li><a class="doc-link" href="../anchor-layout/">anchor-layout</a></li>
         </ul>
         </details></li>
         <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -616,6 +632,6 @@ preview.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-qq04he1d.js"></script>
+  <script type="module" src="../hydrate-natg446m.js"></script>
 </body>
 </html>

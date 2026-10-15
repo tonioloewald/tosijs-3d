@@ -503,6 +503,8 @@ export async function enterXR(scene, options = {}) {
     }
     const xr = await scene.createDefaultXRExperienceAsync({
         uiOptions: { sessionMode: mode },
+        // The right hand points first (see tosi-b3d: otherwise a first press is lost).
+        pointerSelectionOptions: { preferredHandedness: 'right' },
     });
     const { baseExperience } = xr;
     const { camera } = baseExperience;

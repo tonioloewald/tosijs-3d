@@ -765,8 +765,8 @@ export class B3dPlanet extends B3dChild {
         normal, so they stood still while a rotating planet turned under them.
         The winds are the point turned about the axis before the noise is read.
         */
-        if (!BABYLON.Effect.ShadersStore['planetAtmo2VertexShader']) {
-            BABYLON.Effect.ShadersStore['planetAtmo2VertexShader'] = `
+        if (!BABYLON.Effect.ShadersStore['planetAtmo3VertexShader']) {
+            BABYLON.Effect.ShadersStore['planetAtmo3VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec3 normal;
@@ -782,7 +782,7 @@ export class B3dPlanet extends B3dChild {
           vBody = position;
         }
       `;
-            BABYLON.Effect.ShadersStore['planetAtmo2FragmentShader'] = `
+            BABYLON.Effect.ShadersStore['planetAtmo3FragmentShader'] = `
         precision highp float;
         varying vec3 vWorldPos;
         varying vec3 vWorldNormal;
@@ -813,9 +813,35 @@ export class B3dPlanet extends B3dChild {
           // way round, so the night side was a blue disc. It reaches a little
           // past the terminator (twilight) and is nearly nothing beyond.
           vec3 l = atmoLight.w > 0.5 ? normalize(atmoLight.xyz - vWorldPos) : normalize(atmoLight.xyz);
-          alpha *= mix(0.03, 1.0, smoothstep(-0.3, 0.3, dot(vWorldNormal, l)));
+          float ndl = dot(vWorldNormal, l);
+          alpha *= mix(0.03, 1.0, smoothstep(-0.3, 0.3, ndl));
 
           vec3 col = atmoColor * (glow + turb * 0.5);
+          /*
+          GOLDEN HOUR, AT THE LIMB. Where you see the air edge on and the
+          sun is low over it, the long path has scattered the air's own
+          colour out and left its complement: blue air goes gold (Mars's red
+          dust goes blue). It peaks where the sun is low but still up and is
+          gone by the terminator itself: peaking AT the terminator lit the two
+          points where it meets the rim, which read as glowing poles. Face on
+          there is too little air for any of it.
+          */
+          vec3 rest = vec3(1.0) - atmoColor;
+          vec3 gold = normalize(rest * rest + 0.01) * 1.3;
+          float limb = pow(1.0 - facing, 3.0);
+          /*
+          BY WHERE THE SUN IS FROM YOU, NOT BY HOW LOW IT STANDS AT EACH
+          POINT. Along any lit rim the sun is lowest at the two ends where it
+          meets the terminator, so a test of the local sun height put those
+          "poles" in sunset at almost every angle (as the Earth's north and
+          south are not, at noon). Instead the whole lit rim takes the gold
+          together, by how far the sun has gone behind the planet.
+          */
+          float lit = smoothstep(-0.08, 0.2, ndl);
+          float setting = smoothstep(0.25, 0.85, dot(-viewDir, l));
+          float k = clamp(limb * 2.2, 0.0, 1.0) * lit * setting * 0.9;
+          col = mix(col, gold * (glow + 0.6), k);
+          alpha = max(alpha, clamp(k * atmoOpacity * 3.5, 0.0, 1.0));
           gl_FragColor = vec4(col, alpha);
         }
       `;
@@ -833,7 +859,7 @@ export class B3dPlanet extends B3dChild {
         }
         const atmoRadius = attrs.radius + maxH + atmoFrac * attrs.radius;
         const mesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', { diameter: atmoRadius * 2, segments: 32 }, scene);
-        const mat = new BABYLON.ShaderMaterial('atmo-shader-mat', scene, { vertex: 'planetAtmo2', fragment: 'planetAtmo2' }, {
+        const mat = new BABYLON.ShaderMaterial('atmo-shader-mat', scene, { vertex: 'planetAtmo3', fragment: 'planetAtmo3' }, {
             attributes: ['position', 'normal'],
             uniforms: [
                 'worldViewProjection',

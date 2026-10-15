@@ -14,6 +14,8 @@ export interface PlanetInput {
     /** Its moons' radii in km, inmost first, when they are known (our own
      * system); otherwise they follow from the seed. */
     moons?: number[];
+    /** Its moons' periods in Earth days (negative backwards), when known. */
+    moonDays?: number[];
 }
 export interface MoonLayout {
     seed: number;
@@ -22,7 +24,7 @@ export interface MoonLayout {
     visualRadius: number;
     /** From the planet's centre, scene units. */
     distance: number;
-    /** Seconds to go round its planet. */
+    /** Seconds to go round its planet; negative goes round backwards (Triton). */
     period: number;
     /** Where it starts, radians. */
     phase: number;
@@ -66,7 +68,7 @@ export interface LayoutOptions {
     spacing?: number;
     /** Scene units for an Earth-sized radius. */
     earthSize?: number;
-    /** Seconds for a planet at 1 AU to go round. */
+    /** Seconds for a planet at 1 AU to go round. Default: the Earth's year. */
     year?: number;
     /**
      * The belt's big bodies' radii in km, when they are known (Ceres, Vesta,
@@ -74,6 +76,23 @@ export interface LayoutOptions {
      */
     belt?: number[];
 }
+/** Seconds in an Earth day (a solar day: periods in days are multiplied by it). */
+export declare const DAY_SECONDS = 86400;
+/** Seconds in an Earth year (sidereal). */
+export declare const YEAR_SECONDS: number;
+/**
+ * How far round a body has turned (radians, west to east) after `time`
+ * seconds, for a day `day` Earth days long: negative turns backwards, 0 does
+ * not turn.
+ */
+export declare function spinAngle(time: number, day: number): number;
+/**
+ * Seconds for a moon `radii` planet radii out to go round, by Kepler. The
+ * planet's size cancels: only its density is left (a rock's 5.5 g/cm³, a
+ * giant's 1.3), so the Moon at 60 Earth radii takes 27 days and Io at 5.9
+ * Jupiter radii 1.8.
+ */
+export declare function moonPeriod(radii: number, giant: boolean): number;
 /** Drawn radius from a true one: Earth is `earthSize`, the rest by a square root. */
 export declare function visualRadius(radiusKm: number, earthSize?: number): number;
 /** Scene distance for a true one: the same step per doubling. */
@@ -95,12 +114,22 @@ export declare function layoutSystem(planets: PlanetInput[], opts: LayoutOptions
 export interface SystemBodySpec {
     name: string;
     radiusKm: number;
+    /**
+     * A moon's month in Earth days (sidereal); negative goes round backwards
+     * (Triton). Default: Kepler from where it is drawn.
+     */
+    period?: number;
     look: Record<string, unknown>;
     maps?: Record<string, unknown>;
 }
 export interface SystemPlanetSpec extends SystemBodySpec {
     /** AU from the star. */
     au: number;
+    /**
+     * How long its day is, in Earth days (sidereal); negative turns it
+     * backwards (Venus, Uranus). Default: 1 for a rock, 0.42 for a giant.
+     */
+    day?: number;
     /** Ring strength, 0…1. */
     rings?: number;
     moons?: SystemBodySpec[];

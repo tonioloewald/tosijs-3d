@@ -32,7 +32,7 @@ preview.append(
       },
     },
     b3dSkybox({ timeOfDay: 11, realtimeScale: 0 }),
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dGround({ meshName: 'ground_nocast', width: 20, height: 20, color: '#7d9b6e' }),
     // The `mirror: true` flag adds the `_mirror` suffix to the mesh name,
     // which b3dReflections picks up and probes automatically. The non-mirror

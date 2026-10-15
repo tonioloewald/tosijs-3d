@@ -37,6 +37,17 @@ export declare function submergedFraction(feetY: number, height: number, surface
  */
 export declare function buoyantStep(vy: number, submerged: number, dt: number, params?: BuoyancyParams): number;
 /**
+ * Buoyancy while STROKING DOWNWARD: blended toward neutral (1) by how steeply
+ * and how hard you swim down. At the surface a swimmer's buoyancy floats the
+ * swim pose's root on the waterline, a lift of about 1.1 m/s against drag,
+ * which cancelled a dive stroke almost exactly: aim down, swim, go nowhere.
+ * A real swimmer's stroke beats it (a duck dive), so this hands the stroke
+ * the vertical in proportion. `pitchDown` is radians below level, `stroke`
+ * 0..1 of forward effort. Level, upward, or not stroking: unchanged, so
+ * letting go gives the surfacing back to buoyancy.
+ */
+export declare function diveBuoyancy(buoyancy: number, pitchDown: number, stroke: number): number;
+/**
  * The submersion at which the push balances the weight — where a body floating
  * freely comes to rest. `1` (fully under, i.e. it sinks) when `buoyancy <= 1`.
  */
