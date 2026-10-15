@@ -399,7 +399,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 /*{ "parent": "ui-in-scene", "order": 20 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { panelLayerScene } from './frame-panel.js'
+import { claimPointer, panelLayerScene } from './frame-panel.js'
 import {
   AbstractMesh,
   isOff,
@@ -1029,6 +1029,9 @@ export class B3dSvgPlane extends AbstractMesh {
       const pick = pointerInfo.pickInfo
       const onPlane = !!pick?.hit && pick.pickedMesh === this.mesh
       const uvs = onPlane && pick ? pick.getTextureCoordinates() : null
+      // A press on this plane is not a press on the background (the settings
+      // panel closes on one of those, and its popups are planes like this).
+      if (kind === 'down' && uvs) claimPointer(pointerInfo.event as unknown as Event)
 
       // Coordinate-based path (a panel3d exposes `handlePointer`): map the pick's
       // UV to the SVG's viewBox coords and let the panel hit-test/capture itself.

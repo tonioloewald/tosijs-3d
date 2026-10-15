@@ -540,12 +540,15 @@ export class B3dGamepad extends Component implements GamepadSource {
    */
   suppress(reason = 'modal'): void {
     this._suppressedBy.add(reason)
-    this.style.visibility = 'hidden'
+    // `display`, not `visibility`: parts of the pad set their own visibility,
+    // so a hidden pad still drew bits of itself and took presses meant for
+    // the panel under it.
+    this.style.display = 'none'
   }
 
   release(reason = 'modal'): void {
     this._suppressedBy.delete(reason)
-    if (this._suppressedBy.size === 0) this.style.visibility = ''
+    if (this._suppressedBy.size === 0) this.style.display = ''
   }
 
   private _inputWatch: (() => void) | null = null

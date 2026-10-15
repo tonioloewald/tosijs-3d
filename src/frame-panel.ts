@@ -134,6 +134,12 @@ export function pointerClaimedByPanel(e: Event): boolean {
   return claimed.has(e)
 }
 
+/** Mark a pointer event as taken by a panel in the scene (any in-scene UI
+ * that is pressed, not only frame panels: a popup is a `b3dSvgPlane`). */
+export function claimPointer(e: Event | null | undefined): void {
+  if (e != null) claimed.add(e)
+}
+
 /** Which layer a mesh is in: a popup takes its opener's. */
 export function panelLayerOf(mesh: BABYLON.Node | null | undefined): PanelLayer {
   return (mesh && layerOfScene.get(mesh.getScene())) || 'world'
@@ -891,7 +897,7 @@ export function attachFramePanel(
         ;(info.event as PointerEvent | undefined)?.preventDefault?.()
         // …and say so: Babylon cancels every canvas press itself, so being
         // cancelled cannot tell a panel's press from a press on the world.
-        if (info.event) claimed.add(info.event as unknown as Event)
+        claimPointer(info.event as unknown as Event)
         target.handlePointer!('down', lastX, lastY)
         repaint(true)
       } else if (kind === 'move') {

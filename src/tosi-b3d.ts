@@ -1265,7 +1265,6 @@ export class B3d extends Component {
 
   // ─── Pause ────────────────────────────────────────────────────────────────
   private _paused = false
-  private _pausePanel: B3dSvgPlane | null = null
   // Flat, in-scene pause (flatUi 'scene'): a modal frame panel, its own frames,
   // and the observer that poses them.
   private _pauseModal: (() => void) | null = null
@@ -1274,6 +1273,7 @@ export class B3d extends Component {
   private _modals = new Set<{
     svg: SVGSVGElement
     height: number
+    fallback?: () => (() => void) | null
     close: (() => void) | null
   }>()
   private _pauseWatch: (() => void) | null = null
@@ -1470,7 +1470,6 @@ export class B3d extends Component {
 
   private _showPausePanel(): void {
     if (
-      this._pausePanel != null ||
       this._pauseModal != null ||
       this.scene == null
     )
@@ -1549,17 +1548,21 @@ export class B3d extends Component {
     and the screen pins. Its own head-locked frame, because a scene with no
     other flat panels has none.
     */
-    const modal = this.showModal(svg, svgH)
-    if (modal != null) {
-      this._pauseModal = modal
-      return
-    }
+    this._pauseModal = this.showModal(svg, svgH, () => this._pauseOwn(svg, svgH))
+  }
+
+  /** The pause where the scene's modal is not available: the DOM flat
+   * (`flat-ui="dom"`), else a plane in the world. Returns its dispose. */
+  private _pauseOwn(svg: SVGSVGElement, svgH: number): () => void {
     if (!this.xrActive) {
       const host = this.parts.pauseHost as HTMLElement | undefined
       if (host != null) {
         host.replaceChildren(svg)
         host.removeAttribute('hidden')
-        return
+        return () => {
+          host.replaceChildren()
+          host.setAttribute('hidden', '')
+        }
       }
     }
 
@@ -1576,7 +1579,7 @@ export class B3d extends Component {
     smaller of "as wide as it wants" and "80% of what's visible".
     */
     const z = 2.2
-    const cam = this.scene.activeCamera
+    const cam = this.scene!.activeCamera
     const fov = (cam as BABYLON.FreeCamera)?.fov ?? 0.8
     const aspect = this.engine.getAspectRatio(cam as BABYLON.Camera) || 1.6
     const width = panelFitWidth(fov, aspect, z, 1.1)
@@ -1594,8 +1597,8 @@ export class B3d extends Component {
       pointerEvents: 'on',
     }) as B3dSvgPlane
     plane.svgElement = svg
-    this._pausePanel = plane
     this.appendChild(plane)
+    return () => plane.remove()
   }
 
   /**
@@ -1603,16 +1606,24 @@ export class B3d extends Component {
    * MODAL: over the world and over the ui layer, drawn and picked first.
    * Flat it is centred on the screen and square to it; in a headset it hangs
    * in front of you at a comfortable distance, a little below eye level, and
-   * follows your body round. Returns its close, or `null` where there is no
-   * modal to give (`flat-ui="dom"` on a monitor, a custom `setupXr` with no
-   * frames, no camera yet), so the caller falls back to its own.
+   * follows your body round. Where the scene has no modal to give
+   * (`flat-ui="dom"` on a monitor, a custom `setupXr` with no frames) it calls
+   * `fallback`, the caller's own presentation, which returns its dispose; and
+   * again whenever entering or leaving a headset leaves no modal to give.
+   * Returns its close, or `null` if there was neither.
    *
    * The pause and a death's respawn panel both come through here, so they are
    * one thing in one place. One that is open when you enter or leave a
    * headset moves across with you.
    */
-  showModal(svg: SVGSVGElement, height: number): (() => void) | null {
-    const m = { svg, height, close: this._presentModal(svg, height) }
+  showModal(
+    svg: SVGSVGElement,
+    height: number,
+    fallback?: () => (() => void) | null
+  ): (() => void) | null {
+    const m = { svg, height, fallback, close: null as (() => void) | null }
+    m.close =
+      this._presentModal(svg, height, this._modals.size) ?? fallback?.() ?? null
     if (m.close == null) return null
     this._modals.add(m)
     this._syncGamepadCover()
@@ -1625,17 +1636,27 @@ export class B3d extends Component {
 
   /** Put each open modal in the presentation now running (flat or headset). */
   private _representModals(): void {
+    let i = 0
     for (const m of this._modals) {
       m.close?.()
-      m.close = this._presentModal(m.svg, m.height)
+      // Where the scene has no modal to give now (flat-ui="dom" back on the
+      // monitor), the owner's own presentation, never nothing: a respawn
+      // panel that vanished would leave you dead with no way back.
+      m.close =
+        this._presentModal(m.svg, m.height, i++) ?? m.fallback?.() ?? null
     }
   }
 
   /** One modal, in the presentation now running; returns its dispose. */
   private _presentModal(
     svg: SVGSVGElement,
-    height: number
+    height: number,
+    stack: number
   ): (() => void) | null {
+    // A later modal sits a little nearer than the one before, so two open
+    // at once (dead, then the tab hidden) do not share a plane: the newer is
+    // drawn over the older and is what a press reaches.
+    const nearer = Math.max(0.5, 1 - 0.06 * stack)
     const scene = this.scene
     if (scene == null) return null
     const xrFrames = this.xrFrames
@@ -1651,7 +1672,7 @@ export class B3d extends Component {
         anchor: {
           azimuthDeg: 0,
           elevationDeg: -10,
-          distance: 1.1,
+          distance: 1.1 * nearer,
           focus: [0, 1.6, 0],
         },
         presence: 'both',
@@ -1692,6 +1713,7 @@ export class B3d extends Component {
           top: '50%',
           anchor: 'center',
           height: tall,
+          distance: nearer,
         },
       }
     )
@@ -1708,13 +1730,6 @@ export class B3d extends Component {
   }
 
   private _hidePausePanel(): void {
-    const host = this.parts?.pauseHost as HTMLElement | undefined
-    if (host != null) {
-      host.replaceChildren()
-      host.setAttribute('hidden', '')
-    }
-    this._pausePanel?.remove()
-    this._pausePanel = null
     this._pauseModal?.()
     this._pauseModal = null
     if (this._cameraWasAttached && this.camera != null) {
@@ -5848,10 +5863,15 @@ export class B3d extends Component {
     btn.hidden = false
     const isFull = () =>
       (doc.fullscreenElement ?? doc.webkitFullscreenElement) === this
-    btn.addEventListener('click', () => {
-      if (isFull()) (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc)
-      else (el.requestFullscreen || el.webkitRequestFullscreen).call(el)
-    })
+    const toggle = () => {
+      // A refusal (no user gesture, a policy) is not worth an uncaught
+      // rejection: the button simply did nothing.
+      const r = isFull()
+        ? (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc)
+        : (el.requestFullscreen || el.webkitRequestFullscreen).call(el)
+      ;(r as Promise<void> | undefined)?.catch?.(() => {})
+    }
+    btn.addEventListener('click', toggle)
     const sync = () => {
       const full = isFull()
       btn.title = full ? 'Leave full screen' : 'Full screen'
@@ -5863,7 +5883,10 @@ export class B3d extends Component {
     }
     document.addEventListener('fullscreenchange', sync)
     document.addEventListener('webkitfullscreenchange', sync)
+    // Removed with the rest: teardown clears `_fullscreenWired`, and the
+    // button outlives it, so a reconnect would otherwise add a second toggle.
     this._fullscreenOff = () => {
+      btn.removeEventListener('click', toggle)
       document.removeEventListener('fullscreenchange', sync)
       document.removeEventListener('webkitfullscreenchange', sync)
     }
@@ -5974,10 +5997,8 @@ export class B3d extends Component {
   playing, so it hides, and comes back after. (The DOM panel sat above it.)
   */
   private _syncGamepadCover(): void {
-    const pad = this.querySelector('tosi-b3d-gamepad') as HTMLElement | null
-    if (pad == null) return
     const covered = this._flatScenePanel != null || this._modals.size > 0
-    pad.style.display = covered ? 'none' : ''
+    this._suppressGamepad('in-scene-ui', covered)
   }
   private _openFlatScenePanel(): boolean {
     const scene = this.scene

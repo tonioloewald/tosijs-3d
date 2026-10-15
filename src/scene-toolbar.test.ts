@@ -57,4 +57,18 @@ describe('sceneToolbar mirrors HTML buttons', () => {
     expect(a.clicks() + c.clicks()).toBe(0)
     bar.dispose()
   })
+
+  test('a button styled away (display: none) is not drawn, and is drawn again when shown', async () => {
+    const a = button(), b = button()
+    document.body.append(a.b, b.b)
+    b.b.style.display = 'none'
+    const bar = sceneToolbar([a.b, b.b])
+    expect(bar.count).toBe(1)
+    b.b.style.display = ''
+    await new Promise((r) => setTimeout(r, 0))
+    expect(bar.count).toBe(2)
+    bar.dispose()
+    a.b.remove()
+    b.b.remove()
+  })
 })

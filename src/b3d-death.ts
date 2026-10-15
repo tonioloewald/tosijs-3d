@@ -189,8 +189,7 @@ export class B3dDeath extends B3dChild {
   private _remains: Element[] = []
   private _orbitCam: BABYLON.Camera | null = null
   private _prevCam: BABYLON.Camera | null = null
-  private _panel: B3dSvgPlane | null = null
-  // Flat: the scene's modal instead of `_panel`; this disposes it.
+  // The respawn panel's dispose (the scene's modal, or our own plane).
   private _modal: (() => void) | null = null
   private _fires: BABYLON.ParticleSystem[] = []
   private _charMats: BABYLON.Material[] = []
@@ -729,23 +728,26 @@ export class B3dDeath extends B3dChild {
     this.owner._suppressGamepad?.('death', true)
     // The scene's modal, as the pause is (#3307): over everything, so terrain
     // and the wreck's own smoke cannot bury it; flat in the middle of the
-    // screen, in a headset in front of you. Null with flat-ui="dom" (or a
-    // custom XR rig), where it stays the world-placed plane below.
-    const modal = this.owner.showModal?.(svg, svgH)
-    if (modal != null) {
-      this._modal = modal
-      return
-    }
+    // screen, in a headset in front of you. Where the scene has none to give
+    // (flat-ui="dom", a custom XR rig) it is our own world-placed plane.
+    const own = () => this._ownPanel(svg, svgH)
+    this._modal =
+      this.owner.showModal?.(svg, svgH, own) ?? own()
+  }
+
+  /** The respawn panel as a plane in the world; returns its dispose. */
+  private _ownPanel(svg: SVGSVGElement, svgH: number): () => void {
+    const owner = this.owner!
     // In-scene, camera-relative: ONE panel that works flat AND in VR, with the same
     // coordinate-based picking. A DOM overlay would simply not exist in a headset.
     //
     // Width comes from the CAMERA, not a constant: 1.1 fits a monitor and
     // overflows a portrait phone, which puts the Respawn button off screen — at
     // the worst possible moment, since you have just crashed.
-    const deathCam = this.owner.scene.activeCamera
+    const deathCam = owner.scene.activeCamera
     const width = panelFitWidth(
       (deathCam as BABYLON.FreeCamera)?.fov ?? 0.8,
-      this.owner.scene.getEngine().getAspectRatio(deathCam as BABYLON.Camera) ||
+      owner.scene.getEngine().getAspectRatio(deathCam as BABYLON.Camera) ||
         1.6,
       2.2,
       1.1
@@ -773,8 +775,8 @@ export class B3dDeath extends B3dChild {
     }) as B3dSvgPlane
     // Hand it the widget panel BEFORE it mounts, so its first render has content.
     plane.svgElement = svg
-    this._panel = plane
-    this.owner.appendChild(plane)
+    owner.appendChild(plane)
+    return () => plane.remove()
   }
 
   /** Tear down the death state and hand control back — then run `next` (e.g. respawn). */
@@ -807,8 +809,6 @@ export class B3dDeath extends B3dChild {
     this._fires = []
     for (const mat of this._charMats) mat.dispose()
     this._charMats = []
-    this._panel?.remove()
-    this._panel = null
     this._modal?.()
     this._modal = null
     this.owner?._suppressGamepad?.('death', false)

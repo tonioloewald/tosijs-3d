@@ -8,7 +8,9 @@ panel in the scene's `ui` layer pinned to the corner of the screen, so the one
 UI the scene draws in a headset is also the one it draws on a monitor.
 
 It does not re-implement the buttons. It MIRRORS a list of real HTML buttons
-(the ones `<tosi-b3d>` already has): a button that is hidden is not drawn, one
+(the ones `<tosi-b3d>` already has): a button that is hidden (by its `hidden`
+attribute or by a style, such as `::part(enterVrButton) { display: none }`) is
+not drawn, one
 that is disabled is drawn dimmed and ignores a press, its icon and title come
 along, and a press calls that button's own `click()`. So entering VR and going
 full screen keep their one definition, and both still run inside the press
@@ -26,6 +28,12 @@ const bar = sceneToolbar([gearButton, vrButton, fullscreenButton])
 
 import { svgElements } from 'tosijs'
 import type { PointerKind } from './box.js'
+
+/** Is `b` set to `display: none` by a style (its own, or the page's)? */
+function styledAway(b: HTMLElement): boolean {
+  if (!b.isConnected) return b.style.display === 'none'
+  return getComputedStyle(b).display === 'none'
+}
 
 const SIZE = 40
 const GAP = 6
@@ -57,7 +65,9 @@ export function sceneToolbar(buttons: HTMLButtonElement[]): SceneToolbar {
   }
 
   const build = () => {
-    shown = buttons.filter((b) => !b.hidden)
+    // Hidden by the attribute, or by the page's own styling (a
+    // `::part(enterVrButton) { display: none }` should hide it here too).
+    shown = buttons.filter((b) => !b.hidden && !styledAway(b))
     const w = shown.length
       ? PAD * 2 + shown.length * SIZE + (shown.length - 1) * GAP
       : 1
@@ -132,7 +142,7 @@ export function sceneToolbar(buttons: HTMLButtonElement[]): SceneToolbar {
   for (const b of buttons)
     watch.observe(b, {
       attributes: true,
-      attributeFilter: ['hidden', 'disabled', 'title'],
+      attributeFilter: ['hidden', 'disabled', 'title', 'style', 'class', 'part'],
       childList: true,
     })
   build()
