@@ -3422,13 +3422,13 @@
       },
       {
         "name": "shadowNormalBias",
-        "default": "0.05",
+        "default": "0.02",
         "description": "Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters"
       },
       {
         "name": "shadowBias",
-        "default": "0.00005",
-        "description": "Depth-direction bias; peter-pans sooner than `shadowNormalBias`, so tune that one first"
+        "default": "0.0005",
+        "description": "Depth-direction bias, in the cascade's depth range. With `shadowNormalBias` at 0.02 it is what clears the remaining acne (fine bands over every lit surface); raise `shadowNormalBias` instead and thin limbs lose their shadow"
       },
       {
         "name": "shadowTextureSize",

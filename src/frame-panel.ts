@@ -350,7 +350,11 @@ export function attachFramePanel(
     const el = (a.elevationDeg ?? 0) * DEG
     const d = a.distance ?? 0.5
     const horiz = d * Math.cos(el)
-    return [f[0] + horiz * Math.sin(az), f[1] + d * Math.sin(el), f[2] + horiz * Math.cos(az)]
+    return [
+      f[0] + horiz * Math.sin(az),
+      f[1] + d * Math.sin(el),
+      f[2] + horiz * Math.cos(az),
+    ]
   }
 
   const el =
@@ -361,7 +365,9 @@ export function attachFramePanel(
   const width = spec.width ?? 0.26
   // The viewBox it was built at: content that grows (a dock opening) grows
   // the plane by the same ratio, so its units keep their size.
-  const baseVb = el ? { w: el.viewBox.baseVal.width || 1, h: el.viewBox.baseVal.height || 1 } : null
+  const baseVb = el
+    ? { w: el.viewBox.baseVal.width || 1, h: el.viewBox.baseVal.height || 1 }
+    : null
 
   const plane = BABYLON.MeshBuilder.CreatePlane(
     'frame-panel',
@@ -397,7 +403,11 @@ export function attachFramePanel(
       { x: f[0], y: f[1], z: f[2] },
       (a.rollDeg ?? 0) * DEG
     )
-    plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, roll)
+    plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      yaw,
+      pitch,
+      roll
+    )
   }
   placeAt(anchor)
   const focusAnchor: AnchorSpec =
@@ -413,7 +423,8 @@ export function attachFramePanel(
   const focusPlace = (): AnchorSpec => {
     const near = ((scene.activeCamera ?? cam) as BABYLON.Camera).minZ ?? 0
     const d = focusAnchor.distance ?? 0.5
-    pushed = focusAnchor.position == null && d < near * 1.25 ? (near * 1.25) / d : 1
+    pushed =
+      focusAnchor.position == null && d < near * 1.25 ? (near * 1.25) / d : 1
     return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed }
   }
   const fit = () => {

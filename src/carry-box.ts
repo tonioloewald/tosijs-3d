@@ -146,7 +146,13 @@ const dragOrigin = new WeakMap<Carry<any>, object>()
 /** What the drag in progress looks like, per carry (set as it starts). */
 const dragLooks = new WeakMap<Carry<any>, CarryLook>()
 /** Where a carry's info floater is drawn: the layer its ghost is drawn in. */
-const infoLayers = new WeakMap<Carry<any>, { show: (over: Element, lines: string[]) => void; hide: (over?: Element) => void }>()
+const infoLayers = new WeakMap<
+  Carry<any>,
+  {
+    show: (over: Element, lines: string[]) => void
+    hide: (over?: Element) => void
+  }
+>()
 /** Why the last drop did not land, per carry (absent: it landed). */
 const lastRefusal = new WeakMap<Carry<any>, string[]>()
 
@@ -195,24 +201,35 @@ export interface CarryTileOptions<T> {
 
 const parsed = new Map<string, SVGSVGElement>()
 /** A picture as an element of its own, `size` square at (x, y). */
-function iconAt(src: string | SVGElement, x: number, y: number, size: number): SVGSVGElement {
+function iconAt(
+  src: string | SVGElement,
+  x: number,
+  y: number,
+  size: number
+): SVGSVGElement {
   let base: SVGElement
   if (typeof src === 'string') {
     let hit = parsed.get(src)
     if (!hit) {
-      hit = new DOMParser().parseFromString(src, 'image/svg+xml').documentElement as unknown as SVGSVGElement
+      hit = new DOMParser().parseFromString(src, 'image/svg+xml')
+        .documentElement as unknown as SVGSVGElement
       parsed.set(src, hit)
     }
     base = hit
   } else base = src
   const el = base.cloneNode(true) as SVGSVGElement
   if (el.tagName.toLowerCase() !== 'svg') {
-    const wrap = svgElements.svg({ viewBox: '0 0 24 24' }) as unknown as SVGSVGElement
+    const wrap = svgElements.svg({
+      viewBox: '0 0 24 24',
+    }) as unknown as SVGSVGElement
     wrap.append(el)
     return iconAt(wrap, x, y, size)
   }
   if (!el.getAttribute('viewBox')) {
-    el.setAttribute('viewBox', `0 0 ${el.getAttribute('width') ?? 24} ${el.getAttribute('height') ?? 24}`)
+    el.setAttribute(
+      'viewBox',
+      `0 0 ${el.getAttribute('width') ?? 24} ${el.getAttribute('height') ?? 24}`
+    )
   }
   el.setAttribute('x', String(x))
   el.setAttribute('y', String(y))
@@ -232,7 +249,9 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
   // A small tile (in a socket on a schematic) centres a shortened label.
   const small = w < 80
   const fontSize = small ? 10 : 13
-  const fit = small ? Math.max(2, Math.floor((w - 6) / (fontSize * 0.55))) : Infinity
+  const fit = small
+    ? Math.max(2, Math.floor((w - 6) / (fontSize * 0.55)))
+    : Infinity
   const shown = label.length > fit ? label.slice(0, fit - 1) + '…' : label
   const inset = Math.min(10, w * 0.12)
   const bg = rect({
@@ -250,10 +269,15 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
   if (icon && small) {
     // In a socket: the picture alone, filling it (the floater names it).
     const size = Math.min(w, h) - (deco.bar != null ? 14 : 8)
-    parts.push(iconAt(icon, (w - size) / 2, deco.bar != null ? 3 : (h - size) / 2, size))
+    parts.push(
+      iconAt(icon, (w - size) / 2, deco.bar != null ? 3 : (h - size) / 2, size)
+    )
   } else {
     const iconSize = Math.min(24, h - 8)
-    if (icon) parts.push(iconAt(icon, 6, deco.bar != null ? 3 : (h - iconSize) / 2, iconSize))
+    if (icon)
+      parts.push(
+        iconAt(icon, 6, deco.bar != null ? 3 : (h - iconSize) / 2, iconSize)
+      )
     parts.push(
       text(
         {
@@ -272,8 +296,22 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
     const v = Math.max(0, Math.min(1, deco.bar))
     const bw = w - 2 * inset
     parts.push(
-      rect({ x: inset, y: h - 9, width: bw, height: 4, rx: 2, fill: '#141a24' }),
-      rect({ x: inset, y: h - 9, width: bw * v, height: 4, rx: 2, fill: deco.barColor ?? '#5fbf6a' })
+      rect({
+        x: inset,
+        y: h - 9,
+        width: bw,
+        height: 4,
+        rx: 2,
+        fill: '#141a24',
+      }),
+      rect({
+        x: inset,
+        y: h - 9,
+        width: bw * v,
+        height: 4,
+        rx: 2,
+        fill: deco.barColor ?? '#5fbf6a',
+      })
     )
   }
   if (deco.badge) {
@@ -311,10 +349,14 @@ export function carryTile<T>(opts: CarryTileOptions<T>): CarryTileChild<T> {
       // Pointed at or selected, and nothing in hand: say what it is.
       const layer = infoLayers.get(carry)
       if (layer && opts.info) {
-        if ((s.hovered || s.focused) && carry.state.thing == null && !s.pressed) layer.show(el, opts.info())
+        if ((s.hovered || s.focused) && carry.state.thing == null && !s.pressed)
+          layer.show(el, opts.info())
         else layer.hide(el)
       }
-      bg.setAttribute('fill', s.pressed ? '#3b4860' : s.hovered || s.focused ? '#344054' : '#2c3546')
+      bg.setAttribute(
+        'fill',
+        s.pressed ? '#3b4860' : s.hovered || s.focused ? '#344054' : '#2c3546'
+      )
       const t = opts.target
       if (t && carry.state.thing != null && carry.state.thing !== thing) {
         if (s.hovered || s.focused) carry.over(t)
@@ -368,10 +410,17 @@ export interface CarrySocketOptions<T> {
 /** A socket that would take what is held, and the one under the pointer. */
 const FITS = '#6fd08c'
 const LIT = '#c4f5d2'
-const HALO = { stroke: '#0b0e14', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }
+const HALO = {
+  stroke: '#0b0e14',
+  'stroke-width': 3,
+  'paint-order': 'stroke',
+  'stroke-linejoin': 'round',
+}
 
 /** A place a carried thing can go: lights, dims and says why. */
-export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T> {
+export function carrySocket<T>(
+  opts: CarrySocketOptions<T>
+): CarrySocketChild<T> {
   const { carry, target, label, holding } = opts
   const art = opts.look === 'art'
   const w = opts.width ?? 160
@@ -414,7 +463,15 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
   if (!art) parts.push(frame, caption)
   if (holding) {
     // In a row, under the caption and clear of the reason line; on art, filling it.
-    parts.push(g({ transform: art ? '' : 'translate(10, 20)', opacity: opts.echo ? '0.4' : '1' }, holding.el))
+    parts.push(
+      g(
+        {
+          transform: art ? '' : 'translate(10, 20)',
+          opacity: opts.echo ? '0.4' : '1',
+        },
+        holding.el
+      )
+    )
   }
   // On art the frame and words go OVER what it holds.
   if (art) parts.push(frame, caption)
@@ -443,7 +500,10 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
         frame.setAttribute('stroke-width', '1.5')
         frame.setAttribute('stroke-dasharray', '5 4')
       }
-      frame.setAttribute('stroke', art ? (hovered ? '#9fb0c8' : 'none') : '#55607a')
+      frame.setAttribute(
+        'stroke',
+        art ? (hovered ? '#9fb0c8' : 'none') : '#55607a'
+      )
       frame.setAttribute('fill', art ? 'none' : '#161b25')
       frame.removeAttribute('fill-opacity')
       if (art) caption.textContent = hovered ? label : ''
@@ -458,14 +518,20 @@ export function carrySocket<T>(opts: CarrySocketOptions<T>): CarrySocketChild<T>
       setFrame(ok ? -2 : -3, ok ? (hovered ? 4 : 3) : 0)
       frame.setAttribute('stroke', ok ? (hovered ? LIT : FITS) : 'none')
       frame.setAttribute('fill', ok ? FITS : '#05070b')
-      frame.setAttribute('fill-opacity', ok ? (hovered ? '0.55' : '0.22') : '0.78')
+      frame.setAttribute(
+        'fill-opacity',
+        ok ? (hovered ? '0.55' : '0.22') : '0.78'
+      )
       caption.textContent = hovered ? label : ''
     } else {
       el.setAttribute('opacity', ok ? '1' : '0.45')
       frame.setAttribute('stroke', ok ? (hovered ? LIT : FITS) : '#55607a')
       frame.setAttribute('stroke-width', ok ? (hovered ? '3' : '2') : '1.5')
       frame.setAttribute('stroke-dasharray', ok && hovered ? '' : '5 4')
-      frame.setAttribute('fill', ok ? (hovered ? '#2c5a3c' : '#1a2b22') : '#161b25')
+      frame.setAttribute(
+        'fill',
+        ok ? (hovered ? '#2c5a3c' : '#1a2b22') : '#161b25'
+      )
     }
     why.textContent = hovered && v && !ok ? v.reasons[0] ?? '' : ''
   }
@@ -514,11 +580,31 @@ function carryGhost(parent: Element) {
   const LIFT = 46
   let run = 0
   let shownLook: CarryLook | null = null
-  const pill = rect({ x: -50, y: -60, width: 100, height: 28, rx: 6, fill: '#3b4860', stroke: '#9fb0c8' })
-  const el = g({ 'pointer-events': 'none', opacity: '0.85' }, pill) as unknown as SVGGElement
-  const font = { 'text-anchor': 'middle', 'font-family': 'system-ui, sans-serif' }
-  const label = text({ x: 0, y: -41, fill: '#fff', 'font-size': '12', ...font }, '')
-  const why = text({ x: 0, y: -18, fill: '#f0907c', 'font-size': '11', ...font, ...HALO }, '')
+  const pill = rect({
+    x: -50,
+    y: -60,
+    width: 100,
+    height: 28,
+    rx: 6,
+    fill: '#3b4860',
+    stroke: '#9fb0c8',
+  })
+  const el = g(
+    { 'pointer-events': 'none', opacity: '0.85' },
+    pill
+  ) as unknown as SVGGElement
+  const font = {
+    'text-anchor': 'middle',
+    'font-family': 'system-ui, sans-serif',
+  }
+  const label = text(
+    { x: 0, y: -41, fill: '#fff', 'font-size': '12', ...font },
+    ''
+  )
+  const why = text(
+    { x: 0, y: -18, fill: '#f0907c', 'font-size': '11', ...font, ...HALO },
+    ''
+  )
   let picture: Element | null = null
   el.append(label, why)
   // A picture is carried as itself (a square tile); a name as a pill.
@@ -528,12 +614,16 @@ function carryGhost(parent: Element) {
     picture?.remove()
     picture = null
     if (look.icon) {
-      Object.entries({ x: -24, y: -70, width: 48, height: 48, rx: 8 }).forEach(([k, v]) => pill.setAttribute(k, String(v)))
+      Object.entries({ x: -24, y: -70, width: 48, height: 48, rx: 8 }).forEach(
+        ([k, v]) => pill.setAttribute(k, String(v))
+      )
       picture = iconAt(look.icon, -18, -64, 36)
       el.insertBefore(picture, label)
       label.textContent = ''
     } else {
-      Object.entries({ x: -50, y: -60, width: 100, height: 28, rx: 6 }).forEach(([k, v]) => pill.setAttribute(k, String(v)))
+      Object.entries({ x: -50, y: -60, width: 100, height: 28, rx: 6 }).forEach(
+        ([k, v]) => pill.setAttribute(k, String(v))
+      )
       label.textContent = look.label
     }
   }
@@ -573,7 +663,11 @@ function carryGhost(parent: Element) {
  * Calls `then` each time the carry empties: with the reason (possibly empty)
  * when a drag that `mine()` claims did not land, and with null otherwise.
  */
-function whenDropMisses<T>(carry: Carry<T>, mine: () => boolean, then: (why: string | null) => void) {
+function whenDropMisses<T>(
+  carry: Carry<T>,
+  mine: () => boolean,
+  then: (why: string | null) => void
+) {
   let held = false
   return carry.subscribe((s) => {
     if (s.thing != null) {
@@ -604,26 +698,41 @@ export interface CarryGhostLayer {
  * coordinates (give each `carryPanel` `ghost: false`). This is how panels on
  * one 3D plane share a ghost; `carryOverlay` is the same on a page.
  */
-export function carryGhostLayer<T>(carry: Carry<T>, layer: Element): CarryGhostLayer {
+export function carryGhostLayer<T>(
+  carry: Carry<T>,
+  layer: Element
+): CarryGhostLayer {
   const ghost = carryGhost(layer)
   const floater = infoFloater(layer)
   infoLayers.set(carry, floater)
   let press: Pt | null = null
   let home: Pt | null = null
   let last: Pt | null = null
-  const stop = whenDropMisses(carry, () => true, (why) => {
-    ghost.hide()
-    if (why != null && home && last) ghost.springBack(last, home, why)
-    home = null
-  })
+  const stop = whenDropMisses(
+    carry,
+    () => true,
+    (why) => {
+      ghost.hide()
+      if (why != null && home && last) ghost.springBack(last, home, why)
+      home = null
+    }
+  )
   return {
     handlePointer(kind, x, y) {
       if (kind === 'down') press = { x, y }
       else if (kind === 'up') last = { x, y }
-      else if (kind === 'move' && carry.state.thing != null && carry.state.mode === 'drag') {
+      else if (
+        kind === 'move' &&
+        carry.state.thing != null &&
+        carry.state.mode === 'drag'
+      ) {
         home ??= press
         last = { x, y }
-        ghost.show(x, y, dragLooks.get(carry) ?? { label: String(carry.state.thing) })
+        ghost.show(
+          x,
+          y,
+          dragLooks.get(carry) ?? { label: String(carry.state.thing) }
+        )
       }
     },
     dispose() {
@@ -655,13 +764,42 @@ function infoFloater(layer: Element) {
       about = over
       box.textContent = ''
       const [title, ...rest] = lines
-      const width = Math.max(...lines.map((l, i) => l.length * (i ? 6.2 : 7.4))) + 20
+      const width =
+        Math.max(...lines.map((l, i) => l.length * (i ? 6.2 : 7.4))) + 20
       const height = 26 + rest.length * 15
       box.append(
-        rect({ x: 0, y: 0, width, height, rx: 6, fill: '#11151d', stroke: '#55607a', opacity: '0.96' }),
-        text({ x: 10, y: 18, fill: '#e8e8e8', 'font-family': 'system-ui, sans-serif', 'font-size': '13', 'font-weight': '700' }, title),
+        rect({
+          x: 0,
+          y: 0,
+          width,
+          height,
+          rx: 6,
+          fill: '#11151d',
+          stroke: '#55607a',
+          opacity: '0.96',
+        }),
+        text(
+          {
+            x: 10,
+            y: 18,
+            fill: '#e8e8e8',
+            'font-family': 'system-ui, sans-serif',
+            'font-size': '13',
+            'font-weight': '700',
+          },
+          title
+        ),
         ...rest.map((l, i) =>
-          text({ x: 10, y: 34 + i * 15, fill: '#aab4c8', 'font-family': 'system-ui, sans-serif', 'font-size': '11' }, l)
+          text(
+            {
+              x: 10,
+              y: 34 + i * 15,
+              fill: '#aab4c8',
+              'font-family': 'system-ui, sans-serif',
+              'font-size': '11',
+            },
+            l
+          )
         )
       )
       const r = over.getBoundingClientRect()
@@ -764,11 +902,17 @@ export function carryPanel<T>(
   here and is let go over another panel must drop there, and that panel did
   not see it start. So every panel asks the shared carry.
   */
-  const dragging = () => carry.state.thing != null && carry.state.mode === 'drag'
+  const dragging = () =>
+    carry.state.thing != null && carry.state.mode === 'drag'
   const ghost = carryGhost(box.el)
   const showGhost = (x: number, y: number) => {
     last = { x, y }
-    if (drawGhost) ghost.show(x, y, dragLooks.get(carry) ?? { label: String(carry.state.thing) })
+    if (drawGhost)
+      ghost.show(
+        x,
+        y,
+        dragLooks.get(carry) ?? { label: String(carry.state.thing) }
+      )
   }
   const hideGhost = () => ghost.hide()
   const startDrag = () => {
@@ -783,10 +927,15 @@ export function carryPanel<T>(
     infoLayers.get(carry)?.hide()
     carry.pickUp(tile.carryThing, tile.carryFrom, 'drag')
   }
-  const stop = whenDropMisses(carry, () => dragOrigin.get(carry) === self, (why) => {
-    hideGhost()
-    if (drawGhost && why != null && home && last) ghost.springBack(last, home, why)
-  })
+  const stop = whenDropMisses(
+    carry,
+    () => dragOrigin.get(carry) === self,
+    (why) => {
+      hideGhost()
+      if (drawGhost && why != null && home && last)
+        ghost.springBack(last, home, why)
+    }
+  )
   return {
     handlePointer(kind, x, y) {
       if (kind === 'down') {
@@ -796,12 +945,14 @@ export function carryPanel<T>(
         return
       }
       if (kind === 'move') {
-        if (press && Math.hypot(x - press.x, y - press.y) > DRAG_THRESHOLD) startDrag()
+        if (press && Math.hypot(x - press.x, y - press.y) > DRAG_THRESHOLD)
+          startDrag()
         if (dragging()) showGhost(x, y)
         // The box keeps its hover bookkeeping, which is how a socket knows
         // the pointer is on it.
         box.handlePointer(kind, x, y)
-        if (dragging() && opts.fallback && carry.state.target == null) carry.over(opts.fallback)
+        if (dragging() && opts.fallback && carry.state.target == null)
+          carry.over(opts.fallback)
         return
       }
       if (kind === 'up') {
@@ -811,7 +962,11 @@ export function carryPanel<T>(
           last = { x, y }
           const r = carry.drop()
           if (r.done) lastRefusal.delete(carry)
-          else lastRefusal.set(carry, r.reasons.filter((w) => w !== 'dropped on nothing'))
+          else
+            lastRefusal.set(
+              carry,
+              r.reasons.filter((w) => w !== 'dropped on nothing')
+            )
           // Clear the box's press without activating anything.
           box.handlePointer('leave', 0, 0)
           return

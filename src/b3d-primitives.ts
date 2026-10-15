@@ -125,25 +125,37 @@ function addSolidProxy(
   return proxy
 }
 
-/** A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via uScale/vScale. */
+/**
+ * A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via
+ * uScale/vScale (it must WRAP, see below). The dark squares are the light ones at 70%: a fixed second
+ * grey (it was #767676) all but vanished against the default #888 ground.
+ * Mipmapped and anisotropic, or a tiled checker shimmers into moiré bands
+ * toward the horizon.
+ */
 function makeCheckerTexture(
   name: string,
   scene: BABYLON.Scene,
-  colorA = '#9a9a9a',
-  colorB = '#767676'
+  color = '#9a9a9a'
 ): BABYLON.DynamicTexture {
   const size = 128
   const tex = new BABYLON.DynamicTexture(
     name,
     { width: size, height: size },
     scene,
-    false
+    true,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
   )
+  tex.anisotropicFilteringLevel = 8
+  // A DynamicTexture CLAMPS by default, so with uScale above 1 every tile past
+  // the first was its edge colour: one flat grey, no checker at all.
+  tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
+  tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
   const ctx = tex.getContext() as CanvasRenderingContext2D
   const half = size / 2
-  ctx.fillStyle = colorA
+  const light = BABYLON.Color3.FromHexString(color)
+  ctx.fillStyle = color
   ctx.fillRect(0, 0, size, size)
-  ctx.fillStyle = colorB
+  ctx.fillStyle = light.scale(0.7).toHexString()
   ctx.fillRect(0, 0, half, half)
   ctx.fillRect(half, half, half, half)
   tex.update()

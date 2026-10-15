@@ -1269,7 +1269,12 @@ export interface PanelSceneOptions {
    * The orbit camera. `minRadius` is as close as it zooms (default: half its
    * starting radius), so a wheel or a pinch cannot pass through the panel.
    */
-  camera?: { alpha?: number; beta?: number; radius?: number; minRadius?: number }
+  camera?: {
+    alpha?: number
+    beta?: number
+    radius?: number
+    minRadius?: number
+  }
 }
 
 export function panelScene(opts: PanelSceneOptions): {

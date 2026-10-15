@@ -177,7 +177,13 @@ export type Rule = (ctx: RuleContext) => string[]
 export type InventoryEvent =
   | { type: 'moved'; item: string; from: Place | null; to: Place | null }
   | { type: 'created'; item: string; kind: string; to: Place | null }
-  | { type: 'paid'; from: string; to: string | null; amount: number; in: string }
+  | {
+      type: 'paid'
+      from: string
+      to: string | null
+      amount: number
+      in: string
+    }
   | { type: 'damaged'; item: string; boxes: number }
 
 export interface InventoryPlugins {
@@ -222,10 +228,15 @@ export interface InventoryApi {
    * kind's `contributes` (and its cost), so a ship class, a learned spell or a
    * forged sword can be made, owned and fitted like anything else.
    */
-  compile: (holder: string, as: { id: string; name?: string; tags?: string[] }) => ItemKind
+  compile: (
+    holder: string,
+    as: { id: string; name?: string; tags?: string[] }
+  ) => ItemKind
   /** Destroy `boxes` boxes of the first undamaged item with `tag` on `holder`. */
   damage: (holder: string, tag: string, boxes?: number) => MoveResult
-  subscribe: (fn: (doc: InventoryDoc, events: InventoryEvent[]) => void) => () => void
+  subscribe: (
+    fn: (doc: InventoryDoc, events: InventoryEvent[]) => void
+  ) => () => void
 }
 
 export interface InventoryDraft {
@@ -254,7 +265,8 @@ function findItem(doc: InventoryDoc, id: string): Place | null {
     for (const [cname, c] of Object.entries(h.containers)) {
       if (c.type === 'slots') {
         for (const [s, slot] of Object.entries(c.slots))
-          if (slot.holds === id) return { holder: h.id, container: cname, slot: s }
+          if (slot.holds === id)
+            return { holder: h.id, container: cname, slot: s }
       } else if (c.type === 'list') {
         if (c.holds.includes(id)) return { holder: h.id, container: cname }
       } else {
@@ -272,7 +284,11 @@ function takeOut(doc: InventoryDoc, id: string) {
   const c = doc.holders[at.holder].containers[at.container]
   if (c.type === 'slots') c.slots[at.slot!].holds = null
   else if (c.type === 'list') c.holds.splice(c.holds.indexOf(id), 1)
-  else c.holds.splice(c.holds.findIndex((e) => e.item === id), 1)
+  else
+    c.holds.splice(
+      c.holds.findIndex((e) => e.item === id),
+      1
+    )
 }
 
 function containerOf(doc: InventoryDoc, p: Place): Container | null {
@@ -280,7 +296,11 @@ function containerOf(doc: InventoryDoc, p: Place): Container | null {
 }
 
 /** What is at a place now (the item id), for slots and grid cells. */
-function occupant(doc: InventoryDoc, kinds: Record<string, ItemKind>, p: Place): string | null {
+function occupant(
+  doc: InventoryDoc,
+  kinds: Record<string, ItemKind>,
+  p: Place
+): string | null {
   const c = containerOf(doc, p)
   if (!c) return null
   if (c.type === 'slots') return c.slots[p.slot ?? '']?.holds ?? null
@@ -288,14 +308,20 @@ function occupant(doc: InventoryDoc, kinds: Record<string, ItemKind>, p: Place):
     for (const e of c.holds) {
       const k = kinds[doc.items[e.item]?.kind]
       const [w, h] = k?.size ?? [1, 1]
-      if (p.x! >= e.x && p.x! < e.x + w && p.y! >= e.y && p.y! < e.y + h) return e.item
+      if (p.x! >= e.x && p.x! < e.x + w && p.y! >= e.y && p.y! < e.y + h)
+        return e.item
     }
   }
   return null
 }
 
 /** Put `id` at `p`; returns the id it ended up as (it may join a stack). */
-function putIn(doc: InventoryDoc, id: string, p: Place, kinds?: Record<string, ItemKind>): string {
+function putIn(
+  doc: InventoryDoc,
+  id: string,
+  p: Place,
+  kinds?: Record<string, ItemKind>
+): string {
   const c = containerOf(doc, p)
   if (!c) throw new Error(`no container ${p.holder}/${p.container}`)
   if (c.type === 'slots') {
@@ -312,7 +338,12 @@ function putIn(doc: InventoryDoc, id: string, p: Place, kinds?: Record<string, I
       cap > 1 && plain(item)
         ? c.holds.find((o) => {
             const other = doc.items[o]
-            return o !== id && other.kind === item.kind && plain(other) && other.qty + item.qty <= cap
+            return (
+              o !== id &&
+              other.kind === item.kind &&
+              plain(other) &&
+              other.qty + item.qty <= cap
+            )
           })
         : undefined
     if (into) {
@@ -326,7 +357,10 @@ function putIn(doc: InventoryDoc, id: string, p: Place, kinds?: Record<string, I
 }
 
 /** The shapes' own rules: what a slot accepts, a list's cap, a grid's bounds and overlaps. */
-function shapeRules(doc: InventoryDoc, kinds: Record<string, ItemKind>): string[] {
+function shapeRules(
+  doc: InventoryDoc,
+  kinds: Record<string, ItemKind>
+): string[] {
   const out: string[] = []
   for (const h of Object.values(doc.holders)) {
     for (const [cname, c] of Object.entries(h.containers)) {
@@ -369,9 +403,13 @@ export function createInventory(
   const kinds = plugins.kinds
   const listeners = new Set<(d: InventoryDoc, e: InventoryEvent[]) => void>()
   const fitted =
-    plugins.fitted ?? ((h: Holder, c: string) => h.containers[c].type !== 'list')
+    plugins.fitted ??
+    ((h: Holder, c: string) => h.containers[c].type !== 'list')
 
-  const totalsOf = (d: InventoryDoc, holder: string): Record<string, number> => {
+  const totalsOf = (
+    d: InventoryDoc,
+    holder: string
+  ): Record<string, number> => {
     const h = d.holders[holder]
     const out: Record<string, number> = {}
     if (!h) return out
@@ -385,22 +423,33 @@ export function createInventory(
         c.type === 'slots'
           ? Object.entries(c.slots)
               .filter(([, s]) => s.holds)
-              .map(([s, slot]) => [slot.holds!, { holder, container: cname, slot: s }, slot])
+              .map(([s, slot]) => [
+                slot.holds!,
+                { holder, container: cname, slot: s },
+                slot,
+              ])
           : c.type === 'list'
           ? c.holds.map((id) => [id, { holder, container: cname }, null])
-          : c.holds.map((e) => [e.item, { holder, container: cname, x: e.x, y: e.y }, null])
+          : c.holds.map((e) => [
+              e.item,
+              { holder, container: cname, x: e.x, y: e.y },
+              null,
+            ])
       for (const [id, place, slot] of entries) {
         const item = d.items[id]
         const k = kinds[item?.kind]
         if (!item || !k) continue
         // A thing with boxes destroyed gives only what its whole boxes give.
-        const whole = Math.max(0, (k.boxes ?? 1) - (item.damaged ?? 0)) / (k.boxes ?? 1)
+        const whole =
+          Math.max(0, (k.boxes ?? 1) - (item.damaged ?? 0)) / (k.boxes ?? 1)
         const base: Record<string, number> = {}
         if (k.mass) base.mass = k.mass * item.qty
         if (k.cost) base.cost = k.cost * item.qty
-        for (const [key, v] of Object.entries(k.contributes ?? {})) base[key] = v * item.qty * whole
+        for (const [key, v] of Object.entries(k.contributes ?? {}))
+          base[key] = v * item.qty * whole
         add(base)
-        if (plugins.contribution) add(plugins.contribution(item, k, place, slot))
+        if (plugins.contribution)
+          add(plugins.contribution(item, k, place, slot))
       }
     }
     return out
@@ -460,7 +509,11 @@ export function createInventory(
       }
       events.push({ type: 'moved', item: id, from, to: m.to })
       if (plugins.price && m.pay) {
-        const amount = plugins.price(moved ?? { id, kind: m.kind ?? '', qty: 1 }, from, m.to)
+        const amount = plugins.price(
+          moved ?? { id, kind: m.kind ?? '', qty: 1 },
+          from,
+          m.to
+        )
         const payer = d.holders[m.pay.holder]
         if (!payer) reasons.push(`no such holder: ${m.pay.holder}`)
         else {
@@ -472,7 +525,13 @@ export function createInventory(
             p.purse = p.purse ?? {}
             p.purse[m.pay.in] = (p.purse[m.pay.in] ?? 0) + amount
           }
-          events.push({ type: 'paid', from: m.pay.holder, to: m.payee ?? null, amount, in: m.pay.in })
+          events.push({
+            type: 'paid',
+            from: m.pay.holder,
+            to: m.payee ?? null,
+            amount,
+            in: m.pay.in,
+          })
         }
       }
     }
@@ -535,7 +594,8 @@ export function createInventory(
     },
     craft(recipe, holder, into) {
       const h = doc.holders[holder]
-      if (!h) return { ok: false, reasons: [`no such holder: ${holder}`], events: [] }
+      if (!h)
+        return { ok: false, reasons: [`no such holder: ${holder}`], events: [] }
       const held: string[] = []
       for (const c of Object.values(h.containers))
         held.push(
@@ -547,11 +607,14 @@ export function createInventory(
         )
       const matches = (id: string, p: RecipePart) => {
         const it = doc.items[id]
-        return p.kind ? it.kind === p.kind : !!kinds[it.kind]?.tags?.includes(p.tag ?? '')
+        return p.kind
+          ? it.kind === p.kind
+          : !!kinds[it.kind]?.tags?.includes(p.tag ?? '')
       }
       const missing: string[] = []
       for (const t of recipe.tools ?? [])
-        if (!held.some((id) => matches(id, t))) missing.push(`needs: ${t.kind ?? t.tag}`)
+        if (!held.some((id) => matches(id, t)))
+          missing.push(`needs: ${t.kind ?? t.tag}`)
       const moves: Move[] = []
       for (const p of recipe.inputs) {
         let need = p.qty ?? 1
@@ -565,7 +628,8 @@ export function createInventory(
         if (need > 0) missing.push(`not enough ${p.kind ?? p.tag}`)
       }
       if (missing.length) return { ok: false, reasons: missing, events: [] }
-      for (const o of recipe.outputs) moves.push({ kind: o.kind, qty: o.qty ?? 1, to: into })
+      for (const o of recipe.outputs)
+        moves.push({ kind: o.kind, qty: o.qty ?? 1, to: into })
       return commit(moves)
     },
     compile(holder, as) {
@@ -582,7 +646,8 @@ export function createInventory(
     },
     damage(holder, tag, boxes = 1) {
       const h = doc.holders[holder]
-      if (!h) return { ok: false, reasons: [`no such holder: ${holder}`], events: [] }
+      if (!h)
+        return { ok: false, reasons: [`no such holder: ${holder}`], events: [] }
       // The first box of this type that is still whole, in the holder's own
       // order (the consumer's damage table decides WHICH tag; this finds the box).
       for (const c of Object.values(h.containers)) {
@@ -603,7 +668,9 @@ export function createInventory(
           const n = Math.min(boxes, left)
           d.items[id].damaged = (item.damaged ?? 0) + n
           doc = d
-          const events: InventoryEvent[] = [{ type: 'damaged', item: id, boxes: n }]
+          const events: InventoryEvent[] = [
+            { type: 'damaged', item: id, boxes: n },
+          ]
           for (const fn of listeners) fn(doc, events)
           return { ok: true, reasons: [], events }
         }

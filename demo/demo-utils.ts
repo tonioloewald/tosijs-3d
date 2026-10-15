@@ -424,8 +424,16 @@ export function impactMarker(
  *   const loadout = demoLoadout()
  *   b3d({}, …, ...loadout.panels())
  */
-export function demoLoadout(): { panels: () => B3dPanel[]; dock: () => InventoryDock | null } {
-  const kind = (id: string, tags: string[], mass: number) => ({ id, name: id, tags, mass })
+export function demoLoadout(): {
+  panels: () => B3dPanel[]
+  dock: () => InventoryDock | null
+} {
+  const kind = (id: string, tags: string[], mass: number) => ({
+    id,
+    name: id,
+    tags,
+    mass,
+  })
   const kinds = {
     helm: kind('helm', ['helmet'], 2),
     goggles: kind('goggles', ['face'], 0.5),
@@ -444,50 +452,78 @@ export function demoLoadout(): { panels: () => B3dPanel[]; dock: () => Inventory
   const body = {
     type: 'slots' as const,
     slots: {
-      helmet: slot('helmet'), face: slot('face'), chest: slot('chest'), shoulder: slot('shoulder'),
-      back: slot('back'), waist: slot('waist'), left_side: slot('side'), right_side: slot('side'),
-      legs: slot('legs'), feet: slot('feet'), hand_left: slot('hand'), hand_right: slot('hand'),
+      helmet: slot('helmet'),
+      face: slot('face'),
+      chest: slot('chest'),
+      shoulder: slot('shoulder'),
+      back: slot('back'),
+      waist: slot('waist'),
+      left_side: slot('side'),
+      right_side: slot('side'),
+      legs: slot('legs'),
+      feet: slot('feet'),
+      hand_left: slot('hand'),
+      hand_right: slot('hand'),
     },
   }
   const items: Record<string, { id: string; kind: string; qty: number }> = {}
   for (const k of Object.keys(kinds)) items[k] = { id: k, kind: k, qty: 1 }
   const inv = createInventory(
-    { items, holders: { hero: { id: 'hero', containers: { body, bag: { type: 'list', holds: Object.keys(items) } } } } } as any,
+    {
+      items,
+      holders: {
+        hero: {
+          id: 'hero',
+          containers: {
+            body,
+            bag: { type: 'list', holds: Object.keys(items) },
+          },
+        },
+      },
+    } as any,
     {
       kinds,
       rules: [
         ({ doc, kinds: ks }: any) => {
           const s = doc.holders.hero.containers.body.slots
           const hands = [s.hand_left.holds, s.hand_right.holds]
-          const two = hands.find((id: string | null) => id && ks[doc.items[id].kind].tags.includes('two-handed'))
-          return two && hands[0] && hands[1] ? ['two-handed: both hands must be free'] : []
+          const two = hands.find(
+            (id: string | null) =>
+              id && ks[doc.items[id].kind].tags.includes('two-handed')
+          )
+          return two && hands[0] && hands[1]
+            ? ['two-handed: both hands must be free']
+            : []
         },
       ],
     } as any
   )
   let dock: InventoryDock | null = null
-  const ready: Promise<InventoryDock> = Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-icons.json').then((r) => r.json())])
-    .then(([art, icons]) => {
-      for (const k of Object.keys(kinds)) (kinds as Record<string, { icon?: string }>)[k].icon = icons[k]
-      dock = inventoryDock({
-        inv,
-        carry: createCarry(),
-        holder: 'hero',
-        title: 'hero',
-        schematic: { container: 'body', art },
-        list: 'bag',
-        alsoIn: (_item, k, at) =>
-          k?.tags?.includes('two-handed') && at.slot?.startsWith('hand_')
-            ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left']
-            : [],
-      })
-      // Laid out on the page (text is measured there), out of sight.
-      const park = document.createElement('div')
-      park.style.cssText = 'position:fixed; left:-10000px; top:0'
-      park.append(dock.svg)
-      document.body.append(park)
-      return dock
+  const ready: Promise<InventoryDock> = Promise.all([
+    fetch('/person-loadout.svg').then((r) => r.text()),
+    fetch('/item-icons.json').then((r) => r.json()),
+  ]).then(([art, icons]) => {
+    for (const k of Object.keys(kinds))
+      (kinds as Record<string, { icon?: string }>)[k].icon = icons[k]
+    dock = inventoryDock({
+      inv,
+      carry: createCarry(),
+      holder: 'hero',
+      title: 'hero',
+      schematic: { container: 'body', art },
+      list: 'bag',
+      alsoIn: (_item, k, at) =>
+        k?.tags?.includes('two-handed') && at.slot?.startsWith('hand_')
+          ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left']
+          : [],
     })
+    // Laid out on the page (text is measured there), out of sight.
+    const park = document.createElement('div')
+    park.style.cssText = 'position:fixed; left:-10000px; top:0'
+    park.append(dock.svg)
+    document.body.append(park)
+    return dock
+  })
   // Until the art arrives it is the placeholder card.
   const pinned = b3dPanel({
     frame: 'eye',
@@ -508,9 +544,22 @@ export function demoLoadout(): { panels: () => B3dPanel[]; dock: () => Inventory
     dock: () => dock,
     panels: () => [
       pinned,
-      b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'Journal' }) as B3dPanel,
-      b3dPanel({ frame: 'eye', preset: 'waist', title: 'Quick Access' }) as B3dPanel,
-      b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'Menu', width: 0.09 }) as B3dPanel,
+      b3dPanel({
+        frame: 'eye',
+        preset: 'right-shoulder',
+        title: 'Journal',
+      }) as B3dPanel,
+      b3dPanel({
+        frame: 'eye',
+        preset: 'waist',
+        title: 'Quick Access',
+      }) as B3dPanel,
+      b3dPanel({
+        frame: 'left-hand',
+        preset: 'wrist',
+        title: 'Menu',
+        width: 0.09,
+      }) as B3dPanel,
     ],
   }
 }

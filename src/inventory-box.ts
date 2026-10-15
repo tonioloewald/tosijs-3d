@@ -403,7 +403,14 @@ art }`, `list` (the container shown beside it when open, or none), `width`,
 import { svgElements } from 'tosijs'
 import { box, textBlock, svgPoint } from './box.js'
 import type { BoxChild, PointerKind } from './box.js'
-import { carryGhostLayer, carryOverlay, carryPanel, carrySocket, carryTile, type CarryDecorations } from './carry-box.js'
+import {
+  carryGhostLayer,
+  carryOverlay,
+  carryPanel,
+  carrySocket,
+  carryTile,
+  type CarryDecorations,
+} from './carry-box.js'
 import type { Carry, CarryTarget } from './carry.js'
 import type { InventoryApi, Item, ItemKind, Move, Place } from './inventory.js'
 
@@ -413,7 +420,10 @@ export interface InventoryPanelOptions {
   holder: string
   host: SVGSVGElement
   title?: string
-  decorations?: (item: Item, kind: ItemKind | undefined) => CarryDecorations | undefined
+  decorations?: (
+    item: Item,
+    kind: ItemKind | undefined
+  ) => CarryDecorations | undefined
   moveFor?: (item: string, from: Place | null, to: Place) => Move
   /**
    * Reasons this panel will not take a move, on top of the model's rules: a
@@ -494,10 +504,14 @@ function roughBox(el: Element): [number, number, number, number] | null {
   const n = (a: string) => Number(el.getAttribute(a) ?? 0)
   const tag = el.tagName.toLowerCase()
   if (tag === 'rect') return [n('x'), n('y'), n('width'), n('height')]
-  if (tag === 'circle') return [n('cx') - n('r'), n('cy') - n('r'), 2 * n('r'), 2 * n('r')]
-  if (tag === 'ellipse') return [n('cx') - n('rx'), n('cy') - n('ry'), 2 * n('rx'), 2 * n('ry')]
+  if (tag === 'circle')
+    return [n('cx') - n('r'), n('cy') - n('r'), 2 * n('r'), 2 * n('r')]
+  if (tag === 'ellipse')
+    return [n('cx') - n('rx'), n('cy') - n('ry'), 2 * n('rx'), 2 * n('ry')]
   // A path in absolute coordinates: its points and control points enclose it.
-  const nums = (el.getAttribute('d') ?? el.getAttribute('points') ?? '').match(/-?\d*\.?\d+(?:e-?\d+)?/gi)
+  const nums = (el.getAttribute('d') ?? el.getAttribute('points') ?? '').match(
+    /-?\d*\.?\d+(?:e-?\d+)?/gi
+  )
   if (!nums || nums.length < 2) return null
   const xs: number[] = []
   const ys: number[] = []
@@ -520,25 +534,44 @@ export function readSchematic(src: string | SVGSVGElement): Schematic {
   if (hit) return hit
   const root =
     typeof src === 'string'
-      ? (new DOMParser().parseFromString(src, 'image/svg+xml').documentElement as unknown as SVGSVGElement)
+      ? (new DOMParser().parseFromString(src, 'image/svg+xml')
+          .documentElement as unknown as SVGSVGElement)
       : src
   const vb = (root.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number)
   const viewBox: [number, number, number, number] =
     vb.length === 4 && vb.every(Number.isFinite)
       ? (vb as [number, number, number, number])
-      : [0, 0, Number.parseFloat(root.getAttribute('width') ?? '') || 100, Number.parseFloat(root.getAttribute('height') ?? '') || 100]
+      : [
+          0,
+          0,
+          Number.parseFloat(root.getAttribute('width') ?? '') || 100,
+          Number.parseFloat(root.getAttribute('height') ?? '') || 100,
+        ]
   const found = new Map<string, Element>()
-  for (const el of Array.from(root.querySelectorAll('[data-slot]'))) found.set(el.getAttribute('data-slot')!, el)
-  for (const group of Array.from(root.querySelectorAll('[id]')).filter((e) => e.id.toLowerCase() === 'sockets')) {
-    for (const el of Array.from(group.children)) if (el.id && !found.has(el.id)) found.set(el.id, el)
+  for (const el of Array.from(root.querySelectorAll('[data-slot]')))
+    found.set(el.getAttribute('data-slot')!, el)
+  for (const group of Array.from(root.querySelectorAll('[id]')).filter(
+    (e) => e.id.toLowerCase() === 'sockets'
+  )) {
+    for (const el of Array.from(group.children))
+      if (el.id && !found.has(el.id)) found.set(el.id, el)
   }
   // Measured in a hidden copy on the page, mapped back into the art's own units.
-  let measure: ((el: Element) => [number, number, number, number] | null) | null = null
+  let measure:
+    | ((el: Element) => [number, number, number, number] | null)
+    | null = null
   let cleanup = () => {}
   let drawn: [number, number, number, number] | null = null
-  if (typeof document !== 'undefined' && document.body && typeof (root as any).getBBox === 'function') {
+  if (
+    typeof document !== 'undefined' &&
+    document.body &&
+    typeof (root as any).getBBox === 'function'
+  ) {
     const copy = root.cloneNode(true) as SVGSVGElement
-    copy.setAttribute('style', 'position:absolute; left:-10000px; top:0; visibility:hidden')
+    copy.setAttribute(
+      'style',
+      'position:absolute; left:-10000px; top:0; visibility:hidden'
+    )
     document.body.append(copy)
     cleanup = () => copy.remove()
     try {
@@ -553,13 +586,19 @@ export function readSchematic(src: string | SVGSVGElement): Schematic {
         : copy.querySelector(`[id="${el.id}"]`)
       try {
         const b = (twin as SVGGraphicsElement).getBBox()
-        const to = copy.getScreenCTM()!.inverse().multiply((twin as SVGGraphicsElement).getScreenCTM()!)
+        const to = copy
+          .getScreenCTM()!
+          .inverse()
+          .multiply((twin as SVGGraphicsElement).getScreenCTM()!)
         const pts = [
           [b.x, b.y],
           [b.x + b.width, b.y],
           [b.x, b.y + b.height],
           [b.x + b.width, b.y + b.height],
-        ].map(([x, y]) => [to.a * x + to.c * y + to.e, to.b * x + to.d * y + to.f])
+        ].map(([x, y]) => [
+          to.a * x + to.c * y + to.e,
+          to.b * x + to.d * y + to.f,
+        ])
         const xs = pts.map((p) => p[0])
         const ys = pts.map((p) => p[1])
         const x = Math.min(...xs)
@@ -579,7 +618,9 @@ export function readSchematic(src: string | SVGSVGElement): Schematic {
   // The drawing's own bounds, so empty margins in the file cost no space.
   const boxes = drawn
     ? [drawn]
-    : Array.from(root.querySelectorAll('path, rect, circle, ellipse, polygon, polyline'))
+    : Array.from(
+        root.querySelectorAll('path, rect, circle, ellipse, polygon, polyline')
+      )
         .filter((el) => !el.closest('defs, clipPath, mask'))
         .map(roughBox)
         .filter((b): b is [number, number, number, number] => !!b)
@@ -634,10 +675,13 @@ function artChild(s: Schematic, avail: number): BoxChild {
 const enc = (p: Place) => JSON.stringify(p)
 
 const defaultInfo = (item: Item, kind: ItemKind | undefined): string[] => {
-  const lines = [`${kind?.name ?? item.kind}${item.qty > 1 ? ` ×${item.qty}` : ''}`]
+  const lines = [
+    `${kind?.name ?? item.kind}${item.qty > 1 ? ` ×${item.qty}` : ''}`,
+  ]
   if (kind?.description) lines.push(kind.description)
   if (kind?.mass != null) lines.push(`mass ${kind.mass}`)
-  for (const [k, v] of Object.entries(kind?.contributes ?? {})) lines.push(`${k} ${v > 0 ? '+' : ''}${v}`)
+  for (const [k, v] of Object.entries(kind?.contributes ?? {}))
+    lines.push(`${k} ${v > 0 ? '+' : ''}${v}`)
   if (item.damaged) lines.push(`damaged (${item.damaged})`)
   return lines
 }
@@ -648,7 +692,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   const width = Number(host.getAttribute('width')) || 300
   if (opts.fit !== false && !(host.parentNode instanceof SVGElement)) {
     const st = host.style
-    const set = (k: string, v: string) => st.getPropertyValue(k) || st.setProperty(k, v)
+    const set = (k: string, v: string) =>
+      st.getPropertyValue(k) || st.setProperty(k, v)
     set('flex', '0 1 auto')
     set('width', `${width}px`)
     set('max-width', '100%')
@@ -664,11 +709,24 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   // A panel showing ONE list takes a drop anywhere on it, and is outlined
   // while it would take what is carried (brighter while the pointer is on it).
   let whole: { target: CarryTarget<string>; from: string } | null = null
-  const glow = svgElements.rect({ x: 1.5, y: 1.5, rx: 10, fill: 'none', 'stroke-width': 3, 'pointer-events': 'none' })
+  const glow = svgElements.rect({
+    x: 1.5,
+    y: 1.5,
+    rx: 10,
+    fill: 'none',
+    'stroke-width': 3,
+    'pointer-events': 'none',
+  })
   const lightUp = () => {
     const s = carry.state
-    const v = whole && s.thing != null && s.from !== whole.from ? carry.verdictFor(whole.target) : null
-    glow.setAttribute('stroke', v?.ok ? (s.target === whole?.target ? '#c4f5d2' : '#6fd08c') : 'none')
+    const v =
+      whole && s.thing != null && s.from !== whole.from
+        ? carry.verdictFor(whole.target)
+        : null
+    glow.setAttribute(
+      'stroke',
+      v?.ok ? (s.target === whole?.target ? '#c4f5d2' : '#6fd08c') : 'none'
+    )
   }
   const stopGlow = carry.subscribe(lightUp)
 
@@ -678,7 +736,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       item,
       to,
       swap: true,
-      ...(to.slot != null && (inv.doc.items[item]?.qty ?? 1) > 1 ? { qty: 1 } : {}),
+      ...(to.slot != null && (inv.doc.items[item]?.qty ?? 1) > 1
+        ? { qty: 1 }
+        : {}),
     }
 
   const target = (to: Place, id: string): CarryTarget<string> => ({
@@ -724,7 +784,13 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     const children: BoxChild[] = []
     const lists: { target: CarryTarget<string>; from: string }[] = []
     let shown = 0
-    if (opts.title) children.push(textBlock(opts.title, { font: { size: 15, weight: 700 }, color: '#e8e8e8' }))
+    if (opts.title)
+      children.push(
+        textBlock(opts.title, {
+          font: { size: 15, weight: 700 },
+          color: '#e8e8e8',
+        })
+      )
     if (opts.totals !== false) {
       const t = { ...h.purse, ...inv.totals(holder) }
       const line = Object.entries(t)
@@ -732,13 +798,17 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         .join(' · ')
       // Always there, empty or not, so the first thing worn does not push
       // everything under it down.
-      children.push(textBlock(line || '\u00a0', { font: { size: 11 }, color: '#8a96ad' }))
+      children.push(
+        textBlock(line || '\u00a0', { font: { size: 11 }, color: '#8a96ad' })
+      )
     }
     for (const [cname, c] of Object.entries(h.containers)) {
       if (opts.only && !opts.only.includes(cname)) continue
       if (opts.hide?.includes(cname)) continue
       shown++
-      children.push(textBlock(cname, { font: { size: 12, weight: 600 }, color: '#aab4c8' }))
+      children.push(
+        textBlock(cname, { font: { size: 12, weight: 600 }, color: '#aab4c8' })
+      )
       if (c.type === 'slots') {
         const art = opts.schematics?.[cname]
         const drawn = new Set<string>()
@@ -749,14 +819,21 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           const item = inv.doc.items[slot.holds]
           const at: Place = { holder, container: cname, slot: s }
           for (const o of opts.alsoIn(item, kinds[item.kind], at)) {
-            if (c.slots[o] && !c.slots[o].holds) echoes.set(o, { id: slot.holds, at })
+            if (c.slots[o] && !c.slots[o].holds)
+              echoes.set(o, { id: slot.holds, at })
           }
         }
-        const holdingOf = (s: string, at: Place, size?: { width: number; height: number }) => {
+        const holdingOf = (
+          s: string,
+          at: Place,
+          size?: { width: number; height: number }
+        ) => {
           const here = c.slots[s].holds
           if (here) return { holding: tile(here, at, size), echo: false }
           const e = echoes.get(s)
-          return e ? { holding: tile(e.id, e.at, size), echo: true } : { holding: null, echo: false }
+          return e
+            ? { holding: tile(e.id, e.at, size), echo: true }
+            : { holding: null, echo: false }
         }
         if (art) {
           // The art flows; its sockets are placed over it, where it drew them.
@@ -812,18 +889,33 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         children.push(socket)
       } else {
         // A grid wants its picture (a schematic); here it is listed.
-        for (const e of c.holds) children.push(tile(e.item, { holder, container: cname, x: e.x, y: e.y }))
+        for (const e of c.holds)
+          children.push(
+            tile(e.item, { holder, container: cname, x: e.x, y: e.y })
+          )
       }
     }
     host.textContent = ''
     const b = box(
-      { width, height: opts.height, padding: 12, gap: 8, background: '#1c2230', radius: 10 },
+      {
+        width,
+        height: opts.height,
+        padding: 12,
+        gap: 8,
+        background: '#1c2230',
+        radius: 10,
+      },
       ...children
     )
     host.append(b.el)
     // A fixed height scrolls (and keeps its place across redraws); otherwise
     // grow to fit what it holds (a full bag is taller than an empty one).
-    const tall = opts.height ?? Math.max(Number(host.getAttribute('height')) || 0, Math.ceil(b.contentHeight))
+    const tall =
+      opts.height ??
+      Math.max(
+        Number(host.getAttribute('height')) || 0,
+        Math.ceil(b.contentHeight)
+      )
     if (opts.height) b.scrollTo(scroll)
     host.setAttribute('height', String(tall))
     host.setAttribute('viewBox', `0 0 ${width} ${tall}`)
@@ -849,7 +941,8 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
   // A finger or a headset's laser is captured by the element it pressed (a
   // tile's rect, after the press is handled), so its moves and its release
   // would never reach another panel: let it go as it arrives.
-  const captured = (e: PointerEvent) => (e.target as Element).releasePointerCapture(e.pointerId)
+  const captured = (e: PointerEvent) =>
+    (e.target as Element).releasePointerCapture(e.pointerId)
   host.addEventListener('gotpointercapture', captured)
   const move = (e: PointerEvent) => panel?.handlePointer('move', ...at(e))
   const up = (e: PointerEvent) => panel?.handlePointer('up', ...at(e))
@@ -858,7 +951,13 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     if (!opts.height || !current) return
     e.preventDefault()
     current.scrollBy(e.deltaY)
-    scroll = Math.max(0, Math.min(scroll + e.deltaY, current.contentHeight - current.viewportHeight))
+    scroll = Math.max(
+      0,
+      Math.min(
+        scroll + e.deltaY,
+        current.contentHeight - current.viewportHeight
+      )
+    )
   }
   host.addEventListener('wheel', wheel, { passive: false })
   host.addEventListener('pointerdown', down)
@@ -885,7 +984,18 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
 }
 
 export interface InventoryDockOptions
-  extends Pick<InventoryPanelOptions, 'inv' | 'carry' | 'holder' | 'title' | 'decorations' | 'moveFor' | 'refuse' | 'alsoIn' | 'info'> {
+  extends Pick<
+    InventoryPanelOptions,
+    | 'inv'
+    | 'carry'
+    | 'holder'
+    | 'title'
+    | 'decorations'
+    | 'moveFor'
+    | 'refuse'
+    | 'alsoIn'
+    | 'info'
+  > {
   /** The slots container drawn as a schematic, and its art. */
   schematic: { container: string; art: string | SVGSVGElement }
   /** The list shown beside it when open (a bag); none for a craft fitted from a carrier's stock. */
@@ -895,7 +1005,11 @@ export interface InventoryDockOptions
   listWidth?: number
   height?: number
   /** Called whenever the dock opens or closes, with its size in its own units. */
-  handleResize?: (size: { width: number; height: number; open: boolean }) => void
+  handleResize?: (size: {
+    width: number
+    height: number
+    open: boolean
+  }) => void
 }
 
 export interface InventoryDock {
@@ -921,7 +1035,9 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const H = opts.height ?? 540
   const GAP = 12
   const { svg, g, circle, rect } = svgElements
-  const root = svg({ xmlns: 'http://www.w3.org/2000/svg' }) as unknown as SVGSVGElement
+  const root = svg({
+    xmlns: 'http://www.w3.org/2000/svg',
+  }) as unknown as SVGSVGElement
   const nested = (x: number, w: number) => {
     const s = svg({ x, y: 0, width: w, height: H }) as unknown as SVGSVGElement
     root.append(s)
@@ -949,7 +1065,13 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   })
   const list =
     listHost && opts.list
-      ? inventoryPanel({ ...common, host: listHost, only: [opts.list], totals: false, height: H })
+      ? inventoryPanel({
+          ...common,
+          host: listHost,
+          only: [opts.list],
+          totals: false,
+          height: H,
+        })
       : null
   const closeButton = g(
     { cursor: 'pointer' },
@@ -961,7 +1083,10 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   let open = false
   let size = { width: W, height: H }
   const layout = () => {
-    const h = Math.max(Number(mainHost.getAttribute('height')) || H, open && listHost ? H : 0)
+    const h = Math.max(
+      Number(mainHost.getAttribute('height')) || H,
+      open && listHost ? H : 0
+    )
     const w = open && listHost ? W + GAP + LW : W
     if (listHost) listHost.style.display = open ? '' : 'none'
     closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
@@ -986,7 +1111,8 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   let under: (typeof parts)[number] | null = null
   let tapped = false
   let closing = false
-  const onClose = (x: number, y: number) => Math.hypot(x - (size.width - 22), y - 22) <= 18
+  const onClose = (x: number, y: number) =>
+    Math.hypot(x - (size.width - 22), y - 22) <= 18
   const setOpen = (v: boolean) => {
     if (v === open) return
     open = v
@@ -996,49 +1122,58 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     layout()
     opts.handleResize?.({ ...size, open })
     // A frame panel holding this comes front and centre while it is open.
-    root.dispatchEvent(new CustomEvent('panelfocus', { detail: { focus: open } }))
+    root.dispatchEvent(
+      new CustomEvent('panelfocus', { detail: { focus: open } })
+    )
   }
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
-      // Closed, the whole dock is one button.
-      if (!open) {
-        if (kind === 'down') tapped = true
-        else if (kind === 'up' && tapped) {
-          tapped = false
-          setOpen(true)
-        } else if (kind === 'leave') tapped = false
-        return
+    // Closed, the whole dock is one button.
+    if (!open) {
+      if (kind === 'down') tapped = true
+      else if (kind === 'up' && tapped) {
+        tapped = false
+        setOpen(true)
+      } else if (kind === 'leave') tapped = false
+      return
+    }
+    if (kind === 'down' && onClose(x, y)) {
+      closing = true
+      return
+    }
+    if (closing) {
+      if (kind === 'up' || kind === 'leave') {
+        closing = false
+        if (kind === 'up' && onClose(x, y)) setOpen(false)
       }
-      if (kind === 'down' && onClose(x, y)) {
-        closing = true
-        return
-      }
-      if (closing) {
-        if (kind === 'up' || kind === 'leave') {
-          closing = false
-          if (kind === 'up' && onClose(x, y)) setOpen(false)
-        }
-        return
-      }
-      ghosts.handlePointer(kind, x, y)
-      const now =
-        kind === 'leave'
-          ? null
-          : parts.find((p) => {
-              const w = Number(p.host.getAttribute('width'))
-              const h = Number(p.host.getAttribute('height'))
-              return p.host.style.display !== 'none' && x >= p.x && x < p.x + w && y >= 0 && y < h
-            }) ?? null
-      if (now !== under) {
-        under?.panel.handlePointer('leave', 0, 0)
-        under = now
-      }
-      if (now && kind !== 'leave') now.panel.handlePointer(kind, x - now.x, y)
-      // Let go between the panels: nothing takes it, so it goes back.
-      if (kind === 'up' && !now && carry.state.thing != null) carry.cancel()
+      return
+    }
+    ghosts.handlePointer(kind, x, y)
+    const now =
+      kind === 'leave'
+        ? null
+        : parts.find((p) => {
+            const w = Number(p.host.getAttribute('width'))
+            const h = Number(p.host.getAttribute('height'))
+            return (
+              p.host.style.display !== 'none' &&
+              x >= p.x &&
+              x < p.x + w &&
+              y >= 0 &&
+              y < h
+            )
+          }) ?? null
+    if (now !== under) {
+      under?.panel.handlePointer('leave', 0, 0)
+      under = now
+    }
+    if (now && kind !== 'leave') now.panel.handlePointer(kind, x - now.x, y)
+    // Let go between the panels: nothing takes it, so it goes back.
+    if (kind === 'up' && !now && carry.state.thing != null) carry.cancel()
   }
   // A frame panel (b3d's body panels) routes its picks to the SVG's own
   // `handlePointer`, as it does for a panel3d.
-  ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer = handlePointer
+  ;(root as unknown as { handlePointer: typeof handlePointer }).handlePointer =
+    handlePointer
   return {
     svg: root,
     get open() {

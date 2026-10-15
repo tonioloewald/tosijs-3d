@@ -425,11 +425,35 @@ export { ROCKY_WORLDS, resolveRockyWorld } from './rocky-world.js'
 export { spaceBackdrop, PINNED_SKY_URL } from './space-backdrop.js'
 export { SOL } from './sol.js'
 export { createCarry, DRAG_THRESHOLD } from './carry.js'
-export type { Carry, CarryTarget, CarryState, CarryVerdict, CarryResult } from './carry.js'
-export { carryTile, carrySocket, carryPanel, carryOverlay, carryGhostLayer } from './carry-box.js'
+export type {
+  Carry,
+  CarryTarget,
+  CarryState,
+  CarryVerdict,
+  CarryResult,
+} from './carry.js'
+export {
+  carryTile,
+  carrySocket,
+  carryPanel,
+  carryOverlay,
+  carryGhostLayer,
+} from './carry-box.js'
 export { createInventory } from './inventory.js'
-export { inventoryPanel, inventoryDock, readSchematic, schematicFit } from './inventory-box.js'
-export type { InventoryPanelOptions, InventoryPanel, InventoryDock, InventoryDockOptions, Schematic, SchematicSocket } from './inventory-box.js'
+export {
+  inventoryPanel,
+  inventoryDock,
+  readSchematic,
+  schematicFit,
+} from './inventory-box.js'
+export type {
+  InventoryPanelOptions,
+  InventoryPanel,
+  InventoryDock,
+  InventoryDockOptions,
+  Schematic,
+  SchematicSocket,
+} from './inventory-box.js'
 // Common nouns, so prefixed as they leave the barrel (CLAUDE.md: bare
 // common nouns don't leak); the module itself keeps the short names.
 export type {
@@ -451,7 +475,15 @@ export type {
   Recipe as InventoryRecipe,
   RecipePart as InventoryRecipePart,
 } from './inventory.js'
-export type { CarryDecorations, CarryTileOptions, CarrySocketOptions, CarryTileChild, CarrySocketChild, CarryPanel, CarryGhostLayer } from './carry-box.js'
+export type {
+  CarryDecorations,
+  CarryTileOptions,
+  CarrySocketOptions,
+  CarryTileChild,
+  CarrySocketChild,
+  CarryPanel,
+  CarryGhostLayer,
+} from './carry-box.js'
 export { layoutSystem } from './system-layout.js'
 export type {
   SystemSpec,

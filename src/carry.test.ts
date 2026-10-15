@@ -27,7 +27,10 @@ describe('carry', () => {
     const c = createCarry<Thing>()
     c.pickUp({ kind: 'rifle' }, 'hand')
     c.over(holster(log))
-    expect(c.state.verdict).toEqual({ ok: false, reasons: ['only a pistol fits'] })
+    expect(c.state.verdict).toEqual({
+      ok: false,
+      reasons: ['only a pistol fits'],
+    })
     expect(c.drop()).toEqual({ done: false, reasons: ['only a pistol fits'] })
     expect(log).toEqual([])
   })
@@ -57,7 +60,9 @@ describe('carry', () => {
   test('a refusal from receive (returned or thrown) leaves it where it was', () => {
     const c = createCarry<Thing>()
     c.pickUp({ kind: 'x' })
-    expect(c.drop({ id: 'a', accepts: () => [], receive: () => ['full'] })).toEqual({ done: false, reasons: ['full'] })
+    expect(
+      c.drop({ id: 'a', accepts: () => [], receive: () => ['full'] })
+    ).toEqual({ done: false, reasons: ['full'] })
     c.pickUp({ kind: 'x' })
     expect(
       c.drop({

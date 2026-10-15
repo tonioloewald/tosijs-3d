@@ -150,7 +150,8 @@ export function createCarry<T = unknown>(): Carry<T> {
     verdictFor: ask,
     drop(target) {
       const into = target === undefined ? state.target : target
-      if (state.thing == null) return { done: false, reasons: ['nothing is held'] }
+      if (state.thing == null)
+        return { done: false, reasons: ['nothing is held'] }
       if (into == null) {
         set({ ...EMPTY })
         return { done: false, reasons: ['dropped on nothing'] }

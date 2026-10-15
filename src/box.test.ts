@@ -99,8 +99,16 @@ describe('box — inline children flow', () => {
 })
 
 describe('box — placed children (at)', () => {
-  const spot = (w: number, h: number, at?: { x: number; y: number }, hit?: () => void) => ({
-    el: document.createElementNS('http://www.w3.org/2000/svg', 'g') as unknown as SVGElement,
+  const spot = (
+    w: number,
+    h: number,
+    at?: { x: number; y: number },
+    hit?: () => void
+  ) => ({
+    el: document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'g'
+    ) as unknown as SVGElement,
     kind: 'block' as const,
     focusable: true,
     at,
@@ -140,7 +148,11 @@ describe('box — placed children (at)', () => {
   })
 
   test('extend the content height when they overhang', () => {
-    const b = mod.box({ width: 200 }, spot(200, 50), spot(20, 20, { x: 0, y: 60 }))
+    const b = mod.box(
+      { width: 200 },
+      spot(200, 50),
+      spot(20, 20, { x: 0, y: 60 })
+    )
     expect(b.contentHeight).toBe(80)
   })
 })

@@ -571,12 +571,18 @@ pointing. This reads Babylon's per-controller state (`_controllers`, `pick`,
 and the drop itself, so a Babylon upgrade that renames them (or fixes the drop)
 fails the suite and says which; in a live session it warns once instead.
 */
-function pressWithEitherHand(xr: BABYLON.WebXRDefaultExperience, scene: BABYLON.Scene): void {
+function pressWithEitherHand(
+  xr: BABYLON.WebXRDefaultExperience,
+  scene: BABYLON.Scene
+): void {
   const sel = xr.pointerSelection as any
   const frames = xr.baseExperience?.sessionManager.onXRFrameObservable
   // Pinned by xr-press.test.ts; this is the same check, live, so a Babylon
   // that changed under us says so instead of quietly dropping presses again.
-  if (sel?._controllers == null || typeof sel.setAttachedController !== 'function') {
+  if (
+    sel?._controllers == null ||
+    typeof sel.setAttachedController !== 'function'
+  ) {
     console.warn(
       'tosi-b3d: Babylon XR pointer selection has changed (no _controllers / setAttachedController), so a press on the hand that is not pointing is dropped again. See pressWithEitherHand.'
     )
@@ -590,7 +596,11 @@ function pressWithEitherHand(xr: BABYLON.WebXRDefaultExperience, scene: BABYLON.
         (c) => {
           if (!c.changes.pressed?.current) return
           const id = controller.uniqueId
-          if (sel._attachedController === id || !sel.setAttachedController?.(id)) return
+          if (
+            sel._attachedController === id ||
+            !sel.setAttachedController?.(id)
+          )
+            return
           let tries = 0
           const obs = frames.add(() => {
             const data = sel._controllers?.[id]
@@ -2145,7 +2155,9 @@ export class B3d extends Component {
                 scene,
                 cam as BABYLON.TargetCamera,
                 frames.get(frame),
-                spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec
+                spec.flatAnchor != null
+                  ? { ...spec, anchor: spec.flatAnchor }
+                  : spec
               )
             )
           }

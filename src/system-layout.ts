@@ -144,9 +144,7 @@ export function spinAngle(time: number, day: number): number {
 export function moonPeriod(radii: number, giant: boolean): number {
   const density = giant ? 1300 : 5500
   const G = 6.674e-11
-  return (
-    2 * Math.PI * Math.sqrt((3 * radii ** 3) / (4 * Math.PI * G * density))
-  )
+  return 2 * Math.PI * Math.sqrt((3 * radii ** 3) / (4 * Math.PI * G * density))
 }
 
 /** Drawn radius from a true one: Earth is `earthSize`, the rest by a square root. */
