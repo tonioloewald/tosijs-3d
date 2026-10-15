@@ -108,6 +108,7 @@ so you have full control:
 | `presence` | `'xr'` | `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera |
 | `flatFrame` | `''` | The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera |
 | `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
+| `layer` | `'world'` | `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. Flat only for now: in a headset it stays in the world until the controller ray picks in layer order |
 | `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
 
 Four more are JavaScript properties, not attributes, because they are
@@ -152,6 +153,8 @@ export class B3dPanel extends Component {
     flatFrame: '',
     /** Texture px (square); 0 = the default 384 — see FramePanelSpec.resolution. */
     resolution: 0,
+    /** 'world' | 'ui' | 'modal': drawn and picked over the world (ui), or over that too (modal). */
+    layer: 'world',
   }
 
   static shadowStyleSpec = {
@@ -167,6 +170,7 @@ export class B3dPanel extends Component {
   declare roll: number
   declare reveal: string
   declare blend: string
+  declare layer: string
   declare view: string
   declare title: string
   declare url: string
@@ -219,6 +223,8 @@ export class B3dPanel extends Component {
       anchor,
       reveal: this.reveal === 'always' ? 'always' : 'gaze',
       blend: this.blend === 'add' ? 'add' : 'composite',
+      layer:
+        this.layer === 'ui' || this.layer === 'modal' ? this.layer : 'world',
       view: this.view === 'first' || this.view === 'third' ? this.view : 'both',
       title: this.title || undefined,
       url: this.url || undefined,

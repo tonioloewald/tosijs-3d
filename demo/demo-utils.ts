@@ -554,6 +554,9 @@ export function demoLoadout(
     // Small closed (it is a reminder, not a reading surface) …
     width: 0.125,
     resolution: 1024,
+    // Over the world and pressed first: a wall between you and it cannot
+    // hide it or take the press.
+    layer: 'ui',
   }) as B3dPanel
   // … and as big as before opened (0.3 x 1.9).
   pinned.focusScale = 4.56

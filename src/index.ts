@@ -406,6 +406,7 @@ export {
 export type { FrameName, XrFramesOptions } from './xr-frames.js'
 export {
   attachFramePanel,
+  panelLayerScene,
   placeholderPanelSvg,
   opacityWeightedGlow,
   excludeFromGlow,
@@ -416,6 +417,7 @@ export type {
   AnchorPreset,
   ScreenAnchor,
   ScreenLength,
+  PanelLayer,
 } from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js'
 export { B3dMoon, b3dMoon } from './b3d-moon.js'

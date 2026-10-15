@@ -2657,6 +2657,11 @@
         "name": "resolution",
         "default": "0",
         "description": "Texture size in px (square); `0` = 384. Raise it for a menu with text"
+      },
+      {
+        "name": "layer",
+        "default": "'world'",
+        "description": "`'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. Flat only for now: in a headset it stays in the world until the controller ray picks in layer order"
       }
     ]
   },

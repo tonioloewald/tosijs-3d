@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.7 (unreleased)
+
+### Added
+
+- **UI layers: `world`, `ui`, `modal`.** A frame panel's `layer` (and `<tosi-b3d-panel layer>`) puts it in a Babylon utility layer drawn over the whole world with its own depth, and given the pointer first: a nearer wall can neither hide it nor take its press. `modal` is over `ui`. Made in pairs per scene (`panelLayerScene(scene, layer)`, exported so a game can promote its own objects); a layered panel's stand-in rides its frame in the main scene and the drawn copy takes its pose each frame. The demo loadouts are `ui`. **Flat only for now**: Babylon's XR controller ray picks the world and its own default layer, not ours, so in a headset a panel stays in the world (as before) until that pick is put in layer order (#3307).
+
 ## 0.10.6
 
 ### Added

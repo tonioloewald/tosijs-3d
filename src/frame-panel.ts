@@ -80,6 +80,45 @@ export interface AnchorSpec {
   revealFullDeg?: number
 }
 
+/** The order UI is drawn and picked in: the world, then ui, then modal. */
+export type PanelLayer = 'world' | 'ui' | 'modal'
+
+const layers = new WeakMap<
+  BABYLON.Scene,
+  Record<'ui' | 'modal', BABYLON.UtilityLayerRenderer>
+>()
+
+/**
+ * The scene a `ui` or `modal` panel lives in: a utility layer over `scene`,
+ * drawn after it with its own depth and given the pointer first (a press that
+ * hits it never reaches the world). Made in pairs, ui before modal, because a
+ * newer layer is drawn later and asked first: so modal is over ui.
+ */
+export function panelLayerScene(
+  scene: BABYLON.Scene,
+  layer: 'ui' | 'modal'
+): BABYLON.Scene {
+  let pair = layers.get(scene)
+  if (pair == null) {
+    const make = () => {
+      const u = new BABYLON.UtilityLayerRenderer(scene, true)
+      // Moves and releases reach it as well as presses (a drag that leaves
+      // the panel must still end on it).
+      u.onlyCheckPointerDownEvents = true
+      u.utilityLayerScene.autoClearDepthAndStencil = true
+      return u
+    }
+    pair = { ui: make(), modal: make() }
+    layers.set(scene, pair)
+    scene.onDisposeObservable.addOnce(() => {
+      pair!.ui.dispose()
+      pair!.modal.dispose()
+      layers.delete(scene)
+    })
+  }
+  return pair[layer].utilityLayerScene
+}
+
 /** A length on screen: pixels, a fraction of the axis, or of the shorter side. */
 export type ScreenLength = number | `${number}%` | `${number}vmin`
 
@@ -198,6 +237,16 @@ export interface FramePanelSpec {
    * are for a headset, where the panel is around you; a monitor is a rectangle.
    */
   screenAnchor?: ScreenAnchor
+  /**
+   * Which LAYER it is drawn and picked in. `'world'` (default): in the scene
+   * like anything else, so a nearer wall hides it and takes the press. `'ui'`:
+   * over the whole world, and pressed first (what used to be a page overlay:
+   * the corner controls, the scene panel, the loadout). `'modal'`: over even
+   * the ui (pause, death, a dialog). Drawn AND picked in that order, because a
+   * dialog drawn in front of a hill that the pointer still hits behind it is
+   * worse than one honestly buried (see b3d-svg-plane).
+   */
+  layer?: PanelLayer
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
   /** Custom panel SVG element (live/dynamic content). */
@@ -373,7 +422,16 @@ export function presentationSpec(
 ): FramePanelSpec {
   if (flat)
     return spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec
-  return spec.screenAnchor != null ? { ...spec, screenAnchor: undefined } : spec
+  /*
+  LAYERS ARE FLAT-ONLY FOR NOW. Babylon's XR controller ray picks the world
+  and its OWN default utility layer, not ours, so in a headset a ui/modal
+  panel would draw on top and take no press at all. Until that pick is put in
+  layer order (#3307), a panel stays in the world in a session, where it
+  worked before.
+  */
+  if (spec.screenAnchor == null && (spec.layer ?? 'world') === 'world')
+    return spec
+  return { ...spec, screenAnchor: undefined, layer: 'world' }
 }
 
 /**
@@ -447,6 +505,40 @@ export function attachFramePanel(
   // aircraft's impact sweep crashed on it. See markUiMesh.
   markUiMesh(plane)
   plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE
+  /*
+  A LAYERED PANEL (ui, modal) is drawn in a utility layer's scene, which cannot
+  hold a child of this scene's frame nodes. So `plane` stays here, invisible,
+  riding its frame and doing every bit of placement as before, and `shown`,
+  in the layer, takes its world pose each frame (`sync`).
+  */
+  const layer = spec.layer ?? 'world'
+  const drawScene = layer === 'world' ? scene : panelLayerScene(scene, layer)
+  const shown =
+    layer === 'world'
+      ? plane
+      : BABYLON.MeshBuilder.CreatePlane(
+          'frame-panel',
+          {
+            width,
+            height: width * aspect,
+            sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+          },
+          drawScene
+        )
+  if (shown !== plane) {
+    plane.isVisible = false
+    plane.isPickable = false
+    shown.rotationQuaternion = new BABYLON.Quaternion()
+    markUiMesh(shown)
+  }
+  const sync = () => {
+    if (shown === plane) return
+    plane.computeWorldMatrix(true)
+    plane
+      .getWorldMatrix()
+      .decompose(shown.scaling, shown.rotationQuaternion!, shown.position)
+    shown.visibility = plane.visibility
+  }
   // Orient to face the focus point (your head), tilted to its height. The
   // panel doesn't rotate after this — the frame carries it (until focus moves
   // it, which places it again).
@@ -615,17 +707,17 @@ export function attachFramePanel(
 
   const tex = el
     ? new SvgTexture({
-        scene,
+        scene: drawScene,
         element: el,
         resolution: spec.resolution ?? 384,
         updateInterval: 400,
       })
     : new SvgTexture({
-        scene,
+        scene: drawScene,
         url: spec.url,
         resolution: spec.resolution ?? 384,
       })
-  const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene)
+  const mat = new BABYLON.StandardMaterial('frame-panel-mat', drawScene)
   mat.backFaceCulling = false
   mat.emissiveTexture = tex.texture
   mat.opacityTexture = tex.texture
@@ -637,7 +729,7 @@ export function attachFramePanel(
     mat.alphaMode = BABYLON.Constants.ALPHA_ADD
     mat.disableDepthWrite = true
   }
-  plane.material = mat
+  shown.material = mat
   plane.visibility = alwaysOn ? 1 : 0
   // ⚠️ THE GLOW LAYER DOES NOT RESPECT `mesh.visibility` — Babylon's effect-layer code never
   // reads it. And this material is PURE EMISSIVE (black diffuse, lighting off, emissive =
@@ -645,7 +737,7 @@ export function attachFramePanel(
   // by the glow pass, BEHIND visibility's back: the reveal computes perfectly and the plate
   // never goes away. It reads as a soft bloom on a monitor (easy to miss) and as a plainly
   // visible floating plaque in a headset. Exclude it — a UI plaque shouldn't bloom anyway.
-  excludeFromGlow(scene, plane)
+  excludeFromGlow(drawScene, shown)
 
   const head = new BABYLON.Vector3()
   const fwd = new BABYLON.Vector3()
@@ -727,7 +819,7 @@ export function attachFramePanel(
         tex.render()
       })
     }
-    pointerObs = scene.onPointerObservable.add((info) => {
+    pointerObs = drawScene.onPointerObservable.add((info) => {
       const kind =
         info.type === POINTERDOWN
           ? 'down'
@@ -739,7 +831,7 @@ export function attachFramePanel(
       if (!kind) return
       const pick = info.pickInfo
       const onPlane =
-        !!pick?.hit && pick.pickedMesh === plane && plane.visibility > 0.5
+        !!pick?.hit && pick.pickedMesh === shown && plane.visibility > 0.5
       const uv = onPlane && pick ? pick.getTextureCoordinates() : null
       if (uv) {
         const vb = el.viewBox.baseVal
@@ -781,73 +873,80 @@ export function attachFramePanel(
     })
   }
 
+  // Where it goes and how visible, this frame (the layered copy follows in sync).
+  const place = (ctx?: { firstPerson?: boolean }) => {
+    debug.updates++
+    if (spec.screenAnchor && !focused) placeScreen()
+    fit()
+    // Focused content is in front of you because you asked for it.
+    if (focused) {
+      plane.visibility = 1
+      debug.reveal = 1
+      return
+    }
+    const fp = ctx?.firstPerson ?? true
+    if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
+      plane.visibility = 0
+      debug.reveal = 0
+      return
+    }
+    if (alwaysOn) {
+      plane.visibility = 1
+      debug.reveal = 1
+      return
+    }
+    // Gaze-reveal off whatever camera is currently rendering — the flat orbit/
+    // follow camera on a monitor, the headset camera in a session. This is what
+    // lets frame panels (nameplates, HUD) work in NON-VR too, not just XR.
+    const active = (scene.activeCamera as BABYLON.TargetCamera) ?? cam
+    head.copyFrom(active.globalPosition)
+    active.getDirectionToRef(XR_FORWARD, fwd)
+    plane.getAbsolutePosition().subtractToRef(head, toAnchor)
+    // Aim the cone at the SUBJECT (the NPC), not at the plate hovering above their head —
+    // otherwise looking straight at someone doesn't reveal their name, and the only way to
+    // fix THAT is a cone so wide it never hides anything. Distance is still measured to the
+    // panel, which is what "how far away is this label" actually means.
+    if (gazeTarget != null) {
+      gazeTarget.getAbsolutePosition().subtractToRef(head, toSubject)
+      toSubject.x += gazeOffset[0]
+      toSubject.y += gazeOffset[1]
+      toSubject.z += gazeOffset[2]
+    } else {
+      toSubject.copyFrom(toAnchor)
+    }
+    let v = gazeReveal(fwd, toSubject, cosStart, cosFull)
+
+    // Soft distance falloff — fade, never cliff.
+    const dist = toAnchor.length()
+    if (v > 0 && dist > fadeFrom && fadeTo > fadeFrom) {
+      v *= Math.max(0, 1 - (dist - fadeFrom) / (fadeTo - fadeFrom))
+    }
+    plane.visibility = dist > maxDist ? 0 : v
+
+    debug.reveal = plane.visibility
+    debug.camera = active.getClassName()
+    debug.distance = dist
+    const fl = fwd.length() || 1
+    const sl = toSubject.length() || 1
+    debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl)
+  }
+
   return {
     debug,
     mesh: plane,
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
-      debug.updates++
-      if (spec.screenAnchor && !focused) placeScreen()
-      fit()
-      // Focused content is in front of you because you asked for it.
-      if (focused) {
-        plane.visibility = 1
-        debug.reveal = 1
-        return
-      }
-      const fp = ctx?.firstPerson ?? true
-      if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
-        plane.visibility = 0
-        debug.reveal = 0
-        return
-      }
-      if (alwaysOn) {
-        plane.visibility = 1
-        debug.reveal = 1
-        return
-      }
-      // Gaze-reveal off whatever camera is currently rendering — the flat orbit/
-      // follow camera on a monitor, the headset camera in a session. This is what
-      // lets frame panels (nameplates, HUD) work in NON-VR too, not just XR.
-      const active = (scene.activeCamera as BABYLON.TargetCamera) ?? cam
-      head.copyFrom(active.globalPosition)
-      active.getDirectionToRef(XR_FORWARD, fwd)
-      plane.getAbsolutePosition().subtractToRef(head, toAnchor)
-      // Aim the cone at the SUBJECT (the NPC), not at the plate hovering above their head —
-      // otherwise looking straight at someone doesn't reveal their name, and the only way to
-      // fix THAT is a cone so wide it never hides anything. Distance is still measured to the
-      // panel, which is what "how far away is this label" actually means.
-      if (gazeTarget != null) {
-        gazeTarget.getAbsolutePosition().subtractToRef(head, toSubject)
-        toSubject.x += gazeOffset[0]
-        toSubject.y += gazeOffset[1]
-        toSubject.z += gazeOffset[2]
-      } else {
-        toSubject.copyFrom(toAnchor)
-      }
-      let v = gazeReveal(fwd, toSubject, cosStart, cosFull)
-
-      // Soft distance falloff — fade, never cliff.
-      const dist = toAnchor.length()
-      if (v > 0 && dist > fadeFrom && fadeTo > fadeFrom) {
-        v *= Math.max(0, 1 - (dist - fadeFrom) / (fadeTo - fadeFrom))
-      }
-      plane.visibility = dist > maxDist ? 0 : v
-
-      debug.reveal = plane.visibility
-      debug.camera = active.getClassName()
-      debug.distance = dist
-      const fl = fwd.length() || 1
-      const sl = toSubject.length() || 1
-      debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl)
+      place(ctx)
+      sync()
     },
     dispose() {
       releaseCamera()
       el?.removeEventListener('panelfocus', onFocus)
-      if (pointerObs != null) scene.onPointerObservable.remove(pointerObs)
+      if (pointerObs != null) drawScene.onPointerObservable.remove(pointerObs)
       tex.dispose()
       mat.dispose()
+      if (shown !== plane) shown.dispose()
       plane.dispose()
     },
   }

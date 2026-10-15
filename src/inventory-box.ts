@@ -336,6 +336,8 @@ const alsoIn = (item, kind, at) =>
 const loadout = b3dPanel({
   frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
   presence: 'both', flatFrame: 'face', width: 0.125, resolution: 1024,
+  // Over the world and pressed first (a nearer wall cannot hide it).
+  layer: 'ui',
 })
 // Small closed, as big as ever opened; flat, near the top-left corner and
 // square to the screen (flatOn).
