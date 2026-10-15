@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import {
   buoyantStep,
+  diveBuoyancy,
   submergedFraction,
   equilibriumSubmersion,
   isSwimming,
@@ -294,5 +295,28 @@ describe('isSwimming hysteresis — no flicker at the boundary', () => {
 
   test('resting on the floor still wins outright', () => {
     expect(isSwimming(1, true, true)).toBe(false)
+  })
+})
+
+describe('a stroke aimed down beats the surface', () => {
+  test('level, upward or not stroking: buoyancy unchanged', () => {
+    expect(diveBuoyancy(1.5, 0, 1)).toBe(1.5)
+    expect(diveBuoyancy(1.5, -0.8, 1)).toBe(1.5)
+    expect(diveBuoyancy(1.5, 1.2, 0)).toBe(1.5)
+  })
+  test('straight down at full stroke is neutral; partway is partway', () => {
+    expect(diveBuoyancy(1.5, Math.PI / 2, 1)).toBeCloseTo(1)
+    expect(diveBuoyancy(1.5, Math.PI / 6, 1)).toBeCloseTo(1.25)
+    expect(diveBuoyancy(1.5, Math.PI / 2, 0.5)).toBeCloseTo(1.25)
+  })
+  test('a swimmer pitched 70 degrees down and stroking sinks from the surface', () => {
+    const lift = (b: number) => {
+      let vy = 0
+      for (let i = 0; i < 60; i++) vy = buoyantStep(vy, 1, 1 / 30, { buoyancy: b })
+      return vy
+    }
+    // The lift left against the stroke is a fraction of what cancelled it
+    // (the stroke itself moves the body ~1 m/s down at this pitch).
+    expect(lift(diveBuoyancy(1.5, (70 * Math.PI) / 180, 1))).toBeLessThan(lift(1.5) / 3)
   })
 })

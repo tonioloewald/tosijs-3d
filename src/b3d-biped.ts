@@ -242,6 +242,7 @@ import {
 } from './mantle.js'
 import {
   buoyantStep,
+  diveBuoyancy,
   submergedFraction,
   isSwimming,
   swimBuoyancy,
@@ -2817,8 +2818,19 @@ export class B3dBiped extends B3dControllable {
         diving still holds its depth; this only sets where the SURFACE is.
         */
         const poseBuoyancy = this._swimWaterline(pose, attrs.buoyancy)
+        /*
+        AIMING DOWN AND SWIMMING DIVES. That surface buoyancy floats the root
+        on the waterline, a lift of about 1.1 m/s, which cancelled a downward
+        stroke: the right stick tipped the swimmer and nothing happened. Tonio:
+        "I can't seem to steer swimming up or down with right stick." So a
+        stroke aimed down takes the vertical from buoyancy in proportion.
+        */
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
-          buoyancy: swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
+          buoyancy: diveBuoyancy(
+            swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
+            (this._swimPitch * Math.PI) / 180,
+            input.forward ?? 0
+          ),
           thrust: (swimUp - swimDown) * SWIM_THRUST,
         })
         let nextY = node.position.y + this._fallVel * dt
