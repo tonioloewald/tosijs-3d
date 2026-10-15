@@ -784,8 +784,20 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     const children: BoxChild[] = []
     const lists: { target: CarryTarget<string>; from: string }[] = []
     let shown = 0
+    /*
+    THE HEADING (title, totals, the container's name) sits OVER the top left
+    of a schematic rather than above it: a picture already says what it is,
+    and the lines above it pushed it down and shrank it on a small panel.
+    Anything that is not a schematic first takes the heading above it as before.
+    */
+    const head: BoxChild[] = []
+    let headed = false
+    const flushHead = () => {
+      if (!headed) children.push(...head)
+      headed = true
+    }
     if (opts.title)
-      children.push(
+      head.push(
         textBlock(opts.title, {
           font: { size: 15, weight: 700 },
           color: '#e8e8e8',
@@ -798,7 +810,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         .join(' · ')
       // Always there, empty or not, so the first thing worn does not push
       // everything under it down.
-      children.push(
+      head.push(
         textBlock(line || '\u00a0', { font: { size: 11 }, color: '#8a96ad' })
       )
     }
@@ -806,11 +818,16 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       if (opts.only && !opts.only.includes(cname)) continue
       if (opts.hide?.includes(cname)) continue
       shown++
-      children.push(
-        textBlock(cname, { font: { size: 12, weight: 600 }, color: '#aab4c8' })
-      )
+      const name = textBlock(cname, {
+        font: { size: 12, weight: 600 },
+        color: '#aab4c8',
+      })
+      const art = c.type === 'slots' ? opts.schematics?.[cname] : undefined
+      if (!art || headed) {
+        flushHead()
+        children.push(name)
+      }
       if (c.type === 'slots') {
-        const art = opts.schematics?.[cname]
         const drawn = new Set<string>()
         // Which empty slots show an item that takes them up too, faded.
         const echoes = new Map<string, { id: string; at: Place }>()
@@ -841,6 +858,17 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           const fit = schematicFit(sch, width - 24)
           const k = fit.k
           children.push(artChild(sch, width - 24))
+          if (!headed) {
+            // Over the art's top left, stacked as they would have flowed.
+            const corner = fit.at(sch.content[0], sch.content[1])
+            let y = 0
+            for (const t of [...head, name]) {
+              t.at = { x: corner.x, y }
+              y += t.measure(width - 24).height + 2
+              children.push(t)
+            }
+            headed = true
+          }
           for (const sk of sch.sockets) {
             const slot = c.slots[sk.slot]
             if (!slot) continue
@@ -895,6 +923,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           )
       }
     }
+    flushHead()
     host.textContent = ''
     const b = box(
       {

@@ -24,6 +24,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **An inventory panel's heading sits over its schematic's top left** (title, totals, the container's name) instead of stacked above it, so the picture is larger, which matters most on the small pinned loadout. A panel whose first container is not a schematic keeps its heading above (#3290).
 - **SVG panels are mipmapped** (`SvgTexture` `mipmaps`, default `true`: trilinear, anisotropic 4). A panel is nearly always drawn smaller than its texture (1024 px over ~300 px of a Quest 3's view at arm's length), and unfiltered its hairlines broke up and its text crawled; the small pinned loadout's socket outlines were visibly broken and now draw whole. Every in-scene panel, popup and HUD goes through it. Mip generation measured under 0.1 ms per repaint at 1024 px; it costs a third more texture memory. `mipmaps: false` for a texture always seen at about a texel per pixel.
 - **An inventory panel on a page fits the space it is given** instead of being cropped (`fit`, default on): side by side they shrink in proportion, in a column it is no wider than the column, never taller than its container, never larger than drawn, always the same shape. Anything the page sets inline on the host wins (#3290).
 - The default body panels are an inventory over the left shoulder and a **journal** over the right (both were "Inventory") (#3290).
