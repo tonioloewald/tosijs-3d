@@ -665,26 +665,37 @@ export class B3dBiped extends B3dControllable {
   /** Eye position for first-person: the head bone (or eyeHeight fallback) nudged
    * up + forward to roughly the eyes, so the camera sits at the eyes rather than
    * the neck / head-bone base — which would leave the head & neck in front of the
-   * view. Forward is body-facing (root-aligned), since the camera ignores the
-   * head's own animation. Returns a cached vector — read it now, don't retain. */
-  getHeadPosition(): BABYLON.Vector3 | null {
+   * view. Returns a cached vector — read it now, don't retain.
+   *
+   * ALONG THE HEAD'S OWN AXES, not the body's. A sprint leans the head 22°
+   * forward and a swim far more, and an offset along the body's level facing
+   * left the eye inside the skull: in first person the back of your own head
+   * filled the screen as you ran (Tonio: "first person view when swimming is a
+   * disaster and it's still a big problem when running"). The UAL head bone's
+   * forward is the face's, measured. Only the eye's POSITION follows the head;
+   * the view's orientation does not (no bob in the rotation, no roll). */
+  getHeadPosition(extraForward = 0): BABYLON.Vector3 | null {
     if (this.mesh == null) return null
-    const f = this.mesh.forward
     const EYE_FWD = 0.12
-    const EYE_UP = 0.06
+    // The head bone is at the base of the skull; the eyes are ~10 cm up it.
+    const EYE_UP = 0.1
     if (this.headNode != null) {
       const hp = this.headNode.getAbsolutePosition()
+      const hf = this.headNode.forward
+      const hu = this.headNode.up
+      const fwd = EYE_FWD + extraForward
       this._eyePos.set(
-        hp.x + f.x * EYE_FWD,
-        hp.y + EYE_UP,
-        hp.z + f.z * EYE_FWD
+        hp.x + hf.x * fwd + hu.x * EYE_UP,
+        hp.y + hf.y * fwd + hu.y * EYE_UP,
+        hp.z + hf.z * fwd + hu.z * EYE_UP
       )
     } else {
+      const f = this.mesh.forward
       const o = this.mesh.getAbsolutePosition()
       this._eyePos.set(
-        o.x + f.x * EYE_FWD,
+        o.x + f.x * (EYE_FWD + extraForward),
         o.y + (this as any).eyeHeight,
-        o.z + f.z * EYE_FWD
+        o.z + f.z * (EYE_FWD + extraForward)
       )
     }
     return this._eyePos
@@ -2002,6 +2013,19 @@ export class B3dBiped extends B3dControllable {
     }
     this.viewWasPressed = viewPressed
 
+    /*
+    NO HEAD IN FIRST PERSON. Whatever the eye offset, a sprint or a stroke
+    swings the head through the view: the back and underside of your own skull
+    filled the screen as you ran. Every first-person game hides it, and the
+    standard way is to collapse the head BONE, which takes the head's geometry
+    with it and leaves the arms and body (you still see your hands swim). Set
+    every frame, after the clips have had their say; restored out of first
+    person. The cost is a headless shadow while you are in it.
+    */
+    if (this.headNode != null) {
+      const k = this.cameraView === 'fpv' ? 0.001 : 1
+      if (this.headNode.scaling.x !== k) this.headNode.scaling.setAll(k)
+    }
     // First-person camera tracks the head node — so it doesn't fall behind the
     // head when walking, or float above it when crouching. Orientation stays
     // root-aligned (yaw only) to avoid the head's animation bob/rotation. Flat
@@ -2012,7 +2036,8 @@ export class B3dBiped extends B3dControllable {
       this.mesh != null &&
       !this.owner?.xrActive
     ) {
-      const eye = this.getHeadPosition()
+      // The extra `eyeForward` along the head too (see getHeadPosition).
+      const eye = this.getHeadPosition(attrs.eyeForward)
       this.fpvCamera.parent = null
       if (eye != null) {
         /*
@@ -2030,12 +2055,7 @@ export class B3dBiped extends B3dControllable {
         any wall you stand against — and standing against walls is most of what
         this arena is for.
         */
-        const f = this.mesh.forward
-        this.fpvCamera.position.set(
-          eye.x + f.x * attrs.eyeForward,
-          eye.y,
-          eye.z + f.z * attrs.eyeForward
-        )
+        this.fpvCamera.position.copyFrom(eye)
       }
       const f = this.mesh.forward
       /*
