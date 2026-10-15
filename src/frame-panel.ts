@@ -119,6 +119,28 @@ export function panelLayerScene(
   return pair[layer].utilityLayerScene
 }
 
+/**
+ * What a ray hits in the panel LAYERS of `scene`, top first (modal, then ui),
+ * or null: for an XR controller ray, which Babylon picks against the world
+ * and its own default layer only. Never makes a layer that does not exist.
+ */
+export function pickPanelLayers(
+  scene: BABYLON.Scene,
+  ray: BABYLON.Ray
+): BABYLON.PickingInfo | null {
+  const pair = layers.get(scene)
+  if (pair == null) return null
+  for (const name of ['modal', 'ui'] as const) {
+    const ls = pair[name].utilityLayerScene
+    const pick = ls.pickWithRay(
+      ray,
+      (m) => m.isPickable && m.isEnabled() && m.visibility > 0.5
+    )
+    if (pick?.hit) return pick
+  }
+  return null
+}
+
 /** A length on screen: pixels, a fraction of the axis, or of the shorter side. */
 export type ScreenLength = number | `${number}%` | `${number}vmin`
 
@@ -422,16 +444,9 @@ export function presentationSpec(
 ): FramePanelSpec {
   if (flat)
     return spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec
-  /*
-  LAYERS ARE FLAT-ONLY FOR NOW. Babylon's XR controller ray picks the world
-  and its OWN default utility layer, not ours, so in a headset a ui/modal
-  panel would draw on top and take no press at all. Until that pick is put in
-  layer order (#3307), a panel stays in the world in a session, where it
-  worked before.
-  */
-  if (spec.screenAnchor == null && (spec.layer ?? 'world') === 'world')
-    return spec
-  return { ...spec, screenAnchor: undefined, layer: 'world' }
+  // Layers apply in a headset too: B3d puts its controller rays' picks in
+  // layer order (pickLayersFirst in tosi-b3d).
+  return spec.screenAnchor != null ? { ...spec, screenAnchor: undefined } : spec
 }
 
 /**

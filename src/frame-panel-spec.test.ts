@@ -29,8 +29,8 @@ describe('presentationSpec: one panel, two presentations', () => {
     expect(xr.screenAnchor).toBeUndefined()
     expect(xr.anchor).toBe('left-shoulder')
   })
-  test('in a headset a layered panel stays in the world (its ray cannot pick our layers yet)', () => {
-    expect(presentationSpec({ ...spec, layer: 'ui' }, false).layer).toBe('world')
+  test('a layered panel keeps its layer in both presentations', () => {
+    expect(presentationSpec({ ...spec, layer: 'ui' }, false).layer).toBe('ui')
     expect(presentationSpec({ ...spec, layer: 'ui' }, true).layer).toBe('ui')
   })
   test('flat, the flat anchor stands in and the screen pins apply', () => {

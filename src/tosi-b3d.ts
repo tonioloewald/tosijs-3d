@@ -354,6 +354,7 @@ import { XrGamepadSource } from './xr-gamepad.js'
 import { XrFrames, EntityFrame } from './xr-frames.js'
 import {
   attachFramePanel,
+  pickPanelLayers,
   presentationSpec,
   placeholderPanelSvg,
   opacityWeightedGlow,
@@ -621,6 +622,49 @@ function pressWithEitherHand(
     if (controller.motionController) watch(controller.motionController)
     else controller.onMotionControllerInitObservable.addOnce(watch)
   })
+}
+
+/*
+A CONTROLLER RAY PICKS THE UI LAYERS FIRST.
+
+Babylon's XR pointer selection picks the world and its own default utility
+layer, and a nearer world hit wins: so a `ui`/`modal` panel, drawn over the
+world, was out of reach in a headset (a wall in between took the ray; and our
+layers were never asked at all). While Babylon's rays are being picked (from
+the start of an XR frame to the scene's render), a ray that hits one of our
+layers returns THAT pick, so it beats the world and the laser stops at the
+panel. The pick's distance is lengthened a centimetre because Babylon cuts its
+ray to the hit distance and the press re-casts it (an exact-length ray can
+fall just short of the plane). Other picks (a biped's ground probe, in
+onBeforeRender) are outside the window and untouched.
+*/
+function pickLayersFirst(
+  xr: BABYLON.WebXRDefaultExperience,
+  scene: BABYLON.Scene
+): () => void {
+  const frames = xr.baseExperience?.sessionManager.onXRFrameObservable
+  if (frames == null) return () => {}
+  const own = Object.prototype.hasOwnProperty.call(scene, 'pickWithRay')
+  const original = scene.pickWithRay
+  let picking = false
+  const start = frames.add(() => (picking = true), undefined, true)
+  const end = scene.onBeforeRenderObservable.add(() => (picking = false))
+  scene.pickWithRay = function (ray, predicate, fastCheck, trianglePredicate) {
+    if (picking) {
+      const hit = pickPanelLayers(scene, ray)
+      if (hit) {
+        hit.distance += 0.01
+        return hit
+      }
+    }
+    return original.call(scene, ray, predicate, fastCheck, trianglePredicate)
+  }
+  return () => {
+    frames.remove(start)
+    scene.onBeforeRenderObservable.remove(end)
+    if (own) scene.pickWithRay = original
+    else delete (scene as any).pickWithRay
+  }
 }
 
 export class B3d extends Component {
@@ -1084,6 +1128,7 @@ export class B3d extends Component {
   private _projectedAo?: ProjectedAoController
   private _ssaoCamObs?: BABYLON.Observer<BABYLON.Scene> | null
   xrHelper?: BABYLON.WebXRDefaultExperience
+  private _unpickLayers: (() => void) | null = null
   xrActive = false
   /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
   private _xrPresenting = false
@@ -4391,6 +4436,8 @@ export class B3d extends Component {
         !insideCarrier(m, this._xrRig)
     }
     if (xr.pointerSelection != null) pressWithEitherHand(xr, this.scene)
+    this._unpickLayers?.()
+    this._unpickLayers = pickLayersFirst(xr, this.scene)
     if (flatCamera != null && this.scene.activeCamera !== flatCamera) {
       this.scene.activeCamera = flatCamera
     }
@@ -6271,6 +6318,8 @@ export class B3d extends Component {
       this._qualityOff = null
     }
     if (this.xrHelper) {
+      this._unpickLayers?.()
+      this._unpickLayers = null
       this.xrHelper.dispose()
       this.xrHelper = undefined
     }
