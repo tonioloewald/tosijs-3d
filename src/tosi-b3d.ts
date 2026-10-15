@@ -348,6 +348,7 @@ import {
   type Orbit,
 } from './panel-orbit.js'
 import { svgIcons } from './svg-icons.js'
+import { sceneToolbar, type SceneToolbar } from './scene-toolbar.js'
 import { CombatWorld } from './destroyable.js'
 import { b3dGamepad } from './glass-gamepad.js'
 import { XrGamepadSource } from './xr-gamepad.js'
@@ -684,6 +685,12 @@ export class B3d extends Component {
     to miss.
     */
     clearColor: '',
+    /*
+    WHERE THE FLAT VIEW'S OWN CONTROLS ARE DRAWN. 'scene' (default): in the
+    scene, in its `ui` layer, the same UI a headset gets (the corner toolbar
+    first; #3307). 'dom': the HTML overlay, kept working and tested.
+    */
+    flatUi: 'scene' as 'scene' | 'dom',
     frameRate: 30,
     // Default orbit-camera limits (only used when no camera is supplied). They
     // stop the two constant annoyances: zooming out into orbit / in through the
@@ -1094,6 +1101,18 @@ export class B3d extends Component {
           title: 'Enter VR',
         },
         svgIcons.xrColor()
+      ),
+      // Full screen, where the browser has it (not iPhone Safari): the scene
+      // element, not the page. Toggles; the icon says which way.
+      button(
+        {
+          class: 'lozenge-button',
+          part: 'fullscreenButton',
+          type: 'button',
+          hidden: true,
+          title: 'Full screen',
+        },
+        svgIcons.maximize()
       )
     ),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
@@ -2124,6 +2143,40 @@ export class B3d extends Component {
   private _flatPoseObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>> =
     null
 
+  /*
+  THE CORNER TOOLBAR, IN THE SCENE (#3307). It mirrors the HTML pair (now
+  three: settings, Enter VR, full screen) rather than redoing them: what shows,
+  what is enabled, and a press is that button's own click, so VR entry and full
+  screen keep one definition and still run inside the user's press. The HTML
+  lozenge is hidden while this is up; `flat-ui="dom"` keeps it instead.
+  */
+  private _sceneBar: SceneToolbar | null = null
+  private _sceneToolbarSpec(): FramePanelSpec | null {
+    const lozenge = this.parts.sceneToolbar as HTMLElement | undefined
+    if ((this as any).flatUi === 'dom' || lozenge == null) {
+      if (lozenge) lozenge.style.visibility = ''
+      return null
+    }
+    this._sceneBar ??= sceneToolbar(
+      ['scenePanelGear', 'enterVrButton', 'fullscreenButton']
+        .map((p) => this.parts[p] as HTMLButtonElement | undefined)
+        .filter((b): b is HTMLButtonElement => b != null)
+    )
+    if (this._sceneBar.count === 0) return null
+    lozenge.style.visibility = 'hidden'
+    return {
+      frame: 'face',
+      anchor: { position: [0, 0, 1] },
+      presence: 'both',
+      reveal: 'always',
+      layer: 'ui',
+      svg: this._sceneBar.svg,
+      width: 0.1,
+      resolution: 512,
+      screenAnchor: { left: 8, top: 8, height: 48 },
+    }
+  }
+
   private _disposeFlatPanels(): void {
     if (this._flatPoseObs != null) {
       this.scene?.onBeforeCameraRenderObservable.remove(this._flatPoseObs)
@@ -2151,7 +2204,11 @@ export class B3d extends Component {
           (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.()
         )
         .filter((s): s is FramePanelSpec => s != null && s.presence === 'both')
-      const sig = specs.length ? `${cam.uniqueId}|${JSON.stringify(specs)}` : ''
+      const bar = this._sceneToolbarSpec()
+      if (bar) specs.unshift(bar)
+      const sig = specs.length
+        ? `${cam.uniqueId}|${bar ? 'bar' : ''}|${JSON.stringify(specs)}`
+        : ''
       if (sig !== this._flatSig) {
         this._disposeFlatPanels()
         this._flatSig = sig
@@ -4335,6 +4392,7 @@ export class B3d extends Component {
       // Mount the gear-toggled DOM-overlay settings panel (flat screens). The
       // in-scene XR copy is built on session entry.
       this._setupScenePanel()
+      this._setupFullscreen()
 
       // NPC nameplates (above non-player bipeds), in flat AND XR.
       this._setupNameplates()
@@ -5618,6 +5676,47 @@ export class B3d extends Component {
     this._nameplateList = [...this._nameplates.values()]
   }
 
+  /*
+  FULL SCREEN, from manta's own: the standard API with the webkit fallback,
+  and no button at all where neither exists (iPhone Safari). The SCENE goes
+  full screen rather than the page, so a demo on a doc page fills the screen
+  without the page around it.
+  */
+  private _fullscreenWired = false
+  private _setupFullscreen(): void {
+    const btn = this.parts.fullscreenButton as HTMLButtonElement | undefined
+    if (btn == null || this._fullscreenWired) return
+    this._fullscreenWired = true
+    const el = this as any
+    const doc = document as any
+    const can = !!(el.requestFullscreen || el.webkitRequestFullscreen)
+    if (!can || !(doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled ?? true))
+      return
+    btn.hidden = false
+    const isFull = () =>
+      (doc.fullscreenElement ?? doc.webkitFullscreenElement) === this
+    btn.addEventListener('click', () => {
+      if (isFull()) (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc)
+      else (el.requestFullscreen || el.webkitRequestFullscreen).call(el)
+    })
+    const sync = () => {
+      const full = isFull()
+      btn.title = full ? 'Leave full screen' : 'Full screen'
+      btn.replaceChildren(
+        full ? svgIcons.minimize() : svgIcons.maximize()
+      )
+      // The canvas changed size with the element.
+      this.engine?.resize()
+    }
+    document.addEventListener('fullscreenchange', sync)
+    document.addEventListener('webkitfullscreenchange', sync)
+    this._fullscreenOff = () => {
+      document.removeEventListener('fullscreenchange', sync)
+      document.removeEventListener('webkitfullscreenchange', sync)
+    }
+  }
+  private _fullscreenOff: (() => void) | null = null
+
   private _setupScenePanel(): void {
     const gear = this.parts.scenePanelGear as HTMLButtonElement
     const host = this.parts.scenePanelHost as HTMLElement
@@ -6317,6 +6416,11 @@ export class B3d extends Component {
       this._qualityOff()
       this._qualityOff = null
     }
+    this._fullscreenOff?.()
+    this._fullscreenOff = null
+    this._sceneBar?.dispose()
+    this._sceneBar = null
+    this._fullscreenWired = false
     if (this.xrHelper) {
       this._unpickLayers?.()
       this._unpickLayers = null

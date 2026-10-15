@@ -633,6 +633,9 @@ export const SCENE_OMITTED: Record<string, string[]> = {
     'xrGrid',
     'xrReticle',
     'scenePanelOpen',
+    // Where the app draws its own controls flat (scene or HTML): a choice of
+    // presentation, not part of a scene.
+    'flatUi',
     'panelSections',
     'gamepadScale',
     'gamepadFade',

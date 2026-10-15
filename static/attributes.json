@@ -5455,6 +5455,9 @@
         "name": "clearColor"
       },
       {
+        "name": "flatUi"
+      },
+      {
         "name": "frameRate",
         "default": "30",
         "description": "Target frame rate"

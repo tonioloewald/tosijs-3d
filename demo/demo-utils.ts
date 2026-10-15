@@ -560,10 +560,10 @@ export function demoLoadout(
   }) as B3dPanel
   // … and as big as before opened (0.3 x 1.9).
   pinned.focusScale = 4.56
-  // Flat: at the top left, in SCREEN terms (64 px in, clear of the scene's
-  // own corner button; 2% of the shorter side down; 14% of the screen tall),
-  // whatever the window's shape.
-  pinned.screenAnchor = { left: 64, top: '2vmin', height: '14%' }
+  // Flat: at the top left, in SCREEN terms, under the scene's own corner
+  // toolbar (8 px in, 64 px down), 14% of the screen tall, whatever the
+  // window's shape.
+  pinned.screenAnchor = { left: 8, top: 64, height: '14%' }
   // (Degrees, for a renderer without screen pins.)
   pinned.flatAnchor = {
     azimuthDeg: -16,

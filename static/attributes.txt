@@ -1416,6 +1416,7 @@ b3d
 
   glowLayerIntensity  = 0  — Glow effect intensity (0 = off)
   clearColor
+  flatUi
   frameRate  = 30  — Target frame rate
   minElevation  = 5  — Default orbit-camera elevation limits (degrees above the horizon)
   maxElevation  = 70  — Default orbit-camera elevation limits (degrees above the horizon)

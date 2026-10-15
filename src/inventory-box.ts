@@ -343,10 +343,10 @@ const loadout = b3dPanel({
 // square to the screen (flatOn).
 loadout.focusScale = 4.56
 loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 18, distance: 1.4, flatOn: true }
-// …or in screen terms, which wins flat: at the top left (64 px in, clear of
-// the scene's corner button; 2% of the shorter side down), 14% of the screen
-// tall, whatever the window's shape.
-loadout.screenAnchor = { left: 64, top: '2vmin', height: '14%' }
+// …or in screen terms, which wins flat: at the top left under the scene's
+// corner toolbar (8 px in, 64 px down), 14% of the screen tall, whatever the
+// window's shape.
+loadout.screenAnchor = { left: 8, top: 64, height: '14%' }
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
