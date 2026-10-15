@@ -23,7 +23,6 @@ We implement two generators, each for a job:
   over (a star's name and its details).
 
 ## Demo
-## Demo
 
 ```js
 import { PRNG } from 'tosijs-3d'

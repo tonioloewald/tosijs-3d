@@ -135,7 +135,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `blend` | `composite` | `composite` or `add` (additive HUD glyphs) |
 | `view` | `both` | `first` / `third` / `both` — restrict to a camera view |
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
-| `icon` | `''` | Its button on the scene's VR toolbar (an `svgIcons` name, e.g. `backpack`, `book`, `loadout`), which brings it front and centre. Blank: one its title implies (an inventory, a journal, a loadout), else no button |
+| `icon` | `''` | With `preset="system-bar"`: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `backpack`); blank or unknown draws a square. Its `title` is the button's tooltip |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
@@ -151,7 +151,7 @@ objects: `svg` (live content: an `<svg>` whose own `handlePointer(kind, x, y)`
 gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`), `flatAnchor` (where
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
 comes, and how much bigger, when its content asks for focus with a
-`panelfocus` event). The main `tosi-b3d` demo pins a loadout this way.
+`panelfocus` event). A system-bar panel with no `svg` opens a card with its title.
 */
 /*{ "parent": "ui-in-scene", "order": 10 }*/
 

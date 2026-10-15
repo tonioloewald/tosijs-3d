@@ -288,6 +288,8 @@ document.body.append(
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
+| `flatUi` | `'scene'` | Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: the HTML corner buttons, settings panel and pause, as before 0.10.7 (and where `::part(...)` styling of them shows). Any other value warns once and means `'scene'` |
+| `clearColor` | `''` | The colour behind everything (`'#000'` for space); empty keeps Babylon's default |
 */
 /*{ "parent": "core", "order": 10 }*/
 
@@ -1712,7 +1714,7 @@ export class B3d extends Component {
       }
     }
     const cam = scene.activeCamera
-    if (cam == null || (this as any).flatUi === 'dom') return null
+    if (cam == null || this._flatDom()) return null
     // Its own head-locked frame, because a scene with no other flat panels
     // has none.
     const frames = XrFrames.flat(scene, cam)
@@ -2347,15 +2349,22 @@ export class B3d extends Component {
   (its own ×) puts the panel away.
   */
   private _systemSpecs(): FramePanelSpec[] {
-    return Array.from(this.querySelectorAll('tosi-b3d-panel'))
-      .map((el) =>
-        (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.()
-      )
-      .filter(
-        (s): s is FramePanelSpec =>
-          s != null && s.anchor === 'system-bar' && s.svg != null
-      )
+    const specs: FramePanelSpec[] = []
+    for (const el of Array.from(this.querySelectorAll('tosi-b3d-panel'))) {
+      const s = (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.()
+      if (s == null || s.anchor !== 'system-bar') continue
+      // Markup alone (no JS `svg`) gets the title card a pinned panel gets,
+      // one per element so its button stays the same button.
+      let svg = s.svg ?? this._systemCards.get(el)
+      if (svg == null) {
+        svg = placeholderPanelSvg(s.title || s.icon || 'Panel')
+        this._systemCards.set(el, svg)
+      }
+      specs.push({ ...s, svg })
+    }
+    return specs
   }
+  private _systemCards = new WeakMap<Element, SVGSVGElement>()
   private _systemButtonOf = new WeakMap<SVGSVGElement, HTMLButtonElement>()
   /** One HTML button per system panel, mirrored by both system bars. */
   private _systemButtons(): HTMLButtonElement[] {
@@ -2477,6 +2486,18 @@ export class B3d extends Component {
     }
     this._syncGamepadCover()
   }
+  /** `flat-ui="dom"`; anything but 'scene' or 'dom' warns once and is 'scene'. */
+  private _flatDom(): boolean {
+    const v = (this as any).flatUi
+    if (v !== 'scene' && v !== 'dom' && !this._flatUiWarned) {
+      this._flatUiWarned = true
+      console.warn(
+        `tosi-b3d: flat-ui="${v}" is not 'scene' or 'dom'; drawing it in the scene`
+      )
+    }
+    return v === 'dom'
+  }
+  private _flatUiWarned = false
   private _closeSystemPanel(): void {
     const p = this._sysPanel
     if (p == null) return
@@ -2503,10 +2524,13 @@ export class B3d extends Component {
     for (const b of this._systemButtons()) {
       if (lozenge != null && after != null && b.previousElementSibling !== after)
         after.after(b)
-      b.classList.add('lozenge-button')
+      // Guarded: even a no-op class write is a mutation, and the bar
+      // watches its buttons for those (a rebuild twice a second).
+      if (!b.classList.contains('lozenge-button'))
+        b.classList.add('lozenge-button')
       after = b
     }
-    if ((this as any).flatUi === 'dom' || lozenge == null) {
+    if (this._flatDom() || lozenge == null) {
       if (lozenge) lozenge.style.visibility = ''
       return null
     }
@@ -2521,7 +2545,7 @@ export class B3d extends Component {
     const same =
       buttons.length === this._sceneBarButtons.length &&
       buttons.every((b, i) => b === this._sceneBarButtons[i])
-    if (!same) {
+    if (!same || this._sceneBar == null) {
       this._sceneBar?.dispose()
       this._sceneBar = systemBar(buttons)
       this._sceneBarButtons = buttons
@@ -6325,7 +6349,7 @@ export class B3d extends Component {
     // One at a time: a system panel (the inventory) goes.
     this._closeSystemPanel()
     if (
-      (this as any).flatUi !== 'dom' &&
+      !this._flatDom() &&
       !this.xrActive &&
       this._openFlatScenePanel()
     )
@@ -7022,8 +7046,12 @@ export class B3d extends Component {
     }
     this._fullscreenOff?.()
     this._fullscreenOff = null
+    this._closeSystemPanel()
     this._sceneBar?.dispose()
     this._sceneBar = null
+    // The buttons outlive the scene (they are the shadow root's), so a
+    // re-added element would find them "the same" and keep no bar at all.
+    this._sceneBarButtons = []
     this._disposeFlatScenePanel()
     this._fullscreenWired = false
     if (this.xrHelper) {
