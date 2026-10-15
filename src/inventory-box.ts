@@ -1150,7 +1150,9 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     carry.cancel()
     layout()
     opts.handleResize?.({ ...size, open })
-    // A frame panel holding this comes front and centre while it is open.
+    // A frame panel holding this comes front and centre while it is open;
+    // `data-focus` tells one made later (a headset session rebuilds them).
+    root.setAttribute('data-focus', String(open))
     root.dispatchEvent(
       new CustomEvent('panelfocus', { detail: { focus: open } })
     )

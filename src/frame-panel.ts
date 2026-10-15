@@ -135,7 +135,10 @@ export interface FramePanelSpec {
    * by default (straight ahead, a little low, 0.75 m). Content asks by dispatching a `panelfocus` event on its SVG
    * with `detail: { focus: boolean }` (an inventory dock does as it opens and
    * closes); the panel comes here, enlarged by `focusScale`, always revealed,
-   * and goes back to its anchor when focus ends.
+   * and goes back to its anchor when focus ends. Content that keeps its focus
+   * also marks its SVG `data-focus="true"` while it has it, so a panel made
+   * later (entering or leaving a headset rebuilds them) starts focused: an
+   * event is missed by a panel that did not exist yet.
    */
   focusAnchor?: AnchorPreset | AnchorSpec
   /** How much bigger a focused panel is drawn. Default 1.9. */
@@ -457,6 +460,11 @@ export function attachFramePanel(
     fit()
   }
   el?.addEventListener('panelfocus', onFocus)
+  // Content already focused before this panel existed (a session change
+  // rebuilt it): start where it is. Without this the dock stayed open on a
+  // small, unfocused panel, and its tap-to-open did nothing (it was open).
+  if (el?.getAttribute('data-focus') === 'true')
+    onFocus(new CustomEvent('panelfocus', { detail: { focus: true } }))
 
   const tex = el
     ? new SvgTexture({
