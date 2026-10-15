@@ -416,7 +416,7 @@ export function impactMarker(
 
 /**
  * A person's inventory (a loadout and a bag) on the scene's SYSTEM BAR: a
- * backpack button that opens it under the bar, flat and in a headset. Put
+ * button (a standing figure) that opens it under the bar, flat and in a headset. Put
  * `panels()` inside the `<tosi-b3d>`.
  *
  *   const loadout = demoLoadout()
@@ -542,7 +542,7 @@ export function demoLoadout(
     return dock
   })
   /*
-  ON THE SYSTEM BAR, not pinned to the rig: a button (the backpack) that
+  ON THE SYSTEM BAR, not pinned to the rig: a button (a standing figure) that
   opens it under the bar, flat and in a headset, with your bag beside it.
   The small closed picture it used to be over your shoulder is gone; the
   button is what reminds you it is there.
@@ -550,7 +550,7 @@ export function demoLoadout(
   const pinned = b3dPanel({
     preset: 'system-bar',
     title: 'Inventory',
-    icon: 'backpack',
+    icon: 'personStanding',
     presence: 'both',
     resolution: 1024,
   }) as B3dPanel

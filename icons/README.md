@@ -19,3 +19,7 @@ has no tree): a trunk and a two-tier conifer, Feather's 2px stroke.
 (2026-10) for the journal. `stroked/backpack.svg` (inventory) and
 `stroked/loadout.svg` (a standing figure: what you are wearing and holding)
 are ours, Feather's 24 grid and 2px stroke; Feather has neither (2026-10).
+
+`stroked/lucide/person-standing.svg` is Lucide's (lucide-static 0.460.0,
+ISC licence, Lucide Contributors; lucide.dev), copied verbatim less its
+licence comment and class, for the inventory's system-bar button (2026-10).

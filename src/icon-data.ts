@@ -106,6 +106,8 @@ export default {
     '<svg class="stroked" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>',
   loadout:
     '<svg class="stroked" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"></circle><path d="M5 9h14"></path><path d="M12 9v6"></path><path d="M12 15l-3 7"></path><path d="M12 15l3 7"></path></svg> ',
+  personStanding:
+    '<svg class="stroked" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"></circle><path d="m9 20 3-6 3 6"></path><path d="m6 8 6 2 6-2"></path><path d="M12 10v4"></path></svg> ',
   maximize:
     '<svg class="stroked" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>',
   minimize:

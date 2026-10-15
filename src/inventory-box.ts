@@ -287,7 +287,7 @@ dealHost.addEventListener('pointerup', (e) => dealBox.handlePointer('up', ...at(
 ## In 3D
 
 The same loadout in a scene, flat and in a headset, on the scene's SYSTEM
-BAR: the backpack button opens it under the bar, with the bag beside it to
+BAR: its button (a standing figure) opens it under the bar, with the bag beside it to
 drag to and from; the button again, or the × at its corner, puts it away.
 `inventoryDock` draws both into one SVG, so a drag between them is one panel;
 give it no `list` for a craft fitted from a carrier's stock, and it opens to
@@ -331,8 +331,8 @@ const inv = createInventory(
 const alsoIn = (item, kind, at) =>
   kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
 
-// On the system bar: a backpack button that opens it under the bar.
-const loadout = b3dPanel({ preset: 'system-bar', title: 'Inventory', icon: 'backpack', presence: 'both', resolution: 1024 })
+// On the system bar: a button (a standing figure) that opens it under the bar.
+const loadout = b3dPanel({ preset: 'system-bar', title: 'Inventory', icon: 'personStanding', presence: 'both', resolution: 1024 })
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
