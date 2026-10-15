@@ -429,6 +429,10 @@ const ICE_GROUP = ['ice'] as const
  * jetpack.
  */
 const SWIM_THRUST = 6
+// How far above the head bone the water sits, metres: treading (water at the
+// jaw, the head out) and stroking (over the back, the head breaking).
+const TREAD_SINK = 0.1
+const SWIM_SINK = 0.2
 /** Local +Z. Allocated once — this is read every frame while swimming. */
 const LOCAL_FORWARD = new BABYLON.Vector3(0, 0, 1)
 /** Scratch for the yaw read-back; never allocate inside the per-frame loop. */
@@ -2856,7 +2860,19 @@ export class B3dBiped extends B3dControllable {
         Below, `swimBuoyancy` blends this toward neutral as you go deeper, so
         diving still holds its depth; this only sets where the SURFACE is.
         */
-        const poseBuoyancy = this._swimWaterline(pose, attrs.buoyancy)
+        /*
+        HOW DEEP THE BODY RIDES. Water at the head bone (the base of the
+        skull) left a treader's shoulders and arms out and a swimmer's head,
+        shoulders and back riding on top. Tonio: "They should be almost
+        completely submerged when swimming and just head mostly above water
+        when treading water." So the water sits higher up the body: at the jaw
+        treading, over the back with only the head breaking while stroking.
+        */
+        const stroking = this.animationState?.name === 'swim'
+        const poseBuoyancy = this._swimWaterline(
+          pose,
+          attrs.buoyancy - (stroking ? SWIM_SINK : TREAD_SINK)
+        )
         /*
         AIMING DOWN AND SWIMMING DIVES. That surface buoyancy floats the root
         on the waterline, a lift of about 1.1 m/s, which cancelled a downward
