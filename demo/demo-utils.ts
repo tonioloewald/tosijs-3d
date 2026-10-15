@@ -31,7 +31,7 @@ import {
   inventoryDock,
   b3dPanel,
 } from '../src/index'
-import type { InventoryDock, B3dPanel } from '../src/index'
+import type { InventoryDock, B3dPanel, InventoryApi } from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -424,9 +424,16 @@ export function impactMarker(
  *   const loadout = demoLoadout()
  *   b3d({}, …, ...loadout.panels())
  */
-export function demoLoadout(): {
+export function demoLoadout(
+  opts: {
+    /** Slots filled at the start, `{ right_side: 'pistol' }` (out of the bag). */
+    equip?: Record<string, string>
+  } = {}
+): {
   panels: () => B3dPanel[]
   dock: () => InventoryDock | null
+  /** The inventory itself, to watch (`subscribe`) and move things in. */
+  inv: InventoryApi
 } {
   const kind = (id: string, tags: string[], mass: number) => ({
     id,
@@ -468,6 +475,9 @@ export function demoLoadout(): {
   }
   const items: Record<string, { id: string; kind: string; qty: number }> = {}
   for (const k of Object.keys(kinds)) items[k] = { id: k, kind: k, qty: 1 }
+  const worn = opts.equip ?? {}
+  for (const [slotName, id] of Object.entries(worn))
+    (body.slots as Record<string, { holds: string | null }>)[slotName].holds = id
   const inv = createInventory(
     {
       items,
@@ -476,7 +486,12 @@ export function demoLoadout(): {
           id: 'hero',
           containers: {
             body,
-            bag: { type: 'list', holds: Object.keys(items) },
+            bag: {
+              type: 'list',
+              holds: Object.keys(items).filter(
+                (id) => !Object.values(worn).includes(id)
+              ),
+            },
           },
         },
       },
@@ -544,6 +559,7 @@ export function demoLoadout(): {
     pinned.svg = d.svg
   })
   return {
+    inv,
     dock: () => dock,
     panels: () => [
       pinned,

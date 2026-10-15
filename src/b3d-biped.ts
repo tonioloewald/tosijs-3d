@@ -807,6 +807,13 @@ export class B3dBiped extends B3dControllable {
    */
   gunplay = false
   private weaponWasPressed = false
+  /**
+   * What the weapon button does, when a game decides (JS only). Called with
+   * whether the button asks for the weapon UP; the game moves it (draw from
+   * the hip, holster it) and calls `setGunplay` if and when it is in hand.
+   * Unset, the button toggles `gunplay` as before.
+   */
+  whenWeapon: ((up: boolean) => void) | null = null
 
   /**
    * Put the weapon up or down.
@@ -1967,7 +1974,10 @@ export class B3dBiped extends B3dControllable {
     */
     const weaponPressed = (input.weapon ?? 0) > 0.5
     if (weaponPressed && !this.weaponWasPressed) {
-      this.setGunplay(!this.gunplay)
+      // A game that owns where the weapon IS (an inventory: on the hip, in
+      // the hand) answers the button itself, and calls setGunplay.
+      if (this.whenWeapon) this.whenWeapon(!this.gunplay)
+      else this.setGunplay(!this.gunplay)
     }
     this.weaponWasPressed = weaponPressed
     /*
