@@ -338,12 +338,12 @@ const alsoIn = (item, kind, at) =>
 // Until the art arrives it is the placeholder card.
 const loadout = b3dPanel({
   frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
-  presence: 'both', flatFrame: 'face', width: 0.25, resolution: 1024,
+  presence: 'both', flatFrame: 'face', width: 0.125, resolution: 1024,
 })
 // Small closed, as big as ever opened; flat, near the top-left corner and
-// tipped down toward you (tiltDeg) like a sign above eye level.
-loadout.focusScale = 2.28
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 15, distance: 1.4, tiltDeg: 12 }
+// square to the screen (flatOn).
+loadout.focusScale = 4.56
+loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 15, distance: 1.4, flatOn: true }
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -1118,6 +1118,8 @@ export interface InventoryDock {
  * it to drag to and from. A button closes it. Both panels are drawn in ONE
  * SVG, so a drag between them is a drag on one plane, with one ghost.
  */
+let dockSeq = 0
+
 export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const { carry } = opts
   const W = opts.width ?? 410
@@ -1136,6 +1138,10 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   }
   const mainHost = nested(0, W)
   const listHost = opts.list ? nested(W + GAP, LW) : null
+  // Closed, the picture's corners are rounded well past the panel's own 10.
+  const roundId = `dock-round-${++dockSeq}`
+  const roundRect = svgElements.rect({ x: 0, y: 0, rx: 48, ry: 48 })
+  root.prepend(svgElements.defs({}, svgElements.clipPath({ id: roundId }, roundRect)))
   const common = {
     inv: opts.inv,
     carry,
@@ -1183,9 +1189,21 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     )
     const w = open && listHost ? W + GAP + LW : W
     if (listHost) listHost.style.display = open ? '' : 'none'
-    // Closed it is a small picture: the heading over it is noise at that size.
+    // Closed it is a small picture: the heading over it is noise at that size,
+    // and so are the socket outlines (the art's own, through its CSS variable,
+    // set on the nested host because a texture drops the ROOT's style), and
+    // its corners are rounder.
     for (const t of Array.from(mainHost.querySelectorAll('[data-heading]')))
       (t as SVGElement).style.display = open ? '' : 'none'
+    mainHost.style.setProperty(
+      '--schematic-socket-edge',
+      open ? '' : 'transparent'
+    )
+    const mh = mainHeight()
+    roundRect.setAttribute('width', String(W))
+    roundRect.setAttribute('height', String(mh))
+    if (open) mainHost.removeAttribute('clip-path')
+    else mainHost.setAttribute('clip-path', `url(#${roundId})`)
     closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
     if (open) root.append(closeButton)
     else closeButton.remove()

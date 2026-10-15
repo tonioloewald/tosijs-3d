@@ -29,7 +29,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
-- **The closed loadout is a small picture**: no heading over it (it shows again when open), 0.25 m wide (was 0.3; `focusScale` 2.28 keeps the opened size), and flat it sits nearer the top-left corner (15° up, was 10°) tipped toward you. A frame panel anchor's new `tiltDeg` tips it about its own horizontal axis without moving it (#3290).
+- **The closed loadout is a small picture**: no heading over it and no socket outlines (both return when open), corners rounded well past the panel's own, 0.125 m wide (was 0.3; `focusScale` 4.56 keeps the opened size), and flat it sits nearer the top-left corner (15° up, was 10°), square to the screen. Frame panel anchors gain `flatOn` (parallel to the frame's view plane rather than turned to face the eye) and `tiltDeg` (tip it about its own horizontal axis without moving it) (#3290).
 - **Inventory list rows are full width**, so a row is a button you can hit anywhere along it. **Swimming starts chest deep** (0.65 submerged, down to 0.5 to stand again; it was waist deep, 0.5 and 0.35), and a swimmer rides a little higher than the last change (12 cm of water above the head bone, was 20; treading unchanged) (#3290).
 - **The opened dock's list is as tall as the loadout beside it** (it scrolls), not a fixed 540 that made the whole dock taller than its picture. `height` still sets it explicitly (#3290).
 - **An inventory panel's heading sits over its schematic's top left** (title, totals, the container's name) instead of stacked above it, so the picture is larger, which matters most on the small pinned loadout. A panel whose first container is not a schematic keeps its heading above (#3290).

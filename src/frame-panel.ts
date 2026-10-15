@@ -64,6 +64,12 @@ export interface AnchorSpec {
    * tilted down to be read. Its place does not change; `focus` would move it.
    */
   tiltDeg?: number
+  /**
+   * Parallel to the frame's own view plane ("flat on") instead of turned to
+   * face the eye: on a head-locked frame (`face`), square to the screen, so an
+   * off-centre panel is not foreshortened. `rollDeg`/`tiltDeg` still apply.
+   */
+  flatOn?: boolean
   /** Gaze half-angle (deg) where the reveal begins / completes. */
   revealStartDeg?: number
   revealFullDeg?: number
@@ -407,11 +413,14 @@ export function attachFramePanel(
     const pos = resolve(a)
     const f = a.focus ?? DEFAULT_FOCUS
     plane.position.set(pos[0], pos[1], pos[2])
-    const { yaw, pitch, roll } = faceViewer(
-      { x: pos[0], y: pos[1], z: pos[2] },
-      { x: f[0], y: f[1], z: f[2] },
-      (a.rollDeg ?? 0) * DEG
-    )
+    // Flat on: oriented as a panel straight ahead of the eye would be.
+    const { yaw, pitch, roll } = a.flatOn
+      ? faceViewer({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 0 }, (a.rollDeg ?? 0) * DEG)
+      : faceViewer(
+          { x: pos[0], y: pos[1], z: pos[2] },
+          { x: f[0], y: f[1], z: f[2] },
+          (a.rollDeg ?? 0) * DEG
+        )
     plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       yaw,
       pitch + (a.tiltDeg ?? 0) * DEG,
