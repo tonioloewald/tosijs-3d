@@ -1,15 +1,28 @@
 /*#
-# mersenne-twister
+# Pseudo Random Numbers
 
-Seeded pseudo-random number generator based on the Mersenne Twister
-(MT19937) algorithm. Provides deterministic random sequences from a
-numeric seed — same seed always produces the same sequence.
+**Randomness you can replay.** Everything procedural here (a galaxy, a
+planet's craters, where the rocks go, who spawns) is drawn from a generator
+started from a number, the SEED. Same seed, same numbers, in every browser,
+so the same seed is the same world: you can share it, test it, and come back
+to it.
 
-The `PRNG` class wraps **`Xoshiro128`** (xoshiro128\*\*, since 0.8.4 — see
-its note for why it replaced the Mersenne Twister) with convenience methods for
-common random operations: integer/float ranges, gaussian distribution,
-weighted selection, and probability checks.
+Nothing here uses `Math.random()`. It cannot be seeded, so it can never give
+you the same world twice, and it is not very random: the standard does not
+say which algorithm it is, so its quality is whatever the browser shipped.
+That has been bad. V8's before 2015 (MWC1616) had cycles short enough, and
+patterns plain enough, to see in a picture of its output; engines are better
+now, but "better now, in some browsers" is not something to build on.
 
+We implement two generators, each for a job:
+
+- **`PRNG`** (on **xoshiro128\*\***) for the general case: a stream of good
+  numbers with convenience methods (ranges, a bell curve, weighted picks).
+- **`CheapPRNG`** (on **mulberry32**) for derived data: one tiny generator
+  per object, built, drawn from a few times, and dropped, millions of times
+  over (a star's name and its details).
+
+## Demo
 ## Demo
 
 ```js
@@ -36,13 +49,58 @@ output += 'value():        ' + prng2.value().toFixed(6) + ' (same as above)\n'
 preview.append(pre(output))
 ```
 
+## Why these two
+
+What we need from a generator, in order: the **same sequence everywhere**
+(pure 32-bit integer arithmetic, `Math.imul` and shifts, so no engine's
+floating point can change it), **seeded by one number**, then **cheap to
+start**, and good enough statistically for games. Cryptographic strength is
+not on the list: nothing here is a secret.
+
+Measured in Bun, building one and drawing 8 numbers:
+
+| Generator | State | Build + 8 draws | One draw |
+| --- | --- | --- | --- |
+| Mersenne Twister (MT19937) | 624 words | 13 µs | 0.02 µs |
+| xoshiro128\*\* (`PRNG`) | 4 words | 0.09 µs | 0.01 µs |
+| mulberry32 (`CheapPRNG`) | 1 word | 0.03 µs | 0.008 µs |
+
+**xoshiro128\*\*** (Blackman and Vigna) is behind `PRNG` since 0.8.4. It
+replaced the Mersenne Twister, which this page is named after: MT has a huge
+state that it fills before its first draw, so merely starting one cost about
+13 µs, and a star system starts one per planet while scoring candidate
+systems starts thousands. xoshiro128\*\* starts about 150× faster, has a period
+of 2¹²⁸, and passes the BigCrush and PractRand test batteries, which MT does
+not (it fails the linear-complexity tests). Its one integer seed is spread
+over its four words by splitmix32, which also keeps it out of the all-zero
+state it could never leave.
+
+**mulberry32** is smaller still: one 32-bit word, a few multiplies a draw. It
+is weaker (a period of 2³², and each seed is one short stream), and that does
+not matter for what it does: a handful of draws per star, each a pure
+function of the star's seed. It is about 3× cheaper than xoshiro to start,
+which counts at galaxy scale, and more to the point its output IS the galaxy:
+star names and spectral details are drawn from it, so changing its engine
+would rename every star. It stays.
+
+**The Mersenne Twister** is still exported (`MersenneTwister`), for anyone
+who needs the sequences it made before 0.8.4. Nothing here uses it.
+
+A few places hash rather than generate: noise lattices (`noise-volume`,
+`climate-noise`) fill bytes with xorshift32, and `latticeHash` turns a grid
+point into a number directly. A hash answers "what is the number AT this
+place" with no sequence to step through, which is what a texture or an
+infinite grid needs.
+
 ## API
 
-### `MersenneTwister`
+### `Xoshiro128`, `MersenneTwister`
+
+The bare engines, for when you want numbers and nothing else.
 
 | Method | Returns | Description |
 | --- | --- | --- |
-| `constructor(seed?)` | | Create with optional seed (defaults to Date.now()) |
+| `constructor(seed)` | | Create with a numeric seed (required: pass `Date.now()` for a different sequence each run) |
 | `random()` | `number` | Random float in [0, 1) |
 | `int32()` | `number` | Random 32-bit unsigned integer |
 
@@ -58,6 +116,12 @@ preview.append(pre(output))
 | `probability(p)` | `boolean` | Returns true with probability p |
 | `pick(array, weights?)` | `T` | Weighted random selection from array |
 
+
+### `CheapPRNG`
+
+The same surface as `PRNG` less `gaussrandom` (`value`, `range`,
+`realRange`, `probability`, `pick`), on mulberry32. `RandomLike` is the part
+both share, for a function that takes either.
 */
 /*{ "parent": "reference", "order": 10 }*/
 
@@ -154,10 +218,6 @@ export class MersenneTwister {
   }
 }
 
-/**
- * Seeded pseudo-random number generator with convenience methods.
- * Wraps MersenneTwister for deterministic random sequences.
- */
 /**
  * xoshiro128** (Blackman & Vigna), seeded by splitmix32 — the engine behind
  * `PRNG` since 0.8.4.
@@ -310,11 +370,13 @@ export interface RandomLike {
 /**
  * mulberry32 — a tiny, FAST seeded PRNG for derived per-object data.
  *
- * Not MT-quality; quality is not the job. It exists because the Mersenne
- * Twister costs ~14 µs just to CONSTRUCT, which makes "one seeded PRNG per
- * star" unaffordable at galaxy scale — while derived data (a star's name,
- * its spectral detail) needs exactly that shape: a pure function of the
- * star's seed. Deterministic, like everything else here.
+ * Weaker than xoshiro128** (one 32-bit word, period 2³²); quality is not the
+ * job. Derived data (a star's name, its spectral detail) wants one seeded
+ * generator per object, built, drawn from a few times and dropped, at galaxy
+ * scale: this starts about 3× cheaper than `Xoshiro128` (and ~500× cheaper
+ * than the Mersenne Twister it was first measured against). And its output IS
+ * the galaxy: swapping the engine would rename every star. Deterministic, like
+ * everything else here.
  */
 export class CheapPRNG {
   private s: number
