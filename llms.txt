@@ -33,6 +33,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
   The one ambient effect that is **not a sprite**.
+- https://3d.tosijs.net/anchor-layout/ — anchor-layout
+  Pure **anchored layout**: the third way to lay out the SVG UI, beside the
 - https://3d.tosijs.net/angle-field/ — angle-field
   rings, because the quantity is a circle and a slider track is not. The model is
 - https://3d.tosijs.net/animation-layers/ — animation-layers

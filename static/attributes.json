@@ -1,5 +1,21 @@
 [
   {
+    "module": "anchor-layout",
+    "summary": "anchor-layout",
+    "attributes": [
+      {
+        "name": "left",
+        "default": "width",
+        "description": "its anchor point at `left`"
+      },
+      {
+        "name": "right",
+        "default": "the same",
+        "description": "its right edge at `right` from the right edge (its anchor point, if you give one)"
+      }
+    ]
+  },
+  {
     "module": "angle-field",
     "summary": "angle-field",
     "attributes": [

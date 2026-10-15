@@ -1100,6 +1100,7 @@ export {
 // Decided at the 0.6.0 rc gate — see UI-DESIGN-NOTES.
 // ---------------------------------------------------------------------------
 import { flowLayout, nearestInDirection, placePopup } from './flow-layout.js'
+import { anchorLayout, anchorLength } from './anchor-layout.js'
 import {
   box,
   textBlock,
@@ -1156,6 +1157,9 @@ export const ui = {
   flowLayout,
   nearestInDirection,
   placePopup,
+  // anchor-layout core (pure): positioned and layered
+  anchorLayout,
+  anchorLength,
   // box — the flow container (paint / resize / scroll)
   box,
   textBlock,
@@ -1220,6 +1224,12 @@ export type {
   FlowResult,
   PopupSide,
 } from './flow-layout.js'
+export type {
+  AnchorItem,
+  AnchorBox,
+  AnchorLength,
+  AnchorResult,
+} from './anchor-layout.js'
 export type {
   Box,
   BoxChild,

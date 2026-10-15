@@ -8,6 +8,12 @@ not be found.
 Format: `module` / `tag` — then one line per attribute:
 `name  default  description`
 
+## anchor-layout
+anchor-layout
+
+  left  = width  — its anchor point at `left`
+  right  = the same  — its right edge at `right` from the right edge (its anchor point, if you give one)
+
 ## angle-field
 angle-field
 
