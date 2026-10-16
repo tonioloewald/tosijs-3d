@@ -1043,7 +1043,9 @@ export class B3d extends Component {
       gap: '4px',
     },
     ':host .scene-panel-title': {
-      marginRight: 'auto',
+      // Centred, as the scene's title bar centres it (one UI).
+      flex: '1',
+      textAlign: 'center',
       minWidth: '0',
       overflow: 'hidden',
       textOverflow: 'ellipsis',

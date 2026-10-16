@@ -3068,10 +3068,16 @@ function titleBarParts(
   if (title) {
     const left = bar.move != null ? bar.move.x + bar.move.size + 8 : padding
     const right = closable ? bar.closeHitX - 4 : width - padding
+    // Centred on the PANEL, not on the gap between the glyphs (the × is drawn
+    // larger than the move, so that gap is off-centre), and ellipsized to the
+    // room on its narrower side.
+    const mid = width / 2
+    const room = 2 * Math.max(0, Math.min(mid - left, right - mid))
     const t = baseText('', TH.TEXT, true)
-    t.setAttribute('x', String(left))
+    t.setAttribute('x', String(mid))
     t.setAttribute('y', String(bar.barHeight / 2 + 1))
-    t.textContent = ellipsize(title, Math.max(0, right - left), TH.BOLD_FONT)
+    t.setAttribute('text-anchor', 'middle')
+    t.textContent = ellipsize(title, room, TH.BOLD_FONT)
     parts.push(t as unknown as SVGElement)
   }
   return parts
