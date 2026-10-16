@@ -70,6 +70,7 @@
     "build": "bun bin/site.ts --build",
     "tls": "tosijs-dev-certs",
     "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
+    "dial-art": "bun bin/dial-art.ts",
     "tunnel": "tosijs-tunnel",
     "xr": "bun bin/xr-emulate.ts",
     "deploy": "tosijs-deploy",

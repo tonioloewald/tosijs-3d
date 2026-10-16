@@ -26,3 +26,5 @@ licence comment and class, for the inventory's system-bar button (2026-10).
 `stroked/lucide/lucide-backpack.svg` is Lucide's `backpack` from the same
 release, copied the same way, renamed so it sits beside our own `backpack`;
 it marks the inventory's **unequip** target (2026-10, may be replaced).
+
+`stroked/feather/clock.svg` is Feather's clock (MIT, 2026-10), for the watch's system-bar button.
