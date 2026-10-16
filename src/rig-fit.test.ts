@@ -5,10 +5,12 @@ import {
   fitSkeleton,
   fittedRestBones,
   meshQuery,
+  skinSegments,
   type Markers,
   type MeshQuery,
 } from './rig-fit.js'
 import { humanoidRoles, retargeter } from './retarget.js'
+import { boneHeat } from './bone-heat.js'
 
 /** Axis-aligned boxes as one triangle soup. */
 function boxes(list: Array<[number, number, number, number, number, number]>): MeshQuery {
@@ -123,7 +125,9 @@ placed by eye on front views, as someone would drag them.
 */
 const DIR = join(import.meta.dir, '../../static-assets/assets/rigging-tests')
 
-function readObj(file: string, keep?: string[]): MeshQuery {
+type Soup = { pos: number[]; idx: number[] }
+
+function readObj(file: string, keep?: string[]): Soup {
   const pos: number[] = []
   const idx: number[] = []
   const all: number[] = []
@@ -146,10 +150,10 @@ function readObj(file: string, keep?: string[]): MeshQuery {
     remap.set(i, kept.length / 3)
     kept.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2])
   }
-  return meshQuery(kept, idx.map((i) => remap.get(i)!))
+  return { pos: kept, idx: idx.map((i) => remap.get(i)!) }
 }
 
-function readGlb(file: string): MeshQuery {
+function readGlb(file: string): Soup {
   const d = readFileSync(file)
   const jl = d.readUInt32LE(12)
   const j = JSON.parse(d.subarray(20, 20 + jl).toString())
@@ -177,8 +181,10 @@ function readGlb(file: string): MeshQuery {
     return out
   }
   const p = j.meshes[0].primitives[0]
-  return meshQuery(read(p.attributes.POSITION), read(p.indices))
+  return { pos: read(p.attributes.POSITION), idx: read(p.indices) }
 }
+
+const soupQuery = (s: Soup) => meshQuery(s.pos, s.idx)
 
 const m = (
   chin: [number, number],
@@ -197,7 +203,7 @@ const m = (
   kneeR: { x: -knee[0], y: knee[1] },
 })
 
-const REAL: Array<{ name: string; mesh: () => MeshQuery; markers: Markers }> = [
+const REAL: Array<{ name: string; mesh: () => Soup; markers: Markers }> = [
   {
     name: 'omnidude',
     mesh: () => readObj(join(DIR, 'omnidude.obj'), ['Omnidude', 'Head']),
@@ -223,7 +229,7 @@ const REAL: Array<{ name: string; mesh: () => MeshQuery; markers: Markers }> = [
 describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
   for (const r of REAL)
     test(r.name, () => {
-      const mesh = r.mesh()
+      const mesh = soupQuery(r.mesh())
       const rig = fitSkeleton(r.markers, mesh)
       const p = (n: string) => rig.at(n)!
       const height = mesh.max.y - mesh.min.y
@@ -250,5 +256,56 @@ describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
       expect(p('upperarm_l').x).toBeGreaterThan(p('neck_01').x)
       expect(p('upperarm_l').x).toBeLessThan(p('lowerarm_l').x)
       expect(p('foot_l').y - mesh.min.y).toBeLessThan(0.2 * height)
+    })
+})
+
+/*
+BINDING THE FITTED RIG (bone heat). What a skin must get right, checked at
+places named by the markers: a hand's flesh follows the hand, a foot's the
+foot, the head's the head, and no vertex is left without a bone.
+*/
+describe.skipIf(!existsSync(DIR))('boneHeat on real meshes', () => {
+  for (const r of REAL)
+    test(r.name, () => {
+      const soup = r.mesh()
+      const mesh = soupQuery(soup)
+      const rig = fitSkeleton(r.markers, mesh)
+      const skin = boneHeat(soup.pos, soup.idx, skinSegments(rig))
+      const names = rig.joints.map((j) => j.name)
+      const n = soup.pos.length / 3
+      // The vertex nearest a point, and its strongest bone.
+      const strongest = (p: { x: number; y: number; z: number }) => {
+        let best = 0
+        let bd = Infinity
+        for (let v = 0; v < n; v++) {
+          const d = Math.hypot(soup.pos[v * 3] - p.x, soup.pos[v * 3 + 1] - p.y, soup.pos[v * 3 + 2] - p.z)
+          if (d < bd) {
+            bd = d
+            best = v
+          }
+        }
+        let k = 0
+        for (let s = 1; s < 4; s++) if (skin.weights[best * 4 + s] > skin.weights[best * 4 + k]) k = s
+        return names[skin.indices[best * 4 + k]]
+      }
+      const P = (name: string) => rig.at(name)!
+      const mid = (a: string, b: string) => {
+        const p = P(a)
+        const q = P(b)
+        return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2, z: (p.z + q.z) / 2 }
+      }
+      expect(strongest(mid('hand_l', 'middle_04_leaf_l'))).toBe('hand_l')
+      expect(strongest(mid('hand_r', 'middle_04_leaf_r'))).toBe('hand_r')
+      expect(strongest(mid('lowerarm_l', 'hand_l'))).toBe('lowerarm_l')
+      expect(strongest(mid('thigh_r', 'calf_r'))).toBe('thigh_r')
+      expect(strongest(mid('calf_l', 'foot_l'))).toBe('calf_l')
+      expect(['foot_l', 'ball_l']).toContain(strongest(P('ball_leaf_l')))
+      const head = rig.joints.find((j) => j.name === 'Head')!
+      expect(strongest(head.end!)).toBe('Head')
+      for (let v = 0; v < n; v++) {
+        let s = 0
+        for (let k = 0; k < 4; k++) s += skin.weights[v * 4 + k]
+        expect(Math.abs(s - 1)).toBeLessThan(1e-4)
+      }
     })
 })

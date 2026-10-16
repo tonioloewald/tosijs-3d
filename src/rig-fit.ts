@@ -405,6 +405,44 @@ export function fitSkeleton(markers: Markers, mesh: MeshQuery): FittedRig {
   }
 }
 
+/*
+WHICH BONES TAKE THE SKIN, and where each one runs. Fingers are left out
+(the hand takes the whole hand; a mitten or a claw has no fingers to give
+them, and a hand that bends at the wrist is what reads), and so are the
+root and the leaf joints, which only mark where a chain ends.
+*/
+const SEGMENT_TO: Record<string, string> = {
+  pelvis: 'spine_01',
+  spine_01: 'spine_02',
+  spine_02: 'spine_03',
+  spine_03: 'neck_01',
+  neck_01: 'Head',
+}
+for (const s of ['l', 'r']) {
+  SEGMENT_TO[`clavicle_${s}`] = `upperarm_${s}`
+  SEGMENT_TO[`upperarm_${s}`] = `lowerarm_${s}`
+  SEGMENT_TO[`lowerarm_${s}`] = `hand_${s}`
+  SEGMENT_TO[`hand_${s}`] = `middle_04_leaf_${s}`
+  SEGMENT_TO[`thigh_${s}`] = `calf_${s}`
+  SEGMENT_TO[`calf_${s}`] = `foot_${s}`
+  SEGMENT_TO[`foot_${s}`] = `ball_${s}`
+  SEGMENT_TO[`ball_${s}`] = `ball_leaf_${s}`
+}
+
+/**
+ * The bones that take the skin, as segments for `boneHeat`, each with its
+ * index in `rig.joints` (the order the skeleton is built in).
+ */
+export function skinSegments(rig: FittedRig): Array<{ index: number; a: Vec3; b: Vec3 }> {
+  const out: Array<{ index: number; a: Vec3; b: Vec3 }> = []
+  rig.joints.forEach((j, index) => {
+    const to = SEGMENT_TO[j.name]
+    const b = to != null ? rig.at(to) : j.end
+    if (b != null) out.push({ index, a: j.position, b })
+  })
+  return out
+}
+
 /**
  * The fitted skeleton as `retarget` reads it: T-pose rest, identity local
  * rotations, each position its offset from its parent.
