@@ -208,7 +208,7 @@ import { voxelGalaxy } from './voxel-galaxy.js'
 import { PerlinNoise } from './perlin-noise.js'
 import { b3dPlanet } from './b3d-planet.js'
 import { createStarMaterial } from './star-material.js'
-import { rockyWorldFor } from './rocky-world.js'
+import { resolveRockyWorld, rockyWorldFor } from './rocky-world.js'
 import {
   layoutSystem,
   spinAngle,
@@ -232,6 +232,32 @@ function nameSeed(name: string): number {
   for (let i = 0; i < name.length; i++)
     h = Math.imul(h ^ name.charCodeAt(i), 16777619)
   return Math.abs(h) % 100000
+}
+
+/*
+A ROCKY WORLD DRAWN SMALL KEEPS ITS SHAPE. A planet reads its noise at
+grossScale × radius and its presets' relief is tuned for radius 50, both in
+the units it is DRAWN in; a system draws a world a few units across. Earth
+at 4.5 read a fiftieth of one noise wave, one smooth landmass (Tonio: "very
+Fisher Price Pangaea"), and once the noise was put right its relief was
+over a hundred percent of its radius. So the noise is set per WORLD (about
+1.6 waves across it for continents, 6 for coastlines) and the preset's
+relief is scaled by drawn radius over 50. A look that sets its own scales
+or relief still wins.
+*/
+function drawnToScale(el: any, radius: number): void {
+  if (!(radius > 0)) return
+  if (el.grossScale === 0.005) el.grossScale = 1.6 / radius
+  if (el.detailScale === 0.02) el.detailScale = 6 / radius
+  const look = resolveRockyWorld(el.world)
+  if (look == null) return
+  const k = radius / 50
+  const over = el.worldOverrides ?? {}
+  el.worldOverrides = {
+    ...over,
+    grossAmplitude: (over.grossAmplitude ?? look.grossAmplitude) * k,
+    detailAmplitude: (over.detailAmplitude ?? look.detailAmplitude) * k,
+  }
 }
 
 export class B3dStarSystem extends B3dChild {
@@ -702,6 +728,7 @@ export class B3dStarSystem extends B3dChild {
       }
       // Its own day (real for Sol); a generated rock has an Earth day, a
       // giant a Jupiter one.
+      if (!giant) drawnToScale(el, place.visualRadius)
       const day = spec?.planets[i].day ?? (giant ? 0.42 : 1)
       this.adopt(el, holder, planet.name, place.visualRadius, day)
       place.moons.forEach((moon, m) => {
@@ -735,6 +762,7 @@ export class B3dStarSystem extends B3dChild {
             : 'moon',
         }) as any
         if (given) Object.assign(moonEl, lookOf(given))
+        drawnToScale(moonEl, moon.visualRadius)
         this.adopt(moonEl, at, name, moon.visualRadius)
       })
       if (!isOff(attrs.showOrbits)) this.buildOrbitLine(place.distance, i)
