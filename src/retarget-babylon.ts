@@ -29,6 +29,8 @@ export interface ReadSkeleton extends Skeleton {
    * (an armature, say). Identity for the rest.
    */
   above: Map<string, Quat>
+  /** For a top bone, its parent node's full transform into the model root. */
+  aboveMatrix: Map<string, BABYLON.Matrix>
 }
 
 const q = (r: BABYLON.Quaternion): Quat => ({ x: r.x, y: r.y, z: r.z, w: r.w })
@@ -48,6 +50,7 @@ export function readSkeleton(
   const rootInv = root.computeWorldMatrix(true).clone().invert()
   const nodes = new Map<string, BABYLON.TransformNode>()
   const above = new Map<string, Quat>()
+  const aboveMatrix = new Map<string, BABYLON.Matrix>()
   const bones: RestBone[] = []
   const scale = new BABYLON.Vector3()
   const rot = new BABYLON.Quaternion()
@@ -70,11 +73,41 @@ export function readSkeleton(
           .multiply(rootInv)
         toParent.decompose(scale, rot, pos)
         above.set(name, q(rot))
+        aboveMatrix.set(name, toParent.clone())
         rest = rest.multiply(toParent)
       }
     }
     rest.decompose(scale, rot, pos)
     bones.push({ name, parent, rotation: q(rot), position: v(pos) })
+  }
+  /*
+  ONE UNIT THROUGHOUT. An armature above the skeleton can SCALE as well as
+  turn (Mixamo through Blender: centimetres under a 0.01): the top bone's
+  rest took that in, but its descendants' offsets stayed in centimetres, so
+  omnidude's feet were 40 m below its 0.42 m hips and its hip height read
+  41 m (a hip-travel scale of 46, not 0.45). Every bone below a scaled top
+  bone is put in the model root's units.
+  */
+  const byName = new Map(bones.map((b) => [b.name, b]))
+  const topOf = (b: RestBone): RestBone => {
+    let at = b
+    for (let i = 0; i < 512 && at.parent != null; i++) {
+      const p = byName.get(at.parent)
+      if (p == null) break
+      at = p
+    }
+    return at
+  }
+  const unit = new Map<string, number>()
+  for (const [name, m] of aboveMatrix) {
+    m.decompose(scale, rot, pos)
+    unit.set(name, Math.abs(scale.x))
+  }
+  for (const b of bones) {
+    if (b.parent == null) continue
+    const k = unit.get(topOf(b).name)
+    if (k == null || Math.abs(k - 1) < 1e-9) continue
+    b.position = { x: b.position.x * k, y: b.position.y * k, z: b.position.z * k }
   }
   addEnds(skeleton, bones, rootInv)
   return {
@@ -82,6 +115,7 @@ export function readSkeleton(
     roles: humanoidRoles(bones, overrides),
     nodes,
     above,
+    aboveMatrix,
   }
 }
 
@@ -201,7 +235,12 @@ export function retargetClip(
     let hips: Vec3 | undefined
     if (sHips != null) {
       const anim = posAnim.get(sHips)
-      if (anim != null) hips = v(anim.evaluate(at) as BABYLON.Vector3)
+      if (anim != null) {
+        // A top bone's keys are in its parent node's space: to the model's.
+        const key = anim.evaluate(at) as BABYLON.Vector3
+        const m = source.aboveMatrix.get(sHips)
+        hips = v(m != null ? BABYLON.Vector3.TransformCoordinates(key, m) : key)
+      }
     }
     const out = rt.pose(rotations, hips)
     for (const name of moving) {
@@ -211,11 +250,14 @@ export function retargetClip(
       if (a != null) local = mul(conj(a), local)
       keys.get(name)!.push({ frame: i, value: toB(local) })
     }
-    if (out.hips != null && tHips != null)
-      hipsKeys.push({
-        frame: i,
-        value: new BABYLON.Vector3(out.hips.x, out.hips.y, out.hips.z),
-      })
+    if (out.hips != null && tHips != null) {
+      let p = new BABYLON.Vector3(out.hips.x, out.hips.y, out.hips.z)
+      // And a top bone's back into its parent node's space.
+      const m = target.aboveMatrix.get(tHips)
+      if (m != null)
+        p = BABYLON.Vector3.TransformCoordinates(p, m.clone().invert())
+      hipsKeys.push({ frame: i, value: p })
+    }
   }
 
   const made = new BABYLON.AnimationGroup(
