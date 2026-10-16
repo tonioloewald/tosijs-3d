@@ -1,0 +1,431 @@
+/*#
+# retarget
+
+**One humanoid's animation on another humanoid's body.** The Universal
+Animation Library's clips are authored on the UE mannequin; a Mixamo
+character, a Kenney chibi or a model of your own has different bone names,
+a different number of bones, a different rest pose and different
+proportions. This is the pure core that makes the clips play anyway:
+
+1. **Roles.** `humanoidRoles(bones)` says which bone is the hips, the chest,
+   the left forearm, … from the names and the hierarchy, across the common
+   spellings (UE `upperarm_l`, Mixamo `mixamorig:LeftArm`, Kenney `arm-left`,
+   Blender `forearm.L`). Fingers, twist, IK and end bones are left alone.
+2. **Rotations, not positions.** `retargetPose` gives each target bone the
+   world-space rotation its source bone made since ITS rest, so bone
+   lengths are the target's own: a long-legged clip on a short-legged body
+   bends the same joints by the same angles.
+3. **Rest poses that disagree.** A clip authored on an A-pose rig, played on
+   a T-pose one, must still put the arms where the clip shows them, not 45°
+   higher. Each target bone is first lined up with its source bone's rest
+   direction (toward the next joint down the limb), so poses come across
+   as the clip shows them, whatever rest pose either rig was bound in.
+4. **The hips move in proportion.** Their translation is scaled by the ratio
+   of hip heights, so a short character's stride is shorter, not stretched.
+
+Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
+`fly-by-wire`: the Babylon side reads the skeletons and writes the result.
+
+Fitting a skeleton to a mesh (dragging a few markers over it, as Mixamo's
+auto-rigger does) and binding the mesh to it come next, in their own modules.
+*/
+/*{ "parent": "b3d-biped", "order": 70 }*/
+
+import {
+  quatConjugate,
+  quatMul,
+  rotateVector,
+  sub,
+  type Quat,
+  type Vec3,
+} from './spatial-transform.js'
+
+export type Side = 'l' | 'r'
+export type Limb =
+  | 'clavicle'
+  | 'upperArm'
+  | 'lowerArm'
+  | 'hand'
+  | 'upperLeg'
+  | 'lowerLeg'
+  | 'foot'
+  | 'toes'
+/** What a bone IS in a humanoid, whatever it is called. */
+export type Role = 'hips' | 'spine' | 'chest' | 'neck' | 'head' | `${Side}-${Limb}`
+
+export const ROLES: readonly Role[] = [
+  'hips',
+  'spine',
+  'chest',
+  'neck',
+  'head',
+  ...(['l', 'r'] as const).flatMap((s) =>
+    (
+      [
+        'clavicle',
+        'upperArm',
+        'lowerArm',
+        'hand',
+        'upperLeg',
+        'lowerLeg',
+        'foot',
+        'toes',
+      ] as const
+    ).map((l) => `${s}-${l}` as Role)
+  ),
+]
+
+/** A bone as `humanoidRoles` needs it: its name and its parent's. */
+export interface NamedBone {
+  name: string
+  parent: string | null
+}
+
+/** Split a bone name into its side (if any) and the rest, lower case, no separators. */
+function readName(name: string): { side: Side | null; base: string } {
+  // Drop a namespace (`mixamorig:`) and anything Blender appends (`.001`).
+  let n = name.replace(/^.*:/, '').replace(/\.\d+$/, '')
+  let side: Side | null = null
+  const sided: Array<[RegExp, Side]> = [
+    [/^left[_.\-\s]?/i, 'l'],
+    [/^right[_.\-\s]?/i, 'r'],
+    [/[_.\-\s]left$/i, 'l'],
+    [/[_.\-\s]right$/i, 'r'],
+    [/[_.\-\s]l$/i, 'l'],
+    [/[_.\-\s]r$/i, 'r'],
+    [/^l[_.\-\s]/i, 'l'],
+    [/^r[_.\-\s]/i, 'r'],
+  ]
+  for (const [re, s] of sided) {
+    if (re.test(n)) {
+      side = s
+      n = n.replace(re, '')
+      break
+    }
+  }
+  return { side, base: n.toLowerCase().replace(/[_.\-\s]/g, '') }
+}
+
+const SKIP = /(thumb|index|middle|ring|pinky|finger|twist|ik|end|top|nub|roll|corrective|helper|pole)/
+
+/** The limb a (sided) base name is, or null. `leg` is decided later. */
+function limbOf(base: string): Limb | 'leg' | null {
+  if (/^(clavicle|shoulder|collar)/.test(base)) return 'clavicle'
+  if (/^(upperarm|uparm|arm)\d*$/.test(base)) return 'upperArm'
+  if (/^(lowerarm|forearm|elbow)\d*$/.test(base)) return 'lowerArm'
+  if (/^(hand|wrist)\d*$/.test(base)) return 'hand'
+  if (/^(thigh|upleg|upperleg)\d*$/.test(base)) return 'upperLeg'
+  if (/^(calf|shin|lowerleg|knee)\d*$/.test(base)) return 'lowerLeg'
+  if (/^leg\d*$/.test(base)) return 'leg'
+  if (/^(foot|ankle)\d*$/.test(base)) return 'foot'
+  if (/^(toes?|toebase|ball)\d*$/.test(base)) return 'toes'
+  return null
+}
+
+/**
+ * Which bone is which, by name and hierarchy. Returns role → bone name for
+ * every role it found; a rig with fewer bones simply has fewer roles (a
+ * Kenney chibi has no forearms). `overrides` wins over the guess.
+ */
+export function humanoidRoles(
+  bones: readonly NamedBone[],
+  overrides: Partial<Record<Role, string>> = {}
+): Partial<Record<Role, string>> {
+  const roles: Partial<Record<Role, string>> = {}
+  const spines: string[] = []
+  const legs: Record<Side, string[]> = { l: [], r: [] }
+  for (const b of bones) {
+    const { side, base } = readName(b.name)
+    if (SKIP.test(base)) continue
+    if (side == null) {
+      if (/^(pelvis|hips?)$/.test(base)) roles.hips ??= b.name
+      else if (/^(spine\d*|chest|upperchest|torso|body)$/.test(base))
+        spines.push(b.name)
+      else if (/^neck\d*$/.test(base)) roles.neck ??= b.name
+      else if (/^head$/.test(base)) roles.head ??= b.name
+      continue
+    }
+    const limb = limbOf(base)
+    if (limb == null) continue
+    if (limb === 'leg') {
+      legs[side].push(b.name)
+      continue
+    }
+    const role = `${side}-${limb}` as Role
+    roles[role] ??= b.name
+  }
+  // A plain `leg` is the lower leg when there is an upper one (Mixamo's
+  // LeftUpLeg / LeftLeg), else the whole leg (Kenney's `leg-left`).
+  for (const side of ['l', 'r'] as const) {
+    for (const name of legs[side]) {
+      const upper = `${side}-upperLeg` as Role
+      const lower = `${side}-lowerLeg` as Role
+      if (roles[upper] != null && roles[upper] !== name) roles[lower] ??= name
+      else roles[upper] ??= name
+    }
+  }
+  // The spine chain in hierarchy order: lowest is `spine`, highest `chest`.
+  if (spines.length > 0) {
+    const depth = (name: string) => {
+      let d = 0
+      let at: string | null = name
+      const parentOf = new Map(bones.map((b) => [b.name, b.parent]))
+      while (at != null && d < 256) {
+        at = parentOf.get(at) ?? null
+        d++
+      }
+      return d
+    }
+    spines.sort((a, b) => depth(a) - depth(b))
+    roles.chest = spines[spines.length - 1]
+    if (spines.length > 1) roles.spine = spines[0]
+  }
+  return { ...roles, ...overrides }
+}
+
+/** A bone in its rest pose: local rotation and position, relative to its parent. */
+export interface RestBone {
+  name: string
+  parent: string | null
+  rotation: Quat
+  position: Vec3
+}
+
+/** A skeleton as `retargetPose` reads it: bones in any order. */
+export interface Skeleton {
+  bones: readonly RestBone[]
+  roles: Partial<Record<Role, string>>
+}
+
+const IDENTITY: Quat = { x: 0, y: 0, z: 0, w: 1 }
+
+/** Bones ordered so every parent comes before its children. */
+function ordered(bones: readonly RestBone[]): RestBone[] {
+  const byName = new Map(bones.map((b) => [b.name, b]))
+  const out: RestBone[] = []
+  const seen = new Set<string>()
+  const visit = (b: RestBone) => {
+    if (seen.has(b.name)) return
+    if (b.parent != null) {
+      const p = byName.get(b.parent)
+      if (p != null) visit(p)
+    }
+    seen.add(b.name)
+    out.push(b)
+  }
+  for (const b of bones) visit(b)
+  return out
+}
+
+interface World {
+  rotation: Map<string, Quat>
+  position: Map<string, Vec3>
+}
+
+/** World rotations and positions from local ones (rest, or a pose over rest). */
+function toWorld(
+  bones: readonly RestBone[],
+  rotations?: ReadonlyMap<string, Quat>,
+  positions?: ReadonlyMap<string, Vec3>
+): World {
+  const rotation = new Map<string, Quat>()
+  const position = new Map<string, Vec3>()
+  for (const b of ordered(bones)) {
+    const local = rotations?.get(b.name) ?? b.rotation
+    const pos = positions?.get(b.name) ?? b.position
+    const pr = b.parent != null ? rotation.get(b.parent) : undefined
+    const pp = b.parent != null ? position.get(b.parent) : undefined
+    if (pr == null || pp == null) {
+      rotation.set(b.name, local)
+      position.set(b.name, pos)
+    } else {
+      rotation.set(b.name, quatMul(pr, local))
+      const off = rotateVector(pr, pos)
+      position.set(b.name, { x: pp.x + off.x, y: pp.y + off.y, z: pp.z + off.z })
+    }
+  }
+  return { rotation, position }
+}
+
+const normalize = (v: Vec3): Vec3 => {
+  const l = Math.hypot(v.x, v.y, v.z)
+  return l > 1e-9 ? { x: v.x / l, y: v.y / l, z: v.z / l } : { x: 0, y: 0, z: 0 }
+}
+
+/** The shortest rotation taking unit vector `a` onto unit vector `b`. */
+export function rotationBetween(a: Vec3, b: Vec3): Quat {
+  const d = a.x * b.x + a.y * b.y + a.z * b.z
+  if (d < -0.999999) {
+    // Opposite: half a turn about any axis at right angles to `a`.
+    const axis = normalize(
+      Math.abs(a.x) < 0.9
+        ? { x: 0, y: -a.z, z: a.y }
+        : { x: a.z, y: 0, z: -a.x }
+    )
+    return { x: axis.x, y: axis.y, z: axis.z, w: 0 }
+  }
+  const c = {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  }
+  const w = 1 + d
+  const l = Math.hypot(c.x, c.y, c.z, w)
+  return { x: c.x / l, y: c.y / l, z: c.z / l, w: w / l }
+}
+
+/*
+WHERE A ROLE POINTS: from its joint toward the next role down the limb (the
+elbow for an upper arm, the knee for a thigh), or toward its first child.
+Roles, not children, so a twist bone or a finger cannot decide the direction.
+*/
+const NEXT: Partial<Record<string, string>> = {
+  hips: 'spine',
+  spine: 'chest',
+  chest: 'neck',
+  neck: 'head',
+  clavicle: 'upperArm',
+  upperArm: 'lowerArm',
+  lowerArm: 'hand',
+  upperLeg: 'lowerLeg',
+  lowerLeg: 'foot',
+  foot: 'toes',
+}
+
+function restDirection(
+  role: Role,
+  sk: Skeleton,
+  world: World
+): Vec3 | null {
+  const name = sk.roles[role]
+  if (name == null) return null
+  const at = world.position.get(name)
+  if (at == null) return null
+  const [side, limb] = role.includes('-') ? role.split('-') : [null, role]
+  // Down the limb, skipping roles this rig does not have.
+  let next = NEXT[limb as string]
+  while (next != null) {
+    const r = (side != null ? `${side}-${next}` : next) as Role
+    const n = sk.roles[r]
+    const p = n != null ? world.position.get(n) : undefined
+    if (p != null) {
+      const d = sub(p, at)
+      if (Math.hypot(d.x, d.y, d.z) > 1e-6) return normalize(d)
+    }
+    next = NEXT[next]
+  }
+  return null
+}
+
+/** The height of the hips above the lowest foot, in rest pose. */
+function hipHeight(sk: Skeleton, world: World): number {
+  const hips = sk.roles.hips != null ? world.position.get(sk.roles.hips) : null
+  if (hips == null) return 0
+  let low = hips.y
+  for (const r of ['l-foot', 'r-foot', 'l-toes', 'r-toes'] as Role[]) {
+    const n = sk.roles[r]
+    const p = n != null ? world.position.get(n) : undefined
+    if (p != null && p.y < low) low = p.y
+  }
+  return hips.y - low
+}
+
+/** A prepared mapping from one skeleton to another; reuse it every frame. */
+export interface Retargeter {
+  /** The roles both skeletons have, which are the ones that move. */
+  roles: Role[]
+  /** Target hip height ÷ source hip height (1 when either is unknown). */
+  scale: number
+  /**
+   * Target local rotations (by bone name) for a source pose, given as the
+   * source's local rotations; bones absent from `rotations` are at rest.
+   * `hips` is the source hips' local position, if it moves.
+   */
+  pose(
+    rotations: ReadonlyMap<string, Quat>,
+    hips?: Vec3
+  ): { rotations: Map<string, Quat>; hips?: Vec3 }
+}
+
+/**
+ * Map `source`'s poses onto `target`. Both skeletons should face the same
+ * way in their rest pose (glTF: +Z forward, +Y up); their rest POSES may
+ * differ (A-pose against T-pose), which the alignment absorbs.
+ */
+export function retargeter(source: Skeleton, target: Skeleton): Retargeter {
+  const sRest = toWorld(source.bones)
+  const tRest = toWorld(target.bones)
+  const roles = ROLES.filter(
+    (r) => source.roles[r] != null && target.roles[r] != null
+  )
+  /*
+  ALIGNMENT, per role: the rotation that turns the target's rest direction
+  onto the source's, so "the arm moved 30° from rest" means the same arm
+  either side even when one rest pose has the arms out and the other down.
+  */
+  const align = new Map<Role, Quat>()
+  for (const r of roles) {
+    const ds = restDirection(r, source, sRest)
+    const dt = restDirection(r, target, tRest)
+    align.set(r, ds != null && dt != null ? rotationBetween(dt, ds) : IDENTITY)
+  }
+  const sh = hipHeight(source, sRest)
+  const th = hipHeight(target, tRest)
+  const scale = sh > 1e-6 && th > 1e-6 ? th / sh : 1
+  const tOrder = ordered(target.bones)
+  const roleOfTarget = new Map<string, Role>()
+  for (const r of roles) roleOfTarget.set(target.roles[r]!, r)
+  const sHipsRest =
+    source.roles.hips != null
+      ? source.bones.find((b) => b.name === source.roles.hips)?.position
+      : undefined
+  const tHipsRest =
+    target.roles.hips != null
+      ? target.bones.find((b) => b.name === target.roles.hips)?.position
+      : undefined
+
+  return {
+    roles,
+    scale,
+    pose(rotations, hips) {
+      const sNow = toWorld(source.bones, rotations)
+      const out = new Map<string, Quat>()
+      const tWorld = new Map<string, Quat>()
+      for (const b of tOrder) {
+        const parentWorld =
+          b.parent != null ? tWorld.get(b.parent) ?? null : null
+        const r = roleOfTarget.get(b.name)
+        let world: Quat
+        if (r == null) {
+          world = parentWorld != null ? quatMul(parentWorld, b.rotation) : b.rotation
+        } else {
+          const sName = source.roles[r]!
+          // How the source bone turned since its rest, in world space…
+          const delta = quatMul(
+            sNow.rotation.get(sName)!,
+            quatConjugate(sRest.rotation.get(sName)!)
+          )
+          // …applied to the target bone, first lined up with the source's rest.
+          world = quatMul(
+            delta,
+            quatMul(align.get(r)!, tRest.rotation.get(b.name)!)
+          )
+        }
+        tWorld.set(b.name, world)
+        out.set(
+          b.name,
+          parentWorld != null ? quatMul(quatConjugate(parentWorld), world) : world
+        )
+      }
+      let hipsOut: Vec3 | undefined
+      if (hips != null && sHipsRest != null && tHipsRest != null) {
+        hipsOut = {
+          x: tHipsRest.x + (hips.x - sHipsRest.x) * scale,
+          y: tHipsRest.y + (hips.y - sHipsRest.y) * scale,
+          z: tHipsRest.z + (hips.z - sHipsRest.z) * scale,
+        }
+      }
+      return { rotations: out, hips: hipsOut }
+    },
+  }
+}

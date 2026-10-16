@@ -617,6 +617,7 @@ an accessible name in the markup (an SVG `<title>`, or the mirrored button's
 | `src/b3d-car.ts` | Vehicle with acceleration, steering, wheel spin, enterability |
 | `src/b3d-aircraft.ts` | Aircraft with VTOL, flight dynamics, follow camera |
 | `src/fly-by-wire.ts` | Pure "drone-becomes-a-plane" attitude-command flight model (zero Babylon deps), unit-tested |
+| `src/retarget.ts` | Pure core of RETARGETING (0.11): `humanoidRoles` reads which bone is which across UE, Mixamo, Kenney and Blender spellings (fingers, twist, IK and end bones left alone; a lone `leg` is the whole leg), and `retargeter(source, target).pose(rotations, hips)` transfers each role's world-space rotation since rest, lined up with the source's rest direction so an A-pose clip lands as shown on a T-pose rig, with the hips' travel scaled by hip height. Tested on the real UAL, Mixamo and Kenney Mini skeletons. Skeleton FITTING (Mixamo-style markers dragged over a mesh) and bone-heat BINDING come next |
 | `src/mantle.ts` | Pure ledge-climb decision + path (`canMantle`/`mantlePath`/`mantleClip`) — the band between a step and a wall, an ARC so the body clears the lip, clip picked by MEASURING the ledge. Unit-tested |
 | `src/buoyancy.ts` | Pure vertical water model — `submergedFraction`/`buoyantStep`/`swimBuoyancy`/`isSwimming` (hysteresis). Unit-tested |
 | `src/swim-aim.ts` | Pure look-directed swim aim — clamp/integrate/ease, `surfaceAimLimit` (you cannot swim up out of water), `jumpSpeedForAirtime`. Unit-tested |
