@@ -37,6 +37,7 @@ export const SOL: SystemSpec = {
   planets: [
     {
       name: 'Mercury',
+      tilt: 0.03,
       au: 0.39,
       radiusKm: 2440,
       day: 58.65,
@@ -44,6 +45,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Venus',
+      tilt: 2.64,
       au: 0.72,
       radiusKm: 6052,
       day: -243.0,
@@ -51,6 +53,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Earth',
+      tilt: 23.44,
       day: 0.997,
       au: 1,
       radiusKm: 6371,
@@ -78,6 +81,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Mars',
+      tilt: 25.19,
       day: 1.026,
       au: 1.52,
       radiusKm: 3390,
@@ -104,6 +108,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Jupiter',
+      tilt: 3.13,
       day: 0.414,
       au: 5.2,
       radiusKm: 69911,
@@ -133,6 +138,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Saturn',
+      tilt: 26.73,
       day: 0.444,
       au: 9.54,
       radiusKm: 58232,
@@ -162,6 +168,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Uranus',
+      tilt: 82.23,
       day: -0.718,
       au: 19.2,
       radiusKm: 25362,
@@ -184,6 +191,7 @@ export const SOL: SystemSpec = {
     },
     {
       name: 'Neptune',
+      tilt: 28.32,
       day: 0.671,
       au: 30.1,
       radiusKm: 24622,

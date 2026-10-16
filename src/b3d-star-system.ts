@@ -661,6 +661,15 @@ export class B3dStarSystem extends B3dChild {
       const holder = new BABYLON.TransformNode(`planet-holder-${i}`, scene)
       holder.parent = this.rootNode
       this.holders.push(holder)
+      /*
+      THE AXIS LEANS (axial tilt), fixed in space: the holder is tilted
+      once and the planet spins inside it, so its moons orbit the tilted
+      equator and its seasons, and a ring's shadow on its planet, follow
+      the year. Without it every ring lay in its orbit's plane, edge-on
+      to its sun, and its shadow was a hairline on the equator.
+      */
+      const tilt = Number(spec?.planets[i].tilt) || 0
+      if (tilt !== 0) holder.rotation.z = (tilt * Math.PI) / 180
       const giant = planet.classification !== 'rocky'
       const seed = 1 + (Math.abs(planet.seed) % 9973)
       const el = b3dPlanet({

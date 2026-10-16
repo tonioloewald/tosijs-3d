@@ -196,6 +196,7 @@ tosi-b3d {
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
 | `ocean` | `0.6` | Ocean coverage (0=none, 0.6=60% of surface underwater) |
 | `wireframe` | `false` | Debug: render as wireframe |
+| `tilt` | `0` | Axial tilt in degrees: the axis leans and stays fixed in space while the planet spins about it. Rings tilt with it, which is what lets their shadow fall across the planet (Saturn 26.7). A star system tilts its own planets from its spec |
 | `rotationSpeed` | `0` | Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way |
 
 */
@@ -291,6 +292,10 @@ export class B3dPlanet extends B3dChild {
     ringOuter: 0,
     ringOpacity: -1,
     ringColor: '',
+    // Axial tilt, degrees: the axis leans, fixed in space, and the planet
+    // spins about it (a ring tilts with it, so its shadow falls on the
+    // planet). A star system tilts its planets itself (SOL's `tilt`).
+    tilt: 0,
     /*
     THE GROUND THIS IS A GLOBE OF (#3344): a selector for a sphere
     `<tosi-b3d-terrain>` ('#moon-ground'). The planet draws from it, and
@@ -462,6 +467,23 @@ export class B3dPlanet extends B3dChild {
       // Babylon's left-handed frame that is a NEGATIVE turn about Y. (It was
       // positive, and the Earth ran backwards.)
       this.rootNode.rotation.y -= speed * dt
+    }
+    /*
+    AXIAL TILT, fixed in space: the spin (still `rotation.y`, which a star
+    system writes too) runs about the tilted axis. A quaternion, because
+    Babylon's Euler order would swing a tilt round with the spin, which is
+    precession, not a lean.
+    */
+    const tilt = Number(attrs.tilt) || 0
+    if (tilt !== 0) {
+      this.rootNode.rotationQuaternion = BABYLON.Quaternion.RotationAxis(
+        BABYLON.Axis.Z,
+        (tilt * Math.PI) / 180
+      ).multiply(
+        BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, this.rootNode.rotation.y)
+      )
+    } else if (this.rootNode.rotationQuaternion != null) {
+      this.rootNode.rotationQuaternion = null
     }
   }
 

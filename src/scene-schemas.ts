@@ -1503,6 +1503,7 @@ export function planetSchema(extra: Record<string, unknown> = {}) {
       colorMap: url(),
       bodyRadiusKm: num(0, { minimum: 0, maximum: 100000, 'x-unit': 'km' }),
       rotationSpeed: num(0, { minimum: -2, maximum: 2, 'x-unit': 'rad/s' }),
+      tilt: num(0, { minimum: -90, maximum: 90, ...DEG, description: 'Axial tilt: the axis leans, fixed in space.' }),
       wireframe: bool(false),
     },
     {

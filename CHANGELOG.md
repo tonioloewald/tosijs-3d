@@ -6,6 +6,15 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.10 (unreleased)
+
+### Added
+
+- **Axial tilt.** Planets lean, with the axis fixed in space as they orbit, so seasons and a ring's shadow on its planet come and go with the year.
+  - **`SOL` carries the real tilts** (Earth 23.4°, Saturn 26.7°, Uranus 82.2°, Venus 2.6°; a negative `day` already makes Venus and Uranus turn backwards). A star system tilts each planet's holder, so moons orbit the tilted equator.
+  - **`tilt` on `<tosi-b3d-planet>`** does the same for a standalone planet; the spin runs about the tilted axis.
+  - **What it fixes:** Saturn's rings shadowed nothing in the Solar System demo, because they lay in the plane of the orbit, edge-on to the Sun, and their shadow was a hairline on the equator. The sun's elevation above the rings now runs from −26.7° to +26.7° round Saturn's year: two equinoxes (the demo's clock starts at one) and two solstices.
+
 ## 0.10.9
 
 ### Added
