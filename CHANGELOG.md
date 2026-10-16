@@ -18,6 +18,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **System panels for an app's main chrome** (#106, from ensemble). Three new `<tosi-b3d-panel>` controls for a panel with an `icon`:
+  - **`exclusive="off"`** lets it stay open beside other system panels. Opening it closes nothing, and the settings panel or an exclusive panel (an inventory) opens and closes over it without closing it. The default is unchanged: one at a time.
+  - **`open`** opens it when the scene starts.
+  - **Its `screenAnchor` is where it first opens**, so a right-hand column can be declared. A drag still moves it and it reopens there; holding its button still puts it back.
+  - **In a headset** the non-exclusive panels that were open follow you in and back out. A left-pinned panel sits left of centre and a right-pinned one right, lower for a lower pixel `top`.
+  - A focused `inputField` in one takes typing as it does anywhere: keys come from a window listener, not the DOM (checked).
 - **Screenshot from the scene panel.** A download icon on every scene's standard panel opens a popup with two buttons: **With panels** and **Scene only**. Each saves the canvas as a PNG. Scene only hides the `ui` and `modal` layers and world-layer panels (the system bar included) for the frame and puts them back. The popup closes itself first, so it is never in the picture. It is `b3d.saveScreenshot({ ui, name })` in code, and returns the Blob. `setPanelsHidden(scene)` (frame-panel) is the hide, and returns its undo. Feather's `download` icon is added.
 - **Axial tilt.** Planets lean, with the axis fixed in space as they orbit, so seasons and a ring's shadow on its planet come and go with the year.
   - **Moons orbit their own plane:** `inclination` on a moon (degrees from the ecliptic), by default its planet's equator, as regular moons do. Our Moon takes 5.1°; with the tilt on its holder it had dropped 23° below the ecliptic.

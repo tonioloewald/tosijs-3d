@@ -548,6 +548,36 @@ const XR_BAR_ELEVATION = 66
 const UNDER_BAR = 8 + BAR_HEIGHT + 8
 const XR_BAR_DISTANCE = 1.4
 
+/*
+A SYSTEM PANEL'S FIRST SEAT IN A HEADSET, from where it is pinned flat. A
+panel pinned to the left edge goes left of centre and one pinned right goes
+right (left of centre is negative azimuth, as `left-shoulder` is), its inner
+edge a little off the middle; a pixel `top` below the bar puts it that much
+lower, at the scale the panel is drawn (K metres per viewBox unit). Unpinned,
+it is under the bar, centred. So an app's two columns stay two columns.
+*/
+function xrSeatFor(
+  pin: ScreenAnchor | undefined,
+  width: number,
+  halfHeightDeg: number,
+  K: number
+): { azimuthDeg: number; elevationDeg: number; distance: number } {
+  const deg = (m: number) => (Math.atan2(m, XR_BAR_DISTANCE) * 180) / Math.PI
+  const side =
+    pin?.left != null && pin.right == null
+      ? -1
+      : pin?.right != null && pin.left == null
+        ? 1
+        : 0
+  const down =
+    typeof pin?.top === 'number' ? Math.max(0, pin.top - UNDER_BAR) * K : 0
+  return {
+    azimuthDeg: side * (8 + deg(width / 2)),
+    elevationDeg: XR_BAR_ELEVATION - 5 - halfHeightDeg - deg(down),
+    distance: XR_BAR_DISTANCE,
+  }
+}
+
 /** A registered fog contributor: underwater, cloud, space… (see atmosphere.ts). */
 type FogContributor = () => FogLayer | null
 
@@ -2343,7 +2373,12 @@ export class B3d extends Component {
   SYSTEM PANELS: a `<tosi-b3d-panel>` with an `icon` (or `preset="system-bar"`) is not pinned to
   the rig. It gets a button on the system bar (its `icon`) and opens UNDER
   the bar, flat and in a headset: the inventory is one. One is open at a
-  time, the settings panel included. Tonio: "it should be able to extend the
+  time, the settings panel included, unless it says `exclusive="off"`: an
+  app's main chrome (a tool palette, a properties panel) is several panels
+  used together, which stay open beside each other and beside whichever
+  exclusive panel is up. `open` opens one when the scene starts, and one
+  that is open when a headset session starts or ends opens again on the
+  other side. Tonio: "it should be able to extend the
   system bar in flat 3d and VR so it's just one UI with slightly different
   arrangement."
 
@@ -2386,7 +2421,7 @@ export class B3d extends Component {
         b.addEventListener('systemhold', () => {
           this._systemSpots.delete(svg)
           this._systemXrSpots.delete(svg)
-          this._closeSystemPanel()
+          this._closeSystemPanel(svg)
           this._openSystemPanel(svg)
         })
         this._systemButtonOf.set(svg, b)
@@ -2394,27 +2429,37 @@ export class B3d extends Component {
       return b
     })
   }
-  private _sysPanel: {
-    svg: SVGSVGElement
-    panel: { update: () => void; dispose: () => void }
-    frames: XrFrames | null
-    obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
-    off: () => void
-  } | null = null
+  /** The open system panels, by content. */
+  private _sysPanels = new Map<
+    SVGSVGElement,
+    {
+      panel: { update: () => void; dispose: () => void }
+      frames: XrFrames | null
+      obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
+      off: () => void
+      exclusive: boolean
+    }
+  >()
+  /** System panels already opened by their `open` attribute (once each). */
+  private _sysOpened = new WeakSet<SVGSVGElement>()
   /** The headset's settings panel closer, while a session has one. */
   private _closeXrSettings: () => void = noop
   private _toggleSystemPanel(svg: SVGSVGElement): void {
-    const was = this._sysPanel?.svg
-    this._closeSystemPanel()
-    if (was !== svg) this._openSystemPanel(svg)
+    if (this._sysPanels.has(svg)) this._closeSystemPanel(svg)
+    else this._openSystemPanel(svg)
   }
   private _openSystemPanel(content: SVGSVGElement): void {
     const scene = this.scene
     if (scene == null) return
+    if (this._sysPanels.has(content)) return
     const spec = this._systemSpecs().find((s) => s.svg === content)
-    // One at a time: the settings panel goes.
-    this._closeScenePanel()
-    this._closeXrSettings()
+    const exclusive = spec?.exclusive !== false
+    // One at a time: the settings panel and the other exclusive ones go.
+    if (exclusive) {
+      this._closeScenePanel()
+      this._closeXrSettings()
+      this._closeSystemPanels(true)
+    }
     /*
     THE SETTINGS PANEL'S TITLE BAR, by default: move, its title, ×. Tonio:
     "I think the way the scene panel works should just be the default unless
@@ -2432,7 +2477,7 @@ export class B3d extends Component {
     const titled = framed
       ? titled3d(content, {
           title: spec?.title,
-          handleClose: () => this._closeSystemPanel(),
+          handleClose: () => this._closeSystemPanel(content),
         })
       : null
     const svg = titled ?? content
@@ -2450,11 +2495,12 @@ export class B3d extends Component {
       // it reopens where you left it (holding its button resets it).
       let seat = this._systemXrSpots.get(content)
       if (seat == null) {
-        seat = {
-          azimuthDeg: 0,
-          elevationDeg: XR_BAR_ELEVATION - 5 - half,
-          distance: XR_BAR_DISTANCE,
-        }
+        seat = xrSeatFor(
+          spec?.screenAnchor,
+          (vb.width || 400) * K,
+          half,
+          K
+        )
         this._systemXrSpots.set(content, seat)
       }
       panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {
@@ -2476,13 +2522,19 @@ export class B3d extends Component {
       // than the screen (the content grows and shrinks, so every frame).
       // Where you dragged it last time, as the settings panel does (holding
       // its button on the bar puts it back).
+      // The first time, its own `screenAnchor` if it declares one.
       let spot = this._systemSpots.get(content)
       if (spot == null) {
-        spot = { left: 8, top: UNDER_BAR, distance: 0.9 }
+        spot = spec?.screenAnchor
+          ? { distance: 0.9, ...spec.screenAnchor }
+          : { left: 8, top: UNDER_BAR, distance: 0.9 }
         this._systemSpots.set(content, spot)
       }
+      const fixedHeight = spec?.screenAnchor?.height != null
       const fitHeight = () => {
-        const room = (this.parts.canvas?.clientHeight ?? 600) - UNDER_BAR - 8
+        if (fixedHeight) return
+        const top = typeof spot!.top === 'number' ? spot!.top : UNDER_BAR
+        const room = (this.parts.canvas?.clientHeight ?? 600) - top - 8
         spot!.height = Math.max(
           80,
           Math.min(svg.viewBox.baseVal.height || 400, room)
@@ -2516,19 +2568,19 @@ export class B3d extends Component {
     }
     const onFocus = (e: Event) => {
       if ((e as CustomEvent<{ focus?: boolean }>).detail?.focus === false)
-        this._closeSystemPanel()
+        this._closeSystemPanel(content)
     }
     content.addEventListener('panelfocus', onFocus)
-    this._sysPanel = {
-      svg: content,
+    this._sysPanels.set(content, {
       panel,
       frames,
       obs,
+      exclusive,
       off: () => {
         content.removeEventListener('panelfocus', onFocus)
         titled?.dispose()
       },
-    }
+    })
     this._syncGamepadCover()
   }
   /** Where each system panel was dragged to, flat. */
@@ -2550,11 +2602,37 @@ export class B3d extends Component {
     return v === 'dom'
   }
   private _flatUiWarned = false
-  private _closeSystemPanel(): void {
-    const p = this._sysPanel
+  /** Close every system panel, or only the exclusive ones. */
+  private _closeSystemPanels(exclusiveOnly = false): void {
+    for (const [svg, p] of [...this._sysPanels])
+      if (!exclusiveOnly || p.exclusive) this._closeSystemPanel(svg)
+  }
+  /**
+   * Close them all for a change of presentation (a headset session starting
+   * or ending), and open the non-exclusive ones again once the other side is
+   * up: an app's chrome follows you into the headset and back.
+   */
+  private _carrySystemPanels(toXr: boolean): void {
+    const shared = [...this._sysPanels]
+      .filter(([, p]) => !p.exclusive)
+      .map(([svg]) => svg)
+    this._closeSystemPanels()
+    const scene = this.scene
+    if (scene == null || shared.length === 0) return
+    const obs = scene.onBeforeRenderObservable.add(() => {
+      // Wait for the other side: the headset's frames, or the flat camera.
+      const xr = this.xrActive && this.xrFrames != null
+      const flat = !this.xrActive && this.xrFrames == null
+      if ((toXr ? !xr : !flat) || scene.activeCamera == null) return
+      scene.onBeforeRenderObservable.remove(obs)
+      for (const svg of shared) this._openSystemPanel(svg)
+    })
+  }
+  private _closeSystemPanel(svg: SVGSVGElement): void {
+    const p = this._sysPanels.get(svg)
     if (p == null) return
-    this._sysPanel = null
-    p.svg.dispatchEvent(
+    this._sysPanels.delete(svg)
+    svg.dispatchEvent(
       new CustomEvent('panelopen', {
         detail: { open: false },
         cancelable: true,
@@ -2659,6 +2737,12 @@ export class B3d extends Component {
         )
       const bar = this._sceneToolbarSpec()
       if (bar) specs.unshift(bar)
+      // System panels that say `open`, once each, when the scene starts.
+      for (const spec of this._systemSpecs())
+        if (spec.open && !this._sysOpened.has(spec.svg!)) {
+          this._sysOpened.add(spec.svg!)
+          this._openSystemPanel(spec.svg!)
+        }
       const sig = specs.length
         ? `${cam.uniqueId}|${
             bar ? `bar${this._sceneBarVersion}` : ''
@@ -5270,7 +5354,8 @@ export class B3d extends Component {
     // Body-anchored panels (inventory over the shoulders, quick-access at the
     // waist), pinned to their frame and revealed by looking toward them.
     // Whatever was open flat goes; it opens again from the headset's bar.
-    this._closeSystemPanel()
+    // An app's chrome (exclusive="off") comes along.
+    this._carrySystemPanels(true)
     const bodySpecs = this.bodyPanels(this).filter(
       (spec) => spec.anchor !== 'system-bar'
     )
@@ -5333,8 +5418,8 @@ export class B3d extends Component {
     }
     const toggleXrPanel = () => {
       if (panel != null) return closeXrPanel()
-      // One at a time: a system panel (the inventory) goes.
-      this._closeSystemPanel()
+      // One at a time: an exclusive system panel (the inventory) goes.
+      this._closeSystemPanels(true)
       panel = this._attachXrPanel(base, frames.eye)
     }
     this._closeXrSettings = closeXrPanel
@@ -5713,7 +5798,7 @@ export class B3d extends Component {
       frames.update(dt)
       for (const p of bodyPanels) p.update(viewCtx)
       xrBar.update()
-      this._sysPanel?.panel.update()
+      for (const p of this._sysPanels.values()) p.panel.update()
 
       // getCameraTarget() (not .mesh) — the aircraft's node is `meshNode`, so
       // .mesh is undefined and it would never be chased.
@@ -6103,7 +6188,7 @@ export class B3d extends Component {
         this._xrPanelEl = null
         panel?.dispose()
         this._closeXrSettings = noop
-        this._closeSystemPanel()
+        this._carrySystemPanels(false)
         xrBar.dispose()
         for (const p of bodyPanels) p.dispose()
         frames.dispose()
@@ -6419,7 +6504,7 @@ export class B3d extends Component {
   private _syncGamepadCover(): void {
     const covered =
       this._flatScenePanel != null ||
-      this._sysPanel != null ||
+      this._sysPanels.size > 0 ||
       this._modals.size > 0
     this._suppressGamepad('in-scene-ui', covered)
   }
@@ -6491,8 +6576,8 @@ export class B3d extends Component {
   }
 
   private _openScenePanel(): void {
-    // One at a time: a system panel (the inventory) goes.
-    this._closeSystemPanel()
+    // One at a time: an exclusive system panel (the inventory) goes.
+    this._closeSystemPanels(true)
     if (!this._flatDom() && !this.xrActive && this._openFlatScenePanel()) return
     const host = this.parts.scenePanelHost as HTMLElement
     const mk = (
@@ -7186,7 +7271,7 @@ export class B3d extends Component {
     }
     this._fullscreenOff?.()
     this._fullscreenOff = null
-    this._closeSystemPanel()
+    this._closeSystemPanels()
     this._sceneBar?.dispose()
     this._sceneBar = null
     // The buttons outlive the scene (they are the shadow root's), so a

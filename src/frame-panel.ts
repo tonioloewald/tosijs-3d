@@ -350,6 +350,14 @@ export interface FramePanelSpec {
    * ×) unless this is `'none'`, for content with chrome of its own.
    */
   chrome?: 'none'
+  /**
+   * A system panel: `false` lets it stay open beside other system panels
+   * (an app's main chrome: tools, properties). Default true, one at a time
+   * (an inventory, a journal).
+   */
+  exclusive?: boolean
+  /** A system panel: open when the scene starts. */
+  open?: boolean
   /** Custom panel SVG element (live/dynamic content). */
   svg?: SVGSVGElement
   /** Or fetch a static SVG from this URL (e.g. a reticle). */
