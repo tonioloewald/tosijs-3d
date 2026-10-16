@@ -704,6 +704,7 @@ export type {
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
   panel3d,
+  titled3d,
   fitPanel,
   row3d,
   label3d,

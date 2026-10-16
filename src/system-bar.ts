@@ -12,7 +12,8 @@ It does not re-implement its buttons. It MIRRORS a list of real HTML buttons:
 a button that is hidden (by its `hidden` attribute or by a style, such as
 `::part(enterVrButton) { display: none }`) is not drawn, one that is disabled
 is drawn dimmed and ignores a press, its icon and title come along, and a press
-calls that button's own `click()`. So entering VR and going full screen keep
+calls that button's own `click()` (held for `HOLD_MS`, it gets a `systemhold`
+event instead: the scene puts that button's panel back where it started). So entering VR and going full screen keep
 their one definition, and both still run inside the press the browser requires
 for them. `<tosi-b3d flat-ui="dom">` keeps the HTML ones flat.
 
@@ -39,6 +40,8 @@ function styledAway(b: HTMLElement): boolean {
 const SIZE = 40
 const GAP = 6
 const PAD = 4
+/** How long a press is held before it is a `systemhold` instead of a click (ms). */
+export const HOLD_MS = 600
 
 export interface SystemBar {
   /** The toolbar's SVG, with `handlePointer` for a frame panel to route to. */
@@ -114,10 +117,35 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
     })
   }
 
+  /*
+  PRESS AND HOLD is a second verb: the button gets a `systemhold` event
+  instead of its click (the scene puts that button's panel back where it
+  started). Fired while still held, so it answers without waiting for the
+  release; the release is then nothing.
+  */
+  let holdTimer: ReturnType<typeof setTimeout> | null = null
+  const stopHold = () => {
+    if (holdTimer != null) clearTimeout(holdTimer)
+    holdTimer = null
+  }
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
     const i = kind === 'leave' ? -1 : indexAt(x, y)
-    if (kind === 'down') pressed = i
-    else if (kind === 'up') {
+    if (kind !== 'down' && i !== pressed) stopHold()
+    if (kind === 'down') {
+      pressed = i
+      stopHold()
+      if (i >= 0 && !shown[i].disabled) {
+        const b = shown[i]
+        holdTimer = setTimeout(() => {
+          holdTimer = null
+          if (shown[pressed] !== b) return
+          pressed = -1
+          b.dispatchEvent(new CustomEvent('systemhold'))
+          build()
+        }, HOLD_MS)
+      }
+    } else if (kind === 'up') {
+      stopHold()
       // A press is down and up on the same button, as a click is.
       if (i >= 0 && i === pressed && !shown[i].disabled) shown[i].click()
       pressed = -1
@@ -146,6 +174,7 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
       return shown.length
     },
     dispose() {
+      stopHold()
       watch.disconnect()
     },
   }

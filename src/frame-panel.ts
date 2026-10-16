@@ -308,6 +308,11 @@ export interface FramePanelSpec {
    * whose anchor is `'system-bar'`: the button opens it under the bar.
    */
   icon?: string
+  /**
+   * A system panel wears the settings panel's title bar (move, its `title`,
+   * ×) unless this is `'none'`, for content with chrome of its own.
+   */
+  chrome?: 'none'
   /** Custom panel SVG element (live/dynamic content). */
   svg?: SVGSVGElement
   /** Or fetch a static SVG from this URL (e.g. a reticle). */

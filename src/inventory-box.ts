@@ -1173,6 +1173,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const ghosts = carryGhostLayer(carry, root)
 
   let open = false
+  let framed = false
   let size = { width: W, height: mainHeight() }
   const layout = () => {
     const h = Math.max(
@@ -1198,11 +1199,16 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
     // It wears the outline every panel does (the system bar's). Closed, on
     // its own rounder corners and with the line scaled to the art, because
     // the closed picture is shown a few dozen pixels across.
+    // In a frame (`framed`, a system panel's title bar) the frame has both.
     closedRim?.remove()
-    closedRim = open ? panelRim(w, h, 10) : panelRim(W, mh, 48, W * 0.04)
-    root.append(closedRim)
+    closedRim = !open
+      ? panelRim(W, mh, 48, W * 0.04)
+      : framed
+      ? null
+      : panelRim(w, h, 10)
+    if (closedRim) root.append(closedRim)
     closeButton.setAttribute('transform', `translate(${w - 22}, 22)`)
-    if (open) root.append(closeButton)
+    if (open && !framed) root.append(closeButton)
     else closeButton.remove()
     root.setAttribute('viewBox', `0 0 ${w} ${h}`)
     root.setAttribute('width', String(w))
@@ -1224,6 +1230,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   let tapped = false
   let closing = false
   const onClose = (x: number, y: number) =>
+    !framed &&
     Math.hypot(x - (size.width - 22), y - 22) <= 18
   const setOpen = (v: boolean) => {
     if (v === open) return
@@ -1243,9 +1250,16 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   // Asked to open or close from outside (the scene's VR toolbar): the dock
   // does it itself, so it OPENS rather than its closed picture being blown
   // up; cancelling says so.
+  // `framed`: its host draws a title bar with a close (a system panel), so
+  // the dock draws neither its own close nor its outline.
   root.addEventListener('panelopen', (e) => {
     e.preventDefault()
-    setOpen(!!(e as CustomEvent<{ open?: boolean }>).detail?.open)
+    const d = (e as CustomEvent<{ open?: boolean; framed?: boolean }>).detail
+    if (d?.open) {
+      framed = !!d.framed
+      if (open) layout()
+    }
+    setOpen(!!d?.open)
   })
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
     // Closed, the whole dock is one button.

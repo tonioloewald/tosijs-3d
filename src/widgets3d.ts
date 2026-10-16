@@ -3045,6 +3045,144 @@ export function fitPanel(
 /** Height of a panel's title bar (move, title, close), in viewBox units. */
 const TITLE_BAR = 28
 
+/** The title bar's glyphs and title, where `chromeLayout` put them. */
+function titleBarParts(
+  bar: ReturnType<typeof chromeLayout>,
+  title: string | undefined,
+  closable: boolean,
+  width: number,
+  padding: number
+): SVGElement[] {
+  const parts: SVGElement[] = []
+  const glyph = (name: string, at: { x: number; y: number; size: number }) =>
+    parts.push(
+      iconGlyph(name, {
+        color: TH.MUTED,
+        size: at.size,
+        x: at.x,
+        y: at.y,
+      }) as unknown as SVGElement
+    )
+  if (bar.move != null) glyph('move', bar.move)
+  if (closable) glyph('close', bar.close)
+  if (title) {
+    const left = bar.move != null ? bar.move.x + bar.move.size + 8 : padding
+    const right = closable ? bar.closeHitX - 4 : width - padding
+    const t = baseText('', TH.TEXT, true)
+    t.setAttribute('x', String(left))
+    t.setAttribute('y', String(bar.barHeight / 2 + 1))
+    t.textContent = ellipsize(title, Math.max(0, right - left), TH.BOLD_FONT)
+    parts.push(t as unknown as SVGElement)
+  }
+  return parts
+}
+
+/**
+ * A PANEL'S TITLE BAR OVER CONTENT THAT HAS NONE: move, title and ×, the
+ * settings panel's, around any SVG (an inventory dock, a card, a map).
+ * Tonio: "why doesn't the inventory floater just get the move and close
+ * functionality of a panel by default (possibly with a caption) instead of
+ * having the bespoke minus in a circle?"
+ *
+ * The content is nested under the bar and keeps its own size (followed when
+ * it changes); presses below the bar reach its `handlePointer` in its own
+ * coordinates, and one that began there stays its own until release (a drag
+ * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
+ * is, so a host drags it the same way. `dispose` gives the content back.
+ */
+export function titled3d(
+  content: SVGSVGElement,
+  config: { title?: string; grip?: boolean; handleClose?: () => void } = {}
+): SVGSVGElement & { dispose: () => void } {
+  const handleClose = handlerOf<() => void>(config, 'handleClose', 'onClose')
+  const grip = config.grip !== false
+  const radius = w3dTheme.roundedRadius * 2
+  const root = css(
+    svg({ 'data-w3d': 'titled' }),
+    'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
+  ) as unknown as SVGSVGElement & { dispose: () => void }
+  const bg = rect({ x: 0, y: 0, rx: radius, ry: radius, fill: TH.PANEL_BG })
+  const chrome = g({})
+  root.append(bg, content, chrome)
+  let bar = chromeLayout(1, 1, 1, grip)
+  let w = 0
+  let h = 0
+  const relayout = () => {
+    const vb = (content.getAttribute('viewBox') ?? '').split(/[\s,]+/)
+    const cw = Number(vb[2]) || Number(content.getAttribute('width')) || 300
+    const ch = Number(vb[3]) || Number(content.getAttribute('height')) || 200
+    const H = ch + TITLE_BAR
+    if (cw === w && H === h) return
+    w = cw
+    h = H
+    content.setAttribute('x', '0')
+    content.setAttribute('y', String(TITLE_BAR))
+    root.setAttribute('viewBox', `0 0 ${w} ${h}`)
+    root.setAttribute('width', String(w))
+    root.setAttribute('height', String(h))
+    bg.setAttribute('width', String(w))
+    bg.setAttribute('height', String(h))
+    bar = chromeLayout(w, h, TITLE_BAR / h, grip)
+    chrome.replaceChildren(
+      ...titleBarParts(bar, config.title, handleClose != null, w, TH.PAD_X),
+      panelRim(w, h, radius)
+    )
+  }
+  relayout()
+  const watch =
+    typeof MutationObserver === 'function'
+      ? new MutationObserver(relayout)
+      : null
+  // Any attribute of the root (it has few): relayout returns early unless the
+  // size changed. (No attributeFilter: happy-dom matched no 'viewBox' with one.)
+  watch?.observe(content, { attributes: true })
+  type Target = { handlePointer?: (k: PointerKind, x: number, y: number) => void }
+  const forward = (kind: PointerKind, x: number, y: number) =>
+    (content as unknown as Target).handlePointer?.(kind, x, y - TITLE_BAR)
+  let inContent = false
+  let closing = false
+  const handlePointer = (kind: PointerKind, x: number, y: number) => {
+    const onBar = y <= bar.barHeight
+    const onClose = onBar && handleClose != null && x >= bar.closeHitX
+    if (closing) {
+      if (kind === 'up' || kind === 'leave') {
+        closing = false
+        if (kind === 'up' && onClose) handleClose!()
+      }
+      return
+    }
+    if (kind === 'down') {
+      if (onClose) {
+        closing = true
+        return
+      }
+      inContent = !onBar
+      if (onBar) return
+    }
+    if (kind === 'leave' || (onBar && !inContent)) {
+      forward('leave', 0, TITLE_BAR)
+      if (kind !== 'move') inContent = false
+      return
+    }
+    forward(kind, x, y)
+    if (kind === 'up') inContent = false
+  }
+  Object.assign(root, {
+    handlePointer,
+    gripHit: (x: number, y: number) =>
+      grip &&
+      y <= bar.barHeight &&
+      !(handleClose != null && x >= bar.closeHitX),
+    dispose: () => {
+      watch?.disconnect()
+      content.removeAttribute('x')
+      content.removeAttribute('y')
+      content.remove()
+    },
+  })
+  return root
+}
+
 export function panel3d(
   config: {
     width?: number
@@ -4443,26 +4581,9 @@ export function panel3d(
     space; Tonio: "missing its move and close widgets, and has a lot of waste
     space up top", and a named panel spent a body row on its own name.
     */
-    const glyph = (name: string, at: { x: number; y: number; size: number }) =>
-      root.appendChild(
-        iconGlyph(name, { color: TH.MUTED, size: at.size, x: at.x, y: at.y })
-      )
-    if (bar.move != null) glyph('move', bar.move)
-    if (handleClose != null) glyph('close', bar.close)
-    if (config.title) {
-      const left =
-        bar.move != null ? bar.move.x + bar.move.size + 8 : padding
-      const right = handleClose != null ? bar.closeHitX - 4 : width - padding
-      const t = baseText('', TH.TEXT, true)
-      t.setAttribute('x', String(left))
-      t.setAttribute('y', String(bar.barHeight / 2 + 1))
-      t.textContent = ellipsize(
-        config.title,
-        Math.max(0, right - left),
-        TH.BOLD_FONT
-      )
-      root.appendChild(t)
-    }
+    root.append(
+      ...titleBarParts(bar, config.title, handleClose != null, width, padding)
+    )
   }
   root.appendChild(panelRim(width, height, w3dTheme.roundedRadius * 2))
   if (scrollable) {

@@ -13,6 +13,9 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
+  // happy-dom's own, or its dispatchEvent rejects Bun's (the hold event).
+  g.Event = win.Event
+  g.CustomEvent = win.CustomEvent
   systemBar = (await import('./system-bar.js')).systemBar
 })
 
@@ -70,5 +73,38 @@ describe('systemBar mirrors HTML buttons', () => {
     bar.dispose()
     a.b.remove()
     b.b.remove()
+  })
+})
+
+describe('systemBar press and hold', () => {
+  test('held past HOLD_MS, the button gets systemhold and no click', async () => {
+    const { HOLD_MS } = await import('./system-bar.js')
+    const one = button()
+    let holds = 0
+    one.b.addEventListener('systemhold', () => holds++)
+    const bar = systemBar([one.b])
+    const h = (bar.svg as any).handlePointer
+    h('down', ...at(0))
+    await new Promise((r) => setTimeout(r, HOLD_MS + 50))
+    h('up', ...at(0))
+    expect(holds).toBe(1)
+    expect(one.clicks()).toBe(0)
+    bar.dispose()
+  })
+  test('a quick press is a click, and sliding off cancels the hold', async () => {
+    const { HOLD_MS } = await import('./system-bar.js')
+    const one = button()
+    let holds = 0
+    one.b.addEventListener('systemhold', () => holds++)
+    const bar = systemBar([one.b])
+    const h = (bar.svg as any).handlePointer
+    h('down', ...at(0))
+    h('up', ...at(0))
+    h('down', ...at(0))
+    h('move', 400, 400)
+    await new Promise((r) => setTimeout(r, HOLD_MS + 50))
+    expect(one.clicks()).toBe(1)
+    expect(holds).toBe(0)
+    bar.dispose()
   })
 })

@@ -303,6 +303,7 @@ import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
 import {
   fitPanel,
   panel3d,
+  titled3d,
   button3d,
   iconBar3d,
   label3d,
@@ -2378,6 +2379,12 @@ export class B3d extends Component {
           icons[spec.icon ?? '']?.() ?? svgIcons.square()
         ) as HTMLButtonElement
         b.addEventListener('click', () => this._toggleSystemPanel(svg))
+        // Held on the system bar: back where it started, and open.
+        b.addEventListener('systemhold', () => {
+          this._systemSpots.delete(svg)
+          this._closeSystemPanel()
+          this._openSystemPanel(svg)
+        })
         this._systemButtonOf.set(svg, b)
       }
       return b
@@ -2397,16 +2404,34 @@ export class B3d extends Component {
     this._closeSystemPanel()
     if (was !== svg) this._openSystemPanel(svg)
   }
-  private _openSystemPanel(svg: SVGSVGElement): void {
+  private _openSystemPanel(content: SVGSVGElement): void {
     const scene = this.scene
     if (scene == null) return
+    const spec = this._systemSpecs().find((s) => s.svg === content)
     // One at a time: the settings panel goes.
     this._closeScenePanel()
     this._closeXrSettings()
+    /*
+    THE SETTINGS PANEL'S TITLE BAR, by default: move, its title, ×. Tonio:
+    "I think the way the scene panel works should just be the default unless
+    overridden" (`chrome="none"` on the panel). `framed` tells content that
+    draws its own close and outline (the dock) to leave them to the frame.
+    */
+    const framed = spec?.chrome !== 'none'
     // Open the content FIRST, so it is placed at the size it will be.
-    svg.dispatchEvent(
-      new CustomEvent('panelopen', { detail: { open: true }, cancelable: true })
+    content.dispatchEvent(
+      new CustomEvent('panelopen', {
+        detail: { open: true, framed },
+        cancelable: true,
+      })
     )
+    const titled = framed
+      ? titled3d(content, {
+          title: spec?.title,
+          handleClose: () => this._closeSystemPanel(),
+        })
+      : null
+    const svg = titled ?? content
     const vb = svg.viewBox.baseVal
     let panel: { update: () => void; dispose: () => void }
     let frames: XrFrames | null = null
@@ -2438,10 +2463,16 @@ export class B3d extends Component {
       frames = f
       // Under the corner bar, one viewBox unit per CSS pixel, and no taller
       // than the screen (the content grows and shrinks, so every frame).
-      const spot: ScreenAnchor = { left: 8, top: 64, distance: 0.9 }
+      // Where you dragged it last time, as the settings panel does (holding
+      // its button on the bar puts it back).
+      let spot = this._systemSpots.get(content)
+      if (spot == null) {
+        spot = { left: 8, top: 64, distance: 0.9 }
+        this._systemSpots.set(content, spot)
+      }
       const fitHeight = () => {
         const room = (this.parts.canvas?.clientHeight ?? 600) - 72
-        spot.height = Math.max(
+        spot!.height = Math.max(
           80,
           Math.min(svg.viewBox.baseVal.height || 400, room)
         )
@@ -2476,16 +2507,21 @@ export class B3d extends Component {
       if ((e as CustomEvent<{ focus?: boolean }>).detail?.focus === false)
         this._closeSystemPanel()
     }
-    svg.addEventListener('panelfocus', onFocus)
+    content.addEventListener('panelfocus', onFocus)
     this._sysPanel = {
-      svg,
+      svg: content,
       panel,
       frames,
       obs,
-      off: () => svg.removeEventListener('panelfocus', onFocus),
+      off: () => {
+        content.removeEventListener('panelfocus', onFocus)
+        titled?.dispose()
+      },
     }
     this._syncGamepadCover()
   }
+  /** Where each system panel was dragged to, flat. */
+  private _systemSpots = new WeakMap<SVGSVGElement, ScreenAnchor>()
   /** `flat-ui="dom"`; anything but 'scene' or 'dom' warns once and is 'scene'. */
   private _flatDom(): boolean {
     const v = (this as any).flatUi
@@ -2502,13 +2538,14 @@ export class B3d extends Component {
     const p = this._sysPanel
     if (p == null) return
     this._sysPanel = null
-    p.off()
     p.svg.dispatchEvent(
       new CustomEvent('panelopen', { detail: { open: false }, cancelable: true })
     )
     if (p.obs != null) this.scene?.onBeforeCameraRenderObservable.remove(p.obs)
     p.panel.dispose()
     p.frames?.dispose()
+    // Last: the frame gives the content back once its plane is gone.
+    p.off()
     this._syncGamepadCover()
   }
   private _sceneToolbarSpec(): FramePanelSpec | null {
@@ -6179,6 +6216,12 @@ export class B3d extends Component {
       gear.addEventListener('click', () => {
         if (this._scenePanelOpen()) this._closeScenePanel()
         else this._openScenePanel()
+      })
+      // Held on the system bar: back where it started, and open.
+      gear.addEventListener('systemhold', () => {
+        this._flatPanelSpot = null
+        this._closeScenePanel()
+        this._openScenePanel()
       })
       /*
       A PRESS ON THE BACKGROUND CLOSES IT.

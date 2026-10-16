@@ -135,7 +135,8 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `blend` | `composite` | `composite` or `add` (additive HUD glyphs) |
 | `view` | `both` | `first` / `third` / `both` — restrict to a camera view |
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
-| `icon` | `''` | With `preset="system-bar"`: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `backpack`); blank or unknown draws a square. Its `title` is the button's tooltip |
+| `icon` | `''` | With `preset="system-bar"`: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `backpack`); blank or unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
+| `chrome` | `''` | With `preset="system-bar"`: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
@@ -180,6 +181,7 @@ export class B3dPanel extends Component {
     view: 'both',
     title: '',
     icon: '',
+    chrome: '',
     url: '',
     width: 0.26,
     revealStart: 50,
@@ -210,6 +212,7 @@ export class B3dPanel extends Component {
   declare view: string
   declare title: string
   declare icon: string
+  declare chrome: string
   declare url: string
   declare width: number
   declare revealStart: number
@@ -265,6 +268,7 @@ export class B3dPanel extends Component {
       view: this.view === 'first' || this.view === 'third' ? this.view : 'both',
       title: this.title || undefined,
       icon: this.icon || undefined,
+      chrome: this.chrome === 'none' ? 'none' : undefined,
       url: this.url || undefined,
       width: this.width,
       maxDistance: this.maxDistance > 0 ? this.maxDistance : undefined,
