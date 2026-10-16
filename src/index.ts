@@ -1642,3 +1642,24 @@ export {
   climateOctave,
 } from './climate-noise.js'
 export type { SweepRow, SweepOptions, SweepRun } from './cost-sweep.js'
+export {
+  humanoidRoles,
+  retargeter,
+  rotationBetween,
+  ROLES,
+} from './retarget.js'
+export type {
+  Role,
+  Side as RetargetSide,
+  Limb,
+  NamedBone,
+  RestBone,
+  Skeleton as RetargetSkeleton,
+  Retargeter,
+} from './retarget.js'
+export {
+  readSkeleton,
+  retargetClip,
+  retargetClips,
+} from './retarget-babylon.js'
+export type { ReadSkeleton } from './retarget-babylon.js'
