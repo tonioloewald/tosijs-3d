@@ -548,11 +548,8 @@ export function demoLoadout(
   button is what reminds you it is there.
   */
   const pinned = b3dPanel({
-    preset: 'system-bar',
     title: 'Inventory',
     icon: 'personStanding',
-    presence: 'both',
-    resolution: 1024,
   }) as B3dPanel
   ready.then((d) => {
     pinned.svg = d.svg

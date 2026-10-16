@@ -38,6 +38,7 @@ import { markUiMesh } from './b3d-utils.js'
 import { gazeReveal, type FrameName } from './xr-frames.js'
 import { faceViewer } from './dialog-placement.js'
 import { panelRim } from './panel-rim.js'
+import { orbitFromAim } from './panel-orbit.js'
 
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const DEG = Math.PI / 180
@@ -922,6 +923,53 @@ export function attachFramePanel(
     ;(held as any).attachControl(scene.getEngine().getRenderingCanvas(), true)
     held = null
   }
+  /*
+  DRAGGED BY ITS TITLE BAR, in space (a headset, or any panel not pinned to
+  the screen): the panel slides over the sphere it sits on, to where the ray
+  points. A point along the ray at the sphere's radius, not the ray's
+  direction from your eyes, because the ray starts at your hand (the
+  settings panel's drag learnt this; `orbitFromAim`). Only for an anchor of
+  its own given by angles: a named preset is shared, and an explicit
+  `position` is the author's. It writes the anchor's angles, so a host that
+  hands the same anchor to the next open keeps the spot.
+  */
+  const aimable =
+    spec.screenAnchor == null &&
+    typeof spec.anchor !== 'string' &&
+    anchor.position == null
+  let aimDrag = false
+  // Where the ray pointed when the bar was grabbed, against the anchor: the
+  // panel keeps that offset rather than jumping its centre onto the ray.
+  let grab = { az: 0, el: 0 }
+  const aimOf = (ray: BABYLON.Ray) => {
+    const inv = new BABYLON.Matrix()
+    frame.getWorldMatrix().invertToRef(inv)
+    const f = anchor.focus ?? DEFAULT_FOCUS
+    const o = BABYLON.Vector3.TransformCoordinates(ray.origin, inv)
+    const d = BABYLON.Vector3.TransformNormal(ray.direction, inv)
+    return orbitFromAim(
+      { x: o.x - f[0], y: o.y - f[1], z: o.z - f[2] },
+      { x: d.x, y: d.y, z: d.z },
+      {
+        azimuthDeg: anchor.azimuthDeg ?? 0,
+        elevationDeg: anchor.elevationDeg ?? 0,
+        radius: anchor.distance ?? 0.5,
+      }
+    )
+  }
+  const aimGrab = (ray: BABYLON.Ray) => {
+    const a = aimOf(ray)
+    grab = {
+      az: (anchor.azimuthDeg ?? 0) - a.azimuthDeg,
+      el: (anchor.elevationDeg ?? 0) - a.elevationDeg,
+    }
+  }
+  const aimAt = (ray: BABYLON.Ray) => {
+    const a = aimOf(ray)
+    anchor.azimuthDeg = a.azimuthDeg + grab.az
+    anchor.elevationDeg = Math.max(-80, Math.min(80, a.elevationDeg + grab.el))
+    placeAt(anchor)
+  }
   let pointerObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.PointerInfo>> = null
   if (target != null && typeof target.handlePointer === 'function' && el) {
     scene.constantlyUpdateMeshUnderPointer = true
@@ -967,6 +1015,16 @@ export function attachFramePanel(
         }
         return
       }
+      if (aimDrag) {
+        if (kind === 'move') {
+          const ray = info.pickInfo?.ray
+          if (ray != null) aimAt(ray)
+        } else if (kind === 'up') {
+          aimDrag = false
+          releaseCamera()
+        }
+        return
+      }
       if (kind === 'down') {
         if (!uv) return
         const ev = info.event as PointerEvent | undefined
@@ -986,6 +1044,21 @@ export function attachFramePanel(
           holdCamera()
           ev.preventDefault?.()
           claimPointer(ev as unknown as Event)
+          target.handlePointer!('leave', 0, 0)
+          return
+        }
+        const pressRay = info.pickInfo?.ray
+        if (
+          aimable &&
+          !focused &&
+          pressRay != null &&
+          target.gripHit?.(lastX, lastY)
+        ) {
+          aimGrab(pressRay)
+          aimDrag = true
+          holdCamera()
+          ;(info.event as PointerEvent | undefined)?.preventDefault?.()
+          claimPointer(info.event as unknown as Event)
           target.handlePointer!('leave', 0, 0)
           return
         }

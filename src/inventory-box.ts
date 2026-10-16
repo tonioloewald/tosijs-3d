@@ -288,12 +288,12 @@ dealHost.addEventListener('pointerup', (e) => dealBox.handlePointer('up', ...at(
 
 The same loadout in a scene, flat and in a headset, on the scene's SYSTEM
 BAR: its button (a standing figure) opens it under the bar, with the bag beside it to
-drag to and from; the button again, or the × at its corner, puts it away.
+drag to and from; the button again, or the × in its title bar, puts it away.
 `inventoryDock` draws both into one SVG, so a drag between them is one panel;
 give it no `list` for a craft fitted from a carrier's stock, and it opens to
-the schematic alone. A `<tosi-b3d-panel preset="system-bar">` takes the dock's
-`svg`; the bar asks the dock to open (`panelopen`), and the dock's own close
-puts the panel away (`panelfocus` with `focus: false`).
+the schematic alone. A `<tosi-b3d-panel icon title>` takes the dock's
+`svg`; the bar asks the dock to open (`panelopen`), and the title bar's ×
+puts it away.
 
 ```js
 import { b3d, b3dLight, b3dGround, b3dPanel, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
@@ -332,7 +332,7 @@ const alsoIn = (item, kind, at) =>
   kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
 
 // On the system bar: a button (a standing figure) that opens it under the bar.
-const loadout = b3dPanel({ preset: 'system-bar', title: 'Inventory', icon: 'personStanding', presence: 'both', resolution: 1024 })
+const loadout = b3dPanel({ title: 'Inventory', icon: 'personStanding' })
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -948,9 +948,14 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         const at: Place = { holder, container: cname }
         const into = target(at, `${holder}/${cname}`)
         lists.push({ target: into, from: enc(at) })
-        // Full width: a row is a button you can hit anywhere along it.
-        const row = { width: width - 24, height: 34 }
-        for (const id of c.holds) children.push(tile(id, at, row, into))
+        /*
+        A COLUMN: the heading, the drop target and "put in" stay put, and the
+        things scroll in what is left. "Put in" was the list's LAST row, so
+        in a list taller than its panel it sat off the bottom (Tonio: "the
+        drop in bag target is partially scrolled off. It should be fully
+        visible and the scrolling list should be constrained to occupy
+        available space").
+        */
         const socket = carrySocket({
           carry,
           target: into,
@@ -959,7 +964,11 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           height: 30,
         })
         disposers.push(socket.dispose)
+        socket.sticky = !!opts.height
         children.push(socket)
+        // Full width: a row is a button you can hit anywhere along it.
+        const row = { width: width - 24, height: 34 }
+        for (const id of c.holds) children.push(tile(id, at, row, into))
       } else {
         // A grid wants its picture (a schematic); here it is listed.
         for (const e of c.holds)

@@ -3103,6 +3103,9 @@ export function titled3d(
   ) as unknown as SVGSVGElement & { dispose: () => void }
   const bg = rect({ x: 0, y: 0, rx: radius, ry: radius, fill: TH.PANEL_BG })
   const chrome = g({})
+  // Where the content lived, to give it back there (a panel's own child).
+  const home = content.parentNode
+  const next = content.nextSibling
   root.append(bg, content, chrome)
   let bar = chromeLayout(1, 1, 1, grip)
   let w = 0
@@ -3177,7 +3180,9 @@ export function titled3d(
       watch?.disconnect()
       content.removeAttribute('x')
       content.removeAttribute('y')
-      content.remove()
+      if (home != null)
+        home.insertBefore(content, next?.parentNode === home ? next : null)
+      else content.remove()
     },
   })
   return root

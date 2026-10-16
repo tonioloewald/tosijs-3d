@@ -1875,7 +1875,7 @@ export class B3d extends Component {
   game's own panels; none ship filled. The placeholder Inventory, Journal,
   Quick Access and Menu that used to sit on them went when the inventory
   moved to the system bar (Tonio: "They are pin locations"). Declared
-  `<tosi-b3d-panel>` children are the set; `preset="system-bar"` ones go on
+  `<tosi-b3d-panel>` children are the set; ones with an `icon` go on
   the system bar instead. Like scenePanel, a function so the element creator
   treats it as a prop.
   */
@@ -2337,7 +2337,7 @@ export class B3d extends Component {
   private _sceneBarVersion = 0
 
   /*
-  SYSTEM PANELS: a `<tosi-b3d-panel preset="system-bar">` is not pinned to
+  SYSTEM PANELS: a `<tosi-b3d-panel>` with an `icon` (or `preset="system-bar"`) is not pinned to
   the rig. It gets a button on the system bar (its `icon`) and opens UNDER
   the bar, flat and in a headset: the inventory is one. One is open at a
   time, the settings panel included. Tonio: "it should be able to extend the
@@ -2382,6 +2382,7 @@ export class B3d extends Component {
         // Held on the system bar: back where it started, and open.
         b.addEventListener('systemhold', () => {
           this._systemSpots.delete(svg)
+          this._systemXrSpots.delete(svg)
           this._closeSystemPanel()
           this._openSystemPanel(svg)
         })
@@ -2442,13 +2443,20 @@ export class B3d extends Component {
       const K = 0.0018 // metres per viewBox unit
       const h = (vb.height || 400) * K
       const half = (Math.atan2(h / 2, XR_BAR_DISTANCE) * 180) / Math.PI
-      panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {
-        frame: 'eye',
-        anchor: {
+      // Its own anchor, kept: a drag by its title bar writes the angles, so
+      // it reopens where you left it (holding its button resets it).
+      let seat = this._systemXrSpots.get(content)
+      if (seat == null) {
+        seat = {
           azimuthDeg: 0,
           elevationDeg: XR_BAR_ELEVATION - 5 - half,
           distance: XR_BAR_DISTANCE,
-        },
+        }
+        this._systemXrSpots.set(content, seat)
+      }
+      panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {
+        frame: 'eye',
+        anchor: seat,
         reveal: 'always',
         layer: 'ui',
         svg,
@@ -2522,6 +2530,11 @@ export class B3d extends Component {
   }
   /** Where each system panel was dragged to, flat. */
   private _systemSpots = new WeakMap<SVGSVGElement, ScreenAnchor>()
+  /** …and in a headset. */
+  private _systemXrSpots = new WeakMap<
+    SVGSVGElement,
+    { azimuthDeg: number; elevationDeg: number; distance: number }
+  >()
   /** `flat-ui="dom"`; anything but 'scene' or 'dom' warns once and is 'scene'. */
   private _flatDom(): boolean {
     const v = (this as any).flatUi
@@ -6535,7 +6548,7 @@ export class B3d extends Component {
   THE SYSTEM BAR IN A HEADSET, where the settings panel used to hang for the
   whole session (#3307): the same `systemBar` as the flat corner one. The
   owl opens and closes the settings panel just under it; then a button per
-  system panel (`preset="system-bar"`, the inventory), which opens under it
+  system panel (a panel with an `icon`, the inventory), which opens under it
   too; then Exit VR. Enter VR and full screen mean nothing in a session.
 
   TWICE the flat bar's size: at this distance the flat one's proportions
