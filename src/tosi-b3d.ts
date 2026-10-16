@@ -363,6 +363,7 @@ import {
   pointerClaimedByPanel,
   presentationSpec,
   placeholderPanelSvg,
+  setPanelsHidden,
   opacityWeightedGlow,
   type FramePanelSpec,
   type ScreenAnchor,
@@ -3809,6 +3810,57 @@ export class B3d extends Component {
     )
   }
 
+  /**
+   * SAVE THE VIEW AS A PNG: what the canvas shows, `ui` true with the panels
+   * and the system bar, false without them (the `ui` and `modal` layers and
+   * world-layer panels are hidden for the frame and put back). Read straight
+   * after a frame ends, so it needs no preserved drawing buffer. Downloads
+   * `name` (default: the panel title, or "scene", and the time).
+   */
+  async saveScreenshot(
+    opts: { ui?: boolean; name?: string } = {}
+  ): Promise<Blob | null> {
+    const canvas = this.engine?.getRenderingCanvas()
+    if (canvas == null) return null
+    const restore = opts.ui === false ? setPanelsHidden(this.scene) : noop
+    let blob: Blob | null
+    try {
+      // A frame for the change to land, then read the next as it ends.
+      const endOfFrame = () =>
+        new Promise<void>((done) =>
+          this.engine.onEndFrameObservable.addOnce(() => done())
+        )
+      await endOfFrame()
+      blob = await new Promise<Blob | null>((done) =>
+        this.engine.onEndFrameObservable.addOnce(() =>
+          canvas.toBlob(done, 'image/png')
+        )
+      )
+    } finally {
+      restore()
+    }
+    if (blob == null) return null
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const base =
+      String((this as any).panelTitle || 'scene')
+        .trim()
+        .replace(/[^\w-]+/g, '-') || 'scene'
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = opts.name ?? `${base}-${stamp}.png`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
+    return blob
+  }
+
+  /** The panel's screenshot buttons: close their own popup first, so "with
+   * panels" does not photograph the button you pressed. */
+  private async _screenshotFromPanel(ui: boolean): Promise<void> {
+    this._debugOpen.delete('Screenshot')
+    this._repaintPanels()
+    await this.saveScreenshot({ ui })
+  }
+
   /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
    * its contents in place. Unified on purpose — see `_panelWidgets`. */
   private _repaintPanels(): void {
@@ -4838,6 +4890,22 @@ export class B3d extends Component {
               this._errors = []
               this._repaintPanels()
             },
+          },
+        ],
+      })
+      // A picture of the view, from the panel, flat or in a headset.
+      this.addDebugSource({
+        name: 'Screenshot',
+        icon: 'download',
+        lines: () => ['Save the view as a PNG.'],
+        actions: [
+          {
+            label: 'With panels',
+            handleClick: () => void this._screenshotFromPanel(true),
+          },
+          {
+            label: 'Scene only',
+            handleClick: () => void this._screenshotFromPanel(false),
           },
         ],
       })

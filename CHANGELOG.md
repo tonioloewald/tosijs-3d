@@ -10,11 +10,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **The Moon with NASA's maps is a globe again**: its height map was exaggerated 12×, which put its relief at 14% of the radius ("ridiculous"). It is 3× now, about 3.5%: basins still show at the limb.
 - **A planet's golden hour peaks with the sun at the horizon, not well above it.** The gold at the limb was strongest with the sun about 50° from behind the planet and still bright at 70°: daylight over most of the limb. It now needs the sun close behind (full within about 15°, gone by about 50°) and keeps its breadth. A first attempt that narrowed the band itself was rejected ("a very thin effect which isn't what I wanted"); Tonio, on this one: "pretty perfect".
 - **A star system's rocky worlds have continents, not one blob.** A planet reads its noise at `grossScale × radius`, and its presets' relief is tuned for radius 50, both in drawn units. A system draws a world a few units across, so the synthetic Earth read a fiftieth of one noise wave and came out as a single smooth landmass ("very Fisher Price Pangaea"). Its noise is now set per world (about 1.6 waves across it for continents, 6 for coastlines), and the preset's relief is scaled by drawn radius over 50, for planets and moons alike. A look that sets its own scales or relief still wins.
 
 ### Added
 
+- **Screenshot from the scene panel.** A download icon on every scene's standard panel opens a popup with two buttons: **With panels** and **Scene only**. Each saves the canvas as a PNG. Scene only hides the `ui` and `modal` layers and world-layer panels (the system bar included) for the frame and puts them back. The popup closes itself first, so it is never in the picture. It is `b3d.saveScreenshot({ ui, name })` in code, and returns the Blob. `setPanelsHidden(scene)` (frame-panel) is the hide, and returns its undo. Feather's `download` icon is added.
 - **Axial tilt.** Planets lean, with the axis fixed in space as they orbit, so seasons and a ring's shadow on its planet come and go with the year.
   - **Moons orbit their own plane:** `inclination` on a moon (degrees from the ecliptic), by default its planet's equator, as regular moons do. Our Moon takes 5.1°; with the tilt on its holder it had dropped 23° below the ecliptic.
   - **`SOL` carries the real tilts** (Earth 23.4°, Saturn 26.7°, Uranus 82.2°, Venus 2.6°; a negative `day` already makes Venus and Uranus turn backwards). A star system tilts each planet (and its rings).

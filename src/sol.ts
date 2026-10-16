@@ -22,7 +22,9 @@ const MOON_MAPS = {
   heightMap: 'nasa/moon/height-2k.png',
   colorMap: 'nasa/moon/color-2k.jpg',
   bodyRadiusKm: 1737.4,
-  relief: 12,
+  // The Moon's relief is about 20 km on 1737: 1%. At 12× it was 14% of the
+  // radius ("ridiculous"); 3× shows the basins at the limb, still a globe.
+  relief: 3,
   atmosphere: 0,
   clouds: 0,
 }
