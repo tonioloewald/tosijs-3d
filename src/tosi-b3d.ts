@@ -2774,6 +2774,14 @@ export class B3d extends Component {
         rendering something the scene never asked for.
         */
         this._updateFog(0)
+        /*
+        THE SCENE'S CHROME TOO (board #3342). The system bar and the
+        flat panels are built here, and a stopped clock is no reason to
+        withhold them: Manta freezes the scene on every menu, so its bar
+        never appeared and a system panel got no button. Building chrome
+        advances nothing.
+        */
+        this._updateFlatPanels()
         if (this.scene.activeCamera != null) this.scene.render()
       }
       return
