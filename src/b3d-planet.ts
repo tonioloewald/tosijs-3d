@@ -203,11 +203,16 @@ tosi-b3d {
 import { Color } from 'tosijs'
 import { isOff, B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js'
 import type { BiomePlugin } from './biome-plugin.js'
-import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js'
+import {
+  GAS_GIANT_GLSL,
+  RING_GLSL,
+  gasGiantRgb,
+  resolveGasGiant,
+} from './gas-giant.js'
 import { climateForGlobe, type PlanetSurface } from './sphere-map.js'
 import { loadPlanetMap } from './planet-map.js'
 import { createPlanetClouds, type PlanetStorm } from './planet-clouds.js'
-import { sceneLight } from './gas-giant-material.js'
+import { sceneLight, type RingShadow } from './gas-giant-material.js'
 import {
   createPlanetBiome,
   createPlanetSurfaceMaterial,
@@ -477,7 +482,9 @@ export class B3dPlanet extends B3dChild {
           turbulence: attrs.turbulence,
           storm: attrs.storm,
           colors: attrs.bandColors,
-        })
+        }),
+        // The rings' shadow on the bands (#3320).
+        { ring: () => this._ringShadow() }
       )
       mesh.parent = this.rootNode
       this.planetMesh = mesh
@@ -1055,7 +1062,34 @@ export class B3dPlanet extends B3dChild {
     this.oceanMesh = null
   }
 
+  /** The ring's shape, for its shadow on the planet (null: no ring). */
+  private _ring: {
+    inner: number
+    outer: number
+    opacity: number
+    seed: number
+  } | null = null
+
+  /** The ring as the gas giant material's shadow needs it, now. */
+  private _ringShadow(): RingShadow | null {
+    const ring = this._ring
+    const root = this.rootNode
+    if (ring == null || root == null) return null
+    const c = root.getAbsolutePosition()
+    const up = BABYLON.Vector3.TransformNormal(
+      BABYLON.Axis.Y,
+      root.getWorldMatrix()
+    ).normalize()
+    return {
+      ...ring,
+      center: { x: c.x, y: c.y, z: c.z },
+      radius: (this as any).radius * Math.abs(root.absoluteScaling.x),
+      normal: { x: up.x, y: up.y, z: up.z },
+    }
+  }
+
   private buildRings() {
+    this._ring = null
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
     const ringValue: number = attrs.rings
@@ -1065,27 +1099,34 @@ export class B3dPlanet extends B3dChild {
     const radius: number = attrs.radius
 
     // Register ring shader once
-    if (!BABYLON.Effect.ShadersStore['planetRing6VertexShader']) {
-      BABYLON.Effect.ShadersStore['planetRing6VertexShader'] = `
+    if (!BABYLON.Effect.ShadersStore['planetRing7VertexShader']) {
+      BABYLON.Effect.ShadersStore['planetRing7VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec2 uv;
+        uniform mat4 world;
         uniform mat4 worldViewProjection;
         varying vec2 vUV;
+        varying vec3 vWorld;
         void main() {
           gl_Position = worldViewProjection * vec4(position, 1.0);
+          vWorld = (world * vec4(position, 1.0)).xyz;
           vUV = uv;
         }
       `
-      BABYLON.Effect.ShadersStore['planetRing6FragmentShader'] = `
+      BABYLON.Effect.ShadersStore['planetRing7FragmentShader'] = `
         #extension GL_OES_standard_derivatives : enable
         precision highp float;
         varying vec2 vUV;
+        varying vec3 vWorld;
+        uniform vec4 ringLight;
+        uniform vec4 ringPlanet;
         uniform vec3 ringColor;
         uniform float ringOpacity;
         uniform float ringInner;
         uniform float seed;
 
+        ${RING_GLSL}
         float hash(float p) {
           return fract(sin(p * 127.1) * 43758.5453);
         }
@@ -1095,49 +1136,13 @@ export class B3dPlanet extends B3dChild {
           vec2 uv = vUV * 2.0 - 1.0;
           float r = length(uv);
           if (r < ringInner || r > 1.0) discard;
-
-          // Normalize to ring band
           float t = (r - ringInner) / (1.0 - ringInner);
-
-          // SHARP, as rings are, and irregular: the density along the
-          // radius is 1D noise at several scales, TERRACED, so it holds
-          // plateaus of different widths and steps between them with edges
-          // about a pixel wide. Only detail finer than a pixel fades to its
-          // average (drawn, it shimmered into moire and flickered).
           float px = max(fwidth(t), 1e-5);
           float theta = atan(uv.y, uv.x);
-
-          // A shepherd moon in the narrow gap: the edges either side of it
-          // ripple round the ring, fading away from the gap. (The integer
-          // count keeps the ripple whole across atan's jump.)
-          float gapB = hash(seed + 1.0) * 0.15 + 0.8;
-          float near = abs(t - gapB);
-          t += 0.004 * sin(theta * 36.0) * exp(-near / 0.02);
-
-          float n = 0.0;
-          float a = 0.5;
-          float f = 6.0;
-          float norm = 0.0;
-          for (float i = 0.0; i < 5.0; i++) {
-            float x = t * f + seed * 13.1 + i * 7.3;
-            float c = floor(x);
-            float k = fract(x);
-            float vn = mix(hash(c), hash(c + 1.0), k * k * (3.0 - 2.0 * k));
-            float fade = 1.0 - smoothstep(0.3, 0.6, f * px);
-            n += a * fade * (vn - 0.5);
-            norm += a;
-            a *= 0.55;
-            f *= 2.7;
-          }
-          n = clamp(n / norm * 1.6 + 0.5, 0.0, 1.0);
-          float steps = n * 6.0;
-          float sw = max(fwidth(steps), 1e-4);
-          float terrace = (floor(steps) + smoothstep(1.0 - sw, 1.0, fract(steps))) / 6.0;
-          float density = mix(n, terrace, 0.75);
-
-          // The broad profile: faint inside, brightest a little out.
-          float profile = 0.35 + 0.65 * sin(3.1416 * pow(t, 0.75));
-          float bands = profile * (0.3 + 1.1 * density) * 1.3;
+          // The ring itself is one function, shared with the planet that
+          // reads its shadow (gas-giant RING_GLSL).
+          vec2 ring = b3dRing(t, theta, seed, px);
+          float bands = ring.x;
 
           // Imperfect round the ring: a faint clumping by angle and radius.
           vec2 cq = uv * 9.0 + seed;
@@ -1149,18 +1154,22 @@ export class B3dPlanet extends B3dChild {
           float h01 = hash(ci.x + (ci.y + 1.0) * 57.0);
           float h11 = hash(ci.x + 1.0 + (ci.y + 1.0) * 57.0);
           float clump = mix(mix(h00, h10, cf.x), mix(h01, h11, cf.x), cf.y);
-          bands *= 0.95 + 0.1 * clump;
+          float k = 0.95 + 0.1 * clump;
+          bands *= k;
+          float alpha = clamp(ring.y * k, 0.0, 1.0) * ringOpacity;
 
-          // Gaps: the wide one (Cassini's) and the moon's narrow one,
-          // cut clean, a pixel soft.
-          float g1 = abs(t - hash(seed) * 0.4 - 0.45);
-          float gap1 = smoothstep(0.022 - px, 0.022 + px, g1);
-          float gap2 = smoothstep(0.005 - px, 0.005 + px, abs(t - gapB));
-          bands *= mix(0.04, 1.0, gap1) * mix(0.06, 1.0, gap2);
-
-          // Edges: crisp, a few pixels at most.
-          float edgeFade = smoothstep(0.0, max(0.015, px * 2.0), t) * smoothstep(1.0, 1.0 - max(0.01, px * 2.0), t);
-          float alpha = clamp(bands, 0.0, 1.0) * edgeFade * ringOpacity;
+          /*
+          THE PLANET'S SHADOW ON THE RING (#3320): the dark wedge behind
+          the planet. From this point toward the star, does the ray pass
+          through the planet? A sphere, so it is exact, softened over a
+          couple of percent of the radius for the penumbra.
+          */
+          vec3 toL = ringLight.w > 0.5 ? normalize(ringLight.xyz - vWorld) : normalize(ringLight.xyz);
+          vec3 oc = ringPlanet.xyz - vWorld;
+          float along = dot(oc, toL);
+          float miss = length(oc - toL * along);
+          float lit = along > 0.0 ? smoothstep(ringPlanet.w * 0.97, ringPlanet.w * 1.03, miss) : 1.0;
+          bands *= mix(0.03, 1.0, lit);
 
           gl_FragColor = vec4(ringColor * bands, alpha);
         }
@@ -1205,11 +1214,14 @@ export class B3dPlanet extends B3dChild {
     const mat = new BABYLON.ShaderMaterial(
       'planet-ring-mat',
       scene,
-      { vertex: 'planetRing6', fragment: 'planetRing6' },
+      { vertex: 'planetRing7', fragment: 'planetRing7' },
       {
         attributes: ['position', 'uv'],
         uniforms: [
+          'world',
           'worldViewProjection',
+          'ringLight',
+          'ringPlanet',
           'ringColor',
           'ringOpacity',
           'ringInner',
@@ -1222,8 +1234,27 @@ export class B3dPlanet extends B3dChild {
     mat.setFloat('ringOpacity', Math.max(0, Math.min(1, opacity)))
     mat.setFloat('ringInner', innerRadii / outerRadii)
     mat.setFloat('seed', attrs.seed % 100)
+    this._ring = {
+      inner: innerRadii,
+      outer: outerRadii,
+      opacity: Math.max(0, Math.min(1, opacity)),
+      seed: attrs.seed % 100,
+    }
     mat.backFaceCulling = false
     mat.alphaMode = BABYLON.Constants.ALPHA_COMBINE
+    // Where the star and the planet are, each frame, for the shadow.
+    const light = new BABYLON.Vector4(0, 1, 0, 0)
+    const planet = new BABYLON.Vector4()
+    mat.onBind = () => {
+      sceneLight(scene, light)
+      mat.setVector4('ringLight', light)
+      const root = this.rootNode
+      if (root != null) {
+        const c = root.getAbsolutePosition()
+        planet.set(c.x, c.y, c.z, radius * Math.abs(root.absoluteScaling.x))
+      }
+      mat.setVector4('ringPlanet', planet)
+    }
 
     mesh.material = mat
     mesh.parent = this.rootNode

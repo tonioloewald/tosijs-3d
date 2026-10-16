@@ -413,3 +413,61 @@ vec3 c=alb*lit*pow(e,0.35);
 c+=haze*pow(1.0-e,2.5)*smoothstep(-0.15,0.35,nl)*0.45;
 return c;}
 `
+
+/*
+THE RING, AS ONE FUNCTION (#3320). The ring draws itself from it, and a planet
+reads it to know how much of the star's light the ring lets through: the
+shadow of the rings on the planet is the same rings, gap for gap.
+
+`t` runs 0 at the inner edge to 1 at the outer, `theta` is the angle round the
+ring, `px` is the size of a pixel in `t` (detail finer than that fades to its
+average). Uses `fwidth`, so a shader that includes it needs derivatives
+(`#extension GL_OES_standard_derivatives : enable`). Returns `(bands, cover)`: how bright the ring is there, and how much
+of it is there (0 = clear, 1 = solid), before the ring's opacity.
+*/
+export const RING_GLSL = `
+float b3dRingHash(float p){return fract(sin(p*127.1)*43758.5453);}
+vec2 b3dRing(float t,float theta,float seed,float px){
+  // A shepherd moon in the narrow gap: the edges either side of it
+  // ripple round the ring, fading away from the gap. (The integer
+  // count keeps the ripple whole across atan's jump.)
+  float gapB=b3dRingHash(seed+1.0)*0.15+0.8;
+  float near=abs(t-gapB);
+  t+=0.004*sin(theta*36.0)*exp(-near/0.02);
+  // SHARP, as rings are, and irregular: the density along the radius is
+  // 1D noise at several scales, TERRACED, so it holds plateaus of
+  // different widths and steps between them with edges about a pixel wide.
+  float n=0.0;
+  float a=0.5;
+  float f=6.0;
+  float norm=0.0;
+  for(float i=0.0;i<5.0;i++){
+    float x=t*f+seed*13.1+i*7.3;
+    float c=floor(x);
+    float k=fract(x);
+    float vn=mix(b3dRingHash(c),b3dRingHash(c+1.0),k*k*(3.0-2.0*k));
+    float fade=1.0-smoothstep(0.3,0.6,f*px);
+    n+=a*fade*(vn-0.5);
+    norm+=a;
+    a*=0.55;
+    f*=2.7;
+  }
+  n=clamp(n/norm*1.6+0.5,0.0,1.0);
+  float steps=n*6.0;
+  float sw=max(fwidth(steps),1e-4);
+  float terrace=(floor(steps)+smoothstep(1.0-sw,1.0,fract(steps)))/6.0;
+  float density=mix(n,terrace,0.75);
+  // The broad profile: faint inside, brightest a little out.
+  float profile=0.35+0.65*sin(3.1416*pow(clamp(t,0.0,1.0),0.75));
+  float bands=profile*(0.3+1.1*density)*1.3;
+  // Gaps: the wide one (Cassini's) and the moon's narrow one, cut clean,
+  // a pixel soft.
+  float g1=abs(t-b3dRingHash(seed)*0.4-0.45);
+  float gap1=smoothstep(0.022-px,0.022+px,g1);
+  float gap2=smoothstep(0.005-px,0.005+px,abs(t-gapB));
+  bands*=mix(0.04,1.0,gap1)*mix(0.06,1.0,gap2);
+  // Edges: crisp, a few pixels at most.
+  float edge=smoothstep(0.0,max(0.015,px*2.0),t)*smoothstep(1.0,1.0-max(0.01,px*2.0),t);
+  return vec2(bands,clamp(bands,0.0,1.0)*edge);
+}
+`

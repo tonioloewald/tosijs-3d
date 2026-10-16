@@ -23,7 +23,12 @@ planet, and tilting it tilts the bands.
 /*{ "parent": "gas-giant", "order": 10 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { GAS_GIANT_GLSL, gasGiantRgb, type GasGiantLook } from './gas-giant.js'
+import {
+  GAS_GIANT_GLSL,
+  RING_GLSL,
+  gasGiantRgb,
+  type GasGiantLook,
+} from './gas-giant.js'
 import { sceneSeconds } from './b3d-utils.js'
 
 export interface GasGiantMaterialOptions {
@@ -34,6 +39,25 @@ export interface GasGiantMaterialOptions {
    * light (`w` 0). Unset, the scene's first point or directional light.
    */
   light?: () => { x: number; y: number; z: number; w: number }
+  /**
+   * The planet's ring, for its SHADOW on the planet (#3320), read every
+   * frame; null or absent for none. `inner` and `outer` are in planet radii,
+   * `opacity` 0…1 and `seed` the ring's own (so the shadow is the ring you
+   * see, gap for gap). `center`, `radius` and `normal` (the ring plane's,
+   * the planet's own up) are in world space.
+   */
+  ring?: () => RingShadow | null
+}
+
+/** A ring as its shadow needs it; see `GasGiantMaterialOptions.ring`. */
+export interface RingShadow {
+  inner: number
+  outer: number
+  opacity: number
+  seed: number
+  center: { x: number; y: number; z: number }
+  radius: number
+  normal: { x: number; y: number; z: number }
 }
 
 const NAME = 'b3dGasGiant'
@@ -58,6 +82,7 @@ void main(){
   gl_Position=worldViewProjection*vec4(position,1.0);
 }`
   store[`${NAME}FragmentShader`] = `
+#extension GL_OES_standard_derivatives : enable
 precision highp float;
 varying vec3 vBody;
 varying vec3 vWorld;
@@ -69,13 +94,39 @@ uniform vec3 ggC0;
 uniform vec3 ggC1;
 uniform vec3 ggC2;
 uniform float ggTime;
+uniform vec4 ggRing;
+uniform vec4 ggRingAt;
+uniform vec3 ggRingN;
 ${GAS_GIANT_GLSL}
+${RING_GLSL}
+/*
+THE RINGS' SHADOW ON THE PLANET (#3320). From here toward the star, where
+does the ray cross the ring plane, and how much ring is there? The answer is
+the ring's own function, so the shadow has the ring's gaps. ggRing is
+(inner / outer, outer in radii, opacity, seed); ggRingAt the centre and radius.
+*/
+float ggRingShade(vec3 p,vec3 l){
+  // No early returns: fwidth (here and in b3dRing) is only defined when
+  // every pixel of a quad takes the same path, so compute, then mask.
+  vec3 N=normalize(ggRingN);
+  float dn=dot(l,N);
+  float sdn=abs(dn)<1e-4?1e-4:dn;
+  float k=dot(ggRingAt.xyz-p,N)/sdn;
+  vec3 rel=p+l*k-ggRingAt.xyz;
+  float rr=length(rel)/(ggRingAt.w*max(ggRing.y,1e-4));
+  float t=(rr-ggRing.x)/max(1.0-ggRing.x,1e-4);
+  float px=max(fwidth(t),1e-5);
+  vec2 ring=b3dRing(clamp(t,0.0,1.0),atan(rel.z,rel.x),ggRing.w,px);
+  float on=step(0.0,ggRing.z-1e-6)*step(1e-4,abs(dn))*step(0.0,k)*step(0.0,t)*step(t,1.0);
+  return 1.0-on*clamp(ring.y*ggRing.z,0.0,1.0);
+}
 void main(){
   vec3 n=normalize(vNormalW);
   vec3 l=ggLight.w>0.5?normalize(ggLight.xyz-vWorld):normalize(ggLight.xyz);
   vec3 v=normalize(ggEye-vWorld);
   vec3 alb=b3dGasGiant(normalize(vBody),ggK,ggC0,ggC1,ggC2,ggTime);
   vec3 c=b3dGasGiantLit(alb,dot(n,l),dot(n,v),mix(ggC0,vec3(1.0),0.4));
+  c*=mix(0.08,1.0,ggRingShade(vWorld,l));
   gl_FragColor=vec4(c+alb*0.012,1.0);
 }`
 }
@@ -103,6 +154,9 @@ export function createGasGiantMaterial(
         'ggC1',
         'ggC2',
         'ggTime',
+        'ggRing',
+        'ggRingAt',
+        'ggRingN',
       ],
     }
   )
@@ -116,6 +170,9 @@ export function createGasGiantMaterial(
   mat.setVector3('ggC2', new BABYLON.Vector3(...c2))
   const spin = options.spin ?? 1
   const light = new BABYLON.Vector4(0, 1, 0, 0)
+  const ringK = new BABYLON.Vector4(0, 1, 0, 0)
+  const ringAt = new BABYLON.Vector4()
+  const ringN = new BABYLON.Vector3(0, 1, 0)
   mat.onBind = () => {
     const cam = scene.activeCamera
     if (cam != null) mat.setVector3('ggEye', cam.globalPosition)
@@ -124,6 +181,16 @@ export function createGasGiantMaterial(
     else sceneLight(scene, light)
     mat.setVector4('ggLight', light)
     mat.setFloat('ggTime', sceneSeconds(scene) * spin)
+    const r = options.ring?.()
+    if (r == null || r.opacity <= 0) ringK.set(0, 1, 0, 0)
+    else {
+      ringK.set(r.inner / r.outer, r.outer, r.opacity, r.seed)
+      ringAt.set(r.center.x, r.center.y, r.center.z, r.radius)
+      ringN.set(r.normal.x, r.normal.y, r.normal.z)
+    }
+    mat.setVector4('ggRing', ringK)
+    mat.setVector4('ggRingAt', ringAt)
+    mat.setVector3('ggRingN', ringN)
   }
   return mat
 }

@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.9 (unreleased)
+
+### Added
+
+- **Planetary rings catch shadows** (#3320). Both are worked out in the shaders for a sphere and a flat ring lit by one star, with no shadow maps. **The planet's shadow falls across its rings** (the dark wedge behind Saturn): each ring fragment asks whether the ray toward the star passes through the planet, softened slightly at the edge. This applies to any `<tosi-b3d-planet>` with `rings`. **The rings' shadow bands a gas giant**: each fragment finds where the ray toward the star crosses the ring plane and dims by how much ring is there, so the shadow has the ring's own gaps (a lighter stripe where the Cassini gap lets light through). The ring is now one GLSL function (`RING_GLSL` in `gas-giant`) that the ring draws itself from and the planet reads, and `createGasGiantMaterial` takes `ring: () => RingShadow | null` for a planet built by hand. Not yet: the rings' shadow on a ROCKY planet's surface.
+
 ## 0.10.8
 
 ### Added
