@@ -23,8 +23,8 @@ without importing each other.
 import { svgElements } from 'tosijs'
 
 /** The outline's colour and width (viewBox units). */
-export const RIM_STROKE = 'rgba(255,255,255,0.45)'
-export const RIM_WIDTH = 2.5
+export const RIM_STROKE = 'rgba(255,255,255,0.6)'
+export const RIM_WIDTH = 4
 
 /** The outline for a `width` × `height` panel whose corners have `radius`. */
 export function panelRim(
