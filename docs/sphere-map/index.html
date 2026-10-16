@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=48c81bdfd613" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=79106c02d63d" data-tosi-doc-system />
   <title>sphere-map — tosijs-3d</title>
   <meta name="description" content="Where a place on the ground is on the globe, and back. A terrain in surfaceType=&quot;sphere&quot; is a flat sheet wrapped round a planet: walk far enough east and you…" />
   <link rel="canonical" href="https://3d.tosijs.net/sphere-map/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=7d353a69c4b6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=144a471c6172" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="sphere-map">sphere-map</h1>
 <p><strong>Where a place on the ground is on the globe, and back.</strong> A terrain in
@@ -53,6 +53,7 @@ const readout = div({ class: &#39;readout&#39; }, &#39;finding the ground…&#39
 
 // A whole planet 4 km in radius, so that a globe of it shows real relief.
 const terrain = b3dTerrain({
+  id: &#39;sphere-map-ground&#39;,
   seed: 11, biome: &#39;on&#39;, surfaceType: &#39;sphere&#39;, radius: 4000,
   tileSize: 128, lodLevels: 3, splitFactor: 2, reach: 4000,
   grossScale: 0.0016, detailScale: 0.012, grossAmplitude: 320, detailAmplitude: 24,
@@ -60,7 +61,9 @@ const terrain = b3dTerrain({
 })
 // biome: &#39;on&#39; so the globe shades with the ground&#39;s own climate and colours;
 // flatSea because this world has a sea at 0 m (the water below).
-const globe = b3dPlanet({ radius: 40, relief: 2, flatSea: &#39;on&#39;, atmosphere: 0.05, subdivisions: 96, biome: &#39;on&#39; })
+// `terrain` makes it a globe OF that ground: drawn from it, and again
+// whenever the ground&#39;s shape changes.
+const globe = b3dPlanet({ terrain: &#39;#sphere-map-ground&#39;, radius: 40, relief: 2, flatSea: &#39;on&#39;, atmosphere: 0.05, subdivisions: 96, biome: &#39;on&#39; })
 
 preview.append(
   b3d(
@@ -80,23 +83,11 @@ preview.append(
         red.disableLighting = true
         pin.material = red
 
-        let built = &#39;&#39;
         scene.onBeforeRenderObservable.add(() =&gt; {
           const root = globe.rootNode
-          if (root == null || typeof terrain.planetSurface !== &#39;function&#39;) return
+          if (root == null || typeof terrain.latLonAt !== &#39;function&#39;) return
           // The globe rides ahead of the camera, like a map on a stand.
           root.position.set(cam.position.x + 60, cam.position.y + 10, cam.position.z + 190)
-          // Build it from the terrain once the terrain has a shape (and again
-          // whenever that shape changes).
-          const key = terrain.generationKey
-          if (key &amp;&amp; key !== built) {
-            const surface = terrain.planetSurface()
-            if (surface != null) {
-              built = key
-              globe.surface = surface
-              globe.regenerate()
-            }
-          }
           // The camera&#39;s place in the world: scene position plus the
           // terrain&#39;s floating origin.
           const off = terrain.originOffset
@@ -449,6 +440,7 @@ middle latitudes; a pole is a line, not a point.</p>
         <li><a class="doc-link" href="../carry-box/">carry-box</a></li>
       </ul>
       </details></li>
+      <li><a class="doc-link" href="../dials/">dials</a></li>
       <li><details><summary><a class="doc-link" href="../ui-controls/">Controls</a></summary>
       <ul>
         <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
@@ -605,6 +597,6 @@ middle latitudes; a pole is a line, not a point.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-cjtfjjvh.js"></script>
+  <script type="module" src="../hydrate-76wgh1zq.js"></script>
 </body>
 </html>

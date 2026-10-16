@@ -166,6 +166,7 @@ tosi-b3d {
 | `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
+| `terrain` | `''` | A selector for the sphere `<tosi-b3d-terrain>` this is a GLOBE OF (`'#moon-ground'`): drawn from that ground's own height function, and again whenever its shape changes, so a place on the globe is the place on the ground. (The other way round, a terrain's `planet` gives the ground this planet's shape) |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `world` | `''` | A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet |
 | `craters` | `0` | How cratered, `0…1` (see landform's `sphereCraters`) |

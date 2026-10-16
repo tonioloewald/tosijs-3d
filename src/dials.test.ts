@@ -21,9 +21,9 @@ describe('compass', () => {
   test('the needle turns against the heading, about the centre', () => {
     const c = D.compassDial()
     c.heading = 90
-    expect(
-      c.querySelector('[id="Magnet"]')!.getAttribute('transform')
-    ).toBe('rotate(-90 128 128)')
+    expect(c.querySelector('[id="Magnet"]')!.getAttribute('transform')).toBe(
+      'rotate(-90 128 128)'
+    )
     c.heading = -30
     expect(c.heading).toBe(330)
   })

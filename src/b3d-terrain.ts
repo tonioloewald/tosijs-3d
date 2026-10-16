@@ -901,8 +901,7 @@ export class B3dTerrain extends B3dChild {
           : (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) *
               grossAmp +
             baseHeight) +
-        (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
-          detailAmp
+        (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) * detailAmp
       // Authored landforms (landform.ts) override the noise LOCALLY — the
       // hook sees origin-stable coords and the noise height, and normals
       // difference the hooked field, so lighting follows the landform free.

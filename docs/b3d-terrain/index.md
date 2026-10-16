@@ -293,6 +293,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
 | `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
 | `lat` / `lon` | `-45` / `0` | Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain |
+| `planet` | `''` | A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground) |
 | `worldU` / `worldV` | `0` / `0.25` | The same place as fractions of a turn (JS properties over `lon`/`lat`: `worldU = lon / 360`, `worldV = (lat + 90) / 180`). ⚠️ `worldV = 0` (`lat = -90`) puts a cylinder world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
 | `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
 | `originResetThreshold` | `500` | Distance before origin rebase |

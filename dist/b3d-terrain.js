@@ -294,6 +294,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
 | `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
 | `lat` / `lon` | `-45` / `0` | Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain |
+| `planet` | `''` | A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground) |
 | `worldU` / `worldV` | `0` / `0.25` | The same place as fractions of a turn (JS properties over `lon`/`lat`: `worldU = lon / 360`, `worldV = (lat + 90) / 180`). ⚠️ `worldV = 0` (`lat = -90`) puts a cylinder world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
 | `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
 | `originResetThreshold` | `500` | Distance before origin rebase |
@@ -358,7 +359,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
 import { PiecewiseLinearFilter } from './gradient-filter.js';
 import { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler.js';
-import { directionToGround, groundToLatLon, latLonToGround, seamWeight, } from './sphere-map.js';
+import { directionToGround, groundToDirection, groundToLatLon, latLonToGround, seamWeight, } from './sphere-map.js';
 import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, budgetedReach, MAX_TILES_ACROSS, } from './terrain-grid.js';
 import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { attachBiomePlugin, defaultBiomeParams, } from './biome-plugin.js';
@@ -428,6 +429,15 @@ export class B3dTerrain extends B3dChild {
         */
         lat: (MIRROR_SAFE_V * 180 - 90),
         lon: 0,
+        /*
+        THE PLANET THIS IS THE GROUND OF (#3344): a selector for a
+        `<tosi-b3d-planet>` ('#moon'). On a sphere, the large shape (where the
+        sea, the coasts and the mountain ranges are) is the planet's, scaled to
+        this terrain's `radius`, with the sea at 0; the terrain's own detail
+        layer and landforms ride on top. So a pin on the globe lands on the
+        ground it shows. '' for none: the terrain's own noise.
+        */
+        planet: '',
         // Procedural biome shader (TERRAIN-SHADER-DESIGN.md) — flat-colour chart
         // classification on the terrain material; tune live via `.biomePlugin`.
         biome: 'off',
@@ -612,6 +622,38 @@ export class B3dTerrain extends B3dChild {
             return null;
         return { radius: attrs.radius, worldU: this.worldU, worldV: this.worldV };
     }
+    /** The `<tosi-b3d-planet>` that `planet` names, or null. */
+    planetSource() {
+        const sel = String(this.planet ?? '').trim();
+        if (sel === '' || this.owner == null)
+            return null;
+        let el;
+        try {
+            el =
+                this.owner.querySelector(sel) ??
+                    document.querySelector(sel);
+        }
+        catch {
+            return null;
+        }
+        return el != null && typeof el.relativeHeightAt === 'function' ? el : null;
+    }
+    /** The planet shape the ground was last built from. */
+    _planetBuilt = '';
+    /*
+    REBUILD WHEN THE PLANET CHANGES. Its shape is not one of our attributes, so
+    the generation key cannot see it; the planet's `shapeKey` can.
+    */
+    _followPlanet() {
+        if (this.surfaceType !== 'sphere')
+            return;
+        const p = this.planetSource();
+        const key = p != null ? p.shapeKey : '';
+        if (key === this._planetBuilt)
+            return;
+        this._planetBuilt = key;
+        this.regenerate();
+    }
     /**
      * Latitude and longitude (degrees) of a spot on the ground; null off a
      * sphere. `x`, `z` are the terrain's own unshifting coordinates: a scene
@@ -731,11 +773,28 @@ export class B3dTerrain extends B3dChild {
         wrap to another place and vanish.
         */
         const seamBand = surfaceType === 'sphere' ? circumU * 0.05 : 0;
+        /*
+        THE PLANET'S SHAPE, when `planet` names one (#3344): the globe's height
+        in this spot's direction, as a fraction of its radius, times ours. It
+        stands in for the gross layer (and `center`, which only exists to put
+        that layer's middle at 0: the planet's sea is already at 0).
+        */
+        const planet = surfaceType === 'sphere' ? this.planetSource() : null;
+        const frame = planet != null ? this.sphereFrame : null;
+        const fromPlanet = (ax, az) => {
+            if (planet == null || frame == null)
+                return null;
+            const rel = planet.relativeHeightAt(groundToDirection(ax, az, frame));
+            return rel == null ? null : rel * radius;
+        };
         const layered = (ax, az, g, d) => {
-            const h = (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
-                (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
-                    detailAmp +
-                baseHeight;
+            const big = fromPlanet(ax, az);
+            const h = (big != null
+                ? big + attrs.baseHeight
+                : (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) *
+                    grossAmp +
+                    baseHeight) +
+                (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) * detailAmp;
             // Authored landforms (landform.ts) override the noise LOCALLY — the
             // hook sees origin-stable coords and the noise height, and normals
             // difference the hooked field, so lighting follows the landform free.
@@ -753,6 +812,8 @@ export class B3dTerrain extends B3dChild {
             const d = detail * 0.5 + 0.5;
             if (seamBand === 0 || (!grossAt && !detailAt && !landform))
                 return layered(ax, az, g, d);
+            // (The planet's part is read by direction, so it joins round the back
+            // by itself; blending it with its copy a turn away changes nothing.)
             const s = seamWeight(ax, circumU, seamBand);
             const here = layered(s.x, az, g, d);
             return s.mix === 0
@@ -839,7 +900,10 @@ export class B3dTerrain extends B3dChild {
             this._prof = emptyTileProfile();
         this._joinDebugPanel(owner);
         this.createPool();
-        this._beforeRender = () => this.update();
+        this._beforeRender = () => {
+            this._followPlanet();
+            this.update();
+        };
         scene.registerBeforeRender(this._beforeRender);
         /*
         FILL IT NOW. This is the bug #66 actually reported.

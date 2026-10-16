@@ -1642,12 +1642,3 @@ export {
   climateOctave,
 } from './climate-noise.js'
 export type { SweepRow, SweepOptions, SweepRun } from './cost-sweep.js'
-export {
-  compassDial,
-  watchDial,
-  sceneCompass,
-  skyWatch,
-  watchSpeedToScale,
-  scaleToWatchSpeed,
-} from './dials.js'
-export type { CompassDial, WatchDial } from './dials.js'

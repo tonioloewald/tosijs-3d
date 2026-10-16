@@ -6,6 +6,18 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.9
+
+### Added
+
+- **A compass and a watch** (`dials`). Both are drawn by Tonio, and the code only moves their named parts. The compass needle points north as you turn (`sceneCompass(b3d)` follows the active camera, flat or in a headset; north is +Z). On the watch, a dot on the ring is the time of day (noon at the top, midnight at the bottom) and a dot on the bar is how fast it passes, from still to an hour a second. Drag either: `skyWatch(skybox)` reads and writes the sky's `timeOfDay` and `realtimeScale`. Each goes on the system bar as a `<tosi-b3d-panel icon title>`. Feather's `clock` icon is added. `bun run dial-art` re-embeds the SVGs after they are redrawn.
+- **A planet and its sphere terrain are one world** (#3344). Tonio: "if you pick a point in the middle of what looks like the ocean, coast, mountain range on a planet you end up with corresponding terrain in the sphere terrain and vice versa." Either can be the source, stated by one attribute:
+  - **`<tosi-b3d-terrain planet="#p">`**: the ground takes its large shape (sea, coasts, mountain ranges) from the planet, scaled to its `radius` with the sea at 0. Its own detail layer and landforms ride on top, and it rebuilds when the planet changes (`planet.shapeKey`). Measured at 200 random places: the ground sits within the detail layer of the globe's height (mean 2.5 m, worst 3.9 m with 5 m of detail), and sea or land agrees except at the waterline.
+  - **`<tosi-b3d-planet terrain="#t">`**: the globe is drawn from the ground's own height function, and again whenever the ground's shape changes. This replaces the hand-written `planet.surface = terrain.planetSurface()` loop, and the sphere-map demo now uses it.
+
+  Linked, not automatic: a gas giant in a moon's sky, or every body of a star system, must not become the ground you stand on. `planet.relativeHeightAt(direction)` is the globe's height above its sea as a fraction of its radius. Both attributes are in the schemas.
+- **Planetary rings catch shadows** (#3320). Both are worked out in the shaders for a sphere and a flat ring lit by one star, with no shadow maps. **The planet's shadow falls across its rings** (the dark wedge behind Saturn): each ring fragment asks whether the ray toward the star passes through the planet, softened slightly at the edge. This applies to any `<tosi-b3d-planet>` with `rings`. **The rings' shadow bands a gas giant**: each fragment finds where the ray toward the star crosses the ring plane and dims by how much ring is there, so the shadow has the ring's own gaps (a lighter stripe where the Cassini gap lets light through). The ring is now one GLSL function (`RING_GLSL` in `gas-giant`) that the ring draws itself from and the planet reads, and `createGasGiantMaterial` takes `ring: () => RingShadow | null` for a planet built by hand. Not yet: the rings' shadow on a ROCKY planet's surface.
+
 ## 0.10.8
 
 ### Added
@@ -21,6 +33,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A frozen or paused scene builds its system bar** (#3342). The bar and flat panels were built only on running frames, so a scene that started frozen (Manta freezes on every menu) showed the HTML lozenge, and a `<tosi-b3d-panel icon title>` got no button until it unfroze. Stopped frames keep the scene's chrome current now, as they already did its fog.
 - **A sphere terrain joins at the far meridian** (#3318). Its noise is read on the sphere and always repeated; its profile fields (`blendProfiles`, `profileField`) and landforms (`craterField`, …) read flat metres and did not. The ground opposite the terrain's origin (longitude 180 at the default `worldU`) was two different places: a 116 m step on Manta's cratered moon, 19.5 m without the craters. Within 5% of a turn of that meridian they are now mixed with their copy one turn away, so the two sides meet. Elsewhere the ground is exactly as before, and a place one whole turn round is the same place. Spheres only: a cylinder is used as a big flat world with things placed in metres.
 - **A globe of a world with no sea is drawn at its size** (#3319). A planet drawn from a `PlanetSurface` measured every height from `seaLevel`, so a dry world that says "no sea" with a sea level far below its ground (Manta's -10000 m) gained that depth as ground. A globe meant to be 40 units across came out at 2476. The globe now measures from the higher of the sea and the lowest ground. A world with a real sea is unchanged, and on a dry world the lowest ground sits on the base radius. The convention for "no sea" is a `seaLevel` below all of the ground.
+
+Size: barrel (min, packages external) 1109.1 KB raw / 377.6 KB gz, +0.38% on 0.10.7.
 
 ## 0.10.7
 

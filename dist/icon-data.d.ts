@@ -41,6 +41,7 @@ declare const _default: {
     checkSquare: string;
     check: string;
     circle: string;
+    clock: string;
     cloud: string;
     compass: string;
     downloadCloud: string;

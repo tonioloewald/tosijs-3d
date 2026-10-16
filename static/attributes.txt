@@ -746,6 +746,7 @@ b3d-planet
   ringOuter  = 0  — Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`
   ringOpacity  = -1  — `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's
   ringColor  = ''  — `#rrggbb`. Blank = the gas giant preset's, else a pale tan
+  terrain  = ''  — A selector for the sphere `<tosi-b3d-terrain>` this is a GLOBE OF (`'#moon-ground'`): drawn from that ground's own height function, and again whenever its shape changes, so a place on the globe is the place on the ground. (The other way round, a terrain's `planet` gives the ground this planet's shape)
   world  = ''  — A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet
   craters  = 0  — How cratered, `0…1` (see landform's `sphereCraters`)
   seaShallow  = ''  — The sea's colour in the shallows and the deep, `#rrggbb` (both, or neither: blank is an Earth's)
@@ -1065,6 +1066,7 @@ b3d-terrain
 
   lat  = -45  — Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain
   lon  = 0  — Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain
+  planet  = ''  — A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground)
   biome
   biomeSeaLevel  = 0  — Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y`
   biomeLapseRate  = 0  — Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow

@@ -14,7 +14,9 @@ finds the parts by name and moves them. Put either on the system bar with a
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, b3dLight, b3dPanel, skyWatch, sceneCompass } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dGround, b3dLight, b3dPanel } from 'tosijs-3d'
+// Not in the barrel (the artwork is 36 KB): import the subpath.
+import { skyWatch, sceneCompass } from 'tosijs-3d/dials'
 
 const skybox = b3dSkybox({ timeOfDay: 9, realtimeScale: 0 })
 const scene = b3d(
@@ -204,7 +206,11 @@ export function watchDial(
   svg.handlePointer = (kind, x, y) => {
     if (kind === 'down') {
       const r = Math.hypot(x - CX, y - CY)
-      if (x >= SPEED_X0 - 24 && x <= SPEED_X1 + 24 && Math.abs(y - SPEED_Y) <= 24)
+      if (
+        x >= SPEED_X0 - 24 &&
+        x <= SPEED_X1 + 24 &&
+        Math.abs(y - SPEED_Y) <= 24
+      )
         dragging = 'speed'
       else if (r >= 72 && r <= 124) dragging = 'time'
       else dragging = null

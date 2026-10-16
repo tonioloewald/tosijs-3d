@@ -2936,6 +2936,11 @@
         "description": "`#rrggbb`. Blank = the gas giant preset's, else a pale tan"
       },
       {
+        "name": "terrain",
+        "default": "''",
+        "description": "A selector for the sphere `<tosi-b3d-terrain>` this is a GLOBE OF (`'#moon-ground'`): drawn from that ground's own height function, and again whenever its shape changes, so a place on the globe is the place on the ground. (The other way round, a terrain's `planet` gives the ground this planet's shape)"
+      },
+      {
         "name": "world",
         "default": "''",
         "description": "A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet"
@@ -4182,6 +4187,11 @@
         "name": "lon",
         "default": "0",
         "description": "Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain"
+      },
+      {
+        "name": "planet",
+        "default": "''",
+        "description": "A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground)"
       },
       {
         "name": "biome"

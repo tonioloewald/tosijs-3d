@@ -32,6 +32,7 @@ export declare class B3dPlanet extends B3dChild {
         ringOuter: number;
         ringOpacity: number;
         ringColor: string;
+        terrain: string;
         world: string;
         craters: number;
         seaShallow: string;
@@ -115,6 +116,35 @@ export declare class B3dPlanet extends B3dChild {
     private _builtSea;
     private _seaKey;
     private _surfaceFromMap;
+    /** The sea level of the last build, in this planet's units. */
+    private _seaAt;
+    /** Bumped by every build: what `shapeKey` reports. */
+    private _shapeGen;
+    /**
+     * Changes whenever this planet's SHAPE does (every build). A terrain that
+     * takes its shape from this planet (`planet` on the terrain) compares it to
+     * know when to rebuild.
+     */
+    get shapeKey(): string;
+    /**
+     * HOW HIGH THE GROUND IS ABOVE THE SEA in a direction from the centre, as
+     * a fraction of the planet's radius: what this globe draws there, with
+     * its sea at 0 (on a world with no sea, its lowest ground). A terrain
+     * with `planet` set multiplies it by its own radius, which is how the
+     * ground under a pin is the place the globe shows. Null before the
+     * planet is built, and for a gas giant.
+     */
+    relativeHeightAt(d: {
+        x: number;
+        y: number;
+        z: number;
+    }): number | null;
+    /** The terrain `terrain` names, when it is a sphere. */
+    private _linkedTerrain;
+    private _terrainWarned;
+    private _terrainBuilt;
+    private _surfaceFromTerrain;
+    private _followTerrain;
     /**
      * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
      * planet shows as a smooth ball, in its colours, until the heights arrive.
@@ -138,6 +168,10 @@ export declare class B3dPlanet extends B3dChild {
      * buildPlanet). Kept as a named step so the build order still reads.
      */
     private buildOcean;
+    /** The ring's shape, for its shadow on the planet (null: no ring). */
+    private _ring;
+    /** The ring as the gas giant material's shadow needs it, now. */
+    private _ringShadow;
     private buildRings;
     /** The rocky world's look, when `world` names one (and it is not a gas giant). */
     private _look;

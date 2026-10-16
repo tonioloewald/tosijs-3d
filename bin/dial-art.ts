@@ -19,7 +19,12 @@ for (const [name, path] of Object.entries(ART)) {
     .replace(/<\?xml[^>]*\?>\s*/, '')
     .replace(/<!--[\s\S]*?-->\s*/g, '')
     .trim()
-  out += `export const ${name}Svg = ${JSON.stringify(svg)}\n`
+  // In the shape prettier would give it, so `bun format` leaves it alone.
+  const quoted =
+    "'" +
+    svg.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n') +
+    "'"
+  out += `export const ${name}Svg =\n  ${quoted}\n`
 }
 await Bun.write('src/dial-art.ts', out)
 console.log('wrote src/dial-art.ts')

@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.8
+# tosijs-3d v0.10.9
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -223,6 +223,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
   faces** — the pure half of world-placed dialogs, plus the one function every
+- https://3d.tosijs.net/dials/ — dials
+  needle points north as you turn. The watch is the time of day and how fast it
 - https://3d.tosijs.net/draw-order/ — Draw order
   Babylon draws opaque meshes in the order they were created. Nothing looks wrong
 - https://3d.tosijs.net/effects/ — Effects

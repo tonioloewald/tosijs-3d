@@ -167,6 +167,7 @@ tosi-b3d {
 | `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
+| `terrain` | `''` | A selector for the sphere `<tosi-b3d-terrain>` this is a GLOBE OF (`'#moon-ground'`): drawn from that ground's own height function, and again whenever its shape changes, so a place on the globe is the place on the ground. (The other way round, a terrain's `planet` gives the ground this planet's shape) |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `world` | `''` | A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet |
 | `craters` | `0` | How cratered, `0…1` (see landform's `sphereCraters`) |
@@ -201,7 +202,7 @@ tosi-b3d {
 /*{ "parent": "space", "order": 40 }*/
 import { Color } from 'tosijs';
 import { isOff, B3dChild, sceneDelta, sceneSeconds } from './b3d-utils.js';
-import { GAS_GIANT_GLSL, gasGiantRgb, resolveGasGiant } from './gas-giant.js';
+import { GAS_GIANT_GLSL, RING_GLSL, gasGiantRgb, resolveGasGiant, } from './gas-giant.js';
 import { climateForGlobe } from './sphere-map.js';
 import { loadPlanetMap } from './planet-map.js';
 import { createPlanetClouds } from './planet-clouds.js';
@@ -274,6 +275,14 @@ export class B3dPlanet extends B3dChild {
         ringOuter: 0,
         ringOpacity: -1,
         ringColor: '',
+        /*
+        THE GROUND THIS IS A GLOBE OF (#3344): a selector for a sphere
+        `<tosi-b3d-terrain>` ('#moon-ground'). The planet draws from it, and
+        draws again whenever the ground's shape changes, so the globe and the
+        ground are one world. '' for none. (A terrain can take its shape from
+        a planet instead: its `planet` attribute.)
+        */
+        terrain: '',
         // A ROCKY WORLD's look (rocky-world): 'moon', 'mercury', 'mars',
         // 'venus', 'earth'. A preset: choosing one writes its sea, air, clouds,
         // relief, craters and climate into this planet's own settings, which
@@ -407,6 +416,7 @@ export class B3dPlanet extends B3dChild {
         }
     }
     update() {
+        this._followTerrain();
         this._followGroundClimate();
         if (this.rootNode == null)
             return;
@@ -444,7 +454,9 @@ export class B3dPlanet extends B3dChild {
                 turbulence: attrs.turbulence,
                 storm: attrs.storm,
                 colors: attrs.bandColors,
-            }));
+            }), 
+            // The rings' shadow on the bands (#3320).
+            { ring: () => this._ringShadow() });
             mesh.parent = this.rootNode;
             this.planetMesh = mesh;
             this.vertexHeights = null;
@@ -542,6 +554,8 @@ export class B3dPlanet extends B3dChild {
         const seaAt = this.surface != null || !hasSea
             ? 0
             : this.heightPercentile(this._val('ocean'));
+        this._seaAt = seaAt;
+        this._shapeGen++;
         const heightData = new Float32Array(totalVerts * 2);
         for (let i = 0; i < totalVerts; i++) {
             const above = heights[i] - seaAt;
@@ -721,6 +735,97 @@ export class B3dPlanet extends B3dChild {
         return `${this._val('ocean')}|${attrs.flatSea}|${attrs.world}`;
     }
     _surfaceFromMap = false;
+    /** The sea level of the last build, in this planet's units. */
+    _seaAt = 0;
+    /** Bumped by every build: what `shapeKey` reports. */
+    _shapeGen = 0;
+    /**
+     * Changes whenever this planet's SHAPE does (every build). A terrain that
+     * takes its shape from this planet (`planet` on the terrain) compares it to
+     * know when to rebuild.
+     */
+    get shapeKey() {
+        return `${this.seed}|${this._shapeGen}`;
+    }
+    /**
+     * HOW HIGH THE GROUND IS ABOVE THE SEA in a direction from the centre, as
+     * a fraction of the planet's radius: what this globe draws there, with
+     * its sea at 0 (on a world with no sea, its lowest ground). A terrain
+     * with `planet` set multiplies it by its own radius, which is how the
+     * ground under a pin is the place the globe shows. Null before the
+     * planet is built, and for a gas giant.
+     */
+    relativeHeightAt(d) {
+        const attrs = this;
+        if (this.noise == null || attrs.gas)
+            return null;
+        const len = Math.hypot(d.x, d.y, d.z) || 1;
+        const s = this.surface;
+        if (s != null) {
+            const h = s.heightAt({ x: d.x / len, y: d.y / len, z: d.z / len });
+            return (h - s.seaLevel) / s.radius;
+        }
+        return ((this.heightAt(d.x / len, d.y / len, d.z / len) - this._seaAt) /
+            attrs.radius);
+    }
+    /** The terrain `terrain` names, when it is a sphere. */
+    _linkedTerrain() {
+        const sel = String(this.terrain ?? '').trim();
+        if (sel === '' || this.owner == null)
+            return null;
+        let el;
+        try {
+            el =
+                this.owner.querySelector(sel) ??
+                    document.querySelector(sel);
+        }
+        catch {
+            if (!this._terrainWarned) {
+                this._terrainWarned = true;
+                console.warn(`b3d-planet: terrain "${sel}" is not a valid selector`);
+            }
+            return null;
+        }
+        const t = el;
+        if (t == null || typeof t.planetSurface !== 'function')
+            return null;
+        return t;
+    }
+    _terrainWarned = false;
+    _terrainBuilt = '';
+    _surfaceFromTerrain = false;
+    /*
+    FOLLOW THE GROUND (#3344). Tonio: "if you pick a point in the middle of
+    what looks like the ocean, coast, mountain range on a planet you end up
+    with corresponding terrain in the sphere terrain and vice versa." The
+    globe is drawn from the terrain's own height function, again whenever
+    its `generationKey` changes. Not when that terrain takes ITS shape from
+    this planet: each would follow the other.
+    */
+    _followTerrain() {
+        const t = this._linkedTerrain();
+        if (t == null) {
+            if (this._surfaceFromTerrain) {
+                this._surfaceFromTerrain = false;
+                this._terrainBuilt = '';
+                this.surface = null;
+                this.regenerate();
+            }
+            return;
+        }
+        if (typeof t.planetSource === 'function' && t.planetSource() === this)
+            return;
+        const key = t.generationKey;
+        if (!key || key === this._terrainBuilt)
+            return;
+        const surface = t.planetSurface();
+        if (surface == null)
+            return;
+        this._terrainBuilt = key;
+        this._surfaceFromTerrain = true;
+        this.surface = surface;
+        this.regenerate();
+    }
     /**
      * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
      * planet shows as a smooth ball, in its colours, until the heights arrive.
@@ -971,7 +1076,25 @@ export class B3dPlanet extends B3dChild {
     buildOcean() {
         this.oceanMesh = null;
     }
+    /** The ring's shape, for its shadow on the planet (null: no ring). */
+    _ring = null;
+    /** The ring as the gas giant material's shadow needs it, now. */
+    _ringShadow() {
+        const ring = this._ring;
+        const root = this.rootNode;
+        if (ring == null || root == null)
+            return null;
+        const c = root.getAbsolutePosition();
+        const up = BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, root.getWorldMatrix()).normalize();
+        return {
+            ...ring,
+            center: { x: c.x, y: c.y, z: c.z },
+            radius: this.radius * Math.abs(root.absoluteScaling.x),
+            normal: { x: up.x, y: up.y, z: up.z },
+        };
+    }
     buildRings() {
+        this._ring = null;
         if (this.owner == null || this.rootNode == null)
             return;
         const attrs = this;
@@ -981,27 +1104,34 @@ export class B3dPlanet extends B3dChild {
         const scene = this.owner.scene;
         const radius = attrs.radius;
         // Register ring shader once
-        if (!BABYLON.Effect.ShadersStore['planetRing6VertexShader']) {
-            BABYLON.Effect.ShadersStore['planetRing6VertexShader'] = `
+        if (!BABYLON.Effect.ShadersStore['planetRing7VertexShader']) {
+            BABYLON.Effect.ShadersStore['planetRing7VertexShader'] = `
         precision highp float;
         attribute vec3 position;
         attribute vec2 uv;
+        uniform mat4 world;
         uniform mat4 worldViewProjection;
         varying vec2 vUV;
+        varying vec3 vWorld;
         void main() {
           gl_Position = worldViewProjection * vec4(position, 1.0);
+          vWorld = (world * vec4(position, 1.0)).xyz;
           vUV = uv;
         }
       `;
-            BABYLON.Effect.ShadersStore['planetRing6FragmentShader'] = `
+            BABYLON.Effect.ShadersStore['planetRing7FragmentShader'] = `
         #extension GL_OES_standard_derivatives : enable
         precision highp float;
         varying vec2 vUV;
+        varying vec3 vWorld;
+        uniform vec4 ringLight;
+        uniform vec4 ringPlanet;
         uniform vec3 ringColor;
         uniform float ringOpacity;
         uniform float ringInner;
         uniform float seed;
 
+        ${RING_GLSL}
         float hash(float p) {
           return fract(sin(p * 127.1) * 43758.5453);
         }
@@ -1011,49 +1141,13 @@ export class B3dPlanet extends B3dChild {
           vec2 uv = vUV * 2.0 - 1.0;
           float r = length(uv);
           if (r < ringInner || r > 1.0) discard;
-
-          // Normalize to ring band
           float t = (r - ringInner) / (1.0 - ringInner);
-
-          // SHARP, as rings are, and irregular: the density along the
-          // radius is 1D noise at several scales, TERRACED, so it holds
-          // plateaus of different widths and steps between them with edges
-          // about a pixel wide. Only detail finer than a pixel fades to its
-          // average (drawn, it shimmered into moire and flickered).
           float px = max(fwidth(t), 1e-5);
           float theta = atan(uv.y, uv.x);
-
-          // A shepherd moon in the narrow gap: the edges either side of it
-          // ripple round the ring, fading away from the gap. (The integer
-          // count keeps the ripple whole across atan's jump.)
-          float gapB = hash(seed + 1.0) * 0.15 + 0.8;
-          float near = abs(t - gapB);
-          t += 0.004 * sin(theta * 36.0) * exp(-near / 0.02);
-
-          float n = 0.0;
-          float a = 0.5;
-          float f = 6.0;
-          float norm = 0.0;
-          for (float i = 0.0; i < 5.0; i++) {
-            float x = t * f + seed * 13.1 + i * 7.3;
-            float c = floor(x);
-            float k = fract(x);
-            float vn = mix(hash(c), hash(c + 1.0), k * k * (3.0 - 2.0 * k));
-            float fade = 1.0 - smoothstep(0.3, 0.6, f * px);
-            n += a * fade * (vn - 0.5);
-            norm += a;
-            a *= 0.55;
-            f *= 2.7;
-          }
-          n = clamp(n / norm * 1.6 + 0.5, 0.0, 1.0);
-          float steps = n * 6.0;
-          float sw = max(fwidth(steps), 1e-4);
-          float terrace = (floor(steps) + smoothstep(1.0 - sw, 1.0, fract(steps))) / 6.0;
-          float density = mix(n, terrace, 0.75);
-
-          // The broad profile: faint inside, brightest a little out.
-          float profile = 0.35 + 0.65 * sin(3.1416 * pow(t, 0.75));
-          float bands = profile * (0.3 + 1.1 * density) * 1.3;
+          // The ring itself is one function, shared with the planet that
+          // reads its shadow (gas-giant RING_GLSL).
+          vec2 ring = b3dRing(t, theta, seed, px);
+          float bands = ring.x;
 
           // Imperfect round the ring: a faint clumping by angle and radius.
           vec2 cq = uv * 9.0 + seed;
@@ -1065,18 +1159,22 @@ export class B3dPlanet extends B3dChild {
           float h01 = hash(ci.x + (ci.y + 1.0) * 57.0);
           float h11 = hash(ci.x + 1.0 + (ci.y + 1.0) * 57.0);
           float clump = mix(mix(h00, h10, cf.x), mix(h01, h11, cf.x), cf.y);
-          bands *= 0.95 + 0.1 * clump;
+          float k = 0.95 + 0.1 * clump;
+          bands *= k;
+          float alpha = clamp(ring.y * k, 0.0, 1.0) * ringOpacity;
 
-          // Gaps: the wide one (Cassini's) and the moon's narrow one,
-          // cut clean, a pixel soft.
-          float g1 = abs(t - hash(seed) * 0.4 - 0.45);
-          float gap1 = smoothstep(0.022 - px, 0.022 + px, g1);
-          float gap2 = smoothstep(0.005 - px, 0.005 + px, abs(t - gapB));
-          bands *= mix(0.04, 1.0, gap1) * mix(0.06, 1.0, gap2);
-
-          // Edges: crisp, a few pixels at most.
-          float edgeFade = smoothstep(0.0, max(0.015, px * 2.0), t) * smoothstep(1.0, 1.0 - max(0.01, px * 2.0), t);
-          float alpha = clamp(bands, 0.0, 1.0) * edgeFade * ringOpacity;
+          /*
+          THE PLANET'S SHADOW ON THE RING (#3320): the dark wedge behind
+          the planet. From this point toward the star, does the ray pass
+          through the planet? A sphere, so it is exact, softened over a
+          couple of percent of the radius for the penumbra.
+          */
+          vec3 toL = ringLight.w > 0.5 ? normalize(ringLight.xyz - vWorld) : normalize(ringLight.xyz);
+          vec3 oc = ringPlanet.xyz - vWorld;
+          float along = dot(oc, toL);
+          float miss = length(oc - toL * along);
+          float lit = along > 0.0 ? smoothstep(ringPlanet.w * 0.97, ringPlanet.w * 1.03, miss) : 1.0;
+          bands *= mix(0.03, 1.0, lit);
 
           gl_FragColor = vec4(ringColor * bands, alpha);
         }
@@ -1105,10 +1203,13 @@ export class B3dPlanet extends B3dChild {
         mesh.rotation.x = Math.PI / 2; // Flat in XZ plane
         // In the equator, as rings are. It used to be tipped off it, and as
         // the planet turned (the ring is its child) the ring precessed.
-        const mat = new BABYLON.ShaderMaterial('planet-ring-mat', scene, { vertex: 'planetRing6', fragment: 'planetRing6' }, {
+        const mat = new BABYLON.ShaderMaterial('planet-ring-mat', scene, { vertex: 'planetRing7', fragment: 'planetRing7' }, {
             attributes: ['position', 'uv'],
             uniforms: [
+                'world',
                 'worldViewProjection',
+                'ringLight',
+                'ringPlanet',
                 'ringColor',
                 'ringOpacity',
                 'ringInner',
@@ -1120,8 +1221,27 @@ export class B3dPlanet extends B3dChild {
         mat.setFloat('ringOpacity', Math.max(0, Math.min(1, opacity)));
         mat.setFloat('ringInner', innerRadii / outerRadii);
         mat.setFloat('seed', attrs.seed % 100);
+        this._ring = {
+            inner: innerRadii,
+            outer: outerRadii,
+            opacity: Math.max(0, Math.min(1, opacity)),
+            seed: attrs.seed % 100,
+        };
         mat.backFaceCulling = false;
         mat.alphaMode = BABYLON.Constants.ALPHA_COMBINE;
+        // Where the star and the planet are, each frame, for the shadow.
+        const light = new BABYLON.Vector4(0, 1, 0, 0);
+        const planet = new BABYLON.Vector4();
+        mat.onBind = () => {
+            sceneLight(scene, light);
+            mat.setVector4('ringLight', light);
+            const root = this.rootNode;
+            if (root != null) {
+                const c = root.getAbsolutePosition();
+                planet.set(c.x, c.y, c.z, radius * Math.abs(root.absoluteScaling.x));
+            }
+            mat.setVector4('ringPlanet', planet);
+        };
         mesh.material = mat;
         mesh.parent = this.rootNode;
         this.ringMesh = mesh;

@@ -13,6 +13,32 @@ export interface GasGiantMaterialOptions {
         z: number;
         w: number;
     };
+    /**
+     * The planet's ring, for its SHADOW on the planet (#3320), read every
+     * frame; null or absent for none. `inner` and `outer` are in planet radii,
+     * `opacity` 0…1 and `seed` the ring's own (so the shadow is the ring you
+     * see, gap for gap). `center`, `radius` and `normal` (the ring plane's,
+     * the planet's own up) are in world space.
+     */
+    ring?: () => RingShadow | null;
+}
+/** A ring as its shadow needs it; see `GasGiantMaterialOptions.ring`. */
+export interface RingShadow {
+    inner: number;
+    outer: number;
+    opacity: number;
+    seed: number;
+    center: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    radius: number;
+    normal: {
+        x: number;
+        y: number;
+        z: number;
+    };
 }
 /** A material that draws `look` on a sphere. Dispose it with the mesh. */
 export declare function createGasGiantMaterial(scene: BABYLON.Scene, look: GasGiantLook, options?: GasGiantMaterialOptions): BABYLON.ShaderMaterial;

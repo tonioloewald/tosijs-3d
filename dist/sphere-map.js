@@ -25,6 +25,7 @@ const readout = div({ class: 'readout' }, 'finding the ground…')
 
 // A whole planet 4 km in radius, so that a globe of it shows real relief.
 const terrain = b3dTerrain({
+  id: 'sphere-map-ground',
   seed: 11, biome: 'on', surfaceType: 'sphere', radius: 4000,
   tileSize: 128, lodLevels: 3, splitFactor: 2, reach: 4000,
   grossScale: 0.0016, detailScale: 0.012, grossAmplitude: 320, detailAmplitude: 24,
@@ -32,7 +33,9 @@ const terrain = b3dTerrain({
 })
 // biome: 'on' so the globe shades with the ground's own climate and colours;
 // flatSea because this world has a sea at 0 m (the water below).
-const globe = b3dPlanet({ radius: 40, relief: 2, flatSea: 'on', atmosphere: 0.05, subdivisions: 96, biome: 'on' })
+// `terrain` makes it a globe OF that ground: drawn from it, and again
+// whenever the ground's shape changes.
+const globe = b3dPlanet({ terrain: '#sphere-map-ground', radius: 40, relief: 2, flatSea: 'on', atmosphere: 0.05, subdivisions: 96, biome: 'on' })
 
 preview.append(
   b3d(
@@ -52,23 +55,11 @@ preview.append(
         red.disableLighting = true
         pin.material = red
 
-        let built = ''
         scene.onBeforeRenderObservable.add(() => {
           const root = globe.rootNode
-          if (root == null || typeof terrain.planetSurface !== 'function') return
+          if (root == null || typeof terrain.latLonAt !== 'function') return
           // The globe rides ahead of the camera, like a map on a stand.
           root.position.set(cam.position.x + 60, cam.position.y + 10, cam.position.z + 190)
-          // Build it from the terrain once the terrain has a shape (and again
-          // whenever that shape changes).
-          const key = terrain.generationKey
-          if (key && key !== built) {
-            const surface = terrain.planetSurface()
-            if (surface != null) {
-              built = key
-              globe.surface = surface
-              globe.regenerate()
-            }
-          }
           // The camera's place in the world: scene position plus the
           // terrain's floating origin.
           const off = terrain.originOffset

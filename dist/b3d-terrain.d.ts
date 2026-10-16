@@ -14,6 +14,7 @@ export declare class B3dTerrain extends B3dChild {
     static initAttributes: {
         lat: number;
         lon: number;
+        planet: string;
         biome: "on" | "off";
         biomeSeaLevel: number;
         biomeLapseRate: number;
@@ -158,6 +159,18 @@ export declare class B3dTerrain extends B3dChild {
      * on one (`surfaceType` other than `'sphere'`). See [[sphere-map]].
      */
     get sphereFrame(): SphereFrame | null;
+    /** The `<tosi-b3d-planet>` that `planet` names, or null. */
+    planetSource(): {
+        relativeHeightAt(d: {
+            x: number;
+            y: number;
+            z: number;
+        }): number | null;
+        shapeKey: string;
+    } | null;
+    /** The planet shape the ground was last built from. */
+    private _planetBuilt;
+    private _followPlanet;
     /**
      * Latitude and longitude (degrees) of a spot on the ground; null off a
      * sphere. `x`, `z` are the terrain's own unshifting coordinates: a scene
