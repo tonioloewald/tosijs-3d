@@ -1055,8 +1055,19 @@ export class B3dPlanet extends B3dChild {
           south are not, at noon). Instead the whole lit rim takes the gold
           together, by how far the sun has gone behind the planet.
           */
-          float lit = smoothstep(-0.08, 0.2, ndl);
-          float setting = smoothstep(0.25, 0.85, dot(-viewDir, l));
+          /*
+          PEAKING NEAR TANGENT. Tonio: it "looks like it's peaking several
+          degrees above the horizon". Measured: strongest with the sun about
+          50 degrees from behind the planet, still bright at 70, which is
+          daylight over most of the limb. Now the gold needs the sun close
+          behind and, at the rim point itself, the sun about a degree up
+          ("like 5 degrees vs 1 degree"): it peaked near 5 and was full from
+          11 degrees up.
+          */
+          // A bump, not a ramp: gold where the sun stands about a degree
+          // over that rim (ndl ~ sin 1°), fading by ~7° up and just below.
+          float lit = smoothstep(-0.035, 0.017, ndl) * (1.0 - smoothstep(0.017, 0.12, ndl));
+          float setting = smoothstep(0.5, 0.95, dot(-viewDir, l));
           float k = clamp(limb * 2.2, 0.0, 1.0) * lit * setting * 0.9;
           col = mix(col, gold * (glow + 0.6), k);
           alpha = max(alpha, clamp(k * atmoOpacity * 3.5, 0.0, 1.0));

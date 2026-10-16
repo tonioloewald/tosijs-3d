@@ -10,6 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A planet's golden hour peaks with the sun at the horizon, not several degrees above it.** The gold at the limb peaked with the sun about 5° up at the rim and was full from 11° up; Tonio: "like 5 degrees vs 1 degree". It is now a bump at about 1°, gone by about 7°. Measured in a sweep of sun positions behind an Earth: before, strongest with the sun 50° from behind the planet (and still bright at 70°); now a rim of gold at 15° and 30° that is gone by 50°.
 - **A star system's rocky worlds have continents, not one blob.** A planet reads its noise at `grossScale × radius`, and its presets' relief is tuned for radius 50, both in drawn units. A system draws a world a few units across, so the synthetic Earth read a fiftieth of one noise wave and came out as a single smooth landmass ("very Fisher Price Pangaea"). Its noise is now set per world (about 1.6 waves across it for continents, 6 for coastlines), and the preset's relief is scaled by drawn radius over 50, for planets and moons alike. A look that sets its own scales or relief still wins.
 
 ### Added
