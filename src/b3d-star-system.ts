@@ -688,14 +688,15 @@ export class B3dStarSystem extends B3dChild {
       holder.parent = this.rootNode
       this.holders.push(holder)
       /*
-      THE AXIS LEANS (axial tilt), fixed in space: the holder is tilted
-      once and the planet spins inside it, so its moons orbit the tilted
-      equator and its seasons, and a ring's shadow on its planet, follow
-      the year. Without it every ring lay in its orbit's plane, edge-on
-      to its sun, and its shadow was a hairline on the equator.
+      THE AXIS LEANS (axial tilt), fixed in space: the PLANET is tilted (its
+      `tilt`; rings ride it), so its seasons, and a ring's shadow on its
+      planet, follow the year. Without it every ring lay in its orbit's
+      plane, edge-on to its sun, and its shadow was a hairline. The holder
+      stays level: each moon tilts its own orbit (its `inclination`, by
+      default the planet's equator), because our Moon orbits near the
+      ecliptic, not Earth's equator (it dropped 23° below it).
       */
       const tilt = Number(spec?.planets[i].tilt) || 0
-      if (tilt !== 0) holder.rotation.z = (tilt * Math.PI) / 180
       const giant = planet.classification !== 'rocky'
       const seed = 1 + (Math.abs(planet.seed) % 9973)
       const el = b3dPlanet({
@@ -729,11 +730,18 @@ export class B3dStarSystem extends B3dChild {
       // Its own day (real for Sol); a generated rock has an Earth day, a
       // giant a Jupiter one.
       if (!giant) drawnToScale(el, place.visualRadius)
+      if (tilt !== 0) el.tilt = tilt
       const day = spec?.planets[i].day ?? (giant ? 0.42 : 1)
       this.adopt(el, holder, planet.name, place.visualRadius, day)
       place.moons.forEach((moon, m) => {
+        const given0 = spec?.planets[i].moons?.[m]
+        // The plane it orbits in, tilted once; the pivot turns inside it.
+        const plane = new BABYLON.TransformNode(`moon-plane-${i}-${m}`, scene)
+        plane.parent = holder
+        const incl = Number(given0?.inclination ?? tilt) || 0
+        if (incl !== 0) plane.rotation.z = (incl * Math.PI) / 180
         const pivot = new BABYLON.TransformNode(`moon-pivot-${i}-${m}`, scene)
-        pivot.parent = holder
+        pivot.parent = plane
         const at = new BABYLON.TransformNode(`moon-${i}-${m}`, scene)
         at.parent = pivot
         at.position.x = moon.distance

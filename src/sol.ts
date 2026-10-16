@@ -73,6 +73,8 @@ export const SOL: SystemSpec = {
         {
           name: 'Moon',
           period: 27.32,
+          // Near the ecliptic, not Earth's 23° equator.
+          inclination: 5.1,
           radiusKm: 1737,
           look: { world: 'moon' },
           maps: MOON_MAPS,

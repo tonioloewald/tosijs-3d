@@ -1060,14 +1060,14 @@ export class B3dPlanet extends B3dChild {
           degrees above the horizon". Measured: strongest with the sun about
           50 degrees from behind the planet, still bright at 70, which is
           daylight over most of the limb. Now the gold needs the sun close
-          behind and, at the rim point itself, the sun about a degree up
-          ("like 5 degrees vs 1 degree"): it peaked near 5 and was full from
-          11 degrees up.
+          behind: full within about 15 degrees of straight behind, gone by
+          about 50 ("like 5 degrees vs 1 degree").
           */
-          // A bump, not a ramp: gold where the sun stands about a degree
-          // over that rim (ndl ~ sin 1°), fading by ~7° up and just below.
-          float lit = smoothstep(-0.035, 0.017, ndl) * (1.0 - smoothstep(0.017, 0.12, ndl));
-          float setting = smoothstep(0.5, 0.95, dot(-viewDir, l));
+          // The band keeps its breadth (a bump in lit made it a hairline:
+          // "a very thin effect which isn't what I wanted"). WHEN it shows
+          // is the sun place behind the planet: close behind, not high.
+          float lit = smoothstep(-0.08, 0.2, ndl);
+          float setting = smoothstep(0.62, 0.97, dot(-viewDir, l));
           float k = clamp(limb * 2.2, 0.0, 1.0) * lit * setting * 0.9;
           col = mix(col, gold * (glow + 0.6), k);
           alpha = max(alpha, clamp(k * atmoOpacity * 3.5, 0.0, 1.0));

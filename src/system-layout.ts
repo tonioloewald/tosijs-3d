@@ -289,6 +289,12 @@ export interface SystemBodySpec {
   period?: number
   look: Record<string, unknown>
   maps?: Record<string, unknown>
+  /**
+   * A moon's orbit, degrees from its star's ecliptic. Default: its planet's
+   * `tilt`, so it orbits the planet's equator, as regular moons do
+   * (Jupiter's, Saturn's, Uranus'). Our Moon is the exception: 5.1.
+   */
+  inclination?: number
 }
 
 export interface SystemPlanetSpec extends SystemBodySpec {

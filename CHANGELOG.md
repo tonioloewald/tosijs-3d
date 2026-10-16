@@ -10,13 +10,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
-- **A planet's golden hour peaks with the sun at the horizon, not several degrees above it.** The gold at the limb peaked with the sun about 5° up at the rim and was full from 11° up; Tonio: "like 5 degrees vs 1 degree". It is now a bump at about 1°, gone by about 7°. Measured in a sweep of sun positions behind an Earth: before, strongest with the sun 50° from behind the planet (and still bright at 70°); now a rim of gold at 15° and 30° that is gone by 50°.
+- **A planet's golden hour peaks with the sun at the horizon, not well above it.** The gold at the limb was strongest with the sun about 50° from behind the planet and still bright at 70°: daylight over most of the limb. It now needs the sun close behind (full within about 15°, gone by about 50°) and keeps its breadth. A first attempt that narrowed the band itself was rejected ("a very thin effect which isn't what I wanted"); Tonio, on this one: "pretty perfect".
 - **A star system's rocky worlds have continents, not one blob.** A planet reads its noise at `grossScale × radius`, and its presets' relief is tuned for radius 50, both in drawn units. A system draws a world a few units across, so the synthetic Earth read a fiftieth of one noise wave and came out as a single smooth landmass ("very Fisher Price Pangaea"). Its noise is now set per world (about 1.6 waves across it for continents, 6 for coastlines), and the preset's relief is scaled by drawn radius over 50, for planets and moons alike. A look that sets its own scales or relief still wins.
 
 ### Added
 
 - **Axial tilt.** Planets lean, with the axis fixed in space as they orbit, so seasons and a ring's shadow on its planet come and go with the year.
-  - **`SOL` carries the real tilts** (Earth 23.4°, Saturn 26.7°, Uranus 82.2°, Venus 2.6°; a negative `day` already makes Venus and Uranus turn backwards). A star system tilts each planet's holder, so moons orbit the tilted equator.
+  - **Moons orbit their own plane:** `inclination` on a moon (degrees from the ecliptic), by default its planet's equator, as regular moons do. Our Moon takes 5.1°; with the tilt on its holder it had dropped 23° below the ecliptic.
+  - **`SOL` carries the real tilts** (Earth 23.4°, Saturn 26.7°, Uranus 82.2°, Venus 2.6°; a negative `day` already makes Venus and Uranus turn backwards). A star system tilts each planet (and its rings).
   - **`tilt` on `<tosi-b3d-planet>`** does the same for a standalone planet; the spin runs about the tilted axis.
   - **What it fixes:** Saturn's rings shadowed nothing in the Solar System demo, because they lay in the plane of the orbit, edge-on to the Sun, and their shadow was a hairline on the equator. The sun's elevation above the rings now runs from −26.7° to +26.7° round Saturn's year: two equinoxes (the demo's clock starts at one) and two solstices.
 
