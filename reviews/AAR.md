@@ -107,3 +107,11 @@
 - Surprised: what read as "the swimmer's stick does nothing" was buoyancy cancelling the stroke; what read as shadow banding was also a checker texture that never repeated (a DynamicTexture clamps).
 - Friction: stopping a background task killed the dev server it had started; a wait loop grepped a minified bundle for a function name; I stashed a file by mistake mid-fix and had to restore it.
 - Cycle: none.
+
+## 0.10.7 — 2026-10-16
+
+- Went well: the owner's headset nits came back as one-line rules ("the scene panel's behaviour is the default", "icons first, never nameless"). Each one landed in a shared layer (`titled3d`, `chromeLayout`, `panelRim`), so a single fix reached every panel, and an existing test caught the one place the new title-bar margins went wrong (the move glyph walking into the close target on a narrow panel).
+- Didn't: the corner fringe was diagnosed from the blend maths and could not be confirmed headless; it took the owner's headset to say it was gone. The map-drift gate found two files (`panel-layer`, `b3d-beacon`) that had been missing from CLAUDE.md for releases, so the gate is not being run between releases.
+- Surprised: the × read small next to the move glyph because of the artwork. Feather's × covers 12 of its 24 units and the move arrows cover 20.
+- Friction: `bun format` reformatted source after the first build, forcing a second build; the owner's untracked `static/compass.svg` had to be kept out of the release commit by path, because the build copies it into `docs/`.
+- Cycle: none.
