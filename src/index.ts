@@ -1664,3 +1664,36 @@ export {
   retargetClips,
 } from './retarget-babylon.js'
 export type { ReadSkeleton } from './retarget-babylon.js'
+export {
+  fitSkeleton,
+  fittedRestBones,
+  meshQuery,
+  skinSegments,
+  MARKER_NAMES,
+} from './rig-fit.js'
+export type {
+  FittedJoint,
+  FittedRig,
+  MarkerName,
+  Markers,
+  MeshQuery,
+  Point2,
+  Span,
+} from './rig-fit.js'
+export { boneHeat } from './bone-heat.js'
+export type { HeatBone, SkinWeights } from './bone-heat.js'
+export {
+  springChain,
+  stepSpringChain,
+  resetSpringChain,
+  shiftSpringChain,
+  SPRING_DEFAULTS,
+} from './spring-chain.js'
+export type {
+  SpringChain,
+  SpringCollider,
+  SpringParams,
+  Orientation as SpringOrientation,
+} from './spring-chain.js'
+export { springBones } from './spring-chain-babylon.js'
+export type { SpringBones, SpringBoneCollider } from './spring-chain-babylon.js'
