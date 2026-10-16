@@ -94,6 +94,14 @@ export type SvgTextureOptions = {
    * about one texel per pixel.
    */
   mipmaps?: boolean
+  /**
+   * Upload with colour multiplied by alpha; draw it with
+   * `ALPHA_PREMULTIPLIED`. Straight alpha fringes dark wherever drawn pixels
+   * meet transparent ones inside the texture (a panel's rounded corners: the
+   * filter mixes in the transparent pixels' black). Premultiplied, those
+   * pixels contribute nothing. Off by default: a light's gel wants straight.
+   */
+  premultiplied?: boolean
 }
 
 /**
@@ -152,6 +160,7 @@ export class SvgTexture {
   private _img = new Image()
   private _lastXml = ''
   private _warnedFailure = false
+  private _premul = false
 
   constructor(options: SvgTextureOptions) {
     const {
@@ -161,7 +170,9 @@ export class SvgTexture {
       element,
       updateInterval = 30,
       mipmaps = true,
+      premultiplied = false,
     } = options
+    this._premul = premultiplied
 
     this._resolution = resolution
     this._element = element
@@ -264,7 +275,7 @@ export class SvgTexture {
       if (ok) {
         this._lastXml = xml
         const upload = performance.now()
-        dt.update(false)
+        dt.update(false, this._premul)
         svgTextureCost.repaints++
         svgTextureCost.ms += performance.now() - upload
       } else if (!this._warnedFailure) {
@@ -291,7 +302,7 @@ export class SvgTexture {
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
     rasterizeSvg(svgString, ctx, res, res, this._img, (ok) => {
-      if (ok) dt.update(false)
+      if (ok) dt.update(false, this._premul)
     })
   }
 

@@ -29,7 +29,7 @@ const bar = systemBar([gearButton, vrButton, fullscreenButton])
 
 import { svgElements } from 'tosijs'
 import type { PointerKind } from './box.js'
-import { panelRim } from './panel-rim.js'
+import { panelRim, RIM_WIDTH } from './panel-rim.js'
 
 /** Is `b` set to `display: none` by a style (its own, or the page's)? */
 function styledAway(b: HTMLElement): boolean {
@@ -37,9 +37,20 @@ function styledAway(b: HTMLElement): boolean {
   return getComputedStyle(b).display === 'none'
 }
 
-const SIZE = 40
-const GAP = 6
-const PAD = 4
+/*
+A button, the space between two, and the space between the outline and the
+buttons: the same space, so the row reads as one even strip. Tonio: "halve
+the space between the icon buttons … but add the same between the border
+and the buttons". PAD starts inside the outline, which is drawn inset.
+*/
+export const BAR_BUTTON = 40
+export const BAR_GAP = 3
+export const BAR_PAD = RIM_WIDTH + BAR_GAP
+/** The bar's height in its own units (a CSS pixel each, flat). */
+export const BAR_HEIGHT = BAR_PAD * 2 + BAR_BUTTON
+const SIZE = BAR_BUTTON
+const GAP = BAR_GAP
+const PAD = BAR_PAD
 /** How long a press is held before it is a `systemhold` instead of a click (ms). */
 export const HOLD_MS = 600
 

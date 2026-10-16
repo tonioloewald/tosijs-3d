@@ -810,6 +810,8 @@ export function attachFramePanel(
         element: el,
         resolution: spec.resolution ?? 384,
         updateInterval: 400,
+        // No dark fringe at its rounded corners (see SvgTexture).
+        premultiplied: spec.blend !== 'add',
       })
     : new SvgTexture({
         scene: drawScene,
@@ -827,6 +829,10 @@ export function attachFramePanel(
   if (spec.blend === 'add') {
     mat.alphaMode = BABYLON.Constants.ALPHA_ADD
     mat.disableDepthWrite = true
+  } else if (el) {
+    // Premultiplied blending, SRC + DST(1 - a): not ALPHA_PREMULTIPLIED, whose
+    // shader multiplies by alpha again (the texture already has been).
+    mat.alphaMode = BABYLON.Constants.ALPHA_SRC_DSTONEMINUSSRCALPHA
   }
   shown.material = mat
   plane.visibility = alwaysOn ? 1 : 0

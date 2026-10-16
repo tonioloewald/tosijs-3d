@@ -890,12 +890,18 @@ export class B3dSvgPlane extends AbstractMesh {
       url: attrs.url || undefined,
       element: this.svgElement || undefined,
       updateInterval: attrs.updateInterval,
+      // No dark fringe where its rounded corners meet transparency.
+      premultiplied: !!this.svgElement && !attrs.url,
     })
 
     const mat = new BABYLON.StandardMaterial('svg-plane-mat', scene)
     mat.backFaceCulling = isOff(attrs.doubleSided)
     this._material = mat
     this._applyChannel(mat, attrs.materialChannel, isOff(attrs.transparent))
+    // The texture is premultiplied: SRC + DST(1 - a), not ALPHA_PREMULTIPLIED
+    // (its shader would multiply by alpha a second time).
+    if (this.svgElement && !attrs.url)
+      mat.alphaMode = BABYLON.Constants.ALPHA_SRC_DSTONEMINUSSRCALPHA
     if (attrs.transparent === 'depth') {
       // Corners are cut by the alpha test (no depth there), the body blends
       // and writes depth. One material, so cost is a discard per pixel.

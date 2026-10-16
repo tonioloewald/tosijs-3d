@@ -352,7 +352,7 @@ import {
   type Orbit,
 } from './panel-orbit.js'
 import { svgIcons } from './svg-icons.js'
-import { systemBar, type SystemBar } from './system-bar.js'
+import { systemBar, BAR_HEIGHT, type SystemBar } from './system-bar.js'
 import { CombatWorld } from './destroyable.js'
 import { b3dGamepad } from './glass-gamepad.js'
 import { XrGamepadSource } from './xr-gamepad.js'
@@ -543,6 +543,8 @@ const noopRefresh = () => {}
 // The system bar in a headset: up ahead, where the settings panel hung. Its
 // panels (settings, inventory) open under it.
 const XR_BAR_ELEVATION = 66
+/** Flat, where a panel opened from the system bar starts: under the bar. */
+const UNDER_BAR = 8 + BAR_HEIGHT + 8
 const XR_BAR_DISTANCE = 1.4
 
 /** A registered fog contributor: underwater, cloud, space… (see atmosphere.ts). */
@@ -2475,11 +2477,11 @@ export class B3d extends Component {
       // its button on the bar puts it back).
       let spot = this._systemSpots.get(content)
       if (spot == null) {
-        spot = { left: 8, top: 64, distance: 0.9 }
+        spot = { left: 8, top: UNDER_BAR, distance: 0.9 }
         this._systemSpots.set(content, spot)
       }
       const fitHeight = () => {
-        const room = (this.parts.canvas?.clientHeight ?? 600) - 72
+        const room = (this.parts.canvas?.clientHeight ?? 600) - UNDER_BAR - 8
         spot!.height = Math.max(
           80,
           Math.min(svg.viewBox.baseVal.height || 400, room)
@@ -2613,7 +2615,7 @@ export class B3d extends Component {
       svg: bar.svg,
       width: 0.1,
       resolution: 512,
-      screenAnchor: { left: 8, top: 8, height: 48 },
+      screenAnchor: { left: 8, top: 8, height: BAR_HEIGHT },
     }
   }
 
@@ -6358,7 +6360,11 @@ export class B3d extends Component {
     const frames = XrFrames.flat(scene, cam)
     // ONE anchor object, kept: a drag by the title bar writes its spot into
     // it, so a rebuild (any icon press) leaves the panel where you put it.
-    const spot = (this._flatPanelSpot ??= { left: 8, top: 64, distance: 0.9 })
+    const spot = (this._flatPanelSpot ??= {
+      left: 8,
+      top: UNDER_BAR,
+      distance: 0.9,
+    })
     // One viewBox unit per CSS pixel, as the DOM panel drew it.
     spot.height = vb.height
     const panel = attachFramePanel(

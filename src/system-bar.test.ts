@@ -27,8 +27,8 @@ const button = (opts: { hidden?: boolean; disabled?: boolean } = {}) => {
   b.addEventListener('click', () => clicks++)
   return { b, clicks: () => clicks }
 }
-// Button i's centre in the toolbar's own units (pad 4, size 40, gap 6).
-const at = (i: number) => [4 + i * 46 + 20, 24] as const
+// Button i's centre in the toolbar's own units.
+const at = (i: number) => [7 + i * 43 + 20, 27] as const
 
 describe('systemBar mirrors HTML buttons', () => {
   test('only the buttons that show are drawn, and a press clicks the right one', () => {

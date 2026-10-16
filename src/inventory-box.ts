@@ -470,6 +470,10 @@ export interface InventoryPanelOptions {
    * go, and put it in the world yourself (on the ground at the player's
    * feet). No drop target without it.
    */
+  /** Container names over what they hold (default on; a dock's bag goes without). */
+  headings?: boolean
+  /** The label on a list's "put in" target (default `put in <container>`; a dock says `unequip`). */
+  putLabel?: string
   handleDrop?: (
     item: Item,
     kind: ItemKind | undefined,
@@ -822,7 +826,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
     DROP: out of the inventory, through the game's handleDrop (which can
     refuse, or put the thing on the ground).
     */
-    const dropSocket = () => {
+    const dropSocket = (w: number, inline: boolean) => {
       const drop: CarryTarget<string> = {
         id: `${holder}/drop`,
         accepts: (item) => inv.check({ item, to: null }),
@@ -839,8 +843,9 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         carry,
         target: drop,
         label: 'drop',
-        width: width - 24,
+        width: w,
         height: 30,
+        inline,
       })
       disposers.push(socket.dispose)
       return socket
@@ -856,7 +861,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
       const art = c.type === 'slots' ? opts.schematics?.[cname] : undefined
       if (!art || headed) {
         flushHead()
-        children.push(name)
+        if (opts.headings !== false) children.push(name)
       }
       if (c.type === 'slots') {
         const drawn = new Set<string>()
@@ -935,39 +940,42 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           children.push(socket)
         }
       } else if (c.type === 'list') {
-        // The drop target heads the list: a scrolling list would take it
-        // out of sight at the bottom.
-        // Both stay put while the list scrolls under them (a box keeps only a
-        // LEADING run sticky, so a list below a schematic is unaffected).
+        // (A box keeps only a LEADING run sticky, so a list below a
+        // schematic is unaffected.)
         name.sticky = true
-        if (opts.handleDrop && !lists.length) {
-          const drop = dropSocket()
-          drop.sticky = true
-          children.push(drop)
-        }
         const at: Place = { holder, container: cname }
         const into = target(at, `${holder}/${cname}`)
-        lists.push({ target: into, from: enc(at) })
         /*
-        A COLUMN: the heading, the drop target and "put in" stay put, and the
-        things scroll in what is left. "Put in" was the list's LAST row, so
-        in a list taller than its panel it sat off the bottom (Tonio: "the
-        drop in bag target is partially scrolled off. It should be fully
-        visible and the scrolling list should be constrained to occupy
-        available space").
+        A COLUMN: "put in" and the drop target stay put (side by side when
+        there are both), and the things scroll in what is left. "Put in" was
+        the list's LAST row, so in a list taller than its panel it sat off
+        the bottom (Tonio: "It should be fully visible and the scrolling list
+        should be constrained to occupy available space"). A list that
+        scrolls keeps room for its scrollbar on the right, so the rows
+        breathe evenly either side.
         */
+        const inner = width - 24 - (opts.height ? 10 : 0)
+        const withDrop = !!opts.handleDrop && !lists.length
+        const half = (inner - 8) / 2
         const socket = carrySocket({
           carry,
           target: into,
-          label: `put in ${cname}`,
-          width: width - 24,
+          label: opts.putLabel ?? `put in ${cname}`,
+          width: withDrop ? half : inner,
           height: 30,
+          inline: withDrop,
         })
         disposers.push(socket.dispose)
         socket.sticky = !!opts.height
         children.push(socket)
+        if (withDrop) {
+          const drop = dropSocket(half, true)
+          drop.sticky = !!opts.height
+          children.push(drop)
+        }
+        lists.push({ target: into, from: enc(at) })
         // Full width: a row is a button you can hit anywhere along it.
-        const row = { width: width - 24, height: 34 }
+        const row = { width: inner, height: 34 }
         for (const id of c.holds) children.push(tile(id, at, row, into))
       } else {
         // A grid wants its picture (a schematic); here it is listed.
@@ -1122,7 +1130,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   const { carry } = opts
   const W = opts.width ?? 410
   const LW = opts.listWidth ?? 200
-  const GAP = 12
+  const GAP = 6
   const { svg, g, circle, rect } = svgElements
   const root = svg({
     xmlns: 'http://www.w3.org/2000/svg',
@@ -1172,6 +1180,11 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
           // As tall as the schematic beside it; the list scrolls.
           height: opts.height ?? mainHeight(),
           handleDrop: opts.handleDrop,
+          // Beside the person it is plainly their bag, and from it a thing
+          // dropped there is taken off (Tonio: the "bag" caption does not
+          // earn its space).
+          headings: false,
+          putLabel: 'unequip',
         })
       : null
   const closeButton = g(

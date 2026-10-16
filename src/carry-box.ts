@@ -392,6 +392,8 @@ export interface CarrySocketOptions<T> {
   label: string
   width?: number
   height?: number
+  /** Flows beside its neighbours in a box (two targets on one line), not a line of its own. */
+  inline?: boolean
   /**
    * What is in it now, drawn inside it. A tile here can be picked up from
    * the socket: pressed and dragged, or tapped.
@@ -444,10 +446,13 @@ export function carrySocket<T>(
   const textAt = art
     ? { x: w / 2, 'text-anchor': 'middle', ...HALO }
     : { x: 10 }
+  // A one-line row (an empty 30-high target) centres its label, and a
+  // refusal's reason takes the label's place: there is no second line.
+  const short = !art && !holding && h <= 36
   const caption = text(
     {
       ...textAt,
-      y: art ? h + 13 : 14,
+      y: art ? h + 13 : short ? h / 2 + 4 : 14,
       fill: art ? '#dfe6f2' : '#8a96ad',
       'font-family': 'system-ui, sans-serif',
       'font-size': '11',
@@ -457,7 +462,7 @@ export function carrySocket<T>(
   const why = text(
     {
       ...textAt,
-      y: art ? h + 26 : h - 8,
+      y: art ? h + 26 : short ? h / 2 + 4 : h - 8,
       fill: '#f0907c',
       'font-family': 'system-ui, sans-serif',
       'font-size': '11',
@@ -539,12 +544,14 @@ export function carrySocket<T>(
       )
     }
     why.textContent = hovered && v && !ok ? v.reasons[0] ?? '' : ''
+    if (short)
+      caption.setAttribute('visibility', why.textContent ? 'hidden' : 'visible')
   }
   const stop = carry.subscribe(restyle)
   restyle()
   return {
     el,
-    kind: 'block',
+    kind: opts.inline ? 'inline' : 'block',
     focusable: true,
     carryTarget: target,
     measure: () => ({ width: w, height: h }),
