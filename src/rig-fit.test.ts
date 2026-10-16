@@ -5,6 +5,7 @@ import {
   fitSkeleton,
   fittedRestBones,
   meshQuery,
+  objTriangles,
   skinSegments,
   type Markers,
   type MeshQuery,
@@ -129,29 +130,8 @@ const DIR = join(import.meta.dir, '../../static-assets/assets/tonio/rigging')
 type Soup = { pos: number[]; idx: number[] }
 
 function readObj(file: string, keep?: string[]): Soup {
-  const pos: number[] = []
-  const idx: number[] = []
-  const all: number[] = []
-  let obj = ''
-  for (const line of readFileSync(file, 'utf8').split('\n')) {
-    const p = line.trim().split(/\s+/)
-    if (p[0] === 'o') obj = p[1]
-    else if (p[0] === 'v') all.push(+p[1], +p[2], +p[3])
-    else if (p[0] === 'f' && (!keep || keep.includes(obj))) {
-      const ix = p.slice(1).map((s) => parseInt(s) - 1)
-      for (let k = 1; k + 1 < ix.length; k++) idx.push(ix[0], ix[k], ix[k + 1])
-    }
-  }
-  pos.push(...all)
-  // Bounds from the kept faces only (omnidude's file holds a whole scene).
-  const used = new Set(idx)
-  const kept: number[] = []
-  const remap = new Map<number, number>()
-  for (const i of used) {
-    remap.set(i, kept.length / 3)
-    kept.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2])
-  }
-  return { pos: kept, idx: idx.map((i) => remap.get(i)!) }
+  const { positions, indices } = objTriangles(readFileSync(file, 'utf8'), keep)
+  return { pos: positions, idx: indices }
 }
 
 function readGlb(file: string): Soup {
@@ -324,4 +304,31 @@ describe.skipIf(!existsSync(DIR))('boneHeat on real meshes', () => {
         expect(rig.at('tail_leaf')).toEqual(t)
       }
     })
+})
+
+describe('objTriangles', () => {
+  test('fans polygons, keeps the named objects and only their vertices', () => {
+    const text = [
+      'o Prop',
+      'v 9 9 9',
+      'o Body',
+      'v 0 0 0',
+      'v 1 0 0',
+      'v 1 1 0',
+      'v 0 1 0',
+      'f 2 3 4 5',
+      'o Prop',
+      'f 1 2 3',
+    ].join('\n')
+    const { positions, indices } = objTriangles(text, ['Body'])
+    expect(positions).toEqual([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])
+    expect(indices).toEqual([0, 1, 2, 0, 2, 3])
+    expect(objTriangles(text).indices.length).toBe(9)
+  })
+
+  test('reads negative indices and v/vt/vn faces', () => {
+    const { positions, indices } = objTriangles('v 0 0 0\nv 1 0 0\nv 0 1 0\nf -3/1/1 -2/2/1 -1/3/1')
+    expect(positions.length).toBe(9)
+    expect(indices).toEqual([0, 1, 2])
+  })
 })

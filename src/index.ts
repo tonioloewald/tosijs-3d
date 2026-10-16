@@ -1668,6 +1668,7 @@ export {
   fitSkeleton,
   fittedRestBones,
   meshQuery,
+  objTriangles,
   skinSegments,
   MARKER_NAMES,
 } from './rig-fit.js'

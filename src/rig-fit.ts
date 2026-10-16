@@ -494,3 +494,41 @@ export function fittedRestBones(rig: FittedRig): RestBone[] {
     }
   })
 }
+
+/**
+ * The triangles of a Wavefront OBJ (text), as fitting and binding want them:
+ * positions xyz and indices in threes, polygons fanned, data unchanged (OBJ
+ * is right-handed, as `fitSkeleton` assumes). `objects` keeps only those `o`
+ * groups (a file often holds the whole scene: props, clothes, eyes), and
+ * only the vertices they use.
+ */
+export function objTriangles(text: string, objects?: readonly string[]): { positions: number[]; indices: number[] } {
+  const all: number[] = []
+  const faces: number[] = []
+  let obj = ''
+  for (const line of text.split('\n')) {
+    const p = line.trim().split(/\s+/)
+    if (p[0] === 'o') obj = p.slice(1).join(' ')
+    else if (p[0] === 'v') all.push(+p[1], +p[2], +p[3])
+    else if (p[0] === 'f' && (objects == null || objects.includes(obj))) {
+      // Negative indices count back from the vertices read so far.
+      const ix = p.slice(1).map((s) => {
+        const i = parseInt(s)
+        return i < 0 ? all.length / 3 + i : i - 1
+      })
+      for (let k = 1; k + 1 < ix.length; k++) faces.push(ix[0], ix[k], ix[k + 1])
+    }
+  }
+  const positions: number[] = []
+  const remap = new Map<number, number>()
+  const indices = faces.map((i) => {
+    let j = remap.get(i)
+    if (j == null) {
+      j = positions.length / 3
+      remap.set(i, j)
+      positions.push(all[i * 3], all[i * 3 + 1], all[i * 3 + 2])
+    }
+    return j
+  })
+  return { positions, indices }
+}
