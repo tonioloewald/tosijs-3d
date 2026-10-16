@@ -55,9 +55,13 @@ describe('bound widgets unsubscribe (#100)', () => {
       w3d.slider3d({ label: 'level', value: level as any }),
       w3d.select3d({ label: 'pick', value: pick as any, options: ['a', 'b'] })
     ) as any
-    expect(on.listeners.size + level.listeners.size + pick.listeners.size).toBe(3)
+    expect(on.listeners.size + level.listeners.size + pick.listeners.size).toBe(
+      3
+    )
     panel.dispose()
-    expect(on.listeners.size + level.listeners.size + pick.listeners.size).toBe(0)
+    expect(on.listeners.size + level.listeners.size + pick.listeners.size).toBe(
+      0
+    )
     // Twice is harmless.
     panel.dispose()
   })

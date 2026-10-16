@@ -20,7 +20,11 @@ export interface SphereFrame {
 export interface PlanetSurface {
     /** The planet's true radius, metres. */
     radius: number;
-    /** Height of the sea (or of the datum, on a dry world), metres. */
+    /**
+     * Height of the sea, metres. A world with NO sea says so with a sea level
+     * below all its ground (Manta uses -10000): a globe then measures from the
+     * lowest ground, so the sea's depth adds nothing to its size.
+     */
     seaLevel: number;
     /** Ground height in metres, in a direction from the centre (any length). */
     heightAt(direction: Vec3): number;
@@ -110,4 +114,12 @@ export declare function latLonToGround(lat: number, lon: number, frame: SphereFr
     x: number;
     z: number;
 };
+/** Where `x` is within one turn (−C/2…C/2), and how much of its copy one turn away to mix in. */
+export declare function seamWeight(x: number, circumference: number, band: number): {
+    x: number;
+    other: number;
+    mix: number;
+};
+/** A flat layer `f(x)` made periodic in `x` with `circumference` (see `seamWeight`). */
+export declare function seamBlend(x: number, circumference: number, band: number, f: (x: number) => number): number;
 //# sourceMappingURL=sphere-map.d.ts.map

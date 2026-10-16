@@ -68,6 +68,8 @@ is missing, extra, or disagrees on its default. The copy is allowed to exist
 because it cannot silently rot.
 */
 /*{ "parent": "core", "order": 80 }*/
+import { ROCKY_WORLDS } from './rocky-world.js';
+import { GAS_GIANTS } from './gas-giant.js';
 /** A number with a range and, where it helps, a unit and a scale hint. */
 const num = (def, extra = {}) => ({ type: 'number', default: def, ...extra });
 const color = (def) => ({
@@ -551,6 +553,7 @@ export const SCENE_OMITTED = {
     decorator: [],
     trail: [],
     sound: [],
+    planet: [],
     /*
     The host carries two kinds of attribute, and only one is the SCENE. These
     configure a VIEWER: the default camera's limits, the device (frame rate,
@@ -636,6 +639,24 @@ export function terrainSchema(extra = {}) {
         its major and minor radii, and `radius` is the sphere/cylinder one.
         */
         surfaceType: choice('cylinder', ['cylinder', 'torus', 'sphere']),
+        // Where the ground is on its planet (#103): the terrain origin's
+        // latitude and longitude. A pin on a globe, on a sphere.
+        lat: num(-45, {
+            minimum: -90,
+            maximum: 90,
+            ...DEG,
+            title: 'Latitude',
+            description: 'Latitude of the terrain origin, degrees (+ is north). On a ' +
+                'sphere, where this ground is on its globe; on a cylinder or ' +
+                'torus, the same position in the noise.',
+        }),
+        lon: num(0, {
+            minimum: -180,
+            maximum: 180,
+            ...DEG,
+            title: 'Longitude',
+            description: 'Longitude of the terrain origin, degrees (+ is east).',
+        }),
         grossScale: num(0.015, {
             minimum: 0.0001,
             maximum: 1,
@@ -1239,6 +1260,158 @@ export function b3dSchema(extra = {}) {
         ...extra,
     });
 }
+/**
+ * `b3d-planet` — a whole world seen from space: rocky (its own noise, a
+ * `world` preset, real maps, or another world's `surface`) or a gas giant.
+ *
+ * `x-preset-written` names what a `world` preset WRITES into the planet's
+ * own attributes when it is chosen. They stay the author's to tune after
+ * that, so a consumer that applies every schema default on bind must not
+ * write those back over a preset (ensemble, #103): show them, and write one
+ * only when the person changes it.
+ */
+export function planetSchema(extra = {}) {
+    return schema('Planet', {
+        world: choice('', ['', ...Object.keys(ROCKY_WORLDS)]),
+        gas: choice('', ['', ...Object.keys(GAS_GIANTS)]),
+        seed: num(12345, { minimum: 0 }),
+        radius: num(50, { minimum: 0.1, maximum: 100000, 'x-scale': 'log' }),
+        subdivisions: num(64, {
+            minimum: 8,
+            maximum: 256,
+            description: 'Grid cells per cube face: a cost dial.',
+        }),
+        relief: num(1, {
+            minimum: 0,
+            maximum: 100,
+            'x-scale': 'log',
+            description: 'With a heightMap or a surface: how much the true relief is ' +
+                'exaggerated. 1 is to scale (flat to the eye on a globe).',
+        }),
+        grossScale: num(0.005, { minimum: 0.0001, maximum: 1, ...FREQ }),
+        detailScale: num(0.02, { minimum: 0.0001, maximum: 1, ...FREQ }),
+        grossAmplitude: num(5, { minimum: 0, maximum: 100 }),
+        detailAmplitude: num(1, { minimum: 0, maximum: 100 }),
+        ocean: num(0.6, {
+            minimum: 0,
+            maximum: 1,
+            description: 'Fraction of the surface under water (0 = none).',
+        }),
+        flatSea: choice('off', ['off', 'on']),
+        seaShallow: color(''),
+        seaDeep: color(''),
+        seaGlint: num(1, { minimum: 0, maximum: 1 }),
+        seaIce: num(0, { minimum: 0, maximum: 1 }),
+        inlandWater: choice('off', ['off', 'on']),
+        biome: choice('off', ['off', 'on']),
+        atmosphere: num(0.08, {
+            minimum: 0,
+            maximum: 0.5,
+            description: 'Air shell thickness, a fraction of the radius (0 = none).',
+        }),
+        atmosphereColor: color('rgba(77,128,230,0.15)'),
+        atmosphereTurbulence: num(0.5, { minimum: 0, maximum: 1 }),
+        clouds: num(0, {
+            minimum: 0,
+            maximum: 3,
+            description: 'Cloud cover seen from orbit: 1 is mostly cloud, 3 a solid deck.',
+        }),
+        cloudColor: color('#ffffff'),
+        cloudSpeed: num(1, { minimum: 0, maximum: 10 }),
+        craters: num(0, { minimum: 0, maximum: 1 }),
+        craterSize: num(0.15, { minimum: 0.01, maximum: 0.5 }),
+        craterWear: num(0.6, { minimum: 0, maximum: 1 }),
+        craterAsymmetry: num(0, { minimum: -1, maximum: 1 }),
+        rings: num(0, { minimum: 0, maximum: 1 }),
+        ringInner: num(0, { minimum: 0, maximum: 10 }),
+        ringOuter: num(0, { minimum: 0, maximum: 10 }),
+        ringOpacity: num(-1, { minimum: -1, maximum: 1 }),
+        ringColor: color(''),
+        bands: num(0, { minimum: 0, maximum: 40 }),
+        turbulence: num(-1, { minimum: -1, maximum: 1 }),
+        storm: num(-1, { minimum: -1, maximum: 1 }),
+        bandColors: { type: 'string', default: '' },
+        heightMap: url(),
+        colorMap: url(),
+        bodyRadiusKm: num(0, { minimum: 0, maximum: 100000, 'x-unit': 'km' }),
+        rotationSpeed: num(0, { minimum: -2, maximum: 2, 'x-unit': 'rad/s' }),
+        wireframe: bool(false),
+    }, {
+        'x-preset-written': {
+            world: [
+                'ocean',
+                'atmosphere',
+                'atmosphereColor',
+                'clouds',
+                'cloudColor',
+                'grossAmplitude',
+                'detailAmplitude',
+                'craters',
+                'craterSize',
+                'craterWear',
+                'craterAsymmetry',
+                'seaShallow',
+                'seaDeep',
+            ],
+        },
+        ...sections([
+            {
+                title: 'World',
+                icon: 'earth',
+                keys: [
+                    'world',
+                    'gas',
+                    'seed',
+                    'radius',
+                    'subdivisions',
+                    'rotationSpeed',
+                ],
+            },
+            {
+                title: 'Surface',
+                keys: [
+                    'relief',
+                    'grossScale',
+                    'detailScale',
+                    'grossAmplitude',
+                    'detailAmplitude',
+                    'biome',
+                ],
+            },
+            {
+                title: 'Sea',
+                keys: [
+                    'ocean',
+                    'flatSea',
+                    'seaShallow',
+                    'seaDeep',
+                    'seaGlint',
+                    'seaIce',
+                    'inlandWater',
+                ],
+            },
+            {
+                title: 'Air',
+                keys: ['atmosphere', 'atmosphereColor', 'atmosphereTurbulence'],
+            },
+            { title: 'Clouds', keys: ['clouds', 'cloudColor', 'cloudSpeed'] },
+            {
+                title: 'Craters',
+                keys: ['craters', 'craterSize', 'craterWear', 'craterAsymmetry'],
+            },
+            {
+                title: 'Rings',
+                keys: ['rings', 'ringInner', 'ringOuter', 'ringOpacity', 'ringColor'],
+            },
+            {
+                title: 'Gas giant',
+                keys: ['bands', 'turbulence', 'storm', 'bandColors'],
+            },
+            { title: 'Maps', keys: ['heightMap', 'colorMap', 'bodyRadiusKm'] },
+        ]),
+        ...extra,
+    });
+}
 export const sceneSchemas = {
     b3d: b3dSchema,
     skybox: skyboxSchema,
@@ -1259,5 +1432,6 @@ export const sceneSchemas = {
     decorator: decoratorSchema,
     trail: trailSchema,
     sound: soundSchema,
+    planet: planetSchema,
 };
 //# sourceMappingURL=scene-schemas.js.map

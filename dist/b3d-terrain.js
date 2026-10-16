@@ -293,7 +293,8 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
 | `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
-| `worldU` / `worldV` | `0` / `0.25` | Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
+| `lat` / `lon` | `-45` / `0` | Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain |
+| `worldU` / `worldV` | `0` / `0.25` | The same place as fractions of a turn (JS properties over `lon`/`lat`: `worldU = lon / 360`, `worldV = (lat + 90) / 180`). ⚠️ `worldV = 0` (`lat = -90`) puts a cylinder world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
 | `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
 | `originResetThreshold` | `500` | Distance before origin rebase |
 | `maxTravelDistance` | `5000` | Distance before firing recenter-needed event |
@@ -357,7 +358,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
 import { PiecewiseLinearFilter } from './gradient-filter.js';
 import { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler.js';
-import { directionToGround, groundToLatLon, latLonToGround, } from './sphere-map.js';
+import { directionToGround, groundToLatLon, latLonToGround, seamWeight, } from './sphere-map.js';
 import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, budgetedReach, MAX_TILES_ACROSS, } from './terrain-grid.js';
 import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { attachBiomePlugin, defaultBiomeParams, } from './biome-plugin.js';
@@ -417,6 +418,16 @@ export class B3dTerrain extends B3dChild {
         },
     };
     static initAttributes = {
+        /*
+        WHERE ON ITS PLANET THIS GROUND IS, in degrees: the latitude and longitude
+        of the terrain's origin (#103). On a sphere that is a place on the globe
+        (`latLonAt`, `groundAt` and `planetSurface()` agree with it). On a
+        cylinder or torus it is the same position in the noise's domain, read
+        through `worldU`/`worldV`. -45 is the old default `worldV` of 0.25: a
+        quarter turn from both of the cylinder's mirror planes.
+        */
+        lat: (MIRROR_SAFE_V * 180 - 90),
+        lon: 0,
         // Procedural biome shader (TERRAIN-SHADER-DESIGN.md) — flat-colour chart
         // classification on the terrain material; tune live via `.biomePlugin`.
         biome: 'off',
@@ -708,6 +719,28 @@ export class B3dTerrain extends B3dChild {
         const grossAt = grossFilter.evaluateAt?.bind(grossFilter);
         const detailAt = detailFilter.evaluateAt?.bind(detailFilter);
         const landform = this.landform;
+        /*
+        The noise is read on the surface and repeats with the circumference; the
+        profile fields and landforms read flat metres and do not. Round the back
+        of the world (the meridian opposite the terrain's origin) they are mixed
+        with their copy one turn away, so the ground joins there (board #3318,
+        a 116 m step on a cratered moon). Away from that band nothing changes.
+    
+        A SPHERE only. A cylinder is used as a big flat world with things placed
+        in metres, and there a volcano at x = 5000 on a 6 km circumference would
+        wrap to another place and vanish.
+        */
+        const seamBand = surfaceType === 'sphere' ? circumU * 0.05 : 0;
+        const layered = (ax, az, g, d) => {
+            const h = (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
+                (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
+                    detailAmp +
+                baseHeight;
+            // Authored landforms (landform.ts) override the noise LOCALLY — the
+            // hook sees origin-stable coords and the noise height, and normals
+            // difference the hooked field, so lighting follows the landform free.
+            return landform ? landform(ax, az, h) : h;
+        };
         return (wx, wz) => {
             const ax = wx + offX;
             const az = wz + offZ;
@@ -718,14 +751,13 @@ export class B3dTerrain extends B3dChild {
             const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3);
             const g = gross * 0.5 + 0.5;
             const d = detail * 0.5 + 0.5;
-            const h = (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
-                (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
-                    detailAmp +
-                baseHeight;
-            // Authored landforms (landform.ts) override the noise LOCALLY — the
-            // hook sees origin-stable coords and the noise height, and normals
-            // difference the hooked field, so lighting follows the landform free.
-            return landform ? landform(ax, az, h) : h;
+            if (seamBand === 0 || (!grossAt && !detailAt && !landform))
+                return layered(ax, az, g, d);
+            const s = seamWeight(ax, circumU, seamBand);
+            const here = layered(s.x, az, g, d);
+            return s.mix === 0
+                ? here
+                : here + (layered(s.other, az, g, d) - here) * s.mix;
         };
     }
     /** Metres the hole's rim folds down into a patch opening (see the collar
@@ -769,9 +801,29 @@ export class B3dTerrain extends B3dChild {
      *
      * Default is 0.25 — a quarter turn away from both mirror planes (v = 0 and
      * v = 0.5), which is the furthest you can get from either.
+     *
+     * STORED AS `lat` / `lon` (#103). These were plain properties, so markup and
+     * a schema-driven editor could not set them, and a person thinks of a place
+     * as a latitude and longitude, not fractions of a turn. They are views onto
+     * those two attributes now: `worldV = (lat + 90) / 180` and
+     * `worldU = lon / 360` (see sphere-map's mirror note for why +90). The
+     * defaults are the same place as before: lat -45, lon 0.
      */
-    worldU = 0;
-    worldV = MIRROR_SAFE_V;
+    get worldU() {
+        const u = this.lon / 360;
+        return u - Math.floor(u);
+    }
+    set worldU(u) {
+        const w = u - Math.floor(u);
+        this.lon = w > 0.5 ? w * 360 - 360 : w * 360;
+    }
+    get worldV() {
+        return (this.lat + 90) / 180;
+    }
+    set worldV(v) {
+        ;
+        this.lat = v * 180 - 90;
+    }
     // Accumulated render-space offset from origin resets
     originOffsetX = 0;
     originOffsetZ = 0;
@@ -1758,6 +1810,8 @@ export class B3dTerrain extends B3dChild {
         return [
             a.seed,
             a.surfaceType,
+            a.lat,
+            a.lon,
             a.radius,
             a.majorRadius,
             a.minorRadius,

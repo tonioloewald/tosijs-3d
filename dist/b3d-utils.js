@@ -603,6 +603,11 @@ const ALPHA_OPAQUE_THRESHOLD = 0.95;
  * library model was still drawing it. The mesh list is the only list that sees
  * everything.
  *
+ * And a material the scene does NOT list (`scene.materials`) is never
+ * disposed: it belongs to an AssetContainer, whose source meshes still use it
+ * (#102: the last instance of a library model going took the model's colour
+ * with it).
+ *
  * Textures get three extra exemptions, each of which is a thing that holds a
  * texture without any material mentioning it: the scene's environment texture,
  * anything in `customRenderTargets` (water's reflection/refraction), and a
@@ -662,7 +667,19 @@ export function disposeMeshTree(mesh) {
         }
         return liveTextures.has(tex);
     };
+    /*
+    ONLY WHAT THE SCENE OWNS (#102). A library's materials live in its
+    AssetContainer and are not in `scene.materials`, and neither are the source
+    meshes that still use them, so the guard above cannot see that the library
+    needs them. Removing the last placed instance of a model disposed its
+    materials, Babylon detached them from the source meshes too, and every
+    later `instantiate()` came out white. A material the scene does not list is
+    someone else's to dispose.
+    */
+    const owned = new Set(scene.materials);
     for (const mat of materials) {
+        if (!owned.has(mat))
+            continue;
         if (scene.meshes.some((m) => usesMaterial(m, mat)))
             continue;
         // Read the textures BEFORE disposing, or there is nothing left to ask.

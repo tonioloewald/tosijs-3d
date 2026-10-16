@@ -179,6 +179,21 @@ export declare function b3dSchema(extra?: Record<string, unknown>): {
     title: string;
     properties: Record<string, unknown>;
 };
+/**
+ * `b3d-planet` — a whole world seen from space: rocky (its own noise, a
+ * `world` preset, real maps, or another world's `surface`) or a gas giant.
+ *
+ * `x-preset-written` names what a `world` preset WRITES into the planet's
+ * own attributes when it is chosen. They stay the author's to tune after
+ * that, so a consumer that applies every schema default on bind must not
+ * write those back over a preset (ensemble, #103): show them, and write one
+ * only when the person changes it.
+ */
+export declare function planetSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
 export declare const sceneSchemas: {
     readonly b3d: typeof b3dSchema;
     readonly skybox: typeof skyboxSchema;
@@ -199,5 +214,6 @@ export declare const sceneSchemas: {
     readonly decorator: typeof decoratorSchema;
     readonly trail: typeof trailSchema;
     readonly sound: typeof soundSchema;
+    readonly planet: typeof planetSchema;
 };
 //# sourceMappingURL=scene-schemas.d.ts.map

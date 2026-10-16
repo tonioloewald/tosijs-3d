@@ -12,6 +12,8 @@ export declare class B3dTerrain extends B3dChild {
         };
     };
     static initAttributes: {
+        lat: number;
+        lon: number;
         biome: "on" | "off";
         biomeSeaLevel: number;
         biomeLapseRate: number;
@@ -229,9 +231,18 @@ export declare class B3dTerrain extends B3dChild {
      *
      * Default is 0.25 — a quarter turn away from both mirror planes (v = 0 and
      * v = 0.5), which is the furthest you can get from either.
+     *
+     * STORED AS `lat` / `lon` (#103). These were plain properties, so markup and
+     * a schema-driven editor could not set them, and a person thinks of a place
+     * as a latitude and longitude, not fractions of a turn. They are views onto
+     * those two attributes now: `worldV = (lat + 90) / 180` and
+     * `worldU = lon / 360` (see sphere-map's mirror note for why +90). The
+     * defaults are the same place as before: lat -45, lon 0.
      */
-    worldU: number;
-    worldV: number;
+    get worldU(): number;
+    set worldU(u: number);
+    get worldV(): number;
+    set worldV(v: number);
     private originOffsetX;
     private originOffsetZ;
     private _beforeRender;

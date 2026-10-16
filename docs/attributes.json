@@ -4174,6 +4174,16 @@
     "summary": "b3d-terrain",
     "attributes": [
       {
+        "name": "lat",
+        "default": "-45",
+        "description": "Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain"
+      },
+      {
+        "name": "lon",
+        "default": "0",
+        "description": "Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain"
+      },
+      {
         "name": "biome"
       },
       {

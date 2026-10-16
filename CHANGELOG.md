@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.8 (unreleased)
+## 0.10.8
 
 ### Added
 
@@ -21,6 +21,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A frozen or paused scene builds its system bar** (#3342). The bar and flat panels were built only on running frames, so a scene that started frozen (Manta freezes on every menu) showed the HTML lozenge, and a `<tosi-b3d-panel icon title>` got no button until it unfroze. Stopped frames keep the scene's chrome current now, as they already did its fog.
 - **A sphere terrain joins at the far meridian** (#3318). Its noise is read on the sphere and always repeated; its profile fields (`blendProfiles`, `profileField`) and landforms (`craterField`, …) read flat metres and did not. The ground opposite the terrain's origin (longitude 180 at the default `worldU`) was two different places: a 116 m step on Manta's cratered moon, 19.5 m without the craters. Within 5% of a turn of that meridian they are now mixed with their copy one turn away, so the two sides meet. Elsewhere the ground is exactly as before, and a place one whole turn round is the same place. Spheres only: a cylinder is used as a big flat world with things placed in metres.
 - **A globe of a world with no sea is drawn at its size** (#3319). A planet drawn from a `PlanetSurface` measured every height from `seaLevel`, so a dry world that says "no sea" with a sea level far below its ground (Manta's -10000 m) gained that depth as ground. A globe meant to be 40 units across came out at 2476. The globe now measures from the higher of the sea and the lowest ground. A world with a real sea is unchanged, and on a dry world the lowest ground sits on the base radius. The convention for "no sea" is a `seaLevel` below all of the ground.
+
+Size: barrel (min, packages external) 1109.1 KB raw / 377.6 KB gz, +0.38% on 0.10.7.
 
 ## 0.10.7
 

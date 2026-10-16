@@ -942,7 +942,27 @@ function boundValue(value, onChange) {
                 box.value = v;
                 onChange?.(v);
             },
-            subscribe: (cb) => box.observe(cb),
+            /*
+            THE UNSUBSCRIBE IS KEPT (#100). It used to be thrown away, so every
+            widget bound to a box left a listener in tosijs's module-level list,
+            and its closure held the widget's element, its panel and the host:
+            ensemble measured +125 listeners and +5,360 nodes per round of panel
+            rebuilds. The widget's `dispose` calls it; whoever drops a widget list
+            disposes it (B3d does, and `panel3d`'s `dispose` does for its rows).
+            Not reaped by `isConnected`: an in-scene panel's SVG is never in the
+            document, and would stop updating while visible.
+            */
+            subscribe: (cb) => {
+                const stop = box.observe(cb);
+                let done = false;
+                return () => {
+                    if (done)
+                        return;
+                    done = true;
+                    if (typeof stop === 'function')
+                        stop();
+                };
+            },
         };
     }
     let local = value;
@@ -952,7 +972,7 @@ function boundValue(value, onChange) {
             local = v;
             onChange?.(v);
         },
-        subscribe: () => { },
+        subscribe: () => () => { },
     };
 }
 /** Map a client point into an element's local user space (CTM inverse). */
@@ -1463,9 +1483,10 @@ export function toggle3d(config) {
         bound.set(!bound.get());
         reflect();
     };
-    bound.subscribe(reflect);
+    const unbind = bound.subscribe(reflect);
     return {
         el,
+        dispose: unbind,
         layout(width) {
             rowBg.setAttribute('width', String(width));
             trackX = width - trackW - TH.PAD_X;
@@ -1656,9 +1677,10 @@ export function slider3d(config) {
         bound.set(fractionToValue(f, min, max, step, scale, snap, zeroStop, precision));
         reflect();
     };
-    bound.subscribe(reflect);
+    const unbind = bound.subscribe(reflect);
     return {
         el,
+        dispose: unbind,
         layout(width) {
             rowBg.setAttribute('width', String(width));
             rowBg.setAttribute('height', String(SLIDER_H - 4));
@@ -1792,7 +1814,7 @@ export function select3d(config) {
         bound.set(opts[i].value);
         reflect();
     };
-    bound.subscribe(reflect);
+    const unbind = bound.subscribe(reflect);
     /*
     A SELECT, WITH A CHEVRON THAT SAYS SO.
   
@@ -1853,6 +1875,7 @@ export function select3d(config) {
     };
     return {
         el,
+        dispose: unbind,
         setHost(h) {
             host = h;
         },
@@ -3530,6 +3553,22 @@ export function panel3d(config, ...widgets) {
         root.appendChild(railThumb);
         applyScroll(); // seat the thumb at the top
     }
+    /*
+    DISPOSE THE ROWS WITH THE PANEL (#100). A consumer that builds its own
+    panel and drops it on a rebuild calls this; a row bound to a tosijs box
+    otherwise keeps the whole panel alive through tosijs's listener list.
+    */
+    ;
+    root.dispose = () => {
+        for (const w of [...headerWidgets, ...widgets]) {
+            try {
+                w.dispose?.();
+            }
+            catch {
+                // One row's dispose must not keep the others alive.
+            }
+        }
+    };
     return root;
 }
 //# sourceMappingURL=widgets3d.js.map

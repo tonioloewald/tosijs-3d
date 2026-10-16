@@ -1456,14 +1456,16 @@ export function planetSchema(extra: Record<string, unknown> = {}) {
       atmosphere: num(0.08, {
         minimum: 0,
         maximum: 0.5,
-        description: 'Air shell thickness, a fraction of the radius (0 = none).',
+        description:
+          'Air shell thickness, a fraction of the radius (0 = none).',
       }),
       atmosphereColor: color('rgba(77,128,230,0.15)'),
       atmosphereTurbulence: num(0.5, { minimum: 0, maximum: 1 }),
       clouds: num(0, {
         minimum: 0,
         maximum: 3,
-        description: 'Cloud cover seen from orbit: 1 is mostly cloud, 3 a solid deck.',
+        description:
+          'Cloud cover seen from orbit: 1 is mostly cloud, 3 a solid deck.',
       }),
       cloudColor: color('#ffffff'),
       cloudSpeed: num(1, { minimum: 0, maximum: 10 }),
@@ -1505,14 +1507,58 @@ export function planetSchema(extra: Record<string, unknown> = {}) {
         ],
       },
       ...sections([
-        { title: 'World', icon: 'earth', keys: ['world', 'gas', 'seed', 'radius', 'subdivisions', 'rotationSpeed'] },
-        { title: 'Surface', keys: ['relief', 'grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude', 'biome'] },
-        { title: 'Sea', keys: ['ocean', 'flatSea', 'seaShallow', 'seaDeep', 'seaGlint', 'seaIce', 'inlandWater'] },
-        { title: 'Air', keys: ['atmosphere', 'atmosphereColor', 'atmosphereTurbulence'] },
+        {
+          title: 'World',
+          icon: 'earth',
+          keys: [
+            'world',
+            'gas',
+            'seed',
+            'radius',
+            'subdivisions',
+            'rotationSpeed',
+          ],
+        },
+        {
+          title: 'Surface',
+          keys: [
+            'relief',
+            'grossScale',
+            'detailScale',
+            'grossAmplitude',
+            'detailAmplitude',
+            'biome',
+          ],
+        },
+        {
+          title: 'Sea',
+          keys: [
+            'ocean',
+            'flatSea',
+            'seaShallow',
+            'seaDeep',
+            'seaGlint',
+            'seaIce',
+            'inlandWater',
+          ],
+        },
+        {
+          title: 'Air',
+          keys: ['atmosphere', 'atmosphereColor', 'atmosphereTurbulence'],
+        },
         { title: 'Clouds', keys: ['clouds', 'cloudColor', 'cloudSpeed'] },
-        { title: 'Craters', keys: ['craters', 'craterSize', 'craterWear', 'craterAsymmetry'] },
-        { title: 'Rings', keys: ['rings', 'ringInner', 'ringOuter', 'ringOpacity', 'ringColor'] },
-        { title: 'Gas giant', keys: ['bands', 'turbulence', 'storm', 'bandColors'] },
+        {
+          title: 'Craters',
+          keys: ['craters', 'craterSize', 'craterWear', 'craterAsymmetry'],
+        },
+        {
+          title: 'Rings',
+          keys: ['rings', 'ringInner', 'ringOuter', 'ringOpacity', 'ringColor'],
+        },
+        {
+          title: 'Gas giant',
+          keys: ['bands', 'turbulence', 'storm', 'bandColors'],
+        },
         { title: 'Maps', keys: ['heightMap', 'colorMap', 'bodyRadiusKm'] },
       ]),
       ...extra,

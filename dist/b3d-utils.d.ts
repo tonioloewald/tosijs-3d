@@ -335,6 +335,11 @@ export declare function enterXR(scene: BABYLON.Scene, options?: XRParams): Promi
  * library model was still drawing it. The mesh list is the only list that sees
  * everything.
  *
+ * And a material the scene does NOT list (`scene.materials`) is never
+ * disposed: it belongs to an AssetContainer, whose source meshes still use it
+ * (#102: the last instance of a library model going took the model's colour
+ * with it).
+ *
  * Textures get three extra exemptions, each of which is a thing that holds a
  * texture without any material mentioning it: the scene's environment texture,
  * anything in `customRenderTargets` (water's reflection/refraction), and a

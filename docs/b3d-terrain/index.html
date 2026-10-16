@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=d55617f13dee" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=48c81bdfd613" data-tosi-doc-system />
   <title>b3d-terrain — tosijs-3d</title>
   <meta name="description" content="Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface. Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-terrain/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=f0af8223469e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=7d353a69c4b6" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-terrain">b3d-terrain</h1>
 <p>Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
@@ -454,9 +454,14 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <td>Metres the rim of a patch hole folds down into the opening</td>
 </tr>
 <tr>
+<td><code>lat</code> / <code>lon</code></td>
+<td><code>-45</code> / <code>0</code></td>
+<td>Where this ground is on its planet: the latitude and longitude of the terrain&#39;s origin, degrees. On a cylinder or torus, the same position in the noise&#39;s domain</td>
+</tr>
+<tr>
 <td><code>worldU</code> / <code>worldV</code></td>
 <td><code>0</code> / <code>0.25</code></td>
-<td>Where this terrain sits in the sampler&#39;s domain. ⚠️ <code>worldV = 0</code> puts the world ON a mirror plane (<code>CylinderSampler</code> reflects v) — 0.25 is the furthest from both</td>
+<td>The same place as fractions of a turn (JS properties over <code>lon</code>/<code>lat</code>: <code>worldU = lon / 360</code>, <code>worldV = (lat + 90) / 180</code>). ⚠️ <code>worldV = 0</code> (<code>lat = -90</code>) puts a cylinder world ON a mirror plane (<code>CylinderSampler</code> reflects v) — 0.25 is the furthest from both</td>
 </tr>
 <tr>
 <td><code>baseHeight</code></td>
@@ -992,6 +997,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-dejhg2dr.js"></script>
+  <script type="module" src="../hydrate-cjtfjjvh.js"></script>
 </body>
 </html>

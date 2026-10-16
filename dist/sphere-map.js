@@ -241,4 +241,37 @@ export function groundToLatLon(x, z, frame) {
 export function latLonToGround(lat, lon, frame) {
     return directionToGround(latLonToDirection(lat, lon), frame);
 }
+/*
+A LAYER LAID OUT FLAT, MADE TO JOIN ROUND THE BACK (board #3318).
+
+The ground's noise is read on the sphere, so it repeats with the
+circumference. A crater field, a profile field or any other layer reads flat
+metres instead, and does not: the ground at the far meridian (x = ±C/2 from
+the terrain's origin) was two different places, a step of 116 m on Manta's
+moon. `seamBlend` makes such a layer periodic. Within `band` of the far
+meridian it mixes the layer with its copy one circumference away, half and
+half AT the meridian, so both sides arrive at the same value. Elsewhere the
+layer is read exactly as before, and a place one whole turn round reads the
+same as here.
+*/
+/** Where `x` is within one turn (−C/2…C/2), and how much of its copy one turn away to mix in. */
+export function seamWeight(x, circumference, band) {
+    const c = circumference;
+    const xw = x - c * Math.floor(x / c + 0.5);
+    const fromSeam = c / 2 - Math.abs(xw);
+    if (!(band > 0) || fromSeam >= band)
+        return { x: xw, other: xw, mix: 0 };
+    const t = 1 - fromSeam / band;
+    return {
+        x: xw,
+        other: xw > 0 ? xw - c : xw + c,
+        mix: 0.5 * t * t * (3 - 2 * t),
+    };
+}
+/** A flat layer `f(x)` made periodic in `x` with `circumference` (see `seamWeight`). */
+export function seamBlend(x, circumference, band, f) {
+    const s = seamWeight(x, circumference, band);
+    const a = f(s.x);
+    return s.mix === 0 ? a : a + (f(s.other) - a) * s.mix;
+}
 //# sourceMappingURL=sphere-map.js.map
