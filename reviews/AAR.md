@@ -123,3 +123,11 @@
 - Surprised: the date-line "remaining step" after the seam fix was cliffs from `cliffProfile`, steeper elsewhere than at the seam. Comparing with other meridians separated the seam from the terrain.
 - Friction: a CHANGELOG anchor failed silently inside a chained command, so one fix went in without its entry and needed a follow-up commit.
 - Cycle: none.
+
+## 0.10.9 — 2026-10-16
+
+- Went well: the owner's "planet and terrain should correspond" became two declarative links in under an hour, measured both ways (planet-sourced within the detail layer, terrain-sourced 200 of 200). Ring shadows reused the ring's own density as one shared GLSL function, so the shadow has the same gaps as the ring.
+- Didn't: I first planned to auto-link the scene's only sphere terrain, which would have turned a gas giant in a moon's sky into the ground. I caught it before writing it. The dial artwork went into the barrel at first (+3.8%); the size check at the cut caught it and it moved to a subpath.
+- Surprised: both "low-hanging" backlog bugs were already fixed and their cards never closed. Check the code before scoping a stale card.
+- Friction: the dial-art generator's output was rewritten by the formatter, and the first single-quote version broke on newlines; it now emits exactly what prettier would.
+- Cycle: none.
