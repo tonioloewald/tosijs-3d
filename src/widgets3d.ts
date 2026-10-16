@@ -3215,6 +3215,32 @@ export function titled3d(
   return root
 }
 
+/**
+ * What `panel3d` returns: its SVG, with what a host drives it by. Typed in
+ * full so a consumer need not cast (tosijs-3d#104: `dispose` was missing from
+ * the declaration, so code that called it did not typecheck).
+ */
+export type Panel3d = SVGSVGElement & {
+  /** Feed a press, move or release in viewBox units (no DOM events). */
+  handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /** Scroll by a delta in viewBox units; nothing when it does not overflow. */
+  scrollBy: (dy: number) => void
+  /** Does the content overflow? */
+  scrollable: boolean
+  /** Height of the title-bar band, in viewBox units. */
+  gripHeight: number
+  /** Is this point on the bar a host may drag by (the bar less the close)? */
+  gripHit: (x: number, y: number) => boolean
+  /** The panel's size and what its content needs. */
+  measure: () => PanelFit
+  /** Where popups go when the panel cannot hold them; returns the removal. */
+  addLayerHost: (fn: LayerHost) => () => void
+  /** Popups as DOM in `container` (flat only); returns the removal. */
+  useDomLayer: (container?: HTMLElement) => () => void
+  /** Dispose its rows: unsubscribes bound widgets (#100). */
+  dispose: () => void
+}
+
 export function panel3d(
   config: {
     width?: number
@@ -3266,7 +3292,7 @@ export function panel3d(
     handleClose?: () => void
   },
   ...widgets: Widget3d[]
-): SVGSVGElement {
+): Panel3d {
   const width = config.width ?? 360
   const padding = config.padding ?? 12
   const handleClose = handlerOf<() => void>(config, 'handleClose', 'onClose')
@@ -4637,5 +4663,5 @@ export function panel3d(
       }
     }
   }
-  return root
+  return root as unknown as Panel3d
 }

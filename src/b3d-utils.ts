@@ -1120,8 +1120,19 @@ export class AbstractMesh extends B3dChild {
     if (node?.scaling == null) return
     const s = (this as any).scale
     const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1
+    /*
+    ONLY WHEN `scale` (or the node) CHANGES (tosijs-3d#105). This runs on
+    every render, so writing each time wiped any per-axis scale a consumer
+    set on the node at the next unrelated attribute write: ensemble's
+    stretched pieces lost their stretch the first time they were moved or
+    turned. The attribute still wins whenever it is set.
+    */
+    if (this._scaleApplied?.node === node && this._scaleApplied.k === k) return
+    this._scaleApplied = { node, k }
     node.scaling.set(k, k, k)
   }
+  private _scaleApplied: { node: BABYLON.TransformNode; k: number } | null =
+    null
 
   private _originShift: ((dx: number, dz: number) => void) | null = null
 

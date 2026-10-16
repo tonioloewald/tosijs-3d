@@ -1078,7 +1078,7 @@ describe('a scrolling panel has a rail you can actually grab', () => {
     return w3d.panel3d(
       { width: 320, height: 'fit', maxHeight: 400, paddingTop: 34 },
       ...rows
-    ) as SVGSVGElement & {
+    ) as unknown as SVGSVGElement & {
       handlePointer: (k: string, x: number, y: number) => void
     }
   }
