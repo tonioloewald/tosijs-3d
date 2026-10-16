@@ -177,7 +177,8 @@ function freshen(node: BABYLON.Node): void {
 }
 
 /**
- * Hang a simulated chain from `anchor` through `points` (world, rest pose).
+ * Hang a simulated chain from `anchor` through `points` (world, rest pose):
+ * one new TransformNode per point, each under the one before.
  */
 export function springBones(
   scene: BABYLON.Scene,
@@ -186,10 +187,8 @@ export function springBones(
   options: { params?: Partial<SpringParams>; colliders?: SpringBoneCollider[] } = {}
 ): SpringBones {
   freshen(anchor)
-  const toLocal = anchor.getWorldMatrix().clone().invert()
-  // One node per point, each under the one before, the first under the anchor.
   const nodes: BABYLON.TransformNode[] = []
-  let parentWorldInv = toLocal
+  let parentWorldInv = anchor.getWorldMatrix().clone().invert()
   for (let i = 0; i < points.length; i++) {
     const n = new BABYLON.TransformNode(`${anchor.name}-spring-${i}`, scene)
     n.parent = i === 0 ? anchor : nodes[i - 1]
@@ -199,11 +198,35 @@ export function springBones(
     parentWorldInv = n.getWorldMatrix().clone().invert()
     nodes.push(n)
   }
+  const made = springNodes(scene, nodes, options)
+  const dispose = made.dispose
+  made.dispose = () => {
+    dispose()
+    for (const n of [...nodes].reverse()) n.dispose()
+  }
+  return made
+}
+
+/**
+ * Simulate an EXISTING chain of nodes (a tail or hair a rig already has):
+ * each node the parent of the next, the first's parent the anchor the chain
+ * hangs from, the last the tip. Rest rotations are kept: the simulation
+ * only swings each bone away from its own rest direction.
+ */
+export function springNodes(
+  scene: BABYLON.Scene,
+  nodes: BABYLON.TransformNode[],
+  options: { params?: Partial<SpringParams>; colliders?: SpringBoneCollider[] } = {}
+): SpringBones {
+  const anchor = nodes[0].parent as BABYLON.TransformNode
+  freshen(nodes[nodes.length - 1])
+  const points = nodes.map((n) => n.getAbsolutePosition().clone())
   // Directions between world and the anchor's frame (mirror-safe).
   const dirTo = (m: BABYLON.Matrix) => (v: Vec3): Vec3 => {
     const r = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(v.x, v.y, v.z), m).normalize()
     return { x: r.x, y: r.y, z: r.z }
   }
+  const toLocal = anchor.getWorldMatrix().clone().invert()
   const chain = springChain(points.map(v3), { x: 0, y: 0, z: 0, w: 1 }, dirTo(toLocal))
   const params: SpringParams = { ...SPRING_DEFAULTS, ...options.params }
 
@@ -216,9 +239,13 @@ export function springBones(
       }
     })
 
-  // Each joint's rest axis toward the next, in its own frame (identity rest).
-  const axes = nodes.map((n, i) =>
-    i + 1 < nodes.length ? nodes[i + 1].position.clone().normalize() : null
+  // Each joint's rest rotation, and its rest direction to the next joint as
+  // its parent sees it (the rest rotation applied to the child's offset).
+  const restRot = nodes.map((n) => (n.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(n.rotation)).clone())
+  const restDir = nodes.map((n, i) =>
+    i + 1 < nodes.length
+      ? nodes[i + 1].position.clone().normalize().applyRotationQuaternion(restRot[i])
+      : null
   )
 
   const apply = () => {
@@ -233,10 +260,9 @@ export function springBones(
         new BABYLON.Vector3(want.x - from.x, want.y - from.y, want.z - from.z),
         inv
       ).normalize()
-      const axis = axes[i]!
-      const q = new BABYLON.Quaternion()
-      BABYLON.Quaternion.FromUnitVectorsToRef(axis, d, q)
-      n.rotationQuaternion = q
+      const swing = new BABYLON.Quaternion()
+      BABYLON.Quaternion.FromUnitVectorsToRef(restDir[i]!, d, swing)
+      n.rotationQuaternion = swing.multiply(restRot[i])
       n.computeWorldMatrix(true)
     }
     nodes[nodes.length - 1].computeWorldMatrix(true)
@@ -269,7 +295,6 @@ export function springBones(
     },
     dispose() {
       scene.onAfterAnimationsObservable.remove(obs)
-      for (const n of [...nodes].reverse()) n.dispose()
     },
   }
 }

@@ -209,7 +209,22 @@ const along = (a: Vec3, b: Vec3, t: number): Vec3 => add(a, scale(minus(b, a), t
  * Place UAL's skeleton in a mesh from eight front-view markers. Joints the
  * markers do not fix are inferred; see the comment at the top of this file.
  */
-export function fitSkeleton(markers: Markers, mesh: MeshQuery): FittedRig {
+export interface FitOptions {
+  /**
+   * Where a tail ends, in 3D: a front view cannot see a tail (it points
+   * away), so the tip is placed from the side. The chain runs from the back
+   * of the pelvis to it, `tailBones` long (default 5), named `tail_01` …
+   * `tail_leaf`.
+   */
+  tail?: Vec3
+  tailBones?: number
+}
+
+export function fitSkeleton(
+  markers: Markers,
+  mesh: MeshQuery,
+  options: FitOptions = {}
+): FittedRig {
   const floor = mesh.min.y
   const zMid = (mesh.min.z + mesh.max.z) / 2
 
@@ -399,6 +414,23 @@ export function fitSkeleton(markers: Markers, mesh: MeshQuery): FittedRig {
     put(`ball_leaf_${side}`, `ball_${side}`, { x: knee2.x, y: ballY, z: toeZ })
   }
 
+  if (options.tail != null) {
+    // From the back of the pelvis (half the body's depth toward the tip).
+    const tip = options.tail
+    const d = minus(tip, pelvis)
+    const len = Math.hypot(d.x, d.y, d.z)
+    if (len > 1e-9) {
+      const start = add(pelvis, scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len)))
+      const count = Math.max(1, Math.round(options.tailBones ?? 5))
+      let parent = 'pelvis'
+      for (let i = 0; i <= count; i++) {
+        const name = i < count ? `tail_${String(i + 1).padStart(2, '0')}` : 'tail_leaf'
+        put(name, parent, along(start, tip, i / count))
+        parent = name
+      }
+    }
+  }
+
   return {
     joints,
     at: (name) => byName.get(name)?.position,
@@ -435,8 +467,11 @@ for (const s of ['l', 'r']) {
  */
 export function skinSegments(rig: FittedRig): Array<{ index: number; a: Vec3; b: Vec3 }> {
   const out: Array<{ index: number; a: Vec3; b: Vec3 }> = []
+  // A tail bone runs to the next joint down its chain.
+  const child = new Map<string, string>()
+  for (const j of rig.joints) if (j.parent?.startsWith('tail_')) child.set(j.parent, j.name)
   rig.joints.forEach((j, index) => {
-    const to = SEGMENT_TO[j.name]
+    const to = SEGMENT_TO[j.name] ?? child.get(j.name)
     const b = to != null ? rig.at(to) : j.end
     if (b != null) out.push({ index, a: j.position, b })
   })

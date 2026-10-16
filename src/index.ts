@@ -1672,6 +1672,7 @@ export {
   MARKER_NAMES,
 } from './rig-fit.js'
 export type {
+  FitOptions as SkeletonFitOptions,
   FittedJoint,
   FittedRig,
   MarkerName,
@@ -1681,6 +1682,8 @@ export type {
   Span,
 } from './rig-fit.js'
 export { boneHeat } from './bone-heat.js'
+export { buildRig } from './rig-build.js'
+export type { BuiltRig } from './rig-build.js'
 export type { HeatBone, SkinWeights } from './bone-heat.js'
 export {
   springChain,
@@ -1695,5 +1698,5 @@ export type {
   SpringParams,
   Orientation as SpringOrientation,
 } from './spring-chain.js'
-export { springBones } from './spring-chain-babylon.js'
+export { springBones, springNodes } from './spring-chain-babylon.js'
 export type { SpringBones, SpringBoneCollider } from './spring-chain-babylon.js'

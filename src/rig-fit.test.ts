@@ -203,7 +203,7 @@ const m = (
   kneeR: { x: -knee[0], y: knee[1] },
 })
 
-const REAL: Array<{ name: string; mesh: () => Soup; markers: Markers }> = [
+const REAL: Array<{ name: string; mesh: () => Soup; markers: Markers; tail?: { x: number; y: number; z: number } }> = [
   {
     name: 'omnidude',
     mesh: () => readObj(join(DIR, 'omnidude.obj'), ['Omnidude', 'Head']),
@@ -213,11 +213,13 @@ const REAL: Array<{ name: string; mesh: () => Soup; markers: Markers }> = [
     name: 'weasel (a tail, a short arm)',
     mesh: () => readObj(join(DIR, 'weasel.obj'), ['Weasel']),
     markers: m([0, 0.967], [0, 0.358], [0.51, 0.763], [0.397, 0.763], [0.142, 0.174]),
+    tail: { x: 0, y: 0.5, z: -0.95 },
   },
   {
     name: 'skinny weasel',
     mesh: () => readObj(join(DIR, 'weasel-skinny.obj'), ['Body', 'Head', 'Tail']),
     markers: m([0, 1.259], [0, 0.64], [0.657, 1.154], [0.404, 1.14], [0.106, 0.34]),
+    tail: { x: 0, y: 0.77, z: -0.95 },
   },
   {
     name: 'space marine (arms down, claws)',
@@ -269,7 +271,7 @@ describe.skipIf(!existsSync(DIR))('boneHeat on real meshes', () => {
     test(r.name, () => {
       const soup = r.mesh()
       const mesh = soupQuery(soup)
-      const rig = fitSkeleton(r.markers, mesh)
+      const rig = fitSkeleton(r.markers, mesh, { tail: r.tail })
       const skin = boneHeat(soup.pos, soup.idx, skinSegments(rig))
       const names = rig.joints.map((j) => j.name)
       const n = soup.pos.length / 3
@@ -306,6 +308,19 @@ describe.skipIf(!existsSync(DIR))('boneHeat on real meshes', () => {
         let s = 0
         for (let k = 0; k < 4; k++) s += skin.weights[v * 4 + k]
         expect(Math.abs(s - 1)).toBeLessThan(1e-4)
+      }
+      if (r.tail != null) {
+        // The tail's flesh follows the tail, not a thigh (the skinny
+        // weasel's tail is a separate object, which took the left thigh
+        // before it had bones of its own).
+        const t = r.tail
+        expect(strongest({ x: t.x, y: t.y, z: t.z * 0.8 })).toMatch(/^tail_/)
+        expect(strongest({ x: t.x, y: t.y, z: t.z * 0.5 })).toMatch(/^tail_/)
+        // A tail is not a role: the humanoid still reads the same.
+        const roles = humanoidRoles(fittedRestBones(rig))
+        expect(roles.hips).toBe('pelvis')
+        expect(roles.chest).toBe('spine_03')
+        expect(rig.at('tail_leaf')).toEqual(t)
       }
     })
 })
