@@ -1,0 +1,423 @@
+/*
+FITTING A SKELETON TO A MESH FROM EIGHT MARKERS, as Mixamo's auto-rigger does
+(board #3349). Someone drags chin, groin, wrists, elbows and knees onto a
+FRONT view of a character standing in a T-pose (up +Y, facing +Z, its left
+on +X); this places the UE mannequin's 65 joints (UAL's skeleton, so the
+UAL clips play on it with no retargeting of names) inside the mesh.
+
+Two halves, both pure:
+
+- `meshQuery(positions, indices)` answers what a front view cannot: how
+  deep the mesh is at a point. A ray along Z through (x, y) gives the spans
+  inside the mesh, front first.
+- `fitSkeleton(markers, mesh)` turns markers into joints. Five kinds of
+  joint are where a marker says; the rest are inferred from the markers and
+  the mesh (an ankle under its knee at the foot's height, a shoulder an
+  upper arm's length in from the elbow, fingers along the hand). Every
+  joint sits at the middle of the mesh's thickness at its (x, y), in the
+  FRONT-MOST span, so a tail or a backpack behind the body is not mistaken
+  for it.
+
+The rest pose is the T-pose as drawn: every bone's local rotation is
+identity and its position is its offset from its parent, so a bone points
+at the next joint down its limb. `retarget` lines bones up by direction, not
+by rotation, so that is all a clip needs.
+
+Binding the mesh to the result (bone heat) and the marker panel come next.
+*/
+
+import type { RestBone } from './retarget.js'
+import type { Vec3 } from './spatial-transform.js'
+
+export interface Point2 {
+  x: number
+  y: number
+}
+
+export type MarkerName =
+  | 'chin'
+  | 'groin'
+  | 'wristL'
+  | 'wristR'
+  | 'elbowL'
+  | 'elbowR'
+  | 'kneeL'
+  | 'kneeR'
+
+export const MARKER_NAMES: readonly MarkerName[] = [
+  'chin',
+  'groin',
+  'wristL',
+  'wristR',
+  'elbowL',
+  'elbowR',
+  'kneeL',
+  'kneeR',
+]
+
+/** Front-view positions, in the mesh's units. L is the character's left (+X). */
+export type Markers = Record<MarkerName, Point2>
+
+/** A run of a Z ray inside the mesh: `front` is the larger z. */
+export interface Span {
+  front: number
+  back: number
+}
+
+export interface MeshQuery {
+  min: Vec3
+  max: Vec3
+  /** Spans inside the mesh along a ray through (x, y), front first. */
+  spans(x: number, y: number): Span[]
+}
+
+/**
+ * A mesh you can ask how deep it is, from a triangle soup (positions xyz,
+ * indices in threes). Ray casts are bucketed on a grid over the front view.
+ */
+export function meshQuery(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number>
+): MeshQuery {
+  const min = { x: Infinity, y: Infinity, z: Infinity }
+  const max = { x: -Infinity, y: -Infinity, z: -Infinity }
+  for (let i = 0; i + 2 < positions.length; i += 3) {
+    const x = positions[i]
+    const y = positions[i + 1]
+    const z = positions[i + 2]
+    if (!Number.isFinite(x + y + z)) continue
+    min.x = Math.min(min.x, x)
+    min.y = Math.min(min.y, y)
+    min.z = Math.min(min.z, z)
+    max.x = Math.max(max.x, x)
+    max.y = Math.max(max.y, y)
+    max.z = Math.max(max.z, z)
+  }
+  const N = 64
+  const cw = (max.x - min.x) / N || 1
+  const ch = (max.y - min.y) / N || 1
+  const cells: number[][] = Array.from({ length: N * N }, () => [])
+  const cell = (v: number, lo: number, size: number) =>
+    Math.max(0, Math.min(N - 1, Math.floor((v - lo) / size)))
+  const tris = Math.floor(indices.length / 3)
+  for (let t = 0; t < tris; t++) {
+    let x0 = Infinity
+    let x1 = -Infinity
+    let y0 = Infinity
+    let y1 = -Infinity
+    let ok = true
+    for (let k = 0; k < 3; k++) {
+      const i = indices[t * 3 + k] * 3
+      const x = positions[i]
+      const y = positions[i + 1]
+      if (!Number.isFinite(x + y + positions[i + 2])) ok = false
+      x0 = Math.min(x0, x)
+      x1 = Math.max(x1, x)
+      y0 = Math.min(y0, y)
+      y1 = Math.max(y1, y)
+    }
+    if (!ok) continue
+    for (let cy = cell(y0, min.y, ch); cy <= cell(y1, min.y, ch); cy++)
+      for (let cx = cell(x0, min.x, cw); cx <= cell(x1, min.x, cw); cx++)
+        cells[cy * N + cx].push(t)
+  }
+  const hit = (t: number, x: number, y: number): number | null => {
+    const a = indices[t * 3] * 3
+    const b = indices[t * 3 + 1] * 3
+    const c = indices[t * 3 + 2] * 3
+    const ax = positions[a]
+    const ay = positions[a + 1]
+    const bx = positions[b]
+    const by = positions[b + 1]
+    const cx = positions[c]
+    const cy = positions[c + 1]
+    const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+    if (Math.abs(d) < 1e-14) return null
+    const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / d
+    const v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / d
+    const w = 1 - u - v
+    const e = -1e-9
+    if (u < e || v < e || w < e) return null
+    return u * positions[a + 2] + v * positions[b + 2] + w * positions[c + 2]
+  }
+  return {
+    min,
+    max,
+    spans(x, y) {
+      if (x < min.x || x > max.x || y < min.y || y > max.y) return []
+      /*
+      OFF THE SEAM: a symmetric model has a row of edges at x = 0, exactly
+      where the chin and groin markers go. A ray along an edge can slip
+      between its two triangles, one hit goes missing, and every span after
+      it pairs a back with the next front (the pelvis landed in the tail).
+      A nudge far below anything visible keeps rays off edges.
+      */
+      x += (max.x - min.x) * 7.3e-6
+      y += (max.y - min.y) * 3.1e-6
+      const zs: number[] = []
+      for (const t of cells[cell(y, min.y, ch) * N + cell(x, min.x, cw)]) {
+        const z = hit(t, x, y)
+        if (z != null) zs.push(z)
+      }
+      zs.sort((a, b) => b - a)
+      // A ray through a shared edge hits both triangles: count it once.
+      const eps = (max.z - min.z) * 1e-6
+      const uniq = zs.filter((z, i) => i === 0 || zs[i - 1] - z > eps)
+      const out: Span[] = []
+      for (let i = 0; i + 1 < uniq.length; i += 2)
+        out.push({ front: uniq[i], back: uniq[i + 1] })
+      // An odd count (an open mesh): the last hit is a thin wall.
+      if (uniq.length % 2 === 1) {
+        const z = uniq[uniq.length - 1]
+        out.push({ front: z, back: z })
+      }
+      return out
+    },
+  }
+}
+
+/** One joint of a fitted skeleton, in the mesh's space. */
+export interface FittedJoint {
+  name: string
+  parent: string | null
+  position: Vec3
+  /** For a joint with nothing below it: where its bone ends. */
+  end?: Vec3
+}
+
+export interface FittedRig {
+  joints: FittedJoint[]
+  /** A joint's position by name. */
+  at(name: string): Vec3 | undefined
+}
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+const add = (a: Vec3, b: Vec3): Vec3 => ({
+  x: a.x + b.x,
+  y: a.y + b.y,
+  z: a.z + b.z,
+})
+const scale = (a: Vec3, k: number): Vec3 => ({ x: a.x * k, y: a.y * k, z: a.z * k })
+const minus = (a: Vec3, b: Vec3): Vec3 => ({
+  x: a.x - b.x,
+  y: a.y - b.y,
+  z: a.z - b.z,
+})
+const along = (a: Vec3, b: Vec3, t: number): Vec3 => add(a, scale(minus(b, a), t))
+
+/**
+ * Place UAL's skeleton in a mesh from eight front-view markers. Joints the
+ * markers do not fix are inferred; see the comment at the top of this file.
+ */
+export function fitSkeleton(markers: Markers, mesh: MeshQuery): FittedRig {
+  const floor = mesh.min.y
+  const zMid = (mesh.min.z + mesh.max.z) / 2
+
+  // The middle of the front-most span at (x, y), or `fallback` if the ray
+  // misses (a marker dropped just off the silhouette).
+  const depth = (x: number, y: number, fallback = zMid): number => {
+    const s = mesh.spans(x, y)[0]
+    return s != null ? (s.front + s.back) / 2 : fallback
+  }
+  const inside = (x: number, y: number) => mesh.spans(x, y).length > 0
+  const at = (p: Point2, fallback?: number): Vec3 => ({
+    x: p.x,
+    y: p.y,
+    z: depth(p.x, p.y, fallback),
+  })
+
+  const joints: FittedJoint[] = []
+  const byName = new Map<string, FittedJoint>()
+  const put = (name: string, parent: string | null, position: Vec3, end?: Vec3) => {
+    const j: FittedJoint = { name, parent, position, end }
+    joints.push(j)
+    byName.set(name, j)
+    return position
+  }
+
+  const { chin, groin } = markers
+  const torso = chin.y - groin.y
+  const cx = groin.x
+
+  /*
+  THE TORSO'S DEPTH. Where a tail grows out of the back it is one span with
+  the body, and that span's middle is inside the tail. So measure how thick
+  the body usually is up the centre (the median, which a tail at a few
+  heights cannot move) and never put the spine further back from the front
+  than half of that.
+  */
+  /*
+  And a tail can hang BELOW the body: in the notch between the legs, a ray
+  at hip height may meet only the tail. So the torso also has a usual front
+  (the median again); of the spans a ray meets, the body's is the one whose
+  front is nearest that, and if none is near, the body is not there and the
+  joint goes on its usual line.
+  */
+  const halves: number[] = []
+  const fronts: number[] = []
+  for (let i = 0; i <= 24; i++) {
+    const y = lerp(groin.y, chin.y, i / 24)
+    const s = mesh.spans(lerp(cx, chin.x, i / 24), y)[0]
+    if (s == null) continue
+    halves.push((s.front - s.back) / 2)
+    fronts.push(s.front)
+  }
+  const median = (list: number[], none: number) =>
+    list.length > 0 ? list.sort((a, b) => a - b)[list.length >> 1] : none
+  const half = median(halves, Infinity)
+  const front = median(fronts, zMid)
+  const torsoDepth = (x: number, y: number, fallback = zMid): number => {
+    if (!Number.isFinite(half)) return fallback
+    let best: Span | null = null
+    for (const s of mesh.spans(x, y))
+      if (best == null || Math.abs(s.front - front) < Math.abs(best.front - front))
+        best = s
+    if (best == null || Math.abs(best.front - front) > 2 * half) return front - half
+    return best.front - Math.min((best.front - best.back) / 2, half)
+  }
+
+  // The body: pelvis a little above the crotch, neck under the chin.
+  const pelvisY = groin.y + 0.08 * torso
+  const pelvis = { x: cx, y: pelvisY, z: torsoDepth(cx, pelvisY) }
+  put('root', null, { x: cx, y: floor, z: pelvis.z })
+  put('pelvis', 'root', pelvis)
+  const armY = (markers.elbowL.y + markers.elbowR.y) / 2
+  const neckY = Math.max(lerp(groin.y, chin.y, 0.82), Math.min(armY, chin.y))
+  const neckZ = torsoDepth(chin.x, neckY, pelvis.z)
+  const neck = { x: lerp(cx, chin.x, 0.8), y: neckY, z: neckZ }
+  const spineAt = (t: number) => {
+    const y = lerp(pelvisY, neckY, t)
+    const x = lerp(cx, neck.x, t)
+    return { x, y, z: torsoDepth(x, y, pelvis.z) }
+  }
+  put('spine_01', 'pelvis', spineAt(0.25))
+  put('spine_02', 'spine_01', spineAt(0.5))
+  const chest = put('spine_03', 'spine_02', spineAt(0.75))
+  put('neck_01', 'spine_03', neck)
+  // The head joint is the head's base, at the chin; its bone runs up to the
+  // top of the head straight above it.
+  const headBase = { x: chin.x, y: chin.y, z: depth(chin.x, chin.y - 0.02 * torso, neckZ) }
+  let top = chin.y
+  const step = (mesh.max.y - floor) / 400
+  for (let y = chin.y; y <= mesh.max.y; y += step) if (inside(chin.x, y)) top = y
+  put('Head', 'neck_01', headBase, { x: chin.x, y: top, z: headBase.z })
+
+  for (const side of ['l', 'r'] as const) {
+    const S = side === 'l' ? 'L' : 'R'
+    const sign = side === 'l' ? 1 : -1
+
+    // The arm: wrist and elbow as marked, the shoulder an upper arm's
+    // length in from the elbow (taken as the forearm's length), but never
+    // nearer the middle than a quarter of the elbow's reach.
+    const wrist2 = markers[`wrist${S}`]
+    const elbow2 = markers[`elbow${S}`]
+    const fore = { x: elbow2.x - wrist2.x, y: elbow2.y - wrist2.y }
+    let sh = { x: elbow2.x + fore.x, y: elbow2.y + fore.y }
+    const minOut = 0.25 * (elbow2.x - cx)
+    if (sign * (sh.x - cx) < sign * minOut) {
+      // Slide back along the same line to the limit.
+      const t = (cx + minOut - elbow2.x) / (fore.x || 1e-9)
+      sh = { x: elbow2.x + fore.x * t, y: elbow2.y + fore.y * t }
+    }
+    const shoulder = at(sh, chest.z)
+    const clav = {
+      x: lerp(neck.x, shoulder.x, 0.15),
+      y: lerp(chest.y, shoulder.y, 0.7),
+      z: lerp(chest.z, shoulder.z, 0.5),
+    }
+    put(`clavicle_${side}`, 'spine_03', clav)
+    put(`upperarm_${side}`, `clavicle_${side}`, shoulder)
+    const elbow = put(`lowerarm_${side}`, `upperarm_${side}`, at(elbow2, shoulder.z))
+    const wrist = put(`hand_${side}`, `lowerarm_${side}`, at(wrist2, elbow.z))
+
+    // The hand: walk on from the wrist until the ray leaves the mesh.
+    const dir = { x: wrist2.x - elbow2.x, y: wrist2.y - elbow2.y }
+    const dl = Math.hypot(dir.x, dir.y) || 1
+    const ux = dir.x / dl
+    const uy = dir.y / dl
+    let reach = 0
+    for (let d = 0; d < 2 * dl + (mesh.max.x - mesh.min.x); d += step) {
+      if (inside(wrist2.x + ux * d, wrist2.y + uy * d)) reach = d
+      else if (d > reach + 4 * step) break
+    }
+    reach = Math.max(reach, 0.25 * dl)
+    const tip = { x: wrist2.x + ux * reach, y: wrist2.y + uy * reach, z: wrist.z }
+    // Palm down in a T-pose, so the hand's width runs along Z: thumb and
+    // index to the front, pinky to the back.
+    const palm2 = { x: wrist2.x + ux * reach * 0.35, y: wrist2.y + uy * reach * 0.35 }
+    const ps = mesh.spans(palm2.x, palm2.y)[0]
+    const half = ps != null ? (ps.front - ps.back) / 2 : 0.15 * reach
+    const palmZ = ps != null ? (ps.front + ps.back) / 2 : wrist.z
+    const fingers: Array<[string, number]> = [
+      ['index', 0.6],
+      ['middle', 0.2],
+      ['ring', -0.2],
+      ['pinky', -0.6],
+    ]
+    for (const [f, off] of fingers) {
+      const z = palmZ + off * half
+      const base = { x: lerp(wrist.x, tip.x, 0.45), y: lerp(wrist.y, tip.y, 0.45), z }
+      const end = { x: tip.x, y: tip.y, z }
+      put(`${f}_01_${side}`, `hand_${side}`, base)
+      put(`${f}_02_${side}`, `${f}_01_${side}`, along(base, end, 0.4))
+      put(`${f}_03_${side}`, `${f}_02_${side}`, along(base, end, 0.7))
+      put(`${f}_04_leaf_${side}`, `${f}_03_${side}`, end)
+    }
+    {
+      const base = { x: lerp(wrist.x, tip.x, 0.12), y: lerp(wrist.y, tip.y, 0.12), z: palmZ + 0.5 * half }
+      const end = {
+        x: lerp(wrist.x, tip.x, 0.6),
+        y: lerp(wrist.y, tip.y, 0.6),
+        z: palmZ + 1.6 * half,
+      }
+      put(`thumb_01_${side}`, `hand_${side}`, base)
+      put(`thumb_02_${side}`, `thumb_01_${side}`, along(base, end, 0.4))
+      put(`thumb_03_${side}`, `thumb_02_${side}`, along(base, end, 0.7))
+      put(`thumb_04_leaf_${side}`, `thumb_03_${side}`, end)
+    }
+
+    // The leg: the hip above the knee at pelvis height (a little in, as
+    // legs splay), the ankle under the knee, the toes forward of it.
+    const knee2 = markers[`knee${S}`]
+    const hipX = lerp(knee2.x, cx, 0.1)
+    const hipY = pelvisY - 0.04 * torso
+    const hip = { x: hipX, y: hipY, z: torsoDepth(hipX, hipY, pelvis.z) }
+    put(`thigh_${side}`, 'pelvis', hip)
+    const knee = put(`calf_${side}`, `thigh_${side}`, at(knee2, hip.z))
+    const ankleY = floor + 0.28 * (knee2.y - floor)
+    const ankle = put(`foot_${side}`, `calf_${side}`, at({ x: knee2.x, y: ankleY }, knee.z))
+    // The foot reaches forward: the front of the mesh near the ground.
+    const soleY = floor + 0.15 * (ankleY - floor)
+    const sole = mesh.spans(knee2.x, soleY)[0]
+    const toeZ = sole != null ? sole.front : ankle.z + 0.5 * (ankleY - floor)
+    const ballY = floor + 0.3 * (ankleY - floor)
+    put(`ball_${side}`, `foot_${side}`, {
+      x: knee2.x,
+      y: ballY,
+      z: lerp(ankle.z, toeZ, 0.65),
+    })
+    put(`ball_leaf_${side}`, `ball_${side}`, { x: knee2.x, y: ballY, z: toeZ })
+  }
+
+  return {
+    joints,
+    at: (name) => byName.get(name)?.position,
+  }
+}
+
+/**
+ * The fitted skeleton as `retarget` reads it: T-pose rest, identity local
+ * rotations, each position its offset from its parent.
+ */
+export function fittedRestBones(rig: FittedRig): RestBone[] {
+  return rig.joints.map((j) => {
+    const p = j.parent != null ? rig.at(j.parent) : undefined
+    return {
+      name: j.name,
+      parent: j.parent,
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+      position: p != null ? minus(j.position, p) : j.position,
+      end: j.end,
+    }
+  })
+}
