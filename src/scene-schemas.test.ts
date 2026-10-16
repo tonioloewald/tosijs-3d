@@ -54,6 +54,7 @@ const SOURCES: Array<[keyof typeof sceneSchemas, string, string]> = [
   ['decorator', './b3d-decorator', 'B3dDecorator'],
   ['trail', './b3d-trail', 'B3dTrail'],
   ['sound', './b3d-sound', 'B3dSound'],
+  ['planet', './b3d-planet', 'B3dPlanet'],
   ['b3d', './tosi-b3d', 'B3d'],
 ]
 
@@ -155,6 +156,7 @@ describe('the shape a generated panel relies on', () => {
       'sound.attachTo',
       // up to three colours, comma separated (like starfieldTilt's three numbers)
       'moon.bandColors',
+      'planet.bandColors',
     ])
     for (const [key, make] of Object.entries(sceneSchemas)) {
       for (const [k, spec] of Object.entries<any>((make() as any).properties)) {

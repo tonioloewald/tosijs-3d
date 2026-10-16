@@ -293,7 +293,8 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
 | `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
-| `worldU` / `worldV` | `0` / `0.25` | Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
+| `lat` / `lon` | `-45` / `0` | Where this ground is on its planet: the latitude and longitude of the terrain's origin, degrees. On a cylinder or torus, the same position in the noise's domain |
+| `worldU` / `worldV` | `0` / `0.25` | The same place as fractions of a turn (JS properties over `lon`/`lat`: `worldU = lon / 360`, `worldV = (lat + 90) / 180`). ⚠️ `worldV = 0` (`lat = -90`) puts a cylinder world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
 | `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
 | `originResetThreshold` | `500` | Distance before origin rebase |
 | `maxTravelDistance` | `5000` | Distance before firing recenter-needed event |
@@ -498,6 +499,16 @@ export class B3dTerrain extends B3dChild {
   }
 
   static initAttributes = {
+    /*
+    WHERE ON ITS PLANET THIS GROUND IS, in degrees: the latitude and longitude
+    of the terrain's origin (#103). On a sphere that is a place on the globe
+    (`latLonAt`, `groundAt` and `planetSurface()` agree with it). On a
+    cylinder or torus it is the same position in the noise's domain, read
+    through `worldU`/`worldV`. -45 is the old default `worldV` of 0.25: a
+    quarter turn from both of the cylinder's mirror planes.
+    */
+    lat: (MIRROR_SAFE_V * 180 - 90) as number,
+    lon: 0,
     // Procedural biome shader (TERRAIN-SHADER-DESIGN.md) — flat-colour chart
     // classification on the terrain material; tune live via `.biomePlugin`.
     biome: 'off' as 'on' | 'off',
@@ -896,9 +907,28 @@ export class B3dTerrain extends B3dChild {
    *
    * Default is 0.25 — a quarter turn away from both mirror planes (v = 0 and
    * v = 0.5), which is the furthest you can get from either.
+   *
+   * STORED AS `lat` / `lon` (#103). These were plain properties, so markup and
+   * a schema-driven editor could not set them, and a person thinks of a place
+   * as a latitude and longitude, not fractions of a turn. They are views onto
+   * those two attributes now: `worldV = (lat + 90) / 180` and
+   * `worldU = lon / 360` (see sphere-map's mirror note for why +90). The
+   * defaults are the same place as before: lat -45, lon 0.
    */
-  worldU = 0
-  worldV = MIRROR_SAFE_V
+  get worldU(): number {
+    const u = (this as any).lon / 360
+    return u - Math.floor(u)
+  }
+  set worldU(u: number) {
+    const w = u - Math.floor(u)
+    ;(this as any).lon = w > 0.5 ? w * 360 - 360 : w * 360
+  }
+  get worldV(): number {
+    return ((this as any).lat + 90) / 180
+  }
+  set worldV(v: number) {
+    ;(this as any).lat = v * 180 - 90
+  }
 
   // Accumulated render-space offset from origin resets
   private originOffsetX = 0
@@ -2018,6 +2048,8 @@ export class B3dTerrain extends B3dChild {
     return [
       a.seed,
       a.surfaceType,
+      a.lat,
+      a.lon,
       a.radius,
       a.majorRadius,
       a.minorRadius,

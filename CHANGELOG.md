@@ -10,6 +10,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`planetSchema()`** (`sceneSchemas.planet`): `<tosi-b3d-planet>` described like the other scene primitives, with sections (World, Surface, Sea, Air, Clouds, Craters, Rings, Gas giant, Maps), `heightMap`/`colorMap` marked as fetched, and the `world`/`gas` lists taken from the preset tables so they cannot drift. **`x-preset-written`** names the attributes a `world` preset writes into the planet. A consumer that applies schema defaults on bind should show them but not write them back over the preset (#103, ensemble).
+- **`lat` / `lon` on `<tosi-b3d-terrain>`**: where this ground is on its planet, the latitude and longitude of the terrain's origin in degrees, so "this ground is at 12° N, 40° E" is one attribute pair, in markup and in `terrainSchema()`. `worldU`/`worldV` are now JS properties over them (`worldU = lon / 360`, `worldV = (lat + 90) / 180`). Before, they were plain properties that markup could not set and that needed a `regenerate()`. Changing `lat`/`lon` (or either view of them) rebuilds the ground. The defaults (-45, 0) are the old 0.25 / 0, so nothing moves (#103).
 - **`seamBlend` / `seamWeight`** (`sphere-map`): make a layer laid out in flat metres periodic round a world, mixed with its copy one circumference away near the far meridian and untouched elsewhere.
 
 ### Fixed
