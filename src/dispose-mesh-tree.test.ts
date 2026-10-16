@@ -321,3 +321,35 @@ describe('destroyableAt — resolving a hit by ANCESTRY', () => {
     b.dispose()
   })
 })
+
+describe('a library keeps its materials (#102)', () => {
+  test('the last instance going does not take the model colour with it', () => {
+    // A library: its source mesh and material are moved into an
+    // AssetContainer, so neither is in scene.meshes / scene.materials.
+    const own = new BABYLON.Scene(new BABYLON.NullEngine())
+    const source = BABYLON.MeshBuilder.CreateBox('kit', { size: 1 }, own)
+    const mat = new BABYLON.StandardMaterial('kit-mat', own)
+    source.material = mat
+    const container = new BABYLON.AssetContainer(own)
+    container.moveAllFromScene()
+    expect(own.materials.includes(mat)).toBe(false)
+    let disposed = 0
+    const dispose = mat.dispose.bind(mat)
+    mat.dispose = (...a: any[]) => {
+      disposed++
+      return (dispose as any)(...a)
+    }
+
+    // Place one, remove it: the only instance in the scene goes.
+    const first = source.clone('placed-1', null)!
+    expect(first.material).toBe(mat)
+    U.disposeMeshTree(first)
+
+    // The material lives on, so the next instance gets it.
+    expect(disposed).toBe(0)
+    expect(container.materials.includes(mat)).toBe(true)
+    const second = source.clone('placed-2', null)!
+    expect(second.material).toBe(mat)
+    own.dispose()
+  })
+})
