@@ -42,8 +42,8 @@ const scene = b3d(
   {
     // Bloom for the stones' emissive; the impact markers pick it up too.
     glowLayerIntensity: 0.6,
+    panelTitle: 'hail',
     scenePanel: () => [
-      label3d({ text: 'hail' }),
       slider3d({ label: 'stones', value: hail.rate, min: 1, max: 30, step: 1 }),
     ],
     sceneCreated(el, BABYLON) {

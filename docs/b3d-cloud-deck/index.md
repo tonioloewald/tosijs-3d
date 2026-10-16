@@ -64,8 +64,8 @@ preview.append(
           cam.target.y = sky.eye.valueOf() - cam.radius * Math.cos(cam.beta)
         })
       },
+      panelTitle: 'Weather',
       scenePanel: () => [
-        label3d({ text: 'Weather' }),
         slider3d({ label: 'coverage', value: sky.coverage, min: 0, max: 2, step: 0.02 }),
         slider3d({ label: 'cirrus', value: sky.cirrus, min: -1, max: 1, step: 0.05 }),
         slider3d({ label: 'altitude', value: sky.altitude, min: 20, max: 600, step: 10 }),

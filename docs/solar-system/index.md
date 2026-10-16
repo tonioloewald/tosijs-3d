@@ -58,8 +58,8 @@ preview.append(
     {
       clearColor: '#000000',
       scenePanelOpen: true,
+      panelTitle: 'Solar System',
       scenePanel: () => [
-        label3d({ text: 'Solar System' }),
         select3d({ label: 'look at', value: sol.focus, options: names }),
         toggle3d({ label: 'real maps (Earth, Moon, Mars)', value: sol.maps }),
         toggle3d({ label: 'orbit', value: sol.animate }),

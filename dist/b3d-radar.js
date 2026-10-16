@@ -48,8 +48,8 @@ const readout = div({ style: 'font:12px ui-monospace,monospace; padding:6px; whi
 const scene = b3d(
   {
     glowLayerIntensity: 0.6,
+    panelTitle: 'radar',
     scenePanel: () => [
-      label3d({ text: 'radar' }),
       slider3d({ label: 'sweep °/s', value: rad.sweep, min: 0, max: 90, step: 5 }),
       slider3d({ label: 'range', value: rad.range, min: 15, max: 90, step: 5 }),
     ],

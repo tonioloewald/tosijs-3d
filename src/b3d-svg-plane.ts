@@ -1050,7 +1050,8 @@ export class B3dSvgPlane extends AbstractMesh {
       const uvs = onPlane && pick ? pick.getTextureCoordinates() : null
       // A press on this plane is not a press on the background (the settings
       // panel closes on one of those, and its popups are planes like this).
-      if (kind === 'down' && uvs) claimPointer(pointerInfo.event as unknown as Event)
+      if (kind === 'down' && uvs)
+        claimPointer(pointerInfo.event as unknown as Event)
 
       // Coordinate-based path (a panel3d exposes `handlePointer`): map the pick's
       // UV to the SVG's viewBox coords and let the panel hit-test/capture itself.

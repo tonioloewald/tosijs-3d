@@ -359,7 +359,8 @@ or implement your own shape-specific point-in-polygon tests.
 | `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
 | `doubleSided` | `'on'` | Render both faces |
 | `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below |
-| `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius` |
+| `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through |
+| `layer` | `'world'` | `'ui'` / `'modal'`: drawn over the whole world in a layer of its own and picked first (`modal` over `ui`). A popup takes its opener's layer |
 | `xrFrame` | `''` | In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked |
 
 ## Opaque panels
@@ -398,6 +399,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 */
 /*{ "parent": "ui-in-scene", "order": 20 }*/
 import * as BABYLON from '@babylonjs/core';
+import { claimPointer, panelLayerScene } from './frame-panel.js';
 import { AbstractMesh, isOff, markUiMesh, collidable, sceneDelta, } from './b3d-utils.js';
 import { gazeOffAxisDeg, gazeStep, newGazeState, bestCandidate, placementDistance, facingYawDeg, easeTo, } from './dialog-placement.js';
 import { roundedRectGeometry } from './rounded-rect.js';
@@ -448,6 +450,13 @@ export class B3dSvgPlane extends AbstractMesh {
          */
         xrFrame: '',
         pointerEvents: 'on',
+        /**
+         * Which layer it is drawn and picked in: `'world'` (default), or `'ui'` /
+         * `'modal'`, over the world and given the pointer first (see frame-panel's
+         * `layer`). A popup takes its opener's layer, so a popup from a ui panel is
+         * ui too and can hang from it. Set at build time.
+         */
+        layer: 'world',
         doubleSided: 'on',
         /**
          * Corner radius in world units. `0` = a plain rectangle.
@@ -463,6 +472,10 @@ export class B3dSvgPlane extends AbstractMesh {
          * Whether the SVG's alpha drives the mesh's opacity. `'on'` (default,
          * unchanged) is what a panel with rounded corners drawn IN the SVG needs.
          * `'off'` makes the panel opaque — use it with `cornerRadius`.
+         * `'depth'` blends AND writes depth: pixels with (almost) no alpha are
+         * discarded, the rest blend and land in the z-buffer, so near-coplanar
+         * panels are ordered by depth rather than re-sorted by distance, and a
+         * translucent theme still shows through. What popups use.
          */
         transparent: 'on',
     };
@@ -723,9 +736,14 @@ export class B3dSvgPlane extends AbstractMesh {
             name += '_noshadow';
         return name;
     }
-    sceneReady(owner, scene) {
-        super.sceneReady(owner, scene);
+    /** The scene it draws in: the owner's, or a panel layer over it. */
+    _drawScene = null;
+    sceneReady(owner, mainScene) {
+        super.sceneReady(owner, mainScene);
         const attrs = this;
+        const layered = attrs.layer === 'ui' || attrs.layer === 'modal';
+        const scene = layered ? panelLayerScene(mainScene, attrs.layer) : mainScene;
+        this._drawScene = scene;
         if (attrs.cornerRadius > 0) {
             // Rounded corners as GEOMETRY. Same frame and UV mapping as CreatePlane,
             // so this is a drop-in swap — the texture lands identically.
@@ -794,7 +812,8 @@ export class B3dSvgPlane extends AbstractMesh {
         `stackLift`, but with a moving front edge. Do that before a second
         camera-relative panel can be open at once. Filed in TODO.
         */
-        if (attrs.cameraRelative) {
+        // (A layered plane is never buried, so it needs no pulling forward.)
+        if (attrs.cameraRelative && !layered) {
             if (attrs.placement === 'world')
                 this._installWorldDialog(scene);
             else
@@ -806,11 +825,25 @@ export class B3dSvgPlane extends AbstractMesh {
             url: attrs.url || undefined,
             element: this.svgElement || undefined,
             updateInterval: attrs.updateInterval,
+            // No dark fringe where its rounded corners meet transparency.
+            premultiplied: !!this.svgElement && !attrs.url,
         });
         const mat = new BABYLON.StandardMaterial('svg-plane-mat', scene);
         mat.backFaceCulling = isOff(attrs.doubleSided);
         this._material = mat;
         this._applyChannel(mat, attrs.materialChannel, isOff(attrs.transparent));
+        // The texture is premultiplied: SRC + DST(1 - a), not ALPHA_PREMULTIPLIED
+        // (its shader would multiply by alpha a second time).
+        if (this.svgElement && !attrs.url)
+            mat.alphaMode = BABYLON.Constants.ALPHA_SRC_DSTONEMINUSSRCALPHA;
+        if (attrs.transparent === 'depth') {
+            // Corners are cut by the alpha test (no depth there), the body blends
+            // and writes depth. One material, so cost is a discard per pixel.
+            mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHATESTANDBLEND;
+            mat.alphaCutOff = 0.02;
+            mat.forceDepthWrite = true;
+            mat.useAlphaFromDiffuseTexture = false;
+        }
         this.mesh.material = mat;
         if (attrs.cameraRelative && scene.activeCamera) {
             this.mesh.parent = scene.activeCamera;
@@ -818,7 +851,9 @@ export class B3dSvgPlane extends AbstractMesh {
         if (!isOff(attrs.pointerEvents) && this.svgElement) {
             this._attachPointerObserver(scene);
         }
-        owner.register({ meshes: [this.mesh] });
+        // Shadows, reflections and the like are the world's; a layer is over it.
+        if (!layered)
+            owner.register({ meshes: [this.mesh] });
     }
     sceneDispose() {
         this._offOrigin?.();
@@ -832,9 +867,11 @@ export class B3dSvgPlane extends AbstractMesh {
             this._depthObs = null;
         }
         if (this._pointerObserver && this.owner) {
-            this.owner.scene.onPointerObservable.remove(this._pointerObserver);
+            ;
+            (this._drawScene ?? this.owner.scene).onPointerObservable.remove(this._pointerObserver);
             this._pointerObserver = null;
         }
+        this._drawScene = null;
         this._svgTexture?.dispose();
         this._svgTexture = null;
         this._material?.dispose();
@@ -931,6 +968,10 @@ export class B3dSvgPlane extends AbstractMesh {
             const pick = pointerInfo.pickInfo;
             const onPlane = !!pick?.hit && pick.pickedMesh === this.mesh;
             const uvs = onPlane && pick ? pick.getTextureCoordinates() : null;
+            // A press on this plane is not a press on the background (the settings
+            // panel closes on one of those, and its popups are planes like this).
+            if (kind === 'down' && uvs)
+                claimPointer(pointerInfo.event);
             // Coordinate-based path (a panel3d exposes `handlePointer`): map the pick's
             // UV to the SVG's viewBox coords and let the panel hit-test/capture itself.
             // This is fed by mouse/touch AND XR controllers via the scene observable,

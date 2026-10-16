@@ -109,6 +109,7 @@ export declare class B3d extends Component {
     static initAttributes: {
         glowLayerIntensity: number;
         clearColor: string;
+        flatUi: "scene" | "dom";
         frameRate: number;
         minElevation: number;
         maxElevation: number;
@@ -118,6 +119,7 @@ export declare class B3d extends Component {
         xrGrid: "on" | "off" | "auto";
         xrReticle: "on" | "off";
         scenePanelOpen: boolean;
+        panelTitle: string;
         /** How collapsible sections present: 'fold' (headers you open and close)
          * or 'tabs' (file tabs, one section at a time). */
         panelSections: "fold" | "tabs";
@@ -319,9 +321,22 @@ export declare class B3d extends Component {
             position: string;
             top: string;
             right: string;
+            left: string;
             zIndex: string;
             display: string;
+            alignItems: string;
             gap: string;
+        };
+        ':host .scene-panel-title': {
+            flex: string;
+            textAlign: string;
+            minWidth: string;
+            overflow: string;
+            textOverflow: string;
+            whiteSpace: string;
+            color: string;
+            fontWeight: string;
+            fontSize: string;
         };
         ':host .scene-panel-btn': {
             width: string;
@@ -369,6 +384,7 @@ export declare class B3d extends Component {
     private _projectedAo?;
     private _ssaoCamObs?;
     xrHelper?: BABYLON.WebXRDefaultExperience;
+    private _unpickLayers;
     xrActive: boolean;
     /** True from ENTERING_XR to the end of EXITING_XR: wider than `xrActive`. */
     private _xrPresenting;
@@ -413,6 +429,7 @@ export declare class B3d extends Component {
     xrGrid: 'on' | 'off' | 'auto';
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
+    panelTitle: string;
     panelSections: 'fold' | 'tabs';
     /**
      * The on-screen "glass" gamepad. Absent/`false` = none; `true` or an empty
@@ -434,7 +451,8 @@ export declare class B3d extends Component {
     reseatFreeze: 'on' | 'off';
     enterXrOnResume: 'on' | 'off';
     private _paused;
-    private _pausePanel;
+    private _pauseModal;
+    private _modals;
     private _pauseWatch;
     private _cameraWasAttached;
     private _flatOrbitState;
@@ -519,6 +537,29 @@ export declare class B3d extends Component {
      * reasons, so the pause panel and a death panel do not undo each other. */
     _suppressGamepad(reason: string, on: boolean): void;
     private _showPausePanel;
+    /** The pause where the scene's modal is not available: the DOM flat
+     * (`flat-ui="dom"`), else a plane in the world. Returns its dispose. */
+    private _pauseOwn;
+    /**
+     * Show `svg` (a `fitPanel`, `height` its viewBox height) as the scene's
+     * MODAL: over the world and over the ui layer, drawn and picked first.
+     * Flat it is centred on the screen and square to it; in a headset it hangs
+     * in front of you at a comfortable distance, a little below eye level, and
+     * follows your body round. Where the scene has no modal to give
+     * (`flat-ui="dom"` on a monitor, a custom `setupXr` with no frames) it calls
+     * `fallback`, the caller's own presentation, which returns its dispose; and
+     * again whenever entering or leaving a headset leaves no modal to give.
+     * Returns its close, or `null` if there was neither.
+     *
+     * The pause and a death's respawn panel both come through here, so they are
+     * one thing in one place. One that is open when you enter or leave a
+     * headset moves across with you.
+     */
+    showModal(svg: SVGSVGElement, height: number, fallback?: () => (() => void) | null): (() => void) | null;
+    /** Put each open modal in the presentation now running (flat or headset). */
+    private _representModals;
+    /** One modal, in the presentation now running; returns its dispose. */
+    private _presentModal;
     private _hidePausePanel;
     /**
      * Watch the things that should pause a scene without being asked.
@@ -715,6 +756,28 @@ export declare class B3d extends Component {
     private _flatCheckIn;
     private _flatHandWarned;
     private _flatPoseObs;
+    private _sceneBar;
+    private _sceneBarButtons;
+    private _sceneBarVersion;
+    private _systemSpecs;
+    private _systemCards;
+    private _systemButtonOf;
+    /** One HTML button per system panel, mirrored by both system bars. */
+    private _systemButtons;
+    private _sysPanel;
+    /** The headset's settings panel closer, while a session has one. */
+    private _closeXrSettings;
+    private _toggleSystemPanel;
+    private _openSystemPanel;
+    /** Where each system panel was dragged to, flat. */
+    private _systemSpots;
+    /** …and in a headset. */
+    private _systemXrSpots;
+    /** `flat-ui="dom"`; anything but 'scene' or 'dom' warns once and is 'scene'. */
+    private _flatDom;
+    private _flatUiWarned;
+    private _closeSystemPanel;
+    private _sceneToolbarSpec;
     private _disposeFlatPanels;
     private _updateFlatPanels;
     private _update;
@@ -1073,6 +1136,9 @@ export declare class B3d extends Component {
     private _makePanel;
     private _setupNameplates;
     private _scanNameplates;
+    private _fullscreenWired;
+    private _setupFullscreen;
+    private _fullscreenOff;
     private _setupScenePanel;
     /**
      * Open the flat scene panel: a header row of small round buttons pinned
@@ -1082,6 +1148,12 @@ export declare class B3d extends Component {
      * spent a whole row of a small panel on things you press once. They are the
      * same items either way (`_barItems`); only the flat LAYOUT changed.
      */
+    private _flatScenePanel;
+    private _flatPanelSpot;
+    private _scenePanelOpen;
+    private _disposeFlatScenePanel;
+    private _syncGamepadCover;
+    private _openFlatScenePanel;
     private _openScenePanel;
     private _panelHeightKey;
     private _panelResizeTimer;
@@ -1092,6 +1164,9 @@ export declare class B3d extends Component {
      * or XR availability / session state) so an already-open panel updates. */
     refreshScenePanel(): void;
     private _setupGamepad;
+    private _xrToolbar;
+    /** The VR toolbar's SVG while a session has one (for tests and tools). */
+    private _xrBarSvg;
     private _attachXrPanel;
     disconnectedCallback(): void;
     private _teardownTimer;

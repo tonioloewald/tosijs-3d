@@ -2577,7 +2577,7 @@
       {
         "name": "preset",
         "default": "''",
-        "description": "A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields; or `system-bar`, a button on the system bar that opens it under the bar"
+        "description": "A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields. `system-bar` puts it on the system bar, which an `icon` with no preset already does"
       },
       {
         "name": "azimuth",
@@ -2627,7 +2627,12 @@
       {
         "name": "icon",
         "default": "''",
-        "description": "Its button on the scene's VR toolbar (an `svgIcons` name, e.g. `backpack`, `book`, `loadout`), which brings it front and centre. Blank: one its title implies (an inventory, a journal, a loadout), else no button"
+        "description": "Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption"
+      },
+      {
+        "name": "chrome",
+        "default": "''",
+        "description": "On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own"
       },
       {
         "name": "url",
@@ -4142,7 +4147,9 @@
         "description": "Map 3D pick hits → SVG pointer events"
       },
       {
-        "name": "layer"
+        "name": "layer",
+        "default": "'world'",
+        "description": "`'ui'` / `'modal'`: drawn over the whole world in a layer of its own and picked first (`modal` over `ui`). A popup takes its opener's layer"
       },
       {
         "name": "doubleSided",
@@ -5460,10 +5467,14 @@
         "description": "Glow effect intensity (0 = off)"
       },
       {
-        "name": "clearColor"
+        "name": "clearColor",
+        "default": "''",
+        "description": "The colour behind everything (`'#000'` for space); empty keeps Babylon's default"
       },
       {
-        "name": "flatUi"
+        "name": "flatUi",
+        "default": "'scene'",
+        "description": "Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: the HTML corner buttons, settings panel and pause, as before 0.10.7 (and where `::part(...)` styling of them shows). Any other value warns once and means `'scene'`"
       },
       {
         "name": "frameRate",

@@ -32,13 +32,90 @@ import { SvgTexture } from './svg-texture.js';
 import { markUiMesh } from './b3d-utils.js';
 import { gazeReveal } from './xr-frames.js';
 import { faceViewer } from './dialog-placement.js';
+import { panelRim } from './panel-rim.js';
+import { orbitFromAim } from './panel-orbit.js';
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const DEG = Math.PI / 180;
+const layers = new WeakMap();
+/**
+ * The scene a `ui` or `modal` panel lives in: a utility layer over `scene`,
+ * drawn after it with its own depth and given the pointer first (a press that
+ * hits it never reaches the world). Made in pairs, ui before modal, because a
+ * newer layer is drawn later and asked first: so modal is over ui.
+ */
+export function panelLayerScene(scene, layer) {
+    let pair = layers.get(scene);
+    if (pair == null) {
+        const make = () => {
+            const u = new BABYLON.UtilityLayerRenderer(scene, true);
+            // Moves and releases reach it as well as presses (a drag that leaves
+            // the panel must still end on it).
+            u.onlyCheckPointerDownEvents = true;
+            u.utilityLayerScene.autoClearDepthAndStencil = true;
+            return u;
+        };
+        pair = { ui: make(), modal: make() };
+        layers.set(scene, pair);
+        layerOfScene.set(pair.ui.utilityLayerScene, 'ui');
+        layerOfScene.set(pair.modal.utilityLayerScene, 'modal');
+        scene.onDisposeObservable.addOnce(() => {
+            pair.ui.dispose();
+            pair.modal.dispose();
+            layers.delete(scene);
+        });
+    }
+    return pair[layer].utilityLayerScene;
+}
+const layerOfScene = new WeakMap();
+const claimed = new WeakSet();
+/**
+ * Did a panel in the scene take this pointer event? For DOM listeners that
+ * act on presses "on the background" (closing an overlay): a press on a
+ * frame panel is not one. (`defaultPrevented` cannot say: Babylon cancels
+ * every press on its canvas.)
+ */
+export function pointerClaimedByPanel(e) {
+    return claimed.has(e);
+}
+/** Mark a pointer event as taken by a panel in the scene (any in-scene UI
+ * that is pressed, not only frame panels: a popup is a `b3dSvgPlane`). */
+export function claimPointer(e) {
+    if (e != null)
+        claimed.add(e);
+}
+/** Which layer a mesh is in: a popup takes its opener's. */
+export function panelLayerOf(mesh) {
+    return (mesh && layerOfScene.get(mesh.getScene())) || 'world';
+}
+/**
+ * What a ray hits in the panel LAYERS of `scene`, top first (modal, then ui),
+ * or null: for an XR controller ray, which Babylon picks against the world
+ * and its own default layer only. Never makes a layer that does not exist.
+ */
+export function pickPanelLayers(scene, ray) {
+    const pair = layers.get(scene);
+    if (pair == null)
+        return null;
+    for (const name of ['modal', 'ui']) {
+        const ls = pair[name].utilityLayerScene;
+        const pick = ls.pickWithRay(ray, (m) => m.isPickable && m.isEnabled() && m.visibility > 0.5);
+        if (pick?.hit)
+            return pick;
+    }
+    return null;
+}
 // Angular presets measured from the mean-eye point, all at the same comfortable
 // distance (≈ the overhead menu's). Placed in the RIG frame so they're stable
 // regardless of standing/sitting and don't chase the live head pose.
 const PANEL_DISTANCE = 1.4;
 const PRESETS = {
+    // Not a rig spot: a `<tosi-b3d>` puts a system-bar panel under its system
+    // bar. This is only where one lands if mounted as a pin by something else.
+    'system-bar': {
+        azimuthDeg: 0,
+        elevationDeg: 40,
+        distance: PANEL_DISTANCE,
+    },
     // Quick access: 45° down (faces up at you — the opposite tilt of the overhead).
     waist: {
         azimuthDeg: 0,
@@ -91,14 +168,16 @@ export function placeholderPanelSvg(title, w = 320, h = 200) {
     svg.setAttribute('width', String(w));
     svg.setAttribute('height', String(h));
     const rect = document.createElementNS(NS, 'rect');
-    rect.setAttribute('x', '4');
-    rect.setAttribute('y', '4');
-    rect.setAttribute('width', String(w - 8));
-    rect.setAttribute('height', String(h - 8));
+    rect.setAttribute('x', '0');
+    rect.setAttribute('y', '0');
+    rect.setAttribute('width', String(w));
+    rect.setAttribute('height', String(h));
     rect.setAttribute('rx', '18');
     rect.setAttribute('fill', 'rgba(18,22,31,0.82)');
-    // No border — thin strokes alias badly at distance in the headset.
     svg.appendChild(rect);
+    // The outline every panel wears. (It once had no border because a thin
+    // stroke aliased at a distance; the shared rim is drawn heavier for that.)
+    svg.appendChild(panelRim(w, h, 18));
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', String(w / 2));
     text.setAttribute('y', String(h / 2));
@@ -173,6 +252,8 @@ export function excludeFromGlow(scene, mesh) {
 export function presentationSpec(spec, flat) {
     if (flat)
         return spec.flatAnchor != null ? { ...spec, anchor: spec.flatAnchor } : spec;
+    // Layers apply in a headset too: B3d puts its controller rays' picks in
+    // layer order (pickLayersFirst in tosi-b3d).
     return spec.screenAnchor != null ? { ...spec, screenAnchor: undefined } : spec;
 }
 /**
@@ -218,6 +299,36 @@ export function attachFramePanel(scene, cam, frame, spec) {
     // aircraft's impact sweep crashed on it. See markUiMesh.
     markUiMesh(plane);
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
+    /*
+    A LAYERED PANEL (ui, modal) is drawn in a utility layer's scene, which cannot
+    hold a child of this scene's frame nodes. So `plane` stays here, invisible,
+    riding its frame and doing every bit of placement as before, and `shown`,
+    in the layer, takes its world pose each frame (`sync`).
+    */
+    const layer = spec.layer ?? 'world';
+    const drawScene = layer === 'world' ? scene : panelLayerScene(scene, layer);
+    const shown = layer === 'world'
+        ? plane
+        : BABYLON.MeshBuilder.CreatePlane('frame-panel', {
+            width,
+            height: width * aspect,
+            sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+        }, drawScene);
+    if (shown !== plane) {
+        plane.isVisible = false;
+        plane.isPickable = false;
+        shown.rotationQuaternion = new BABYLON.Quaternion();
+        markUiMesh(shown);
+    }
+    const sync = () => {
+        if (shown === plane)
+            return;
+        plane.computeWorldMatrix(true);
+        plane
+            .getWorldMatrix()
+            .decompose(shown.scaling, shown.rotationQuaternion, shown.position);
+        shown.visibility = plane.visibility;
+    };
     // Orient to face the focus point (your head), tilted to its height. The
     // panel doesn't rotate after this — the frame carries it (until focus moves
     // it, which places it again).
@@ -265,6 +376,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
             return { position: [0, 0, d * pushed], flatOn: true };
         return pushed === 1 ? focusAnchor : { ...focusAnchor, distance: d * pushed };
     };
+    // The focused scale, fitted once (see below); cleared on every focus change.
+    let fitted = null;
     const fit = () => {
         if (!el || !baseVb)
             return;
@@ -274,8 +387,18 @@ export function attachFramePanel(scene, cam, frame, spec) {
         let k = focused ? focusScale * pushed : screenK;
         // Focused, it fits the view (90% of it at its distance) rather than being
         // cropped by it: a monitor sees far less than a headset.
+        /*
+        ONCE PER FOCUS (and per content size), not per frame. The fit reads
+        where the panel sits in the camera's view, and a head is never still:
+        refitted every frame, a focused panel in a headset swelled and shrank
+        with every small head movement. Tonio: "jiggling in scale in vr".
+        */
         const c = (scene.activeCamera ?? cam);
-        if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
+        const fitKey = `${sx}|${sy}|${pushed}`;
+        if (focused && fitted != null && fitted.key === fitKey) {
+            k = fitted.k;
+        }
+        else if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
             /*
             Room either side of its centre, less how far off-centre it sits, IN THE
             CAMERA'S VIEW. It used the panel's position in its frame, which is level
@@ -292,6 +415,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
             const w = width * sx;
             const h = width * aspect * sy;
             k = Math.min(k, tall / h, wide / w);
+            fitted = { key: fitKey, k };
         }
         plane.scaling.x = k * sx;
         plane.scaling.y = k * sy;
@@ -303,6 +427,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
     `face` one (local +x right, +y up, +z ahead), so a pixel is a fixed offset.
     */
     let screenK = 1;
+    // Where it last went on screen, in CSS pixels, for a drag to start from.
+    let lastBox = null;
     const placeScreen = () => {
         const sa = spec.screenAnchor;
         const c = (scene.activeCamera ?? cam);
@@ -345,6 +471,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
             },
         ], { width: W, height: H });
         const b = boxes[0];
+        lastBox = { x: b.x, y: b.y, w: b.width, h: b.height, W, H };
         placeAt({
             position: [
                 (b.x + b.width / 2 - W / 2) * perPx,
@@ -356,28 +483,35 @@ export function attachFramePanel(scene, cam, frame, spec) {
     };
     const onFocus = (e) => {
         focused = !!e.detail?.focus;
+        fitted = null;
         placeAt(focused ? focusPlace() : anchor);
         fit();
     };
-    el?.addEventListener('panelfocus', onFocus);
+    // A panel the scene places itself (a system-bar panel, under its bar)
+    // does not fly front and centre when its content asks to.
+    const focusable = spec.focusable !== false;
+    if (focusable)
+        el?.addEventListener('panelfocus', onFocus);
     // Content already focused before this panel existed (a session change
     // rebuilt it): start where it is. Without this the dock stayed open on a
     // small, unfocused panel, and its tap-to-open did nothing (it was open).
-    if (el?.getAttribute('data-focus') === 'true')
+    if (focusable && el?.getAttribute('data-focus') === 'true')
         onFocus(new CustomEvent('panelfocus', { detail: { focus: true } }));
     const tex = el
         ? new SvgTexture({
-            scene,
+            scene: drawScene,
             element: el,
             resolution: spec.resolution ?? 384,
             updateInterval: 400,
+            // No dark fringe at its rounded corners (see SvgTexture).
+            premultiplied: spec.blend !== 'add',
         })
         : new SvgTexture({
-            scene,
+            scene: drawScene,
             url: spec.url,
             resolution: spec.resolution ?? 384,
         });
-    const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene);
+    const mat = new BABYLON.StandardMaterial('frame-panel-mat', drawScene);
     mat.backFaceCulling = false;
     mat.emissiveTexture = tex.texture;
     mat.opacityTexture = tex.texture;
@@ -389,7 +523,12 @@ export function attachFramePanel(scene, cam, frame, spec) {
         mat.alphaMode = BABYLON.Constants.ALPHA_ADD;
         mat.disableDepthWrite = true;
     }
-    plane.material = mat;
+    else if (el) {
+        // Premultiplied blending, SRC + DST(1 - a): not ALPHA_PREMULTIPLIED, whose
+        // shader multiplies by alpha again (the texture already has been).
+        mat.alphaMode = BABYLON.Constants.ALPHA_SRC_DSTONEMINUSSRCALPHA;
+    }
+    shown.material = mat;
     plane.visibility = alwaysOn ? 1 : 0;
     // ⚠️ THE GLOW LAYER DOES NOT RESPECT `mesh.visibility` — Babylon's effect-layer code never
     // reads it. And this material is PURE EMISSIVE (black diffuse, lighting off, emissive =
@@ -397,7 +536,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
     // by the glow pass, BEHIND visibility's back: the reveal computes perfectly and the plate
     // never goes away. It reads as a soft bloom on a monitor (easy to miss) and as a plainly
     // visible floating plaque in a headset. Exclude it — a UI plaque shouldn't bloom anyway.
-    excludeFromGlow(scene, plane);
+    excludeFromGlow(drawScene, shown);
     const head = new BABYLON.Vector3();
     const fwd = new BABYLON.Vector3();
     const toAnchor = new BABYLON.Vector3();
@@ -439,6 +578,28 @@ export function attachFramePanel(scene, cam, frame, spec) {
     */
     const target = el;
     /*
+    DRAGGED BY ITS TITLE BAR, on screen. A screen-anchored panel whose SVG
+    says where its grip is (`gripHit`, from `panel3d({ grip })`) moves with the
+    pointer, in pixels, and stays on screen. It writes `left`/`top` into the
+    spec's own `screenAnchor`, so a host that hands the same object to the
+    next build keeps the spot across a rebuild.
+    */
+    let screenDrag = null;
+    const dragScreen = (e) => {
+        const sa = spec.screenAnchor;
+        if (screenDrag == null || sa == null || lastBox == null || e == null)
+            return;
+        const { w, W, H } = lastBox;
+        // Keep the bar reachable: at least 48px of it on screen, top never above.
+        const left = screenDrag.x + (e.clientX - screenDrag.cx);
+        const top = screenDrag.y + (e.clientY - screenDrag.cy);
+        sa.left = Math.round(Math.max(48 - w, Math.min(W - 48, left)));
+        sa.top = Math.round(Math.max(0, Math.min(H - 32, top)));
+        sa.right = sa.bottom = undefined;
+        sa.anchorX = sa.anchorY = undefined;
+        sa.anchor = undefined;
+    };
+    /*
     A PRESS ON THE PANEL IS NOT A PRESS ON THE WORLD. Flat, the camera's own
     controls take the same pointer, so dragging a thing across a panel orbited
     the view behind it. Hold the camera's controls for the gesture and give
@@ -457,6 +618,48 @@ export function attachFramePanel(scene, cam, frame, spec) {
             return;
         held.attachControl(scene.getEngine().getRenderingCanvas(), true);
         held = null;
+    };
+    /*
+    DRAGGED BY ITS TITLE BAR, in space (a headset, or any panel not pinned to
+    the screen): the panel slides over the sphere it sits on, to where the ray
+    points. A point along the ray at the sphere's radius, not the ray's
+    direction from your eyes, because the ray starts at your hand (the
+    settings panel's drag learnt this; `orbitFromAim`). Only for an anchor of
+    its own given by angles: a named preset is shared, and an explicit
+    `position` is the author's. It writes the anchor's angles, so a host that
+    hands the same anchor to the next open keeps the spot.
+    */
+    const aimable = spec.screenAnchor == null &&
+        typeof spec.anchor !== 'string' &&
+        anchor.position == null;
+    let aimDrag = false;
+    // Where the ray pointed when the bar was grabbed, against the anchor: the
+    // panel keeps that offset rather than jumping its centre onto the ray.
+    let grab = { az: 0, el: 0 };
+    const aimOf = (ray) => {
+        const inv = new BABYLON.Matrix();
+        frame.getWorldMatrix().invertToRef(inv);
+        const f = anchor.focus ?? DEFAULT_FOCUS;
+        const o = BABYLON.Vector3.TransformCoordinates(ray.origin, inv);
+        const d = BABYLON.Vector3.TransformNormal(ray.direction, inv);
+        return orbitFromAim({ x: o.x - f[0], y: o.y - f[1], z: o.z - f[2] }, { x: d.x, y: d.y, z: d.z }, {
+            azimuthDeg: anchor.azimuthDeg ?? 0,
+            elevationDeg: anchor.elevationDeg ?? 0,
+            radius: anchor.distance ?? 0.5,
+        });
+    };
+    const aimGrab = (ray) => {
+        const a = aimOf(ray);
+        grab = {
+            az: (anchor.azimuthDeg ?? 0) - a.azimuthDeg,
+            el: (anchor.elevationDeg ?? 0) - a.elevationDeg,
+        };
+    };
+    const aimAt = (ray) => {
+        const a = aimOf(ray);
+        anchor.azimuthDeg = a.azimuthDeg + grab.az;
+        anchor.elevationDeg = Math.max(-80, Math.min(80, a.elevationDeg + grab.el));
+        placeAt(anchor);
     };
     let pointerObs = null;
     if (target != null && typeof target.handlePointer === 'function' && el) {
@@ -478,7 +681,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
                 tex.render();
             });
         };
-        pointerObs = scene.onPointerObservable.add((info) => {
+        pointerObs = drawScene.onPointerObservable.add((info) => {
             const kind = info.type === POINTERDOWN
                 ? 'down'
                 : info.type === POINTERUP
@@ -489,19 +692,74 @@ export function attachFramePanel(scene, cam, frame, spec) {
             if (!kind)
                 return;
             const pick = info.pickInfo;
-            const onPlane = !!pick?.hit && pick.pickedMesh === plane && plane.visibility > 0.5;
+            const onPlane = !!pick?.hit && pick.pickedMesh === shown && plane.visibility > 0.5;
             const uv = onPlane && pick ? pick.getTextureCoordinates() : null;
             if (uv) {
                 const vb = el.viewBox.baseVal;
                 lastX = uv.x * (vb.width || 1);
                 lastY = (1 - uv.y) * (vb.height || 1);
             }
+            if (screenDrag != null) {
+                if (kind === 'move')
+                    dragScreen(info.event);
+                else if (kind === 'up') {
+                    screenDrag = null;
+                    releaseCamera();
+                }
+                return;
+            }
+            if (aimDrag) {
+                if (kind === 'move') {
+                    const ray = info.pickInfo?.ray;
+                    if (ray != null)
+                        aimAt(ray);
+                }
+                else if (kind === 'up') {
+                    aimDrag = false;
+                    releaseCamera();
+                }
+                return;
+            }
             if (kind === 'down') {
                 if (!uv)
                     return;
+                const ev = info.event;
+                if (spec.screenAnchor != null &&
+                    !focused &&
+                    lastBox != null &&
+                    ev != null &&
+                    target.gripHit?.(lastX, lastY)) {
+                    screenDrag = {
+                        cx: ev.clientX,
+                        cy: ev.clientY,
+                        x: lastBox.x,
+                        y: lastBox.y,
+                    };
+                    holdCamera();
+                    ev.preventDefault?.();
+                    claimPointer(ev);
+                    target.handlePointer('leave', 0, 0);
+                    return;
+                }
+                const pressRay = info.pickInfo?.ray;
+                if (aimable &&
+                    !focused &&
+                    pressRay != null &&
+                    target.gripHit?.(lastX, lastY)) {
+                    aimGrab(pressRay);
+                    aimDrag = true;
+                    holdCamera();
+                    info.event?.preventDefault?.();
+                    claimPointer(info.event);
+                    target.handlePointer('leave', 0, 0);
+                    return;
+                }
                 pressing = true;
                 holdCamera();
                 info.event?.preventDefault?.();
+                // …and say so: Babylon cancels every canvas press itself, so being
+                // cancelled cannot tell a panel's press from a press on the world.
+                claimPointer(info.event);
                 target.handlePointer('down', lastX, lastY);
                 repaint(true);
             }
@@ -526,74 +784,85 @@ export function attachFramePanel(scene, cam, frame, spec) {
             }
         });
     }
+    // Where it goes and how visible, this frame (the layered copy follows in sync).
+    const place = (ctx) => {
+        debug.updates++;
+        if (spec.screenAnchor && !focused)
+            placeScreen();
+        fit();
+        // Focused content is in front of you because you asked for it.
+        if (focused) {
+            plane.visibility = 1;
+            debug.reveal = 1;
+            return;
+        }
+        const fp = ctx?.firstPerson ?? true;
+        if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
+            plane.visibility = 0;
+            debug.reveal = 0;
+            return;
+        }
+        if (alwaysOn) {
+            plane.visibility = 1;
+            debug.reveal = 1;
+            return;
+        }
+        // Gaze-reveal off whatever camera is currently rendering — the flat orbit/
+        // follow camera on a monitor, the headset camera in a session. This is what
+        // lets frame panels (nameplates, HUD) work in NON-VR too, not just XR.
+        const active = scene.activeCamera ?? cam;
+        head.copyFrom(active.globalPosition);
+        active.getDirectionToRef(XR_FORWARD, fwd);
+        plane.getAbsolutePosition().subtractToRef(head, toAnchor);
+        // Aim the cone at the SUBJECT (the NPC), not at the plate hovering above their head —
+        // otherwise looking straight at someone doesn't reveal their name, and the only way to
+        // fix THAT is a cone so wide it never hides anything. Distance is still measured to the
+        // panel, which is what "how far away is this label" actually means.
+        if (gazeTarget != null) {
+            gazeTarget.getAbsolutePosition().subtractToRef(head, toSubject);
+            toSubject.x += gazeOffset[0];
+            toSubject.y += gazeOffset[1];
+            toSubject.z += gazeOffset[2];
+        }
+        else {
+            toSubject.copyFrom(toAnchor);
+        }
+        let v = gazeReveal(fwd, toSubject, cosStart, cosFull);
+        // Soft distance falloff — fade, never cliff.
+        const dist = toAnchor.length();
+        if (v > 0 && dist > fadeFrom && fadeTo > fadeFrom) {
+            v *= Math.max(0, 1 - (dist - fadeFrom) / (fadeTo - fadeFrom));
+        }
+        plane.visibility = dist > maxDist ? 0 : v;
+        debug.reveal = plane.visibility;
+        debug.camera = active.getClassName();
+        debug.distance = dist;
+        const fl = fwd.length() || 1;
+        const sl = toSubject.length() || 1;
+        debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl);
+    };
     return {
         debug,
         mesh: plane,
+        drawn: shown,
+        // Its SVG (null for a `url` panel): send it `panelfocus` to bring the
+        // panel front and centre, as the scene's VR toolbar does.
+        el,
         // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
         // panel can be limited to one. Defaults to visible if no context is given.
         update(ctx) {
-            debug.updates++;
-            if (spec.screenAnchor && !focused)
-                placeScreen();
-            fit();
-            // Focused content is in front of you because you asked for it.
-            if (focused) {
-                plane.visibility = 1;
-                debug.reveal = 1;
-                return;
-            }
-            const fp = ctx?.firstPerson ?? true;
-            if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
-                plane.visibility = 0;
-                debug.reveal = 0;
-                return;
-            }
-            if (alwaysOn) {
-                plane.visibility = 1;
-                debug.reveal = 1;
-                return;
-            }
-            // Gaze-reveal off whatever camera is currently rendering — the flat orbit/
-            // follow camera on a monitor, the headset camera in a session. This is what
-            // lets frame panels (nameplates, HUD) work in NON-VR too, not just XR.
-            const active = scene.activeCamera ?? cam;
-            head.copyFrom(active.globalPosition);
-            active.getDirectionToRef(XR_FORWARD, fwd);
-            plane.getAbsolutePosition().subtractToRef(head, toAnchor);
-            // Aim the cone at the SUBJECT (the NPC), not at the plate hovering above their head —
-            // otherwise looking straight at someone doesn't reveal their name, and the only way to
-            // fix THAT is a cone so wide it never hides anything. Distance is still measured to the
-            // panel, which is what "how far away is this label" actually means.
-            if (gazeTarget != null) {
-                gazeTarget.getAbsolutePosition().subtractToRef(head, toSubject);
-                toSubject.x += gazeOffset[0];
-                toSubject.y += gazeOffset[1];
-                toSubject.z += gazeOffset[2];
-            }
-            else {
-                toSubject.copyFrom(toAnchor);
-            }
-            let v = gazeReveal(fwd, toSubject, cosStart, cosFull);
-            // Soft distance falloff — fade, never cliff.
-            const dist = toAnchor.length();
-            if (v > 0 && dist > fadeFrom && fadeTo > fadeFrom) {
-                v *= Math.max(0, 1 - (dist - fadeFrom) / (fadeTo - fadeFrom));
-            }
-            plane.visibility = dist > maxDist ? 0 : v;
-            debug.reveal = plane.visibility;
-            debug.camera = active.getClassName();
-            debug.distance = dist;
-            const fl = fwd.length() || 1;
-            const sl = toSubject.length() || 1;
-            debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl);
+            place(ctx);
+            sync();
         },
         dispose() {
             releaseCamera();
             el?.removeEventListener('panelfocus', onFocus);
             if (pointerObs != null)
-                scene.onPointerObservable.remove(pointerObs);
+                drawScene.onPointerObservable.remove(pointerObs);
             tex.dispose();
             mat.dispose();
+            if (shown !== plane)
+                shown.dispose();
             plane.dispose();
         },
     };

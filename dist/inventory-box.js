@@ -286,14 +286,14 @@ dealHost.addEventListener('pointerup', (e) => dealBox.handlePointer('up', ...at(
 
 ## In 3D
 
-The same loadout in a scene, flat and in a headset, as the panel over your
-left shoulder (the top left of the view on a monitor) in place of the
-"Inventory" placeholder. Touch or click it and it comes front and centre,
-bigger, with the bag beside it to drag to and from; the button at its corner
-sends it back. `inventoryDock` draws both into one SVG, so a drag between
-them is one panel; give it no `list` for a craft fitted from a carrier's
-stock, and it opens to the schematic alone. A `<tosi-b3d-panel>` takes the
-dock's `svg`, and the dock asks it to come forward (`panelfocus`).
+The same loadout in a scene, flat and in a headset, on the scene's SYSTEM
+BAR: its button (a standing figure) opens it under the bar, with the bag beside it to
+drag to and from; the button again, or the × in its title bar, puts it away.
+`inventoryDock` draws both into one SVG, so a drag between them is one panel;
+give it no `list` for a craft fitted from a carrier's stock, and it opens to
+the schematic alone. A `<tosi-b3d-panel icon title>` takes the dock's
+`svg`; the bar asks the dock to open (`panelopen`), and the title bar's ×
+puts it away.
 
 ```js
 import { b3d, b3dLight, b3dGround, b3dPanel, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
@@ -331,20 +331,8 @@ const inv = createInventory(
 const alsoIn = (item, kind, at) =>
   kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
 
-// Over your left shoulder in a headset; on a monitor, up and to the left.
-// Until the art arrives it is the placeholder card.
-const loadout = b3dPanel({
-  frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
-  presence: 'both', flatFrame: 'face', width: 0.125, resolution: 1024,
-})
-// Small closed, as big as ever opened; flat, near the top-left corner and
-// square to the screen (flatOn).
-loadout.focusScale = 4.56
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 18, distance: 1.4, flatOn: true }
-// …or in screen terms, which wins flat: at the top left (64 px in, clear of
-// the scene's corner button; 2% of the shorter side down), 14% of the screen
-// tall, whatever the window's shape.
-loadout.screenAnchor = { left: 64, top: '2vmin', height: '14%' }
+// On the system bar: a button (a standing figure) that opens it under the bar.
+const loadout = b3dPanel({ title: 'Inventory', icon: 'personStanding' })
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -353,10 +341,6 @@ preview.append(
     b3dLight({ intensity: 1 }),
     b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
     loadout,
-    // Declared panels replace the default set: the rest of it, as it was.
-    b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'Journal' }),
-    b3dPanel({ frame: 'eye', preset: 'waist', title: 'Quick Access' }),
-    b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'Menu', width: 0.09 }),
   )
 )
 
@@ -374,7 +358,6 @@ Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-ic
   park.style.cssText = 'position:absolute; left:-10000px; top:0'
   park.append(dock.svg)
   preview.append(park)
-  loadout.title = ''
   loadout.svg = dock.svg
 })
 ```
@@ -410,6 +393,7 @@ art }`, `list` (the container shown beside it when open, or none), `width`,
 import { svgElements } from 'tosijs';
 import { box, textBlock, svgPoint } from './box.js';
 import { carryGhostLayer, carryOverlay, carryPanel, carrySocket, carryTile, } from './carry-box.js';
+import { panelRim } from './panel-rim.js';
 const schematicCache = new Map();
 /** A box around an element's coordinates when it cannot be measured (no layout). */
 function roughBox(el) {
@@ -706,7 +690,7 @@ export function inventoryPanel(opts) {
         DROP: out of the inventory, through the game's handleDrop (which can
         refuse, or put the thing on the ground).
         */
-        const dropSocket = () => {
+        const dropSocket = (w, inline) => {
             const drop = {
                 id: `${holder}/drop`,
                 accepts: (item) => inv.check({ item, to: null }),
@@ -724,8 +708,10 @@ export function inventoryPanel(opts) {
                 carry,
                 target: drop,
                 label: 'drop',
-                width: width - 24,
+                icon: opts.dropIcon,
+                width: w,
                 height: 30,
+                inline,
             });
             disposers.push(socket.dispose);
             return socket;
@@ -743,7 +729,8 @@ export function inventoryPanel(opts) {
             const art = c.type === 'slots' ? opts.schematics?.[cname] : undefined;
             if (!art || headed) {
                 flushHead();
-                children.push(name);
+                if (opts.headings !== false)
+                    children.push(name);
             }
             if (c.type === 'slots') {
                 const drawn = new Set();
@@ -823,32 +810,45 @@ export function inventoryPanel(opts) {
                 }
             }
             else if (c.type === 'list') {
-                // The drop target heads the list: a scrolling list would take it
-                // out of sight at the bottom.
-                // Both stay put while the list scrolls under them (a box keeps only a
-                // LEADING run sticky, so a list below a schematic is unaffected).
+                // (A box keeps only a LEADING run sticky, so a list below a
+                // schematic is unaffected.)
                 name.sticky = true;
-                if (opts.handleDrop && !lists.length) {
-                    const drop = dropSocket();
-                    drop.sticky = true;
-                    children.push(drop);
-                }
                 const at = { holder, container: cname };
                 const into = target(at, `${holder}/${cname}`);
-                lists.push({ target: into, from: enc(at) });
-                // Full width: a row is a button you can hit anywhere along it.
-                const row = { width: width - 24, height: 34 };
-                for (const id of c.holds)
-                    children.push(tile(id, at, row, into));
+                /*
+                A COLUMN: "put in" and the drop target stay put (side by side when
+                there are both), and the things scroll in what is left. "Put in" was
+                the list's LAST row, so in a list taller than its panel it sat off
+                the bottom (Tonio: "It should be fully visible and the scrolling list
+                should be constrained to occupy available space"). A list that
+                scrolls keeps room for its scrollbar on the right, so the rows
+                breathe evenly either side.
+                */
+                const inner = width - 24 - (opts.height ? 10 : 0);
+                const withDrop = !!opts.handleDrop && !lists.length;
+                const half = (inner - 8) / 2;
                 const socket = carrySocket({
                     carry,
                     target: into,
-                    label: `put in ${cname}`,
-                    width: width - 24,
+                    label: opts.putLabel ?? `put in ${cname}`,
+                    icon: opts.putIcon,
+                    width: withDrop ? half : inner,
                     height: 30,
+                    inline: withDrop,
                 });
                 disposers.push(socket.dispose);
+                socket.sticky = !!opts.height;
                 children.push(socket);
+                if (withDrop) {
+                    const drop = dropSocket(half, true);
+                    drop.sticky = !!opts.height;
+                    children.push(drop);
+                }
+                lists.push({ target: into, from: enc(at) });
+                // Full width: a row is a button you can hit anywhere along it.
+                const row = { width: inner, height: 34 };
+                for (const id of c.holds)
+                    children.push(tile(id, at, row, into));
             }
             else {
                 // A grid wants its picture (a schematic); here it is listed.
@@ -944,7 +944,7 @@ export function inventoryDock(opts) {
     const { carry } = opts;
     const W = opts.width ?? 410;
     const LW = opts.listWidth ?? 200;
-    const GAP = 12;
+    const GAP = 6;
     const { svg, g, circle, rect } = svgElements;
     const root = svg({
         xmlns: 'http://www.w3.org/2000/svg',
@@ -961,6 +961,7 @@ export function inventoryDock(opts) {
     // Closed, the picture's corners are rounded well past the panel's own 10.
     const roundId = `dock-round-${++dockSeq}`;
     const roundRect = svgElements.rect({ x: 0, y: 0, rx: 48, ry: 48 });
+    let closedRim = null; // the outline, open or closed
     root.prepend(svgElements.defs({}, svgElements.clipPath({ id: roundId }, roundRect)));
     const common = {
         inv: opts.inv,
@@ -990,11 +991,19 @@ export function inventoryDock(opts) {
             // As tall as the schematic beside it; the list scrolls.
             height: opts.height ?? mainHeight(),
             handleDrop: opts.handleDrop,
+            // Beside the person it is plainly their bag, and from it a thing
+            // dropped there is taken off (Tonio: the "bag" caption does not
+            // earn its space).
+            headings: false,
+            putLabel: 'unequip',
+            putIcon: 'lucideBackpack',
+            dropIcon: 'trash',
         })
         : null;
     const closeButton = g({ cursor: 'pointer' }, circle({ r: 14, fill: '#2c3546', stroke: '#9fb0c8', 'stroke-width': 1.5 }), rect({ x: -7, y: -1.5, width: 14, height: 3, rx: 1.5, fill: '#dfe6f2' }));
     const ghosts = carryGhostLayer(carry, root);
     let open = false;
+    let framed = false;
     let size = { width: W, height: mainHeight() };
     const layout = () => {
         const h = Math.max(mainHeight(), open && listHost ? Number(listHost.getAttribute('height')) || 0 : 0);
@@ -1017,8 +1026,20 @@ export function inventoryDock(opts) {
             mainHost.removeAttribute('clip-path');
         else
             mainHost.setAttribute('clip-path', `url(#${roundId})`);
+        // It wears the outline every panel does (the system bar's). Closed, on
+        // its own rounder corners and with the line scaled to the art, because
+        // the closed picture is shown a few dozen pixels across.
+        // In a frame (`framed`, a system panel's title bar) the frame has both.
+        closedRim?.remove();
+        closedRim = !open
+            ? panelRim(W, mh, 48, W * 0.04)
+            : framed
+                ? null
+                : panelRim(w, h, 10);
+        if (closedRim)
+            root.append(closedRim);
         closeButton.setAttribute('transform', `translate(${w - 22}, 22)`);
-        if (open)
+        if (open && !framed)
             root.append(closeButton);
         else
             closeButton.remove();
@@ -1041,7 +1062,7 @@ export function inventoryDock(opts) {
     let under = null;
     let tapped = false;
     let closing = false;
-    const onClose = (x, y) => Math.hypot(x - (size.width - 22), y - 22) <= 18;
+    const onClose = (x, y) => !framed && Math.hypot(x - (size.width - 22), y - 22) <= 18;
     const setOpen = (v) => {
         if (v === open)
             return;
@@ -1056,6 +1077,21 @@ export function inventoryDock(opts) {
         root.setAttribute('data-focus', String(open));
         root.dispatchEvent(new CustomEvent('panelfocus', { detail: { focus: open } }));
     };
+    // Asked to open or close from outside (the scene's VR toolbar): the dock
+    // does it itself, so it OPENS rather than its closed picture being blown
+    // up; cancelling says so.
+    // `framed`: its host draws a title bar with a close (a system panel), so
+    // the dock draws neither its own close nor its outline.
+    root.addEventListener('panelopen', (e) => {
+        e.preventDefault();
+        const d = e.detail;
+        if (d?.open) {
+            framed = !!d.framed;
+            if (open)
+                layout();
+        }
+        setOpen(!!d?.open);
+    });
     const handlePointer = (kind, x, y) => {
         // Closed, the whole dock is one button.
         if (!open) {

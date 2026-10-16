@@ -123,6 +123,7 @@ outside every panel and the host cancels (the demo listens on `window`).
 /*{ "parent": "carry", "order": 10 }*/
 import { svgElements } from 'tosijs';
 import { DRAG_THRESHOLD } from './carry.js';
+import { iconGlyph } from './svg-icons.js';
 const OUTLINES = {
     damaged: '#e0a030',
     broken: '#e04838',
@@ -323,19 +324,23 @@ export function carrySocket(opts) {
         'stroke-width': art ? 2.5 : 1.5,
         'stroke-dasharray': art ? '' : '5 4',
     });
+    const glyph = !art && opts.icon ? 14 : 0;
     const textAt = art
         ? { x: w / 2, 'text-anchor': 'middle', ...HALO }
-        : { x: 10 };
+        : { x: glyph ? 10 + glyph + 6 : 10 };
+    // A one-line row (an empty 30-high target) centres its label, and a
+    // refusal's reason takes the label's place: there is no second line.
+    const short = !art && !holding && h <= 36;
     const caption = text({
         ...textAt,
-        y: art ? h + 13 : 14,
+        y: art ? h + 13 : short ? h / 2 + 4 : 14,
         fill: art ? '#dfe6f2' : '#8a96ad',
         'font-family': 'system-ui, sans-serif',
         'font-size': '11',
     }, art ? '' : label);
     const why = text({
         ...textAt,
-        y: art ? h + 26 : h - 8,
+        y: art ? h + 26 : short ? h / 2 + 4 : h - 8,
         fill: '#f0907c',
         'font-family': 'system-ui, sans-serif',
         'font-size': '11',
@@ -343,6 +348,13 @@ export function carrySocket(opts) {
     const parts = [];
     if (!art)
         parts.push(frame, caption);
+    if (glyph)
+        parts.push(iconGlyph(opts.icon, {
+            color: '#8a96ad',
+            size: glyph,
+            x: 10,
+            y: short ? (h - glyph) / 2 : 4,
+        }));
     if (holding) {
         // In a row, under the caption and clear of the reason line; on art, filling it.
         parts.push(g({
@@ -406,12 +418,14 @@ export function carrySocket(opts) {
             frame.setAttribute('fill', ok ? (hovered ? '#2c5a3c' : '#1a2b22') : '#161b25');
         }
         why.textContent = hovered && v && !ok ? v.reasons[0] ?? '' : '';
+        if (short)
+            caption.setAttribute('visibility', why.textContent ? 'hidden' : 'visible');
     };
     const stop = carry.subscribe(restyle);
     restyle();
     return {
         el,
-        kind: 'block',
+        kind: opts.inline ? 'inline' : 'block',
         focusable: true,
         carryTarget: target,
         measure: () => ({ width: w, height: h }),

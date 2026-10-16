@@ -104,7 +104,18 @@ export function attachSceneLayer(opts) {
         const panelH = vb && vb.height > 0 ? vb.height : popH;
         const a = config.anchor;
         // The field's BOTTOM edge, in plane-local world units.
-        const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH;
+        /*
+        ON SCREEN, when there is a screen. Below the field if it fits; otherwise
+        as low as it can go and still be seen. (The sheet was already built no
+        taller than the room: see `roomFor`.)
+        */
+        const MARGIN = 8;
+        const room = opts.screenRoom?.() ?? null;
+        let topVb = a.y + a.height;
+        if (room != null) {
+            topVb = Math.max(room.top + MARGIN, Math.min(topVb, room.bottom - MARGIN - popH));
+        }
+        const anchorBottomY = (0.5 - topVb / panelH) * planeH;
         const pop = owner.openPopup({
             // Tell the layer when the popup's OWN × closes it, so every other
             // presentation goes with it and the opener is not left believing it
@@ -151,12 +162,23 @@ export function attachSceneLayer(opts) {
                 y: anchorBottomY - worldH / 2,
                 // NEARER the viewer — the z-separation is the point, not a nicety:
                 // coplanar panels re-sort as you orbit.
-                z: -0.08,
+                // On a screen a smaller step: nearer is BIGGER in perspective, and
+                // a popup depth-writes now, so it need not be far in front to win.
+                z: room != null ? -0.01 : -0.08,
             },
         });
         return { close: () => pop.close() };
     };
     host.drawsChrome = true;
+    // How tall a popup can be here: the screen's height, less margins.
+    if (opts.screenRoom != null) {
+        ;
+        host.roomFor =
+            () => {
+                const r = opts.screenRoom();
+                return r == null ? undefined : Math.max(80, r.bottom - r.top - 16);
+            };
+    }
     panelEl.addLayerHost(host);
     return true;
 }

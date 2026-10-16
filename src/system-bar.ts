@@ -95,7 +95,14 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
     // than the HTML lozenge's hairline: it is drawn into a texture and seen
     // smaller than its pixels).
     root.append(
-      rect({ x: 0, y: 0, width: w, height: h, rx: h / 2, fill: 'rgba(20,24,32,0.72)' }),
+      rect({
+        x: 0,
+        y: 0,
+        width: w,
+        height: h,
+        rx: h / 2,
+        fill: 'rgba(20,24,32,0.72)',
+      }),
       panelRim(w, h, h / 2)
     )
     shown.forEach((b, i) => {
@@ -179,7 +186,15 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
   for (const b of buttons)
     watch.observe(b, {
       attributes: true,
-      attributeFilter: ['hidden', 'disabled', 'title', 'aria-label', 'style', 'class', 'part'],
+      attributeFilter: [
+        'hidden',
+        'disabled',
+        'title',
+        'aria-label',
+        'style',
+        'class',
+        'part',
+      ],
       childList: true,
     })
   build()

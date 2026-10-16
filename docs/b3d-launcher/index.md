@@ -37,8 +37,8 @@ const scene = b3d(
   {
     gamepad: 'left_stick,right_trigger',
     scenePanelOpen: true,
+    panelTitle: 'Launcher',
     scenePanel: () => [
-      label3d({ text: 'Launcher', bold: true }),
       slider3d({ label: 'muzzle speed', value: s.muzzleSpeed, min: 8, max: 50, step: 1 }),
       slider3d({ label: 'fire rate', value: s.fireRate, min: 1, max: 12, step: 1 }),
       slider3d({ label: 'drag', value: s.drag, min: 0, max: 0.05, step: 0.002 }),
@@ -110,8 +110,8 @@ const scene = b3d(
     gamepad: 'right_trigger',
     scenePanelOpen: true,
     glowLayerIntensity: 0.8, // so the round reads as hot at range
+    panelTitle: 'Missile',
     scenePanel: () => [
-      label3d({ text: 'Missile', bold: true }),
       slider3d({ label: 'missile speed', value: s.missileSpeed, min: 8, max: 40, step: 1 }),
       slider3d({ label: 'turn rate', value: s.turnRate, min: 0.5, max: 8, step: 0.25 }),
       slider3d({ label: 'fire rate', value: s.fireRate, min: 0.5, max: 5, step: 0.5 }),

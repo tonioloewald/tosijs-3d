@@ -568,7 +568,12 @@ export const SCENE_OMITTED = {
         'xrGrid',
         'xrReticle',
         'scenePanelOpen',
+        // Where the app draws its own controls flat (scene or HTML): a choice of
+        // presentation, not part of a scene.
+        'flatUi',
         'panelSections',
+        // The settings panel's name: the app's chrome, not the scene.
+        'panelTitle',
         'gamepadScale',
         'gamepadFade',
         'quality',

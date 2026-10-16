@@ -27,8 +27,8 @@ const sceneEl = b3d(
   {
     style: 'width:100%;height:100%',
     scenePanelOpen: true,
+    panelTitle: 'Beacons',
     scenePanel: () => [
-      label3d({ text: 'Beacons' }),
       toggle3d({
         label: 'show hulls',
         value: false,

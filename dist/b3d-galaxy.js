@@ -75,8 +75,8 @@ const scene = b3d(
     // Generation settings live in the dual-presence ⚙ panel (works in VR); the
     // free-text star search + selection readout stay a flat overlay (typing needs
     // a keyboard). All widgets bind the same demo.* leaves the observers watch.
+    panelTitle: 'Galaxy',
     scenePanel: () => [
-      label3d({ text: 'Galaxy' }),
       select3d({ label: 'habitability', value: demo.habitability, options: [
         { label: 'All', value: 5 },
         { label: 'Robot+', value: 4 },

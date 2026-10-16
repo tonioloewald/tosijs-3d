@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d55617f13dee" data-tosi-doc-system />
   <title>Skybox Baker — tosijs-3d</title>
   <meta name="description" content="Stand inside a galaxy and photograph the sky. Six 90° renders from one point become a cube map — a starfield with real structure, for the cost of a texture…" />
   <link rel="canonical" href="https://3d.tosijs.net/skybox-baker/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=f0af8223469e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="skybox-baker">Skybox Baker</h1>
 <p><strong>Stand inside a galaxy and photograph the sky.</strong> Six 90° renders from one point
@@ -86,8 +86,8 @@ preview.append(
     {
       style: &#39;width:100%;height:100%&#39;,
       clearColor: &#39;#01020a&#39;,
+      panelTitle: &#39;Bake a sky&#39;,
       scenePanel: () =&gt; [
-        label3d({ text: &#39;Bake a sky&#39; }),
         // 10k to work with, 100k to finish with — see &quot;Framing, then baking&quot;.
         slider3d({ label: &#39;stars&#39;, value: bake.stars, min: 5000, max: 100000, step: 5000 }),
         slider3d({ label: &#39;particle size&#39;, value: bake.particleSize, min: 0.1, max: 1.5, step: 0.05 }),
@@ -592,6 +592,7 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
           <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../system-bar/">system-bar</a></li>
           <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
@@ -665,8 +666,8 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
     <ul>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
@@ -681,6 +682,6 @@ small in the bake — 0.7 here against 0.3–0.5 there.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-natg446m.js"></script>
+  <script type="module" src="../hydrate-dejhg2dr.js"></script>
 </body>
 </html>

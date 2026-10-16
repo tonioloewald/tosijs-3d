@@ -109,8 +109,8 @@ const scene = b3d(
   {
     // Explode / Drop / show-colliders live in the dual-presence ⚙ panel, so the
     // physics playground is fully controllable from inside VR too.
+    panelTitle: 'Physics',
     scenePanel: () => [
-      label3d({ text: 'Physics' }),
       button3d({ label: 'Explode!', handleClick: doExplode }),
       button3d({ label: 'Drop!', handleClick: () => { if (!dropSphere) createDropSphere() } }),
       toggle3d({ label: 'show colliders', value: false, handleChange: (v) => { physics.debug = v } }),

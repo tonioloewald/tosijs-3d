@@ -14,32 +14,44 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
-  <title>mersenne-twister — tosijs-3d</title>
-  <meta name="description" content="Seeded pseudo-random number generator based on the Mersenne Twister (MT19937) algorithm. Provides deterministic random sequences from a numeric seed — same…" />
+  <link rel="stylesheet" href="../doc-system.css?v=d55617f13dee" data-tosi-doc-system />
+  <title>Pseudo Random Numbers — tosijs-3d</title>
+  <meta name="description" content="Randomness you can replay. Everything procedural here (a galaxy, a planet&#39;s craters, where the rocks go, who spawns) is drawn from a generator started from a…" />
   <link rel="canonical" href="https://3d.tosijs.net/mersenne-twister/" />
-  <link rel="alternate" type="text/markdown" href="index.md" title="mersenne-twister — tosijs-3d (markdown)" />
+  <link rel="alternate" type="text/markdown" href="index.md" title="Pseudo Random Numbers — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="mersenne-twister — tosijs-3d" />
-  <meta property="og:description" content="Seeded pseudo-random number generator based on the Mersenne Twister (MT19937) algorithm. Provides deterministic random sequences from a numeric seed — same…" />
+  <meta property="og:title" content="Pseudo Random Numbers — tosijs-3d" />
+  <meta property="og:description" content="Randomness you can replay. Everything procedural here (a galaxy, a planet&#39;s craters, where the rocks go, who spawns) is drawn from a generator started from a…" />
   <meta property="og:url" content="https://3d.tosijs.net/mersenne-twister/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"mersenne-twister","description":"Seeded pseudo-random number generator based on the Mersenne Twister (MT19937) algorithm. Provides deterministic random sequences from a numeric seed — same…","url":"https://3d.tosijs.net/mersenne-twister/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Pseudo Random Numbers","description":"Randomness you can replay. Everything procedural here (a galaxy, a planet's craters, where the rocks go, who spawns) is drawn from a generator started from a…","url":"https://3d.tosijs.net/mersenne-twister/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=f0af8223469e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
-<h1 id="mersenne-twister">mersenne-twister</h1>
-<p>Seeded pseudo-random number generator based on the Mersenne Twister
-(MT19937) algorithm. Provides deterministic random sequences from a
-numeric seed — same seed always produces the same sequence.</p>
-<p>The <code>PRNG</code> class wraps <strong><code>Xoshiro128</code></strong> (xoshiro128**, since 0.8.4 — see
-its note for why it replaced the Mersenne Twister) with convenience methods for
-common random operations: integer/float ranges, gaussian distribution,
-weighted selection, and probability checks.</p>
+<h1 id="pseudo-random-numbers">Pseudo Random Numbers</h1>
+<p><strong>Randomness you can replay.</strong> Everything procedural here (a galaxy, a
+planet&#39;s craters, where the rocks go, who spawns) is drawn from a generator
+started from a number, the SEED. Same seed, same numbers, in every browser,
+so the same seed is the same world: you can share it, test it, and come back
+to it.</p>
+<p>Nothing here uses <code>Math.random()</code>. It cannot be seeded, so it can never give
+you the same world twice, and it is not very random: the standard does not
+say which algorithm it is, so its quality is whatever the browser shipped.
+That has been bad. V8&#39;s before 2015 (MWC1616) had cycles short enough, and
+patterns plain enough, to see in a picture of its output; engines are better
+now, but &quot;better now, in some browsers&quot; is not something to build on.</p>
+<p>We implement two generators, each for a job:</p>
+<ul>
+<li><strong><code>PRNG</code></strong> (on <strong>xoshiro128**</strong>) for the general case: a stream of good
+numbers with convenience methods (ranges, a bell curve, weighted picks).</li>
+<li><strong><code>CheapPRNG</code></strong> (on <strong>mulberry32</strong>) for derived data: one tiny generator
+per object, built, drawn from a few times, and dropped, millions of times
+over (a star&#39;s name and its details).</li>
+</ul>
 <h2 id="demo">Demo</h2>
 <pre><code class="language-js">import { PRNG } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
@@ -63,8 +75,67 @@ output += &#39;value():        &#39; + prng2.value().toFixed(6) + &#39; (same as
 
 preview.append(pre(output))
 </code></pre>
+<h2 id="why-these-two">Why these two</h2>
+<p>What we need from a generator, in order: the <strong>same sequence everywhere</strong>
+(pure 32-bit integer arithmetic, <code>Math.imul</code> and shifts, so no engine&#39;s
+floating point can change it), <strong>seeded by one number</strong>, then <strong>cheap to
+start</strong>, and good enough statistically for games. Cryptographic strength is
+not on the list: nothing here is a secret.</p>
+<p>Measured in Bun, building one and drawing 8 numbers:</p>
+<table>
+<thead>
+<tr>
+<th>Generator</th>
+<th>State</th>
+<th>Build + 8 draws</th>
+<th>One draw</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Mersenne Twister (MT19937)</td>
+<td>624 words</td>
+<td>13 µs</td>
+<td>0.02 µs</td>
+</tr>
+<tr>
+<td>xoshiro128** (<code>PRNG</code>)</td>
+<td>4 words</td>
+<td>0.09 µs</td>
+<td>0.01 µs</td>
+</tr>
+<tr>
+<td>mulberry32 (<code>CheapPRNG</code>)</td>
+<td>1 word</td>
+<td>0.03 µs</td>
+<td>0.008 µs</td>
+</tr>
+</tbody></table>
+<p><strong>xoshiro128**</strong> (Blackman and Vigna) is behind <code>PRNG</code> since 0.8.4. It
+replaced the Mersenne Twister, which this page is named after: MT has a huge
+state that it fills before its first draw, so merely starting one cost about
+13 µs, and a star system starts one per planet while scoring candidate
+systems starts thousands. xoshiro128** starts about 150× faster, has a period
+of 2¹²⁸, and passes the BigCrush and PractRand test batteries, which MT does
+not (it fails the linear-complexity tests). Its one integer seed is spread
+over its four words by splitmix32, which also keeps it out of the all-zero
+state it could never leave.</p>
+<p><strong>mulberry32</strong> is smaller still: one 32-bit word, a few multiplies a draw. It
+is weaker (a period of 2³², and each seed is one short stream), and that does
+not matter for what it does: a handful of draws per star, each a pure
+function of the star&#39;s seed. It is about 3× cheaper than xoshiro to start,
+which counts at galaxy scale, and more to the point its output IS the galaxy:
+star names and spectral details are drawn from it, so changing its engine
+would rename every star. It stays.</p>
+<p><strong>The Mersenne Twister</strong> is still exported (<code>MersenneTwister</code>), for anyone
+who needs the sequences it made before 0.8.4. Nothing here uses it.</p>
+<p>A few places hash rather than generate: noise lattices (<code>noise-volume</code>,
+<code>climate-noise</code>) fill bytes with xorshift32, and <code>latticeHash</code> turns a grid
+point into a number directly. A hash answers &quot;what is the number AT this
+place&quot; with no sequence to step through, which is what a texture or an
+infinite grid needs.</p>
 <h2 id="api">API</h2>
-<h3 id="mersennetwister"><code>MersenneTwister</code></h3>
+<h3 id="xoshiro128-mersennetwister"><code>Xoshiro128</code>, <code>MersenneTwister</code></h3>
+<p>The bare engines, for when you want numbers and nothing else.</p>
 <table>
 <thead>
 <tr>
@@ -74,9 +145,9 @@ preview.append(pre(output))
 </tr>
 </thead>
 <tbody><tr>
-<td><code>constructor(seed?)</code></td>
+<td><code>constructor(seed)</code></td>
 <td></td>
-<td>Create with optional seed (defaults to Date.now())</td>
+<td>Create with a numeric seed (required: pass <code>Date.now()</code> for a different sequence each run)</td>
 </tr>
 <tr>
 <td><code>random()</code></td>
@@ -134,6 +205,10 @@ preview.append(pre(output))
 <td>Weighted random selection from array</td>
 </tr>
 </tbody></table>
+<h3 id="cheapprng"><code>CheapPRNG</code></h3>
+<p>The same surface as <code>PRNG</code> less <code>gaussrandom</code> (<code>value</code>, <code>range</code>,
+<code>realRange</code>, <code>probability</code>, <code>pick</code>), on mulberry32. <code>RandomLike</code> is the part
+both share, for a function that takes either.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -488,6 +563,7 @@ preview.append(pre(output))
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
           <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../system-bar/">system-bar</a></li>
           <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
@@ -561,8 +637,8 @@ preview.append(pre(output))
     </details></li>
     <li><details open><summary><a class="doc-link" href="../reference/">Reference</a></summary>
     <ul>
-      <li><a class="doc-link current" href="../mersenne-twister/" aria-current="page">mersenne-twister</a></li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link current" href="../mersenne-twister/" aria-current="page">Pseudo Random Numbers</a></li>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
@@ -577,6 +653,6 @@ preview.append(pre(output))
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-natg446m.js"></script>
+  <script type="module" src="../hydrate-dejhg2dr.js"></script>
 </body>
 </html>

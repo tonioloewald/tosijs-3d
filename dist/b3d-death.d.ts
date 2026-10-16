@@ -39,7 +39,7 @@ export declare class B3dDeath extends B3dChild {
     private _remains;
     private _orbitCam;
     private _prevCam;
-    private _panel;
+    private _modal;
     private _fires;
     private _charMats;
     private _obs;
@@ -79,6 +79,8 @@ export declare class B3dDeath extends B3dChild {
     private _fallShift;
     private _burn;
     private _showPanel;
+    /** The respawn panel as a plane in the world; returns its dispose. */
+    private _ownPanel;
     /** Tear down the death state and hand control back — then run `next` (e.g. respawn). */
     resume(next?: () => void): void;
     private _cleanup;

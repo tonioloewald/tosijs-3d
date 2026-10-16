@@ -79,8 +79,8 @@ preview.append(
   b3d(
     {
       scenePanelOpen: true,
+      panelTitle: 'Real worlds',
       scenePanel: () => [
-        label3d({ text: 'Real worlds' }),
         select3d({ label: 'world', value: real.world, options: Object.keys(WORLDS) }),
         slider3d({ label: 'relief (× true)', value: real.relief, min: 1, max: 60, step: 1 }),
         slider3d({ label: 'rotation', value: real.spin, min: 0, max: 0.3, step: 0.01 }),

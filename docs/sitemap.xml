@@ -52,10 +52,10 @@
   <url><loc>https://3d.tosijs.net/lightning/</loc></url>
   <url><loc>https://3d.tosijs.net/manipulator/</loc></url>
   <url><loc>https://3d.tosijs.net/mantle/</loc></url>
-  <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
   <url><loc>https://3d.tosijs.net/Migration/</loc></url>
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-chrome/</loc></url>
+  <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
   <url><loc>https://3d.tosijs.net/scatter/</loc></url>
   <url><loc>https://3d.tosijs.net/system-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/table-layout/</loc></url>
@@ -142,6 +142,7 @@
   <url><loc>https://3d.tosijs.net/star-populations/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/swim-aim/</loc></url>
+  <url><loc>https://3d.tosijs.net/system-bar/</loc></url>
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/weapon-fit/</loc></url>
   <url><loc>https://3d.tosijs.net/weather-and-clouds/</loc></url>

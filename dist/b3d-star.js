@@ -46,8 +46,8 @@ const scene = b3d(
   {
     frameRate: 60,
     clearColor: '#000000',
+    panelTitle: 'Star',
     scenePanel: () => [
-      label3d({ text: 'Star' }),
       select3d({ label: 'spectral class', value: demo.spectralClass, options: ['O', 'B', 'A', 'F', 'G', 'K', 'M'] }),
       slider3d({ label: 'radius', value: demo.radius, min: 5, max: 50, step: 1 }),
       slider3d({ label: 'surface detail', value: demo.surfaceDetail, min: 0, max: 1, step: 0.05 }),

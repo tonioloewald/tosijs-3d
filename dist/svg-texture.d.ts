@@ -19,6 +19,14 @@ export type SvgTextureOptions = {
      * about one texel per pixel.
      */
     mipmaps?: boolean;
+    /**
+     * Upload with colour multiplied by alpha; draw it with
+     * `ALPHA_PREMULTIPLIED`. Straight alpha fringes dark wherever drawn pixels
+     * meet transparent ones inside the texture (a panel's rounded corners: the
+     * filter mixes in the transparent pixels' black). Premultiplied, those
+     * pixels contribute nothing. Off by default: a light's gel wants straight.
+     */
+    premultiplied?: boolean;
 };
 /**
  * What repainting SVG textures has cost on the main thread, across every
@@ -42,6 +50,7 @@ export declare class SvgTexture {
     private _img;
     private _lastXml;
     private _warnedFailure;
+    private _premul;
     constructor(options: SvgTextureOptions);
     /** Manually trigger a re-render from the live SVG element. */
     render(): void;

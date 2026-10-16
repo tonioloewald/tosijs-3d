@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d55617f13dee" data-tosi-doc-system />
   <title>b3d-panel — tosijs-3d</title>
   <meta name="description" content="A declarative spatial-UI panel you drop into the scene as a child of &lt;tosi-b3d&gt;, instead of hard-wiring panels in code." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-panel/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=f0af8223469e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-panel">b3d-panel</h1>
 <p>A declarative spatial-UI panel you drop into the scene as a child of <code>&lt;tosi-b3d&gt;</code>,
@@ -58,9 +58,9 @@ const scene = b3d(
   {
     // Start with the flat panel open so it&#39;s visible without hunting for the ⚙.
     scenePanelOpen: true,
+    panelTitle: &#39;Settings&#39;,
     // DUAL-PRESENCE: a flat ⚙ overlay AND a floating VR panel, same values.
     scenePanel: () =&gt; [
-      label3d({ text: &#39;Settings&#39; }),
       slider3d({ label: &#39;cube height&#39;, value: cfg.height, min: 0.5, max: 3, step: 0.1 }),
     ],
   },
@@ -92,6 +92,75 @@ orientation. Babylon ships a real position/rotation gizmo (<code>GizmoManager</c
 and exposing it — so a panel can be PLACED by dragging rather than by typing
 numbers — is on the list, not in 0.7.0.</p>
 </blockquote>
+<h2 id="on-the-system-bar">On the system bar</h2>
+<p>Give a panel an <strong>icon</strong> and a <strong>title</strong>, and put what it shows inside it:
+it gets a button on the scene&#39;s <a href="../system-bar/">system bar</a> and opens under
+the bar with a title bar of its own (move, its title, ×), flat and in a
+headset. Drag it by that bar and it reopens where you left it; hold its button
+to put it back. Nothing else to wire.</p>
+<pre><code class="language-js">import { b3d, b3dPanel, b3dLight, b3dGround, panel3d, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { nav } = tosi({ nav: { zoom: 2 } })
+
+preview.append(
+  b3d(
+    {},
+    b3dLight({ intensity: 1 }),
+    b3dGround({ width: 20, height: 20, texture: &#39;checker&#39;, textureTiles: 10 }),
+    b3dPanel(
+      { icon: &#39;map&#39;, title: &#39;Map&#39; },
+      panel3d(
+        { width: 300 },
+        label3d({ text: &#39;Nowhere in particular&#39; }),
+        slider3d({ label: &#39;zoom&#39;, value: nav.zoom, min: 1, max: 5, step: 0.5 })
+      )
+    ),
+    // No content: a card with its title.
+    b3dPanel({ icon: &#39;book&#39;, title: &#39;Journal&#39; })
+  )
+)
+</code></pre>
+<p>The same in HTML; the <code>&lt;svg&gt;</code> inside is what it shows:</p>
+<pre><code class="language-html">&lt;tosi-b3d&gt;
+  &lt;tosi-b3d-panel icon=&quot;compass&quot; title=&quot;Heading&quot;&gt;
+    &lt;svg viewBox=&quot;0 0 240 120&quot;&gt;
+      &lt;text x=&quot;120&quot; y=&quot;70&quot; fill=&quot;#cfe0ff&quot; font-size=&quot;32&quot; text-anchor=&quot;middle&quot;&gt;N 12°&lt;/text&gt;
+    &lt;/svg&gt;
+  &lt;/tosi-b3d-panel&gt;
+&lt;/tosi-b3d&gt;
+</code></pre>
+<p>Content that takes the pointer has a <code>handlePointer(kind, x, y)</code> (a
+<code>panel3d</code> does). A panel with a <code>preset</code> or a position is pinned instead (see
+Pins); <code>chrome=&quot;none&quot;</code> leaves off the title bar, for content with its own.</p>
+<h2 id="pins-named-places-on-your-body">Pins: named places on your body</h2>
+<p>The rig has named places a panel can be pinned to, around you in a headset:
+<strong><code>left-shoulder</code></strong> and <strong><code>right-shoulder</code></strong> (45° up, 60° to each side),
+<strong><code>overhead</code></strong> (60° up), <strong><code>waist</code></strong> (45° down, facing up at you) and
+<strong><code>wrist</code></strong> (on the left hand). Each is revealed by looking toward it. None
+come filled: they are for your game&#39;s panels (a map, a journal, a radio).
+Here each one holds a card with its name; enter VR and look around.</p>
+<p>Not a pin: a panel with an <code>icon</code> (and no preset) goes on the system bar
+instead; see above. That is where an inventory goes.</p>
+<pre><code class="language-js">import { b3d, b3dPanel, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+
+preview.append(
+  b3d(
+    {},
+    b3dLight({ y: 1, intensity: 0.8 }),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dGround({ width: 20, height: 20, texture: &#39;checker&#39;, textureTiles: 10 }),
+    // One card per pin, named for it (pins are around you: a headset&#39;s).
+    b3dPanel({ frame: &#39;eye&#39;, preset: &#39;left-shoulder&#39;, title: &#39;left-shoulder&#39; }),
+    b3dPanel({ frame: &#39;eye&#39;, preset: &#39;right-shoulder&#39;, title: &#39;right-shoulder&#39; }),
+    b3dPanel({ frame: &#39;eye&#39;, preset: &#39;overhead&#39;, title: &#39;overhead&#39; }),
+    b3dPanel({ frame: &#39;eye&#39;, preset: &#39;waist&#39;, title: &#39;waist&#39; }),
+    b3dPanel({ frame: &#39;left-hand&#39;, preset: &#39;wrist&#39;, title: &#39;wrist&#39;, width: 0.09 }),
+  )
+)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
 <h2 id="three-ways-to-place-a-panel">Three ways to place a panel</h2>
 <ul>
 <li><strong>World-anchored (<code>b3d-svg-plane</code>)</strong> — a panel that IS a mesh in the scene: visible
@@ -102,8 +171,7 @@ bound to the same reactive values. Use for settings/controls you want everywhere
 reference frame (<code>eye</code>/<code>body</code>/<code>left-hand</code>/…); follows you and exists only in a
 session. Use for HUDs, wrist menus, over-the-shoulder inventory.</li>
 </ul>
-<p>If ANY <code>&lt;tosi-b3d-panel&gt;</code> children are present they replace the built-in default set,
-so you have full control:</p>
+<p>The <code>&lt;tosi-b3d-panel&gt;</code> children are the set (none ship by default):</p>
 <pre><code class="language-html">&lt;tosi-b3d gamepad&gt;
   &lt;tosi-b3d-panel frame=&quot;eye&quot; azimuth=&quot;-60&quot; elevation=&quot;45&quot; title=&quot;Inventory&quot;&gt;&lt;/tosi-b3d-panel&gt;
   &lt;tosi-b3d-panel frame=&quot;eye&quot; azimuth=&quot;0&quot;   elevation=&quot;-45&quot; title=&quot;Quick Access&quot;&gt;&lt;/tosi-b3d-panel&gt;
@@ -128,7 +196,7 @@ so you have full control:</p>
 <tr>
 <td><code>preset</code></td>
 <td><code>&#39;&#39;</code></td>
-<td>A named anchor (<code>waist</code>, <code>left-shoulder</code>, <code>right-shoulder</code>, <code>overhead</code>, <code>wrist</code>). Overrides the angular fields.</td>
+<td>A named pin (<code>waist</code>, <code>left-shoulder</code>, <code>right-shoulder</code>, <code>overhead</code>, <code>wrist</code>; see Pins), overriding the angular fields. <code>system-bar</code> puts it on the system bar, which an <code>icon</code> with no preset already does</td>
 </tr>
 <tr>
 <td><code>azimuth</code> / <code>elevation</code></td>
@@ -171,6 +239,16 @@ so you have full control:</p>
 <td>Placeholder card title (ignored if <code>url</code> set)</td>
 </tr>
 <tr>
+<td><code>icon</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Puts it on the scene&#39;s system bar: its button&#39;s picture, an <code>svgIcons</code> name (e.g. <code>personStanding</code>, <code>book</code>, <code>map</code>); unknown draws a square. Its <code>title</code> is the button&#39;s tooltip and the panel&#39;s caption</td>
+</tr>
+<tr>
+<td><code>chrome</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>On the system bar: the panel opens with the settings panel&#39;s title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). <code>&#39;none&#39;</code> for content with chrome of its own</td>
+</tr>
+<tr>
 <td><code>url</code></td>
 <td><code>&#39;&#39;</code></td>
 <td>SVG URL (e.g. a reticle)</td>
@@ -206,17 +284,22 @@ so you have full control:</p>
 <td>Texture size in px (square); <code>0</code> = 384. Raise it for a menu with text</td>
 </tr>
 <tr>
+<td><code>layer</code></td>
+<td><code>&#39;world&#39;</code></td>
+<td><code>&#39;ui&#39;</code>: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); <code>&#39;modal&#39;</code>: over even the ui (pause, a dialog). <code>&#39;world&#39;</code>: in the scene like anything else. The same in a headset: the controller&#39;s ray picks modal, then ui, then the world</td>
+</tr>
+<tr>
 <td><code>flat-frame</code></td>
 <td><code>&#39;&#39;</code></td>
 <td>The frame to use flat when <code>frame</code> is a hand (a monitor has none) — e.g. <code>face</code> with a <code>position</code> at the screen edge. Without one a hand panel stays VR-only and warns once</td>
 </tr>
 </tbody></table>
 <p>Four more are JavaScript properties, not attributes, because they are
-objects: <code>svg</code> (live content: an <code>&lt;svg&gt;</code> whose own <code>handlePointer(kind, x, y)</code>
+objects: <code>svg</code> (live content, in place of an <code>&lt;svg&gt;</code> child: an <code>&lt;svg&gt;</code> whose own <code>handlePointer(kind, x, y)</code>
 gets the panel&#39;s pointer, such as an <code>inventoryDock</code>&#39;s), <code>screenAnchor</code> (flat, pinned to the screen&#39;s edges in pixels, <code>%</code> or <code>vmin</code>: <code>{ left: &#39;2vmin&#39;, top: &#39;2vmin&#39; }</code>), <code>flatAnchor</code> (where
 it goes in the flat view instead), <code>focusAnchor</code> and <code>focusScale</code> (where it
 comes, and how much bigger, when its content asks for focus with a
-<code>panelfocus</code> event). The main <code>tosi-b3d</code> demo pins a loadout this way.</p>
+<code>panelfocus</code> event). A system-bar panel with no <code>svg</code> opens a card with its title.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -571,6 +654,7 @@ comes, and how much bigger, when its content asks for focus with a
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
           <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../system-bar/">system-bar</a></li>
           <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
@@ -644,8 +728,8 @@ comes, and how much bigger, when its content asks for focus with a
     </details></li>
     <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
     <ul>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
@@ -660,6 +744,6 @@ comes, and how much bigger, when its content asks for focus with a
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-natg446m.js"></script>
+  <script type="module" src="../hydrate-dejhg2dr.js"></script>
 </body>
 </html>

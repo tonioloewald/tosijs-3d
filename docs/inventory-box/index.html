@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d55617f13dee" data-tosi-doc-system />
   <title>inventory-box — tosijs-3d</title>
   <meta name="description" content="An inventory holder on a panel, wired to carry&#39;s drag and drop: its slots are sockets, its lists are tiles with a place to drop, and every drop is checked and…" />
   <link rel="canonical" href="https://3d.tosijs.net/inventory-box/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=f0af8223469e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="inventory-box">inventory-box</h1>
 <p><strong>An <a href="/inventory/">inventory</a> holder on a panel</strong>, wired to
@@ -298,14 +298,14 @@ dealHost.addEventListener(&#39;pointerup&#39;, (e) =&gt; dealBox.handlePointer(&
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
 <h2 id="in-3d">In 3D</h2>
-<p>The same loadout in a scene, flat and in a headset, as the panel over your
-left shoulder (the top left of the view on a monitor) in place of the
-&quot;Inventory&quot; placeholder. Touch or click it and it comes front and centre,
-bigger, with the bag beside it to drag to and from; the button at its corner
-sends it back. <code>inventoryDock</code> draws both into one SVG, so a drag between
-them is one panel; give it no <code>list</code> for a craft fitted from a carrier&#39;s
-stock, and it opens to the schematic alone. A <code>&lt;tosi-b3d-panel&gt;</code> takes the
-dock&#39;s <code>svg</code>, and the dock asks it to come forward (<code>panelfocus</code>).</p>
+<p>The same loadout in a scene, flat and in a headset, on the scene&#39;s SYSTEM
+BAR: its button (a standing figure) opens it under the bar, with the bag beside it to
+drag to and from; the button again, or the × in its title bar, puts it away.
+<code>inventoryDock</code> draws both into one SVG, so a drag between them is one panel;
+give it no <code>list</code> for a craft fitted from a carrier&#39;s stock, and it opens to
+the schematic alone. A <code>&lt;tosi-b3d-panel icon title&gt;</code> takes the dock&#39;s
+<code>svg</code>; the bar asks the dock to open (<code>panelopen</code>), and the title bar&#39;s ×
+puts it away.</p>
 <pre><code class="language-js">import { b3d, b3dLight, b3dGround, b3dPanel, createCarry, createInventory, inventoryDock } from &#39;tosijs-3d&#39;
 
 const kind = (id, tags, mass) =&gt; ({ id, name: id, tags, mass })
@@ -341,20 +341,8 @@ const inv = createInventory(
 const alsoIn = (item, kind, at) =&gt;
   kind?.tags.includes(&#39;two-handed&#39;) &amp;&amp; at.slot?.startsWith(&#39;hand_&#39;) ? [at.slot === &#39;hand_left&#39; ? &#39;hand_right&#39; : &#39;hand_left&#39;] : []
 
-// Over your left shoulder in a headset; on a monitor, up and to the left.
-// Until the art arrives it is the placeholder card.
-const loadout = b3dPanel({
-  frame: &#39;eye&#39;, preset: &#39;left-shoulder&#39;, title: &#39;Inventory&#39;, reveal: &#39;always&#39;,
-  presence: &#39;both&#39;, flatFrame: &#39;face&#39;, width: 0.125, resolution: 1024,
-})
-// Small closed, as big as ever opened; flat, near the top-left corner and
-// square to the screen (flatOn).
-loadout.focusScale = 4.56
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 18, distance: 1.4, flatOn: true }
-// …or in screen terms, which wins flat: at the top left (64 px in, clear of
-// the scene&#39;s corner button; 2% of the shorter side down), 14% of the screen
-// tall, whatever the window&#39;s shape.
-loadout.screenAnchor = { left: 64, top: &#39;2vmin&#39;, height: &#39;14%&#39; }
+// On the system bar: a button (a standing figure) that opens it under the bar.
+const loadout = b3dPanel({ title: &#39;Inventory&#39;, icon: &#39;personStanding&#39; })
 
 preview.closest(&#39;tosi-example&#39;)?.style.setProperty(&#39;--tosi-example-height&#39;, &#39;520px&#39;)
 preview.append(
@@ -363,10 +351,6 @@ preview.append(
     b3dLight({ intensity: 1 }),
     b3dGround({ width: 20, height: 20, texture: &#39;checker&#39;, textureTiles: 10 }),
     loadout,
-    // Declared panels replace the default set: the rest of it, as it was.
-    b3dPanel({ frame: &#39;eye&#39;, preset: &#39;right-shoulder&#39;, title: &#39;Journal&#39; }),
-    b3dPanel({ frame: &#39;eye&#39;, preset: &#39;waist&#39;, title: &#39;Quick Access&#39; }),
-    b3dPanel({ frame: &#39;left-hand&#39;, preset: &#39;wrist&#39;, title: &#39;Menu&#39;, width: 0.09 }),
   )
 )
 
@@ -384,7 +368,6 @@ Promise.all([fetch(&#39;/person-loadout.svg&#39;).then((r) =&gt; r.text()), fetc
   park.style.cssText = &#39;position:absolute; left:-10000px; top:0&#39;
   park.append(dock.svg)
   preview.append(park)
-  loadout.title = &#39;&#39;
   loadout.svg = dock.svg
 })
 </code></pre>
@@ -809,6 +792,7 @@ tosi-b3d { width: 100%; height: 100%; }
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
           <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../system-bar/">system-bar</a></li>
           <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
@@ -882,8 +866,8 @@ tosi-b3d { width: 100%; height: 100%; }
     </details></li>
     <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
     <ul>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
@@ -898,6 +882,6 @@ tosi-b3d { width: 100%; height: 100%; }
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-natg446m.js"></script>
+  <script type="module" src="../hydrate-dejhg2dr.js"></script>
 </body>
 </html>

@@ -285,14 +285,14 @@ dealHost.addEventListener('pointerup', (e) => dealBox.handlePointer('up', ...at(
 
 ## In 3D
 
-The same loadout in a scene, flat and in a headset, as the panel over your
-left shoulder (the top left of the view on a monitor) in place of the
-"Inventory" placeholder. Touch or click it and it comes front and centre,
-bigger, with the bag beside it to drag to and from; the button at its corner
-sends it back. `inventoryDock` draws both into one SVG, so a drag between
-them is one panel; give it no `list` for a craft fitted from a carrier's
-stock, and it opens to the schematic alone. A `<tosi-b3d-panel>` takes the
-dock's `svg`, and the dock asks it to come forward (`panelfocus`).
+The same loadout in a scene, flat and in a headset, on the scene's SYSTEM
+BAR: its button (a standing figure) opens it under the bar, with the bag beside it to
+drag to and from; the button again, or the × in its title bar, puts it away.
+`inventoryDock` draws both into one SVG, so a drag between them is one panel;
+give it no `list` for a craft fitted from a carrier's stock, and it opens to
+the schematic alone. A `<tosi-b3d-panel icon title>` takes the dock's
+`svg`; the bar asks the dock to open (`panelopen`), and the title bar's ×
+puts it away.
 
 ```js
 import { b3d, b3dLight, b3dGround, b3dPanel, createCarry, createInventory, inventoryDock } from 'tosijs-3d'
@@ -330,20 +330,8 @@ const inv = createInventory(
 const alsoIn = (item, kind, at) =>
   kind?.tags.includes('two-handed') && at.slot?.startsWith('hand_') ? [at.slot === 'hand_left' ? 'hand_right' : 'hand_left'] : []
 
-// Over your left shoulder in a headset; on a monitor, up and to the left.
-// Until the art arrives it is the placeholder card.
-const loadout = b3dPanel({
-  frame: 'eye', preset: 'left-shoulder', title: 'Inventory', reveal: 'always',
-  presence: 'both', flatFrame: 'face', width: 0.125, resolution: 1024,
-})
-// Small closed, as big as ever opened; flat, near the top-left corner and
-// square to the screen (flatOn).
-loadout.focusScale = 4.56
-loadout.flatAnchor = { azimuthDeg: -16, elevationDeg: 18, distance: 1.4, flatOn: true }
-// …or in screen terms, which wins flat: at the top left (64 px in, clear of
-// the scene's corner button; 2% of the shorter side down), 14% of the screen
-// tall, whatever the window's shape.
-loadout.screenAnchor = { left: 64, top: '2vmin', height: '14%' }
+// On the system bar: a button (a standing figure) that opens it under the bar.
+const loadout = b3dPanel({ title: 'Inventory', icon: 'personStanding' })
 
 preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '520px')
 preview.append(
@@ -352,10 +340,6 @@ preview.append(
     b3dLight({ intensity: 1 }),
     b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
     loadout,
-    // Declared panels replace the default set: the rest of it, as it was.
-    b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'Journal' }),
-    b3dPanel({ frame: 'eye', preset: 'waist', title: 'Quick Access' }),
-    b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'Menu', width: 0.09 }),
   )
 )
 
@@ -373,7 +357,6 @@ Promise.all([fetch('/person-loadout.svg').then((r) => r.text()), fetch('/item-ic
   park.style.cssText = 'position:absolute; left:-10000px; top:0'
   park.append(dock.svg)
   preview.append(park)
-  loadout.title = ''
   loadout.svg = dock.svg
 })
 ```

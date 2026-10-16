@@ -33,8 +33,8 @@ const turret = b3dTurret({ x: 0, y: 0, z: 0, traverseRate: s.traverseRate, range
 const scene = b3d(
   {
     scenePanelOpen: true,
+    panelTitle: 'Turret',
     scenePanel: () => [
-      label3d({ text: 'Turret', bold: true }),
       slider3d({ label: 'traverse rate', value: s.traverseRate, min: 0.3, max: 6, step: 0.1 }),
       slider3d({ label: 'range', value: s.range, min: 8, max: 40, step: 1 }),
       slider3d({ label: 'fire rate', value: s.fireRate, min: 0.5, max: 8, step: 0.5 }),

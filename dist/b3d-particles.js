@@ -38,8 +38,8 @@ const explosion = b3dParticles({
 
 const scene = b3d(
   {
+    panelTitle: 'Particles',
     scenePanel: () => [
-      label3d({ text: 'Particles' }),
       slider3d({ label: 'emit rate', value: demo.emitRate, min: 0, max: 200, step: 5 }),
       button3d({ label: 'Burst', handleClick() { explosion.burst(150) } }),
     ],

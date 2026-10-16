@@ -105,8 +105,8 @@ const scene = b3d(
     // screens, and the SAME panel floats in front of you in VR — so you can retune
     // the terrain from inside the headset. All widgets bind the same `demo.*`
     // reactive values the regenerate observers below already watch.
+    panelTitle: 'Terrain',
     scenePanel: () => [
-      label3d({ text: 'Terrain' }),
       slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, scale: 'log' }),
       slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, scale: 'log' }),
       slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, scale: 'log2' }),

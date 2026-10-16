@@ -1259,8 +1259,7 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
   let tapped = false
   let closing = false
   const onClose = (x: number, y: number) =>
-    !framed &&
-    Math.hypot(x - (size.width - 22), y - 22) <= 18
+    !framed && Math.hypot(x - (size.width - 22), y - 22) <= 18
   const setOpen = (v: boolean) => {
     if (v === open) return
     open = v

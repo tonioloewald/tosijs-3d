@@ -57,28 +57,44 @@ export function chromeLayout(vbWidth, vbHeight, gripHeight, draggable = true) {
     outside the panel entirely. Height told the width where to sit.
     */
     /*
-    Tucked toward the corners: 60% of the centring inset rather than all of it.
+    CENTRED in the bar, and the same margin from the side as from the top.
   
-    Centring the glyph in the bar was correct and read as floaty — a corner
-    affordance wants to look anchored to its corner. Still an inset rather than
-    flush, because a glyph touching the edge reads as clipped.
+    For a while they were pulled 40% toward their corners (centred read as
+    floaty), and that overshot. Tonio, 2026-10-16: "visually the two icons are a
+    bit too tucked into their corners … vertically center the close and move
+    widgets". Centred vertically, with an equal side margin, they sit in the
+    bar's ends rather than in its corners.
     */
-    const CORNER_PULL = 0.6;
-    const insetY = ((barHeight - size) / 2) * CORNER_PULL;
-    const insetX = Math.max(0, Math.min(insetY, (vbWidth - 2 * size) / 3));
+    const insetY = (barHeight - size) / 2;
+    // Never so far in that the move glyph reaches the close TARGET (as wide as
+    // the bar is tall: on a narrow panel with a tall bar that is most of it).
+    const hitWidth = Math.max(barHeight, size * 2);
+    const insetX = Math.max(0, Math.min(insetY, (vbWidth - 2 * size) / 3, vbWidth - hitWidth - size * 1.1));
+    /*
+    The × is drawn LARGER than the move glyph, so the two read the same size.
+  
+    Both are 24-unit icons, but Feather's × reaches from 6 to 18 and the move
+    arrows from 2 to 22. At one size the × has 60% of the move's reach and looks
+    like an afterthought ("The x seems small compared with the move widget").
+    This scales its box so the ×'s ink comes to about 80% of the move's (a × is
+    all diagonals and looks bigger than its extent), centred on the same point a
+    move-sized glyph would sit, and never taller than the bar.
+    */
+    const CLOSE_OPTICAL = 1.35;
+    const closeSize = Math.min(size * CLOSE_OPTICAL, barHeight);
     /*
     The close TARGET, sized independently of the glyph.
   
     At least as wide as the bar is tall — a roughly square target at the corner,
     which is what a finger or a ray needs regardless of how small the × is drawn.
     */
-    const closeX = vbWidth - size - insetX;
-    const closeHitX = Math.min(closeX, vbWidth - Math.max(barHeight, size * 2));
+    const closeX = Math.min(vbWidth - insetX - size / 2 - closeSize / 2, vbWidth - closeSize);
+    const closeHitX = Math.min(closeX, vbWidth - hitWidth);
     return {
         barHeight,
         closeHitX,
         move: draggable ? { x: insetX, y: insetY, size } : null,
-        close: { x: closeX, y: insetY, size },
+        close: { x: closeX, y: (barHeight - closeSize) / 2, size: closeSize },
     };
 }
 /**

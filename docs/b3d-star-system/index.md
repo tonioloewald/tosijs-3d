@@ -61,8 +61,8 @@ const scene = b3d(
   {
     frameRate: 60,
     clearColor: '#000011',
+    panelTitle: 'Star system',
     scenePanel: () => [
-      label3d({ text: 'Star system' }),
       slider3d({ label: 'star index', value: demo.starIndex, min: 0, max: 999, step: 1 }),
       slider3d({ label: 'scale', value: demo.scale, min: 1, max: 20, step: 0.5 }),
       slider3d({ label: 'orbit scale', value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),

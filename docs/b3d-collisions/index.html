@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=7073b0273306" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=d55617f13dee" data-tosi-doc-system />
   <title>b3d-collisions — tosijs-3d</title>
   <meta name="description" content="Opt-in collision detection via mesh naming conventions authored in Blender." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-collisions/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=bf44c92ffe4b" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=f0af8223469e" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-collisions">b3d-collisions</h1>
 <p>Opt-in collision detection via mesh naming conventions authored in Blender.</p>
@@ -69,8 +69,8 @@ const scene = b3d(
   {
     // Bloom for the stones&#39; emissive; the impact markers pick it up too.
     glowLayerIntensity: 0.6,
+    panelTitle: &#39;hail&#39;,
     scenePanel: () =&gt; [
-      label3d({ text: &#39;hail&#39; }),
       slider3d({ label: &#39;stones&#39;, value: hail.rate, min: 1, max: 30, step: 1 }),
     ],
     sceneCreated(el, BABYLON) {
@@ -562,6 +562,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
           <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
           <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
           <li><a class="doc-link" href="../panel-orbit/">panel-orbit</a></li>
+          <li><a class="doc-link" href="../system-bar/">system-bar</a></li>
           <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
         </ul>
         </details></li>
@@ -635,8 +636,8 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     </details></li>
     <li><details><summary><a class="doc-link" href="../reference/">Reference</a></summary>
     <ul>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../Migration/">Migration</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">Pseudo Random Numbers</a></li>
       <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
       <li><a class="doc-link" href="../perlin-noise/">perlin-noise</a></li>
       <li><a class="doc-link" href="../noise-volume/">Noise volume</a></li>
@@ -651,6 +652,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-natg446m.js"></script>
+  <script type="module" src="../hydrate-dejhg2dr.js"></script>
 </body>
 </html>

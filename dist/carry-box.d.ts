@@ -59,6 +59,10 @@ export interface CarrySocketOptions<T> {
     label: string;
     width?: number;
     height?: number;
+    /** Flows beside its neighbours in a box (two targets on one line), not a line of its own. */
+    inline?: boolean;
+    /** An `svgIcons` name drawn before the label, in a row (e.g. `lucideBackpack`, `trash`). */
+    icon?: string;
     /**
      * What is in it now, drawn inside it. A tile here can be picked up from
      * the socket: pressed and dragged, or tapped.

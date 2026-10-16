@@ -1499,11 +1499,7 @@ export class B3d extends Component {
   }
 
   private _showPausePanel(): void {
-    if (
-      this._pauseModal != null ||
-      this.scene == null
-    )
-      return
+    if (this._pauseModal != null || this.scene == null) return
     /*
     TAKE THE CAMERA'S HANDS OFF THE POINTER FIRST.
 
@@ -1578,7 +1574,9 @@ export class B3d extends Component {
     and the screen pins. Its own head-locked frame, because a scene with no
     other flat panels has none.
     */
-    this._pauseModal = this.showModal(svg, svgH, () => this._pauseOwn(svg, svgH))
+    this._pauseModal = this.showModal(svg, svgH, () =>
+      this._pauseOwn(svg, svgH)
+    )
   }
 
   /** The pause where the scene's modal is not available: the DOM flat
@@ -2556,7 +2554,10 @@ export class B3d extends Component {
     if (p == null) return
     this._sysPanel = null
     p.svg.dispatchEvent(
-      new CustomEvent('panelopen', { detail: { open: false }, cancelable: true })
+      new CustomEvent('panelopen', {
+        detail: { open: false },
+        cancelable: true,
+      })
     )
     if (p.obs != null) this.scene?.onBeforeCameraRenderObservable.remove(p.obs)
     p.panel.dispose()
@@ -2576,7 +2577,11 @@ export class B3d extends Component {
     const gearEl = this.parts.scenePanelGear as HTMLElement | undefined
     let after: Element | undefined = gearEl
     for (const b of this._systemButtons()) {
-      if (lozenge != null && after != null && b.previousElementSibling !== after)
+      if (
+        lozenge != null &&
+        after != null &&
+        b.previousElementSibling !== after
+      )
         after.after(b)
       // Guarded: even a no-op class write is a mutation, and the bar
       // watches its buttons for those (a rebuild twice a second).
@@ -2654,7 +2659,9 @@ export class B3d extends Component {
       const bar = this._sceneToolbarSpec()
       if (bar) specs.unshift(bar)
       const sig = specs.length
-        ? `${cam.uniqueId}|${bar ? `bar${this._sceneBarVersion}` : ''}|${JSON.stringify(specs)}`
+        ? `${cam.uniqueId}|${
+            bar ? `bar${this._sceneBarVersion}` : ''
+          }|${JSON.stringify(specs)}`
         : ''
       if (sig !== this._flatSig) {
         this._disposeFlatPanels()
@@ -6207,9 +6214,7 @@ export class B3d extends Component {
     const sync = () => {
       const full = isFull()
       btn.title = full ? 'Leave full screen' : 'Full screen'
-      btn.replaceChildren(
-        full ? svgIcons.minimize() : svgIcons.maximize()
-      )
+      btn.replaceChildren(full ? svgIcons.minimize() : svgIcons.maximize())
       // The canvas changed size with the element.
       this.engine?.resize()
     }
@@ -6412,12 +6417,7 @@ export class B3d extends Component {
   private _openScenePanel(): void {
     // One at a time: a system panel (the inventory) goes.
     this._closeSystemPanel()
-    if (
-      !this._flatDom() &&
-      !this.xrActive &&
-      this._openFlatScenePanel()
-    )
-      return
+    if (!this._flatDom() && !this.xrActive && this._openFlatScenePanel()) return
     const host = this.parts.scenePanelHost as HTMLElement
     const mk = (
       title: string,

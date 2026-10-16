@@ -78,8 +78,8 @@ const scene = b3d(
       })
       preview.append(demo.readout)
     },
+    panelTitle: 'volcano, in section',
     scenePanel: () => [
-      label3d({ text: 'volcano, in section', bold: true }),
       // Extraction is fast enough (~200ms for this chunk) that a slider can
       // just drive it — debounced so a drag doesn't queue a rebuild per step.
       slider3d({
@@ -217,8 +217,8 @@ const scene = b3d(
       })
       preview.append(demo.readout)
     },
+    panelTitle: 'volumetric vs heightfield',
     scenePanel: () => [
-      label3d({ text: 'volumetric vs heightfield', bold: true }),
       toggle3d({
         label: 'heightfield wireframe',
         value: state.sdf.wire,

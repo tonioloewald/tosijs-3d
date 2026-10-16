@@ -119,8 +119,10 @@ export class SvgTexture {
     _img = new Image();
     _lastXml = '';
     _warnedFailure = false;
+    _premul = false;
     constructor(options) {
-        const { scene, resolution = 512, url, element, updateInterval = 30, mipmaps = true, } = options;
+        const { scene, resolution = 512, url, element, updateInterval = 30, mipmaps = true, premultiplied = false, } = options;
+        this._premul = premultiplied;
         this._resolution = resolution;
         this._element = element;
         this._scene = scene;
@@ -219,7 +221,7 @@ export class SvgTexture {
             if (ok) {
                 this._lastXml = xml;
                 const upload = performance.now();
-                dt.update(false);
+                dt.update(false, this._premul);
                 svgTextureCost.repaints++;
                 svgTextureCost.ms += performance.now() - upload;
             }
@@ -246,7 +248,7 @@ export class SvgTexture {
         const res = this._resolution;
         rasterizeSvg(svgString, ctx, res, res, this._img, (ok) => {
             if (ok)
-                dt.update(false);
+                dt.update(false, this._premul);
         });
     }
     dispose() {

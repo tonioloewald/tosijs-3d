@@ -18,6 +18,7 @@ declare const _default: {
     game: string;
     keyboard: string;
     arrowUpRight: string;
+    backpack: string;
     bug: string;
     camera: string;
     chevron: string;
@@ -34,6 +35,8 @@ declare const _default: {
     delete: string;
     barChart2: string;
     barChart: string;
+    bookOpen: string;
+    book: string;
     checkCircle: string;
     checkSquare: string;
     check: string;
@@ -59,6 +62,11 @@ declare const _default: {
     thermometer: string;
     thumbsUp: string;
     uploadCloud: string;
+    loadout: string;
+    lucideBackpack: string;
+    personStanding: string;
+    maximize: string;
+    minimize: string;
     mousePointer: string;
     plusCircle: string;
     plus: string;

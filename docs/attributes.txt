@@ -664,7 +664,7 @@ b3d-moon
 b3d-panel
 
   frame  = eye  — `eye` / `rig` / `world` / `body` / `neck` / `face` / `left-hand` / `right-hand`
-  preset  = ''  — A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields.
+  preset  = ''  — A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields. `system-bar` puts it on the system bar, which an `icon` with no preset already does
   azimuth  = 0  — Degrees off the frame's eye: +az right, +el up
   elevation  = 0  — Degrees off the frame's eye: +az right, +el up
   distance  = 1.4  — Metres from the eye
@@ -674,6 +674,8 @@ b3d-panel
   blend  = composite  — `composite` or `add` (additive HUD glyphs)
   view  = both  — `first` / `third` / `both` — restrict to a camera view
   title  = ''  — Placeholder card title (ignored if `url` set)
+  icon  = ''  — Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption
+  chrome  = ''  — On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own
   url  = ''  — SVG URL (e.g. a reticle)
   width  = 0.26  — Panel width (m); height follows aspect
   revealStart
@@ -682,6 +684,7 @@ b3d-panel
   presence  = 'xr'  — `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera
   flatFrame  = ''  — The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera
   resolution  = 0  — Texture size in px (square); `0` = 384. Raise it for a menu with text
+  layer  = 'world'  — `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world
 
 ## b3d-particles — <tosi-b3d-particles>
 b3d-particles
@@ -1052,9 +1055,10 @@ b3d-svg-plane
   placement
   xrFrame  = ''  — In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked
   pointerEvents  = 'on'  — Map 3D pick hits → SVG pointer events
+  layer  = 'world'  — `'ui'` / `'modal'`: drawn over the whole world in a layer of its own and picked first (`modal` over `ui`). A popup takes its opener's layer
   doubleSided  = 'on'  — Render both faces
   cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below
-  transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`
+  transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`. `'depth'` blends and writes depth (transparent pixels discarded): ordered by the z-buffer like an opaque panel, and a translucent theme still shows through
 
 ## b3d-terrain — <tosi-b3d-terrain>
 b3d-terrain
@@ -1414,7 +1418,8 @@ slope-profile
 b3d
 
   glowLayerIntensity  = 0  — Glow effect intensity (0 = off)
-  clearColor
+  clearColor  = ''  — The colour behind everything (`'#000'` for space); empty keeps Babylon's default
+  flatUi  = 'scene'  — Where the flat view's own controls are drawn. `'scene'`: in the scene (the system bar, settings panel and pause), the same UI a headset gets. `'dom'`: the HTML corner buttons, settings panel and pause, as before 0.10.7 (and where `::part(...)` styling of them shows). Any other value warns once and means `'scene'`
   frameRate  = 30  — Target frame rate
   minElevation  = 5  — Default orbit-camera elevation limits (degrees above the horizon)
   maxElevation  = 70  — Default orbit-camera elevation limits (degrees above the horizon)
@@ -1424,6 +1429,7 @@ b3d
   xrGrid
   xrReticle
   scenePanelOpen
+  panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
   panelSections
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
   gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used

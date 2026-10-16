@@ -14,6 +14,8 @@ export declare class B3dPanel extends Component {
         blend: string;
         view: string;
         title: string;
+        icon: string;
+        chrome: string;
         url: string;
         width: number;
         revealStart: number;
@@ -23,6 +25,8 @@ export declare class B3dPanel extends Component {
         flatFrame: string;
         /** Texture px (square); 0 = the default 384 — see FramePanelSpec.resolution. */
         resolution: number;
+        /** 'world' | 'ui' | 'modal': drawn and picked over the world (ui), or over that too (modal). */
+        layer: string;
     };
     static shadowStyleSpec: {
         ':host': {
@@ -38,8 +42,11 @@ export declare class B3dPanel extends Component {
     roll: number;
     reveal: string;
     blend: string;
+    layer: string;
     view: string;
     title: string;
+    icon: string;
+    chrome: string;
     url: string;
     width: number;
     revealStart: number;
@@ -57,6 +64,8 @@ export declare class B3dPanel extends Component {
     /** Where it comes when its content asks for focus, and how much bigger (JS only). */
     focusAnchor: AnchorPreset | AnchorSpec | null;
     focusScale: number;
+    private _child;
+    private _content;
     /** Build the FramePanelSpec this element declares. */
     toSpec(): FramePanelSpec;
 }

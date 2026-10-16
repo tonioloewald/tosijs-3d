@@ -48,8 +48,8 @@ const scene = b3d(
   {
     gamepad: 'left_stick,right_trigger',
     scenePanelOpen: true,
+    panelTitle: 'Warhead',
     scenePanel: () => [
-      label3d({ text: 'Warhead', bold: true }),
       slider3d({ label: 'damage', value: s.damage, min: 1, max: 60, step: 1 }),
       slider3d({ label: 'full radius', value: s.fullRadius, min: 0, max: 5, step: 0.1 }),
       slider3d({ label: 'blast radius', value: s.blastRadius, min: 1, max: 12, step: 0.5 }),

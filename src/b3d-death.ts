@@ -731,8 +731,7 @@ export class B3dDeath extends B3dChild {
     // screen, in a headset in front of you. Where the scene has none to give
     // (flat-ui="dom", a custom XR rig) it is our own world-placed plane.
     const own = () => this._ownPanel(svg, svgH)
-    this._modal =
-      this.owner.showModal?.(svg, svgH, own) ?? own()
+    this._modal = this.owner.showModal?.(svg, svgH, own) ?? own()
   }
 
   /** The respawn panel as a plane in the world; returns its dispose. */
@@ -747,8 +746,7 @@ export class B3dDeath extends B3dChild {
     const deathCam = owner.scene.activeCamera
     const width = panelFitWidth(
       (deathCam as BABYLON.FreeCamera)?.fov ?? 0.8,
-      owner.scene.getEngine().getAspectRatio(deathCam as BABYLON.Camera) ||
-        1.6,
+      owner.scene.getEngine().getAspectRatio(deathCam as BABYLON.Camera) || 1.6,
       2.2,
       1.1
     )

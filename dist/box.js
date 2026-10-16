@@ -286,7 +286,10 @@ export function box(opts, ...children) {
     el.setAttribute('style', NO_SELECT_STYLE);
     const bgRect = svgElements.rect({ 'data-box-bg': '', rx: radius, ry: radius });
     const clip = svgElements.clipPath({ id: clipId });
-    const clipRect = svgElements.rect({ x: 0, y: 0 });
+    // Rounded as the box is: the pinned strip and what scrolls are clipped to
+    // its corners, or a square strip covered the rounded top (Tonio: "the bag
+    // column in the inventory is not rounded but the loadout panel is").
+    const clipRect = svgElements.rect({ x: 0, y: 0, rx: radius, ry: radius });
     clip.append(clipRect);
     const clipped = svgElements.g({ 'clip-path': `url(#${clipId})` });
     const content = svgElements.g({ 'data-box-content': '' });

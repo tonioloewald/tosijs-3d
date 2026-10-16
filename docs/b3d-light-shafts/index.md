@@ -42,8 +42,8 @@ preview.append(
           cam.setTarget(cam.position.add(t.scale(1000)))
         })
       },
+      panelTitle: 'Light shafts',
       scenePanel: () => [
-        label3d({ text: 'Light shafts' }),
         slider3d({ label: 'cloud cover', value: shafts.coverage, min: 0.5, max: 1.2, step: 0.01 }),
         slider3d({ label: 'time of day', value: shafts.timeOfDay, min: 6, max: 19, step: 0.1 }),
         slider3d({ label: 'cloud base', value: shafts.altitude, min: 150, max: 1200, step: 10 }),
@@ -115,8 +115,8 @@ preview.append(
           cam.setTarget(cam.position.add(t.normalize().scale(10)))
         })
       },
+      panelTitle: 'Under the water',
       scenePanel: () => [
-        label3d({ text: 'Under the water' }),
         slider3d({ label: 'depth', value: sea.depth, min: 1, max: 30, step: 0.5 }),
         slider3d({ label: 'wind', value: sea.wind, min: 0, max: 25, step: 0.5 }),
         slider3d({ label: 'wave height', value: sea.waveHeight, min: 0, max: 1, step: 0.05 }),

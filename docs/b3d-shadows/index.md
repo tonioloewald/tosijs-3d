@@ -28,8 +28,8 @@ const { sun } = tosi({ sun: { timeOfDay: 10 } })
 preview.append(
   b3d(
     {
+      panelTitle: 'Sun',
       scenePanel: () => [
-        label3d({ text: 'Sun' }),
         slider3d({ label: 'time of day', value: sun.timeOfDay, min: 5, max: 19, step: 0.25 }),
       ],
       sceneCreated(el, BABYLON) {

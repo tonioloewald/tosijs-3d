@@ -30,9 +30,9 @@ const scene = b3d(
   {
     // Start with the flat panel open so it's visible without hunting for the ⚙.
     scenePanelOpen: true,
+    panelTitle: 'Settings',
     // DUAL-PRESENCE: a flat ⚙ overlay AND a floating VR panel, same values.
     scenePanel: () => [
-      label3d({ text: 'Settings' }),
       slider3d({ label: 'cube height', value: cfg.height, min: 0.5, max: 3, step: 0.1 }),
     ],
   },
@@ -65,6 +65,89 @@ tosi-b3d { width: 100%; height: 100%; }
 > and exposing it — so a panel can be PLACED by dragging rather than by typing
 > numbers — is on the list, not in 0.7.0.
 
+## On the system bar
+
+Give a panel an **icon** and a **title**, and put what it shows inside it:
+it gets a button on the scene's [system bar](?system-bar.ts) and opens under
+the bar with a title bar of its own (move, its title, ×), flat and in a
+headset. Drag it by that bar and it reopens where you left it; hold its button
+to put it back. Nothing else to wire.
+
+```js
+import { b3d, b3dPanel, b3dLight, b3dGround, panel3d, label3d, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { nav } = tosi({ nav: { zoom: 2 } })
+
+preview.append(
+  b3d(
+    {},
+    b3dLight({ intensity: 1 }),
+    b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+    b3dPanel(
+      { icon: 'map', title: 'Map' },
+      panel3d(
+        { width: 300 },
+        label3d({ text: 'Nowhere in particular' }),
+        slider3d({ label: 'zoom', value: nav.zoom, min: 1, max: 5, step: 0.5 })
+      )
+    ),
+    // No content: a card with its title.
+    b3dPanel({ icon: 'book', title: 'Journal' })
+  )
+)
+```
+
+The same in HTML; the `<svg>` inside is what it shows:
+
+```html
+<tosi-b3d>
+  <tosi-b3d-panel icon="compass" title="Heading">
+    <svg viewBox="0 0 240 120">
+      <text x="120" y="70" fill="#cfe0ff" font-size="32" text-anchor="middle">N 12°</text>
+    </svg>
+  </tosi-b3d-panel>
+</tosi-b3d>
+```
+
+Content that takes the pointer has a `handlePointer(kind, x, y)` (a
+`panel3d` does). A panel with a `preset` or a position is pinned instead (see
+Pins); `chrome="none"` leaves off the title bar, for content with its own.
+
+## Pins: named places on your body
+
+The rig has named places a panel can be pinned to, around you in a headset:
+**`left-shoulder`** and **`right-shoulder`** (45° up, 60° to each side),
+**`overhead`** (60° up), **`waist`** (45° down, facing up at you) and
+**`wrist`** (on the left hand). Each is revealed by looking toward it. None
+come filled: they are for your game's panels (a map, a journal, a radio).
+Here each one holds a card with its name; enter VR and look around.
+
+Not a pin: a panel with an `icon` (and no preset) goes on the system bar
+instead; see above. That is where an inventory goes.
+
+```js
+import { b3d, b3dPanel, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+
+preview.append(
+  b3d(
+    {},
+    b3dLight({ y: 1, intensity: 0.8 }),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+    // One card per pin, named for it (pins are around you: a headset's).
+    b3dPanel({ frame: 'eye', preset: 'left-shoulder', title: 'left-shoulder' }),
+    b3dPanel({ frame: 'eye', preset: 'right-shoulder', title: 'right-shoulder' }),
+    b3dPanel({ frame: 'eye', preset: 'overhead', title: 'overhead' }),
+    b3dPanel({ frame: 'eye', preset: 'waist', title: 'waist' }),
+    b3dPanel({ frame: 'left-hand', preset: 'wrist', title: 'wrist', width: 0.09 }),
+  )
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Three ways to place a panel
 
 - **World-anchored (`b3d-svg-plane`)** — a panel that IS a mesh in the scene: visible
@@ -75,8 +158,7 @@ tosi-b3d { width: 100%; height: 100%; }
   reference frame (`eye`/`body`/`left-hand`/…); follows you and exists only in a
   session. Use for HUDs, wrist menus, over-the-shoulder inventory.
 
-If ANY `<tosi-b3d-panel>` children are present they replace the built-in default set,
-so you have full control:
+The `<tosi-b3d-panel>` children are the set (none ship by default):
 
 ```html
 <tosi-b3d gamepad>
@@ -92,7 +174,7 @@ so you have full control:
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `frame` | `eye` | `eye` / `rig` / `world` / `body` / `neck` / `face` / `left-hand` / `right-hand` |
-| `preset` | `''` | A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields. |
+| `preset` | `''` | A named pin (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`; see Pins), overriding the angular fields. `system-bar` puts it on the system bar, which an `icon` with no preset already does |
 | `azimuth` / `elevation` | `0` / `0` | Degrees off the frame's eye: +az right, +el up |
 | `distance` | `1.4` | Metres from the eye |
 | `position` | `''` | Explicit `"x y z"` local position (overrides az/el/distance) |
@@ -101,6 +183,8 @@ so you have full control:
 | `blend` | `composite` | `composite` or `add` (additive HUD glyphs) |
 | `view` | `both` | `first` / `third` / `both` — restrict to a camera view |
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
+| `icon` | `''` | Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
+| `chrome` | `''` | On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
@@ -108,14 +192,15 @@ so you have full control:
 | `presence` | `'xr'` | `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera |
 | `flatFrame` | `''` | The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera |
 | `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
+| `layer` | `'world'` | `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world |
 | `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
 
 Four more are JavaScript properties, not attributes, because they are
-objects: `svg` (live content: an `<svg>` whose own `handlePointer(kind, x, y)`
+objects: `svg` (live content, in place of an `<svg>` child: an `<svg>` whose own `handlePointer(kind, x, y)`
 gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`), `flatAnchor` (where
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
 comes, and how much bigger, when its content asks for focus with a
-`panelfocus` event). The main `tosi-b3d` demo pins a loadout this way.
+`panelfocus` event). A system-bar panel with no `svg` opens a card with its title.
 */
 /*{ "parent": "ui-in-scene", "order": 10 }*/
 import { Component } from 'tosijs';
@@ -133,6 +218,8 @@ export class B3dPanel extends Component {
         blend: 'composite',
         view: 'both',
         title: '',
+        icon: '',
+        chrome: '',
         url: '',
         width: 0.26,
         revealStart: 50,
@@ -142,6 +229,8 @@ export class B3dPanel extends Component {
         flatFrame: '',
         /** Texture px (square); 0 = the default 384 — see FramePanelSpec.resolution. */
         resolution: 0,
+        /** 'world' | 'ui' | 'modal': drawn and picked over the world (ui), or over that too (modal). */
+        layer: 'world',
     };
     static shadowStyleSpec = {
         ':host': { display: 'none' }, // config-only element, no visual presence
@@ -155,11 +244,30 @@ export class B3dPanel extends Component {
     /** Where it comes when its content asks for focus, and how much bigger (JS only). */
     focusAnchor = null;
     focusScale = 0;
+    /*
+    ITS CONTENT CAN BE ITS CHILD: an `<svg>` inside it (in HTML, or a
+    `panel3d(...)` passed to `b3dPanel`). Kept once found, because the panel
+    that shows it borrows the element (a system panel's title bar wraps it).
+    The `svg` property, when set, wins.
+    */
+    _child = null;
+    _content() {
+        if (this.svg)
+            return this.svg;
+        const child = this.querySelector(':scope > svg');
+        if (child)
+            this._child = child;
+        return this._child;
+    }
     /** Build the FramePanelSpec this element declares. */
     toSpec() {
         let anchor;
         if (this.preset) {
             anchor = this.preset;
+        }
+        else if (this.icon) {
+            // An icon and nothing saying where: a button on the system bar.
+            anchor = 'system-bar';
         }
         else if (this.position.trim()) {
             const [x = 0, y = 0, z = 0] = this.position
@@ -188,15 +296,18 @@ export class B3dPanel extends Component {
             anchor,
             reveal: this.reveal === 'always' ? 'always' : 'gaze',
             blend: this.blend === 'add' ? 'add' : 'composite',
+            layer: this.layer === 'ui' || this.layer === 'modal' ? this.layer : 'world',
             view: this.view === 'first' || this.view === 'third' ? this.view : 'both',
             title: this.title || undefined,
+            icon: this.icon || undefined,
+            chrome: this.chrome === 'none' ? 'none' : undefined,
             url: this.url || undefined,
             width: this.width,
             maxDistance: this.maxDistance > 0 ? this.maxDistance : undefined,
             presence: this.presence === 'both' ? 'both' : 'xr',
             flatFrame: (this.flatFrame || undefined),
             resolution: this.resolution > 0 ? this.resolution : undefined,
-            svg: this.svg ?? undefined,
+            svg: this._content() ?? undefined,
             flatAnchor: this.flatAnchor ?? undefined,
             screenAnchor: this.screenAnchor ?? undefined,
             focusAnchor: this.focusAnchor ?? undefined,

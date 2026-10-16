@@ -63,6 +63,13 @@ export interface InventoryPanelOptions {
      * go, and put it in the world yourself (on the ground at the player's
      * feet). No drop target without it.
      */
+    /** Container names over what they hold (default on; a dock's bag goes without). */
+    headings?: boolean;
+    /** The label on a list's "put in" target (default `put in <container>`; a dock says `unequip`). */
+    putLabel?: string;
+    /** Icons on the "put in" and drop targets (`svgIcons` names; a dock uses `lucideBackpack` and `trash`). */
+    putIcon?: string;
+    dropIcon?: string;
     handleDrop?: (item: Item, kind: ItemKind | undefined, from: Place) => string[] | void;
 }
 export interface InventoryPanel {

@@ -38,6 +38,13 @@ export declare class B3dSvgPlane extends AbstractMesh {
          */
         xrFrame: string;
         pointerEvents: "on" | "off";
+        /**
+         * Which layer it is drawn and picked in: `'world'` (default), or `'ui'` /
+         * `'modal'`, over the world and given the pointer first (see frame-panel's
+         * `layer`). A popup takes its opener's layer, so a popup from a ui panel is
+         * ui too and can hang from it. Set at build time.
+         */
+        layer: "world" | "ui" | "modal";
         doubleSided: "on" | "off";
         /**
          * Corner radius in world units. `0` = a plain rectangle.
@@ -53,8 +60,12 @@ export declare class B3dSvgPlane extends AbstractMesh {
          * Whether the SVG's alpha drives the mesh's opacity. `'on'` (default,
          * unchanged) is what a panel with rounded corners drawn IN the SVG needs.
          * `'off'` makes the panel opaque — use it with `cornerRadius`.
+         * `'depth'` blends AND writes depth: pixels with (almost) no alpha are
+         * discarded, the rest blend and land in the z-buffer, so near-coplanar
+         * panels are ordered by depth rather than re-sorted by distance, and a
+         * translucent theme still shows through. What popups use.
          */
-        transparent: "on" | "off";
+        transparent: "on" | "off" | "depth";
         x: number;
         y: number;
         z: number;
@@ -85,7 +96,7 @@ export declare class B3dSvgPlane extends AbstractMesh {
     pointerEvents: 'on' | 'off';
     doubleSided: 'on' | 'off';
     cornerRadius: number;
-    transparent: 'on' | 'off';
+    transparent: 'on' | 'off' | 'depth';
     /** True only while WE have parented the mesh to the camera — so the
      * cameraRelative sync never clears a parent somebody else set. */
     private _camParented;
@@ -149,7 +160,9 @@ export declare class B3dSvgPlane extends AbstractMesh {
      * sign on a wall or a screen in a room wants both.
      */
     private _meshName;
-    sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /** The scene it draws in: the owner's, or a panel layer over it. */
+    private _drawScene;
+    sceneReady(owner: B3d, mainScene: BABYLON.Scene): void;
     sceneDispose(): void;
     render(): void;
     /** Get the SvgTexture instance for programmatic access. */

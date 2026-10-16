@@ -19,8 +19,8 @@ const { ambient } = tosi({ ambient: { intensity: 0.6 } })
 preview.append(
   b3d(
     {
+      panelTitle: 'Light',
       scenePanel: () => [
-        label3d({ text: 'Light' }),
         slider3d({ label: 'ambient', value: ambient.intensity, min: 0, max: 1.5, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {

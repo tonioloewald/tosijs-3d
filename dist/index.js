@@ -109,7 +109,7 @@ export { B3dGamepad, b3dGamepad, parseGamepadControls, } from './glass-gamepad.j
 export { XrGamepadSource } from './xr-gamepad.js';
 // XR reference frames & spatial UI
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
-export { attachFramePanel, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
+export { attachFramePanel, panelLayerScene, pickPanelLayers, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
 export { GAS_GIANTS, GAS_GIANT_GLSL, resolveGasGiant, gasGiantRgb, } from './gas-giant.js';
@@ -167,7 +167,7 @@ export { picker3d, matchesQuery, groupsOf } from './picker.js';
 // One wind for the scene, and provinces that bend it
 export { NO_WIND, addWind, scaleWind, windSpeed, windFromPolar, windToPolar, windAt, provinceInfluence, gustAt, waterWind, } from './wind.js';
 // SVG widgets (DOM-overlay or in-scene panels)
-export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, tabs3d, foldSections, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
+export { panel3d, titled3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, tabs3d, foldSections, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 // Curve editing — the pure model, and the `curve3d` widget over it. A province
 // is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, 

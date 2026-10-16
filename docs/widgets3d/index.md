@@ -226,8 +226,8 @@ const cube = b3dBox({ meshName: 'cube', size: 1, y: 1, color: '#39c5ff' })
 let spin = 0
 const sceneEl = b3d(
   {
+    panelTitle: 'Scene settings',
     scenePanel: () => [
-      label3d({ text: 'Scene settings' }),
       toggle3d({ label: 'spin', value: cfg.spin }),
       slider3d({ label: 'height', value: cfg.height, min: 0, max: 3, step: 0.1 }),
     ],

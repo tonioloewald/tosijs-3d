@@ -21,10 +21,6 @@ export declare class MersenneTwister {
     random(): number;
 }
 /**
- * Seeded pseudo-random number generator with convenience methods.
- * Wraps MersenneTwister for deterministic random sequences.
- */
-/**
  * xoshiro128** (Blackman & Vigna), seeded by splitmix32 — the engine behind
  * `PRNG` since 0.8.4.
  *
@@ -79,11 +75,13 @@ export interface RandomLike {
 /**
  * mulberry32 — a tiny, FAST seeded PRNG for derived per-object data.
  *
- * Not MT-quality; quality is not the job. It exists because the Mersenne
- * Twister costs ~14 µs just to CONSTRUCT, which makes "one seeded PRNG per
- * star" unaffordable at galaxy scale — while derived data (a star's name,
- * its spectral detail) needs exactly that shape: a pure function of the
- * star's seed. Deterministic, like everything else here.
+ * Weaker than xoshiro128** (one 32-bit word, period 2³²); quality is not the
+ * job. Derived data (a star's name, its spectral detail) wants one seeded
+ * generator per object, built, drawn from a few times and dropped, at galaxy
+ * scale: this starts about 3× cheaper than `Xoshiro128` (and ~500× cheaper
+ * than the Mersenne Twister it was first measured against). And its output IS
+ * the galaxy: swapping the engine would rename every star. Deterministic, like
+ * everything else here.
  */
 export declare class CheapPRNG {
     private s;

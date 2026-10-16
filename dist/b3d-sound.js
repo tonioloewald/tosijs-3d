@@ -30,8 +30,8 @@ preview.append(
     {
       // Play / Stop in the dual-presence ⚙ panel, so you can start the sound from
       // inside VR (where spatial panning is most convincing) too.
+      panelTitle: 'Sound',
       scenePanel: () => [
-        label3d({ text: 'Sound' }),
         button3d({ label: 'Play', handleClick: () => spatialSound.play() }),
         button3d({ label: 'Stop', handleClick: () => spatialSound.stop() }),
       ],

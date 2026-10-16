@@ -78,8 +78,8 @@ preview.append(
           }
         })
       },
+      panelTitle: 'Lightning',
       scenePanel: () => [
-        label3d({ text: 'Lightning' }),
         slider3d({ label: 'storm size (m)', value: s.radius, min: 200, max: 3000, step: 50 }),
         slider3d({ label: 'how often', value: s.rate, min: 0, max: 5, step: 0.1 }),
         slider3d({ label: 'cloud cover', value: s.coverage, min: 0, max: 1.2, step: 0.05 }),

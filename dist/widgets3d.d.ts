@@ -740,6 +740,26 @@ export declare function fitPanel(rows: Widget3d[], opts?: {
     width: number;
     height: number;
 };
+/**
+ * A PANEL'S TITLE BAR OVER CONTENT THAT HAS NONE: move, title and ×, the
+ * settings panel's, around any SVG (an inventory dock, a card, a map).
+ * Tonio: "why doesn't the inventory floater just get the move and close
+ * functionality of a panel by default (possibly with a caption) instead of
+ * having the bespoke minus in a circle?"
+ *
+ * The content is nested under the bar and keeps its own size (followed when
+ * it changes); presses below the bar reach its `handlePointer` in its own
+ * coordinates, and one that began there stays its own until release (a drag
+ * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
+ * is, so a host drags it the same way. `dispose` gives the content back.
+ */
+export declare function titled3d(content: SVGSVGElement, config?: {
+    title?: string;
+    grip?: boolean;
+    handleClose?: () => void;
+}): SVGSVGElement & {
+    dispose: () => void;
+};
 export declare function panel3d(config: {
     width?: number;
     /**
@@ -778,5 +798,15 @@ export declare function panel3d(config: {
      * around the rig anchor; a DOM overlay would move it in the page).
      */
     grip?: boolean;
+    /**
+     * A title, drawn in the top band beside the move glyph. A panel with a
+     * name says it here rather than spending a row of its body on it.
+     */
+    title?: string;
+    /**
+     * Draw a close glyph at the band's right, and call this on a press there.
+     * The panel handles that press itself, so every host gets it.
+     */
+    handleClose?: () => void;
 }, ...widgets: Widget3d[]): SVGSVGElement;
 //# sourceMappingURL=widgets3d.d.ts.map

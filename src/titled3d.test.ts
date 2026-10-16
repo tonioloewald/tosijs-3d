@@ -35,7 +35,7 @@ const content = () => {
   return { el, got }
 }
 
-describe('titled3d: the settings panel\'s title bar over any content', () => {
+describe("titled3d: the settings panel's title bar over any content", () => {
   test('is the content plus the bar, and gives the content back', () => {
     const c = content()
     const t = w3d.titled3d(c.el, { title: 'Inventory', handleClose: () => {} })
@@ -56,13 +56,17 @@ describe('titled3d: the settings panel\'s title bar over any content', () => {
     expect(c.got).toEqual(['down 50 10', 'up 50 10'])
   })
 
-  test('a drag that began in the content stays the content\'s over the bar', () => {
+  test("a drag that began in the content stays the content's over the bar", () => {
     const c = content()
     const t = w3d.titled3d(c.el, { handleClose: () => {} }) as any
     t.handlePointer('down', 50, BAR + 10)
     t.handlePointer('move', 60, 5)
     t.handlePointer('up', 60, 5)
-    expect(c.got).toEqual(['down 50 10', `move 60 ${5 - BAR}`, `up 60 ${5 - BAR}`])
+    expect(c.got).toEqual([
+      'down 50 10',
+      `move 60 ${5 - BAR}`,
+      `up 60 ${5 - BAR}`,
+    ])
   })
 
   test('× closes on release there, and the rest of the bar is the grip', () => {

@@ -15,8 +15,8 @@ const { sky } = tosi({ sky: { timeOfDay: 17 } })
 
 const scene = b3d(
   {
+    panelTitle: 'Sky',
     scenePanel: () => [
-      label3d({ text: 'Sky' }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
@@ -53,8 +53,8 @@ const { sky } = tosi({ sky: { timeOfDay: 23.5 } })
 
 const scene = b3d(
   {
+    panelTitle: 'Encoded sky',
     scenePanel: () => [
-      label3d({ text: 'Encoded sky' }),
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
@@ -2084,13 +2084,22 @@ export class B3dSkybox extends AbstractMesh {
             const sm = material;
             // The soft glow is the AIR's (it fades with it); the disc is the body's
             // own, and shows as the air goes — see the shader note.
-            sm.setFloat?.('b3dMoon', isDay
+            /*
+            THE BUILT-IN MOON IS EARTH'S. A sky with its own `<tosi-b3d-moon>`s
+            has those instead: on Io it drew our Moon low in the east under
+            Jupiter, a bright disc that read as the sun, and lit the ground from
+            there, while Jupiter was lit (rightly) by the real sun, set in the west.
+            Tonio: "Jupiter is lit from the wrong direction given the sun's
+            position." See `_nightLightFrom` for where the night light comes from.
+            */
+            const ownMoons = this.querySelector('tosi-b3d-moon') != null;
+            sm.setFloat?.('b3dMoon', isDay || ownMoons
                 ? 0
                 : attrs.moonIntensity *
                     (1 - Math.pow(dayBrightness * air, 0.25)) *
                     air);
             const bare = 1 - air;
-            sm.setFloat?.('b3dMoonDisc', isDay ? 0 : bare);
+            sm.setFloat?.('b3dMoonDisc', isDay || ownMoons ? 0 : bare);
             sm.setFloat?.('b3dSunDisc', isDay ? bare : 0);
             sm.setFloat?.('b3dSunSize', Math.max(0.01, Number(attrs.sunSize) || 1));
             sm.setVector3?.('b3dSunDir', sunVector.clone().normalize());
@@ -2263,6 +2272,7 @@ export class B3dSkybox extends AbstractMesh {
                 sunEl.externallyLit = true;
                 const dim = sunEl.dimFactor ?? 1;
                 sunVector.normalizeToRef(this._dir);
+                const phase = isDay ? 1 : this._nightLightFrom(this._dir);
                 light.direction.x = -this._dir.x;
                 light.direction.y = -this._dir.y;
                 light.direction.z = -this._dir.z;
@@ -2271,9 +2281,32 @@ export class B3dSkybox extends AbstractMesh {
                 // eye adapts, so presets set it PERCEPTUALLY (a log curve), not by
                 // the inverse square (#2442).
                 const sunB = Math.max(0, Number(attrs.sunBrightness ?? 1));
-                light.intensity = (isDay ? intensity * sunB : attrs.moonIntensity) * dim;
+                light.intensity =
+                    (isDay ? intensity * sunB : attrs.moonIntensity * phase) * dim;
             }
         }
+    }
+    /*
+    WHERE NIGHT LIGHT COMES FROM. With the built-in moon, the replayed day arc
+    (`dir` as given: where it is drawn). With moons of the sky's own, the first
+    of them, as bright as the part of it lit by the real sun that faces you
+    (full opposite the sun, dark beside it): Jupitershine on Io. Rewrites `dir`
+    (world, toward the light) and returns that fraction.
+    */
+    _nightLightFrom(dir) {
+        const m = this.querySelector('tosi-b3d-moon');
+        if (m == null)
+            return 1;
+        const raw = m.direction();
+        const d = new BABYLON.Vector3(raw.x, raw.y, raw.z);
+        // A star-sphere moon is placed in the dome's frame; the light is world.
+        if (m.frame !== 'ground')
+            d.applyRotationQuaternionInPlace(this._domeQuat);
+        d.normalize();
+        // By night `dir` is the replayed arc, so the real sun is its antipode.
+        const full = (1 + BABYLON.Vector3.Dot(d, dir)) / 2;
+        dir.copyFrom(d);
+        return full;
     }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);

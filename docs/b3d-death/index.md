@@ -14,8 +14,10 @@ shot down — it:
 
 The panel is just widgets, so "what to do next" is entirely yours: `Respawn` is the default,
 but a game can offer _Rewind_, _Spectate_, _Eject and walk_, _Quit to menu_ — whatever. It's
-an in-scene SVG panel ([b3d-svg-plane](?b3d-svg-plane.ts)), so it works **flat and in VR**
-with the same coordinate-based picking, and needs no DOM overlay.
+an in-scene SVG panel, so it works **flat and in VR** with the same coordinate-based
+picking, and needs no DOM overlay. It is the scene's modal (the pause's too), drawn over
+everything so terrain cannot bury it: flat in the middle of the screen, in a headset in
+front of you.
 
 ## What it deliberately does NOT do
 

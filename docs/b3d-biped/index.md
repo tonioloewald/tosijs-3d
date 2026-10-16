@@ -32,8 +32,8 @@ const biped = b3dBiped({
 preview.append(
   b3d(
     {
+      panelTitle: 'Biped',
       scenePanel: () => [
-        label3d({ text: 'Biped' }),
         select3d({ label: 'animation', value: bipedDemo.animation, options: animations }),
         slider3d({ label: 'speed', value: bipedDemo.speed, min: 0, max: 2, step: 0.1 }),
       ],
@@ -116,8 +116,8 @@ preview.append(
     {
       style: 'width:100%;height:100%',
       gamepad: 'left_stick,right_stick,B,Y', // Y toggles first person
+      panelTitle: 'Aim & shoot',
       scenePanel: () => [
-        label3d({ text: 'Aim & shoot' }),
         slider3d({
           label: 'free twist', value: s.free, min: 0, max: 90, step: 5, showValue: 'always',
           handleChange: (v) => { s.free = Math.round(v); hero.aimFreeYaw = Math.round(v) },

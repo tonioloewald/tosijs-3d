@@ -144,7 +144,9 @@ export function claimPointer(e: Event | null | undefined): void {
 }
 
 /** Which layer a mesh is in: a popup takes its opener's. */
-export function panelLayerOf(mesh: BABYLON.Node | null | undefined): PanelLayer {
+export function panelLayerOf(
+  mesh: BABYLON.Node | null | undefined
+): PanelLayer {
   return (mesh && layerOfScene.get(mesh.getScene())) || 'world'
 }
 
@@ -895,8 +897,7 @@ export function attachFramePanel(
   spec's own `screenAnchor`, so a host that hands the same object to the
   next build keeps the spot across a rebuild.
   */
-  let screenDrag: { cx: number; cy: number; x: number; y: number } | null =
-    null
+  let screenDrag: { cx: number; cy: number; x: number; y: number } | null = null
   const dragScreen = (e: PointerEvent | undefined) => {
     const sa = spec.screenAnchor
     if (screenDrag == null || sa == null || lastBox == null || e == null) return

@@ -1880,10 +1880,7 @@ export function iconBar3d(config: {
         family: TH.FONT_FAMILY,
         weight: TH.TEXT_WEIGHT,
       }) + 12
-    const x = Math.max(
-      0,
-      Math.min(c.x + BS / 2 - w / 2, Math.max(0, barW - w))
-    )
+    const x = Math.max(0, Math.min(c.x + BS / 2 - w / 2, Math.max(0, barW - w)))
     const y = c.y + BS + 3
     tipBg.setAttribute('x', String(x))
     tipBg.setAttribute('y', String(y))
@@ -3145,7 +3142,9 @@ export function titled3d(
   // Any attribute of the root (it has few): relayout returns early unless the
   // size changed. (No attributeFilter: happy-dom matched no 'viewBox' with one.)
   watch?.observe(content, { attributes: true })
-  type Target = { handlePointer?: (k: PointerKind, x: number, y: number) => void }
+  type Target = {
+    handlePointer?: (k: PointerKind, x: number, y: number) => void
+  }
   const forward = (kind: PointerKind, x: number, y: number) =>
     (content as unknown as Target).handlePointer?.(kind, x, y - TITLE_BAR)
   let inContent = false

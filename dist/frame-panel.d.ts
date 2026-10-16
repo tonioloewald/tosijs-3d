@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { type FrameName } from './xr-frames.js';
 export type { FrameName };
-export type AnchorPreset = 'waist' | 'left-shoulder' | 'right-shoulder' | 'overhead' | 'wrist';
+export type AnchorPreset = 'system-bar' | 'waist' | 'left-shoulder' | 'right-shoulder' | 'overhead' | 'wrist';
 export interface AnchorSpec {
     /** Explicit local position in the frame (metres). */
     position?: [number, number, number];
@@ -32,6 +32,33 @@ export interface AnchorSpec {
     revealStartDeg?: number;
     revealFullDeg?: number;
 }
+/** The order UI is drawn and picked in: the world, then ui, then modal. */
+export type PanelLayer = 'world' | 'ui' | 'modal';
+/**
+ * The scene a `ui` or `modal` panel lives in: a utility layer over `scene`,
+ * drawn after it with its own depth and given the pointer first (a press that
+ * hits it never reaches the world). Made in pairs, ui before modal, because a
+ * newer layer is drawn later and asked first: so modal is over ui.
+ */
+export declare function panelLayerScene(scene: BABYLON.Scene, layer: 'ui' | 'modal'): BABYLON.Scene;
+/**
+ * Did a panel in the scene take this pointer event? For DOM listeners that
+ * act on presses "on the background" (closing an overlay): a press on a
+ * frame panel is not one. (`defaultPrevented` cannot say: Babylon cancels
+ * every press on its canvas.)
+ */
+export declare function pointerClaimedByPanel(e: Event): boolean;
+/** Mark a pointer event as taken by a panel in the scene (any in-scene UI
+ * that is pressed, not only frame panels: a popup is a `b3dSvgPlane`). */
+export declare function claimPointer(e: Event | null | undefined): void;
+/** Which layer a mesh is in: a popup takes its opener's. */
+export declare function panelLayerOf(mesh: BABYLON.Node | null | undefined): PanelLayer;
+/**
+ * What a ray hits in the panel LAYERS of `scene`, top first (modal, then ui),
+ * or null: for an XR controller ray, which Babylon picks against the world
+ * and its own default layer only. Never makes a layer that does not exist.
+ */
+export declare function pickPanelLayers(scene: BABYLON.Scene, ray: BABYLON.Ray): BABYLON.PickingInfo | null;
 /** A length on screen: pixels, a fraction of the axis, or of the shorter side. */
 export type ScreenLength = number | `${number}%` | `${number}vmin`;
 export interface ScreenAnchor {
@@ -148,8 +175,33 @@ export interface FramePanelSpec {
      * are for a headset, where the panel is around you; a monitor is a rectangle.
      */
     screenAnchor?: ScreenAnchor;
+    /**
+     * Which LAYER it is drawn and picked in. `'world'` (default): in the scene
+     * like anything else, so a nearer wall hides it and takes the press. `'ui'`:
+     * over the whole world, and pressed first (what used to be a page overlay:
+     * the corner controls, the scene panel, the loadout). `'modal'`: over even
+     * the ui (pause, death, a dialog). Drawn AND picked in that order, because a
+     * dialog drawn in front of a hill that the pointer still hits behind it is
+     * worse than one honestly buried (see b3d-svg-plane).
+     */
+    layer?: PanelLayer;
     /** Placeholder title (ignored if `svg`/`url` is supplied). */
     title?: string;
+    /**
+     * `false`: ignore `panelfocus` from its content (stay where it is placed).
+     * Default true.
+     */
+    focusable?: boolean;
+    /**
+     * Its button on the scene's system bar (an `svgIcons` name), for a panel
+     * whose anchor is `'system-bar'`: the button opens it under the bar.
+     */
+    icon?: string;
+    /**
+     * A system panel wears the settings panel's title bar (move, its `title`,
+     * ×) unless this is `'none'`, for content with chrome of its own.
+     */
+    chrome?: 'none';
     /** Custom panel SVG element (live/dynamic content). */
     svg?: SVGSVGElement;
     /** Or fetch a static SVG from this URL (e.g. a reticle). */
@@ -219,6 +271,11 @@ export declare function attachFramePanel(scene: BABYLON.Scene, cam: BABYLON.Targ
     /** The plane itself — so a consumer never has to find it by diffing the
      * frame's children around the call (tosijs-3d#92). */
     readonly mesh: BABYLON.Mesh;
+    /** The mesh actually DRAWN: `mesh` itself, or its copy in a panel layer
+     * (what a popup hangs from, which must be in the same scene). */
+    readonly drawn: BABYLON.Mesh;
+    /** Its SVG (null for a `url` panel). `panelfocus` on it brings it front and centre. */
+    readonly el: SVGSVGElement | null;
     /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
      * the ONLY way to see why a panel is (or isn't) revealing. */
     readonly debug: {

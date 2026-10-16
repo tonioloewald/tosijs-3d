@@ -81,8 +81,8 @@ preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
+      panelTitle: 'Lamps',
       scenePanel: () => [
-        label3d({ text: 'Lamps' }),
         toggle3d({ label: 'on — watch the attack / decay', value: lamps.on }),
         toggle3d({ label: 'show fixtures', value: lamps.geometry }),
         slider3d({ label: 'ambient', value: lamps.ambient, min: 0, max: 0.4, step: 0.01 }),

@@ -30,5 +30,15 @@ export declare function attachSceneLayer(opts: {
     /** The panel plane's world width and height. */
     planeW: number;
     planeH: number;
+    /**
+     * Where the screen ends, for a panel pinned to it: the visible span in the
+     * panel's own viewBox units (`top` is negative when the panel sits below
+     * the screen's top). With it a popup is no taller than the screen and is
+     * kept on it; without it (a plane in a headset) nothing bounds a popup.
+     */
+    screenRoom?: () => {
+        top: number;
+        bottom: number;
+    } | null;
 }): boolean;
 //# sourceMappingURL=panel-layer.d.ts.map

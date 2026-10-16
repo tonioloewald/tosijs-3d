@@ -227,8 +227,8 @@ const cube = b3dBox({ meshName: 'cube', size: 1, y: 1, color: '#39c5ff' })
 let spin = 0
 const sceneEl = b3d(
   {
+    panelTitle: 'Scene settings',
     scenePanel: () => [
-      label3d({ text: 'Scene settings' }),
       toggle3d({ label: 'spin', value: cfg.spin }),
       slider3d({ label: 'height', value: cfg.height, min: 0, max: 3, step: 0.1 }),
     ],
@@ -496,6 +496,7 @@ import { handlerOf, resetHandlerWarnings } from './handler-of.js';
 import { w3dTheme } from './w3d-theme.js';
 import { iconGlyph } from './svg-icons.js';
 import { chromeLayout } from './popup-chrome.js';
+import { panelRim } from './panel-rim.js';
 const { svg, g, rect, text, circle, clipPath } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
 /*
@@ -581,8 +582,14 @@ const TH = {
         return w3dTheme.padding;
     },
     /** One line of text plus padding above and below — what a control's height is. */
+    /*
+    Vertical padding is three quarters of the horizontal. Rows padded fully
+    above and below, with a full gap between them, read as spaced out. Tonio:
+    "we can probably tighten the space between items in the stack. We don't
+    want to crowd them but they're quite spaced out right now."
+    */
     get ROW() {
-        return Math.round(w3dTheme.fontSize * w3dTheme.lineHeight + w3dTheme.padding * 2);
+        return Math.round(w3dTheme.fontSize * w3dTheme.lineHeight + w3dTheme.padding * 1.5);
     },
     /** Compact line height for stacked text — a fraction of a full interactive ROW. */
     get LINE_H() {
@@ -1234,7 +1241,14 @@ export function iconBar3d(config) {
     with hover and focus for intensity.
     */
     const SELECTED = w3dTheme.selectedBg;
-    const by = (TH.ROW - BS) / 2;
+    /*
+    ITS OWN ROW HEIGHT, not a control row's. A bar of 32px buttons in a 46px row
+    left 7px above and below, and under a title bar that read as a band of empty
+    panel. Tonio: "space is at a premium here and there's a lot of padding above
+    and likely too much below that toolbar."
+    */
+    const BAR_ROW = BS + 4;
+    const by = (BAR_ROW - BS) / 2;
     // Per-item background + accent underline. The glyph itself bakes its colour at
     // creation (texture-safe), so state is shown by the background, not the icon.
     const cells = config.items.map((item) => {
@@ -1281,37 +1295,41 @@ export function iconBar3d(config) {
         // below: in a headset an icon with a hidden tooltip is just a mystery.
         if (item.title)
             cell.appendChild(svgElements.title(item.title));
-        /*
-        CAPTIONS, because an unlabelled icon in VR is a guess.
-    
-        Tonio, testing in the headset: "What is the 'compass' icon supposed to be
-        toggling in the scene menu?" — a fair question with no way to answer it from
-        inside. It was Re-seat. Two problems at once: there was no label, and an
-        ACTION sitting in a row of toggles reads as a toggle.
-    
-        Only the first word, because these sit 32px apart and the caption is a
-        reminder rather than documentation — the <title> still carries the full text
-        for anyone on a flat screen.
-        */
-        const caption = item.title
-            ? css(text({
-                'dominant-baseline': 'hanging',
-                'text-anchor': 'middle',
-                'font-size': 9,
-                'font-family': TH.FONT_FAMILY,
-                'font-weight': TH.TEXT_WEIGHT,
-                fill: TH.MUTED,
-                x: BS / 2,
-                y: BS + 3,
-            }, item.title.split(' ')[0]), 'pointer-events:none')
-            : null;
-        if (caption)
-            cell.appendChild(caption);
-        return { item, bg, cell };
+        return { item, bg, cell, x: 0, y: 0 };
     });
-    const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell));
-    const hasCaptions = config.items.some((i) => i.title);
-    const CAPTION_H = 12;
+    /*
+    A TOOLTIP, drawn in the SVG, in place of the captions that used to sit
+    under every icon.
+  
+    The captions answered a real question from the headset ("What is the
+    'compass' icon supposed to be toggling?" — it was Re-seat), but they cost
+    every bar a band of tiny first-words, and space is what a panel has least
+    of. Tonio: "I think the icon button captions can be tooltips." A hover
+    answers the same question: a controller ray hovers as a mouse does, and
+    a texture shows this where it would show no `<title>`. Full text now,
+    not the first word, because it has room.
+    */
+    const TIP_FONT = 11;
+    const tipText = css(text({
+        'dominant-baseline': 'middle',
+        'font-size': TIP_FONT,
+        'font-family': TH.FONT_FAMILY,
+        'font-weight': TH.TEXT_WEIGHT,
+        fill: TH.TEXT,
+    }, ''), 'pointer-events:none');
+    const tipBg = rect({
+        height: TIP_FONT + 10,
+        rx: 5,
+        ry: 5,
+        fill: TH.PANEL_BG,
+        stroke: TH.MUTED,
+        'stroke-width': 1,
+    });
+    const tip = css(g({ visibility: 'hidden', 'data-w3d-tip': '' }, tipBg, tipText), 'pointer-events:none');
+    const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell), 
+    // Last, so it draws over the cells beside and below it.
+    tip);
+    let barW = 0;
     const step = BS + ICON_GAP;
     /*
     IT WRAPS, because it used to run off the edge instead.
@@ -1327,7 +1345,7 @@ export function iconBar3d(config) {
     second row costs 44px of a panel; a missing Exit VR costs the session.
     */
     let perRow = cells.length;
-    let rowH = TH.ROW;
+    const rowH = BAR_ROW;
     const indexAt = (x, y = 0) => {
         const col = Math.floor(x / step);
         const row = Math.max(0, Math.floor(y / rowH));
@@ -1346,19 +1364,40 @@ export function iconBar3d(config) {
             const fill = i === pressed ? TH.BTN_ACTIVE : i === hover ? TH.BTN_HOVER : base;
             c.bg.setAttribute('fill', fill);
         });
+        const c = cells[hover];
+        const title = c?.item.title;
+        if (!title) {
+            tip.setAttribute('visibility', 'hidden');
+            return;
+        }
+        // Under its icon, centred, and kept inside the bar's width.
+        const w = measureTextWidth(title, {
+            size: TIP_FONT,
+            family: TH.FONT_FAMILY,
+            weight: TH.TEXT_WEIGHT,
+        }) + 12;
+        const x = Math.max(0, Math.min(c.x + BS / 2 - w / 2, Math.max(0, barW - w)));
+        const y = c.y + BS + 3;
+        tipBg.setAttribute('x', String(x));
+        tipBg.setAttribute('y', String(y));
+        tipBg.setAttribute('width', String(w));
+        tipText.setAttribute('x', String(x + 6));
+        tipText.setAttribute('y', String(y + (TIP_FONT + 10) / 2 + 0.5));
+        tipText.textContent = title;
+        tip.setAttribute('visibility', 'visible');
     };
     return {
         el,
         layout(width) {
-            // Captions live BELOW the button, so a row has to grow or the next thing
-            // lands on top of them.
-            rowH = hasCaptions ? TH.ROW + CAPTION_H : TH.ROW;
+            barW = width;
             // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
             perRow = Math.max(1, Math.floor(((width || 0) + ICON_GAP || step) / step));
             cells.forEach((c, i) => {
                 const col = i % perRow;
                 const row = Math.floor(i / perRow);
-                c.cell.setAttribute('transform', `translate(${col * step} ${row * rowH + by})`);
+                c.x = col * step;
+                c.y = row * rowH + by;
+                c.cell.setAttribute('transform', `translate(${c.x} ${c.y})`);
             });
             return Math.ceil(cells.length / perRow) * rowH;
         },
@@ -2230,11 +2269,150 @@ export function fitPanel(rows, opts = {}) {
     const vb = svg.viewBox.baseVal;
     return { svg, width, height: vb.height > 0 ? vb.height : width };
 }
+/** Height of a panel's title bar (move, title, close), in viewBox units. */
+const TITLE_BAR = 28;
+/** The title bar's glyphs and title, where `chromeLayout` put them. */
+function titleBarParts(bar, title, closable, width, padding) {
+    const parts = [];
+    const glyph = (name, at) => parts.push(iconGlyph(name, {
+        color: TH.MUTED,
+        size: at.size,
+        x: at.x,
+        y: at.y,
+    }));
+    if (bar.move != null)
+        glyph('move', bar.move);
+    if (closable)
+        glyph('close', bar.close);
+    if (title) {
+        const left = bar.move != null ? bar.move.x + bar.move.size + 8 : padding;
+        const right = closable ? bar.closeHitX - 4 : width - padding;
+        // Centred on the PANEL, not on the gap between the glyphs (the × is drawn
+        // larger than the move, so that gap is off-centre), and ellipsized to the
+        // room on its narrower side.
+        const mid = width / 2;
+        const room = 2 * Math.max(0, Math.min(mid - left, right - mid));
+        const t = baseText('', TH.TEXT, true);
+        t.setAttribute('x', String(mid));
+        t.setAttribute('y', String(bar.barHeight / 2 + 1));
+        t.setAttribute('text-anchor', 'middle');
+        t.textContent = ellipsize(title, room, TH.BOLD_FONT);
+        parts.push(t);
+    }
+    return parts;
+}
+/**
+ * A PANEL'S TITLE BAR OVER CONTENT THAT HAS NONE: move, title and ×, the
+ * settings panel's, around any SVG (an inventory dock, a card, a map).
+ * Tonio: "why doesn't the inventory floater just get the move and close
+ * functionality of a panel by default (possibly with a caption) instead of
+ * having the bespoke minus in a circle?"
+ *
+ * The content is nested under the bar and keeps its own size (followed when
+ * it changes); presses below the bar reach its `handlePointer` in its own
+ * coordinates, and one that began there stays its own until release (a drag
+ * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
+ * is, so a host drags it the same way. `dispose` gives the content back.
+ */
+export function titled3d(content, config = {}) {
+    const handleClose = handlerOf(config, 'handleClose', 'onClose');
+    const grip = config.grip !== false;
+    const radius = w3dTheme.roundedRadius * 2;
+    const root = css(svg({ 'data-w3d': 'titled' }), 'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
+    const bg = rect({ x: 0, y: 0, rx: radius, ry: radius, fill: TH.PANEL_BG });
+    const chrome = g({});
+    // Where the content lived, to give it back there (a panel's own child).
+    const home = content.parentNode;
+    const next = content.nextSibling;
+    root.append(bg, content, chrome);
+    let bar = chromeLayout(1, 1, 1, grip);
+    let w = 0;
+    let h = 0;
+    const relayout = () => {
+        const vb = (content.getAttribute('viewBox') ?? '').split(/[\s,]+/);
+        const cw = Number(vb[2]) || Number(content.getAttribute('width')) || 300;
+        const ch = Number(vb[3]) || Number(content.getAttribute('height')) || 200;
+        const H = ch + TITLE_BAR;
+        if (cw === w && H === h)
+            return;
+        w = cw;
+        h = H;
+        content.setAttribute('x', '0');
+        content.setAttribute('y', String(TITLE_BAR));
+        root.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        root.setAttribute('width', String(w));
+        root.setAttribute('height', String(h));
+        bg.setAttribute('width', String(w));
+        bg.setAttribute('height', String(h));
+        bar = chromeLayout(w, h, TITLE_BAR / h, grip);
+        chrome.replaceChildren(...titleBarParts(bar, config.title, handleClose != null, w, TH.PAD_X), panelRim(w, h, radius));
+    };
+    relayout();
+    const watch = typeof MutationObserver === 'function'
+        ? new MutationObserver(relayout)
+        : null;
+    // Any attribute of the root (it has few): relayout returns early unless the
+    // size changed. (No attributeFilter: happy-dom matched no 'viewBox' with one.)
+    watch?.observe(content, { attributes: true });
+    const forward = (kind, x, y) => content.handlePointer?.(kind, x, y - TITLE_BAR);
+    let inContent = false;
+    let closing = false;
+    const handlePointer = (kind, x, y) => {
+        const onBar = y <= bar.barHeight;
+        const onClose = onBar && handleClose != null && x >= bar.closeHitX;
+        if (closing) {
+            if (kind === 'up' || kind === 'leave') {
+                closing = false;
+                if (kind === 'up' && onClose)
+                    handleClose();
+            }
+            return;
+        }
+        if (kind === 'down') {
+            if (onClose) {
+                closing = true;
+                return;
+            }
+            inContent = !onBar;
+            if (onBar)
+                return;
+        }
+        if (kind === 'leave' || (onBar && !inContent)) {
+            forward('leave', 0, TITLE_BAR);
+            if (kind !== 'move')
+                inContent = false;
+            return;
+        }
+        forward(kind, x, y);
+        if (kind === 'up')
+            inContent = false;
+    };
+    Object.assign(root, {
+        handlePointer,
+        gripHit: (x, y) => grip &&
+            y <= bar.barHeight &&
+            !(handleClose != null && x >= bar.closeHitX),
+        dispose: () => {
+            watch?.disconnect();
+            content.removeAttribute('x');
+            content.removeAttribute('y');
+            if (home != null)
+                home.insertBefore(content, next?.parentNode === home ? next : null);
+            else
+                content.remove();
+        },
+    });
+    return root;
+}
 export function panel3d(config, ...widgets) {
     const width = config.width ?? 360;
     const padding = config.padding ?? 12;
-    const paddingTop = config.paddingTop ?? padding;
-    const gap = config.gap ?? TH.GAP;
+    const handleClose = handlerOf(config, 'handleClose', 'onClose');
+    // A title bar (move, title, close) needs a band to sit in.
+    const hasBar = !!(config.grip || config.title || handleClose);
+    const paddingTop = config.paddingTop ?? (hasBar ? TITLE_BAR : padding);
+    // Half the theme spacing between stacked rows: each row pads itself.
+    const gap = config.gap ?? TH.GAP / 2;
     const innerW = width - padding * 2;
     /*
     LAY OUT BEFORE CHOOSING THE HEIGHT.
@@ -2248,8 +2426,9 @@ export function panel3d(config, ...widgets) {
     const headerWidgets = config.header ?? [];
     const headerHeights = headerWidgets.map((w) => w.layout(innerW));
     const headerLayout = stackLayout(headerHeights, gap);
-    // The pinned block costs the body its height, plus one gap to separate them.
-    const headerH = headerWidgets.length > 0 ? headerLayout.total + gap : 0;
+    // The pinned block costs the body its height, plus half a gap to separate
+    // them: the body's first row has its own padding above its content.
+    const headerH = headerWidgets.length > 0 ? headerLayout.total + gap / 2 : 0;
     /*
     A SCROLL RAIL, because a packed panel has nowhere to start a scroll.
   
@@ -2303,6 +2482,10 @@ export function panel3d(config, ...widgets) {
     // laid out against a taller area than it actually gets, and the last row is
     // unreachable by exactly `headerH`.
     const viewport = height - paddingTop - padding - headerH;
+    // The title bar's glyphs, laid out as a popup's are (one vocabulary).
+    const bar = hasBar
+        ? chromeLayout(width, height, paddingTop / height, !!config.grip)
+        : null;
     // Defend against a host page's global `svg { pointer-events: none }` (it's
     // inherited, so re-enabling the root re-enables the whole subtree).
     // user-select/tap-highlight off kills the blue selection flash on click+drag.
@@ -2635,7 +2818,17 @@ export function panel3d(config, ...widgets) {
             */
             const alwaysDraws = hosts.some((h) => h.drawsChrome === true);
             const chromeBand = alwaysDraws || config.chrome === true ? POPUP_CHROME_BAND : 0;
-            const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand, config.maxHeight);
+            /*
+            NO TALLER THAN THE ROOM A HOST HAS. A host bounded by something (a
+            panel pinned to the screen) says how tall a popup can be there
+            (`roomFor`); the shared sheet takes the smallest, and scrolls past it.
+            Tonio, of a 27-planet picker hanging off the bottom of the scene: "it
+            doesn't fit".
+            */
+            const room = hosts
+                .map((h) => h.roomFor?.(placed.anchor.y))
+                .filter((n) => n != null && n > 0);
+            const sheet = panelPopupSheet(config.width ?? 360, items, chromeBand, Math.min(config.maxHeight ?? POPUP_MAX_HEIGHT, ...room));
             // The caption goes IN the sheet, which every presentation shares, so
             // it reads the same flat and on a plane. Between the two glyphs.
             const title = String(config.title ?? '');
@@ -2745,7 +2938,25 @@ export function panel3d(config, ...widgets) {
     */
     widgets.forEach((w, i) => w.setHost?.(hostFor(i)));
     headerWidgets.forEach((w, i) => w.setHost?.(hostFor(i, true)));
+    // Whether a press began on the close glyph: it closes on RELEASE there,
+    // as a button does, so a press that slides off is not a close.
+    let closing = false;
     const handlePointer = (kind, x, y) => {
+        if (handleClose != null && bar != null) {
+            const onClose = y <= bar.barHeight && x >= bar.closeHitX;
+            if (kind === 'down' && onClose && overlay == null) {
+                closing = true;
+                return;
+            }
+            if (closing) {
+                if (kind === 'up' || kind === 'leave') {
+                    closing = false;
+                    if (kind === 'up' && onClose)
+                        handleClose();
+                }
+                return;
+            }
+        }
         /*
         THE OVERLAY WINS, and an outside press dismisses.
     
@@ -3006,6 +3217,11 @@ export function panel3d(config, ...widgets) {
     root.gripHeight = config.grip
         ? paddingTop
         : 0;
+    root.gripHit =
+        (x, y) => !!config.grip &&
+            y >= 0 &&
+            y < paddingTop &&
+            !(handleClose != null && bar != null && x >= bar.closeHitX);
     root.measure = () => panelFit(total, viewport);
     root.openPopup = (config, ...items) => {
         const bounds = config.bounds ?? { width, height };
@@ -3285,7 +3501,7 @@ export function panel3d(config, ...widgets) {
     its rig anchor); this only says where the handle is, via `gripHeight` on the
     element.
     */
-    if (config.grip) {
+    if (bar != null) {
         /*
         THE MOVE GLYPH, not a lozenge.
     
@@ -3300,15 +3516,15 @@ export function panel3d(config, ...widgets) {
     
         `iconGlyph`, not `svgIcons`: this SVG is rasterised to a texture, where
         `currentColor` resolves against nothing and paints black.
+    
+        A TITLE BAR, laid out as a popup's: move at the left, the title beside
+        it, close at the right. The band was already reserved and was empty
+        space; Tonio: "missing its move and close widgets, and has a lot of waste
+        space up top", and a named panel spent a body row on its own name.
         */
-        const size = Math.min(18, paddingTop - 8);
-        root.appendChild(iconGlyph('move', {
-            color: TH.MUTED,
-            size,
-            x: (width - size) / 2,
-            y: Math.max(3, (paddingTop - size) / 2 - 2),
-        }));
+        root.append(...titleBarParts(bar, config.title, handleClose != null, width, padding));
     }
+    root.appendChild(panelRim(width, height, w3dTheme.roundedRadius * 2));
     if (scrollable) {
         root.appendChild(railTrack);
         root.appendChild(railThumb);

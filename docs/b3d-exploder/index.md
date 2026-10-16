@@ -41,8 +41,8 @@ const scene = b3d(
   {
     // The Explode button lives in the dual-presence ⚙ panel, so you can trigger it
     // from inside VR as well as on a flat screen.
+    panelTitle: 'Exploder',
     scenePanel: () => [
-      label3d({ text: 'Exploder' }),
       button3d({ label: 'Explode!', handleClick: doExplode }),
     ],
     sceneCreated(el, BABYLON) {

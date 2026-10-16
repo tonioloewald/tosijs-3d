@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.7 (unreleased)
+## 0.10.7
 
 **What you will see on upgrading** (nothing exported in 0.10.6 is removed or renamed, but a `^0.10` range picks this up unasked):
 
@@ -58,6 +58,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - A press on a popup opened from the in-scene settings panel (Perf, errors…) no longer closes the settings panel: in-scene planes claim their presses as frame panels do (`claimPointer`).
 - The glass gamepad really steps aside for a menu: `suppress` hid it with `visibility`, which parts of the pad override, so bits of it still drew and took presses meant for the panel under it. It uses `display` now.
 - Full screen: a scene removed and re-added no longer gets a second toggle on its button (one press went in and straight back out), and a refused request no longer throws an unhandled rejection.
+
+Size: barrel (min, packages external) 1104.9 KB raw / 376.3 KB gz, +2.11% on 0.10.6.
 
 ## 0.10.6
 

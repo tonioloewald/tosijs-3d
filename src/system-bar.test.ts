@@ -32,7 +32,9 @@ const at = (i: number) => [7 + i * 43 + 20, 27] as const
 
 describe('systemBar mirrors HTML buttons', () => {
   test('only the buttons that show are drawn, and a press clicks the right one', () => {
-    const a = button(), hidden = button({ hidden: true }), c = button()
+    const a = button(),
+      hidden = button({ hidden: true }),
+      c = button()
     const bar = systemBar([a.b, hidden.b, c.b])
     expect(bar.count).toBe(2)
     const hp = (bar.svg as any).handlePointer
@@ -43,7 +45,8 @@ describe('systemBar mirrors HTML buttons', () => {
     bar.dispose()
   })
   test('an icon is never nameless: the button title rides along as <title>', async () => {
-    const a = button(), b = button()
+    const a = button(),
+      b = button()
     a.b.title = 'Inventory'
     const bar = systemBar([a.b, b.b])
     const names = () =>
@@ -64,7 +67,8 @@ describe('systemBar mirrors HTML buttons', () => {
     bar.dispose()
   })
   test('a press that ends on another button is not a click', () => {
-    const a = button(), c = button()
+    const a = button(),
+      c = button()
     const bar = systemBar([a.b, c.b])
     const hp = (bar.svg as any).handlePointer
     hp('down', ...at(0))
@@ -74,7 +78,8 @@ describe('systemBar mirrors HTML buttons', () => {
   })
 
   test('a button styled away (display: none) is not drawn, and is drawn again when shown', async () => {
-    const a = button(), b = button()
+    const a = button(),
+      b = button()
     document.body.append(a.b, b.b)
     b.b.style.display = 'none'
     const bar = systemBar([a.b, b.b])
