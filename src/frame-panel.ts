@@ -37,6 +37,7 @@ import { SvgTexture } from './svg-texture.js'
 import { markUiMesh } from './b3d-utils.js'
 import { gazeReveal, type FrameName } from './xr-frames.js'
 import { faceViewer } from './dialog-placement.js'
+import { panelRim } from './panel-rim.js'
 
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const DEG = Math.PI / 180
@@ -402,14 +403,16 @@ export function placeholderPanelSvg(
   svg.setAttribute('width', String(w))
   svg.setAttribute('height', String(h))
   const rect = document.createElementNS(NS, 'rect')
-  rect.setAttribute('x', '4')
-  rect.setAttribute('y', '4')
-  rect.setAttribute('width', String(w - 8))
-  rect.setAttribute('height', String(h - 8))
+  rect.setAttribute('x', '0')
+  rect.setAttribute('y', '0')
+  rect.setAttribute('width', String(w))
+  rect.setAttribute('height', String(h))
   rect.setAttribute('rx', '18')
   rect.setAttribute('fill', 'rgba(18,22,31,0.82)')
-  // No border — thin strokes alias badly at distance in the headset.
   svg.appendChild(rect)
+  // The outline every panel wears. (It once had no border because a thin
+  // stroke aliased at a distance; the shared rim is drawn heavier for that.)
+  svg.appendChild(panelRim(w, h, 18))
   const text = document.createElementNS(NS, 'text')
   text.setAttribute('x', String(w / 2))
   text.setAttribute('y', String(h / 2))
