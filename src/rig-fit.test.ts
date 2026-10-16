@@ -119,11 +119,12 @@ describe('fitSkeleton', () => {
 })
 
 /*
-THE REAL MESHES (Tonio's, in ../static-assets/assets/rigging-tests; local
-only, not published, so these skip where it is not checked out). Markers were
+THE REAL MESHES (Tonio's, CC BY 4.0, served at cdn.tosijs.net/tonio/rigging/
+and read here from ../static-assets/assets/tonio/rigging, so these skip where
+that is not checked out; tests do not touch the network). Markers were
 placed by eye on front views, as someone would drag them.
 */
-const DIR = join(import.meta.dir, '../../static-assets/assets/rigging-tests')
+const DIR = join(import.meta.dir, '../../static-assets/assets/tonio/rigging')
 
 type Soup = { pos: number[]; idx: number[] }
 
