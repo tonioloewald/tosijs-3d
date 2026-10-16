@@ -474,6 +474,9 @@ export interface InventoryPanelOptions {
   headings?: boolean
   /** The label on a list's "put in" target (default `put in <container>`; a dock says `unequip`). */
   putLabel?: string
+  /** Icons on the "put in" and drop targets (`svgIcons` names; a dock uses `lucideBackpack` and `trash`). */
+  putIcon?: string
+  dropIcon?: string
   handleDrop?: (
     item: Item,
     kind: ItemKind | undefined,
@@ -843,6 +846,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
         carry,
         target: drop,
         label: 'drop',
+        icon: opts.dropIcon,
         width: w,
         height: 30,
         inline,
@@ -961,6 +965,7 @@ export function inventoryPanel(opts: InventoryPanelOptions): InventoryPanel {
           carry,
           target: into,
           label: opts.putLabel ?? `put in ${cname}`,
+          icon: opts.putIcon,
           width: withDrop ? half : inner,
           height: 30,
           inline: withDrop,
@@ -1185,6 +1190,8 @@ export function inventoryDock(opts: InventoryDockOptions): InventoryDock {
           // earn its space).
           headings: false,
           putLabel: 'unequip',
+          putIcon: 'lucideBackpack',
+          dropIcon: 'trash',
         })
       : null
   const closeButton = g(

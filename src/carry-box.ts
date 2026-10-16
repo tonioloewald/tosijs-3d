@@ -125,6 +125,7 @@ outside every panel and the host cancels (the demo listens on `window`).
 import { svgElements } from 'tosijs'
 import type { Box, BoxChild, BoxChildState, PointerKind } from './box.js'
 import { DRAG_THRESHOLD, type Carry, type CarryTarget } from './carry.js'
+import { iconGlyph } from './svg-icons.js'
 
 /** How a thing shows its condition, supplied by the consumer per thing. */
 export interface CarryDecorations {
@@ -394,6 +395,8 @@ export interface CarrySocketOptions<T> {
   height?: number
   /** Flows beside its neighbours in a box (two targets on one line), not a line of its own. */
   inline?: boolean
+  /** An `svgIcons` name drawn before the label, in a row (e.g. `lucideBackpack`, `trash`). */
+  icon?: string
   /**
    * What is in it now, drawn inside it. A tile here can be picked up from
    * the socket: pressed and dragged, or tapped.
@@ -443,9 +446,10 @@ export function carrySocket<T>(
     'stroke-width': art ? 2.5 : 1.5,
     'stroke-dasharray': art ? '' : '5 4',
   })
+  const glyph = !art && opts.icon ? 14 : 0
   const textAt = art
     ? { x: w / 2, 'text-anchor': 'middle', ...HALO }
-    : { x: 10 }
+    : { x: glyph ? 10 + glyph + 6 : 10 }
   // A one-line row (an empty 30-high target) centres its label, and a
   // refusal's reason takes the label's place: there is no second line.
   const short = !art && !holding && h <= 36
@@ -471,6 +475,15 @@ export function carrySocket<T>(
   )
   const parts: Element[] = []
   if (!art) parts.push(frame, caption)
+  if (glyph)
+    parts.push(
+      iconGlyph(opts.icon!, {
+        color: '#8a96ad',
+        size: glyph,
+        x: 10,
+        y: short ? (h - glyph) / 2 : 4,
+      })
+    )
   if (holding) {
     // In a row, under the caption and clear of the reason line; on art, filling it.
     parts.push(

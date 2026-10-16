@@ -106,6 +106,8 @@ export default {
     '<svg class="stroked" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>',
   loadout:
     '<svg class="stroked" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"></circle><path d="M5 9h14"></path><path d="M12 9v6"></path><path d="M12 15l-3 7"></path><path d="M12 15l3 7"></path></svg> ',
+  lucideBackpack:
+    '<svg class="stroked" viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M8 10h8"></path><path d="M8 18h8"></path><path d="M8 22v-6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg>',
   personStanding:
     '<svg class="stroked" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"></circle><path d="m9 20 3-6 3 6"></path><path d="m6 8 6 2 6-2"></path><path d="M12 10v4"></path></svg> ',
   maximize:

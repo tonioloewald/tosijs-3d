@@ -23,3 +23,6 @@ are ours, Feather's 24 grid and 2px stroke; Feather has neither (2026-10).
 `stroked/lucide/person-standing.svg` is Lucide's (lucide-static 0.460.0,
 ISC licence, Lucide Contributors; lucide.dev), copied verbatim less its
 licence comment and class, for the inventory's system-bar button (2026-10).
+`stroked/lucide/lucide-backpack.svg` is Lucide's `backpack` from the same
+release, copied the same way, renamed so it sits beside our own `backpack`;
+it marks the inventory's **unequip** target (2026-10, may be replaced).
