@@ -115,3 +115,11 @@
 - Surprised: the × read small next to the move glyph because of the artwork. Feather's × covers 12 of its 24 units and the move arrows cover 20.
 - Friction: `bun format` reformatted source after the first build, forcing a second build; the owner's untracked `static/compass.svg` had to be kept out of the release commit by path, because the build copies it into `docs/`.
 - Cycle: none.
+
+## 0.10.8 — 2026-10-16
+
+- Went well: two adopters' reports (Manta's moon page, ensemble's leak and white-material issues) went from report to published fix the same day, each with a test that fails without the fix. #3342 came in mid-cycle from Manta's upgrade to 0.10.7 and rode along.
+- Didn't: the first #102 regression test passed with the fix removed. A hand-built container doesn't set `_parentContainer`, and an extra `addMesh` duplicated the clone in `scene.meshes`. Disabling the fix and rerunning caught it; keep doing that for every regression test.
+- Surprised: the date-line "remaining step" after the seam fix was cliffs from `cliffProfile`, steeper elsewhere than at the seam. Comparing with other meridians separated the seam from the terrain.
+- Friction: a CHANGELOG anchor failed silently inside a chained command, so one fix went in without its entry and needed a follow-up commit.
+- Cycle: none.
