@@ -42,6 +42,18 @@ describe('systemBar mirrors HTML buttons', () => {
     expect(a.clicks()).toBe(0)
     bar.dispose()
   })
+  test('an icon is never nameless: the button title rides along as <title>', async () => {
+    const a = button(), b = button()
+    a.b.title = 'Inventory'
+    const bar = systemBar([a.b, b.b])
+    const names = () =>
+      [...bar.svg.querySelectorAll('title')].map((t) => t.textContent)
+    expect(names()).toEqual(['Inventory'])
+    b.b.setAttribute('aria-label', 'Enter VR')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(names()).toEqual(['Inventory', 'Enter VR'])
+    bar.dispose()
+  })
   test('a disabled button is drawn but ignores a press', () => {
     const a = button({ disabled: true })
     const bar = systemBar([a.b])

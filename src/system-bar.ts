@@ -64,7 +64,7 @@ export interface SystemBar {
 
 /** Mirror `buttons` as an SVG toolbar: what shows, what is enabled, and a press is their click. */
 export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
-  const { svg, g, rect } = svgElements
+  const { svg, g, rect, title } = svgElements
   const root = svg({
     xmlns: 'http://www.w3.org/2000/svg',
   }) as unknown as SVGSVGElement
@@ -111,9 +111,14 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
         icon.setAttribute('color', '#e8eef8')
         icon.style.removeProperty('height')
       }
+      // Icons first, but never nameless: the button's name rides along as
+      // the SVG's own <title> (a texture does not draw it; everything else
+      // reads it). See UI-DESIGN-NOTES → "Icons first".
+      const name = b.title || b.getAttribute('aria-label') || ''
       root.append(
         g(
           { opacity: b.disabled ? '0.35' : '1' },
+          ...(name ? [title(name)] : []),
           rect({
             x,
             y: PAD,
@@ -174,7 +179,7 @@ export function systemBar(buttons: HTMLButtonElement[]): SystemBar {
   for (const b of buttons)
     watch.observe(b, {
       attributes: true,
-      attributeFilter: ['hidden', 'disabled', 'title', 'style', 'class', 'part'],
+      attributeFilter: ['hidden', 'disabled', 'title', 'aria-label', 'style', 'class', 'part'],
       childList: true,
     })
   build()

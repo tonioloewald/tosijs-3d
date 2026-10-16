@@ -549,6 +549,12 @@ The store↔view split mirrors the "keep it pure so it's testable" discipline us
 
 Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to a frame with gaze-reveal; `b3d-panel.ts` (`b3dPanel`) is the declarative `<tosi-b3d-panel>` wrapper (attributes for frame/azimuth/elevation/preset). No panels ship by default: the declared `<tosi-b3d-panel>` children are the set (plus the reticle), and one with an `icon` (and no preset) is a button on the system bar instead of a pin, its `<svg>` child what it shows. This is distinct from — and layered over — the `scenePanel` settings panel described in the WebXR section.
 
+**Icons first, but never nameless.** We design for people who can see and point.
+Space in 3D is scarce and text is costly, so a control is an icon unless a word is
+clearly needed. Every icon still carries its name: a tooltip on hover or focus, and
+an accessible name in the markup (an SVG `<title>`, or the mirrored button's
+`title`). See UI-DESIGN-NOTES → "Icons first".
+
 ### Ignore these legacy files
 
 `src/reflections.ts`, `src/dynamic-shadows.ts`, and `src/rippling-water.ts` are superseded standalone modules — **not exported from `index.ts` and not referenced anywhere**. Use `b3d-reflections.ts`, `b3d-shadows.ts`, and `b3d-water.ts` instead.

@@ -43,6 +43,35 @@ between them as a defect unless it's justified and confined:
   the panel ray-pick, so when picking broke you couldn't press _or_ scroll — including to
   the diagnostics explaining why. Scroll is gaze-gated now.
 
+### Icons first, a name always within reach (Tonio, 2026-10-16)
+
+The guiding rule for every surface this UI targets:
+
+1. **We design for people who can see and point.** There is no point designing 3D,
+   let alone VR, UX for anyone who can't, and we are not close to there being one.
+   A layout that only makes sense if it is read aloud solves a problem these
+   surfaces do not have.
+2. **Space is scarce and text is expensive.** A panel in a headset is seen smaller
+   than its pixels, every caption costs a row, and text brings its own problems
+   (measuring, wrapping, right-to-left). An icon is usually the better use of the
+   space.
+
+So **build icons first**: a button, a target or a tab is an icon unless a word is
+clearly needed. The system bar is the model: a row of icons and no captions.
+
+**This is not a licence to drop the name.** An icon is almost always more ambiguous
+than a caption, so every icon carries its name, and the name has to be reachable:
+
+- **On hover or focus, a tooltip.** In a headset that is drawn, not a browser
+  tooltip, and one day it could be spoken.
+- **In the markup, an accessible name.** Use a `<title>` child on the SVG, and the
+  title or label on the HTML button it mirrors. It costs nothing in a texture, which
+  does not draw it, and it is the fallback for everything else.
+
+A caption beside an icon is fine while the tooltip for that surface does not exist
+yet (the dock's "unequip" and "drop" are the current case). Treat the caption as
+scaffolding, not the design.
+
 ### SVG-native UI, not HTML
 
 - Widgets (`widgets3d.ts`: `panel3d`, `slider3d`, `toggle3d`, `select3d`,
