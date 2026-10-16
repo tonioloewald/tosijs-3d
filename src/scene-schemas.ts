@@ -732,6 +732,15 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
         title: 'Longitude',
         description: 'Longitude of the terrain origin, degrees (+ is east).',
       }),
+      // A selector for the planet this is the ground of (#3344): the
+      // planet decides where the sea, coasts and mountains are.
+      planet: {
+        type: 'string',
+        default: '',
+        description:
+          'Selector of a <tosi-b3d-planet> whose shape this ground takes ' +
+          '(sphere only): the globe and the ground are one world.',
+      },
       grossScale: num(0.015, {
         minimum: 0.0001,
         maximum: 1,
@@ -1421,6 +1430,14 @@ export function planetSchema(extra: Record<string, unknown> = {}) {
     'Planet',
     {
       world: choice('', ['', ...Object.keys(ROCKY_WORLDS)]),
+      // A selector for the sphere terrain this is a globe of (#3344).
+      terrain: {
+        type: 'string',
+        default: '',
+        description:
+          'Selector of a sphere <tosi-b3d-terrain> this globe is drawn from, ' +
+          'again whenever its shape changes.',
+      },
       gas: choice('', ['', ...Object.keys(GAS_GIANTS)]),
       seed: num(12345, { minimum: 0 }),
       radius: num(50, { minimum: 0.1, maximum: 100000, 'x-scale': 'log' }),

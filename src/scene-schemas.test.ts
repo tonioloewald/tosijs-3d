@@ -157,6 +157,9 @@ describe('the shape a generated panel relies on', () => {
       // up to three colours, comma separated (like starfieldTilt's three numbers)
       'moon.bandColors',
       'planet.bandColors',
+      // selectors naming another element, like sound.attachTo
+      'planet.terrain',
+      'terrain.planet',
     ])
     for (const [key, make] of Object.entries(sceneSchemas)) {
       for (const [k, spec] of Object.entries<any>((make() as any).properties)) {

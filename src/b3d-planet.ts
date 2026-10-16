@@ -167,6 +167,7 @@ tosi-b3d {
 | `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |
 | `inlandWater` | `'off'` | `'on'` guesses LAKES from a `colorMap`: where the picture is blue, or nearly black (how NASA's Blue Marble paints deep lakes), it is drawn as water: the map's colour, with the glint. The height map only knows the sea, and a lake is above it. A guess: blue ice or black lava can pass for a lake |
+| `terrain` | `''` | A selector for the sphere `<tosi-b3d-terrain>` this is a GLOBE OF (`'#moon-ground'`): drawn from that ground's own height function, and again whenever its shape changes, so a place on the globe is the place on the ground. (The other way round, a terrain's `planet` gives the ground this planet's shape) |
 | `relief` | `1` | With a `heightMap` or a `surface` set: how much its true relief is exaggerated. `1` is to scale, which on a globe is flat to the eye; 20 to 60 reads as a relief map |
 | `world` | `''` | A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet |
 | `craters` | `0` | How cratered, `0…1` (see landform's `sphereCraters`) |
@@ -290,6 +291,14 @@ export class B3dPlanet extends B3dChild {
     ringOuter: 0,
     ringOpacity: -1,
     ringColor: '',
+    /*
+    THE GROUND THIS IS A GLOBE OF (#3344): a selector for a sphere
+    `<tosi-b3d-terrain>` ('#moon-ground'). The planet draws from it, and
+    draws again whenever the ground's shape changes, so the globe and the
+    ground are one world. '' for none. (A terrain can take its shape from
+    a planet instead: its `planet` attribute.)
+    */
+    terrain: '',
     // A ROCKY WORLD's look (rocky-world): 'moon', 'mercury', 'mars',
     // 'venus', 'earth'. A preset: choosing one writes its sea, air, clouds,
     // relief, craters and climate into this planet's own settings, which
@@ -440,6 +449,7 @@ export class B3dPlanet extends B3dChild {
   }
 
   private update() {
+    this._followTerrain()
     this._followGroundClimate()
     if (this.rootNode == null) return
     const attrs = this as any
@@ -596,6 +606,8 @@ export class B3dPlanet extends B3dChild {
       this.surface != null || !hasSea
         ? 0
         : this.heightPercentile(this._val('ocean'))
+    this._seaAt = seaAt
+    this._shapeGen++
     const heightData = new Float32Array(totalVerts * 2)
     for (let i = 0; i < totalVerts; i++) {
       const above = heights[i] - seaAt
@@ -788,6 +800,98 @@ export class B3dPlanet extends B3dChild {
     return `${this._val('ocean')}|${attrs.flatSea}|${attrs.world}`
   }
   private _surfaceFromMap = false
+
+  /** The sea level of the last build, in this planet's units. */
+  private _seaAt = 0
+  /** Bumped by every build: what `shapeKey` reports. */
+  private _shapeGen = 0
+
+  /**
+   * Changes whenever this planet's SHAPE does (every build). A terrain that
+   * takes its shape from this planet (`planet` on the terrain) compares it to
+   * know when to rebuild.
+   */
+  get shapeKey(): string {
+    return `${(this as any).seed}|${this._shapeGen}`
+  }
+
+  /**
+   * HOW HIGH THE GROUND IS ABOVE THE SEA in a direction from the centre, as
+   * a fraction of the planet's radius: what this globe draws there, with
+   * its sea at 0 (on a world with no sea, its lowest ground). A terrain
+   * with `planet` set multiplies it by its own radius, which is how the
+   * ground under a pin is the place the globe shows. Null before the
+   * planet is built, and for a gas giant.
+   */
+  relativeHeightAt(d: { x: number; y: number; z: number }): number | null {
+    const attrs = this as any
+    if (this.noise == null || attrs.gas) return null
+    const len = Math.hypot(d.x, d.y, d.z) || 1
+    const s = this.surface
+    if (s != null) {
+      const h = s.heightAt({ x: d.x / len, y: d.y / len, z: d.z / len })
+      return (h - s.seaLevel) / s.radius
+    }
+    return (
+      (this.heightAt(d.x / len, d.y / len, d.z / len) - this._seaAt) /
+      attrs.radius
+    )
+  }
+
+  /** The terrain `terrain` names, when it is a sphere. */
+  private _linkedTerrain(): any | null {
+    const sel = String((this as any).terrain ?? '').trim()
+    if (sel === '' || this.owner == null) return null
+    let el: Element | null
+    try {
+      el =
+        (this.owner as unknown as Element).querySelector(sel) ??
+        document.querySelector(sel)
+    } catch {
+      if (!this._terrainWarned) {
+        this._terrainWarned = true
+        console.warn(`b3d-planet: terrain "${sel}" is not a valid selector`)
+      }
+      return null
+    }
+    const t = el as any
+    if (t == null || typeof t.planetSurface !== 'function') return null
+    return t
+  }
+  private _terrainWarned = false
+  private _terrainBuilt = ''
+  private _surfaceFromTerrain = false
+
+  /*
+  FOLLOW THE GROUND (#3344). Tonio: "if you pick a point in the middle of
+  what looks like the ocean, coast, mountain range on a planet you end up
+  with corresponding terrain in the sphere terrain and vice versa." The
+  globe is drawn from the terrain's own height function, again whenever
+  its `generationKey` changes. Not when that terrain takes ITS shape from
+  this planet: each would follow the other.
+  */
+  private _followTerrain(): void {
+    const t = this._linkedTerrain()
+    if (t == null) {
+      if (this._surfaceFromTerrain) {
+        this._surfaceFromTerrain = false
+        this._terrainBuilt = ''
+        this.surface = null
+        this.regenerate()
+      }
+      return
+    }
+    if (typeof t.planetSource === 'function' && t.planetSource() === this)
+      return
+    const key = t.generationKey
+    if (!key || key === this._terrainBuilt) return
+    const surface = t.planetSurface()
+    if (surface == null) return
+    this._terrainBuilt = key
+    this._surfaceFromTerrain = true
+    this.surface = surface
+    this.regenerate()
+  }
   /**
    * Fetch `heightMap` (once per URL and sea setting) and rebuild from it. The
    * planet shows as a smooth ball, in its colours, until the heights arrive.

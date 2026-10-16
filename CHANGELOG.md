@@ -10,6 +10,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **A planet and its sphere terrain are one world** (#3344). Tonio: "if you pick a point in the middle of what looks like the ocean, coast, mountain range on a planet you end up with corresponding terrain in the sphere terrain and vice versa." Either can be the source, stated by one attribute:
+  - **`<tosi-b3d-terrain planet="#p">`**: the ground takes its large shape (sea, coasts, mountain ranges) from the planet, scaled to its `radius` with the sea at 0. Its own detail layer and landforms ride on top, and it rebuilds when the planet changes (`planet.shapeKey`). Measured at 200 random places: the ground sits within the detail layer of the globe's height (mean 2.5 m, worst 3.9 m with 5 m of detail), and sea or land agrees except at the waterline.
+  - **`<tosi-b3d-planet terrain="#t">`**: the globe is drawn from the ground's own height function, and again whenever the ground's shape changes. This replaces the hand-written `planet.surface = terrain.planetSurface()` loop, and the sphere-map demo now uses it.
+
+  Linked, not automatic: a gas giant in a moon's sky, or every body of a star system, must not become the ground you stand on. `planet.relativeHeightAt(direction)` is the globe's height above its sea as a fraction of its radius. Both attributes are in the schemas.
 - **Planetary rings catch shadows** (#3320). Both are worked out in the shaders for a sphere and a flat ring lit by one star, with no shadow maps. **The planet's shadow falls across its rings** (the dark wedge behind Saturn): each ring fragment asks whether the ray toward the star passes through the planet, softened slightly at the edge. This applies to any `<tosi-b3d-planet>` with `rings`. **The rings' shadow bands a gas giant**: each fragment finds where the ray toward the star crosses the ring plane and dims by how much ring is there, so the shadow has the ring's own gaps (a lighter stripe where the Cassini gap lets light through). The ring is now one GLSL function (`RING_GLSL` in `gas-giant`) that the ring draws itself from and the planet reads, and `createGasGiantMaterial` takes `ring: () => RingShadow | null` for a planet built by hand. Not yet: the rings' shadow on a ROCKY planet's surface.
 
 ## 0.10.8
