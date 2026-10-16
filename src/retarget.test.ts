@@ -165,3 +165,43 @@ function multiply(a: any, b: any) {
     z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
   }
 }
+
+describe('a collapsed chain (one target bone for several source bones)', () => {
+  test('a one-bone leg aims at the source FOOT, not the knee', () => {
+    const Q0 = { x: 0, y: 0, z: 0, w: 1 }
+    // Source: hips → thigh → calf → foot, a leg 2 long hanging down.
+    const sBones: RestBone[] = [
+      { name: 'pelvis', parent: null, rotation: Q0, position: { x: 0, y: 2, z: 0 } },
+      { name: 'thigh_l', parent: 'pelvis', rotation: Q0, position: { x: 0.2, y: 0, z: 0 } },
+      { name: 'calf_l', parent: 'thigh_l', rotation: Q0, position: { x: 0, y: -1, z: 0 } },
+      { name: 'foot_l', parent: 'calf_l', rotation: Q0, position: { x: 0, y: -1, z: 0 } },
+    ]
+    // Target: a chibi leg, one bone, pointing down by its flesh.
+    const tBones: RestBone[] = [
+      { name: 'root', parent: null, rotation: Q0, position: { x: 0, y: 0, z: 0 } },
+      {
+        name: 'leg-left',
+        parent: 'root',
+        rotation: Q0,
+        position: { x: 0.1, y: 0.5, z: 0 },
+        end: { x: 0.1, y: 0.2, z: 0 },
+      },
+    ]
+    const source = { bones: sBones, roles: humanoidRoles(sBones) }
+    const target = { bones: tBones, roles: humanoidRoles(tBones) }
+    const rt = retargeter(source, target)
+    // Thigh 90° forward (-90° about +X takes -Y to +Z), knee bent 90° back
+    // down: the knee is out in front at hip height, the foot below it.
+    const X = { x: 1, y: 0, z: 0 }
+    const out = rt.pose(
+      new Map([
+        ['thigh_l', quatFromAxisAngle(X, -Math.PI / 2)],
+        ['calf_l', quatFromAxisAngle(X, Math.PI / 2)],
+      ])
+    )
+    const leg = rotateVector(out.rotations.get('leg-left')!, { x: 0, y: -1, z: 0 })
+    // Hip (0,0,0) → foot (0,-1,1): 45° forward and down, not straight ahead.
+    expect(leg.y).toBeCloseTo(-Math.SQRT1_2, 6)
+    expect(leg.z).toBeCloseTo(Math.SQRT1_2, 6)
+  })
+})

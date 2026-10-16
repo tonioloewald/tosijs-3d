@@ -189,6 +189,14 @@ export interface RestBone {
   parent: string | null
   rotation: Quat
   position: Vec3
+  /**
+   * Where the bone points, in the same space as the skeleton's root (a
+   * world position at rest), for a bone with no joint below it: a Kenney
+   * chibi's whole arm, say. The Babylon side takes it from the middle of
+   * the vertices the bone drives. Optional: without it, such a bone takes
+   * only its source's turn since rest.
+   */
+  end?: Vec3
 }
 
 /** A skeleton as `retargetPose` reads it: bones in any order. */
@@ -314,7 +322,46 @@ function restDirection(
     }
     next = NEXT[next]
   }
+  // No joint below it: where the bone's own flesh is, if we know.
+  const end = sk.bones.find((b) => b.name === name)?.end
+  if (end != null) {
+    const d = sub(end, at)
+    if (Math.hypot(d.x, d.y, d.z) > 1e-6) return normalize(d)
+  }
   return null
+}
+
+/**
+ * How far down its limb a role's bone reaches in this rig: the next role it
+ * has (an upper arm reaches the forearm), `'end'` when nothing below it is
+ * mapped (a Kenney chibi's whole leg), or null for a role it lacks.
+ */
+function reach(role: Role, sk: Skeleton): Role | 'end' | null {
+  if (sk.roles[role] == null) return null
+  const [side, limb] = role.includes('-') ? role.split('-') : [null, role]
+  let next = NEXT[limb as string]
+  while (next != null) {
+    const r = (side != null ? `${side}-${next}` : next) as Role
+    if (sk.roles[r] != null) return r
+    next = NEXT[next]
+  }
+  return 'end'
+}
+
+/**
+ * The last joint of a role's chain that this rig has, stopping at the hand,
+ * foot or head (a toe is not where a leg ends).
+ */
+function chainEnd(role: Role, sk: Skeleton): Role | null {
+  const [side, limb] = role.includes('-') ? role.split('-') : [null, role]
+  let last: Role | null = null
+  let next = NEXT[limb as string]
+  while (next != null && next !== 'toes') {
+    const r = (side != null ? `${side}-${next}` : next) as Role
+    if (sk.roles[r] != null) last = r
+    next = NEXT[next]
+  }
+  return last
 }
 
 /** The height of the hips above the lowest foot, in rest pose. */
@@ -364,9 +411,31 @@ export function retargeter(source: Skeleton, target: Skeleton): Retargeter {
   either side even when one rest pose has the arms out and the other down.
   */
   const align = new Map<Role, Quat>()
+  /*
+  A COLLAPSED CHAIN: one target bone standing for several source bones (a
+  chibi's leg is thigh and shin; its torso is spine and neck). Giving it the
+  first source bone's turn aims it at the source's KNEE, and a rod from hip
+  to foot aimed at a knee kicks out in front. So such a bone is aimed along
+  the source's chain to the joint the target bone actually reaches: the
+  hand, the foot, the head. (It loses the twist about its own length, which
+  a bone without a joint below it cannot show anyway.)
+  */
+  const aimAt = new Map<Role, { from: string; to: string; rest: Vec3 }>()
   for (const r of roles) {
-    const ds = restDirection(r, source, sRest)
+    const tReach = reach(r, target)
+    const sReach = reach(r, source)
     const dt = restDirection(r, target, tRest)
+    if (tReach !== sReach && dt != null) {
+      const end =
+        tReach !== 'end' && tReach != null && source.roles[tReach] != null
+          ? tReach
+          : chainEnd(r, source)
+      if (end != null) {
+        aimAt.set(r, { from: source.roles[r]!, to: source.roles[end]!, rest: dt })
+        continue
+      }
+    }
+    const ds = restDirection(r, source, sRest)
     align.set(r, ds != null && dt != null ? rotationBetween(dt, ds) : IDENTITY)
   }
   const sh = hipHeight(source, sRest)
@@ -398,6 +467,16 @@ export function retargeter(source: Skeleton, target: Skeleton): Retargeter {
         let world: Quat
         if (r == null) {
           world = parentWorld != null ? quatMul(parentWorld, b.rotation) : b.rotation
+        } else if (aimAt.has(r)) {
+          // A collapsed chain: aim along the source's chain, as it is now.
+          const a = aimAt.get(r)!
+          const from = sNow.position.get(a.from)!
+          const to = sNow.position.get(a.to)!
+          const now = normalize(sub(to, from))
+          world = quatMul(
+            rotationBetween(a.rest, now),
+            tRest.rotation.get(b.name)!
+          )
         } else {
           const sName = source.roles[r]!
           // How the source bone turned since its rest, in world space…

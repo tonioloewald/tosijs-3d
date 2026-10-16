@@ -76,11 +76,65 @@ export function readSkeleton(
     rest.decompose(scale, rot, pos)
     bones.push({ name, parent, rotation: q(rot), position: v(pos) })
   }
+  addEnds(skeleton, bones, rootInv)
   return {
     bones,
     roles: humanoidRoles(bones, overrides),
     nodes,
     above,
+  }
+}
+
+/*
+WHERE A BONE POINTS WHEN NOTHING HANGS BELOW IT: the middle of the vertices
+it drives most. A Kenney chibi's arm is one bone with no hand, so only its
+flesh says the arm hangs down; without this, it took only the source's turn
+since rest, and UAL's rest is not a standing pose (the chibi walked like a
+crab). Measured in the model root's space, as the rest is.
+*/
+function addEnds(
+  skeleton: BABYLON.Skeleton,
+  bones: RestBone[],
+  rootInv: BABYLON.Matrix
+): void {
+  const scene = skeleton.getScene()
+  const sum = bones.map(() => ({ x: 0, y: 0, z: 0, n: 0 }))
+  const p = new BABYLON.Vector3()
+  for (const mesh of scene.meshes) {
+    if (mesh.skeleton !== skeleton) continue
+    const pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+    const idx = mesh.getVerticesData(BABYLON.VertexBuffer.MatricesIndicesKind)
+    const wts = mesh.getVerticesData(BABYLON.VertexBuffer.MatricesWeightsKind)
+    if (pos == null || idx == null || wts == null) continue
+    const toRoot = mesh.computeWorldMatrix(true).multiply(rootInv)
+    for (let i = 0; i < pos.length / 3; i++) {
+      let best = -1
+      let bw = 0
+      for (let k = 0; k < 4; k++) {
+        const w = wts[i * 4 + k]
+        if (w > bw) {
+          bw = w
+          best = idx[i * 4 + k]
+        }
+      }
+      if (best < 0 || best >= sum.length) continue
+      BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
+        pos[i * 3],
+        pos[i * 3 + 1],
+        pos[i * 3 + 2],
+        toRoot,
+        p
+      )
+      const s = sum[best]
+      s.x += p.x
+      s.y += p.y
+      s.z += p.z
+      s.n++
+    }
+  }
+  for (let i = 0; i < bones.length; i++) {
+    const s = sum[i]
+    if (s.n > 0) bones[i].end = { x: s.x / s.n, y: s.y / s.n, z: s.z / s.n }
   }
 }
 
