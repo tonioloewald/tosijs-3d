@@ -369,6 +369,7 @@ import {
   directionToGround,
   groundToLatLon,
   latLonToGround,
+  seamWeight,
   type PlanetSurface,
   type SphereFrame,
 } from './sphere-map.js'
@@ -811,6 +812,29 @@ export class B3dTerrain extends B3dChild {
     const grossAt = (grossFilter as any).evaluateAt?.bind(grossFilter)
     const detailAt = (detailFilter as any).evaluateAt?.bind(detailFilter)
     const landform = this.landform
+    /*
+    The noise is read on the surface and repeats with the circumference; the
+    profile fields and landforms read flat metres and do not. Round the back
+    of the world (the meridian opposite the terrain's origin) they are mixed
+    with their copy one turn away, so the ground joins there (board #3318,
+    a 116 m step on a cratered moon). Away from that band nothing changes.
+
+    A SPHERE only. A cylinder is used as a big flat world with things placed
+    in metres, and there a volcano at x = 5000 on a 6 km circumference would
+    wrap to another place and vanish.
+    */
+    const seamBand = surfaceType === 'sphere' ? circumU * 0.05 : 0
+    const layered = (ax: number, az: number, g: number, d: number) => {
+      const h =
+        (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
+        (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
+          detailAmp +
+        baseHeight
+      // Authored landforms (landform.ts) override the noise LOCALLY — the
+      // hook sees origin-stable coords and the noise height, and normals
+      // difference the hooked field, so lighting follows the landform free.
+      return landform ? landform(ax, az, h) : h
+    }
     return (wx: number, wz: number): number => {
       const ax = wx + offX
       const az = wz + offZ
@@ -821,15 +845,13 @@ export class B3dTerrain extends B3dChild {
       const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3)
       const g = gross * 0.5 + 0.5
       const d = detail * 0.5 + 0.5
-      const h =
-        (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
-        (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
-          detailAmp +
-        baseHeight
-      // Authored landforms (landform.ts) override the noise LOCALLY — the
-      // hook sees origin-stable coords and the noise height, and normals
-      // difference the hooked field, so lighting follows the landform free.
-      return landform ? landform(ax, az, h) : h
+      if (seamBand === 0 || (!grossAt && !detailAt && !landform))
+        return layered(ax, az, g, d)
+      const s = seamWeight(ax, circumU, seamBand)
+      const here = layered(s.x, az, g, d)
+      return s.mix === 0
+        ? here
+        : here + (layered(s.other, az, g, d) - here) * s.mix
     }
   }
   /** Metres the hole's rim folds down into a patch opening (see the collar

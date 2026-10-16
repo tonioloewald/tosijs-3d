@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { SphereSampler } from './surface-sampler.js'
 import {
   climateForGlobe,
+  seamBlend,
   directionToGround,
   directionToLatLon,
   directionToUv,
@@ -168,5 +169,40 @@ describe('a ground climate on a globe', () => {
     expect(globe.equatorTemp).toBe(0.85)
     expect(globe.mNoiseAmp).toBe(0.5)
     expect(globe.windAzimuth).toBe(0.8)
+  })
+})
+
+describe('seamBlend makes a flat layer join round the back (#3318)', () => {
+  const C = 1000
+  const band = 50
+  // Deliberately not periodic: a ramp plus a bump.
+  const f = (x: number) => x * 0.3 + 40 * Math.sin(x / 37)
+  test('both sides of the far meridian agree', () => {
+    const e = 1e-6
+    expect(seamBlend(C / 2 - e, C, band, f)).toBeCloseTo(
+      seamBlend(-C / 2 + e, C, band, f),
+      4
+    )
+  })
+  test('away from the seam the layer is read exactly as before', () => {
+    for (const x of [-440, -100, 0, 17, 300, 449]) {
+      expect(seamBlend(x, C, band, f)).toBe(f(x))
+    }
+  })
+  test('a whole turn round reads the same as here', () => {
+    for (const x of [-480, -10, 0, 123, 490]) {
+      expect(seamBlend(x + 3 * C, C, band, f)).toBeCloseTo(
+        seamBlend(x, C, band, f),
+        6
+      )
+    }
+  })
+  test('continuous through the band: no step between neighbours', () => {
+    let prev = seamBlend(C / 2 - band - 1, C, band, f)
+    for (let x = C / 2 - band; x < C / 2 + band; x += 0.25) {
+      const v = seamBlend(x, C, band, f)
+      expect(Math.abs(v - prev)).toBeLessThan(2)
+      prev = v
+    }
   })
 })

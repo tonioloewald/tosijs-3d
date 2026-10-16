@@ -555,6 +555,31 @@ export class B3dPlanet extends B3dChild {
     as data (uv.x), so the shader can tell land from water per pixel and
     knows how deep the water is. There is no sea sphere.
     */
+    /*
+    A SEA BELOW ALL THE GROUND IS NO SEA (board #3319). Heights from a
+    surface are measured from its `seaLevel`, so a dry world that says "no
+    sea" with a sea far down (Manta's moon: -10000 m under ground near 320 m)
+    gained ten kilometres of ground and was drawn hundreds of times too big.
+    The datum is the higher of the sea and the lowest ground: with a real sea
+    nothing changes, and on a dry world the lowest ground sits on the base
+    radius.
+    */
+    if (this.surface != null) {
+      let lowest = Infinity
+      for (let i = 0; i < totalVerts; i++)
+        if (heights[i] < lowest) lowest = heights[i]
+      if (lowest > 0 && Number.isFinite(lowest)) {
+        for (let i = 0; i < totalVerts; i++) {
+          heights[i] -= lowest
+          const vi = i * 3
+          const r = radius + heights[i]
+          positions[vi] = normals[vi] * r
+          positions[vi + 1] = normals[vi + 1] * r
+          positions[vi + 2] = normals[vi + 2] * r
+        }
+      }
+    }
+
     let highest = 1e-3
     let deepest = 1e-3
     this.vertexHeights = heights

@@ -153,7 +153,11 @@ export interface SphereFrame {
 export interface PlanetSurface {
   /** The planet's true radius, metres. */
   radius: number
-  /** Height of the sea (or of the datum, on a dry world), metres. */
+  /**
+   * Height of the sea, metres. A world with NO sea says so with a sea level
+   * below all its ground (Manta uses -10000): a globe then measures from the
+   * lowest ground, so the sea's depth adds nothing to its size.
+   */
   seaLevel: number
   /** Ground height in metres, in a direction from the centre (any length). */
   heightAt(direction: Vec3): number
@@ -340,4 +344,48 @@ export function latLonToGround(
   frame: SphereFrame
 ): { x: number; z: number } {
   return directionToGround(latLonToDirection(lat, lon), frame)
+}
+
+/*
+A LAYER LAID OUT FLAT, MADE TO JOIN ROUND THE BACK (board #3318).
+
+The ground's noise is read on the sphere, so it repeats with the
+circumference. A crater field, a profile field or any other layer reads flat
+metres instead, and does not: the ground at the far meridian (x = ±C/2 from
+the terrain's origin) was two different places, a step of 116 m on Manta's
+moon. `seamBlend` makes such a layer periodic. Within `band` of the far
+meridian it mixes the layer with its copy one circumference away, half and
+half AT the meridian, so both sides arrive at the same value. Elsewhere the
+layer is read exactly as before, and a place one whole turn round reads the
+same as here.
+*/
+
+/** Where `x` is within one turn (−C/2…C/2), and how much of its copy one turn away to mix in. */
+export function seamWeight(
+  x: number,
+  circumference: number,
+  band: number
+): { x: number; other: number; mix: number } {
+  const c = circumference
+  const xw = x - c * Math.floor(x / c + 0.5)
+  const fromSeam = c / 2 - Math.abs(xw)
+  if (!(band > 0) || fromSeam >= band) return { x: xw, other: xw, mix: 0 }
+  const t = 1 - fromSeam / band
+  return {
+    x: xw,
+    other: xw > 0 ? xw - c : xw + c,
+    mix: 0.5 * t * t * (3 - 2 * t),
+  }
+}
+
+/** A flat layer `f(x)` made periodic in `x` with `circumference` (see `seamWeight`). */
+export function seamBlend(
+  x: number,
+  circumference: number,
+  band: number,
+  f: (x: number) => number
+): number {
+  const s = seamWeight(x, circumference, band)
+  const a = f(s.x)
+  return s.mix === 0 ? a : a + (f(s.other) - a) * s.mix
 }

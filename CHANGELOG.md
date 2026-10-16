@@ -6,6 +6,17 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.8 (unreleased)
+
+### Added
+
+- **`seamBlend` / `seamWeight`** (`sphere-map`): make a layer laid out in flat metres periodic round a world, mixed with its copy one circumference away near the far meridian and untouched elsewhere.
+
+### Fixed
+
+- **A sphere terrain joins at the far meridian** (#3318). Its noise is read on the sphere and always repeated; its profile fields (`blendProfiles`, `profileField`) and landforms (`craterField`, …) read flat metres and did not. The ground opposite the terrain's origin (longitude 180 at the default `worldU`) was two different places: a 116 m step on Manta's cratered moon, 19.5 m without the craters. Within 5% of a turn of that meridian they are now mixed with their copy one turn away, so the two sides meet. Elsewhere the ground is exactly as before, and a place one whole turn round is the same place. Spheres only: a cylinder is used as a big flat world with things placed in metres.
+- **A globe of a world with no sea is drawn at its size** (#3319). A planet drawn from a `PlanetSurface` measured every height from `seaLevel`, so a dry world that says "no sea" with a sea level far below its ground (Manta's -10000 m) gained that depth as ground. A globe meant to be 40 units across came out at 2476. The globe now measures from the higher of the sea and the lowest ground. A world with a real sea is unchanged, and on a dry world the lowest ground sits on the base radius. The convention for "no sea" is a `seaLevel` below all of the ground.
+
 ## 0.10.7
 
 **What you will see on upgrading** (nothing exported in 0.10.6 is removed or renamed, but a `^0.10` range picks this up unasked):
