@@ -2387,8 +2387,15 @@ export class B3d extends Component {
   inventory's dock) does, and a `panelfocus` with `focus: false` from it
   (its own ×) puts the panel away.
   */
-  private _systemSpecs(): FramePanelSpec[] {
-    const specs: FramePanelSpec[] = []
+  /*
+  KEYED BY THE ELEMENT, not by its content (tosijs-3d#111). A host whose rows
+  change rebuilds its `panel3d` and gets a new svg; keyed by the svg, that
+  was a new button, a lost spot and a stale open panel. The element is what
+  the host declared, so its button, spot and open state stay its own while
+  `el.svg = next` swaps what it shows.
+  */
+  private _systemEntries(): { el: Element; spec: FramePanelSpec }[] {
+    const out: { el: Element; spec: FramePanelSpec }[] = []
     for (const el of Array.from(this.querySelectorAll('tosi-b3d-panel'))) {
       const s = (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.()
       if (s == null || s.anchor !== 'system-bar') continue
@@ -2399,17 +2406,16 @@ export class B3d extends Component {
         svg = placeholderPanelSvg(s.title || s.icon || 'Panel')
         this._systemCards.set(el, svg)
       }
-      specs.push({ ...s, svg })
+      out.push({ el, spec: { ...s, svg } })
     }
-    return specs
+    return out
   }
   private _systemCards = new WeakMap<Element, SVGSVGElement>()
-  private _systemButtonOf = new WeakMap<SVGSVGElement, HTMLButtonElement>()
+  private _systemButtonOf = new WeakMap<Element, HTMLButtonElement>()
   /** One HTML button per system panel, mirrored by both system bars. */
   private _systemButtons(): HTMLButtonElement[] {
     const icons = svgIcons as unknown as Record<string, () => Element>
-    return this._systemSpecs().map((spec) => {
-      const svg = spec.svg!
+    return this._systemEntries().map(({ el: svg, spec }) => {
       let b = this._systemButtonOf.get(svg)
       if (b == null) {
         b = button(
@@ -2429,10 +2435,11 @@ export class B3d extends Component {
       return b
     })
   }
-  /** The open system panels, by content. */
+  /** The open system panels, by their `<tosi-b3d-panel>`. */
   private _sysPanels = new Map<
-    SVGSVGElement,
+    Element,
     {
+      content: SVGSVGElement
       panel: { update: () => void; dispose: () => void }
       frames: XrFrames | null
       obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
@@ -2441,18 +2448,34 @@ export class B3d extends Component {
     }
   >()
   /** System panels already opened by their `open` attribute (once each). */
-  private _sysOpened = new WeakSet<SVGSVGElement>()
+  private _sysOpened = new WeakSet<Element>()
   /** The headset's settings panel closer, while a session has one. */
   private _closeXrSettings: () => void = noop
-  private _toggleSystemPanel(svg: SVGSVGElement): void {
-    if (this._sysPanels.has(svg)) this._closeSystemPanel(svg)
-    else this._openSystemPanel(svg)
+  private _toggleSystemPanel(el: Element): void {
+    if (this._sysPanels.has(el)) this._closeSystemPanel(el)
+    else this._openSystemPanel(el)
   }
-  private _openSystemPanel(content: SVGSVGElement): void {
+  /**
+   * New content on a system panel's element: if it is open, show the new
+   * content in the same place (closed and opened again; the spot is the
+   * element's, and a non-exclusive panel opening closes nothing).
+   */
+  private _swapSystemContent = (e: Event): void => {
+    const el = e.target as Element
+    const open = this._sysPanels.get(el)
+    if (open == null) return
+    const next = this._systemEntries().find((x) => x.el === el)?.spec.svg
+    if (next == null || next === open.content) return
+    this._closeSystemPanel(el)
+    this._openSystemPanel(el)
+  }
+  private _openSystemPanel(key: Element): void {
     const scene = this.scene
     if (scene == null) return
-    if (this._sysPanels.has(content)) return
-    const spec = this._systemSpecs().find((s) => s.svg === content)
+    if (this._sysPanels.has(key)) return
+    const spec = this._systemEntries().find((x) => x.el === key)?.spec
+    if (spec?.svg == null) return
+    const content = spec.svg
     const exclusive = spec?.exclusive !== false
     // One at a time: the settings panel and the other exclusive ones go.
     if (exclusive) {
@@ -2477,7 +2500,7 @@ export class B3d extends Component {
     const titled = framed
       ? titled3d(content, {
           title: spec?.title,
-          handleClose: () => this._closeSystemPanel(content),
+          handleClose: () => this._closeSystemPanel(key),
         })
       : null
     const svg = titled ?? content
@@ -2493,10 +2516,10 @@ export class B3d extends Component {
       const half = (Math.atan2(h / 2, XR_BAR_DISTANCE) * 180) / Math.PI
       // Its own anchor, kept: a drag by its title bar writes the angles, so
       // it reopens where you left it (holding its button resets it).
-      let seat = this._systemXrSpots.get(content)
+      let seat = this._systemXrSpots.get(key)
       if (seat == null) {
         seat = xrSeatFor(spec?.screenAnchor, (vb.width || 400) * K, half, K)
-        this._systemXrSpots.set(content, seat)
+        this._systemXrSpots.set(key, seat)
       }
       panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {
         frame: 'eye',
@@ -2518,12 +2541,12 @@ export class B3d extends Component {
       // Where you dragged it last time, as the settings panel does (holding
       // its button on the bar puts it back).
       // The first time, its own `screenAnchor` if it declares one.
-      let spot = this._systemSpots.get(content)
+      let spot = this._systemSpots.get(key)
       if (spot == null) {
         spot = spec?.screenAnchor
           ? { distance: 0.9, ...spec.screenAnchor }
           : { left: 8, top: UNDER_BAR, distance: 0.9 }
-        this._systemSpots.set(content, spot)
+        this._systemSpots.set(key, spot)
       }
       const fixedHeight = spec?.screenAnchor?.height != null
       const fitHeight = () => {
@@ -2563,10 +2586,11 @@ export class B3d extends Component {
     }
     const onFocus = (e: Event) => {
       if ((e as CustomEvent<{ focus?: boolean }>).detail?.focus === false)
-        this._closeSystemPanel(content)
+        this._closeSystemPanel(key)
     }
     content.addEventListener('panelfocus', onFocus)
-    this._sysPanels.set(content, {
+    this._sysPanels.set(key, {
+      content,
       panel,
       frames,
       obs,
@@ -2579,10 +2603,10 @@ export class B3d extends Component {
     this._syncGamepadCover()
   }
   /** Where each system panel was dragged to, flat. */
-  private _systemSpots = new WeakMap<SVGSVGElement, ScreenAnchor>()
+  private _systemSpots = new WeakMap<Element, ScreenAnchor>()
   /** …and in a headset. */
   private _systemXrSpots = new WeakMap<
-    SVGSVGElement,
+    Element,
     { azimuthDeg: number; elevationDeg: number; distance: number }
   >()
   /** `flat-ui="dom"`; anything but 'scene' or 'dom' warns once and is 'scene'. */
@@ -2623,11 +2647,11 @@ export class B3d extends Component {
       for (const svg of shared) this._openSystemPanel(svg)
     })
   }
-  private _closeSystemPanel(svg: SVGSVGElement): void {
-    const p = this._sysPanels.get(svg)
+  private _closeSystemPanel(key: Element): void {
+    const p = this._sysPanels.get(key)
     if (p == null) return
-    this._sysPanels.delete(svg)
-    svg.dispatchEvent(
+    this._sysPanels.delete(key)
+    p.content.dispatchEvent(
       new CustomEvent('panelopen', {
         detail: { open: false },
         cancelable: true,
@@ -2733,10 +2757,10 @@ export class B3d extends Component {
       const bar = this._sceneToolbarSpec()
       if (bar) specs.unshift(bar)
       // System panels that say `open`, once each, when the scene starts.
-      for (const spec of this._systemSpecs())
-        if (spec.open && !this._sysOpened.has(spec.svg!)) {
-          this._sysOpened.add(spec.svg!)
-          this._openSystemPanel(spec.svg!)
+      for (const { el, spec } of this._systemEntries())
+        if (spec.open && !this._sysOpened.has(el)) {
+          this._sysOpened.add(el)
+          this._openSystemPanel(el)
         }
       const sig = specs.length
         ? `${cam.uniqueId}|${
@@ -4803,6 +4827,8 @@ export class B3d extends Component {
     // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
     // on the host so overlay interaction counts; pointerdown bubbles from any child.
     this.addEventListener('pointerenter', () => this.takeInputFocus())
+    // A system panel given new content (`el.svg = next`), #111.
+    this.addEventListener('panelcontent', this._swapSystemContent)
     this.addEventListener('pointerdown', () => this.takeInputFocus())
     /*
     NEVER TWO ENGINES ON ONE CANVAS.

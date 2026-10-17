@@ -243,6 +243,12 @@ gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, p
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
 comes, and how much bigger, when its content asks for focus with a
 `panelfocus` event). A system-bar panel with no `svg` opens a card with its title.
+
+**Rebuilt content goes back on the same element.** A system panel is the
+`<tosi-b3d-panel>`, not its content: set `el.svg = next` and an open panel
+shows `next` where it is, with the same button, spot and open state, refitted
+to the new height (a closed one shows it next time). Dispose the content you
+dropped yourself. The setter fires a bubbling `panelcontent` event.
 */
 /*{ "parent": "ui-in-scene", "order": 10 }*/
 
@@ -318,8 +324,21 @@ export class B3dPanel extends Component {
   declare exclusive: string
   declare open: boolean
 
-  /** Live content (JS only): an SVG, with its own `handlePointer` if it takes the pointer. */
-  svg: SVGSVGElement | null = null
+  /**
+   * Live content (JS only): an SVG, with its own `handlePointer` if it takes
+   * the pointer. Setting it again swaps an open system panel's content in
+   * place (same button, spot and open state, #111) and fires `panelcontent`;
+   * disposing the old content is the setter's caller's job.
+   */
+  get svg(): SVGSVGElement | null {
+    return this._svg
+  }
+  set svg(next: SVGSVGElement | null) {
+    if (next === this._svg) return
+    this._svg = next
+    this.dispatchEvent(new CustomEvent('panelcontent', { bubbles: true }))
+  }
+  private _svg: SVGSVGElement | null = null
   /** Where it goes in the flat view, in place of the anchor (JS only). */
   flatAnchor: AnchorPreset | AnchorSpec | null = null
   /** Flat placement in screen terms (pixels / % / vmin pins); wins over `flatAnchor`. JS only. */
