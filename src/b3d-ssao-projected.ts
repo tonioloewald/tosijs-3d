@@ -142,6 +142,8 @@ export class ProjectedAoController {
   private _frameObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   private _materialObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Material>> =
     null
+  private _meshObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.AbstractMesh>> =
+    null
   private _built = { width: 0, height: 0 }
   private _params: ProjectedAoParams | null = null
   private _lastDraw = -Infinity
@@ -207,6 +209,11 @@ export class ProjectedAoController {
         // finished building: attach once it exists.
         setTimeout(() => this._attach(m), 0)
       )
+      // A library's pieces share its container's materials, which are not in
+      // `scene.materials` and were announced before this existed (#107).
+      this._meshObs = scene.onNewMeshAddedObservable.add((mesh) =>
+        setTimeout(() => this._attachMesh(mesh), 0)
+      )
     }
   }
 
@@ -215,8 +222,10 @@ export class ProjectedAoController {
     if (this._frameObs != null) {
       scene.onBeforeRenderObservable.remove(this._frameObs)
       scene.onNewMaterialAddedObservable.remove(this._materialObs)
+      scene.onNewMeshAddedObservable.remove(this._meshObs)
       this._frameObs = null
       this._materialObs = null
+      this._meshObs = null
     }
     for (const plugin of this._plugins) {
       plugin.isEnabled = false
@@ -238,6 +247,22 @@ export class ProjectedAoController {
     this._ao = null
     this._blur = null
     this._built = { width: 0, height: 0 }
+  }
+
+  /*
+  MATERIALS ARE FOUND THROUGH MESHES TOO (tosijs-3d#107). `scene.materials` is
+  not every material drawn: a library's instances share the materials of its
+  AssetContainer, which stay out of the scene's list, and they were announced
+  at load, usually before AO was switched on. So library pieces never carried
+  the hook, never entered the depth picture, and were never occluded, while
+  the plugin count still said AO was running.
+  */
+  private _attachMesh(mesh: BABYLON.AbstractMesh): void {
+    const material = mesh.material
+    if (material == null) return
+    if (material instanceof BABYLON.MultiMaterial) {
+      for (const sub of material.subMaterials) if (sub) this._attach(sub)
+    } else this._attach(material)
   }
 
   private _attach(material: BABYLON.Material): void {
@@ -420,6 +445,7 @@ export class ProjectedAoController {
       this._build(width, height)
       this._warmUp = 30
       for (const material of scene.materials) this._attach(material)
+      for (const mesh of scene.meshes) this._attachMesh(mesh)
     }
     const cam = this._camera!
     // Frozen, because a camera works out its aspect from whatever is bound
