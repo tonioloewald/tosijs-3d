@@ -1021,6 +1021,32 @@ describe('a field outside the attached group (tosijs-3d#82)', () => {
     group.blur()
   })
 
+  test('a handler that re-renders its group mid-key still types once (#94)', () => {
+    // ensemble's rename: handleChange rebuilds the panel inside the keydown,
+    // detaching the focused field's group and attaching a new one. The field
+    // keeps focus, but no attached group owns it any more.
+    const seen: string[] = []
+    let detach: () => void = () => {}
+    const regroup = () => {
+      detach()
+      detach = K.fieldGroup({ fields: [K.inputField({})] }).attach(window)
+    }
+    const field = K.inputField({
+      value: '',
+      handleChange: (v: string) => {
+        seen.push(v)
+        regroup()
+      },
+    })
+    const group = K.fieldGroup({ fields: [field] })
+    detach = group.attach(window)
+    group.focus(field)
+    type('X')
+    expect(field.value).toBe('X') // not 'XX'
+    detach()
+    field.setActive?.(false)
+  })
+
   test('add() joins a field made after the group', () => {
     const early = K.inputField({})
     const group = K.fieldGroup({ fields: [early] })
