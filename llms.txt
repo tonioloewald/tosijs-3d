@@ -45,6 +45,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/atmosphere/ — atmosphere
   Underwater, inside a cloud, out in space — each is a *layer* that pulls the fog toward its
+- https://3d.tosijs.net/rig-build/ — auto-rig
+  modelling program (no skeleton, no weights) are rigged in the browser and play
 - https://3d.tosijs.net/tosi-b3d/ — b3d
   The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 - https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
@@ -373,6 +375,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   What changed, how to upgrade, and the seeded random sources everything
 - https://3d.tosijs.net/resource/ — resource
   destroyable's health and a launcher's energy: it regenerates, but only once it
+- https://3d.tosijs.net/retarget/ — retarget
+  Animation Library's clips are authored on the UE mannequin; a Mixamo
 - https://3d.tosijs.net/rocky-world/ — rocky-world
   Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
@@ -403,6 +407,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure, dependency-free transform math for the **spatial attachment mechanics**
 - https://3d.tosijs.net/sphere-map/ — sphere-map
   `surfaceType="sphere"` is a flat sheet wrapped round a planet: walk far enough
+- https://3d.tosijs.net/spring-chain-babylon/ — spring bones
+  animates — a ponytail, a tail, a strand of a cape — swings, trails and
 - https://3d.tosijs.net/star-populations/ — star-populations
   Pure — no Babylon, no DOM.
 - https://3d.tosijs.net/starfield-codec/ — starfield-codec

@@ -2672,6 +2672,16 @@
         "name": "layer",
         "default": "'world'",
         "description": "`'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world"
+      },
+      {
+        "name": "exclusive",
+        "default": "'on'",
+        "description": "On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other"
+      },
+      {
+        "name": "open",
+        "default": "false",
+        "description": "On the system bar: open when the scene starts (and again in a headset, if it was open flat)"
       }
     ]
   },
@@ -2934,6 +2944,11 @@
         "name": "ringColor",
         "default": "''",
         "description": "`#rrggbb`. Blank = the gas giant preset's, else a pale tan"
+      },
+      {
+        "name": "tilt",
+        "default": "0",
+        "description": "Axial tilt in degrees: the axis leans and stays fixed in space while the planet spins about it. Rings tilt with it, which is what lets their shadow fall across the planet (Saturn 26.7). A star system tilts its own planets from its spec"
       },
       {
         "name": "terrain",
@@ -5473,6 +5488,16 @@
         "name": "terraceProfile",
         "default": "steps with sloped risers",
         "description": "terraced hills"
+      }
+    ]
+  },
+  {
+    "module": "spring-chain-babylon",
+    "summary": "spring bones",
+    "attributes": [
+      {
+        "name": "params",
+        "default": "stiffness` (0 hangs free, 1 holds its rest shape), `damping` (velocity lost per second), `gravity`, `radius"
       }
     ]
   },
