@@ -190,9 +190,15 @@ export function retargetClip(
   group: BABYLON.AnimationGroup,
   source: ReadSkeleton,
   target: ReadSkeleton,
-  options: { fps?: number; name?: string; scene?: BABYLON.Scene } = {}
+  options: {
+    fps?: number
+    name?: string
+    scene?: BABYLON.Scene
+    /** See `RetargetOptions.armSpaceDeg`: spread the arms away from the body. */
+    armSpaceDeg?: number
+  } = {}
 ): BABYLON.AnimationGroup {
-  const rt = retargeter(source, target)
+  const rt = retargeter(source, target, { armSpaceDeg: options.armSpaceDeg })
   const fps = options.fps ?? 30
   // What animates each source bone, by name.
   const rotAnim = new Map<string, BABYLON.Animation>()

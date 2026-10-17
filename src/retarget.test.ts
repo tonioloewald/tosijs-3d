@@ -133,6 +133,20 @@ describe('retargetPose', () => {
     expect(d1.y).toBeCloseTo(0, 6)
   })
 
+  test('arm space turns a hanging arm away from the body (Mixamo\'s Arm-Space)', () => {
+    // Both rest with the arm hanging straight down.
+    const sk = arm({ x: 0, y: -1, z: 0 })
+    const plain = elbowDir(sk, retargeter(sk, sk).pose(new Map()).rotations)
+    expect(plain.x).toBeCloseTo(0, 6)
+    const spread = retargeter(sk, sk, { armSpaceDeg: 30 })
+    const d = elbowDir(sk, spread.pose(new Map()).rotations)
+    // The left arm (+X side) swings out 30° toward +X, staying in the
+    // body's plane.
+    expect(d.x).toBeCloseTo(Math.sin(Math.PI / 6), 6)
+    expect(d.y).toBeCloseTo(-Math.cos(Math.PI / 6), 6)
+    expect(d.z).toBeCloseTo(0, 6)
+  })
+
   test('hips move in proportion to hip height', () => {
     const tall = arm({ x: 1, y: 0, z: 0 })
     const short = arm({ x: 1, y: 0, z: 0 })

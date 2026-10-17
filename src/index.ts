@@ -1657,6 +1657,7 @@ export type {
   RestBone,
   Skeleton as RetargetSkeleton,
   Retargeter,
+  RetargetOptions,
 } from './retarget.js'
 export {
   readSkeleton,

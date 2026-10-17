@@ -31,6 +31,10 @@ other proportions), omnidude (Mixamo's bones, 0.88 m tall) and a Kenney
 chibi (seven bones: one for each whole leg, arm and the torso; shown three
 times its size). Pick a clip in the panel.
 
+A chibi's arms are long for its height: hanging where the clip's hang, its
+hands would go through the floor. `armSpaceDeg` (Mixamo's "Character
+Arm-Space") turns the upper arms out from the body, and the chibi takes 55°.
+
 ```js
 import { b3d, b3dLight, assetUrl, readSkeleton, retargetClip, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
@@ -42,7 +46,6 @@ preview.append(
   b3d(
     {
       clearColor: '#2a3340',
-      scenePanelOpen: true,
       panelTitle: 'Retarget',
       scenePanel: () => [select3d({ label: 'clip', value: rt.clip, options: clips })],
       async sceneCreated(el, BABYLON) {
@@ -78,7 +81,7 @@ preview.append(
         const mini = await load(assetUrl('kenney/libraries/mini-characters.glb'))
         const miniSkin = pick(mini, 'character-female-a')
         rootOf(mini).scaling.scaleInPlace(3)
-        bodies.push({ root: rootOf(mini), skeleton: miniSkin, x: -2.4 })
+        bodies.push({ root: rootOf(mini), skeleton: miniSkin, x: -2.4, armSpaceDeg: 55 })
 
         for (const b of bodies) {
           b.root.position.x = b.x
@@ -94,7 +97,7 @@ preview.append(
           playing = bodies.map((b, i) => {
             if (!b.read) return clip
             const key = name + i
-            if (!made.has(key)) made.set(key, retargetClip(clip, source, b.read, { scene }))
+            if (!made.has(key)) made.set(key, retargetClip(clip, source, b.read, { scene, armSpaceDeg: b.armSpaceDeg }))
             return made.get(key)
           })
           for (const g of playing) g.start(true)
@@ -112,8 +115,9 @@ Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
 writes the result.
 
-Fitting a skeleton to a mesh (dragging a few markers over it, as Mixamo's
-auto-rigger does) and binding the mesh to it come next, in their own modules.
+A mesh with no skeleton at all can be rigged for these clips too: see
+[auto-rig](/rig-build/), which fits a skeleton from eight markers dragged
+over the mesh, as Mixamo's auto-rigger does, and binds the mesh to it.
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
 
@@ -480,12 +484,41 @@ export interface Retargeter {
   ): { rotations: Map<string, Quat>; hips?: Vec3 }
 }
 
+export interface RetargetOptions {
+  /**
+   * ARM SPACE (Mixamo's "Character Arm-Space"): turn each upper arm this many
+   * degrees away from the body, about the forward axis, after retargeting.
+   * A body whose arms are long against its shoulder height (a chibi's reach
+   * below its feet) or that is wide at the hips drives its arms through the
+   * floor or its own sides when they hang where the clip's do. The forearm
+   * and hand follow the upper arm, so the clip's elbow and wrist are kept.
+   * Negative brings them in. Default 0.
+   */
+  armSpaceDeg?: number
+}
+
 /**
  * Map `source`'s poses onto `target`. Both skeletons should face the same
- * way in their rest pose (glTF: +Z forward, +Y up); their rest POSES may
- * differ (A-pose against T-pose), which the alignment absorbs.
+ * way in their rest pose (glTF: +Z forward, +Y up, left on +X); their rest
+ * POSES may differ (A-pose against T-pose), which the alignment absorbs.
  */
-export function retargeter(source: Skeleton, target: Skeleton): Retargeter {
+export function retargeter(
+  source: Skeleton,
+  target: Skeleton,
+  options: RetargetOptions = {}
+): Retargeter {
+  // Rotations about +Z (forward): positive swings a hanging left arm (+X) out.
+  const spread = ((options.armSpaceDeg ?? 0) * Math.PI) / 180
+  const armOut = new Map<Role, Quat>()
+  if (spread !== 0) {
+    for (const [role, sign] of [
+      ['l-upperArm', 1],
+      ['r-upperArm', -1],
+    ] as Array<[Role, number]>) {
+      const h = (sign * spread) / 2
+      armOut.set(role, { x: 0, y: 0, z: Math.sin(h), w: Math.cos(h) })
+    }
+  }
   const sRest = toWorld(source.bones)
   const tRest = toWorld(target.bones)
   const roles = ROLES.filter(
@@ -576,6 +609,8 @@ export function retargeter(source: Skeleton, target: Skeleton): Retargeter {
             quatMul(align.get(r)!, tRest.rotation.get(b.name)!)
           )
         }
+        const out2 = r != null ? armOut.get(r) : undefined
+        if (out2 != null) world = quatMul(out2, world)
         tWorld.set(b.name, world)
         out.set(
           b.name,
