@@ -374,6 +374,7 @@ b3d-destroyable
   destroyable
   size
   scale
+  stretch
   color
   capacity
   armor

@@ -1019,8 +1019,9 @@ export class AbstractMesh extends B3dChild {
     }
     /**
      * Apply a uniform `scale` attribute to the mesh (a non-positive or non-finite
-     * value means 1). Not part of the per-render sync, because most subclasses
-     * own `scaling` for their own reasons; elements with a `scale` attribute call
+     * value means 1), times a per-axis `stretch` (`"2 1 3"`) if the element has
+     * one. Not part of the per-render sync, because most subclasses own
+     * `scaling` for their own reasons; elements with a `scale` attribute call
      * this from their `render()` so a later write takes effect.
      */
     applyUniformScale() {
@@ -1028,7 +1029,19 @@ export class AbstractMesh extends B3dChild {
         if (node?.scaling == null)
             return;
         const s = this.scale;
-        const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1;
+        const u = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1;
+        /*
+        A STRETCH SET BEFORE THE NODE EXISTS survives its arrival (#105, the
+        second half): written on the node by hand, it was lost when the library
+        instance arrived and the uniform scale went on. As an attribute it is
+        applied on adoption like `scale`. Missing or bad axes are 1.
+        */
+        const st = String(this.stretch ?? '')
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+        const ax = (i) => Number.isFinite(st[i]) && st[i] > 0 ? u * st[i] : u;
+        const k = `${ax(0)} ${ax(1)} ${ax(2)}`;
         /*
         ONLY WHEN `scale` (or the node) CHANGES (tosijs-3d#105). This runs on
         every render, so writing each time wiped any per-axis scale a consumer
@@ -1039,7 +1052,7 @@ export class AbstractMesh extends B3dChild {
         if (this._scaleApplied?.node === node && this._scaleApplied.k === k)
             return;
         this._scaleApplied = { node, k };
-        node.scaling.set(k, k, k);
+        node.scaling.set(ax(0), ax(1), ax(2));
     }
     _scaleApplied = null;
     _originShift = null;

@@ -2045,8 +2045,15 @@ export class B3d extends Component {
     inventory's dock) does, and a `panelfocus` with `focus: false` from it
     (its own ×) puts the panel away.
     */
-    _systemSpecs() {
-        const specs = [];
+    /*
+    KEYED BY THE ELEMENT, not by its content (tosijs-3d#111). A host whose rows
+    change rebuilds its `panel3d` and gets a new svg; keyed by the svg, that
+    was a new button, a lost spot and a stale open panel. The element is what
+    the host declared, so its button, spot and open state stay its own while
+    `el.svg = next` swaps what it shows.
+    */
+    _systemEntries() {
+        const out = [];
         for (const el of Array.from(this.querySelectorAll('tosi-b3d-panel'))) {
             const s = el.toSpec?.();
             if (s == null || s.anchor !== 'system-bar')
@@ -2058,17 +2065,16 @@ export class B3d extends Component {
                 svg = placeholderPanelSvg(s.title || s.icon || 'Panel');
                 this._systemCards.set(el, svg);
             }
-            specs.push({ ...s, svg });
+            out.push({ el, spec: { ...s, svg } });
         }
-        return specs;
+        return out;
     }
     _systemCards = new WeakMap();
     _systemButtonOf = new WeakMap();
     /** One HTML button per system panel, mirrored by both system bars. */
     _systemButtons() {
         const icons = svgIcons;
-        return this._systemSpecs().map((spec) => {
-            const svg = spec.svg;
+        return this._systemEntries().map(({ el: svg, spec }) => {
             let b = this._systemButtonOf.get(svg);
             if (b == null) {
                 b = button({ type: 'button', title: spec.title || spec.icon || 'Panel' }, icons[spec.icon ?? '']?.() ?? svgIcons.square());
@@ -2085,25 +2091,44 @@ export class B3d extends Component {
             return b;
         });
     }
-    /** The open system panels, by content. */
+    /** The open system panels, by their `<tosi-b3d-panel>`. */
     _sysPanels = new Map();
     /** System panels already opened by their `open` attribute (once each). */
     _sysOpened = new WeakSet();
     /** The headset's settings panel closer, while a session has one. */
     _closeXrSettings = noop;
-    _toggleSystemPanel(svg) {
-        if (this._sysPanels.has(svg))
-            this._closeSystemPanel(svg);
+    _toggleSystemPanel(el) {
+        if (this._sysPanels.has(el))
+            this._closeSystemPanel(el);
         else
-            this._openSystemPanel(svg);
+            this._openSystemPanel(el);
     }
-    _openSystemPanel(content) {
+    /**
+     * New content on a system panel's element: if it is open, show the new
+     * content in the same place (closed and opened again; the spot is the
+     * element's, and a non-exclusive panel opening closes nothing).
+     */
+    _swapSystemContent = (e) => {
+        const el = e.target;
+        const open = this._sysPanels.get(el);
+        if (open == null)
+            return;
+        const next = this._systemEntries().find((x) => x.el === el)?.spec.svg;
+        if (next == null || next === open.content)
+            return;
+        this._closeSystemPanel(el);
+        this._openSystemPanel(el);
+    };
+    _openSystemPanel(key) {
         const scene = this.scene;
         if (scene == null)
             return;
-        if (this._sysPanels.has(content))
+        if (this._sysPanels.has(key))
             return;
-        const spec = this._systemSpecs().find((s) => s.svg === content);
+        const spec = this._systemEntries().find((x) => x.el === key)?.spec;
+        if (spec?.svg == null)
+            return;
+        const content = spec.svg;
         const exclusive = spec?.exclusive !== false;
         // One at a time: the settings panel and the other exclusive ones go.
         if (exclusive) {
@@ -2126,7 +2151,7 @@ export class B3d extends Component {
         const titled = framed
             ? titled3d(content, {
                 title: spec?.title,
-                handleClose: () => this._closeSystemPanel(content),
+                handleClose: () => this._closeSystemPanel(key),
             })
             : null;
         const svg = titled ?? content;
@@ -2142,10 +2167,10 @@ export class B3d extends Component {
             const half = (Math.atan2(h / 2, XR_BAR_DISTANCE) * 180) / Math.PI;
             // Its own anchor, kept: a drag by its title bar writes the angles, so
             // it reopens where you left it (holding its button resets it).
-            let seat = this._systemXrSpots.get(content);
+            let seat = this._systemXrSpots.get(key);
             if (seat == null) {
                 seat = xrSeatFor(spec?.screenAnchor, (vb.width || 400) * K, half, K);
-                this._systemXrSpots.set(content, seat);
+                this._systemXrSpots.set(key, seat);
             }
             panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {
                 frame: 'eye',
@@ -2169,12 +2194,12 @@ export class B3d extends Component {
             // Where you dragged it last time, as the settings panel does (holding
             // its button on the bar puts it back).
             // The first time, its own `screenAnchor` if it declares one.
-            let spot = this._systemSpots.get(content);
+            let spot = this._systemSpots.get(key);
             if (spot == null) {
                 spot = spec?.screenAnchor
                     ? { distance: 0.9, ...spec.screenAnchor }
                     : { left: 8, top: UNDER_BAR, distance: 0.9 };
-                this._systemSpots.set(content, spot);
+                this._systemSpots.set(key, spot);
             }
             const fixedHeight = spec?.screenAnchor?.height != null;
             const fitHeight = () => {
@@ -2208,10 +2233,11 @@ export class B3d extends Component {
         }
         const onFocus = (e) => {
             if (e.detail?.focus === false)
-                this._closeSystemPanel(content);
+                this._closeSystemPanel(key);
         };
         content.addEventListener('panelfocus', onFocus);
-        this._sysPanels.set(content, {
+        this._sysPanels.set(key, {
+            content,
             panel,
             frames,
             obs,
@@ -2267,12 +2293,12 @@ export class B3d extends Component {
                 this._openSystemPanel(svg);
         });
     }
-    _closeSystemPanel(svg) {
-        const p = this._sysPanels.get(svg);
+    _closeSystemPanel(key) {
+        const p = this._sysPanels.get(key);
         if (p == null)
             return;
-        this._sysPanels.delete(svg);
-        svg.dispatchEvent(new CustomEvent('panelopen', {
+        this._sysPanels.delete(key);
+        p.content.dispatchEvent(new CustomEvent('panelopen', {
             detail: { open: false },
             cancelable: true,
         }));
@@ -2372,10 +2398,10 @@ export class B3d extends Component {
             if (bar)
                 specs.unshift(bar);
             // System panels that say `open`, once each, when the scene starts.
-            for (const spec of this._systemSpecs())
-                if (spec.open && !this._sysOpened.has(spec.svg)) {
-                    this._sysOpened.add(spec.svg);
-                    this._openSystemPanel(spec.svg);
+            for (const { el, spec } of this._systemEntries())
+                if (spec.open && !this._sysOpened.has(el)) {
+                    this._sysOpened.add(el);
+                    this._openSystemPanel(el);
                 }
             const sig = specs.length
                 ? `${cam.uniqueId}|${bar ? `bar${this._sceneBarVersion}` : ''}|${JSON.stringify(specs)}`
@@ -4304,6 +4330,8 @@ export class B3d extends Component {
         // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
         // on the host so overlay interaction counts; pointerdown bubbles from any child.
         this.addEventListener('pointerenter', () => this.takeInputFocus());
+        // A system panel given new content (`el.svg = next`), #111.
+        this.addEventListener('panelcontent', this._swapSystemContent);
         this.addEventListener('pointerdown', () => this.takeInputFocus());
         /*
         NEVER TWO ENGINES ON ONE CANVAS.

@@ -242,3 +242,9 @@ gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, p
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
 comes, and how much bigger, when its content asks for focus with a
 `panelfocus` event). A system-bar panel with no `svg` opens a card with its title.
+
+**Rebuilt content goes back on the same element.** A system panel is the
+`<tosi-b3d-panel>`, not its content: set `el.svg = next` and an open panel
+shows `next` where it is, with the same button, spot and open state, refitted
+to the new height (a closed one shows it next time). Dispose the content you
+dropped yourself. The setter fires a bubbling `panelcontent` event.

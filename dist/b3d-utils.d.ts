@@ -434,8 +434,9 @@ export declare class AbstractMesh extends B3dChild {
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     /**
      * Apply a uniform `scale` attribute to the mesh (a non-positive or non-finite
-     * value means 1). Not part of the per-render sync, because most subclasses
-     * own `scaling` for their own reasons; elements with a `scale` attribute call
+     * value means 1), times a per-axis `stretch` (`"2 1 3"`) if the element has
+     * one. Not part of the per-render sync, because most subclasses own
+     * `scaling` for their own reasons; elements with a `scale` attribute call
      * this from their `render()` so a later write takes effect.
      */
     protected applyUniformScale(): void;

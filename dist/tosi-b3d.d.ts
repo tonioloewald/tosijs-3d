@@ -759,18 +759,24 @@ export declare class B3d extends Component {
     private _sceneBar;
     private _sceneBarButtons;
     private _sceneBarVersion;
-    private _systemSpecs;
+    private _systemEntries;
     private _systemCards;
     private _systemButtonOf;
     /** One HTML button per system panel, mirrored by both system bars. */
     private _systemButtons;
-    /** The open system panels, by content. */
+    /** The open system panels, by their `<tosi-b3d-panel>`. */
     private _sysPanels;
     /** System panels already opened by their `open` attribute (once each). */
     private _sysOpened;
     /** The headset's settings panel closer, while a session has one. */
     private _closeXrSettings;
     private _toggleSystemPanel;
+    /**
+     * New content on a system panel's element: if it is open, show the new
+     * content in the same place (closed and opened again; the spot is the
+     * element's, and a non-exclusive panel opening closes nothing).
+     */
+    private _swapSystemContent;
     private _openSystemPanel;
     /** Where each system panel was dragged to, flat. */
     private _systemSpots;

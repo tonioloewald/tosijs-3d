@@ -61,8 +61,15 @@ export declare class B3dPanel extends Component {
     resolution: number;
     exclusive: string;
     open: boolean;
-    /** Live content (JS only): an SVG, with its own `handlePointer` if it takes the pointer. */
-    svg: SVGSVGElement | null;
+    /**
+     * Live content (JS only): an SVG, with its own `handlePointer` if it takes
+     * the pointer. Setting it again swaps an open system panel's content in
+     * place (same button, spot and open state, #111) and fires `panelcontent`;
+     * disposing the old content is the setter's caller's job.
+     */
+    get svg(): SVGSVGElement | null;
+    set svg(next: SVGSVGElement | null);
+    private _svg;
     /** Where it goes in the flat view, in place of the anchor (JS only). */
     flatAnchor: AnchorPreset | AnchorSpec | null;
     /** Flat placement in screen terms (pixels / % / vmin pins); wins over `flatAnchor`. JS only. */

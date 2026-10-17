@@ -212,6 +212,12 @@ export class B3dDestroyable extends AbstractMesh {
          * quantities and one of them is already documented.
          */
         scale: 1,
+        /**
+         * Per-axis stretch for a library-backed piece, times `scale`: `"2 1 3"`
+         * (x y z, in the model's own frame). Applied when the instance arrives, so
+         * a stretch set at build time survives the load (#105). Empty = none.
+         */
+        stretch: '',
         color: '#cc3333',
         capacity: 10, // hit points
         armor: 0, // flat damage shrugged off per hit
@@ -438,12 +444,12 @@ export class B3dDestroyable extends AbstractMesh {
         this._behavior?.setChain(links);
     }
     /**
-     * Push `scale` onto the instantiated node.
+     * Push `scale` (times `stretch`, per axis) onto the instantiated node.
      *
      * A library instance's root is a `TransformNode`, so scaling it scales the
-     * whole model — which is what a placed piece means by scale. Uniform on
-     * purpose: a non-uniform scale on an arbitrary model is a modelling
-     * decision, not a placement one, and it breaks normals.
+     * whole model — which is what a placed piece means by scale. `scale` is
+     * uniform; a stretch is said separately, so a placement and a reshaping
+     * stay two different requests (ensemble stretches structural pieces).
      */
     _stopLoad = null;
     render() {
