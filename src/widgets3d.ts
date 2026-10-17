@@ -1176,7 +1176,11 @@ export function offsetHost(
         ? undefined
         : (t, anchor) => {
             const d = offsetOf()
-            host.showTip!(t, { ...anchor, x: anchor.x + d.x, y: anchor.y + d.y })
+            host.showTip!(t, {
+              ...anchor,
+              x: anchor.x + d.x,
+              y: anchor.y + d.y,
+            })
           },
     showPopup(config, ...items) {
       const d = offsetOf()

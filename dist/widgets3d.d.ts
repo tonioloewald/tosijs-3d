@@ -245,6 +245,20 @@ export interface WidgetHost {
     };
     /** Close whatever popup is open, if any. */
     closePopup: () => void;
+    /**
+     * Show a tooltip for `anchor` (widget-local, like a popup's), drawn by the
+     * panel over its body so a bottom row's tip is not clipped, and flipped
+     * above when there is no room below. For an icon-only control: a texture
+     * shows no `<title>` and a headset has no browser tooltip (#112).
+     */
+    showTip?: (text: string, anchor: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    }) => void;
+    /** Hide the tooltip. */
+    hideTip?: () => void;
     /** Ask the panel to re-run layout — a widget that changed height needs this. */
     relayout: () => void;
     /**
@@ -751,7 +765,9 @@ export declare function fitPanel(rows: Widget3d[], opts?: {
  * it changes); presses below the bar reach its `handlePointer` in its own
  * coordinates, and one that began there stays its own until release (a drag
  * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
- * is, so a host drags it the same way. `dispose` gives the content back.
+ * is, so a host drags it the same way. `scrollBy`, `scrollTop` and
+ * `scrollable` are the content's (a wheel over the panel scrolls it).
+ * `dispose` gives the content back.
  */
 export declare function titled3d(content: SVGSVGElement, config?: {
     title?: string;

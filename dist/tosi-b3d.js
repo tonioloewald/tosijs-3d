@@ -320,7 +320,7 @@ import { CombatWorld } from './destroyable.js';
 import { b3dGamepad } from './glass-gamepad.js';
 import { XrGamepadSource } from './xr-gamepad.js';
 import { XrFrames, EntityFrame } from './xr-frames.js';
-import { attachFramePanel, pickPanelLayers, pointerClaimedByPanel, presentationSpec, placeholderPanelSvg, setPanelsHidden, opacityWeightedGlow, } from './frame-panel.js';
+import { attachFramePanel, pickPanelLayers, pointerClaimedByPanel, presentationSpec, screenAnchorDragged, placeholderPanelSvg, setPanelsHidden, opacityWeightedGlow, } from './frame-panel.js';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe.js';
 import { compositeFog, approachFog, } from './atmosphere.js';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, renderScalingLevel, } from './b3d-quality.js';
@@ -2119,6 +2119,41 @@ export class B3d extends Component {
         this._closeSystemPanel(el);
         this._openSystemPanel(el);
     };
+    /**
+     * A new `screenAnchor` on a system panel's element: an open one that no one
+     * has dragged moves there now (a host re-stacking its panels as they grow);
+     * a dragged one stays where it was put, until its button is held.
+     */
+    _reanchorSystemPanel = (e) => {
+        const el = e.target;
+        const open = this._sysPanels.get(el);
+        const spot = this._systemSpots.get(el);
+        if (open == null || spot == null || screenAnchorDragged(spot))
+            return;
+        const next = this._systemEntries().find((x) => x.el === el)?.spec
+            .screenAnchor;
+        for (const k of Object.keys(spot))
+            delete spot[k];
+        Object.assign(spot, next
+            ? { distance: 0.9, ...next }
+            : { left: 8, top: UNDER_BAR, distance: 0.9 });
+        open.reanchored?.(next?.height != null);
+    };
+    /**
+     * Where a point of a system panel's content (its own viewBox units, what
+     * its `handlePointer` takes) is on the page, flat; null when closed or in a
+     * headset (#113).
+     */
+    _systemContentToClient(el, x, y) {
+        const p = this._sysPanels.get(el);
+        if (p?.panel.toClient == null)
+            return null;
+        // Inside the title-bar frame the content sits below the bar (titled3d
+        // places it with x/y); framed or not, this is where it is.
+        const dx = Number(p.content.getAttribute('x')) || 0;
+        const dy = Number(p.content.getAttribute('y')) || 0;
+        return p.panel.toClient(x + dx, y + dy);
+    }
     _openSystemPanel(key) {
         const scene = this.scene;
         if (scene == null)
@@ -2157,6 +2192,7 @@ export class B3d extends Component {
         const svg = titled ?? content;
         const vb = svg.viewBox.baseVal;
         let panel;
+        let reanchored;
         let frames = null;
         let obs = null;
         const xrCam = this.xrHelper?.baseExperience?.camera;
@@ -2195,13 +2231,20 @@ export class B3d extends Component {
             // its button on the bar puts it back).
             // The first time, its own `screenAnchor` if it declares one.
             let spot = this._systemSpots.get(key);
+            // Until a person drags it, its spot is its CURRENT anchor (a host that
+            // re-stacks its panels moves this one too); once dragged, theirs.
+            if (spot != null && !screenAnchorDragged(spot))
+                spot = undefined;
             if (spot == null) {
                 spot = spec?.screenAnchor
                     ? { distance: 0.9, ...spec.screenAnchor }
                     : { left: 8, top: UNDER_BAR, distance: 0.9 };
                 this._systemSpots.set(key, spot);
             }
-            const fixedHeight = spec?.screenAnchor?.height != null;
+            let fixedHeight = spec?.screenAnchor?.height != null;
+            reanchored = (fixed) => {
+                fixedHeight = fixed;
+            };
             const fitHeight = () => {
                 if (fixedHeight)
                     return;
@@ -2239,6 +2282,7 @@ export class B3d extends Component {
         this._sysPanels.set(key, {
             content,
             panel,
+            reanchored,
             frames,
             obs,
             exclusive,
@@ -4332,6 +4376,7 @@ export class B3d extends Component {
         this.addEventListener('pointerenter', () => this.takeInputFocus());
         // A system panel given new content (`el.svg = next`), #111.
         this.addEventListener('panelcontent', this._swapSystemContent);
+        this.addEventListener('panelanchor', this._reanchorSystemPanel);
         this.addEventListener('pointerdown', () => this.takeInputFocus());
         /*
         NEVER TWO ENGINES ON ONE CANVAS.

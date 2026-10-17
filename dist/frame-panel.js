@@ -43,6 +43,19 @@ const layers = new WeakMap();
  * hits it never reaches the world). Made in pairs, ui before modal, because a
  * newer layer is drawn later and asked first: so modal is over ui.
  */
+/** Screen anchors a person has dragged a panel by (see `screenAnchorDragged`). */
+const draggedAnchors = new WeakSet();
+/**
+ * Has a person moved a panel by this anchor (its title bar, flat)? A host that
+ * re-anchors its panels leaves those where they were put.
+ */
+export function screenAnchorDragged(a) {
+    return draggedAnchors.has(a);
+}
+/** Screen panels per drawing scene, bottom first (see "STACKED"). */
+const screenStacks = new WeakMap();
+/** How much nearer each screen panel is than the one below, as a fraction. */
+const STACK_STEP = 0.002;
 export function panelLayerScene(scene, layer) {
     let pair = layers.get(scene);
     if (pair == null) {
@@ -468,6 +481,35 @@ export function attachFramePanel(scene, cam, frame, spec) {
     `face` one (local +x right, +y up, +z ahead), so a pixel is a fixed offset.
     */
     let screenK = 1;
+    /*
+    STACKED, so the panel drawn on top is the panel you press (tosijs-3d#115).
+    Every screen panel sat at the same distance, and on a tie Babylon draws the
+    LATER mesh on top while a pick keeps the FIRST it finds. So where two
+    overlapped, presses went to the one underneath. It surfaced as a panel whose
+    content was swapped for something taller: reopened, it was the newest and
+    drawn over its neighbour, and every row over the neighbour was dead. Each
+    screen panel in a layer now sits a hair nearer than the ones below it (its
+    size follows the distance, so nothing moves on screen); the newest is on
+    top, and a press brings a panel to the front. The pick follows the depth
+    and the drawing follows `alphaIndex`, both from the same rank.
+    */
+    const stackKey = drawScene;
+    const stacked = { raise: () => { } };
+    if (spec.screenAnchor) {
+        let stack = screenStacks.get(stackKey);
+        if (stack == null)
+            screenStacks.set(stackKey, (stack = []));
+        const s = stack;
+        s.push(stacked);
+        stacked.raise = () => {
+            const i = s.indexOf(stacked);
+            if (i >= 0 && i < s.length - 1) {
+                s.splice(i, 1);
+                s.push(stacked);
+            }
+        };
+    }
+    const stackRank = () => screenStacks.get(stackKey)?.indexOf(stacked) ?? 0;
     // Where it last went on screen, in CSS pixels, for a drag to start from.
     let lastBox = null;
     const placeScreen = () => {
@@ -484,7 +526,12 @@ export function attachFramePanel(scene, cam, frame, spec) {
         const px = (v) => typeof v === 'string' && v.endsWith('vmin')
             ? (parseFloat(v) / 100) * vmin
             : v;
-        const d = Math.max(sa.distance ?? 1, (c.minZ ?? 0) * 1.25);
+        const rank = Math.max(0, stackRank());
+        const d = Math.max(sa.distance ?? 1, (c.minZ ?? 0) * 1.25) *
+            (1 - Math.min(0.2, STACK_STEP * rank));
+        // Drawn in the same order: blended meshes sort by the distance to their
+        // CENTRE, which an off-centre panel loses whatever its depth.
+        shown.alphaIndex = rank;
         // Metres per pixel at that distance, by whichever axis the fov fixes.
         const perPx = c.fovMode === BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED
             ? (2 * d * Math.tan(c.fov / 2)) / W
@@ -634,6 +681,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
         // Keep the bar reachable: at least 48px of it on screen, top never above.
         const left = screenDrag.x + (e.clientX - screenDrag.cx);
         const top = screenDrag.y + (e.clientY - screenDrag.cy);
+        draggedAnchors.add(sa);
         sa.left = Math.round(Math.max(48 - w, Math.min(W - 48, left)));
         sa.top = Math.round(Math.max(0, Math.min(H - 32, top)));
         sa.right = sa.bottom = undefined;
@@ -703,6 +751,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
         placeAt(anchor);
     };
     let pointerObs = null;
+    let stopWheel = () => { };
     if (target != null && typeof target.handlePointer === 'function' && el) {
         scene.constantlyUpdateMeshUnderPointer = true;
         const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes;
@@ -770,6 +819,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
                     lastBox != null &&
                     ev != null &&
                     target.gripHit?.(lastX, lastY)) {
+                    stacked.raise();
                     screenDrag = {
                         cx: ev.clientX,
                         cy: ev.clientY,
@@ -796,6 +846,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
                     return;
                 }
                 pressing = true;
+                stacked.raise();
                 holdCamera();
                 info.event?.preventDefault?.();
                 // …and say so: Babylon cancels every canvas press itself, so being
@@ -824,6 +875,46 @@ export function attachFramePanel(scene, cam, frame, spec) {
                 repaint(true);
             }
         });
+        /*
+        THE WHEEL OVER A PANEL IS THE PANEL'S (tosijs-3d#114). The camera's own
+        wheel input listens on the canvas, so a wheel over a scrolling list zoomed
+        the scene behind it while drag-scroll worked. Caught on the canvas's
+        parent in the capture phase, which runs before anything on the canvas
+        itself: if the pointer is on this panel (the nearest thing in its layer),
+        the panel scrolls, and the camera never sees it. A panel that cannot
+        scroll still swallows it: the pointer is plainly on the UI. Trackpad
+        two-finger scroll arrives as the same event.
+        */
+        const canvas = scene.getEngine().getRenderingCanvas();
+        const wheelHost = canvas?.parentElement ?? canvas;
+        const scrollTarget = el;
+        const onWheel = (e) => {
+            if (canvas == null || plane.visibility <= 0.5)
+                return;
+            const r = canvas.getBoundingClientRect();
+            const pick = drawScene.pick(e.clientX - r.left, e.clientY - r.top);
+            if (!pick?.hit || pick.pickedMesh !== shown)
+                return;
+            e.preventDefault();
+            e.stopPropagation();
+            const vb = el.viewBox.baseVal;
+            // Viewbox units per CSS pixel, where the panel says how big it is drawn.
+            const perPx = lastBox != null && lastBox.h > 0 ? (vb.height || 1) / lastBox.h : 1;
+            const px = e.deltaMode === 1
+                ? e.deltaY * 16
+                : e.deltaMode === 2
+                    ? e.deltaY * r.height
+                    : e.deltaY;
+            if (typeof scrollTarget.scrollBy === 'function') {
+                scrollTarget.scrollBy(px * perPx);
+                repaint(false);
+            }
+        };
+        wheelHost?.addEventListener('wheel', onWheel, {
+            capture: true,
+            passive: false,
+        });
+        stopWheel = () => wheelHost?.removeEventListener('wheel', onWheel, { capture: true });
     }
     // Where it goes and how visible, this frame (the layered copy follows in sync).
     const place = (ctx) => {
@@ -895,11 +986,42 @@ export function attachFramePanel(scene, cam, frame, spec) {
             place(ctx);
             sync();
         },
+        toClient(x, y) {
+            const canvas = scene.getEngine().getRenderingCanvas();
+            const c = scene.activeCamera;
+            if (el == null || canvas == null || c == null)
+                return null;
+            if (plane.visibility <= 0.5)
+                return null;
+            if (c.getClassName?.() === 'WebXRCamera')
+                return null;
+            const vb = el.viewBox.baseVal;
+            // The plane is built at its first viewBox and grows by scaling, so a
+            // viewBox fraction is a fraction of the built plane.
+            const u = x / (vb.width || 1);
+            const v = y / (vb.height || 1);
+            const local = new BABYLON.Vector3((u - 0.5) * width, (0.5 - v) * width * aspect, 0);
+            sync();
+            shown.computeWorldMatrix(true);
+            const world = BABYLON.Vector3.TransformCoordinates(local, shown.getWorldMatrix());
+            const e = scene.getEngine();
+            const p = BABYLON.Vector3.Project(world, BABYLON.Matrix.IdentityReadOnly, scene.getTransformMatrix(), c.viewport.toGlobal(e.getRenderWidth(), e.getRenderHeight()));
+            const r = canvas.getBoundingClientRect();
+            const k = r.width / (e.getRenderWidth() || 1);
+            return { x: r.left + p.x * k, y: r.top + p.y * k };
+        },
         dispose() {
             releaseCamera();
             el?.removeEventListener('panelfocus', onFocus);
             if (pointerObs != null)
                 drawScene.onPointerObservable.remove(pointerObs);
+            stopWheel();
+            const stack = screenStacks.get(stackKey);
+            if (stack != null) {
+                const i = stack.indexOf(stacked);
+                if (i >= 0)
+                    stack.splice(i, 1);
+            }
             tex.dispose();
             mat.dispose();
             if (shown !== plane)

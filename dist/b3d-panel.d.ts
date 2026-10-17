@@ -72,8 +72,28 @@ export declare class B3dPanel extends Component {
     private _svg;
     /** Where it goes in the flat view, in place of the anchor (JS only). */
     flatAnchor: AnchorPreset | AnchorSpec | null;
-    /** Flat placement in screen terms (pixels / % / vmin pins); wins over `flatAnchor`. JS only. */
-    screenAnchor: ScreenAnchor | null;
+    /**
+     * Flat placement in screen terms (pixels / % / vmin pins); wins over
+     * `flatAnchor`. JS only. On an open system panel no one has dragged, a new
+     * one moves it now (fires a bubbling `panelanchor`).
+     */
+    get screenAnchor(): ScreenAnchor | null;
+    set screenAnchor(next: ScreenAnchor | null);
+    private _screenAnchor;
+    /** The scene this panel is on, if it shows system panels. */
+    private _host;
+    /**
+     * Where a point of its content (viewBox units, what the content's
+     * `handlePointer` takes) is on the page, in client pixels: open, flat, as a
+     * system panel; null otherwise. For a test or Haltija to click a row where
+     * a person would (#113): drag, scale and title bar included.
+     */
+    contentToClient(x: number, y: number): {
+        x: number;
+        y: number;
+    } | null;
+    /** Its content's box on the page (client pixels), or null; see `contentToClient`. */
+    clientRect(): DOMRect | null;
     /** Where it comes when its content asks for focus, and how much bigger (JS only). */
     focusAnchor: AnchorPreset | AnchorSpec | null;
     focusScale: number;

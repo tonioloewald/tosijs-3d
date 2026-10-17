@@ -906,6 +906,16 @@ function sectionState(key = '') {
 export function offsetHost(host, offsetOf) {
     return {
         ...host,
+        showTip: host.showTip == null
+            ? undefined
+            : (t, anchor) => {
+                const d = offsetOf();
+                host.showTip(t, {
+                    ...anchor,
+                    x: anchor.x + d.x,
+                    y: anchor.y + d.y,
+                });
+            },
         showPopup(config, ...items) {
             const d = offsetOf();
             return host.showPopup({
@@ -1231,6 +1241,57 @@ export function button3d(config) {
         },
     };
 }
+/*
+A TOOLTIP, drawn in the SVG: a texture shows no `<title>`, and a headset has
+no browser tooltip at all, but a controller ray hovers as a mouse does. One
+drawer, used by `iconBar3d` on its own and by `panel3d` for every widget in
+it (`WidgetHost.showTip`), so a tip looks the same wherever it comes from.
+Under its anchor, centred, kept inside `width`; above it when there is no
+room below `height`.
+*/
+const TIP_FONT = 11;
+function tipDrawer() {
+    const tipText = css(text({
+        'dominant-baseline': 'middle',
+        'font-size': TIP_FONT,
+        'font-family': TH.FONT_FAMILY,
+        'font-weight': TH.TEXT_WEIGHT,
+        fill: TH.TEXT,
+    }, ''), 'pointer-events:none');
+    const tipBg = rect({
+        height: TIP_FONT + 10,
+        rx: 5,
+        ry: 5,
+        fill: TH.PANEL_BG,
+        stroke: TH.MUTED,
+        'stroke-width': 1,
+    });
+    const el = css(g({ visibility: 'hidden', 'data-w3d-tip': '' }, tipBg, tipText), 'pointer-events:none');
+    return {
+        el,
+        show(title, at, width, height = Infinity) {
+            const w = measureTextWidth(title, {
+                size: TIP_FONT,
+                family: TH.FONT_FAMILY,
+                weight: TH.TEXT_WEIGHT,
+            }) + 12;
+            const h = TIP_FONT + 10;
+            const x = Math.max(0, Math.min(at.x + at.width / 2 - w / 2, Math.max(0, width - w)));
+            const below = at.y + at.height + 3;
+            const y = below + h > height ? Math.max(0, at.y - 3 - h) : below;
+            tipBg.setAttribute('x', String(x));
+            tipBg.setAttribute('y', String(y));
+            tipBg.setAttribute('width', String(w));
+            tipText.setAttribute('x', String(x + 6));
+            tipText.setAttribute('y', String(y + h / 2 + 0.5));
+            tipText.textContent = title;
+            el.setAttribute('visibility', 'visible');
+        },
+        hide() {
+            el.setAttribute('visibility', 'hidden');
+        },
+    };
+}
 /**
  * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
  * header. Each item is an [[svg-icons|iconGlyph]] (explicit colours, so it
@@ -1331,26 +1392,11 @@ export function iconBar3d(config) {
     a texture shows this where it would show no `<title>`. Full text now,
     not the first word, because it has room.
     */
-    const TIP_FONT = 11;
-    const tipText = css(text({
-        'dominant-baseline': 'middle',
-        'font-size': TIP_FONT,
-        'font-family': TH.FONT_FAMILY,
-        'font-weight': TH.TEXT_WEIGHT,
-        fill: TH.TEXT,
-    }, ''), 'pointer-events:none');
-    const tipBg = rect({
-        height: TIP_FONT + 10,
-        rx: 5,
-        ry: 5,
-        fill: TH.PANEL_BG,
-        stroke: TH.MUTED,
-        'stroke-width': 1,
-    });
-    const tip = css(g({ visibility: 'hidden', 'data-w3d-tip': '' }, tipBg, tipText), 'pointer-events:none');
+    const tip = tipDrawer();
+    let host = null;
     const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell), 
     // Last, so it draws over the cells beside and below it.
-    tip);
+    tip.el);
     let barW = 0;
     const step = BS + ICON_GAP;
     /*
@@ -1388,28 +1434,26 @@ export function iconBar3d(config) {
         });
         const c = cells[hover];
         const title = c?.item.title;
-        if (!title) {
-            tip.setAttribute('visibility', 'hidden');
+        // In a panel, the panel's tip: drawn over its body, so a bottom row's tip
+        // is not cut off by the clip. Alone, its own.
+        if (host?.showTip != null) {
+            if (title)
+                host.showTip(title, { x: c.x, y: c.y, width: BS, height: BS });
+            else
+                host.hideTip?.();
             return;
         }
-        // Under its icon, centred, and kept inside the bar's width.
-        const w = measureTextWidth(title, {
-            size: TIP_FONT,
-            family: TH.FONT_FAMILY,
-            weight: TH.TEXT_WEIGHT,
-        }) + 12;
-        const x = Math.max(0, Math.min(c.x + BS / 2 - w / 2, Math.max(0, barW - w)));
-        const y = c.y + BS + 3;
-        tipBg.setAttribute('x', String(x));
-        tipBg.setAttribute('y', String(y));
-        tipBg.setAttribute('width', String(w));
-        tipText.setAttribute('x', String(x + 6));
-        tipText.setAttribute('y', String(y + (TIP_FONT + 10) / 2 + 0.5));
-        tipText.textContent = title;
-        tip.setAttribute('visibility', 'visible');
+        if (!title) {
+            tip.hide();
+            return;
+        }
+        tip.show(title, { x: c.x, y: c.y, width: BS, height: BS }, barW);
     };
     return {
         el,
+        setHost(h) {
+            host = h;
+        },
         layout(width) {
             barW = width;
             // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
@@ -2337,7 +2381,9 @@ function titleBarParts(bar, title, closable, width, padding) {
  * it changes); presses below the bar reach its `handlePointer` in its own
  * coordinates, and one that began there stays its own until release (a drag
  * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
- * is, so a host drags it the same way. `dispose` gives the content back.
+ * is, so a host drags it the same way. `scrollBy`, `scrollTop` and
+ * `scrollable` are the content's (a wheel over the panel scrolls it).
+ * `dispose` gives the content back.
  */
 export function titled3d(content, config = {}) {
     const handleClose = handlerOf(config, 'handleClose', 'onClose');
@@ -2412,8 +2458,21 @@ export function titled3d(content, config = {}) {
         if (kind === 'up')
             inContent = false;
     };
+    // Scrolling is the content's, in the same units (a host's wheel, #114).
+    const scrolling = content;
+    Object.defineProperties(root, {
+        scrollTop: {
+            get: () => scrolling.scrollTop ?? 0,
+            set: (v) => {
+                if ('scrollTop' in scrolling)
+                    scrolling.scrollTop = v;
+            },
+        },
+        scrollable: { get: () => !!scrolling.scrollable },
+    });
     Object.assign(root, {
         handlePointer,
+        scrollBy: (dy) => scrolling.scrollBy?.(dy),
         gripHit: (x, y) => grip &&
             y <= bar.barHeight &&
             !(handleClose != null && x >= bar.closeHitX),
@@ -2529,6 +2588,8 @@ export function panel3d(config, ...widgets) {
         ry: w3dTheme.roundedRadius * 2,
         fill: config.background ?? TH.PANEL_BG,
     });
+    // The panel's one tooltip, over its body and outside the clip (#112).
+    const tips = tipDrawer();
     const clipId = `w3d-clip-${clipSeq++}`;
     const clip = clipPath({ id: clipId }, rect({
         x: padding,
@@ -2621,7 +2682,14 @@ export function panel3d(config, ...widgets) {
         fill: TH.MUTED,
     });
     let scroll = 0;
+    let tipScroll = 0;
     const applyScroll = () => {
+        // A tip belongs where the control WAS; hide it only on a real scroll
+        // (this also runs on every layout).
+        if (scroll !== tipScroll) {
+            tipScroll = scroll;
+            tips.hide();
+        }
         scroll = clampScroll(scroll, total, viewport);
         scrollGroup.setAttribute('transform', `translate(0, ${-scroll})`);
         if (scrollable) {
@@ -2768,6 +2836,15 @@ export function panel3d(config, ...widgets) {
             baseHost.closePopup();
         },
         relayout: () => baseHost.relayout(),
+        showTip(t, anchor) {
+            root.appendChild(tips.el); // over anything appended since
+            tips.show(t, {
+                ...anchor,
+                x: anchor.x + padding,
+                y: anchor.y + paddingTop + rowY(index, inHeader),
+            }, width, height);
+        },
+        hideTip: () => tips.hide(),
         showLayer(config, ...items) {
             /*
             FAN OUT TO EVERY PRESENTATION.
@@ -2967,6 +3044,8 @@ export function panel3d(config, ...widgets) {
     // as a button does, so a press that slides off is not a close.
     let closing = false;
     const handlePointer = (kind, x, y) => {
+        if (kind === 'leave' || kind === 'down')
+            tips.hide();
         if (handleClose != null && bar != null) {
             const onClose = y <= bar.barHeight && x >= bar.closeHitX;
             if (kind === 'down' && onClose && overlay == null) {

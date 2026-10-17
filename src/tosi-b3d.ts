@@ -2491,7 +2491,9 @@ export class B3d extends Component {
     for (const k of Object.keys(spot)) delete (spot as any)[k]
     Object.assign(
       spot,
-      next ? { distance: 0.9, ...next } : { left: 8, top: UNDER_BAR, distance: 0.9 }
+      next
+        ? { distance: 0.9, ...next }
+        : { left: 8, top: UNDER_BAR, distance: 0.9 }
     )
     open.reanchored?.(next?.height != null)
   }

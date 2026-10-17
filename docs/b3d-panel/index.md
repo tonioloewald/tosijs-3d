@@ -248,3 +248,14 @@ comes, and how much bigger, when its content asks for focus with a
 shows `next` where it is, with the same button, spot and open state, refitted
 to the new height (a closed one shows it next time). Dispose the content you
 dropped yourself. The setter fires a bubbling `panelcontent` event.
+
+**A host can stack its panels.** Until someone drags a system panel by its
+title bar, its spot is its `screenAnchor`, so setting a new one moves an open
+panel (a column re-stacked as a panel above it grows). Once dragged it stays
+where it was put, until its button is held on the bar.
+
+**Clicking one from a test.** The content is drawn on a texture, so nothing in
+it has a box on the page. `el.contentToClient(x, y)` says where a point of the
+content (its viewBox units) is in client pixels, through the drawn plane, so a
+drag, a scale and the title bar are all accounted for; `el.clientRect()` is
+the content's box. Both are null unless the panel is open and flat.

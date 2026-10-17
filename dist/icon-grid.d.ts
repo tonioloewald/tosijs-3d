@@ -6,6 +6,13 @@ export interface IconGridItem {
     /** Caption under the icon. Omit for an icon-only cell. */
     label?: string;
     /**
+     * Its name as a TOOLTIP, shown on hover (pointer or controller ray) and on
+     * D-pad focus. Drawn by the panel, so it works on a texture and in a
+     * headset, where an SVG `<title>` shows nothing. Lets a palette drop its
+     * captions and stay named (#112).
+     */
+    title?: string;
+    /**
      * Greyed and unclickable, but still occupies its cell so the grid holds shape.
      *
      * A `Dynamic` for the same reason menus are: give `() => !hasSelection` and

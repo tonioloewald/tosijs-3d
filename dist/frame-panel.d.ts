@@ -35,11 +35,10 @@ export interface AnchorSpec {
 /** The order UI is drawn and picked in: the world, then ui, then modal. */
 export type PanelLayer = 'world' | 'ui' | 'modal';
 /**
- * The scene a `ui` or `modal` panel lives in: a utility layer over `scene`,
- * drawn after it with its own depth and given the pointer first (a press that
- * hits it never reaches the world). Made in pairs, ui before modal, because a
- * newer layer is drawn later and asked first: so modal is over ui.
+ * Has a person moved a panel by this anchor (its title bar, flat)? A host that
+ * re-anchors its panels leaves those where they were put.
  */
+export declare function screenAnchorDragged(a: ScreenAnchor): boolean;
 export declare function panelLayerScene(scene: BABYLON.Scene, layer: 'ui' | 'modal'): BABYLON.Scene;
 /**
  * HIDE EVERY PANEL for a frame or two, and put them back: the `ui` and
@@ -300,5 +299,15 @@ export declare function attachFramePanel(scene: BABYLON.Scene, cam: BABYLON.Targ
         updates: number;
         camera: string;
     };
+    /**
+     * Where a point of its SVG (viewBox units) is on the page, in client
+     * pixels: what a test, or Haltija, clicks to press it as a person would
+     * (#113). Through the drawn plane, so a drag, a scale and the camera are all
+     * in it. Null when it is not shown, or in a headset (no page to click).
+     */
+    toClient: (x: number, y: number) => {
+        x: number;
+        y: number;
+    } | null;
 };
 //# sourceMappingURL=frame-panel.d.ts.map

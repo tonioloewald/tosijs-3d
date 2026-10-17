@@ -777,6 +777,21 @@ export declare class B3d extends Component {
      * element's, and a non-exclusive panel opening closes nothing).
      */
     private _swapSystemContent;
+    /**
+     * A new `screenAnchor` on a system panel's element: an open one that no one
+     * has dragged moves there now (a host re-stacking its panels as they grow);
+     * a dragged one stays where it was put, until its button is held.
+     */
+    private _reanchorSystemPanel;
+    /**
+     * Where a point of a system panel's content (its own viewBox units, what
+     * its `handlePointer` takes) is on the page, flat; null when closed or in a
+     * headset (#113).
+     */
+    _systemContentToClient(el: Element, x: number, y: number): {
+        x: number;
+        y: number;
+    } | null;
     private _openSystemPanel;
     /** Where each system panel was dragged to, flat. */
     private _systemSpots;

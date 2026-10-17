@@ -59,13 +59,13 @@ const ACTIONS = [
 
 // NO CAPTIONS, 2-D — which is the point of the control. Saving space is why you
 // reach for a grid, and a caption is what forces a narrow column: without them
-// the same items fit six across instead of four. (Tooltips are the missing half;
-// see TODO — there is no hover in a headset, so it is not just a title attr.)
+// the same items fit six across instead of four. Each keeps its name as a
+// `title`: hover one (a mouse here, a controller ray in a headset).
 const PALETTE = [
-  'move', 'rotateCw', 'resize', 'trash',
-  'copy', 'camera', 'map', 'cloud',
-  'star', 'compass', 'settings', 'bug',
-].map((icon) => ({ icon }))
+  ['move', 'Move'], ['rotateCw', 'Rotate'], ['resize', 'Scale'], ['trash', 'Delete'],
+  ['copy', 'Duplicate'], ['camera', 'Camera'], ['map', 'Map'], ['cloud', 'Sky'],
+  ['star', 'Favourite'], ['compass', 'Compass'], ['settings', 'Settings'], ['bug', 'Debug'],
+].map(([icon, title]) => ({ icon, title }))
 
 // THE RULE ENSEMBLE ACTUALLY WANTS, and it is none of the three modes.
 //
@@ -200,3 +200,12 @@ Scaling the whole panel in world space moves both together.
 Four columns by default. Without captions a cell is only as wide as its icon, so
 a caption-less grid can be much wider — which is why `columns` defaults from
 whether anything is captioned rather than being a fixed number.
+
+## Icon-only, never nameless
+
+Give an item a `title` and it is a tooltip: shown on hover (a mouse, or a
+controller ray, which hovers the same way) and on D-pad focus. The PANEL draws
+it, over its body, so a bottom row's tip is not clipped, and it flips above the
+cell when there is no room below. An SVG `<title>` would not do: a texture shows
+none, and a headset has no browser tooltip. `iconBar3d` shares the same tip
+(`WidgetHost.showTip`), so a custom widget can have one too.

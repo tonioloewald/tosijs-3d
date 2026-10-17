@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=82bc9f3cee3a" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
   <title>Icon grid — tosijs-3d</title>
   <meta name="description" content="IconGrid3d — one control for a segmented select, a tool palette and a mode picker. A grid of icons with optional captions, as a Widget3d, so it works flat, on…" />
   <link rel="canonical" href="https://3d.tosijs.net/icon-grid/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5c95788fc68c" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="icon-grid">Icon grid</h1>
 <p><strong><code>iconGrid3d</code> — one control for a segmented select, a tool palette and a mode
@@ -88,13 +88,13 @@ const ACTIONS = [
 
 // NO CAPTIONS, 2-D — which is the point of the control. Saving space is why you
 // reach for a grid, and a caption is what forces a narrow column: without them
-// the same items fit six across instead of four. (Tooltips are the missing half;
-// see TODO — there is no hover in a headset, so it is not just a title attr.)
+// the same items fit six across instead of four. Each keeps its name as a
+// `title`: hover one (a mouse here, a controller ray in a headset).
 const PALETTE = [
-  &#39;move&#39;, &#39;rotateCw&#39;, &#39;resize&#39;, &#39;trash&#39;,
-  &#39;copy&#39;, &#39;camera&#39;, &#39;map&#39;, &#39;cloud&#39;,
-  &#39;star&#39;, &#39;compass&#39;, &#39;settings&#39;, &#39;bug&#39;,
-].map((icon) =&gt; ({ icon }))
+  [&#39;move&#39;, &#39;Move&#39;], [&#39;rotateCw&#39;, &#39;Rotate&#39;], [&#39;resize&#39;, &#39;Scale&#39;], [&#39;trash&#39;, &#39;Delete&#39;],
+  [&#39;copy&#39;, &#39;Duplicate&#39;], [&#39;camera&#39;, &#39;Camera&#39;], [&#39;map&#39;, &#39;Map&#39;], [&#39;cloud&#39;, &#39;Sky&#39;],
+  [&#39;star&#39;, &#39;Favourite&#39;], [&#39;compass&#39;, &#39;Compass&#39;], [&#39;settings&#39;, &#39;Settings&#39;], [&#39;bug&#39;, &#39;Debug&#39;],
+].map(([icon, title]) =&gt; ({ icon, title }))
 
 // THE RULE ENSEMBLE ACTUALLY WANTS, and it is none of the three modes.
 //
@@ -219,6 +219,13 @@ Scaling the whole panel in world space moves both together.</p>
 <p>Four columns by default. Without captions a cell is only as wide as its icon, so
 a caption-less grid can be much wider — which is why <code>columns</code> defaults from
 whether anything is captioned rather than being a fixed number.</p>
+<h2 id="icon-only-never-nameless">Icon-only, never nameless</h2>
+<p>Give an item a <code>title</code> and it is a tooltip: shown on hover (a mouse, or a
+controller ray, which hovers the same way) and on D-pad focus. The PANEL draws
+it, over its body, so a bottom row&#39;s tip is not clipped, and it flips above the
+cell when there is no room below. An SVG <code>&lt;title&gt;</code> would not do: a texture shows
+none, and a headset has no browser tooltip. <code>iconBar3d</code> shares the same tip
+(<code>WidgetHost.showTip</code>), so a custom widget can have one too.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -671,6 +678,6 @@ whether anything is captioned rather than being a fixed number.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-0nx7jnnb.js"></script>
+  <script type="module" src="../hydrate-224apemt.js"></script>
 </body>
 </html>
