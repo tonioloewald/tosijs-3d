@@ -147,6 +147,46 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## An app's chrome: several open at once
+
+An editor's tools are several panels used together, not one at a time.
+`exclusive="off"` lets a system panel stay open beside the others, `open`
+opens it when the scene starts, and its `screenAnchor` is where it first
+appears (drag one and it reopens where you left it; hold its button to put it
+back). In a headset the same panels follow you in, left column left, right
+column right. An exclusive panel (the settings panel, an inventory) still
+opens and closes over them without closing them.
+
+```js
+import { b3d, b3dPanel, b3dLight, b3dSkybox, b3dGround, panel3d, label3d, slider3d, ui } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const { editor } = tosi({ editor: { size: 1, name: 'crate' } })
+// One app panel: open at start, pinned flat to a side of the screen.
+const chrome = (icon, title, screenAnchor, ...widgets) => {
+  const el = b3dPanel({ icon, title, exclusive: 'off', open: true })
+  el.screenAnchor = screenAnchor
+  el.svg = panel3d({ width: 220 }, ...widgets)
+  return el
+}
+
+preview.append(
+  b3d(
+    {},
+    b3dLight({ y: 1, intensity: 0.8 }),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+    chrome('mousePointer', 'Tools', { left: 8, top: 66 }, label3d({ text: 'select · move · rotate' })),
+    chrome('menu', 'Pieces', { left: 8, top: 190 }, label3d({ text: 'crate' }), label3d({ text: 'barrel' })),
+    chrome('settings', 'Options', { right: 8, top: 66 }, slider3d({ label: 'size', value: editor.size, min: 0.5, max: 4 })),
+    chrome('checkSquare', 'Properties', { right: 8, top: 190 }, ui.inputField({ value: editor.name.value, handleChange: (v) => (editor.name.value = v) })),
+  )
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Three ways to place a panel
 
 - **World-anchored (`b3d-svg-plane`)** — a panel that IS a mesh in the scene: visible
@@ -183,6 +223,8 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `view` | `both` | `first` / `third` / `both` — restrict to a camera view |
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
 | `icon` | `''` | Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
+| `exclusive` | `'on'` | On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other |
+| `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat) |
 | `chrome` | `''` | On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
@@ -196,7 +238,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 
 Four more are JavaScript properties, not attributes, because they are
 objects: `svg` (live content, in place of an `<svg>` child: an `<svg>` whose own `handlePointer(kind, x, y)`
-gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`), `flatAnchor` (where
+gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`; for a system panel, where it first opens, before it is dragged, and in a headset which side it goes), `flatAnchor` (where
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it
 comes, and how much bigger, when its content asks for focus with a
 `panelfocus` event). A system-bar panel with no `svg` opens a card with its title.

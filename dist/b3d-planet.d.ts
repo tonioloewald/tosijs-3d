@@ -32,6 +32,7 @@ export declare class B3dPlanet extends B3dChild {
         ringOuter: number;
         ringOpacity: number;
         ringColor: string;
+        tilt: number;
         terrain: string;
         world: string;
         craters: number;

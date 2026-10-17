@@ -19,7 +19,9 @@ const MOON_MAPS = {
     heightMap: 'nasa/moon/height-2k.png',
     colorMap: 'nasa/moon/color-2k.jpg',
     bodyRadiusKm: 1737.4,
-    relief: 12,
+    // The Moon's relief is about 20 km on 1737: 1%. At 12× it was 14% of the
+    // radius ("ridiculous"); 3× shows the basins at the limb, still a globe.
+    relief: 3,
     atmosphere: 0,
     clouds: 0,
 };
@@ -33,6 +35,7 @@ export const SOL = {
     planets: [
         {
             name: 'Mercury',
+            tilt: 0.03,
             au: 0.39,
             radiusKm: 2440,
             day: 58.65,
@@ -40,6 +43,7 @@ export const SOL = {
         },
         {
             name: 'Venus',
+            tilt: 2.64,
             au: 0.72,
             radiusKm: 6052,
             day: -243.0,
@@ -47,6 +51,7 @@ export const SOL = {
         },
         {
             name: 'Earth',
+            tilt: 23.44,
             day: 0.997,
             au: 1,
             radiusKm: 6371,
@@ -66,6 +71,8 @@ export const SOL = {
                 {
                     name: 'Moon',
                     period: 27.32,
+                    // Near the ecliptic, not Earth's 23° equator.
+                    inclination: 5.1,
                     radiusKm: 1737,
                     look: { world: 'moon' },
                     maps: MOON_MAPS,
@@ -74,6 +81,7 @@ export const SOL = {
         },
         {
             name: 'Mars',
+            tilt: 25.19,
             day: 1.026,
             au: 1.52,
             radiusKm: 3390,
@@ -100,6 +108,7 @@ export const SOL = {
         },
         {
             name: 'Jupiter',
+            tilt: 3.13,
             day: 0.414,
             au: 5.2,
             radiusKm: 69911,
@@ -129,6 +138,7 @@ export const SOL = {
         },
         {
             name: 'Saturn',
+            tilt: 26.73,
             day: 0.444,
             au: 9.54,
             radiusKm: 58232,
@@ -158,6 +168,7 @@ export const SOL = {
         },
         {
             name: 'Uranus',
+            tilt: 82.23,
             day: -0.718,
             au: 19.2,
             radiusKm: 25362,
@@ -180,6 +191,7 @@ export const SOL = {
         },
         {
             name: 'Neptune',
+            tilt: 28.32,
             day: 0.671,
             au: 30.1,
             radiusKm: 24622,

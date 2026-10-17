@@ -42,6 +42,13 @@ export type PanelLayer = 'world' | 'ui' | 'modal';
  */
 export declare function panelLayerScene(scene: BABYLON.Scene, layer: 'ui' | 'modal'): BABYLON.Scene;
 /**
+ * HIDE EVERY PANEL for a frame or two, and put them back: the `ui` and
+ * `modal` layers stop drawing, and world-layer panels are disabled (each
+ * restored to what it was). For a picture of the scene alone, such as the
+ * scene panel's screenshot "scene only". Returns the undo.
+ */
+export declare function setPanelsHidden(scene: BABYLON.Scene): () => void;
+/**
  * Did a panel in the scene take this pointer event? For DOM listeners that
  * act on presses "on the background" (closing an overlay): a press on a
  * frame panel is not one. (`defaultPrevented` cannot say: Babylon cancels
@@ -202,6 +209,14 @@ export interface FramePanelSpec {
      * ×) unless this is `'none'`, for content with chrome of its own.
      */
     chrome?: 'none';
+    /**
+     * A system panel: `false` lets it stay open beside other system panels
+     * (an app's main chrome: tools, properties). Default true, one at a time
+     * (an inventory, a journal).
+     */
+    exclusive?: boolean;
+    /** A system panel: open when the scene starts. */
+    open?: boolean;
     /** Custom panel SVG element (live/dynamic content). */
     svg?: SVGSVGElement;
     /** Or fetch a static SVG from this URL (e.g. a reticle). */

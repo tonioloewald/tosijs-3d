@@ -27,6 +27,10 @@ export declare class B3dPanel extends Component {
         resolution: number;
         /** 'world' | 'ui' | 'modal': drawn and picked over the world (ui), or over that too (modal). */
         layer: string;
+        /** System panel: 'off' stays open beside other system panels (an app's chrome). */
+        exclusive: string;
+        /** System panel: open when the scene starts. */
+        open: boolean;
     };
     static shadowStyleSpec: {
         ':host': {
@@ -55,6 +59,8 @@ export declare class B3dPanel extends Component {
     presence: string;
     flatFrame: string;
     resolution: number;
+    exclusive: string;
+    open: boolean;
     /** Live content (JS only): an SVG, with its own `handlePointer` if it takes the pointer. */
     svg: SVGSVGElement | null;
     /** Where it goes in the flat view, in place of the anchor (JS only). */

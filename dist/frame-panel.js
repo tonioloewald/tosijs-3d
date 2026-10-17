@@ -67,6 +67,40 @@ export function panelLayerScene(scene, layer) {
     return pair[layer].utilityLayerScene;
 }
 const layerOfScene = new WeakMap();
+/** World-layer panel planes per scene, for `setPanelsHidden`. */
+const worldPanels = new WeakMap();
+/**
+ * HIDE EVERY PANEL for a frame or two, and put them back: the `ui` and
+ * `modal` layers stop drawing, and world-layer panels are disabled (each
+ * restored to what it was). For a picture of the scene alone, such as the
+ * scene panel's screenshot "scene only". Returns the undo.
+ */
+export function setPanelsHidden(scene) {
+    const pair = layers.get(scene);
+    const was = pair
+        ? { ui: pair.ui.shouldRender, modal: pair.modal.shouldRender }
+        : null;
+    if (pair) {
+        pair.ui.shouldRender = false;
+        pair.modal.shouldRender = false;
+    }
+    const off = [];
+    for (const m of worldPanels.get(scene) ?? []) {
+        if (m.isDisposed() || !m.isEnabled(false))
+            continue;
+        m.setEnabled(false);
+        off.push(m);
+    }
+    return () => {
+        if (pair && was) {
+            pair.ui.shouldRender = was.ui;
+            pair.modal.shouldRender = was.modal;
+        }
+        for (const m of off)
+            if (!m.isDisposed())
+                m.setEnabled(true);
+    };
+}
 const claimed = new WeakSet();
 /**
  * Did a panel in the scene take this pointer event? For DOM listeners that
@@ -314,6 +348,13 @@ export function attachFramePanel(scene, cam, frame, spec) {
             height: width * aspect,
             sideOrientation: BABYLON.Mesh.DOUBLESIDE,
         }, drawScene);
+    if (shown === plane) {
+        let set = worldPanels.get(scene);
+        if (set == null)
+            worldPanels.set(scene, (set = new Set()));
+        set.add(plane);
+        plane.onDisposeObservable.addOnce(() => set.delete(plane));
+    }
     if (shown !== plane) {
         plane.isVisible = false;
         plane.isPickable = false;

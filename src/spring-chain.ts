@@ -73,8 +73,17 @@ const FTL = 0.9
  * direction into the anchor bone's frame: the conjugate of its world
  * rotation, or a function for a mirrored hierarchy.
  */
-export function springChain(points: readonly Vec3[], anchorRotation: Quat, toAnchor?: (v: Vec3) => Vec3): SpringChain {
-  const inv = { x: -anchorRotation.x, y: -anchorRotation.y, z: -anchorRotation.z, w: anchorRotation.w }
+export function springChain(
+  points: readonly Vec3[],
+  anchorRotation: Quat,
+  toAnchor?: (v: Vec3) => Vec3
+): SpringChain {
+  const inv = {
+    x: -anchorRotation.x,
+    y: -anchorRotation.y,
+    z: -anchorRotation.z,
+    w: anchorRotation.w,
+  }
   const lengths: number[] = []
   const rest: Vec3[] = []
   for (let i = 0; i + 1 < points.length; i++) {
@@ -85,7 +94,8 @@ export function springChain(points: readonly Vec3[], anchorRotation: Quat, toAnc
     }
     const l = Math.hypot(d.x, d.y, d.z)
     lengths.push(l)
-    const dir = l > 0 ? { x: d.x / l, y: d.y / l, z: d.z / l } : { x: 0, y: -1, z: 0 }
+    const dir =
+      l > 0 ? { x: d.x / l, y: d.y / l, z: d.z / l } : { x: 0, y: -1, z: 0 }
     rest.push(toAnchor != null ? toAnchor(dir) : rotateVector(inv, dir))
   }
   return {
@@ -101,13 +111,21 @@ export function springChain(points: readonly Vec3[], anchorRotation: Quat, toAnc
  * Put the chain back in its rest shape at the anchor (a teleport, a
  * respawn, a floating-origin shift: anything that is not motion).
  */
-export function resetSpringChain(chain: SpringChain, anchor: Vec3, anchorRotation: Orientation): void {
+export function resetSpringChain(
+  chain: SpringChain,
+  anchor: Vec3,
+  anchorRotation: Orientation
+): void {
   let at = { ...anchor }
   chain.points[0] = { ...at }
   chain.prev[0] = { ...at }
   for (let i = 0; i < chain.lengths.length; i++) {
     const d = orient(anchorRotation, chain.rest[i])
-    at = { x: at.x + d.x * chain.lengths[i], y: at.y + d.y * chain.lengths[i], z: at.z + d.z * chain.lengths[i] }
+    at = {
+      x: at.x + d.x * chain.lengths[i],
+      y: at.y + d.y * chain.lengths[i],
+      z: at.z + d.z * chain.lengths[i],
+    }
     chain.points[i + 1] = { ...at }
     chain.prev[i + 1] = { ...at }
   }
@@ -150,7 +168,11 @@ export function stepSpringChain(
   // Per-step rates from per-second ones, so changing STEP changes nothing.
   const keep = Math.pow(1 - Math.min(0.999, p.damping), STEP)
   const pull = 1 - Math.pow(1 - Math.min(0.999, p.stiffness), STEP * 10)
-  const g = { x: p.gravity.x * STEP * STEP, y: p.gravity.y * STEP * STEP, z: p.gravity.z * STEP * STEP }
+  const g = {
+    x: p.gravity.x * STEP * STEP,
+    y: p.gravity.y * STEP * STEP,
+    z: p.gravity.z * STEP * STEP,
+  }
   const n = chain.points.length
   // The rest shape as the anchor now holds it, once per call.
   const rest = chain.rest.map((r) => orient(anchorRotation, r))
@@ -177,7 +199,11 @@ export function stepSpringChain(
       const parent = chain.points[i - 1]
       const d = rest[i - 1]
       const len = chain.lengths[i - 1]
-      const target = { x: parent.x + d.x * len, y: parent.y + d.y * len, z: parent.z + d.z * len }
+      const target = {
+        x: parent.x + d.x * len,
+        y: parent.y + d.y * len,
+        z: parent.z + d.z * len,
+      }
       next = {
         x: next.x + (target.x - next.x) * pull,
         y: next.y + (target.y - next.y) * pull,
@@ -191,7 +217,11 @@ export function stepSpringChain(
         const oz = next.z - c.center.z
         const l = Math.hypot(ox, oy, oz)
         if (l < r && l > 1e-9) {
-          next = { x: c.center.x + (ox / l) * r, y: c.center.y + (oy / l) * r, z: c.center.z + (oz / l) * r }
+          next = {
+            x: c.center.x + (ox / l) * r,
+            y: c.center.y + (oy / l) * r,
+            z: c.center.z + (oz / l) * r,
+          }
         }
       }
       // Keep the segment's length.
@@ -200,7 +230,11 @@ export function stepSpringChain(
       const ez = next.z - parent.z
       const el = Math.hypot(ex, ey, ez)
       if (el > 1e-9) {
-        const kept = { x: parent.x + (ex / el) * len, y: parent.y + (ey / el) * len, z: parent.z + (ez / el) * len }
+        const kept = {
+          x: parent.x + (ex / el) * len,
+          y: parent.y + (ey / el) * len,
+          z: parent.z + (ez / el) * len,
+        }
         fix[i] = { x: kept.x - next.x, y: kept.y - next.y, z: kept.z - next.z }
         next = kept
       } else fix[i] = { x: 0, y: 0, z: 0 }

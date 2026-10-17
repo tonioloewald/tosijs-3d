@@ -227,7 +227,11 @@ export function buildRig(
   root.rotationQuaternion = new BABYLON.Quaternion(0, 1, 0, 0)
   root.scaling = new BABYLON.Vector3(1, 1, -1)
   const nodes = new Map<string, BABYLON.TransformNode>()
-  const skeleton = new BABYLON.Skeleton(`${name}-skeleton`, `${name}-skeleton`, scene)
+  const skeleton = new BABYLON.Skeleton(
+    `${name}-skeleton`,
+    `${name}-skeleton`,
+    scene
+  )
   const bones = new Map<string, BABYLON.Bone>()
   for (const j of rig.joints) {
     const parentAt = j.parent != null ? rig.at(j.parent) : undefined
@@ -240,8 +244,18 @@ export function buildRig(
     )
     n.rotationQuaternion = BABYLON.Quaternion.Identity()
     nodes.set(j.name, n)
-    const local = BABYLON.Matrix.Translation(n.position.x, n.position.y, n.position.z)
-    const b = new BABYLON.Bone(j.name, skeleton, j.parent != null ? bones.get(j.parent)! : null, local, local.clone())
+    const local = BABYLON.Matrix.Translation(
+      n.position.x,
+      n.position.y,
+      n.position.z
+    )
+    const b = new BABYLON.Bone(
+      j.name,
+      skeleton,
+      j.parent != null ? bones.get(j.parent)! : null,
+      local,
+      local.clone()
+    )
     b.linkTransformNode(n)
     bones.set(j.name, b)
   }
@@ -263,8 +277,14 @@ export function buildRig(
   // As the glTF loader does for its mirrored root: the mirror turns the
   // file's counter-clockwise faces clockwise, which is Babylon's front.
   mesh.sideOrientation = BABYLON.Material.ClockWiseSideOrientation
-  mesh.setVerticesData(BABYLON.VertexBuffer.MatricesIndicesKind, weights.indices)
-  mesh.setVerticesData(BABYLON.VertexBuffer.MatricesWeightsKind, weights.weights)
+  mesh.setVerticesData(
+    BABYLON.VertexBuffer.MatricesIndicesKind,
+    weights.indices
+  )
+  mesh.setVerticesData(
+    BABYLON.VertexBuffer.MatricesWeightsKind,
+    weights.weights
+  )
   mesh.parent = root
   mesh.skeleton = skeleton
 

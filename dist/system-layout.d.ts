@@ -121,6 +121,12 @@ export interface SystemBodySpec {
     period?: number;
     look: Record<string, unknown>;
     maps?: Record<string, unknown>;
+    /**
+     * A moon's orbit, degrees from its star's ecliptic. Default: its planet's
+     * `tilt`, so it orbits the planet's equator, as regular moons do
+     * (Jupiter's, Saturn's, Uranus'). Our Moon is the exception: 5.1.
+     */
+    inclination?: number;
 }
 export interface SystemPlanetSpec extends SystemBodySpec {
     /** AU from the star. */
@@ -130,6 +136,15 @@ export interface SystemPlanetSpec extends SystemBodySpec {
      * backwards (Venus, Uranus). Default: 1 for a rock, 0.42 for a giant.
      */
     day?: number;
+    /**
+     * Axial tilt in degrees: how far its axis leans from upright against its
+     * orbit (Earth 23.4, Saturn 26.7). The axis stays fixed in space as it
+     * goes round, so seasons and a ring's shadow on its planet come and go
+     * with the year. Its moons orbit in the tilted equator. A backwards day
+     * (negative `day`) already turns it the other way, so Venus and Uranus
+     * take 2.6 and 82.2, not 177.4 and 97.8. Default 0.
+     */
+    tilt?: number;
     /** Ring strength, 0…1. */
     rings?: number;
     moons?: SystemBodySpec[];

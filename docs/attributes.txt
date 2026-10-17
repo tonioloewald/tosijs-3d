@@ -685,6 +685,8 @@ b3d-panel
   flatFrame  = ''  — The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera
   resolution  = 0  — Texture size in px (square); `0` = 384. Raise it for a menu with text
   layer  = 'world'  — `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world
+  exclusive  = 'on'  — On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other
+  open  = false  — On the system bar: open when the scene starts (and again in a headset, if it was open flat)
 
 ## b3d-particles — <tosi-b3d-particles>
 b3d-particles
@@ -746,6 +748,7 @@ b3d-planet
   ringOuter  = 0  — Outer edge of the ring, in planet radii. `0` = the gas giant preset's, else 1.5 to 3 by `rings`
   ringOpacity  = -1  — `0…1`, always multiplied by `rings` (which reaches full strength at about 0.85). `-1` = the gas giant preset's
   ringColor  = ''  — `#rrggbb`. Blank = the gas giant preset's, else a pale tan
+  tilt  = 0  — Axial tilt in degrees: the axis leans and stays fixed in space while the planet spins about it. Rings tilt with it, which is what lets their shadow fall across the planet (Saturn 26.7). A star system tilts its own planets from its spec
   terrain  = ''  — A selector for the sphere `<tosi-b3d-terrain>` this is a GLOBE OF (`'#moon-ground'`): drawn from that ground's own height function, and again whenever its shape changes, so a place on the globe is the place on the ground. (The other way round, a terrain's `planet` gives the ground this planet's shape)
   world  = ''  — A ROCKY WORLD preset: `'moon'`, `'mercury'`, `'mars'`, `'venus'`, `'io'`, `'titan'` or `'earth'` (see [rocky-world](/rocky-world/)). Choosing one writes its sea, air, clouds, relief, craters and climate into this planet's own settings, which stay yours to tune; `worldOverrides` (a property) changes the preset for this planet
   craters  = 0  — How cratered, `0…1` (see landform's `sphereCraters`)
@@ -1417,6 +1420,11 @@ slope-profile
   rollingProfile  = contrast-compressed midtones  — rolling hills
   mesaProfile  = plateauFilter  — mesas, mid-level plateaus
   terraceProfile  = steps with sloped risers  — terraced hills
+
+## spring-chain-babylon
+spring bones
+
+  params  = stiffness` (0 hangs free, 1 holds its rest shape), `damping` (velocity lost per second), `gravity`, `radius
 
 ## tosi-b3d — <tosi-b3d>
 b3d

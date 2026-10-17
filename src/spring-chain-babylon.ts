@@ -160,7 +160,11 @@ export interface SpringBones {
     radius?: number
     tipRadius?: number
     sides?: number
-    boneHeat?: (p: ArrayLike<number>, i: ArrayLike<number>, b: HeatBone[]) => SkinWeights
+    boneHeat?: (
+      p: ArrayLike<number>,
+      i: ArrayLike<number>,
+      b: HeatBone[]
+    ) => SkinWeights
   }): BABYLON.Mesh
   /** Back to the rest shape (after a teleport). */
   reset(): void
@@ -172,7 +176,8 @@ const v3 = (v: BABYLON.Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z })
 /** World matrices fresh from the top down (animation has just moved them). */
 function freshen(node: BABYLON.Node): void {
   const line: BABYLON.Node[] = []
-  for (let n: BABYLON.Node | null = node; n != null; n = n.parent) line.unshift(n)
+  for (let n: BABYLON.Node | null = node; n != null; n = n.parent)
+    line.unshift(n)
   for (const n of line) n.computeWorldMatrix(true)
 }
 
@@ -184,7 +189,10 @@ export function springBones(
   scene: BABYLON.Scene,
   anchor: BABYLON.TransformNode,
   points: readonly BABYLON.Vector3[],
-  options: { params?: Partial<SpringParams>; colliders?: SpringBoneCollider[] } = {}
+  options: {
+    params?: Partial<SpringParams>
+    colliders?: SpringBoneCollider[]
+  } = {}
 ): SpringBones {
   freshen(anchor)
   const nodes: BABYLON.TransformNode[] = []
@@ -216,35 +224,58 @@ export function springBones(
 export function springNodes(
   scene: BABYLON.Scene,
   nodes: BABYLON.TransformNode[],
-  options: { params?: Partial<SpringParams>; colliders?: SpringBoneCollider[] } = {}
+  options: {
+    params?: Partial<SpringParams>
+    colliders?: SpringBoneCollider[]
+  } = {}
 ): SpringBones {
   const anchor = nodes[0].parent as BABYLON.TransformNode
   freshen(nodes[nodes.length - 1])
   const points = nodes.map((n) => n.getAbsolutePosition().clone())
   // Directions between world and the anchor's frame (mirror-safe).
-  const dirTo = (m: BABYLON.Matrix) => (v: Vec3): Vec3 => {
-    const r = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(v.x, v.y, v.z), m).normalize()
-    return { x: r.x, y: r.y, z: r.z }
-  }
+  const dirTo =
+    (m: BABYLON.Matrix) =>
+    (v: Vec3): Vec3 => {
+      const r = BABYLON.Vector3.TransformNormal(
+        new BABYLON.Vector3(v.x, v.y, v.z),
+        m
+      ).normalize()
+      return { x: r.x, y: r.y, z: r.z }
+    }
   const toLocal = anchor.getWorldMatrix().clone().invert()
-  const chain = springChain(points.map(v3), { x: 0, y: 0, z: 0, w: 1 }, dirTo(toLocal))
+  const chain = springChain(
+    points.map(v3),
+    { x: 0, y: 0, z: 0, w: 1 },
+    dirTo(toLocal)
+  )
   const params: SpringParams = { ...SPRING_DEFAULTS, ...options.params }
 
   const colliders = (): SpringCollider[] =>
     (options.colliders ?? []).map((c) => {
       const p = c.node.getAbsolutePosition()
       return {
-        center: { x: p.x + (c.offset?.x ?? 0), y: p.y + (c.offset?.y ?? 0), z: p.z + (c.offset?.z ?? 0) },
+        center: {
+          x: p.x + (c.offset?.x ?? 0),
+          y: p.y + (c.offset?.y ?? 0),
+          z: p.z + (c.offset?.z ?? 0),
+        },
         radius: c.radius,
       }
     })
 
   // Each joint's rest rotation, and its rest direction to the next joint as
   // its parent sees it (the rest rotation applied to the child's offset).
-  const restRot = nodes.map((n) => (n.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(n.rotation)).clone())
+  const restRot = nodes.map((n) =>
+    (
+      n.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(n.rotation)
+    ).clone()
+  )
   const restDir = nodes.map((n, i) =>
     i + 1 < nodes.length
-      ? nodes[i + 1].position.clone().normalize().applyRotationQuaternion(restRot[i])
+      ? nodes[i + 1].position
+          .clone()
+          .normalize()
+          .applyRotationQuaternion(restRot[i])
       : null
   )
 
@@ -314,7 +345,11 @@ function skinTube(
     radius?: number
     tipRadius?: number
     sides?: number
-    boneHeat?: (p: ArrayLike<number>, i: ArrayLike<number>, b: HeatBone[]) => SkinWeights
+    boneHeat?: (
+      p: ArrayLike<number>,
+      i: ArrayLike<number>,
+      b: HeatBone[]
+    ) => SkinWeights
   }
 ): BABYLON.Mesh {
   const r0 = o.radius ?? 0.04
@@ -331,7 +366,8 @@ function skinTube(
   const n = local.length
   for (let i = 0; i < n; i++) {
     for (const t of i + 1 < n ? [0, 0.5] : [0]) {
-      const p = i + 1 < n ? BABYLON.Vector3.Lerp(local[i], local[i + 1], t) : local[i]
+      const p =
+        i + 1 < n ? BABYLON.Vector3.Lerp(local[i], local[i + 1], t) : local[i]
       rings.push(p)
       radii.push(r0 + (r1 - r0) * ((i + t) / (n - 1)))
     }
@@ -340,12 +376,15 @@ function skinTube(
     const a = rings[Math.max(0, k - 1)]
     const b = rings[Math.min(rings.length - 1, k + 1)]
     const t = b.subtract(a).normalize()
-    const side = Math.abs(t.y) < 0.9 ? BABYLON.Vector3.Up() : BABYLON.Vector3.Right()
+    const side =
+      Math.abs(t.y) < 0.9 ? BABYLON.Vector3.Up() : BABYLON.Vector3.Right()
     const u = BABYLON.Vector3.Cross(t, side).normalize()
     const w = BABYLON.Vector3.Cross(t, u).normalize()
     for (let s = 0; s < sides; s++) {
       const ang = (2 * Math.PI * s) / sides
-      const p = rings[k].add(u.scale(Math.cos(ang) * radii[k])).add(w.scale(Math.sin(ang) * radii[k]))
+      const p = rings[k]
+        .add(u.scale(Math.cos(ang) * radii[k]))
+        .add(w.scale(Math.sin(ang) * radii[k]))
       pos.push(p.x, p.y, p.z)
     }
   }
@@ -376,21 +415,38 @@ function skinTube(
   data.applyToMesh(mesh)
   mesh.parent = anchor
 
-  const skeleton = new BABYLON.Skeleton(`${anchor.name}-spring-skeleton`, `${anchor.name}-spring-skeleton`, scene)
+  const skeleton = new BABYLON.Skeleton(
+    `${anchor.name}-spring-skeleton`,
+    `${anchor.name}-spring-skeleton`,
+    scene
+  )
   const bones: BABYLON.Bone[] = []
   nodes.forEach((node, i) => {
-    const b = new BABYLON.Bone(node.name, skeleton, i === 0 ? null : bones[i - 1], BABYLON.Matrix.Compose(node.scaling, node.rotationQuaternion!, node.position))
+    const b = new BABYLON.Bone(
+      node.name,
+      skeleton,
+      i === 0 ? null : bones[i - 1],
+      BABYLON.Matrix.Compose(
+        node.scaling,
+        node.rotationQuaternion!,
+        node.position
+      )
+    )
     b.linkTransformNode(node)
     bones.push(b)
   })
   // Weights: bone heat if given, else each vertex to the nearer joint's bone.
   const segs: HeatBone[] = []
-  for (let i = 0; i + 1 < n; i++) segs.push({ index: i, a: v3(local[i]), b: v3(local[i + 1]) })
+  for (let i = 0; i + 1 < n; i++)
+    segs.push({ index: i, a: v3(local[i]), b: v3(local[i + 1]) })
   let skin: SkinWeights
   if (o.boneHeat != null) skin = o.boneHeat(pos, idx, segs)
   else {
     const count = pos.length / 3
-    skin = { indices: new Float32Array(count * 4), weights: new Float32Array(count * 4) }
+    skin = {
+      indices: new Float32Array(count * 4),
+      weights: new Float32Array(count * 4),
+    }
     for (let v = 0; v < count; v++) {
       skin.indices[v * 4] = Math.min(n - 2, Math.floor(v / sides / 2))
       skin.weights[v * 4] = 1

@@ -195,4 +195,5 @@ tosi-b3d {
 | `cloudSpeed` | `1` | How fast the weather moves. `0` holds it still |
 | `ocean` | `0.6` | Ocean coverage (0=none, 0.6=60% of surface underwater) |
 | `wireframe` | `false` | Debug: render as wireframe |
+| `tilt` | `0` | Axial tilt in degrees: the axis leans and stays fixed in space while the planet spins about it. Rings tilt with it, which is what lets their shadow fall across the planet (Saturn 26.7). A star system tilts its own planets from its spec |
 | `rotationSpeed` | `0` | Auto-rotation speed (radians/sec), west to east as planets turn. Negative turns it the other way |

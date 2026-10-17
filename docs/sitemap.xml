@@ -56,6 +56,7 @@
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-chrome/</loc></url>
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
+  <url><loc>https://3d.tosijs.net/rig-markers/</loc></url>
   <url><loc>https://3d.tosijs.net/scatter/</loc></url>
   <url><loc>https://3d.tosijs.net/system-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/table-layout/</loc></url>
@@ -207,10 +208,13 @@
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/picker/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
+  <url><loc>https://3d.tosijs.net/retarget/</loc></url>
   <url><loc>https://3d.tosijs.net/space-backdrop/</loc></url>
   <url><loc>https://3d.tosijs.net/surroundings/</loc></url>
   <url><loc>https://3d.tosijs.net/terrain-grid/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/rig-build/</loc></url>
+  <url><loc>https://3d.tosijs.net/spring-chain-babylon/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ssao/</loc></url>
   <url><loc>https://3d.tosijs.net/gamepad-svg/</loc></url>
   <url><loc>https://3d.tosijs.net/gradient-filter/</loc></url>

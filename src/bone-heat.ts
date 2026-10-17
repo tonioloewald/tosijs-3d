@@ -46,7 +46,10 @@ function segmentDistance2(p: Vec3, a: Vec3, b: Vec3): number {
   const aby = b.y - a.y
   const abz = b.z - a.z
   const l2 = abx * abx + aby * aby + abz * abz
-  let t = l2 > 0 ? ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2 : 0
+  let t =
+    l2 > 0
+      ? ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2
+      : 0
   t = Math.max(0, Math.min(1, t))
   const dx = p.x - (a.x + abx * t)
   const dy = p.y - (a.y + aby * t)
@@ -93,7 +96,10 @@ export function boneHeat(
 
   // Cotangent Laplacian (negative cotangents clamped, so it stays positive
   // semi-definite on poor triangles) and a third of each triangle's area.
-  const edges: Array<Map<number, number>> = Array.from({ length: n }, () => new Map())
+  const edges: Array<Map<number, number>> = Array.from(
+    { length: n },
+    () => new Map()
+  )
   const area = new Float64Array(n)
   const addEdge = (i: number, j: number, w: number) => {
     edges[i].set(j, (edges[i].get(j) ?? 0) + w)
@@ -108,14 +114,19 @@ export function boneHeat(
     const A = pts[ia]
     const B = pts[ib]
     const C = pts[ic]
-    if (!Number.isFinite(A.x + B.x + C.x + A.y + B.y + C.y + A.z + B.z + C.z)) continue
+    if (!Number.isFinite(A.x + B.x + C.x + A.y + B.y + C.y + A.z + B.z + C.z))
+      continue
     const cross = (u: Vec3, v: Vec3) => {
       const x = u.y * v.z - u.z * v.y
       const y = u.z * v.x - u.x * v.z
       const z = u.x * v.y - u.y * v.x
       return Math.hypot(x, y, z)
     }
-    const d = (u: Vec3, v: Vec3): Vec3 => ({ x: u.x - v.x, y: u.y - v.y, z: u.z - v.z })
+    const d = (u: Vec3, v: Vec3): Vec3 => ({
+      x: u.x - v.x,
+      y: u.y - v.y,
+      z: u.z - v.z,
+    })
     const dot = (u: Vec3, v: Vec3) => u.x * v.x + u.y * v.y + u.z * v.z
     const twice = cross(d(B, A), d(C, A))
     if (twice < 1e-20) continue
@@ -140,7 +151,8 @@ export function boneHeat(
     const d2 = bones.map((b) => segmentDistance2(pts[i], b.a, b.b))
     for (const v of d2) best = Math.min(best, v)
     const near: number[] = []
-    for (let k = 0; k < nb; k++) if (d2[k] <= best * 1.0001 + 1e-20) near.push(k)
+    for (let k = 0; k < nb; k++)
+      if (d2[k] <= best * 1.0001 + 1e-20) near.push(k)
     nearest.push(near)
     heat[i] = area[i] / Math.max(best, 1e-12)
   }

@@ -24,6 +24,7 @@ export declare class ProjectedAoController {
     private _plugins;
     private _frameObs;
     private _materialObs;
+    private _meshObs;
     private _built;
     private _params;
     private _lastDraw;
@@ -47,6 +48,7 @@ export declare class ProjectedAoController {
     update(p: ProjectedAoParams): void;
     dispose(): void;
     private _disposeTextures;
+    private _attachMesh;
     private _attach;
     /**
      * Point the middle camera where the viewer is looking, with a frustum that

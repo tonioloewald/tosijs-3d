@@ -17,7 +17,9 @@ import { humanoidRoles, retargeter } from './retarget.js'
 import { boneHeat } from './bone-heat.js'
 
 /** Axis-aligned boxes as one triangle soup. */
-function boxes(list: Array<[number, number, number, number, number, number]>): MeshQuery {
+function boxes(
+  list: Array<[number, number, number, number, number, number]>
+): MeshQuery {
   const pos: number[] = []
   const idx: number[] = []
   for (const [x0, x1, y0, y1, z0, z1] of list) {
@@ -26,10 +28,15 @@ function boxes(list: Array<[number, number, number, number, number, number]>): M
       for (const y of [y0, y1]) for (const x of [x0, x1]) pos.push(x, y, z)
     // corners: i = x + 2y + 4z
     const quads = [
-      [0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1],
-      [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3],
+      [0, 1, 3, 2],
+      [4, 6, 7, 5],
+      [0, 4, 5, 1],
+      [2, 3, 7, 6],
+      [0, 2, 6, 4],
+      [1, 5, 7, 3],
     ]
-    for (const [a, c, d, e] of quads) idx.push(b + a, b + c, b + d, b + a, b + d, b + e)
+    for (const [a, c, d, e] of quads)
+      idx.push(b + a, b + c, b + d, b + a, b + d, b + e)
   }
   return meshQuery(pos, idx)
 }
@@ -80,8 +87,11 @@ describe('fitSkeleton', () => {
 
   test("places UAL's 65 joints, one root, every parent known", () => {
     expect(rig.joints.length).toBe(65)
-    expect(rig.joints.filter((j) => j.parent == null).map((j) => j.name)).toEqual(['root'])
-    for (const j of rig.joints) if (j.parent) expect(rig.at(j.parent)).toBeDefined()
+    expect(
+      rig.joints.filter((j) => j.parent == null).map((j) => j.name)
+    ).toEqual(['root'])
+    for (const j of rig.joints)
+      if (j.parent) expect(rig.at(j.parent)).toBeDefined()
   })
 
   test('markers become joints, centred in the thickness', () => {
@@ -106,7 +116,9 @@ describe('fitSkeleton', () => {
     expect(p('ball_leaf_l').z).toBeCloseTo(0.2)
     expect(p('middle_04_leaf_l').x).toBeGreaterThan(0.88)
     expect(p('index_01_l').z).toBeGreaterThan(p('pinky_01_l').z)
-    expect(rig.joints.find((j) => j.name === 'Head')!.end!.y).toBeGreaterThan(1.83)
+    expect(rig.joints.find((j) => j.name === 'Head')!.end!.y).toBeGreaterThan(
+      1.83
+    )
     expect(p('neck_01').y).toBeLessThan(1.55)
     expect(p('spine_03').y).toBeLessThan(p('neck_01').y)
   })
@@ -114,7 +126,16 @@ describe('fitSkeleton', () => {
   test('retarget reads every role off it, and it reproduces itself', () => {
     const bones = fittedRestBones(rig)
     const roles = humanoidRoles(bones)
-    for (const r of ['hips', 'chest', 'neck', 'head', 'l-upperArm', 'r-hand', 'l-foot', 'r-toes'] as const)
+    for (const r of [
+      'hips',
+      'chest',
+      'neck',
+      'head',
+      'l-upperArm',
+      'r-hand',
+      'l-foot',
+      'r-toes',
+    ] as const)
       expect(roles[r]).toBeDefined()
     const sk = { bones, roles }
     const out = retargeter(sk, sk).pose(new Map())
@@ -158,8 +179,8 @@ function readGlb(file: string): Soup {
           a.componentType === 5126
             ? dv.getFloat32(o, true)
             : a.componentType === 5125
-              ? dv.getUint32(o, true)
-              : dv.getUint16(o, true)
+            ? dv.getUint32(o, true)
+            : dv.getUint16(o, true)
         )
       }
     return out
@@ -187,28 +208,58 @@ const m = (
   kneeR: { x: -knee[0], y: knee[1] },
 })
 
-const REAL: Array<{ name: string; mesh: () => Soup; markers: Markers; tail?: { x: number; y: number; z: number } }> = [
+const REAL: Array<{
+  name: string
+  mesh: () => Soup
+  markers: Markers
+  tail?: { x: number; y: number; z: number }
+}> = [
   {
     name: 'omnidude',
     mesh: () => readObj(join(DIR, 'omnidude.obj'), ['Omnidude', 'Head']),
-    markers: m([0, 1.338], [0, 0.467], [0.74, 1.075], [0.47, 1.095], [0.152, 0.258]),
+    markers: m(
+      [0, 1.338],
+      [0, 0.467],
+      [0.74, 1.075],
+      [0.47, 1.095],
+      [0.152, 0.258]
+    ),
   },
   {
     name: 'weasel (a tail, a short arm)',
     mesh: () => readObj(join(DIR, 'weasel.obj'), ['Weasel']),
-    markers: m([0, 0.967], [0, 0.358], [0.51, 0.763], [0.397, 0.763], [0.142, 0.174]),
+    markers: m(
+      [0, 0.967],
+      [0, 0.358],
+      [0.51, 0.763],
+      [0.397, 0.763],
+      [0.142, 0.174]
+    ),
     tail: { x: 0, y: 0.5, z: -0.95 },
   },
   {
     name: 'skinny weasel',
-    mesh: () => readObj(join(DIR, 'weasel-skinny.obj'), ['Body', 'Head', 'Tail']),
-    markers: m([0, 1.259], [0, 0.64], [0.657, 1.154], [0.404, 1.14], [0.106, 0.34]),
+    mesh: () =>
+      readObj(join(DIR, 'weasel-skinny.obj'), ['Body', 'Head', 'Tail']),
+    markers: m(
+      [0, 1.259],
+      [0, 0.64],
+      [0.657, 1.154],
+      [0.404, 1.14],
+      [0.106, 0.34]
+    ),
     tail: { x: 0, y: 0.77, z: -0.95 },
   },
   {
     name: 'space marine (arms down, claws)',
     mesh: () => readGlb(join(DIR, 'space-marine.glb')),
-    markers: m([0, 3.594], [0, 1.656], [1.966, 2.937], [1.18, 3.064], [0.388, 0.943]),
+    markers: m(
+      [0, 3.594],
+      [0, 1.656],
+      [1.966, 2.937],
+      [1.18, 3.064],
+      [0.388, 0.943]
+    ),
   },
 ]
 
@@ -220,7 +271,18 @@ describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
       const p = (n: string) => rig.at(n)!
       const height = mesh.max.y - mesh.min.y
       // Every joint a body has is inside the body's silhouette.
-      for (const n of ['pelvis', 'spine_02', 'neck_01', 'Head', 'upperarm_l', 'lowerarm_r', 'hand_l', 'calf_r', 'foot_l', 'thigh_r'])
+      for (const n of [
+        'pelvis',
+        'spine_02',
+        'neck_01',
+        'Head',
+        'upperarm_l',
+        'lowerarm_r',
+        'hand_l',
+        'calf_r',
+        'foot_l',
+        'thigh_r',
+      ])
         expect(mesh.spans(p(n).x, p(n).y).length).toBeGreaterThan(0)
       // And within its depth, in the front-most span (the tail is behind):
       // the pelvis sits forward of the deepest point at its height.
@@ -229,7 +291,9 @@ describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
         expect(p(n).z).toBeLessThanOrEqual(spans[0].front)
         expect(p(n).z).toBeGreaterThanOrEqual(spans[0].back)
       }
-      expect(p('pelvis').z).toBeGreaterThan((mesh.min.z + mesh.max.z) / 2 - 0.05 * height)
+      expect(p('pelvis').z).toBeGreaterThan(
+        (mesh.min.z + mesh.max.z) / 2 - 0.05 * height
+      )
       // A body's order, bottom to top.
       expect(p('foot_l').y).toBeLessThan(p('calf_l').y)
       expect(p('calf_l').y).toBeLessThan(p('thigh_l').y)
@@ -237,7 +301,9 @@ describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
       expect(p('spine_03').y).toBeLessThan(p('Head').y)
       // The toes point forward, the hand reaches past the wrist.
       expect(p('ball_leaf_l').z).toBeGreaterThan(p('foot_l').z)
-      expect(Math.abs(p('middle_04_leaf_r').x)).toBeGreaterThan(Math.abs(p('hand_r').x))
+      expect(Math.abs(p('middle_04_leaf_r').x)).toBeGreaterThan(
+        Math.abs(p('hand_r').x)
+      )
       // The shoulders are between the neck and the elbows.
       expect(p('upperarm_l').x).toBeGreaterThan(p('neck_01').x)
       expect(p('upperarm_l').x).toBeLessThan(p('lowerarm_l').x)
@@ -264,14 +330,19 @@ describe.skipIf(!existsSync(DIR))('boneHeat on real meshes', () => {
         let best = 0
         let bd = Infinity
         for (let v = 0; v < n; v++) {
-          const d = Math.hypot(soup.pos[v * 3] - p.x, soup.pos[v * 3 + 1] - p.y, soup.pos[v * 3 + 2] - p.z)
+          const d = Math.hypot(
+            soup.pos[v * 3] - p.x,
+            soup.pos[v * 3 + 1] - p.y,
+            soup.pos[v * 3 + 2] - p.z
+          )
           if (d < bd) {
             bd = d
             best = v
           }
         }
         let k = 0
-        for (let s = 1; s < 4; s++) if (skin.weights[best * 4 + s] > skin.weights[best * 4 + k]) k = s
+        for (let s = 1; s < 4; s++)
+          if (skin.weights[best * 4 + s] > skin.weights[best * 4 + k]) k = s
         return names[skin.indices[best * 4 + k]]
       }
       const P = (name: string) => rig.at(name)!
@@ -330,7 +401,9 @@ describe('objTriangles', () => {
   })
 
   test('reads negative indices and v/vt/vn faces', () => {
-    const { positions, indices } = objTriangles('v 0 0 0\nv 1 0 0\nv 0 1 0\nf -3/1/1 -2/2/1 -1/3/1')
+    const { positions, indices } = objTriangles(
+      'v 0 0 0\nv 1 0 0\nv 0 1 0\nf -3/1/1 -2/2/1 -1/3/1'
+    )
     expect(positions.length).toBe(9)
     expect(indices).toEqual([0, 1, 2])
   })
@@ -340,10 +413,18 @@ describe('rigSilhouette', () => {
   test('a box seen from the front fills its rectangle, from the side its depth', () => {
     // A 2 x 4 x 1 box: x -1..1, y 0..4, z -0.5..0.5.
     const pos: number[] = []
-    for (const x of [-1, 1]) for (const y of [0, 4]) for (const z of [-0.5, 0.5]) pos.push(x, y, z)
+    for (const x of [-1, 1])
+      for (const y of [0, 4]) for (const z of [-0.5, 0.5]) pos.push(x, y, z)
     const at = (x: number, y: number, z: number) =>
       ((x > 0 ? 1 : 0) << 2) | ((y > 0 ? 1 : 0) << 1) | (z > 0 ? 1 : 0)
-    const quad = (a: number, b: number, c: number, d: number) => [a, b, c, a, c, d]
+    const quad = (a: number, b: number, c: number, d: number) => [
+      a,
+      b,
+      c,
+      a,
+      c,
+      d,
+    ]
     const idx = [
       ...quad(at(-1, 0, 1), at(1, 0, 1), at(1, 4, 1), at(-1, 4, 1)),
       ...quad(at(1, 0, 1), at(1, 0, -1), at(1, 4, -1), at(1, 4, 1)),
@@ -363,14 +444,17 @@ describe.skipIf(!existsSync(DIR))('guessMarkers on real meshes', () => {
   // A first placement to drag from: within a tenth of the body's height of
   // where the markers were placed by hand (the weasel's big hands cost the
   // most, as its wrist is well inside them).
-  for (const c of REAL.filter((r) => r.name !== 'space marine (arms down, claws)')) {
+  for (const c of REAL.filter(
+    (r) => r.name !== 'space marine (arms down, claws)'
+  )) {
     test(c.name, () => {
       const s = c.mesh()
       const sil = rigSilhouette(s.pos, s.idx)
       const H = sil.max.v - sil.min.v
       const g = guessMarkers(sil)
       for (const n of MARKER_NAMES) {
-        const err = Math.hypot(g[n].x - c.markers[n].x, g[n].y - c.markers[n].y) / H
+        const err =
+          Math.hypot(g[n].x - c.markers[n].x, g[n].y - c.markers[n].y) / H
         expect(err).toBeLessThan(0.11)
       }
       // Symmetric, and in order up the body.

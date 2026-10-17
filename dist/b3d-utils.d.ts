@@ -439,6 +439,7 @@ export declare class AbstractMesh extends B3dChild {
      * this from their `render()` so a later write takes effect.
      */
     protected applyUniformScale(): void;
+    private _scaleApplied;
     private _originShift;
     /**
      * Opt in to the **floating origin**: on a rebase, shift the `x`/`z`

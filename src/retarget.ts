@@ -141,7 +141,13 @@ export type Limb =
   | 'foot'
   | 'toes'
 /** What a bone IS in a humanoid, whatever it is called. */
-export type Role = 'hips' | 'spine' | 'chest' | 'neck' | 'head' | `${Side}-${Limb}`
+export type Role =
+  | 'hips'
+  | 'spine'
+  | 'chest'
+  | 'neck'
+  | 'head'
+  | `${Side}-${Limb}`
 
 export const ROLES: readonly Role[] = [
   'hips',
@@ -196,7 +202,8 @@ function readName(name: string): { side: Side | null; base: string } {
   return { side, base: n.toLowerCase().replace(/[_.\-\s]/g, '') }
 }
 
-const SKIP = /(thumb|index|middle|ring|pinky|finger|twist|ik|end|top|nub|roll|corrective|helper|pole)/
+const SKIP =
+  /(thumb|index|middle|ring|pinky|finger|twist|ik|end|top|nub|roll|corrective|helper|pole)/
 
 /** The limb a (sided) base name is, or null. `leg` is decided later. */
 function limbOf(base: string): Limb | 'leg' | null {
@@ -339,7 +346,11 @@ function toWorld(
     } else {
       rotation.set(b.name, quatMul(pr, local))
       const off = rotateVector(pr, pos)
-      position.set(b.name, { x: pp.x + off.x, y: pp.y + off.y, z: pp.z + off.z })
+      position.set(b.name, {
+        x: pp.x + off.x,
+        y: pp.y + off.y,
+        z: pp.z + off.z,
+      })
     }
   }
   return { rotation, position }
@@ -347,7 +358,9 @@ function toWorld(
 
 const normalize = (v: Vec3): Vec3 => {
   const l = Math.hypot(v.x, v.y, v.z)
-  return l > 1e-9 ? { x: v.x / l, y: v.y / l, z: v.z / l } : { x: 0, y: 0, z: 0 }
+  return l > 1e-9
+    ? { x: v.x / l, y: v.y / l, z: v.z / l }
+    : { x: 0, y: 0, z: 0 }
 }
 
 /** The shortest rotation taking unit vector `a` onto unit vector `b`. */
@@ -390,11 +403,7 @@ const NEXT: Partial<Record<string, string>> = {
   foot: 'toes',
 }
 
-function restDirection(
-  role: Role,
-  sk: Skeleton,
-  world: World
-): Vec3 | null {
+function restDirection(role: Role, sk: Skeleton, world: World): Vec3 | null {
   const name = sk.roles[role]
   if (name == null) return null
   const at = world.position.get(name)
@@ -550,7 +559,11 @@ export function retargeter(
           ? tReach
           : chainEnd(r, source)
       if (end != null) {
-        aimAt.set(r, { from: source.roles[r]!, to: source.roles[end]!, rest: dt })
+        aimAt.set(r, {
+          from: source.roles[r]!,
+          to: source.roles[end]!,
+          rest: dt,
+        })
         continue
       }
     }
@@ -585,7 +598,8 @@ export function retargeter(
         const r = roleOfTarget.get(b.name)
         let world: Quat
         if (r == null) {
-          world = parentWorld != null ? quatMul(parentWorld, b.rotation) : b.rotation
+          world =
+            parentWorld != null ? quatMul(parentWorld, b.rotation) : b.rotation
         } else if (aimAt.has(r)) {
           // A collapsed chain: aim along the source's chain, as it is now.
           const a = aimAt.get(r)!
@@ -614,7 +628,9 @@ export function retargeter(
         tWorld.set(b.name, world)
         out.set(
           b.name,
-          parentWorld != null ? quatMul(quatConjugate(parentWorld), world) : world
+          parentWorld != null
+            ? quatMul(quatConjugate(parentWorld), world)
+            : world
         )
       }
       /*

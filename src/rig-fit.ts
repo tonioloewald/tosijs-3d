@@ -197,13 +197,18 @@ const add = (a: Vec3, b: Vec3): Vec3 => ({
   y: a.y + b.y,
   z: a.z + b.z,
 })
-const scale = (a: Vec3, k: number): Vec3 => ({ x: a.x * k, y: a.y * k, z: a.z * k })
+const scale = (a: Vec3, k: number): Vec3 => ({
+  x: a.x * k,
+  y: a.y * k,
+  z: a.z * k,
+})
 const minus = (a: Vec3, b: Vec3): Vec3 => ({
   x: a.x - b.x,
   y: a.y - b.y,
   z: a.z - b.z,
 })
-const along = (a: Vec3, b: Vec3, t: number): Vec3 => add(a, scale(minus(b, a), t))
+const along = (a: Vec3, b: Vec3, t: number): Vec3 =>
+  add(a, scale(minus(b, a), t))
 
 /**
  * Place UAL's skeleton in a mesh from eight front-view markers. Joints the
@@ -243,7 +248,12 @@ export function fitSkeleton(
 
   const joints: FittedJoint[] = []
   const byName = new Map<string, FittedJoint>()
-  const put = (name: string, parent: string | null, position: Vec3, end?: Vec3) => {
+  const put = (
+    name: string,
+    parent: string | null,
+    position: Vec3,
+    end?: Vec3
+  ) => {
     const j: FittedJoint = { name, parent, position, end }
     joints.push(j)
     byName.set(name, j)
@@ -285,9 +295,13 @@ export function fitSkeleton(
     if (!Number.isFinite(half)) return fallback
     let best: Span | null = null
     for (const s of mesh.spans(x, y))
-      if (best == null || Math.abs(s.front - front) < Math.abs(best.front - front))
+      if (
+        best == null ||
+        Math.abs(s.front - front) < Math.abs(best.front - front)
+      )
         best = s
-    if (best == null || Math.abs(best.front - front) > 2 * half) return front - half
+    if (best == null || Math.abs(best.front - front) > 2 * half)
+      return front - half
     return best.front - Math.min((best.front - best.back) / 2, half)
   }
 
@@ -311,10 +325,15 @@ export function fitSkeleton(
   put('neck_01', 'spine_03', neck)
   // The head joint is the head's base, at the chin; its bone runs up to the
   // top of the head straight above it.
-  const headBase = { x: chin.x, y: chin.y, z: depth(chin.x, chin.y - 0.02 * torso, neckZ) }
+  const headBase = {
+    x: chin.x,
+    y: chin.y,
+    z: depth(chin.x, chin.y - 0.02 * torso, neckZ),
+  }
   let top = chin.y
   const step = (mesh.max.y - floor) / 400
-  for (let y = chin.y; y <= mesh.max.y; y += step) if (inside(chin.x, y)) top = y
+  for (let y = chin.y; y <= mesh.max.y; y += step)
+    if (inside(chin.x, y)) top = y
   put('Head', 'neck_01', headBase, { x: chin.x, y: top, z: headBase.z })
 
   for (const side of ['l', 'r'] as const) {
@@ -342,7 +361,11 @@ export function fitSkeleton(
     }
     put(`clavicle_${side}`, 'spine_03', clav)
     put(`upperarm_${side}`, `clavicle_${side}`, shoulder)
-    const elbow = put(`lowerarm_${side}`, `upperarm_${side}`, at(elbow2, shoulder.z))
+    const elbow = put(
+      `lowerarm_${side}`,
+      `upperarm_${side}`,
+      at(elbow2, shoulder.z)
+    )
     const wrist = put(`hand_${side}`, `lowerarm_${side}`, at(wrist2, elbow.z))
 
     // The hand: walk on from the wrist until the ray leaves the mesh.
@@ -356,10 +379,17 @@ export function fitSkeleton(
       else if (d > reach + 4 * step) break
     }
     reach = Math.max(reach, 0.25 * dl)
-    const tip = { x: wrist2.x + ux * reach, y: wrist2.y + uy * reach, z: wrist.z }
+    const tip = {
+      x: wrist2.x + ux * reach,
+      y: wrist2.y + uy * reach,
+      z: wrist.z,
+    }
     // Palm down in a T-pose, so the hand's width runs along Z: thumb and
     // index to the front, pinky to the back.
-    const palm2 = { x: wrist2.x + ux * reach * 0.35, y: wrist2.y + uy * reach * 0.35 }
+    const palm2 = {
+      x: wrist2.x + ux * reach * 0.35,
+      y: wrist2.y + uy * reach * 0.35,
+    }
     const ps = mesh.spans(palm2.x, palm2.y)[0]
     const half = ps != null ? (ps.front - ps.back) / 2 : 0.15 * reach
     const palmZ = ps != null ? (ps.front + ps.back) / 2 : wrist.z
@@ -371,7 +401,11 @@ export function fitSkeleton(
     ]
     for (const [f, off] of fingers) {
       const z = palmZ + off * half
-      const base = { x: lerp(wrist.x, tip.x, 0.45), y: lerp(wrist.y, tip.y, 0.45), z }
+      const base = {
+        x: lerp(wrist.x, tip.x, 0.45),
+        y: lerp(wrist.y, tip.y, 0.45),
+        z,
+      }
       const end = { x: tip.x, y: tip.y, z }
       put(`${f}_01_${side}`, `hand_${side}`, base)
       put(`${f}_02_${side}`, `${f}_01_${side}`, along(base, end, 0.4))
@@ -379,7 +413,11 @@ export function fitSkeleton(
       put(`${f}_04_leaf_${side}`, `${f}_03_${side}`, end)
     }
     {
-      const base = { x: lerp(wrist.x, tip.x, 0.12), y: lerp(wrist.y, tip.y, 0.12), z: palmZ + 0.5 * half }
+      const base = {
+        x: lerp(wrist.x, tip.x, 0.12),
+        y: lerp(wrist.y, tip.y, 0.12),
+        z: palmZ + 0.5 * half,
+      }
       const end = {
         x: lerp(wrist.x, tip.x, 0.6),
         y: lerp(wrist.y, tip.y, 0.6),
@@ -400,7 +438,11 @@ export function fitSkeleton(
     put(`thigh_${side}`, 'pelvis', hip)
     const knee = put(`calf_${side}`, `thigh_${side}`, at(knee2, hip.z))
     const ankleY = floor + 0.28 * (knee2.y - floor)
-    const ankle = put(`foot_${side}`, `calf_${side}`, at({ x: knee2.x, y: ankleY }, knee.z))
+    const ankle = put(
+      `foot_${side}`,
+      `calf_${side}`,
+      at({ x: knee2.x, y: ankleY }, knee.z)
+    )
     // The foot reaches forward: the front of the mesh near the ground.
     const soleY = floor + 0.15 * (ankleY - floor)
     const sole = mesh.spans(knee2.x, soleY)[0]
@@ -420,11 +462,15 @@ export function fitSkeleton(
     const d = minus(tip, pelvis)
     const len = Math.hypot(d.x, d.y, d.z)
     if (len > 1e-9) {
-      const start = add(pelvis, scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len)))
+      const start = add(
+        pelvis,
+        scale(d, Math.min(0.9, (Number.isFinite(half) ? half : 0) / len))
+      )
       const count = Math.max(1, Math.round(options.tailBones ?? 5))
       let parent = 'pelvis'
       for (let i = 0; i <= count; i++) {
-        const name = i < count ? `tail_${String(i + 1).padStart(2, '0')}` : 'tail_leaf'
+        const name =
+          i < count ? `tail_${String(i + 1).padStart(2, '0')}` : 'tail_leaf'
         put(name, parent, along(start, tip, i / count))
         parent = name
       }
@@ -465,11 +511,14 @@ for (const s of ['l', 'r']) {
  * The bones that take the skin, as segments for `boneHeat`, each with its
  * index in `rig.joints` (the order the skeleton is built in).
  */
-export function skinSegments(rig: FittedRig): Array<{ index: number; a: Vec3; b: Vec3 }> {
+export function skinSegments(
+  rig: FittedRig
+): Array<{ index: number; a: Vec3; b: Vec3 }> {
   const out: Array<{ index: number; a: Vec3; b: Vec3 }> = []
   // A tail bone runs to the next joint down its chain.
   const child = new Map<string, string>()
-  for (const j of rig.joints) if (j.parent?.startsWith('tail_')) child.set(j.parent, j.name)
+  for (const j of rig.joints)
+    if (j.parent?.startsWith('tail_')) child.set(j.parent, j.name)
   rig.joints.forEach((j, index) => {
     const to = SEGMENT_TO[j.name] ?? child.get(j.name)
     const b = to != null ? rig.at(to) : j.end
@@ -502,7 +551,10 @@ export function fittedRestBones(rig: FittedRig): RestBone[] {
  * groups (a file often holds the whole scene: props, clothes, eyes), and
  * only the vertices they use.
  */
-export function objTriangles(text: string, objects?: readonly string[]): { positions: number[]; indices: number[] } {
+export function objTriangles(
+  text: string,
+  objects?: readonly string[]
+): { positions: number[]; indices: number[] } {
   const all: number[] = []
   const faces: number[] = []
   let obj = ''
@@ -516,7 +568,8 @@ export function objTriangles(text: string, objects?: readonly string[]): { posit
         const i = parseInt(s)
         return i < 0 ? all.length / 3 + i : i - 1
       })
-      for (let k = 1; k + 1 < ix.length; k++) faces.push(ix[0], ix[k], ix[k + 1])
+      for (let k = 1; k + 1 < ix.length; k++)
+        faces.push(ix[0], ix[k], ix[k + 1])
     }
   }
   const positions: number[] = []
@@ -589,7 +642,8 @@ export function rigSilhouette(
       const k = indices[t + c] * 3
       p[c * 2] = (positions[k + ui] - minU) / cell
       p[c * 2 + 1] = (positions[k + 1] - minV) / cell
-      if (!Number.isFinite(p[c * 2]) || !Number.isFinite(p[c * 2 + 1])) ok = false
+      if (!Number.isFinite(p[c * 2]) || !Number.isFinite(p[c * 2 + 1]))
+        ok = false
     }
     if (!ok) continue
     const r0 = Math.max(0, Math.floor(Math.min(p[1], p[3], p[5])))
@@ -605,7 +659,10 @@ export function rigSilhouette(
         const bx = p[((e + 1) % 3) * 2]
         const by = p[((e + 1) % 3) * 2 + 1]
         if ((ay <= y && by >= y) || (by <= y && ay >= y)) {
-          const x = ay === by ? Math.min(ax, bx) : ax + ((y - ay) / (by - ay)) * (bx - ax)
+          const x =
+            ay === by
+              ? Math.min(ax, bx)
+              : ax + ((y - ay) / (by - ay)) * (bx - ax)
           const x2 = ay === by ? Math.max(ax, bx) : x
           if (x < lo) lo = x
           if (x2 > hi) hi = x2
@@ -627,10 +684,20 @@ export function rigSilhouette(
       }
       const start = c
       while (c < cols && grid[r * cols + c]) c++
-      runs.push({ v: minV + r * cell, u0: minU + start * cell, u1: minU + c * cell })
+      runs.push({
+        v: minV + r * cell,
+        u0: minU + start * cell,
+        u1: minU + c * cell,
+      })
     }
   }
-  return { view, cell, min: { u: minU, v: minV }, max: { u: maxU, v: maxV }, runs }
+  return {
+    view,
+    cell,
+    min: { u: minU, v: minV },
+    max: { u: maxU, v: maxV },
+    runs,
+  }
 }
 
 /** A first placement of the eight markers, read off a front silhouette. */
@@ -642,7 +709,8 @@ export function guessMarkers(s: Silhouette): Markers {
     if (!rows.has(k)) rows.set(k, [])
     rows.get(k)!.push(r)
   }
-  const rowAt = (v: number) => rows.get(Math.round((v - s.min.v) / s.cell)) ?? []
+  const rowAt = (v: number) =>
+    rows.get(Math.round((v - s.min.v) / s.cell)) ?? []
   const vOf = (k: number) => s.min.v + (k + 0.5) * s.cell
   const nRows = Math.round(H / s.cell)
   const extent = (runs: Array<{ u0: number; u1: number }>) =>

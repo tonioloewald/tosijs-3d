@@ -13,9 +13,125 @@ Real skeletons, names and parents only, dumped from: UAL1.glb (Quaternius,
 the UE mannequin), static/omnidude.glb (Mixamo) and Kenney Mini Characters'
 character-female-a.glb. Embedded so the test needs no sibling repo.
 */
-const ualBones: Array<[string, string | null]> = [["root", null], ["pelvis", "root"], ["spine_01", "pelvis"], ["spine_02", "spine_01"], ["spine_03", "spine_02"], ["neck_01", "spine_03"], ["Head", "neck_01"], ["clavicle_l", "spine_03"], ["upperarm_l", "clavicle_l"], ["lowerarm_l", "upperarm_l"], ["hand_l", "lowerarm_l"], ["index_01_l", "hand_l"], ["index_02_l", "index_01_l"], ["index_03_l", "index_02_l"], ["index_04_leaf_l", "index_03_l"], ["middle_01_l", "hand_l"], ["middle_02_l", "middle_01_l"], ["middle_03_l", "middle_02_l"], ["middle_04_leaf_l", "middle_03_l"], ["pinky_01_l", "hand_l"], ["pinky_02_l", "pinky_01_l"], ["pinky_03_l", "pinky_02_l"], ["pinky_04_leaf_l", "pinky_03_l"], ["ring_01_l", "hand_l"], ["ring_02_l", "ring_01_l"], ["ring_03_l", "ring_02_l"], ["ring_04_leaf_l", "ring_03_l"], ["thumb_01_l", "hand_l"], ["thumb_02_l", "thumb_01_l"], ["thumb_03_l", "thumb_02_l"], ["thumb_04_leaf_l", "thumb_03_l"], ["clavicle_r", "spine_03"], ["upperarm_r", "clavicle_r"], ["lowerarm_r", "upperarm_r"], ["hand_r", "lowerarm_r"], ["index_01_r", "hand_r"], ["index_02_r", "index_01_r"], ["index_03_r", "index_02_r"], ["index_04_leaf_r", "index_03_r"], ["middle_01_r", "hand_r"], ["middle_02_r", "middle_01_r"], ["middle_03_r", "middle_02_r"], ["middle_04_leaf_r", "middle_03_r"], ["pinky_01_r", "hand_r"], ["pinky_02_r", "pinky_01_r"], ["pinky_03_r", "pinky_02_r"], ["pinky_04_leaf_r", "pinky_03_r"], ["ring_01_r", "hand_r"], ["ring_02_r", "ring_01_r"], ["ring_03_r", "ring_02_r"], ["ring_04_leaf_r", "ring_03_r"], ["thumb_01_r", "hand_r"], ["thumb_02_r", "thumb_01_r"], ["thumb_03_r", "thumb_02_r"], ["thumb_04_leaf_r", "thumb_03_r"], ["thigh_l", "pelvis"], ["calf_l", "thigh_l"], ["foot_l", "calf_l"], ["ball_l", "foot_l"], ["ball_leaf_l", "ball_l"], ["thigh_r", "pelvis"], ["calf_r", "thigh_r"], ["foot_r", "calf_r"], ["ball_r", "foot_r"], ["ball_leaf_r", "ball_r"]]
-const mixamoBones: Array<[string, string | null]> = [["mixamorig:Hips", null], ["mixamorig:Spine", "mixamorig:Hips"], ["mixamorig:Spine1", "mixamorig:Spine"], ["mixamorig:Spine2", "mixamorig:Spine1"], ["mixamorig:Neck", "mixamorig:Spine2"], ["mixamorig:Head", "mixamorig:Neck"], ["mixamorig:HeadTop_End", "mixamorig:Head"], ["mixamorig:LeftShoulder", "mixamorig:Spine2"], ["mixamorig:LeftArm", "mixamorig:LeftShoulder"], ["mixamorig:LeftForeArm", "mixamorig:LeftArm"], ["mixamorig:LeftHand", "mixamorig:LeftForeArm"], ["mixamorig:LeftHandThumb1", "mixamorig:LeftHand"], ["mixamorig:LeftHandThumb2", "mixamorig:LeftHandThumb1"], ["mixamorig:LeftHandThumb3", "mixamorig:LeftHandThumb2"], ["mixamorig:LeftHandThumb4", "mixamorig:LeftHandThumb3"], ["mixamorig:LeftHandIndex1", "mixamorig:LeftHand"], ["mixamorig:LeftHandIndex2", "mixamorig:LeftHandIndex1"], ["mixamorig:LeftHandIndex3", "mixamorig:LeftHandIndex2"], ["mixamorig:LeftHandIndex4", "mixamorig:LeftHandIndex3"], ["mixamorig:RightShoulder", "mixamorig:Spine2"], ["mixamorig:RightArm", "mixamorig:RightShoulder"], ["mixamorig:RightForeArm", "mixamorig:RightArm"], ["mixamorig:RightHand", "mixamorig:RightForeArm"], ["mixamorig:RightHandThumb1", "mixamorig:RightHand"], ["mixamorig:RightHandThumb2", "mixamorig:RightHandThumb1"], ["mixamorig:RightHandThumb3", "mixamorig:RightHandThumb2"], ["mixamorig:RightHandThumb4", "mixamorig:RightHandThumb3"], ["mixamorig:RightHandIndex1", "mixamorig:RightHand"], ["mixamorig:RightHandIndex2", "mixamorig:RightHandIndex1"], ["mixamorig:RightHandIndex3", "mixamorig:RightHandIndex2"], ["mixamorig:RightHandIndex4", "mixamorig:RightHandIndex3"], ["mixamorig:LeftUpLeg", "mixamorig:Hips"], ["mixamorig:LeftLeg", "mixamorig:LeftUpLeg"], ["mixamorig:LeftFoot", "mixamorig:LeftLeg"], ["mixamorig:LeftToeBase", "mixamorig:LeftFoot"], ["mixamorig:LeftToe_End", "mixamorig:LeftToeBase"], ["mixamorig:RightUpLeg", "mixamorig:Hips"], ["mixamorig:RightLeg", "mixamorig:RightUpLeg"], ["mixamorig:RightFoot", "mixamorig:RightLeg"], ["mixamorig:RightToeBase", "mixamorig:RightFoot"], ["mixamorig:RightToe_End", "mixamorig:RightToeBase"]]
-const kenneyMiniBones: Array<[string, string | null]> = [["root", null], ["leg-left", "root"], ["leg-right", "root"], ["torso", "root"], ["arm-left", "torso"], ["arm-right", "torso"], ["head", "torso"]]
+const ualBones: Array<[string, string | null]> = [
+  ['root', null],
+  ['pelvis', 'root'],
+  ['spine_01', 'pelvis'],
+  ['spine_02', 'spine_01'],
+  ['spine_03', 'spine_02'],
+  ['neck_01', 'spine_03'],
+  ['Head', 'neck_01'],
+  ['clavicle_l', 'spine_03'],
+  ['upperarm_l', 'clavicle_l'],
+  ['lowerarm_l', 'upperarm_l'],
+  ['hand_l', 'lowerarm_l'],
+  ['index_01_l', 'hand_l'],
+  ['index_02_l', 'index_01_l'],
+  ['index_03_l', 'index_02_l'],
+  ['index_04_leaf_l', 'index_03_l'],
+  ['middle_01_l', 'hand_l'],
+  ['middle_02_l', 'middle_01_l'],
+  ['middle_03_l', 'middle_02_l'],
+  ['middle_04_leaf_l', 'middle_03_l'],
+  ['pinky_01_l', 'hand_l'],
+  ['pinky_02_l', 'pinky_01_l'],
+  ['pinky_03_l', 'pinky_02_l'],
+  ['pinky_04_leaf_l', 'pinky_03_l'],
+  ['ring_01_l', 'hand_l'],
+  ['ring_02_l', 'ring_01_l'],
+  ['ring_03_l', 'ring_02_l'],
+  ['ring_04_leaf_l', 'ring_03_l'],
+  ['thumb_01_l', 'hand_l'],
+  ['thumb_02_l', 'thumb_01_l'],
+  ['thumb_03_l', 'thumb_02_l'],
+  ['thumb_04_leaf_l', 'thumb_03_l'],
+  ['clavicle_r', 'spine_03'],
+  ['upperarm_r', 'clavicle_r'],
+  ['lowerarm_r', 'upperarm_r'],
+  ['hand_r', 'lowerarm_r'],
+  ['index_01_r', 'hand_r'],
+  ['index_02_r', 'index_01_r'],
+  ['index_03_r', 'index_02_r'],
+  ['index_04_leaf_r', 'index_03_r'],
+  ['middle_01_r', 'hand_r'],
+  ['middle_02_r', 'middle_01_r'],
+  ['middle_03_r', 'middle_02_r'],
+  ['middle_04_leaf_r', 'middle_03_r'],
+  ['pinky_01_r', 'hand_r'],
+  ['pinky_02_r', 'pinky_01_r'],
+  ['pinky_03_r', 'pinky_02_r'],
+  ['pinky_04_leaf_r', 'pinky_03_r'],
+  ['ring_01_r', 'hand_r'],
+  ['ring_02_r', 'ring_01_r'],
+  ['ring_03_r', 'ring_02_r'],
+  ['ring_04_leaf_r', 'ring_03_r'],
+  ['thumb_01_r', 'hand_r'],
+  ['thumb_02_r', 'thumb_01_r'],
+  ['thumb_03_r', 'thumb_02_r'],
+  ['thumb_04_leaf_r', 'thumb_03_r'],
+  ['thigh_l', 'pelvis'],
+  ['calf_l', 'thigh_l'],
+  ['foot_l', 'calf_l'],
+  ['ball_l', 'foot_l'],
+  ['ball_leaf_l', 'ball_l'],
+  ['thigh_r', 'pelvis'],
+  ['calf_r', 'thigh_r'],
+  ['foot_r', 'calf_r'],
+  ['ball_r', 'foot_r'],
+  ['ball_leaf_r', 'ball_r'],
+]
+const mixamoBones: Array<[string, string | null]> = [
+  ['mixamorig:Hips', null],
+  ['mixamorig:Spine', 'mixamorig:Hips'],
+  ['mixamorig:Spine1', 'mixamorig:Spine'],
+  ['mixamorig:Spine2', 'mixamorig:Spine1'],
+  ['mixamorig:Neck', 'mixamorig:Spine2'],
+  ['mixamorig:Head', 'mixamorig:Neck'],
+  ['mixamorig:HeadTop_End', 'mixamorig:Head'],
+  ['mixamorig:LeftShoulder', 'mixamorig:Spine2'],
+  ['mixamorig:LeftArm', 'mixamorig:LeftShoulder'],
+  ['mixamorig:LeftForeArm', 'mixamorig:LeftArm'],
+  ['mixamorig:LeftHand', 'mixamorig:LeftForeArm'],
+  ['mixamorig:LeftHandThumb1', 'mixamorig:LeftHand'],
+  ['mixamorig:LeftHandThumb2', 'mixamorig:LeftHandThumb1'],
+  ['mixamorig:LeftHandThumb3', 'mixamorig:LeftHandThumb2'],
+  ['mixamorig:LeftHandThumb4', 'mixamorig:LeftHandThumb3'],
+  ['mixamorig:LeftHandIndex1', 'mixamorig:LeftHand'],
+  ['mixamorig:LeftHandIndex2', 'mixamorig:LeftHandIndex1'],
+  ['mixamorig:LeftHandIndex3', 'mixamorig:LeftHandIndex2'],
+  ['mixamorig:LeftHandIndex4', 'mixamorig:LeftHandIndex3'],
+  ['mixamorig:RightShoulder', 'mixamorig:Spine2'],
+  ['mixamorig:RightArm', 'mixamorig:RightShoulder'],
+  ['mixamorig:RightForeArm', 'mixamorig:RightArm'],
+  ['mixamorig:RightHand', 'mixamorig:RightForeArm'],
+  ['mixamorig:RightHandThumb1', 'mixamorig:RightHand'],
+  ['mixamorig:RightHandThumb2', 'mixamorig:RightHandThumb1'],
+  ['mixamorig:RightHandThumb3', 'mixamorig:RightHandThumb2'],
+  ['mixamorig:RightHandThumb4', 'mixamorig:RightHandThumb3'],
+  ['mixamorig:RightHandIndex1', 'mixamorig:RightHand'],
+  ['mixamorig:RightHandIndex2', 'mixamorig:RightHandIndex1'],
+  ['mixamorig:RightHandIndex3', 'mixamorig:RightHandIndex2'],
+  ['mixamorig:RightHandIndex4', 'mixamorig:RightHandIndex3'],
+  ['mixamorig:LeftUpLeg', 'mixamorig:Hips'],
+  ['mixamorig:LeftLeg', 'mixamorig:LeftUpLeg'],
+  ['mixamorig:LeftFoot', 'mixamorig:LeftLeg'],
+  ['mixamorig:LeftToeBase', 'mixamorig:LeftFoot'],
+  ['mixamorig:LeftToe_End', 'mixamorig:LeftToeBase'],
+  ['mixamorig:RightUpLeg', 'mixamorig:Hips'],
+  ['mixamorig:RightLeg', 'mixamorig:RightUpLeg'],
+  ['mixamorig:RightFoot', 'mixamorig:RightLeg'],
+  ['mixamorig:RightToeBase', 'mixamorig:RightFoot'],
+  ['mixamorig:RightToe_End', 'mixamorig:RightToeBase'],
+]
+const kenneyMiniBones: Array<[string, string | null]> = [
+  ['root', null],
+  ['leg-left', 'root'],
+  ['leg-right', 'root'],
+  ['torso', 'root'],
+  ['arm-left', 'torso'],
+  ['arm-right', 'torso'],
+  ['head', 'torso'],
+]
 
 const named = (list: Array<[string, string | null]>) =>
   list.map(([name, parent]) => ({ name, parent }))
@@ -78,8 +194,18 @@ function arm(armDir: { x: number; y: number; z: number }, len = 1): Skeleton {
   const down = { x: 0, y: -1, z: 0 }
   const q = rotationBetween(down, armDir)
   const bones: RestBone[] = [
-    { name: 'hips', parent: null, rotation: Q0, position: { x: 0, y: 1, z: 0 } },
-    { name: 'upperarm_l', parent: 'hips', rotation: q, position: { x: 0.2, y: 0.5, z: 0 } },
+    {
+      name: 'hips',
+      parent: null,
+      rotation: Q0,
+      position: { x: 0, y: 1, z: 0 },
+    },
+    {
+      name: 'upperarm_l',
+      parent: 'hips',
+      rotation: q,
+      position: { x: 0.2, y: 0.5, z: 0 },
+    },
     {
       name: 'lowerarm_l',
       parent: 'upperarm_l',
@@ -127,13 +253,15 @@ describe('retargetPose', () => {
     expect(d0.y).toBeCloseTo(-Math.SQRT1_2, 6)
     // The clip raises the arm to horizontal: so does the target.
     const raise = quatFromAxisAngle(Z, Math.PI / 4)
-    const posed = new Map([['upperarm_l', multiply(raise, a.bones[1].rotation)]])
+    const posed = new Map([
+      ['upperarm_l', multiply(raise, a.bones[1].rotation)],
+    ])
     const d1 = elbowDir(t, rt.pose(posed).rotations)
     expect(d1.x).toBeCloseTo(1, 6)
     expect(d1.y).toBeCloseTo(0, 6)
   })
 
-  test('arm space turns a hanging arm away from the body (Mixamo\'s Arm-Space)', () => {
+  test("arm space turns a hanging arm away from the body (Mixamo's Arm-Space)", () => {
     // Both rest with the arm hanging straight down.
     const sk = arm({ x: 0, y: -1, z: 0 })
     const plain = elbowDir(sk, retargeter(sk, sk).pose(new Map()).rotations)
@@ -185,14 +313,39 @@ describe('a collapsed chain (one target bone for several source bones)', () => {
     const Q0 = { x: 0, y: 0, z: 0, w: 1 }
     // Source: hips → thigh → calf → foot, a leg 2 long hanging down.
     const sBones: RestBone[] = [
-      { name: 'pelvis', parent: null, rotation: Q0, position: { x: 0, y: 2, z: 0 } },
-      { name: 'thigh_l', parent: 'pelvis', rotation: Q0, position: { x: 0.2, y: 0, z: 0 } },
-      { name: 'calf_l', parent: 'thigh_l', rotation: Q0, position: { x: 0, y: -1, z: 0 } },
-      { name: 'foot_l', parent: 'calf_l', rotation: Q0, position: { x: 0, y: -1, z: 0 } },
+      {
+        name: 'pelvis',
+        parent: null,
+        rotation: Q0,
+        position: { x: 0, y: 2, z: 0 },
+      },
+      {
+        name: 'thigh_l',
+        parent: 'pelvis',
+        rotation: Q0,
+        position: { x: 0.2, y: 0, z: 0 },
+      },
+      {
+        name: 'calf_l',
+        parent: 'thigh_l',
+        rotation: Q0,
+        position: { x: 0, y: -1, z: 0 },
+      },
+      {
+        name: 'foot_l',
+        parent: 'calf_l',
+        rotation: Q0,
+        position: { x: 0, y: -1, z: 0 },
+      },
     ]
     // Target: a chibi leg, one bone, pointing down by its flesh.
     const tBones: RestBone[] = [
-      { name: 'root', parent: null, rotation: Q0, position: { x: 0, y: 0, z: 0 } },
+      {
+        name: 'root',
+        parent: null,
+        rotation: Q0,
+        position: { x: 0, y: 0, z: 0 },
+      },
       {
         name: 'leg-left',
         parent: 'root',
@@ -213,7 +366,11 @@ describe('a collapsed chain (one target bone for several source bones)', () => {
         ['calf_l', quatFromAxisAngle(X, Math.PI / 2)],
       ])
     )
-    const leg = rotateVector(out.rotations.get('leg-left')!, { x: 0, y: -1, z: 0 })
+    const leg = rotateVector(out.rotations.get('leg-left')!, {
+      x: 0,
+      y: -1,
+      z: 0,
+    })
     // Hip (0,0,0) → foot (0,-1,1): 45° forward and down, not straight ahead.
     expect(leg.y).toBeCloseTo(-Math.SQRT1_2, 6)
     expect(leg.z).toBeCloseTo(Math.SQRT1_2, 6)

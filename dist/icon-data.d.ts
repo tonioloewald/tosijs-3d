@@ -45,6 +45,7 @@ declare const _default: {
     cloud: string;
     compass: string;
     downloadCloud: string;
+    download: string;
     heart: string;
     logOut: string;
     map: string;

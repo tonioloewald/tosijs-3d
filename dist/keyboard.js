@@ -388,6 +388,8 @@ export function fieldGroup(config) {
                 // to `window` is the common case, and it must not eat a nav search.
                 if (target === globalThis.window && isTextEntry(evt))
                     return;
+                if (deliveredKeys.has(evt))
+                    return;
                 const e = evt;
                 // Only claim the key if a field consumed it — otherwise Tab still
                 // traverses, Escape still closes, and cmd-R still reloads.
@@ -399,8 +401,10 @@ export function fieldGroup(config) {
                     meta: e.metaKey,
                     alt: e.altKey,
                 });
-                if (consumed)
+                if (consumed) {
+                    deliveredKeys.add(evt);
                     e.preventDefault();
+                }
             };
             target.addEventListener('keydown', onKey);
             return () => {
@@ -504,6 +508,16 @@ in NO attached group still type through here — see `attachedGroups`.
 let activeField = null;
 let globalKeyListener = null;
 const attachedGroups = new Map();
+/*
+A KEY IS DELIVERED AT MOST ONCE (tosijs-3d#94). Standing down by ownership
+is decided when each listener runs, and a handler can change ownership
+mid-event: a `handleChange` that re-renders its panel detaches the field's
+group and attaches a new one inside the keydown. The global listener, which
+runs after the group's, then sees a field no attached group owns and types
+the key a second time (`flagXXship`). So every route marks the event it
+consumed and skips one already marked.
+*/
+const deliveredKeys = new WeakSet();
 const ownedByAttachedGroup = (f) => {
     for (const g of attachedGroups.keys())
         if (g.has(f))
@@ -515,6 +529,8 @@ function ensureGlobalKeyListener() {
         return;
     globalKeyListener = (evt) => {
         if (activeField == null || ownedByAttachedGroup(activeField))
+            return;
+        if (deliveredKeys.has(evt))
             return;
         /*
         A REAL input wins over an SVG field.
@@ -545,6 +561,7 @@ function ensureGlobalKeyListener() {
         else
             return;
         // Only claim keys a field consumed — Tab still traverses, cmd-R reloads.
+        deliveredKeys.add(evt);
         e.preventDefault();
     };
     globalThis.window.addEventListener('keydown', globalKeyListener);

@@ -480,7 +480,10 @@ export class B3dPlanet extends B3dChild {
         BABYLON.Axis.Z,
         (tilt * Math.PI) / 180
       ).multiply(
-        BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, this.rootNode.rotation.y)
+        BABYLON.Quaternion.RotationAxis(
+          BABYLON.Axis.Y,
+          this.rootNode.rotation.y
+        )
       )
     } else if (this.rootNode.rotationQuaternion != null) {
       this.rootNode.rotationQuaternion = null

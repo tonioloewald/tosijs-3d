@@ -1,5 +1,5 @@
 import { type PopupSide } from './flow-layout.js';
-import { type SliderScale } from './widgets3d-layout.js';
+import { type PanelFit, type SliderScale } from './widgets3d-layout.js';
 import { handlerOf, resetHandlerWarnings } from './handler-of.js';
 /**
  * A pointer phase, routed by the panel in the widget's local SVG coords.
@@ -760,6 +760,31 @@ export declare function titled3d(content: SVGSVGElement, config?: {
 }): SVGSVGElement & {
     dispose: () => void;
 };
+/**
+ * What `panel3d` returns: its SVG, with what a host drives it by. Typed in
+ * full so a consumer need not cast (tosijs-3d#104: `dispose` was missing from
+ * the declaration, so code that called it did not typecheck).
+ */
+export type Panel3d = SVGSVGElement & {
+    /** Feed a press, move or release in viewBox units (no DOM events). */
+    handlePointer: (kind: PointerKind, x: number, y: number) => void;
+    /** Scroll by a delta in viewBox units; nothing when it does not overflow. */
+    scrollBy: (dy: number) => void;
+    /** Does the content overflow? */
+    scrollable: boolean;
+    /** Height of the title-bar band, in viewBox units. */
+    gripHeight: number;
+    /** Is this point on the bar a host may drag by (the bar less the close)? */
+    gripHit: (x: number, y: number) => boolean;
+    /** The panel's size and what its content needs. */
+    measure: () => PanelFit;
+    /** Where popups go when the panel cannot hold them; returns the removal. */
+    addLayerHost: (fn: LayerHost) => () => void;
+    /** Popups as DOM in `container` (flat only); returns the removal. */
+    useDomLayer: (container?: HTMLElement) => () => void;
+    /** Dispose its rows: unsubscribes bound widgets (#100). */
+    dispose: () => void;
+};
 export declare function panel3d(config: {
     width?: number;
     /**
@@ -808,5 +833,5 @@ export declare function panel3d(config: {
      * The panel handles that press itself, so every host gets it.
      */
     handleClose?: () => void;
-}, ...widgets: Widget3d[]): SVGSVGElement;
+}, ...widgets: Widget3d[]): Panel3d;
 //# sourceMappingURL=widgets3d.d.ts.map

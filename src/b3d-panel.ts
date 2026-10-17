@@ -383,7 +383,9 @@ export class B3dPanel extends Component {
       icon: this.icon || undefined,
       chrome: this.chrome === 'none' ? 'none' : undefined,
       // 'off' (or a stray `false`, as b3d-utils' isOff reads it).
-      exclusive: !['off', 'false', false].includes(this.exclusive as string | boolean),
+      exclusive: !['off', 'false', false].includes(
+        this.exclusive as string | boolean
+      ),
       open: this.open || undefined,
       url: this.url || undefined,
       width: this.width,

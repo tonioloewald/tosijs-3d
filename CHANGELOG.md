@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.10.10 (unreleased)
+## 0.10.10
 
 ### Fixed
 
@@ -19,6 +19,22 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A star system's rocky worlds have continents, not one blob.** A planet reads its noise at `grossScale × radius`, and its presets' relief is tuned for radius 50, both in drawn units. A system draws a world a few units across, so the synthetic Earth read a fiftieth of one noise wave and came out as a single smooth landmass ("very Fisher Price Pangaea"). Its noise is now set per world (about 1.6 waves across it for continents, 6 for coastlines), and the preset's relief is scaled by drawn radius over 50, for planets and moons alike. A look that sets its own scales or relief still wins.
 
 ### Added
+
+- **Retargeting: one humanoid's animation on another's body.** The Universal Animation Library's clips now play on characters that weren't built for them. The demo (`/retarget/`) shows one clip on four bodies: UAL's mannequin, a Quaternius superhero, omnidude (Mixamo's bones) and a Kenney chibi (seven bones).
+  - **Roles:** `humanoidRoles` says which bone is which across UE, Mixamo, Kenney and Blender names.
+  - **Rotations:** `retargeter(source, target)` transfers each bone's world-space rotation since rest, so a clip made on an A-pose rig plays as shown on a T-pose one.
+    - The hips move in proportion to hip height.
+    - A target bone that stands for several source bones (a chibi's whole leg) aims along the source's chain.
+  - **The Babylon side:** `readSkeleton` reads a loaded character; `retargetClip`/`retargetClips` turn a clip into an AnimationGroup for it. All pure except the Babylon side, and tested on the real UAL, Mixamo and Kenney skeletons.
+- **Auto-rig: a mesh with no skeleton, walking** (#3349). Eight markers on a front view, as on Mixamo's auto-rigger, are enough to rig a mesh for UAL's clips. The auto-rig page (`/rig-build/`) rigs Tonio's omnidude, two weasels and a space marine in the browser (CC BY 4.0, on the CDN under `tonio/rigging/`) and plays clips on them side by side.
+  - **Fitting:** `fitSkeleton(markers, meshQuery(positions, indices))` places UAL's 65 joints, each at the middle of the mesh's thickness. An optional tail tip grows a tail chain.
+  - **Binding:** `boneHeat` binds the mesh by bone heat (Baran & Popović), in about 0.1–0.3 s.
+  - **Building:** `buildRig` makes a Babylon skeleton of the result the way the glTF loader would, so `readSkeleton` and `retargetClip` work on it.
+  - **Reading files:** `objTriangles` reads an OBJ.
+- **Spring bones: secondary motion for hair, tails and capes.**
+  - **Model:** `spring-chain` is the pure model: Verlet at a fixed 120 Hz step, stiffness toward the rest shape, damping, sphere colliders, and a correction that keeps the tip from whipping.
+  - **Babylon side:** `springBones` hangs a simulated chain from any node, after the animation has posed the body, and `skinTube` skins a tube to it. `springNodes` runs an existing chain, which is how the weasels' tails swing.
+  - **Demo:** a mannequin running in circles with a ponytail.
 
 - **The auto-rig's marker step** (#3349). `markerField3d` shows a mesh's front silhouette with Mixamo's eight markers on it, to be dragged onto the joints, plus a side view for a tail tip. It is an ordinary panel control, so it works on a page, in the scene and in a headset. Symmetry is on by default, hovering names a marker, `handleChange` fires as a marker moves and `handleCommit` when it is let go. The pure half is in `rig-fit`:
   - `rigSilhouette(positions, indices, view)` is a mesh's front or side view as runs on a grid (a few ms).
@@ -37,6 +53,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **`SOL` carries the real tilts** (Earth 23.4°, Saturn 26.7°, Uranus 82.2°, Venus 2.6°; a negative `day` already makes Venus and Uranus turn backwards). A star system tilts each planet (and its rings).
   - **`tilt` on `<tosi-b3d-planet>`** does the same for a standalone planet; the spin runs about the tilted axis.
   - **What it fixes:** Saturn's rings shadowed nothing in the Solar System demo, because they lay in the plane of the orbit, edge-on to the Sun, and their shadow was a hairline on the equator. The sun's elevation above the rings now runs from −26.7° to +26.7° round Saturn's year: two equinoxes (the demo's clock starts at one) and two solstices.
+
+Size: barrel (min, packages external) 1152.8 KB raw / 394.5 KB gz, +3.46% on 0.10.9 (retargeting, the auto-rig and spring bones).
 
 ## 0.10.9
 

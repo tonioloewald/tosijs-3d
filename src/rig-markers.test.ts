@@ -27,7 +27,8 @@ function cross(): { positions: number[]; indices: number[] } {
   const box = (x0: number, x1: number, y0: number, y1: number) => {
     const b = positions.length / 3
     for (const x of [x0, x1])
-      for (const y of [y0, y1]) for (const z of [-0.2, 0.2]) positions.push(x, y, z)
+      for (const y of [y0, y1])
+        for (const z of [-0.2, 0.2]) positions.push(x, y, z)
     // Front (z = +0.2) and right side (x = x1) faces.
     indices.push(b + 1, b + 5, b + 7, b + 1, b + 7, b + 3)
     indices.push(b + 5, b + 4, b + 6, b + 5, b + 6, b + 7)
@@ -83,8 +84,20 @@ describe('markerField3d', () => {
     f.layout(300)
     const at = (name: string) => {
       const dots = [...f.el.querySelectorAll('circle')]
-      const i = ['chin', 'groin', 'wristL', 'wristR', 'elbowL', 'elbowR', 'kneeL', 'kneeR'].indexOf(name)
-      return { x: Number(dots[i].getAttribute('cx')), y: Number(dots[i].getAttribute('cy')) }
+      const i = [
+        'chin',
+        'groin',
+        'wristL',
+        'wristR',
+        'elbowL',
+        'elbowR',
+        'kneeL',
+        'kneeR',
+      ].indexOf(name)
+      return {
+        x: Number(dots[i].getAttribute('cx')),
+        y: Number(dots[i].getAttribute('cy')),
+      }
     }
     const w = at('wristR')
     f.handle!('down', w.x, w.y)
@@ -103,7 +116,11 @@ describe('markerField3d', () => {
   })
 
   test('a tail tip gets a side view, and dragging it there moves it in depth', () => {
-    const f = R.markerField3d({ ...cross(), value: markers(), tail: { x: 0, y: 0.8, z: -0.1 } })
+    const f = R.markerField3d({
+      ...cross(),
+      value: markers(),
+      tail: { x: 0, y: 0.8, z: -0.1 },
+    })
     f.layout(300)
     const dots = [...f.el.querySelectorAll('circle')]
     expect(dots.length).toBe(10) // eight, plus the tail in both views
@@ -124,7 +141,11 @@ describe('markerField3d', () => {
     const caption = f.el.querySelector('text')!
     expect(caption.textContent).toContain('Drag')
     const dot = f.el.querySelectorAll('circle')[0]
-    f.handle!('hover', Number(dot.getAttribute('cx')), Number(dot.getAttribute('cy')))
+    f.handle!(
+      'hover',
+      Number(dot.getAttribute('cx')),
+      Number(dot.getAttribute('cy'))
+    )
     expect(caption.textContent).toBe('Chin')
     const m = f.markers
     expect(m.wristL.x).toBeGreaterThan(0.4)

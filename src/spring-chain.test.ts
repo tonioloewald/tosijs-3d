@@ -14,11 +14,21 @@ const straightBack = () =>
     [0, 1, 2, 3, 4, 5].map((i) => ({ x: 0, y: 1.7, z: -0.1 * i })),
     Q0
   )
-const run = (c: SpringChain, seconds: number, params = {}, anchor = { x: 0, y: 1.7, z: 0 }) => {
-  for (let t = 0; t < seconds; t += 1 / 60) stepSpringChain(c, anchor, Q0, 1 / 60, params)
+const run = (
+  c: SpringChain,
+  seconds: number,
+  params = {},
+  anchor = { x: 0, y: 1.7, z: 0 }
+) => {
+  for (let t = 0; t < seconds; t += 1 / 60)
+    stepSpringChain(c, anchor, Q0, 1 / 60, params)
 }
 const segLengths = (c: SpringChain) =>
-  c.points.slice(1).map((p, i) => Math.hypot(p.x - c.points[i].x, p.y - c.points[i].y, p.z - c.points[i].z))
+  c.points
+    .slice(1)
+    .map((p, i) =>
+      Math.hypot(p.x - c.points[i].x, p.y - c.points[i].y, p.z - c.points[i].z)
+    )
 
 describe('spring chain', () => {
   test('with no stiffness it hangs straight down, lengths kept', () => {
@@ -51,7 +61,10 @@ describe('spring chain', () => {
     const c = straightBack()
     run(c, 3, { stiffness: 0 })
     // Run forward (+Z) at 4 m/s for half a second: the tail streams behind.
-    for (let i = 0; i < 30; i++) stepSpringChain(c, { x: 0, y: 1.7, z: (i + 1) * (4 / 60) }, Q0, 1 / 60, { stiffness: 0 })
+    for (let i = 0; i < 30; i++)
+      stepSpringChain(c, { x: 0, y: 1.7, z: (i + 1) * (4 / 60) }, Q0, 1 / 60, {
+        stiffness: 0,
+      })
     const head = c.points[0]
     expect(c.points[5].z).toBeLessThan(head.z - 0.1)
     // Stop: it swings past the vertical, then comes to rest under the head.
@@ -65,11 +78,21 @@ describe('spring chain', () => {
   })
 
   test('a collider keeps it outside a shoulder', () => {
-    const c = springChain([0, 1, 2, 3, 4, 5].map((i) => ({ x: 0, y: 1.7, z: -0.1 * i })), Q0)
+    const c = springChain(
+      [0, 1, 2, 3, 4, 5].map((i) => ({ x: 0, y: 1.7, z: -0.1 * i })),
+      Q0
+    )
     const shoulder = { center: { x: 0, y: 1.45, z: -0.05 }, radius: 0.15 }
-    for (let t = 0; t < 4; t += 1 / 60) stepSpringChain(c, { x: 0, y: 1.7, z: 0 }, Q0, 1 / 60, { stiffness: 0 }, [shoulder])
+    for (let t = 0; t < 4; t += 1 / 60)
+      stepSpringChain(c, { x: 0, y: 1.7, z: 0 }, Q0, 1 / 60, { stiffness: 0 }, [
+        shoulder,
+      ])
     for (const p of c.points.slice(1)) {
-      const d = Math.hypot(p.x - shoulder.center.x, p.y - shoulder.center.y, p.z - shoulder.center.z)
+      const d = Math.hypot(
+        p.x - shoulder.center.x,
+        p.y - shoulder.center.y,
+        p.z - shoulder.center.z
+      )
       expect(d).toBeGreaterThan(0.15 + 0.03 - 0.02)
     }
   })
@@ -77,8 +100,10 @@ describe('spring chain', () => {
   test('frame rate does not change the motion', () => {
     const a = straightBack()
     const b = straightBack()
-    for (let t = 0; t < 120; t++) stepSpringChain(a, { x: 0, y: 1.7, z: 0 }, Q0, 1 / 60)
-    for (let t = 0; t < 180; t++) stepSpringChain(b, { x: 0, y: 1.7, z: 0 }, Q0, 1 / 90)
+    for (let t = 0; t < 120; t++)
+      stepSpringChain(a, { x: 0, y: 1.7, z: 0 }, Q0, 1 / 60)
+    for (let t = 0; t < 180; t++)
+      stepSpringChain(b, { x: 0, y: 1.7, z: 0 }, Q0, 1 / 90)
     expect(a.points[5].y).toBeCloseTo(b.points[5].y, 3)
     expect(a.points[5].z).toBeCloseTo(b.points[5].z, 3)
   })

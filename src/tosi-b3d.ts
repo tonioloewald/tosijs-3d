@@ -567,8 +567,8 @@ function xrSeatFor(
     pin?.left != null && pin.right == null
       ? -1
       : pin?.right != null && pin.left == null
-        ? 1
-        : 0
+      ? 1
+      : 0
   const down =
     typeof pin?.top === 'number' ? Math.max(0, pin.top - UNDER_BAR) * K : 0
   return {
@@ -2495,12 +2495,7 @@ export class B3d extends Component {
       // it reopens where you left it (holding its button resets it).
       let seat = this._systemXrSpots.get(content)
       if (seat == null) {
-        seat = xrSeatFor(
-          spec?.screenAnchor,
-          (vb.width || 400) * K,
-          half,
-          K
-        )
+        seat = xrSeatFor(spec?.screenAnchor, (vb.width || 400) * K, half, K)
         this._systemXrSpots.set(content, seat)
       }
       panel = attachFramePanel(scene, xrCam, this.xrFrames.get('eye'), {

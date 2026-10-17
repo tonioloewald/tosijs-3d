@@ -445,4 +445,12 @@ export { debugSink, sendDebug } from './debug-sink.js';
 export { nearFirst, drawKey } from './draw-order.js';
 export { noiseVolume, sampleNoiseVolume } from './noise-volume.js';
 export { CLIMATE_CELLS, climateLattice, climateNoise, climateOctave, } from './climate-noise.js';
+export { humanoidRoles, retargeter, rotationBetween, ROLES, } from './retarget.js';
+export { readSkeleton, retargetClip, retargetClips, } from './retarget-babylon.js';
+export { fitSkeleton, fittedRestBones, meshQuery, objTriangles, skinSegments, MARKER_NAMES, rigSilhouette, guessMarkers, } from './rig-fit.js';
+export { markerField3d, MARKER_LABELS } from './rig-markers.js';
+export { boneHeat } from './bone-heat.js';
+export { buildRig } from './rig-build.js';
+export { springChain, stepSpringChain, resetSpringChain, shiftSpringChain, SPRING_DEFAULTS, } from './spring-chain.js';
+export { springBones, springNodes } from './spring-chain-babylon.js';
 //# sourceMappingURL=index.js.map

@@ -206,7 +206,7 @@ import { voxelGalaxy } from './voxel-galaxy.js';
 import { PerlinNoise } from './perlin-noise.js';
 import { b3dPlanet } from './b3d-planet.js';
 import { createStarMaterial } from './star-material.js';
-import { rockyWorldFor } from './rocky-world.js';
+import { resolveRockyWorld, rockyWorldFor } from './rocky-world.js';
 import { layoutSystem, spinAngle, } from './system-layout.js';
 import { rockGeometry } from './procedural-rock.js';
 /** Radians round an orbit after `time` seconds (negative period: backwards). */
@@ -221,6 +221,35 @@ function nameSeed(name) {
     for (let i = 0; i < name.length; i++)
         h = Math.imul(h ^ name.charCodeAt(i), 16777619);
     return Math.abs(h) % 100000;
+}
+/*
+A ROCKY WORLD DRAWN SMALL KEEPS ITS SHAPE. A planet reads its noise at
+grossScale × radius and its presets' relief is tuned for radius 50, both in
+the units it is DRAWN in; a system draws a world a few units across. Earth
+at 4.5 read a fiftieth of one noise wave, one smooth landmass (Tonio: "very
+Fisher Price Pangaea"), and once the noise was put right its relief was
+over a hundred percent of its radius. So the noise is set per WORLD (about
+1.6 waves across it for continents, 6 for coastlines) and the preset's
+relief is scaled by drawn radius over 50. A look that sets its own scales
+or relief still wins.
+*/
+function drawnToScale(el, radius) {
+    if (!(radius > 0))
+        return;
+    if (el.grossScale === 0.005)
+        el.grossScale = 1.6 / radius;
+    if (el.detailScale === 0.02)
+        el.detailScale = 6 / radius;
+    const look = resolveRockyWorld(el.world);
+    if (look == null)
+        return;
+    const k = radius / 50;
+    const over = el.worldOverrides ?? {};
+    el.worldOverrides = {
+        ...over,
+        grossAmplitude: (over.grossAmplitude ?? look.grossAmplitude) * k,
+        detailAmplitude: (over.detailAmplitude ?? look.detailAmplitude) * k,
+    };
 }
 export class B3dStarSystem extends B3dChild {
     static preferredTagName = 'tosi-b3d-star-system';
@@ -572,6 +601,16 @@ export class B3dStarSystem extends B3dChild {
             const holder = new BABYLON.TransformNode(`planet-holder-${i}`, scene);
             holder.parent = this.rootNode;
             this.holders.push(holder);
+            /*
+            THE AXIS LEANS (axial tilt), fixed in space: the PLANET is tilted (its
+            `tilt`; rings ride it), so its seasons, and a ring's shadow on its
+            planet, follow the year. Without it every ring lay in its orbit's
+            plane, edge-on to its sun, and its shadow was a hairline. The holder
+            stays level: each moon tilts its own orbit (its `inclination`, by
+            default the planet's equator), because our Moon orbits near the
+            ecliptic, not Earth's equator (it dropped 23° below it).
+            */
+            const tilt = Number(spec?.planets[i].tilt) || 0;
             const giant = planet.classification !== 'rocky';
             const seed = 1 + (Math.abs(planet.seed) % 9973);
             const el = b3dPlanet({
@@ -604,11 +643,22 @@ export class B3dStarSystem extends B3dChild {
             }
             // Its own day (real for Sol); a generated rock has an Earth day, a
             // giant a Jupiter one.
+            if (!giant)
+                drawnToScale(el, place.visualRadius);
+            if (tilt !== 0)
+                el.tilt = tilt;
             const day = spec?.planets[i].day ?? (giant ? 0.42 : 1);
             this.adopt(el, holder, planet.name, place.visualRadius, day);
             place.moons.forEach((moon, m) => {
+                const given0 = spec?.planets[i].moons?.[m];
+                // The plane it orbits in, tilted once; the pivot turns inside it.
+                const plane = new BABYLON.TransformNode(`moon-plane-${i}-${m}`, scene);
+                plane.parent = holder;
+                const incl = Number(given0?.inclination ?? tilt) || 0;
+                if (incl !== 0)
+                    plane.rotation.z = (incl * Math.PI) / 180;
                 const pivot = new BABYLON.TransformNode(`moon-pivot-${i}-${m}`, scene);
-                pivot.parent = holder;
+                pivot.parent = plane;
                 const at = new BABYLON.TransformNode(`moon-${i}-${m}`, scene);
                 at.parent = pivot;
                 at.position.x = moon.distance;
@@ -638,6 +688,7 @@ export class B3dStarSystem extends B3dChild {
                 });
                 if (given)
                     Object.assign(moonEl, lookOf(given));
+                drawnToScale(moonEl, moon.visualRadius);
                 this.adopt(moonEl, at, name, moon.visualRadius);
             });
             if (!isOff(attrs.showOrbits))

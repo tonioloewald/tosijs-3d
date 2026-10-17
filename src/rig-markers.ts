@@ -164,7 +164,15 @@ export function markerField3d(config: MarkerField3dOptions): MarkerField {
     'font-size': String(Math.round(w3dTheme.fontSize * 0.85)),
     fill: w3dTheme.muted,
   })
-  for (const n of [frontBg, sideBg, frontShape, sideShape, centre, dots, caption])
+  for (const n of [
+    frontBg,
+    sideBg,
+    frontShape,
+    sideShape,
+    centre,
+    dots,
+    caption,
+  ])
     el.appendChild(n)
 
   const HANDLE = 5
@@ -192,9 +200,23 @@ export function markerField3d(config: MarkerField3dOptions): MarkerField {
       })
       .join('')
 
-  const points = (): Array<{ key: Key; view: 'front' | 'side'; x: number; y: number }> => {
-    const out: Array<{ key: Key; view: 'front' | 'side'; x: number; y: number }> =
-      MARKER_NAMES.map((n) => ({ key: n, view: 'front' as const, x: fx(markers[n].x), y: py(markers[n].y) }))
+  const points = (): Array<{
+    key: Key
+    view: 'front' | 'side'
+    x: number
+    y: number
+  }> => {
+    const out: Array<{
+      key: Key
+      view: 'front' | 'side'
+      x: number
+      y: number
+    }> = MARKER_NAMES.map((n) => ({
+      key: n,
+      view: 'front' as const,
+      x: fx(markers[n].x),
+      y: py(markers[n].y),
+    }))
     if (tail) {
       out.push({ key: 'tail', view: 'front', x: fx(tail.x), y: py(tail.y) })
       out.push({ key: 'tail', view: 'side', x: sx(tail.z), y: py(tail.y) })
@@ -259,7 +281,9 @@ export function markerField3d(config: MarkerField3dOptions): MarkerField {
         })
       )
     }
-    caption.textContent = active ? MARKER_LABELS[active] : 'Drag each marker onto its joint'
+    caption.textContent = active
+      ? MARKER_LABELS[active]
+      : 'Drag each marker onto its joint'
   }
 
   const emit = (name: 'handleChange' | 'handleCommit'): void => {
@@ -284,7 +308,11 @@ export function markerField3d(config: MarkerField3dOptions): MarkerField {
       if (!tail) return
       if (view === 'side') {
         const z = side.min.u + (x - sideX) / scale
-        tail = { ...tail, y: my, z: Math.max(side.min.u, Math.min(side.max.u, z)) }
+        tail = {
+          ...tail,
+          y: my,
+          z: Math.max(side.min.u, Math.min(side.max.u, z)),
+        }
       } else {
         const mx = clampX(front.min.u + (x - frontX) / scale)
         tail = { ...tail, x: api.symmetry ? 0 : mx, y: my }
@@ -317,7 +345,10 @@ export function markerField3d(config: MarkerField3dOptions): MarkerField {
         front.max.u - front.min.u + (hasSide() ? side.max.u - side.min.u : 0)
       const H = front.max.v - front.min.v || 1
       const maxH = config.maxHeight ?? 200
-      scale = Math.max(0.01, Math.min((width - pad * 2 - gap - 8) / (units || 1), maxH / H))
+      scale = Math.max(
+        0.01,
+        Math.min((width - pad * 2 - gap - 8) / (units || 1), maxH / H)
+      )
       viewH = H * scale
       const used = units * scale + gap
       frontX = pad + 4 + Math.max(0, (width - pad * 2 - 8 - used) / 2)

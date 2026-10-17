@@ -9,12 +9,23 @@ function tube(rings: number, sides: number, length: number, radius: number) {
     for (let s = 0; s <= sides; s++) {
       // s = sides duplicates s = 0: a seam the weld must close.
       const a = (2 * Math.PI * (s % sides)) / sides
-      pos.push(radius * Math.cos(a), (length * r) / (rings - 1), radius * Math.sin(a))
+      pos.push(
+        radius * Math.cos(a),
+        (length * r) / (rings - 1),
+        radius * Math.sin(a)
+      )
     }
   const at = (r: number, s: number) => r * (sides + 1) + s
   for (let r = 0; r + 1 < rings; r++)
     for (let s = 0; s < sides; s++)
-      idx.push(at(r, s), at(r + 1, s), at(r + 1, s + 1), at(r, s), at(r + 1, s + 1), at(r, s + 1))
+      idx.push(
+        at(r, s),
+        at(r + 1, s),
+        at(r + 1, s + 1),
+        at(r, s),
+        at(r + 1, s + 1),
+        at(r, s + 1)
+      )
   return { pos, idx }
 }
 
@@ -27,17 +38,19 @@ describe('boneHeat', () => {
   const skin = boneHeat(pos, idx, bones)
   const weightOf = (v: number, bone: number) => {
     let w = 0
-    for (let k = 0; k < 4; k++) if (skin.indices[v * 4 + k] === bone) w += skin.weights[v * 4 + k]
+    for (let k = 0; k < 4; k++)
+      if (skin.indices[v * 4 + k] === bone) w += skin.weights[v * 4 + k]
     return w
   }
   const n = pos.length / 3
 
-  test('every vertex weights sum to 1, on the skeleton\'s own indices', () => {
+  test("every vertex weights sum to 1, on the skeleton's own indices", () => {
     for (let v = 0; v < n; v++) {
       let s = 0
       for (let k = 0; k < 4; k++) {
         s += skin.weights[v * 4 + k]
-        if (skin.weights[v * 4 + k] > 0) expect([3, 7]).toContain(skin.indices[v * 4 + k])
+        if (skin.weights[v * 4 + k] > 0)
+          expect([3, 7]).toContain(skin.indices[v * 4 + k])
       }
       expect(s).toBeCloseTo(1, 5)
     }
@@ -51,7 +64,8 @@ describe('boneHeat', () => {
     expect(byRing.get(40)!).toBeGreaterThan(0.98)
     expect(byRing.get(20)!).toBeGreaterThan(0.3)
     expect(byRing.get(20)!).toBeLessThan(0.7)
-    for (let r = 1; r <= 40; r++) expect(byRing.get(r)!).toBeGreaterThanOrEqual(byRing.get(r - 1)! - 1e-6)
+    for (let r = 1; r <= 40; r++)
+      expect(byRing.get(r)!).toBeGreaterThanOrEqual(byRing.get(r - 1)! - 1e-6)
     // A blend, not a step: some rings either side of the joint are mixed.
     let mixed = 0
     for (const w of byRing.values()) if (w > 0.1 && w < 0.9) mixed++
@@ -59,6 +73,7 @@ describe('boneHeat', () => {
   })
 
   test('the seam is welded: its two copies weigh the same', () => {
-    for (let r = 0; r < 41; r++) expect(weightOf(r * 13, 7)).toBeCloseTo(weightOf(r * 13 + 12, 7), 6)
+    for (let r = 0; r < 41; r++)
+      expect(weightOf(r * 13, 7)).toBeCloseTo(weightOf(r * 13 + 12, 7), 6)
   })
 })

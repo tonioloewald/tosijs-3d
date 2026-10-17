@@ -764,7 +764,10 @@ export declare class B3d extends Component {
     private _systemButtonOf;
     /** One HTML button per system panel, mirrored by both system bars. */
     private _systemButtons;
-    private _sysPanel;
+    /** The open system panels, by content. */
+    private _sysPanels;
+    /** System panels already opened by their `open` attribute (once each). */
+    private _sysOpened;
     /** The headset's settings panel closer, while a session has one. */
     private _closeXrSettings;
     private _toggleSystemPanel;
@@ -776,6 +779,14 @@ export declare class B3d extends Component {
     /** `flat-ui="dom"`; anything but 'scene' or 'dom' warns once and is 'scene'. */
     private _flatDom;
     private _flatUiWarned;
+    /** Close every system panel, or only the exclusive ones. */
+    private _closeSystemPanels;
+    /**
+     * Close them all for a change of presentation (a headset session starting
+     * or ending), and open the non-exclusive ones again once the other side is
+     * up: an app's chrome follows you into the headset and back.
+     */
+    private _carrySystemPanels;
     private _closeSystemPanel;
     private _sceneToolbarSpec;
     private _disposeFlatPanels;
@@ -1030,6 +1041,20 @@ export declare class B3d extends Component {
         width?: number;
         height?: number;
     }): Promise<string>;
+    /**
+     * SAVE THE VIEW AS A PNG: what the canvas shows, `ui` true with the panels
+     * and the system bar, false without them (the `ui` and `modal` layers and
+     * world-layer panels are hidden for the frame and put back). Read straight
+     * after a frame ends, so it needs no preserved drawing buffer. Downloads
+     * `name` (default: the panel title, or "scene", and the time).
+     */
+    saveScreenshot(opts?: {
+        ui?: boolean;
+        name?: string;
+    }): Promise<Blob | null>;
+    /** The panel's screenshot buttons: close their own popup first, so "with
+     * panels" does not photograph the button you pressed. */
+    private _screenshotFromPanel;
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
      * its contents in place. Unified on purpose — see `_panelWidgets`. */
     private _repaintPanels;

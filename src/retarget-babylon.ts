@@ -68,9 +68,7 @@ export function readSkeleton(
       // A top bone: include everything between the model root and it.
       const parentNode = node?.parent ?? null
       if (parentNode != null) {
-        const toParent = parentNode
-          .computeWorldMatrix(true)
-          .multiply(rootInv)
+        const toParent = parentNode.computeWorldMatrix(true).multiply(rootInv)
         toParent.decompose(scale, rot, pos)
         above.set(name, q(rot))
         aboveMatrix.set(name, toParent.clone())
@@ -107,7 +105,11 @@ export function readSkeleton(
     if (b.parent == null) continue
     const k = unit.get(topOf(b).name)
     if (k == null || Math.abs(k - 1) < 1e-9) continue
-    b.position = { x: b.position.x * k, y: b.position.y * k, z: b.position.z * k }
+    b.position = {
+      x: b.position.x * k,
+      y: b.position.y * k,
+      z: b.position.z * k,
+    }
   }
   addEnds(skeleton, bones, rootInv)
   return {
@@ -219,9 +221,10 @@ export function retargetClip(
   const frames = Math.max(1, Math.round(seconds * fps))
 
   const moving = rt.roles.map((r) => target.roles[r]!)
-  const keys = new Map<string, Array<{ frame: number; value: BABYLON.Quaternion }>>(
-    moving.map((n) => [n, []])
-  )
+  const keys = new Map<
+    string,
+    Array<{ frame: number; value: BABYLON.Quaternion }>
+  >(moving.map((n) => [n, []]))
   const hipsKeys: Array<{ frame: number; value: BABYLON.Vector3 }> = []
   const sHips = source.roles.hips
   const tHips = target.roles.hips
