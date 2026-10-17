@@ -97,6 +97,11 @@ const layers = new WeakMap<
  * hits it never reaches the world). Made in pairs, ui before modal, because a
  * newer layer is drawn later and asked first: so modal is over ui.
  */
+/** Screen panels per drawing scene, bottom first (see "STACKED"). */
+const screenStacks = new WeakMap<BABYLON.Scene, Array<{ raise: () => void }>>()
+/** How much nearer each screen panel is than the one below, as a fraction. */
+const STACK_STEP = 0.002
+
 export function panelLayerScene(
   scene: BABYLON.Scene,
   layer: 'ui' | 'modal'
@@ -772,6 +777,35 @@ export function attachFramePanel(
   `face` one (local +x right, +y up, +z ahead), so a pixel is a fixed offset.
   */
   let screenK = 1
+  /*
+  STACKED, so the panel drawn on top is the panel you press (tosijs-3d#115).
+  Every screen panel sat at the same distance, and on a tie Babylon draws the
+  LATER mesh on top while a pick keeps the FIRST it finds. So where two
+  overlapped, presses went to the one underneath. It surfaced as a panel whose
+  content was swapped for something taller: reopened, it was the newest and
+  drawn over its neighbour, and every row over the neighbour was dead. Each
+  screen panel in a layer now sits a hair nearer than the ones below it (its
+  size follows the distance, so nothing moves on screen); the newest is on
+  top, and a press brings a panel to the front. The pick follows the depth
+  and the drawing follows `alphaIndex`, both from the same rank.
+  */
+  const stackKey = drawScene
+  const stacked = { raise: () => {} }
+  if (spec.screenAnchor) {
+    let stack = screenStacks.get(stackKey)
+    if (stack == null) screenStacks.set(stackKey, (stack = []))
+    const s = stack
+    s.push(stacked)
+    stacked.raise = () => {
+      const i = s.indexOf(stacked)
+      if (i >= 0 && i < s.length - 1) {
+        s.splice(i, 1)
+        s.push(stacked)
+      }
+    }
+  }
+  const stackRank = (): number =>
+    screenStacks.get(stackKey)?.indexOf(stacked) ?? 0
   // Where it last went on screen, in CSS pixels, for a drag to start from.
   let lastBox: {
     x: number
@@ -795,7 +829,13 @@ export function attachFramePanel(
       typeof v === 'string' && v.endsWith('vmin')
         ? (parseFloat(v) / 100) * vmin
         : (v as AnchorLength | undefined)
-    const d = Math.max(sa.distance ?? 1, (c.minZ ?? 0) * 1.25)
+    const rank = Math.max(0, stackRank())
+    const d =
+      Math.max(sa.distance ?? 1, (c.minZ ?? 0) * 1.25) *
+      (1 - Math.min(0.2, STACK_STEP * rank))
+    // Drawn in the same order: blended meshes sort by the distance to their
+    // CENTRE, which an off-centre panel loses whatever its depth.
+    shown.alphaIndex = rank
     // Metres per pixel at that distance, by whichever axis the fov fixes.
     const perPx =
       c.fovMode === BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED
@@ -1090,6 +1130,7 @@ export function attachFramePanel(
           ev != null &&
           target.gripHit?.(lastX, lastY)
         ) {
+          stacked.raise()
           screenDrag = {
             cx: ev.clientX,
             cy: ev.clientY,
@@ -1118,6 +1159,7 @@ export function attachFramePanel(
           return
         }
         pressing = true
+        stacked.raise()
         holdCamera()
         /*
         THE PANEL HAS THIS PRESS, so the game does not also get it. The
@@ -1270,6 +1312,11 @@ export function attachFramePanel(
       el?.removeEventListener('panelfocus', onFocus)
       if (pointerObs != null) drawScene.onPointerObservable.remove(pointerObs)
       stopWheel()
+      const stack = screenStacks.get(stackKey)
+      if (stack != null) {
+        const i = stack.indexOf(stacked)
+        if (i >= 0) stack.splice(i, 1)
+      }
       tex.dispose()
       mat.dispose()
       if (shown !== plane) shown.dispose()
