@@ -241,3 +241,30 @@ describe('D-pad traversal escapes rather than trapping', () => {
     expect(fired).toEqual([1])
   })
 })
+
+describe('titles are tooltips, drawn by the panel (#112)', () => {
+  test('hovering an icon-only cell shows its title over the panel; leaving hides it', async () => {
+    const w3d = await import('./widgets3d.js')
+    const grid = mod.iconGrid3d({
+      items: [
+        { icon: 'close', title: 'Delete' },
+        { icon: 'copy', title: 'Duplicate' },
+      ],
+    })
+    const panel = w3d.panel3d({ width: 240 }, grid)
+    const tip = () => panel.querySelector('[data-w3d-tip]')
+    // Sweep down the first column until the pointer is over the first cell.
+    let shown: Element | null = null
+    for (let y = 0; y < 120 && shown == null; y += 4) {
+      panel.handlePointer('move', 30, y)
+      const t = tip()
+      if (t?.getAttribute('visibility') === 'visible') shown = t
+    }
+    expect(shown).not.toBeNull()
+    expect(shown!.textContent).toBe('Delete')
+    // Outside the clipped body, so a bottom row's tip is not cut off.
+    expect(shown!.parentNode).toBe(panel)
+    panel.handlePointer('leave', 0, 0)
+    expect(tip()!.getAttribute('visibility')).toBe('hidden')
+  })
+})

@@ -60,13 +60,13 @@ const ACTIONS = [
 
 // NO CAPTIONS, 2-D — which is the point of the control. Saving space is why you
 // reach for a grid, and a caption is what forces a narrow column: without them
-// the same items fit six across instead of four. (Tooltips are the missing half;
-// see TODO — there is no hover in a headset, so it is not just a title attr.)
+// the same items fit six across instead of four. Each keeps its name as a
+// `title`: hover one (a mouse here, a controller ray in a headset).
 const PALETTE = [
-  'move', 'rotateCw', 'resize', 'trash',
-  'copy', 'camera', 'map', 'cloud',
-  'star', 'compass', 'settings', 'bug',
-].map((icon) => ({ icon }))
+  ['move', 'Move'], ['rotateCw', 'Rotate'], ['resize', 'Scale'], ['trash', 'Delete'],
+  ['copy', 'Duplicate'], ['camera', 'Camera'], ['map', 'Map'], ['cloud', 'Sky'],
+  ['star', 'Favourite'], ['compass', 'Compass'], ['settings', 'Settings'], ['bug', 'Debug'],
+].map(([icon, title]) => ({ icon, title }))
 
 // THE RULE ENSEMBLE ACTUALLY WANTS, and it is none of the three modes.
 //
@@ -202,6 +202,15 @@ Four columns by default. Without captions a cell is only as wide as its icon, so
 a caption-less grid can be much wider — which is why `columns` defaults from
 whether anything is captioned rather than being a fixed number.
 
+## Icon-only, never nameless
+
+Give an item a `title` and it is a tooltip: shown on hover (a mouse, or a
+controller ray, which hovers the same way) and on D-pad focus. The PANEL draws
+it, over its body, so a bottom row's tip is not clipped, and it flips above the
+cell when there is no room below. An SVG `<title>` would not do: a texture shows
+none, and a headset has no browser tooltip. `iconBar3d` shares the same tip
+(`WidgetHost.showTip`), so a custom widget can have one too.
+
 */
 /*{ "parent": "ui-controls", "order": 50 }*/
 
@@ -224,6 +233,13 @@ export interface IconGridItem {
   icon: string
   /** Caption under the icon. Omit for an icon-only cell. */
   label?: string
+  /**
+   * Its name as a TOOLTIP, shown on hover (pointer or controller ray) and on
+   * D-pad focus. Drawn by the panel, so it works on a texture and in a
+   * headset, where an SVG `<title>` shows nothing. Lets a palette drop its
+   * captions and stay named (#112).
+   */
+  title?: string
   /**
    * Greyed and unclickable, but still occupies its cell so the grid holds shape.
    *
@@ -373,6 +389,15 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
       if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return i
     }
     return -1
+  }
+
+  // The hovered (or focused) cell's tooltip, from the panel; none alone.
+  const tipFor = (i: number): void => {
+    const title = items[i]?.title
+    const b = boxes[i]
+    if (title && b != null)
+      host?.showTip?.(title, { x: b.x, y: b.y, width: b.w, height: b.h })
+    else host?.hideTip?.()
   }
 
   const isOn = (i: number): boolean => selection.includes(i)
@@ -541,13 +566,17 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
       if (kind === 'leave') {
         hovered = -1
         pressed = -1
+        host?.hideTip?.()
         draw()
         return
       }
       const i = at(x, y)
-      if (kind === 'move') {
+      // A panel reports an unpressed pointer as `hover`, a pressed one as
+      // `move`; both are where the pointer is.
+      if (kind === 'move' || kind === 'hover') {
         if (i !== hovered) {
           hovered = i
+          tipFor(i)
           draw()
         }
         return
@@ -589,6 +618,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
         const idx = row * cols + nextCol
         if (idx >= items.length) return false
         hovered = idx
+        tipFor(idx)
         draw()
         return true
       }
@@ -597,6 +627,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
         const idx = nextRow * cols + col
         if (nextRow < 0 || idx >= items.length) return false
         hovered = idx
+        tipFor(idx)
         draw()
         return true
       }
@@ -607,6 +638,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
     },
     focusClear() {
       hovered = -1
+      host?.hideTip?.()
       draw()
     },
 

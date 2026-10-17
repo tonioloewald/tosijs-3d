@@ -1171,6 +1171,13 @@ export function offsetHost(
 ): WidgetHost {
   return {
     ...host,
+    showTip:
+      host.showTip == null
+        ? undefined
+        : (t, anchor) => {
+            const d = offsetOf()
+            host.showTip!(t, { ...anchor, x: anchor.x + d.x, y: anchor.y + d.y })
+          },
     showPopup(config, ...items) {
       const d = offsetOf()
       return host.showPopup(
@@ -1213,6 +1220,18 @@ export interface WidgetHost {
   ) => { close: () => void }
   /** Close whatever popup is open, if any. */
   closePopup: () => void
+  /**
+   * Show a tooltip for `anchor` (widget-local, like a popup's), drawn by the
+   * panel over its body so a bottom row's tip is not clipped, and flipped
+   * above when there is no room below. For an icon-only control: a texture
+   * shows no `<title>` and a headset has no browser tooltip (#112).
+   */
+  showTip?: (
+    text: string,
+    anchor: { x: number; y: number; width: number; height: number }
+  ) => void
+  /** Hide the tooltip. */
+  hideTip?: () => void
   /** Ask the panel to re-run layout — a widget that changed height needs this. */
   relayout: () => void
   /**
@@ -1704,6 +1723,80 @@ export function button3d(config: {
   }
 }
 
+/*
+A TOOLTIP, drawn in the SVG: a texture shows no `<title>`, and a headset has
+no browser tooltip at all, but a controller ray hovers as a mouse does. One
+drawer, used by `iconBar3d` on its own and by `panel3d` for every widget in
+it (`WidgetHost.showTip`), so a tip looks the same wherever it comes from.
+Under its anchor, centred, kept inside `width`; above it when there is no
+room below `height`.
+*/
+const TIP_FONT = 11
+function tipDrawer(): {
+  el: SVGElement
+  show: (
+    title: string,
+    at: { x: number; y: number; width: number; height: number },
+    width: number,
+    height?: number
+  ) => void
+  hide: () => void
+} {
+  const tipText = css(
+    text(
+      {
+        'dominant-baseline': 'middle',
+        'font-size': TIP_FONT,
+        'font-family': TH.FONT_FAMILY,
+        'font-weight': TH.TEXT_WEIGHT,
+        fill: TH.TEXT,
+      },
+      ''
+    ),
+    'pointer-events:none'
+  )
+  const tipBg = rect({
+    height: TIP_FONT + 10,
+    rx: 5,
+    ry: 5,
+    fill: TH.PANEL_BG,
+    stroke: TH.MUTED,
+    'stroke-width': 1,
+  })
+  const el = css(
+    g({ visibility: 'hidden', 'data-w3d-tip': '' }, tipBg, tipText),
+    'pointer-events:none'
+  ) as unknown as SVGElement
+  return {
+    el,
+    show(title, at, width, height = Infinity) {
+      const w =
+        measureTextWidth(title, {
+          size: TIP_FONT,
+          family: TH.FONT_FAMILY,
+          weight: TH.TEXT_WEIGHT,
+        }) + 12
+      const h = TIP_FONT + 10
+      const x = Math.max(
+        0,
+        Math.min(at.x + at.width / 2 - w / 2, Math.max(0, width - w))
+      )
+      const below = at.y + at.height + 3
+      const y = below + h > height ? Math.max(0, at.y - 3 - h) : below
+      tipBg.setAttribute('x', String(x))
+      tipBg.setAttribute('y', String(y))
+      tipBg.setAttribute('width', String(w))
+      tipText.setAttribute('x', String(x + 6))
+      tipText.setAttribute('y', String(y + h / 2 + 0.5))
+      tipText.textContent = title
+      el.setAttribute('visibility', 'visible')
+    },
+    hide() {
+      el.setAttribute('visibility', 'hidden')
+    },
+  }
+}
+
 /**
  * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
  * header. Each item is an [[svg-icons|iconGlyph]] (explicit colours, so it
@@ -1822,37 +1915,13 @@ export function iconBar3d(config: {
   a texture shows this where it would show no `<title>`. Full text now,
   not the first word, because it has room.
   */
-  const TIP_FONT = 11
-  const tipText = css(
-    text(
-      {
-        'dominant-baseline': 'middle',
-        'font-size': TIP_FONT,
-        'font-family': TH.FONT_FAMILY,
-        'font-weight': TH.TEXT_WEIGHT,
-        fill: TH.TEXT,
-      },
-      ''
-    ),
-    'pointer-events:none'
-  )
-  const tipBg = rect({
-    height: TIP_FONT + 10,
-    rx: 5,
-    ry: 5,
-    fill: TH.PANEL_BG,
-    stroke: TH.MUTED,
-    'stroke-width': 1,
-  })
-  const tip = css(
-    g({ visibility: 'hidden', 'data-w3d-tip': '' }, tipBg, tipText),
-    'pointer-events:none'
-  )
+  const tip = tipDrawer()
+  let host: WidgetHost | null = null
   const el = g(
     { 'data-w3d': 'iconbar' },
     ...cells.map((c) => c.cell),
     // Last, so it draws over the cells beside and below it.
-    tip
+    tip.el
   )
   let barW = 0
   const step = BS + ICON_GAP
@@ -1890,29 +1959,24 @@ export function iconBar3d(config: {
     })
     const c = cells[hover]
     const title = c?.item.title
-    if (!title) {
-      tip.setAttribute('visibility', 'hidden')
+    // In a panel, the panel's tip: drawn over its body, so a bottom row's tip
+    // is not cut off by the clip. Alone, its own.
+    if (host?.showTip != null) {
+      if (title) host.showTip(title, { x: c.x, y: c.y, width: BS, height: BS })
+      else host.hideTip?.()
       return
     }
-    // Under its icon, centred, and kept inside the bar's width.
-    const w =
-      measureTextWidth(title, {
-        size: TIP_FONT,
-        family: TH.FONT_FAMILY,
-        weight: TH.TEXT_WEIGHT,
-      }) + 12
-    const x = Math.max(0, Math.min(c.x + BS / 2 - w / 2, Math.max(0, barW - w)))
-    const y = c.y + BS + 3
-    tipBg.setAttribute('x', String(x))
-    tipBg.setAttribute('y', String(y))
-    tipBg.setAttribute('width', String(w))
-    tipText.setAttribute('x', String(x + 6))
-    tipText.setAttribute('y', String(y + (TIP_FONT + 10) / 2 + 0.5))
-    tipText.textContent = title
-    tip.setAttribute('visibility', 'visible')
+    if (!title) {
+      tip.hide()
+      return
+    }
+    tip.show(title, { x: c.x, y: c.y, width: BS, height: BS }, barW)
   }
   return {
     el,
+    setHost(h: WidgetHost) {
+      host = h
+    },
     layout(width: number) {
       barW = width
       // `+ ICON_GAP` because the last cell in a row needs no trailing gap.
@@ -3447,6 +3511,8 @@ export function panel3d(
     fill: config.background ?? TH.PANEL_BG,
   })
 
+  // The panel's one tooltip, over its body and outside the clip (#112).
+  const tips = tipDrawer()
   const clipId = `w3d-clip-${clipSeq++}`
   const clip = clipPath(
     { id: clipId },
@@ -3549,7 +3615,14 @@ export function panel3d(
   })
 
   let scroll = 0
+  let tipScroll = 0
   const applyScroll = () => {
+    // A tip belongs where the control WAS; hide it only on a real scroll
+    // (this also runs on every layout).
+    if (scroll !== tipScroll) {
+      tipScroll = scroll
+      tips.hide()
+    }
     scroll = clampScroll(scroll, total, viewport)
     scrollGroup.setAttribute('transform', `translate(0, ${-scroll})`)
     if (scrollable) {
@@ -3718,6 +3791,20 @@ export function panel3d(
       baseHost.closePopup()
     },
     relayout: () => baseHost.relayout(),
+    showTip(t, anchor) {
+      root.appendChild(tips.el) // over anything appended since
+      tips.show(
+        t,
+        {
+          ...anchor,
+          x: anchor.x + padding,
+          y: anchor.y + paddingTop + rowY(index, inHeader),
+        },
+        width,
+        height
+      )
+    },
+    hideTip: () => tips.hide(),
     showLayer(config, ...items) {
       /*
       FAN OUT TO EVERY PRESENTATION.
@@ -3955,6 +4042,7 @@ export function panel3d(
   // as a button does, so a press that slides off is not a close.
   let closing = false
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
+    if (kind === 'leave' || kind === 'down') tips.hide()
     if (handleClose != null && bar != null) {
       const onClose = y <= bar.barHeight && x >= bar.closeHitX
       if (kind === 'down' && onClose && overlay == null) {
