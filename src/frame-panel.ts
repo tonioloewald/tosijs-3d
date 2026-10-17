@@ -1025,6 +1025,7 @@ export function attachFramePanel(
     placeAt(anchor)
   }
   let pointerObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.PointerInfo>> = null
+  let stopWheel = (): void => {}
   if (target != null && typeof target.handlePointer === 'function' && el) {
     scene.constantlyUpdateMeshUnderPointer = true
     const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes
@@ -1150,6 +1151,47 @@ export function attachFramePanel(
         repaint(true)
       }
     })
+    /*
+    THE WHEEL OVER A PANEL IS THE PANEL'S (tosijs-3d#114). The camera's own
+    wheel input listens on the canvas, so a wheel over a scrolling list zoomed
+    the scene behind it while drag-scroll worked. Caught on the canvas's
+    parent in the capture phase, which runs before anything on the canvas
+    itself: if the pointer is on this panel (the nearest thing in its layer),
+    the panel scrolls, and the camera never sees it. A panel that cannot
+    scroll still swallows it: the pointer is plainly on the UI. Trackpad
+    two-finger scroll arrives as the same event.
+    */
+    const canvas = scene.getEngine().getRenderingCanvas()
+    const wheelHost = canvas?.parentElement ?? canvas
+    const scrollTarget = el as unknown as { scrollBy?: (dy: number) => void }
+    const onWheel = (e: WheelEvent) => {
+      if (canvas == null || plane.visibility <= 0.5) return
+      const r = canvas.getBoundingClientRect()
+      const pick = drawScene.pick(e.clientX - r.left, e.clientY - r.top)
+      if (!pick?.hit || pick.pickedMesh !== shown) return
+      e.preventDefault()
+      e.stopPropagation()
+      const vb = el.viewBox.baseVal
+      // Viewbox units per CSS pixel, where the panel says how big it is drawn.
+      const perPx =
+        lastBox != null && lastBox.h > 0 ? (vb.height || 1) / lastBox.h : 1
+      const px =
+        e.deltaMode === 1
+          ? e.deltaY * 16
+          : e.deltaMode === 2
+          ? e.deltaY * r.height
+          : e.deltaY
+      if (typeof scrollTarget.scrollBy === 'function') {
+        scrollTarget.scrollBy(px * perPx)
+        repaint(false)
+      }
+    }
+    wheelHost?.addEventListener('wheel', onWheel, {
+      capture: true,
+      passive: false,
+    })
+    stopWheel = () =>
+      wheelHost?.removeEventListener('wheel', onWheel, { capture: true })
   }
 
   // Where it goes and how visible, this frame (the layered copy follows in sync).
@@ -1227,6 +1269,7 @@ export function attachFramePanel(
       releaseCamera()
       el?.removeEventListener('panelfocus', onFocus)
       if (pointerObs != null) drawScene.onPointerObservable.remove(pointerObs)
+      stopWheel()
       tex.dispose()
       mat.dispose()
       if (shown !== plane) shown.dispose()

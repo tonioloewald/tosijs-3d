@@ -3115,7 +3115,9 @@ function titleBarParts(
  * it changes); presses below the bar reach its `handlePointer` in its own
  * coordinates, and one that began there stays its own until release (a drag
  * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
- * is, so a host drags it the same way. `dispose` gives the content back.
+ * is, so a host drags it the same way. `scrollBy`, `scrollTop` and
+ * `scrollable` are the content's (a wheel over the panel scrolls it).
+ * `dispose` gives the content back.
  */
 export function titled3d(
   content: SVGSVGElement,
@@ -3199,8 +3201,24 @@ export function titled3d(
     forward(kind, x, y)
     if (kind === 'up') inContent = false
   }
+  // Scrolling is the content's, in the same units (a host's wheel, #114).
+  const scrolling = content as unknown as {
+    scrollBy?: (dy: number) => void
+    scrollTop?: number
+    scrollable?: boolean
+  }
+  Object.defineProperties(root, {
+    scrollTop: {
+      get: () => scrolling.scrollTop ?? 0,
+      set: (v: number) => {
+        if ('scrollTop' in scrolling) scrolling.scrollTop = v
+      },
+    },
+    scrollable: { get: () => !!scrolling.scrollable },
+  })
   Object.assign(root, {
     handlePointer,
+    scrollBy: (dy: number) => scrolling.scrollBy?.(dy),
     gripHit: (x: number, y: number) =>
       grip &&
       y <= bar.barHeight &&

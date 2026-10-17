@@ -93,4 +93,18 @@ describe("titled3d: the settings panel's title bar over any content", () => {
     await new Promise((r) => setTimeout(r, 50))
     expect(t.getAttribute('viewBox')).toBe(`0 0 600 ${500 + BAR}`)
   })
+
+  test("scrolling is the content's (a wheel over the panel, #114)", () => {
+    const panel = w3d.panel3d(
+      { width: 300, maxHeight: 120 },
+      ...Array.from({ length: 12 }, (_, i) => w3d.button3d({ label: `r${i}` }))
+    )
+    const t = w3d.titled3d(panel, {}) as any
+    expect(t.scrollable).toBe(true)
+    t.scrollBy(40)
+    expect(panel.scrollTop).toBe(40)
+    expect(t.scrollTop).toBe(40)
+    t.scrollTop = 0
+    expect(panel.scrollTop).toBe(0)
+  })
 })
