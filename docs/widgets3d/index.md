@@ -334,7 +334,9 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 
 **On a panel** (not options — methods on the returned element):
 `measure()` → `{content, viewport, overflow, fits}`, `openPopup(config, …widgets)`,
-`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`.
+`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`, `scrollTop` (read and
+set: carry it across a rebuild) and `reveal(widget, band?)` (scroll a row into
+view, in a headset too).
 
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages

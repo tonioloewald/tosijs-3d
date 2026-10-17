@@ -10,6 +10,21 @@ export interface Table extends Widget3d {
     scrollBy: (delta: number) => void;
     /** Currently selected row ids. */
     readonly selected: string[];
+    /**
+     * Set the selection (ids of rows that do not exist are dropped). Does not
+     * call `handleSelect`: the host said it, so the host knows.
+     */
+    setSelected: (ids: string[]) => void;
+    /** Scroll the table's own body so this row shows; false if it is not shown. */
+    revealRow: (id: string) => boolean;
+    /**
+     * Where a row is drawn, in the table's own units (header included), as a
+     * panel's `reveal(table, box)` takes it; null when it is filtered out.
+     */
+    rowBox: (id: string) => {
+        top: number;
+        height: number;
+    } | null;
     /** Replace the rows (keeps scroll, drops selections that no longer exist). */
     setRows: (rows: TableRow[]) => void;
     /**
@@ -56,6 +71,15 @@ export interface TableOptions {
     gap?: number;
     /** Omit for a non-selectable table. */
     selection?: SelectionMode;
+    /**
+     * How a selected row shows: `'icon'` (the default) draws the radio or
+     * checkbox in its own column; `'row'` fills the row instead, with no marker
+     * column. Use `'row'` when the rows carry their own leading control, or two
+     * circles side by side read as one toggle that does not work.
+     */
+    selectionMarker?: 'icon' | 'row';
+    /** Rows selected at the start, for a host that rebuilds the table. */
+    selected?: string[];
     /** Let a single-select tap on the selected row clear it. See `applySelection`. */
     allowDeselect?: boolean;
     /**

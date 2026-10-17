@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=36d123aa06c7" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=ce562ed944df" data-tosi-doc-system />
   <title>table — tosijs-3d</title>
   <meta name="description" content="A data table as a Widget3d: a header that stays put, a virtualized scrolling body, and optional selection drawn with [[selection|state icons]]. Drops into a" />
   <link rel="canonical" href="https://3d.tosijs.net/table/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=561af6c34666" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6a7e8e89406" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="table">table</h1>
 <p>A <strong>data table</strong> as a <code>Widget3d</code>: a header that stays put, a virtualized scrolling
@@ -47,6 +47,12 @@ to it would make typing in a search box quietly destructive. The table keeps the
 full set and filters a view of it, so a selected row that scrolls out of the
 filter is still selected when it comes back — and <code>setRows</code> checks selections
 against ALL rows for the same reason.</p>
+<p><strong>A row can carry the selection instead of a marker.</strong> With
+<code>selectionMarker: &#39;row&#39;</code> the selected row is filled (<code>--w3d-selected-bg</code>) and
+there is no radio or checkbox column; use it when the rows have a leading
+control of their own, or the two circles read as one toggle that does not work.
+A host that rebuilds the table passes <code>selected</code> (or calls <code>setSelected</code>), then
+<code>revealRow(id)</code>; in a scrolling panel, <code>panel.reveal(table, table.rowBox(id))</code>.</p>
 <p>A <strong><code>button</code> column</strong> gives each row an action of its own. With <code>menu</code> it opens
 an action menu anchored to the cell; with <code>handlePress</code> it just fires. The
 button takes the press instead of the row, so a row&#39;s ⋯ does not also select
@@ -617,6 +623,6 @@ preview.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-6121wc0f.js"></script>
+  <script type="module" src="../hydrate-nqymjjzh.js"></script>
 </body>
 </html>

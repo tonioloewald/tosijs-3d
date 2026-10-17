@@ -19,6 +19,13 @@ full set and filters a view of it, so a selected row that scrolls out of the
 filter is still selected when it comes back — and `setRows` checks selections
 against ALL rows for the same reason.
 
+**A row can carry the selection instead of a marker.** With
+`selectionMarker: 'row'` the selected row is filled (`--w3d-selected-bg`) and
+there is no radio or checkbox column; use it when the rows have a leading
+control of their own, or the two circles read as one toggle that does not work.
+A host that rebuilds the table passes `selected` (or calls `setSelected`), then
+`revealRow(id)`; in a scrolling panel, `panel.reveal(table, table.rowBox(id))`.
+
 A **`button` column** gives each row an action of its own. With `menu` it opens
 an action menu anchored to the cell; with `handlePress` it just fires. The
 button takes the press instead of the row, so a row's ⋯ does not also select

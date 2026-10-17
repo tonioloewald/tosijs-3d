@@ -335,7 +335,9 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 
 **On a panel** (not options — methods on the returned element):
 `measure()` → `{content, viewport, overflow, fits}`, `openPopup(config, …widgets)`,
-`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`.
+`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`, `scrollTop` (read and
+set: carry it across a rebuild) and `reveal(widget, band?)` (scroll a row into
+view, in a headset too).
 
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
@@ -3235,6 +3237,29 @@ export function panel3d(config, ...widgets) {
             return;
         scroll += dy;
         applyScroll();
+    };
+    // Read and set, so a host that rebuilds the panel can keep its place
+    // (tosijs-3d#110: a rebuild came back at the top, the new row out of view).
+    Object.defineProperty(root, 'scrollTop', {
+        configurable: true,
+        get: () => scroll,
+        set: (v) => {
+            scroll = Number(v) || 0;
+            applyScroll();
+        },
+    });
+    root.reveal = (w, within) => {
+        const row = rows.find((r) => r.w === w);
+        if (!row)
+            return false;
+        const top = row.top + (within?.top ?? 0);
+        const h = within?.height ?? row.height;
+        if (top < scroll)
+            scroll = top;
+        else if (top + h > scroll + viewport)
+            scroll = h > viewport ? top : top + h - viewport;
+        applyScroll();
+        return true;
     };
     root.scrollable = scrollable;
     root.gripHeight = config.grip

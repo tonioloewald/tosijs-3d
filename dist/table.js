@@ -20,6 +20,13 @@ full set and filters a view of it, so a selected row that scrolls out of the
 filter is still selected when it comes back — and `setRows` checks selections
 against ALL rows for the same reason.
 
+**A row can carry the selection instead of a marker.** With
+`selectionMarker: 'row'` the selected row is filled (`--w3d-selected-bg`) and
+there is no radio or checkbox column; use it when the rows have a leading
+control of their own, or the two circles read as one toggle that does not work.
+A host that rebuilds the table passes `selected` (or calls `setSelected`), then
+`revealRow(id)`; in a scrolling panel, `panel.reveal(table, table.rowBox(id))`.
+
 A **`button` column** gives each row an action of its own. With `menu` it opens
 an action menu anchored to the cell; with `handlePress` it just fires. The
 button takes the press instead of the row, so a row's ⋯ does not also select
@@ -164,6 +171,7 @@ const TEXT = w3dTheme.text;
 const MUTED = w3dTheme.muted;
 const ACCENT = w3dTheme.accent;
 const ROW_HOVER = w3dTheme.rowHover;
+const SELECTED_BG = w3dTheme.selectedBg;
 const HEADER_BG = w3dTheme.track;
 const FONT_FAMILY = w3dTheme.fontFamily;
 let seq = 0;
@@ -178,7 +186,8 @@ export function table(config) {
     const BODY_TOP = HEAD_H + 2;
     const BODY_H = config.height ?? 180;
     const GAP = config.gap ?? 8;
-    const SEL_W = config.selection ? 26 : 0;
+    const MARK_ROW = config.selectionMarker === 'row';
+    const SEL_W = config.selection && !MARK_ROW ? 26 : 0;
     const FONT = 13;
     /*
     ALL rows, and the subset currently shown. Kept apart on purpose: selection,
@@ -196,6 +205,13 @@ export function table(config) {
     /** D-pad / keyboard focus, as a row index; -1 = not focused. */
     let focused = -1;
     let selected = new Set();
+    const keep = (ids) => {
+        const live = new Set(allRows.map((r) => r.id));
+        const ok = ids.filter((id) => live.has(id));
+        return new Set(config.selection === 'single' ? ok.slice(0, 1) : ok);
+    };
+    if (config.selection && config.selected)
+        selected = keep(config.selected);
     /** In-flight press: where it started, and whether it has become a scroll. */
     let drag = null;
     /** Set by the panel; a button column needs it to open a menu. */
@@ -286,9 +302,17 @@ export function table(config) {
             const bg = i >= 0 ? rowBgs[i - built.start] : undefined;
             if (i >= 0 && !bg && i >= built.start && i < built.end)
                 return paintBody();
-            bg?.setAttribute('fill', i === hover ? ROW_HOVER : 'transparent');
+            bg?.setAttribute('fill', rowFill(i));
         }
     };
+    /** A row's background: hover wins, then a row-marked selection. */
+    function rowFill(i) {
+        if (i === hover)
+            return ROW_HOVER;
+        if (MARK_ROW && config.selection && rows[i] && selected.has(rows[i].id))
+            return SELECTED_BG;
+        return 'transparent';
+    }
     const paintBody = () => {
         const win = visibleRows({
             scroll,
@@ -312,7 +336,8 @@ export function table(config) {
                 rx: 4,
                 // Hover is intensity; selection is the icon. Different channels, so a row
                 // can be both at once without either being finessed against the other.
-                fill: i === hover ? ROW_HOVER : 'transparent',
+                // (With `selectionMarker: 'row'` selection is a fill, and hover covers it.)
+                fill: rowFill(i),
             });
             rowBgs.push(bg);
             const kids = [bg];
@@ -332,7 +357,7 @@ export function table(config) {
                     'data-focus-ring': '',
                 }));
             }
-            if (config.selection) {
+            if (config.selection && !MARK_ROW) {
                 kids.push(iconGlyph(selectionIcon(config.selection, isSel), {
                     size: 16,
                     color: isSel ? ACCENT : MUTED,
@@ -445,6 +470,31 @@ export function table(config) {
     };
     const api = {
         el,
+        setSelected(ids) {
+            if (!config.selection)
+                return;
+            selected = keep(ids);
+            paintBody();
+        },
+        revealRow(id) {
+            const i = rows.findIndex((r) => r.id === id);
+            if (i < 0)
+                return false;
+            const top = i * ROW_H;
+            if (top < scroll)
+                scroll = top;
+            else if (top + ROW_H > scroll + BODY_H)
+                scroll = top + ROW_H - BODY_H;
+            scroll = clampScroll(scroll);
+            paintScrolled();
+            return true;
+        },
+        rowBox(id) {
+            const i = rows.findIndex((r) => r.id === id);
+            if (i < 0)
+                return null;
+            return { top: BODY_TOP + i * ROW_H - scroll, height: ROW_H };
+        },
         get selected() {
             return [...selected];
         },

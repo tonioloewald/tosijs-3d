@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.10
+# tosijs-3d v0.10.11
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 

@@ -770,6 +770,21 @@ export type Panel3d = SVGSVGElement & {
     handlePointer: (kind: PointerKind, x: number, y: number) => void;
     /** Scroll by a delta in viewBox units; nothing when it does not overflow. */
     scrollBy: (dy: number) => void;
+    /**
+     * How far the body is scrolled, in viewBox units (clamped on set). Read it
+     * before rebuilding a panel and set it on the new one to keep the place.
+     */
+    scrollTop: number;
+    /**
+     * Scroll so `widget` (one of this panel's rows) is in view; `within` is a
+     * band inside it (`table.rowBox(id)` for one row). Returns false when the
+     * widget is not in the scrolling body. Works in a headset, where a host has
+     * no DOM to measure.
+     */
+    reveal: (widget: Widget3d, within?: {
+        top: number;
+        height: number;
+    }) => boolean;
     /** Does the content overflow? */
     scrollable: boolean;
     /** Height of the title-bar band, in viewBox units. */
