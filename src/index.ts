@@ -1671,6 +1671,8 @@ export {
   objTriangles,
   skinSegments,
   MARKER_NAMES,
+  rigSilhouette,
+  guessMarkers,
 } from './rig-fit.js'
 export type {
   FitOptions as SkeletonFitOptions,
@@ -1680,8 +1682,11 @@ export type {
   Markers,
   MeshQuery,
   Point2,
+  Silhouette,
   Span,
 } from './rig-fit.js'
+export { markerField3d, MARKER_LABELS } from './rig-markers.js'
+export type { MarkerField, MarkerField3dOptions } from './rig-markers.js'
 export { boneHeat } from './bone-heat.js'
 export { buildRig } from './rig-build.js'
 export type { BuiltRig } from './rig-build.js'

@@ -12,18 +12,25 @@ have tails, which no clip animates, so their tails run on spring bones.
 
 Omnidude, a weasel, a skinny weasel and a space marine (shown at 42% of his
 4.4 m), by Tonio Loewald, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-The markers were placed by eye on a front view, as you would drag them on
-Mixamo's. Pick a clip, show the bones, or stiffen the tails, in the panel (the owl).
+
+Open the panel (the owl) to **rig one yourself**: pick a character and its
+front view appears with the eight markers on it. Drag a marker (the other side
+follows while symmetry is on) and when you let go the character is fitted,
+bound and walking again. **guess** places the markers from the silhouette
+alone, which is where you would start with a new mesh. The weasels' tail tips
+are placed in the side view. The clip, the bones and tail stiffness are below.
 
 ```js
 import {
-  b3d, b3dLight, assetUrl, select3d, slider3d, toggle3d,
+  b3d, b3dLight, assetUrl, select3d, slider3d, toggle3d, button3d, label3d,
   objTriangles, fitSkeleton, meshQuery, skinSegments, boneHeat, buildRig,
-  readSkeleton, retargetClip, springNodes,
+  readSkeleton, retargetClip, springNodes, markerField3d,
 } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { autorig } = tosi({ autorig: { clip: 'Walk_Loop', bones: false, tail: 0.25 } })
+const { autorig } = tosi({
+  autorig: { who: 'skinny weasel', clip: 'Walk_Loop', bones: false, tail: 0.25, symmetry: true },
+})
 const clips = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Dance_Loop', 'Crouch_Fwd_Loop']
 
 // Mixamo's eight markers on the front view (the character's left is +X),
@@ -37,26 +44,47 @@ const markers = (chin, groin, wrist, elbow, knee) => {
   }
 }
 const cast = [
-  { file: 'omnidude.obj', objects: ['Omnidude', 'Head'], color: [0.55, 0.6, 0.7],
+  { name: 'omnidude', file: 'omnidude.obj', objects: ['Omnidude', 'Head'], color: [0.55, 0.6, 0.7],
     markers: markers([0, 1.338], [0, 0.467], [0.74, 1.075], [0.47, 1.095], [0.152, 0.258]) },
-  { file: 'weasel.obj', objects: ['Weasel'], color: [0.6, 0.42, 0.25], tail: { x: 0, y: 0.5, z: -0.95 },
+  { name: 'weasel', file: 'weasel.obj', objects: ['Weasel'], color: [0.6, 0.42, 0.25], tail: { x: 0, y: 0.5, z: -0.95 },
     markers: markers([0, 0.967], [0, 0.358], [0.51, 0.763], [0.397, 0.763], [0.142, 0.174]) },
-  { file: 'weasel-skinny.obj', objects: ['Body', 'Head', 'Tail'], color: [0.8, 0.5, 0.25], tail: { x: 0, y: 0.77, z: -0.95 },
+  { name: 'skinny weasel', file: 'weasel-skinny.obj', objects: ['Body', 'Head', 'Tail'], color: [0.8, 0.5, 0.25], tail: { x: 0, y: 0.77, z: -0.95 },
     markers: markers([0, 1.259], [0, 0.64], [0.657, 1.154], [0.404, 1.14], [0.106, 0.34]) },
-  { file: 'space-marine.glb', mesh: 'EvilMarineBody', color: [0.3, 0.4, 0.3], scale: 0.42,
+  { name: 'space marine', file: 'space-marine.glb', mesh: 'EvilMarineBody', color: [0.3, 0.4, 0.3], scale: 0.42,
     markers: markers([0, 3.594], [0, 1.656], [1.966, 2.937], [1.18, 3.064], [0.388, 0.943]) },
 ]
 
+let bodies = []
+let field = null
+
+// Tall enough for the marker panel beside the characters.
+preview.closest('tosi-example')?.style.setProperty('--tosi-example-height', '560px')
 preview.append(
   b3d(
     {
+      style: 'width:100%;height:100%',
       clearColor: '#2a3340',
       panelTitle: 'Auto-rig',
-      scenePanel: () => [
-        select3d({ label: 'clip', value: autorig.clip, options: clips }),
-        toggle3d({ label: 'bones', value: autorig.bones }),
-        slider3d({ label: 'tail stiffness', value: autorig.tail, min: 0, max: 1, step: 0.01 }),
-      ],
+      scenePanel: () => {
+        const i = cast.findIndex((c) => c.name === autorig.who.value)
+        const body = bodies[i]
+        field = body
+          ? markerField3d({
+              positions: body.positions, indices: body.indices,
+              value: body.markers, tail: body.tail, symmetry: autorig.symmetry.value,
+              handleCommit: (m, t) => { body.markers = m; body.tail = t; body.rig() },
+            })
+          : null
+        return [
+          select3d({ label: 'rig', value: autorig.who, options: cast.map((c) => c.name) }),
+          field ?? label3d({ text: 'loading…' }),
+          toggle3d({ label: 'symmetry', value: autorig.symmetry }),
+          button3d({ label: 'guess', handleClick: () => field?.guess() }),
+          select3d({ label: 'clip', value: autorig.clip, options: clips }),
+          toggle3d({ label: 'bones', value: autorig.bones }),
+          slider3d({ label: 'tail stiffness', value: autorig.tail, min: 0, max: 1, step: 0.01 }),
+        ]
+      },
       async sceneCreated(el, BABYLON) {
         const scene = el.scene
         const cam = new BABYLON.ArcRotateCamera('c', Math.PI / 2, 1.35, 6.5, new BABYLON.Vector3(0, 0.8, 0), scene)
@@ -84,43 +112,59 @@ preview.append(
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualRoot.setEnabled(false)
 
-        const bodies = []
+        // Retarget a clip to a body the first time it is asked for.
+        const clipFor = (body, name) => {
+          if (!body.clips.has(name)) {
+            const clip = ual.animationGroups.find((g) => g.name === name)
+            body.clips.set(name, clip ? retargetClip(clip, source, body.read, { scene }) : null)
+          }
+          return body.clips.get(name)
+        }
+        const play = (body) => {
+          body.playing?.stop()
+          body.playing = clipFor(body, autorig.clip.value)
+          body.playing?.start(true)
+        }
+
+        bodies = []
         for (const [i, c] of cast.entries()) {
           const { positions, indices } = await triangles(c)
-          const rig = fitSkeleton(c.markers, meshQuery(positions, indices), { tail: c.tail })
-          const weights = boneHeat(positions, indices, skinSegments(rig))
-          const built = buildRig(scene, c.file, positions, indices, rig, weights)
           const mat = new BABYLON.StandardMaterial(c.file, scene)
           mat.diffuseColor = new BABYLON.Color3(...c.color)
-          built.mesh.material = mat
           // Place and scale by a node above the rig's own (mirrored) root.
           const stand = new BABYLON.TransformNode(c.file + '-stand', scene)
           stand.position.x = 2.4 - 1.6 * i
           stand.scaling.setAll(c.scale ?? 1)
-          built.root.parent = stand
-          const tail = ['tail_01', 'tail_02', 'tail_03', 'tail_04', 'tail_05', 'tail_leaf'].map((n) => built.node(n))
-          const spring = tail[0] ? springNodes(scene, tail, { params: { stiffness: autorig.tail.value } }) : null
-          const viewer = new BABYLON.SkeletonViewer(built.skeleton, built.mesh, scene, false, 3, { displayMode: 0 })
-          viewer.isEnabled = autorig.bones.value
-          bodies.push({ built, spring, viewer, read: readSkeleton(built.skeleton, built.root) })
+          const body = { positions, indices, markers: c.markers, tail: c.tail ?? null, clips: new Map() }
+          // Fit, bind and build, then play: again whenever the markers move.
+          body.rig = () => {
+            for (const g of body.clips.values()) g?.dispose()
+            body.clips.clear()
+            body.playing = null
+            body.spring?.dispose()
+            body.viewer?.dispose()
+            body.built?.dispose()
+            const rig = fitSkeleton(body.markers, meshQuery(positions, indices), { tail: body.tail ?? undefined })
+            const weights = boneHeat(positions, indices, skinSegments(rig))
+            const built = buildRig(scene, c.file, positions, indices, rig, weights)
+            built.mesh.material = mat
+            built.root.parent = stand
+            const tail = ['tail_01', 'tail_02', 'tail_03', 'tail_04', 'tail_05', 'tail_leaf'].map((n) => built.node(n))
+            body.spring = tail[0] ? springNodes(scene, tail, { params: { stiffness: autorig.tail.value } }) : null
+            body.viewer = new BABYLON.SkeletonViewer(built.skeleton, built.mesh, scene, false, 3, { displayMode: 0 })
+            body.viewer.isEnabled = autorig.bones.value
+            body.built = built
+            body.read = readSkeleton(built.skeleton, built.root)
+            play(body)
+          }
+          body.rig()
+          bodies.push(body)
         }
+        el.refreshScenePanel()
 
-        // Retarget each clip once per body, the first time it is asked for.
-        const made = new Map()
-        let playing = []
-        const play = (name) => {
-          for (const g of playing) g.stop()
-          const clip = ual.animationGroups.find((g) => g.name === name)
-          if (!clip) return
-          playing = bodies.map((b, i) => {
-            const key = name + i
-            if (!made.has(key)) made.set(key, retargetClip(clip, source, b.read, { scene }))
-            return made.get(key)
-          })
-          for (const g of playing) g.start(true)
-        }
-        play(autorig.clip.value)
-        autorig.clip.observe(() => play(autorig.clip.value))
+        autorig.who.observe(() => el.refreshScenePanel())
+        autorig.symmetry.observe(() => { if (field) field.symmetry = autorig.symmetry.value })
+        autorig.clip.observe(() => { for (const b of bodies) play(b) })
         autorig.bones.observe(() => { for (const b of bodies) b.viewer.isEnabled = autorig.bones.value })
         autorig.tail.observe(() => { for (const b of bodies) if (b.spring) b.spring.params.stiffness = autorig.tail.value })
       },

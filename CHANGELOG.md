@@ -20,6 +20,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **The auto-rig's marker step** (#3349). `markerField3d` shows a mesh's front silhouette with Mixamo's eight markers on it, to be dragged onto the joints, plus a side view for a tail tip. It is an ordinary panel control, so it works on a page, in the scene and in a headset. Symmetry is on by default, hovering names a marker, `handleChange` fires as a marker moves and `handleCommit` when it is let go. The pure half is in `rig-fit`:
+  - `rigSilhouette(positions, indices, view)` is a mesh's front or side view as runs on a grid (a few ms).
+  - `guessMarkers(silhouette)` gives a first placement read off the outline: the crotch, the arms' row, the neck and the legs. On Tonio's three OBJ meshes it lands within 10% of body height of the hand-placed markers, mostly within 3%.
+  - The auto-rig page (`/rig-build/`) now rigs a character from the panel: pick one, drag its markers, and on release it is fitted, bound and walking again (about 0.15 s). **guess** re-places the markers from the silhouette alone.
 - **System panels for an app's main chrome** (#106, from ensemble). Three new `<tosi-b3d-panel>` controls for a panel with an `icon`:
   - **`exclusive="off"`** lets it stay open beside other system panels. Opening it closes nothing, and the settings panel or an exclusive panel (an inventory) opens and closes over it without closing it. The default is unchanged: one at a time.
   - **`open`** opens it when the scene starts.

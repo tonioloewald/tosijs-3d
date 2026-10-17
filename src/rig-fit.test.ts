@@ -6,6 +6,9 @@ import {
   fittedRestBones,
   meshQuery,
   objTriangles,
+  rigSilhouette,
+  guessMarkers,
+  MARKER_NAMES,
   skinSegments,
   type Markers,
   type MeshQuery,
@@ -331,4 +334,49 @@ describe('objTriangles', () => {
     expect(positions.length).toBe(9)
     expect(indices).toEqual([0, 1, 2])
   })
+})
+
+describe('rigSilhouette', () => {
+  test('a box seen from the front fills its rectangle, from the side its depth', () => {
+    // A 2 x 4 x 1 box: x -1..1, y 0..4, z -0.5..0.5.
+    const pos: number[] = []
+    for (const x of [-1, 1]) for (const y of [0, 4]) for (const z of [-0.5, 0.5]) pos.push(x, y, z)
+    const at = (x: number, y: number, z: number) =>
+      ((x > 0 ? 1 : 0) << 2) | ((y > 0 ? 1 : 0) << 1) | (z > 0 ? 1 : 0)
+    const quad = (a: number, b: number, c: number, d: number) => [a, b, c, a, c, d]
+    const idx = [
+      ...quad(at(-1, 0, 1), at(1, 0, 1), at(1, 4, 1), at(-1, 4, 1)),
+      ...quad(at(1, 0, 1), at(1, 0, -1), at(1, 4, -1), at(1, 4, 1)),
+    ]
+    const front = rigSilhouette(pos, idx, 'front', 40)
+    expect(front.min).toEqual({ u: -1, v: 0 })
+    expect(front.max).toEqual({ u: 1, v: 4 })
+    const area = front.runs.reduce((a, r) => a + (r.u1 - r.u0) * front.cell, 0)
+    expect(area).toBeGreaterThan(8 * 0.9)
+    expect(area).toBeLessThan(8 * 1.15)
+    const side = rigSilhouette(pos, idx, 'side', 40)
+    expect(side.max.u - side.min.u).toBeCloseTo(1)
+  })
+})
+
+describe.skipIf(!existsSync(DIR))('guessMarkers on real meshes', () => {
+  // A first placement to drag from: within a tenth of the body's height of
+  // where the markers were placed by hand (the weasel's big hands cost the
+  // most, as its wrist is well inside them).
+  for (const c of REAL.filter((r) => r.name !== 'space marine (arms down, claws)')) {
+    test(c.name, () => {
+      const s = c.mesh()
+      const sil = rigSilhouette(s.pos, s.idx)
+      const H = sil.max.v - sil.min.v
+      const g = guessMarkers(sil)
+      for (const n of MARKER_NAMES) {
+        const err = Math.hypot(g[n].x - c.markers[n].x, g[n].y - c.markers[n].y) / H
+        expect(err).toBeLessThan(0.11)
+      }
+      // Symmetric, and in order up the body.
+      expect(g.wristR.x).toBe(-g.wristL.x)
+      expect(g.kneeL.y).toBeLessThan(g.groin.y)
+      expect(g.groin.y).toBeLessThan(g.chin.y)
+    })
+  }
 })

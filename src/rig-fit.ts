@@ -532,3 +532,179 @@ export function objTriangles(text: string, objects?: readonly string[]): { posit
   })
   return { positions, indices }
 }
+
+/*
+THE MARKER STEP'S PURE HALF: a mesh seen from the front or the side, as runs
+on a grid (small enough to draw as one SVG path), and a first placement of
+the eight markers read off it. The widget is `rig-markers`.
+*/
+
+/** A view of a mesh as filled runs on a grid: `u` across, `v` up. */
+export interface Silhouette {
+  view: 'front' | 'side'
+  /** Grid cell size, in mesh units. */
+  cell: number
+  min: { u: number; v: number }
+  max: { u: number; v: number }
+  /** Filled runs: row `v` (its bottom, in mesh units), from `u0` to `u1`. */
+  runs: Array<{ v: number; u0: number; u1: number }>
+}
+
+/**
+ * Rasterise a mesh's front (x, y) or side (z, y) view to runs on a grid,
+ * `cells` across its larger dimension (default 160).
+ */
+export function rigSilhouette(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number>,
+  view: 'front' | 'side' = 'front',
+  cells = 160
+): Silhouette {
+  const ui = view === 'front' ? 0 : 2
+  let minU = Infinity
+  let maxU = -Infinity
+  let minV = Infinity
+  let maxV = -Infinity
+  for (let i = 0; i < indices.length; i++) {
+    const k = indices[i] * 3
+    const u = positions[k + ui]
+    const v = positions[k + 1]
+    if (!Number.isFinite(u) || !Number.isFinite(v)) continue
+    if (u < minU) minU = u
+    if (u > maxU) maxU = u
+    if (v < minV) minV = v
+    if (v > maxV) maxV = v
+  }
+  if (!(maxU > minU && maxV > minV)) {
+    return { view, cell: 1, min: { u: 0, v: 0 }, max: { u: 0, v: 0 }, runs: [] }
+  }
+  const cell = Math.max(maxU - minU, maxV - minV) / cells
+  const cols = Math.ceil((maxU - minU) / cell) + 1
+  const rows = Math.ceil((maxV - minV) / cell) + 1
+  const grid = new Uint8Array(cols * rows)
+  const p = [0, 0, 0, 0, 0, 0]
+  for (let t = 0; t + 2 < indices.length; t += 3) {
+    let ok = true
+    for (let c = 0; c < 3; c++) {
+      const k = indices[t + c] * 3
+      p[c * 2] = (positions[k + ui] - minU) / cell
+      p[c * 2 + 1] = (positions[k + 1] - minV) / cell
+      if (!Number.isFinite(p[c * 2]) || !Number.isFinite(p[c * 2 + 1])) ok = false
+    }
+    if (!ok) continue
+    const r0 = Math.max(0, Math.floor(Math.min(p[1], p[3], p[5])))
+    const r1 = Math.min(rows - 1, Math.ceil(Math.max(p[1], p[3], p[5])))
+    for (let r = r0; r <= r1; r++) {
+      // Where the row's centre line crosses the triangle.
+      const y = r + 0.5
+      let lo = Infinity
+      let hi = -Infinity
+      for (let e = 0; e < 3; e++) {
+        const ax = p[e * 2]
+        const ay = p[e * 2 + 1]
+        const bx = p[((e + 1) % 3) * 2]
+        const by = p[((e + 1) % 3) * 2 + 1]
+        if ((ay <= y && by >= y) || (by <= y && ay >= y)) {
+          const x = ay === by ? Math.min(ax, bx) : ax + ((y - ay) / (by - ay)) * (bx - ax)
+          const x2 = ay === by ? Math.max(ax, bx) : x
+          if (x < lo) lo = x
+          if (x2 > hi) hi = x2
+        }
+      }
+      if (lo > hi) continue
+      const c0 = Math.max(0, Math.floor(lo))
+      const c1 = Math.min(cols - 1, Math.floor(hi))
+      for (let c = c0; c <= c1; c++) grid[r * cols + c] = 1
+    }
+  }
+  const runs: Silhouette['runs'] = []
+  for (let r = 0; r < rows; r++) {
+    let c = 0
+    while (c < cols) {
+      if (!grid[r * cols + c]) {
+        c++
+        continue
+      }
+      const start = c
+      while (c < cols && grid[r * cols + c]) c++
+      runs.push({ v: minV + r * cell, u0: minU + start * cell, u1: minU + c * cell })
+    }
+  }
+  return { view, cell, min: { u: minU, v: minV }, max: { u: maxU, v: maxV }, runs }
+}
+
+/** A first placement of the eight markers, read off a front silhouette. */
+export function guessMarkers(s: Silhouette): Markers {
+  const H = s.max.v - s.min.v
+  const rows = new Map<number, Array<{ u0: number; u1: number }>>()
+  for (const r of s.runs) {
+    const k = Math.round((r.v - s.min.v) / s.cell)
+    if (!rows.has(k)) rows.set(k, [])
+    rows.get(k)!.push(r)
+  }
+  const rowAt = (v: number) => rows.get(Math.round((v - s.min.v) / s.cell)) ?? []
+  const vOf = (k: number) => s.min.v + (k + 0.5) * s.cell
+  const nRows = Math.round(H / s.cell)
+  const extent = (runs: Array<{ u0: number; u1: number }>) =>
+    runs.reduce((m, r) => Math.max(m, Math.abs(r.u0), Math.abs(r.u1)), 0)
+
+  // The crotch: the first filled cell going up the centre line, below the
+  // middle of the body (a tail hanging between the legs fills it sooner).
+  let groinV = s.min.v + 0.47 * H
+  for (let k = Math.round(nRows * 0.2); k < nRows * 0.62; k++) {
+    if ((rows.get(k) ?? []).some((r) => r.u0 <= 0 && r.u1 >= 0)) {
+      groinV = vOf(k)
+      break
+    }
+  }
+
+  // The arms: the widest row of the upper body.
+  let armK = Math.round(nRows * 0.75)
+  let armW = 0
+  for (let k = Math.round(nRows * 0.5); k < nRows * 0.92; k++) {
+    const w = extent(rows.get(k) ?? [])
+    if (w > armW) {
+      armW = w
+      armK = k
+    }
+  }
+  const armV = vOf(armK)
+  const torsoW = extent(rowAt(groinV))
+  // No arms out to the side (an A-pose): fall back to proportions.
+  const armsOut = armW > torsoW * 1.6
+  const wrist = armsOut
+    ? { x: armW * 0.78, y: armV }
+    : { x: torsoW * 1.1, y: s.min.v + 0.5 * H }
+  const elbow = armsOut
+    ? { x: wrist.x * 0.62, y: armV }
+    : { x: torsoW * 1.05, y: s.min.v + 0.63 * H }
+
+  // The neck: the narrowest row between the arms and the top of the head.
+  let chinV = s.min.v + 0.82 * H
+  let narrowest = Infinity
+  for (let k = armK + 1; k < nRows - nRows * 0.04; k++) {
+    const w = extent(rows.get(k) ?? [])
+    if (w > 0 && w < narrowest) {
+      narrowest = w
+      chinV = vOf(k)
+    }
+  }
+
+  // The knees: the middle of the left leg, a little over halfway up.
+  const kneeV = s.min.v + (groinV - s.min.v) * 0.58
+  const legs = rowAt(kneeV).filter((r) => r.u1 > 0)
+  const leg = legs.sort((a, b) => b.u1 - b.u0 - (a.u1 - a.u0))[0]
+  const kneeX = leg ? (Math.max(0, leg.u0) + leg.u1) / 2 : torsoW * 0.45
+
+  const p = (x: number, y: number) => ({ x, y })
+  return {
+    chin: p(0, chinV),
+    groin: p(0, groinV),
+    wristL: p(wrist.x, wrist.y),
+    wristR: p(-wrist.x, wrist.y),
+    elbowL: p(elbow.x, elbow.y),
+    elbowR: p(-elbow.x, elbow.y),
+    kneeL: p(kneeX, kneeV),
+    kneeR: p(-kneeX, kneeV),
+  }
+}
