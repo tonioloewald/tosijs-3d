@@ -249,6 +249,17 @@ comes, and how much bigger, when its content asks for focus with a
 shows `next` where it is, with the same button, spot and open state, refitted
 to the new height (a closed one shows it next time). Dispose the content you
 dropped yourself. The setter fires a bubbling `panelcontent` event.
+
+**A host can stack its panels.** Until someone drags a system panel by its
+title bar, its spot is its `screenAnchor`, so setting a new one moves an open
+panel (a column re-stacked as a panel above it grows). Once dragged it stays
+where it was put, until its button is held on the bar.
+
+**Clicking one from a test.** The content is drawn on a texture, so nothing in
+it has a box on the page. `el.contentToClient(x, y)` says where a point of the
+content (its viewBox units) is in client pixels, through the drawn plane, so a
+drag, a scale and the title bar are all accounted for; `el.clientRect()` is
+the content's box. Both are null unless the panel is open and flat.
 */
 /*{ "parent": "ui-in-scene", "order": 10 }*/
 
@@ -341,8 +352,53 @@ export class B3dPanel extends Component {
   private _svg: SVGSVGElement | null = null
   /** Where it goes in the flat view, in place of the anchor (JS only). */
   flatAnchor: AnchorPreset | AnchorSpec | null = null
-  /** Flat placement in screen terms (pixels / % / vmin pins); wins over `flatAnchor`. JS only. */
-  screenAnchor: ScreenAnchor | null = null
+  /**
+   * Flat placement in screen terms (pixels / % / vmin pins); wins over
+   * `flatAnchor`. JS only. On an open system panel no one has dragged, a new
+   * one moves it now (fires a bubbling `panelanchor`).
+   */
+  get screenAnchor(): ScreenAnchor | null {
+    return this._screenAnchor
+  }
+  set screenAnchor(next: ScreenAnchor | null) {
+    this._screenAnchor = next
+    this.dispatchEvent(new CustomEvent('panelanchor', { bubbles: true }))
+  }
+  private _screenAnchor: ScreenAnchor | null = null
+
+  /** The scene this panel is on, if it shows system panels. */
+  private _host(): {
+    _systemContentToClient: (
+      el: Element,
+      x: number,
+      y: number
+    ) => { x: number; y: number } | null
+  } | null {
+    for (let n: Node | null = this.parentNode; n != null; ) {
+      if (typeof (n as any)._systemContentToClient === 'function')
+        return n as any
+      n = (n as Element).parentNode ?? (n as ShadowRoot).host ?? null
+    }
+    return null
+  }
+  /**
+   * Where a point of its content (viewBox units, what the content's
+   * `handlePointer` takes) is on the page, in client pixels: open, flat, as a
+   * system panel; null otherwise. For a test or Haltija to click a row where
+   * a person would (#113): drag, scale and title bar included.
+   */
+  contentToClient(x: number, y: number): { x: number; y: number } | null {
+    return this._host()?._systemContentToClient(this, x, y) ?? null
+  }
+  /** Its content's box on the page (client pixels), or null; see `contentToClient`. */
+  clientRect(): DOMRect | null {
+    const vb = this._svg?.viewBox.baseVal
+    if (vb == null) return null
+    const a = this.contentToClient(0, 0)
+    const b = this.contentToClient(vb.width, vb.height)
+    if (a == null || b == null) return null
+    return new DOMRect(a.x, a.y, b.x - a.x, b.y - a.y)
+  }
   /** Where it comes when its content asks for focus, and how much bigger (JS only). */
   focusAnchor: AnchorPreset | AnchorSpec | null = null
   focusScale = 0

@@ -97,6 +97,16 @@ const layers = new WeakMap<
  * hits it never reaches the world). Made in pairs, ui before modal, because a
  * newer layer is drawn later and asked first: so modal is over ui.
  */
+/** Screen anchors a person has dragged a panel by (see `screenAnchorDragged`). */
+const draggedAnchors = new WeakSet<object>()
+/**
+ * Has a person moved a panel by this anchor (its title bar, flat)? A host that
+ * re-anchors its panels leaves those where they were put.
+ */
+export function screenAnchorDragged(a: ScreenAnchor): boolean {
+  return draggedAnchors.has(a)
+}
+
 /** Screen panels per drawing scene, bottom first (see "STACKED"). */
 const screenStacks = new WeakMap<BABYLON.Scene, Array<{ raise: () => void }>>()
 /** How much nearer each screen panel is than the one below, as a fraction. */
@@ -579,6 +589,13 @@ export function attachFramePanel(
     updates: number
     camera: string
   }
+  /**
+   * Where a point of its SVG (viewBox units) is on the page, in client
+   * pixels: what a test, or Haltija, clicks to press it as a person would
+   * (#113). Through the drawn plane, so a drag, a scale and the camera are all
+   * in it. Null when it is not shown, or in a headset (no page to click).
+   */
+  toClient: (x: number, y: number) => { x: number; y: number } | null
 } {
   const anchor: AnchorSpec =
     typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor
@@ -992,6 +1009,7 @@ export function attachFramePanel(
     // Keep the bar reachable: at least 48px of it on screen, top never above.
     const left = screenDrag.x + (e.clientX - screenDrag.cx)
     const top = screenDrag.y + (e.clientY - screenDrag.cy)
+    draggedAnchors.add(sa)
     sa.left = Math.round(Math.max(48 - w, Math.min(W - 48, left)))
     sa.top = Math.round(Math.max(0, Math.min(H - 32, top)))
     sa.right = sa.bottom = undefined
@@ -1306,6 +1324,39 @@ export function attachFramePanel(
     update(ctx?: { firstPerson?: boolean }) {
       place(ctx)
       sync()
+    },
+    toClient(x: number, y: number) {
+      const canvas = scene.getEngine().getRenderingCanvas()
+      const c = scene.activeCamera
+      if (el == null || canvas == null || c == null) return null
+      if (plane.visibility <= 0.5) return null
+      if ((c as any).getClassName?.() === 'WebXRCamera') return null
+      const vb = el.viewBox.baseVal
+      // The plane is built at its first viewBox and grows by scaling, so a
+      // viewBox fraction is a fraction of the built plane.
+      const u = x / (vb.width || 1)
+      const v = y / (vb.height || 1)
+      const local = new BABYLON.Vector3(
+        (u - 0.5) * width,
+        (0.5 - v) * width * aspect,
+        0
+      )
+      sync()
+      shown.computeWorldMatrix(true)
+      const world = BABYLON.Vector3.TransformCoordinates(
+        local,
+        shown.getWorldMatrix()
+      )
+      const e = scene.getEngine()
+      const p = BABYLON.Vector3.Project(
+        world,
+        BABYLON.Matrix.IdentityReadOnly,
+        scene.getTransformMatrix(),
+        c.viewport.toGlobal(e.getRenderWidth(), e.getRenderHeight())
+      )
+      const r = canvas.getBoundingClientRect()
+      const k = r.width / (e.getRenderWidth() || 1)
+      return { x: r.left + p.x * k, y: r.top + p.y * k }
     },
     dispose() {
       releaseCamera()
