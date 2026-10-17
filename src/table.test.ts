@@ -650,3 +650,48 @@ describe('button columns', () => {
     }).not.toThrow()
   })
 })
+
+describe('table — selection drawn as the row (#109)', () => {
+  const fills = (t: any) =>
+    [...t.el.querySelectorAll('[data-tbl="rows"] > g')].map((g: any) =>
+      g.firstChild.getAttribute('fill')
+    )
+
+  test("selectionMarker 'row' fills the selected row and draws no marker column", () => {
+    const icon = mk({ selection: 'single' })
+    const row = mk({ selection: 'single', selectionMarker: 'row' })
+    // No marker column: the first cell starts where the icon would have been.
+    const firstX = (t: any) =>
+      Number(t.el.querySelector('[data-tbl="rows"] text').getAttribute('x'))
+    expect(firstX(row.t)).toBeLessThan(firstX(icon.t))
+    row.t.handle!('down', 100, rowY(1))
+    row.t.handle!('up', 100, rowY(1))
+    expect(row.picked).toEqual([['r1']])
+    row.t.handle!('leave', 0, 0)
+    const f = fills(row.t)
+    expect(f[1]).not.toBe('transparent')
+    expect(f[0]).toBe('transparent')
+    // Hover leaving a selected row puts the selection fill back, not transparent.
+    row.t.handle!('move', 100, rowY(1))
+    row.t.handle!('move', 100, rowY(2))
+    expect(fills(row.t)[1]).toBe(f[1])
+  })
+
+  test('a rebuilt table keeps its selection and can bring the row into view', () => {
+    const { t, picked } = mk({ selection: 'single', selected: ['r40', 'r41'] })
+    expect(t.selected).toEqual(['r40'])
+    expect(picked).toEqual([])
+    t.setSelected(['r7', 'gone'])
+    expect(t.selected).toEqual(['r7'])
+    expect(picked).toEqual([])
+    expect(t.rowBox('r7')).toEqual({
+      top: HEAD_H + 2 + 7 * ROW_H,
+      height: ROW_H,
+    })
+    expect(t.revealRow('r100')).toBe(true)
+    const b = t.rowBox('r100')!
+    expect(b.top).toBeGreaterThanOrEqual(HEAD_H + 2)
+    expect(b.top + b.height).toBeLessThanOrEqual(HEAD_H + 2 + BODY_H)
+    expect(t.revealRow('nope')).toBe(false)
+  })
+})

@@ -335,7 +335,9 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 
 **On a panel** (not options — methods on the returned element):
 `measure()` → `{content, viewport, overflow, fits}`, `openPopup(config, …widgets)`,
-`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`.
+`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`, `scrollTop` (read and
+set: carry it across a rebuild) and `reveal(widget, band?)` (scroll a row into
+view, in a headset too).
 
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
@@ -3225,6 +3227,21 @@ export type Panel3d = SVGSVGElement & {
   handlePointer: (kind: PointerKind, x: number, y: number) => void
   /** Scroll by a delta in viewBox units; nothing when it does not overflow. */
   scrollBy: (dy: number) => void
+  /**
+   * How far the body is scrolled, in viewBox units (clamped on set). Read it
+   * before rebuilding a panel and set it on the new one to keep the place.
+   */
+  scrollTop: number
+  /**
+   * Scroll so `widget` (one of this panel's rows) is in view; `within` is a
+   * band inside it (`table.rowBox(id)` for one row). Returns false when the
+   * widget is not in the scrolling body. Works in a headset, where a host has
+   * no DOM to measure.
+   */
+  reveal: (
+    widget: Widget3d,
+    within?: { top: number; height: number }
+  ) => boolean
   /** Does the content overflow? */
   scrollable: boolean
   /** Height of the title-bar band, in viewBox units. */
@@ -4209,6 +4226,34 @@ export function panel3d(
     if (!scrollable) return
     scroll += dy
     applyScroll()
+  }
+  // Read and set, so a host that rebuilds the panel can keep its place
+  // (tosijs-3d#110: a rebuild came back at the top, the new row out of view).
+  Object.defineProperty(root, 'scrollTop', {
+    configurable: true,
+    get: () => scroll,
+    set: (v: number) => {
+      scroll = Number(v) || 0
+      applyScroll()
+    },
+  })
+  // The least scroll that shows the band: nothing when it is already in view,
+  // its top at the top when it is above, its bottom at the bottom when below
+  // (its top, when it is taller than the viewport).
+  ;(
+    root as unknown as {
+      reveal: (w: Widget3d, within?: { top: number; height: number }) => boolean
+    }
+  ).reveal = (w, within) => {
+    const row = rows.find((r) => r.w === w)
+    if (!row) return false
+    const top = row.top + (within?.top ?? 0)
+    const h = within?.height ?? row.height
+    if (top < scroll) scroll = top
+    else if (top + h > scroll + viewport)
+      scroll = h > viewport ? top : top + h - viewport
+    applyScroll()
+    return true
   }
   // Whether the panel can scroll (content overflows) — so a host knows to route a
   // stick to it rather than to locomotion.
