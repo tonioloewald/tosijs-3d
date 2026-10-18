@@ -40,7 +40,7 @@ function createSphere(B) {
 
 const scene = b3d(
   {
-    // The Explode button lives in the dual-presence ⚙ panel, so you can trigger it
+    // The Explode button lives in the dual-presence settings panel, so you can trigger it
     // from inside VR as well as on a flat screen.
     panelTitle: 'Exploder',
     scenePanel: () => [
@@ -79,7 +79,7 @@ function doExplode() {
 preview.append(scene)
 ```
 
-> Shatter the sphere from the ⚙ scene panel — the same panel floats in front of
+> Shatter the sphere from the settings panel — the same panel floats in front of
 > you in VR, so this works in a headset too.
 
 */

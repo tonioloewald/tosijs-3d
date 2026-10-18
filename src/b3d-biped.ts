@@ -190,10 +190,10 @@ preview.append(
 | `forwardSpeed` | `2` | Walk speed |
 | `runSpeed` | `5` | Sprint speed |
 | `backwardSpeed` | `1` | Backward speed |
-| `cameraHeightOffset` | `1` | Camera height above target |
-| `cameraTargetHeight` | `0.75` | Height of the point the camera looks at |
-| `cameraMinFollowDistance` | `2` | Closest follow distance |
-| `cameraMaxFollowDistance` | `5` | Furthest follow distance |
+| `cameraHeightOffset` | `2` | Camera height above target |
+| `cameraTargetHeight` | `1.4` | Height of the point the camera looks at |
+| `cameraMinFollowDistance` | `4` | Closest follow distance |
+| `cameraMaxFollowDistance` | `10` | Furthest follow distance |
 
 ## Animations
 
@@ -533,16 +533,6 @@ export class B3dBiped extends B3dControllable {
     aimMaxYaw: 90,
     /** How far up/down the look can go, degrees. */
     maxLookPitch: 70,
-    /**
-     * Invert the right stick's vertical. **On by default** — Tonio's call, and
-     * the conventional one for a third-person camera: pushing the stick away
-     * from you tips the view DOWN, the way a physical camera head works. Set
-     * `'off'` for the direct mapping.
-     *
-     * A string enum rather than a boolean because an absent boolean attribute
-     * is false, so a default-true boolean can never turn on (and tosijs now
-     * throws on one) — see CLAUDE.md.
-     */
     /*
     NOT INVERTED, which is a changed default and the direct cause of a bug
     report: "when I fire it just fires into my feet".
@@ -566,6 +556,15 @@ export class B3dBiped extends B3dControllable {
      * which is what makes a too-large value feel like floating.
      */
     eyeForward: 0.13,
+    /**
+     * Invert the right stick's vertical. **Off by default**: pushing the stick
+     * up looks (and aims) up. `'on'` gives the inverted, aircraft-style mapping,
+     * where pushing the stick away tips the view down.
+     *
+     * A string enum rather than a boolean because an absent boolean attribute
+     * is false, so a default-true boolean can never turn on (and tosijs now
+     * throws on one) — see CLAUDE.md.
+     */
     invertLookY: 'off' as 'on' | 'off',
     /**
      * Never let the follow camera drop below this above the character's feet.
@@ -575,10 +574,10 @@ export class B3dBiped extends B3dControllable {
      */
     cameraMinHeight: 0.5,
     /**
-     * Upward speed of a FULLY wound-up jump, m/s. The physics is fixed and the
-     * ANIMATION is retimed to match it — not the other way round. Matching the
-     * jump to the clip was tried and was wrong: it made the jump a consequence
-     * of whatever the animator exported.
+     * Upward speed at take-off, m/s. The jump is instant (no wind-up), and the
+     * physics decides it: the start, loop and land clips each play for as long
+     * as they are true, so the jump is never a consequence of whatever the
+     * animator exported.
      */
     jumpSpeed: 4.5,
 
@@ -599,6 +598,17 @@ export class B3dBiped extends B3dControllable {
      * default to true, and the useful default here is "strafing off".
      */
     /**
+     * **How high a ledge the character can pull itself onto, metres.** Below
+     * `STEP_UP` (0.5) the walking code just steps up; above this it is a wall.
+     *
+     * `2.2` is a touch over shoulder height on a 1.83 m rig — a decent mantle
+     * for someone athletic. Lower it for a heavier or clumsier character; that
+     * is the mobility half of the skill dial AI-DESIGN argues for, and it costs
+     * nothing to expose because the band it defines is read from geometry
+     * rather than painted onto it.
+     */
+    climbReach: 2.2,
+    /**
      * **How deep the water gets before you swim, as a fraction of standing
      * height.** Below this you wade — feet on the bottom, walking; above it
      * buoyancy takes over.
@@ -613,20 +623,11 @@ export class B3dBiped extends B3dControllable {
      * fraction tracks that for free. Metres would be right for a fact about the
      * WORLD; the two are easy to confuse and worth keeping apart.
      *
-     * Leaving the water uses a lower threshold (70% of this) so the boundary
-     * does not flicker; see `buoyancy.isSwimming`.
+     * Hysteresis, so the boundary does not flicker: you START swimming a bit
+     * deeper than this (1.3 × `wadeDepth`, about 0.59 of your height at the
+     * default) and stop once the water drops back to `wadeDepth` itself; see
+     * `buoyancy.isSwimming`.
      */
-    /**
-     * **How high a ledge the character can pull itself onto, metres.** Below
-     * `STEP_UP` (0.5) the walking code just steps up; above this it is a wall.
-     *
-     * `2.2` is a touch over shoulder height on a 1.83 m rig — a decent mantle
-     * for someone athletic. Lower it for a heavier or clumsier character; that
-     * is the mobility half of the skill dial AI-DESIGN argues for, and it costs
-     * nothing to expose because the band it defines is read from geometry
-     * rather than painted onto it.
-     */
-    climbReach: 2.2,
     wadeDepth: 0.45,
     strafing: 'off',
     /**
@@ -2694,10 +2695,10 @@ export class B3dBiped extends B3dControllable {
             mid-torso, so measuring from it asks "how deep would it be if I
             stood with my feet where my chest is".
 
-            Scaled so `wadeDepth` lands exactly on `isSwimming`'s 0.5 entry
-            threshold, which keeps that model's tested hysteresis — you stop
-            swimming at 0.7 × wadeDepth — while letting the threshold be stated
-            as the fraction it is.
+            Scaled so `wadeDepth` lands on `isSwimming`'s 0.5 EXIT threshold:
+            you start swimming at 1.3 × wadeDepth (its 0.65 entry) and stop at
+            wadeDepth, which keeps that model's tested hysteresis while letting
+            the threshold be stated as the fraction it is.
             */
             submergedFraction(groundY, standHeight, surfaceY) /
             (2 * Math.max(0.05, attrs.wadeDepth))

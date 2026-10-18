@@ -91,7 +91,7 @@ const hero = b3dBiped(
   gun
 )
 
-// THE PISTOL LIVES ON YOUR HIP. The loadout (over your left shoulder; tap it)
+// THE PISTOL LIVES ON YOUR HIP. The loadout (a button on the system bar)
 // says where it is, and that decides the mode: in a hand, the gun is up; on
 // the hip, it is down; in the bag or dropped, there is nothing to raise. The
 // weapon button draws it from the hip or holsters it; dragging it into a hand
@@ -137,8 +137,8 @@ preview.append(
 ```
 
 **Two modes, and the right bumper is the switch**, when there is a pistol to
-switch to: it starts on your hip (open the loadout over your left shoulder to
-see it). With the weapon down you are walking:
+switch to: it starts on your hip (open the loadout from its button on the system bar
+to see it). With the weapon down you are walking:
 **R** sprints. Press **right bumper** and you draw it, and the gun comes up — now **R** fires, **Q**
 aims down the sights, and a ring shows where the round will actually land,
 sinking as the range grows because it is the real ballistic arc rather than a

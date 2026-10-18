@@ -11,12 +11,15 @@ glancing back. The panel is FIXED in its frame (it doesn't billboard); the frame
 itself moves (e.g. `body` follows your torso), so the panel rides with you and is
 oriented once to face your head.
 
-Anchor presets (in the `body` frame, metres; y is absolute since `body` sits at
-the floor): `waist`, `left-shoulder`, `right-shoulder`.
+Anchor presets are angular (`azimuthDeg` / `elevationDeg` / `distance` from the
+eye, in the rig frame): `waist`, `left-shoulder`, `right-shoulder`, `overhead`,
+`wrist`, and `system-bar` (which a `<tosi-b3d>` puts under its system bar).
 
 ## Example
 
-XR-only. Pins an SVG panel to an [xr-frame](?xr-frames.ts) and reveals it as you look toward it.
+In a headset it pins an SVG panel to an [xr-frame](?xr-frames.ts) and reveals it as you look toward it.
+Flat, it shows only when asked: `flatAnchor` (a spot in front of the camera) or
+`screenAnchor` (pinned to the screen's edges), which is how system panels work.
 The declarative wrapper is [<tosi-b3d-panel>](?b3d-panel.ts) — prefer it; this is the imperative version:
 
 ```javascript

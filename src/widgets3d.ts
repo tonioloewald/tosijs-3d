@@ -204,13 +204,14 @@ preview.append(sceneEl)
 ## Dual-presence scene panel
 
 The same widgets, authored once, drive a panel that has a presence **both in the
-DOM and in the scene**. Pass `b3d` a `scenePanel` hook returning the widgets:
-on a flat screen a **gear icon** (top-right) toggles them as a DOM overlay; in
-immersive VR the identical panel floats above the viewer with an **Exit VR**
-button prepended (you can't click a DOM button inside a headset). Both surfaces
+flat view and in a headset**. Pass `b3d` a `scenePanel` hook returning the
+widgets: the **owl** on the system bar (top left, flat; up ahead in a headset)
+opens them as a panel drawn in the scene, under the bar. In VR the bar also
+carries **Exit VR** (you can't click a DOM button inside a headset).
+`flat-ui="dom"` puts the flat panel back in an HTML overlay. Both presentations
 bind to the same reactive values, so they stay in sync.
 
-Click the gear to raise/lower and spin the cube — then try it in VR.
+Click the owl to raise/lower and spin the cube — then try it in VR.
 
 ```js
 import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from 'tosijs-3d'
@@ -260,7 +261,7 @@ settings into `select3d` cyclers to get discrete values.
 | `panel3d` | `width` | `360` | |
 | | `height` | `'fit'` | a number to fix it; `'fit'` sizes to content |
 | | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
-| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
+| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`4` | gap is half the theme spacing |
 | | `background` | theme `panelBg` | |
 | `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. A `<tosi-b3d>` `scenePanel` folds them itself; for a `panel3d` of your own, run the rows through `foldSections(rows, { key, mode, repaint })` and rebuild on `repaint` |
 | | `open` | first section only | whether a collapsible section starts open |
@@ -2169,9 +2170,9 @@ export function slider3d(config: {
   /**
    * Where the number lives.
    *
-   * - `'peek'` (default) — shown in place of the label while you point at or
-   *   drag it. Right for a HUD or a settings panel, where the label matters
-   *   more than the digits and space is tight.
+   * - `'peek'` (default) — shown at the right, BESIDE the label, while you
+   *   point at or drag it; the label stays. Right for a HUD or a settings
+   *   panel, where the label matters more than the digits and space is tight.
    * - `'always'` — a permanent right-hand readout, with the track shortened to
    *   make room. Right for anything you have to READ rather than just set:
    *   ensemble's coordinates were unreadable because a handle position is not a
@@ -2296,8 +2297,8 @@ export function slider3d(config: {
   /*
   The ALWAYS readout is a separate element from the peek one, deliberately.
 
-  Peek replaces the LABEL and lives at the left; always sits at the right with
-  the track shortened to clear it. Trying to make one element do both means it
+  Peek appears only while you touch it; always sits at the right with the
+  track shortened to clear it. Trying to make one element do both means it
   moves when you touch it, which is the one thing a number you are reading must
   not do.
   */
@@ -2360,8 +2361,6 @@ export function slider3d(config: {
     valText.textContent = shown
     fixedVal.textContent = shown
   }
-  // Peek shows the exact value in place of the LABEL — the track and knob stay
-  // visible, so you can still see and drag the slider while reading the number.
   /*
   Peek appears BESIDE the label now rather than in place of it. Replacing it was
   a concession to a single row — there was nowhere else for a number to go — and
@@ -2454,15 +2453,22 @@ export function slider3d(config: {
 }
 
 /**
- * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
- * previous/next option — no disclosure, no dropdown, so it reads and taps cleanly
- * in VR (two big targets). Binds the selected value (string or number); `options`
- * are bare values or `{ label, value }` pairs. Wraps around the ends by default.
+ * A select: `label      value ⌄`. Tapping the value (the right-hand cluster) opens
+ * a popup list of the options, anchored under it; picking one sets the value and
+ * closes the list. The popup is its own surface, so a panel does not crop it.
+ * Binds the selected value (string or number); `options` are bare values or
+ * `{ label, value }` pairs.
+ *
+ * The list needs a host to open in. `panel3d` always gives it one (through a
+ * `row3d` too), so in a panel this is a select and nothing else.
+ * Only without a host — a bare widget with no panel — does a tap step to the
+ * next option instead, wrapping around the ends unless `wrap: false`.
  */
 export function select3d(config: {
   label?: string
   value: Bindable<string | number>
   options: Array<string | number | { label: string; value: string | number }>
+  /** Only for the hostless step fallback: wrap past the ends (default true). */
   wrap?: boolean
   /** Fired as the value changes. */
   handleChange?: (v: string | number) => void

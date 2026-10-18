@@ -23,7 +23,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 |-------|-------|---------|
 | `forward` | -1..1 | Forward/backward movement |
 | `strafe` | -1..1 | Left/right strafe |
-| `lookX`,`lookY` | -1..1 | Camera look — swings the view, springs back on release |
+| `lookX`,`lookY` | -1..1 | Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y) |
 | `turn` | -1..1 | Turning |
 | `pitch` | -1..1 | Pitch (aircraft) |
 | `throttle` | 0..1 | Continuous throttle |
@@ -56,9 +56,11 @@ buttons use max.
 export interface ControlInput {
   forward: number // -1..1
   strafe: number // -1..1
-  /** Camera look, −1..1. Not the craft's controls: it swings the view around
-   * the vehicle (chase) or turns the pilot's head (cockpit), and springs back
-   * to centre when released. */
+  /** Camera look, −1..1. In a vehicle it is not the craft's controls: it
+   * swings the view around the vehicle (chase) or turns the pilot's head
+   * (cockpit), and springs back to centre when released. On foot (biped) it
+   * persists: X turns the body and Y pitch stays where you put it (it levels
+   * only while swimming). */
   lookX: number
   lookY: number
   turn: number // -1..1

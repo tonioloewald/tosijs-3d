@@ -13,16 +13,19 @@ hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
 |----------------|------|
 | leftStick Y | W (+) / S (-) |
 | leftStick X | D (+) / A (-) |
-| rightStick X | ArrowRight (+) / ArrowLeft (-) |
-| buttonA | Space |
-| buttonB | F |
+| rightStick X | ArrowRight (+) / ArrowLeft (-) (look: turn) |
+| rightStick Y | ArrowUp (+) / ArrowDown (-) (look: pitch) |
+| buttonA | Space, left mouse button |
+| buttonB | F, right mouse button |
 | buttonX | E |
 | leftBumper | ShiftLeft |
+| rightBumper | ShiftRight, middle mouse button |
 | leftTrigger | Q |
 | rightTrigger | R |
 | dpadDown | G (toggle) |
 
-Mouse wheel adjusts rightStick Y (for camera zoom).
+The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
+stick. Mouse buttons count only when the press starts on a scene canvas.
 
 ## Usage
 
@@ -155,7 +158,8 @@ export class GameController extends Component implements GamepadSource {
     /**
      * How the mouse looks around: `'drag'`, `'lock'` or `'off'`.
      *
-     * `'drag'` is the default because the danger with mouse look is not mouse
+     * The default is `'off'` for now (see below); `'drag'` is the intended
+     * default because the danger with mouse look is not mouse
      * look, it is CAPTURE: a page that grabs the pointer is a page you cannot
      * use, and these demos live in a document alongside a scrollbar, a sidebar
      * and nine other demos. Holding a button to look is unmodal, needs no

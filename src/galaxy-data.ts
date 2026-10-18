@@ -904,8 +904,8 @@ export interface GalaxyOptions {
   /**
    * Whether to generate full planet systems and `bestHI` per star — OFF by
    * default, because planets are a FILTERING concern, not a galaxy one.
-   * Measured at 100k stars they are 71% of generation time (and each star
-   * plus each planet constructs its own Mersenne Twister). Compute them on
+   * Measured at 100k stars they are 71% of generation time (each star and
+   * planet seeds its own PRNG). Compute them on
    * demand with {@link generateStarSystem} instead — it is pure and seeded
    * from `StarData.planetSeed`, so the result is identical either way.
    */

@@ -648,9 +648,8 @@ export interface GulleyOptions {
   /** The FACE: where the cliff stands and the tunnel mouth sits. */
   x: number
   z: number
-  /** Direction the gulley runs OUT from the face (radians, world XZ). The
-   * tunnel drives the opposite way, into the hill. */
-  /** Direction the gulley runs, in DEGREES (0 = +x, 90 = +z). */
+  /** Direction the gulley runs OUT from the face, in DEGREES (0 = +x,
+   * 90 = +z). The tunnel drives the opposite way, into the hill. */
   heading: number
   /** Floor width (m) — forced flat across this. */
   width: number

@@ -72,7 +72,7 @@ function smoothstep(t) { return t * t * (3 - 2 * t) }
 const scene = b3d(
   {
     frameRate: 60,
-    // Generation settings live in the dual-presence ⚙ panel (works in VR); the
+    // Generation settings live in the dual-presence settings panel (works in VR); the
     // free-text star search + selection readout stay a flat overlay (typing needs
     // a keyboard). All widgets bind the same demo.* leaves the observers watch.
     panelTitle: 'Galaxy',
@@ -257,7 +257,7 @@ demo.selectedStar.observe((v) => {
 })
 
 // Flat overlay keeps only the star search + selection readout; the generation
-// settings all live in the ⚙ scene panel (and in VR).
+// settings all live in the settings panel (and in VR).
 preview.append(
   scene,
   div(

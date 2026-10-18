@@ -9,7 +9,7 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 
 ## Demo
 
-Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
+Open the settings panel (the owl) and switch `ssao` between `off` and `on`. Watch the foot of
 the walls, the gaps between the crates and the underside of the lintel, then
 orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
 organic shape occlusion does most for. It works in VR too, with the default
@@ -171,14 +171,17 @@ vertex-animated crowd) is occluded as if standing in its rest pose.
 
 import * as BABYLON from '@babylonjs/core'
 
-/** `always` is deprecated: it means `on`. SSAO does not run in XR. */
+/** `always` is deprecated: it means `on`. In a headset only `on` runs, and only with the `projected` method. */
 export type SsaoSetting = 'off' | 'auto' | 'on' | 'always'
 
 /**
  * Should SSAO be running? Pure, so the rule is testable without an engine.
  *
- * Never in XR, whatever the setting: a post-process pipeline on a WebXR camera
- * draws one image across both eyes (see "Screen" in the page above). `xr` must be true for
+ * In XR only when the method can run there (`xrCapable`: the projected method,
+ * which is not a post-process) AND the setting is `on`; `auto` stays off in a
+ * session. The `screen` method never runs in XR: a post-process pipeline on a
+ * WebXR camera draws one image across both eyes (see "Screen" in the page
+ * above). `xr` must be true for
  * the WHOLE session including entering and exiting, because the headset camera
  * becomes the active camera before the session reports itself entered.
  */

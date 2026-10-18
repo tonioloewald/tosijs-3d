@@ -102,8 +102,8 @@ const scene = b3d(
   {
     frameRate: 60,
     gamepad: true,
-    // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
-    // screens, and the SAME panel floats in front of you in VR — so you can retune
+    // Controls live in the dual-presence scene panel: the owl opens them on flat
+    // screens, and the SAME panel opens in VR — so you can retune
     // the terrain from inside the headset. All widgets bind the same `demo.*`
     // reactive values the regenerate observers below already watch.
     panelTitle: 'Terrain',
@@ -192,7 +192,7 @@ const scene = b3d(
 )
 
 // Only a readout stays as a flat overlay — the tweakable settings all live in the
-// ⚙ scene panel (which also works in VR). See the `scenePanel` hook above.
+// settings panel (which also works in VR). See the `scenePanel` hook above.
 preview.append(
   scene,
   div(
@@ -283,7 +283,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `grossAmplitude` | `8` | Gross height multiplier. ⚠️ Meaningless on its own: it's spread over `grossScale`/`horizScale`, so the same number is a mountain range at one scale and a plain at another |
 | `detailAmplitude` | `3` | Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail |
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
-| `biomeLapseRate` | `0` (auto) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
+| `biomeLapseRate` | `0` (auto: 0.004) | Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The auto value, 0.004, is fixed (not scaled to your relief): it is a small-world number and renders a 340m world entirely as snow |
 | `biomeTemperature` | `0.45` | Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE |
 | `biomeMoisture` | `-1` (auto 0.45) | Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest)**. Land sits on the chart at three quarters of this (the top row is the sea's), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE |
 | `biomeVolcanicScale` | `-1` (auto 0.09) | Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE |

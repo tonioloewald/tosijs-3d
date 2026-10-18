@@ -37,8 +37,8 @@ const scene = '/test-3.glb'
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
-// Your loadout, pinned up and to the left (over your shoulder in VR): touch it
-// and it comes front and centre, with your bag beside it (see inventory-box).
+// Your loadout: a button on the system bar opens it under the bar, with your
+// bag beside it (see inventory-box).
 const loadout = demoLoadout()
 
 const formatTime = (v) => {
@@ -180,7 +180,7 @@ const scene = b3d(
       label3d({ text: 'PAUSED', bold: true }),
       button3d({ label: 'Continue', handleClick: resume }),
     ],
-    // The SAME control, in the ⚙ panel — so you can change the speed while it
+    // The SAME control, in the settings panel — so you can change the speed while it
     // is RUNNING and watch it change, instead of only while it is frozen. Both
     // panels bind the one `demo.pauseDemo.spin` value, so they never disagree.
     scenePanel: () => [
@@ -284,7 +284,7 @@ document.body.append(
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
-| `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used |
+| `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it) |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |
@@ -759,7 +759,7 @@ export class B3d extends Component {
     // Show the head-locked face crosshair (a pin target for aim-tracking UX). Opt-in:
     // 'off' (default) keeps it out of the way; 'on' shows it (e.g. a tracking weapon).
     xrReticle: 'off' as 'on' | 'off',
-    // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
+    // Start with the settings panel open (instead of closed behind the owl).
     scenePanelOpen: false,
     // The settings panel's name, drawn in its title bar beside move and close.
     panelTitle: '',
@@ -779,8 +779,9 @@ export class B3d extends Component {
     quality: 'auto' as QualitySetting,
     /*
     Ambient occlusion (see b3d-ssao). 'off' | 'auto' | 'on'. `auto` follows
-    the device tier. FLAT ONLY, whatever the setting: a post-process pipeline
-    on a WebXR camera draws one image across both eyes. Off by default: it redraws the opaque
+    the device tier, and stays off in a headset; `on` runs there too with the
+    default `projected` method (the `screen` method is flat only: a post-process
+    on a WebXR camera draws one image across both eyes). Off by default: it redraws the opaque
     scene and samples it per pixel, which is a cost a scene should choose.
     */
     ssao: 'off' as SsaoSetting,
@@ -820,7 +821,7 @@ export class B3d extends Component {
     own framebuffer resolution.
     */
     pixelRatio: 0,
-    // Add a "Perf stats" section to the scene panel (the ⚙ gear overlay AND the
+    // Add a "Perf stats" section to the scene panel (flat AND the
     // in-VR panel — so it's reachable in a headset). Opt-in per scene; a global
     // `#perf` / `#debug` (or `?perf` / `?debug`) in the page URL, or a host calling
     // `showB3dStats()`, reveals it on every scene (handy on mobile, no console
@@ -1879,13 +1880,16 @@ export class B3d extends Component {
   // instead of the built-in Enter-VR button — call it to wire your own XR
   // experience (e.g. custom features, teleportation, controller models).
   setupXr: B3dCallback = noop
-  // A dual-presence settings panel. Return the widgets to show; the SAME
-  // definitions drive a DOM-overlay panel (toggled by a top-right gear icon on
-  // flat screens) AND an in-scene panel floating above the viewer in XR. In XR
-  // an "Exit VR" button is prepended automatically (you can't click a DOM
-  // button inside a headset). Both surfaces bind to the same reactive values,
-  // so they stay in sync. Defaults to a function (not undefined) so the element
-  // creator recognises it as a settable callback prop, like sceneCreated/update.
+  /**
+   * A dual-presence settings panel. Return the widgets to show; the SAME
+   * definitions are drawn flat (in the scene, opened by the owl on the system
+   * bar; `flat-ui="dom"` makes it an HTML overlay) AND in a headset (under the
+   * system bar, which carries Exit VR). Both bind to the same reactive values,
+   * so they stay in sync. Rebuilt each time it opens, so a hook that reads
+   * async state is current; `refreshScenePanel()` updates an open one.
+   */
+  // Defaults to a function (not undefined) so the element creator recognises
+  // it as a settable callback prop, like sceneCreated/update.
   scenePanel: (host: B3d) => Widget3d[] = () => []
 
   /**
@@ -6331,9 +6335,9 @@ export class B3d extends Component {
     )
   }
 
-  // Flat-screen surface: a top-right gear icon toggles the settings panel as a
-  // DOM overlay. Only revealed when the scenePanel hook returns widgets. The panel
-  // is REBUILT each time the gear opens it (not once at setup), so a hook whose
+  // Flat-screen surface: the owl on the system bar toggles the settings panel
+  // (in the scene, or a DOM overlay with flat-ui="dom"). Only revealed when the
+  // scenePanel hook returns widgets. The panel is REBUILT each time it opens (not once at setup), so a hook whose
   // contents depend on async state — e.g. a library mesh-picker list that only
   // exists after the GLB loads — is always current when you open it. (The in-XR
   // panel likewise re-invokes the hook when it's built on VR entry.)
@@ -7459,9 +7463,7 @@ export class B3d extends Component {
     const budgets = qualityBudgets({ xr: this.xrActive })
     if (a.ssao === 'always' && !B3d._warnedSsaoAlways) {
       B3d._warnedSsaoAlways = true
-      console.warn(
-        'tosi-b3d: ssao="always" is deprecated and means "on". SSAO does not run in XR.'
-      )
+      console.warn('tosi-b3d: ssao="always" is deprecated and means "on".')
     }
     const projected = a.ssaoMethod !== 'screen'
     const active = ssaoActive(a.ssao, {
