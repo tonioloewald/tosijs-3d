@@ -2356,7 +2356,13 @@ export class B3d extends Component {
   private _flatPanels: Array<{
     update: (ctx?: { firstPerson?: boolean }) => void
     dispose: () => void
+    setSvg: (next: SVGSVGElement) => void
+    /** What it was built from, less its SVG; equal means keep it. */
+    key: string
+    svg: SVGSVGElement | undefined
   }> = []
+  /** The camera the flat panels' frames follow (a new one rebuilds them all). */
+  private _flatCam = -1
   private _flatSig = ''
   private _flatCheckIn = 0
   private _flatHandWarned = new Set<string>()
@@ -2821,6 +2827,7 @@ export class B3d extends Component {
     this._flatPanels = []
     this._flatFrames?.dispose()
     this._flatFrames = null
+    this._flatCam = -1
     this._flatSig = ''
     this._flatCheckIn = 0
   }
@@ -2856,12 +2863,24 @@ export class B3d extends Component {
           }|${JSON.stringify(specs)}`
         : ''
       if (sig !== this._flatSig) {
-        this._disposeFlatPanels()
+        /*
+        RECONCILED, not rebuilt. Any change to the set (a system button
+        arriving, one panel's attribute) used to dispose EVERY flat panel,
+        the system bar included, and build them again: each new plane is
+        blank until its texture is drawn, so the bar and every pinned panel
+        blinked. A panel whose spec is unchanged keeps its plane; the bar,
+        whose spec is the same but whose SVG is new (another button), takes
+        the new SVG on the same plane. Only a new camera rebuilds them all,
+        because the frames follow it.
+        */
+        if (specs.length === 0 || cam.uniqueId !== this._flatCam)
+          this._disposeFlatPanels()
         this._flatSig = sig
         this._flatCheckIn = 30
-        if (specs.length > 0) {
+        if (specs.length > 0 && this._flatFrames == null) {
           const frames = XrFrames.flat(scene, cam)
           this._flatFrames = frames
+          this._flatCam = cam.uniqueId
           /*
           POSE THE FRAMES WHEN THE CAMERA IS FINAL, not when this loop runs.
           This used to happen here, before `scene.render()`, and anything that
@@ -2882,35 +2901,56 @@ export class B3d extends Component {
               for (const p of this._flatPanels) p.update()
             }
           )
-          for (const spec of specs) {
-            // `flatFrame` wins whenever it is given (the hands need it; a
-            // pitched flat camera wants 'face'), and is required for a hand.
-            let frame = spec.frame ?? 'body'
-            // A screen-pinned panel lives in the head-locked frame.
-            if (spec.screenAnchor != null) frame = 'face'
-            else if (spec.flatFrame != null) frame = spec.flatFrame
-            else if (frame === 'left-hand' || frame === 'right-hand') {
-              const key = spec.title ?? spec.url ?? frame
-              if (!this._flatHandWarned.has(key)) {
-                this._flatHandWarned.add(key)
-                console.warn(
-                  `b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
-                    '(a monitor has no hands), so it is VR-only. Give it a ' +
-                    '`flatFrame` to say where it goes flat.'
-                )
-              }
-              continue
-            }
-            this._flatPanels.push(
-              attachFramePanel(
-                scene,
-                cam as BABYLON.TargetCamera,
-                frames.get(frame),
-                presentationSpec(spec, true)
-              )
-            )
-          }
         }
+        const frames = this._flatFrames
+        const old = [...this._flatPanels]
+        const next: typeof this._flatPanels = []
+        for (const spec of specs) {
+          // `flatFrame` wins whenever it is given (the hands need it; a
+          // pitched flat camera wants 'face'), and is required for a hand.
+          let frame = spec.frame ?? 'body'
+          // A screen-pinned panel lives in the head-locked frame.
+          if (spec.screenAnchor != null) frame = 'face'
+          else if (spec.flatFrame != null) frame = spec.flatFrame
+          else if (frame === 'left-hand' || frame === 'right-hand') {
+            const key = spec.title ?? spec.url ?? frame
+            if (!this._flatHandWarned.has(key)) {
+              this._flatHandWarned.add(key)
+              console.warn(
+                `b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
+                  '(a monitor has no hands), so it is VR-only. Give it a ' +
+                  '`flatFrame` to say where it goes flat.'
+              )
+            }
+            continue
+          }
+          if (frames == null) continue
+          const svg = spec.svg ?? undefined
+          const key = JSON.stringify({ ...spec, svg: undefined, frame })
+          // The same panel: same spec and same SVG, or (the bar) a new SVG.
+          const i = old.findIndex(
+            (p) => p.key === key && (p.svg === svg || spec === bar)
+          )
+          if (i >= 0) {
+            const kept = old.splice(i, 1)[0]
+            if (svg != null && kept.svg !== svg) {
+              kept.setSvg(svg)
+              kept.svg = svg
+            }
+            next.push(kept)
+            continue
+          }
+          const panel = attachFramePanel(
+            scene,
+            cam as BABYLON.TargetCamera,
+            frames.get(frame),
+            presentationSpec(spec, true)
+          )
+          // Assigned, not spread: a spread would freeze its `el` getter.
+          next.push(Object.assign(panel, { key, svg }))
+        }
+        for (const p of old) p.dispose()
+        this._flatPanels = next
       }
     }
     // Posed in onBeforeCameraRenderObservable (above), when the view is final.
