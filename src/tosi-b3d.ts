@@ -2449,12 +2449,13 @@ export class B3d extends Component {
         update: () => void
         dispose: () => void
         toClient?: (x: number, y: number) => { x: number; y: number } | null
+        setSvg: (next: SVGSVGElement) => void
       }
       frames: XrFrames | null
       /** Its anchor changed (flat): whether the new one fixes the height. */
       reanchored?: (fixedHeight: boolean) => void
       /** New content under the same title bar, in place (framed only). */
-      swap?: (next: SVGSVGElement) => void
+      swap: (next: SVGSVGElement) => void
       obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
       off: () => void
       exclusive: boolean
@@ -2470,10 +2471,9 @@ export class B3d extends Component {
   }
   /**
    * New content on a system panel's element: if it is open, show the new
-   * content in the same place. A framed panel swaps it under its title bar
-   * IN PLACE (same plane, so a press mid-swap is not lost); `chrome="none"`
-   * closes and opens again (the spot is the element's, and a non-exclusive
-   * panel opening closes nothing).
+   * content in the same place, IN PLACE: under its title bar, or (with
+   * `chrome="none"`) on the same plane. Never closed and reopened, so a press
+   * mid-swap is not lost and nothing blinks.
    */
   private _swapSystemContent = (e: Event): void => {
     const el = e.target as Element
@@ -2481,12 +2481,7 @@ export class B3d extends Component {
     if (open == null) return
     const next = this._systemEntries().find((x) => x.el === el)?.spec.svg
     if (next == null || next === open.content) return
-    if (open.swap != null) {
-      open.swap(next)
-      return
-    }
-    this._closeSystemPanel(el)
-    this._openSystemPanel(el)
+    open.swap(next)
   }
   /**
    * A new `screenAnchor` on a system panel's element: an open one that no one
@@ -2567,6 +2562,7 @@ export class B3d extends Component {
       update: () => void
       dispose: () => void
       toClient?: (x: number, y: number) => { x: number; y: number } | null
+      setSvg: (next: SVGSVGElement) => void
     }
     let reanchored: ((fixed: boolean) => void) | undefined
     let frames: XrFrames | null = null
@@ -2665,29 +2661,27 @@ export class B3d extends Component {
       frames,
       obs,
       exclusive,
-      swap:
-        titled == null
-          ? undefined
-          : (next: SVGSVGElement) => {
-              // The same open/close a reopen would send, around the swap.
-              const was = entry.content
-              was.removeEventListener('panelfocus', onFocus)
-              was.dispatchEvent(
-                new CustomEvent('panelopen', {
-                  detail: { open: false },
-                  cancelable: true,
-                })
-              )
-              next.dispatchEvent(
-                new CustomEvent('panelopen', {
-                  detail: { open: true, framed },
-                  cancelable: true,
-                })
-              )
-              titled.setContent(next)
-              next.addEventListener('panelfocus', onFocus)
-              entry.content = next
-            },
+      swap: (next: SVGSVGElement) => {
+        // The same open/close a reopen would send, around the swap.
+        const was = entry.content
+        was.removeEventListener('panelfocus', onFocus)
+        was.dispatchEvent(
+          new CustomEvent('panelopen', {
+            detail: { open: false },
+            cancelable: true,
+          })
+        )
+        next.dispatchEvent(
+          new CustomEvent('panelopen', {
+            detail: { open: true, framed },
+            cancelable: true,
+          })
+        )
+        if (titled != null) titled.setContent(next)
+        else panel.setSvg(next)
+        next.addEventListener('panelfocus', onFocus)
+        entry.content = next
+      },
       off: () => {
         entry.content.removeEventListener('panelfocus', onFocus)
         titled?.dispose()
@@ -6591,7 +6585,15 @@ export class B3d extends Component {
   */
   private _flatScenePanel: {
     el: SVGSVGElement
-    panel: { update: () => void; dispose: () => void; drawn: BABYLON.Mesh }
+    panel: {
+      update: () => void
+      dispose: () => void
+      drawn: BABYLON.Mesh
+      setSvg: (next: SVGSVGElement) => void
+    }
+    /** The plane's size as built (it scales as the content changes). */
+    planeW: number
+    planeH: number
     frames: XrFrames
     obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
   } | null = null
@@ -6628,7 +6630,6 @@ export class B3d extends Component {
     const scene = this.scene
     const cam = scene?.activeCamera
     if (scene == null || cam == null) return false
-    this._disposeFlatScenePanel()
     // Close is in the title bar now, as a popup's is.
     const items = this._barItems()
     const el = this._makePanel(
@@ -6639,6 +6640,21 @@ export class B3d extends Component {
       () => this._closeScenePanel()
     )
     const vb = el.viewBox.baseVal
+    /*
+    REBUILT IN PLACE. Every icon press and refresh rebuilds this panel, and a
+    new plane is blank until its texture is drawn: on a headset-speed CPU
+    that showed the scene through the panel for two or three frames on every
+    rebuild (measured at 4x CPU throttle). The same plane takes the new
+    content; its texture keeps the old picture until the new one is ready.
+    */
+    const live = this._flatScenePanel
+    if (live != null) {
+      live.panel.setSvg(el)
+      live.el = el
+      if (this._flatPanelSpot != null) this._flatPanelSpot.height = vb.height
+      this._attachFlatLayer(el, live.panel.drawn, live.planeW, live.planeH)
+      return true
+    }
     const W = 0.3
     const H = W * ((vb.height || 1) / (vb.width || 1))
     const frames = XrFrames.flat(scene, cam)
@@ -6672,23 +6688,32 @@ export class B3d extends Component {
       frames.update(0)
       panel.update()
     })
+    this._attachFlatLayer(el, panel.drawn, W, H)
+    this._flatScenePanel = { el, panel, planeW: W, planeH: H, frames, obs }
+    this._syncGamepadCover()
+    return true
+  }
+  /** The flat settings panel's popups go on their own surface in front of it. */
+  private _attachFlatLayer(
+    el: SVGSVGElement,
+    drawn: BABYLON.Mesh,
+    planeW: number,
+    planeH: number
+  ): void {
     attachSceneLayer({
       svg: el,
       owner: this as unknown as PopupOwner,
-      openerMesh: panel.drawn,
-      planeW: W,
-      planeH: H,
+      openerMesh: drawn,
+      planeW,
+      planeH,
       // One viewBox unit per CSS pixel, so the screen is the canvas, offset
       // by where the panel is pinned (or dragged to).
       screenRoom: () => {
         const h = this.parts.canvas?.clientHeight ?? 0
-        const top = Number(spot.top) || 0
+        const top = Number(this._flatPanelSpot?.top) || 0
         return h > 0 ? { top: -top, bottom: h - top } : null
       },
     })
-    this._flatScenePanel = { el, panel, frames, obs }
-    this._syncGamepadCover()
-    return true
   }
 
   private _openScenePanel(): void {

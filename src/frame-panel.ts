@@ -583,6 +583,14 @@ export function attachFramePanel(
   readonly drawn: BABYLON.Mesh
   /** Its SVG (null for a `url` panel). `panelfocus` on it brings it front and centre. */
   readonly el: SVGSVGElement | null
+  /**
+   * Show other content on the same plane: the texture keeps the old picture
+   * until the new one is drawn, so nothing blinks, and the next press goes to
+   * the new content. A gesture already in the old content ends there. Its
+   * size can differ (the plane scales, as it does for content that grows).
+   * Nothing for a `url` panel.
+   */
+  setSvg: (next: SVGSVGElement) => void
   /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
    * the ONLY way to see why a panel is (or isn't) revealing. */
   readonly debug: {
@@ -623,8 +631,8 @@ export function attachFramePanel(
     ]
   }
 
-  const el =
-    spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''))
+  // `let`: `setSvg` swaps the content into the same plane and texture.
+  let el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''))
   const aspect = el
     ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
     : spec.aspect ?? 1
@@ -993,10 +1001,13 @@ export function attachFramePanel(
   does not matter for a reticle and matters a lot for a menu. A move repaints
   at most once per frame.
   */
-  const target = el as unknown as {
+  type Target = {
     handlePointer?: (k: string, x: number, y: number) => void
     gripHit?: (x: number, y: number) => boolean
   } | null
+  let target = el as unknown as Target
+  // Ends a gesture in progress on the old content (set by the pointer wiring).
+  let endGesture = (): void => {}
   /*
   DRAGGED BY ITS TITLE BAR, on screen. A screen-anchored panel whose SVG
   says where its grip is (`gripHit`, from `panel3d({ grip })`) moves with the
@@ -1092,6 +1103,11 @@ export function attachFramePanel(
     const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes
     let pressing = false
     let hovering = false
+    endGesture = () => {
+      if (pressing || hovering) target?.handlePointer?.('leave', 0, 0)
+      pressing = false
+      hovering = false
+    }
     let lastX = 0
     let lastY = 0
     let repaintQueued = false
@@ -1119,7 +1135,7 @@ export function attachFramePanel(
         !!pick?.hit && pick.pickedMesh === shown && plane.visibility > 0.5
       const uv = onPlane && pick ? pick.getTextureCoordinates() : null
       if (uv) {
-        const vb = el.viewBox.baseVal
+        const vb = el!.viewBox.baseVal
         lastX = uv.x * (vb.width || 1)
         lastY = (1 - uv.y) * (vb.height || 1)
       }
@@ -1149,7 +1165,7 @@ export function attachFramePanel(
           !focused &&
           lastBox != null &&
           ev != null &&
-          target.gripHit?.(lastX, lastY)
+          target!.gripHit?.(lastX, lastY)
         ) {
           stacked.raise()
           screenDrag = {
@@ -1161,7 +1177,7 @@ export function attachFramePanel(
           holdCamera()
           ev.preventDefault?.()
           claimPointer(ev as unknown as Event)
-          target.handlePointer!('leave', 0, 0)
+          target!.handlePointer!('leave', 0, 0)
           return
         }
         const pressRay = info.pickInfo?.ray
@@ -1169,14 +1185,14 @@ export function attachFramePanel(
           aimable &&
           !focused &&
           pressRay != null &&
-          target.gripHit?.(lastX, lastY)
+          target!.gripHit?.(lastX, lastY)
         ) {
           aimGrab(pressRay)
           aimDrag = true
           holdCamera()
           ;(info.event as PointerEvent | undefined)?.preventDefault?.()
           claimPointer(info.event as unknown as Event)
-          target.handlePointer!('leave', 0, 0)
+          target!.handlePointer!('leave', 0, 0)
           return
         }
         pressing = true
@@ -1194,23 +1210,23 @@ export function attachFramePanel(
         // …and say so: Babylon cancels every canvas press itself, so being
         // cancelled cannot tell a panel's press from a press on the world.
         claimPointer(info.event as unknown as Event)
-        target.handlePointer!('down', lastX, lastY)
+        target!.handlePointer!('down', lastX, lastY)
         repaint(true)
       } else if (kind === 'move') {
         if (pressing || uv) {
           hovering = true
-          target.handlePointer!('move', lastX, lastY)
+          target!.handlePointer!('move', lastX, lastY)
           repaint(false)
         } else if (hovering) {
           // Off the plane: clear the hover, or a highlighted row stays lit.
           hovering = false
-          target.handlePointer!('leave', 0, 0)
+          target!.handlePointer!('leave', 0, 0)
           repaint(false)
         }
       } else if (pressing) {
         pressing = false
         releaseCamera()
-        target.handlePointer!('up', lastX, lastY)
+        target!.handlePointer!('up', lastX, lastY)
         repaint(true)
       }
     })
@@ -1226,7 +1242,8 @@ export function attachFramePanel(
     */
     const canvas = scene.getEngine().getRenderingCanvas()
     const wheelHost = canvas?.parentElement ?? canvas
-    const scrollTarget = el as unknown as { scrollBy?: (dy: number) => void }
+    const scrollTarget = () =>
+      el as unknown as { scrollBy?: (dy: number) => void }
     const onWheel = (e: WheelEvent) => {
       if (canvas == null || plane.visibility <= 0.5) return
       const r = canvas.getBoundingClientRect()
@@ -1234,7 +1251,7 @@ export function attachFramePanel(
       if (!pick?.hit || pick.pickedMesh !== shown) return
       e.preventDefault()
       e.stopPropagation()
-      const vb = el.viewBox.baseVal
+      const vb = el!.viewBox.baseVal
       // Viewbox units per CSS pixel, where the panel says how big it is drawn.
       const perPx =
         lastBox != null && lastBox.h > 0 ? (vb.height || 1) / lastBox.h : 1
@@ -1244,8 +1261,8 @@ export function attachFramePanel(
           : e.deltaMode === 2
           ? e.deltaY * r.height
           : e.deltaY
-      if (typeof scrollTarget.scrollBy === 'function') {
-        scrollTarget.scrollBy(px * perPx)
+      if (typeof scrollTarget().scrollBy === 'function') {
+        scrollTarget().scrollBy!(px * perPx)
         repaint(false)
       }
     }
@@ -1321,7 +1338,19 @@ export function attachFramePanel(
     drawn: shown,
     // Its SVG (null for a `url` panel): send it `panelfocus` to bring the
     // panel front and centre, as the scene's VR toolbar does.
-    el,
+    get el() {
+      return el
+    },
+    setSvg(next: SVGSVGElement) {
+      if (el == null || next === el) return
+      endGesture()
+      el.removeEventListener('panelfocus', onFocus)
+      el = next
+      target = next as unknown as Target
+      if (focusable) el.addEventListener('panelfocus', onFocus)
+      // The texture keeps the old picture until the new one is drawn.
+      tex.setElement(next)
+    },
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {

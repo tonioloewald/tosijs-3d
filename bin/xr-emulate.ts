@@ -13,6 +13,8 @@ two controllers can be posed and their triggers pulled from script.
   --pre      JS evaluated BEFORE entering VR (set attributes, open things)
   --script   JS evaluated AFTER entering VR; its value is printed as JSON
   --flat     do not enter VR at all (a flat capture with the same plumbing)
+  --cpu N    slow the page's CPU N times while the scripts run (a headset is
+             several times slower than a laptop: timing bugs show here)
   --counters print documents / DOM nodes / listeners / JS heap before and after
              the --script (after a collection): is something accumulating?
   --again n  with --counters: call window.__again() n more times, reading the
@@ -62,7 +64,7 @@ const path = args.find((a) => !a.startsWith('--') && a !== flag('script'))
 
 if (path == null || has('help')) {
   console.log(
-    'usage: bun bin/xr-emulate.ts <path> [--script f.js] [--pre f.js] [--out dir] [--name shot] [--flat] [--wait ms]'
+    'usage: bun bin/xr-emulate.ts <path> [--script f.js] [--pre f.js] [--out dir] [--name shot] [--flat] [--wait ms] [--cpu N]'
   )
   process.exit(path == null ? 1 : 0)
 }
@@ -308,6 +310,9 @@ try {
     `JSON.stringify({ runtime: !!window.__xr, error: window.__xrErr || null, b3d: !!__deep('tosi-b3d') })`
   )
   console.log('page:', ready)
+  // After load, so the page mounts at full speed and only the test is slowed.
+  const cpu = Number(flag('cpu') ?? 1)
+  if (cpu > 1) await send('Emulation.setCPUThrottlingRate', { rate: cpu })
   if (pre != null) console.log('pre:', JSON.stringify(await evaluate(pre)))
   await Bun.sleep(1500)
   await shot('flat')
