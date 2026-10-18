@@ -3191,24 +3191,33 @@ function titleBarParts(
  * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
  * is, so a host drags it the same way. `scrollBy`, `scrollTop` and
  * `scrollable` are the content's (a wheel over the panel scrolls it).
+ * `setContent(next)` puts other content under the same bar (the old content
+ * goes back where it came from); the frame, and whatever plane shows it, stay.
  * `dispose` gives the content back.
  */
 export function titled3d(
-  content: SVGSVGElement,
+  first: SVGSVGElement,
   config: { title?: string; grip?: boolean; handleClose?: () => void } = {}
-): SVGSVGElement & { dispose: () => void } {
+): SVGSVGElement & {
+  dispose: () => void
+  setContent: (next: SVGSVGElement) => void
+} {
   const handleClose = handlerOf<() => void>(config, 'handleClose', 'onClose')
   const grip = config.grip !== false
   const radius = w3dTheme.roundedRadius * 2
   const root = css(
     svg({ 'data-w3d': 'titled' }),
     'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
-  ) as unknown as SVGSVGElement & { dispose: () => void }
+  ) as unknown as SVGSVGElement & {
+    dispose: () => void
+    setContent: (next: SVGSVGElement) => void
+  }
   const bg = rect({ x: 0, y: 0, rx: radius, ry: radius, fill: TH.PANEL_BG })
   const chrome = g({})
+  let content = first
   // Where the content lived, to give it back there (a panel's own child).
-  const home = content.parentNode
-  const next = content.nextSibling
+  let home = content.parentNode
+  let next = content.nextSibling
   root.append(bg, content, chrome)
   let bar = chromeLayout(1, 1, 1, grip)
   let w = 0
@@ -3242,6 +3251,13 @@ export function titled3d(
   // Any attribute of the root (it has few): relayout returns early unless the
   // size changed. (No attributeFilter: happy-dom matched no 'viewBox' with one.)
   watch?.observe(content, { attributes: true })
+  const giveBack = () => {
+    content.removeAttribute('x')
+    content.removeAttribute('y')
+    if (home != null)
+      home.insertBefore(content, next?.parentNode === home ? next : null)
+    else content.remove()
+  }
   type Target = {
     handlePointer?: (k: PointerKind, x: number, y: number) => void
   }
@@ -3276,34 +3292,54 @@ export function titled3d(
     if (kind === 'up') inContent = false
   }
   // Scrolling is the content's, in the same units (a host's wheel, #114).
-  const scrolling = content as unknown as {
-    scrollBy?: (dy: number) => void
-    scrollTop?: number
-    scrollable?: boolean
-  }
+  // Read through `content` each time: `setContent` replaces it.
+  const scrolling = () =>
+    content as unknown as {
+      scrollBy?: (dy: number) => void
+      scrollTop?: number
+      scrollable?: boolean
+    }
   Object.defineProperties(root, {
     scrollTop: {
-      get: () => scrolling.scrollTop ?? 0,
+      get: () => scrolling().scrollTop ?? 0,
       set: (v: number) => {
-        if ('scrollTop' in scrolling) scrolling.scrollTop = v
+        if ('scrollTop' in scrolling()) scrolling().scrollTop = v
       },
     },
-    scrollable: { get: () => !!scrolling.scrollable },
+    scrollable: { get: () => !!scrolling().scrollable },
   })
   Object.assign(root, {
     handlePointer,
-    scrollBy: (dy: number) => scrolling.scrollBy?.(dy),
+    scrollBy: (dy: number) => scrolling().scrollBy?.(dy),
     gripHit: (x: number, y: number) =>
       grip &&
       y <= bar.barHeight &&
       !(handleClose != null && x >= bar.closeHitX),
+    /*
+    IN PLACE, so nothing between the two contents can miss a press. Swapping
+    by closing and reopening the panel left a moment with no plane, and a
+    click that landed in it was lost (ensemble, #111: one run in four after
+    a store refresh swapped every panel's content).
+    */
+    setContent: (c: SVGSVGElement) => {
+      if (c === content) return
+      // A gesture in the old content ends there; the new one starts clean.
+      if (inContent) forward('leave', 0, TITLE_BAR)
+      inContent = false
+      watch?.disconnect()
+      giveBack()
+      content = c
+      home = c.parentNode
+      next = c.nextSibling
+      root.insertBefore(c, chrome)
+      w = 0
+      h = 0
+      relayout()
+      watch?.observe(content, { attributes: true })
+    },
     dispose: () => {
       watch?.disconnect()
-      content.removeAttribute('x')
-      content.removeAttribute('y')
-      if (home != null)
-        home.insertBefore(content, next?.parentNode === home ? next : null)
-      else content.remove()
+      giveBack()
     },
   })
   return root

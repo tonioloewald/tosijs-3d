@@ -94,6 +94,30 @@ describe("titled3d: the settings panel's title bar over any content", () => {
     expect(t.getAttribute('viewBox')).toBe(`0 0 600 ${500 + BAR}`)
   })
 
+  test('setContent swaps the content under the same frame (#111)', () => {
+    const home = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    const a = content()
+    home.append(a.el)
+    const t = w3d.titled3d(a.el, {}) as any
+    const b = content()
+    b.el.setAttribute('viewBox', '0 0 400 500')
+    // A drag in the old content ends there when the content changes.
+    t.handlePointer('down', 50, BAR + 10)
+    t.setContent(b.el)
+    expect(a.got).toEqual(['down 50 10', `leave 0 0`])
+    expect(a.el.parentNode).toBe(home)
+    expect(a.el.getAttribute('y')).toBeNull()
+    expect(b.el.parentNode).toBe(t)
+    expect(b.el.getAttribute('y')).toBe(String(BAR))
+    expect(t.getAttribute('viewBox')).toBe(`0 0 400 ${500 + BAR}`)
+    // The very next press is the new content's.
+    t.handlePointer('down', 20, BAR + 30)
+    t.handlePointer('up', 20, BAR + 30)
+    expect(b.got).toEqual(['down 20 30', 'up 20 30'])
+    t.dispose()
+    expect(b.el.parentNode).toBeNull()
+  })
+
   test("scrolling is the content's (a wheel over the panel, #114)", () => {
     const panel = w3d.panel3d(
       { width: 300, maxHeight: 120 },

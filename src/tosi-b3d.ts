@@ -2453,6 +2453,8 @@ export class B3d extends Component {
       frames: XrFrames | null
       /** Its anchor changed (flat): whether the new one fixes the height. */
       reanchored?: (fixedHeight: boolean) => void
+      /** New content under the same title bar, in place (framed only). */
+      swap?: (next: SVGSVGElement) => void
       obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
       off: () => void
       exclusive: boolean
@@ -2468,8 +2470,10 @@ export class B3d extends Component {
   }
   /**
    * New content on a system panel's element: if it is open, show the new
-   * content in the same place (closed and opened again; the spot is the
-   * element's, and a non-exclusive panel opening closes nothing).
+   * content in the same place. A framed panel swaps it under its title bar
+   * IN PLACE (same plane, so a press mid-swap is not lost); `chrome="none"`
+   * closes and opens again (the spot is the element's, and a non-exclusive
+   * panel opening closes nothing).
    */
   private _swapSystemContent = (e: Event): void => {
     const el = e.target as Element
@@ -2477,6 +2481,10 @@ export class B3d extends Component {
     if (open == null) return
     const next = this._systemEntries().find((x) => x.el === el)?.spec.svg
     if (next == null || next === open.content) return
+    if (open.swap != null) {
+      open.swap(next)
+      return
+    }
     this._closeSystemPanel(el)
     this._openSystemPanel(el)
   }
@@ -2650,18 +2658,42 @@ export class B3d extends Component {
         this._closeSystemPanel(key)
     }
     content.addEventListener('panelfocus', onFocus)
-    this._sysPanels.set(key, {
+    const entry = {
       content,
       panel,
       reanchored,
       frames,
       obs,
       exclusive,
+      swap:
+        titled == null
+          ? undefined
+          : (next: SVGSVGElement) => {
+              // The same open/close a reopen would send, around the swap.
+              const was = entry.content
+              was.removeEventListener('panelfocus', onFocus)
+              was.dispatchEvent(
+                new CustomEvent('panelopen', {
+                  detail: { open: false },
+                  cancelable: true,
+                })
+              )
+              next.dispatchEvent(
+                new CustomEvent('panelopen', {
+                  detail: { open: true, framed },
+                  cancelable: true,
+                })
+              )
+              titled.setContent(next)
+              next.addEventListener('panelfocus', onFocus)
+              entry.content = next
+            },
       off: () => {
-        content.removeEventListener('panelfocus', onFocus)
+        entry.content.removeEventListener('panelfocus', onFocus)
         titled?.dispose()
       },
-    })
+    }
+    this._sysPanels.set(key, entry)
     this._syncGamepadCover()
   }
   /** Where each system panel was dragged to, flat. */
