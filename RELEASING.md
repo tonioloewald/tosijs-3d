@@ -164,6 +164,24 @@ reviewer bundled the barrel by hand (0.8.3 gate, m4).
    tagged rc in 0.7.0, hiding four real errors, because the only typecheck anyone
    ran was the build's. `bun test` strips types and cannot substitute.
 
+5b. **EVERY RELEASE, patches included: read the CHANGELOG entry as a doc
+checklist.** For each line that says *no longer*, *now*, *removed*, *renamed*,
+*instead of*, *used to*, or changes a default, grep `src/` (JSDoc, which becomes
+`dist/*.d.ts`, and `/*# */` doc pages with their examples), `src/docs/*.md` and
+`README.md` for the OLD behaviour in the words it used to be described in, and
+fix what you find in this release. Fix it against the code, not the entry.
+
+A rename leaves a dead name to grep for; a behaviour change leaves a comment
+that is still grammatical, still plausible, and wrong. `select3d`'s JSDoc
+described a stepper with "no dropdown" for five releases after it became a
+list, and ensemble nearly filed a feature request for the list (#116). The
+sweep that followed found 33 more: wrong defaults in attribute tables, zoom
+documented on the wrong axis, SSAO "never in a headset" when it ran there.
+Watch for a `/** */` that sits above the wrong declaration (it documents that
+one instead) and two stacked on one field (both ship); move or delete the old
+block rather than adding another. Shared rule: tosijs-coding-practices
+`releasing.md` → "If the release changes behaviour, sweep the docs and demos".
+
 5a. **MINOR AND MAJOR ONLY — drive every demo, flat AND in VR.** A human, on the
 real thing, page by page.
 
