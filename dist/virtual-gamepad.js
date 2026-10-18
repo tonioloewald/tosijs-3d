@@ -52,7 +52,7 @@ the mapping function with human-readable labels for UI visualizers:
 
 ```typescript
 bipedMappingDescriptor.labels
-// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sprint', ... }
+// { leftStickY: 'move', buttonA: 'jump', leftBumper: 'sneak', rightTrigger: 'sprint / fire', ... }
 ```
 
 ## MappedInputProvider

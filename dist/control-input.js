@@ -23,7 +23,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 |-------|-------|---------|
 | `forward` | -1..1 | Forward/backward movement |
 | `strafe` | -1..1 | Left/right strafe |
-| `lookX`,`lookY` | -1..1 | Camera look — swings the view, springs back on release |
+| `lookX`,`lookY` | -1..1 | Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y) |
 | `turn` | -1..1 | Turning |
 | `pitch` | -1..1 | Pitch (aircraft) |
 | `throttle` | 0..1 | Continuous throttle |

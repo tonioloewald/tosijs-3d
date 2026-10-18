@@ -10,7 +10,8 @@ export declare class GameController extends Component implements GamepadSource {
         /**
          * How the mouse looks around: `'drag'`, `'lock'` or `'off'`.
          *
-         * `'drag'` is the default because the danger with mouse look is not mouse
+         * The default is `'off'` for now (see below); `'drag'` is the intended
+         * default because the danger with mouse look is not mouse
          * look, it is CAPTURE: a page that grabs the pointer is a page you cannot
          * use, and these demos live in a document alongside a scrollbar, a sidebar
          * and nine other demos. Holding a button to look is unmodal, needs no

@@ -28,7 +28,7 @@ const spatialSound = b3dSound({
 preview.append(
   b3d(
     {
-      // Play / Stop in the dual-presence ⚙ panel, so you can start the sound from
+      // Play / Stop in the dual-presence settings panel, so you can start the sound from
       // inside VR (where spatial panning is most convincing) too.
       panelTitle: 'Sound',
       scenePanel: () => [
@@ -54,7 +54,7 @@ preview.append(
 ```
 
 > Orbit the camera and the sound pans with it — that is the whole point of a
-> positional source. Play and Stop are in the ⚙ scene panel, which is also the
+> positional source. Play and Stop are in the settings panel, which is also the
 > panel you get in VR.
 
 ## Attributes

@@ -107,7 +107,7 @@ function createObstacles(BABYLON, s) {
 
 const scene = b3d(
   {
-    // Explode / Drop / show-colliders live in the dual-presence ⚙ panel, so the
+    // Explode / Drop / show-colliders live in the dual-presence settings panel, so the
     // physics playground is fully controllable from inside VR too.
     panelTitle: 'Physics',
     scenePanel: () => [
@@ -160,7 +160,7 @@ preview.append(scene)
 ```
 
 > The fragments are simulated by Jolt rather than animated. Controls live in the
-> ⚙ scene panel, which is the same panel you get floating in front of you in VR.
+> settings panel, which is the same panel you get floating in front of you in VR.
 
 ## Attributes
 

@@ -60,7 +60,7 @@ const targets = [...air, ...ground]
 const kills = div({ class: 'kills' }, `Targets down: 0 / ${targets.length}`)
 // WEATHER, to fly in: a storm cell over the whole arena (storminess shakes
 // the airframe) and the scene's wind (it carries you; blowing east, across
-// your starting heading, so you crab). Both on the ⚙ panel.
+// your starting heading, so you crab). Both on the settings panel.
 const storm = b3dWeatherCell({ x: 0, z: 0, radius: 3000, storminess: 0 })
 const turb = div({ class: 'turb' }, 'turbulence 0.00')
 let down = 0
@@ -210,7 +210,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `library` | `''` | Library type to source mesh from |
 | `meshName` | `''` | Node name to instantiate from library |
 | `enterable` | `false` | Whether a biped can enter |
-| `maxSpeed` | `50` | Normal top speed (m/s) — the cruise cap a released throttle settles at |
+| `maxSpeed` | `50` | Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |

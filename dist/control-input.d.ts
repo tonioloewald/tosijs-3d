@@ -1,9 +1,11 @@
 export interface ControlInput {
     forward: number;
     strafe: number;
-    /** Camera look, −1..1. Not the craft's controls: it swings the view around
-     * the vehicle (chase) or turns the pilot's head (cockpit), and springs back
-     * to centre when released. */
+    /** Camera look, −1..1. In a vehicle it is not the craft's controls: it
+     * swings the view around the vehicle (chase) or turns the pilot's head
+     * (cockpit), and springs back to centre when released. On foot (biped) it
+     * persists: X turns the body and Y pitch stays where you put it (it levels
+     * only while swimming). */
     lookX: number;
     lookY: number;
     turn: number;

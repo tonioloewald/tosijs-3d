@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>widgets3d — tosijs-3d</title>
   <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
   <link rel="canonical" href="https://3d.tosijs.net/widgets3d/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="widgets3d">widgets3d</h1>
 <p>A small collection of <strong>SVG-native</strong> UI widgets with element-creator ergonomics
@@ -222,12 +222,13 @@ preview.append(sceneEl)
 </code></pre>
 <h2 id="dual-presence-scene-panel">Dual-presence scene panel</h2>
 <p>The same widgets, authored once, drive a panel that has a presence <strong>both in the
-DOM and in the scene</strong>. Pass <code>b3d</code> a <code>scenePanel</code> hook returning the widgets:
-on a flat screen a <strong>gear icon</strong> (top-right) toggles them as a DOM overlay; in
-immersive VR the identical panel floats above the viewer with an <strong>Exit VR</strong>
-button prepended (you can&#39;t click a DOM button inside a headset). Both surfaces
+flat view and in a headset</strong>. Pass <code>b3d</code> a <code>scenePanel</code> hook returning the
+widgets: the <strong>owl</strong> on the system bar (top left, flat; up ahead in a headset)
+opens them as a panel drawn in the scene, under the bar. In VR the bar also
+carries <strong>Exit VR</strong> (you can&#39;t click a DOM button inside a headset).
+<code>flat-ui=&quot;dom&quot;</code> puts the flat panel back in an HTML overlay. Both presentations
 bind to the same reactive values, so they stay in sync.</p>
-<p>Click the gear to raise/lower and spin the cube — then try it in VR.</p>
+<p>Click the owl to raise/lower and spin the cube — then try it in VR.</p>
 <pre><code class="language-js">import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
@@ -297,8 +298,8 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <tr>
 <td></td>
 <td><code>padding</code> / <code>paddingTop</code> / <code>gap</code></td>
-<td><code>12</code>/<code>padding</code>/<code>8</code></td>
-<td></td>
+<td><code>12</code>/<code>padding</code>/<code>4</code></td>
+<td>gap is half the theme spacing</td>
 </tr>
 <tr>
 <td></td>
@@ -1130,6 +1131,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

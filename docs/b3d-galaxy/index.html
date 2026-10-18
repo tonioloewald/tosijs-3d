@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-galaxy — tosijs-3d</title>
   <meta name="description" content="Procedural galaxy renderer — the voxel galaxy, the one galaxy implementation, drawn: thousands of stars in a spiral arm distribution, each coloured by spectral…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-galaxy/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-galaxy">b3d-galaxy</h1>
 <p>Procedural galaxy renderer — the <a href="/voxel-galaxy/">voxel galaxy</a>, the one galaxy
@@ -97,7 +97,7 @@ function smoothstep(t) { return t * t * (3 - 2 * t) }
 const scene = b3d(
   {
     frameRate: 60,
-    // Generation settings live in the dual-presence ⚙ panel (works in VR); the
+    // Generation settings live in the dual-presence settings panel (works in VR); the
     // free-text star search + selection readout stay a flat overlay (typing needs
     // a keyboard). All widgets bind the same demo.* leaves the observers watch.
     panelTitle: &#39;Galaxy&#39;,
@@ -282,7 +282,7 @@ demo.selectedStar.observe((v) =&gt; {
 })
 
 // Flat overlay keeps only the star search + selection readout; the generation
-// settings all live in the ⚙ scene panel (and in VR).
+// settings all live in the settings panel (and in VR).
 preview.append(
   scene,
   div(
@@ -860,6 +860,6 @@ demo.nameSearch.observe(applyFilter)
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

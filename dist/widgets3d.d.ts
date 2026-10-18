@@ -563,9 +563,9 @@ export declare function slider3d(config: {
     /**
      * Where the number lives.
      *
-     * - `'peek'` (default) — shown in place of the label while you point at or
-     *   drag it. Right for a HUD or a settings panel, where the label matters
-     *   more than the digits and space is tight.
+     * - `'peek'` (default) — shown at the right, BESIDE the label, while you
+     *   point at or drag it; the label stays. Right for a HUD or a settings
+     *   panel, where the label matters more than the digits and space is tight.
      * - `'always'` — a permanent right-hand readout, with the track shortened to
      *   make room. Right for anything you have to READ rather than just set:
      *   ensemble's coordinates were unreadable because a handle position is not a
@@ -587,10 +587,16 @@ export declare function slider3d(config: {
     useful?: [number, number];
 }): Widget3d;
 /**
- * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
- * previous/next option — no disclosure, no dropdown, so it reads and taps cleanly
- * in VR (two big targets). Binds the selected value (string or number); `options`
- * are bare values or `{ label, value }` pairs. Wraps around the ends by default.
+ * A select: `label      value ⌄`. Tapping the value (the right-hand cluster) opens
+ * a popup list of the options, anchored under it; picking one sets the value and
+ * closes the list. The popup is its own surface, so a panel does not crop it.
+ * Binds the selected value (string or number); `options` are bare values or
+ * `{ label, value }` pairs.
+ *
+ * The list needs a host to open in. `panel3d` always gives it one (through a
+ * `row3d` too), so in a panel this is a select and nothing else.
+ * Only without a host — a bare widget with no panel — does a tap step to the
+ * next option instead, wrapping around the ends unless `wrap: false`.
  */
 export declare function select3d(config: {
     label?: string;
@@ -599,6 +605,7 @@ export declare function select3d(config: {
         label: string;
         value: string | number;
     }>;
+    /** Only for the hostless step fallback: wrap past the ends (default true). */
     wrap?: boolean;
     /** Fired as the value changes. */
     handleChange?: (v: string | number) => void;
@@ -767,14 +774,17 @@ export declare function fitPanel(rows: Widget3d[], opts?: {
  * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
  * is, so a host drags it the same way. `scrollBy`, `scrollTop` and
  * `scrollable` are the content's (a wheel over the panel scrolls it).
+ * `setContent(next)` puts other content under the same bar (the old content
+ * goes back where it came from); the frame, and whatever plane shows it, stay.
  * `dispose` gives the content back.
  */
-export declare function titled3d(content: SVGSVGElement, config?: {
+export declare function titled3d(first: SVGSVGElement, config?: {
     title?: string;
     grip?: boolean;
     handleClose?: () => void;
 }): SVGSVGElement & {
     dispose: () => void;
+    setContent: (next: SVGSVGElement) => void;
 };
 /**
  * What `panel3d` returns: its SVG, with what a host drives it by. Typed in

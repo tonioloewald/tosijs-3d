@@ -189,10 +189,10 @@ preview.append(
 | `forwardSpeed` | `2` | Walk speed |
 | `runSpeed` | `5` | Sprint speed |
 | `backwardSpeed` | `1` | Backward speed |
-| `cameraHeightOffset` | `1` | Camera height above target |
-| `cameraTargetHeight` | `0.75` | Height of the point the camera looks at |
-| `cameraMinFollowDistance` | `2` | Closest follow distance |
-| `cameraMaxFollowDistance` | `5` | Furthest follow distance |
+| `cameraHeightOffset` | `2` | Camera height above target |
+| `cameraTargetHeight` | `1.4` | Height of the point the camera looks at |
+| `cameraMinFollowDistance` | `4` | Closest follow distance |
+| `cameraMaxFollowDistance` | `10` | Furthest follow distance |
 
 ## Animations
 

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-planet — tosijs-3d</title>
   <meta name="description" content="Procedural planet mesh using a subdivided cube projected onto a sphere. Height displacement from 3D Perlin noise (gross + detail layers) with gradient filters…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-planet/" />
@@ -30,14 +30,14 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-planet">b3d-planet</h1>
 <p>Procedural planet mesh using a subdivided cube projected onto a sphere.
 Height displacement from 3D Perlin noise (gross + detail layers) with
 gradient filters for terrain shaping. Same noise system as <code>b3d-terrain</code>
 so ground-level and orbital views are consistent.</p>
-<p>Optional atmosphere (glow shell) and ocean (water sphere at sea level).</p>
+<p>Optional atmosphere (glow shell) and sea: land and sea are one mesh and one shader, told apart per pixel by height (there is no separate sea sphere).</p>
 <h2 id="demo">Demo</h2>
 <pre><code class="language-js">import { b3d, spaceBackdrop, b3dLight, b3dPlanet, ROCKY_WORLDS, label3d, slider3d, toggle3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
@@ -212,7 +212,7 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
 <tr>
 <td><code>colorMap</code></td>
 <td><code>&#39;&#39;</code></td>
-<td>A real world&#39;s COLOUR: a 2:1 image, longitude −180° to 180° left to right. <code>nasa/moon/color-2k.jpg</code> and so on. Replaces the biome shading and the sea sphere</td>
+<td>A real world&#39;s COLOUR: a 2:1 image, longitude −180° to 180° left to right. <code>nasa/moon/color-2k.jpg</code> and so on. Replaces the biome shading (and the drawn sea)</td>
 </tr>
 <tr>
 <td><code>flatSea</code></td>
@@ -842,6 +842,6 @@ for (const key of [&#39;atmosphere&#39;, &#39;clouds&#39;, &#39;ocean&#39;, &#39
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

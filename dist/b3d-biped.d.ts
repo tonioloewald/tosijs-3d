@@ -95,16 +95,6 @@ export declare class B3dBiped extends B3dControllable {
         /** How far up/down the look can go, degrees. */
         maxLookPitch: number;
         /**
-         * Invert the right stick's vertical. **On by default** — Tonio's call, and
-         * the conventional one for a third-person camera: pushing the stick away
-         * from you tips the view DOWN, the way a physical camera head works. Set
-         * `'off'` for the direct mapping.
-         *
-         * A string enum rather than a boolean because an absent boolean attribute
-         * is false, so a default-true boolean can never turn on (and tosijs now
-         * throws on one) — see CLAUDE.md.
-         */
-        /**
          * How far in FRONT of the head bone the first-person eye sits, in metres.
          *
          * Enough to put the face behind the near plane while walking, and no more:
@@ -112,6 +102,15 @@ export declare class B3dBiped extends B3dControllable {
          * which is what makes a too-large value feel like floating.
          */
         eyeForward: number;
+        /**
+         * Invert the right stick's vertical. **Off by default**: pushing the stick
+         * up looks (and aims) up. `'on'` gives the inverted, aircraft-style mapping,
+         * where pushing the stick away tips the view down.
+         *
+         * A string enum rather than a boolean because an absent boolean attribute
+         * is false, so a default-true boolean can never turn on (and tosijs now
+         * throws on one) — see CLAUDE.md.
+         */
         invertLookY: "on" | "off";
         /**
          * Never let the follow camera drop below this above the character's feet.
@@ -121,10 +120,10 @@ export declare class B3dBiped extends B3dControllable {
          */
         cameraMinHeight: number;
         /**
-         * Upward speed of a FULLY wound-up jump, m/s. The physics is fixed and the
-         * ANIMATION is retimed to match it — not the other way round. Matching the
-         * jump to the clip was tried and was wrong: it made the jump a consequence
-         * of whatever the animator exported.
+         * Upward speed at take-off, m/s. The jump is instant (no wind-up), and the
+         * physics decides it: the start, loop and land clips each play for as long
+         * as they are true, so the jump is never a consequence of whatever the
+         * animator exported.
          */
         jumpSpeed: number;
         /** Fraction of walking speed while sneaking. */
@@ -144,6 +143,17 @@ export declare class B3dBiped extends B3dControllable {
          * default to true, and the useful default here is "strafing off".
          */
         /**
+         * **How high a ledge the character can pull itself onto, metres.** Below
+         * `STEP_UP` (0.5) the walking code just steps up; above this it is a wall.
+         *
+         * `2.2` is a touch over shoulder height on a 1.83 m rig — a decent mantle
+         * for someone athletic. Lower it for a heavier or clumsier character; that
+         * is the mobility half of the skill dial AI-DESIGN argues for, and it costs
+         * nothing to expose because the band it defines is read from geometry
+         * rather than painted onto it.
+         */
+        climbReach: number;
+        /**
          * **How deep the water gets before you swim, as a fraction of standing
          * height.** Below this you wade — feet on the bottom, walking; above it
          * buoyancy takes over.
@@ -158,20 +168,11 @@ export declare class B3dBiped extends B3dControllable {
          * fraction tracks that for free. Metres would be right for a fact about the
          * WORLD; the two are easy to confuse and worth keeping apart.
          *
-         * Leaving the water uses a lower threshold (70% of this) so the boundary
-         * does not flicker; see `buoyancy.isSwimming`.
+         * Hysteresis, so the boundary does not flicker: you START swimming a bit
+         * deeper than this (1.3 × `wadeDepth`, about 0.59 of your height at the
+         * default) and stop once the water drops back to `wadeDepth` itself; see
+         * `buoyancy.isSwimming`.
          */
-        /**
-         * **How high a ledge the character can pull itself onto, metres.** Below
-         * `STEP_UP` (0.5) the walking code just steps up; above this it is a wall.
-         *
-         * `2.2` is a touch over shoulder height on a 1.83 m rig — a decent mantle
-         * for someone athletic. Lower it for a heavier or clumsier character; that
-         * is the mobility half of the skill dial AI-DESIGN argues for, and it costs
-         * nothing to expose because the band it defines is read from geometry
-         * rather than painted onto it.
-         */
-        climbReach: number;
         wadeDepth: number;
         strafing: string;
         /**

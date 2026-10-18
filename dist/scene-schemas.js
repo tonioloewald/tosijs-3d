@@ -1163,8 +1163,8 @@ export function soundSchema(extra = {}) {
  * a consumer must never type those ranges itself.
  *
  * `ssao` is listed because the look is meaningless without it, but whether it
- * is ON is usually the viewer's call (it costs frame time and never runs in a
- * headset): store the recommendation, and let the device decide.
+ * is ON is usually the viewer's call (it costs frame time, and in a headset
+ * only an explicit `on` runs it): store the recommendation, and let the device decide.
  */
 export function b3dSchema(extra = {}) {
     return schema('Scene', {

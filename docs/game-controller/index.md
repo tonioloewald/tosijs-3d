@@ -12,16 +12,19 @@ hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
 |----------------|------|
 | leftStick Y | W (+) / S (-) |
 | leftStick X | D (+) / A (-) |
-| rightStick X | ArrowRight (+) / ArrowLeft (-) |
-| buttonA | Space |
-| buttonB | F |
+| rightStick X | ArrowRight (+) / ArrowLeft (-) (look: turn) |
+| rightStick Y | ArrowUp (+) / ArrowDown (-) (look: pitch) |
+| buttonA | Space, left mouse button |
+| buttonB | F, right mouse button |
 | buttonX | E |
 | leftBumper | ShiftLeft |
+| rightBumper | ShiftRight, middle mouse button |
 | leftTrigger | Q |
 | rightTrigger | R |
 | dpadDown | G (toggle) |
 
-Mouse wheel adjusts rightStick Y (for camera zoom).
+The mouse wheel is ZOOM: it drives the d-pad up/down axis, not the right
+stick. Mouse buttons count only when the press starts on a scene canvas.
 
 ## Usage
 

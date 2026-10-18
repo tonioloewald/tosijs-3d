@@ -6,7 +6,7 @@ Height displacement from 3D Perlin noise (gross + detail layers) with
 gradient filters for terrain shaping. Same noise system as `b3d-terrain`
 so ground-level and orbital views are consistent.
 
-Optional atmosphere (glow shell) and ocean (water sphere at sea level).
+Optional atmosphere (glow shell) and sea: land and sea are one mesh and one shader, told apart per pixel by height (there is no separate sea sphere).
 
 ## Demo
 
@@ -162,7 +162,7 @@ tosi-b3d {
 | `radius` | `50` | Base sphere radius |
 | `heightMap` | `''` | A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show |
 | `bodyRadiusKm` | `0` | The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host |
-| `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere |
+| `colorMap` | `''` | A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading (and the drawn sea) |
 | `flatSea` | `'off'` | `'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth) |
 | `seaGlint` | `1` | The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move |
 | `seaIce` | `0` | Sea ice toward the poles, `0…1` |

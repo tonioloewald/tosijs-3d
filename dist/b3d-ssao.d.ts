@@ -1,11 +1,14 @@
 import * as BABYLON from '@babylonjs/core';
-/** `always` is deprecated: it means `on`. SSAO does not run in XR. */
+/** `always` is deprecated: it means `on`. In a headset only `on` runs, and only with the `projected` method. */
 export type SsaoSetting = 'off' | 'auto' | 'on' | 'always';
 /**
  * Should SSAO be running? Pure, so the rule is testable without an engine.
  *
- * Never in XR, whatever the setting: a post-process pipeline on a WebXR camera
- * draws one image across both eyes (see "Screen" in the page above). `xr` must be true for
+ * In XR only when the method can run there (`xrCapable`: the projected method,
+ * which is not a post-process) AND the setting is `on`; `auto` stays off in a
+ * session. The `screen` method never runs in XR: a post-process pipeline on a
+ * WebXR camera draws one image across both eyes (see "Screen" in the page
+ * above). `xr` must be true for
  * the WHOLE session including entering and exiting, because the headset camera
  * becomes the active camera before the session reports itself entered.
  */

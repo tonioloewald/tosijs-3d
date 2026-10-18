@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-launcher — tosijs-3d</title>
   <meta name="description" content="Fires ballistic projectiles — the scene-side shoot loop, bridging the pure ballistics.ts integrator + the pure resource.ts ammo pool to Babylon (see…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-launcher/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-launcher">b3d-launcher</h1>
 <p>Fires <strong>ballistic projectiles</strong> — the scene-side shoot loop, bridging the pure
@@ -45,7 +45,7 @@ direct hit or a near miss both do AOE damage to whatever&#39;s in blast range. A
 button) to fire</strong> a stream of shells — the <a href="../b3d-controller/">standard controller</a>, so
 the same controls work on keyboard, touch, and in VR. <strong>Left-drag orbits</strong> the view.
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
-chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.</p>
+chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the settings panel.</p>
 <pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
@@ -875,6 +875,6 @@ and does both.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

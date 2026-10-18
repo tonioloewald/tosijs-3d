@@ -204,13 +204,14 @@ preview.append(sceneEl)
 ## Dual-presence scene panel
 
 The same widgets, authored once, drive a panel that has a presence **both in the
-DOM and in the scene**. Pass `b3d` a `scenePanel` hook returning the widgets:
-on a flat screen a **gear icon** (top-right) toggles them as a DOM overlay; in
-immersive VR the identical panel floats above the viewer with an **Exit VR**
-button prepended (you can't click a DOM button inside a headset). Both surfaces
+flat view and in a headset**. Pass `b3d` a `scenePanel` hook returning the
+widgets: the **owl** on the system bar (top left, flat; up ahead in a headset)
+opens them as a panel drawn in the scene, under the bar. In VR the bar also
+carries **Exit VR** (you can't click a DOM button inside a headset).
+`flat-ui="dom"` puts the flat panel back in an HTML overlay. Both presentations
 bind to the same reactive values, so they stay in sync.
 
-Click the gear to raise/lower and spin the cube — then try it in VR.
+Click the owl to raise/lower and spin the cube — then try it in VR.
 
 ```js
 import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from 'tosijs-3d'
@@ -260,7 +261,7 @@ settings into `select3d` cyclers to get discrete values.
 | `panel3d` | `width` | `360` | |
 | | `height` | `'fit'` | a number to fix it; `'fit'` sizes to content |
 | | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
-| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
+| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`4` | gap is half the theme spacing |
 | | `background` | theme `panelBg` | |
 | `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. A `<tosi-b3d>` `scenePanel` folds them itself; for a `panel3d` of your own, run the rows through `foldSections(rows, { key, mode, repaint })` and rebuild on `repaint` |
 | | `open` | first section only | whether a collapsible section starts open |
@@ -1658,8 +1659,8 @@ export function slider3d(config) {
     /*
     The ALWAYS readout is a separate element from the peek one, deliberately.
   
-    Peek replaces the LABEL and lives at the left; always sits at the right with
-    the track shortened to clear it. Trying to make one element do both means it
+    Peek appears only while you touch it; always sits at the right with the
+    track shortened to clear it. Trying to make one element do both means it
     moves when you touch it, which is the one thing a number you are reading must
     not do.
     */
@@ -1704,8 +1705,6 @@ export function slider3d(config) {
         valText.textContent = shown;
         fixedVal.textContent = shown;
     };
-    // Peek shows the exact value in place of the LABEL — the track and knob stay
-    // visible, so you can still see and drag the slider while reading the number.
     /*
     Peek appears BESIDE the label now rather than in place of it. Replacing it was
     a concession to a single row — there was nowhere else for a number to go — and
@@ -1798,10 +1797,16 @@ export function slider3d(config) {
     };
 }
 /**
- * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
- * previous/next option — no disclosure, no dropdown, so it reads and taps cleanly
- * in VR (two big targets). Binds the selected value (string or number); `options`
- * are bare values or `{ label, value }` pairs. Wraps around the ends by default.
+ * A select: `label      value ⌄`. Tapping the value (the right-hand cluster) opens
+ * a popup list of the options, anchored under it; picking one sets the value and
+ * closes the list. The popup is its own surface, so a panel does not crop it.
+ * Binds the selected value (string or number); `options` are bare values or
+ * `{ label, value }` pairs.
+ *
+ * The list needs a host to open in. `panel3d` always gives it one (through a
+ * `row3d` too), so in a panel this is a select and nothing else.
+ * Only without a host — a bare widget with no panel — does a tap step to the
+ * next option instead, wrapping around the ends unless `wrap: false`.
  */
 export function select3d(config) {
     const opts = config.options.map((o) => o != null && typeof o === 'object'
@@ -2383,18 +2388,21 @@ function titleBarParts(bar, title, closable, width, padding) {
  * out of a bag). `gripHit` is the bar less the close target, as `panel3d`'s
  * is, so a host drags it the same way. `scrollBy`, `scrollTop` and
  * `scrollable` are the content's (a wheel over the panel scrolls it).
+ * `setContent(next)` puts other content under the same bar (the old content
+ * goes back where it came from); the frame, and whatever plane shows it, stay.
  * `dispose` gives the content back.
  */
-export function titled3d(content, config = {}) {
+export function titled3d(first, config = {}) {
     const handleClose = handlerOf(config, 'handleClose', 'onClose');
     const grip = config.grip !== false;
     const radius = w3dTheme.roundedRadius * 2;
     const root = css(svg({ 'data-w3d': 'titled' }), 'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
     const bg = rect({ x: 0, y: 0, rx: radius, ry: radius, fill: TH.PANEL_BG });
     const chrome = g({});
+    let content = first;
     // Where the content lived, to give it back there (a panel's own child).
-    const home = content.parentNode;
-    const next = content.nextSibling;
+    let home = content.parentNode;
+    let next = content.nextSibling;
     root.append(bg, content, chrome);
     let bar = chromeLayout(1, 1, 1, grip);
     let w = 0;
@@ -2425,6 +2433,14 @@ export function titled3d(content, config = {}) {
     // Any attribute of the root (it has few): relayout returns early unless the
     // size changed. (No attributeFilter: happy-dom matched no 'viewBox' with one.)
     watch?.observe(content, { attributes: true });
+    const giveBack = () => {
+        content.removeAttribute('x');
+        content.removeAttribute('y');
+        if (home != null)
+            home.insertBefore(content, next?.parentNode === home ? next : null);
+        else
+            content.remove();
+    };
     const forward = (kind, x, y) => content.handlePointer?.(kind, x, y - TITLE_BAR);
     let inContent = false;
     let closing = false;
@@ -2459,31 +2475,51 @@ export function titled3d(content, config = {}) {
             inContent = false;
     };
     // Scrolling is the content's, in the same units (a host's wheel, #114).
-    const scrolling = content;
+    // Read through `content` each time: `setContent` replaces it.
+    const scrolling = () => content;
     Object.defineProperties(root, {
         scrollTop: {
-            get: () => scrolling.scrollTop ?? 0,
+            get: () => scrolling().scrollTop ?? 0,
             set: (v) => {
-                if ('scrollTop' in scrolling)
-                    scrolling.scrollTop = v;
+                if ('scrollTop' in scrolling())
+                    scrolling().scrollTop = v;
             },
         },
-        scrollable: { get: () => !!scrolling.scrollable },
+        scrollable: { get: () => !!scrolling().scrollable },
     });
     Object.assign(root, {
         handlePointer,
-        scrollBy: (dy) => scrolling.scrollBy?.(dy),
+        scrollBy: (dy) => scrolling().scrollBy?.(dy),
         gripHit: (x, y) => grip &&
             y <= bar.barHeight &&
             !(handleClose != null && x >= bar.closeHitX),
+        /*
+        IN PLACE, so nothing between the two contents can miss a press. Swapping
+        by closing and reopening the panel left a moment with no plane, and a
+        click that landed in it was lost (ensemble, #111: one run in four after
+        a store refresh swapped every panel's content).
+        */
+        setContent: (c) => {
+            if (c === content)
+                return;
+            // A gesture in the old content ends there; the new one starts clean.
+            if (inContent)
+                forward('leave', 0, TITLE_BAR);
+            inContent = false;
+            watch?.disconnect();
+            giveBack();
+            content = c;
+            home = c.parentNode;
+            next = c.nextSibling;
+            root.insertBefore(c, chrome);
+            w = 0;
+            h = 0;
+            relayout();
+            watch?.observe(content, { attributes: true });
+        },
         dispose: () => {
             watch?.disconnect();
-            content.removeAttribute('x');
-            content.removeAttribute('y');
-            if (home != null)
-                home.insertBefore(content, next?.parentNode === home ? next : null);
-            else
-                content.remove();
+            giveBack();
         },
     });
     return root;

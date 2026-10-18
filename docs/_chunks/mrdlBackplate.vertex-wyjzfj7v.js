@@ -1,4 +1,0 @@
-import{B1}from"../hydrate-224apemt.js";export{B1 as mrdlBackplateVertexShader};
-
-//# debugId=13A272F45D401F8764756E2164756E21
-//# sourceMappingURL=mrdlBackplate.vertex-wyjzfj7v.js.map

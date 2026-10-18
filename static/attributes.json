@@ -134,7 +134,7 @@
       {
         "name": "maxSpeed",
         "default": "50",
-        "description": "Normal top speed (m/s) — the cruise cap a released throttle settles at"
+        "description": "Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag"
       },
       {
         "name": "afterburnerSpeed",
@@ -674,22 +674,22 @@
       },
       {
         "name": "cameraHeightOffset",
-        "default": "1",
+        "default": "2",
         "description": "Camera height above target"
       },
       {
         "name": "cameraTargetHeight",
-        "default": "0.75",
+        "default": "1.4",
         "description": "Height of the point the camera looks at"
       },
       {
         "name": "cameraMinFollowDistance",
-        "default": "2",
+        "default": "4",
         "description": "Closest follow distance"
       },
       {
         "name": "cameraMaxFollowDistance",
-        "default": "5",
+        "default": "10",
         "description": "Furthest follow distance"
       },
       {
@@ -2876,7 +2876,7 @@
       {
         "name": "colorMap",
         "default": "''",
-        "description": "A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere"
+        "description": "A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading (and the drawn sea)"
       },
       {
         "name": "bodyRadiusKm",
@@ -4222,7 +4222,7 @@
       {
         "name": "biomeLapseRate",
         "default": "0",
-        "description": "Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow"
+        "description": "Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The auto value, 0.004, is fixed (not scaled to your relief): it is a small-world number and renders a 340m world entirely as snow"
       },
       {
         "name": "biomeTemperature",
@@ -4949,12 +4949,12 @@
       {
         "name": "lookX",
         "default": "-1..1",
-        "description": "Camera look — swings the view, springs back on release"
+        "description": "Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)"
       },
       {
         "name": "lookY",
         "default": "-1..1",
-        "description": "Camera look — swings the view, springs back on release"
+        "description": "Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)"
       },
       {
         "name": "turn",
@@ -5577,7 +5577,7 @@
       {
         "name": "gamepadFade",
         "default": "'on'",
-        "description": "`'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used"
+        "description": "`'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)"
       },
       {
         "name": "quality"

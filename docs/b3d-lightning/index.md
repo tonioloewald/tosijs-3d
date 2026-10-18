@@ -10,7 +10,7 @@ under them, seeded, so the same seed gives the same storm.
 A storm at night. Watch the landscape jump out of the dark with each
 strike, the cloud light from inside, and count the seconds to the thunder
 (click the scene first; browsers only play sound after a gesture). Open the
-⚙ menu for the storm's size, how often it strikes, the cloud cover around it
+settings panel (the owl) for the storm's size, how often it strikes, the cloud cover around it
 and how dramatic the flash is.
 
 ```js

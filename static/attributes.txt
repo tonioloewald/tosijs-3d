@@ -46,7 +46,7 @@ b3d-aircraft
   hudChaseOff  = false  — Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene
   hudSize  = 0.7  — In-cockpit HUD plane size (metres)
   hudForward  = 1.6  — How far ahead of the pilot's eye the HUD floats (metres)
-  maxSpeed  = 50  — Normal top speed (m/s) — the cruise cap a released throttle settles at
+  maxSpeed  = 50  — Top speed at full lever, **military** thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag
   afterburnerSpeed  = 75  — Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner.
   acceleration  = 12  — Throttle / lean authority (speed change rate)
   vtolSpeed  = 6  — Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.
@@ -169,10 +169,10 @@ b3d-biped
   forwardSpeed  = 2  — Walk speed
   runSpeed  = 5  — Sprint speed
   backwardSpeed  = 1  — Backward speed
-  cameraHeightOffset  = 1  — Camera height above target
-  cameraTargetHeight  = 0.75  — Height of the point the camera looks at
-  cameraMinFollowDistance  = 2  — Closest follow distance
-  cameraMaxFollowDistance  = 5  — Furthest follow distance
+  cameraHeightOffset  = 2  — Camera height above target
+  cameraTargetHeight  = 1.4  — Height of the point the camera looks at
+  cameraMinFollowDistance  = 4  — Closest follow distance
+  cameraMaxFollowDistance  = 10  — Furthest follow distance
   groundY
   eyeHeight
   lookRate
@@ -734,7 +734,7 @@ b3d-planet
   biome
   gas  = ''  — Make it a GAS GIANT: `'jupiter'`, `'saturn'`, `'uranus'` or `'neptune'`. A smooth banded sphere with winds and a storm in place of terrain, sea and air shell; `seed` gives a different planet of the same kind and `rings` still applies. See [gas-giant](/gas-giant/)
   heightMap  = ''  — A real world's HEIGHTS: a 16-bit greyscale PNG, 2:1, `metres = value − 32768` (see [planet-map](/planet-map/)). A full URL, or a path resolved by `assetUrl`: call `setAssetBase('https://cdn.tosijs.net')` once and `nasa/moon/height-2k.png`, `nasa/mars/…` and `noaa/earth/…` are there. Sets `surface` when it has loaded. Those maps are NASA's and NOAA's and free to use with credit, which is yours to show
-  colorMap  = ''  — A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading and the sea sphere
+  colorMap  = ''  — A real world's COLOUR: a 2:1 image, longitude −180° to 180° left to right. `nasa/moon/color-2k.jpg` and so on. Replaces the biome shading (and the drawn sea)
   bodyRadiusKm  = 0  — The real body's radius in km, which is what the heights are a fraction of (Moon 1737.4, Mars 3389.5, Earth 6371). `0` reads the height map's `body-radius-km` header, which a browser only shows to a page on the same origin unless the server exposes it: set this for a map from another host
   flatSea  = 'off'  — `'on'` says the world has a SEA at 0 m: everything below is drawn as level water (and its depth still colours it), for a world whose map shows water (the Earth)
   seaGlint  = 1  — The sun's glint on the sea, `0…1`: a patch of sparkle, broken up by fine wave texture, that slides over the water as you move
@@ -1073,7 +1073,7 @@ b3d-terrain
   planet  = ''  — A selector for the `<tosi-b3d-planet>` this is the GROUND OF (`'#moon'`, sphere only): where the sea, coasts and mountain ranges are is the planet's, scaled to this `radius` with the sea at 0, and this terrain's detail layer and landforms ride on top. A pin on the globe lands on the ground it shows. Rebuilds when the planet changes. (The other way round, a planet's `terrain` draws the globe from this ground)
   biome
   biomeSeaLevel  = 0  — Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y`
-  biomeLapseRate  = 0  — Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow
+  biomeLapseRate  = 0  — Height→temperature lapse, in the biome CHART's units per metre (not `biomeTemperature`'s; see biome-chart). ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The auto value, 0.004, is fixed (not scaled to your relief): it is a small-world number and renders a 340m world entirely as snow
   biomeTemperature  = 0.45  — Sea-level temperature: `0` is 0 °C and each unit is 50 °C, so the default is 22.5 °C, `-1` is -50 °C, and it is not limited to that range (see biome-chart's `chartTemperature`). LIVE
   biomeMoisture  = -1  — Land moisture, `0…1`: dead → dry (dune) → medium (steppe) → **wet (forest)**. Land sits on the chart at three quarters of this (the top row is the sea's), so forest needs ≈1 and a green world wants ~0.9; height and the climate regions dry it from there. The default is steppe. LIVE
   biomeVolcanicScale  = -1  — Volcanic plate frequency, 1/m. Scale to the volcano: 0.09 suits a ~50 m cone; a 400 m one wants ~0.02. LIVE
@@ -1251,8 +1251,8 @@ control-input
 
   forward  = -1..1  — Forward/backward movement
   strafe  = -1..1  — Left/right strafe
-  lookX  = -1..1  — Camera look — swings the view, springs back on release
-  lookY  = -1..1  — Camera look — swings the view, springs back on release
+  lookX  = -1..1  — Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)
+  lookY  = -1..1  — Camera look. In a vehicle it swings the view and springs back on release; on foot it turns the body (X) and holds its pitch (Y)
   turn  = -1..1  — Turning
   pitch  = -1..1  — Pitch (aircraft)
   throttle  = 0..1  — Continuous throttle
@@ -1445,7 +1445,7 @@ b3d
   panelTitle  = ''  — The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row)
   panelSections
   gamepadScale  = 1  — Scale factor for the glass gamepad clusters
-  gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
+  gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)
   quality
   ssao
   ssaoStrength

@@ -13,9 +13,9 @@ names its flat home with `flatFrame`.
 
 Four ways to show a panel, side by side. The **world panel** (a `b3d-svg-plane`) is
 a mesh in the scene — it renders in the regular flat view AND in VR, fixed in the
-world. The **Settings** panel (the `scenePanel` hook) is *dual-presence*: a flat ⚙
-overlay (open here) that's also a floating panel in VR — its slider drives the cube in
-both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence — enter VR to see
+world. The **Settings** panel (the `scenePanel` hook) is *dual-presence*: the owl on
+the system bar (top left) opens it in the scene, flat and in VR alike — its slider
+drives the cube in both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence — enter VR to see
 it anchored to your view. The **Flat + VR** panel is the same element with
 `presence: 'both'`: viewer-relative on the monitor AND in the headset, one panel.
 
@@ -27,10 +27,10 @@ const { cfg } = tosi({ cfg: { height: 1 } })
 
 const scene = b3d(
   {
-    // Start with the flat panel open so it's visible without hunting for the ⚙.
+    // Start with the flat panel open so it's visible without hunting for the owl.
     scenePanelOpen: true,
     panelTitle: 'Settings',
-    // DUAL-PRESENCE: a flat ⚙ overlay AND a floating VR panel, same values.
+    // DUAL-PRESENCE: one settings panel, flat and in VR, same values.
     scenePanel: () => [
       slider3d({ label: 'cube height', value: cfg.height, min: 0.5, max: 3, step: 0.1 }),
     ],
@@ -191,11 +191,12 @@ tosi-b3d { width: 100%; height: 100%; }
 
 - **World-anchored (`b3d-svg-plane`)** — a panel that IS a mesh in the scene: visible
   in flat 3D and VR, fixed in the world. Use for holograms, signage, in-world screens.
-- **Dual-presence (`scenePanel` hook)** — a flat ⚙ overlay AND a floating VR panel,
-  bound to the same reactive values. Use for settings/controls you want everywhere.
+- **Dual-presence (`scenePanel` hook)** — one panel, opened by the owl on the system
+  bar, drawn in the scene flat and in VR, bound to the same reactive values. Use for settings/controls you want everywhere.
 - **Viewer-frame-anchored (`<tosi-b3d-panel>`, VR-only)** — anchored to an XR
-  reference frame (`eye`/`body`/`left-hand`/…); follows you and exists only in a
-  session. Use for HUDs, wrist menus, over-the-shoulder inventory.
+  reference frame (`eye`/`body`/`left-hand`/…); follows you. By default it exists
+  only in a session; `presence: 'both'` shows it flat too, and an `icon` makes it a
+  system panel (a button on the system bar, flat and in VR). Use for HUDs, wrist menus, over-the-shoulder inventory.
 
 The `<tosi-b3d-panel>` children are the set (none ship by default):
 
@@ -236,7 +237,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `layer` | `'world'` | `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world |
 | `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
 
-Four more are JavaScript properties, not attributes, because they are
+Five more are JavaScript properties, not attributes, because they are
 objects: `svg` (live content, in place of an `<svg>` child: an `<svg>` whose own `handlePointer(kind, x, y)`
 gets the panel's pointer, such as an `inventoryDock`'s), `screenAnchor` (flat, pinned to the screen's edges in pixels, `%` or `vmin`: `{ left: '2vmin', top: '2vmin' }`; for a system panel, where it first opens, before it is dragged, and in a headset which side it goes), `flatAnchor` (where
 it goes in the flat view instead), `focusAnchor` and `focusScale` (where it

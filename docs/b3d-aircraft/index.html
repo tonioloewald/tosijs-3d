@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-aircraft — tosijs-3d</title>
   <meta name="description" content="Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-aircraft/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-aircraft">b3d-aircraft</h1>
 <p>Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather
@@ -88,7 +88,7 @@ const targets = [...air, ...ground]
 const kills = div({ class: &#39;kills&#39; }, `Targets down: 0 / ${targets.length}`)
 // WEATHER, to fly in: a storm cell over the whole arena (storminess shakes
 // the airframe) and the scene&#39;s wind (it carries you; blowing east, across
-// your starting heading, so you crab). Both on the ⚙ panel.
+// your starting heading, so you crab). Both on the settings panel.
 const storm = b3dWeatherCell({ x: 0, z: 0, radius: 3000, storminess: 0 })
 const turb = div({ class: &#39;turb&#39; }, &#39;turbulence 0.00&#39;)
 let down = 0
@@ -252,7 +252,7 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <tr>
 <td><code>maxSpeed</code></td>
 <td><code>50</code></td>
-<td>Normal top speed (m/s) — the cruise cap a released throttle settles at</td>
+<td>Top speed at full lever, <strong>military</strong> thrust (m/s). A released trigger leaves the lever where it was, so speed settles wherever that lever meets drag</td>
 </tr>
 <tr>
 <td><code>afterburnerSpeed</code></td>
@@ -1074,6 +1074,6 @@ registration time captures an empty root forever).</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

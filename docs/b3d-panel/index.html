@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-panel — tosijs-3d</title>
   <meta name="description" content="A declarative spatial-UI panel you drop into the scene as a child of &lt;tosi-b3d&gt;, instead of hard-wiring panels in code." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-panel/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-panel">b3d-panel</h1>
 <p>A declarative spatial-UI panel you drop into the scene as a child of <code>&lt;tosi-b3d&gt;</code>,
@@ -44,9 +44,9 @@ names its flat home with <code>flatFrame</code>.</p>
 <h2 id="demo">Demo</h2>
 <p>Four ways to show a panel, side by side. The <strong>world panel</strong> (a <code>b3d-svg-plane</code>) is
 a mesh in the scene — it renders in the regular flat view AND in VR, fixed in the
-world. The <strong>Settings</strong> panel (the <code>scenePanel</code> hook) is <em>dual-presence</em>: a flat ⚙
-overlay (open here) that&#39;s also a floating panel in VR — its slider drives the cube in
-both. The <strong>VR only</strong> panel (<code>&lt;tosi-b3d-panel&gt;</code>) has no flat presence — enter VR to see
+world. The <strong>Settings</strong> panel (the <code>scenePanel</code> hook) is <em>dual-presence</em>: the owl on
+the system bar (top left) opens it in the scene, flat and in VR alike — its slider
+drives the cube in both. The <strong>VR only</strong> panel (<code>&lt;tosi-b3d-panel&gt;</code>) has no flat presence — enter VR to see
 it anchored to your view. The <strong>Flat + VR</strong> panel is the same element with
 <code>presence: &#39;both&#39;</code>: viewer-relative on the monitor AND in the headset, one panel.</p>
 <pre><code class="language-js">import { b3d, b3dPanel, b3dSvgPlane, b3dLight, b3dSkybox, b3dGround, b3dBox, label3d, slider3d } from &#39;tosijs-3d&#39;
@@ -56,10 +56,10 @@ const { cfg } = tosi({ cfg: { height: 1 } })
 
 const scene = b3d(
   {
-    // Start with the flat panel open so it&#39;s visible without hunting for the ⚙.
+    // Start with the flat panel open so it&#39;s visible without hunting for the owl.
     scenePanelOpen: true,
     panelTitle: &#39;Settings&#39;,
-    // DUAL-PRESENCE: a flat ⚙ overlay AND a floating VR panel, same values.
+    // DUAL-PRESENCE: one settings panel, flat and in VR, same values.
     scenePanel: () =&gt; [
       slider3d({ label: &#39;cube height&#39;, value: cfg.height, min: 0.5, max: 3, step: 0.1 }),
     ],
@@ -200,11 +200,12 @@ preview.append(
 <ul>
 <li><strong>World-anchored (<code>b3d-svg-plane</code>)</strong> — a panel that IS a mesh in the scene: visible
 in flat 3D and VR, fixed in the world. Use for holograms, signage, in-world screens.</li>
-<li><strong>Dual-presence (<code>scenePanel</code> hook)</strong> — a flat ⚙ overlay AND a floating VR panel,
-bound to the same reactive values. Use for settings/controls you want everywhere.</li>
+<li><strong>Dual-presence (<code>scenePanel</code> hook)</strong> — one panel, opened by the owl on the system
+bar, drawn in the scene flat and in VR, bound to the same reactive values. Use for settings/controls you want everywhere.</li>
 <li><strong>Viewer-frame-anchored (<code>&lt;tosi-b3d-panel&gt;</code>, VR-only)</strong> — anchored to an XR
-reference frame (<code>eye</code>/<code>body</code>/<code>left-hand</code>/…); follows you and exists only in a
-session. Use for HUDs, wrist menus, over-the-shoulder inventory.</li>
+reference frame (<code>eye</code>/<code>body</code>/<code>left-hand</code>/…); follows you. By default it exists
+only in a session; <code>presence: &#39;both&#39;</code> shows it flat too, and an <code>icon</code> makes it a
+system panel (a button on the system bar, flat and in VR). Use for HUDs, wrist menus, over-the-shoulder inventory.</li>
 </ul>
 <p>The <code>&lt;tosi-b3d-panel&gt;</code> children are the set (none ship by default):</p>
 <pre><code class="language-html">&lt;tosi-b3d gamepad&gt;
@@ -339,7 +340,7 @@ session. Use for HUDs, wrist menus, over-the-shoulder inventory.</li>
 <td>The frame to use flat when <code>frame</code> is a hand (a monitor has none) — e.g. <code>face</code> with a <code>position</code> at the screen edge. Without one a hand panel stays VR-only and warns once</td>
 </tr>
 </tbody></table>
-<p>Four more are JavaScript properties, not attributes, because they are
+<p>Five more are JavaScript properties, not attributes, because they are
 objects: <code>svg</code> (live content, in place of an <code>&lt;svg&gt;</code> child: an <code>&lt;svg&gt;</code> whose own <code>handlePointer(kind, x, y)</code>
 gets the panel&#39;s pointer, such as an <code>inventoryDock</code>&#39;s), <code>screenAnchor</code> (flat, pinned to the screen&#39;s edges in pixels, <code>%</code> or <code>vmin</code>: <code>{ left: &#39;2vmin&#39;, top: &#39;2vmin&#39; }</code>; for a system panel, where it first opens, before it is dragged, and in a headset which side it goes), <code>flatAnchor</code> (where
 it goes in the flat view instead), <code>focusAnchor</code> and <code>focusScale</code> (where it
@@ -811,6 +812,6 @@ the content&#39;s box. Both are null unless the panel is open and flat.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

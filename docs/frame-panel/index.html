@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>frame-panel — tosijs-3d</title>
   <meta name="description" content="A spatial UI panel pinned to an XR reference frame (see xr-frames). You give it a frame, a position (or a preset), and a placeholder title or your own" />
   <link rel="canonical" href="https://3d.tosijs.net/frame-panel/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="frame-panel">frame-panel</h1>
 <p>A spatial UI panel pinned to an XR reference frame (see <a href="../xr-frames/">xr-frames</a>).
@@ -41,10 +41,13 @@ panel revealed by looking down, inventory panels over either shoulder revealed b
 glancing back. The panel is FIXED in its frame (it doesn&#39;t billboard); the frame
 itself moves (e.g. <code>body</code> follows your torso), so the panel rides with you and is
 oriented once to face your head.</p>
-<p>Anchor presets (in the <code>body</code> frame, metres; y is absolute since <code>body</code> sits at
-the floor): <code>waist</code>, <code>left-shoulder</code>, <code>right-shoulder</code>.</p>
+<p>Anchor presets are angular (<code>azimuthDeg</code> / <code>elevationDeg</code> / <code>distance</code> from the
+eye, in the rig frame): <code>waist</code>, <code>left-shoulder</code>, <code>right-shoulder</code>, <code>overhead</code>,
+<code>wrist</code>, and <code>system-bar</code> (which a <code>&lt;tosi-b3d&gt;</code> puts under its system bar).</p>
 <h2 id="example">Example</h2>
-<p>XR-only. Pins an SVG panel to an <a href="../xr-frames/">xr-frame</a> and reveals it as you look toward it.
+<p>In a headset it pins an SVG panel to an <a href="../xr-frames/">xr-frame</a> and reveals it as you look toward it.
+Flat, it shows only when asked: <code>flatAnchor</code> (a spot in front of the camera) or
+<code>screenAnchor</code> (pinned to the screen&#39;s edges), which is how system panels work.
 The declarative wrapper is <a href="../b3d-panel/"><tosi-b3d-panel></a> — prefer it; this is the imperative version:</p>
 <pre><code class="language-javascript" data-highlighted><span class="token keyword">import</span> <span class="token punctuation">{</span> attachFramePanel <span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'tosijs-3d'</span>
 <span class="token comment">// attachFramePanel(frames, { frame: 'left-shoulder', preset, svg }) → a gaze-revealed panel pinned</span>
@@ -502,6 +505,6 @@ The declarative wrapper is <a href="../b3d-panel/"><tosi-b3d-panel></a> — pref
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

@@ -203,13 +203,14 @@ preview.append(sceneEl)
 ## Dual-presence scene panel
 
 The same widgets, authored once, drive a panel that has a presence **both in the
-DOM and in the scene**. Pass `b3d` a `scenePanel` hook returning the widgets:
-on a flat screen a **gear icon** (top-right) toggles them as a DOM overlay; in
-immersive VR the identical panel floats above the viewer with an **Exit VR**
-button prepended (you can't click a DOM button inside a headset). Both surfaces
+flat view and in a headset**. Pass `b3d` a `scenePanel` hook returning the
+widgets: the **owl** on the system bar (top left, flat; up ahead in a headset)
+opens them as a panel drawn in the scene, under the bar. In VR the bar also
+carries **Exit VR** (you can't click a DOM button inside a headset).
+`flat-ui="dom"` puts the flat panel back in an HTML overlay. Both presentations
 bind to the same reactive values, so they stay in sync.
 
-Click the gear to raise/lower and spin the cube — then try it in VR.
+Click the owl to raise/lower and spin the cube — then try it in VR.
 
 ```js
 import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from 'tosijs-3d'
@@ -259,7 +260,7 @@ settings into `select3d` cyclers to get discrete values.
 | `panel3d` | `width` | `360` | |
 | | `height` | `'fit'` | a number to fix it; `'fit'` sizes to content |
 | | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
-| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
+| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`4` | gap is half the theme spacing |
 | | `background` | theme `panelBg` | |
 | `label3d` | **`collapsible`** | `false` | a SECTION header: tap to fold everything below it, up to the next collapsible label. A `<tosi-b3d>` `scenePanel` folds them itself; for a `panel3d` of your own, run the rows through `foldSections(rows, { key, mode, repaint })` and rebuild on `repaint` |
 | | `open` | first section only | whether a collapsible section starts open |

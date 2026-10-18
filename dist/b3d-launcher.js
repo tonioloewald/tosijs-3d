@@ -15,7 +15,7 @@ direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo 
 button) to fire** a stream of shells — the [standard controller](?b3d-controller.ts), so
 the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
-chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.
+chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the settings panel.
 
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'

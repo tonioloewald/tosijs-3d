@@ -7,8 +7,9 @@ the star sphere. Its PHASE follows from where it is: the side facing the sun
 is lit, so a moon near the sun is a thin crescent and one opposite it is
 full.
 
-Cosmetic on purpose: there are no orbits, no eclipses, and no light cast on
-the scene (the skybox's own moon still does the moonlight). A real orbital system is a separate piece of
+Cosmetic on purpose: there are no orbits, no eclipses, and no light of its
+own: the skybox's built-in moon gives way to these, and the night light comes
+from the FIRST of them, scaled by its lit phase. A real orbital system is a separate piece of
 work that this does not pretend to be.
 
 ## Demo

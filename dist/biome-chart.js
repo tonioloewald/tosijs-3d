@@ -24,7 +24,7 @@ pinned here by unit tests, one function per shader expression.
   altitude** (proximity-to-water proxy) plus an **orographic rain-shadow**
   term off the surface normal vs the wind — and `slopeExaggeration` so
   planet-gentle contours still read as cliffs. `b3dPlanet({ biome: 'on' })`
-  wires it, with the climate on the demo's ⚙ panel.
+  wires it, with the climate on the demo's settings panel.
 
 ## Demo — one shader, bottom muck → coral → beach → forest → snow
 

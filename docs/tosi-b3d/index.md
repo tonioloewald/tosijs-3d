@@ -36,8 +36,8 @@ const scene = '/test-3.glb'
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl('quaternius/UAL1_core.glb', 2)
 
-// Your loadout, pinned up and to the left (over your shoulder in VR): touch it
-// and it comes front and centre, with your bag beside it (see inventory-box).
+// Your loadout: a button on the system bar opens it under the bar, with your
+// bag beside it (see inventory-box).
 const loadout = demoLoadout()
 
 const formatTime = (v) => {
@@ -179,7 +179,7 @@ const scene = b3d(
       label3d({ text: 'PAUSED', bold: true }),
       button3d({ label: 'Continue', handleClick: resume }),
     ],
-    // The SAME control, in the ⚙ panel — so you can change the speed while it
+    // The SAME control, in the settings panel — so you can change the speed while it
     // is RUNNING and watch it change, instead of only while it is frozen. Both
     // panels bind the one `demo.pauseDemo.spin` value, so they never disagree.
     scenePanel: () => [
@@ -283,7 +283,7 @@ document.body.append(
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
-| `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used |
+| `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it) |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 | `panelTitle` | `''` | The settings panel's name, drawn in its title bar beside the move and close glyphs (so it costs the panel no row) |

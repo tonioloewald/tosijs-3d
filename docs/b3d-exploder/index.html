@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-exploder — tosijs-3d</title>
   <meta name="description" content="Shatters a mesh into fragments and animates them flying apart. Works by extracting vertex data, partitioning triangles into spatial clusters (Voronoi-style)…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-exploder/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-exploder">b3d-exploder</h1>
 <p>Shatters a mesh into fragments and animates them flying apart. Works by
@@ -66,7 +66,7 @@ function createSphere(B) {
 
 const scene = b3d(
   {
-    // The Explode button lives in the dual-presence ⚙ panel, so you can trigger it
+    // The Explode button lives in the dual-presence settings panel, so you can trigger it
     // from inside VR as well as on a flat screen.
     panelTitle: &#39;Exploder&#39;,
     scenePanel: () =&gt; [
@@ -105,7 +105,7 @@ function doExplode() {
 preview.append(scene)
 </code></pre>
 <blockquote>
-<p>Shatter the sphere from the ⚙ scene panel — the same panel floats in front of
+<p>Shatter the sphere from the settings panel — the same panel floats in front of
 you in VR, so this works in a headset too.</p>
 </blockquote>
 
@@ -560,6 +560,6 @@ you in VR, so this works in a headset too.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

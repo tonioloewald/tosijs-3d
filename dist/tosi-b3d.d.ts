@@ -580,6 +580,14 @@ export declare class B3d extends Component {
     sceneCreated: B3dCallback;
     update: B3dCallback;
     setupXr: B3dCallback;
+    /**
+     * A dual-presence settings panel. Return the widgets to show; the SAME
+     * definitions are drawn flat (in the scene, opened by the owl on the system
+     * bar; `flat-ui="dom"` makes it an HTML overlay) AND in a headset (under the
+     * system bar, which carries Exit VR). Both bind to the same reactive values,
+     * so they stay in sync. Rebuilt each time it opens, so a hook that reads
+     * async state is current; `refreshScenePanel()` updates an open one.
+     */
     scenePanel: (host: B3d) => Widget3d[];
     /**
      * The centred in-scene panel shown while paused. Return your own rows to
@@ -773,8 +781,10 @@ export declare class B3d extends Component {
     private _toggleSystemPanel;
     /**
      * New content on a system panel's element: if it is open, show the new
-     * content in the same place (closed and opened again; the spot is the
-     * element's, and a non-exclusive panel opening closes nothing).
+     * content in the same place. A framed panel swaps it under its title bar
+     * IN PLACE (same plane, so a press mid-swap is not lost); `chrome="none"`
+     * closes and opens again (the spot is the element's, and a non-exclusive
+     * panel opening closes nothing).
      */
     private _swapSystemContent;
     /**

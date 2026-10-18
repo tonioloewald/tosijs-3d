@@ -8,7 +8,7 @@ attribute on `<tosi-b3d>` fixes it: `ssao="auto"`.
 
 ## Demo
 
-Open the ⚙ panel and switch `ssao` between `off` and `on`. Watch the foot of
+Open the settings panel (the owl) and switch `ssao` between `off` and `on`. Watch the foot of
 the walls, the gaps between the crates and the underside of the lintel, then
 orbit in on the bust: a beard, a laurel and a collar are the kind of creased,
 organic shape occlusion does most for. It works in VR too, with the default

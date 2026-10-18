@@ -469,17 +469,6 @@ export function isRegisteredIcon(name) {
         !(name in iconAliases) &&
         !(name in iconData));
 }
-/**
- * A **texture-safe** icon: an `svgElements` `<g>` with EXPLICIT colours baked in
- * (no `currentColor` / CSS vars), scaled and positioned for embedding directly in
- * a [[widgets3d]] SVG tree. Those trees rasterize to a Babylon texture in VR,
- * where `currentColor` and custom properties DON'T resolve — so use this, not
- * {@link svgIcons}, for in-scene / in-panel glyphs.
- *
- * `color` icons keep their baked palette; `stroked`/`filled` icons are tinted to
- * `color`. Base names only — composition suffixes (rotate/flip/…) stay DOM-only
- * on {@link svgIcons}; passing one here warns rather than silently mis-rendering.
- */
 /*
 ONE WARNING PER PROBLEM, not per draw.
 
@@ -513,6 +502,18 @@ function warnOnce(message) {
 export function iconExists(name) {
     return resolveToMarkup(DEFAULT_MAP, name) !== null;
 }
+/**
+ * A **texture-safe** icon: an `svgElements` `<g>` with EXPLICIT colours baked in
+ * (no `currentColor` / CSS vars), scaled and positioned for embedding directly in
+ * a [[widgets3d]] SVG tree. Those trees rasterize to a Babylon texture in VR,
+ * where `currentColor` and custom properties DON'T resolve — so use this, not
+ * {@link svgIcons}, for in-scene / in-panel glyphs.
+ *
+ * `color` icons keep their baked palette; `stroked`/`filled` icons are tinted to
+ * `color`. Composed and mirrored names work here too (`chevron270r`,
+ * `cornerUpLeft`): the rotation or flip is applied as an SVG transform on the
+ * returned group, so position a WRAPPER rather than overwriting its `transform`.
+ */
 export function iconGlyph(name, opts = {}) {
     /*
     Stroke width comes from the THEME by default.

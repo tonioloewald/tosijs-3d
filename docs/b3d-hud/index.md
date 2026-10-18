@@ -14,7 +14,7 @@ shows it in the cockpit view; `setInSceneVisible(bool)` toggles it.
 
 ## Demo
 
-Scrub the meters and attitude in the ⚙ panel; the radar traces orbit the origin,
+Scrub the meters and attitude in the settings panel; the radar traces orbit the origin,
 tracking inside the ring when in the field of view and pinning to the periphery when
 they swing out or behind.
 

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d — tosijs-3d</title>
   <meta name="description" content="The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element." />
   <link rel="canonical" href="https://3d.tosijs.net/tosi-b3d/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d">b3d</h1>
 <p>The root 3D scene container. All other components (<code>b3dSun</code>, <code>b3dSkybox</code>, <code>b3dLoader</code>, etc.)
@@ -66,8 +66,8 @@ const scene = &#39;/test-3.glb&#39;
 // was the walk cycle in reverse, and sneaking had no crouch to hold.
 const person = assetUrl(&#39;quaternius/UAL1_core.glb&#39;, 2)
 
-// Your loadout, pinned up and to the left (over your shoulder in VR): touch it
-// and it comes front and centre, with your bag beside it (see inventory-box).
+// Your loadout: a button on the system bar opens it under the bar, with your
+// bag beside it (see inventory-box).
 const loadout = demoLoadout()
 
 const formatTime = (v) =&gt; {
@@ -203,7 +203,7 @@ const scene = b3d(
       label3d({ text: &#39;PAUSED&#39;, bold: true }),
       button3d({ label: &#39;Continue&#39;, handleClick: resume }),
     ],
-    // The SAME control, in the ⚙ panel — so you can change the speed while it
+    // The SAME control, in the settings panel — so you can change the speed while it
     // is RUNNING and watch it change, instead of only while it is frozen. Both
     // panels bind the one `demo.pauseDemo.spin` value, so they never disagree.
     scenePanel: () =&gt; [
@@ -343,7 +343,7 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
 <tr>
 <td><code>gamepadFade</code></td>
 <td><code>&#39;on&#39;</code></td>
-<td><code>&#39;off&#39;</code> keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used</td>
+<td><code>&#39;off&#39;</code> keeps the glass gamepad visible instead of fading it once a key is pressed or a hardware pad is used (the pointer never fades it)</td>
 </tr>
 <tr>
 <td><code>minElevation</code> / <code>maxElevation</code></td>
@@ -823,6 +823,6 @@ document<span class="token punctuation">.</span>body<span class="token punctuati
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

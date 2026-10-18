@@ -8,7 +8,7 @@ sun in it rather than a lit backdrop. Drop one into a scene with a
 
 ## Demo
 
-Afternoon under a broken deck, looking toward the sun. Open the ⚙ menu:
+Afternoon under a broken deck, looking toward the sun. Open the settings panel (the owl):
 `cloud cover` below 0.5 has no shafts, near 1 only slits; `time of day`
 moves the sun (and the shafts with it). Drag to look away from the sun and
 they fade. The full weather, terrain and all, is in
@@ -75,7 +75,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 The same shafts from the underside of the sea. You are a few metres down,
 looking up at the sky and the sun through the surface, bent and rippled by
-it (the water's `undersideSky`), with the rays fanning down from the sun. Open the ⚙ menu: raise `wind` or `wave height`
+it (the water's `undersideSky`), with the rays fanning down from the sun. Open the settings panel (the owl): raise `wind` or `wave height`
 and the rays multiply, narrow and flicker; calm it and a few broad ones
 drift slowly. `depth` takes you down into the murk.
 

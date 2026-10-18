@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>b3d-light-shafts — tosijs-3d</title>
   <meta name="description" content="Light you can see: shafts of sun breaking through a broken sky, and rays fanning down from the surface when you are under the water." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-light-shafts/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="b3d-light-shafts">b3d-light-shafts</h1>
 <p><strong>Light you can see</strong>: shafts of sun breaking through a broken sky, and rays
@@ -39,7 +39,7 @@ make a gap in the clouds, or the shallows of a sea, read as a PLACE with a
 sun in it rather than a lit backdrop. Drop one into a scene with a
 <a href="/b3d-cloud-deck/">cloud deck</a> or <a href="/b3d-water/">water</a>; it needs no setup.</p>
 <h2 id="demo">Demo</h2>
-<p>Afternoon under a broken deck, looking toward the sun. Open the ⚙ menu:
+<p>Afternoon under a broken deck, looking toward the sun. Open the settings panel (the owl):
 <code>cloud cover</code> below 0.5 has no shafts, near 1 only slits; <code>time of day</code>
 moves the sun (and the shafts with it). Drag to look away from the sun and
 they fade. The full weather, terrain and all, is in
@@ -101,7 +101,7 @@ tosi-b3d { width: 100%; height: 100%; }
 <h2 id="under-the-water">Under the water</h2>
 <p>The same shafts from the underside of the sea. You are a few metres down,
 looking up at the sky and the sun through the surface, bent and rippled by
-it (the water&#39;s <code>undersideSky</code>), with the rays fanning down from the sun. Open the ⚙ menu: raise <code>wind</code> or <code>wave height</code>
+it (the water&#39;s <code>undersideSky</code>), with the rays fanning down from the sun. Open the settings panel (the owl): raise <code>wind</code> or <code>wave height</code>
 and the rays multiply, narrow and flicker; calm it and a few broad ones
 drift slowly. <code>depth</code> takes you down into the murk.</p>
 <pre><code class="language-js">import { b3d, b3dSun, b3dLight, b3dSkybox, b3dWater, b3dLightShafts, b3dGround, slider3d, label3d } from &#39;tosijs-3d&#39;
@@ -692,6 +692,6 @@ the water ones.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

@@ -493,8 +493,8 @@ const scene = b3d(
     // Sections as icon TABS (one at a time); 'fold' shows them as headers.
     panelSections: 'tabs',
     // Lightning strikes wherever a weather cell is stormy (the storm toggle).
-    // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
-    // screens, and the SAME panel floats in front of you in VR.
+    // Controls live in the dual-presence scene panel: the owl opens them on flat
+    // screens, and the SAME panel opens in VR.
     scenePanel: () => [
       label3d({ text: 'World', icon: 'earth', collapsible: true, open: true }),
       // Pick a world; everything you DO with presets is one menu.

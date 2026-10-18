@@ -39,7 +39,7 @@ function flattenInsertable(nodes, depth = 0, out = []) {
 
 const scene = b3d(
   {
-    // Dual-presence picker: the mesh list lives in the ⚙ panel, so you can spawn
+    // Dual-presence picker: the mesh list lives in the settings panel, so you can spawn
     // parts from inside VR too. The hook re-reads the hierarchy each time the panel
     // is (re)built; refreshScenePanel() below updates an already-open panel once
     // the GLB finishes loading.

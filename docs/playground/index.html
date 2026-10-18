@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=8a3e8b0f63dd" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
   <title>Biped Playground — tosijs-3d</title>
   <meta name="description" content="A place to run around and murder things in. One call returns a whole arena — ground, light, cover, crates, a catwalk and something to shoot — as ordinary scene…" />
   <link rel="canonical" href="https://3d.tosijs.net/playground/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=5f57214c8a81" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content">
 <h1 id="biped-playground">Biped Playground</h1>
 <p><strong>A place to run around and murder things in.</strong> One call returns a whole
@@ -121,7 +121,7 @@ const hero = b3dBiped(
   gun
 )
 
-// THE PISTOL LIVES ON YOUR HIP. The loadout (over your left shoulder; tap it)
+// THE PISTOL LIVES ON YOUR HIP. The loadout (a button on the system bar)
 // says where it is, and that decides the mode: in a hand, the gun is up; on
 // the hip, it is down; in the bag or dropped, there is nothing to raise. The
 // weapon button draws it from the hip or holsters it; dragging it into a hand
@@ -165,8 +165,8 @@ preview.append(
 <pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
 <p><strong>Two modes, and the right bumper is the switch</strong>, when there is a pistol to
-switch to: it starts on your hip (open the loadout over your left shoulder to
-see it). With the weapon down you are walking:
+switch to: it starts on your hip (open the loadout from its button on the system bar
+to see it). With the weapon down you are walking:
 <strong>R</strong> sprints. Press <strong>right bumper</strong> and you draw it, and the gun comes up — now <strong>R</strong> fires, <strong>Q</strong>
 aims down the sights, and a ring shows where the round will actually land,
 sinking as the range grows because it is the real ballistic arc rather than a
@@ -690,6 +690,6 @@ you&quot;</em> as one line of JSON, this is what that JSON will describe.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-224apemt.js"></script>
+  <script type="module" src="../hydrate-50vacf13.js"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ radius take falloff damage (they flash, and die at 0 hp).
 near side shows both halves of the rule at once: cubes on the far side *behind* the wall
 survive, while cubes on the far side *past its end* die — same distance, different
 cover. Slide the blast along the wall and watch the shadow it casts. Turn **line of
-sight** off in the ⚙ panel and the wall stops mattering.
+sight** off in the settings panel and the wall stops mattering.
 
 ```js
 import { b3d, b3dController, b3dWarhead, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, toggle3d } from 'tosijs-3d'
