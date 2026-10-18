@@ -5490,17 +5490,18 @@ export class B3d extends Component {
     the rig positions are kept free for other things.
 
     Rebuildable while open: a structural change (expanding the perf stats, a
-    debug source adding a line) DISPOSES and re-attaches, because the
-    panel's pointer/scroll closures can't survive having their widgets
-    swapped underneath them. Live numbers update the <text> nodes in place.
+    debug source adding a line) builds a NEW panel element into the same
+    plane (`rebuild`), because the panel's pointer/scroll closures can't
+    survive having their widgets swapped underneath them. Live numbers update
+    the <text> nodes in place.
     */
     let panel: ReturnType<typeof this._attachXrPanel> | null = null
     const closeXrPopups = () => {
       /*
-      AND THE POPUPS GO WITH IT. This presentation really does destroy them —
-      the plane is disposed and rebuilt — where the flat one preserves its
-      holders across a rebuild, and `_syncDebugPopups` re-opens whatever
-      `_debugOpen` still asks for against the new panel.
+      AND THE POPUPS GO WITH IT. The plane stays now, but the rows a popup
+      came from (and its live debug lines) are rebuilt, so it is closed and
+      `_syncDebugPopups` re-opens whatever `_debugOpen` still asks for against
+      the new panel. (A popup still blinks on a structural rebuild here.)
 
       CLOSED, not dropped. Dropping the handles relied on every popup being a
       child of the plane and dying with it. One that was not (torn off, or
@@ -5536,9 +5537,7 @@ export class B3d extends Component {
     this._refreshXrPanel = () => {
       if (panel == null) return
       closeXrPopups()
-      panel.dispose()
-      this._xrPanelEl = null
-      panel = this._attachXrPanel(base, frames.eye)
+      panel.rebuild()
     }
     const xrBar = this._xrToolbar(scene, cam, frames, {
       settings: toggleXrPanel,
@@ -6922,6 +6921,8 @@ export class B3d extends Component {
     plane: BABYLON.AbstractMesh
     scrollBy: (dy: number) => void
     scrollable: boolean
+    /** Rebuild the rows into the same plane (see `_refreshXrPanel`). */
+    rebuild: () => void
   } {
     const scene = this.scene
     // In-scene panel always carries an Exit-VR button (you can't reach a DOM
@@ -6938,27 +6939,31 @@ export class B3d extends Component {
     // one failure this panel cannot recover from inside a headset.
     // Exit VR is on the system bar above it (Tonio: "doesn't need an exit
     // vr button").
-    const barRow = iconBar3d({
-      items: [
-        {
-          icon: 'compass',
-          title: 'Re-seat (look forward first)',
-          active: false,
-          handleClick: () => this.recenterXr(),
-        },
-        ...this._barItems(),
-      ],
-    })
-    const rows: Widget3d[] = [...this._panelWidgets(true)]
-    // A ×, as the flat panel has: one UI (it closes to the system bar).
-    const panelEl = this._makePanel(rows, [barRow], true, 620, () =>
-      this._closeXrSettings()
-    ) as SVGSVGElement & {
+    type PanelEl = SVGSVGElement & {
       handlePointer?: (kind: string, x: number, y: number) => void
       scrollBy?: (dy: number) => void
       scrollable?: boolean
       gripHit?: (x: number, y: number) => boolean
     }
+    const build = (): PanelEl => {
+      const barRow = iconBar3d({
+        items: [
+          {
+            icon: 'compass',
+            title: 'Re-seat (look forward first)',
+            active: false,
+            handleClick: () => this.recenterXr(),
+          },
+          ...this._barItems(),
+        ],
+      })
+      const rows: Widget3d[] = [...this._panelWidgets(true)]
+      // A ×, as the flat panel has: one UI (it closes to the system bar).
+      return this._makePanel(rows, [barRow], true, 620, () =>
+        this._closeXrSettings()
+      ) as PanelEl
+    }
+    let panelEl = build()
     /*
     THE PANEL A POPUP SHOULD OPEN ON, while a session is running.
 
@@ -6990,10 +6995,10 @@ export class B3d extends Component {
     // and only in scenes with a registered debug source — which is why the terrain demo
     // broke and the otherwise-identical combat demo didn't.
     //
-    // Structural changes REBUILD the panel (dispose + re-attach: see `_refreshXrPanel`,
+    // Structural changes REBUILD the panel (a new element into the same plane: see `_refreshXrPanel`,
     // set where the panel is created). Live NUMBERS don't need any of that — `_startLiveDebug`
     // rewrites the <text> nodes in place, which changes no structure and no closure.
-    const vb = panelEl.viewBox.baseVal
+    let vb = panelEl.viewBox.baseVal
 
     // Anchored to the eye frame (origin = your head), 60° up the sight-line —
     // and that 60° is also the CEILING a drag may reach, pinned equal to
@@ -7006,7 +7011,9 @@ export class B3d extends Component {
 
     // Height in metres, kept because the orbit needs to know how tall the panel
     // LOOKS from the anchor in order to seat it by an edge rather than a centre.
+    // As built; a rebuild into a different height scales the plane (`sy`).
     const planeH = PLANE_W * (vb.height / vb.width)
+    let sy = 1
     const plane = BABYLON.MeshBuilder.CreatePlane(
       'xr-panel',
       {
@@ -7069,7 +7076,7 @@ export class B3d extends Component {
 
     /** Put the panel at a seat — the one place that writes its pose. */
     const seatPanel = (seat: Orbit): void => {
-      const centre = orbitCentre(seat, angularHeight(planeH, D))
+      const centre = orbitCentre(seat, angularHeight(planeH * sy, D))
       const p = orbitPosition(centre)
       plane.position.set(p.x, p.y, p.z)
       const aim = faceViewer(p, { x: 0, y: 0, z: 0 })
@@ -7359,8 +7366,33 @@ export class B3d extends Component {
 
     return {
       plane,
-      scrollable: !!panelEl.scrollable,
+      get scrollable() {
+        return !!panelEl.scrollable
+      },
       scrollBy: (dy: number) => panelEl.scrollBy?.(dy),
+      /*
+      INTO THE SAME PLANE, so it does not blink. A new plane is blank until
+      its texture is drawn, which at headset speed is two or three frames of
+      scene showing through the panel on every icon press. The texture keeps
+      the old picture until the new one is ready; the seat stays.
+      */
+      rebuild: () => {
+        panelEl.handlePointer?.('leave', 0, 0)
+        panelEl = build()
+        vb = panelEl.viewBox.baseVal
+        this._xrPanelEl = panelEl as unknown as { popup?: PanelPopup }
+        sy = (PLANE_W * (vb.height / vb.width)) / planeH
+        plane.scaling.y = sy
+        tex.setElement(panelEl)
+        attachSceneLayer({
+          svg: panelEl,
+          owner: this as unknown as PopupOwner,
+          openerMesh: plane,
+          planeW: PLANE_W,
+          planeH: planeH * sy,
+        })
+        seatPanel(this._xrPanelSeat ?? wanted)
+      },
       dispose: () => {
         // A spring mid-flight would keep writing to a disposed plane, once per
         // frame, forever — the leak class this file already carries scars about.
