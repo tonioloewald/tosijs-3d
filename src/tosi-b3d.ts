@@ -712,6 +712,19 @@ function pickLayersFirst(
   }
 }
 
+/*
+A REBUILT PANEL KEEPS ITS PLACE. The settings panel is rebuilt on every icon
+press and refresh (a new element: its rows' closures cannot be reused), and
+each rebuild started back at the top, so pressing a toggle at the bottom of a
+long panel threw you to the top of it. The new panel is scrolled to where the
+old one was (clamped, if it is shorter).
+*/
+function carryScroll(from: Element | null, to: SVGSVGElement): void {
+  const top = (from as { scrollTop?: number } | null)?.scrollTop ?? 0
+  if (top > 0 && 'scrollTop' in to)
+    (to as { scrollTop: number }).scrollTop = top
+}
+
 export class B3d extends Component {
   static preferredTagName = 'tosi-b3d'
 
@@ -6688,6 +6701,7 @@ export class B3d extends Component {
     */
     const live = this._flatScenePanel
     if (live != null) {
+      carryScroll(live.el, el)
       live.panel.setSvg(el)
       live.el = el
       if (this._flatPanelSpot != null) this._flatPanelSpot.height = vb.height
@@ -6816,6 +6830,13 @@ export class B3d extends Component {
     that a rebuild has no business touching — where they were dragged to, how
     far they were scrolled, and the live rows already ticking inside them.
     */
+    const fresh = this._makePanel(
+      this._panelWidgets(),
+      [],
+      false,
+      this._flatPanelMax()
+    )
+    carryScroll(host.querySelector(':scope > svg[data-w3d="panel"]'), fresh)
     replaceKeepingLayers(
       host,
       div(
@@ -6823,7 +6844,7 @@ export class B3d extends Component {
         span({ class: 'scene-panel-title' }, (this as any).panelTitle ?? ''),
         ...buttons
       ),
-      this._makePanel(this._panelWidgets(), [], false, this._flatPanelMax())
+      fresh
     )
     host.removeAttribute('hidden')
     this._panelHeightKey = this.clientHeight
@@ -7418,7 +7439,9 @@ export class B3d extends Component {
       */
       rebuild: () => {
         panelEl.handlePointer?.('leave', 0, 0)
+        const was = panelEl
         panelEl = build()
+        carryScroll(was, panelEl)
         vb = panelEl.viewBox.baseVal
         this._xrPanelEl = panelEl as unknown as { popup?: PanelPopup }
         sy = (PLANE_W * (vb.height / vb.width)) / planeH
