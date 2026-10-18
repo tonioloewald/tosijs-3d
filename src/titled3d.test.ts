@@ -119,7 +119,7 @@ describe("titled3d: the settings panel's title bar over any content", () => {
   })
 
   test('panel3d says when a press is in progress, and not inside its own click', () => {
-    let during: boolean | null = null
+    let during = null as boolean | null
     const panel = w3d.panel3d(
       { width: 300 },
       w3d.button3d({
