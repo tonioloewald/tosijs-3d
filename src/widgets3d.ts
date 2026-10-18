@@ -3372,6 +3372,12 @@ export type Panel3d = SVGSVGElement & {
   ) => boolean
   /** Does the content overflow? */
   scrollable: boolean
+  /**
+   * Is a press in progress (a control captured, or a scroll-drag)? A host
+   * that rebuilds the panel waits for the release, so a slider drag is not
+   * cut off by an unrelated refresh.
+   */
+  readonly pressing: boolean
   /** Height of the title-bar band, in viewBox units. */
   gripHeight: number
   /** Is this point on the bar a host may drag by (the bar less the close)? */
@@ -4217,11 +4223,12 @@ export function panel3d(
     } else {
       // hover (move without a press) or release
       if (kind === 'up' && captured) {
-        const capturedY = captured.fromHeader
-          ? localY
-          : localY - headerH + scroll
-        captured.w.handle?.('up', localX, capturedY - captured.top)
+        // Released BEFORE the widget hears it: its click may rebuild this
+        // panel, and a host holds a rebuild while `pressing` (see below).
+        const c = captured
         captured = null
+        const capturedY = c.fromHeader ? localY : localY - headerH + scroll
+        c.w.handle?.('up', localX, capturedY - c.top)
       }
       scrolling = false
       setHover(row)
@@ -4410,6 +4417,9 @@ export function panel3d(
   // Whether the panel can scroll (content overflows) — so a host knows to route a
   // stick to it rather than to locomotion.
   ;(root as unknown as { scrollable: boolean }).scrollable = scrollable
+  Object.defineProperty(root, 'pressing', {
+    get: () => captured != null || scrolling,
+  })
   // Where the grab bar is, in viewBox units. `0` when there is no grip, so a
   // host can test it without knowing whether it asked for one.
   ;(root as unknown as { gripHeight: number }).gripHeight = config.grip

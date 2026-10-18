@@ -118,6 +118,28 @@ describe("titled3d: the settings panel's title bar over any content", () => {
     expect(b.el.parentNode).toBeNull()
   })
 
+  test('panel3d says when a press is in progress, and not inside its own click', () => {
+    let during: boolean | null = null
+    const panel = w3d.panel3d(
+      { width: 300 },
+      w3d.button3d({
+        label: 'go',
+        handleClick: () => (during = panel.pressing),
+      })
+    ) as any
+    expect(panel.pressing).toBe(false)
+    let y = 0
+    for (; y < 200 && !panel.pressing; y += 2) {
+      panel.handlePointer('down', 150, y)
+      if (!panel.pressing) panel.handlePointer('up', 150, y)
+    }
+    expect(panel.pressing).toBe(true)
+    panel.handlePointer('up', 150, y - 2)
+    expect(panel.pressing).toBe(false)
+    // A click that rebuilds the panel is not held behind its own press.
+    expect(during).toBe(false)
+  })
+
   test("scrolling is the content's (a wheel over the panel, #114)", () => {
     const panel = w3d.panel3d(
       { width: 300, maxHeight: 120 },

@@ -1128,3 +1128,31 @@ conversions. The next info panel is the one it saves.
   `_debugOpen` for exactly this reason.
 - **To die with its opener.** A repaint replaces the panel's SVG and the layer
   goes with it; handles held across that point at detached DOM.
+
+## Rebuild the element, never the plane (2026-10-18)
+
+A panel in the scene is an SVG drawn into a texture on a plane, and drawing is
+asynchronous. Every rebuild used to dispose the plane and make a new one, which
+is blank until its texture lands. On a laptop that is inside a frame, so nothing
+showed; at headset speed (measured in headless Chrome at 4x CPU throttle) the
+scene showed through the settings panel for two or three frames on every icon
+press. A click landing in that gap was lost too (ensemble, one run in four).
+
+So a structural change builds a new panel ELEMENT (its rows' closures cannot be
+reused, see "One UI, two presentations") and gives it to the SAME plane: the
+texture keeps the old picture until the new one is drawn. Four places did the
+old thing and all four now do this: the flat settings panel, the headset one, a
+system panel whose content is swapped, and the flat panel layer (now reconciled
+per panel, so adding a system button no longer rebuilds the bar and every pin).
+
+Two things ride along. The new element is scrolled to where the old one was, or
+a toggle at the bottom of a long panel threw you to the top. And a rebuild that
+arrives during a press waits for the release (`panel3d.pressing`), or an
+unrelated refresh ended a slider drag under your finger.
+
+What still blinks: the headset settings panel's debug popups, which belong to
+the old rows and are closed and reopened. And a panel whose content changes
+SHAPE still jumps in size; that is a resize, not a blank frame.
+
+Lesson for testing: a timing bug of this kind does not exist at laptop speed.
+`bun bin/xr-emulate.ts … --cpu 4` slows the page while the scripts run.

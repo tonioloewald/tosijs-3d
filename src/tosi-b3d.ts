@@ -5589,8 +5589,11 @@ export class B3d extends Component {
     this._closeXrSettings = closeXrPanel
     this._refreshXrPanel = () => {
       if (panel == null) return
-      closeXrPopups()
-      panel.rebuild()
+      this._whenReleased(this._xrPanelEl as Element | null, () => {
+        if (panel == null) return
+        closeXrPopups()
+        panel.rebuild()
+      })
     }
     const xrBar = this._xrToolbar(scene, cam, frames, {
       settings: toggleXrPanel,
@@ -6882,7 +6885,38 @@ export class B3d extends Component {
    * Call after async state the panel reflects has changed (e.g. a library loaded,
    * or XR availability / session state) so an already-open panel updates. */
   refreshScenePanel(): void {
-    if (this._scenePanelOpen()) this._openScenePanel()
+    if (!this._scenePanelOpen()) return
+    this._whenReleased(this._livePanel(), () => {
+      if (this._scenePanelOpen()) this._openScenePanel()
+    })
+  }
+  /** The settings panel element showing now, in whichever presentation. */
+  private _livePanel(): Element | null {
+    if (this._flatScenePanel != null) return this._flatScenePanel.el
+    const host = this.parts?.scenePanelHost as HTMLElement | undefined
+    return host?.querySelector(':scope > svg[data-w3d="panel"]') ?? null
+  }
+  /*
+  NOT MID-PRESS. A rebuild that lands while a slider is being dragged (a
+  debug line arriving, a library finishing its load) replaced the slider
+  under the finger and ended the drag. Held until the release, then run once:
+  later requests while it waits are the same rebuild.
+  */
+  private _held = new WeakMap<Element, () => void>()
+  private _whenReleased(el: Element | null, run: () => void): void {
+    const pressing = () => !!(el as { pressing?: boolean } | null)?.pressing
+    const scene = this.scene
+    if (el == null || scene == null || !pressing()) return run()
+    const waiting = this._held.has(el)
+    this._held.set(el, run)
+    if (waiting) return
+    const obs = scene.onBeforeRenderObservable.add(() => {
+      if (pressing()) return
+      scene.onBeforeRenderObservable.remove(obs)
+      const latest = this._held.get(el)
+      this._held.delete(el)
+      latest?.()
+    })
   }
 
   // Mount the split touch "glass" gamepad when the `gamepad` attribute is
