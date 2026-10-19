@@ -17,6 +17,13 @@ preview.append(rigTool())
 
 ## Using it
 
+It opens standing still in its REST pose (a T or an A), with a dot on the
+bone each role uses: tap a dot to choose that role (it turns yellow), then
+tap the body where that bone is to give the role to it. Set `clicking sets`
+to the chain and a tap hangs the chosen spring chain there instead. A
+strand's root and tip are orange handles: drag them to place it. Turn on
+`animate` (or pick a clip) to see it move.
+
 The panel has four sections.
 
 - **Model.** A demo character, or `load model file…` for a GLB of your own
@@ -24,8 +31,8 @@ The panel has four sections.
   way). A model needs a skeleton; one without can be rigged on the
   [auto-rig](/rig-build/) page first.
 - **Roles.** Which bone is the hips, the head, the left forearm, each finger
-  joint. They are guessed from the names; pick a role, then the bone that
-  plays it, or `(none)` to leave it out. `arm space` turns the arms out
+  joint. They are guessed from the names; fix one by tapping, as above, or
+  pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out
   from the body, for a character whose arms are long for its height.
 - **Springs.** `+ strand` hangs a new chain with a tube from a bone (a
   ponytail): place it with `offset`, `yaw` and `pitch`, size it, and tune
@@ -398,6 +405,10 @@ export function rigTool(
     role: 'head' as Role,
     spring: 0,
     status: 'loading…',
+    /** `rest`: stood still in its rest pose, targets shown, click to set. */
+    pose: 'rest' as 'rest' | 'animate',
+    /** What clicking the body sets, in the rest pose. */
+    clickSets: 'role' as 'role' | 'chain',
   }
   let recipe = fresh()
   let el: any = null
@@ -414,6 +425,8 @@ export function rigTool(
     play(): void
     compare(on: boolean): void
     bones(on: boolean): void
+    /** Redraw the targets and handles (the selection changed). */
+    targets(): void
   } | null = null
 
   const changed = (clipsToo = false) => {
@@ -424,15 +437,50 @@ export function rigTool(
 
   const panel = (): Widget3d[] => {
     const w: Widget3d[] = [
+      toggle3d({
+        label: 'animate',
+        value: ui.pose === 'animate',
+        handleChange: (v) => {
+          ui.pose = v ? 'animate' : 'rest'
+          tool?.play()
+          refresh()
+        },
+      }),
       select3d({
         label: 'clip',
         value: ui.clip,
         options: clips.length ? clips : [ui.clip],
         handleChange: (v) => {
           ui.clip = String(v)
+          ui.pose = 'animate'
           tool?.play()
+          refresh()
         },
       }),
+      ...(ui.pose === 'rest'
+        ? [
+            select3d({
+              label: 'clicking sets',
+              value: ui.clickSets,
+              options: [
+                { label: "the role's bone", value: 'role' },
+                { label: "the chain's bone", value: 'chain' },
+              ],
+              handleChange: (v) => {
+                ui.clickSets = v as 'role' | 'chain'
+                refresh()
+              },
+            }),
+            label3d({
+              text:
+                ui.clickSets === 'role'
+                  ? 'tap a dot, then its bone'
+                  : 'tap where the chain hangs from',
+              muted: true,
+              compact: true,
+            }),
+          ]
+        : []),
       toggle3d({
         label: 'compare',
         value: ui.compare,
@@ -466,7 +514,7 @@ export function rigTool(
     const guessed = applied?.read.roles ?? {}
     const set = recipe.roles?.[ui.role]
     w.push(
-      label3d({ text: 'Roles', collapsible: true }),
+      label3d({ text: 'Roles', collapsible: true, open: true }),
       select3d({
         label: 'role',
         value: ui.role,
@@ -476,6 +524,7 @@ export function rigTool(
         })),
         handleChange: (v) => {
           ui.role = v as Role
+          tool?.targets()
           refresh()
         },
       }),
@@ -513,7 +562,7 @@ export function rigTool(
     // Springs.
     const springs = recipe.springs ?? []
     w.push(
-      label3d({ text: 'Springs', collapsible: true }),
+      label3d({ text: 'Springs', collapsible: true, open: true }),
       button3d({
         label: '+ strand',
         handleClick: () => {
@@ -559,6 +608,7 @@ export function rigTool(
           })),
           handleChange: (v) => {
             ui.spring = Number(v)
+            tool?.targets()
             refresh()
           },
         })
@@ -857,12 +907,13 @@ export function rigTool(
         let height = 1.8
         const UAL_HEIGHT = 1.83
         const frame = () => {
-          const gap = height * 0.6
+          // Arms out at rest need more room than arms down.
+          const gap = height * (ui.pose === 'rest' ? 1.1 : 0.6)
           ualStand.scaling.setAll(height / UAL_HEIGHT)
           ualStand.position.x = -gap
           const middle = ui.compare ? -gap / 2 : 0
           cam.target.set(middle + height * 0.6, height * 0.5, 0)
-          cam.radius = height * 2.6
+          cam.radius = height * (ui.pose === 'rest' ? 3.1 : 2.6)
           cam.minZ = height * 0.01
         }
         let model: {
@@ -881,6 +932,16 @@ export function rigTool(
         }
         const play = () => {
           stop()
+          frame()
+          for (const sp of applied?.springs ?? [])
+            sp.bones.paused = ui.pose === 'rest'
+          if (ui.pose === 'rest') {
+            // Stood still: both at rest, the springs in their rest shape.
+            ual.skeletons[0].returnToRest()
+            if (model != null) rebuildAtRest()
+            return
+          }
+          targets()
           const clip = ual.animationGroups.find((g) => g.name === ui.clip)
           if (clip == null) return
           playing.push(clip)
@@ -902,22 +963,213 @@ export function rigTool(
           for (const g of made.values()) g.dispose()
           made.clear()
         }
-        const rebuild = (clipsToo: boolean) => {
+        /** The recipe on the character, at rest (springs held there). */
+        const rebuildAtRest = () => {
           if (model == null) return
-          stop()
-          if (clipsToo) forgetClips()
           applied?.dispose()
           viewer?.dispose()
           viewer = null
           applied = applyRigRecipe(scene, model.root, model.skeleton, recipe)
+          for (const sp of applied.springs) sp.bones.paused = true
           ui.status = applied.problems.length
             ? applied.problems.join('; ')
             : `${model.skeleton.bones.length} bones, ${
                 Object.keys(applied.read.roles).length
               } roles`
           if (ui.bones) showBones(true)
+          targets()
+        }
+        const rebuild = (clipsToo: boolean) => {
+          if (model == null) return
+          stop()
+          if (clipsToo) forgetClips()
+          if (ui.pose === 'rest') {
+            rebuildAtRest()
+            return
+          }
+          rebuildAtRest()
           play()
         }
+
+        /*
+        THE TARGETS, in the rest pose: a dot on each role's bone (drawn over
+        the body, so the hidden ones show), the chosen role's bigger and
+        yellow; a strand's root and tip as handles you drag; a bone chain's
+        first bone in blue. Nothing in the animated view.
+        */
+        scene.setRenderingAutoClearDepthStencil(1, true, true, false)
+        const dotMat = (name: string, hex: string) => {
+          const m = new BABYLON.StandardMaterial(name, scene)
+          m.disableLighting = true
+          m.emissiveColor = BABYLON.Color3.FromHexString(hex)
+          return m
+        }
+        const roleMat = dotMat('rig-role', '#4cd964')
+        const pickedMat = dotMat('rig-role-picked', '#ffd60a')
+        const springMat = dotMat('rig-spring', '#5ac8fa')
+        const springPickedMat = dotMat('rig-spring-picked', '#ff9f0a')
+        let dots: BABYLON.Mesh[] = []
+        const dot = (
+          at: BABYLON.Vector3,
+          size: number,
+          mat: BABYLON.Material,
+          meta: Record<string, unknown>
+        ) => {
+          const d = BABYLON.MeshBuilder.CreateSphere(
+            'rig-dot',
+            { diameter: size, segments: 8 },
+            scene
+          )
+          d.position.copyFrom(at)
+          d.material = mat
+          d.renderingGroupId = 1
+          d.metadata = meta
+          dots.push(d)
+          return d
+        }
+        function targets() {
+          for (const d of dots) d.dispose()
+          dots = []
+          if (ui.pose !== 'rest' || applied == null) return
+          const r = height * 0.022
+          for (const role of Object.keys(applied.read.roles) as Role[]) {
+            const node = applied.read.nodes.get(applied.read.roles[role]!)
+            if (node == null) continue
+            const finger = /\d$/.test(role)
+            const picked = role === ui.role
+            dot(
+              node.getAbsolutePosition(),
+              r * (finger ? 0.45 : 1) * (picked ? 1.8 : 1),
+              picked ? pickedMat : roleMat,
+              { rigRole: role }
+            )
+          }
+          applied.springs.forEach((sp) => {
+            const i = (recipe.springs ?? []).indexOf(sp.recipe)
+            const picked = i === ui.spring
+            const mat = picked ? springPickedMat : springMat
+            const size = r * (picked ? 1.5 : 1.1)
+            const nodes = sp.bones.nodes
+            if (sp.recipe.kind === 'bones') {
+              dot(nodes[0].getAbsolutePosition(), size, mat, { rigSpring: i })
+              return
+            }
+            const strand = sp.recipe
+            const root = dot(nodes[0].getAbsolutePosition(), size, mat, {
+              rigSpring: i,
+            })
+            const tip = dot(nodes[nodes.length - 1].getAbsolutePosition(), size, mat, {
+              rigSpring: i,
+            })
+            // Drag either end; let go and the strand is rebuilt there.
+            for (const handle of [root, tip]) {
+              const drag = new BABYLON.PointerDragBehavior()
+              drag.onDragStartObservable.add(() => {
+                ui.spring = i
+              })
+              drag.onDragEndObservable.add(() => {
+                const anchor = applied?.read.nodes.get(strand.anchor)
+                if (anchor == null) return
+                const a = anchor.getAbsolutePosition()
+                const from = root.position
+                const d = tip.position.subtract(from)
+                const len = d.length()
+                if (len < 1e-4) return
+                strand.offset = { x: from.x - a.x, y: from.y - a.y, z: from.z - a.z }
+                strand.length = len
+                strand.pitchDeg = (Math.asin(d.y / len) * 180) / Math.PI
+                strand.yawDeg = (Math.atan2(-d.x, -d.z) * 180) / Math.PI
+                changed()
+                refresh()
+              })
+              handle.addBehavior(drag)
+            }
+          })
+        }
+
+        /** The bone a point on the body belongs to: the nearest bone's length. */
+        const nearestBone = (p: BABYLON.Vector3): string | null => {
+          if (applied == null) return null
+          const nodes = new Set(applied.read.nodes.values())
+          let best: string | null = null
+          let bestD = Infinity
+          for (const [name, node] of applied.read.nodes) {
+            const a = node.getAbsolutePosition()
+            const kids = node
+              .getChildren()
+              .filter((c) => nodes.has(c as BABYLON.TransformNode))
+            const ends = kids.length
+              ? kids.map((k) => (k as BABYLON.TransformNode).getAbsolutePosition())
+              : [a]
+            for (const b of ends) {
+              const ab = b.subtract(a)
+              const t =
+                ab.lengthSquared() > 1e-12
+                  ? Math.max(0, Math.min(1, BABYLON.Vector3.Dot(p.subtract(a), ab) / ab.lengthSquared()))
+                  : 0
+              const dist = BABYLON.Vector3.Distance(p, a.add(ab.scale(t)))
+              if (dist < bestD) {
+                bestD = dist
+                best = name
+              }
+            }
+          }
+          return best
+        }
+
+        // Clicks in the rest pose: a dot picks, the body sets.
+        scene.onPointerObservable.add((info) => {
+          if (info.type !== BABYLON.PointerEventTypes.POINTERTAP) return
+          if (ui.pose !== 'rest' || model == null || applied == null) return
+          const onDot = scene.pick(scene.pointerX, scene.pointerY, (m) =>
+            dots.includes(m as BABYLON.Mesh)
+          )
+          const meta = onDot?.pickedMesh?.metadata
+          if (meta?.rigRole != null) {
+            ui.role = meta.rigRole
+            ui.clickSets = 'role'
+            targets()
+            refresh()
+            return
+          }
+          if (meta?.rigSpring != null) {
+            ui.spring = meta.rigSpring
+            ui.clickSets = 'chain'
+            targets()
+            refresh()
+            return
+          }
+          const root = model.root
+          const onBody = scene.pick(
+            scene.pointerX,
+            scene.pointerY,
+            (m) => m.isEnabled() && m.isDescendantOf(root)
+          )
+          const at = onBody?.pickedPoint
+          if (at == null) return
+          const bone = nearestBone(at)
+          if (bone == null) return
+          if (ui.clickSets === 'role') {
+            ;(recipe.roles ??= {})[ui.role] = bone
+            ui.status = `${roleLabel(ui.role)}: ${bone}`
+            changed(true)
+          } else {
+            const sp = current()
+            if (sp == null) {
+              ui.status = 'add a chain first'
+            } else if (sp.kind === 'bones') {
+              sp.root = bone
+              changed()
+            } else {
+              // A strand starts where you clicked, on the bone you clicked.
+              const a = applied.read.nodes.get(bone)!.getAbsolutePosition()
+              sp.anchor = bone
+              sp.offset = { x: at.x - a.x, y: at.y - a.y, z: at.z - a.z }
+              changed()
+            }
+          }
+          refresh()
+        })
         const showBones = (on: boolean) => {
           viewer?.dispose()
           viewer = null
@@ -994,6 +1246,7 @@ export function rigTool(
             frame()
           },
           bones: showBones,
+          targets,
         }
         await load(models[0])
       },

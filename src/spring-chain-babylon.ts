@@ -168,6 +168,11 @@ export interface SpringBones {
   }): BABYLON.Mesh
   /** Back to the rest shape (after a teleport). */
   reset(): void
+  /**
+   * Hold the chain where it is: no simulation while true (an editor's rest
+   * pose). It picks up from its rest shape when set false again.
+   */
+  paused: boolean
   dispose(): void
 }
 
@@ -300,7 +305,9 @@ export function springNodes(
   }
 
   let first = true
+  let paused = false
   const obs = scene.onAfterAnimationsObservable.add(() => {
+    if (paused) return
     freshen(anchor)
     nodes[0].computeWorldMatrix(true)
     const a = nodes[0].getAbsolutePosition()
@@ -323,6 +330,13 @@ export function springNodes(
     },
     reset() {
       first = true
+    },
+    get paused() {
+      return paused
+    },
+    set paused(on: boolean) {
+      if (!on && paused) first = true
+      paused = on
     },
     dispose() {
       scene.onAfterAnimationsObservable.remove(obs)
