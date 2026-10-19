@@ -85,6 +85,12 @@ describe('activity: one volcano, three states', () => {
     expect(level('lava bombs', 0.15)).toBe(0)
     expect(level('roar', 0.15)).toBe(0)
   })
+  test('semi-active: spatter and cinders now and then, no bombs', () => {
+    expect(level('spatter', 0.5)).toBeCloseTo(1)
+    expect(level('cinders', 0.5)).toBeCloseTo(1)
+    expect(level('lava bombs', 0.5)).toBe(0)
+    expect(level('spatter', 0.15)).toBe(0)
+  })
   test('erupting: everything, bombs at full', () => {
     expect(level('lava bombs', 1)).toBeCloseTo(1)
     expect(level('ash column', 1)).toBeCloseTo(1)

@@ -52,7 +52,7 @@ preview.append(
 | `preset` | `''` | `volcano`, `geyser`, `splash`, `explosion`, `fireball`, `sparks` |
 | `activity` | `-1` | 0 to 1; `-1` uses the recipe's own. A volcano: 0.15 dormant, 0.5 semi-active, 1 erupting |
 | `autoplay` | `'on'` | `'off'` waits for `play()` (a one-shot you trigger) |
-| `scale` | 1 | How big. Sizes, speeds, radii, heights, gravity, light range and sound reach all multiply, so an arc keeps its shape and its timing. The presets are person-sized: a volcano preset is a vent, and a mountain wants 10 or more |
+| `scale` | 1 | How big. Sizes, radii, heights, light range and sound reach multiply; speeds and particle lives grow by the square root and gravity stays (Froude scaling, as for a model ship), so an arc keeps its shape and a big effect moves slowly for its size, as big things do, and the wind still bends it. The presets are person-sized: a volcano preset is a vent, and a mountain wants 10 or more |
 | `ground` | `'off'` | `'on'` sits it on the ground, `y` above that: the scene's terrain height there, or else the first mesh below. Looked for again every 1.5 s (terrain regenerates) |
 | `x`, `y`, `z` | 0 | Where it is; nested in a mesh element, an offset that follows it |
 

@@ -43,9 +43,12 @@ export interface EffectPlayerOptions {
   /** Called when a one-shot has finished (its particles gone too). */
   whenDone?: () => void
   /**
-   * How big: sizes, speeds, radii, heights, gravity, light range and sound
-   * reach all multiply, so an arc keeps its shape AND its timing (a vent
-   * 1.5 m across at 1 is a crater 18 m across at 12). Default 1.
+   * How big. FROUDE SCALING, as for a model ship: sizes, radii, heights,
+   * light range and sound reach multiply by `scale`, speeds and particle
+   * lives by its square root, and gravity stays as it is. An arc keeps its
+   * shape, and a big effect moves more slowly for its size, as big things
+   * do, so a real wind still bends a mountain's plume. (Speeds times 12
+   * sent ash up at 150 m/s and a 10 m/s wind leaned it 1°.) Default 1.
    */
   scale?: number
 }
@@ -250,6 +253,7 @@ export class EffectPlayer {
   private particles(l0: ParticleLayer): Runtime {
     const scene = this.scene
     const k = this.options.scale ?? 1
+    const rk = Math.sqrt(k)
     const l: ParticleLayer =
       k === 1
         ? l0
@@ -257,8 +261,12 @@ export class EffectPlayer {
             ...l0,
             emitter: { ...l0.emitter, radius: (l0.emitter.radius ?? 0) * k },
             size: [l0.size[0] * k, l0.size[1] * k],
-            speed: [l0.speed[0] * k, l0.speed[1] * k],
-            gravity: (l0.gravity ?? 0) * k,
+            speed: [l0.speed[0] * rk, l0.speed[1] * rk],
+            life: [l0.life[0] * rk, l0.life[1] * rk],
+            // As many alive at once: a longer life, a lower rate.
+            rate: l0.rate / rk,
+            // Per second, on a clock that runs √k slower.
+            drag: l0.drag != null ? l0.drag / rk : undefined,
             height: (l0.height ?? 0) * k,
           }
     const burst = l.burst ?? 0
@@ -364,7 +372,7 @@ export class EffectPlayer {
       throttle: 1,
       linger: l.life[1],
       alive: () => ps.getActiveCount(),
-      update: (t, prev, activity) => {
+      update: (t, prev, activity, dt) => {
         at.copyFrom(this.node.getAbsolutePosition())
         at.y += l.height ?? 0
         const s = layerAt(l, this.recipe, t, activity, prev)
@@ -377,13 +385,26 @@ export class EffectPlayer {
         ps.maxEmitPower = l.speed[1] * sp
         const sz = s.channel.size ?? 1
         ps.minScaleX = ps.maxScaleX = ps.minScaleY = ps.maxScaleY = sz
+        ps.gravity.set(0, -(l.gravity ?? 0), 0)
+        /*
+        CARRIED BY THE WIND: each particle's sideways speed relaxes toward
+        the wind's (times how much it catches), about two thirds of the way
+        in a second. A constant push instead made long-lived steam end up
+        faster than the wind that carried it.
+        */
         const w = l.wind ? this.options.windAt?.(at.x, at.z) : undefined
-        // The wind as a push toward its speed: stylized, and it bends a plume.
-        ps.gravity.set((w?.x ?? 0) * (l.wind ?? 0) * 0.6, -(l.gravity ?? 0), (w?.z ?? 0) * (l.wind ?? 0) * 0.6)
-        if (l.land) {
-          picks = 0
-          for (const p of ps.particles) ground(p)
-        }
+        const catchUp = Math.min(1, dt * 1.1)
+        const wx = (w?.x ?? 0) * (l.wind ?? 0)
+        const wz = (w?.z ?? 0) * (l.wind ?? 0)
+        if (l.land) picks = 0
+        if (w != null || l.land)
+          for (const p of ps.particles) {
+            if (w != null) {
+              p.direction.x += (wx - p.direction.x) * catchUp
+              p.direction.z += (wz - p.direction.z) * catchUp
+            }
+            if (l.land) ground(p)
+          }
       },
       halt: () => {
         ps.emitRate = 0

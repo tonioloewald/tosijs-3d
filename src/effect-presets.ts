@@ -34,6 +34,14 @@ const above = (from: number): EffectCurve => [
   { x: from, y: 0 },
   { x: 1, y: 1 },
 ]
+/** Only between dormant and erupting: off when quiet, half at full eruption. */
+const midRange: EffectCurve = [
+  { x: 0, y: 0 },
+  { x: 0.3, y: 0 },
+  { x: 0.45, y: 1 },
+  { x: 0.85, y: 1 },
+  { x: 1, y: 0.5 },
+]
 /** Present even when quiet, more when busy. */
 const floor = (min: number): EffectCurve => [
   { x: 0, y: min },
@@ -42,8 +50,9 @@ const floor = (min: number): EffectCurve => [
 
 export const EFFECT_PRESETS: Record<string, EffectRecipe> = {
   /*
-  VOLCANO: steam always, ash and glow as it wakes, lava bombs and the roar
-  only when it erupts. Activity 0.15 dormant, 0.5 semi-active, 1 erupting.
+  VOLCANO: steam always; ash, glow and the odd burst of spatter and cinders
+  as it wakes; lava bombs and the roar only when it erupts. Activity 0.15
+  dormant, 0.5 semi-active, 1 erupting.
   */
   volcano: {
     version: EFFECT_RECIPE_VERSION,
@@ -104,6 +113,52 @@ export const EFFECT_PRESETS: Record<string, EffectRecipe> = {
         land: true,
         colors: ['#fff2a0', '#ff8020', '#c02800', '#40100000'],
         activity: above(0.75),
+      },
+      /*
+      SPATTER: a semi-active vent throws a few blobs and cinders now and
+      then, in bursts on two different periods so they never fall into step.
+      Only between dormant and erupting; at full eruption the bombs take over.
+      */
+      {
+        kind: 'particles',
+        name: 'spatter',
+        sprite: 'ember',
+        blend: 'add',
+        height: 0.3,
+        emitter: { shape: 'cone', radius: 0.6, angleDeg: 25 },
+        rate: 0,
+        burst: 6,
+        duration: 3.7,
+        repeat: true,
+        life: [1.4, 2.4],
+        speed: [6, 11],
+        size: [0.3, 0.6],
+        gravity: 9.8,
+        stretch: true,
+        land: true,
+        colors: ['#fff2a0', '#ff8020', '#c02800', '#40100000'],
+        activity: midRange,
+      },
+      {
+        kind: 'particles',
+        name: 'cinders',
+        sprite: 'spark',
+        blend: 'add',
+        height: 0.3,
+        emitter: { shape: 'cone', radius: 0.5, angleDeg: 35 },
+        rate: 0,
+        burst: 16,
+        duration: 2.3,
+        repeat: true,
+        life: [0.8, 1.6],
+        speed: [5, 10],
+        size: [0.06, 0.12],
+        gravity: 9.8,
+        stretch: true,
+        land: true,
+        wind: 0.4,
+        colors: ['#fff8d0', '#ffb040', '#ff602000'],
+        activity: midRange,
       },
       {
         kind: 'particles',
