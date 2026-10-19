@@ -2192,6 +2192,16 @@ export function slider3d(config: {
    * behalf. Clamped to the track; ignored if it is empty or inverted.
    */
   useful?: [number, number]
+  /**
+   * Named values on the track: a tick at each, a detent that catches the
+   * handle when you pass within a few pixels, and the stop's name beside the
+   * number while the value is on it ("0.5 semi-active").
+   *
+   * The landing spot for a schema's `x-stops` (tosijs-3d#121): a volcano's
+   * activity is a continuous dial, and also has three values worth naming.
+   * The handle still reaches everything between them.
+   */
+  stops?: Array<{ value: number; label?: string }>
 }): Widget3d {
   const min = config.min ?? 0
   const max = config.max ?? 1
@@ -2200,6 +2210,11 @@ export function slider3d(config: {
   const snap = config.snap ?? 0
   const zeroStop = config.zeroStop ?? false
   const precision = config.precision ?? DEFAULT_SLIDER_PRECISION
+  const stops = (config.stops ?? []).filter(
+    (s) =>
+      Number.isFinite(s.value) &&
+      Number.isFinite(valueToFraction(s.value, min, max, scale, zeroStop))
+  )
   const bound = boundValue<number>(
     config.value,
     handlerOf<(v: number) => void>(config, 'handleChange', 'onChange')
@@ -2285,9 +2300,27 @@ export function slider3d(config: {
       : Math.abs(v) >= 100
       ? String(Math.round(v))
       : String(Number(v.toPrecision(3)))
-  const format =
+  const formatNumber =
     config.format ??
     (scale === 'log' ? logFormat : (v: number) => v.toFixed(decimals))
+  const onStop = (v: number) =>
+    stops.find(
+      (s) => s.label && Math.abs(v - s.value) <= 1e-9 * Math.max(1, Math.abs(s.value))
+    )
+  const format = (v: number) => {
+    const s = onStop(v)
+    return s ? `${formatNumber(v)} ${s.label}` : formatNumber(v)
+  }
+  const stopTicks = stops.map(() =>
+    rect({
+      width: 2,
+      height: 12,
+      y: TRACK_Y - 6,
+      fill: TH.TEXT,
+      'fill-opacity': 0.45,
+      'data-part': 'stop',
+    })
+  )
   const valText = baseText('', TH.ACCENT)
   valText.setAttribute('text-anchor', 'end')
   valText.setAttribute('y', String(CAP_Y))
@@ -2319,7 +2352,8 @@ export function slider3d(config: {
       ? Math.ceil(
           Math.max(
             measureTextWidth(format(min), TH.TEXT_FONT),
-            measureTextWidth(format(max), TH.TEXT_FONT)
+            measureTextWidth(format(max), TH.TEXT_FONT),
+            ...stops.map((s) => measureTextWidth(format(s.value), TH.TEXT_FONT))
           )
         ) + 10
       : 0
@@ -2338,6 +2372,7 @@ export function slider3d(config: {
       ...(usefulEl ? [usefulEl] : []),
       trackEl,
       fillEl,
+      ...stopTicks,
       knob,
       valText,
       fixedVal
@@ -2372,10 +2407,19 @@ export function slider3d(config: {
     valText.setAttribute('display', on ? 'inline' : 'none')
   }
   // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
+  const STOP_CATCH = 8 // px: the detent's reach either side of a stop
   const setFromX = (x: number) => {
+    const caught = stops.find(
+      (s) =>
+        Math.abs(
+          trackX + valueToFraction(s.value, min, max, scale, zeroStop) * trackW - x
+        ) <= STOP_CATCH
+    )
     const f = (x - trackX) / (trackW || 1)
     bound.set(
-      fractionToValue(f, min, max, step, scale, snap, zeroStop, precision)
+      caught
+        ? caught.value
+        : fractionToValue(f, min, max, step, scale, snap, zeroStop, precision)
     )
     reflect()
   }
@@ -2399,6 +2443,10 @@ export function slider3d(config: {
       trackW = Math.max(20, width - trackX - TH.PAD_X - 10)
       trackEl.setAttribute('x', String(trackX))
       trackEl.setAttribute('width', String(trackW))
+      stops.forEach((s, i) => {
+        const f = valueToFraction(s.value, min, max, scale, zeroStop)
+        stopTicks[i].setAttribute('x', String(trackX + f * trackW - 1))
+      })
       if (usefulEl && config.useful) {
         const [lo, hi] = config.useful
         const f0 = Math.max(0, valueToFraction(lo, min, max, scale, zeroStop))

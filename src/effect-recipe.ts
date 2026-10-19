@@ -458,6 +458,17 @@ export function effectRecipeSchema(): Record<string, unknown> {
         type: 'string',
         description:
           'Your own picture: an image URL (PNG, JPEG, SVG, data:) or SVG markup.',
+        // Two kinds of string, told apart by the leading '<' (as the player
+        // does). Markup is not fetched, and is drawn as an image, so anything
+        // it links to is not loaded either.
+        anyOf: [
+          { format: 'uri-reference', not: { pattern: '^\\s*<' } },
+          {
+            pattern: '^\\s*<',
+            contentMediaType: 'image/svg+xml',
+            'x-inline': 'svg',
+          },
+        ],
       },
       blend: {
         type: 'string',
@@ -594,6 +605,7 @@ export function effectRecipeSchema(): Record<string, unknown> {
       },
       url: {
         type: 'string',
+        format: 'uri-reference',
         description: 'A sample to play instead of the voice.',
       },
       gain: { ...unit },

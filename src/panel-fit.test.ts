@@ -204,6 +204,36 @@ describe('slider3d readout — a handle position is not a number', () => {
     expect(shown).toEqual(['x'])
   })
 
+  test('stops: a tick each, a named readout on one, and a detent (tosijs-3d#121)', () => {
+    const stops = [
+      { value: 0.15, label: 'dormant' },
+      { value: 0.5, label: 'semi-active' },
+      { value: 1, label: 'erupting' },
+    ]
+    let got = -1
+    const s = w3d.slider3d({
+      label: 'activity',
+      value: 0.5,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      showValue: 'always',
+      stops,
+      handleChange: (v) => (got = v),
+    })
+    s.layout(300)
+    expect(s.el.querySelectorAll('[data-part="stop"]').length).toBe(3)
+    expect(textOf(s)).toContain('0.50 semi-active')
+    // The track runs from the knob's own inset; find 0.5 by its tick.
+    const tick = s.el.querySelectorAll('[data-part="stop"]')[1]
+    const x = Number(tick.getAttribute('x')) + 1
+    s.handle!('down', x + 5, 0) // near, not on: caught
+    expect(got).toBe(0.5)
+    s.handle!('move', x + 40, 0) // well past: free
+    expect(got).not.toBe(0.5)
+    expect(textOf(s).some((t) => /semi-active/.test(t))).toBe(false)
+  })
+
   test('format carries units, and decimals follow the step', () => {
     const s = w3d.slider3d({
       value: 8,

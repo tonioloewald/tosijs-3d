@@ -1291,6 +1291,16 @@ export {
 } from './slope-profile.js'
 export type { LocalizedFilter } from './slope-profile.js'
 export type { SphereCraterOptions } from './landform.js'
+// Landform options as JSON Schema (tosijs-3d#119)
+export {
+  landformSchemas,
+  volcanoSchema,
+  impactCraterSchema,
+  padSchema,
+  gulleySchema,
+  coverSchema,
+  landformDerived,
+} from './landform-schemas.js'
 export {
   volcano,
   impactCrater,

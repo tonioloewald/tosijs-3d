@@ -288,4 +288,27 @@ describe('the schema', () => {
     expect(out.length).toBeGreaterThan(0)
     expect(validateEffectRecipe(bad).length).toBeGreaterThan(0)
   })
+
+  test('fetched strings say so, and inline SVG is told apart (tosijs-3d#120)', () => {
+    const s = effectRecipeSchema() as any
+    const [p, , snd] = s.properties.layers.items.oneOf
+    expect(snd.properties.url.format).toBe('uri-reference')
+    // A host that holds fetched URLs to https needs to know which texture
+    // strings are fetched: exactly one alternative fits each, by the same
+    // leading '<' the player reads.
+    const [uri, markup] = p.properties.texture.anyOf
+    expect(uri.format).toBe('uri-reference')
+    expect(markup.contentMediaType).toBe('image/svg+xml')
+    const isMarkup = (t: string) => new RegExp(markup.pattern).test(t)
+    const isUri = (t: string) => !new RegExp(uri.not.pattern).test(t)
+    for (const t of [
+      'https://example.com/spark.png',
+      'data:image/svg+xml;base64,AAAA',
+      '  <svg xmlns="http://www.w3.org/2000/svg"></svg>',
+      '<svg/>',
+    ]) {
+      expect([t, isMarkup(t)]).toEqual([t, t.trimStart().startsWith('<')])
+      expect([t, isUri(t)]).toEqual([t, !isMarkup(t)])
+    }
+  })
 })
