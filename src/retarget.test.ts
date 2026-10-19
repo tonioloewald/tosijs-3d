@@ -180,6 +180,33 @@ describe('humanoidRoles on real skeletons', () => {
     expect(r['l-lowerLeg']).toBeUndefined()
   })
 
+  test('fingers: three joints each, never the end bone or a metacarpal', () => {
+    const ual = humanoidRoles(named(ualBones))
+    expect(ual['l-thumb1']).toBe('thumb_01_l')
+    expect(ual['l-index3']).toBe('index_03_l')
+    expect(ual['r-pinky2']).toBe('pinky_02_r')
+    expect(Object.values(ual)).not.toContain('index_04_leaf_l')
+    const mix = humanoidRoles([
+      { name: 'mixamorig:LeftHand', parent: null },
+      { name: 'mixamorig:LeftHandThumb1', parent: 'mixamorig:LeftHand' },
+      { name: 'mixamorig:LeftHandIndex3', parent: 'mixamorig:LeftHand' },
+      { name: 'mixamorig:LeftHandIndex4', parent: 'mixamorig:LeftHandIndex3' },
+    ])
+    expect(mix['l-hand']).toBe('mixamorig:LeftHand')
+    expect(mix['l-thumb1']).toBe('mixamorig:LeftHandThumb1')
+    expect(mix['l-index3']).toBe('mixamorig:LeftHandIndex3')
+    expect(Object.values(mix)).not.toContain('mixamorig:LeftHandIndex4')
+    const rigify = humanoidRoles([
+      { name: 'hand.R', parent: null },
+      { name: 'f_middle.01.R', parent: 'hand.R' },
+      { name: 'thumb.02.R', parent: 'hand.R' },
+      { name: 'index_metacarpal_r', parent: 'hand.R' },
+    ])
+    expect(rigify['r-middle1']).toBe('f_middle.01.R')
+    expect(rigify['r-thumb2']).toBe('thumb.02.R')
+    expect(Object.values(rigify)).not.toContain('index_metacarpal_r')
+  })
+
   test('an override wins', () => {
     const r = humanoidRoles(named(kenneyMiniBones), { hips: 'root' })
     expect(r.hips).toBe('root')
