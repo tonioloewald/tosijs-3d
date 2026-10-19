@@ -54,6 +54,7 @@ const SOURCES: Array<[keyof typeof sceneSchemas, string, string]> = [
   ['decorator', './b3d-decorator', 'B3dDecorator'],
   ['trail', './b3d-trail', 'B3dTrail'],
   ['sound', './b3d-sound', 'B3dSound'],
+  ['effect', './b3d-effect', 'B3dEffect'],
   ['planet', './b3d-planet', 'B3dPlanet'],
   ['b3d', './tosi-b3d', 'B3d'],
 ]
@@ -80,7 +81,11 @@ describe.each(SOURCES)('%s schema matches the component', (key, mod, cls) => {
   test('nothing is described that does not exist', async () => {
     const attrs = await attrsOf(mod, cls)
     const props = (sceneSchemas[key]() as any).properties
-    const extra = Object.keys(props).filter((k) => !(k in attrs))
+    // `x-property` marks a property that is not an attribute (an effect's
+    // `recipe`): it exists, just not in markup.
+    const extra = Object.keys(props).filter(
+      (k) => !(k in attrs) && props[k]['x-property'] !== true
+    )
     expect(extra).toEqual([])
     // And an omission list may not name something that does not exist either,
     // or it becomes a place stale names go to hide.

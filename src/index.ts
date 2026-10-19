@@ -303,6 +303,7 @@ export {
   decoratorSchema,
   trailSchema,
   soundSchema,
+  effectSchema,
   sceneSchemas,
   SCENE_OMITTED,
 } from './scene-schemas.js'
@@ -1400,7 +1401,11 @@ export { B3dParticles, b3dParticles } from './b3d-particles.js'
 export { B3dEffect, b3dEffect } from './b3d-effect.js'
 export { EffectPlayer } from './effect-player.js'
 export type { EffectPlayerOptions } from './effect-player.js'
-export { EFFECT_PRESETS, effectPreset, VOLCANO_STATES } from './effect-presets.js'
+export {
+  EFFECT_PRESETS,
+  effectPreset,
+  VOLCANO_STATES,
+} from './effect-presets.js'
 export {
   EFFECT_RECIPE_VERSION,
   SPRITES as EFFECT_SPRITES,

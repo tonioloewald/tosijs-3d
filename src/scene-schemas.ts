@@ -71,6 +71,8 @@ because it cannot silently rot.
 
 import { ROCKY_WORLDS } from './rocky-world.js'
 import { GAS_GIANTS } from './gas-giant.js'
+import { EFFECT_PRESETS, VOLCANO_STATES } from './effect-presets.js'
+import { effectRecipeSchema } from './effect-recipe.js'
 
 /** A number with a range and, where it helps, a unit and a scale hint. */
 const num = (
@@ -619,6 +621,8 @@ export const SCENE_OMITTED: Record<string, string[]> = {
   decorator: [],
   trail: [],
   sound: [],
+  // A debug gizmo, never content.
+  effect: ['axes'],
   planet: [],
   /*
   The host carries two kinds of attribute, and only one is the SCENE. These
@@ -1284,6 +1288,57 @@ export function soundSchema(extra: Record<string, unknown> = {}) {
   )
 }
 
+/**
+ * `b3d-effect` — particles, light and sound on one clock (tosijs-3d#118).
+ *
+ * `activity` is `-1` for "the recipe's own", else 0 to 1. `x-stops` names the
+ * values worth landing on (a volcano's dormant, semi-active and erupting), for
+ * a slider to mark or snap to; `-1` is the bottom stop, like `x-zero-stop`.
+ *
+ * `recipe` is a PROPERTY, not an attribute (an object does not fit in markup),
+ * marked `x-property`; it refers to the effect recipe's own schema in `$defs`,
+ * so a document can hold a custom effect and validate it with nothing copied.
+ */
+export function effectSchema(extra: Record<string, unknown> = {}) {
+  return schema(
+    'Effect',
+    {
+      // '' = none (a `recipe` plays instead).
+      preset: choice('', ['', ...Object.keys(EFFECT_PRESETS)]),
+      activity: num(-1, {
+        minimum: -1,
+        maximum: 1,
+        'x-stops': [
+          { value: -1, label: 'recipe' },
+          ...Object.entries(VOLCANO_STATES).map(([label, value]) => ({
+            value,
+            label,
+          })),
+        ],
+      }),
+      autoplay: choice('on', ['on', 'off']),
+      // Froude scaling: sizes ×scale, speeds and lives ×√scale.
+      scale: num(1, { minimum: 0.01, maximum: 100, 'x-scale': 'log' }),
+      // Sit on the terrain under it.
+      ground: choice('off', ['on', 'off']),
+      x: num(0, M),
+      y: num(0, M),
+      z: num(0, M),
+      rx: num(0, { minimum: -180, maximum: 180, ...DEG }),
+      ry: num(0, { minimum: -180, maximum: 180, ...DEG }),
+      rz: num(0, { minimum: -180, maximum: 180, ...DEG }),
+      recipe: {
+        // Absent (null) means the preset plays.
+        type: 'object',
+        $ref: '#/$defs/effectRecipe',
+        default: null,
+        'x-property': true,
+      },
+    },
+    { $defs: { effectRecipe: effectRecipeSchema() }, ...extra }
+  )
+}
+
 /** Every scene-primitive schema, by the element name a consumer would use. */
 /**
  * `tosi-b3d` — the scene HOST's own attributes: the ones that say how the
@@ -1609,5 +1664,6 @@ export const sceneSchemas = {
   decorator: decoratorSchema,
   trail: trailSchema,
   sound: soundSchema,
+  effect: effectSchema,
   planet: planetSchema,
 } as const

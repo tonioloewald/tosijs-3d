@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **`sceneSchemas.effect` (`effectSchema()`)**: `<tosi-b3d-effect>`'s attributes as JSON Schema, like the other scene primitives (asked for by ensemble, tosijs-3d#118): `preset` (an enum of the presets), `activity` (-1 for the recipe's own, else 0 to 1, with `x-stops` naming a volcano's dormant, semi-active and erupting values), `autoplay`, `scale`, `ground` and the transform. `recipe`, a property rather than an attribute, is marked `x-property` and refers to `effectRecipeSchema()` in `$defs`. The drift test holds it to the component's `initAttributes`.
+
 ## 0.10.16
 
 ### Added
