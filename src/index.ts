@@ -1624,10 +1624,13 @@ export {
   base64OfBytes,
 } from './embed-font.js'
 export type { EmbeddedFont } from './embed-font.js'
-// Touch on an orbit camera: one finger orbits, two pan, a pinch zooms (#52).
+// The orbit camera's view controls: orbit, pan (shift-drag, trackpad, two fingers), zoom (#52).
 export { touchOrbit } from './touch-orbit.js'
 export {
   twoFingerGesture,
+  wheelClassifier,
+  type WheelKind,
+  type WheelSample,
   type TwoFingerGesture,
   type TwoFingerStep,
   type TouchPoint,

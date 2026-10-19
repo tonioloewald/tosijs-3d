@@ -1,37 +1,63 @@
 /*#
 # touch-orbit
 
-`touchOrbit(camera)` gives an `ArcRotateCamera` the touch map in
-[touch-gesture](/touch-gesture/): one finger orbits, two fingers moving together
-pan, a pinch zooms. The decision is made once per gesture. `<tosi-b3d>`'s
-default camera and `orbitCam` both call it; call it yourself on an
-`ArcRotateCamera` you build (tosijs-3d#52).
+`touchOrbit(camera)` gives an `ArcRotateCamera` the view controls people
+expect from a 3D viewer, on every device. `<tosi-b3d>`'s default camera and
+`orbitCam` both call it; call it yourself on an `ArcRotateCamera` you build
+(tosijs-3d#52).
 
-- **Pan follows the fingers.** The centroid's pixels become world units at the
-  TARGET's depth (`2·r·tan(fov/2)` per viewport height), applied straight to the
-  target, so the point you touched moves with you. Babylon's own two-finger pan
-  is a fixed `1/panningSensibility` fed through its inertia, so 150 px moved
-  the target 0.76 m at 8 m and got slower relative to the view the further out
-  you were.
-- **Zoom is natural** (radius × previous spacing / spacing), clamped to the
-  camera's radius limits.
-- **One finger is untouched.** Only the two-finger path is replaced.
+| | orbit | pan | zoom |
+| --- | --- | --- | --- |
+| mouse | drag | **shift**-drag, right-drag, ctrl-drag | wheel |
+| trackpad | click-drag | **two-finger drag** | pinch |
+| touch | one finger | two fingers together | pinch |
 
-Returns a function that restores Babylon's handler.
+- **Pan follows the pointer.** Pixels become world units at the TARGET's depth
+  (`2·r·tan(fov/2)` per viewport height), applied straight to the target, so
+  the point you grabbed moves with you. Babylon's own pan is a fixed
+  `1/panningSensibility` fed through its inertia, so 150 px moved the target
+  0.76 m at 8 m and got slower relative to the view the further out you were.
+- **A trackpad's two-finger drag pans; a pinch zooms.** Both arrive as `wheel`
+  events, as a mouse wheel does: [touch-gesture](/touch-gesture/)'s
+  `wheelClassifier` tells them apart (a pinch carries `ctrlKey`, a mouse notch
+  is big, a trackpad moves sideways or starts small). No browser says which
+  device sent a wheel event, so it is a heuristic; shift-drag pans on
+  anything. `{ trackpadPan: false }` leaves the wheel to Babylon (it zooms).
+- **Touch:** one finger orbits, two fingers moving together pan, a pinch
+  zooms; the decision is made once per gesture (`twoFingerGesture`).
+- **A wheel over a panel is the panel's**: panels take it before the canvas
+  sees it (tosijs-3d#114), so a list scrolls and the scene stays put.
+
+Returns a function that restores Babylon's handlers.
 */
 /*{ "parent": "input", "order": 40 }*/
 import * as BABYLON from '@babylonjs/core'
-import { twoFingerGesture } from './touch-gesture.js'
+import { twoFingerGesture, wheelClassifier } from './touch-gesture.js'
 
-export function touchOrbit(camera: BABYLON.ArcRotateCamera): () => void {
+/** Move the camera's target so the scene follows the pointer by (dx, dy) px. */
+function panBy(camera: BABYLON.ArcRotateCamera, dx: number, dy: number): void {
+  const engine = camera.getEngine()
+  const h = engine.getRenderHeight(true) || 1
+  const perPx = (2 * camera.radius * Math.tan(camera.fov / 2)) / h
+  const right = camera.getDirection(BABYLON.Axis.X)
+  const up = camera.getDirection(BABYLON.Axis.Y)
+  // Pointer right → the scene follows right → the target moves LEFT.
+  right.scaleInPlace(-dx * perPx)
+  up.scaleInPlace(dy * perPx)
+  camera.target.addInPlace(right).addInPlace(up)
+}
+
+export function touchOrbit(
+  camera: BABYLON.ArcRotateCamera,
+  options: { trackpadPan?: boolean } = {}
+): () => void {
   const pointers = camera.inputs?.attached?.pointers as
     | BABYLON.ArcRotateCameraPointersInput
     | undefined
   if (pointers == null) return () => {}
   const original = pointers.onMultiTouch
+  const originalTouch = pointers.onTouch
   const gesture = twoFingerGesture()
-  const right = new BABYLON.Vector3()
-  const up = new BABYLON.Vector3()
 
   pointers.onMultiTouch = (_a, _b, prevSq, sq, prevPos, pos): void => {
     // Babylon's own bookends: the first call of a gesture has no previous,
@@ -51,18 +77,46 @@ export function touchOrbit(camera: BABYLON.ArcRotateCamera): () => void {
       const hi = camera.upperRadiusLimit ?? Infinity
       camera.radius = Math.min(hi, Math.max(lo, camera.radius * step.ratio))
     } else if (step.kind === 'pan') {
-      const engine = camera.getEngine()
-      const h = engine.getRenderHeight(true) || 1
-      const perPx = (2 * camera.radius * Math.tan(camera.fov / 2)) / h
-      camera.getDirectionToRef(BABYLON.Axis.X, right)
-      camera.getDirectionToRef(BABYLON.Axis.Y, up)
-      // Fingers right → the scene follows right → the target moves LEFT.
-      right.scaleInPlace(-step.dx * perPx)
-      up.scaleInPlace(step.dy * perPx)
-      camera.target.addInPlace(right).addInPlace(up)
+      panBy(camera, step.dx, step.dy)
     }
   }
+
+  /*
+  ONE POINTER: shift-drag pans, as do the presses Babylon's own input map
+  calls a pan (right-drag, ctrl-drag), but by the follow-the-pointer rule.
+  Babylon records the modifier keys on the input as each event arrives, and
+  (since 9) which interaction the press resolved to as `_activeEntry`.
+  */
+  pointers.onTouch = (point, offsetX, offsetY): void => {
+    const p = pointers as any
+    const pan =
+      p._activeEntry != null &&
+      (p._shiftKey === true || p._activeEntry.interaction === 'pan')
+    if (pan && camera.panningSensibility !== 0) panBy(camera, offsetX, offsetY)
+    else originalTouch.call(pointers, point, offsetX, offsetY)
+  }
+
+  /*
+  THE WHEEL, on the canvas in the capture phase: before Babylon's own wheel
+  input (on the same canvas), after a panel's (on its parent), so a wheel
+  over a panel never reaches here.
+  */
+  const canvas = camera.getEngine().getRenderingCanvas()
+  const wheels = wheelClassifier()
+  const onWheel = (e: WheelEvent) => {
+    if (camera.getScene().activeCamera !== camera) return
+    if (wheels.kind(e, e.timeStamp) !== 'pan') return
+    e.preventDefault()
+    e.stopImmediatePropagation()
+    // Natural scrolling: the fingers drag the scene.
+    panBy(camera, -e.deltaX, -e.deltaY)
+  }
+  if (options.trackpadPan !== false)
+    canvas?.addEventListener('wheel', onWheel, { capture: true, passive: false })
+
   return () => {
     pointers.onMultiTouch = original
+    pointers.onTouch = originalTouch
+    canvas?.removeEventListener('wheel', onWheel, { capture: true })
   }
 }

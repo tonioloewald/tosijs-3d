@@ -100,3 +100,51 @@ export function twoFingerGesture(
     },
   }
 }
+
+/*
+A WHEEL EVENT: zoom or pan? A trackpad's two-finger drag and a mouse wheel
+arrive as the same `wheel` event, and a pinch arrives as one with `ctrlKey`
+set (the browser's convention). So:
+
+- a pinch (`ctrlKey`) zooms;
+- a wheel that scrolls by lines or pages (`deltaMode` not 0) is a mouse: zoom;
+- any sideways travel (`deltaX`) is a trackpad: pan;
+- otherwise the first event of a gesture decides: a mouse notch is big
+  (100 px on most systems) or Chrome-on-Mac's 4.000244… step, a trackpad's
+  first move is small. The rest of the gesture (events under `gapMs` apart)
+  keeps that decision, so a fast swipe does not turn into a zoom halfway.
+
+A heuristic: no browser says which device sent a wheel event. Shift-drag pans
+on any device.
+*/
+export type WheelKind = 'pan' | 'zoom'
+
+export interface WheelSample {
+  deltaX: number
+  deltaY: number
+  deltaMode: number
+  ctrlKey: boolean
+}
+
+export function wheelClassifier(gapMs = 150): {
+  /** `now` in milliseconds (an event's `timeStamp`). */
+  kind(e: WheelSample, now: number): WheelKind
+} {
+  let last: { kind: WheelKind; at: number } | null = null
+  return {
+    kind(e, now) {
+      let kind: WheelKind
+      if (e.ctrlKey) kind = 'zoom'
+      else if (e.deltaMode !== 0) kind = 'zoom'
+      else if (e.deltaX !== 0) kind = 'pan'
+      else if (last != null && now - last.at < gapMs) kind = last.kind
+      else {
+        const y = Math.abs(e.deltaY)
+        const notch = y > 0 && Math.abs(y / 4.000244140625 - Math.round(y / 4.000244140625)) < 1e-6
+        kind = y >= 50 || notch ? 'zoom' : 'pan'
+      }
+      last = { kind, at: now }
+      return kind
+    },
+  }
+}

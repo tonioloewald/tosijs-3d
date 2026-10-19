@@ -83,6 +83,7 @@ import {
 } from './widgets3d.js'
 import { vector3d } from './vector-field.js'
 import { pointerClaimedByPanel } from './frame-panel.js'
+import { touchOrbit } from './touch-orbit.js'
 import { readSkeleton, retargetClip } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
@@ -906,6 +907,7 @@ export function rigTool(
         cam.wheelPrecision = 60
         cam.minZ = 0.02
         cam.attachControl(owner.querySelector('canvas'), true)
+        touchOrbit(cam)
         owner.setActiveCamera(cam)
         BABYLON.MeshBuilder.CreateGround(
           'rig-ground',

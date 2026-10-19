@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { twoFingerGesture, type TwoFingerStep } from './touch-gesture.js'
+import {
+  twoFingerGesture,
+  wheelClassifier,
+  type TwoFingerStep,
+} from './touch-gesture.js'
 
 /** Feed a gesture from (spacing, centroid) keyframes; collect the steps. */
 const run = (frames: Array<[number, number, number]>, decidePx = 12) => {
@@ -61,5 +65,39 @@ describe('two fingers: pan or zoom, decided once (tosijs-3d#52)', () => {
     expect(g.mode).toBe('pan')
     g.reset()
     expect(g.mode).toBe('pending')
+  })
+})
+
+describe('wheel: pan or zoom', () => {
+  const ev = (deltaY: number, deltaX = 0, extra: Partial<{ deltaMode: number; ctrlKey: boolean }> = {}) => ({
+    deltaX,
+    deltaY,
+    deltaMode: 0,
+    ctrlKey: false,
+    ...extra,
+  })
+  test('a pinch zooms, a line-scrolling wheel zooms', () => {
+    const w = wheelClassifier()
+    expect(w.kind(ev(2, 0, { ctrlKey: true }), 0)).toBe('zoom')
+    expect(w.kind(ev(3, 0, { deltaMode: 1 }), 1000)).toBe('zoom')
+  })
+  test('sideways travel and a small first move pan', () => {
+    const w = wheelClassifier()
+    expect(w.kind(ev(0, 5), 0)).toBe('pan')
+    expect(w.kind(ev(6), 1000)).toBe('pan')
+  })
+  test("a mouse notch zooms: 100 px, or Chrome-on-Mac's 4.000244 step", () => {
+    const w = wheelClassifier()
+    expect(w.kind(ev(100), 0)).toBe('zoom')
+    expect(w.kind(ev(-4.000244140625), 1000)).toBe('zoom')
+    expect(w.kind(ev(8.00048828125), 2000)).toBe('zoom')
+  })
+  test('a gesture keeps its first decision', () => {
+    const w = wheelClassifier()
+    expect(w.kind(ev(3), 0)).toBe('pan')
+    // A fast swipe's later events are big, and still a pan.
+    expect(w.kind(ev(120), 16)).toBe('pan')
+    // A new gesture decides afresh.
+    expect(w.kind(ev(100), 600)).toBe('zoom')
   })
 })

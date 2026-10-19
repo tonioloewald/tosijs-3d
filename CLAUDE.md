@@ -590,7 +590,7 @@ an accessible name in the markup (an SVG `<title>`, or the mirrored button's
 | `src/xr-input-provider.ts` | XR controller input implementation |
 | `src/xr-gamepad.ts` | XR controllers → VirtualGamepad mapping |
 | `src/touch-gamepad.ts` | Touch/pointer SVG virtual gamepad (`data-part` element mapping) |
-| `src/touch-gesture.ts` / `src/touch-orbit.ts` | Two-finger touch on an orbit camera: PAN on a drag, ZOOM on a pinch (tosijs-3d#52). `touch-gesture` is the pure decision model (unit-tested); `touchOrbit(camera)` wires it, and the default camera uses it |
+| `src/touch-gesture.ts` / `src/touch-orbit.ts` | The orbit camera's view controls on every device: two-finger touch PANS on a drag and ZOOMS on a pinch (tosijs-3d#52); shift-drag (and right/ctrl-drag) pans; a trackpad's two-finger drag pans and its pinch zooms. All pans follow the pointer at the target's depth. `touch-gesture` is the pure decision model (`twoFingerGesture`, `wheelClassifier`, unit-tested); `touchOrbit(camera)` wires it, and the default camera, `orbitCam` and the rig tool use it. Its wheel listener is on the canvas in the CAPTURE phase: after a panel's (on the parent), before Babylon's own |
 | `src/glass-gamepad.ts` | `<tosi-b3d-gamepad>` on-screen glass gamepad component + control parsing |
 | `src/gamepad-svg.ts` / `src/gamepad.ts` | SVG rendering + text/state helpers for the gamepad UI |
 | `src/game-controller.ts` | Legacy keyboard/mouse input with attack/decay smoothing |
