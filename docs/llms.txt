@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.17
+# tosijs-3d v0.10.18
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -309,6 +309,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   (with live dials), a sea, weather over both, and the encoded sky behind. As
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
+- https://3d.tosijs.net/landform-schemas/ — landform schemas
+  The options of each authored landform (`volcano`, `impactCrater`, `pad`,
 - https://3d.tosijs.net/library-mesh/ — library-mesh
   implementation, used by [[b3d-prop]] and [[b3d-destroyable]].
 - https://3d.tosijs.net/light-editor/ — Light editor

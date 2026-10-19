@@ -338,6 +338,8 @@ export const ui = {
 export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, chartTemperature, planetTemperature, CELSIUS_PER_UNIT, } from './biome-chart.js';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
+// Landform options as JSON Schema (tosijs-3d#119)
+export { landformSchemas, volcanoSchema, impactCraterSchema, padSchema, gulleySchema, coverSchema, landformDerived, } from './landform-schemas.js';
 export { volcano, impactCrater, craterField, craterProfile, sphereCraters, pad, gulley, cover, composeLandforms, mergeProvinces, 
 // A field knows where it stops — see landform's "A field knows where it stops".
 withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';

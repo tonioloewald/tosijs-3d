@@ -275,6 +275,7 @@ export type { BiomeChartConfig } from './biome-chart.js';
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile.js';
 export type { LocalizedFilter } from './slope-profile.js';
 export type { SphereCraterOptions } from './landform.js';
+export { landformSchemas, volcanoSchema, impactCraterSchema, padSchema, gulleySchema, coverSchema, landformDerived, } from './landform-schemas.js';
 export { volcano, impactCrater, craterField, craterProfile, sphereCraters, pad, gulley, cover, composeLandforms, mergeProvinces, withExtent, extentOf, touchesExtent, unionExtent, circleExtent, corridorExtent, } from './landform.js';
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js';
 import { applyCarve, sphere, capsule, tube, box as carveBox, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft } from './carve.js';

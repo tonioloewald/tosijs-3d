@@ -585,6 +585,19 @@ export declare function slider3d(config: {
      * behalf. Clamped to the track; ignored if it is empty or inverted.
      */
     useful?: [number, number];
+    /**
+     * Named values on the track: a tick at each, a detent that catches the
+     * handle when you pass within a few pixels, and the stop's name beside the
+     * number while the value is on it ("0.5 semi-active").
+     *
+     * The landing spot for a schema's `x-stops` (tosijs-3d#121): a volcano's
+     * activity is a continuous dial, and also has three values worth naming.
+     * The handle still reaches everything between them.
+     */
+    stops?: Array<{
+        value: number;
+        label?: string;
+    }>;
 }): Widget3d;
 /**
  * A select: `label      value ⌄`. Tapping the value (the right-hand cluster) opens

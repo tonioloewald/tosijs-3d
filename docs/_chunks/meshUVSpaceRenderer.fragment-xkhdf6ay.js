@@ -1,4 +1,0 @@
-import{rI}from"../hydrate-spgdbsg3.js";export{rI as meshUVSpaceRendererPixelShaderWGSL};
-
-//# debugId=BE293592070913B464756E2164756E21
-//# sourceMappingURL=meshUVSpaceRenderer.fragment-xkhdf6ay.js.map

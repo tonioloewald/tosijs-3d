@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.10.18
 
 ### Added
 
@@ -16,6 +16,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ### Changed
 
 - **`effectRecipeSchema()` says which strings are fetched** (tosijs-3d#120): a sound layer's `url` is `format: 'uri-reference'`, and a particle layer's `texture` is `anyOf` a URI (not starting with `<`) or inline SVG markup (`contentMediaType: 'image/svg+xml'`, `x-inline: 'svg'`), told apart by the leading `<` exactly as the player does. Markup is drawn as an image, so nothing it links to is loaded.
+
+Size: barrel (min, packages external) 1211.0 KB raw / 414.4 KB gz, +0.4% on 0.10.17 (landform schemas, slider stops).
 
 ## 0.10.17
 

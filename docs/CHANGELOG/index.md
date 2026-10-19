@@ -6,11 +6,24 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.18
+
+### Added
+
+- **`landformSchemas`**: the options of `volcano`, `impactCrater`, `pad`, `gulley` and `cover` as JSON Schema (asked for by ensemble, tosijs-3d#119, for landform pieces linked to a terrain). `x` and `z` carry `x-position`, so a host can take them from the piece's position. A default worked out from another option (a volcano's `craterRadius` is `radius × 0.22`) is marked `x-derived: { from, scale }` and has no frozen `default`, so it keeps following its source; `landformDerived()` works one out. A volcano's `activity` names its stops (extinct, dormant, semi-active, erupting). The schemas are typed against the options interfaces, and a test checks that spelling out every default draws the same ground as leaving it out.
+- **`slider3d({ stops })`**: named values on a slider's track (tosijs-3d#121): a tick at each, a detent that catches the handle within a few pixels, and the name beside the number while the value is on it. The landing spot for a schema's `x-stops`.
+
+### Changed
+
+- **`effectRecipeSchema()` says which strings are fetched** (tosijs-3d#120): a sound layer's `url` is `format: 'uri-reference'`, and a particle layer's `texture` is `anyOf` a URI (not starting with `<`) or inline SVG markup (`contentMediaType: 'image/svg+xml'`, `x-inline: 'svg'`), told apart by the leading `<` exactly as the player does. Markup is drawn as an image, so nothing it links to is loaded.
+
 ## 0.10.17
 
 ### Added
 
 - **`sceneSchemas.effect` (`effectSchema()`)**: `<tosi-b3d-effect>`'s attributes as JSON Schema, like the other scene primitives (asked for by ensemble, tosijs-3d#118): `preset` (an enum of the presets), `activity` (-1 for the recipe's own, else 0 to 1, with `x-stops` naming a volcano's dormant, semi-active and erupting values), `autoplay`, `scale`, `ground` and the transform. `recipe`, a property rather than an attribute, is marked `x-property` and refers to `effectRecipeSchema()` in `$defs`. The drift test holds it to the component's `initAttributes`.
+
+Size: barrel (min, packages external) 1206.3 KB raw / 412.6 KB gz, +0.05% on 0.10.16 (the effect schema).
 
 ## 0.10.16
 
