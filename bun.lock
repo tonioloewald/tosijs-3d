@@ -26,7 +26,7 @@
         "prettier": "^2.8.8",
         "tjs-lang": "^0.13.6",
         "tosijs": "^1.10.7",
-        "tosijs-ui": "^1.16.27",
+        "tosijs-ui": "^1.16.28",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.62.1",
       },
@@ -333,7 +333,7 @@
 
     "tosijs-schema": ["tosijs-schema@1.5.1", "", {}, "sha512-ovWLISVLE8LBHQhX8mr3JKH2/fYFDs55fbdpIUxuXQCYB0ugSu1pTj9wA4zhQtdkxHH+MBXT1Zo7yQrtm6zQKg=="],
 
-    "tosijs-ui": ["tosijs-ui@1.16.27", "", { "dependencies": { "@codemirror/autocomplete": "^6.20.3", "@codemirror/commands": "^6.10.4", "@codemirror/lang-css": "^6.3.1", "@codemirror/lang-html": "^6.4.11", "@codemirror/lang-javascript": "^6.2.5", "@codemirror/lang-markdown": "^6.5.1", "@codemirror/language": "^6.12.4", "@codemirror/lint": "^6.9.7", "@codemirror/search": "^6.7.1", "@codemirror/state": "^6.7.6", "@codemirror/theme-one-dark": "^6.1.3", "@codemirror/view": "^6.43.13", "prismjs": "^1.30.0", "tosijs-kilpi": "^1.0.1" }, "peerDependencies": { "@resvg/resvg-js": "^2.6.2", "chokidar": "^4.0.3", "happy-dom": "^20.7.0", "marked": "^16.4.2 || ^17.0.0 || ^18.0.0", "tjs-lang": "^0.13.1 || ^0.14.0-rc.5", "tosijs": "^1.10.9", "tosijs-schema": "^1.8.0" }, "optionalPeers": ["@resvg/resvg-js", "chokidar", "happy-dom", "tjs-lang", "tosijs-schema"], "bin": { "tosijs-deploy": "bin/deploy-preview.ts", "tosijs-format": "bin/format.ts", "tosijs-tunnel": "bin/tunnel.ts", "tosijs-dev-certs": "tls/create-dev-certs.sh", "tosijs-make-icons": "bin/make-icon-data.js", "tosijs-caddy-install": "bin/caddy-install.ts", "tosijs-release-notes": "bin/release-notes.ts" } }, "sha512-W7jql4JXEliUz4kvj0XtRLmLS+xYuMKh/9u/9J0yCOTK8xIjU+pqQHUXcHGEJtzZZMpWpC3P2upTYfSRUejg6A=="],
+    "tosijs-ui": ["tosijs-ui@1.16.28", "", { "dependencies": { "@codemirror/autocomplete": "^6.20.3", "@codemirror/commands": "^6.10.4", "@codemirror/lang-css": "^6.3.1", "@codemirror/lang-html": "^6.4.11", "@codemirror/lang-javascript": "^6.2.5", "@codemirror/lang-markdown": "^6.5.1", "@codemirror/language": "^6.12.4", "@codemirror/lint": "^6.9.7", "@codemirror/search": "^6.7.1", "@codemirror/state": "^6.7.6", "@codemirror/theme-one-dark": "^6.1.3", "@codemirror/view": "^6.43.13", "prismjs": "^1.30.0", "tosijs-kilpi": "^1.0.1" }, "peerDependencies": { "@resvg/resvg-js": "^2.6.2", "chokidar": "^4.0.3", "happy-dom": "^20.7.0", "marked": "^16.4.2 || ^17.0.0 || ^18.0.0", "tjs-lang": "^0.13.1 || ^0.14.0-rc.5", "tosijs": "^1.10.9", "tosijs-schema": "^1.8.0" }, "optionalPeers": ["@resvg/resvg-js", "chokidar", "happy-dom", "tjs-lang", "tosijs-schema"], "bin": { "tosijs-deploy": "bin/deploy-preview.ts", "tosijs-format": "bin/format.ts", "tosijs-tunnel": "bin/tunnel.ts", "tosijs-dev-certs": "tls/create-dev-certs.sh", "tosijs-make-icons": "bin/make-icon-data.js", "tosijs-caddy-install": "bin/caddy-install.ts", "tosijs-release-notes": "bin/release-notes.ts" } }, "sha512-E0VuzurNgm+555kcer6ybf8afvDpfFscgS4Ycrrmhox03MuUPQCkIlZd8/+ZGYyOfUdeezw89HHwCpMud8kwPA=="],
 
     "ts-api-utils": ["ts-api-utils@2.5.0", "", { "peerDependencies": { "typescript": ">=4.8.4" } }, ""],
 
