@@ -257,6 +257,8 @@ export interface RigToolApi {
   readonly role: Role
   /** Where the camera looks from (`front`, `side`, `top` are orthographic). */
   view: RigView
+  /** Play a clip (the current one if none is named); `null` stands it at rest. */
+  play(clip?: string | null): void
   load(model: RigModel | File): Promise<void> | undefined
 }
 
@@ -1461,6 +1463,12 @@ export function rigTool(
     set view(v: RigView) {
       ui.view = v
       tool?.view(v)
+      refresh()
+    },
+    play(clip?: string | null) {
+      if (clip != null) ui.clip = clip
+      ui.pose = clip === null ? 'rest' : 'animate'
+      tool?.play()
       refresh()
     },
     load: (m: RigModel | File) => tool?.load(m),

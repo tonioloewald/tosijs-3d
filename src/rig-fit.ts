@@ -13,7 +13,8 @@ Two halves, both pure:
 - `fitSkeleton(markers, mesh)` turns markers into joints. Five kinds of
   joint are where a marker says; the rest are inferred from the markers and
   the mesh (an ankle under its knee at the foot's height, a shoulder an
-  upper arm's length in from the elbow, fingers along the hand). Every
+  upper arm's length in from the elbow). Fingers are found from ABOVE,
+  where palm-down fingers show as separate prongs (`findFingers`). Every
   joint sits at the middle of the mesh's thickness at its (x, y), in the
   FRONT-MOST span, so a tail or a backpack behind the body is not mistaken
   for it.
@@ -69,6 +70,13 @@ export interface MeshQuery {
   max: Vec3
   /** Spans inside the mesh along a ray through (x, y), front first. */
   spans(x: number, y: number): Span[]
+  /**
+   * The same mesh looked at from ABOVE: `spans(x, -z)` gives the spans of a
+   * vertical ray through (x, z), top first (`front` is the higher y). Built
+   * when first asked for. How the fingers are found: palm down in a T-pose,
+   * they are separate only from above.
+   */
+  fromAbove?(): MeshQuery
 }
 
 /**
@@ -140,9 +148,23 @@ export function meshQuery(
     if (u < e || v < e || w < e) return null
     return u * positions[a + 2] + v * positions[b + 2] + w * positions[c + 2]
   }
+  let above: MeshQuery | null = null
   return {
     min,
     max,
+    fromAbove() {
+      if (above == null) {
+        // (x, y, z) → (x, -z, y): a ray along the new Z is vertical.
+        const p = Array.from(positions)
+        for (let i = 0; i + 2 < p.length; i += 3) {
+          const y = p[i + 1]
+          p[i + 1] = -p[i + 2]
+          p[i + 2] = y
+        }
+        above = meshQuery(p, indices)
+      }
+      return above
+    },
     spans(x, y) {
       if (x < min.x || x > max.x || y < min.y || y > max.y) return []
       /*
@@ -187,6 +209,12 @@ export interface FittedJoint {
 
 export interface FittedRig {
   joints: FittedJoint[]
+  /**
+   * The fingers found in the mesh, per side (`thumb`, `index`, …): those
+   * joints sit on real fingers and take the skin. Fingers not listed were
+   * placed by proportion (a mitten, or no view from above) and do not.
+   */
+  fingers?: Record<'l' | 'r', string[]>
   /** A joint's position by name. */
   at(name: string): Vec3 | undefined
 }
@@ -336,6 +364,7 @@ export function fitSkeleton(
     if (inside(chin.x, y)) top = y
   put('Head', 'neck_01', headBase, { x: chin.x, y: top, z: headBase.z })
 
+  const fingersFound: Record<'l' | 'r', string[]> = { l: [], r: [] }
   for (const side of ['l', 'r'] as const) {
     const S = side === 'l' ? 'L' : 'R'
     const sign = side === 'l' ? 1 : -1
@@ -393,6 +422,23 @@ export function fitSkeleton(
     const ps = mesh.spans(palm2.x, palm2.y)[0]
     const half = ps != null ? (ps.front - ps.back) / 2 : 0.15 * reach
     const palmZ = ps != null ? (ps.front + ps.back) / 2 : wrist.z
+    /*
+    THE FINGERS THE MESH HAS, found from above (Tonio: the skinny weasel has
+    three fingers and a thumb, and they were not rigged). A finger is placed
+    joint by joint along the real one and takes the skin; one the mesh does
+    not show is placed by proportion, as before, and takes none.
+    */
+    const above = mesh.fromAbove?.()
+    const found =
+      above != null ? findFingers(above, wrist, sign, reach) : null
+    const real: string[] = []
+    const chain = (f: string, pts: Vec3[]) => {
+      put(`${f}_01_${side}`, `hand_${side}`, pts[0])
+      put(`${f}_02_${side}`, `${f}_01_${side}`, pts[1])
+      put(`${f}_03_${side}`, `${f}_02_${side}`, pts[2])
+      put(`${f}_04_leaf_${side}`, `${f}_03_${side}`, pts[3])
+    }
+    const names = found != null ? FINGER_NAMES[found.fingers.length] ?? [] : []
     const fingers: Array<[string, number]> = [
       ['index', 0.6],
       ['middle', 0.2],
@@ -400,6 +446,12 @@ export function fitSkeleton(
       ['pinky', -0.6],
     ]
     for (const [f, off] of fingers) {
+      const k = names.indexOf(f)
+      if (k >= 0) {
+        chain(f, found!.fingers[k])
+        real.push(f)
+        continue
+      }
       const z = palmZ + off * half
       const base = {
         x: lerp(wrist.x, tip.x, 0.45),
@@ -407,12 +459,12 @@ export function fitSkeleton(
         z,
       }
       const end = { x: tip.x, y: tip.y, z }
-      put(`${f}_01_${side}`, `hand_${side}`, base)
-      put(`${f}_02_${side}`, `${f}_01_${side}`, along(base, end, 0.4))
-      put(`${f}_03_${side}`, `${f}_02_${side}`, along(base, end, 0.7))
-      put(`${f}_04_leaf_${side}`, `${f}_03_${side}`, end)
+      chain(f, [base, along(base, end, 0.4), along(base, end, 0.7), end])
     }
-    {
+    if (found?.thumb != null) {
+      chain('thumb', found.thumb)
+      real.push('thumb')
+    } else {
       const base = {
         x: lerp(wrist.x, tip.x, 0.12),
         y: lerp(wrist.y, tip.y, 0.12),
@@ -423,11 +475,9 @@ export function fitSkeleton(
         y: lerp(wrist.y, tip.y, 0.6),
         z: palmZ + 1.6 * half,
       }
-      put(`thumb_01_${side}`, `hand_${side}`, base)
-      put(`thumb_02_${side}`, `thumb_01_${side}`, along(base, end, 0.4))
-      put(`thumb_03_${side}`, `thumb_02_${side}`, along(base, end, 0.7))
-      put(`thumb_04_leaf_${side}`, `thumb_03_${side}`, end)
+      chain('thumb', [base, along(base, end, 0.4), along(base, end, 0.7), end])
     }
+    fingersFound[side] = real
 
     // The leg: the hip above the knee at pelvis height (a little in, as
     // legs splay), the ankle under the knee, the toes forward of it.
@@ -480,14 +530,182 @@ export function fitSkeleton(
   return {
     joints,
     at: (name) => byName.get(name)?.position,
+    fingers: fingersFound,
   }
 }
 
+/** Which UAL fingers a hand of n fingers uses, front (thumb side) first. */
+const FINGER_NAMES: Record<number, string[]> = {
+  1: ['index'],
+  2: ['index', 'middle'],
+  3: ['index', 'middle', 'ring'],
+  4: ['index', 'middle', 'ring', 'pinky'],
+}
+
 /*
-WHICH BONES TAKE THE SKIN, and where each one runs. Fingers are left out
-(the hand takes the whole hand; a mitten or a claw has no fingers to give
-them, and a hand that bends at the wrist is what reads), and so are the
-root and the leaf joints, which only mark where a chain ends.
+FINDING FINGERS FROM ABOVE. Palm down in a T-pose, a hand seen from above is
+a palm with prongs. Slices across the hand, from the fingertips back toward
+the wrist, each cut the fingers as separate runs; where two runs join, those
+fingers have reached the palm (their knuckles). A prong that starts near the
+wrist and reaches forward is the thumb.
+
+Each finger's four joints run from a little behind where it leaves the palm
+to its tip, following its middle line, each at the middle of the finger's
+thickness. Returns null for a hand with no separate fingers (a mitten), so
+the caller falls back to proportions.
+*/
+function findFingers(
+  above: MeshQuery,
+  wrist: Vec3,
+  sign: number,
+  reach: number
+): { fingers: Vec3[][]; thumb: Vec3[] | null } | null {
+  // The front view's reach can stop short (a gap between fingers), so look
+  // well past it; nothing beyond the hand is in reach of a T-posed arm.
+  const h = reach / 150
+  const zLo = wrist.z - 1.5 * reach
+  const zHi = wrist.z + 1.5 * reach
+  const dMax = reach * 2.5
+  const occupied = (d: number, z: number) =>
+    above.spans(wrist.x + sign * d, -z).length > 0
+  const midY = (d: number, z: number, fallback: number) => {
+    const s = above.spans(wrist.x + sign * d, -z)[0]
+    return s != null ? (s.front + s.back) / 2 : fallback
+  }
+  type Run = { z0: number; z1: number }
+  const runsAt = (d: number): Run[] => {
+    const out: Run[] = []
+    let start: number | null = null
+    for (let z = zLo; z <= zHi + h / 2; z += h) {
+      const on = z <= zHi && occupied(d, z)
+      if (on && start == null) start = z
+      else if (!on && start != null) {
+        out.push({ z0: start, z1: z - h })
+        start = null
+      }
+    }
+    return out
+  }
+  interface Prong {
+    tipD: number
+    baseD: number | null
+    path: Array<{ d: number; z0: number; z1: number }>
+    alive: boolean
+    merged: boolean
+  }
+  const prongs: Prong[] = []
+  const overlaps = (r: Run, p: Prong) => {
+    const last = p.path[p.path.length - 1]
+    return r.z0 <= last.z1 + 1.5 * h && r.z1 >= last.z0 - 1.5 * h
+  }
+  for (let d = dMax; d >= 0; d -= h) {
+    const runs = runsAt(d)
+    const alive = prongs.filter((p) => p.alive)
+    const claimed = new Set<Prong>()
+    for (const r of runs) {
+      const hit = alive.filter((p) => overlaps(r, p))
+      if (hit.length === 0) {
+        prongs.push({
+          tipD: d,
+          baseD: null,
+          path: [{ d, ...r }],
+          alive: true,
+          merged: false,
+        })
+      } else if (hit.length === 1) {
+        hit[0].path.push({ d, ...r })
+        claimed.add(hit[0])
+      } else {
+        // Fingers joining: they have reached the palm.
+        for (const p of hit) {
+          p.alive = false
+          p.baseD = d
+          claimed.add(p)
+        }
+        prongs.push({
+          tipD: d,
+          baseD: null,
+          path: [{ d, ...r }],
+          alive: true,
+          merged: true,
+        })
+      }
+    }
+    for (const p of alive) if (!claimed.has(p)) p.alive = false
+  }
+  const tipD = Math.max(...prongs.map((p) => p.tipD), 0)
+  const line = (p: Prong, d: number) => {
+    let best = p.path[0]
+    for (const q of p.path)
+      if (Math.abs(q.d - d) < Math.abs(best.d - d)) best = q
+    return (best.z0 + best.z1) / 2
+  }
+  const point = (d: number, z: number, fallbackY: number): Vec3 => ({
+    x: wrist.x + sign * d,
+    y: midY(d, z, fallbackY),
+    z,
+  })
+  const fingers = prongs
+    .filter(
+      (p) =>
+        !p.merged &&
+        p.baseD != null &&
+        p.tipD > 0.55 * tipD &&
+        p.tipD - p.baseD > 0.08 * reach
+    )
+    .map((p) => {
+      const len = p.tipD - p.baseD!
+      const base = Math.max(0, p.baseD! - 0.2 * len)
+      const ds = [base, base + 0.45 * (p.tipD - base), base + 0.75 * (p.tipD - base), p.tipD - h]
+      return {
+        z: line(p, p.tipD),
+        joints: ds.map((d) => point(d, line(p, Math.max(d, p.baseD!)), wrist.y)),
+      }
+    })
+    .sort((a, b) => b.z - a.z)
+    .slice(0, 4)
+  // The palm's front edge, part way to the tips: the run the wrist is in.
+  const palmRuns = runsAt(0.5 * tipD)
+  const palm =
+    palmRuns.find((r) => r.z0 <= wrist.z + h && r.z1 >= wrist.z - h) ??
+    palmRuns[0]
+  const palmFront = Math.max(palm?.z1 ?? wrist.z, ...fingers.map((f) => f.z))
+  const thumbs = prongs.filter(
+    (p) =>
+      !p.merged &&
+      p.tipD <= 0.55 * tipD &&
+      Math.max(...p.path.map((q) => q.z1)) > palmFront
+  )
+  let thumb: Vec3[] | null = null
+  if (thumbs.length > 0) {
+    const t = thumbs.reduce((a, b) =>
+      Math.max(...a.path.map((q) => q.z1)) >= Math.max(...b.path.map((q) => q.z1)) ? a : b
+    )
+    // Its tip is the point furthest forward; its base, the part of it
+    // nearest the palm (it may point back toward the wrist as well).
+    let tipQ = t.path[0]
+    let baseQ = t.path[0]
+    for (const q of t.path) {
+      if (q.z1 > tipQ.z1) tipQ = q
+      if (q.z0 < baseQ.z0) baseQ = q
+    }
+    const b = point(baseQ.d, Math.min(baseQ.z0, palmFront), wrist.y)
+    const e = point(tipQ.d, tipQ.z1 - h, wrist.y)
+    const mid = (k: number) => {
+      const p = along(b, e, k)
+      return point(sign * (p.x - wrist.x), p.z, p.y)
+    }
+    thumb = [b, mid(0.4), mid(0.7), e]
+  }
+  if (fingers.length === 0 && thumb == null) return null
+  return { fingers: fingers.map((f) => f.joints), thumb }
+}
+
+/*
+WHICH BONES TAKE THE SKIN, and where each one runs. Fingers take it only
+where the mesh has them (found from above: `rig.fingers`); otherwise the hand
+takes the whole hand, as a mitten or a paw should. The root and the leaf
+joints only mark where a chain ends.
 */
 const SEGMENT_TO: Record<string, string> = {
   pelvis: 'spine_01',
@@ -519,9 +737,32 @@ export function skinSegments(
   const child = new Map<string, string>()
   for (const j of rig.joints)
     if (j.parent?.startsWith('tail_')) child.set(j.parent, j.name)
+  /*
+  FINGERS FOUND IN THE MESH take the skin, each joint to the next; then the
+  hand runs only to the knuckles, so a finger's flesh is the finger's.
+  */
+  const handTo = new Map<string, Vec3>()
+  for (const side of ['l', 'r'] as const) {
+    const found = rig.fingers?.[side] ?? []
+    for (const f of found)
+      for (const [from, to] of [
+        ['01', '02'],
+        ['02', '03'],
+        ['03', '04_leaf'],
+      ])
+        child.set(`${f}_${from}_${side}`, `${f}_${to}_${side}`)
+    const knuckles = found
+      .filter((f) => f !== 'thumb')
+      .map((f) => rig.at(`${f}_01_${side}`)!)
+    if (knuckles.length > 0)
+      handTo.set(
+        `hand_${side}`,
+        scale(knuckles.reduce(add), 1 / knuckles.length)
+      )
+  }
   rig.joints.forEach((j, index) => {
-    const to = SEGMENT_TO[j.name] ?? child.get(j.name)
-    const b = to != null ? rig.at(to) : j.end
+    const to = handTo.has(j.name) ? null : SEGMENT_TO[j.name] ?? child.get(j.name)
+    const b = handTo.get(j.name) ?? (to != null ? rig.at(to) : j.end)
     if (b != null) out.push({ index, a: j.position, b })
   })
   return out

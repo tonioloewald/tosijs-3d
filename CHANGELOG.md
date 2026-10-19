@@ -6,6 +6,13 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **Auto-rig finds the fingers a mesh has** (Tonio: the skinny weasel has three fingers and a thumb, and they were not rigged). Palm down in a T-pose, fingers are separate only from above, so `fitSkeleton` looks down on each hand (`MeshQuery.fromAbove()`): slices across the hand from the tips back find the fingers as separate runs, where they join is the knuckle, and a prong that reaches forward near the wrist is the thumb. Each joint sits along the real finger at the middle of its thickness, and found fingers take the skin (the hand then runs to the knuckles). `rig.fingers` says which were found; the rest are placed by proportion as before and take none. The skinny weasel gets index, middle, ring and thumb; omnidude's mitten an index and a thumb; the chunky weasel's paws none.
+- **The rig tool snaps its view** to front, side or top (orthographic, so a joint lines up with the flesh around it; orbiting lets go), and its API gains `view` and `play(clip)`.
+
 ## 0.10.18
 
 ### Added

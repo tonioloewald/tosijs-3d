@@ -263,6 +263,29 @@ const REAL: Array<{
   },
 ]
 
+describe.skipIf(!existsSync(DIR))('fingers found from above', () => {
+  // What each mesh's hands have, read off its overhead silhouette by eye:
+  // the skinny weasel three fingers and a thumb, omnidude a mitten and a
+  // thumb, the chunky weasel paws.
+  const want: Record<string, string[]> = {
+    omnidude: ['index', 'thumb'],
+    'weasel (a tail, a short arm)': [],
+    'skinny weasel': ['index', 'middle', 'ring', 'thumb'],
+  }
+  for (const r of REAL)
+    if (r.name in want)
+      test(r.name, () => {
+        const rig = fitSkeleton(r.markers, soupQuery(r.mesh()), { tail: r.tail })
+        expect(rig.fingers).toEqual({ l: want[r.name], r: want[r.name] })
+        for (const f of want[r.name]) {
+          // Each joint further out than the last, the thumb forward.
+          const xs = ['01', '02', '03', '04_leaf'].map((k) => rig.at(`${f}_${k}_l`)!)
+          if (f === 'thumb') expect(xs[3].z).toBeGreaterThan(xs[0].z)
+          else for (let i = 1; i < 4; i++) expect(xs[i].x).toBeGreaterThan(xs[i - 1].x)
+        }
+      })
+})
+
 describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
   for (const r of REAL)
     test(r.name, () => {
@@ -351,8 +374,22 @@ describe.skipIf(!existsSync(DIR))('boneHeat on real meshes', () => {
         const q = P(b)
         return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2, z: (p.z + q.z) / 2 }
       }
-      expect(strongest(mid('hand_l', 'middle_04_leaf_l'))).toBe('hand_l')
-      expect(strongest(mid('hand_r', 'middle_04_leaf_r'))).toBe('hand_r')
+      for (const side of ['l', 'r'] as const) {
+        const found = rig.fingers?.[side] ?? []
+        const knuckles = found.filter((f) => f !== 'thumb')
+        // The palm is the hand's: halfway to the knuckles, or to the middle
+        // fingertip when no fingers were found.
+        const reachTo =
+          knuckles.length > 0
+            ? `${knuckles[0]}_01_${side}`
+            : `middle_04_leaf_${side}`
+        expect(strongest(mid(`hand_${side}`, reachTo))).toBe(`hand_${side}`)
+        // A finger the mesh has is its own: its middle follows its bones.
+        for (const f of found)
+          expect(strongest(mid(`${f}_02_${side}`, `${f}_03_${side}`))).toMatch(
+            new RegExp(`^${f}_0[1-3]_${side}$`)
+          )
+      }
       expect(strongest(mid('lowerarm_l', 'hand_l'))).toBe('lowerarm_l')
       expect(strongest(mid('thigh_r', 'calf_r'))).toBe('thigh_r')
       expect(strongest(mid('calf_l', 'foot_l'))).toBe('calf_l')
