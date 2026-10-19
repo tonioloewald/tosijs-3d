@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  rigRecipeSchema,
   RIG_RECIPE_VERSION,
   STRAND_DEFAULTS,
   strandDirection,
@@ -65,5 +66,21 @@ describe('rig recipe', () => {
       'springs[2].colliders[0] needs a bone and a radius'
     )
     expect(validateRigRecipe(null)).toEqual(['not an object'])
+  })
+
+  test('the schema and the validator agree on what a strand needs', () => {
+    const springs = (rigRecipeSchema() as any).properties.springs.items.oneOf
+    const strand = springs.find((s: any) => s.title === 'Strand')
+    // Every field the validator insists on is required by the schema, and
+    // the schema's defaults are the tool's.
+    for (const k of ['anchor', 'offset', 'yawDeg', 'pitchDeg', 'length', 'segments', 'radius'])
+      expect(strand.required).toContain(k)
+    for (const k of ['yawDeg', 'pitchDeg', 'length', 'segments', 'radius', 'tipRadius', 'color'] as const)
+      expect(strand.properties[k].default).toEqual((STRAND_DEFAULTS as any)[k])
+    expect(strand.properties.segments.maximum).toBe(64)
+    // Every key a recipe can carry is in the schema (no additionalProperties).
+    const keys = Object.keys({ ...STRAND_DEFAULTS, anchor: '' })
+    for (const k of keys) expect(Object.keys(strand.properties)).toContain(k)
+    expect((rigRecipeSchema() as any).properties.version.const).toBe(RIG_RECIPE_VERSION)
   })
 })

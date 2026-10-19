@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **`rigRecipeSchema()`**: a rig recipe as JSON Schema (ranges, units as `x-unit`, defaults), for a host that builds its editors from schemas or keeps recipes in its own documents (asked for by ensemble). A test holds it to `validateRigRecipe` and the tool's strand defaults.
+
 ## 0.10.15
 
 ### Added

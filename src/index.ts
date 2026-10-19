@@ -1673,6 +1673,7 @@ export {
 export type { ReadSkeleton } from './retarget-babylon.js'
 export {
   RIG_RECIPE_VERSION,
+  rigRecipeSchema,
   STRAND_DEFAULTS,
   strandDirection,
   validateRigRecipe,

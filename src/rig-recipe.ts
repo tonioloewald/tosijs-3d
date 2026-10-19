@@ -165,3 +165,120 @@ export function validateRigRecipe(doc: unknown): string[] {
   })
   return out
 }
+
+/*
+THE RECIPE AS JSON SCHEMA, for a host that generates its editors from
+schemas or stores recipes in its own documents (ensemble). The same rules
+`validateRigRecipe` checks, plus ranges, units (`x-unit`, as the scene
+schemas spell them) and defaults; `rig-recipe.test.ts` holds the two
+together. Carries no `x-widget`: the rig tool is the editor for a whole
+recipe, and the parts are ordinary fields.
+*/
+const DEG = { 'x-unit': 'deg' }
+const M = { 'x-unit': 'm' }
+const vec3 = (description: string) => ({
+  type: 'object',
+  description,
+  properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } },
+  required: ['x', 'y', 'z'],
+  additionalProperties: false,
+})
+
+export function rigRecipeSchema(): Record<string, unknown> {
+  const params = {
+    type: 'object',
+    title: 'How it swings',
+    properties: {
+      stiffness: { type: 'number', minimum: 0, maximum: 1, default: 0.15 },
+      damping: { type: 'number', minimum: 0, maximum: 1, default: 0.6 },
+      gravity: { type: 'number', minimum: 0, default: 9.8, 'x-unit': 'm/s²' },
+    },
+    additionalProperties: false,
+  }
+  const colliders = {
+    description:
+      "'auto': the head, chest and shoulders, sized to the body. 'none', or a list.",
+    default: 'auto',
+    oneOf: [
+      { type: 'string', enum: ['auto', 'none'] },
+      {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            bone: { type: 'string' },
+            radius: { type: 'number', minimum: 0, ...M },
+            offset: vec3('Metres from the bone, in the character frame.'),
+          },
+          required: ['bone', 'radius'],
+          additionalProperties: false,
+        },
+      },
+    ],
+  }
+  const common = {
+    name: { type: 'string' },
+    params,
+    colliders,
+  }
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title: 'Rig recipe',
+    type: 'object',
+    properties: {
+      version: { const: RIG_RECIPE_VERSION },
+      model: {
+        type: 'object',
+        description: 'The model it was made for (a record; nothing is fetched).',
+        properties: { url: { type: 'string' }, name: { type: 'string' } },
+        additionalProperties: false,
+      },
+      roles: {
+        type: 'object',
+        description:
+          "Corrections to the guessed roles: role → bone name ('' leaves the role out).",
+        additionalProperties: { type: 'string' },
+      },
+      armSpaceDeg: { type: 'number', minimum: -90, maximum: 90, default: 0, ...DEG },
+      springs: {
+        type: 'array',
+        items: {
+          oneOf: [
+            {
+              type: 'object',
+              title: 'Bone chain',
+              properties: {
+                kind: { const: 'bones' },
+                root: { type: 'string', description: 'The chain’s first bone.' },
+                ...common,
+              },
+              required: ['kind', 'root'],
+              additionalProperties: false,
+            },
+            {
+              type: 'object',
+              title: 'Strand',
+              properties: {
+                kind: { const: 'strand' },
+                anchor: { type: 'string', description: 'The bone it hangs from.' },
+                offset: vec3('Where it starts, from the anchor, in metres.'),
+                yawDeg: { type: 'number', minimum: -180, maximum: 180, default: 0, ...DEG },
+                pitchDeg: { type: 'number', minimum: -90, maximum: 90, default: -65, ...DEG },
+                length: { type: 'number', exclusiveMinimum: 0, default: 0.45, ...M },
+                segments: { type: 'integer', minimum: 1, maximum: 64, default: 6 },
+                radius: { type: 'number', minimum: 0, default: 0.035, ...M },
+                tipRadius: { type: 'number', minimum: 0, default: 0.012, ...M },
+                color: { type: 'string', format: 'color', default: '#73401a' },
+                ...common,
+              },
+              required: ['kind', 'anchor', 'offset', 'yawDeg', 'pitchDeg', 'length', 'segments', 'radius'],
+              additionalProperties: false,
+            },
+          ],
+        },
+      },
+    },
+    required: ['version'],
+    additionalProperties: false,
+  }
+}
