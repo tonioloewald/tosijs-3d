@@ -947,7 +947,7 @@
       {
         "name": "windHeadingDeg",
         "default": "0",
-        "description": "Which way it drifts — and the direction cirrus streaks run"
+        "description": "Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do"
       },
       {
         "name": "evolve",
@@ -1502,6 +1502,65 @@
       },
       {
         "name": "blastDelay"
+      }
+    ]
+  },
+  {
+    "module": "b3d-effect",
+    "tag": "tosi-b3d-effect",
+    "summary": "b3d-effect",
+    "attributes": [
+      {
+        "name": "x",
+        "default": "0",
+        "description": "Where it is; nested in a mesh element, an offset that follows it"
+      },
+      {
+        "name": "y",
+        "default": "0",
+        "description": "Where it is; nested in a mesh element, an offset that follows it"
+      },
+      {
+        "name": "z",
+        "default": "0",
+        "description": "Where it is; nested in a mesh element, an offset that follows it"
+      },
+      {
+        "name": "rx"
+      },
+      {
+        "name": "ry"
+      },
+      {
+        "name": "rz"
+      },
+      {
+        "name": "axes"
+      },
+      {
+        "name": "preset",
+        "default": "''",
+        "description": "`volcano`, `geyser`, `bubbles`, `black smoker`, `splash`, `explosion`, `fireball`, `sparks`"
+      },
+      {
+        "name": "activity",
+        "default": "-1",
+        "description": "0 to 1; `-1` uses the recipe's own. A volcano: 0.15 dormant, 0.5 semi-active, 1 erupting"
+      },
+      {
+        "name": "autoplay",
+        "default": "'on'",
+        "description": "`'off'` waits for `play()` (a one-shot you trigger)"
+      },
+      {
+        "name": "scale",
+        "default": "1",
+        "description": "How big. Sizes, radii, heights, light range and sound reach multiply; speeds and particle lives grow by the square root and gravity stays (Froude scaling, as for a model ship), so an arc keeps its shape and a big effect moves slowly for its size, as big things do, and the wind still bends it. The presets are person-sized: a volcano preset is a vent, and a mountain wants 10 or more"
+      },
+      {
+        "name": "ground",
+        "default": "'off'",
+        "description": "`'on'` sits it on the ground, `y` above that: the scene's terrain height there, or else the first mesh below. Looked for again every 1.5 s (terrain regenerates)"
       }
     ]
   },
@@ -4055,7 +4114,7 @@
       {
         "name": "coronaSize",
         "default": "0.15",
-        "description": "Corona thickness as fraction of radius (0=none)"
+        "description": "Corona thickness as fraction of radius (0=none). Prominences live in it, so they are as tall as it allows"
       },
       {
         "name": "rotationSpeed",
@@ -4086,6 +4145,11 @@
         "name": "lightRange",
         "default": "500",
         "description": "Point light range"
+      },
+      {
+        "name": "activity",
+        "default": "0.6",
+        "description": "Prominences over the edge and flares on the disc, 0 to 1 (0 none)"
       }
     ]
   },

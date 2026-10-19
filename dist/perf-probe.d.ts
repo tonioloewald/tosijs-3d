@@ -97,6 +97,15 @@ export interface PerfBudgets {
      */
     ambientParticles: number;
     /**
+     * EFFECTS (EFFECTS-DESIGN.md): particles alive across every effect in the
+     * scene, point lights effects and lamps share (ranked by strength ×
+     * locality; Babylon's materials take 4 by default and every lit material
+     * pays for each), and sound voices at once (the quietest yields).
+     */
+    effectParticles: number;
+    effectLights: number;
+    effectVoices: number;
+    /**
      * Fixed foveation in a headset, 0-1: how much the edges of each eye are
      * drawn at reduced resolution. Free where you are not looking; visible as
      * blockiness at the edge at 1. Measured on a Quest in a heavy scene: 1 saved

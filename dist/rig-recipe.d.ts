@@ -68,5 +68,6 @@ export declare function strandDirection(yawDeg: number, pitchDeg: number): Vec3;
  * Bone names are not checked against a model (there may not be one yet).
  */
 export declare function validateRigRecipe(doc: unknown): string[];
+export declare function rigRecipeSchema(): Record<string, unknown>;
 export {};
 //# sourceMappingURL=rig-recipe.d.ts.map

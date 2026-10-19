@@ -205,7 +205,7 @@ import { generateStarSystem } from './galaxy-data.js';
 import { voxelGalaxy } from './voxel-galaxy.js';
 import { PerlinNoise } from './perlin-noise.js';
 import { b3dPlanet } from './b3d-planet.js';
-import { createStarMaterial } from './star-material.js';
+import { createCoronaMaterial, createStarMaterial } from './star-material.js';
 import { resolveRockyWorld, rockyWorldFor } from './rocky-world.js';
 import { layoutSystem, spinAngle, } from './system-layout.js';
 import { rockGeometry } from './procedural-rock.js';
@@ -309,7 +309,6 @@ export class B3dStarSystem extends B3dChild {
         this.owner = owner;
         this.rootNode = new BABYLON.TransformNode('star-system-root', scene);
         this.rootNode.position.set(this.x, this.y, this.z);
-        this.registerShaders();
         this.buildSystem();
         this._beforeRender = () => this.update();
         scene.registerBeforeRender(this._beforeRender);
@@ -346,44 +345,6 @@ export class B3dStarSystem extends B3dChild {
         for (const m of this.orbitLines)
             m.dispose();
         this.orbitLines = [];
-    }
-    registerShaders() {
-        if (BABYLON.Effect.ShadersStore['starSystemCorona2VertexShader'])
-            return;
-        BABYLON.Effect.ShadersStore['starSystemCorona2VertexShader'] = `
-      precision highp float;
-      attribute vec3 position;
-      attribute vec3 normal;
-      uniform mat4 worldViewProjection;
-      uniform mat4 world;
-      varying vec3 vNormalW;
-      varying vec3 vPositionW;
-      void main() {
-        gl_Position = worldViewProjection * vec4(position, 1.0);
-        vPositionW = (world * vec4(position, 1.0)).xyz;
-        vNormalW = normalize((world * vec4(normal, 0.0)).xyz);
-      }
-    `;
-        BABYLON.Effect.ShadersStore['starSystemCorona2FragmentShader'] = `
-      precision highp float;
-      uniform vec3 cameraPosition;
-      uniform vec3 coronaColor;
-      uniform float coronaLimb;
-      varying vec3 vNormalW;
-      varying vec3 vPositionW;
-      void main() {
-        vec3 viewDir = normalize(cameraPosition - vPositionW);
-        float facing = abs(dot(viewDir, vNormalW));
-        // BRIGHTEST AT THE STAR'S EDGE (coronaLimb: where the limb falls on
-        // this shell), fading outward, and faint over the disc: brightest
-        // in the middle, it was added on top of the star and washed its
-        // centre out to flat white.
-        float glow = 0.5 * (facing < coronaLimb
-          ? pow(facing / coronaLimb, 2.5)
-          : mix(1.0, 0.08, smoothstep(coronaLimb, 1.0, facing)));
-        gl_FragColor = vec4(coronaColor * glow, glow);
-      }
-    `;
     }
     buildSystem() {
         if (this.owner == null || this.rootNode == null)
@@ -530,27 +491,12 @@ export class B3dStarSystem extends B3dChild {
         // Corona
         const coronaRadius = starRadius * 1.3;
         const coronaMesh = BABYLON.MeshBuilder.CreateSphere('system-corona', { diameter: coronaRadius * 2, segments: 24 }, scene);
-        const coronaMat = new BABYLON.ShaderMaterial('system-corona-mat', scene, { vertex: 'starSystemCorona2', fragment: 'starSystemCorona2' }, {
-            attributes: ['position', 'normal'],
-            uniforms: [
-                'worldViewProjection',
-                'world',
-                'cameraPosition',
-                'coronaColor',
-                'coronaLimb',
-            ],
-            needAlphaBlending: true,
+        const coronaMat = createCoronaMaterial(scene, {
+            rgb: [cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6],
+            starRadius,
+            shellRadius: coronaRadius,
+            seed: 1 + (Math.abs(star.seed) % 97),
         });
-        coronaMat.setVector3('coronaColor', new BABYLON.Vector3(cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6));
-        coronaMat.setFloat('coronaLimb', Math.sqrt(1 - 1 / (1.3 * 1.3)));
-        coronaMat.backFaceCulling = false;
-        coronaMat.alphaMode = BABYLON.Constants.ALPHA_ADD;
-        coronaMat.disableDepthWrite = true;
-        coronaMat.onBind = () => {
-            const cam = this.owner.scene.activeCamera;
-            if (cam)
-                coronaMat.setVector3('cameraPosition', cam.globalPosition);
-        };
         coronaMesh.material = coronaMat;
         coronaMesh.parent = this.rootNode;
         this.coronaMesh = coronaMesh;

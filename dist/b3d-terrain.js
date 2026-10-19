@@ -378,6 +378,7 @@ const freshBiomeMemo = () => ({
     seasonality: NaN,
 });
 import { touchesExtent } from './landform.js';
+import { b3dEffect } from './b3d-effect.js';
 import { chartTemperature } from './biome-chart.js';
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
@@ -541,6 +542,47 @@ export class B3dTerrain extends B3dChild {
      * crater in, regenerate.
      */
     landform = null;
+    /*
+    WHERE THE LANDFORM IS ACTIVE (a volcano's vent): one `<tosi-b3d-effect>`
+    per vent, on the ground, added to the scene beside the terrain. Set it with
+    the landform and province (a factory returns all three: `v.vents`). Kept
+    in step: a vent that stays the same keeps its effect, one that goes is
+    removed. No regenerate needed.
+    */
+    _vents = [];
+    _ventFx = new Map();
+    get vents() {
+        return this._vents;
+    }
+    set vents(v) {
+        this._vents = v ?? [];
+        this._syncVents();
+    }
+    _syncVents() {
+        const owner = this.owner;
+        if (owner == null)
+            return;
+        const want = new Map(this._vents.map((v) => [`${v.preset}|${v.x}|${v.z}|${v.scale}|${v.activity}`, v]));
+        for (const [key, fx] of this._ventFx)
+            if (!want.has(key)) {
+                fx.remove();
+                this._ventFx.delete(key);
+            }
+        for (const [key, v] of want) {
+            if (this._ventFx.has(key))
+                continue;
+            const fx = b3dEffect({
+                preset: v.preset,
+                x: v.x,
+                z: v.z,
+                scale: v.scale,
+                activity: v.activity,
+                ground: 'on',
+            });
+            owner.append(fx);
+            this._ventFx.set(key, fx);
+        }
+    }
     /**
      * Volumetric patch mask — `(x, z) => true` where the terrain SURFACE is cut
      * away (a bore mouth, a cavern opening). Queried per tile fill in
@@ -890,6 +932,9 @@ export class B3dTerrain extends B3dChild {
     originOffsetZ = 0;
     _beforeRender = null;
     sceneReady(owner, scene) {
+        // Vents set before the scene was up are placed now (a task later, once
+        // this terrain has finished building).
+        setTimeout(() => this._syncVents(), 0);
         this.owner = owner;
         const attrs = this;
         this.noise = new PerlinNoise(attrs.seed);
@@ -989,6 +1034,9 @@ export class B3dTerrain extends B3dChild {
         });
     }
     sceneDispose() {
+        for (const fx of this._ventFx.values())
+            fx.remove();
+        this._ventFx.clear();
         this._debugOff?.();
         this._debugOff = null;
         this._originDbgOff?.();

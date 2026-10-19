@@ -78,7 +78,6 @@ export declare class B3dStarSystem extends B3dChild {
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
     private disposeMeshes;
-    private registerShaders;
     private buildSystem;
     /** Planets are elements: put one in the scene and hang it on `holder` once it is built. */
     private adopt;

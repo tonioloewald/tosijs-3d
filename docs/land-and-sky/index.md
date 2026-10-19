@@ -330,7 +330,9 @@ sky.preset.observe(() => {
 // The volcano is authored ONCE and switched in and out. Applied here as well
 // as from the toggle because it is ON by default, and the toggle's handler only
 // runs when someone flips it.
-const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, craterDepth: 50 })
+// SEMI-ACTIVE (Tonio): its vent smokes, glows and spits now and then. The
+// landform carries that as a vent, and the terrain puts the effect there.
+const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, craterDepth: 50, activity: 0.5 })
 // Where the sea is: a FRACTION of the terrain's height, or, on a world
 // with no sea, far below everything (no water to see).
 function seaY() {
@@ -369,16 +371,20 @@ function volcanoField(n, seed) {
 function applyVolcano(on) {
   const parts = []
   const provinces = []
+  const vents = []
   const density = demo.craters.valueOf()
   if (density > 0) parts.push(craterField({ seed: demo.seed.valueOf(), density, maxRadius: 500 }))
   for (const v of volcanoField(demo.volcanoes.valueOf(), demo.seed.valueOf())) {
     parts.push(v.landform)
     provinces.push(v.province)
+    vents.push(...(v.vents ?? []))
   }
   if (on) {
     parts.push(theVolcano.landform)
     provinces.push(theVolcano.province)
+    vents.push(...(theVolcano.vents ?? []))
   }
+  terrain.vents = vents
   terrain.landform = parts.length === 0 ? null : parts.length === 1 ? parts[0] : composeLandforms(...parts)
   terrain.provinceField = provinces.length === 0 ? null : provinces.length === 1 ? provinces[0] : mergeProvinces(...provinces)
 }
@@ -472,7 +478,7 @@ demo.volcano.observe(() => {
 // A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
 // with coverage and storminess, drifting with the wind. It gathers IN FRONT
 // of you (the view faces east) over twenty seconds, so switching it on shows
-// you a storm, then drifts away east. Lightning, thunder, rain and strike
+// you a storm, then drifts across the view with the wind. Lightning, thunder, rain and strike
 // shadows all come from the cell. Toggling it on again starts a new one.
 let storm = null
 sky.storm.observe(() => {
@@ -486,10 +492,12 @@ sky.storm.observe(() => {
 
 const scene = b3d(
   {
-    // The SCENE's wind matches the deck's (toward +X), so a drifting storm
-    // travels with the clouds it is made of.
+    // ONE WIND for the clouds, the smoke, spray and storms (the deck follows
+    // the scene's). It blows ACROSS the view (toward +Z; the view faces east):
+    // blowing straight away from you, as it did, clouds and smoke drift was
+    // nearly invisible (Tonio).
     windSpeed: sky.wind,
-    windBearingDeg: 90,
+    windBearingDeg: 0,
     // Sections as icon TABS (one at a time); 'fold' shows them as headers.
     panelSections: 'tabs',
     // Lightning strikes wherever a weather cell is stormy (the storm toggle).

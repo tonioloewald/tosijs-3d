@@ -6,6 +6,27 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.16
+
+### Added
+
+- **Effects: particles, light and sound on one clock** (EFFECTS-DESIGN.md, step 1; Tonio). `<tosi-b3d-effect preset="…">` plays a volcano (one preset, dormant to erupting by its `activity` dial: 0.15, 0.5, 1), a geyser, a splash, an explosion, a fireball or electrical sparks; `recipe` plays one of your own. An effect is LAYERS (particles, a light, a sound) with a start, a duration and curves over its life, written as data (`EffectRecipe`, `validateEffectRecipe`). It reacts to where it is: smoke and ash drift with the wind there, lava bombs and sparks land on what is below them, sound arrives `distance / 343` seconds late and duller with distance, and effect lights share one pool with the scene's lamps, ranked by strength and nearness (`rankLights`). Sprites and sounds are made in code, no files; budgets per device tier (`effectParticles`, `effectLights`, `effectVoices`). `scale` makes a vent a crater (Froude scaling: sizes ×scale, speeds and lives ×√scale, gravity unchanged, so arcs keep their shape and the wind still bends a mountain's plume); `ground="on"` sits it on the terrain.
+- **A landform says where it is active** (Tonio: is the effect part of the province?). `volcano({ activity })` returns `vents` beside its landform and province: where the vent is (the crater's centre), how big (from the crater) and how busy (0, the default, is extinct). `terrain.vents = …` puts a grounded `<tosi-b3d-effect>` on each, kept in step as they change, so a field of volcanoes smokes without placing anything by hand. Land and Sky's volcano is now one of these.
+- **Underwater effects**: `bubbles` (a vent or leak: bubbles rising in a zigzag, growing as they rise, ending at the water's surface, with a bubbling voice) and `black smoker` (a hydrothermal vent: a dark mineral plume, bubbles, a dull glow, a roar). Particle layers gain `surface` (end at the water) and `wobble` (a sideways zigzag).
+- **Your own pictures and sounds in effects**: a particle layer's `texture` is an image URL, an SVG URL or SVG markup (SVG is drawn through a canvas, which keeps its transparency); a sound layer's `url` is a sample. The effect tool's `picture` button embeds an image in the recipe.
+- **The effect tool** (`/effect-tool/`, `tosijs-3d/effect-tool`): pick a preset, edit any layer live (particles, light, sound, timing, colours), the activity dial, mute, `listen from` to hear the sound delay, save, load and copy the recipe.
+- **Stars have prominences and flares** (Tonio). A few active regions, fixed on the star in the sunspot latitudes and turning with it: over the edge of the disc each is a glowing loop of drifting filaments standing on the limb (most low, the odd one tall), and now and then one flares, its loop swelling and a bright patch flashing on the disc. Drawn in the corona shell's shader, so no meshes or textures. On by default in `<tosi-b3d-star>` (`activity`, 0 to 1) and the star system's star (the Solar System demo's Sun). The two copies of the corona shader are now one (`createCoronaMaterial`).
+- **Land and Sky's volcano is semi-active**: steam, a thin ash column on the wind, a glowing vent, a rumble, and now and then a burst of spatter and cinders (the volcano preset's new `spatter` and `cinders` layers, between dormant and erupting).
+
+- **`effectRecipeSchema()`**: an effect recipe as JSON Schema (every layer kind, ranges, units as `x-unit`, defaults, the sprite and voice enums), for ensemble's editors, beside `rigRecipeSchema()`. A test checks every preset against it, so a field added to a layer and not to the schema fails.
+- **The effect tool's backdrop is a neutral grid** (Tonio): grey sky, a grid in metres (lines every metre, heavier every ten), so an effect's colours and size read as they are. `backdrop: sky` brings back the sunset and its time of day.
+- **`rigRecipeSchema()`**: a rig recipe as JSON Schema (ranges, units as `x-unit`, defaults), for a host that builds its editors from schemas or keeps recipes in its own documents (asked for by ensemble). A test holds it to `validateRigRecipe` and the tool's strand defaults.
+
+### Fixed
+
+- **Effect smoke starts at the vent and fades in** (Tonio: it popped into being too high). A `cone` emitter used Babylon's, which spawns anywhere up the cone's height (radius ÷ tan(angle): 68 m for the volcano's ash); every vent shape now starts on the ground and leaves within its angle, and covering (`alpha`) particles come up from nothing over their first moments.
+- **The cloud deck drifts with the scene's wind** when the scene has one (`<tosi-b3d wind-speed>`), as smoke, spray and storms already did; its own `wind` and `windHeadingDeg` are the fallback (Tonio: the clouds and the volcano's smoke did not seem to share a wind). Its drift is integrated frame by frame, so a change of speed no longer jumps the clouds. Land and Sky's wind now blows across the view instead of straight away from it, where neither the clouds' nor the smoke's drift could be seen.
+
 ## 0.10.15
 
 ### Added

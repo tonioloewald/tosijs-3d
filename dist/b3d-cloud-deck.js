@@ -146,7 +146,7 @@ preview.append(
 | `thickenDepth` | `900` | MAX thickening — how far the cloud TOP rises above `altitude` at `coverage: 2` |
 | `cirrus` | `0` | Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field |
 | `wind` | `8` | Metres per second the deck drifts. Nothing rebakes |
-| `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run |
+| `windHeadingDeg` | `0` | Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do |
 | `evolve` | `0.5` | How fast shapes change, `0` rigid → `1` restless |
 | `follow` | `'on'` | Keep the deck centred under the camera. A deck is finite; the world is not |
 | `ambientGloomBelow` | `0.7` | `transmission` below which the AMBIENT fill starts to go. `0` disables |
@@ -1086,6 +1086,28 @@ export class B3dCloudDeck extends B3dChild {
     _fieldSize = 0;
     _bakeKey = '';
     _elapsed = 0;
+    // How far the wind has carried the field so far, integrated frame by frame
+    // (so a change of speed does not jump the clouds).
+    _carriedX = 0;
+    _carriedZ = 0;
+    _carried2 = 0;
+    /*
+    ONE WIND (WEATHER-DESIGN): the scene's, when it has one, else this deck's
+    own `wind` and `windHeadingDeg`. The deck kept its own and a scene that set
+    both could disagree with its smoke and storms (Tonio: the clouds and the
+    volcano's smoke did not seem to share a wind). Heading in the deck's
+    convention: 0 drifts toward +X, 90 toward +Z.
+    */
+    _windNow() {
+        const w = this.owner?.wind;
+        if (w != null && (w.x !== 0 || w.z !== 0))
+            return { h: Math.atan2(w.z, w.x), speed: Math.hypot(w.x, w.z) };
+        const attrs = this;
+        return {
+            h: ((attrs.windHeadingDeg ?? 0) * Math.PI) / 180,
+            speed: Number(attrs.wind) || 0,
+        };
+    }
     /*
     RESET ON DISPOSE, from the factory — the terrain's B1 lesson applied here. A
     re-parent builds fresh meshes with an unbaked colour channel; a memo that
@@ -1124,7 +1146,7 @@ export class B3dCloudDeck extends B3dChild {
         const n = this._fieldSize;
         if (f == null || n <= 0)
             return 0;
-        const h = (this.windHeadingDeg ?? 0) * (Math.PI / 180);
+        const h = this._windNow().h;
         const ax = Math.cos(h);
         const ay = Math.sin(h);
         const inv = 1 / (this.period || 1);
@@ -1386,7 +1408,12 @@ export class B3dCloudDeck extends B3dChild {
         this._obs = scene.onBeforeRenderObservable.add(() => {
             // sceneDelta, never engine.getDeltaTime: a scene observer can run more
             // than once per frame and the engine's delta is the WHOLE frame each time.
-            this._elapsed += sceneDelta(scene);
+            const dt = sceneDelta(scene);
+            this._elapsed += dt;
+            const wn = this._windNow();
+            this._carriedX += Math.cos(wn.h) * wn.speed * dt;
+            this._carriedZ += Math.sin(wn.h) * wn.speed * dt;
+            this._carried2 += wn.speed * 0.35 * dt;
             this._sync();
         });
         this._sync();
@@ -1413,7 +1440,7 @@ export class B3dCloudDeck extends B3dChild {
         mat.setFloat('invTile', 1 / (attrs.period || 1));
         mat.setFloat('halfSize', (attrs.size || 1) * 0.5);
         mat.setFloat('edgeFade', Math.min(0.99, Math.max(0, attrs.edgeFade)));
-        const h = (attrs.windHeadingDeg * Math.PI) / 180;
+        const { h } = this._windNow();
         mat.setVector2('windAxis', new BABYLON.Vector2(Math.cos(h), Math.sin(h)));
         /*
         DRIFT IS A WORLD OFFSET, not a moving mesh. Moving the deck itself would
@@ -1481,15 +1508,14 @@ export class B3dCloudDeck extends B3dChild {
             top.isVisible = attrs.coverage >= 1 || this._stormMax > 0;
             top.position.set(this.mesh.position.x, attrs.altitude + rise, this.mesh.position.z);
         }
-        const t = this._elapsed;
-        const dx = -Math.cos(h) * attrs.wind * t + this._originX;
-        const dz = -Math.sin(h) * attrs.wind * t + this._originZ;
-        mat.setVector4('drift', new BABYLON.Vector4(dx, dz, dx * 1.9, dz * 1.9 + t * attrs.wind * 0.35));
+        const dx = -this._carriedX + this._originX;
+        const dz = -this._carriedZ + this._originZ;
+        mat.setVector4('drift', new BABYLON.Vector4(dx, dz, dx * 1.9, dz * 1.9 + this._carried2));
         mat.setFloat('evolve', Math.min(1, Math.max(0, attrs.evolve)));
         this._driftX = dx;
         this._driftZ = dz;
         this._driftX2 = dx * 1.9;
-        this._driftZ2 = dz * 1.9 + t * attrs.wind * 0.35;
+        this._driftZ2 = dz * 1.9 + this._carried2;
         this._syncShadows();
         mat.setColor3('topColor', BABYLON.Color3.FromHexString(attrs.color));
         mat.setColor3('underColor', BABYLON.Color3.FromHexString(attrs.underColor));
@@ -2385,7 +2411,7 @@ export class B3dCloudDeck extends B3dChild {
         tex.setFloat('shadowStrength', strength);
         tex.setFloat('coverage', attrs.coverage);
         tex.setFloat('invTile', 1 / (attrs.period || 1));
-        const h = (attrs.windHeadingDeg * Math.PI) / 180;
+        const h = this._windNow().h;
         tex.setVector2('windAxis', new BABYLON.Vector2(Math.cos(h), Math.sin(h)));
         tex.setVector4('drift', new BABYLON.Vector4(this._driftX, this._driftZ, this._driftX2, this._driftZ2));
         /*

@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.15
+# tosijs-3d v0.10.16
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -79,6 +79,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   scene with a `<tosi-b3d-terrain>`. It scatters up to a set NUMBER of things
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
   A thing that can take damage and be destroyed — the scene-side bridge to the pure
+- https://3d.tosijs.net/b3d-effect/ — b3d-effect
+  light and sound on one clock.** Name a preset, or hand it a recipe from the
 - https://3d.tosijs.net/b3d-elevator/ — b3d-elevator
   it to move — it just runs, you stand on it, or you throw a switch — which are the
 - https://3d.tosijs.net/b3d-exploder/ — b3d-exploder
@@ -229,8 +231,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   needle points north as you turn. The watch is the time of day and how fast it
 - https://3d.tosijs.net/draw-order/ — Draw order
   Babylon draws opaque meshes in the order they were created. Nothing looks wrong
+- https://3d.tosijs.net/effect-tool/ — Effect tool
+  preset (a volcano at any activity, a geyser, a splash, an explosion, a
 - https://3d.tosijs.net/effects/ — Effects
-  and sparks, [trails](/b3d-trail/) behind anything that moves,
+  geysers, splashes, explosions, fireballs, sparks: particles, light and sound
 - https://3d.tosijs.net/embed-font/ — embed-font
   hand back an `@font-face` rule that can travel *inside* a serialised SVG.
 - https://3d.tosijs.net/flow-layout/ — flow-layout

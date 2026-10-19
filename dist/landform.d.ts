@@ -61,7 +61,24 @@ export declare const unionExtent: (a: Extent, b: Extent) => Extent;
  */
 export declare function touchesExtent(fn: unknown, minX: number, minZ: number, maxX: number, maxZ: number): boolean;
 /** A landform + its matching volcanism province, made together. */
+/**
+ * A place where a landform is ACTIVE (EFFECTS-DESIGN, PROVINCE-DESIGN): an
+ * effect preset at a point, sized and as busy as the landform says. A
+ * terrain given these (`terrain.vents`) puts an effect on each, on the ground.
+ */
+export interface Vent {
+    x: number;
+    z: number;
+    /** An effect preset: `volcano`, `geyser`, `bubbles`, … */
+    preset: string;
+    /** The effect's `scale` (its presets are person-sized). */
+    scale: number;
+    /** The effect's activity, 0 to 1. */
+    activity: number;
+}
 export interface AuthoredLandform {
+    /** Where it is active: effects the terrain places (a volcano's vent). */
+    vents?: Vent[];
     landform: Bounded<LandformFn>;
     /**
      * The province carries its OWN extent, deliberately not shared with the
@@ -74,6 +91,11 @@ export interface AuthoredLandform {
     province: Bounded<ProvinceFn>;
 }
 export interface VolcanoOptions {
+    /**
+     * How active, 0 to 1: the vent's `volcano` effect (0.15 dormant, 0.5
+     * semi-active, 1 erupting). 0, the default, is extinct: no effect.
+     */
+    activity?: number;
     /** Vent position (world coords). */
     x: number;
     z: number;

@@ -125,7 +125,8 @@ tosi-b3d {
 | `subdivisions` | `32` | Grid subdivisions per cube face |
 | `spectralClass` | `'G'` | Spectral class: O, B, A, F, G, K, M |
 | `surfaceDetail` | `0.5` | Surface noise intensity (0=uniform, 1=strong spots) |
-| `coronaSize` | `0.15` | Corona thickness as fraction of radius (0=none) |
+| `coronaSize` | `0.15` | Corona thickness as fraction of radius (0=none). Prominences live in it, so they are as tall as it allows |
+| `activity` | `0.6` | Prominences over the edge and flares on the disc, 0 to 1 (0 none) |
 | `rotationSpeed` | `0.02` | Auto-rotation (radians/sec) |
 | `wireframe` | `false` | Debug wireframe |
 | `glowIntensity` | `2.0` | Emissive brightness multiplier |

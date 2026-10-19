@@ -2,6 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://3d.tosijs.net/</loc></url>
   <url><loc>https://3d.tosijs.net/getting-started/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-effect/</loc></url>
   <url><loc>https://3d.tosijs.net/demos/</loc></url>
   <url><loc>https://3d.tosijs.net/ambient-leaves/</loc></url>
   <url><loc>https://3d.tosijs.net/arc/</loc></url>
@@ -150,6 +151,7 @@
   <url><loc>https://3d.tosijs.net/widget-box/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
   <url><loc>https://3d.tosijs.net/rig-tool/</loc></url>
+  <url><loc>https://3d.tosijs.net/effect-tool/</loc></url>
   <url><loc>https://3d.tosijs.net/aim/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-elevator/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-exploder/</loc></url>

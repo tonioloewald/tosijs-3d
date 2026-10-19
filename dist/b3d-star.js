@@ -126,7 +126,8 @@ tosi-b3d {
 | `subdivisions` | `32` | Grid subdivisions per cube face |
 | `spectralClass` | `'G'` | Spectral class: O, B, A, F, G, K, M |
 | `surfaceDetail` | `0.5` | Surface noise intensity (0=uniform, 1=strong spots) |
-| `coronaSize` | `0.15` | Corona thickness as fraction of radius (0=none) |
+| `coronaSize` | `0.15` | Corona thickness as fraction of radius (0=none). Prominences live in it, so they are as tall as it allows |
+| `activity` | `0.6` | Prominences over the edge and flares on the disc, 0 to 1 (0 none) |
 | `rotationSpeed` | `0.02` | Auto-rotation (radians/sec) |
 | `wireframe` | `false` | Debug wireframe |
 | `glowIntensity` | `2.0` | Emissive brightness multiplier |
@@ -138,7 +139,7 @@ tosi-b3d {
 /*{ "parent": "space", "order": 30 }*/
 import { B3dChild, sceneDelta } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { createStarMaterial } from './star-material.js';
+import { createCoronaMaterial, createStarMaterial } from './star-material.js';
 import { PerlinNoise } from './perlin-noise.js';
 const CUBE_FACES = [
     { origin: [1, -1, 1], right: [0, 0, -2], up: [0, 2, 0] },
@@ -187,6 +188,8 @@ export class B3dStar extends B3dChild {
         pointLight: false,
         lightIntensity: 1.0,
         lightRange: 500,
+        // Prominences over the edge and flares on the disc, 0…1 (0 none).
+        activity: 0.6,
     };
     owner = null;
     noise;
@@ -320,65 +323,15 @@ export class B3dStar extends B3dChild {
         const [cr, cg, cb] = getSpectralColor(attrs.spectralClass);
         const glow = attrs.glowIntensity;
         const mesh = BABYLON.MeshBuilder.CreateSphere('corona', { diameter: coronaRadius * 2, segments: 32 }, this.owner.scene);
-        // Fresnel shader: alpha = 0 when facing camera, bright at edges
-        BABYLON.Effect.ShadersStore['corona2VertexShader'] = `
-      precision highp float;
-      attribute vec3 position;
-      attribute vec3 normal;
-      uniform mat4 worldViewProjection;
-      uniform mat4 world;
-      varying vec3 vNormalW;
-      varying vec3 vPositionW;
-      void main() {
-        gl_Position = worldViewProjection * vec4(position, 1.0);
-        vPositionW = (world * vec4(position, 1.0)).xyz;
-        vNormalW = normalize((world * vec4(normal, 0.0)).xyz);
-      }
-    `;
-        BABYLON.Effect.ShadersStore['corona2FragmentShader'] = `
-      precision highp float;
-      uniform vec3 cameraPosition;
-      uniform vec3 coronaColor;
-      uniform float coronaLimb;
-      varying vec3 vNormalW;
-      varying vec3 vPositionW;
-      void main() {
-        vec3 viewDir = normalize(cameraPosition - vPositionW);
-        float facing = abs(dot(viewDir, vNormalW));
-        // BRIGHTEST AT THE STAR'S EDGE (coronaLimb: where the limb falls on
-        // this shell), fading outward, and faint over the disc: brightest
-        // in the middle, it was added on top of the star and washed its
-        // centre out to flat white.
-        float glow = 0.5 * (facing < coronaLimb
-          ? pow(facing / coronaLimb, 2.5)
-          : mix(1.0, 0.08, smoothstep(coronaLimb, 1.0, facing)));
-        gl_FragColor = vec4(coronaColor * glow, glow);
-      }
-    `;
-        const mat = new BABYLON.ShaderMaterial('corona-mat', this.owner.scene, { vertex: 'corona2', fragment: 'corona2' }, {
-            attributes: ['position', 'normal'],
-            uniforms: [
-                'worldViewProjection',
-                'world',
-                'cameraPosition',
-                'coronaColor',
-                'coronaLimb',
-            ],
-            needAlphaBlending: true,
+        // The glow and the prominences in it (star-material, shared with the
+        // star system).
+        const mat = createCoronaMaterial(this.owner.scene, {
+            rgb: [cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6],
+            starRadius: radius,
+            shellRadius: coronaRadius,
+            seed: 1 + (Math.abs(attrs.seed) % 97),
+            activity: attrs.activity,
         });
-        mat.setVector3('coronaColor', new BABYLON.Vector3(cr * glow * 0.6, cg * glow * 0.6, cb * glow * 0.6));
-        // Where the star's edge falls on the shell, as the cosine the shader reads.
-        mat.setFloat('coronaLimb', Math.sqrt(Math.max(0.01, 1 - (radius / coronaRadius) ** 2)));
-        mat.backFaceCulling = false;
-        mat.alphaMode = BABYLON.Constants.ALPHA_ADD;
-        mat.disableDepthWrite = true;
-        // Feed camera position each frame
-        mat.onBind = (_mesh) => {
-            const cam = this.owner.scene.activeCamera;
-            if (cam) {
-                mat.setVector3('cameraPosition', cam.globalPosition);
-            }
-        };
         mesh.material = mat;
         mesh.parent = this.rootNode;
         // Ensure corona never occludes the star
@@ -438,6 +391,7 @@ export class B3dStar extends B3dChild {
             // The old default glow (1.1) is the material's 1.
             glow: attrs.glowIntensity / 1.1,
             detail: attrs.surfaceDetail,
+            activity: attrs.activity,
         });
         mat.wireframe = attrs.wireframe;
         return mat;

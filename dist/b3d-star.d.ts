@@ -21,6 +21,7 @@ export declare class B3dStar extends B3dChild {
         pointLight: boolean;
         lightIntensity: number;
         lightRange: number;
+        activity: number;
     };
     seed: number;
     radius: number;
@@ -28,6 +29,7 @@ export declare class B3dStar extends B3dChild {
     spectralClass: string;
     surfaceDetail: number;
     coronaSize: number;
+    activity: number;
     rotationSpeed: number;
     wireframe: boolean;
     glowIntensity: number;

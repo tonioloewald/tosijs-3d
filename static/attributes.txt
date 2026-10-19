@@ -245,7 +245,7 @@ b3d-cloud-deck
   frequency  = 3  — Field repeats across its own width. Higher = smaller puffs
   cirrus  = 0  — Rounded heaps `0` → long wispy streaks at `±1`: positive streaks ALONG the wind heading, negative ACROSS it. Rebakes the field
   wind  = 8  — Metres per second the deck drifts. Nothing rebakes
-  windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run
+  windHeadingDeg  = 0  — Which way it drifts — and the direction cirrus streaks run. Used only when the scene has no wind of its own (`<tosi-b3d wind-speed>`): with one, the deck drifts with it, as smoke and storms do
   evolve  = 0.5  — How fast shapes change, `0` rigid → `1` restless
   follow  = 'on'  — Keep the deck centred under the camera. A deck is finite; the world is not
   localRise  = 1200  — How far a local weather field can lift the cloud TOP, at `coverage: 2`. Large because the orographic field is attenuated at massif scale — see the attribute note
@@ -392,6 +392,22 @@ b3d-destroyable
   blastFullRadius
   blastRadius
   blastDelay
+
+## b3d-effect — <tosi-b3d-effect>
+b3d-effect
+
+  x  = 0  — Where it is; nested in a mesh element, an offset that follows it
+  y  = 0  — Where it is; nested in a mesh element, an offset that follows it
+  z  = 0  — Where it is; nested in a mesh element, an offset that follows it
+  rx
+  ry
+  rz
+  axes
+  preset  = ''  — `volcano`, `geyser`, `bubbles`, `black smoker`, `splash`, `explosion`, `fireball`, `sparks`
+  activity  = -1  — 0 to 1; `-1` uses the recipe's own. A volcano: 0.15 dormant, 0.5 semi-active, 1 erupting
+  autoplay  = 'on'  — `'off'` waits for `play()` (a one-shot you trigger)
+  scale  = 1  — How big. Sizes, radii, heights, light range and sound reach multiply; speeds and particle lives grow by the square root and gravity stays (Froude scaling, as for a model ship), so an arc keeps its shape and a big effect moves slowly for its size, as big things do, and the wind still bends it. The presets are person-sized: a volcano preset is a vent, and a mountain wants 10 or more
+  ground  = 'off'  — `'on'` sits it on the ground, `y` above that: the scene's terrain height there, or else the first mesh below. Looked for again every 1.5 s (terrain regenerates)
 
 ## b3d-elevator — <tosi-b3d-elevator>
 b3d-elevator
@@ -1030,13 +1046,14 @@ b3d-star
   subdivisions  = 32  — Grid subdivisions per cube face
   spectralClass  = 'G'  — Spectral class: O, B, A, F, G, K, M
   surfaceDetail  = 0.5  — Surface noise intensity (0=uniform, 1=strong spots)
-  coronaSize  = 0.15  — Corona thickness as fraction of radius (0=none)
+  coronaSize  = 0.15  — Corona thickness as fraction of radius (0=none). Prominences live in it, so they are as tall as it allows
   rotationSpeed  = 0.02  — Auto-rotation (radians/sec)
   wireframe  = false  — Debug wireframe
   glowIntensity  = 2.0  — Emissive brightness multiplier
   pointLight  = false  — Create a point light at star center
   lightIntensity  = 1.0  — Point light intensity
   lightRange  = 500  — Point light range
+  activity  = 0.6  — Prominences over the edge and flares on the disc, 0 to 1 (0 none)
 
 ## b3d-svg-plane — <tosi-b3d-svg-plane>
 b3d-svg-plane

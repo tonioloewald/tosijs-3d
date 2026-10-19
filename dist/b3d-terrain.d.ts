@@ -4,6 +4,7 @@ import type { B3d } from './tosi-b3d.js';
 import type { GradientFilter } from './gradient-filter.js';
 import { type PlanetSurface, type SphereFrame } from './sphere-map.js';
 import { BiomePlugin } from './biome-plugin.js';
+import { type Vent } from './landform.js';
 export declare class B3dTerrain extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {
@@ -76,6 +77,11 @@ export declare class B3dTerrain extends B3dChild {
      * crater in, regenerate.
      */
     landform: ((x: number, z: number, h: number) => number) | null;
+    private _vents;
+    private _ventFx;
+    get vents(): Vent[];
+    set vents(v: Vent[] | null);
+    private _syncVents;
     /**
      * Volumetric patch mask — `(x, z) => true` where the terrain SURFACE is cut
      * away (a bore mouth, a cavern opening). Queried per tile fill in

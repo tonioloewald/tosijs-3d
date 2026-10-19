@@ -1,0 +1,5 @@
+import{Ye}from"./site-rg764awy.js";import{P,V,qs}from"./site-eg49xxv2.js";import{kl}from"./site-7x1m3bd5.js";import{o}from"./site-wv18jmj5.js";class e_ extends Ye{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",V,0),this.controlPoint1=this.registerDataInput("controlPoint1",qs),this.controlPoint2=this.registerDataInput("controlPoint2",qs),this.easingFunction=this.registerDataOutput("easingFunction",P)}_updateOutputs(t){let r=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(r===void 0)return;let s=`${r}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[s]){let n=new kl(e.x,e.y,i.x,i.y);n.setEasingMode(r),this._easingFunctions[s]=n}this.easingFunction.setValue(this._easingFunctions[s],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var a=!1;function t_(){if(a)return;a=!0,o("FlowGraphBezierCurveEasing",e_)}t_();
+export{e_,t_};
+
+//# debugId=A3EC4A59BCA5951C64756E2164756E21
+//# sourceMappingURL=site-w0326q5e.js.map

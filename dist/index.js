@@ -371,6 +371,11 @@ export { terrainDensity, composePatches, circleFootprint, marginBlend, } from '.
 export { BiomePlugin, attachBiomePlugin, setBiomeLite, climateNoiseAt, groundClimateAt, biomeLite, setBiomeComputedNoise, biomeComputedNoise, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, seasonOf, } from './biome-plugin.js';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles.js';
+// Effects: particles, light and sound as layers on one clock (EFFECTS-DESIGN).
+export { B3dEffect, b3dEffect } from './b3d-effect.js';
+export { EffectPlayer } from './effect-player.js';
+export { EFFECT_PRESETS, effectPreset, VOLCANO_STATES } from './effect-presets.js';
+export { EFFECT_RECIPE_VERSION, SPRITES as EFFECT_SPRITES, VOICES as EFFECT_VOICES, layerAt, lightScore, rankLights, soundDelay, validateEffectRecipe, effectRecipeSchema, } from './effect-recipe.js';
 export { B3dSound, b3dSound } from './b3d-sound.js';
 export { B3dTrigger, b3dTrigger } from './b3d-trigger.js';
 // Interactive: the substrate for touching a thing — doors, knobs, switches, locks.
@@ -447,7 +452,7 @@ export { noiseVolume, sampleNoiseVolume } from './noise-volume.js';
 export { CLIMATE_CELLS, climateLattice, climateNoise, climateOctave, } from './climate-noise.js';
 export { humanoidRoles, retargeter, rotationBetween, ROLES, FINGERS, } from './retarget.js';
 export { readSkeleton, retargetClip, retargetClips, } from './retarget-babylon.js';
-export { RIG_RECIPE_VERSION, STRAND_DEFAULTS, strandDirection, validateRigRecipe, } from './rig-recipe.js';
+export { RIG_RECIPE_VERSION, rigRecipeSchema, STRAND_DEFAULTS, strandDirection, validateRigRecipe, } from './rig-recipe.js';
 export { applyRigRecipe } from './rig-recipe-babylon.js';
 export { fitSkeleton, fittedRestBones, meshQuery, objTriangles, skinSegments, MARKER_NAMES, rigSilhouette, guessMarkers, } from './rig-fit.js';
 export { markerField3d, MARKER_LABELS } from './rig-markers.js';

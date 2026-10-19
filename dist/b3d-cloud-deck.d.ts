@@ -234,6 +234,10 @@ export declare class B3dCloudDeck extends B3dChild {
     private _fieldSize;
     private _bakeKey;
     private _elapsed;
+    private _carriedX;
+    private _carriedZ;
+    private _carried2;
+    private _windNow;
     private _weatherKey;
     /** The field the last bake built — what `_immersionAt` samples. */
     private _liveWeather;

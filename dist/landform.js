@@ -157,7 +157,12 @@ const BASALT_HEAT = 0.13;
 /** Province value at the crater rim: faint seams. The wall climbs from here. */
 const RIM_HEAT = 0.25;
 export function volcano(opts) {
-    const { x: cx, z: cz, radius, height, baseLevel = 0, craterRadius = radius * 0.22, craterDepth = height * 0.35, flatten = 0.7, glow = 1, } = opts;
+    const { x: cx, z: cz, radius, height, baseLevel = 0, craterRadius = radius * 0.22, craterDepth = height * 0.35, flatten = 0.7, glow = 1, activity = 0, } = opts;
+    // The vent's effect is sized by the crater: the volcano preset is a vent
+    // about 4.5 m across, so a 55 m crater takes it at 12.
+    const vents = activity > 0
+        ? [{ x: cx, z: cz, preset: 'volcano', scale: craterRadius / 4.5, activity: Math.min(1, activity) }]
+        : [];
     const landform = (x, z, h) => {
         const dx = x - cx;
         const dz = z - cz;
@@ -214,6 +219,7 @@ export function volcano(opts) {
         return glow * (BASALT_HEAT * basalt + (RIM_HEAT - BASALT_HEAT) * veins);
     };
     return {
+        vents,
         landform: withExtent(landform, circleExtent(cx, cz, radius)),
         // The basalt apron reaches `craterRadius + radius * 0.75`, NOT `radius`.
         // With the default crater (0.22 R) that is 0.97 R — inside the cone — but
