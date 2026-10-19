@@ -132,6 +132,8 @@ export interface RigModel {
     markers: Markers
     /** Where a tail's tip is (from the side view), for a tail chain. */
     tail?: Vec3
+    /** How many bones the tail chain has (default 5). */
+    tailBones?: number
     /** An OBJ's objects to use. */
     objects?: string[]
     /** A GLB's mesh to use. */
@@ -248,8 +250,9 @@ export function rigToolModels(): RigModel[] {
 }
 
 /**
- * Where the camera looks from. A snapped view is orthographic, so a joint can
- * be lined up with the body in it; orbiting goes back to `free`.
+ * Where the camera looks from. A snapped view is nearly orthographic (a long
+ * lens from far off), so a joint can be lined up with the body in it;
+ * orbiting goes back to `free`.
  */
 export type RigView = 'free' | 'front' | 'side' | 'top'
 
@@ -263,7 +266,7 @@ export interface RigToolApi {
   readonly status: string
   /** The role being edited (a tap on its dot, or the panel, chooses it). */
   readonly role: Role
-  /** Where the camera looks from (`front`, `side`, `top` are orthographic). */
+  /** Where the camera looks from (`front`, `side`, `top` are nearly orthographic). */
   view: RigView
   /** Play a clip (the current one if none is named); `null` stands it at rest. */
   play(clip?: string | null): void
@@ -413,6 +416,7 @@ async function autoRig(
   }
   const rig = fitSkeleton(a.markers, meshQuery(positions, indices), {
     tail: a.tail,
+    tailBones: a.tailBones,
   })
   const weights = boneHeat(positions, indices, skinSegments(rig))
   const built = buildRig(scene, name, positions, indices, rig, weights)
@@ -682,6 +686,24 @@ export function rigTool(
             },
           })
         )
+        // An auto-rigged tail is ours to lay out: how many links it has.
+        const model = models.find((m) => m.label === ui.model)
+        if (model?.autorig?.tail != null && s.root.startsWith('tail_'))
+          w.push(
+            slider3d({
+              label: 'tail links',
+              value: model.autorig.tailBones ?? 5,
+              min: 2,
+              max: 16,
+              step: 1,
+              handleChange: (v) => {
+                const n = Math.round(v)
+                if (n === (model.autorig!.tailBones ?? 5)) return
+                model.autorig!.tailBones = n
+                void tool?.load(model)
+              },
+            })
+          )
       } else {
         w.push(...strandWidgets(s, () => changed()))
       }
@@ -1010,6 +1032,9 @@ export function rigTool(
         let height = 1.8
         const UAL_HEIGHT = 1.83
         const frame = () => {
+          // Framed as a free view, then snapped again (the snap rescales).
+          const snap = ui.view
+          if (snap !== 'free') snapView('free')
           // Arms out at rest need more room than arms down.
           const gap = height * (ui.pose === 'rest' ? 1.1 : 0.6)
           ualStand.scaling.setAll(height / UAL_HEIGHT)
@@ -1018,14 +1043,17 @@ export function rigTool(
           cam.target.set(middle + height * 0.6, height * 0.5, 0)
           cam.radius = height * (ui.pose === 'rest' ? 3.1 : 2.6)
           cam.minZ = height * 0.01
-          if (ui.view !== 'free') snapView(ui.view)
+          if (snap !== 'free') snapView(snap)
         }
         /*
         SNAPPED VIEWS (Tonio: snap to overhead, front and side, to see whether
-        a finger's joints are on the finger). Orthographic, so nothing nearer
-        the camera looks bigger and a joint lines up with the flesh around it;
-        the zoom still works, as the size of the view. Orbiting the camera
-        lets go of the snap and goes back to perspective.
+        a finger's joints are on the finger). Nearly orthographic, so nothing
+        nearer the camera looks bigger and a joint lines up with the flesh
+        around it: a long lens from far away, the same view's size. Not a
+        true orthographic camera, because the flat panels and the system bar
+        are placed for a perspective one (they shrank to a stamp). The wheel
+        zooms by proportion while snapped, or it would crawl from out there.
+        Orbiting lets go of the snap.
         */
         const SNAP: Record<Exclude<RigView, 'free'>, [number, number]> = {
           front: [Math.PI / 2, Math.PI / 2],
@@ -1034,28 +1062,29 @@ export function rigTool(
           // As near straight down as the camera allows (it clamps beta).
           top: [Math.PI / 2, Math.max(cam.lowerBetaLimit ?? 0.01, 1e-4)],
         }
+        const LONG_FOV = 0.04
         let snapped: [number, number] | null = null
-        const orthoFit = () => {
-          if (cam.mode !== BABYLON.Camera.ORTHOGRAPHIC_CAMERA) return
-          const half = cam.radius * Math.tan(cam.fov / 2)
-          const engine = scene.getEngine()
-          const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight())
-          cam.orthoTop = half
-          cam.orthoBottom = -half
-          cam.orthoLeft = -half * aspect
-          cam.orthoRight = half * aspect
-        }
+        let free: { fov: number; wheel: number } | null = null
         function snapView(v: RigView) {
           if (v === 'free') {
             snapped = null
-            cam.mode = BABYLON.Camera.PERSPECTIVE_CAMERA
+            if (free != null) {
+              cam.radius *= Math.tan(LONG_FOV / 2) / Math.tan(free.fov / 2)
+              cam.fov = free.fov
+              cam.wheelDeltaPercentage = free.wheel
+              free = null
+            }
             return
+          }
+          if (free == null) {
+            free = { fov: cam.fov, wheel: cam.wheelDeltaPercentage }
+            cam.radius *= Math.tan(free.fov / 2) / Math.tan(LONG_FOV / 2)
+            cam.fov = LONG_FOV
+            cam.wheelDeltaPercentage = 0.02
           }
           snapped = SNAP[v]
           cam.alpha = snapped[0]
           cam.beta = snapped[1]
-          cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
-          orthoFit()
         }
         scene.onBeforeRenderObservable.add(() => {
           if (snapped == null) return
@@ -1066,7 +1095,7 @@ export function rigTool(
             ui.view = 'free'
             snapView('free')
             refresh()
-          } else orthoFit()
+          }
         })
         let model: {
           dispose(): void
@@ -1204,7 +1233,12 @@ export function rigTool(
             const size = r * (picked ? 1.5 : 1.1)
             const nodes = sp.bones.nodes
             if (sp.recipe.kind === 'bones') {
-              dot(nodes[0].getAbsolutePosition(), size, mat, { rigSpring: i })
+              // The whole chain, so it reads as a tail and not one stub.
+              nodes.forEach((n, k) =>
+                dot(n.getAbsolutePosition(), k === 0 ? size : size * 0.55, mat, {
+                  rigSpring: i,
+                })
+              )
               return
             }
             // A handle on every point of its path, and a small mark where
