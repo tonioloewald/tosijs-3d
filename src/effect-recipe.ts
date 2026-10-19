@@ -81,6 +81,8 @@ export interface ParticleLayer extends LayerBase {
     /** A cone's half-angle, or how far a ring/disc's particles lean out. */
     angleDeg?: number
   }
+  /** Metres above the effect it is emitted from. */
+  height?: number
   /** Particles a second at full activity. */
   rate: number
   /** Particles all at once when the layer starts. */

@@ -13,6 +13,7 @@ import * as tosijs from 'tosijs'
 import * as tosijs3d from '../src/index'
 import * as tosijsui from 'tosijs-ui'
 import * as rigTool from '../src/rig-tool'
+import * as effectTool from '../src/effect-tool'
 import * as demoUtils from './demo-utils' // shared "when in doubt" helpers for live examples
 // Point live examples' asset lookups (assetUrl) at the shared CDN.
 tosijs3d.setAssetBase('https://cdn.tosijs.net')
@@ -42,6 +43,7 @@ for (const el of document.querySelectorAll('tosi-doc-system')) {
     // impactMarker, the asset constants).
     'tosijs-3d/demo-utils': demoUtils,
     'tosijs-3d/rig-tool': rigTool,
+    'tosijs-3d/effect-tool': effectTool,
     'demo-utils': demoUtils,
   }
 }

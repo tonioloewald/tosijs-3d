@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces, ROCK_RULES } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, b3dEffect, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces, ROCK_RULES } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -463,10 +463,16 @@ const terrain = b3dTerrain({
 })
 
 applyVolcano(demo.volcano.valueOf())
+// THE VOLCANO IS ALIVE, semi-active (Tonio): steam, a thin ash column, a
+// glowing vent and a rumble, carried by the wind. In its crater (ground: on
+// finds the crater floor), scaled from a vent to a mountain. It goes with
+// the volcano: a world preset without one has no eruption either.
+const volcanoFx = b3dEffect({ preset: demo.volcano.valueOf() ? 'volcano' : '', activity: 0.5, x: 600, z: -400, y: 4, scale: 12, ground: 'on' })
 // Observed rather than handled on the toggle, so a PRESET switching the
 // volcano regenerates the terrain too.
 demo.volcano.observe(() => {
   applyVolcano(demo.volcano.valueOf())
+  volcanoFx.preset = demo.volcano.valueOf() ? 'volcano' : ''
   terrain.regenerate()
 })
 
@@ -686,6 +692,7 @@ const scene = b3d(
   b3dLight({ intensity: 0.5, groundColor: '#57523f' }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
+  volcanoFx,
   // The layer case: a cloud DECK over the peaks, orographic so the towers
   // build over the actual mountains. Blob clouds (b3d-clouds) remain the
   // right tool for cloud you fly BETWEEN.
