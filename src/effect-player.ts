@@ -292,7 +292,19 @@ export class EffectPlayer {
     ps.minLifeTime = l.life[0]
     ps.maxLifeTime = l.life[1]
     const cs = l.colors.length > 1 ? l.colors : [l.colors[0], l.colors[0]]
-    cs.forEach((c, i) => ps.addColorGradient(i / (cs.length - 1), color4(c)))
+    /*
+    SMOKE FADES IN. A covering (alpha) particle that starts at full strength
+    pops into being; over its first few percent it comes up from nothing.
+    Glowing (additive) ones flash on, as sparks should.
+    */
+    const fadeIn = l.blend === 'alpha' ? 0.08 : 0
+    if (fadeIn > 0) {
+      const first = color4(cs[0])
+      ps.addColorGradient(0, new BABYLON.Color4(first.r, first.g, first.b, 0))
+    }
+    cs.forEach((c, i) =>
+      ps.addColorGradient(fadeIn + (1 - fadeIn) * (i / (cs.length - 1)), color4(c))
+    )
     if (l.grow != null) {
       for (let i = 0; i <= 8; i++) {
         const k = sampleCurve(l.grow, i / 8)
@@ -316,13 +328,18 @@ export class EffectPlayer {
       case 'sphere':
         ps.createSphereEmitter(Math.max(0.001, r), 1)
         break
-      case 'cone':
-        ps.createConeEmitter(Math.max(0.001, r), lean)
-        break
       default: {
-        // A ring throws outward and up; a disc rises with a little spread.
+        /*
+        A VENT: every particle starts on the ground at the emitter, on a disc
+        (`disc`, `cone`) or its rim (`ring`), and leaves upward within the
+        shape's angle: a ring throws outward, a cone spreads to its angle, a
+        disc rises with a little spread. (Babylon's cone emitter spawns
+        anywhere up the cone's HEIGHT, radius / tan(angle): 68 m for the
+        volcano's ash, so smoke popped into being high above the vent.)
+        */
         const e = new BABYLON.CustomParticleEmitter()
         const ring = l.emitter.shape === 'ring'
+        const cone = l.emitter.shape === 'cone'
         e.particlePositionGenerator = (_i, p, out) => {
           const a = Math.random() * Math.PI * 2
           const d = ring ? r : r * Math.sqrt(Math.random())
@@ -331,7 +348,11 @@ export class EffectPlayer {
         }
         e.particleDirectionGenerator = (_i, p, out) => {
           const a = (p as any)?._a ?? Math.random() * Math.PI * 2
-          const tilt = ring ? lean * (0.6 + 0.4 * Math.random()) : lean * 0.25 * Math.random()
+          const tilt = ring
+            ? lean * (0.6 + 0.4 * Math.random())
+            : cone
+              ? lean * Math.sqrt(Math.random())
+              : lean * 0.25 * Math.random()
           out.set(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt))
         }
         ps.particleEmitterType = e
