@@ -14,42 +14,75 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=4bb6a858a195" data-tosi-doc-system />
   <title>touch-orbit — tosijs-3d</title>
-  <meta name="description" content="TouchOrbit(camera) gives an ArcRotateCamera the touch map in touch-gesture: one finger orbits, two fingers moving together pan, a pinch zooms." />
+  <meta name="description" content="TouchOrbit(camera) gives an ArcRotateCamera the view controls people expect from a 3D viewer, on every device." />
   <link rel="canonical" href="https://3d.tosijs.net/touch-orbit/" />
   <link rel="alternate" type="text/markdown" href="index.md" title="touch-orbit — tosijs-3d (markdown)" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="touch-orbit — tosijs-3d" />
-  <meta property="og:description" content="TouchOrbit(camera) gives an ArcRotateCamera the touch map in touch-gesture: one finger orbits, two fingers moving together pan, a pinch zooms." />
+  <meta property="og:description" content="TouchOrbit(camera) gives an ArcRotateCamera the view controls people expect from a 3D viewer, on every device." />
   <meta property="og:url" content="https://3d.tosijs.net/touch-orbit/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"touch-orbit","description":"TouchOrbit(camera) gives an ArcRotateCamera the touch map in touch-gesture: one finger orbits, two fingers moving together pan, a pinch zooms.","url":"https://3d.tosijs.net/touch-orbit/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"touch-orbit","description":"TouchOrbit(camera) gives an ArcRotateCamera the view controls people expect from a 3D viewer, on every device.","url":"https://3d.tosijs.net/touch-orbit/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
-  <article class="doc-content">
+  <tosi-doc-system docs="../docs.json?v=b9da72e114dd" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="touch-orbit.ts">
 <h1 id="touch-orbit">touch-orbit</h1>
-<p><code>touchOrbit(camera)</code> gives an <code>ArcRotateCamera</code> the touch map in
-<a href="/touch-gesture/">touch-gesture</a>: one finger orbits, two fingers moving together
-pan, a pinch zooms. The decision is made once per gesture. <code>&lt;tosi-b3d&gt;</code>&#39;s
-default camera and <code>orbitCam</code> both call it; call it yourself on an
-<code>ArcRotateCamera</code> you build (tosijs-3d#52).</p>
+<p><code>touchOrbit(camera)</code> gives an <code>ArcRotateCamera</code> the view controls people
+expect from a 3D viewer, on every device. <code>&lt;tosi-b3d&gt;</code>&#39;s default camera and
+<code>orbitCam</code> both call it; call it yourself on an <code>ArcRotateCamera</code> you build
+(tosijs-3d#52).</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>orbit</th>
+<th>pan</th>
+<th>zoom</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>mouse</td>
+<td>drag</td>
+<td><strong>shift</strong>-drag, right-drag, ctrl-drag</td>
+<td>wheel</td>
+</tr>
+<tr>
+<td>trackpad</td>
+<td>click-drag</td>
+<td><strong>two-finger drag</strong></td>
+<td>pinch</td>
+</tr>
+<tr>
+<td>touch</td>
+<td>one finger</td>
+<td>two fingers together</td>
+<td>pinch</td>
+</tr>
+</tbody></table>
 <ul>
-<li><strong>Pan follows the fingers.</strong> The centroid&#39;s pixels become world units at the
-TARGET&#39;s depth (<code>2·r·tan(fov/2)</code> per viewport height), applied straight to the
-target, so the point you touched moves with you. Babylon&#39;s own two-finger pan
-is a fixed <code>1/panningSensibility</code> fed through its inertia, so 150 px moved
-the target 0.76 m at 8 m and got slower relative to the view the further out
-you were.</li>
-<li><strong>Zoom is natural</strong> (radius × previous spacing / spacing), clamped to the
-camera&#39;s radius limits.</li>
-<li><strong>One finger is untouched.</strong> Only the two-finger path is replaced.</li>
+<li><strong>Pan follows the pointer.</strong> Pixels become world units at the TARGET&#39;s depth
+(<code>2·r·tan(fov/2)</code> per viewport height), applied straight to the target, so
+the point you grabbed moves with you. Babylon&#39;s own pan is a fixed
+<code>1/panningSensibility</code> fed through its inertia, so 150 px moved the target
+0.76 m at 8 m and got slower relative to the view the further out you were.</li>
+<li><strong>A trackpad&#39;s two-finger drag pans; a pinch zooms.</strong> Both arrive as <code>wheel</code>
+events, as a mouse wheel does: <a href="/touch-gesture/">touch-gesture</a>&#39;s
+<code>wheelClassifier</code> tells them apart (a pinch carries <code>ctrlKey</code>, a mouse notch
+is big, a trackpad moves sideways or starts small). No browser says which
+device sent a wheel event, so it is a heuristic; shift-drag pans on
+anything. <code>{ trackpadPan: false }</code> leaves the wheel to Babylon (it zooms).</li>
+<li><strong>Touch:</strong> one finger orbits, two fingers moving together pan, a pinch
+zooms; the decision is made once per gesture (<code>twoFingerGesture</code>).</li>
+<li><strong>A wheel over a panel is the panel&#39;s</strong>: panels take it before the canvas
+sees it (tosijs-3d#114), so a list scrolls and the scene stays put.</li>
 </ul>
-<p>Returns a function that restores Babylon&#39;s handler.</p>
+<p>Returns a function that restores Babylon&#39;s handlers.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -61,6 +94,7 @@ camera&#39;s radius limits.</li>
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
       <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
     </ul>
@@ -502,6 +536,6 @@ camera&#39;s radius limits.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-50vacf13.js"></script>
+  <script type="module" src="../hydrate-r5r8m7f8.js"></script>
 </body>
 </html>

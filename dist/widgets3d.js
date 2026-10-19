@@ -3216,11 +3216,12 @@ export function panel3d(config, ...widgets) {
         else {
             // hover (move without a press) or release
             if (kind === 'up' && captured) {
-                const capturedY = captured.fromHeader
-                    ? localY
-                    : localY - headerH + scroll;
-                captured.w.handle?.('up', localX, capturedY - captured.top);
+                // Released BEFORE the widget hears it: its click may rebuild this
+                // panel, and a host holds a rebuild while `pressing` (see below).
+                const c = captured;
                 captured = null;
+                const capturedY = c.fromHeader ? localY : localY - headerH + scroll;
+                c.w.handle?.('up', localX, capturedY - c.top);
             }
             scrolling = false;
             setHover(row);
@@ -3377,6 +3378,9 @@ export function panel3d(config, ...widgets) {
         return true;
     };
     root.scrollable = scrollable;
+    Object.defineProperty(root, 'pressing', {
+        get: () => captured != null || scrolling,
+    });
     root.gripHeight = config.grip
         ? paddingTop
         : 0;

@@ -47,11 +47,19 @@ export declare class SvgTexture {
     private _element;
     private _scene;
     private _rendering;
+    /** A new element arrived mid-render: render again when that one lands. */
+    private _again;
     private _img;
     private _lastXml;
     private _warnedFailure;
     private _premul;
     constructor(options: SvgTextureOptions);
+    /**
+     * Draw a different live element from now on. The texture keeps its current
+     * picture until the new one is drawn (a render is asynchronous), so a panel
+     * swapping its content never shows a blank frame.
+     */
+    setElement(element: SVGSVGElement): void;
     /** Manually trigger a re-render from the live SVG element. */
     render(): void;
     /** Render an arbitrary SVG string to the texture. */

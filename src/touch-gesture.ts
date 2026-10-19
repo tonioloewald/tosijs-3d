@@ -140,7 +140,9 @@ export function wheelClassifier(gapMs = 150): {
       else if (last != null && now - last.at < gapMs) kind = last.kind
       else {
         const y = Math.abs(e.deltaY)
-        const notch = y > 0 && Math.abs(y / 4.000244140625 - Math.round(y / 4.000244140625)) < 1e-6
+        const notch =
+          y > 0 &&
+          Math.abs(y / 4.000244140625 - Math.round(y / 4.000244140625)) < 1e-6
         kind = y >= 50 || notch ? 'zoom' : 'pan'
       }
       last = { kind, at: now }

@@ -494,6 +494,18 @@ function pickLayersFirst(xr, scene) {
             delete scene.pickWithRay;
     };
 }
+/*
+A REBUILT PANEL KEEPS ITS PLACE. The settings panel is rebuilt on every icon
+press and refresh (a new element: its rows' closures cannot be reused), and
+each rebuild started back at the top, so pressing a toggle at the bottom of a
+long panel threw you to the top of it. The new panel is scrolled to where the
+old one was (clamped, if it is shorter).
+*/
+function carryScroll(from, to) {
+    const top = from?.scrollTop ?? 0;
+    if (top > 0 && 'scrollTop' in to)
+        to.scrollTop = top;
+}
 export class B3d extends Component {
     static preferredTagName = 'tosi-b3d';
     static initAttributes = {
@@ -2017,6 +2029,8 @@ export class B3d extends Component {
     */
     _flatFrames = null;
     _flatPanels = [];
+    /** The camera the flat panels' frames follow (a new one rebuilds them all). */
+    _flatCam = -1;
     _flatSig = '';
     _flatCheckIn = 0;
     _flatHandWarned = new Set();
@@ -2109,10 +2123,9 @@ export class B3d extends Component {
     }
     /**
      * New content on a system panel's element: if it is open, show the new
-     * content in the same place. A framed panel swaps it under its title bar
-     * IN PLACE (same plane, so a press mid-swap is not lost); `chrome="none"`
-     * closes and opens again (the spot is the element's, and a non-exclusive
-     * panel opening closes nothing).
+     * content in the same place, IN PLACE: under its title bar, or (with
+     * `chrome="none"`) on the same plane. Never closed and reopened, so a press
+     * mid-swap is not lost and nothing blinks.
      */
     _swapSystemContent = (e) => {
         const el = e.target;
@@ -2122,12 +2135,7 @@ export class B3d extends Component {
         const next = this._systemEntries().find((x) => x.el === el)?.spec.svg;
         if (next == null || next === open.content)
             return;
-        if (open.swap != null) {
-            open.swap(next);
-            return;
-        }
-        this._closeSystemPanel(el);
-        this._openSystemPanel(el);
+        open.swap(next);
     };
     /**
      * A new `screenAnchor` on a system panel's element: an open one that no one
@@ -2296,24 +2304,25 @@ export class B3d extends Component {
             frames,
             obs,
             exclusive,
-            swap: titled == null
-                ? undefined
-                : (next) => {
-                    // The same open/close a reopen would send, around the swap.
-                    const was = entry.content;
-                    was.removeEventListener('panelfocus', onFocus);
-                    was.dispatchEvent(new CustomEvent('panelopen', {
-                        detail: { open: false },
-                        cancelable: true,
-                    }));
-                    next.dispatchEvent(new CustomEvent('panelopen', {
-                        detail: { open: true, framed },
-                        cancelable: true,
-                    }));
+            swap: (next) => {
+                // The same open/close a reopen would send, around the swap.
+                const was = entry.content;
+                was.removeEventListener('panelfocus', onFocus);
+                was.dispatchEvent(new CustomEvent('panelopen', {
+                    detail: { open: false },
+                    cancelable: true,
+                }));
+                next.dispatchEvent(new CustomEvent('panelopen', {
+                    detail: { open: true, framed },
+                    cancelable: true,
+                }));
+                if (titled != null)
                     titled.setContent(next);
-                    next.addEventListener('panelfocus', onFocus);
-                    entry.content = next;
-                },
+                else
+                    panel.setSvg(next);
+                next.addEventListener('panelfocus', onFocus);
+                entry.content = next;
+            },
             off: () => {
                 entry.content.removeEventListener('panelfocus', onFocus);
                 titled?.dispose();
@@ -2451,6 +2460,7 @@ export class B3d extends Component {
         this._flatPanels = [];
         this._flatFrames?.dispose();
         this._flatFrames = null;
+        this._flatCam = -1;
         this._flatSig = '';
         this._flatCheckIn = 0;
     }
@@ -2480,12 +2490,24 @@ export class B3d extends Component {
                 ? `${cam.uniqueId}|${bar ? `bar${this._sceneBarVersion}` : ''}|${JSON.stringify(specs)}`
                 : '';
             if (sig !== this._flatSig) {
-                this._disposeFlatPanels();
+                /*
+                RECONCILED, not rebuilt. Any change to the set (a system button
+                arriving, one panel's attribute) used to dispose EVERY flat panel,
+                the system bar included, and build them again: each new plane is
+                blank until its texture is drawn, so the bar and every pinned panel
+                blinked. A panel whose spec is unchanged keeps its plane; the bar,
+                whose spec is the same but whose SVG is new (another button), takes
+                the new SVG on the same plane. Only a new camera rebuilds them all,
+                because the frames follow it.
+                */
+                if (specs.length === 0 || cam.uniqueId !== this._flatCam)
+                    this._disposeFlatPanels();
                 this._flatSig = sig;
                 this._flatCheckIn = 30;
-                if (specs.length > 0) {
+                if (specs.length > 0 && this._flatFrames == null) {
                     const frames = XrFrames.flat(scene, cam);
                     this._flatFrames = frames;
+                    this._flatCam = cam.uniqueId;
                     /*
                     POSE THE FRAMES WHEN THE CAMERA IS FINAL, not when this loop runs.
                     This used to happen here, before `scene.render()`, and anything that
@@ -2506,28 +2528,51 @@ export class B3d extends Component {
                         for (const p of this._flatPanels)
                             p.update();
                     });
-                    for (const spec of specs) {
-                        // `flatFrame` wins whenever it is given (the hands need it; a
-                        // pitched flat camera wants 'face'), and is required for a hand.
-                        let frame = spec.frame ?? 'body';
-                        // A screen-pinned panel lives in the head-locked frame.
-                        if (spec.screenAnchor != null)
-                            frame = 'face';
-                        else if (spec.flatFrame != null)
-                            frame = spec.flatFrame;
-                        else if (frame === 'left-hand' || frame === 'right-hand') {
-                            const key = spec.title ?? spec.url ?? frame;
-                            if (!this._flatHandWarned.has(key)) {
-                                this._flatHandWarned.add(key);
-                                console.warn(`b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
-                                    '(a monitor has no hands), so it is VR-only. Give it a ' +
-                                    '`flatFrame` to say where it goes flat.');
-                            }
-                            continue;
-                        }
-                        this._flatPanels.push(attachFramePanel(scene, cam, frames.get(frame), presentationSpec(spec, true)));
-                    }
                 }
+                const frames = this._flatFrames;
+                const old = [...this._flatPanels];
+                const next = [];
+                for (const spec of specs) {
+                    // `flatFrame` wins whenever it is given (the hands need it; a
+                    // pitched flat camera wants 'face'), and is required for a hand.
+                    let frame = spec.frame ?? 'body';
+                    // A screen-pinned panel lives in the head-locked frame.
+                    if (spec.screenAnchor != null)
+                        frame = 'face';
+                    else if (spec.flatFrame != null)
+                        frame = spec.flatFrame;
+                    else if (frame === 'left-hand' || frame === 'right-hand') {
+                        const key = spec.title ?? spec.url ?? frame;
+                        if (!this._flatHandWarned.has(key)) {
+                            this._flatHandWarned.add(key);
+                            console.warn(`b3d-panel "${key}": frame "${frame}" has no flat analogue ` +
+                                '(a monitor has no hands), so it is VR-only. Give it a ' +
+                                '`flatFrame` to say where it goes flat.');
+                        }
+                        continue;
+                    }
+                    if (frames == null)
+                        continue;
+                    const svg = spec.svg ?? undefined;
+                    const key = JSON.stringify({ ...spec, svg: undefined, frame });
+                    // The same panel: same spec and same SVG, or (the bar) a new SVG.
+                    const i = old.findIndex((p) => p.key === key && (p.svg === svg || spec === bar));
+                    if (i >= 0) {
+                        const kept = old.splice(i, 1)[0];
+                        if (svg != null && kept.svg !== svg) {
+                            kept.setSvg(svg);
+                            kept.svg = svg;
+                        }
+                        next.push(kept);
+                        continue;
+                    }
+                    const panel = attachFramePanel(scene, cam, frames.get(frame), presentationSpec(spec, true));
+                    // Assigned, not spread: a spread would freeze its `el` getter.
+                    next.push(Object.assign(panel, { key, svg }));
+                }
+                for (const p of old)
+                    p.dispose();
+                this._flatPanels = next;
             }
         }
         // Posed in onBeforeCameraRenderObservable (above), when the view is final.
@@ -4527,7 +4572,7 @@ export class B3d extends Component {
                 camera.lowerRadiusLimit = this.minDistance;
                 camera.upperRadiusLimit = this.maxDistance;
                 camera.attachControl(cnv, false);
-                // Two fingers pan, a pinch zooms, decided per gesture (#52).
+                // Shift-drag, a trackpad drag or two fingers pan; the wheel or a pinch zooms (#52).
                 touchOrbit(camera);
                 this.setActiveCamera(camera);
             }
@@ -4949,17 +4994,18 @@ export class B3d extends Component {
         the rig positions are kept free for other things.
     
         Rebuildable while open: a structural change (expanding the perf stats, a
-        debug source adding a line) DISPOSES and re-attaches, because the
-        panel's pointer/scroll closures can't survive having their widgets
-        swapped underneath them. Live numbers update the <text> nodes in place.
+        debug source adding a line) builds a NEW panel element into the same
+        plane (`rebuild`), because the panel's pointer/scroll closures can't
+        survive having their widgets swapped underneath them. Live numbers update
+        the <text> nodes in place.
         */
         let panel = null;
         const closeXrPopups = () => {
             /*
-            AND THE POPUPS GO WITH IT. This presentation really does destroy them —
-            the plane is disposed and rebuilt — where the flat one preserves its
-            holders across a rebuild, and `_syncDebugPopups` re-opens whatever
-            `_debugOpen` still asks for against the new panel.
+            AND THE POPUPS GO WITH IT. The plane stays now, but the rows a popup
+            came from (and its live debug lines) are rebuilt, so it is closed and
+            `_syncDebugPopups` re-opens whatever `_debugOpen` still asks for against
+            the new panel. (A popup still blinks on a structural rebuild here.)
       
             CLOSED, not dropped. Dropping the handles relied on every popup being a
             child of the plane and dying with it. One that was not (torn off, or
@@ -4998,10 +5044,12 @@ export class B3d extends Component {
         this._refreshXrPanel = () => {
             if (panel == null)
                 return;
-            closeXrPopups();
-            panel.dispose();
-            this._xrPanelEl = null;
-            panel = this._attachXrPanel(base, frames.eye);
+            this._whenReleased(this._xrPanelEl, () => {
+                if (panel == null)
+                    return;
+                closeXrPopups();
+                panel.rebuild();
+            });
         };
         const xrBar = this._xrToolbar(scene, cam, frames, {
             settings: toggleXrPanel,
@@ -5999,11 +6047,27 @@ export class B3d extends Component {
         const cam = scene?.activeCamera;
         if (scene == null || cam == null)
             return false;
-        this._disposeFlatScenePanel();
         // Close is in the title bar now, as a popup's is.
         const items = this._barItems();
         const el = this._makePanel(this._panelWidgets(), items.length > 0 ? [iconBar3d({ items })] : [], true, this._flatPanelMax() - 64, () => this._closeScenePanel());
         const vb = el.viewBox.baseVal;
+        /*
+        REBUILT IN PLACE. Every icon press and refresh rebuilds this panel, and a
+        new plane is blank until its texture is drawn: on a headset-speed CPU
+        that showed the scene through the panel for two or three frames on every
+        rebuild (measured at 4x CPU throttle). The same plane takes the new
+        content; its texture keeps the old picture until the new one is ready.
+        */
+        const live = this._flatScenePanel;
+        if (live != null) {
+            carryScroll(live.el, el);
+            live.panel.setSvg(el);
+            live.el = el;
+            if (this._flatPanelSpot != null)
+                this._flatPanelSpot.height = vb.height;
+            this._attachFlatLayer(el, live.panel.drawn, live.planeW, live.planeH);
+            return true;
+        }
         const W = 0.3;
         const H = W * ((vb.height || 1) / (vb.width || 1));
         const frames = XrFrames.flat(scene, cam);
@@ -6033,23 +6097,27 @@ export class B3d extends Component {
             frames.update(0);
             panel.update();
         });
+        this._attachFlatLayer(el, panel.drawn, W, H);
+        this._flatScenePanel = { el, panel, planeW: W, planeH: H, frames, obs };
+        this._syncGamepadCover();
+        return true;
+    }
+    /** The flat settings panel's popups go on their own surface in front of it. */
+    _attachFlatLayer(el, drawn, planeW, planeH) {
         attachSceneLayer({
             svg: el,
             owner: this,
-            openerMesh: panel.drawn,
-            planeW: W,
-            planeH: H,
+            openerMesh: drawn,
+            planeW,
+            planeH,
             // One viewBox unit per CSS pixel, so the screen is the canvas, offset
             // by where the panel is pinned (or dragged to).
             screenRoom: () => {
                 const h = this.parts.canvas?.clientHeight ?? 0;
-                const top = Number(spot.top) || 0;
+                const top = Number(this._flatPanelSpot?.top) || 0;
                 return h > 0 ? { top: -top, bottom: h - top } : null;
             },
         });
-        this._flatScenePanel = { el, panel, frames, obs };
-        this._syncGamepadCover();
-        return true;
     }
     _openScenePanel() {
         // One at a time: an exclusive system panel (the inventory) goes.
@@ -6091,7 +6159,9 @@ export class B3d extends Component {
         that a rebuild has no business touching — where they were dragged to, how
         far they were scrolled, and the live rows already ticking inside them.
         */
-        replaceKeepingLayers(host, div({ class: 'scene-panel-head' }, span({ class: 'scene-panel-title' }, this.panelTitle ?? ''), ...buttons), this._makePanel(this._panelWidgets(), [], false, this._flatPanelMax()));
+        const fresh = this._makePanel(this._panelWidgets(), [], false, this._flatPanelMax());
+        carryScroll(host.querySelector(':scope > svg[data-w3d="panel"]'), fresh);
+        replaceKeepingLayers(host, div({ class: 'scene-panel-head' }, span({ class: 'scene-panel-title' }, this.panelTitle ?? ''), ...buttons), fresh);
         host.removeAttribute('hidden');
         this._panelHeightKey = this.clientHeight;
     }
@@ -6126,8 +6196,44 @@ export class B3d extends Component {
      * Call after async state the panel reflects has changed (e.g. a library loaded,
      * or XR availability / session state) so an already-open panel updates. */
     refreshScenePanel() {
-        if (this._scenePanelOpen())
-            this._openScenePanel();
+        if (!this._scenePanelOpen())
+            return;
+        this._whenReleased(this._livePanel(), () => {
+            if (this._scenePanelOpen())
+                this._openScenePanel();
+        });
+    }
+    /** The settings panel element showing now, in whichever presentation. */
+    _livePanel() {
+        if (this._flatScenePanel != null)
+            return this._flatScenePanel.el;
+        const host = this.parts?.scenePanelHost;
+        return host?.querySelector(':scope > svg[data-w3d="panel"]') ?? null;
+    }
+    /*
+    NOT MID-PRESS. A rebuild that lands while a slider is being dragged (a
+    debug line arriving, a library finishing its load) replaced the slider
+    under the finger and ended the drag. Held until the release, then run once:
+    later requests while it waits are the same rebuild.
+    */
+    _held = new WeakMap();
+    _whenReleased(el, run) {
+        const pressing = () => !!el?.pressing;
+        const scene = this.scene;
+        if (el == null || scene == null || !pressing())
+            return run();
+        const waiting = this._held.has(el);
+        this._held.set(el, run);
+        if (waiting)
+            return;
+        const obs = scene.onBeforeRenderObservable.add(() => {
+            if (pressing())
+                return;
+            scene.onBeforeRenderObservable.remove(obs);
+            const latest = this._held.get(el);
+            this._held.delete(el);
+            latest?.();
+        });
     }
     // Mount the split touch "glass" gamepad when the `gamepad` attribute is
     // present, as a light-DOM child (projected over the canvas via the slot, and
@@ -6213,34 +6319,23 @@ export class B3d extends Component {
     _xrBarSvg = null;
     _attachXrPanel(base, anchorFrame) {
         const scene = this.scene;
-        // In-scene panel always carries an Exit-VR button (you can't reach a DOM
-        // button inside a headset), plus any scenePanel widgets.
-        // Exit VR and Re-seat ride in the ICON BAR rather than taking a full-width
-        // row each. Two labelled buttons cost a third of a small panel for two
-        // things you press once a session — and the panel's job in a headset is the
-        // author's controls, not its own chrome. They are appended at the MOUNT
-        // SITE (never branched into the shared widget list) because they are
-        // genuinely XR-only: Re-seat is meaningless flat, and flat already has an
-        // Exit VR in the toolbar lozenge.
-        //
-        // It is the PINNED header, not row 0: Exit VR scrolling out of reach is the
-        // one failure this panel cannot recover from inside a headset.
-        // Exit VR is on the system bar above it (Tonio: "doesn't need an exit
-        // vr button").
-        const barRow = iconBar3d({
-            items: [
-                {
-                    icon: 'compass',
-                    title: 'Re-seat (look forward first)',
-                    active: false,
-                    handleClick: () => this.recenterXr(),
-                },
-                ...this._barItems(),
-            ],
-        });
-        const rows = [...this._panelWidgets(true)];
-        // A ×, as the flat panel has: one UI (it closes to the system bar).
-        const panelEl = this._makePanel(rows, [barRow], true, 620, () => this._closeXrSettings());
+        const build = () => {
+            const barRow = iconBar3d({
+                items: [
+                    {
+                        icon: 'compass',
+                        title: 'Re-seat (look forward first)',
+                        active: false,
+                        handleClick: () => this.recenterXr(),
+                    },
+                    ...this._barItems(),
+                ],
+            });
+            const rows = [...this._panelWidgets(true)];
+            // A ×, as the flat panel has: one UI (it closes to the system bar).
+            return this._makePanel(rows, [barRow], true, 620, () => this._closeXrSettings());
+        };
+        let panelEl = build();
         /*
         THE PANEL A POPUP SHOULD OPEN ON, while a session is running.
     
@@ -6272,10 +6367,10 @@ export class B3d extends Component {
         // and only in scenes with a registered debug source — which is why the terrain demo
         // broke and the otherwise-identical combat demo didn't.
         //
-        // Structural changes REBUILD the panel (dispose + re-attach: see `_refreshXrPanel`,
+        // Structural changes REBUILD the panel (a new element into the same plane: see `_refreshXrPanel`,
         // set where the panel is created). Live NUMBERS don't need any of that — `_startLiveDebug`
         // rewrites the <text> nodes in place, which changes no structure and no closure.
-        const vb = panelEl.viewBox.baseVal;
+        let vb = panelEl.viewBox.baseVal;
         // Anchored to the eye frame (origin = your head), 60° up the sight-line —
         // and that 60° is also the CEILING a drag may reach, pinned equal to
         // `ORBIT_MAX_ELEVATION` by a test. The position is derived through
@@ -6286,7 +6381,9 @@ export class B3d extends Component {
         const ELEV = (60 * Math.PI) / 180;
         // Height in metres, kept because the orbit needs to know how tall the panel
         // LOOKS from the anchor in order to seat it by an edge rather than a centre.
+        // As built; a rebuild into a different height scales the plane (`sy`).
         const planeH = PLANE_W * (vb.height / vb.width);
+        let sy = 1;
         const plane = BABYLON.MeshBuilder.CreatePlane('xr-panel', {
             width: PLANE_W,
             height: planeH,
@@ -6342,7 +6439,7 @@ export class B3d extends Component {
         });
         /** Put the panel at a seat — the one place that writes its pose. */
         const seatPanel = (seat) => {
-            const centre = orbitCentre(seat, angularHeight(planeH, D));
+            const centre = orbitCentre(seat, angularHeight(planeH * sy, D));
             const p = orbitPosition(centre);
             plane.position.set(p.x, p.y, p.z);
             const aim = faceViewer(p, { x: 0, y: 0, z: 0 });
@@ -6615,8 +6712,35 @@ export class B3d extends Component {
         });
         return {
             plane,
-            scrollable: !!panelEl.scrollable,
+            get scrollable() {
+                return !!panelEl.scrollable;
+            },
             scrollBy: (dy) => panelEl.scrollBy?.(dy),
+            /*
+            INTO THE SAME PLANE, so it does not blink. A new plane is blank until
+            its texture is drawn, which at headset speed is two or three frames of
+            scene showing through the panel on every icon press. The texture keeps
+            the old picture until the new one is ready; the seat stays.
+            */
+            rebuild: () => {
+                panelEl.handlePointer?.('leave', 0, 0);
+                const was = panelEl;
+                panelEl = build();
+                carryScroll(was, panelEl);
+                vb = panelEl.viewBox.baseVal;
+                this._xrPanelEl = panelEl;
+                sy = (PLANE_W * (vb.height / vb.width)) / planeH;
+                plane.scaling.y = sy;
+                tex.setElement(panelEl);
+                attachSceneLayer({
+                    svg: panelEl,
+                    owner: this,
+                    openerMesh: plane,
+                    planeW: PLANE_W,
+                    planeH: planeH * sy,
+                });
+                seatPanel(this._xrPanelSeat ?? wanted);
+            },
             dispose: () => {
                 // A spring mid-flight would keep writing to a disposed plane, once per
                 // frame, forever — the leak class this file already carries scars about.

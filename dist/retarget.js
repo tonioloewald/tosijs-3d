@@ -5,23 +5,7 @@
 Animation Library's clips are authored on the UE mannequin; a Mixamo
 character, a Kenney chibi or a model of your own has different bone names,
 a different number of bones, a different rest pose and different
-proportions. This is the pure core that makes the clips play anyway:
-
-1. **Roles.** `humanoidRoles(bones)` says which bone is the hips, the chest,
-   the left forearm, … from the names and the hierarchy, across the common
-   spellings (UE `upperarm_l`, Mixamo `mixamorig:LeftArm`, Kenney `arm-left`,
-   Blender `forearm.L`). Fingers, twist, IK and end bones are left alone.
-2. **Rotations, not positions.** `retargetPose` gives each target bone the
-   world-space rotation its source bone made since ITS rest, so bone
-   lengths are the target's own: a long-legged clip on a short-legged body
-   bends the same joints by the same angles.
-3. **Rest poses that disagree.** A clip authored on an A-pose rig, played on
-   a T-pose one, must still put the arms where the clip shows them, not 45°
-   higher. Each target bone is first lined up with its source bone's rest
-   direction (toward the next joint down the limb), so poses come across
-   as the clip shows them, whatever rest pose either rig was bound in.
-4. **The hips move in proportion.** Their translation is scaled by the ratio
-   of hip heights, so a short character's stride is shorter, not stretched.
+proportions. This makes the clips play anyway.
 
 ## Demo
 
@@ -111,6 +95,26 @@ preview.append(
 )
 ```
 
+## How it works
+
+1. **Roles.** `humanoidRoles(bones)` says which bone is the hips, the chest,
+   the left forearm, … from the names and the hierarchy, across the common
+   spellings (UE `upperarm_l`, Mixamo `mixamorig:LeftArm`, Kenney `arm-left`,
+   Blender `forearm.L`), and each finger's three joints (`index_01_l`,
+   `LeftHandIndex1`, `thumb.01.L`). Twist, IK and end bones are left alone.
+2. **Rotations, not positions.** `retargeter(source, target).pose` gives each target bone the
+   world-space rotation its source bone made since ITS rest, so bone
+   lengths are the target's own: a long-legged clip on a short-legged body
+   bends the same joints by the same angles.
+3. **Rest poses that disagree.** A clip authored on an A-pose rig, played on
+   a T-pose one, must still put the arms where the clip shows them, not 45°
+   higher. Each target bone is first lined up with its source bone's rest
+   direction (toward the next joint down the limb; a hand toward a finger
+   both rigs have), so poses come across as the clip shows them, whatever
+   rest pose either rig was bound in.
+4. **The hips move in proportion.** Their translation is scaled by the ratio
+   of hip heights, so a short character's stride is shorter, not stretched.
+
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and
 writes the result.
@@ -121,6 +125,13 @@ over the mesh, as Mixamo's auto-rigger does, and binds the mesh to it.
 */
 /*{ "parent": "b3d-biped", "order": 70 }*/
 import { quatConjugate, quatMul, rotateVector, sub, } from './spatial-transform.js';
+export const FINGERS = [
+    'thumb',
+    'index',
+    'middle',
+    'ring',
+    'pinky',
+];
 export const ROLES = [
     'hips',
     'spine',
@@ -137,6 +148,7 @@ export const ROLES = [
         'foot',
         'toes',
     ].map((l) => `${s}-${l}`)),
+    ...['l', 'r'].flatMap((s) => FINGERS.flatMap((f) => [1, 2, 3].map((n) => `${s}-${f}${n}`))),
 ];
 /** Split a bone name into its side (if any) and the rest, lower case, no separators. */
 function readName(name) {
@@ -163,6 +175,16 @@ function readName(name) {
     return { side, base: n.toLowerCase().replace(/[_.\-\s]/g, '') };
 }
 const SKIP = /(thumb|index|middle|ring|pinky|finger|twist|ik|end|top|nub|roll|corrective|helper|pole)/;
+/*
+A FINGER JOINT: the finger's name and its joint number, 1 to 3, with
+whatever the rig puts between (UE `index_01`, Mixamo `HandIndex1`, Rigify
+`f_index.01`). A fourth joint is the tip's end bone (UE `index_04_leaf`,
+Mixamo `HandIndex4`) and a metacarpal has no number, so neither is taken.
+*/
+function fingerOf(base) {
+    const m = /(thumb|index|middle|ring|pinky)[a-z]*?0?([1-3])$/.exec(base);
+    return m != null ? `${m[1]}${m[2]}` : null;
+}
 /** The limb a (sided) base name is, or null. `leg` is decided later. */
 function limbOf(base) {
     if (/^(clavicle|shoulder|collar)/.test(base))
@@ -196,6 +218,11 @@ export function humanoidRoles(bones, overrides = {}) {
     const legs = { l: [], r: [] };
     for (const b of bones) {
         const { side, base } = readName(b.name);
+        const finger = side != null ? fingerOf(base) : null;
+        if (finger != null && !/(twist|ik|end|leaf|nub|meta)/.test(base)) {
+            roles[`${side}-${finger}`] ??= b.name;
+            continue;
+        }
         if (SKIP.test(base))
             continue;
         if (side == null) {
@@ -337,14 +364,28 @@ const NEXT = {
     upperLeg: 'lowerLeg',
     lowerLeg: 'foot',
     foot: 'toes',
+    ...Object.fromEntries(FINGERS.flatMap((f) => [
+        [`${f}1`, `${f}2`],
+        [`${f}2`, `${f}3`],
+    ])),
 };
-function restDirection(role, sk, world) {
+/** The fingers a hand is aimed along, best first: the middle runs down its centre. */
+const HAND_AIM = ['middle', 'index', 'ring', 'pinky'];
+function restDirection(role, sk, world, toward) {
     const name = sk.roles[role];
     if (name == null)
         return null;
     const at = world.position.get(name);
     if (at == null)
         return null;
+    // A joint the caller chose (a hand toward a finger both rigs have).
+    const t = toward != null ? sk.roles[toward] : undefined;
+    const tp = t != null ? world.position.get(t) : undefined;
+    if (tp != null) {
+        const d = sub(tp, at);
+        if (Math.hypot(d.x, d.y, d.z) > 1e-6)
+            return normalize(d);
+    }
     const [side, limb] = role.includes('-') ? role.split('-') : [null, role];
     // Down the limb, skipping roles this rig does not have.
     let next = NEXT[limb];
@@ -358,6 +399,16 @@ function restDirection(role, sk, world) {
                 return normalize(d);
         }
         next = NEXT[next];
+    }
+    // A fingertip: toward its end bone, which every rig with fingers has.
+    if (fingerOf(limb) != null) {
+        const child = sk.bones.find((b) => b.parent === name);
+        const cp = child != null ? world.position.get(child.name) : undefined;
+        if (cp != null) {
+            const d = sub(cp, at);
+            if (Math.hypot(d.x, d.y, d.z) > 1e-6)
+                return normalize(d);
+        }
     }
     // No joint below it: where the bone's own flesh is, if we know.
     const end = sk.bones.find((b) => b.name === name)?.end;
@@ -394,7 +445,7 @@ function chainEnd(role, sk) {
     const [side, limb] = role.includes('-') ? role.split('-') : [null, role];
     let last = null;
     let next = NEXT[limb];
-    while (next != null && next !== 'toes') {
+    while (next != null && next !== 'toes' && fingerOf(next) == null) {
         const r = (side != null ? `${side}-${next}` : next);
         if (sk.roles[r] != null)
             last = r;
@@ -454,6 +505,18 @@ export function retargeter(source, target, options = {}) {
     */
     const aimAt = new Map();
     for (const r of roles) {
+        /*
+        A HAND is aimed along a finger both rigs have (its flesh's middle is
+        pulled about by the thumb), so the twist of the wrist comes across.
+        */
+        let toward;
+        if (r.endsWith('-hand')) {
+            const side = r[0];
+            const f = HAND_AIM.find((f) => source.roles[`${side}-${f}1`] != null &&
+                target.roles[`${side}-${f}1`] != null);
+            if (f != null)
+                toward = `${side}-${f}1`;
+        }
         const tReach = reach(r, target);
         const sReach = reach(r, source);
         const dt = restDirection(r, target, tRest);
@@ -470,8 +533,9 @@ export function retargeter(source, target, options = {}) {
                 continue;
             }
         }
-        const ds = restDirection(r, source, sRest);
-        align.set(r, ds != null && dt != null ? rotationBetween(dt, ds) : IDENTITY);
+        const ds = restDirection(r, source, sRest, toward);
+        const dt2 = toward != null ? restDirection(r, target, tRest, toward) : dt;
+        align.set(r, ds != null && dt2 != null ? rotationBetween(dt2, ds) : IDENTITY);
     }
     const sh = hipHeight(source, sRest);
     const th = hipHeight(target, tRest);

@@ -813,6 +813,12 @@ export type Panel3d = SVGSVGElement & {
     }) => boolean;
     /** Does the content overflow? */
     scrollable: boolean;
+    /**
+     * Is a press in progress (a control captured, or a scroll-drag)? A host
+     * that rebuilds the panel waits for the release, so a slider drag is not
+     * cut off by an unrelated refresh.
+     */
+    readonly pressing: boolean;
     /** Height of the title-bar band, in viewBox units. */
     gripHeight: number;
     /** Is this point on the bar a host may drag by (the bar less the close)? */

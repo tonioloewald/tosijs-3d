@@ -5102,7 +5102,7 @@ export class B3d extends Component {
         camera.lowerRadiusLimit = this.minDistance
         camera.upperRadiusLimit = this.maxDistance
         camera.attachControl(cnv, false)
-        // Two fingers pan, a pinch zooms, decided per gesture (#52).
+        // Shift-drag, a trackpad drag or two fingers pan; the wheel or a pinch zooms (#52).
         touchOrbit(camera)
         this.setActiveCamera(camera)
       }

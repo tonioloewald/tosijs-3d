@@ -760,6 +760,8 @@ export declare class B3d extends Component {
     }): boolean;
     private _flatFrames;
     private _flatPanels;
+    /** The camera the flat panels' frames follow (a new one rebuilds them all). */
+    private _flatCam;
     private _flatSig;
     private _flatCheckIn;
     private _flatHandWarned;
@@ -781,10 +783,9 @@ export declare class B3d extends Component {
     private _toggleSystemPanel;
     /**
      * New content on a system panel's element: if it is open, show the new
-     * content in the same place. A framed panel swaps it under its title bar
-     * IN PLACE (same plane, so a press mid-swap is not lost); `chrome="none"`
-     * closes and opens again (the spot is the element's, and a non-exclusive
-     * panel opening closes nothing).
+     * content in the same place, IN PLACE: under its title bar, or (with
+     * `chrome="none"`) on the same plane. Never closed and reopened, so a press
+     * mid-swap is not lost and nothing blinks.
      */
     private _swapSystemContent;
     /**
@@ -1210,6 +1211,8 @@ export declare class B3d extends Component {
     private _disposeFlatScenePanel;
     private _syncGamepadCover;
     private _openFlatScenePanel;
+    /** The flat settings panel's popups go on their own surface in front of it. */
+    private _attachFlatLayer;
     private _openScenePanel;
     private _panelHeightKey;
     private _panelResizeTimer;
@@ -1219,6 +1222,10 @@ export declare class B3d extends Component {
      * Call after async state the panel reflects has changed (e.g. a library loaded,
      * or XR availability / session state) so an already-open panel updates. */
     refreshScenePanel(): void;
+    /** The settings panel element showing now, in whichever presentation. */
+    private _livePanel;
+    private _held;
+    private _whenReleased;
     private _setupGamepad;
     private _xrToolbar;
     /** The VR toolbar's SVG while a session has one (for tests and tools). */

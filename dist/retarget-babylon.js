@@ -25,6 +25,8 @@ export function readSkeleton(skeleton, root, overrides = {}) {
     const above = new Map();
     const aboveMatrix = new Map();
     const bones = [];
+    // Each bone's rest as a full matrix (scale included), for addEnds.
+    const restOf = new Map();
     const scale = new BABYLON.Vector3();
     const rot = new BABYLON.Quaternion();
     const pos = new BABYLON.Vector3();
@@ -49,6 +51,7 @@ export function readSkeleton(skeleton, root, overrides = {}) {
                 rest = rest.multiply(toParent);
             }
         }
+        restOf.set(bone, rest);
         rest.decompose(scale, rot, pos);
         bones.push({ name, parent, rotation: q(rot), position: v(pos) });
     }
@@ -88,7 +91,7 @@ export function readSkeleton(skeleton, root, overrides = {}) {
             z: b.position.z * k,
         };
     }
-    addEnds(skeleton, bones, rootInv);
+    addEnds(skeleton, bones, restOf);
     return {
         bones,
         roles: humanoidRoles(bones, overrides),
@@ -103,9 +106,34 @@ it drives most. A Kenney chibi's arm is one bone with no hand, so only its
 flesh says the arm hangs down; without this, it took only the source's turn
 since rest, and UAL's rest is not a standing pose (the chibi walked like a
 crab). Measured in the model root's space, as the rest is.
+
+A vertex is taken into its bone's own frame by the bone's inverse bind
+matrix, then up the REST chain to the model root, exactly as the bones are.
+Going through the mesh's world matrix instead is wrong under a scaled
+armature (Mixamo through Blender, a 0.01): omnidude's ends all landed about
+a centimetre from the origin, below the head, so the head was aimed at its
+own feet and every clip played it upside down.
 */
-function addEnds(skeleton, bones, rootInv) {
+function addEnds(skeleton, bones, restOf) {
     const scene = skeleton.getScene();
+    // Each bone's rest in the model root's space, parents first.
+    const toRoot = new Map();
+    const rootOf = (bone) => {
+        let m = toRoot.get(bone);
+        if (m != null)
+            return m;
+        const local = restOf.get(bone) ?? BABYLON.Matrix.Identity();
+        const parent = bone.getParent();
+        m = parent != null ? local.multiply(rootOf(parent)) : local;
+        toRoot.set(bone, m);
+        return m;
+    };
+    // Vertex → bone frame → model root, by the index the mesh uses.
+    const byIndex = new Map();
+    skeleton.bones.forEach((bone, i) => byIndex.set(bone.getIndex(), {
+        i,
+        m: bone.getAbsoluteInverseBindMatrix().multiply(rootOf(bone)),
+    }));
     const sum = bones.map(() => ({ x: 0, y: 0, z: 0, n: 0 }));
     const p = new BABYLON.Vector3();
     for (const mesh of scene.meshes) {
@@ -116,7 +144,6 @@ function addEnds(skeleton, bones, rootInv) {
         const wts = mesh.getVerticesData(BABYLON.VertexBuffer.MatricesWeightsKind);
         if (pos == null || idx == null || wts == null)
             continue;
-        const toRoot = mesh.computeWorldMatrix(true).multiply(rootInv);
         for (let i = 0; i < pos.length / 3; i++) {
             let best = -1;
             let bw = 0;
@@ -127,10 +154,11 @@ function addEnds(skeleton, bones, rootInv) {
                     best = idx[i * 4 + k];
                 }
             }
-            if (best < 0 || best >= sum.length)
+            const b = byIndex.get(best);
+            if (b == null)
                 continue;
-            BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2], toRoot, p);
-            const s = sum[best];
+            BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2], b.m, p);
+            const s = sum[b.i];
             s.x += p.x;
             s.y += p.y;
             s.z += p.z;

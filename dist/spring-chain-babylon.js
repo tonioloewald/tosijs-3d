@@ -220,7 +220,10 @@ export function springNodes(scene, nodes, options = {}) {
         nodes[nodes.length - 1].computeWorldMatrix(true);
     };
     let first = true;
+    let paused = false;
     const obs = scene.onAfterAnimationsObservable.add(() => {
+        if (paused)
+            return;
         freshen(anchor);
         nodes[0].computeWorldMatrix(true);
         const a = nodes[0].getAbsolutePosition();
@@ -242,6 +245,14 @@ export function springNodes(scene, nodes, options = {}) {
         },
         reset() {
             first = true;
+        },
+        get paused() {
+            return paused;
+        },
+        set paused(on) {
+            if (!on && paused)
+                first = true;
+            paused = on;
         },
         dispose() {
             scene.onAfterAnimationsObservable.remove(obs);

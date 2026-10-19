@@ -14,6 +14,7 @@ reading the code.
 - [Biped Playground](/playground/)
 - [Solar System](/solar-system/)
 - [Weapon Fit](/weapon-fit/)
+- [Rig tool](/rig-tool/)
 - [Skybox Baker](/skybox-baker/)
 - [Land and Sky](/land-and-sky/)
 <!-- /toc -->

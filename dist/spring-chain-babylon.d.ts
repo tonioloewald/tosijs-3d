@@ -22,6 +22,11 @@ export interface SpringBones {
     }): BABYLON.Mesh;
     /** Back to the rest shape (after a teleport). */
     reset(): void;
+    /**
+     * Hold the chain where it is: no simulation while true (an editor's rest
+     * pose). It picks up from its rest shape when set false again.
+     */
+    paused: boolean;
     dispose(): void;
 }
 /**

@@ -4,23 +4,7 @@
 Animation Library's clips are authored on the UE mannequin; a Mixamo
 character, a Kenney chibi or a model of your own has different bone names,
 a different number of bones, a different rest pose and different
-proportions. This is the pure core that makes the clips play anyway:
-
-1. **Roles.** `humanoidRoles(bones)` says which bone is the hips, the chest,
-   the left forearm, … from the names and the hierarchy, across the common
-   spellings (UE `upperarm_l`, Mixamo `mixamorig:LeftArm`, Kenney `arm-left`,
-   Blender `forearm.L`). Fingers, twist, IK and end bones are left alone.
-2. **Rotations, not positions.** `retargetPose` gives each target bone the
-   world-space rotation its source bone made since ITS rest, so bone
-   lengths are the target's own: a long-legged clip on a short-legged body
-   bends the same joints by the same angles.
-3. **Rest poses that disagree.** A clip authored on an A-pose rig, played on
-   a T-pose one, must still put the arms where the clip shows them, not 45°
-   higher. Each target bone is first lined up with its source bone's rest
-   direction (toward the next joint down the limb), so poses come across
-   as the clip shows them, whatever rest pose either rig was bound in.
-4. **The hips move in proportion.** Their translation is scaled by the ratio
-   of hip heights, so a short character's stride is shorter, not stretched.
+proportions. This makes the clips play anyway.
 
 ## Demo
 
@@ -109,6 +93,26 @@ preview.append(
   )
 )
 ```
+
+## How it works
+
+1. **Roles.** `humanoidRoles(bones)` says which bone is the hips, the chest,
+   the left forearm, … from the names and the hierarchy, across the common
+   spellings (UE `upperarm_l`, Mixamo `mixamorig:LeftArm`, Kenney `arm-left`,
+   Blender `forearm.L`), and each finger's three joints (`index_01_l`,
+   `LeftHandIndex1`, `thumb.01.L`). Twist, IK and end bones are left alone.
+2. **Rotations, not positions.** `retargeter(source, target).pose` gives each target bone the
+   world-space rotation its source bone made since ITS rest, so bone
+   lengths are the target's own: a long-legged clip on a short-legged body
+   bends the same joints by the same angles.
+3. **Rest poses that disagree.** A clip authored on an A-pose rig, played on
+   a T-pose one, must still put the arms where the clip shows them, not 45°
+   higher. Each target bone is first lined up with its source bone's rest
+   direction (toward the next joint down the limb; a hand toward a finger
+   both rigs have), so poses come across as the clip shows them, whatever
+   rest pose either rig was bound in.
+4. **The hips move in proportion.** Their translation is scaled by the ratio
+   of hip heights, so a short character's stride is shorter, not stretched.
 
 Babylon-free and deterministic (plain `{x, y, z, w}` quaternions), like
 `fly-by-wire`: the Babylon side (`retarget-babylon`) reads the skeletons and

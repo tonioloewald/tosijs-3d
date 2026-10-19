@@ -69,7 +69,11 @@ describe('two fingers: pan or zoom, decided once (tosijs-3d#52)', () => {
 })
 
 describe('wheel: pan or zoom', () => {
-  const ev = (deltaY: number, deltaX = 0, extra: Partial<{ deltaMode: number; ctrlKey: boolean }> = {}) => ({
+  const ev = (
+    deltaY: number,
+    deltaX = 0,
+    extra: Partial<{ deltaMode: number; ctrlKey: boolean }> = {}
+  ) => ({
     deltaX,
     deltaY,
     deltaMode: 0,

@@ -27,4 +27,15 @@ export interface TwoFingerGesture {
 export declare function twoFingerGesture(options?: {
     decidePx?: number;
 }): TwoFingerGesture;
+export type WheelKind = 'pan' | 'zoom';
+export interface WheelSample {
+    deltaX: number;
+    deltaY: number;
+    deltaMode: number;
+    ctrlKey: boolean;
+}
+export declare function wheelClassifier(gapMs?: number): {
+    /** `now` in milliseconds (an event's `timeStamp`). */
+    kind(e: WheelSample, now: number): WheelKind;
+};
 //# sourceMappingURL=touch-gesture.d.ts.map

@@ -1,8 +1,12 @@
 import { type Quat, type Vec3 } from './spatial-transform.js';
 export type Side = 'l' | 'r';
 export type Limb = 'clavicle' | 'upperArm' | 'lowerArm' | 'hand' | 'upperLeg' | 'lowerLeg' | 'foot' | 'toes';
+export type Finger = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
+export declare const FINGERS: readonly Finger[];
+/** A finger joint: 1 at the knuckle (the thumb's at the wrist), 3 at the tip. */
+export type FingerJoint = `${Finger}${1 | 2 | 3}`;
 /** What a bone IS in a humanoid, whatever it is called. */
-export type Role = 'hips' | 'spine' | 'chest' | 'neck' | 'head' | `${Side}-${Limb}`;
+export type Role = 'hips' | 'spine' | 'chest' | 'neck' | 'head' | `${Side}-${Limb}` | `${Side}-${FingerJoint}`;
 export declare const ROLES: readonly Role[];
 /** A bone as `humanoidRoles` needs it: its name and its parent's. */
 export interface NamedBone {

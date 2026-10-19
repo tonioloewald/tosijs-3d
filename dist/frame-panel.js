@@ -332,7 +332,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
             f[2] + horiz * Math.cos(az),
         ];
     };
-    const el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''));
+    // `let`: `setSvg` swaps the content into the same plane and texture.
+    let el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''));
     const aspect = el
         ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
         : spec.aspect ?? 1;
@@ -648,26 +649,9 @@ export function attachFramePanel(scene, cam, frame, spec) {
         updates: 0,
         camera: '—',
     };
-    /*
-    POINTERS, so a panel of controls is a panel you can USE (tosijs-3d#92).
-  
-    A `panel3d` SVG exposes `handlePointer(kind, x, y)` in viewBox coordinates,
-    and b3d-svg-plane has always routed scene picks into it — mouse, touch and
-    XR rays alike, through the one scene pointer observable. This marked its
-    plane pickable and routed nothing, so a menu here drew working-looking
-    buttons that ignored every click, with no error: the worst failure a menu
-    can have. Same routing as b3d-svg-plane: a press must land ON the plane, and
-    once pressed the panel owns the gesture until release (so a slider drag
-    survives leaving the track).
-  
-    A gaze-hidden panel does not take presses: it is not there for the user.
-  
-    And REPAINT NOW on a press or release, instead of waiting for the texture's
-    400 ms timer. Otherwise a button's pressed state lags by up to that, which
-    does not matter for a reticle and matters a lot for a menu. A move repaints
-    at most once per frame.
-    */
-    const target = el;
+    let target = el;
+    // Ends a gesture in progress on the old content (set by the pointer wiring).
+    let endGesture = () => { };
     /*
     DRAGGED BY ITS TITLE BAR, on screen. A screen-anchored panel whose SVG
     says where its grip is (`gripHit`, from `panel3d({ grip })`) moves with the
@@ -760,6 +744,12 @@ export function attachFramePanel(scene, cam, frame, spec) {
         const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes;
         let pressing = false;
         let hovering = false;
+        endGesture = () => {
+            if (pressing || hovering)
+                target?.handlePointer?.('leave', 0, 0);
+            pressing = false;
+            hovering = false;
+        };
         let lastX = 0;
         let lastY = 0;
         let repaintQueued = false;
@@ -890,7 +880,7 @@ export function attachFramePanel(scene, cam, frame, spec) {
         */
         const canvas = scene.getEngine().getRenderingCanvas();
         const wheelHost = canvas?.parentElement ?? canvas;
-        const scrollTarget = el;
+        const scrollTarget = () => el;
         const onWheel = (e) => {
             if (canvas == null || plane.visibility <= 0.5)
                 return;
@@ -908,8 +898,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
                 : e.deltaMode === 2
                     ? e.deltaY * r.height
                     : e.deltaY;
-            if (typeof scrollTarget.scrollBy === 'function') {
-                scrollTarget.scrollBy(px * perPx);
+            if (typeof scrollTarget().scrollBy === 'function') {
+                scrollTarget().scrollBy(px * perPx);
                 repaint(false);
             }
         };
@@ -982,7 +972,21 @@ export function attachFramePanel(scene, cam, frame, spec) {
         drawn: shown,
         // Its SVG (null for a `url` panel): send it `panelfocus` to bring the
         // panel front and centre, as the scene's VR toolbar does.
-        el,
+        get el() {
+            return el;
+        },
+        setSvg(next) {
+            if (el == null || next === el)
+                return;
+            endGesture();
+            el.removeEventListener('panelfocus', onFocus);
+            el = next;
+            target = next;
+            if (focusable)
+                el.addEventListener('panelfocus', onFocus);
+            // The texture keeps the old picture until the new one is drawn.
+            tex.setElement(next);
+        },
         // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
         // panel can be limited to one. Defaults to visible if no context is given.
         update(ctx) {

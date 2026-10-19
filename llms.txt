@@ -1,4 +1,4 @@
-# tosijs-3d v0.10.14
+# tosijs-3d v0.10.15
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -379,6 +379,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Animation Library's clips are authored on the UE mannequin; a Mixamo
 - https://3d.tosijs.net/rig-markers/ — rig markers
   auto-rigger asks for eight points on a front view (chin, wrists, elbows,
+- https://3d.tosijs.net/rig-tool/ — Rig tool
+  result.** Pick one of the demo characters or load your own GLB. Check which
 - https://3d.tosijs.net/rocky-world/ — rocky-world
   Io, Titan, an ice moon and an Earth, each a sea, an air, clouds, relief, craters and a climate.
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
@@ -458,7 +460,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/touch-gesture/ — touch-gesture
   Pure — no Babylon, no DOM — so the decision is tested without a touchscreen.
 - https://3d.tosijs.net/touch-orbit/ — touch-orbit
-  `touchOrbit(camera)` gives an `ArcRotateCamera` the touch map in
+  `touchOrbit(camera)` gives an `ArcRotateCamera` the view controls people
 - https://3d.tosijs.net/ui/ — UI
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/vertex-animation/ — vertex-animation

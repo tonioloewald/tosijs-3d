@@ -6,7 +6,8 @@ import {
   validateRigRecipe,
 } from './rig-recipe.js'
 
-const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(1e-9)
+const close = (a: number, b: number) =>
+  expect(Math.abs(a - b)).toBeLessThan(1e-9)
 
 describe('rig recipe', () => {
   test('a strand at yaw 0 hangs backward; positive yaw turns it to the left', () => {
@@ -27,7 +28,11 @@ describe('rig recipe', () => {
         armSpaceDeg: 10,
         springs: [
           { ...STRAND_DEFAULTS, anchor: 'Head' },
-          { kind: 'bones', root: 'tail_01', colliders: [{ bone: 'pelvis', radius: 0.1 }] },
+          {
+            kind: 'bones',
+            root: 'tail_01',
+            colliders: [{ bone: 'pelvis', radius: 0.1 }],
+          },
         ],
       })
     ).toEqual([])
@@ -37,7 +42,16 @@ describe('rig recipe', () => {
     const problems = validateRigRecipe({
       version: 0,
       springs: [
-        { kind: 'strand', anchor: 'Head', offset: { x: 0 }, yawDeg: 0, pitchDeg: 0, length: -1, segments: 0, radius: 0.1 },
+        {
+          kind: 'strand',
+          anchor: 'Head',
+          offset: { x: 0 },
+          yawDeg: 0,
+          pitchDeg: 0,
+          length: -1,
+          segments: 0,
+          radius: 0.1,
+        },
         { kind: 'wing' },
         { kind: 'bones', root: 'tail', colliders: [{ radius: 1 }] },
       ],
@@ -47,7 +61,9 @@ describe('rig recipe', () => {
     expect(problems).toContain('springs[0].segments is not 1 to 64')
     expect(problems).toContain('springs[0].length is not positive')
     expect(problems).toContain("springs[1].kind is not 'bones' or 'strand'")
-    expect(problems).toContain('springs[2].colliders[0] needs a bone and a radius')
+    expect(problems).toContain(
+      'springs[2].colliders[0] needs a bone and a radius'
+    )
     expect(validateRigRecipe(null)).toEqual(['not an object'])
   })
 })

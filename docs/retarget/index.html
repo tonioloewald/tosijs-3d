@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=3c653dbb18c3" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=4bb6a858a195" data-tosi-doc-system />
   <title>retarget — tosijs-3d</title>
   <meta name="description" content="One humanoid&#39;s animation on another humanoid&#39;s body. The Universal Animation Library&#39;s clips are authored on the UE mannequin; a Mixamo character, a Kenney…" />
   <link rel="canonical" href="https://3d.tosijs.net/retarget/" />
@@ -30,31 +30,14 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=e6eb8ae5f9d2" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
-  <article class="doc-content">
+  <tosi-doc-system docs="../docs.json?v=b9da72e114dd" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <article class="doc-content" data-doc="retarget.ts">
 <h1 id="retarget">retarget</h1>
 <p><strong>One humanoid&#39;s animation on another humanoid&#39;s body.</strong> The Universal
 Animation Library&#39;s clips are authored on the UE mannequin; a Mixamo
 character, a Kenney chibi or a model of your own has different bone names,
 a different number of bones, a different rest pose and different
-proportions. This is the pure core that makes the clips play anyway:</p>
-<ol>
-<li><strong>Roles.</strong> <code>humanoidRoles(bones)</code> says which bone is the hips, the chest,
-the left forearm, … from the names and the hierarchy, across the common
-spellings (UE <code>upperarm_l</code>, Mixamo <code>mixamorig:LeftArm</code>, Kenney <code>arm-left</code>,
-Blender <code>forearm.L</code>). Fingers, twist, IK and end bones are left alone.</li>
-<li><strong>Rotations, not positions.</strong> <code>retargetPose</code> gives each target bone the
-world-space rotation its source bone made since ITS rest, so bone
-lengths are the target&#39;s own: a long-legged clip on a short-legged body
-bends the same joints by the same angles.</li>
-<li><strong>Rest poses that disagree.</strong> A clip authored on an A-pose rig, played on
-a T-pose one, must still put the arms where the clip shows them, not 45°
-higher. Each target bone is first lined up with its source bone&#39;s rest
-direction (toward the next joint down the limb), so poses come across
-as the clip shows them, whatever rest pose either rig was bound in.</li>
-<li><strong>The hips move in proportion.</strong> Their translation is scaled by the ratio
-of hip heights, so a short character&#39;s stride is shorter, not stretched.</li>
-</ol>
+proportions. This makes the clips play anyway.</p>
 <h2 id="demo">Demo</h2>
 <p>One clip, four bodies. On the right, UAL&#39;s own mannequin plays the original;
 then the same clip retargeted onto a Quaternius superhero (the same 65 bones,
@@ -138,6 +121,26 @@ preview.append(
   )
 )
 </code></pre>
+<h2 id="how-it-works">How it works</h2>
+<ol>
+<li><strong>Roles.</strong> <code>humanoidRoles(bones)</code> says which bone is the hips, the chest,
+the left forearm, … from the names and the hierarchy, across the common
+spellings (UE <code>upperarm_l</code>, Mixamo <code>mixamorig:LeftArm</code>, Kenney <code>arm-left</code>,
+Blender <code>forearm.L</code>), and each finger&#39;s three joints (<code>index_01_l</code>,
+<code>LeftHandIndex1</code>, <code>thumb.01.L</code>). Twist, IK and end bones are left alone.</li>
+<li><strong>Rotations, not positions.</strong> <code>retargeter(source, target).pose</code> gives each target bone the
+world-space rotation its source bone made since ITS rest, so bone
+lengths are the target&#39;s own: a long-legged clip on a short-legged body
+bends the same joints by the same angles.</li>
+<li><strong>Rest poses that disagree.</strong> A clip authored on an A-pose rig, played on
+a T-pose one, must still put the arms where the clip shows them, not 45°
+higher. Each target bone is first lined up with its source bone&#39;s rest
+direction (toward the next joint down the limb; a hand toward a finger
+both rigs have), so poses come across as the clip shows them, whatever
+rest pose either rig was bound in.</li>
+<li><strong>The hips move in proportion.</strong> Their translation is scaled by the ratio
+of hip heights, so a short character&#39;s stride is shorter, not stretched.</li>
+</ol>
 <p>Babylon-free and deterministic (plain <code>{x, y, z, w}</code> quaternions), like
 <code>fly-by-wire</code>: the Babylon side (<code>retarget-babylon</code>) reads the skeletons and
 writes the result.</p>
@@ -155,6 +158,7 @@ over the mesh, as Mixamo&#39;s auto-rigger does, and binds the mesh to it.</p>
       <li><a class="doc-link" href="../playground/">Biped Playground</a></li>
       <li><a class="doc-link" href="../solar-system/">Solar System</a></li>
       <li><a class="doc-link" href="../weapon-fit/">Weapon Fit</a></li>
+      <li><a class="doc-link" href="../rig-tool/">Rig tool</a></li>
       <li><a class="doc-link" href="../skybox-baker/">Skybox Baker</a></li>
       <li><a class="doc-link" href="../land-and-sky/">Land and Sky</a></li>
     </ul>
@@ -596,6 +600,6 @@ over the mesh, as Mixamo&#39;s auto-rigger does, and binds the mesh to it.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-50vacf13.js"></script>
+  <script type="module" src="../hydrate-r5r8m7f8.js"></script>
 </body>
 </html>

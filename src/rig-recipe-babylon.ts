@@ -100,7 +100,8 @@ export function applyRigRecipe(
   const autoColliders = (): SpringBoneCollider[] => {
     const out: SpringBoneCollider[] = []
     const head = roleNode('head')
-    if (head) out.push({ node: head, radius: 0.12 * k, offset: up.scale(0.09 * k) })
+    if (head)
+      out.push({ node: head, radius: 0.12 * k, offset: up.scale(0.09 * k) })
     const chest = roleNode('chest')
     if (chest) out.push({ node: chest, radius: 0.17 * k })
     for (const r of ['l-clavicle', 'r-clavicle'] as const) {

@@ -71,4 +71,28 @@ export function twoFingerGesture(options = {}) {
         },
     };
 }
+export function wheelClassifier(gapMs = 150) {
+    let last = null;
+    return {
+        kind(e, now) {
+            let kind;
+            if (e.ctrlKey)
+                kind = 'zoom';
+            else if (e.deltaMode !== 0)
+                kind = 'zoom';
+            else if (e.deltaX !== 0)
+                kind = 'pan';
+            else if (last != null && now - last.at < gapMs)
+                kind = last.kind;
+            else {
+                const y = Math.abs(e.deltaY);
+                const notch = y > 0 &&
+                    Math.abs(y / 4.000244140625 - Math.round(y / 4.000244140625)) < 1e-6;
+                kind = y >= 50 || notch ? 'zoom' : 'pan';
+            }
+            last = { kind, at: now };
+            return kind;
+        },
+    };
+}
 //# sourceMappingURL=touch-gesture.js.map

@@ -112,7 +112,10 @@ export function touchOrbit(
     panBy(camera, -e.deltaX, -e.deltaY)
   }
   if (options.trackpadPan !== false)
-    canvas?.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    canvas?.addEventListener('wheel', onWheel, {
+      capture: true,
+      passive: false,
+    })
 
   return () => {
     pointers.onMultiTouch = original

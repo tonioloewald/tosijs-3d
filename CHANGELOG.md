@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.10.15
 
 ### Added
 
@@ -23,6 +23,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Retargeted characters keep their heads and hands** (Tonio). Where a bone with no joint below it points (a head, a hand) was measured through the mesh's world matrix, which is wrong under a scaled armature: omnidude's (Mixamo, 0.01) all landed by the origin, so every clip played his head upside down and twisted his hands. It is now measured through each bone's inverse bind matrix and up the rest chain, as the bones are.
 - **Fingers and thumbs are retargeted.** `humanoidRoles` finds each finger's three joints across UE, Mixamo and Rigify spellings (never the tip's end bone or a metacarpal), so a clip's grip comes across instead of the fingers staying splayed at rest. A hand is aimed along a finger both rigs have, so the wrist's twist comes across too.
 - **A settings-panel rebuild waits for the press to end**, so `refreshScenePanel()` during a slider drag no longer cuts the drag off (`panel3d`'s new read-only `pressing`).
+
+Size: barrel (min, packages external) 1167.3 KB raw / 399.6 KB gz, +0.8% on 0.10.14 (the rig recipe and retarget's finger roles; the rig tool is a subpath, outside the barrel).
 
 ## 0.10.14
 

@@ -1,5 +1,0 @@
-import{H}from"./site-10chp8j8.js";import{K,Z}from"./site-y5djcndq.js";var n="KHR_materials_diffuse_roughness";class Z0{constructor(e){this.name=n,this.order=190,this._loader=e,this.enabled=this._loader.isExtensionUsed(n)}dispose(){this._loader=null}loadMaterialPropertiesAsync(e,s,o){return H.LoadExtensionAsync(e,s,this.name,async(t,i)=>{let r=[];return r.push(this._loader.loadMaterialPropertiesAsync(e,s,o)),r.push(this._loadDiffuseRoughnessPropertiesAsync(t,i,o)),await Promise.all(r).then(()=>{})})}_loadDiffuseRoughnessPropertiesAsync(e,s,o){let t=this._loader._getOrCreateMaterialAdapter(o),i=[];if(t.baseDiffuseRoughness=s.diffuseRoughnessFactor??0,s.diffuseRoughnessTexture)i.push(this._loader.loadTextureInfoAsync(`${e}/diffuseRoughnessTexture`,s.diffuseRoughnessTexture,(r)=>{r.name=`${o.name} (Diffuse Roughness)`,t.baseDiffuseRoughnessTexture=r}));return Promise.all(i).then(()=>{})}}var u=!1;function K0(){if(u)return;u=!0,Z(n),K(n,!0,(e)=>new Z0(e))}K0();
-export{Z0,K0};
-
-//# debugId=74154F021ED44E5864756E2164756E21
-//# sourceMappingURL=site-wa62aknd.js.map

@@ -437,16 +437,18 @@ export { w3dTheme, setW3dTheme, withTheme } from './w3d-theme.js';
 export { waterNormalTexture, tileHeight, writeNormalMap, } from './water-normal.js';
 export { themeEditor, FONT_STACKS } from './theme-editor.js';
 export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64OfBytes, } from './embed-font.js';
-// Touch on an orbit camera: one finger orbits, two pan, a pinch zooms (#52).
+// The orbit camera's view controls: orbit, pan (shift-drag, trackpad, two fingers), zoom (#52).
 export { touchOrbit } from './touch-orbit.js';
-export { twoFingerGesture, } from './touch-gesture.js';
+export { twoFingerGesture, wheelClassifier, } from './touch-gesture.js';
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js';
 export { debugSink, sendDebug } from './debug-sink.js';
 export { nearFirst, drawKey } from './draw-order.js';
 export { noiseVolume, sampleNoiseVolume } from './noise-volume.js';
 export { CLIMATE_CELLS, climateLattice, climateNoise, climateOctave, } from './climate-noise.js';
-export { humanoidRoles, retargeter, rotationBetween, ROLES, } from './retarget.js';
+export { humanoidRoles, retargeter, rotationBetween, ROLES, FINGERS, } from './retarget.js';
 export { readSkeleton, retargetClip, retargetClips, } from './retarget-babylon.js';
+export { RIG_RECIPE_VERSION, STRAND_DEFAULTS, strandDirection, validateRigRecipe, } from './rig-recipe.js';
+export { applyRigRecipe } from './rig-recipe-babylon.js';
 export { fitSkeleton, fittedRestBones, meshQuery, objTriangles, skinSegments, MARKER_NAMES, rigSilhouette, guessMarkers, } from './rig-fit.js';
 export { markerField3d, MARKER_LABELS } from './rig-markers.js';
 export { boneHeat } from './bone-heat.js';

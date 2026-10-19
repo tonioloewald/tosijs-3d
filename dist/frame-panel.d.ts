@@ -290,6 +290,14 @@ export declare function attachFramePanel(scene: BABYLON.Scene, cam: BABYLON.Targ
     readonly drawn: BABYLON.Mesh;
     /** Its SVG (null for a `url` panel). `panelfocus` on it brings it front and centre. */
     readonly el: SVGSVGElement | null;
+    /**
+     * Show other content on the same plane: the texture keeps the old picture
+     * until the new one is drawn, so nothing blinks, and the next press goes to
+     * the new content. A gesture already in the old content ends there. Its
+     * size can differ (the plane scales, as it does for content that grows).
+     * Nothing for a `url` panel.
+     */
+    setSvg: (next: SVGSVGElement) => void;
     /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
      * the ONLY way to see why a panel is (or isn't) revealing. */
     readonly debug: {

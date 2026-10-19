@@ -116,6 +116,8 @@ export class SvgTexture {
     _element;
     _scene;
     _rendering = false;
+    /** A new element arrived mid-render: render again when that one lands. */
+    _again = false;
     _img = new Image();
     _lastXml = '';
     _warnedFailure = false;
@@ -147,6 +149,21 @@ export class SvgTexture {
             this.texture = new BABYLON.Texture(null, scene);
             this.texture.hasAlpha = true;
         }
+    }
+    /**
+     * Draw a different live element from now on. The texture keeps its current
+     * picture until the new one is drawn (a render is asynchronous), so a panel
+     * swapping its content never shows a blank frame.
+     */
+    setElement(element) {
+        if (element === this._element)
+            return;
+        this._element = element;
+        // A render in flight is of the old element: draw the new one after it.
+        if (this._rendering)
+            this._again = true;
+        else
+            this.render();
     }
     /** Manually trigger a re-render from the live SVG element. */
     render() {
@@ -218,6 +235,10 @@ export class SvgTexture {
             // success — so a failed frame is retried on the next tick instead of
             // being remembered as done.
             this._rendering = false;
+            if (this._again) {
+                this._again = false;
+                queueMicrotask(() => this.render());
+            }
             if (ok) {
                 this._lastXml = xml;
                 const upload = performance.now();
