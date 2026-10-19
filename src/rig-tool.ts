@@ -82,6 +82,7 @@ import {
   type Widget3d,
 } from './widgets3d.js'
 import { vector3d } from './vector-field.js'
+import { pointerClaimedByPanel } from './frame-panel.js'
 import { readSkeleton, retargetClip } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
@@ -172,7 +173,13 @@ export function rigToolModels(): RigModel[] {
         objects: ['Body', 'Head', 'Tail'],
         color: '#cc8040',
         tail: { x: 0, y: 0.77, z: -0.95 },
-        markers: markers([0, 1.259], [0, 0.64], [0.657, 1.154], [0.404, 1.14], [0.106, 0.34]),
+        markers: markers(
+          [0, 1.259],
+          [0, 0.64],
+          [0.657, 1.154],
+          [0.404, 1.14],
+          [0.106, 0.34]
+        ),
       },
       recipe: { springs: [TAIL] },
     },
@@ -183,7 +190,13 @@ export function rigToolModels(): RigModel[] {
         objects: ['Weasel'],
         color: '#996b40',
         tail: { x: 0, y: 0.5, z: -0.95 },
-        markers: markers([0, 0.967], [0, 0.358], [0.51, 0.763], [0.397, 0.763], [0.142, 0.174]),
+        markers: markers(
+          [0, 0.967],
+          [0, 0.358],
+          [0.51, 0.763],
+          [0.397, 0.763],
+          [0.142, 0.174]
+        ),
       },
       recipe: { springs: [TAIL] },
     },
@@ -194,7 +207,13 @@ export function rigToolModels(): RigModel[] {
       autorig: {
         mesh: 'EvilMarineBody',
         color: '#4d664d',
-        markers: markers([0, 3.594], [0, 1.656], [1.966, 2.937], [1.18, 3.064], [0.388, 0.943]),
+        markers: markers(
+          [0, 3.594],
+          [0, 1.656],
+          [1.966, 2.937],
+          [1.18, 3.064],
+          [0.388, 0.943]
+        ),
       },
     },
     {
@@ -225,6 +244,10 @@ export interface RigToolApi {
   recipe: RigRecipe
   /** What is on the character now: the read skeleton and live springs. */
   readonly applied: AppliedRig | null
+  /** The status line: what was loaded, set or went wrong. */
+  readonly status: string
+  /** The role being edited (a tap on its dot, or the panel, chooses it). */
+  readonly role: Role
   load(model: RigModel | File): Promise<void> | undefined
 }
 
@@ -279,7 +302,9 @@ function chooseFile(accept: string): Promise<File | null> {
 }
 
 function download(name: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+  const url = URL.createObjectURL(
+    new Blob([text], { type: 'application/json' })
+  )
   const a = document.createElement('a')
   a.href = url
   a.download = name
@@ -387,7 +412,8 @@ async function autoRig(
 }
 
 /** The panel's view of a role: what it is set to, and what was guessed. */
-const roleLabel = (r: Role) => r.replace(/^l-/, 'left ').replace(/^r-/, 'right ')
+const roleLabel = (r: Role) =>
+  r.replace(/^l-/, 'left ').replace(/^r-/, 'right ')
 
 /**
  * The rig tool: a `<tosi-b3d>` with its panel. `models` replaces the demo
@@ -568,7 +594,10 @@ export function rigTool(
         handleClick: () => {
           const anchor = applied?.read.roles.head ?? boneNames[0]
           if (anchor == null) return
-          springs.push({ ...JSON.parse(JSON.stringify(STRAND_DEFAULTS)), anchor })
+          springs.push({
+            ...JSON.parse(JSON.stringify(STRAND_DEFAULTS)),
+            anchor,
+          })
           recipe.springs = springs
           ui.spring = springs.length - 1
           changed()
@@ -1054,38 +1083,109 @@ export function rigTool(
               dot(nodes[0].getAbsolutePosition(), size, mat, { rigSpring: i })
               return
             }
-            const strand = sp.recipe
-            const root = dot(nodes[0].getAbsolutePosition(), size, mat, {
+            dot(nodes[0].getAbsolutePosition(), size, mat, {
               rigSpring: i,
+              handle: 'root',
             })
-            const tip = dot(nodes[nodes.length - 1].getAbsolutePosition(), size, mat, {
+            dot(nodes[nodes.length - 1].getAbsolutePosition(), size, mat, {
               rigSpring: i,
+              handle: 'tip',
             })
-            // Drag either end; let go and the strand is rebuilt there.
-            for (const handle of [root, tip]) {
-              const drag = new BABYLON.PointerDragBehavior()
-              drag.onDragStartObservable.add(() => {
-                ui.spring = i
-              })
-              drag.onDragEndObservable.add(() => {
-                const anchor = applied?.read.nodes.get(strand.anchor)
-                if (anchor == null) return
-                const a = anchor.getAbsolutePosition()
-                const from = root.position
-                const d = tip.position.subtract(from)
-                const len = d.length()
-                if (len < 1e-4) return
-                strand.offset = { x: from.x - a.x, y: from.y - a.y, z: from.z - a.z }
-                strand.length = len
-                strand.pitchDeg = (Math.asin(d.y / len) * 180) / Math.PI
-                strand.yawDeg = (Math.atan2(-d.x, -d.z) * 180) / Math.PI
-                changed()
-                refresh()
-              })
-              handle.addBehavior(drag)
-            }
           })
         }
+
+        /*
+        DRAGGING A STRAND'S END, on the canvas's own pointer events: Babylon's
+        PointerDragBehavior was ended mid-drag by its click detection (a
+        delayed pointer-up while the button was still down). The handle moves
+        on a plane facing the camera; let go and the strand is rebuilt there.
+        */
+        const canvas = scene.getEngine().getRenderingCanvas()!
+        // CSS pixels from the canvas corner: what scene.pick and
+        // createPickingRay take (they apply the hardware scaling).
+        const toRender = (e: PointerEvent) => {
+          const r = canvas.getBoundingClientRect()
+          return { x: e.clientX - r.left, y: e.clientY - r.top }
+        }
+        /*
+        After Babylon's own listener (this one is added later, and not in
+        the capture phase): a panel has claimed its presses by then, and
+        those are the panel's. Taking a handle stops the camera for the
+        drag, as Babylon's drag behaviour does.
+        */
+        canvas.addEventListener('pointerdown', (e) => {
+          if (ui.pose !== 'rest' || e.button !== 0 || applied == null) return
+          if (pointerClaimedByPanel(e)) return
+          const at = toRender(e)
+          const hit = scene.pick(
+            at.x,
+            at.y,
+            (m) =>
+              dots.includes(m as BABYLON.Mesh) && m.metadata?.handle != null
+          )
+          const handle = hit?.pickedMesh as BABYLON.Mesh | undefined
+          if (handle == null) {
+            // Not a handle: the camera may orbit, and a press that does
+            // not travel is a tap. (Babylon's own POINTERTAP fires on a
+            // timer, even in the middle of a drag, so it is not used.)
+            const done = (ev: PointerEvent) => {
+              window.removeEventListener('pointerup', done, true)
+              const p = toRender(ev)
+              if (Math.hypot(p.x - at.x, p.y - at.y) < 6) tap(p.x, p.y)
+            }
+            window.addEventListener('pointerup', done, true)
+            return
+          }
+          const i = handle.metadata.rigSpring as number
+          const strand = recipe.springs?.[i]
+          if (strand?.kind !== 'strand') return
+          ui.spring = i
+          cam.detachControl()
+          const plane = BABYLON.Plane.FromPositionAndNormal(
+            handle.position,
+            cam.getForwardRay().direction
+          )
+          const move = (ev: PointerEvent) => {
+            const p = toRender(ev)
+            const ray = scene.createPickingRay(
+              p.x,
+              p.y,
+              BABYLON.Matrix.Identity(),
+              cam
+            )
+            const d = ray.intersectsPlane(plane)
+            if (d != null)
+              handle.position.copyFrom(ray.origin.add(ray.direction.scale(d)))
+          }
+          const up = () => {
+            window.removeEventListener('pointermove', move, true)
+            window.removeEventListener('pointerup', up, true)
+            cam.attachControl(canvas, true)
+            const ends = dots.filter((d) => d.metadata?.rigSpring === i)
+            const from = ends.find(
+              (d) => d.metadata.handle === 'root'
+            )!.position
+            const to = ends.find((d) => d.metadata.handle === 'tip')!.position
+            const anchor = applied?.read.nodes.get(strand.anchor)
+            if (anchor == null) return
+            const a = anchor.getAbsolutePosition()
+            const dir = to.subtract(from)
+            const len = dir.length()
+            if (len < 1e-4) return
+            strand.offset = {
+              x: from.x - a.x,
+              y: from.y - a.y,
+              z: from.z - a.z,
+            }
+            strand.length = len
+            strand.pitchDeg = (Math.asin(dir.y / len) * 180) / Math.PI
+            strand.yawDeg = (Math.atan2(-dir.x, -dir.z) * 180) / Math.PI
+            changed()
+            refresh()
+          }
+          window.addEventListener('pointermove', move, true)
+          window.addEventListener('pointerup', up, true)
+        })
 
         /** The bone a point on the body belongs to: the nearest bone's length. */
         const nearestBone = (p: BABYLON.Vector3): string | null => {
@@ -1099,13 +1199,22 @@ export function rigTool(
               .getChildren()
               .filter((c) => nodes.has(c as BABYLON.TransformNode))
             const ends = kids.length
-              ? kids.map((k) => (k as BABYLON.TransformNode).getAbsolutePosition())
+              ? kids.map((k) =>
+                  (k as BABYLON.TransformNode).getAbsolutePosition()
+                )
               : [a]
             for (const b of ends) {
               const ab = b.subtract(a)
               const t =
                 ab.lengthSquared() > 1e-12
-                  ? Math.max(0, Math.min(1, BABYLON.Vector3.Dot(p.subtract(a), ab) / ab.lengthSquared()))
+                  ? Math.max(
+                      0,
+                      Math.min(
+                        1,
+                        BABYLON.Vector3.Dot(p.subtract(a), ab) /
+                          ab.lengthSquared()
+                      )
+                    )
                   : 0
               const dist = BABYLON.Vector3.Distance(p, a.add(ab.scale(t)))
               if (dist < bestD) {
@@ -1117,11 +1226,10 @@ export function rigTool(
           return best
         }
 
-        // Clicks in the rest pose: a dot picks, the body sets.
-        scene.onPointerObservable.add((info) => {
-          if (info.type !== BABYLON.PointerEventTypes.POINTERTAP) return
+        // A tap in the rest pose: a dot picks, the body sets.
+        const tap = (x: number, y: number) => {
           if (ui.pose !== 'rest' || model == null || applied == null) return
-          const onDot = scene.pick(scene.pointerX, scene.pointerY, (m) =>
+          const onDot = scene.pick(x, y, (m) =>
             dots.includes(m as BABYLON.Mesh)
           )
           const meta = onDot?.pickedMesh?.metadata
@@ -1141,8 +1249,8 @@ export function rigTool(
           }
           const root = model.root
           const onBody = scene.pick(
-            scene.pointerX,
-            scene.pointerY,
+            x,
+            y,
             (m) => m.isEnabled() && m.isDescendantOf(root)
           )
           const at = onBody?.pickedPoint
@@ -1169,7 +1277,7 @@ export function rigTool(
             }
           }
           refresh()
-        })
+        }
         const showBones = (on: boolean) => {
           viewer?.dispose()
           viewer = null
@@ -1271,6 +1379,12 @@ export function rigTool(
     },
     get applied(): AppliedRig | null {
       return applied
+    },
+    get status(): string {
+      return ui.status
+    },
+    get role(): Role {
+      return ui.role
     },
     load: (m: RigModel | File) => tool?.load(m),
   }
