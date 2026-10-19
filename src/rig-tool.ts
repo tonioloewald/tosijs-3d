@@ -239,6 +239,12 @@ export function rigToolModels(): RigModel[] {
   ]
 }
 
+/**
+ * Where the camera looks from. A snapped view is orthographic, so a joint can
+ * be lined up with the body in it; orbiting goes back to `free`.
+ */
+export type RigView = 'free' | 'front' | 'side' | 'top'
+
 /** `rigTool()`'s element carries this as `.rig`. */
 export interface RigToolApi {
   /** A copy of the working recipe; set one to apply it. */
@@ -249,6 +255,8 @@ export interface RigToolApi {
   readonly status: string
   /** The role being edited (a tap on its dot, or the panel, chooses it). */
   readonly role: Role
+  /** Where the camera looks from (`front`, `side`, `top` are orthographic). */
+  view: RigView
   load(model: RigModel | File): Promise<void> | undefined
 }
 
@@ -436,6 +444,8 @@ export function rigTool(
     pose: 'rest' as 'rest' | 'animate',
     /** What clicking the body sets, in the rest pose. */
     clickSets: 'role' as 'role' | 'chain',
+    /** Snapped to a view (orthographic), or `free` to orbit. */
+    view: 'free' as RigView,
   }
   let recipe = fresh()
   let el: any = null
@@ -452,6 +462,7 @@ export function rigTool(
     play(): void
     compare(on: boolean): void
     bones(on: boolean): void
+    view(v: RigView): void
     /** Redraw the targets and handles (the selection changed). */
     targets(): void
   } | null = null
@@ -517,6 +528,12 @@ export function rigTool(
         label: 'bones',
         value: ui.bones,
         handleChange: (v) => tool?.bones((ui.bones = v)),
+      }),
+      select3d({
+        label: 'view',
+        value: ui.view,
+        options: ['free', 'front', 'side', 'top'],
+        handleChange: (v) => tool?.view((ui.view = v as RigView)),
       }),
       label3d({ text: ui.status, muted: true, compact: true }),
 
@@ -946,7 +963,56 @@ export function rigTool(
           cam.target.set(middle + height * 0.6, height * 0.5, 0)
           cam.radius = height * (ui.pose === 'rest' ? 3.1 : 2.6)
           cam.minZ = height * 0.01
+          if (ui.view !== 'free') snapView(ui.view)
         }
+        /*
+        SNAPPED VIEWS (Tonio: snap to overhead, front and side, to see whether
+        a finger's joints are on the finger). Orthographic, so nothing nearer
+        the camera looks bigger and a joint lines up with the flesh around it;
+        the zoom still works, as the size of the view. Orbiting the camera
+        lets go of the snap and goes back to perspective.
+        */
+        const SNAP: Record<Exclude<RigView, 'free'>, [number, number]> = {
+          front: [Math.PI / 2, Math.PI / 2],
+          // From the character's left (+X), where the compared mannequin is not.
+          side: [0, Math.PI / 2],
+          // As near straight down as the camera allows (it clamps beta).
+          top: [Math.PI / 2, Math.max(cam.lowerBetaLimit ?? 0.01, 1e-4)],
+        }
+        let snapped: [number, number] | null = null
+        const orthoFit = () => {
+          if (cam.mode !== BABYLON.Camera.ORTHOGRAPHIC_CAMERA) return
+          const half = cam.radius * Math.tan(cam.fov / 2)
+          const engine = scene.getEngine()
+          const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight())
+          cam.orthoTop = half
+          cam.orthoBottom = -half
+          cam.orthoLeft = -half * aspect
+          cam.orthoRight = half * aspect
+        }
+        function snapView(v: RigView) {
+          if (v === 'free') {
+            snapped = null
+            cam.mode = BABYLON.Camera.PERSPECTIVE_CAMERA
+            return
+          }
+          snapped = SNAP[v]
+          cam.alpha = snapped[0]
+          cam.beta = snapped[1]
+          cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
+          orthoFit()
+        }
+        scene.onBeforeRenderObservable.add(() => {
+          if (snapped == null) return
+          if (
+            Math.abs(cam.alpha - snapped[0]) > 1e-3 ||
+            Math.abs(cam.beta - snapped[1]) > 1e-3
+          ) {
+            ui.view = 'free'
+            snapView('free')
+            refresh()
+          } else orthoFit()
+        })
         let model: {
           dispose(): void
           root: BABYLON.TransformNode
@@ -1356,6 +1422,7 @@ export function rigTool(
             frame()
           },
           bones: showBones,
+          view: snapView,
           targets,
         }
         await load(models[0])
@@ -1387,6 +1454,14 @@ export function rigTool(
     },
     get role(): Role {
       return ui.role
+    },
+    get view(): RigView {
+      return ui.view
+    },
+    set view(v: RigView) {
+      ui.view = v
+      tool?.view(v)
+      refresh()
     },
     load: (m: RigModel | File) => tool?.load(m),
   }
