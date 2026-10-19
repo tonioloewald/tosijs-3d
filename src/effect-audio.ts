@@ -174,6 +174,16 @@ function build(ac: AudioContext, kind: VoiceKind): Graph {
       c.connect(filt(ac, 'highpass', 2000)).connect(mix(ac, 0.8)).connect(out)
       return { out, sources: [o, c], filter: f, lo: 400, hi: 2400 }
     }
+    case 'bubble': {
+      // Bloops: sparse clicks ringing a narrow filter, so each one is a
+      // little rising note, and a soft low wash under them.
+      const c = src(ac, 'crackle')
+      const f = filt(ac, 'bandpass', 650, 14)
+      c.connect(f).connect(mix(ac, 5)).connect(out)
+      const w = src(ac, 'brown')
+      w.connect(filt(ac, 'lowpass', 220)).connect(mix(ac, 0.5)).connect(out)
+      return { out, sources: [c, w], filter: f, lo: 300, hi: 1400 }
+    }
     case 'splash': {
       const s = src(ac, 'white')
       const f = filt(ac, 'bandpass', 1600, 0.7)

@@ -134,14 +134,14 @@ describe('validation', () => {
         { kind: 'smell' },
       ],
     })
-    expect(problems).toContain('layers[0].sprite is not one of puff, smoke, spark, ember, glow, drop')
+    expect(problems).toContain('layers[0].sprite is not one of puff, smoke, spark, ember, glow, drop, bubble')
     expect(problems).toContain('layers[0].emitter.shape is not a known shape')
     expect(problems).toContain('layers[0].life is not [min, max]')
     expect(problems).toContain('layers[0].colors is not a list of #rrggbb[aa]')
     expect(problems).toContain('layers[1].color is not #rrggbb')
     expect(problems).toContain('layers[1].range is not positive')
     expect(problems).toContain('layers[2] repeats with no duration')
-    expect(problems).toContain('layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash')
+    expect(problems).toContain('layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash, bubble')
     expect(problems).toContain('layers[3].kind is not particles, light or sound')
   })
 })

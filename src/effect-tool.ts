@@ -24,7 +24,9 @@ Tap the scene once so the browser lets it make sound.
   day` shows the lights at night.
 - **Layers**: choose one and change it. Particles: how many, how long they
   live, how fast and big, gravity, wind, height, the first and last colour.
-  A light: its colour, intensity, range and flicker. A sound: its voice,
+  `picture` swaps the sprite for your own image or SVG (embedded in the
+  recipe, so a saved one carries it). A light: its colour, intensity, range
+  and flicker. A sound: its voice,
   gain and pitch. Every layer: when it starts and how long it lasts.
 - **Recipe**: `save` downloads the recipe as JSON, `load` reads one back,
   `copy` puts it on the clipboard, `start over` goes back to the preset. The
@@ -174,6 +176,33 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         num('gravity', () => l.gravity ?? 0, (v) => (l.gravity = v), -5, 20, 0.1),
         num('wind', () => l.wind ?? 0, (v) => (l.wind = v), 0, 1, 0.05),
         num('height', () => l.height ?? 0, (v) => (l.height = v), 0, 10, 0.05),
+        button3d({
+          label: l.texture ? 'picture: yours (change…)' : 'picture: ' + l.sprite + ' (use your own…)',
+          handleClick: () =>
+            void chooseFile('image/*,.svg').then((f) => {
+              if (f == null) return
+              // Embedded as a data: URL, so a saved recipe carries its art.
+              const reader = new FileReader()
+              reader.onload = () => {
+                l.texture = String(reader.result)
+                changed()
+                refresh()
+              }
+              reader.readAsDataURL(f)
+            }),
+        }),
+        ...(l.texture
+          ? [
+              button3d({
+                label: 'back to the ' + l.sprite + ' sprite',
+                handleClick: () => {
+                  delete l.texture
+                  changed()
+                  refresh()
+                },
+              }),
+            ]
+          : []),
         color3d({
           label: 'first colour',
           value: l.colors[0],

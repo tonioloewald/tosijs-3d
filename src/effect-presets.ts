@@ -247,6 +247,109 @@ export const EFFECT_PRESETS: Record<string, EffectRecipe> = {
     ],
   },
 
+  /*
+  BUBBLES: a vent or a leak on the bottom. Bubbles rise in a zigzag, grow as
+  the pressure falls, and end at the surface (the water element's level),
+  with a bubbling you hear underwater.
+  */
+  bubbles: {
+    version: EFFECT_RECIPE_VERSION,
+    name: 'bubbles',
+    layers: [
+      {
+        kind: 'particles',
+        name: 'bubbles',
+        sprite: 'bubble',
+        blend: 'alpha',
+        emitter: { shape: 'disc', radius: 0.15 },
+        rate: 24,
+        life: [6, 12],
+        speed: [0.3, 0.8],
+        size: [0.04, 0.14],
+        gravity: -1.2,
+        drag: 0.5,
+        wobble: 0.22,
+        surface: true,
+        colors: ['#eaf8ffe0', '#d8f2ffc0', '#c8ecff90'],
+        grow: [
+          { x: 0, y: 0.8 },
+          { x: 1, y: 1.7 },
+        ],
+      },
+      {
+        kind: 'particles',
+        name: 'fizz',
+        sprite: 'bubble',
+        blend: 'alpha',
+        emitter: { shape: 'disc', radius: 0.25 },
+        rate: 40,
+        life: [3, 6],
+        speed: [0.2, 0.5],
+        size: [0.015, 0.035],
+        gravity: -0.8,
+        drag: 0.6,
+        wobble: 0.12,
+        surface: true,
+        colors: ['#ffffffb0', '#e0f4ff70'],
+      },
+      { kind: 'sound', name: 'bubbling', voice: 'bubble', gain: 0.5, refDistance: 6 },
+    ],
+  },
+
+  /*
+  BLACK SMOKER: a hydrothermal vent on the sea floor. A dark mineral plume
+  billowing up, a dull glow at the chimney, bubbles in it, and a low roar.
+  */
+  'black smoker': {
+    version: EFFECT_RECIPE_VERSION,
+    name: 'black smoker',
+    layers: [
+      {
+        kind: 'particles',
+        name: 'plume',
+        sprite: 'smoke',
+        blend: 'alpha',
+        height: 0.2,
+        emitter: { shape: 'cone', radius: 0.3, angleDeg: 10 },
+        rate: 16,
+        life: [5, 9],
+        speed: [0.8, 1.6],
+        size: [0.5, 1.1],
+        gravity: -0.3,
+        drag: 0.4,
+        wobble: 0.08,
+        colors: ['#141210e0', '#24201cb0', '#3a342e00'],
+        grow: [
+          { x: 0, y: 0.5 },
+          { x: 1, y: 3.2 },
+        ],
+      },
+      {
+        kind: 'particles',
+        name: 'bubbles',
+        sprite: 'bubble',
+        blend: 'alpha',
+        emitter: { shape: 'disc', radius: 0.2 },
+        rate: 8,
+        life: [6, 12],
+        speed: [0.3, 0.7],
+        size: [0.03, 0.09],
+        gravity: -1.2,
+        drag: 0.5,
+        wobble: 0.2,
+        surface: true,
+        colors: ['#eaf8ffd0', '#c8ecff80'],
+        grow: [
+          { x: 0, y: 0.8 },
+          { x: 1, y: 1.6 },
+        ],
+      },
+      { kind: 'light', name: 'chimney glow', color: '#ff6a2a', intensity: 1.5, range: 4, height: 0.3, flicker: 0.3 },
+      { kind: 'sound', name: 'roar', voice: 'rumble', gain: 0.4, refDistance: 8 },
+      { kind: 'sound', name: 'bubbling', voice: 'bubble', gain: 0.25, refDistance: 6 },
+    ],
+  },
+
   /* SPLASH: a crown of drops, spray, and the sound of it. */
   splash: {
     version: EFFECT_RECIPE_VERSION,

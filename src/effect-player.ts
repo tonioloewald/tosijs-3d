@@ -32,7 +32,7 @@ import {
   type SoundLayer,
   type LightCandidate,
 } from './effect-recipe.js'
-import { effectSprite } from './effect-sprites.js'
+import { effectSprite, effectTexture } from './effect-sprites.js'
 import { placeListener, startVoice, type Voice } from './effect-audio.js'
 import { sceneDelta } from './b3d-utils.js'
 import { qualityBudgets } from './b3d-quality.js'
@@ -42,6 +42,8 @@ export interface EffectPlayerOptions {
   windAt?: (x: number, z: number) => { x: number; z: number }
   /** Called when a one-shot has finished (its particles gone too). */
   whenDone?: () => void
+  /** The water's surface height, for `surface` particles (bubbles); null if none. */
+  waterLevel?: () => number | null
   /**
    * How big. FROUDE SCALING, as for a model ship: sizes, radii, heights,
    * light range and sound reach multiply by `scale`, speeds and particle
@@ -275,7 +277,7 @@ export class EffectPlayer {
       Math.ceil(l.rate * l.life[1] * 1.2 + burst * 1.2 + 8)
     )
     const ps = new BABYLON.ParticleSystem(`effect-${l.name ?? 'particles'}`, capacity, scene)
-    ps.particleTexture = effectSprite(scene, l.sprite)
+    ps.particleTexture = l.texture ? effectTexture(scene, l.texture) : effectSprite(scene, l.sprite)
     ps.blendMode =
       l.blend === 'add'
         ? BABYLON.ParticleSystem.BLENDMODE_ADD
@@ -414,17 +416,30 @@ export class EffectPlayer {
         faster than the wind that carried it.
         */
         const w = l.wind ? this.options.windAt?.(at.x, at.z) : undefined
-        const catchUp = Math.min(1, dt * 1.1)
+        const catchUp = Math.min(1, dt * (l.wobble ? 4 : 1.1))
         const wx = (w?.x ?? 0) * (l.wind ?? 0)
         const wz = (w?.z ?? 0) * (l.wind ?? 0)
         if (l.land) picks = 0
-        if (w != null || l.land)
+        const water = l.surface ? this.options.waterLevel?.() ?? null : null
+        const wob = l.wobble ?? 0
+        if (w != null || l.land || water != null || wob > 0)
           for (const p of ps.particles) {
-            if (w != null) {
-              p.direction.x += (wx - p.direction.x) * catchUp
-              p.direction.z += (wz - p.direction.z) * catchUp
+            // The sideways speed it relaxes toward: the wind, plus a bubble's
+            // zigzag (its own phase, from its id, so they do not wobble in step).
+            let tx = wx
+            let tz = wz
+            if (wob > 0) {
+              const ph = (p.id * 2.39996) % 6.2832
+              tx += Math.sin(p.age * 4.1 + ph) * wob
+              tz += Math.cos(p.age * 3.3 + ph * 1.7) * wob
+            }
+            if (w != null || wob > 0) {
+              p.direction.x += (tx - p.direction.x) * catchUp
+              p.direction.z += (tz - p.direction.z) * catchUp
             }
             if (l.land) ground(p)
+            // A bubble ends at the surface.
+            if (water != null && p.position.y >= water) p.age = p.lifeTime
           }
       },
       halt: () => {

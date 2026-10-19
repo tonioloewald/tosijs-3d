@@ -49,7 +49,7 @@ preview.append(
 
 | attribute | default | |
 | --- | --- | --- |
-| `preset` | `''` | `volcano`, `geyser`, `splash`, `explosion`, `fireball`, `sparks` |
+| `preset` | `''` | `volcano`, `geyser`, `bubbles`, `black smoker`, `splash`, `explosion`, `fireball`, `sparks` |
 | `activity` | `-1` | 0 to 1; `-1` uses the recipe's own. A volcano: 0.15 dormant, 0.5 semi-active, 1 erupting |
 | `autoplay` | `'on'` | `'off'` waits for `play()` (a one-shot you trigger) |
 | `scale` | 1 | How big. Sizes, radii, heights, light range and sound reach multiply; speeds and particle lives grow by the square root and gravity stays (Froude scaling, as for a model ship), so an arc keeps its shape and a big effect moves slowly for its size, as big things do, and the wind still bends it. The presets are person-sized: a volcano preset is a vent, and a mountain wants 10 or more |
@@ -57,7 +57,10 @@ preview.append(
 | `x`, `y`, `z` | 0 | Where it is; nested in a mesh element, an offset that follows it |
 
 `recipe` (a property) plays an effect recipe instead of a preset (see
-`effect-recipe`; the effect tool saves them). `play()` starts it again,
+`effect-recipe`; the effect tool saves them). A particle layer can use your
+own picture (`texture`: an image URL, an SVG URL or SVG markup) and a sound
+layer your own sample (`url`). Underwater effects (`bubbles`, `black
+smoker`) end their bubbles at the scene's water surface. `play()` starts it again,
 `stop()` lets it die out, `whenDone` is called when a one-shot has finished.
 
 Light comes from a shared pool (`effectLights` per device tier) that effects
@@ -212,6 +215,10 @@ export class B3dEffect extends AbstractMesh {
       windAt: (x, z) => owner.weatherAt(x, z).wind,
       whenDone: () => this.whenDone?.(),
       scale: this.scale > 0 ? this.scale : 1,
+      waterLevel: () => {
+        const water = owner.querySelector('tosi-b3d-water') as any
+        return water?.mesh?.absolutePosition?.y ?? null
+      },
     })
     if (this.activity >= 0) this.player.activity = Math.min(1, this.activity)
     if (this.autoplay !== 'off') this.player.play()

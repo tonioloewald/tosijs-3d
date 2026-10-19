@@ -26,7 +26,7 @@ export type EffectCurve = ControlPoint[] | number
 /** A value picked between two, per particle. */
 export type Range = [number, number]
 
-export type SpriteKind = 'puff' | 'smoke' | 'spark' | 'ember' | 'glow' | 'drop'
+export type SpriteKind = 'puff' | 'smoke' | 'spark' | 'ember' | 'glow' | 'drop' | 'bubble'
 export const SPRITES: readonly SpriteKind[] = [
   'puff',
   'smoke',
@@ -34,6 +34,7 @@ export const SPRITES: readonly SpriteKind[] = [
   'ember',
   'glow',
   'drop',
+  'bubble',
 ]
 
 export type VoiceKind =
@@ -45,6 +46,7 @@ export type VoiceKind =
   | 'whoosh'
   | 'buzz'
   | 'splash'
+  | 'bubble'
 export const VOICES: readonly VoiceKind[] = [
   'rumble',
   'roar',
@@ -54,6 +56,7 @@ export const VOICES: readonly VoiceKind[] = [
   'whoosh',
   'buzz',
   'splash',
+  'bubble',
 ]
 
 interface LayerBase {
@@ -72,6 +75,13 @@ interface LayerBase {
 export interface ParticleLayer extends LayerBase {
   kind: 'particles'
   sprite: SpriteKind
+  /**
+   * Your own picture instead of the sprite: an image URL (PNG, JPEG, SVG,
+   * a data: URL) or SVG markup (`<svg …>…</svg>`). White on transparent
+   * takes the layer's colours, as the sprites do; a coloured picture is
+   * tinted by them.
+   */
+  texture?: string
   /** `add` glows (fire, sparks); `alpha` covers (smoke, water). */
   blend: 'add' | 'alpha'
   emitter: {
@@ -107,6 +117,10 @@ export interface ParticleLayer extends LayerBase {
   stretch?: boolean
   /** Settle on the ground where it lands (lava bombs, sparks). */
   land?: boolean
+  /** Ends where it reaches the water's surface (bubbles pop there). */
+  surface?: boolean
+  /** Metres a second of sideways zigzag (a rising bubble's wobble). */
+  wobble?: number
   channels?: { rate?: EffectCurve; size?: EffectCurve; speed?: EffectCurve }
 }
 
@@ -300,6 +314,8 @@ export function validateEffectRecipe(doc: unknown): string[] {
       if (!isCurve(c)) out.push(`${at}.channels.${k} is not a curve`)
     if (l.kind === 'particles') {
       if (!SPRITES.includes(l.sprite)) out.push(`${at}.sprite is not one of ${SPRITES.join(', ')}`)
+      if (l.texture != null && (typeof l.texture !== 'string' || l.texture.trim() === ''))
+        out.push(`${at}.texture is not an image URL or SVG markup`)
       if (l.blend !== 'add' && l.blend !== 'alpha') out.push(`${at}.blend is not add or alpha`)
       if (l.emitter == null || !['point', 'sphere', 'cone', 'ring', 'disc'].includes(l.emitter.shape))
         out.push(`${at}.emitter.shape is not a known shape`)
