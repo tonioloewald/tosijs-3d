@@ -122,7 +122,10 @@ export class B3dEffect extends AbstractMesh {
     }
     render() {
         super.render();
-        if (this.ground === 'on' && this._groundY != null && this.mesh != null && this.mesh.parent == null)
+        if (this.ground === 'on' &&
+            this._groundY != null &&
+            this.mesh != null &&
+            this.mesh.parent == null)
             this.mesh.position.y = this._groundY + this.y;
         if (this.owner == null || this.mesh == null)
             return;
@@ -154,7 +157,10 @@ export class B3dEffect extends AbstractMesh {
     _findGround() {
         const owner = this.owner;
         const node = this.mesh;
-        if (this.ground !== 'on' || owner == null || node == null || node.parent != null)
+        if (this.ground !== 'on' ||
+            owner == null ||
+            node == null ||
+            node.parent != null)
             return;
         const terrain = owner.querySelector('tosi-b3d-terrain');
         if (terrain != null && typeof terrain.heightSampler === 'function') {

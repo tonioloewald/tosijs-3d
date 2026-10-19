@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.10.17
+
+### Added
+
+- **`sceneSchemas.effect` (`effectSchema()`)**: `<tosi-b3d-effect>`'s attributes as JSON Schema, like the other scene primitives (asked for by ensemble, tosijs-3d#118): `preset` (an enum of the presets), `activity` (-1 for the recipe's own, else 0 to 1, with `x-stops` naming a volcano's dormant, semi-active and erupting values), `autoplay`, `scale`, `ground` and the transform. `recipe`, a property rather than an attribute, is marked `x-property` and refers to `effectRecipeSchema()` in `$defs`. The drift test holds it to the component's `initAttributes`.
+
 ## 0.10.16
 
 ### Added
@@ -26,6 +32,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 - **Effect smoke starts at the vent and fades in** (Tonio: it popped into being too high). A `cone` emitter used Babylon's, which spawns anywhere up the cone's height (radius ÷ tan(angle): 68 m for the volcano's ash); every vent shape now starts on the ground and leaves within its angle, and covering (`alpha`) particles come up from nothing over their first moments.
 - **The cloud deck drifts with the scene's wind** when the scene has one (`<tosi-b3d wind-speed>`), as smoke, spray and storms already did; its own `wind` and `windHeadingDeg` are the fallback (Tonio: the clouds and the volcano's smoke did not seem to share a wind). Its drift is integrated frame by frame, so a change of speed no longer jumps the clouds. Land and Sky's wind now blows across the view instead of straight away from it, where neither the clouds' nor the smoke's drift could be seen.
+
+Size: barrel (min, packages external) 1205.7 KB raw / 412.8 KB gz, +3.3% on 0.10.15 (effects: the recipe, player, procedural sprites and voices, presets and `<tosi-b3d-effect>`; star activity; landform vents; the effect tool is a subpath, outside the barrel).
 
 ## 0.10.15
 

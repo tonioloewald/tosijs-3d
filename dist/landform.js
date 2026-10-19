@@ -161,7 +161,15 @@ export function volcano(opts) {
     // The vent's effect is sized by the crater: the volcano preset is a vent
     // about 4.5 m across, so a 55 m crater takes it at 12.
     const vents = activity > 0
-        ? [{ x: cx, z: cz, preset: 'volcano', scale: craterRadius / 4.5, activity: Math.min(1, activity) }]
+        ? [
+            {
+                x: cx,
+                z: cz,
+                preset: 'volcano',
+                scale: craterRadius / 4.5,
+                activity: Math.min(1, activity),
+            },
+        ]
         : [];
     const landform = (x, z, h) => {
         const dx = x - cx;

@@ -179,7 +179,11 @@ const M = { 'x-unit': 'm' }
 const vec3 = (description: string) => ({
   type: 'object',
   description,
-  properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } },
+  properties: {
+    x: { type: 'number' },
+    y: { type: 'number' },
+    z: { type: 'number' },
+  },
   required: ['x', 'y', 'z'],
   additionalProperties: false,
 })
@@ -229,7 +233,8 @@ export function rigRecipeSchema(): Record<string, unknown> {
       version: { const: RIG_RECIPE_VERSION },
       model: {
         type: 'object',
-        description: 'The model it was made for (a record; nothing is fetched).',
+        description:
+          'The model it was made for (a record; nothing is fetched).',
         properties: { url: { type: 'string' }, name: { type: 'string' } },
         additionalProperties: false,
       },
@@ -239,7 +244,13 @@ export function rigRecipeSchema(): Record<string, unknown> {
           "Corrections to the guessed roles: role → bone name ('' leaves the role out).",
         additionalProperties: { type: 'string' },
       },
-      armSpaceDeg: { type: 'number', minimum: -90, maximum: 90, default: 0, ...DEG },
+      armSpaceDeg: {
+        type: 'number',
+        minimum: -90,
+        maximum: 90,
+        default: 0,
+        ...DEG,
+      },
       springs: {
         type: 'array',
         items: {
@@ -249,7 +260,10 @@ export function rigRecipeSchema(): Record<string, unknown> {
               title: 'Bone chain',
               properties: {
                 kind: { const: 'bones' },
-                root: { type: 'string', description: 'The chain’s first bone.' },
+                root: {
+                  type: 'string',
+                  description: 'The chain’s first bone.',
+                },
                 ...common,
               },
               required: ['kind', 'root'],
@@ -260,18 +274,52 @@ export function rigRecipeSchema(): Record<string, unknown> {
               title: 'Strand',
               properties: {
                 kind: { const: 'strand' },
-                anchor: { type: 'string', description: 'The bone it hangs from.' },
+                anchor: {
+                  type: 'string',
+                  description: 'The bone it hangs from.',
+                },
                 offset: vec3('Where it starts, from the anchor, in metres.'),
-                yawDeg: { type: 'number', minimum: -180, maximum: 180, default: 0, ...DEG },
-                pitchDeg: { type: 'number', minimum: -90, maximum: 90, default: -65, ...DEG },
-                length: { type: 'number', exclusiveMinimum: 0, default: 0.45, ...M },
-                segments: { type: 'integer', minimum: 1, maximum: 64, default: 6 },
+                yawDeg: {
+                  type: 'number',
+                  minimum: -180,
+                  maximum: 180,
+                  default: 0,
+                  ...DEG,
+                },
+                pitchDeg: {
+                  type: 'number',
+                  minimum: -90,
+                  maximum: 90,
+                  default: -65,
+                  ...DEG,
+                },
+                length: {
+                  type: 'number',
+                  exclusiveMinimum: 0,
+                  default: 0.45,
+                  ...M,
+                },
+                segments: {
+                  type: 'integer',
+                  minimum: 1,
+                  maximum: 64,
+                  default: 6,
+                },
                 radius: { type: 'number', minimum: 0, default: 0.035, ...M },
                 tipRadius: { type: 'number', minimum: 0, default: 0.012, ...M },
                 color: { type: 'string', format: 'color', default: '#73401a' },
                 ...common,
               },
-              required: ['kind', 'anchor', 'offset', 'yawDeg', 'pitchDeg', 'length', 'segments', 'radius'],
+              required: [
+                'kind',
+                'anchor',
+                'offset',
+                'yawDeg',
+                'pitchDeg',
+                'length',
+                'segments',
+                'radius',
+              ],
               additionalProperties: false,
             },
           ],

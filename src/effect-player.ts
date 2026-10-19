@@ -66,7 +66,12 @@ interface Runtime {
 
 interface SceneEffects {
   players: Set<EffectPlayer>
-  lights: Array<{ light: BABYLON.PointLight; want: number; range: number; fade: number }>
+  lights: Array<{
+    light: BABYLON.PointLight
+    want: number
+    range: number
+    fade: number
+  }>
   voices: Set<{ voice: Voice; audible: number }>
   observer: BABYLON.Observer<BABYLON.Scene>
   effectLights: Set<BABYLON.Light>
@@ -97,7 +102,8 @@ function tick(scene: BABYLON.Scene, s: SceneEffects): void {
   // PARTICLES: one throttle for every effect, from what is alive now.
   let alive = 0
   for (const p of s.players) alive += p.particlesAlive()
-  const throttle = alive > budget.effectParticles ? budget.effectParticles / alive : 1
+  const throttle =
+    alive > budget.effectParticles ? budget.effectParticles / alive : 1
   s.lights.length = 0
   for (const p of s.players) p.step(dt, throttle, s)
 
@@ -125,7 +131,8 @@ function tick(scene: BABYLON.Scene, s: SceneEffects): void {
   s.lights.forEach((l, i) => {
     const target = won.has(i) ? 1 : 0
     // Fade, not pop: about a sixth of a second either way.
-    l.fade += Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6)
+    l.fade +=
+      Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6)
     ;(l.light as any)._effectFade = l.fade
     l.light.intensity = l.want * l.fade
     l.light.range = l.range
@@ -247,8 +254,8 @@ export class EffectPlayer {
       l.kind === 'particles'
         ? this.particles(l)
         : l.kind === 'light'
-          ? this.light(l)
-          : this.sound(l)
+        ? this.light(l)
+        : this.sound(l)
     )
   }
 
@@ -276,8 +283,14 @@ export class EffectPlayer {
       4000,
       Math.ceil(l.rate * l.life[1] * 1.2 + burst * 1.2 + 8)
     )
-    const ps = new BABYLON.ParticleSystem(`effect-${l.name ?? 'particles'}`, capacity, scene)
-    ps.particleTexture = l.texture ? effectTexture(scene, l.texture) : effectSprite(scene, l.sprite)
+    const ps = new BABYLON.ParticleSystem(
+      `effect-${l.name ?? 'particles'}`,
+      capacity,
+      scene
+    )
+    ps.particleTexture = l.texture
+      ? effectTexture(scene, l.texture)
+      : effectSprite(scene, l.sprite)
     ps.blendMode =
       l.blend === 'add'
         ? BABYLON.ParticleSystem.BLENDMODE_ADD
@@ -305,7 +318,10 @@ export class EffectPlayer {
       ps.addColorGradient(0, new BABYLON.Color4(first.r, first.g, first.b, 0))
     }
     cs.forEach((c, i) =>
-      ps.addColorGradient(fadeIn + (1 - fadeIn) * (i / (cs.length - 1)), color4(c))
+      ps.addColorGradient(
+        fadeIn + (1 - fadeIn) * (i / (cs.length - 1)),
+        color4(c)
+      )
     )
     if (l.grow != null) {
       for (let i = 0; i <= 8; i++) {
@@ -320,12 +336,16 @@ export class EffectPlayer {
       ps.addDragGradient(0, l.drag)
       ps.addDragGradient(1, l.drag)
     }
-    if (l.stretch) ps.billboardMode = BABYLON.ParticleSystem.BILLBOARDMODE_STRETCHED
+    if (l.stretch)
+      ps.billboardMode = BABYLON.ParticleSystem.BILLBOARDMODE_STRETCHED
     const r = l.emitter.radius ?? 0
     const lean = ((l.emitter.angleDeg ?? 20) * Math.PI) / 180
     switch (l.emitter.shape) {
       case 'point':
-        ps.createPointEmitter(new BABYLON.Vector3(-0.15, 1, -0.15), new BABYLON.Vector3(0.15, 1, 0.15))
+        ps.createPointEmitter(
+          new BABYLON.Vector3(-0.15, 1, -0.15),
+          new BABYLON.Vector3(0.15, 1, 0.15)
+        )
         break
       case 'sphere':
         ps.createSphereEmitter(Math.max(0.001, r), 1)
@@ -353,9 +373,13 @@ export class EffectPlayer {
           const tilt = ring
             ? lean * (0.6 + 0.4 * Math.random())
             : cone
-              ? lean * Math.sqrt(Math.random())
-              : lean * 0.25 * Math.random()
-          out.set(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt))
+            ? lean * Math.sqrt(Math.random())
+            : lean * 0.25 * Math.random()
+          out.set(
+            Math.cos(a) * Math.sin(tilt),
+            Math.cos(tilt),
+            Math.sin(a) * Math.sin(tilt)
+          )
         }
         ps.particleEmitterType = e
       }
@@ -372,7 +396,11 @@ export class EffectPlayer {
       if (q._g === undefined && picks < 6) {
         picks++
         const hit = scene.pickWithRay(
-          new BABYLON.Ray(new BABYLON.Vector3(p.position.x, p.position.y + 30, p.position.z), BABYLON.Vector3.Down(), 400),
+          new BABYLON.Ray(
+            new BABYLON.Vector3(p.position.x, p.position.y + 30, p.position.z),
+            BABYLON.Vector3.Down(),
+            400
+          ),
           (m) => m.isPickable && m.isEnabled() && m.isVisible
         )
         q._g = hit?.hit && hit.pickedPoint ? hit.pickedPoint.y : null
@@ -402,7 +430,8 @@ export class EffectPlayer {
         const rate = s.channel.rate ?? 1
         ps.emitRate = s.on ? l.rate * s.level * rate * rt.throttle : 0
         if (ps.manualEmitCount === 0) ps.manualEmitCount = -1
-        if (s.started && burst > 0) ps.manualEmitCount = Math.round(burst * s.level * rt.throttle)
+        if (s.started && burst > 0)
+          ps.manualEmitCount = Math.round(burst * s.level * rt.throttle)
         const sp = s.channel.speed ?? 1
         ps.minEmitPower = l.speed[0] * sp
         ps.maxEmitPower = l.speed[1] * sp
@@ -456,8 +485,15 @@ export class EffectPlayer {
 
   private light(l0: LightLayer): Runtime {
     const k = this.options.scale ?? 1
-    const l: LightLayer = k === 1 ? l0 : { ...l0, range: l0.range * k, height: (l0.height ?? 0) * k }
-    const light = new BABYLON.PointLight(`effect-${l.name ?? 'light'}`, BABYLON.Vector3.Zero(), this.scene)
+    const l: LightLayer =
+      k === 1
+        ? l0
+        : { ...l0, range: l0.range * k, height: (l0.height ?? 0) * k }
+    const light = new BABYLON.PointLight(
+      `effect-${l.name ?? 'light'}`,
+      BABYLON.Vector3.Zero(),
+      this.scene
+    )
     light.diffuse = BABYLON.Color3.FromHexString(l.color)
     light.specular = light.diffuse.scale(0.3)
     light.intensity = 0
@@ -471,13 +507,20 @@ export class EffectPlayer {
       update: (t, prev, activity) => {
         const s = layerAt(l, this.recipe, t, activity, prev)
         const flicker = l.flicker ? 1 - l.flicker * Math.random() : 1
-        want = s.on ? l.intensity * s.level * (s.channel.intensity ?? 1) * flicker : 0
+        want = s.on
+          ? l.intensity * s.level * (s.channel.intensity ?? 1) * flicker
+          : 0
         on = want > 0.001
         light.position.copyFrom(this.node.getAbsolutePosition())
         light.position.y += l.height ?? 0
         if (on && rt.shared != null) {
           fade = (light as any)._effectFade ?? fade
-          rt.shared.lights.push({ light, want, range: l.range * (s.channel.range ?? 1), fade })
+          rt.shared.lights.push({
+            light,
+            want,
+            range: l.range * (s.channel.range ?? 1),
+            fade,
+          })
         } else {
           light.setEnabled(false)
         }
@@ -497,7 +540,8 @@ export class EffectPlayer {
 
   private sound(l0: SoundLayer): Runtime {
     const k = this.options.scale ?? 1
-    const l: SoundLayer = k === 1 ? l0 : { ...l0, refDistance: (l0.refDistance ?? 10) * k }
+    const l: SoundLayer =
+      k === 1 ? l0 : { ...l0, refDistance: (l0.refDistance ?? 10) * k }
     let voice: { voice: Voice; audible: number } | null = null
     let prevHeard = -Infinity
     const stopVoice = () => {
@@ -513,7 +557,8 @@ export class EffectPlayer {
       update: (t, _prev, activity) => {
         const cam = this.scene.activeCamera
         const at = this.node.getAbsolutePosition()
-        const dist = cam != null ? BABYLON.Vector3.Distance(cam.globalPosition, at) : 0
+        const dist =
+          cam != null ? BABYLON.Vector3.Distance(cam.globalPosition, at) : 0
         // Heard late: the whole envelope, not only the onset.
         const heard = t - soundDelay(dist)
         const s = layerAt(l, this.recipe, heard, activity, prevHeard)
@@ -525,13 +570,21 @@ export class EffectPlayer {
         }
         if (voice != null && !this.shared.voices.has(voice)) voice = null
         if (voice == null) {
-          const v = startVoice(l.voice, { refDistance: l.refDistance, url: l.url })
+          const v = startVoice(l.voice, {
+            refDistance: l.refDistance,
+            url: l.url,
+          })
           if (v == null) return
           voice = { voice: v, audible: 0 }
           this.shared.voices.add(voice)
         }
         voice.voice.place(at)
-        voice.voice.set(gain, (l.pitch ?? 1) * (s.channel.pitch ?? 1), s.channel.cutoff ?? 1, distanceCutoff(dist))
+        voice.voice.set(
+          gain,
+          (l.pitch ?? 1) * (s.channel.pitch ?? 1),
+          s.channel.cutoff ?? 1,
+          distanceCutoff(dist)
+        )
         const ref = l.refDistance ?? 10
         voice.audible = gain * (dist <= ref ? 1 : ref / dist)
       },

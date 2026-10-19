@@ -161,6 +161,22 @@ export declare function soundSchema(extra?: Record<string, unknown>): {
     title: string;
     properties: Record<string, unknown>;
 };
+/**
+ * `b3d-effect` — particles, light and sound on one clock (tosijs-3d#118).
+ *
+ * `activity` is `-1` for "the recipe's own", else 0 to 1. `x-stops` names the
+ * values worth landing on (a volcano's dormant, semi-active and erupting), for
+ * a slider to mark or snap to; `-1` is the bottom stop, like `x-zero-stop`.
+ *
+ * `recipe` is a PROPERTY, not an attribute (an object does not fit in markup),
+ * marked `x-property`; it refers to the effect recipe's own schema in `$defs`,
+ * so a document can hold a custom effect and validate it with nothing copied.
+ */
+export declare function effectSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
 /** Every scene-primitive schema, by the element name a consumer would use. */
 /**
  * `tosi-b3d` — the scene HOST's own attributes: the ones that say how the
@@ -214,6 +230,7 @@ export declare const sceneSchemas: {
     readonly decorator: typeof decoratorSchema;
     readonly trail: typeof trailSchema;
     readonly sound: typeof soundSchema;
+    readonly effect: typeof effectSchema;
     readonly planet: typeof planetSchema;
 };
 //# sourceMappingURL=scene-schemas.d.ts.map

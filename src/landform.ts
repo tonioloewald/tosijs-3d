@@ -294,7 +294,15 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
   // about 4.5 m across, so a 55 m crater takes it at 12.
   const vents: Vent[] =
     activity > 0
-      ? [{ x: cx, z: cz, preset: 'volcano', scale: craterRadius / 4.5, activity: Math.min(1, activity) }]
+      ? [
+          {
+            x: cx,
+            z: cz,
+            preset: 'volcano',
+            scale: craterRadius / 4.5,
+            activity: Math.min(1, activity),
+          },
+        ]
       : []
   const landform = (x: number, z: number, h: number) => {
     const dx = x - cx

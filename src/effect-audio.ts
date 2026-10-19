@@ -23,7 +23,8 @@ export function effectAudio(): AudioContext | null {
   try {
     if (ctx == null) {
       const C =
-        (globalThis as any).AudioContext ?? (globalThis as any).webkitAudioContext
+        (globalThis as any).AudioContext ??
+        (globalThis as any).webkitAudioContext
       if (C == null) return null
       ctx = new C() as AudioContext
     }
@@ -35,7 +36,10 @@ export function effectAudio(): AudioContext | null {
 }
 
 /** Looping noise: white, brown (rolling, low) or crackle (sparse clicks). */
-function noise(ac: AudioContext, kind: 'white' | 'brown' | 'crackle'): AudioBuffer {
+function noise(
+  ac: AudioContext,
+  kind: 'white' | 'brown' | 'crackle'
+): AudioBuffer {
   const key = `${kind}:${ac.sampleRate}`
   let b = buffers.get(key)
   if (b != null) return b
@@ -43,7 +47,8 @@ function noise(ac: AudioContext, kind: 'white' | 'brown' | 'crackle'): AudioBuff
   b = ac.createBuffer(1, len, ac.sampleRate)
   const d = b.getChannelData(0)
   let s = 12345
-  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1
+  const rnd = () =>
+    ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1
   let brown = 0
   for (let i = 0; i < len; i++) {
     if (kind === 'white') d[i] = rnd() * 0.5
@@ -66,7 +71,12 @@ function noise(ac: AudioContext, kind: 'white' | 'brown' | 'crackle'): AudioBuff
 
 export interface Voice {
   /** Gain 0 to 1 (before distance), pitch multiplier, filter 0 to 1. */
-  set(gain: number, pitch: number, cutoff: number, distanceCutoffHz: number): void
+  set(
+    gain: number,
+    pitch: number,
+    cutoff: number,
+    distanceCutoffHz: number
+  ): void
   /** Where it is, in the world. */
   place(p: BABYLON.Vector3): void
   stop(): void
@@ -84,7 +94,10 @@ interface Graph {
   hi?: number
 }
 
-function src(ac: AudioContext, kind: 'white' | 'brown' | 'crackle'): AudioBufferSourceNode {
+function src(
+  ac: AudioContext,
+  kind: 'white' | 'brown' | 'crackle'
+): AudioBufferSourceNode {
   const n = ac.createBufferSource()
   n.buffer = noise(ac, kind)
   n.loop = true
@@ -92,7 +105,12 @@ function src(ac: AudioContext, kind: 'white' | 'brown' | 'crackle'): AudioBuffer
   ;(n as any)._offset = Math.random() * 2.5
   return n
 }
-function filt(ac: AudioContext, type: BiquadFilterType, f: number, q = 0.7): BiquadFilterNode {
+function filt(
+  ac: AudioContext,
+  type: BiquadFilterType,
+  f: number,
+  q = 0.7
+): BiquadFilterNode {
   const n = ac.createBiquadFilter()
   n.type = type
   n.frequency.value = f
@@ -127,7 +145,10 @@ function build(ac: AudioContext, kind: VoiceKind): Graph {
     case 'hiss': {
       const s = src(ac, 'white')
       const f = filt(ac, 'lowpass', 7000)
-      s.connect(filt(ac, 'highpass', 1800)).connect(f).connect(mix(ac, 1.2)).connect(out)
+      s.connect(filt(ac, 'highpass', 1800))
+        .connect(f)
+        .connect(mix(ac, 1.2))
+        .connect(out)
       return { out, sources: [s], filter: f, lo: 2500, hi: 12000 }
     }
     case 'boom': {
@@ -216,7 +237,8 @@ export function startVoice(
   )
   for (const s of g.sources) {
     try {
-      if (s instanceof AudioBufferSourceNode) s.start(0, (s as any)._offset ?? 0)
+      if (s instanceof AudioBufferSourceNode)
+        s.start(0, (s as any)._offset ?? 0)
       else s.start()
     } catch {
       /* started */
@@ -234,7 +256,8 @@ export function startVoice(
       current = gain
       level.gain.setTargetAtTime(gain, t, 0.03)
       g.sources.forEach((s, i) => {
-        if (s instanceof OscillatorNode) s.frequency.setTargetAtTime(base[i] * pitch, t, 0.05)
+        if (s instanceof OscillatorNode)
+          s.frequency.setTargetAtTime(base[i] * pitch, t, 0.05)
         else s.playbackRate.setTargetAtTime(base[i] * pitch, t, 0.05)
       })
       if (g.filter != null && g.lo != null && g.hi != null)

@@ -328,10 +328,17 @@ export function createCoronaMaterial(
   mat.setVector3('coronaColor', new BABYLON.Vector3(r, g, b))
   mat.setFloat(
     'coronaLimb',
-    Math.sqrt(Math.max(0.01, 1 - (options.starRadius / options.shellRadius) ** 2))
+    Math.sqrt(
+      Math.max(0.01, 1 - (options.starRadius / options.shellRadius) ** 2)
+    )
   )
   mat.setFloat('starActivity', options.activity ?? 0.6)
-  const k = new BABYLON.Vector4(options.starRadius, options.shellRadius, 0, options.seed ?? 1)
+  const k = new BABYLON.Vector4(
+    options.starRadius,
+    options.shellRadius,
+    0,
+    options.seed ?? 1
+  )
   mat.backFaceCulling = false
   mat.alphaMode = BABYLON.Constants.ALPHA_ADD
   mat.disableDepthWrite = true

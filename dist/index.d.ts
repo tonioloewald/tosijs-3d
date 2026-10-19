@@ -42,7 +42,7 @@ export { segmentTimes, lightPreset, lightPresets, DEFAULT_PROGRAM, lightProgramS
 export type { LightPreset, LightProgram, LightPhase, ChannelCurves, ModulationCurve, ModulationSample, } from './light-modulation.js';
 export { sampleClimate, composeClimate, applyClimate, provinceClimateSchema, canonicalClimate, validateClimate, DEFAULT_AMOUNTS, NO_CLIMATE, } from './province-climate.js';
 export type { ProvinceClimate, ClimateSample, ClimateCurve, ClimateAmounts, } from './province-climate.js';
-export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, moonSchema, weatherCellSchema, lightningSchema, lightShaftsSchema, decoratorSchema, trailSchema, soundSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
+export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, moonSchema, weatherCellSchema, lightningSchema, lightShaftsSchema, decoratorSchema, trailSchema, soundSchema, effectSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
 export { B3dFog, b3dFog } from './b3d-fog.js';
 export { B3dClouds, b3dClouds } from './b3d-clouds.js';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal.js';
@@ -304,7 +304,7 @@ export { B3dParticles, b3dParticles } from './b3d-particles.js';
 export { B3dEffect, b3dEffect } from './b3d-effect.js';
 export { EffectPlayer } from './effect-player.js';
 export type { EffectPlayerOptions } from './effect-player.js';
-export { EFFECT_PRESETS, effectPreset, VOLCANO_STATES } from './effect-presets.js';
+export { EFFECT_PRESETS, effectPreset, VOLCANO_STATES, } from './effect-presets.js';
 export { EFFECT_RECIPE_VERSION, SPRITES as EFFECT_SPRITES, VOICES as EFFECT_VOICES, layerAt, lightScore, rankLights, soundDelay, validateEffectRecipe, effectRecipeSchema, } from './effect-recipe.js';
 export type { EffectRecipe, EffectLayer, ParticleLayer, LightLayer, SoundLayer, EffectCurve, SpriteKind, VoiceKind, LayerState, } from './effect-recipe.js';
 export { B3dSound, b3dSound } from './b3d-sound.js';

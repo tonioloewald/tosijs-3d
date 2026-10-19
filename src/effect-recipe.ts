@@ -26,7 +26,14 @@ export type EffectCurve = ControlPoint[] | number
 /** A value picked between two, per particle. */
 export type Range = [number, number]
 
-export type SpriteKind = 'puff' | 'smoke' | 'spark' | 'ember' | 'glow' | 'drop' | 'bubble'
+export type SpriteKind =
+  | 'puff'
+  | 'smoke'
+  | 'spark'
+  | 'ember'
+  | 'glow'
+  | 'drop'
+  | 'bubble'
 export const SPRITES: readonly SpriteKind[] = [
   'puff',
   'smoke',
@@ -165,7 +172,11 @@ export interface EffectRecipe {
 }
 
 /** Sample a curve at `t` (clamped); a number is flat. */
-export function sampleCurve(c: EffectCurve | undefined, t: number, flat = 1): number {
+export function sampleCurve(
+  c: EffectCurve | undefined,
+  t: number,
+  flat = 1
+): number {
   if (c == null) return flat
   if (typeof c === 'number') return c
   if (c.length === 0) return flat
@@ -219,7 +230,14 @@ export function layerAt(
   const channel: Record<string, number> = {}
   for (const [k, c] of Object.entries(layer.channels ?? {}))
     channel[k] = sampleCurve(c as EffectCurve, life)
-  return { on, age: Math.max(0, age), life, level, channel, started: started && on }
+  return {
+    on,
+    age: Math.max(0, age),
+    life,
+    level,
+    channel,
+    started: started && on,
+  }
 }
 
 /*
@@ -245,7 +263,10 @@ export function lightScore(l: LightCandidate): number {
 }
 
 /** The indices of the `slots` lights that win, best first. */
-export function rankLights(lights: readonly LightCandidate[], slots: number): number[] {
+export function rankLights(
+  lights: readonly LightCandidate[],
+  slots: number
+): number[] {
   return lights
     .map((l, i) => ({ i, s: lightScore(l) }))
     .filter((x) => x.s > 0)
@@ -280,13 +301,16 @@ export function distanceCutoff(distance: number): number {
 const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v)
 const isRange = (v: unknown): v is Range =>
-  Array.isArray(v) && v.length === 2 && isNum(v[0]) && isNum(v[1]) && v[0] <= v[1]
+  Array.isArray(v) &&
+  v.length === 2 &&
+  isNum(v[0]) &&
+  isNum(v[1]) &&
+  v[0] <= v[1]
 const isColor = (v: unknown) =>
   typeof v === 'string' && /^#([0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)
 const isCurve = (v: unknown) =>
   isNum(v) ||
-  (Array.isArray(v) &&
-    v.every((p) => p != null && isNum(p.x) && isNum(p.y)))
+  (Array.isArray(v) && v.every((p) => p != null && isNum(p.x) && isNum(p.y)))
 
 /** What is wrong with `doc` as an effect recipe, as sentences; empty if nothing. */
 export function validateEffectRecipe(doc: unknown): string[] {
@@ -297,7 +321,10 @@ export function validateEffectRecipe(doc: unknown): string[] {
     out.push(`version is ${e.version}, expected ${EFFECT_RECIPE_VERSION}`)
   if (e.duration != null && !(isNum(e.duration) && e.duration > 0))
     out.push('duration is not a positive number')
-  if (e.activity != null && !(isNum(e.activity) && e.activity >= 0 && e.activity <= 1))
+  if (
+    e.activity != null &&
+    !(isNum(e.activity) && e.activity >= 0 && e.activity <= 1)
+  )
     out.push('activity is not 0 to 1')
   if (!Array.isArray(e.layers)) return [...out, 'layers is not a list']
   e.layers.forEach((l, i) => {
@@ -307,31 +334,48 @@ export function validateEffectRecipe(doc: unknown): string[] {
       out.push(`${at}.start is not a time`)
     if (l.duration != null && !(isNum(l.duration) && l.duration > 0))
       out.push(`${at}.duration is not a positive number`)
-    if (l.repeat && l.duration == null) out.push(`${at} repeats with no duration`)
+    if (l.repeat && l.duration == null)
+      out.push(`${at} repeats with no duration`)
     if (l.activity != null && !isCurve(l.activity))
       out.push(`${at}.activity is not a curve`)
     for (const [k, c] of Object.entries((l as any).channels ?? {}))
       if (!isCurve(c)) out.push(`${at}.channels.${k} is not a curve`)
     if (l.kind === 'particles') {
-      if (!SPRITES.includes(l.sprite)) out.push(`${at}.sprite is not one of ${SPRITES.join(', ')}`)
-      if (l.texture != null && (typeof l.texture !== 'string' || l.texture.trim() === ''))
+      if (!SPRITES.includes(l.sprite))
+        out.push(`${at}.sprite is not one of ${SPRITES.join(', ')}`)
+      if (
+        l.texture != null &&
+        (typeof l.texture !== 'string' || l.texture.trim() === '')
+      )
         out.push(`${at}.texture is not an image URL or SVG markup`)
-      if (l.blend !== 'add' && l.blend !== 'alpha') out.push(`${at}.blend is not add or alpha`)
-      if (l.emitter == null || !['point', 'sphere', 'cone', 'ring', 'disc'].includes(l.emitter.shape))
+      if (l.blend !== 'add' && l.blend !== 'alpha')
+        out.push(`${at}.blend is not add or alpha`)
+      if (
+        l.emitter == null ||
+        !['point', 'sphere', 'cone', 'ring', 'disc'].includes(l.emitter.shape)
+      )
         out.push(`${at}.emitter.shape is not a known shape`)
-      if (!(isNum(l.rate) && l.rate >= 0)) out.push(`${at}.rate is not a number`)
+      if (!(isNum(l.rate) && l.rate >= 0))
+        out.push(`${at}.rate is not a number`)
       for (const k of ['life', 'speed', 'size'] as const)
         if (!isRange(l[k])) out.push(`${at}.${k} is not [min, max]`)
-      if (!Array.isArray(l.colors) || l.colors.length === 0 || !l.colors.every(isColor))
+      if (
+        !Array.isArray(l.colors) ||
+        l.colors.length === 0 ||
+        !l.colors.every(isColor)
+      )
         out.push(`${at}.colors is not a list of #rrggbb[aa]`)
     } else if (l.kind === 'light') {
       if (!isColor(l.color)) out.push(`${at}.color is not #rrggbb`)
-      if (!(isNum(l.intensity) && l.intensity >= 0)) out.push(`${at}.intensity is not a number`)
-      if (!(isNum(l.range) && l.range > 0)) out.push(`${at}.range is not positive`)
+      if (!(isNum(l.intensity) && l.intensity >= 0))
+        out.push(`${at}.intensity is not a number`)
+      if (!(isNum(l.range) && l.range > 0))
+        out.push(`${at}.range is not positive`)
     } else if (l.kind === 'sound') {
       if (!VOICES.includes(l.voice) && l.url == null)
         out.push(`${at}.voice is not one of ${VOICES.join(', ')}`)
-      if (!(isNum(l.gain) && l.gain >= 0)) out.push(`${at}.gain is not a number`)
+      if (!(isNum(l.gain) && l.gain >= 0))
+        out.push(`${at}.gain is not a number`)
     } else out.push(`${at}.kind is not particles, light or sound`)
   })
   return out
@@ -352,7 +396,8 @@ export function effectRecipeSchema(): Record<string, unknown> {
   const MS = { 'x-unit': 'm/s' }
   const unit = { type: 'number', minimum: 0, maximum: 1 }
   const curve = {
-    description: 'A [0,1] → [0,1] curve as control points, or a number for the flat curve.',
+    description:
+      'A [0,1] → [0,1] curve as control points, or a number for the flat curve.',
     oneOf: [
       { type: 'number' },
       {
@@ -372,7 +417,10 @@ export function effectRecipeSchema(): Record<string, unknown> {
     minItems: 2,
     maxItems: 2,
   })
-  const color = { type: 'string', pattern: '^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$' }
+  const color = {
+    type: 'string',
+    pattern: '^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$',
+  }
   const channels = (names: string[]) => ({
     type: 'object',
     description: 'Multipliers over the layer’s life, one curve each.',
@@ -388,8 +436,16 @@ export function effectRecipeSchema(): Record<string, unknown> {
       description: 'Omitted, it lasts as long as the effect.',
       ...S,
     },
-    repeat: { type: 'boolean', default: false, description: 'Start again when it ends. Needs a duration.' },
-    activity: { ...curve, description: 'Effect activity → multiplier on the main channel. Default linear.' },
+    repeat: {
+      type: 'boolean',
+      default: false,
+      description: 'Start again when it ends. Needs a duration.',
+    },
+    activity: {
+      ...curve,
+      description:
+        'Effect activity → multiplier on the main channel. Default linear.',
+    },
   }
   const particles = {
     type: 'object',
@@ -400,37 +456,108 @@ export function effectRecipeSchema(): Record<string, unknown> {
       sprite: { type: 'string', enum: [...SPRITES] },
       texture: {
         type: 'string',
-        description: 'Your own picture: an image URL (PNG, JPEG, SVG, data:) or SVG markup.',
+        description:
+          'Your own picture: an image URL (PNG, JPEG, SVG, data:) or SVG markup.',
       },
-      blend: { type: 'string', enum: ['add', 'alpha'], description: 'add glows; alpha covers.' },
+      blend: {
+        type: 'string',
+        enum: ['add', 'alpha'],
+        description: 'add glows; alpha covers.',
+      },
       emitter: {
         type: 'object',
         properties: {
-          shape: { type: 'string', enum: ['point', 'sphere', 'cone', 'ring', 'disc'] },
+          shape: {
+            type: 'string',
+            enum: ['point', 'sphere', 'cone', 'ring', 'disc'],
+          },
           radius: { type: 'number', minimum: 0, ...M },
-          angleDeg: { type: 'number', minimum: 0, maximum: 90, 'x-unit': 'deg' },
+          angleDeg: {
+            type: 'number',
+            minimum: 0,
+            maximum: 90,
+            'x-unit': 'deg',
+          },
         },
         required: ['shape'],
         additionalProperties: false,
       },
-      height: { type: 'number', default: 0, description: 'Above the effect.', ...M },
-      rate: { type: 'number', minimum: 0, description: 'Particles a second at full activity.' },
-      burst: { type: 'integer', minimum: 0, description: 'Particles all at once when the layer starts.' },
+      height: {
+        type: 'number',
+        default: 0,
+        description: 'Above the effect.',
+        ...M,
+      },
+      rate: {
+        type: 'number',
+        minimum: 0,
+        description: 'Particles a second at full activity.',
+      },
+      burst: {
+        type: 'integer',
+        minimum: 0,
+        description: 'Particles all at once when the layer starts.',
+      },
       life: range('Seconds a particle lives,', S),
       speed: range('Speed as it leaves,', MS),
       size: range('Metres across,', M),
-      gravity: { type: 'number', default: 0, description: 'Down; negative rises.', 'x-unit': 'm/s²' },
+      gravity: {
+        type: 'number',
+        default: 0,
+        description: 'Down; negative rises.',
+        'x-unit': 'm/s²',
+      },
       drag: { ...unit, default: 0, description: 'Velocity lost per second.' },
-      wind: { ...unit, default: 0, description: 'How much the wind carries it.' },
-      colors: { type: 'array', items: color, minItems: 1, description: 'Over a particle’s life.' },
-      grow: { ...curve, description: 'Size over a particle’s life (a multiplier).' },
-      stretch: { type: 'boolean', default: false, description: 'Stretch along its velocity.' },
-      land: { type: 'boolean', default: false, description: 'Settle on the ground where it lands.' },
-      surface: { type: 'boolean', default: false, description: 'End at the water’s surface.' },
-      wobble: { type: 'number', minimum: 0, default: 0, description: 'Sideways zigzag.', ...MS },
+      wind: {
+        ...unit,
+        default: 0,
+        description: 'How much the wind carries it.',
+      },
+      colors: {
+        type: 'array',
+        items: color,
+        minItems: 1,
+        description: 'Over a particle’s life.',
+      },
+      grow: {
+        ...curve,
+        description: 'Size over a particle’s life (a multiplier).',
+      },
+      stretch: {
+        type: 'boolean',
+        default: false,
+        description: 'Stretch along its velocity.',
+      },
+      land: {
+        type: 'boolean',
+        default: false,
+        description: 'Settle on the ground where it lands.',
+      },
+      surface: {
+        type: 'boolean',
+        default: false,
+        description: 'End at the water’s surface.',
+      },
+      wobble: {
+        type: 'number',
+        minimum: 0,
+        default: 0,
+        description: 'Sideways zigzag.',
+        ...MS,
+      },
       channels: channels(['rate', 'size', 'speed']),
     },
-    required: ['kind', 'sprite', 'blend', 'emitter', 'rate', 'life', 'speed', 'size', 'colors'],
+    required: [
+      'kind',
+      'sprite',
+      'blend',
+      'emitter',
+      'rate',
+      'life',
+      'speed',
+      'size',
+      'colors',
+    ],
     additionalProperties: false,
   }
   const light = {
@@ -442,7 +569,12 @@ export function effectRecipeSchema(): Record<string, unknown> {
       color,
       intensity: { type: 'number', minimum: 0 },
       range: { type: 'number', exclusiveMinimum: 0, ...M },
-      height: { type: 'number', default: 0, description: 'Above the effect.', ...M },
+      height: {
+        type: 'number',
+        default: 0,
+        description: 'Above the effect.',
+        ...M,
+      },
       flicker: { ...unit, default: 0 },
       channels: channels(['intensity', 'range']),
     },
@@ -455,11 +587,24 @@ export function effectRecipeSchema(): Record<string, unknown> {
     properties: {
       kind: { const: 'sound' },
       ...base,
-      voice: { type: 'string', enum: [...VOICES], description: 'The synthesised voice.' },
-      url: { type: 'string', description: 'A sample to play instead of the voice.' },
+      voice: {
+        type: 'string',
+        enum: [...VOICES],
+        description: 'The synthesised voice.',
+      },
+      url: {
+        type: 'string',
+        description: 'A sample to play instead of the voice.',
+      },
       gain: { ...unit },
       pitch: { type: 'number', exclusiveMinimum: 0, default: 1 },
-      refDistance: { type: 'number', exclusiveMinimum: 0, default: 10, description: 'Full gain inside this.', ...M },
+      refDistance: {
+        type: 'number',
+        exclusiveMinimum: 0,
+        default: 10,
+        description: 'Full gain inside this.',
+        ...M,
+      },
       channels: channels(['gain', 'pitch', 'cutoff']),
     },
     required: ['kind', 'gain'],
@@ -473,7 +618,12 @@ export function effectRecipeSchema(): Record<string, unknown> {
     properties: {
       version: { const: EFFECT_RECIPE_VERSION },
       name: { type: 'string' },
-      duration: { type: 'number', exclusiveMinimum: 0, description: 'A one-shot; omitted, it loops.', ...S },
+      duration: {
+        type: 'number',
+        exclusiveMinimum: 0,
+        description: 'A one-shot; omitted, it loops.',
+        ...S,
+      },
       activity: { ...unit, default: 1, description: 'Dormant 0 … erupting 1.' },
       layers: { type: 'array', items: { oneOf: [particles, light, sound] } },
     },

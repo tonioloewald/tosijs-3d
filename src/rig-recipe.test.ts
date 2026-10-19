@@ -73,14 +73,32 @@ describe('rig recipe', () => {
     const strand = springs.find((s: any) => s.title === 'Strand')
     // Every field the validator insists on is required by the schema, and
     // the schema's defaults are the tool's.
-    for (const k of ['anchor', 'offset', 'yawDeg', 'pitchDeg', 'length', 'segments', 'radius'])
+    for (const k of [
+      'anchor',
+      'offset',
+      'yawDeg',
+      'pitchDeg',
+      'length',
+      'segments',
+      'radius',
+    ])
       expect(strand.required).toContain(k)
-    for (const k of ['yawDeg', 'pitchDeg', 'length', 'segments', 'radius', 'tipRadius', 'color'] as const)
+    for (const k of [
+      'yawDeg',
+      'pitchDeg',
+      'length',
+      'segments',
+      'radius',
+      'tipRadius',
+      'color',
+    ] as const)
       expect(strand.properties[k].default).toEqual((STRAND_DEFAULTS as any)[k])
     expect(strand.properties.segments.maximum).toBe(64)
     // Every key a recipe can carry is in the schema (no additionalProperties).
     const keys = Object.keys({ ...STRAND_DEFAULTS, anchor: '' })
     for (const k of keys) expect(Object.keys(strand.properties)).toContain(k)
-    expect((rigRecipeSchema() as any).properties.version.const).toBe(RIG_RECIPE_VERSION)
+    expect((rigRecipeSchema() as any).properties.version.const).toBe(
+      RIG_RECIPE_VERSION
+    )
   })
 })

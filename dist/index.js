@@ -78,7 +78,7 @@ headless runner can read them. Exists so nobody hand-copies our attributes:
 ensemble's hand-written skybox schema carried 6 of 16 and disagreed on a
 default (#63). Drift is caught by a test, not promised.
 */
-export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, moonSchema, weatherCellSchema, lightningSchema, lightShaftsSchema, decoratorSchema, trailSchema, soundSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
+export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, cloudDeckSchema, moonSchema, weatherCellSchema, lightningSchema, lightShaftsSchema, decoratorSchema, trailSchema, soundSchema, effectSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas.js';
 export { B3dFog, b3dFog } from './b3d-fog.js';
 export { B3dClouds, b3dClouds } from './b3d-clouds.js';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal.js';
@@ -374,7 +374,7 @@ export { B3dParticles, b3dParticles } from './b3d-particles.js';
 // Effects: particles, light and sound as layers on one clock (EFFECTS-DESIGN).
 export { B3dEffect, b3dEffect } from './b3d-effect.js';
 export { EffectPlayer } from './effect-player.js';
-export { EFFECT_PRESETS, effectPreset, VOLCANO_STATES } from './effect-presets.js';
+export { EFFECT_PRESETS, effectPreset, VOLCANO_STATES, } from './effect-presets.js';
 export { EFFECT_RECIPE_VERSION, SPRITES as EFFECT_SPRITES, VOICES as EFFECT_VOICES, layerAt, lightScore, rankLights, soundDelay, validateEffectRecipe, effectRecipeSchema, } from './effect-recipe.js';
 export { B3dSound, b3dSound } from './b3d-sound.js';
 export { B3dTrigger, b3dTrigger } from './b3d-trigger.js';

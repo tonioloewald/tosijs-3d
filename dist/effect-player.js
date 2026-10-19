@@ -75,7 +75,8 @@ function tick(scene, s) {
     s.lights.forEach((l, i) => {
         const target = won.has(i) ? 1 : 0;
         // Fade, not pop: about a sixth of a second either way.
-        l.fade += Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6);
+        l.fade +=
+            Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6);
         l.light._effectFade = l.fade;
         l.light.intensity = l.want * l.fade;
         l.light.range = l.range;
@@ -210,7 +211,9 @@ export class EffectPlayer {
         const burst = l.burst ?? 0;
         const capacity = Math.min(4000, Math.ceil(l.rate * l.life[1] * 1.2 + burst * 1.2 + 8));
         const ps = new BABYLON.ParticleSystem(`effect-${l.name ?? 'particles'}`, capacity, scene);
-        ps.particleTexture = l.texture ? effectTexture(scene, l.texture) : effectSprite(scene, l.sprite);
+        ps.particleTexture = l.texture
+            ? effectTexture(scene, l.texture)
+            : effectSprite(scene, l.sprite);
         ps.blendMode =
             l.blend === 'add'
                 ? BABYLON.ParticleSystem.BLENDMODE_ADD
@@ -390,7 +393,9 @@ export class EffectPlayer {
     }
     light(l0) {
         const k = this.options.scale ?? 1;
-        const l = k === 1 ? l0 : { ...l0, range: l0.range * k, height: (l0.height ?? 0) * k };
+        const l = k === 1
+            ? l0
+            : { ...l0, range: l0.range * k, height: (l0.height ?? 0) * k };
         const light = new BABYLON.PointLight(`effect-${l.name ?? 'light'}`, BABYLON.Vector3.Zero(), this.scene);
         light.diffuse = BABYLON.Color3.FromHexString(l.color);
         light.specular = light.diffuse.scale(0.3);
@@ -405,13 +410,20 @@ export class EffectPlayer {
             update: (t, prev, activity) => {
                 const s = layerAt(l, this.recipe, t, activity, prev);
                 const flicker = l.flicker ? 1 - l.flicker * Math.random() : 1;
-                want = s.on ? l.intensity * s.level * (s.channel.intensity ?? 1) * flicker : 0;
+                want = s.on
+                    ? l.intensity * s.level * (s.channel.intensity ?? 1) * flicker
+                    : 0;
                 on = want > 0.001;
                 light.position.copyFrom(this.node.getAbsolutePosition());
                 light.position.y += l.height ?? 0;
                 if (on && rt.shared != null) {
                     fade = light._effectFade ?? fade;
-                    rt.shared.lights.push({ light, want, range: l.range * (s.channel.range ?? 1), fade });
+                    rt.shared.lights.push({
+                        light,
+                        want,
+                        range: l.range * (s.channel.range ?? 1),
+                        fade,
+                    });
                 }
                 else {
                     light.setEnabled(false);
@@ -460,7 +472,10 @@ export class EffectPlayer {
                 if (voice != null && !this.shared.voices.has(voice))
                     voice = null;
                 if (voice == null) {
-                    const v = startVoice(l.voice, { refDistance: l.refDistance, url: l.url });
+                    const v = startVoice(l.voice, {
+                        refDistance: l.refDistance,
+                        url: l.url,
+                    });
                     if (v == null)
                         return;
                     voice = { voice: v, audible: 0 };

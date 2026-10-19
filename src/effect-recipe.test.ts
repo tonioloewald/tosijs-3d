@@ -18,7 +18,13 @@ import {
 import { EFFECT_PRESETS, effectPreset } from './effect-presets.js'
 
 const light = (extra: Partial<EffectLayer> = {}): EffectLayer =>
-  ({ kind: 'light', color: '#ffffff', intensity: 1, range: 5, ...extra }) as EffectLayer
+  ({
+    kind: 'light',
+    color: '#ffffff',
+    intensity: 1,
+    range: 5,
+    ...extra,
+  } as EffectLayer)
 const effect = (layers: EffectLayer[], duration?: number): EffectRecipe => ({
   version: EFFECT_RECIPE_VERSION,
   duration,
@@ -70,7 +76,16 @@ describe('the layer clock', () => {
     expect(layerAt(l, e, 2.75, 1).life).toBeCloseTo(0.25)
   })
   test('channels are sampled over the layer life; a number is flat', () => {
-    const l = light({ duration: 2, channels: { intensity: [{ x: 0, y: 0 }, { x: 1, y: 1 }], range: 0.5 } })
+    const l = light({
+      duration: 2,
+      channels: {
+        intensity: [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+        ],
+        range: 0.5,
+      },
+    })
     const s = layerAt(l, effect([l]), 1, 1)
     expect(s.channel.intensity).toBeCloseTo(0.5)
     expect(s.channel.range).toBe(0.5)
@@ -108,12 +123,30 @@ describe('activity: one volcano, three states', () => {
 
 describe('the light pool: strength × locality', () => {
   test('a bright light near you beats a dim one, and a near lamp a far flash', () => {
-    expect(rankLights([{ intensity: 1, range: 10, distance: 3 }, { intensity: 40, range: 25, distance: 5 }], 1)).toEqual([1])
-    expect(rankLights([{ intensity: 2, range: 8, distance: 2 }, { intensity: 40, range: 25, distance: 300 }], 1)).toEqual([0])
+    expect(
+      rankLights(
+        [
+          { intensity: 1, range: 10, distance: 3 },
+          { intensity: 40, range: 25, distance: 5 },
+        ],
+        1
+      )
+    ).toEqual([1])
+    expect(
+      rankLights(
+        [
+          { intensity: 2, range: 8, distance: 2 },
+          { intensity: 40, range: 25, distance: 300 },
+        ],
+        1
+      )
+    ).toEqual([0])
   })
   test('nothing scores beyond its range', () => {
     expect(lightScore({ intensity: 100, range: 10, distance: 16 })).toBe(0)
-    expect(rankLights([{ intensity: 100, range: 10, distance: 16 }], 4)).toEqual([])
+    expect(
+      rankLights([{ intensity: 100, range: 10, distance: 16 }], 4)
+    ).toEqual([])
   })
 })
 
@@ -131,21 +164,37 @@ describe('validation', () => {
     const problems = validateEffectRecipe({
       version: 1,
       layers: [
-        { kind: 'particles', sprite: 'star', blend: 'add', emitter: { shape: 'cube' }, rate: 1, life: [2, 1], speed: [0, 1], size: [0, 1], colors: ['red'] },
+        {
+          kind: 'particles',
+          sprite: 'star',
+          blend: 'add',
+          emitter: { shape: 'cube' },
+          rate: 1,
+          life: [2, 1],
+          speed: [0, 1],
+          size: [0, 1],
+          colors: ['red'],
+        },
         { kind: 'light', color: '#fff', intensity: 1, range: 0 },
         { kind: 'sound', voice: 'kazoo', gain: 1, repeat: true },
         { kind: 'smell' },
       ],
     })
-    expect(problems).toContain('layers[0].sprite is not one of puff, smoke, spark, ember, glow, drop, bubble')
+    expect(problems).toContain(
+      'layers[0].sprite is not one of puff, smoke, spark, ember, glow, drop, bubble'
+    )
     expect(problems).toContain('layers[0].emitter.shape is not a known shape')
     expect(problems).toContain('layers[0].life is not [min, max]')
     expect(problems).toContain('layers[0].colors is not a list of #rrggbb[aa]')
     expect(problems).toContain('layers[1].color is not #rrggbb')
     expect(problems).toContain('layers[1].range is not positive')
     expect(problems).toContain('layers[2] repeats with no duration')
-    expect(problems).toContain('layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash, bubble')
-    expect(problems).toContain('layers[3].kind is not particles, light or sound')
+    expect(problems).toContain(
+      'layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash, bubble'
+    )
+    expect(problems).toContain(
+      'layers[3].kind is not particles, light or sound'
+    )
   })
 })
 
@@ -154,8 +203,10 @@ describe('the schema', () => {
   // field a preset uses is declared, required fields are there, enums hold,
   // numbers are in range.
   const check = (schema: any, v: any, at: string, out: string[]) => {
-    if (schema.const !== undefined && v !== schema.const) out.push(`${at} is not ${schema.const}`)
-    if (schema.enum && !schema.enum.includes(v)) out.push(`${at} is not in its enum`)
+    if (schema.const !== undefined && v !== schema.const)
+      out.push(`${at} is not ${schema.const}`)
+    if (schema.enum && !schema.enum.includes(v))
+      out.push(`${at} is not in its enum`)
     if (schema.oneOf) {
       const fits = schema.oneOf.filter((s: any) => {
         const o: string[] = []
@@ -166,30 +217,48 @@ describe('the schema', () => {
       return
     }
     if (typeof v === 'number') {
-      if (schema.type === 'integer' && !Number.isInteger(v)) out.push(`${at} is not an integer`)
-      if (schema.minimum != null && v < schema.minimum) out.push(`${at} < minimum`)
-      if (schema.maximum != null && v > schema.maximum) out.push(`${at} > maximum`)
-      if (schema.exclusiveMinimum != null && v <= schema.exclusiveMinimum) out.push(`${at} <= exclusiveMinimum`)
+      if (schema.type === 'integer' && !Number.isInteger(v))
+        out.push(`${at} is not an integer`)
+      if (schema.minimum != null && v < schema.minimum)
+        out.push(`${at} < minimum`)
+      if (schema.maximum != null && v > schema.maximum)
+        out.push(`${at} > maximum`)
+      if (schema.exclusiveMinimum != null && v <= schema.exclusiveMinimum)
+        out.push(`${at} <= exclusiveMinimum`)
     }
-    if (schema.type === 'number' && typeof v !== 'number') out.push(`${at} is not a number`)
-    if (schema.type === 'string' && typeof v !== 'string') out.push(`${at} is not a string`)
-    if (schema.pattern && !new RegExp(schema.pattern).test(v)) out.push(`${at} does not match`)
-    if (schema.type === 'boolean' && typeof v !== 'boolean') out.push(`${at} is not a boolean`)
+    if (schema.type === 'number' && typeof v !== 'number')
+      out.push(`${at} is not a number`)
+    if (schema.type === 'string' && typeof v !== 'string')
+      out.push(`${at} is not a string`)
+    if (schema.pattern && !new RegExp(schema.pattern).test(v))
+      out.push(`${at} does not match`)
+    if (schema.type === 'boolean' && typeof v !== 'boolean')
+      out.push(`${at} is not a boolean`)
     if (schema.type === 'array') {
       if (!Array.isArray(v)) return out.push(`${at} is not an array`)
-      if (schema.minItems != null && v.length < schema.minItems) out.push(`${at} too short`)
-      if (schema.maxItems != null && v.length > schema.maxItems) out.push(`${at} too long`)
-      v.forEach((x, i) => schema.items && check(schema.items, x, `${at}[${i}]`, out))
+      if (schema.minItems != null && v.length < schema.minItems)
+        out.push(`${at} too short`)
+      if (schema.maxItems != null && v.length > schema.maxItems)
+        out.push(`${at} too long`)
+      v.forEach(
+        (x, i) => schema.items && check(schema.items, x, `${at}[${i}]`, out)
+      )
     }
     if (schema.type === 'object') {
-      if (v == null || typeof v !== 'object') return out.push(`${at} is not an object`)
-      for (const k of schema.required ?? []) if (!(k in v)) out.push(`${at}.${k} is missing`)
-      if (schema.anyOf && !schema.anyOf.some((a: any) => a.required.every((k: string) => k in v)))
+      if (v == null || typeof v !== 'object')
+        return out.push(`${at} is not an object`)
+      for (const k of schema.required ?? [])
+        if (!(k in v)) out.push(`${at}.${k} is missing`)
+      if (
+        schema.anyOf &&
+        !schema.anyOf.some((a: any) => a.required.every((k: string) => k in v))
+      )
         out.push(`${at} fits none of anyOf`)
       for (const [k, x] of Object.entries(v)) {
         const p = schema.properties?.[k]
         if (p) check(p, x, `${at}.${k}`, out)
-        else if (schema.additionalProperties === false) out.push(`${at}.${k} is not in the schema`)
+        else if (schema.additionalProperties === false)
+          out.push(`${at}.${k} is not in the schema`)
       }
     }
   }
@@ -210,7 +279,10 @@ describe('the schema', () => {
     expect(p.properties.sprite.enum).toEqual([...SPRITES])
     expect(snd.properties.voice.enum).toEqual([...VOICES])
     // A broken recipe fails both.
-    const bad = { version: EFFECT_RECIPE_VERSION, layers: [{ kind: 'light', color: 'red', intensity: 1, range: 5 }] }
+    const bad = {
+      version: EFFECT_RECIPE_VERSION,
+      layers: [{ kind: 'light', color: 'red', intensity: 1, range: 5 }],
+    }
     const out: string[] = []
     check(s, bad, 'bad', out)
     expect(out.length).toBeGreaterThan(0)

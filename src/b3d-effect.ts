@@ -134,7 +134,12 @@ export class B3dEffect extends AbstractMesh {
 
   render(): void {
     super.render()
-    if (this.ground === 'on' && this._groundY != null && this.mesh != null && this.mesh.parent == null)
+    if (
+      this.ground === 'on' &&
+      this._groundY != null &&
+      this.mesh != null &&
+      this.mesh.parent == null
+    )
       this.mesh.position.y = this._groundY + this.y
     if (this.owner == null || this.mesh == null) return
     // A new preset (or none, or back again) starts afresh, player or not.
@@ -165,20 +170,34 @@ export class B3dEffect extends AbstractMesh {
   water's ice does; a pick from above found the cloud deck 6 km up first),
   else the first mesh below by a pick.
   */
-  private _heightFn: { key: string; fn: (x: number, z: number) => number } | null = null
+  private _heightFn: {
+    key: string
+    fn: (x: number, z: number) => number
+  } | null = null
   private _findGround(): void {
     const owner = this.owner
     const node = this.mesh
-    if (this.ground !== 'on' || owner == null || node == null || node.parent != null) return
+    if (
+      this.ground !== 'on' ||
+      owner == null ||
+      node == null ||
+      node.parent != null
+    )
+      return
     const terrain = owner.querySelector('tosi-b3d-terrain') as any
     if (terrain != null && typeof terrain.heightSampler === 'function') {
       const off = terrain.originOffset ?? { x: 0, z: 0 }
       const key = `${terrain.generationKey ?? ''}|${off.x}|${off.z}`
-      if (this._heightFn?.key !== key) this._heightFn = { key, fn: terrain.heightSampler() }
+      if (this._heightFn?.key !== key)
+        this._heightFn = { key, fn: terrain.heightSampler() }
       // The sampler takes logical world coordinates, as the attributes are.
       this._groundY = this._heightFn.fn(this.x, this.z)
     } else {
-      const from = new BABYLON.Vector3(node.position.x, node.position.y + 500, node.position.z)
+      const from = new BABYLON.Vector3(
+        node.position.x,
+        node.position.y + 500,
+        node.position.z
+      )
       const hit = owner.scene.pickWithRay(
         new BABYLON.Ray(from, BABYLON.Vector3.Down(), 2000),
         (m) => m.isPickable && m.isEnabled() && m.isVisible && m !== node

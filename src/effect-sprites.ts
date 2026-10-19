@@ -51,7 +51,14 @@ const DRAW: Record<SpriteKind, (c: Ctx) => void> = {
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + r() * 0.5
       const d = 10 + r() * 6
-      soft(c, 32 + Math.cos(a) * d, 32 + Math.sin(a) * d, 12 + r() * 6, 0.65, 0.35)
+      soft(
+        c,
+        32 + Math.cos(a) * d,
+        32 + Math.sin(a) * d,
+        12 + r() * 6,
+        0.65,
+        0.35
+      )
     }
   },
   spark(c) {
@@ -139,7 +146,12 @@ export function effectTexture(
     the sprites take, so it keeps its alpha.
     */
     const size = 128
-    const dt = new BABYLON.DynamicTexture(`effect-picture`, { width: size, height: size }, scene, true)
+    const dt = new BABYLON.DynamicTexture(
+      `effect-picture`,
+      { width: size, height: size },
+      scene,
+      true
+    )
     dt.hasAlpha = true
     const img = new Image()
     img.onload = () => {
@@ -149,7 +161,9 @@ export function effectTexture(
       dt.update(false)
     }
     img.src = markup
-      ? `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(source)))}`
+      ? `data:image/svg+xml;base64,${btoa(
+          unescape(encodeURIComponent(source))
+        )}`
       : source
     tex = dt
   } else {

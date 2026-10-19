@@ -648,7 +648,10 @@ export class B3dTerrain extends B3dChild {
     const owner = this.owner as unknown as HTMLElement | null
     if (owner == null) return
     const want = new Map(
-      this._vents.map((v) => [`${v.preset}|${v.x}|${v.z}|${v.scale}|${v.activity}`, v])
+      this._vents.map((v) => [
+        `${v.preset}|${v.x}|${v.z}|${v.scale}|${v.activity}`,
+        v,
+      ])
     )
     for (const [key, fx] of this._ventFx)
       if (!want.has(key)) {

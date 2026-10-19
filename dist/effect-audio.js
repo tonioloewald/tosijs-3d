@@ -18,7 +18,8 @@ const buffers = new Map();
 export function effectAudio() {
     try {
         if (ctx == null) {
-            const C = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+            const C = globalThis.AudioContext ??
+                globalThis.webkitAudioContext;
             if (C == null)
                 return null;
             ctx = new C();
@@ -104,7 +105,10 @@ function build(ac, kind) {
         case 'hiss': {
             const s = src(ac, 'white');
             const f = filt(ac, 'lowpass', 7000);
-            s.connect(filt(ac, 'highpass', 1800)).connect(f).connect(mix(ac, 1.2)).connect(out);
+            s.connect(filt(ac, 'highpass', 1800))
+                .connect(f)
+                .connect(mix(ac, 1.2))
+                .connect(out);
             return { out, sources: [s], filter: f, lo: 2500, hi: 12000 };
         }
         case 'boom': {
