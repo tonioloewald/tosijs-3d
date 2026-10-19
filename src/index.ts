@@ -1648,11 +1648,14 @@ export {
   retargeter,
   rotationBetween,
   ROLES,
+  FINGERS,
 } from './retarget.js'
 export type {
   Role,
   Side as RetargetSide,
   Limb,
+  Finger,
+  FingerJoint,
   NamedBone,
   RestBone,
   Skeleton as RetargetSkeleton,
@@ -1665,6 +1668,22 @@ export {
   retargetClips,
 } from './retarget-babylon.js'
 export type { ReadSkeleton } from './retarget-babylon.js'
+export {
+  RIG_RECIPE_VERSION,
+  STRAND_DEFAULTS,
+  strandDirection,
+  validateRigRecipe,
+} from './rig-recipe.js'
+export type {
+  RigRecipe,
+  SpringRecipe,
+  BoneSpringRecipe,
+  StrandSpringRecipe,
+  ColliderRecipe,
+  SpringParamsRecipe,
+} from './rig-recipe.js'
+export { applyRigRecipe } from './rig-recipe-babylon.js'
+export type { AppliedRig, AppliedSpring } from './rig-recipe-babylon.js'
 export {
   fitSkeleton,
   fittedRestBones,

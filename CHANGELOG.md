@@ -8,6 +8,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## Unreleased
 
+### Added
+
+- **The rig tool** (`/rig-tool/`, `tosijs-3d/rig-tool`; Tonio). Load a demo character or your own GLB, check which bone plays each role (fingers included), set the arm space, hang spring chains on it (a new strand with a tube, such as a ponytail, or bones the model already has, such as a tail), and try any UAL clip beside the mannequin, scaled to the character. Save the result as a **rig recipe** (JSON), load it back, or copy it; the working recipe is kept per model in the browser. The element's `.rig` (`recipe`, `applied`, `load`) lets a page or an editor drive it.
+- **Rig recipes**: `RigRecipe`, `validateRigRecipe` (headless, says what is wrong and where) and `strandDirection` in `rig-recipe`, and `applyRigRecipe(scene, root, skeleton, recipe)`, which puts a saved recipe on the same model in a game: the skeleton read with the recipe's roles, ready for `retargetClip`, and the springs live.
+
 ### Fixed
 
 - **Panels no longer blink when they rebuild.** A frame panel is an SVG drawn into its texture asynchronously, so a new plane is blank until that draw lands; on a headset (and a 4× throttled laptop: seven blank frames per rebuild) every refresh flashed. A rebuild now puts the new element into the SAME plane, and the texture keeps its old picture until the new one is drawn. This applies to the settings panel in a headset, the flat in-scene settings panel, and system panels (`frame-panel`'s new `setSvg`, `SvgTexture.setElement`).
