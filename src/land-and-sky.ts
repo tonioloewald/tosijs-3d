@@ -479,7 +479,7 @@ demo.volcano.observe(() => {
 // A LIGHTNING STORM, as weather rather than scenery (WEATHER-DESIGN): a cell
 // with coverage and storminess, drifting with the wind. It gathers IN FRONT
 // of you (the view faces east) over twenty seconds, so switching it on shows
-// you a storm, then drifts away east. Lightning, thunder, rain and strike
+// you a storm, then drifts across the view with the wind. Lightning, thunder, rain and strike
 // shadows all come from the cell. Toggling it on again starts a new one.
 let storm = null
 sky.storm.observe(() => {
@@ -493,10 +493,12 @@ sky.storm.observe(() => {
 
 const scene = b3d(
   {
-    // The SCENE's wind matches the deck's (toward +X), so a drifting storm
-    // travels with the clouds it is made of.
+    // ONE WIND for the clouds, the smoke, spray and storms (the deck follows
+    // the scene's). It blows ACROSS the view (toward +Z; the view faces east):
+    // blowing straight away from you, as it did, clouds and smoke drift was
+    // nearly invisible (Tonio).
     windSpeed: sky.wind,
-    windBearingDeg: 90,
+    windBearingDeg: 0,
     // Sections as icon TABS (one at a time); 'fold' shows them as headers.
     panelSections: 'tabs',
     // Lightning strikes wherever a weather cell is stormy (the storm toggle).

@@ -17,6 +17,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 - **`rigRecipeSchema()`**: a rig recipe as JSON Schema (ranges, units as `x-unit`, defaults), for a host that builds its editors from schemas or keeps recipes in its own documents (asked for by ensemble). A test holds it to `validateRigRecipe` and the tool's strand defaults.
 
+### Fixed
+
+- **The cloud deck drifts with the scene's wind** when the scene has one (`<tosi-b3d wind-speed>`), as smoke, spray and storms already did; its own `wind` and `windHeadingDeg` are the fallback (Tonio: the clouds and the volcano's smoke did not seem to share a wind). Its drift is integrated frame by frame, so a change of speed no longer jumps the clouds. Land and Sky's wind now blows across the view instead of straight away from it, where neither the clouds' nor the smoke's drift could be seen.
+
 ## 0.10.15
 
 ### Added
