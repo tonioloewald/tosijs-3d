@@ -10,7 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
-- **The rig tool** (`/rig-tool/`, `tosijs-3d/rig-tool`; Tonio). Load a demo character or your own GLB, check which bone plays each role (fingers included), set the arm space, hang spring chains on it (a new strand with a tube, such as a ponytail, or bones the model already has, such as a tail), and try any UAL clip beside the mannequin, scaled to the character. Save the result as a **rig recipe** (JSON), load it back, or copy it; the working recipe is kept per model in the browser. The element's `.rig` (`recipe`, `applied`, `load`) lets a page or an editor drive it.
+- **The rig tool** (`/rig-tool/`, `tosijs-3d/rig-tool`; Tonio). Load a demo character (the weasels and the space marine are rigged from markers on the spot, as the auto-rig page does, and a weasel's tail is a spring from the start) or your own GLB, check which bone plays each role (fingers included), set the arm space, hang spring chains on it (a new strand with a tube, such as a ponytail, or bones the model already has, such as a tail), and try any UAL clip beside the mannequin, scaled to the character. Save the result as a **rig recipe** (JSON), load it back, or copy it; the working recipe is kept per model in the browser. The element's `.rig` (`recipe`, `applied`, `load`) lets a page or an editor drive it.
 - **Rig recipes**: `RigRecipe`, `validateRigRecipe` (headless, says what is wrong and where) and `strandDirection` in `rig-recipe`, and `applyRigRecipe(scene, root, skeleton, recipe)`, which puts a saved recipe on the same model in a game: the skeleton read with the recipe's roles, ready for `retargetClip`, and the springs live.
 
 ### Fixed

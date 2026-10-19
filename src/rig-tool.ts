@@ -77,6 +77,16 @@ import {
 import { vector3d } from './vector-field.js'
 import { readSkeleton, retargetClip } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
+import {
+  fitSkeleton,
+  meshQuery,
+  objTriangles,
+  skinSegments,
+  type Markers,
+} from './rig-fit.js'
+import { boneHeat } from './bone-heat.js'
+import { buildRig } from './rig-build.js'
+import type { Vec3 } from './spatial-transform.js'
 import { applyRigRecipe, type AppliedRig } from './rig-recipe-babylon.js'
 import {
   RIG_RECIPE_VERSION,
@@ -97,10 +107,89 @@ export interface RigModel {
   scale?: number
   /** A recipe to start from. */
   recipe?: Partial<RigRecipe>
+  /**
+   * A mesh with no skeleton (an OBJ, or a GLB's `mesh`): rig it from these
+   * markers, as the auto-rig page does. `url` is the mesh file.
+   */
+  autorig?: {
+    markers: Markers
+    /** Where a tail's tip is (from the side view), for a tail chain. */
+    tail?: Vec3
+    /** An OBJ's objects to use. */
+    objects?: string[]
+    /** A GLB's mesh to use. */
+    mesh?: string
+    color?: string
+  }
+}
+
+/** Mixamo's eight front-view markers, given for the left and mirrored. */
+const markers = (
+  chin: [number, number],
+  groin: [number, number],
+  wrist: [number, number],
+  elbow: [number, number],
+  knee: [number, number]
+): Markers => {
+  const p = ([x, y]: [number, number]) => ({ x, y })
+  const m = ([x, y]: [number, number]) => ({ x: -x, y })
+  return {
+    chin: p(chin),
+    groin: p(groin),
+    wristL: p(wrist),
+    wristR: m(wrist),
+    elbowL: p(elbow),
+    elbowR: m(elbow),
+    kneeL: p(knee),
+    kneeR: m(knee),
+  }
+}
+
+/** A weasel's tail as a spring: the tail chain the auto-rig gives it. */
+const TAIL: SpringRecipe = {
+  kind: 'bones',
+  name: 'tail',
+  root: 'tail_01',
+  params: { stiffness: 0.25, damping: 0.6, gravity: 9.8 },
+  colliders: 'none',
 }
 
 export function rigToolModels(): RigModel[] {
+  // Tonio's meshes (CC BY 4.0) with the auto-rig page's markers.
+  const tonio = (f: string) => assetUrl('tonio/rigging/' + f)
   return [
+    {
+      label: 'skinny weasel',
+      url: tonio('weasel-skinny.obj'),
+      autorig: {
+        objects: ['Body', 'Head', 'Tail'],
+        color: '#cc8040',
+        tail: { x: 0, y: 0.77, z: -0.95 },
+        markers: markers([0, 1.259], [0, 0.64], [0.657, 1.154], [0.404, 1.14], [0.106, 0.34]),
+      },
+      recipe: { springs: [TAIL] },
+    },
+    {
+      label: 'weasel',
+      url: tonio('weasel.obj'),
+      autorig: {
+        objects: ['Weasel'],
+        color: '#996b40',
+        tail: { x: 0, y: 0.5, z: -0.95 },
+        markers: markers([0, 0.967], [0, 0.358], [0.51, 0.763], [0.397, 0.763], [0.142, 0.174]),
+      },
+      recipe: { springs: [TAIL] },
+    },
+    {
+      label: 'space marine',
+      url: tonio('space-marine.glb'),
+      scale: 0.42,
+      autorig: {
+        mesh: 'EvilMarineBody',
+        color: '#4d664d',
+        markers: markers([0, 3.594], [0, 1.656], [1.966, 2.937], [1.18, 3.064], [0.388, 0.943]),
+      },
+    },
     {
       label: 'superhero',
       url: assetUrl('quaternius/libraries/characters-superhero-male.glb'),
@@ -189,6 +278,105 @@ function download(name: string, text: string): void {
   a.download = name
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+interface Opened {
+  root: BABYLON.TransformNode
+  skeleton: BABYLON.Skeleton
+  mesh: BABYLON.AbstractMesh
+  dispose(): void
+}
+
+/** A GLB with a skeleton: the character in it (`pick`), and its biggest skin. */
+async function openGlb(
+  scene: BABYLON.Scene,
+  m: RigModel | File
+): Promise<Opened | string> {
+  const container = await BABYLON.LoadAssetContainerAsync(
+    m instanceof File ? m : m.url,
+    scene,
+    m instanceof File
+      ? {
+          pluginExtension: m.name.toLowerCase().endsWith('.gltf')
+            ? '.gltf'
+            : '.glb',
+        }
+      : undefined
+  )
+  container.addAllToScene()
+  for (const g of container.animationGroups) g.stop()
+  const root = (container.meshes.find((n) => n.name === '__root__') ??
+    container.transformNodes[0]) as BABYLON.TransformNode
+  const pick = m instanceof File ? undefined : m.pick
+  const top =
+    pick != null
+      ? container.transformNodes.find((n) => n.name === pick) ??
+        container.meshes.find((n) => n.name === pick)
+      : undefined
+  if (top != null) {
+    for (const n of container.meshes)
+      if (n !== root && n !== top && !n.isDescendantOf(top)) n.setEnabled(false)
+    top.position.set(0, 0, 0)
+  }
+  const under = (s: BABYLON.Skeleton) =>
+    top == null ||
+    s.bones.some((b) => b.getTransformNode()?.isDescendantOf(top))
+  const skeleton = [...container.skeletons]
+    .filter(under)
+    .sort((a, b) => b.bones.length - a.bones.length)[0]
+  if (skeleton == null) {
+    container.dispose()
+    return 'has no skeleton: give it markers on the auto-rig page first'
+  }
+  const mesh = container.meshes.find(
+    (n) => n.skeleton === skeleton && n.isEnabled()
+  )!
+  return { root, skeleton, mesh, dispose: () => container.dispose() }
+}
+
+/*
+A MESH WITH NO SKELETON, rigged as the auto-rig page does: its triangles,
+a skeleton fitted from the eight markers (and a tail tip, for a tail), bone
+heat for the weights, and a Babylon skeleton built on it. Its tail, if any,
+is `tail_01` … `tail_leaf`: a bone chain for the springs.
+*/
+async function autoRig(
+  scene: BABYLON.Scene,
+  name: string,
+  url: string,
+  a: NonNullable<RigModel['autorig']>
+): Promise<Opened> {
+  let positions: number[]
+  let indices: number[]
+  if (url.toLowerCase().endsWith('.obj')) {
+    ;({ positions, indices } = objTriangles(
+      await (await fetch(url)).text(),
+      a.objects
+    ))
+  } else {
+    const glb = await BABYLON.LoadAssetContainerAsync(url, scene)
+    const m = glb.meshes.find((m) => m.name === a.mesh) ?? glb.meshes[1]
+    positions = Array.from(m.getVerticesData('position') ?? [])
+    indices = Array.from(m.getIndices() ?? [])
+    glb.dispose()
+  }
+  const rig = fitSkeleton(a.markers, meshQuery(positions, indices), {
+    tail: a.tail,
+  })
+  const weights = boneHeat(positions, indices, skinSegments(rig))
+  const built = buildRig(scene, name, positions, indices, rig, weights)
+  const mat = new BABYLON.StandardMaterial(`${name}-skin`, scene)
+  mat.diffuseColor = BABYLON.Color3.FromHexString(a.color ?? '#8a8f99')
+  built.mesh.material = mat
+  return {
+    root: built.root,
+    skeleton: built.skeleton,
+    mesh: built.mesh,
+    dispose() {
+      mat.dispose()
+      built.dispose()
+    },
+  }
 }
 
 /** The panel's view of a role: what it is set to, and what was guessed. */
@@ -678,7 +866,7 @@ export function rigTool(
           cam.minZ = height * 0.01
         }
         let model: {
-          container: BABYLON.AssetContainer
+          dispose(): void
           root: BABYLON.TransformNode
           skeleton: BABYLON.Skeleton
           mesh: BABYLON.AbstractMesh
@@ -754,54 +942,23 @@ export function rigTool(
           applied = null
           viewer?.dispose()
           viewer = null
-          model?.container.dispose()
+          model?.dispose()
           model = null
           try {
-            const container = await BABYLON.LoadAssetContainerAsync(
-              m instanceof File ? m : m.url,
-              scene,
-              m instanceof File
-                ? {
-                    pluginExtension: m.name.toLowerCase().endsWith('.gltf')
-                      ? '.gltf'
-                      : '.glb',
-                  }
-                : undefined
-            )
-            container.addAllToScene()
-            for (const g of container.animationGroups) g.stop()
-            const root = (container.meshes.find((n) => n.name === '__root__') ??
-              container.transformNodes[0]) as BABYLON.TransformNode
-            const pick = m instanceof File ? undefined : m.pick
-            const top =
-              pick != null
-                ? container.transformNodes.find((n) => n.name === pick) ??
-                  container.meshes.find((n) => n.name === pick)
-                : undefined
-            if (top != null) {
-              for (const n of container.meshes)
-                if (n !== root && n !== top && !n.isDescendantOf(top))
-                  n.setEnabled(false)
-              top.position.set(0, 0, 0)
-            }
-            const under = (s: BABYLON.Skeleton) =>
-              top == null ||
-              s.bones.some((b) => b.getTransformNode()?.isDescendantOf(top))
-            const skeleton = [...container.skeletons]
-              .filter(under)
-              .sort((a, b) => b.bones.length - a.bones.length)[0]
-            if (skeleton == null) {
-              ui.status = `${label} has no skeleton: rig it on the auto-rig page first`
-              container.dispose()
+            const opened =
+              !(m instanceof File) && m.autorig != null
+                ? await autoRig(scene, m.label, m.url, m.autorig)
+                : await openGlb(scene, m)
+            if (typeof opened === 'string') {
+              ui.status = `${label} ${opened}`
               refresh()
               return
             }
-            const mesh = container.meshes.find(
-              (n) => n.skeleton === skeleton && n.isEnabled()
-            )!
+            const { root, skeleton } = opened
+            const pick = m instanceof File ? undefined : m.pick
             root.parent = stand
             stand.scaling.setAll(m instanceof File ? 1 : m.scale ?? 1)
-            model = { container, root, skeleton, mesh }
+            model = opened
             boneNames = skeleton.bones.map(
               (b) => b.getTransformNode()?.name ?? b.name
             )
