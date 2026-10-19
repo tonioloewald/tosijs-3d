@@ -1,6 +1,6 @@
 # Effects — particles, light and sound on one clock
 
-> Status: **design, for review** (drafted 2026-10-19 for Tonio). What exists:
+> Status: **design, agreed** (drafted and reviewed 2026-10-19; step 1 in progress). What exists:
 > `b3dParticles` (one Babylon `ParticleSystem`, two colours, an emitter shape,
 > `burst(n)`), the lamps' one-curve light model (`light-modulation`), `b3dSound`
 > (positional audio), procedural thunder delayed by distance (`b3d-lightning`,
@@ -123,13 +123,15 @@ arcs (`boltPath` between two points, sparks where it lands).
 the water's own foam, and spray at the bow. Particles above the water would
 read as a different effect.
 
-## Open questions
+## Decided (Tonio, 2026-10-19)
 
-- **Effect lights and the lamps.** Should an effect light count against the
-  same budget as `b3dPointLight`s? Probably yes, with lamps taking priority.
-- **XR.** Soft particles need the depth texture; in a headset that is an extra
-  pass. Likely: hard edges in a session, unless measured cheap.
-- **Ensemble.** A piece carrying an effect recipe, as with rig recipes. The
+- **One light pool, lamps included.** Effect lights and `b3dPointLight`s share
+  it. Priority is by **strength and locality**: how bright a light is where
+  the viewer is looking from (intensity over distance, within its range), so a
+  bright nearby explosion outranks a dim lamp across the map, and a lamp beside
+  you outranks a far flash. Losers fade out rather than pop.
+- **XR: hard edges.** No soft particles in a headset (the depth pass costs).
+- **Ensemble:** a piece carrying an effect recipe, as with rig recipes. The
   schema is ours.
 
 ## What would change this
