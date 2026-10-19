@@ -6,6 +6,15 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **Panels no longer blink when they rebuild.** A frame panel is an SVG drawn into its texture asynchronously, so a new plane is blank until that draw lands; on a headset (and a 4× throttled laptop: seven blank frames per rebuild) every refresh flashed. A rebuild now puts the new element into the SAME plane, and the texture keeps its old picture until the new one is drawn. This applies to the settings panel in a headset, the flat in-scene settings panel, and system panels (`frame-panel`'s new `setSvg`, `SvgTexture.setElement`).
+- **The system bar and pinned flat panels are reconciled, not all rebuilt**, when the set of panels changes: the unchanged ones keep their mesh.
+- **A rebuilt settings panel keeps its scroll position**: flat in the scene, in the HTML overlay, and in a headset.
+- **A settings-panel rebuild waits for the press to end**, so `refreshScenePanel()` during a slider drag no longer cuts the drag off (`panel3d`'s new read-only `pressing`).
+
 ## 0.10.14
 
 ### Fixed
