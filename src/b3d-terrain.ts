@@ -410,7 +410,8 @@ const freshBiomeMemo = () => ({
   season: NaN,
   seasonality: NaN,
 })
-import { touchesExtent } from './landform.js'
+import { touchesExtent, type Vent } from './landform.js'
+import { b3dEffect } from './b3d-effect.js'
 import { chartTemperature } from './biome-chart.js'
 
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
@@ -626,6 +627,48 @@ export class B3dTerrain extends B3dChild {
    * crater in, regenerate.
    */
   landform: ((x: number, z: number, h: number) => number) | null = null
+
+  /*
+  WHERE THE LANDFORM IS ACTIVE (a volcano's vent): one `<tosi-b3d-effect>`
+  per vent, on the ground, added to the scene beside the terrain. Set it with
+  the landform and province (a factory returns all three: `v.vents`). Kept
+  in step: a vent that stays the same keeps its effect, one that goes is
+  removed. No regenerate needed.
+  */
+  private _vents: Vent[] = []
+  private _ventFx = new Map<string, HTMLElement>()
+  get vents(): Vent[] {
+    return this._vents
+  }
+  set vents(v: Vent[] | null) {
+    this._vents = v ?? []
+    this._syncVents()
+  }
+  private _syncVents(): void {
+    const owner = this.owner as unknown as HTMLElement | null
+    if (owner == null) return
+    const want = new Map(
+      this._vents.map((v) => [`${v.preset}|${v.x}|${v.z}|${v.scale}|${v.activity}`, v])
+    )
+    for (const [key, fx] of this._ventFx)
+      if (!want.has(key)) {
+        fx.remove()
+        this._ventFx.delete(key)
+      }
+    for (const [key, v] of want) {
+      if (this._ventFx.has(key)) continue
+      const fx = b3dEffect({
+        preset: v.preset,
+        x: v.x,
+        z: v.z,
+        scale: v.scale,
+        activity: v.activity,
+        ground: 'on',
+      })
+      owner.append(fx)
+      this._ventFx.set(key, fx)
+    }
+  }
 
   /**
    * Volumetric patch mask — `(x, z) => true` where the terrain SURFACE is cut
@@ -1000,6 +1043,9 @@ export class B3dTerrain extends B3dChild {
   private _beforeRender: (() => void) | null = null
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    // Vents set before the scene was up are placed now (a task later, once
+    // this terrain has finished building).
+    setTimeout(() => this._syncVents(), 0)
     this.owner = owner
 
     const attrs = this as any
@@ -1118,6 +1164,8 @@ export class B3dTerrain extends B3dChild {
   }
 
   sceneDispose() {
+    for (const fx of this._ventFx.values()) fx.remove()
+    this._ventFx.clear()
     this._debugOff?.()
     this._debugOff = null
     this._originDbgOff?.()

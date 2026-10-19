@@ -203,7 +203,25 @@ export function touchesExtent(
 }
 
 /** A landform + its matching volcanism province, made together. */
+/**
+ * A place where a landform is ACTIVE (EFFECTS-DESIGN, PROVINCE-DESIGN): an
+ * effect preset at a point, sized and as busy as the landform says. A
+ * terrain given these (`terrain.vents`) puts an effect on each, on the ground.
+ */
+export interface Vent {
+  x: number
+  z: number
+  /** An effect preset: `volcano`, `geyser`, `bubbles`, … */
+  preset: string
+  /** The effect's `scale` (its presets are person-sized). */
+  scale: number
+  /** The effect's activity, 0 to 1. */
+  activity: number
+}
+
 export interface AuthoredLandform {
+  /** Where it is active: effects the terrain places (a volcano's vent). */
+  vents?: Vent[]
   landform: Bounded<LandformFn>
   /**
    * The province carries its OWN extent, deliberately not shared with the
@@ -217,6 +235,11 @@ export interface AuthoredLandform {
 }
 
 export interface VolcanoOptions {
+  /**
+   * How active, 0 to 1: the vent's `volcano` effect (0.15 dormant, 0.5
+   * semi-active, 1 erupting). 0, the default, is extinct: no effect.
+   */
+  activity?: number
   /** Vent position (world coords). */
   x: number
   z: number
@@ -265,7 +288,14 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     craterDepth = height * 0.35,
     flatten = 0.7,
     glow = 1,
+    activity = 0,
   } = opts
+  // The vent's effect is sized by the crater: the volcano preset is a vent
+  // about 4.5 m across, so a 55 m crater takes it at 12.
+  const vents: Vent[] =
+    activity > 0
+      ? [{ x: cx, z: cz, preset: 'volcano', scale: craterRadius / 4.5, activity: Math.min(1, activity) }]
+      : []
   const landform = (x: number, z: number, h: number) => {
     const dx = x - cx
     const dz = z - cz
@@ -320,6 +350,7 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     return glow * (BASALT_HEAT * basalt + (RIM_HEAT - BASALT_HEAT) * veins)
   }
   return {
+    vents,
     landform: withExtent(landform, circleExtent(cx, cz, radius)),
     // The basalt apron reaches `craterRadius + radius * 0.75`, NOT `radius`.
     // With the default crater (0.22 R) that is 0.97 R — inside the cone — but

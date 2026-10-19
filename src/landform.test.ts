@@ -573,3 +573,16 @@ describe('sphereCraters', () => {
     expect(front).toBeGreaterThan(back * 1.5)
   })
 })
+
+describe('a volcano says where it is active', () => {
+  test('extinct by default: no vent', () => {
+    expect(volcano({ x: 0, z: 0, radius: 100, height: 50 }).vents).toEqual([])
+  })
+  test('an active one has a vent at its crater, sized by the crater', () => {
+    const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, activity: 0.5 })
+    expect(v.vents).toHaveLength(1)
+    const vent = v.vents![0]
+    expect([vent.x, vent.z, vent.preset, vent.activity]).toEqual([600, -400, 'volcano', 0.5])
+    expect(vent.scale).toBeCloseTo(55 / 4.5)
+  })
+})

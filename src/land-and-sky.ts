@@ -10,7 +10,7 @@ first — which is the point.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, b3dEffect, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces, ROCK_RULES } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dMoon, b3dWeatherCell, b3dLightning, b3dAmbient, b3dLightShafts, b3dTerrain, b3dCloudDeck, b3dDecorator, b3dWater, b3dLight, b3dFog, label3d, slider3d, toggle3d, select3d, button3d, row3d, volcano, craterField, composeLandforms, mergeProvinces, ROCK_RULES } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({
@@ -331,7 +331,9 @@ sky.preset.observe(() => {
 // The volcano is authored ONCE and switched in and out. Applied here as well
 // as from the toggle because it is ON by default, and the toggle's handler only
 // runs when someone flips it.
-const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, craterDepth: 50 })
+// SEMI-ACTIVE (Tonio): its vent smokes, glows and spits now and then. The
+// landform carries that as a vent, and the terrain puts the effect there.
+const theVolcano = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 55, craterDepth: 50, activity: 0.5 })
 // Where the sea is: a FRACTION of the terrain's height, or, on a world
 // with no sea, far below everything (no water to see).
 function seaY() {
@@ -370,16 +372,20 @@ function volcanoField(n, seed) {
 function applyVolcano(on) {
   const parts = []
   const provinces = []
+  const vents = []
   const density = demo.craters.valueOf()
   if (density > 0) parts.push(craterField({ seed: demo.seed.valueOf(), density, maxRadius: 500 }))
   for (const v of volcanoField(demo.volcanoes.valueOf(), demo.seed.valueOf())) {
     parts.push(v.landform)
     provinces.push(v.province)
+    vents.push(...(v.vents ?? []))
   }
   if (on) {
     parts.push(theVolcano.landform)
     provinces.push(theVolcano.province)
+    vents.push(...(theVolcano.vents ?? []))
   }
+  terrain.vents = vents
   terrain.landform = parts.length === 0 ? null : parts.length === 1 ? parts[0] : composeLandforms(...parts)
   terrain.provinceField = provinces.length === 0 ? null : provinces.length === 1 ? provinces[0] : mergeProvinces(...provinces)
 }
@@ -463,16 +469,10 @@ const terrain = b3dTerrain({
 })
 
 applyVolcano(demo.volcano.valueOf())
-// THE VOLCANO IS ALIVE, semi-active (Tonio): steam, a thin ash column, a
-// glowing vent and a rumble, carried by the wind. In its crater (ground: on
-// finds the crater floor), scaled from a vent to a mountain. It goes with
-// the volcano: a world preset without one has no eruption either.
-const volcanoFx = b3dEffect({ preset: demo.volcano.valueOf() ? 'volcano' : '', activity: 0.5, x: 600, z: -400, y: 4, scale: 12, ground: 'on' })
 // Observed rather than handled on the toggle, so a PRESET switching the
 // volcano regenerates the terrain too.
 demo.volcano.observe(() => {
   applyVolcano(demo.volcano.valueOf())
-  volcanoFx.preset = demo.volcano.valueOf() ? 'volcano' : ''
   terrain.regenerate()
 })
 
@@ -694,7 +694,6 @@ const scene = b3d(
   b3dLight({ intensity: 0.5, groundColor: '#57523f' }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   terrain,
-  volcanoFx,
   // The layer case: a cloud DECK over the peaks, orographic so the towers
   // build over the actual mountains. Blob clouds (b3d-clouds) remain the
   // right tool for cloud you fly BETWEEN.

@@ -1365,6 +1365,7 @@ export type {
 } from './sdf-lattice.js'
 export type {
   AuthoredLandform,
+  Vent,
   Extent,
   Bounded,
   LandformFn,
