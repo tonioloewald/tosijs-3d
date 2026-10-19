@@ -210,6 +210,7 @@ export class EffectPlayer {
   /** Swap the recipe (the tool editing it): rebuilt, playing on from now. */
   setRecipe(recipe: EffectRecipe): void {
     for (const r of this.runtimes) r.dispose()
+    this.ownSystems.clear()
     this.recipe = recipe
     this.build()
   }
@@ -217,6 +218,7 @@ export class EffectPlayer {
   dispose(): void {
     for (const r of this.runtimes) r.dispose()
     this.runtimes = []
+    this.ownSystems.clear()
     this.shared.players.delete(this)
   }
 
@@ -257,7 +259,27 @@ export class EffectPlayer {
         ? this.light(l)
         : this.sound(l)
     )
+    /*
+    GLOW DRAWS LAST. Babylon draws particle systems in the order they were
+    made, not by depth, so a smoke layer listed after a fire layer painted
+    over it: the explosion's flash and the fireball's core went murky behind
+    their own smoke (Tonio). Additive light on top of smoke reads as fire in
+    smoke, which is what it is.
+    */
+    const list = this.scene.particleSystems
+    const glows = list.filter(
+      (ps) =>
+        ps.blendMode === BABYLON.ParticleSystem.BLENDMODE_ADD &&
+        this.ownSystems.has(ps)
+    )
+    for (const ps of glows) {
+      list.splice(list.indexOf(ps), 1)
+      list.push(ps)
+    }
   }
+
+  /** The particle systems this player made, so it reorders only its own. */
+  private ownSystems = new Set<BABYLON.IParticleSystem>()
 
   private particles(l0: ParticleLayer): Runtime {
     const scene = this.scene
@@ -288,6 +310,7 @@ export class EffectPlayer {
       capacity,
       scene
     )
+    this.ownSystems.add(ps)
     ps.particleTexture = l.texture
       ? effectTexture(scene, l.texture)
       : effectSprite(scene, l.sprite)

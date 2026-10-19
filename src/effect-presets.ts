@@ -450,52 +450,56 @@ export const EFFECT_PRESETS: Record<string, EffectRecipe> = {
     name: 'explosion',
     duration: 6,
     layers: [
-      {
-        kind: 'particles',
-        name: 'fireball',
-        sprite: 'glow',
-        blend: 'add',
-        height: 1.2,
-        emitter: { shape: 'sphere', radius: 0.6 },
-        rate: 0,
-        burst: 50,
-        life: [0.6, 1.1],
-        speed: [2, 5],
-        size: [2, 3.5],
-        gravity: -2,
-        drag: 0.8,
-        colors: ['#fffbe0', '#ffc040', '#ff5010', '#60100000'],
-        grow: [
-          { x: 0, y: 0.6 },
-          { x: 1, y: 1.6 },
-        ],
-      },
       /*
-      The smoke is what the fireball BECOMES, so it waits for the fire to burn
-      down (Tonio: started at 0.25 s it smothered the fireball's middle), comes
-      up where the fire has risen to, and thickens from nothing.
+      FIRE THAT BECOMES SMOKE. Each puff starts as flame and burns down to
+      smoke on its own, rising as it goes (Tonio: make a flame particle evolve
+      into smoke rather than making smoke fresh, which covered the fireball's
+      middle). Covering, so it can darken; the glow is the layer below.
       */
       {
         kind: 'particles',
-        name: 'smoke',
+        name: 'fireball',
         sprite: 'smoke',
         blend: 'alpha',
-        start: 0.6,
-        height: 2.2,
-        emitter: { shape: 'sphere', radius: 1.4 },
+        height: 1.2,
+        emitter: { shape: 'sphere', radius: 0.7 },
         rate: 0,
-        burst: 40,
-        life: [3, 5],
-        speed: [0.8, 2.4],
-        size: [1.8, 3.2],
-        gravity: -1.2,
-        drag: 0.6,
+        burst: 55,
+        life: [2.8, 4.5],
+        speed: [2, 5],
+        size: [1.4, 2.6],
+        gravity: -1.6,
+        drag: 0.9,
         wind: 1,
-        colors: ['#30282000', '#302820b0', '#40383070', '#50484000'],
-        grow: [
-          { x: 0, y: 0.8 },
-          { x: 1, y: 2.5 },
+        colors: [
+          '#fff4c0ff',
+          '#ffa030f0',
+          '#c04818c8',
+          '#3a302898',
+          '#40383060',
+          '#50484000',
         ],
+        grow: [
+          { x: 0, y: 0.6 },
+          { x: 1, y: 2.8 },
+        ],
+      },
+      /* The flash at its heart: light, drawn over the smoke, gone in a blink. */
+      {
+        kind: 'particles',
+        name: 'heart',
+        sprite: 'glow',
+        blend: 'add',
+        height: 1.2,
+        emitter: { shape: 'sphere', radius: 0.4 },
+        rate: 0,
+        burst: 24,
+        life: [0.25, 0.6],
+        speed: [1, 3],
+        size: [2.5, 4],
+        gravity: -2,
+        drag: 0.8,
+        colors: ['#fffbe0', '#ffc040', '#ff501000'],
       },
       {
         kind: 'particles',
@@ -550,41 +554,49 @@ export const EFFECT_PRESETS: Record<string, EffectRecipe> = {
     version: EFFECT_RECIPE_VERSION,
     name: 'fireball',
     layers: [
+      /* The white-hot heart: light, drawn over everything, staying in the ball. */
       {
         kind: 'particles',
         name: 'core',
         sprite: 'glow',
         blend: 'add',
-        emitter: { shape: 'sphere', radius: 0.25 },
-        rate: 60,
-        life: [0.3, 0.55],
-        // The flames go out and up, and burn out there (Tonio); the smoke
-        // takes over where they die, not in the middle of the ball.
-        speed: [0.4, 1.2],
-        size: [0.5, 0.9],
-        gravity: -2.5,
+        emitter: { shape: 'sphere', radius: 0.2 },
+        rate: 50,
+        life: [0.2, 0.35],
+        speed: [0, 0.3],
+        size: [0.5, 0.8],
+        gravity: -0.5,
         colors: ['#fffbe0', '#ffb030', '#ff401000'],
         grow: fade,
       },
+      /*
+      Flames that go out and up and burn down into smoke on the way (Tonio):
+      one particle, flame first, smoke last, so the smoke is always above
+      and behind the fire and never in front of its middle.
+      */
       {
         kind: 'particles',
-        name: 'trail',
+        name: 'flames',
         sprite: 'smoke',
         blend: 'alpha',
-        // Born ABOVE the ball, where the flames burn out, and thickening from
-        // nothing: smoke from the middle smothered the fire (Tonio).
-        height: 0.6,
-        emitter: { shape: 'sphere', radius: 0.35 },
-        rate: 20,
-        life: [1.2, 2.2],
-        speed: [0.2, 0.6],
-        size: [0.4, 0.8],
-        gravity: -0.8,
+        emitter: { shape: 'sphere', radius: 0.25 },
+        rate: 40,
+        life: [1.2, 2],
+        speed: [0.4, 1.2],
+        size: [0.4, 0.7],
+        gravity: -2.2,
+        drag: 0.4,
         wind: 0.8,
-        colors: ['#40302000', '#40302088', '#4a40345a', '#50483800'],
+        colors: [
+          '#fff0a0f0',
+          '#ff8020d8',
+          '#a0401890',
+          '#40302070',
+          '#50483800',
+        ],
         grow: [
-          { x: 0, y: 0.6 },
-          { x: 1, y: 2 },
+          { x: 0, y: 0.7 },
+          { x: 1, y: 2.4 },
         ],
       },
       {
