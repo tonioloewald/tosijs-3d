@@ -21,7 +21,9 @@ It opens standing still in its REST pose (a T or an A), with a dot on the
 bone each role uses: tap a dot to choose that role (it turns yellow), then
 tap the body where that bone is to give the role to it. Set `clicking sets`
 to the chain and a tap hangs the chosen spring chain there instead. A
-strand's root and tip are orange handles: drag them to place it. Turn on
+strand's path is a row of orange handles: drag them along the tail or the
+ponytail, `+ point` for another one beyond the tip. `view` snaps to front,
+side or top, which is how you line a point up with the flesh. Turn on
 `animate` (or pick a clip) to see it move.
 
 The panel has four sections.
@@ -35,8 +37,10 @@ The panel has four sections.
   pick a role and then the bone that plays it, or `(none)` to leave it out. `arm space` turns the arms out
   from the body, for a character whose arms are long for its height.
 - **Springs.** `+ strand` hangs a new chain with a tube from a bone (a
-  ponytail): place it with `offset`, `yaw` and `pitch`, size it, and tune
-  how it swings. `+ bone chain` simulates bones the model already has (a
+  ponytail): lay out its path with the handles (add points for a curve),
+  choose how many `links` it has (they are spaced evenly along the path),
+  size it, and tune how it swings. A straight one can also be set by
+  `offset`, `yaw`, `pitch` and `length`. `+ bone chain` simulates bones the model already has (a
   tail): pick the chain's first bone. Stiffness and damping change live;
   the rest rebuild the chain.
 - **Recipe.** `save` downloads the recipe as JSON, `load` reads one back,
@@ -76,6 +80,7 @@ import { assetUrl } from './asset-url.js'
 import {
   button3d,
   label3d,
+  row3d,
   select3d,
   slider3d,
   toggle3d,
@@ -101,6 +106,9 @@ import {
   RIG_RECIPE_VERSION,
   STRAND_DEFAULTS,
   validateRigRecipe,
+  strandPath,
+  setStrandPath,
+  pathLength,
   type RigRecipe,
   type SpringRecipe,
   type StrandSpringRecipe,
@@ -816,61 +824,106 @@ export function rigTool(
           rebuild()
         },
       }),
-      label3d({ text: 'offset from the bone', compact: true }),
-      vector3d({
-        value: s.offset,
-        step: 0.01,
-        handleChange: (v) => {
-          s.offset = { ...v }
-          rebuild()
-        },
-      }) as unknown as Widget3d,
-      slider3d({
-        label: 'yaw',
-        value: s.yawDeg,
-        min: -180,
-        max: 180,
-        step: 1,
-        format: (v) => `${v}°`,
-        handleChange: (v) => {
-          s.yawDeg = v
-          rebuild()
-        },
+      /*
+      THE PATH (Tonio: map out the tail or the ponytail, do not place one
+      stub). Its points are the orange handles: drag them onto the tail;
+      `+ point` adds one beyond the tip, `− point` takes the last away. The
+      links are spaced evenly along it, however many there are.
+      */
+      label3d({
+        text: `${strandPath(s).length} points, ${pathLength(strandPath(s)).toFixed(2)} m: drag the orange handles`,
+        muted: true,
+        compact: true,
       }),
+      row3d(
+        {},
+        button3d({
+          label: '+ point',
+          handleClick: () => {
+            const path = strandPath(s)
+            const a = path[path.length - 2]
+            const b = path[path.length - 1]
+            path.push({ x: 2 * b.x - a.x, y: 2 * b.y - a.y, z: 2 * b.z - a.z })
+            setStrandPath(s, path)
+            s.segments = Math.max(s.segments, path.length - 1)
+            rebuild()
+          },
+        }),
+        button3d({
+          label: '− point',
+          handleClick: () => {
+            const path = strandPath(s)
+            if (path.length <= 2) return
+            path.pop()
+            setStrandPath(s, path)
+            rebuild()
+          },
+        })
+      ),
       slider3d({
-        label: 'pitch',
-        value: s.pitchDeg,
-        min: -90,
-        max: 90,
-        step: 1,
-        format: (v) => `${v}°`,
-        handleChange: (v) => {
-          s.pitchDeg = v
-          rebuild()
-        },
-      }),
-      slider3d({
-        label: 'length',
-        value: s.length,
-        min: 0.05,
-        max: 1.5,
-        step: 0.01,
-        handleChange: (v) => {
-          s.length = v
-          rebuild()
-        },
-      }),
-      slider3d({
-        label: 'segments',
+        label: 'links',
         value: s.segments,
-        min: 2,
-        max: 16,
+        min: 1,
+        max: 24,
         step: 1,
         handleChange: (v) => {
           s.segments = Math.round(v)
           rebuild()
         },
       }),
+      // A straight strand can also be set by numbers; a bent one by its handles.
+      ...(s.path != null && s.path.length > 2
+        ? []
+        : [
+          label3d({ text: 'offset from the bone', compact: true }),
+          vector3d({
+            value: s.offset,
+            step: 0.01,
+            handleChange: (v) => {
+              s.offset = { ...v }
+              delete s.path
+              rebuild()
+            },
+          }) as unknown as Widget3d,
+          slider3d({
+            label: 'yaw',
+            value: s.yawDeg,
+            min: -180,
+            max: 180,
+            step: 1,
+            format: (v) => `${v}°`,
+            handleChange: (v) => {
+              s.yawDeg = v
+              delete s.path
+              rebuild()
+            },
+          }),
+          slider3d({
+            label: 'pitch',
+            value: s.pitchDeg,
+            min: -90,
+            max: 90,
+            step: 1,
+            format: (v) => `${v}°`,
+            handleChange: (v) => {
+              s.pitchDeg = v
+              delete s.path
+              rebuild()
+            },
+          }),
+          slider3d({
+            label: 'length',
+            value: s.length,
+            min: 0.05,
+            max: 1.5,
+            step: 0.01,
+            handleChange: (v) => {
+              s.length = v
+              delete s.path
+              rebuild()
+            },
+          }),
+          ]),
       slider3d({
         label: 'thickness',
         value: s.radius,
@@ -1093,7 +1146,8 @@ export function rigTool(
         /*
         THE TARGETS, in the rest pose: a dot on each role's bone (drawn over
         the body, so the hidden ones show), the chosen role's bigger and
-        yellow; a strand's root and tip as handles you drag; a bone chain's
+        yellow; a strand's path points as handles you drag (its links marked
+        along it when it is the chosen one); a bone chain's
         first bone in blue. Nothing in the animated view.
         */
         scene.setRenderingAutoClearDepthStencil(1, true, true, false)
@@ -1153,14 +1207,23 @@ export function rigTool(
               dot(nodes[0].getAbsolutePosition(), size, mat, { rigSpring: i })
               return
             }
-            dot(nodes[0].getAbsolutePosition(), size, mat, {
-              rigSpring: i,
-              handle: 'root',
-            })
-            dot(nodes[nodes.length - 1].getAbsolutePosition(), size, mat, {
-              rigSpring: i,
-              handle: 'tip',
-            })
+            // A handle on every point of its path, and a small mark where
+            // each link's joint falls along it.
+            const anchor = applied!.read.nodes.get(sp.recipe.anchor)
+            if (anchor == null) return
+            const a = anchor.getAbsolutePosition()
+            strandPath(sp.recipe).forEach((p, k) =>
+              dot(new BABYLON.Vector3(a.x + p.x, a.y + p.y, a.z + p.z), size, mat, {
+                rigSpring: i,
+                handle: k,
+              })
+            )
+            if (picked)
+              for (const n of nodes)
+                dot(n.getAbsolutePosition(), size * 0.45, springMat, {
+                  rigSpring: i,
+                  link: true,
+                })
           })
         }
 
@@ -1231,25 +1294,23 @@ export function rigTool(
             window.removeEventListener('pointermove', move, true)
             window.removeEventListener('pointerup', up, true)
             cam.attachControl(canvas, true)
-            const ends = dots.filter((d) => d.metadata?.rigSpring === i)
-            const from = ends.find(
-              (d) => d.metadata.handle === 'root'
-            )!.position
-            const to = ends.find((d) => d.metadata.handle === 'tip')!.position
+            const handles = dots
+              .filter(
+                (d) =>
+                  d.metadata?.rigSpring === i &&
+                  typeof d.metadata.handle === 'number'
+              )
+              .sort((p, q) => p.metadata.handle - q.metadata.handle)
             const anchor = applied?.read.nodes.get(strand.anchor)
             if (anchor == null) return
             const a = anchor.getAbsolutePosition()
-            const dir = to.subtract(from)
-            const len = dir.length()
-            if (len < 1e-4) return
-            strand.offset = {
-              x: from.x - a.x,
-              y: from.y - a.y,
-              z: from.z - a.z,
-            }
-            strand.length = len
-            strand.pitchDeg = (Math.asin(dir.y / len) * 180) / Math.PI
-            strand.yawDeg = (Math.atan2(-dir.x, -dir.z) * 180) / Math.PI
+            const path = handles.map((d) => ({
+              x: d.position.x - a.x,
+              y: d.position.y - a.y,
+              z: d.position.z - a.z,
+            }))
+            if (pathLength(path) < 1e-4) return
+            setStrandPath(strand, path)
             changed()
             refresh()
           }

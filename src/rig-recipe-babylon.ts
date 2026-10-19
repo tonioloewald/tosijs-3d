@@ -18,7 +18,7 @@ import {
   type SpringBones,
 } from './spring-chain-babylon.js'
 import {
-  strandDirection,
+  strandPoints,
   type ColliderRecipe,
   type RigRecipe,
   type SpringRecipe,
@@ -164,12 +164,8 @@ export function applyRigRecipe(
         problems.push(`strand anchor ${s.anchor} is not in this model`)
         continue
       }
-      const start = anchor.getAbsolutePosition().add(inFrame(s.offset))
-      const dir = inFrame(strandDirection(s.yawDeg, s.pitchDeg))
-      const n = Math.max(1, Math.round(s.segments))
-      const points = Array.from({ length: n + 1 }, (_, i) =>
-        start.add(dir.scale((s.length * i) / n))
-      )
+      const base = anchor.getAbsolutePosition()
+      const points = strandPoints(s).map((p) => base.add(inFrame(p)))
       const bones = springBones(scene, anchor, points, {
         params,
         colliders: collidersOf(s),
