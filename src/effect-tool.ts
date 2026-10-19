@@ -41,11 +41,23 @@ import * as BABYLON from '@babylonjs/core'
 import { b3d } from './tosi-b3d.js'
 import { b3dLight } from './b3d-light.js'
 import { b3dSkybox } from './b3d-skybox.js'
-import { button3d, label3d, select3d, slider3d, toggle3d, type Widget3d } from './widgets3d.js'
+import { GridMaterial } from '@babylonjs/materials'
+import {
+  button3d,
+  label3d,
+  select3d,
+  slider3d,
+  toggle3d,
+  type Widget3d,
+} from './widgets3d.js'
 import { color3d } from './color-field.js'
 import { touchOrbit } from './touch-orbit.js'
 import { EffectPlayer } from './effect-player.js'
-import { EFFECT_PRESETS, effectPreset, VOLCANO_STATES } from './effect-presets.js'
+import {
+  EFFECT_PRESETS,
+  effectPreset,
+  VOLCANO_STATES,
+} from './effect-presets.js'
 import {
   validateEffectRecipe,
   VOICES,
@@ -98,6 +110,7 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
     muted: false,
     distance: 40,
     timeOfDay: 18.5,
+    backdrop: 'grid' as 'grid' | 'sky',
     status: '',
   }
   let recipe: EffectRecipe = recall(ui.preset) ?? effectPreset(ui.preset)!
@@ -114,6 +127,21 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
     if (here != null) here.position.y = recipe.name === 'fireball' ? 1.5 : 0
   }
   const sky = b3dSkybox({ timeOfDay: ui.timeOfDay })
+  /*
+  A NEUTRAL BACKDROP by default: a grey grid in metres under a grey sky, so
+  an effect's own colours and size read as they are. A sunset tints every
+  colour and gives nothing to measure against. The sky is one choice away.
+  */
+  let ground: BABYLON.Mesh | null = null
+  let groundGrid: GridMaterial | null = null
+  let groundPlain: BABYLON.StandardMaterial | null = null
+  const setBackdrop = (b: 'grid' | 'sky') => {
+    ui.backdrop = b
+    if (b === 'sky' && sky.parentElement == null) el?.append(sky)
+    if (b === 'grid' && sky.parentElement != null) sky.remove()
+    if (ground != null)
+      ground.material = b === 'grid' ? groundGrid : groundPlain
+  }
 
   /*
   WHICH PRESET A RECIPE IS: its own name when that is a preset, else
@@ -122,7 +150,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
   */
   const adopt = (r: EffectRecipe) => {
     recipe = clone(r)
-    ui.preset = r.name != null && EFFECT_PRESETS[r.name] != null ? r.name : 'custom'
+    ui.preset =
+      r.name != null && EFFECT_PRESETS[r.name] != null ? r.name : 'custom'
     ui.layer = 0
     if (player != null) player.activity = recipe.activity ?? 1
   }
@@ -137,7 +166,9 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
   }
   const status = () => {
     const delay = soundDelay(ui.distance)
-    return `${recipe.duration != null ? `one-shot, ${recipe.duration} s` : 'loops'} · sound ${delay.toFixed(2)} s late at ${ui.distance} m`
+    return `${
+      recipe.duration != null ? `one-shot, ${recipe.duration} s` : 'loops'
+    } · sound ${delay.toFixed(2)} s late at ${ui.distance} m`
   }
 
   const num = (
@@ -162,22 +193,96 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
 
   const layerWidgets = (l: EffectLayer): Widget3d[] => {
     const w: Widget3d[] = [
-      num('start', () => l.start ?? 0, (v) => (l.start = v), 0, 5, 0.05),
+      num(
+        'start',
+        () => l.start ?? 0,
+        (v) => (l.start = v),
+        0,
+        5,
+        0.05
+      ),
     ]
     if (recipe.duration != null || l.duration != null)
-      w.push(num('lasts', () => l.duration ?? recipe.duration ?? 1, (v) => (l.duration = v), 0.05, 15, 0.05))
+      w.push(
+        num(
+          'lasts',
+          () => l.duration ?? recipe.duration ?? 1,
+          (v) => (l.duration = v),
+          0.05,
+          15,
+          0.05
+        )
+      )
     if (l.kind === 'particles') {
       w.push(
-        num('per second', () => l.rate, (v) => (l.rate = v), 0, 300, 1),
-        num('burst', () => l.burst ?? 0, (v) => (l.burst = v), 0, 300, 1),
-        num('life', () => l.life[1], (v) => (l.life = [Math.min(l.life[0], v), v]), 0.1, 12, 0.05),
-        num('speed', () => l.speed[1], (v) => (l.speed = [Math.min(l.speed[0], v * 0.6), v]), 0, 40, 0.1),
-        num('size', () => l.size[1], (v) => (l.size = [Math.min(l.size[0], v * 0.6), v]), 0.01, 8, 0.01),
-        num('gravity', () => l.gravity ?? 0, (v) => (l.gravity = v), -5, 20, 0.1),
-        num('wind', () => l.wind ?? 0, (v) => (l.wind = v), 0, 1, 0.05),
-        num('height', () => l.height ?? 0, (v) => (l.height = v), 0, 10, 0.05),
+        num(
+          'per second',
+          () => l.rate,
+          (v) => (l.rate = v),
+          0,
+          300,
+          1
+        ),
+        num(
+          'burst',
+          () => l.burst ?? 0,
+          (v) => (l.burst = v),
+          0,
+          300,
+          1
+        ),
+        num(
+          'life',
+          () => l.life[1],
+          (v) => (l.life = [Math.min(l.life[0], v), v]),
+          0.1,
+          12,
+          0.05
+        ),
+        num(
+          'speed',
+          () => l.speed[1],
+          (v) => (l.speed = [Math.min(l.speed[0], v * 0.6), v]),
+          0,
+          40,
+          0.1
+        ),
+        num(
+          'size',
+          () => l.size[1],
+          (v) => (l.size = [Math.min(l.size[0], v * 0.6), v]),
+          0.01,
+          8,
+          0.01
+        ),
+        num(
+          'gravity',
+          () => l.gravity ?? 0,
+          (v) => (l.gravity = v),
+          -5,
+          20,
+          0.1
+        ),
+        num(
+          'wind',
+          () => l.wind ?? 0,
+          (v) => (l.wind = v),
+          0,
+          1,
+          0.05
+        ),
+        num(
+          'height',
+          () => l.height ?? 0,
+          (v) => (l.height = v),
+          0,
+          10,
+          0.05
+        ),
         button3d({
-          label: l.texture ? 'picture: yours (change…)' : 'picture: ' + l.sprite + ' (use your own…)',
+          label: l.texture
+            ? 'picture: yours (change…)'
+            : 'picture: ' + l.sprite + ' (use your own…)',
           handleClick: () =>
             void chooseFile('image/*,.svg').then((f) => {
               if (f == null) return
@@ -222,10 +327,38 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       )
     } else if (l.kind === 'light') {
       w.push(
-        num('intensity', () => l.intensity, (v) => (l.intensity = v), 0, 60, 0.1),
-        num('range', () => l.range, (v) => (l.range = v), 0.5, 80, 0.5),
-        num('flicker', () => l.flicker ?? 0, (v) => (l.flicker = v), 0, 1, 0.01),
-        num('height', () => l.height ?? 0, (v) => (l.height = v), 0, 10, 0.05),
+        num(
+          'intensity',
+          () => l.intensity,
+          (v) => (l.intensity = v),
+          0,
+          60,
+          0.1
+        ),
+        num(
+          'range',
+          () => l.range,
+          (v) => (l.range = v),
+          0.5,
+          80,
+          0.5
+        ),
+        num(
+          'flicker',
+          () => l.flicker ?? 0,
+          (v) => (l.flicker = v),
+          0,
+          1,
+          0.01
+        ),
+        num(
+          'height',
+          () => l.height ?? 0,
+          (v) => (l.height = v),
+          0,
+          10,
+          0.05
+        ),
         color3d({
           label: 'colour',
           value: l.color,
@@ -247,8 +380,22 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
             changed()
           },
         }),
-        num('gain', () => l.gain, (v) => (l.gain = v), 0, 1.5, 0.01),
-        num('pitch', () => l.pitch ?? 1, (v) => (l.pitch = v), 0.25, 3, 0.01)
+        num(
+          'gain',
+          () => l.gain,
+          (v) => (l.gain = v),
+          0,
+          1.5,
+          0.01
+        ),
+        num(
+          'pitch',
+          () => l.pitch ?? 1,
+          (v) => (l.pitch = v),
+          0.25,
+          3,
+          0.01
+        )
       )
     }
     return w
@@ -262,7 +409,10 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       select3d({
         label: 'preset',
         value: ui.preset,
-        options: [...Object.keys(EFFECT_PRESETS), ...(ui.preset === 'custom' ? ['custom'] : [])],
+        options: [
+          ...Object.keys(EFFECT_PRESETS),
+          ...(ui.preset === 'custom' ? ['custom'] : []),
+        ],
         handleChange: (v) => {
           if (v === 'custom') return
           ui.preset = String(v)
@@ -295,8 +445,9 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         select3d({
           label: 'state',
           value:
-            Object.entries(VOLCANO_STATES).find(([, a]) => Math.abs(a - (player?.activity ?? 0)) < 0.02)?.[0] ??
-            'semi-active',
+            Object.entries(VOLCANO_STATES).find(
+              ([, a]) => Math.abs(a - (player?.activity ?? 0)) < 0.02
+            )?.[0] ?? 'semi-active',
           options: Object.keys(VOLCANO_STATES),
           handleChange: (v) => {
             const a = VOLCANO_STATES[v as keyof typeof VOLCANO_STATES]
@@ -331,24 +482,40 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
           refresh()
         },
       }),
-      slider3d({
-        label: 'time of day',
-        value: ui.timeOfDay,
-        min: 0,
-        max: 24,
-        step: 0.1,
+      select3d({
+        label: 'backdrop',
+        value: ui.backdrop,
+        options: ['grid', 'sky'],
         handleChange: (v) => {
-          ui.timeOfDay = v
-          ;(sky as any).timeOfDay = v
+          setBackdrop(v as 'grid' | 'sky')
+          refresh()
         },
       }),
+      ...(ui.backdrop === 'sky'
+        ? [
+            slider3d({
+              label: 'time of day',
+              value: ui.timeOfDay,
+              min: 0,
+              max: 24,
+              step: 0.1,
+              handleChange: (v) => {
+                ui.timeOfDay = v
+                ;(sky as any).timeOfDay = v
+              },
+            }),
+          ]
+        : []),
       label3d({ text: status(), muted: true, compact: true }),
 
       label3d({ text: 'Layers', collapsible: true, open: true }),
       select3d({
         label: 'layer',
         value: ui.layer,
-        options: layers.map((l, i) => ({ label: `${i + 1}. ${l.name ?? l.kind} (${l.kind})`, value: i })),
+        options: layers.map((l, i) => ({
+          label: `${i + 1}. ${l.name ?? l.kind} (${l.kind})`,
+          value: i,
+        })),
         handleChange: (v) => {
           ui.layer = Number(v)
           refresh()
@@ -360,7 +527,11 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       button3d({
         label: 'save',
         handleClick: () => {
-          const url = URL.createObjectURL(new Blob([JSON.stringify(recipe, null, 2)], { type: 'application/json' }))
+          const url = URL.createObjectURL(
+            new Blob([JSON.stringify(recipe, null, 2)], {
+              type: 'application/json',
+            })
+          )
           const a = document.createElement('a')
           a.href = url
           a.download = `${recipe.name ?? ui.preset}.effect.json`
@@ -389,7 +560,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       }),
       button3d({
         label: 'copy',
-        handleClick: () => void navigator.clipboard?.writeText(JSON.stringify(recipe, null, 2)),
+        handleClick: () =>
+          void navigator.clipboard?.writeText(JSON.stringify(recipe, null, 2)),
       }),
       button3d({
         label: 'start over',
@@ -402,30 +574,49 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         },
       })
     )
-    if (ui.status) w.push(label3d({ text: ui.status, muted: true, compact: true }))
+    if (ui.status)
+      w.push(label3d({ text: ui.status, muted: true, compact: true }))
     return w
   }
 
   el = b3d(
     {
       style: { width: '100%', height: '100%' },
-      clearColor: '#1c2230',
+      clearColor: '#6b6e73',
       panelTitle: 'Effect',
       scenePanelOpen: true,
       scenePanel: panel,
       sceneCreated(owner: any) {
         const scene: BABYLON.Scene = owner.scene
-        cam = new BABYLON.ArcRotateCamera('effect-cam', -2.1, 1.3, ui.distance, new BABYLON.Vector3(-8, 6, 0), scene)
+        cam = new BABYLON.ArcRotateCamera(
+          'effect-cam',
+          -2.1,
+          1.3,
+          ui.distance,
+          new BABYLON.Vector3(-8, 6, 0),
+          scene
+        )
         cam.minZ = 0.1
         cam.maxZ = 4000
         cam.attachControl(owner.querySelector('canvas'), true)
         touchOrbit(cam)
         owner.setActiveCamera(cam)
-        const ground = BABYLON.MeshBuilder.CreateGround('effect-ground', { width: 1600, height: 1600 }, scene)
-        const mat = new BABYLON.StandardMaterial('effect-ground', scene)
-        mat.diffuseColor = new BABYLON.Color3(0.32, 0.3, 0.28)
-        mat.specularColor = BABYLON.Color3.Black()
-        ground.material = mat
+        ground = BABYLON.MeshBuilder.CreateGround(
+          'effect-ground',
+          { width: 1600, height: 1600 },
+          scene
+        )
+        groundPlain = new BABYLON.StandardMaterial('effect-ground', scene)
+        groundPlain.diffuseColor = new BABYLON.Color3(0.32, 0.3, 0.28)
+        groundPlain.specularColor = BABYLON.Color3.Black()
+        // Lines every metre, heavier every ten.
+        groundGrid = new GridMaterial('effect-grid', scene)
+        groundGrid.gridRatio = 1
+        groundGrid.majorUnitFrequency = 10
+        groundGrid.minorUnitVisibility = 0.35
+        groundGrid.mainColor = new BABYLON.Color3(0.36, 0.37, 0.39)
+        groundGrid.lineColor = new BABYLON.Color3(0.58, 0.6, 0.63)
+        setBackdrop(ui.backdrop)
         const node = new BABYLON.TransformNode('effect-here', scene)
         here = node
         lift()
@@ -436,7 +627,6 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         refresh()
       },
     },
-    sky,
     b3dLight({ intensity: 0.5 })
   )
   el.effect = {
@@ -445,7 +635,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
     },
     set recipe(r: EffectRecipe) {
       const problems = validateEffectRecipe(r)
-      if (problems.length) throw new Error(`not an effect recipe: ${problems[0]}`)
+      if (problems.length)
+        throw new Error(`not an effect recipe: ${problems[0]}`)
       adopt(r)
       changed(true)
       refresh()

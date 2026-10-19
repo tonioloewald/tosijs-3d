@@ -18,6 +18,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Stars have prominences and flares** (Tonio). A few active regions, fixed on the star in the sunspot latitudes and turning with it: over the edge of the disc each is a glowing loop of drifting filaments standing on the limb (most low, the odd one tall), and now and then one flares, its loop swelling and a bright patch flashing on the disc. Drawn in the corona shell's shader, so no meshes or textures. On by default in `<tosi-b3d-star>` (`activity`, 0 to 1) and the star system's star (the Solar System demo's Sun). The two copies of the corona shader are now one (`createCoronaMaterial`).
 - **Land and Sky's volcano is semi-active**: steam, a thin ash column on the wind, a glowing vent, a rumble, and now and then a burst of spatter and cinders (the volcano preset's new `spatter` and `cinders` layers, between dormant and erupting).
 
+- **`effectRecipeSchema()`**: an effect recipe as JSON Schema (every layer kind, ranges, units as `x-unit`, defaults, the sprite and voice enums), for ensemble's editors, beside `rigRecipeSchema()`. A test checks every preset against it, so a field added to a layer and not to the schema fails.
+- **The effect tool's backdrop is a neutral grid** (Tonio): grey sky, a grid in metres (lines every metre, heavier every ten), so an effect's colours and size read as they are. `backdrop: sky` brings back the sunset and its time of day.
 - **`rigRecipeSchema()`**: a rig recipe as JSON Schema (ranges, units as `x-unit`, defaults), for a host that builds its editors from schemas or keeps recipes in its own documents (asked for by ensemble). A test holds it to `validateRigRecipe` and the tool's strand defaults.
 
 ### Fixed

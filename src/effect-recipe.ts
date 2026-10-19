@@ -336,3 +336,148 @@ export function validateEffectRecipe(doc: unknown): string[] {
   })
   return out
 }
+
+// ---- schema -----------------------------------------------------------
+
+/*
+THE RECIPE AS JSON SCHEMA, for an editor that is not ours (ensemble builds
+its forms from it). No `x-widget`: these are ordinary controls. It carries
+what a form needs and the types cannot say: ranges, units, enums, which
+fields are required. `effect-recipe.test.ts` checks it against every preset,
+so a field added to a layer and not here fails a test.
+*/
+export function effectRecipeSchema(): Record<string, unknown> {
+  const S = { 'x-unit': 's' }
+  const M = { 'x-unit': 'm' }
+  const MS = { 'x-unit': 'm/s' }
+  const unit = { type: 'number', minimum: 0, maximum: 1 }
+  const curve = {
+    description: 'A [0,1] → [0,1] curve as control points, or a number for the flat curve.',
+    oneOf: [
+      { type: 'number' },
+      {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { x: unit, y: { type: 'number' } },
+          required: ['x', 'y'],
+        },
+      },
+    ],
+  }
+  const range = (description: string, extra: Record<string, unknown>) => ({
+    type: 'array',
+    description: `${description} [min, max], picked per particle.`,
+    items: { type: 'number', minimum: 0, ...extra },
+    minItems: 2,
+    maxItems: 2,
+  })
+  const color = { type: 'string', pattern: '^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$' }
+  const channels = (names: string[]) => ({
+    type: 'object',
+    description: 'Multipliers over the layer’s life, one curve each.',
+    properties: Object.fromEntries(names.map((n) => [n, curve])),
+    additionalProperties: false,
+  })
+  const base = {
+    name: { type: 'string' },
+    start: { type: 'number', minimum: 0, default: 0, ...S },
+    duration: {
+      type: 'number',
+      exclusiveMinimum: 0,
+      description: 'Omitted, it lasts as long as the effect.',
+      ...S,
+    },
+    repeat: { type: 'boolean', default: false, description: 'Start again when it ends. Needs a duration.' },
+    activity: { ...curve, description: 'Effect activity → multiplier on the main channel. Default linear.' },
+  }
+  const particles = {
+    type: 'object',
+    title: 'Particles',
+    properties: {
+      kind: { const: 'particles' },
+      ...base,
+      sprite: { type: 'string', enum: [...SPRITES] },
+      texture: {
+        type: 'string',
+        description: 'Your own picture: an image URL (PNG, JPEG, SVG, data:) or SVG markup.',
+      },
+      blend: { type: 'string', enum: ['add', 'alpha'], description: 'add glows; alpha covers.' },
+      emitter: {
+        type: 'object',
+        properties: {
+          shape: { type: 'string', enum: ['point', 'sphere', 'cone', 'ring', 'disc'] },
+          radius: { type: 'number', minimum: 0, ...M },
+          angleDeg: { type: 'number', minimum: 0, maximum: 90, 'x-unit': 'deg' },
+        },
+        required: ['shape'],
+        additionalProperties: false,
+      },
+      height: { type: 'number', default: 0, description: 'Above the effect.', ...M },
+      rate: { type: 'number', minimum: 0, description: 'Particles a second at full activity.' },
+      burst: { type: 'integer', minimum: 0, description: 'Particles all at once when the layer starts.' },
+      life: range('Seconds a particle lives,', S),
+      speed: range('Speed as it leaves,', MS),
+      size: range('Metres across,', M),
+      gravity: { type: 'number', default: 0, description: 'Down; negative rises.', 'x-unit': 'm/s²' },
+      drag: { ...unit, default: 0, description: 'Velocity lost per second.' },
+      wind: { ...unit, default: 0, description: 'How much the wind carries it.' },
+      colors: { type: 'array', items: color, minItems: 1, description: 'Over a particle’s life.' },
+      grow: { ...curve, description: 'Size over a particle’s life (a multiplier).' },
+      stretch: { type: 'boolean', default: false, description: 'Stretch along its velocity.' },
+      land: { type: 'boolean', default: false, description: 'Settle on the ground where it lands.' },
+      surface: { type: 'boolean', default: false, description: 'End at the water’s surface.' },
+      wobble: { type: 'number', minimum: 0, default: 0, description: 'Sideways zigzag.', ...MS },
+      channels: channels(['rate', 'size', 'speed']),
+    },
+    required: ['kind', 'sprite', 'blend', 'emitter', 'rate', 'life', 'speed', 'size', 'colors'],
+    additionalProperties: false,
+  }
+  const light = {
+    type: 'object',
+    title: 'Light',
+    properties: {
+      kind: { const: 'light' },
+      ...base,
+      color,
+      intensity: { type: 'number', minimum: 0 },
+      range: { type: 'number', exclusiveMinimum: 0, ...M },
+      height: { type: 'number', default: 0, description: 'Above the effect.', ...M },
+      flicker: { ...unit, default: 0 },
+      channels: channels(['intensity', 'range']),
+    },
+    required: ['kind', 'color', 'intensity', 'range'],
+    additionalProperties: false,
+  }
+  const sound = {
+    type: 'object',
+    title: 'Sound',
+    properties: {
+      kind: { const: 'sound' },
+      ...base,
+      voice: { type: 'string', enum: [...VOICES], description: 'The synthesised voice.' },
+      url: { type: 'string', description: 'A sample to play instead of the voice.' },
+      gain: { ...unit },
+      pitch: { type: 'number', exclusiveMinimum: 0, default: 1 },
+      refDistance: { type: 'number', exclusiveMinimum: 0, default: 10, description: 'Full gain inside this.', ...M },
+      channels: channels(['gain', 'pitch', 'cutoff']),
+    },
+    required: ['kind', 'gain'],
+    anyOf: [{ required: ['voice'] }, { required: ['url'] }],
+    additionalProperties: false,
+  }
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title: 'Effect recipe',
+    type: 'object',
+    properties: {
+      version: { const: EFFECT_RECIPE_VERSION },
+      name: { type: 'string' },
+      duration: { type: 'number', exclusiveMinimum: 0, description: 'A one-shot; omitted, it loops.', ...S },
+      activity: { ...unit, default: 1, description: 'Dormant 0 … erupting 1.' },
+      layers: { type: 'array', items: { oneOf: [particles, light, sound] } },
+    },
+    required: ['version', 'layers'],
+    additionalProperties: false,
+  }
+}

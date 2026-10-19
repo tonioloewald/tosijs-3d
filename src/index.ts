@@ -1410,6 +1410,7 @@ export {
   rankLights,
   soundDelay,
   validateEffectRecipe,
+  effectRecipeSchema,
 } from './effect-recipe.js'
 export type {
   EffectRecipe,

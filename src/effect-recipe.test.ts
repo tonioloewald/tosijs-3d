@@ -8,6 +8,9 @@ import {
   soundGain,
   distanceCutoff,
   validateEffectRecipe,
+  effectRecipeSchema,
+  SPRITES,
+  VOICES,
   EFFECT_RECIPE_VERSION,
   type EffectRecipe,
   type EffectLayer,
@@ -143,5 +146,74 @@ describe('validation', () => {
     expect(problems).toContain('layers[2] repeats with no duration')
     expect(problems).toContain('layers[2].voice is not one of rumble, roar, hiss, boom, crackle, whoosh, buzz, splash, bubble')
     expect(problems).toContain('layers[3].kind is not particles, light or sound')
+  })
+})
+
+describe('the schema', () => {
+  // A small checker for what the schema says, enough to catch drift: every
+  // field a preset uses is declared, required fields are there, enums hold,
+  // numbers are in range.
+  const check = (schema: any, v: any, at: string, out: string[]) => {
+    if (schema.const !== undefined && v !== schema.const) out.push(`${at} is not ${schema.const}`)
+    if (schema.enum && !schema.enum.includes(v)) out.push(`${at} is not in its enum`)
+    if (schema.oneOf) {
+      const fits = schema.oneOf.filter((s: any) => {
+        const o: string[] = []
+        check(s, v, at, o)
+        return o.length === 0
+      })
+      if (fits.length !== 1) out.push(`${at} fits ${fits.length} of oneOf`)
+      return
+    }
+    if (typeof v === 'number') {
+      if (schema.type === 'integer' && !Number.isInteger(v)) out.push(`${at} is not an integer`)
+      if (schema.minimum != null && v < schema.minimum) out.push(`${at} < minimum`)
+      if (schema.maximum != null && v > schema.maximum) out.push(`${at} > maximum`)
+      if (schema.exclusiveMinimum != null && v <= schema.exclusiveMinimum) out.push(`${at} <= exclusiveMinimum`)
+    }
+    if (schema.type === 'number' && typeof v !== 'number') out.push(`${at} is not a number`)
+    if (schema.type === 'string' && typeof v !== 'string') out.push(`${at} is not a string`)
+    if (schema.pattern && !new RegExp(schema.pattern).test(v)) out.push(`${at} does not match`)
+    if (schema.type === 'boolean' && typeof v !== 'boolean') out.push(`${at} is not a boolean`)
+    if (schema.type === 'array') {
+      if (!Array.isArray(v)) return out.push(`${at} is not an array`)
+      if (schema.minItems != null && v.length < schema.minItems) out.push(`${at} too short`)
+      if (schema.maxItems != null && v.length > schema.maxItems) out.push(`${at} too long`)
+      v.forEach((x, i) => schema.items && check(schema.items, x, `${at}[${i}]`, out))
+    }
+    if (schema.type === 'object') {
+      if (v == null || typeof v !== 'object') return out.push(`${at} is not an object`)
+      for (const k of schema.required ?? []) if (!(k in v)) out.push(`${at}.${k} is missing`)
+      if (schema.anyOf && !schema.anyOf.some((a: any) => a.required.every((k: string) => k in v)))
+        out.push(`${at} fits none of anyOf`)
+      for (const [k, x] of Object.entries(v)) {
+        const p = schema.properties?.[k]
+        if (p) check(p, x, `${at}.${k}`, out)
+        else if (schema.additionalProperties === false) out.push(`${at}.${k} is not in the schema`)
+      }
+    }
+  }
+
+  test('every preset fits it', () => {
+    const schema = effectRecipeSchema()
+    for (const name of Object.keys(EFFECT_PRESETS)) {
+      const out: string[] = []
+      check(schema, effectPreset(name), name, out)
+      expect(out).toEqual([])
+    }
+  })
+
+  test('it says what the validator says', () => {
+    const s = effectRecipeSchema() as any
+    expect(s.properties.version.const).toBe(EFFECT_RECIPE_VERSION)
+    const [p, , snd] = s.properties.layers.items.oneOf
+    expect(p.properties.sprite.enum).toEqual([...SPRITES])
+    expect(snd.properties.voice.enum).toEqual([...VOICES])
+    // A broken recipe fails both.
+    const bad = { version: EFFECT_RECIPE_VERSION, layers: [{ kind: 'light', color: 'red', intensity: 1, range: 5 }] }
+    const out: string[] = []
+    check(s, bad, 'bad', out)
+    expect(out.length).toBeGreaterThan(0)
+    expect(validateEffectRecipe(bad).length).toBeGreaterThan(0)
   })
 })
