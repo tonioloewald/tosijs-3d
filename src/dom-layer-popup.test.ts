@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { Window } from 'happy-dom'
 
 /*
@@ -182,6 +189,12 @@ describe('a MENU is a popup too, not something the panel crops', () => {
     for (const l of document.querySelectorAll('[data-w3d-dom-layer]'))
       l.remove()
   })
+  // …and other files' stray layers leak IN: the tests read the first layer in
+  // the document, and one left by an earlier file measured 179 (seed 4).
+  beforeEach(() => {
+    for (const l of document.querySelectorAll('[data-w3d-dom-layer]'))
+      l.remove()
+  })
 
   /*
   The keyboard got the layer treatment because someone knew `showLayer` existed.
@@ -220,6 +233,34 @@ describe('a MENU is a popup too, not something the panel crops', () => {
     panel.handlePointer('down', 250, 50)
     panel.handlePointer('up', 250, 50)
     return { host, panel }
+  }
+
+  /*
+  The same menu's sheet when a host that draws chrome mounts it (the plane).
+  The tests below compare against it rather than fixed pixels: row heights
+  come from the theme, resolved once when it is first imported, so they
+  depend on the theme as first imported, not on this test.
+  */
+  const chromeSheetHeight = (options: string[]) => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    mounted.push(host)
+    const panel: any = w3d.panel3d(
+      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34 },
+      w3d.select3d({ label: 'spin', value: options[0], options })
+    )
+    host.appendChild(panel)
+    let sheet: SVGSVGElement | null = null
+    const scenish = (s: SVGSVGElement) => {
+      sheet = s
+      return { close: () => {} }
+    }
+    ;(scenish as unknown as { drawsChrome: boolean }).drawsChrome = true
+    panel.__layerHosts = [scenish]
+    panel.handlePointer('down', 250, 50)
+    panel.handlePointer('up', 250, 50)
+    expect(sheet).toBeTruthy()
+    return Number(sheet!.getAttribute('height'))
   }
 
   test('the menu opens in a LAYER, not inside the panel', () => {
@@ -262,32 +303,22 @@ describe('a MENU is a popup too, not something the panel crops', () => {
       .querySelector('[data-w3d-dom-layer]')
       ?.querySelector('svg')
     const h = Number(svg?.getAttribute('height'))
-    // Three 40px rows plus the panel's own padding — and no chrome band.
-    expect(h).toBe(132)
+    // Three rows plus the panel's own padding, and no chrome band: exactly
+    // the band less than the same menu mounted where chrome is drawn.
+    expect(h).toBe(chromeSheetHeight(['slow', 'medium', 'fast']) - 30)
   })
 
   test('...but a chrome-drawing host still gets its band', () => {
     // The other side of the trade, asserted so "reclaim the space" cannot
     // quietly become "never leave room for the handles".
-    const host = document.createElement('div')
-    document.body.appendChild(host)
-    mounted.push(host)
-    const panel: any = w3d.panel3d(
-      { width: 320, height: 'fit', maxHeight: 620, paddingTop: 34 },
-      w3d.select3d({ label: 'spin', value: 'a', options: ['a', 'b', 'c'] })
+    openSelect()
+    const flat = Number(
+      document
+        .querySelector('[data-w3d-dom-layer]')
+        ?.querySelector('svg')
+        ?.getAttribute('height')
     )
-    host.appendChild(panel)
-    let sheet: SVGSVGElement | null = null
-    const scenish = (s: SVGSVGElement) => {
-      sheet = s
-      return { close: () => {} }
-    }
-    ;(scenish as unknown as { drawsChrome: boolean }).drawsChrome = true
-    panel.__layerHosts = [scenish]
-    panel.handlePointer('down', 250, 50)
-    panel.handlePointer('up', 250, 50)
-    expect(sheet).toBeTruthy()
-    expect(Number(sheet!.getAttribute('height'))).toBe(162)
+    expect(chromeSheetHeight(['a', 'b', 'c'])).toBe(flat + 30)
   })
 
   test('picking an option DISMISSES the menu', () => {
