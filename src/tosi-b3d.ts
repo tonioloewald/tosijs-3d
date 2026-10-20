@@ -2460,13 +2460,13 @@ export class B3d extends Component {
           { type: 'button', title: spec.title || spec.icon || 'Panel' },
           icons[spec.icon ?? '']?.() ?? svgIcons.square()
         ) as HTMLButtonElement
-        b.addEventListener('click', () => this._toggleSystemPanel(svg))
+        b.addEventListener('click', () => this._toggleSystemPanel(svg, true))
         // Held on the system bar: back where it started, and open.
         b.addEventListener('systemhold', () => {
           this._systemSpots.delete(svg)
           this._systemXrSpots.delete(svg)
           this._closeSystemPanel(svg)
-          this._openSystemPanel(svg)
+          this._openSystemPanel(svg, true)
         })
         this._systemButtonOf.set(svg, b)
       }
@@ -2492,15 +2492,17 @@ export class B3d extends Component {
       obs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Camera>>
       off: () => void
       exclusive: boolean
+      /** Opened by its button, not by code. */
+      byUser: boolean
     }
   >()
   /** System panels already opened by their `open` attribute (once each). */
   private _sysOpened = new WeakSet<Element>()
   /** The headset's settings panel closer, while a session has one. */
   private _closeXrSettings: () => void = noop
-  private _toggleSystemPanel(el: Element): void {
+  private _toggleSystemPanel(el: Element, byUser = false): void {
     if (this._sysPanels.has(el)) this._closeSystemPanel(el)
-    else this._openSystemPanel(el)
+    else this._openSystemPanel(el, byUser)
   }
   /*
   FROM CODE (#3436, Manta's objectives list): `panel.show()`, `hide()`,
@@ -2604,7 +2606,12 @@ export class B3d extends Component {
     const dy = Number(p.content.getAttribute('y')) || 0
     return p.panel.toClient(x + dx, y + dy)
   }
-  private _openSystemPanel(key: Element): void {
+  /**
+   * `byUser`: opened by its button (the person asked to look at it), not by
+   * code. That decides whether the glass pad stands aside and whether
+   * `systempanels` counts it (#3436).
+   */
+  private _openSystemPanel(key: Element, byUser = false): void {
     const scene = this.scene
     if (scene == null) return
     if (this._sysPanels.has(key)) return
@@ -2743,6 +2750,7 @@ export class B3d extends Component {
       frames,
       obs,
       exclusive,
+      byUser,
       swap: (next: SVGSVGElement) => {
         // The same open/close a reopen would send, around the swap.
         const was = entry.content
@@ -2805,17 +2813,24 @@ export class B3d extends Component {
   private _carrySystemPanels(toXr: boolean): void {
     const shared = [...this._sysPanels]
       .filter(([, p]) => !p.exclusive)
-      .map(([svg]) => svg)
+      .map(([svg, p]) => [svg, p.byUser] as const)
+    // Not a close and an open to the game: one change, once it is over.
+    this._holdPanelEvents = true
     this._closeSystemPanels()
     const scene = this.scene
-    if (scene == null || shared.length === 0) return
+    const settle = () => {
+      this._holdPanelEvents = false
+      this._syncGamepadCover()
+    }
+    if (scene == null || shared.length === 0) return settle()
     const obs = scene.onBeforeRenderObservable.add(() => {
       // Wait for the other side: the headset's frames, or the flat camera.
       const xr = this.xrActive && this.xrFrames != null
       const flat = !this.xrActive && this.xrFrames == null
       if ((toXr ? !xr : !flat) || scene.activeCamera == null) return
       scene.onBeforeRenderObservable.remove(obs)
-      for (const svg of shared) this._openSystemPanel(svg)
+      for (const [svg, byUser] of shared) this._openSystemPanel(svg, byUser)
+      settle()
     })
   }
   private _closeSystemPanel(key: Element): void {
@@ -6739,16 +6754,40 @@ export class B3d extends Component {
   closed the panel. While the settings panel or a pause is up you are not
   playing, so it hides, and comes back after. (The DOM panel sat above it.)
 
-  NOT for a system panel (#3436). Those are an app's own chrome, often open
-  while you play (Manta's objectives in flight), and on a phone hiding the pad
-  took the controls away. Tonio: "System panels that are in scene shouldn't
-  block the glass pad because they can't." Place one clear of the pad's
-  clusters (its `screenAnchor`) rather than hiding the pad.
+  A SYSTEM PANEL ONLY IF THE PERSON OPENED IT (#3436). Opened with its button,
+  they are looking at it, not playing, so the pad gets out of the way. Opened
+  by code (an objectives list shown for a while, an app's pinned chrome) it is
+  up while they play, and on a phone hiding the pad took the controls away:
+  place one clear of the pad's clusters (its `screenAnchor`) instead. Tonio:
+  "if the user discloses a panel, the pad should get out of the way".
   */
   private _syncGamepadCover(): void {
-    const covered = this._flatScenePanel != null || this._modals.size > 0
+    if (this._holdPanelEvents) return
+    const asked = [...this._sysPanels]
+      .filter(([, p]) => p.byUser)
+      .map(([el]) => el)
+    const covered =
+      this._flatScenePanel != null || this._modals.size > 0 || asked.length > 0
     this._suppressGamepad('in-scene-ui', covered)
+    /*
+    `systempanels` when the person's panels come up and when the last goes
+    away (#3436): a game can pause while one is up. Only panels opened by
+    their button count; one a game opens itself is its own business.
+    */
+    const open = asked.length > 0
+    if (open !== this._userPanelsOpen) {
+      this._userPanelsOpen = open
+      this.dispatchEvent(
+        new CustomEvent('systempanels', {
+          detail: { open, panels: asked },
+          bubbles: true,
+          composed: true,
+        })
+      )
+    }
   }
+  private _userPanelsOpen = false
+  private _holdPanelEvents = false
   private _openFlatScenePanel(): boolean {
     const scene = this.scene
     const cam = scene?.activeCamera

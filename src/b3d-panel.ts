@@ -273,9 +273,19 @@ objectives.addEventListener('paneltoggle', (e) => {
 game.on('objective', () => objectives.attention())
 ```
 
-The glass gamepad stays up while system panels are open (it hides for the
-settings panel and for modals), so give one that stays open in play a
-`screenAnchor` clear of the pad's controls.
+**Who opened it matters.** A panel the person opens with its button is one
+they are looking at: the glass gamepad gets out of the way, and the scene
+fires `systempanels` (`detail.open`, `detail.panels`) when the first such
+panel comes up and when the last goes away, so a game can pause meanwhile. A
+panel opened by code (`show()`, `open`) is up while they play: the pad stays,
+and it does not count. Give one that stays open in play a `screenAnchor` clear
+of the pad's controls.
+
+```javascript
+scene.addEventListener('systempanels', (e) => {
+  game.paused = e.detail.open
+})
+```
 
 **Clicking one from a test.** The content is drawn on a texture, so nothing in
 it has a box on the page. `el.contentToClient(x, y)` says where a point of the
