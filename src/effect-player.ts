@@ -32,7 +32,11 @@ import {
   type SoundLayer,
   type LightCandidate,
 } from './effect-recipe.js'
-import { effectSprite, effectTexture } from './effect-sprites.js'
+import {
+  effectSprite,
+  effectTexture,
+  releaseEffectSprites,
+} from './effect-sprites.js'
 import { placeListener, startVoice, type Voice } from './effect-audio.js'
 import { sceneDelta } from './b3d-utils.js'
 import { qualityBudgets } from './b3d-quality.js'
@@ -91,6 +95,22 @@ function sceneEffects(scene: BABYLON.Scene): SceneEffects {
   scene.onDisposeObservable.addOnce(() => perScene.delete(scene))
   perScene.set(scene, fresh)
   return fresh
+}
+
+/*
+THE LAST PLAYER TAKES THE SHARED PARTS WITH IT: the scene's driver, its
+pooled lights and the sprites. A scene that played an effect is left as it
+was (a host's editor checks that mounting a tool and unmounting it returns
+every count, tosijs-3d#122); the next effect makes them again.
+*/
+function releaseSceneEffects(scene: BABYLON.Scene): void {
+  const s = perScene.get(scene)
+  if (s == null || s.players.size > 0) return
+  scene.onBeforeRenderObservable.remove(s.observer)
+  for (const l of s.lights) l.light.dispose()
+  s.lights = []
+  perScene.delete(scene)
+  releaseEffectSprites(scene)
 }
 
 /** Every player, then the pools. */
@@ -220,6 +240,7 @@ export class EffectPlayer {
     this.runtimes = []
     this.ownSystems.clear()
     this.shared.players.delete(this)
+    releaseSceneEffects(this.scene)
   }
 
   /** Particles alive now, for the scene's budget. */

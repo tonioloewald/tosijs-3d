@@ -34,6 +34,30 @@ Tap the scene once so the browser lets it make sound.
 
 The element carries `.effect`: `recipe` (a copy; set one to play it) and
 `player`, for a page or an editor driving the tool.
+
+## In an editor: mounting it in your scene
+
+`mountEffectTool(b3d, options)` opens the tool in a `<tosi-b3d>` you already
+have, on the same contract as the rig tool's `mountRigTool` (tosijs-3d#122):
+
+```javascript
+import { mountEffectTool } from 'tosijs-3d/effect-tool'
+
+const tool = mountEffectTool(scene, {
+  recipe: piece.recipe,
+  target: piece.node, // where it plays
+  files: false, // the host keeps the recipe
+  stage: false, // no ground or backdrop
+  camera: editorCamera, // put back exactly on unmount
+})
+tool.addEventListener('commit', (e) => doc.record(e.detail.recipe))
+tool.unmount()
+```
+
+`change` on every edit, `commit` once per finished gesture, each with a copy
+of the recipe; hosted, its panel is a system panel; `unmount()` (safe twice)
+returns the scene's counts to where they were, including the effect player's
+shared driver and sprites, which now go with a scene's last player.
 */
 /*{ "parent": "demos", "order": 36 }*/
 
@@ -41,10 +65,12 @@ import * as BABYLON from '@babylonjs/core'
 import { b3d } from './tosi-b3d.js'
 import { b3dLight } from './b3d-light.js'
 import { b3dSkybox } from './b3d-skybox.js'
+import { b3dPanel } from './b3d-panel.js'
 import { GridMaterial } from '@babylonjs/materials'
 import {
   button3d,
   label3d,
+  panel3d,
   select3d,
   slider3d,
   toggle3d,
@@ -103,7 +129,44 @@ export interface EffectToolApi {
   readonly player: EffectPlayer | null
 }
 
-export function effectTool(): HTMLElement & { effect: EffectToolApi } {
+export interface EffectToolOptions {
+  /** A recipe to start from, in place of the volcano (a host's document). */
+  recipe?: EffectRecipe
+  /** `false`: no save, load or copy, nothing kept in this browser. */
+  files?: boolean
+  /** `false`: no ground or backdrop; the effect is seen in the host's scene. */
+  stage?: boolean
+  /** The camera to drive; put back exactly as found on unmount. */
+  camera?: BABYLON.ArcRotateCamera
+  /** Where the effect plays (a host's piece); default a node at the origin. */
+  target?: BABYLON.TransformNode
+  /** Hosted: the panel is a system panel. Default true; `effectTool()` passes false. */
+  hosted?: boolean
+}
+
+/** An effect tool mounted in a scene: `change` and `commit`, its API, unmount. */
+export interface EffectToolHandle extends EventTarget {
+  api: EffectToolApi
+  widgets(): Widget3d[]
+  unmount(): void
+}
+
+/**
+ * MOUNT THE EFFECT TOOL in an existing `<tosi-b3d>` (tosijs-3d#122), on the
+ * same contract as `mountRigTool`: `change` per edit and `commit` per
+ * finished gesture with a copy of the recipe, `files`, `stage`, a camera put
+ * back on unmount, and a system panel when hosted.
+ */
+export function mountEffectTool(
+  owner: any,
+  options: EffectToolOptions = {}
+): EffectToolHandle {
+  const files = options.files !== false
+  const hosted = options.hosted !== false
+  const staged = options.stage !== false
+  const events = new EventTarget()
+  let disposed = false
+  const cleanups: Array<() => void> = []
   const ui = {
     preset: 'volcano',
     layer: 0,
@@ -113,18 +176,72 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
     backdrop: 'grid' as 'grid' | 'sky',
     status: '',
   }
-  let recipe: EffectRecipe = recall(ui.preset) ?? effectPreset(ui.preset)!
+  let recipe: EffectRecipe =
+    options.recipe != null
+      ? clone(options.recipe)
+      : (files ? recall(ui.preset) : null) ?? effectPreset(ui.preset)!
+  if (options.recipe != null)
+    ui.preset =
+      recipe.name != null && EFFECT_PRESETS[recipe.name] != null
+        ? recipe.name
+        : 'custom'
   let player: EffectPlayer | null = null
   let cam: BABYLON.ArcRotateCamera | null = null
-  let el: any = null
-  const refresh = () => el?.refreshScenePanel()
+
+  // The panel: the scene's settings panel standalone, a system panel hosted.
+  let panelEl: (HTMLElement & { svg: SVGSVGElement | null }) | null = null
+  const panelSvg = (): SVGSVGElement => {
+    const svg = panel3d(
+      { width: 300, height: 'fit', maxHeight: 640 },
+      ...panel()
+    ) as unknown as SVGSVGElement & {
+      handlePointer?: (k: string, x: number, y: number) => unknown
+    }
+    const inner = svg.handlePointer
+    if (inner != null)
+      svg.handlePointer = (k: string, x: number, y: number) => {
+        const r = inner(k, x, y)
+        if (k === 'up') commitNow()
+        return r
+      }
+    return svg
+  }
+  const refresh = () => {
+    if (disposed) return
+    if (!hosted) owner.refreshScenePanel?.()
+    else if (panelEl != null) panelEl.svg = panelSvg()
+  }
+
+  // Change on every edit; one commit when a gesture ends (or edits pause).
+  const emit = (type: 'change' | 'commit') =>
+    events.dispatchEvent(
+      new CustomEvent(type, { detail: { recipe: clone(recipe) } })
+    )
+  let dirty = false
+  let idle: ReturnType<typeof setTimeout> | null = null
+  function commitNow() {
+    if (idle != null) clearTimeout(idle)
+    idle = null
+    if (!dirty || disposed) return
+    dirty = false
+    emit('commit')
+  }
+  function edited() {
+    if (files) remember(ui.preset, recipe)
+    dirty = true
+    emit('change')
+    if (idle != null) clearTimeout(idle)
+    idle = setTimeout(commitNow, 800)
+  }
   /*
   A FIREBALL rides a projectile, so it has no height of its own: shown here
   it would sit half in the ground. Lifted for viewing only.
   */
   let here: BABYLON.TransformNode | null = null
   const lift = () => {
-    if (here != null) here.position.y = recipe.name === 'fireball' ? 1.5 : 0
+    // A host's target is placed by the host.
+    if (here != null && options.target == null)
+      here.position.y = recipe.name === 'fireball' ? 1.5 : 0
   }
   const sky = b3dSkybox({ timeOfDay: ui.timeOfDay })
   /*
@@ -137,7 +254,7 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
   let groundPlain: BABYLON.StandardMaterial | null = null
   const setBackdrop = (b: 'grid' | 'sky') => {
     ui.backdrop = b
-    if (b === 'sky' && sky.parentElement == null) el?.append(sky)
+    if (b === 'sky' && sky.parentElement == null) owner.append(sky)
     if (b === 'grid' && sky.parentElement != null) sky.remove()
     if (ground != null)
       ground.material = b === 'grid' ? groundGrid : groundPlain
@@ -158,7 +275,7 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
 
   /** The recipe changed: play the new one (a one-shot from the start). */
   const changed = (restart = false) => {
-    remember(ui.preset, recipe)
+    edited()
     if (player == null) return
     lift()
     player.setRecipe(clone(recipe))
@@ -416,7 +533,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         handleChange: (v) => {
           if (v === 'custom') return
           ui.preset = String(v)
-          recipe = recall(ui.preset) ?? effectPreset(ui.preset)!
+          recipe =
+            (files ? recall(ui.preset) : null) ?? effectPreset(ui.preset)!
           ui.layer = 0
           if (player != null) {
             player.activity = recipe.activity ?? 1
@@ -436,7 +554,7 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         handleChange: (v) => {
           if (player != null) player.activity = v
           recipe.activity = v
-          remember(ui.preset, recipe)
+          edited()
         },
       }),
     ]
@@ -453,7 +571,7 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
             const a = VOLCANO_STATES[v as keyof typeof VOLCANO_STATES]
             if (player != null) player.activity = a
             recipe.activity = a
-            remember(ui.preset, recipe)
+            edited()
             refresh()
           },
         })
@@ -482,6 +600,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
           refresh()
         },
       }),
+      ...(staged
+        ? [
       select3d({
         label: 'backdrop',
         value: ui.backdrop,
@@ -506,6 +626,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
             }),
           ]
         : []),
+          ]
+        : []),
       label3d({ text: status(), muted: true, compact: true }),
 
       label3d({ text: 'Layers', collapsible: true, open: true }),
@@ -524,6 +646,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       ...(layers[ui.layer] != null ? layerWidgets(layers[ui.layer]) : []),
 
       label3d({ text: 'Recipe', collapsible: true }),
+      ...(files
+        ? [
       button3d({
         label: 'save',
         handleClick: () => {
@@ -563,6 +687,8 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
         handleClick: () =>
           void navigator.clipboard?.writeText(JSON.stringify(recipe, null, 2)),
       }),
+          ]
+        : []),
       button3d({
         label: 'start over',
         handleClick: () => {
@@ -579,57 +705,106 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
     return w
   }
 
-  el = b3d(
-    {
-      style: { width: '100%', height: '100%' },
-      clearColor: '#6b6e73',
-      panelTitle: 'Effect',
-      scenePanelOpen: true,
-      scenePanel: panel,
-      sceneCreated(owner: any) {
-        const scene: BABYLON.Scene = owner.scene
-        cam = new BABYLON.ArcRotateCamera(
-          'effect-cam',
-          -2.1,
-          1.3,
-          ui.distance,
-          new BABYLON.Vector3(-8, 6, 0),
-          scene
-        )
-        cam.minZ = 0.1
-        cam.maxZ = 4000
-        cam.attachControl(owner.querySelector('canvas'), true)
-        touchOrbit(cam)
-        owner.setActiveCamera(cam)
-        ground = BABYLON.MeshBuilder.CreateGround(
-          'effect-ground',
-          { width: 1600, height: 1600 },
-          scene
-        )
-        groundPlain = new BABYLON.StandardMaterial('effect-ground', scene)
-        groundPlain.diffuseColor = new BABYLON.Color3(0.32, 0.3, 0.28)
-        groundPlain.specularColor = BABYLON.Color3.Black()
-        // Lines every metre, heavier every ten.
-        groundGrid = new GridMaterial('effect-grid', scene)
-        groundGrid.gridRatio = 1
-        groundGrid.majorUnitFrequency = 10
-        groundGrid.minorUnitVisibility = 0.35
-        groundGrid.mainColor = new BABYLON.Color3(0.36, 0.37, 0.39)
-        groundGrid.lineColor = new BABYLON.Color3(0.58, 0.6, 0.63)
-        setBackdrop(ui.backdrop)
-        const node = new BABYLON.TransformNode('effect-here', scene)
-        here = node
-        lift()
-        player = new EffectPlayer(scene, node, clone(recipe), {
-          windAt: (x, z) => owner.weatherAt(x, z).wind,
-        })
-        player.play()
-        refresh()
-      },
-    },
-    b3dLight({ intensity: 0.5 })
-  )
-  el.effect = {
+  if (hosted) {
+    panelEl = b3dPanel({
+      icon: 'star',
+      title: 'Effect',
+      exclusive: 'off',
+      open: true,
+    }) as unknown as HTMLElement & { svg: SVGSVGElement | null }
+    panelEl.svg = panelSvg()
+    owner.append(panelEl)
+    cleanups.push(() => {
+      owner._closeSystemPanel?.(panelEl)
+      panelEl?.remove()
+    })
+  }
+
+  const scene: BABYLON.Scene = owner.scene
+  // The camera: a host's is driven and restored exactly; else our own.
+  if (options.camera != null) {
+    const c = options.camera
+    cam = c
+    const was = {
+      alpha: c.alpha,
+      beta: c.beta,
+      radius: c.radius,
+      target: c.target.clone(),
+      minZ: c.minZ,
+      maxZ: c.maxZ,
+    }
+    cleanups.push(() => {
+      c.minZ = was.minZ
+      c.maxZ = was.maxZ
+      c.setTarget(was.target)
+      c.alpha = was.alpha
+      c.beta = was.beta
+      c.radius = was.radius
+    })
+  } else {
+    const before = scene.activeCamera
+    const own = new BABYLON.ArcRotateCamera(
+      'effect-cam',
+      -2.1,
+      1.3,
+      ui.distance,
+      new BABYLON.Vector3(-8, 6, 0),
+      scene
+    )
+    own.minZ = 0.1
+    own.maxZ = 4000
+    own.attachControl(scene.getEngine().getRenderingCanvas(), true)
+    const unOrbit = touchOrbit(own)
+    owner.setActiveCamera(own)
+    cam = own
+    cleanups.push(() => {
+      unOrbit()
+      if (before != null && !before.isDisposed()) owner.setActiveCamera(before)
+      own.dispose()
+    })
+  }
+  if (staged) {
+    const g = BABYLON.MeshBuilder.CreateGround(
+      'effect-ground',
+      { width: 1600, height: 1600 },
+      scene
+    )
+    ground = g
+    const plain = new BABYLON.StandardMaterial('effect-ground', scene)
+    groundPlain = plain
+    plain.diffuseColor = new BABYLON.Color3(0.32, 0.3, 0.28)
+    plain.specularColor = BABYLON.Color3.Black()
+    // Lines every metre, heavier every ten.
+    const grid = new GridMaterial('effect-grid', scene)
+    groundGrid = grid
+    grid.gridRatio = 1
+    grid.majorUnitFrequency = 10
+    grid.minorUnitVisibility = 0.35
+    grid.mainColor = new BABYLON.Color3(0.36, 0.37, 0.39)
+    grid.lineColor = new BABYLON.Color3(0.58, 0.6, 0.63)
+    setBackdrop(ui.backdrop)
+    cleanups.push(() => {
+      sky.remove()
+      g.dispose()
+      plain.dispose()
+      grid.dispose()
+    })
+  }
+  const node =
+    options.target ?? new BABYLON.TransformNode('effect-here', scene)
+  if (options.target == null) cleanups.push(() => node.dispose())
+  here = node
+  lift()
+  player = new EffectPlayer(scene, node, clone(recipe), {
+    windAt: (x, z) => owner.weatherAt(x, z).wind,
+  })
+  player.play()
+  cleanups.push(() => {
+    player?.dispose()
+    player = null
+  })
+
+  const api: EffectToolApi = {
     get recipe(): EffectRecipe {
       return clone(recipe)
     },
@@ -638,12 +813,67 @@ export function effectTool(): HTMLElement & { effect: EffectToolApi } {
       if (problems.length)
         throw new Error(`not an effect recipe: ${problems[0]}`)
       adopt(r)
-      changed(true)
+      // The host's own edit: played, not announced back to it.
+      if (files) remember(ui.preset, recipe)
+      if (player != null) {
+        lift()
+        player.setRecipe(clone(recipe))
+        player.play()
+      }
       refresh()
     },
     get player(): EffectPlayer | null {
       return player
     },
   }
+  const handle = events as EffectToolHandle
+  handle.api = api
+  handle.widgets = panel
+  handle.unmount = () => {
+    if (disposed) return
+    commitNow()
+    disposed = true
+    if (idle != null) clearTimeout(idle)
+    for (const undo of cleanups.reverse()) {
+      try {
+        undo()
+      } catch (e) {
+        console.warn('effect tool: unmount step failed', e)
+      }
+    }
+    cleanups.length = 0
+  }
+  refresh()
+  return handle
+}
+
+/**
+ * The effect tool page: a `<tosi-b3d>` of its own with the tool mounted in
+ * it, its panel the scene's settings panel. `el.effect` is the API;
+ * `change` and `commit` are dispatched on the element.
+ */
+export function effectTool(): HTMLElement & { effect: EffectToolApi } {
+  let handle: EffectToolHandle | null = null
+  const el = b3d(
+    {
+      style: { width: '100%', height: '100%' },
+      clearColor: '#6b6e73',
+      panelTitle: 'Effect',
+      scenePanelOpen: true,
+      scenePanel: () => handle?.widgets() ?? [],
+      sceneCreated(owner: any) {
+        handle = mountEffectTool(owner, { hosted: false })
+        for (const type of ['change', 'commit'])
+          handle.addEventListener(type, (e) =>
+            el.dispatchEvent(
+              new CustomEvent(type, { detail: (e as CustomEvent).detail })
+            )
+          )
+        el.effect = handle.api
+        owner.refreshScenePanel?.()
+      },
+    },
+    b3dLight({ intensity: 0.5 })
+  ) as unknown as HTMLElement & { effect: EffectToolApi }
   return el
 }
