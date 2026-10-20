@@ -412,6 +412,7 @@ export {
   placeholderPanelSvg,
   opacityWeightedGlow,
   excludeFromGlow,
+  viewSpanAt,
 } from './frame-panel.js'
 export type {
   FramePanelSpec,
@@ -1691,6 +1692,7 @@ export {
 export {
   seamMaterial,
   withBarycentrics,
+  quadDiagonals,
   SeamPlugin,
   BARY_KIND,
   type SeamMaterialOptions,
@@ -1745,6 +1747,10 @@ export {
   rigRecipeSchema,
   STRAND_DEFAULTS,
   strandDirection,
+  strandPoints,
+  strandPath,
+  setStrandPath,
+  pathLength,
   validateRigRecipe,
 } from './rig-recipe.js'
 export type {

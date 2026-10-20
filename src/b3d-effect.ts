@@ -115,8 +115,9 @@ export class B3dEffect extends AbstractMesh {
     const host = semanticParent(this) as any
     if (host?.mesh instanceof BABYLON.Node) node.parent = host.mesh
     else this.followOrigin(owner)
+    // render() starts the player (its key is new); starting it here as well
+    // built it twice (0.11.0 gate).
     this.render()
-    this._start()
     // On the ground: look again now and then, as terrain tiles load and
     // sharpen under it.
     this._findGround()

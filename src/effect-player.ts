@@ -81,6 +81,8 @@ interface SceneEffects {
   voiceRoom: number
   voiceFloor: number
   observer: BABYLON.Observer<BABYLON.Scene>
+  /** Forgets the pool when the scene goes (removed when the pool goes first). */
+  onDispose: BABYLON.Observer<BABYLON.Scene> | null
   effectLights: Set<BABYLON.Light>
 }
 const perScene = new WeakMap<BABYLON.Scene, SceneEffects>()
@@ -96,8 +98,11 @@ function sceneEffects(scene: BABYLON.Scene): SceneEffects {
     voiceFloor: 0,
     effectLights: new Set(),
     observer: scene.onBeforeRenderObservable.add(() => tick(scene, fresh)),
+    onDispose: null,
   }
-  scene.onDisposeObservable.addOnce(() => perScene.delete(scene))
+  fresh.onDispose = scene.onDisposeObservable.addOnce(() =>
+    perScene.delete(scene)
+  )
   perScene.set(scene, fresh)
   return fresh
 }
@@ -112,6 +117,7 @@ function releaseSceneEffects(scene: BABYLON.Scene): void {
   const s = perScene.get(scene)
   if (s == null || s.players.size > 0) return
   scene.onBeforeRenderObservable.remove(s.observer)
+  scene.onDisposeObservable.remove(s.onDispose)
   for (const l of s.lights) l.light.dispose()
   s.lights = []
   perScene.delete(scene)
@@ -132,37 +138,40 @@ function tick(scene: BABYLON.Scene, s: SceneEffects): void {
   s.lights.length = 0
   for (const p of s.players) p.step(dt, throttle, s)
 
-  // LIGHTS: effect lights against the scene's other lights, strength × locality.
-  const eye = cam?.globalPosition ?? BABYLON.Vector3.Zero()
-  const others = scene.lights.filter(
-    (l) =>
-      !s.effectLights.has(l) &&
-      l.isEnabled() &&
-      (l instanceof BABYLON.PointLight || l instanceof BABYLON.SpotLight)
-  ) as Array<BABYLON.PointLight | BABYLON.SpotLight>
-  const candidates: LightCandidate[] = [
-    ...s.lights.map((l) => ({
-      intensity: l.want,
-      range: l.range,
-      distance: BABYLON.Vector3.Distance(eye, l.light.position),
-    })),
-    ...others.map((l) => ({
-      intensity: l.intensity,
-      range: l.range,
-      distance: BABYLON.Vector3.Distance(eye, l.getAbsolutePosition()),
-    })),
-  ]
-  const won = new Set(rankLights(candidates, budget.effectLights))
-  s.lights.forEach((l, i) => {
-    const target = won.has(i) ? 1 : 0
-    // Fade, not pop: about a sixth of a second either way.
-    l.fade +=
-      Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6)
-    ;(l.light as any)._effectFade = l.fade
-    l.light.intensity = l.want * l.fade
-    l.light.range = l.range
-    l.light.setEnabled(l.fade > 0.01 && l.want > 0)
-  })
+  // LIGHTS: effect lights against the scene's other lights (none, no work).
+  if (s.lights.length > 0) {
+    // Strength × locality.
+    const eye = cam?.globalPosition ?? BABYLON.Vector3.Zero()
+    const others = scene.lights.filter(
+      (l) =>
+        !s.effectLights.has(l) &&
+        l.isEnabled() &&
+        (l instanceof BABYLON.PointLight || l instanceof BABYLON.SpotLight)
+    ) as Array<BABYLON.PointLight | BABYLON.SpotLight>
+    const candidates: LightCandidate[] = [
+      ...s.lights.map((l) => ({
+        intensity: l.want,
+        range: l.range,
+        distance: BABYLON.Vector3.Distance(eye, l.light.position),
+      })),
+      ...others.map((l) => ({
+        intensity: l.intensity,
+        range: l.range,
+        distance: BABYLON.Vector3.Distance(eye, l.getAbsolutePosition()),
+      })),
+    ]
+    const won = new Set(rankLights(candidates, budget.effectLights))
+    s.lights.forEach((l, i) => {
+      const target = won.has(i) ? 1 : 0
+      // Fade, not pop: about a sixth of a second either way.
+      l.fade +=
+        Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6)
+      ;(l.light as any)._effectFade = l.fade
+      l.light.intensity = l.want * l.fade
+      l.light.range = l.range
+      l.light.setEnabled(l.fade > 0.01 && l.want > 0)
+    })
+  }
 
   // VOICES: the quietest yields.
   if (s.voices.size > budget.effectVoices) {

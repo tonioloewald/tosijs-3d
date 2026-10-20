@@ -1,6 +1,9 @@
 # Effects — particles, light and sound on one clock
 
-> Status: **design, agreed** (drafted and reviewed 2026-10-19; step 1 in progress). What exists:
+> Status: **step 1 shipped** (0.10.14 to 0.11: the recipe, player,
+> procedural sprites and voices, the six step-1 presets, `<tosi-b3d-effect>`,
+> landform vents and the effect tool, which a host can mount). Steps 2 and 3
+> below are not started. What existed before step 1:
 > `b3dParticles` (one Babylon `ParticleSystem`, two colours, an emitter shape,
 > `burst(n)`), the lamps' one-curve light model (`light-modulation`), `b3dSound`
 > (positional audio), procedural thunder delayed by distance (`b3d-lightning`,
