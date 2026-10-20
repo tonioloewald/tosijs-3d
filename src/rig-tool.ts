@@ -24,9 +24,11 @@ does nothing until a dot has been chosen, and only the first one counts, so
 orbiting on a phone cannot reassign a bone. Set `clicking sets` to the chain
 and that tap hangs the chosen spring chain there instead. A
 strand's path is a row of orange handles: drag them along the tail or the
-ponytail, `+ point` for another one beyond the tip. `view` snaps to front,
-side or top, which is how you line a point up with the flesh. Turn on
-`animate` (or pick a clip) to see it move.
+ponytail, `+ point` for another one beyond the tip. `view` snaps to a
+face (front, back, left, right, top, bottom), which is how you line a point
+up with the flesh, and stands it still; `free` orbits and plays the clip.
+Turn on `animate` (or pick a clip) to see it move. In a headset you are the
+camera, so the view only switches between still and playing.
 
 The panel has four sections.
 

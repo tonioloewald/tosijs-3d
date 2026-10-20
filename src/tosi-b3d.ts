@@ -4242,8 +4242,8 @@ export class B3d extends Component {
   /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
    * its contents in place. Unified on purpose — see `_panelWidgets`. */
   private _repaintPanels(): void {
+    // Flat and XR both (refreshScenePanel covers the headset's too).
     this.refreshScenePanel()
-    this._refreshXrPanel()
     /*
     AND RECONCILE THE POPUPS, here rather than at the call sites.
 
@@ -7030,6 +7030,13 @@ export class B3d extends Component {
    * Call after async state the panel reflects has changed (e.g. a library loaded,
    * or XR availability / session state) so an already-open panel updates. */
   refreshScenePanel(): void {
+    /*
+    BOTH PRESENTATIONS. In a headset the settings panel is the XR one, and
+    this only rebuilt the flat panel, so a tool that refreshes after a change
+    (the rig tool's animate toggle following its view) drew the old state in
+    VR (Tonio: the toggle stayed on while the clip had stopped).
+    */
+    this._refreshXrPanel()
     if (!this._scenePanelOpen()) return
     this._whenReleased(this._livePanel(), () => {
       if (this._scenePanelOpen()) this._openScenePanel()
