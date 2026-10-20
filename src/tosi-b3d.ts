@@ -1583,7 +1583,12 @@ export class B3d extends Component {
     const rows = this.pausePanel(this, () => this.resume()) ?? [
       label3d({ text: 'Paused', bold: true }),
       button3d({
-        label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
+        // Only where there is a headset to enter: the helper is built only
+        // when immersive-vr is supported (#3431, an iPhone said "in VR").
+        label:
+          this.enterXrOnResume === 'on' && this.xrHelper != null
+            ? 'Continue in VR'
+            : 'Continue',
         // The tap IS the user gesture that makes entering XR legal.
         handleClick: () => this.resume(),
       }),
