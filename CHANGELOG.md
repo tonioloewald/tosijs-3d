@@ -6,6 +6,12 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Fixed
+
+- **The rig tool casts shadows** (#3420): the standalone page declares a sun in its scene, as the playground does, and hands the character (and, in a face view, its seam twin) to the sun's shadow generator. `inspectStage({ light: false })` leaves out the stage's key light for a scene with a sun of its own; `seamOverlay` returns its twin as `mesh`. Hosted, the figure is in the host's lighting. What is still not understood: a shadow generator made after the scene is up, plain or cascaded, drew nothing in this scene.
+
 ## 0.10.19
 
 ### Added

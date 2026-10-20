@@ -86,12 +86,7 @@ export function inspectView(
   let face: InspectFace | 'free' = 'free'
   // What the free camera had, while a face is held.
   let saved: {
-    limits: [
-      number | null,
-      number | null,
-      number | null,
-      number | null,
-    ]
+    limits: [number | null, number | null, number | null, number | null]
     minZ: number
   } | null = null
 
@@ -172,10 +167,10 @@ export function inspectView(
 export function seamOverlay(
   mesh: BABYLON.AbstractMesh,
   options: SeamMaterialOptions = {}
-): { dispose(): void } {
+): { mesh: BABYLON.Mesh | null; dispose(): void } {
   const scene = mesh.getScene()
   const twin = (mesh as BABYLON.Mesh).clone?.(`${mesh.name}-seams`, mesh.parent)
-  if (twin == null) return { dispose() {} }
+  if (twin == null) return { mesh: null, dispose() {} }
   withBarycentrics(twin)
   const material = seamMaterial(scene, options)
   twin.material = material
@@ -185,6 +180,8 @@ export function seamOverlay(
   const shown = mesh.isVisible
   mesh.isVisible = false
   return {
+    /** The twin drawn in its place (a scene's sun needs it as a caster). */
+    mesh: twin,
     dispose() {
       twin.dispose()
       material.dispose()
@@ -198,11 +195,13 @@ export interface InspectStageOptions {
   size?: number
   /** The floor's colour (default a light neutral grey). */
   floor?: string
+  /** `false`: no key light (the scene has a sun of its own). */
+  light?: boolean
 }
 
 export interface InspectStage {
   ground: BABYLON.Mesh
-  light: BABYLON.DirectionalLight
+  light: BABYLON.DirectionalLight | null
   dispose(): void
 }
 
@@ -258,18 +257,21 @@ export function inspectStage(
   mat.specularColor = BABYLON.Color3.Black()
   ground.material = mat
 
-  const light = new BABYLON.DirectionalLight(
-    'inspect-key',
-    new BABYLON.Vector3(-0.35, -1, -0.45),
-    scene
-  )
-  light.position = new BABYLON.Vector3(4, 10, 6)
-  light.intensity = 0.7
+  let light: BABYLON.DirectionalLight | null = null
+  if (options.light !== false) {
+    light = new BABYLON.DirectionalLight(
+      'inspect-key',
+      new BABYLON.Vector3(-0.35, -1, -0.45),
+      scene
+    )
+    light.position = new BABYLON.Vector3(4, 10, 6)
+    light.intensity = 0.7
+  }
   return {
     ground,
     light,
     dispose() {
-      light.dispose()
+      light?.dispose()
       tex.dispose()
       mat.dispose()
       ground.dispose()
