@@ -26,7 +26,7 @@ the release's Size line.
 ### Added
 
 - **System panels from code, and a button that asks to be looked at** (#3436, Manta's objectives list): `<tosi-b3d-panel>` has `show()`, `hide()`, `toggle()` and `isOpen`, and fires `paneltoggle` (`detail.open`) whenever it opens or closes, by code or by its button, so a list can put itself away after a while. `attention(ms?)` blinks its button on the system bar, flat and in a headset (and on the HTML lozenge with `flat-ui="dom"`). Before the scene is up, `show()` means open at start.
-- **`systempanels` on `<tosi-b3d>`** (#3436): fires (bubbling, `detail.open`, `detail.panels`) when the first system panel the person opened with its button comes up and when the last goes away, so a game can pause while one is up. Panels a game opens itself do not count, and a headset session starting or ending does not fire it.
+- **`systempanels` on `<tosi-b3d>`** (#3436): fires (bubbling) on every system panel opened or closed, with `detail.panel`, `detail.shown`, `detail.byUser` (opened by its button, not by code) and `detail.open` (every open one, `{ panel, byUser }`), so the game decides what it means: `e.detail.open.some((p) => p.byUser)` pauses while the person has one up. A headset session starting or ending is reported once, after it, with `panel` null. `paneltoggle` also carries `byUser`.
 
 ### Changed
 

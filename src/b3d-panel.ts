@@ -274,18 +274,24 @@ game.on('objective', () => objectives.attention())
 ```
 
 **Who opened it matters.** A panel the person opens with its button is one
-they are looking at: the glass gamepad gets out of the way, and the scene
-fires `systempanels` (`detail.open`, `detail.panels`) when the first such
-panel comes up and when the last goes away, so a game can pause meanwhile. A
-panel opened by code (`show()`, `open`) is up while they play: the pad stays,
-and it does not count. Give one that stays open in play a `screenAnchor` clear
-of the pad's controls.
+they are looking at, so the glass gamepad gets out of the way. A panel opened
+by code (`show()`, `open`) is up while they play, so the pad stays: give one
+that stays open in play a `screenAnchor` clear of the pad's controls.
+
+Every open and close is reported, and the game decides what it means. The
+scene fires `systempanels` with `detail.panel` (the one that changed),
+`detail.shown`, `detail.byUser` (opened by its button) and `detail.open` (every
+open one, `{ panel, byUser }`); `paneltoggle` on the panel carries `open` and
+`byUser`. To pause while the person has one up:
 
 ```javascript
 scene.addEventListener('systempanels', (e) => {
-  game.paused = e.detail.open
+  game.paused = e.detail.open.some((p) => p.byUser)
 })
 ```
+
+A headset session starting or ending closes and reopens the shared panels;
+that is reported once, when it is over, with `detail.panel` null.
 
 **Clicking one from a test.** The content is drawn on a texture, so nothing in
 it has a box on the page. `el.contentToClient(x, y)` says where a point of the

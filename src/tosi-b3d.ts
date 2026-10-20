@@ -2549,9 +2549,38 @@ export class B3d extends Component {
     HTMLButtonElement,
     ReturnType<typeof setInterval>
   >()
-  /** Tell the `<tosi-b3d-panel>` it opened or closed (`paneltoggle`). */
-  private _panelToggled(el: Element, open: boolean): void {
-    el.dispatchEvent(new CustomEvent('paneltoggle', { detail: { open } }))
+  /*
+  EVERY OPEN AND CLOSE IS REPORTED (#3436): `paneltoggle` on the panel, and
+  `systempanels` on the scene with the whole picture, so the game decides
+  what it means (pause while one the person opened is up:
+  `detail.open.some((p) => p.byUser)`). A headset session starting or ending
+  closes and reopens the shared ones; that is reported once, when it is over.
+  */
+  private _panelToggled(
+    el: Element | null,
+    open: boolean,
+    byUser = false
+  ): void {
+    if (this._holdPanelEvents) return
+    if (el != null)
+      el.dispatchEvent(
+        new CustomEvent('paneltoggle', { detail: { open, byUser } })
+      )
+    this.dispatchEvent(
+      new CustomEvent('systempanels', {
+        detail: {
+          panel: el,
+          shown: open,
+          byUser,
+          open: [...this._sysPanels].map(([panel, p]) => ({
+            panel,
+            byUser: p.byUser,
+          })),
+        },
+        bubbles: true,
+        composed: true,
+      })
+    )
   }
   /**
    * New content on a system panel's element: if it is open, show the new
@@ -2779,7 +2808,7 @@ export class B3d extends Component {
     }
     this._sysPanels.set(key, entry)
     this._syncGamepadCover()
-    this._panelToggled(key, true)
+    this._panelToggled(key, true, byUser)
   }
   /** Where each system panel was dragged to, flat. */
   private _systemSpots = new WeakMap<Element, ScreenAnchor>()
@@ -2821,6 +2850,7 @@ export class B3d extends Component {
     const settle = () => {
       this._holdPanelEvents = false
       this._syncGamepadCover()
+      this._panelToggled(null, false)
     }
     if (scene == null || shared.length === 0) return settle()
     const obs = scene.onBeforeRenderObservable.add(() => {
@@ -2849,7 +2879,7 @@ export class B3d extends Component {
     // Last: the frame gives the content back once its plane is gone.
     p.off()
     this._syncGamepadCover()
-    this._panelToggled(key, false)
+    this._panelToggled(key, false, p.byUser)
   }
   private _sceneToolbarSpec(): FramePanelSpec | null {
     const lozenge = this.parts.sceneToolbar as HTMLElement | undefined
@@ -6763,30 +6793,12 @@ export class B3d extends Component {
   */
   private _syncGamepadCover(): void {
     if (this._holdPanelEvents) return
-    const asked = [...this._sysPanels]
-      .filter(([, p]) => p.byUser)
-      .map(([el]) => el)
     const covered =
-      this._flatScenePanel != null || this._modals.size > 0 || asked.length > 0
+      this._flatScenePanel != null ||
+      this._modals.size > 0 ||
+      [...this._sysPanels.values()].some((p) => p.byUser)
     this._suppressGamepad('in-scene-ui', covered)
-    /*
-    `systempanels` when the person's panels come up and when the last goes
-    away (#3436): a game can pause while one is up. Only panels opened by
-    their button count; one a game opens itself is its own business.
-    */
-    const open = asked.length > 0
-    if (open !== this._userPanelsOpen) {
-      this._userPanelsOpen = open
-      this.dispatchEvent(
-        new CustomEvent('systempanels', {
-          detail: { open, panels: asked },
-          bubbles: true,
-          composed: true,
-        })
-      )
-    }
   }
-  private _userPanelsOpen = false
   private _holdPanelEvents = false
   private _openFlatScenePanel(): boolean {
     const scene = this.scene
