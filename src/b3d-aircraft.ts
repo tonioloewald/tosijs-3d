@@ -253,7 +253,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `explode` / `explodeForce` | `'on'` / `8` | Death outcome |
 | `blip` | `'off'` | `'on'` puts it on radar, so a missile can lock it |
 | `blipProfile` / `faction` | `1` / `'neutral'` | Radar detectability and side |
-| `missileSpeed` | `55` | Guided-missile cruise speed |
+| `missileSpeed` | `90` | Guided-missile cruise speed (faster than the airframe, so it pulls ahead) |
 | `missileTurnRate` | `3` | Guided-missile agility (rad/sec) |
 | `missileDamage` | `30` | Missile warhead full damage |
 | `bombDamage` | `45` | Bomb warhead full damage |

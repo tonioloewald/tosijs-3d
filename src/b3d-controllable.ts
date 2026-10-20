@@ -18,8 +18,9 @@ import { B3dControllable } from 'tosijs-3d'
 
 class Spinner extends B3dControllable {
   applyInput(input, dt) {
-    // input is a ControlInput; act on the fields this entity cares about
-    if (this.meshNode) this.meshNode.rotation.y += input.throttle * dt * 3
+    // input is a ControlInput; act on the fields this entity cares about.
+    // `ry` is its yaw in degrees (from AbstractMesh), applied to its mesh.
+    this.ry += input.throttle * dt * 180
   }
 }
 ```

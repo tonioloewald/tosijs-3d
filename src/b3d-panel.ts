@@ -233,10 +233,11 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
 | `max-distance` | `0` | Hide beyond this distance (m); 0 = no limit |
 | `presence` | `'xr'` | `'xr'` — only in an immersive session; `'both'` — also in the flat view, on frames derived from the flat camera |
-| `flatFrame` | `''` | The frame to use in the FLAT view: required for a hand panel (a monitor has no hands); `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera |
+| `flat-frame` | `''` | The frame to use in the FLAT view, required for a hand panel (a monitor has no hands): e.g. `face` with a `position` at the screen edge. `'face'` measures elevation from the view instead of the horizon, so a menu stays centred under a pitched camera. Without one a hand panel stays VR-only and warns once |
 | `resolution` | `0` | Texture size in px (square); `0` = 384. Raise it for a menu with text |
 | `layer` | `'world'` | `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world |
-| `flat-frame` | `''` | The frame to use flat when `frame` is a hand (a monitor has none) — e.g. `face` with a `position` at the screen edge. Without one a hand panel stays VR-only and warns once |
+
+## Properties, methods and events
 
 Five more are JavaScript properties, not attributes, because they are
 objects: `svg` (live content, in place of an `<svg>` child: an `<svg>` whose own `handlePointer(kind, x, y)`

@@ -207,28 +207,9 @@ with a different sampler.
 It also means the deck can eventually SAG and billow by displacement, which a
 quad cannot do at all.
 
-## ⚠️ First pass — the structure is right, the LOOK is not tuned
-
-Honest state, so nobody mistakes "it renders" for "it is finished". Three things
-are visibly off and all three are art direction rather than architecture:
-
-1. **~~The repeat is visible.~~** Fixed: two sampling layers at an irrational
-   scale ratio never realign, so the field has no period to see. See the shader
-   note on `density`.
-2. **`coverage` has its curve now.** Percentile normalisation put the threshold
-   at the same place in the distribution whatever kind of cloud this is, and the
-   threshold itself is shaped rather than linear — so half coverage really is
-   about half the sky, with solid cores you can fly into rather than wisps. What
-   is left is taste, not calibration.
-3. **No REFRACTION, and that is deliberate** — Tonio flagged it and the material
-   already satisfies it: this is plain alpha blending with no refraction
-   texture, no screen-space sampling and no index-of-refraction term. Cloud
-   scatters, it does not bend what is behind it, and anything that distorts the
-   sky through a thin edge would read as glass.
-
-None of these need a different primitive, which is the part worth knowing: the
-deck, the two faces, the live dials and the vertex channel are all doing their
-jobs.
+**No refraction, on purpose.** It is plain alpha blending: cloud scatters
+light, it does not bend what is behind it, and a sky distorted through a thin
+edge would read as glass.
 
 ## One field, three readers
 

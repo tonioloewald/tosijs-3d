@@ -58,16 +58,11 @@ Confirmed by looking rather than reasoning — the theme demo shows the same
 panel flat and as a texture, and selecting Rosario changes the DOM panel and
 leaves the textured one on its fallback.
 
-So a `fontFamily` in a theme reaches an in-scene panel **only if the family is
-installed on the device**. That is why the shipped font list is generic
-families plus faces that ship with macOS and Windows: those are the ones that
-work in both presentations.
-
-The fix, when it is wanted, is to inline the face as a data-URI `@font-face`
-inside the serialised SVG — self-contained, and the same discipline the CSS
-literals already follow. Filed in TODO rather than done, because it means
-fetching and base64-ing a font per texture and the cost should be measured
-before it is paid.
+So a `fontFamily` in a theme reaches an in-scene panel only if the family is
+installed on the device, unless you embed it: [`registerSvgFont`](?embed-font.ts)
+inlines a web font as a data-URI `@font-face` that travels inside the
+serialised SVG. The shipped font list is generic families plus faces that ship
+with macOS and Windows, which work in both presentations without it.
 */
 /*{ "parent": "ui-in-scene", "order": 30 }*/
 

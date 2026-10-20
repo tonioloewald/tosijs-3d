@@ -391,6 +391,7 @@ import {
 } from './b3d-quality.js'
 import { SsaoController, ssaoActive, type SsaoSetting } from './b3d-ssao.js'
 import { ProjectedAoController } from './b3d-ssao-projected.js'
+import { reticleSvg } from './dial-art.js'
 import {
   costSweep,
   formatRuns,
@@ -1986,7 +1987,9 @@ export class B3d extends Component {
         reveal: 'always',
         blend: 'add',
         view: 'first', // crosshair only when looking through your own eyes
-        url: '/reticle.svg',
+        // Built in: a `/reticle.svg` url 404'd on any site but ours.
+        svg: new DOMParser().parseFromString(reticleSvg, 'image/svg+xml')
+          .documentElement as unknown as SVGSVGElement,
         width: 0.24,
       })
     }

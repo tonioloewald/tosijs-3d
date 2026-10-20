@@ -1,6 +1,7 @@
 /*
 Embed artwork as strings, so the library draws it without a fetch: the dials
-(static/compass.svg, static/vr-watch.svg → src/dial-art.ts) and the glass
+and the XR reticle (static/compass.svg, static/vr-watch.svg,
+static/reticle.svg → src/dial-art.ts) and the glass
 gamepad's clusters (static/gamepad-*.svg → src/gamepad-art.ts). An adopter's
 site does not serve our static/ folder, so a fetched default 404s there (the
 gamepad's did, until 0.11.1). The SVG files are the source of truth: edit them
@@ -35,6 +36,8 @@ async function embed(
 await embed('src/dial-art.ts', {
   compass: 'static/compass.svg',
   watch: 'static/vr-watch.svg',
+  // The XR face crosshair (`xr-reticle="on"`).
+  reticle: 'static/reticle.svg',
 })
 await embed('src/gamepad-art.ts', {
   gamepadLeft: 'static/gamepad-left.svg',
