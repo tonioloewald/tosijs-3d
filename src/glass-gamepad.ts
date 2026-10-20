@@ -13,8 +13,9 @@ corner of the view:
 | `right` | bottom-right | A/B/X/Y, right stick, right bumper/trigger |
 | `top` | top-center | view, menu |
 
-Each cluster is loaded from a self-contained SVG (default `/gamepad-left.svg`,
-`/gamepad-right.svg`, `/gamepad-top.svg`) whose paths are labelled by `id`
+Each cluster is drawn from a self-contained SVG (by default the library's own,
+built in: `/gamepad-left.svg`, `/gamepad-right.svg`, `/gamepad-top.svg` name
+them, and any other url is fetched) whose paths are labelled by `id`
 (copied to `data-part` on load). There's no outer shell — just the clusters.
 
 Usually you don't place this yourself: set the `gamepad` attribute on
@@ -161,6 +162,7 @@ import {
   emptyGamepad,
   mergeGamepads,
 } from './virtual-gamepad.js'
+import { gamepadLeftSvg, gamepadRightSvg, gamepadTopSvg } from './gamepad-art.js'
 
 const { div } = elements
 
@@ -331,9 +333,21 @@ export function parseGamepadControls(spec: string): {
   return { controls, offsets }
 }
 
+/*
+THE DEFAULT ART SHIPS IN THE LIBRARY. It was fetched from `/gamepad-*.svg`,
+which our doc site serves from `static/` and an adopter's site does not (it
+is not in the package), so there the pad 404'd and never drew. A default url
+now reads the embedded copy (`bun run dial-art` regenerates it from the SVGs);
+any other url is fetched as before.
+*/
+const BUILT_IN: Record<string, string> = {
+  '/gamepad-left.svg': gamepadLeftSvg,
+  '/gamepad-right.svg': gamepadRightSvg,
+  '/gamepad-top.svg': gamepadTopSvg,
+}
+
 async function loadCluster(url: string): Promise<SVGSVGElement> {
-  const res = await fetch(url)
-  const text = await res.text()
+  const text = BUILT_IN[url] ?? (await (await fetch(url)).text())
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml')
   const svg = doc.documentElement as unknown as SVGSVGElement
   for (const el of Array.from(svg.querySelectorAll('*'))) {
