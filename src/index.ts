@@ -1679,11 +1679,14 @@ export type { EmbeddedFont } from './embed-font.js'
 export { touchOrbit } from './touch-orbit.js'
 export {
   inspectView,
+  inspectStage,
   seamOverlay,
   INSPECT_FACES,
   type InspectFace,
   type InspectView,
   type InspectViewOptions,
+  type InspectStage,
+  type InspectStageOptions,
 } from './inspect-view.js'
 export {
   seamMaterial,

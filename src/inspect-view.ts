@@ -180,6 +180,8 @@ export function seamOverlay(
   const material = seamMaterial(scene, options)
   twin.material = material
   twin.isPickable = false
+  // Shadows fall on it (from an `inspectStage`'s light, say) as on the mesh.
+  twin.receiveShadows = true
   const shown = mesh.isVisible
   mesh.isVisible = false
   return {
@@ -187,6 +189,90 @@ export function seamOverlay(
       twin.dispose()
       material.dispose()
       mesh.isVisible = shown
+    },
+  }
+}
+
+export interface InspectStageOptions {
+  /** The floor's width and depth, in metres (default 12). */
+  size?: number
+  /** The floor's colour (default a light neutral grey). */
+  floor?: string
+}
+
+export interface InspectStage {
+  ground: BABYLON.Mesh
+  light: BABYLON.DirectionalLight
+  dispose(): void
+}
+
+/**
+ * A neutral floor to look at a model on: light grey, ruled every metre and
+ * faintly every quarter, with a key light from above and in front. Shadows
+ * are not on yet: in the rig tool's scene every shadow generator tried (a
+ * plain one, a cascaded one, the scene's own sun) drew no shadow or turned
+ * the floor black, which is being looked into.
+ */
+export function inspectStage(
+  scene: BABYLON.Scene,
+  options: InspectStageOptions = {}
+): InspectStage {
+  const size = options.size ?? 12
+  const ground = BABYLON.MeshBuilder.CreateGround(
+    'inspect-floor',
+    { width: size, height: size },
+    scene
+  )
+  ground.position.y = -0.01
+  ground.receiveShadows = true
+  const px = 256
+  const tex = new BABYLON.DynamicTexture(
+    'inspect-floor-grid',
+    { width: px, height: px },
+    scene,
+    true,
+    BABYLON.Texture.TRILINEAR_SAMPLINGMODE
+  )
+  tex.anisotropicFilteringLevel = 8
+  // A dynamic texture clamps by default, which would draw one tile.
+  tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
+  tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+  tex.uScale = tex.vScale = size
+  const ctx = tex.getContext() as CanvasRenderingContext2D
+  const fill = BABYLON.Color3.FromHexString(options.floor ?? '#c4c6c9')
+  ctx.fillStyle = fill.toHexString()
+  ctx.fillRect(0, 0, px, px)
+  // Quarters faint, the metre itself firmer (on the tile's edge, so it
+  // meets its neighbour's).
+  ctx.fillStyle = fill.scale(0.9).toHexString()
+  for (const k of [1, 2, 3]) {
+    ctx.fillRect((k * px) / 4 - 1, 0, 2, px)
+    ctx.fillRect(0, (k * px) / 4 - 1, px, 2)
+  }
+  ctx.fillStyle = fill.scale(0.78).toHexString()
+  ctx.fillRect(0, 0, 3, px)
+  ctx.fillRect(0, 0, px, 3)
+  tex.update()
+  const mat = new BABYLON.StandardMaterial('inspect-floor', scene)
+  mat.diffuseTexture = tex
+  mat.specularColor = BABYLON.Color3.Black()
+  ground.material = mat
+
+  const light = new BABYLON.DirectionalLight(
+    'inspect-key',
+    new BABYLON.Vector3(-0.35, -1, -0.45),
+    scene
+  )
+  light.position = new BABYLON.Vector3(4, 10, 6)
+  light.intensity = 0.7
+  return {
+    ground,
+    light,
+    dispose() {
+      light.dispose()
+      tex.dispose()
+      mat.dispose()
+      ground.dispose()
     },
   }
 }

@@ -32,7 +32,7 @@ seams.dispose()
 | `line` | `'#ffffff'` | the edges' colour |
 | `lineAlpha` | `0.45` | how strongly the edges show |
 | `lineWidth` | `1.25` | their width, in pixels |
-| `shade` | `0.25` | how much light shapes it (0: perfectly flat) |
+| `shade` | `0.45` | how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows) |
 
 A material without the attribute draws as a plain flat one.
 */
@@ -146,10 +146,14 @@ export function seamMaterial(
   const m = new BABYLON.StandardMaterial('b3d-seam', scene) as
     BABYLON.StandardMaterial & { seams: SeamPlugin }
   const fill = BABYLON.Color3.FromHexString(options.fill ?? '#c99ba6')
-  const shade = Math.min(1, Math.max(0, options.shade ?? 0.25))
-  // Mostly its own colour, a little light so the shape still reads.
+  const shade = Math.min(1, Math.max(0, options.shade ?? 0.45))
+  /*
+  Part its own colour, part lit: the lit part is what shapes it and what a
+  shadow darkens (a shadow only takes away light that falls on it), so a
+  mesh with this material and `receiveShadows` shows where things shade it.
+  */
   m.emissiveColor = fill.scale(1 - shade)
-  m.diffuseColor = fill.scale(shade)
+  m.diffuseColor = fill.scale(shade * 1.6)
   m.specularColor = BABYLON.Color3.Black()
   m.backFaceCulling = false
   const p = new SeamPlugin(m)

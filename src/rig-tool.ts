@@ -49,7 +49,7 @@ The panel has four sections.
   `copy` puts it on the clipboard. The working recipe is also kept in this
   browser, per model, so a reload does not lose it.
 
-Pick a clip at the top. `compare` shows UAL's mannequin playing the
+Pick a clip at the top. `mannequin` shows UAL's mannequin (a ghost) playing the
 original beside it; `bones` draws the skeleton.
 
 ## A recipe in a game
@@ -93,6 +93,7 @@ import { pointerClaimedByPanel } from './frame-panel.js'
 import { touchOrbit } from './touch-orbit.js'
 import {
   inspectView,
+  inspectStage,
   seamOverlay,
   INSPECT_FACES,
   type InspectFace,
@@ -554,7 +555,7 @@ export function rigTool(
           ]
         : []),
       toggle3d({
-        label: 'compare',
+        label: 'mannequin',
         value: ui.compare,
         handleChange: (v) => tool?.compare((ui.compare = v)),
       }),
@@ -1025,11 +1026,9 @@ export function rigTool(
         cam.attachControl(owner.querySelector('canvas'), true)
         touchOrbit(cam)
         owner.setActiveCamera(cam)
-        BABYLON.MeshBuilder.CreateGround(
-          'rig-ground',
-          { width: 12, height: 12 },
-          scene
-        ).position.y = -0.01
+        // A neutral floor ruled in metres, and a key light.
+        let ualStand: BABYLON.TransformNode | null = null
+        inspectStage(scene)
 
         // The clips' source, beside the character when comparing.
         const ual = await BABYLON.LoadAssetContainerAsync(
@@ -1040,10 +1039,22 @@ export function rigTool(
         for (const g of ual.animationGroups) g.stop()
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')!
         const source = readSkeleton(ual.skeletons[0], ualRoot)
-        const ualStand = new BABYLON.TransformNode('rig-ual', scene)
+        ualStand = new BABYLON.TransformNode('rig-ual', scene)
         ualRoot.parent = ualStand
         ualStand.setEnabled(ui.compare)
-        clips = ual.animationGroups.map((g) => g.name).sort()
+        /*
+        A GHOST beside the character: there to compare, not to look at. The
+        glTF loader marks its materials opaque, which `visibility` alone
+        cannot override, so they are told to blend.
+        */
+        for (const m of ual.meshes) if (m.getTotalVertices() > 0) m.visibility = 0.35
+        for (const mat of ual.materials)
+          mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+        // Loops first (Tonio): they are what a rig is judged on.
+        const loop = (n: string) => (/loop/i.test(n) ? 0 : 1)
+        clips = ual.animationGroups
+          .map((g) => g.name)
+          .sort((a, b) => loop(a) - loop(b) || a.localeCompare(b))
 
         const stand = new BABYLON.TransformNode('rig-stand', scene)
         let height = 1.8
@@ -1560,7 +1571,8 @@ export function rigTool(
         await load(models[0])
       },
     },
-    b3dLight({ intensity: 0.9 })
+    // Fill: the stage's key light does the shaping.
+    b3dLight({ intensity: 0.55 })
   )
   /*
   THE TOOL AS AN API, for a page or an editor driving it: read the recipe,
