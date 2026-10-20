@@ -1437,7 +1437,7 @@ seam-material
   line  = '#ffffff'  — the edges' colour
   lineAlpha  = 0.45  — how strongly the edges show
   lineWidth  = 1.25  — their width, in pixels
-  shade  = 0.25  — how much light shapes it (0: perfectly flat)
+  shade  = 0.45  — how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows)
 
 ## slope-profile
 slope-profile

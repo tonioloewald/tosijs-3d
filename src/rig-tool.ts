@@ -72,6 +72,39 @@ driving the tool.
 `rig.problems` lists anything in the recipe the model does not have (a bone
 renamed since it was saved), and `rig.springs` the live chains, whose
 `bones.params` can be changed while it runs.
+## In an editor: mounting it in your scene
+
+`mountRigTool(b3d, options)` opens the tool in a `<tosi-b3d>` you already
+have (tosijs-3d#122): an editor opens it on a character and keeps the recipe
+in its own document.
+
+```javascript
+import { mountRigTool } from 'tosijs-3d/rig-tool'
+
+const tool = mountRigTool(scene, {
+  models: [{ label: 'hero', url: '/hero.glb' }],
+  recipe: doc.recipe, // start from the document's
+  files: false, // no save / load / copy, nothing kept in the browser
+  stage: false, // no floor or light: the scene's own lighting
+  camera: editorCamera, // driven, and put back exactly on unmount
+})
+tool.addEventListener('change', (e) => preview(e.detail.recipe))
+tool.addEventListener('commit', (e) => doc.record(e.detail.recipe)) // an undo step
+// …
+tool.unmount() // everything it added goes; safe to call twice
+```
+
+- **`change`** fires on every edit, **`commit`** once per finished gesture
+  (a release on its panel or in the scene, a role assigned), each with a copy
+  of the recipe.
+- **Its panel is a system panel** (a button on the system bar, beside the
+  host's), with the view's camera menu beside it.
+- **`unmount()`** removes every mesh, material, texture, observer and panel it
+  added, also if it is called while the first model is still loading, and
+  restores the camera it was given: angles, distance, target, projection and
+  limits. Without a camera it brings its own and puts the active one back.
+- `tool.api` is the same API as the page's `.rig`; setting `api.recipe`
+  applies it without echoing a `change`.
 */
 /*{ "parent": "demos", "order": 35 }*/
 
@@ -82,6 +115,7 @@ import { assetUrl } from './asset-url.js'
 import {
   button3d,
   label3d,
+  panel3d,
   row3d,
   select3d,
   slider3d,
@@ -99,6 +133,7 @@ import {
   type InspectFace,
 } from './inspect-view.js'
 import { viewMenu } from './bar-menu.js'
+import { b3dPanel } from './b3d-panel.js'
 import { readSkeleton, retargetClip } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
@@ -450,14 +485,70 @@ async function autoRig(
 const roleLabel = (r: Role) =>
   r.replace(/^l-/, 'left ').replace(/^r-/, 'right ')
 
+export interface RigToolOptions {
+  /** The characters to choose from (default: the demo characters). */
+  models?: RigModel[]
+  /** A recipe to start from, in place of the model's own (a host's document). */
+  recipe?: RigRecipe
+  /**
+   * `false`: no save, load or copy buttons and no working copy kept in this
+   * browser. The host supplies the recipe and stores what `change` and
+   * `commit` carry.
+   */
+  files?: boolean
+  /**
+   * `false`: no floor and no key light; the character is judged in the
+   * host's own lighting.
+   */
+  stage?: boolean
+  /**
+   * The camera to drive (a host's view). Everything about it is put back on
+   * unmount. Without one the tool brings its own and makes it active.
+   */
+  camera?: BABYLON.ArcRotateCamera
+  /**
+   * Hosted: the panel is a system panel (a button on the system bar,
+   * stacking with the host's), not the scene's settings panel. Default true;
+   * the standalone `rigTool()` passes false.
+   */
+  hosted?: boolean
+}
+
+/** A rig tool mounted in a scene: `change` and `commit` events, its API, unmount. */
+export interface RigToolHandle extends EventTarget {
+  api: RigToolApi
+  /** Done loading its first model (or failed, or was unmounted first). */
+  ready: Promise<void>
+  /** The panel's widgets (what a scene panel shows). */
+  widgets(): Widget3d[]
+  /** Remove everything it added and put the host's camera back. Safe twice. */
+  unmount(): void
+}
+
+/** What `change` and `commit` carry: a copy of the recipe. */
+export type RigToolEvent = CustomEvent<{ recipe: RigRecipe }>
+
 /**
- * The rig tool: a `<tosi-b3d>` with its panel. `models` replaces the demo
- * characters (a URL the page can fetch, and the character to pick in it).
+ * MOUNT THE RIG TOOL in an existing `<tosi-b3d>` (tosijs-3d#122): a host's
+ * editor opens it on a character and stores the recipe itself. Every edit
+ * fires `change` with a copy of the recipe; each finished gesture (a release
+ * on the panel or the scene, a role assigned) fires one `commit`, an undo
+ * step. `unmount()` removes what it added and restores the host's camera.
+ * `rigTool()` is the standalone page: the same tool in a scene of its own.
  */
-export function rigTool(
-  options: { models?: RigModel[] } = {}
-): HTMLElement & { rig: RigToolApi } {
+export function mountRigTool(
+  owner: any,
+  options: RigToolOptions = {}
+): RigToolHandle {
   const models = options.models ?? rigToolModels()
+  const files = options.files !== false
+  const hosted = options.hosted !== false
+  const events = new EventTarget()
+  let disposed = false
+  /** Undone in reverse on unmount, as each thing is made. */
+  const cleanups: Array<() => void> = []
+  /** A recipe the host handed over before the model was loaded. */
+  let given: RigRecipe | null = options.recipe ?? null
   const ui = {
     model: models[0].label,
     clip: 'Walk_Loop',
@@ -480,13 +571,63 @@ export function rigTool(
     /** The rest pose opens on the front, orthographic; animating orbits. */
     view: 'front' as RigView,
   }
-  let recipe = fresh()
-  let el: any = null
+  let recipe = fresh(given ?? {})
   let clips: string[] = []
   let boneNames: string[] = []
   let applied: AppliedRig | null = null
 
-  const refresh = () => el?.refreshScenePanel()
+  /*
+  THE PANEL. Standalone it is the scene's settings panel (the owl); hosted, a
+  system panel of its own, so it stacks with the host's (ensemble #115). A
+  release on it ends a gesture: whatever changed is committed.
+  */
+  let panelEl: (HTMLElement & { svg: SVGSVGElement | null }) | null = null
+  const panelSvg = (): SVGSVGElement => {
+    const svg = panel3d(
+      { width: 300, height: 'fit', maxHeight: 640 },
+      ...panel()
+    ) as unknown as SVGSVGElement & {
+      handlePointer?: (k: string, x: number, y: number) => unknown
+    }
+    const inner = svg.handlePointer
+    if (inner != null)
+      svg.handlePointer = (k: string, x: number, y: number) => {
+        const r = inner(k, x, y)
+        if (k === 'up') commitNow()
+        return r
+      }
+    return svg
+  }
+  const refresh = () => {
+    if (disposed) return
+    if (!hosted) owner.refreshScenePanel?.()
+    else if (panelEl != null) panelEl.svg = panelSvg()
+  }
+
+  /*
+  CHANGE AND COMMIT. Every edit is a `change`; a gesture's end flushes one
+  `commit` (and a pause does, for edits that end no gesture we see).
+  */
+  const copy = () => JSON.parse(JSON.stringify(recipe)) as RigRecipe
+  const emit = (type: 'change' | 'commit') =>
+    events.dispatchEvent(new CustomEvent(type, { detail: { recipe: copy() } }))
+  let dirty = false
+  let idle: ReturnType<typeof setTimeout> | null = null
+  function commitNow() {
+    if (idle != null) clearTimeout(idle)
+    idle = null
+    if (!dirty || disposed) return
+    dirty = false
+    emit('commit')
+  }
+  /** An edit: kept (standalone), announced, and committed when it settles. */
+  function edited() {
+    if (files) remember(ui.model, recipe)
+    dirty = true
+    emit('change')
+    if (idle != null) clearTimeout(idle)
+    idle = setTimeout(commitNow, 800)
+  }
 
   // The live tool, once the scene is up.
   let tool: {
@@ -501,7 +642,7 @@ export function rigTool(
   } | null = null
 
   const changed = (clipsToo = false) => {
-    remember(ui.model, recipe)
+    edited()
     tool?.rebuild(clipsToo)
   }
   const current = (): SpringRecipe | undefined => recipe.springs?.[ui.spring]
@@ -743,7 +884,7 @@ export function rigTool(
             params.stiffness = v
             const b = live()
             if (b) b.params.stiffness = v
-            remember(ui.model, recipe)
+            edited()
           },
         }),
         slider3d({
@@ -756,7 +897,7 @@ export function rigTool(
             params.damping = v
             const b = live()
             if (b) b.params.damping = v
-            remember(ui.model, recipe)
+            edited()
           },
         }),
         slider3d({
@@ -769,7 +910,7 @@ export function rigTool(
             params.gravity = v
             const b = live()
             if (b) b.params.gravity = { x: 0, y: -v, z: 0 }
-            remember(ui.model, recipe)
+            edited()
           },
         }),
         select3d({
@@ -793,9 +934,10 @@ export function rigTool(
       )
     }
 
-    // Recipe.
-    w.push(
-      label3d({ text: 'Recipe', collapsible: true }),
+    // Recipe. Hosted with `files: false`, the host keeps it: only start over.
+    w.push(label3d({ text: 'Recipe', collapsible: true }))
+    if (files)
+      w.push(
       button3d({
         label: 'save',
         handleClick: () =>
@@ -839,7 +981,9 @@ export function rigTool(
               ui.status = 'recipe copied'
               refresh()
             }),
-      }),
+      })
+      )
+    w.push(
       button3d({
         label: 'start over',
         handleClick: () => {
@@ -1004,42 +1148,129 @@ export function rigTool(
     ]
   }
 
-  el = b3d(
-    {
-      style: { width: '100%', height: '100%' },
-      clearColor: '#2a3340',
-      panelTitle: 'Rig',
-      scenePanelOpen: true,
-      scenePanel: panel,
-      async sceneCreated(owner: any) {
+  if (hosted) {
+    panelEl = b3dPanel({
+      icon: 'personStanding',
+      title: 'Rig',
+      exclusive: 'off',
+      open: true,
+    }) as unknown as HTMLElement & { svg: SVGSVGElement | null }
+    panelEl.svg = panelSvg()
+    owner.append(panelEl)
+    cleanups.push(() => {
+      // Closed through the scene first, or its open panel outlives it.
+      owner._closeSystemPanel?.(panelEl)
+      panelEl?.remove()
+    })
+  }
+
+  const ready = (async () => {
         const scene: BABYLON.Scene = owner.scene
-        const cam = new BABYLON.ArcRotateCamera(
-          'rig-cam',
-          Math.PI / 2,
-          1.35,
-          3.6,
-          new BABYLON.Vector3(-0.5, 0.9, 0),
-          scene
-        )
-        cam.wheelPrecision = 60
-        cam.minZ = 0.02
-        cam.attachControl(owner.querySelector('canvas'), true)
-        touchOrbit(cam)
-        owner.setActiveCamera(cam)
-        // A neutral floor ruled in metres, and a key light.
+        /*
+        THE CAMERA. A host's (its author's view) is driven and, on unmount,
+        put back exactly as found: angles, distance, target, projection and
+        the limits the held views pin. Otherwise the tool brings its own and
+        hands the host's active camera back when it goes.
+        */
+        let cam: BABYLON.ArcRotateCamera
+        if (options.camera != null) {
+          cam = options.camera
+          const c = cam
+          const was = {
+            alpha: c.alpha,
+            beta: c.beta,
+            radius: c.radius,
+            target: c.target.clone(),
+            mode: c.mode,
+            ortho: [c.orthoTop, c.orthoBottom, c.orthoLeft, c.orthoRight],
+            limits: [
+              c.lowerAlphaLimit,
+              c.upperAlphaLimit,
+              c.lowerBetaLimit,
+              c.upperBetaLimit,
+            ],
+            minZ: c.minZ,
+          }
+          cleanups.push(() => {
+            ;[
+              c.lowerAlphaLimit,
+              c.upperAlphaLimit,
+              c.lowerBetaLimit,
+              c.upperBetaLimit,
+            ] = was.limits
+            c.mode = was.mode
+            ;[c.orthoTop, c.orthoBottom, c.orthoLeft, c.orthoRight] = was.ortho
+            c.minZ = was.minZ
+            c.setTarget(was.target)
+            c.alpha = was.alpha
+            c.beta = was.beta
+            c.radius = was.radius
+          })
+        } else {
+          const before = scene.activeCamera
+          cam = new BABYLON.ArcRotateCamera(
+            'rig-cam',
+            Math.PI / 2,
+            1.35,
+            3.6,
+            new BABYLON.Vector3(-0.5, 0.9, 0),
+            scene
+          )
+          cam.wheelPrecision = 60
+          cam.minZ = 0.02
+          cam.attachControl(scene.getEngine().getRenderingCanvas(), true)
+          const unOrbit = touchOrbit(cam)
+          owner.setActiveCamera(cam)
+          const own = cam
+          cleanups.push(() => {
+            unOrbit()
+            if (before != null && !before.isDisposed()) owner.setActiveCamera(before)
+            own.dispose()
+          })
+        }
+        /*
+        THE BRDF LOOKUP. The first PBR material in a scene (the mannequin's)
+        makes a texture the scene keeps for every later one. Made by us and
+        needed by nothing once we go, it goes with us; a host's PBR material
+        keeps it.
+        */
+        const brdfBefore = scene.environmentBRDFTexture
+        const releaseBrdf = () => {
+          const t = scene.environmentBRDFTexture
+          if (brdfBefore != null || t == null) return
+          if (scene.materials.some((m) => m.getClassName() === 'PBRMaterial'))
+            return
+          t.dispose()
+          scene.environmentBRDFTexture = null as unknown as BABYLON.BaseTexture
+        }
+        cleanups.push(releaseBrdf)
+        // A neutral floor ruled in metres, and a key light (unless the host
+        // lights it).
         let ualStand: BABYLON.TransformNode | null = null
-        inspectStage(scene)
+        if (options.stage !== false) {
+          const stage = inspectStage(scene)
+          cleanups.push(() => stage.dispose())
+        }
 
         // The clips' source, beside the character when comparing.
         const ual = await BABYLON.LoadAssetContainerAsync(
           assetUrl('quaternius/UAL1_core.glb', 2),
           scene
         )
+        if (disposed) {
+          // Unmounted while it loaded: what it made goes now.
+          ual.dispose()
+          releaseBrdf()
+          return
+        }
+        cleanups.push(() => ual.dispose())
         ual.addAllToScene()
         for (const g of ual.animationGroups) g.stop()
         const ualRoot = ual.meshes.find((m) => m.name === '__root__')!
         const source = readSkeleton(ual.skeletons[0], ualRoot)
         ualStand = new BABYLON.TransformNode('rig-ual', scene)
+        const ualNode = ualStand
+        cleanups.push(() => ualNode.dispose())
         ualRoot.parent = ualStand
         ualStand.setEnabled(ui.compare)
         /*
@@ -1057,6 +1288,7 @@ export function rigTool(
           .sort((a, b) => loop(a) - loop(b) || a.localeCompare(b))
 
         const stand = new BABYLON.TransformNode('rig-stand', scene)
+        cleanups.push(() => stand.dispose())
         let height = 1.8
         const UAL_HEIGHT = 1.83
         /*
@@ -1074,6 +1306,8 @@ export function rigTool(
         */
         const inspect = inspectView(cam, {
           handleChange: (f) => {
+            // Unmounting lets go of the view: nothing more to play.
+            if (disposed) return
             ui.view = f
             if (f !== 'free') restFace = f
             const pose = f === 'free' ? 'animate' : 'rest'
@@ -1086,11 +1320,13 @@ export function rigTool(
             refresh()
           },
         })
+        cleanups.push(() => inspect.dispose())
         const menu: ReturnType<typeof viewMenu> | null = viewMenu(
           inspect,
           owner,
           { always: true }
         )
+        cleanups.push(() => menu.dispose())
         let seamed: Array<{ dispose(): void }> = []
         /** The model's polygons drawn over a flat fill, while a face is held. */
         function seams() {
@@ -1178,6 +1414,19 @@ export function rigTool(
           for (const g of made.values()) g.dispose()
           made.clear()
         }
+        // The character and everything made for it, whatever it is by then.
+        cleanups.push(() => {
+          stop()
+          forgetClips()
+          applied?.dispose()
+          applied = null
+          viewer?.dispose()
+          viewer = null
+          for (const x of seamed) x.dispose()
+          seamed = []
+          model?.dispose()
+          model = null
+        })
         /** The recipe on the character, at rest (springs held there). */
         const rebuildAtRest = () => {
           if (model == null) return
@@ -1214,6 +1463,9 @@ export function rigTool(
         first bone in blue. Nothing in the animated view.
         */
         scene.setRenderingAutoClearDepthStencil(1, true, true, false)
+        cleanups.push(() =>
+          scene.setRenderingAutoClearDepthStencil(1, true, true, true)
+        )
         const dotMat = (name: string, hex: string) => {
           const m = new BABYLON.StandardMaterial(name, scene)
           m.disableLighting = true
@@ -1225,6 +1477,12 @@ export function rigTool(
         const springMat = dotMat('rig-spring', '#5ac8fa')
         const springPickedMat = dotMat('rig-spring-picked', '#ff9f0a')
         let dots: BABYLON.Mesh[] = []
+        cleanups.push(() => {
+          for (const d of dots) d.dispose()
+          dots = []
+          for (const m of [roleMat, pickedMat, springMat, springPickedMat])
+            m.dispose()
+        })
         const dot = (
           at: BABYLON.Vector3,
           size: number,
@@ -1314,7 +1572,7 @@ export function rigTool(
         those are the panel's. Taking a handle stops the camera for the
         drag, as Babylon's drag behaviour does.
         */
-        canvas.addEventListener('pointerdown', (e) => {
+        const onPointerDown = (e: PointerEvent) => {
           if (ui.pose !== 'rest' || e.button !== 0 || applied == null) return
           if (pointerClaimedByPanel(e)) return
           const at = toRender(e)
@@ -1380,11 +1638,14 @@ export function rigTool(
             if (pathLength(path) < 1e-4) return
             setStrandPath(strand, path)
             changed()
+            commitNow()
             refresh()
           }
           window.addEventListener('pointermove', move, true)
           window.addEventListener('pointerup', up, true)
-        })
+        }
+        canvas.addEventListener('pointerdown', onPointerDown)
+        cleanups.push(() => canvas.removeEventListener('pointerdown', onPointerDown))
 
         /** The bone a point on the body belongs to: the nearest bone's length. */
         const nearestBone = (p: BABYLON.Vector3): string | null => {
@@ -1483,6 +1744,7 @@ export function rigTool(
               changed()
             }
           }
+          commitNow()
           refresh()
         }
         const showBones = (on: boolean) => {
@@ -1518,6 +1780,11 @@ export function rigTool(
               !(m instanceof File) && m.autorig != null
                 ? await autoRig(scene, m.label, m.url, m.autorig)
                 : await openGlb(scene, m)
+            if (disposed) {
+              if (typeof opened !== 'string') opened.dispose()
+              releaseBrdf()
+              return
+            }
             if (typeof opened === 'string') {
               ui.status = `${label} ${opened}`
               refresh()
@@ -1533,7 +1800,13 @@ export function rigTool(
             )
             ui.model = label
             const url = m instanceof File ? undefined : m.url
-            recipe = recall(label) ?? fresh(m instanceof File ? {} : m.recipe)
+            // The host's recipe if it handed one over, else the one kept
+            // here, else the model's own.
+            recipe =
+              (given != null ? fresh(given) : null) ??
+              (files ? recall(label) : null) ??
+              fresh(m instanceof File ? {} : m.recipe)
+            given = null
             recipe.model = { url, name: m instanceof File ? m.name : pick }
             ui.spring = 0
             // Its height, from the meshes shown (a library holds others),
@@ -1561,33 +1834,42 @@ export function rigTool(
           load,
           play,
           compare(on) {
-            ualStand.setEnabled(on)
+            ualNode.setEnabled(on)
             frame()
           },
           bones: showBones,
           view: snapView,
           targets,
         }
-        await load(models[0])
-      },
-    },
-    // Fill: the stage's key light does the shaping.
-    b3dLight({ intensity: 0.55 })
-  )
+        cleanups.push(() => {
+          tool = null
+        })
+        await load(given?.model?.url != null
+          ? models.find((m) => m.url === given!.model!.url) ?? models[0]
+          : models[0])
+  })().catch((e) => {
+    ui.status = `the rig tool failed to start: ${(e as Error).message}`
+    refresh()
+  })
+
   /*
   THE TOOL AS AN API, for a page or an editor driving it: read the recipe,
   hand it one (applied as if loaded), or load a model.
   */
-  el.rig = {
+  const api: RigToolApi = {
     get recipe(): RigRecipe {
-      return JSON.parse(JSON.stringify(recipe))
+      return copy()
     },
     set recipe(r: RigRecipe) {
       const problems = validateRigRecipe(r)
       if (problems.length) throw new Error(`not a rig recipe: ${problems[0]}`)
-      recipe = fresh({ ...r, model: recipe.model })
+      recipe = fresh({ ...r, model: r.model ?? recipe.model })
+      // Handed over before a model is up: it is the one to load with.
+      if (tool == null) given = recipe
       ui.spring = 0
-      changed(true)
+      // The host's own edit: kept, applied, not announced back to it.
+      if (files) remember(ui.model, recipe)
+      tool?.rebuild(true)
       refresh()
     },
     get applied(): AppliedRig | null {
@@ -1615,5 +1897,59 @@ export function rigTool(
     },
     load: (m: RigModel | File) => tool?.load(m),
   }
+
+  const handle = events as RigToolHandle
+  handle.api = api
+  handle.ready = ready
+  handle.widgets = panel
+  handle.unmount = () => {
+    if (disposed) return
+    commitNow()
+    disposed = true
+    if (idle != null) clearTimeout(idle)
+    for (const undo of cleanups.reverse()) {
+      try {
+        undo()
+      } catch (e) {
+        console.warn('rig tool: unmount step failed', e)
+      }
+    }
+    cleanups.length = 0
+  }
+  return handle
+}
+
+/**
+ * The rig tool page: a `<tosi-b3d>` of its own with the tool mounted in it,
+ * its panel the scene's settings panel. `models` replaces the demo
+ * characters (a URL the page can fetch, and the character to pick in it).
+ * `el.rig` is the API; `change` and `commit` are dispatched on the element.
+ */
+export function rigTool(
+  options: { models?: RigModel[] } = {}
+): HTMLElement & { rig: RigToolApi } {
+  let handle: RigToolHandle | null = null
+  const el = b3d(
+    {
+      style: { width: '100%', height: '100%' },
+      clearColor: '#2a3340',
+      panelTitle: 'Rig',
+      scenePanelOpen: true,
+      scenePanel: () => handle?.widgets() ?? [],
+      sceneCreated(owner: any) {
+        handle = mountRigTool(owner, { models: options.models, hosted: false })
+        for (const type of ['change', 'commit'])
+          handle.addEventListener(type, (e) =>
+            el.dispatchEvent(
+              new CustomEvent(type, { detail: (e as CustomEvent).detail })
+            )
+          )
+        el.rig = handle.api
+        owner.refreshScenePanel?.()
+      },
+    },
+    // Fill: the stage's key light does the shaping.
+    b3dLight({ intensity: 0.55 })
+  ) as unknown as HTMLElement & { rig: RigToolApi }
   return el
 }

@@ -5553,8 +5553,8 @@
       },
       {
         "name": "shade",
-        "default": "0.25",
-        "description": "how much light shapes it (0: perfectly flat)"
+        "default": "0.45",
+        "description": "how much light shapes it and shadows darken it (0: perfectly flat, and no shadow shows)"
       }
     ]
   },
