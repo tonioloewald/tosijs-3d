@@ -100,9 +100,14 @@ function sceneEffects(scene: BABYLON.Scene): SceneEffects {
     observer: scene.onBeforeRenderObservable.add(() => tick(scene, fresh)),
     onDispose: null,
   }
-  fresh.onDispose = scene.onDisposeObservable.addOnce(() =>
+  // A voice lives in the page's audio context, not the scene: a scene that
+  // goes away with voices playing would leave them looping (leaving the
+  // effect tool page did, Tonio in the headset).
+  fresh.onDispose = scene.onDisposeObservable.addOnce(() => {
+    for (const v of fresh.voices) v.voice.stop()
+    fresh.voices.clear()
     perScene.delete(scene)
-  )
+  })
   perScene.set(scene, fresh)
   return fresh
 }

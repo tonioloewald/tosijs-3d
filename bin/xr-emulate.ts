@@ -203,6 +203,8 @@ const chrome = Bun.spawn(
     '--enable-gpu',
     '--ignore-gpu-blocklist',
     '--window-size=1400,800',
+    // No one is there to click: let effect voices and thunder start.
+    '--autoplay-policy=no-user-gesture-required',
     // The dev server's cert is local.
     '--ignore-certificate-errors',
     'about:blank',

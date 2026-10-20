@@ -27,8 +27,17 @@ export function effectAudio(): AudioContext | null {
         (globalThis as any).webkitAudioContext
       if (C == null) return null
       ctx = new C() as AudioContext
+      // A hidden tab draws no frames, so nothing would ever fade a voice
+      // out: it would hold its last sound for as long as the tab is away.
+      const doc = (globalThis as any).document as Document | undefined
+      doc?.addEventListener('visibilitychange', () => {
+        if (ctx == null) return
+        if (doc.hidden) void ctx.suspend()
+        else void ctx.resume()
+      })
     }
-    if (ctx.state === 'suspended') void ctx.resume()
+    const hidden = (globalThis as any).document?.hidden === true
+    if (ctx.state === 'suspended' && !hidden) void ctx.resume()
     return ctx.state === 'running' ? ctx : null
   } catch {
     return null
