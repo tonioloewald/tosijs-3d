@@ -19,8 +19,9 @@ Tap the scene once so the browser lets it make sound.
 
 - **Effect**: the preset, `play` (a one-shot plays again), `stop`, the
   `activity` dial (a volcano: dormant, semi-active, erupting), `mute`, and
-  `listen from`: how far away you are. Sound travels at 343 m/s, so at
-  300 m an explosion's boom comes almost a second after its flash. `time of
+  `listen from`: how far away you are (in a headset the effect moves away
+  from you instead). Sound travels at 343 m/s, so at 300 m an explosion's
+  boom comes almost a second after its flash. `time of
   day` shows the lights at night.
 - **Layers**: choose one and change it. Particles: how many, how long they
   live, how fast and big, gravity, wind, height, the first and last colour.
@@ -242,6 +243,27 @@ export function mountEffectTool(
     // A host's target is placed by the host.
     if (here != null && options.target == null)
       here.position.y = recipe.name === 'fireball' ? 1.5 : 0
+  }
+  /*
+  LISTENING FROM AFAR IN A HEADSET. Flat, \`listen from\` pulls the camera
+  back; in a headset you are the camera, so the slider did nothing (Tonio).
+  There the effect moves instead: along the ground, on the line from you to
+  it, to that distance. Back where it was once the session ends. A host's
+  target is the host's to place.
+  */
+  let moved = false
+  let settling = 0
+  const listenFrom = () => {
+    if (here == null || options.target != null || !owner.xrActive) return
+    const viewer = owner.scene?.activeCamera?.globalPosition
+    if (viewer == null) return
+    const dx = here.position.x - viewer.x
+    const dz = here.position.z - viewer.z
+    const len = Math.hypot(dx, dz)
+    const [ux, uz] = len > 1e-3 ? [dx / len, dz / len] : [0, 1]
+    here.position.x = viewer.x + ux * ui.distance
+    here.position.z = viewer.z + uz * ui.distance
+    moved = true
   }
   const sky = b3dSkybox({ timeOfDay: ui.timeOfDay })
   /*
@@ -595,6 +617,7 @@ export function mountEffectTool(
         handleChange: (v: number) => {
           ui.distance = v
           if (cam != null) cam.radius = v
+          listenFrom()
           // The status line says how late the sound is; a refresh waits for
           // the drag to end.
           refresh()
@@ -797,6 +820,21 @@ export function mountEffectTool(
   if (options.target == null) cleanups.push(() => node.dispose())
   here = node
   lift()
+  if (options.target == null) {
+    // Entering a session puts it at the slider's distance; leaving puts it back.
+    const back = scene.onBeforeRenderObservable.add(() => {
+      // Through the session's first half second: the headset's pose settles.
+      if (owner.xrActive) {
+        if (settling++ < 30) listenFrom()
+        return
+      }
+      settling = 0
+      if (!moved) return
+      moved = false
+      node.position.x = node.position.z = 0
+    })
+    cleanups.push(() => scene.onBeforeRenderObservable.remove(back))
+  }
   player = new EffectPlayer(scene, node, clone(recipe), {
     windAt: (x, z) => owner.weatherAt(x, z).wind,
   })
