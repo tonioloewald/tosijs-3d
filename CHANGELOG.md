@@ -16,6 +16,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Changed
 
+- **A tap on the body no longer reassigns a bone on its own** in the rig tool (Tonio: on an iPhone the weasels' heads sank into their chests and a tail pointed forward). The chosen role starts as the head, and any press that did not travel set the head's bone to whatever was under it. On a phone that was every attempt to orbit, and the tool remembered it. Now a tap sets a bone only right after a dot, the role or `clicking sets` was chosen, and only once. `start over` clears a recipe that was already changed.
 - **The weasels' tails are stiffer** in the rig tool (Tonio: too floppy): stiffness 0.6 and damping 0.85, down from 0.25 and 0.6, which cuts the tail tip's sway on a walk to about 40%. A recipe the tool remembered keeps its own values; `start over` takes the new ones. Stiffness is the knob for floppiness: damping only trims the swing a little.
 
 ## 0.10.18

@@ -19,8 +19,10 @@ preview.append(rigTool())
 
 It opens standing still in its REST pose (a T or an A), with a dot on the
 bone each role uses: tap a dot to choose that role (it turns yellow), then
-tap the body where that bone is to give the role to it. Set `clicking sets`
-to the chain and a tap hangs the chosen spring chain there instead. A
+tap the body where that bone is to give the role to it. A tap on the body
+does nothing until a dot has been chosen, and only the first one counts, so
+orbiting on a phone cannot reassign a bone. Set `clicking sets` to the chain
+and that tap hangs the chosen spring chain there instead. A
 strand's path is a row of orange handles: drag them along the tail or the
 ponytail, `+ point` for another one beyond the tip. `view` snaps to front,
 side or top, which is how you line a point up with the flesh. Turn on
@@ -461,6 +463,12 @@ export function rigTool(
     pose: 'rest' as 'rest' | 'animate',
     /** What clicking the body sets, in the rest pose. */
     clickSets: 'role' as 'role' | 'chain',
+    /**
+     * A tap on the body sets a bone only right after a dot (or the role) was
+     * chosen. Unarmed, every press that did not travel set the head: on a
+     * phone that is every attempt to orbit, and it was remembered.
+     */
+    armed: false,
     /** Snapped to a view (orthographic), or `free` to orbit. */
     view: 'free' as RigView,
   }
@@ -523,14 +531,16 @@ export function rigTool(
               ],
               handleChange: (v) => {
                 ui.clickSets = v as 'role' | 'chain'
+                ui.armed = true
                 refresh()
               },
             }),
             label3d({
-              text:
-                ui.clickSets === 'role'
-                  ? 'tap a dot, then its bone'
-                  : 'tap where the chain hangs from',
+              text: !ui.armed
+                ? 'tap a dot, then its bone'
+                : ui.clickSets === 'role'
+                  ? `now tap the ${roleLabel(ui.role)}'s bone`
+                  : 'now tap where the chain hangs from',
               muted: true,
               compact: true,
             }),
@@ -585,6 +595,8 @@ export function rigTool(
         })),
         handleChange: (v) => {
           ui.role = v as Role
+          ui.clickSets = 'role'
+          ui.armed = true
           tool?.targets()
           refresh()
         },
@@ -1404,6 +1416,7 @@ export function rigTool(
           if (meta?.rigRole != null) {
             ui.role = meta.rigRole
             ui.clickSets = 'role'
+            ui.armed = true
             targets()
             refresh()
             return
@@ -1411,6 +1424,7 @@ export function rigTool(
           if (meta?.rigSpring != null) {
             ui.spring = meta.rigSpring
             ui.clickSets = 'chain'
+            ui.armed = true
             targets()
             refresh()
             return
@@ -1425,6 +1439,12 @@ export function rigTool(
           if (at == null) return
           const bone = nearestBone(at)
           if (bone == null) return
+          if (!ui.armed) {
+            ui.status = 'tap a dot first, then its bone'
+            refresh()
+            return
+          }
+          ui.armed = false
           if (ui.clickSets === 'role') {
             ;(recipe.roles ??= {})[ui.role] = bone
             ui.status = `${roleLabel(ui.role)}: ${bone}`
