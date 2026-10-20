@@ -189,7 +189,14 @@ function readGlb(file: string): Soup {
   return { pos: read(p.attributes.POSITION), idx: read(p.indices) }
 }
 
-const soupQuery = (s: Soup) => meshQuery(s.pos, s.idx)
+// Each mesh is read, and its rays indexed, once for the whole file: the
+// describes below share them (it was ~15% of the suite, the 0.11 gate).
+const queries = new WeakMap<Soup, ReturnType<typeof meshQuery>>()
+const soupQuery = (s: Soup) => {
+  let q = queries.get(s)
+  if (q == null) queries.set(s, (q = meshQuery(s.pos, s.idx)))
+  return q
+}
 
 const m = (
   chin: [number, number],
@@ -262,6 +269,12 @@ const REAL: Array<{
     ),
   },
 ]
+
+for (const r of REAL) {
+  const load = r.mesh
+  let soup: Soup | undefined
+  r.mesh = () => (soup ??= load())
+}
 
 describe.skipIf(!existsSync(DIR))('fingers found from above', () => {
   // What each mesh's hands have, read off its overhead silhouette by eye:

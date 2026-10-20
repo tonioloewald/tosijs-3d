@@ -1312,19 +1312,15 @@ export function mountRigTool(
     */
 
     const castShadows = (mesh: BABYLON.AbstractMesh) => {
-
       if (hosted) return
 
       const sun = owner.querySelector?.('tosi-b3d-sun') as {
-
         shadowGenerator?: BABYLON.ShadowGenerator
-
       } | null
 
       sun?.shadowGenerator?.addShadowCaster(mesh)
 
       mesh.receiveShadows = true
-
     }
     cleanups.push(() => stand.dispose())
     let height = 1.8

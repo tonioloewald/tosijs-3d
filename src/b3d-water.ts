@@ -379,7 +379,10 @@ export class B3dWater extends AbstractMesh {
       this._readyCheck = null
       // A hidden or throttled tab draws nothing, so nothing in it is ready:
       // not a failure, and not worth a report.
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible')
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState !== 'visible'
+      )
         return
       const mesh = this.mesh
       const mat = mesh?.material ?? null
@@ -393,7 +396,9 @@ export class B3dWater extends AbstractMesh {
         meshReady: mesh?.isReady(true) ?? null,
         material: mat?.getClassName() ?? null,
         materialReady:
-          mesh != null && mat != null ? mat.isReady(mesh as BABYLON.Mesh) : null,
+          mesh != null && mat != null
+            ? mat.isReady(mesh as BABYLON.Mesh)
+            : null,
         compileError: effect?.getCompilationError?.() || null,
         framesDrawn: scene.getEngine().frameId - firstFrame,
         xr: (owner as any).xrActive === true,
