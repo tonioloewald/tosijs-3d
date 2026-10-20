@@ -10,7 +10,9 @@ The edges are drawn in the fragment shader, not as GL lines: each corner of
 a triangle carries a barycentric coordinate, the smallest of the three is the
 distance to the nearest edge, and `fwidth` keeps the line the same width in
 pixels at any zoom, smoothed instead of stair-stepped. Where triangles shrink
-to a few pixels across the edges fade, so a distant mesh reads as its fill. That needs triangles
+to a few pixels across the edges fade, so a distant mesh reads as its fill.
+The diagonals that split a quad into triangles are not drawn
+(`quadDiagonals` finds the quads again; `{ quads: false }` draws every edge). That needs triangles
 that share no corners, so `withBarycentrics(mesh)` unshares them (the mesh's
 skin weights come along, so it still bends) and adds the attribute.
 
@@ -159,17 +161,119 @@ export function seamMaterial(
 }
 
 /**
+ * Which triangle edges are the diagonal of a quad: per triangle, a bit for
+ * the edge opposite each corner (1, 2, 4). Meshes arrive triangulated (an
+ * OBJ's quads are fans by the time they are loaded), so the quads are found
+ * again: two triangles that share an edge which is the LONGEST edge of both,
+ * and lie nearly flat together (within `maxDeg`), are one quad, and that
+ * edge is hidden. Each triangle pairs once. Corners are matched by position,
+ * so split vertices (a UV seam) still meet.
+ */
+export function quadDiagonals(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number>,
+  maxDeg = 30
+): Uint8Array {
+  const tris = Math.floor(indices.length / 3)
+  const key = (v: number) =>
+    `${Math.round(positions[v * 3] * 1e5)},${Math.round(
+      positions[v * 3 + 1] * 1e5
+    )},${Math.round(positions[v * 3 + 2] * 1e5)}`
+  const ids = new Map<string, number>()
+  const id = (v: number) => {
+    const k = key(v)
+    let i = ids.get(k)
+    if (i == null) ids.set(k, (i = ids.size))
+    return i
+  }
+  const corner = new Int32Array(indices.length)
+  for (let i = 0; i < indices.length; i++) corner[i] = id(indices[i])
+  const P = (t: number, c: number) => {
+    const v = indices[t * 3 + c]
+    return [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]]
+  }
+  const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+  const len2 = (a: number[]) => a[0] * a[0] + a[1] * a[1] + a[2] * a[2]
+  const normal = (t: number) => {
+    const a = P(t, 0)
+    const u = sub(P(t, 1), a)
+    const w = sub(P(t, 2), a)
+    const n = [
+      u[1] * w[2] - u[2] * w[1],
+      u[2] * w[0] - u[0] * w[2],
+      u[0] * w[1] - u[1] * w[0],
+    ]
+    const l = Math.sqrt(len2(n)) || 1
+    return [n[0] / l, n[1] / l, n[2] / l]
+  }
+  /** The corner opposite each triangle's longest edge. */
+  const longest = new Int8Array(tris)
+  const edges = new Map<string, number[]>()
+  for (let t = 0; t < tris; t++) {
+    let best = 0
+    let bestLen = -1
+    for (let c = 0; c < 3; c++) {
+      const a = (c + 1) % 3
+      const b = (c + 2) % 3
+      const l = len2(sub(P(t, a), P(t, b)))
+      if (l > bestLen) {
+        bestLen = l
+        best = c
+      }
+      const ea = corner[t * 3 + a]
+      const eb = corner[t * 3 + b]
+      const k = ea < eb ? `${ea}:${eb}` : `${eb}:${ea}`
+      let list = edges.get(k)
+      if (list == null) edges.set(k, (list = []))
+      list.push(t * 3 + c)
+    }
+    longest[t] = best
+  }
+  const flat = Math.cos((maxDeg * Math.PI) / 180)
+  const hidden = new Uint8Array(tris)
+  const paired = new Uint8Array(tris)
+  for (const list of edges.values()) {
+    if (list.length !== 2) continue
+    const [ta, ca] = [Math.floor(list[0] / 3), list[0] % 3]
+    const [tb, cb] = [Math.floor(list[1] / 3), list[1] % 3]
+    if (ta === tb || paired[ta] || paired[tb]) continue
+    if (longest[ta] !== ca || longest[tb] !== cb) continue
+    const na = normal(ta)
+    const nb = normal(tb)
+    if (na[0] * nb[0] + na[1] * nb[1] + na[2] * nb[2] < flat) continue
+    paired[ta] = paired[tb] = 1
+    hidden[ta] |= 1 << ca
+    hidden[tb] |= 1 << cb
+  }
+  return hidden
+}
+
+/**
  * Give `mesh` its barycentrics: its triangles unshared (every corner its own
  * vertex, skin weights and all) and each corner marked (1,0,0), (0,1,0) or
- * (0,0,1). Its geometry is made its own first, so a clone's original keeps
- * its shared vertices.
+ * (0,0,1). An edge to hide (a quad's diagonal, see `quadDiagonals`) has the
+ * coordinate that measures it held at 1, so it is never near. Its geometry
+ * is made its own first, so a clone's original keeps its shared vertices.
  */
-export function withBarycentrics(mesh: BABYLON.Mesh): BABYLON.Mesh {
+export function withBarycentrics(
+  mesh: BABYLON.Mesh,
+  options: { quads?: boolean } = {}
+): BABYLON.Mesh {
   mesh.makeGeometryUnique()
+  const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+  const indices = mesh.getIndices()
+  const hide =
+    options.quads !== false && positions != null && indices != null
+      ? quadDiagonals(positions, indices)
+      : null
   mesh.convertToUnIndexedMesh()
   const n = mesh.getTotalVertices()
   const bary = new Float32Array(n * 3)
-  for (let i = 0; i < n; i++) bary[i * 3 + (i % 3)] = 1
+  for (let i = 0; i < n; i++) {
+    bary[i * 3 + (i % 3)] = 1
+    const h = hide?.[Math.floor(i / 3)] ?? 0
+    for (let c = 0; c < 3; c++) if (h & (1 << c)) bary[i * 3 + c] = 1
+  }
   mesh.setVerticesData(BARY_KIND, bary, false, 3)
   return mesh
 }

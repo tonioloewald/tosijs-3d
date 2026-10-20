@@ -429,8 +429,13 @@ export function fitSkeleton(
     not show is placed by proportion, as before, and takes none.
     */
     const above = mesh.fromAbove?.()
-    const found =
-      above != null ? findFingers(above, wrist, sign, reach) : null
+    let found = above != null ? findFingers(above, wrist, sign, reach) : null
+    // No separate fingers: one mitten or claw, and a thumb without a gap.
+    if (above != null && (found == null || found.fingers.length === 0)) {
+      const m = findMitten(mesh, above, wrist, sign, reach)
+      if (m != null)
+        found = { fingers: [m.mitten], thumb: found?.thumb ?? m.thumb }
+    }
     const real: string[] = []
     const chain = (f: string, pts: Vec3[]) => {
       put(`${f}_01_${side}`, `hand_${side}`, pts[0])
@@ -699,6 +704,101 @@ function findFingers(
   }
   if (fingers.length === 0 && thumb == null) return null
   return { fingers: fingers.map((f) => f.joints), thumb }
+}
+
+/*
+A MITTEN OR A CLAW: a hand with no fingers apart (the space marine's hooked
+claw, a mitten). Seen from above it is one blob, so `findFingers` finds no
+prongs. Instead its middle line is followed slice by slice outward from the
+wrist: each slice across the arm (x fixed) gives the middle of the flesh in
+height and depth, so a claw that hooks down is followed down. That line is
+one finger (the index, as Mixamo's mittens have), from where the hand narrows
+past the palm to its tip.
+
+A thumb that grows straight out of the palm's front edge has no gap to show
+it from above either; it is a BUMP on that edge: the slices whose front
+stands well out past the palm's usual front.
+*/
+function findMitten(
+  front: MeshQuery,
+  above: MeshQuery,
+  wrist: Vec3,
+  sign: number,
+  reach: number
+): { mitten: Vec3[]; thumb: Vec3[] | null } | null {
+  const h = reach / 60
+  // The middle of the flesh across one slice: rows of the front view.
+  const across = (d: number): { y: number; z: number; n: number } | null => {
+    const x = wrist.x + sign * d
+    let sy = 0
+    let sz = 0
+    let n = 0
+    for (let y = wrist.y - 2 * reach; y <= wrist.y + reach; y += h)
+      for (const sp of front.spans(x, y)) {
+        // Only flesh near the wrist's depth (not a leg the arm hangs by).
+        const mid = (sp.front + sp.back) / 2
+        if (Math.abs(mid - wrist.z) > 1.5 * reach) continue
+        const w = sp.front - sp.back
+        sy += y * w
+        sz += mid * w
+        n += w
+      }
+    return n > 0 ? { y: sy / n, z: sz / n, n } : null
+  }
+  const slices: Array<{ d: number; y: number; z: number; n: number }> = []
+  for (let d = 0; d <= 2.5 * reach; d += h) {
+    const c = across(d)
+    if (c == null) {
+      if (slices.length > 0) break
+      continue
+    }
+    slices.push({ d, ...c })
+  }
+  if (slices.length < 6) return null
+  const last = slices[slices.length - 1]
+  const extent = last.d
+  /** The middle line's point at distance d out from the wrist. */
+  const mid = (d: number): Vec3 => {
+    let best = slices[0]
+    for (const q of slices)
+      if (Math.abs(q.d - d) < Math.abs(best.d - d)) best = q
+    return { x: wrist.x + sign * best.d, y: best.y, z: best.z }
+  }
+  const mitten = [0.45, 0.65, 0.82, 1].map((k) => mid(k * extent))
+
+  // The thumb: from above, how far forward the hand's front edge stands.
+  const frontAt = (d: number): number | null => {
+    let best: number | null = null
+    for (let z = wrist.z - 1.5 * reach; z <= wrist.z + 1.5 * reach; z += h)
+      if (above.spans(wrist.x + sign * d, -z).length > 0) best = z
+    return best
+  }
+  const edges = slices
+    .filter((q) => q.d <= 0.8 * extent)
+    .map((q) => ({ d: q.d, z: frontAt(q.d) }))
+    .filter((e): e is { d: number; z: number } => e.z != null)
+  if (edges.length < 4) return { mitten, thumb: null }
+  const sorted = edges.map((e) => e.z).sort((a, b) => a - b)
+  const usual = sorted[Math.floor(sorted.length / 2)]
+  const peak = edges.reduce((a, b) => (b.z > a.z ? b : a))
+  let thumb: Vec3[] | null = null
+  if (peak.z - usual > 0.15 * reach) {
+    const yAt = (d: number, z: number) => {
+      const sp = above.spans(wrist.x + sign * d, -z)[0]
+      return sp != null ? (sp.front + sp.back) / 2 : wrist.y
+    }
+    const base = { x: wrist.x + sign * peak.d, y: yAt(peak.d, usual), z: usual }
+    const tipZ = peak.z - h
+    const tip = { x: wrist.x + sign * peak.d, y: yAt(peak.d, tipZ), z: tipZ }
+    const at = (k: number) => {
+      const z = lerp(base.z, tip.z, k)
+      return { x: base.x, y: yAt(peak.d, z), z }
+    }
+    // Rooted a little inside the palm, as a thumb's first joint is.
+    const root = { ...base, z: lerp(usual, wrist.z, 0.5), y: base.y }
+    thumb = [root, at(0.35), at(0.7), tip]
+  }
+  return { mitten, thumb }
 }
 
 /*

@@ -266,11 +266,13 @@ const REAL: Array<{
 describe.skipIf(!existsSync(DIR))('fingers found from above', () => {
   // What each mesh's hands have, read off its overhead silhouette by eye:
   // the skinny weasel three fingers and a thumb, omnidude a mitten and a
-  // thumb, the chunky weasel paws.
+  // thumb, the chunky weasel paws (one mitten each, so a paw curls), the
+  // space marine a hooked claw and a thumb that grows from the palm's edge.
   const want: Record<string, string[]> = {
     omnidude: ['index', 'thumb'],
-    'weasel (a tail, a short arm)': [],
+    'weasel (a tail, a short arm)': ['index'],
     'skinny weasel': ['index', 'middle', 'ring', 'thumb'],
+    'space marine (arms down, claws)': ['index', 'thumb'],
   }
   for (const r of REAL)
     if (r.name in want)
@@ -284,6 +286,12 @@ describe.skipIf(!existsSync(DIR))('fingers found from above', () => {
           else for (let i = 1; i < 4; i++) expect(xs[i].x).toBeGreaterThan(xs[i - 1].x)
         }
       })
+  test("the marine's claw is followed down its hook", () => {
+    const r = REAL.find((r) => r.name.startsWith('space marine'))!
+    const rig = fitSkeleton(r.markers, soupQuery(r.mesh()))
+    const ys = ['01', '02', '03', '04_leaf'].map((k) => rig.at(`index_${k}_l`)!.y)
+    for (let i = 1; i < 4; i++) expect(ys[i]).toBeLessThan(ys[i - 1])
+  })
 })
 
 describe.skipIf(!existsSync(DIR))('fitSkeleton on real meshes', () => {
