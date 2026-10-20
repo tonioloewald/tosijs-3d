@@ -14,6 +14,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **A strand is laid along a path** (Tonio: map out the tail or the ponytail, not one stub, and choose how many links). `StrandSpringRecipe.path` is the line it follows at rest, root first; its `segments` links are spaced evenly along it (`strandPoints`). In the rig tool every point is an orange handle you drag, `+ point` adds one beyond the tip, `− point` takes one away, `links` sets the count, and the chosen strand marks where each link falls. A straight strand still reads as before, and `setStrandPath` keeps `offset`, `length`, `yawDeg` and `pitchDeg` true to a path for a reader that knows nothing of paths.
 - **The rig tool snaps its view** to front, side or top (nearly orthographic: a long lens from far off, so a joint lines up with the flesh around it and the panels stay where they are; orbiting lets go), and its API gains `view` and `play(clip)`. A bone chain spring shows every link, not only its first bone, and an auto-rigged tail has a `tail links` slider.
 
+### Changed
+
+- **The weasels' tails are stiffer** in the rig tool (Tonio: too floppy): stiffness 0.6 and damping 0.85, down from 0.25 and 0.6, which cuts the tail tip's sway on a walk to about 40%. A recipe the tool remembered keeps its own values; `start over` takes the new ones. Stiffness is the knob for floppiness: damping only trims the swing a little.
+
 ## 0.10.18
 
 ### Added

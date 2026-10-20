@@ -164,12 +164,15 @@ const markers = (
   }
 }
 
-/** A weasel's tail as a spring: the tail chain the auto-rig gives it. */
+/**
+ * A weasel's tail as a spring: the tail chain the auto-rig gives it. Stiff
+ * enough to carry itself: at 0.25 it swung about three times as far on a walk.
+ */
 const TAIL: SpringRecipe = {
   kind: 'bones',
   name: 'tail',
   root: 'tail_01',
-  params: { stiffness: 0.25, damping: 0.6, gravity: 9.8 },
+  params: { stiffness: 0.6, damping: 0.85, gravity: 9.8 },
   colliders: 'none',
 }
 
