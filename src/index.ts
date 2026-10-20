@@ -422,6 +422,14 @@ export type {
   PanelLayer,
 } from './frame-panel.js'
 export { B3dPanel, b3dPanel } from './b3d-panel.js'
+export {
+  barMenu,
+  viewMenu,
+  type BarMenu,
+  type BarMenuConfig,
+  type BarMenuOption,
+  type ViewMenuOptions,
+} from './bar-menu.js'
 export { B3dMoon, b3dMoon } from './b3d-moon.js'
 export {
   GAS_GIANTS,
@@ -1669,6 +1677,21 @@ export {
 export type { EmbeddedFont } from './embed-font.js'
 // The orbit camera's view controls: orbit, pan (shift-drag, trackpad, two fingers), zoom (#52).
 export { touchOrbit } from './touch-orbit.js'
+export {
+  inspectView,
+  seamOverlay,
+  INSPECT_FACES,
+  type InspectFace,
+  type InspectView,
+  type InspectViewOptions,
+} from './inspect-view.js'
+export {
+  seamMaterial,
+  withBarycentrics,
+  SeamPlugin,
+  BARY_KIND,
+  type SeamMaterialOptions,
+} from './seam-material.js'
 export {
   twoFingerGesture,
   wheelClassifier,

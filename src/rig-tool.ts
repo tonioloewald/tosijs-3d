@@ -91,6 +91,13 @@ import {
 import { vector3d } from './vector-field.js'
 import { pointerClaimedByPanel } from './frame-panel.js'
 import { touchOrbit } from './touch-orbit.js'
+import {
+  inspectView,
+  seamOverlay,
+  INSPECT_FACES,
+  type InspectFace,
+} from './inspect-view.js'
+import { viewMenu } from './bar-menu.js'
 import { readSkeleton, retargetClip } from './retarget-babylon.js'
 import { ROLES, type Role } from './retarget.js'
 import {
@@ -255,11 +262,10 @@ export function rigToolModels(): RigModel[] {
 }
 
 /**
- * Where the camera looks from. A snapped view is nearly orthographic (a long
- * lens from far off), so a joint can be lined up with the body in it;
- * orbiting goes back to `free`.
+ * Where the camera looks from: a face of the character, orthographic and
+ * held (see `inspectView`), or `free` to orbit.
  */
-export type RigView = 'free' | 'front' | 'side' | 'top'
+export type RigView = InspectFace | 'free'
 
 /** `rigTool()`'s element carries this as `.rig`. */
 export interface RigToolApi {
@@ -271,7 +277,7 @@ export interface RigToolApi {
   readonly status: string
   /** The role being edited (a tap on its dot, or the panel, chooses it). */
   readonly role: Role
-  /** Where the camera looks from (`front`, `side`, `top` are nearly orthographic). */
+  /** Where the camera looks from: a face (orthographic, held) or `free`. */
   view: RigView
   /** Play a clip (the current one if none is named); `null` stands it at rest. */
   play(clip?: string | null): void
@@ -470,7 +476,8 @@ export function rigTool(
      */
     armed: false,
     /** Snapped to a view (orthographic), or `free` to orbit. */
-    view: 'free' as RigView,
+    /** The rest pose opens on the front, orthographic; animating orbits. */
+    view: 'front' as RigView,
   }
   let recipe = fresh()
   let el: any = null
@@ -559,7 +566,7 @@ export function rigTool(
       select3d({
         label: 'view',
         value: ui.view,
-        options: ['free', 'front', 'side', 'top'],
+        options: [...INSPECT_FACES, 'free'],
         handleChange: (v) => tool?.view((ui.view = v as RigView)),
       }),
       label3d({ text: ui.status, muted: true, compact: true }),
@@ -1039,79 +1046,78 @@ export function rigTool(
         clips = ual.animationGroups.map((g) => g.name).sort()
 
         const stand = new BABYLON.TransformNode('rig-stand', scene)
+        let height = 1.8
+        const UAL_HEIGHT = 1.83
+        /*
+        HELD VIEWS (Tonio: snap to overhead, front and side; then: an
+        orthographic camera with fixed views while it stands still, since a
+        drag that orbits cannot also move a handle). `inspectView` holds the
+        camera to a face, orthographic, and the camera on the system bar
+        picks which; seams are drawn on the model while it does.
+        */
+        let restFace: InspectFace = 'front'
+        /*
+        THE VIEW IS THE POSE (Tonio: "it animates in perspective view and not
+        in the orthographic views"): a face stands it at rest, perspective
+        plays the clip, and the animate toggle moves the view the other way.
+        */
+        const inspect = inspectView(cam, {
+          handleChange: (f) => {
+            ui.view = f
+            if (f !== 'free') restFace = f
+            const pose = f === 'free' ? 'animate' : 'rest'
+            if (pose !== ui.pose) {
+              ui.pose = pose
+              play()
+            } else frame()
+            menu?.update()
+            seams()
+            refresh()
+          },
+        })
+        const menu: ReturnType<typeof viewMenu> | null = viewMenu(
+          inspect,
+          owner,
+          { always: true }
+        )
+        let seamed: Array<{ dispose(): void }> = []
+        /** The model's polygons drawn over a flat fill, while a face is held. */
+        function seams() {
+          for (const x of seamed) x.dispose()
+          seamed = []
+          if (inspect.face === 'free' || model == null) return
+          for (const m of model.root.getChildMeshes(false))
+            if (m.getTotalVertices() > 0 && m.isEnabled())
+              seamed.push(seamOverlay(m))
+        }
+        function snapView(v: RigView) {
+          inspect.face = v
+        }
         /*
         FRAMING: the mannequin is scaled to the character's height and stands
         on its left (the screen's right), and the camera looks a little left
-        of them both so the panel does not cover them.
+        of them both so the panel does not cover them. The radius is the zoom
+        in a held view too (it sizes the orthographic box).
         */
-        let height = 1.8
-        const UAL_HEIGHT = 1.83
         const frame = () => {
-          // Framed as a free view, then snapped again (the snap rescales).
-          const snap = ui.view
-          if (snap !== 'free') snapView('free')
           // Arms out at rest need more room than arms down.
           const gap = height * (ui.pose === 'rest' ? 1.1 : 0.6)
           ualStand.scaling.setAll(height / UAL_HEIGHT)
-          ualStand.position.x = -gap
           const middle = ui.compare ? -gap / 2 : 0
-          cam.target.set(middle + height * 0.6, height * 0.5, 0)
+          // Seen from a side, beside it rather than in front of it: on the
+          // screen's right (-Z seen from the left, +Z from the right).
+          if (inspect.face === 'left' || inspect.face === 'right') {
+            const right = inspect.face === 'left' ? -1 : 1
+            ualStand.position.set(0, 0, right * gap)
+            const mid = ui.compare ? (right * gap) / 2 : 0
+            cam.target.set(0, height * 0.5, mid - right * height * 0.6)
+          } else {
+            ualStand.position.set(-gap, 0, 0)
+            cam.target.set(middle + height * 0.6, height * 0.5, 0)
+          }
           cam.radius = height * (ui.pose === 'rest' ? 3.1 : 2.6)
-          cam.minZ = height * 0.01
-          if (snap !== 'free') snapView(snap)
+          if (inspect.face === 'free') cam.minZ = height * 0.01
         }
-        /*
-        SNAPPED VIEWS (Tonio: snap to overhead, front and side, to see whether
-        a finger's joints are on the finger). Nearly orthographic, so nothing
-        nearer the camera looks bigger and a joint lines up with the flesh
-        around it: a long lens from far away, the same view's size. Not a
-        true orthographic camera, because the flat panels and the system bar
-        are placed for a perspective one (they shrank to a stamp). The wheel
-        zooms by proportion while snapped, or it would crawl from out there.
-        Orbiting lets go of the snap.
-        */
-        const SNAP: Record<Exclude<RigView, 'free'>, [number, number]> = {
-          front: [Math.PI / 2, Math.PI / 2],
-          // From the character's left (+X), where the compared mannequin is not.
-          side: [0, Math.PI / 2],
-          // As near straight down as the camera allows (it clamps beta).
-          top: [Math.PI / 2, Math.max(cam.lowerBetaLimit ?? 0.01, 1e-4)],
-        }
-        const LONG_FOV = 0.04
-        let snapped: [number, number] | null = null
-        let free: { fov: number; wheel: number } | null = null
-        function snapView(v: RigView) {
-          if (v === 'free') {
-            snapped = null
-            if (free != null) {
-              cam.radius *= Math.tan(LONG_FOV / 2) / Math.tan(free.fov / 2)
-              cam.fov = free.fov
-              cam.wheelDeltaPercentage = free.wheel
-              free = null
-            }
-            return
-          }
-          if (free == null) {
-            free = { fov: cam.fov, wheel: cam.wheelDeltaPercentage }
-            cam.radius *= Math.tan(free.fov / 2) / Math.tan(LONG_FOV / 2)
-            cam.fov = LONG_FOV
-            cam.wheelDeltaPercentage = 0.02
-          }
-          snapped = SNAP[v]
-          cam.alpha = snapped[0]
-          cam.beta = snapped[1]
-        }
-        scene.onBeforeRenderObservable.add(() => {
-          if (snapped == null) return
-          if (
-            Math.abs(cam.alpha - snapped[0]) > 1e-3 ||
-            Math.abs(cam.beta - snapped[1]) > 1e-3
-          ) {
-            ui.view = 'free'
-            snapView('free')
-            refresh()
-          }
-        })
         let model: {
           dispose(): void
           root: BABYLON.TransformNode
@@ -1128,6 +1134,8 @@ export function rigTool(
         }
         const play = () => {
           stop()
+          // Standing still: a held face (the one last used); moving: orbit.
+          inspect.face = ui.pose === 'rest' ? restFace : 'free'
           frame()
           for (const sp of applied?.springs ?? [])
             sp.bones.paused = ui.pose === 'rest'
@@ -1490,6 +1498,8 @@ export function rigTool(
           applied = null
           viewer?.dispose()
           viewer = null
+          for (const x of seamed) x.dispose()
+          seamed = []
           model?.dispose()
           model = null
           try {
@@ -1527,6 +1537,8 @@ export function rigTool(
             height = Math.max(0.2, box.max.y - box.min.y)
             frame()
             rebuild(true)
+            inspect.face = ui.view
+            seams()
           } catch (e) {
             ui.status = `could not load ${label}: ${(e as Error).message}`
           }

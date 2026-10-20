@@ -1430,6 +1430,15 @@ scatter
   clumpGroup  = kind  — Rules in one group gather in the SAME places: stones around boulders
   sink  = 0.02  — How much of the model's height the decorator buries. Rocks use a quarter or more
 
+## seam-material
+seam-material
+
+  fill  = '#c99ba6'  — the flat colour (a desaturated pink)
+  line  = '#ffffff'  — the edges' colour
+  lineAlpha  = 0.45  — how strongly the edges show
+  lineWidth  = 1.25  — their width, in pixels
+  shade  = 0.25  — how much light shapes it (0: perfectly flat)
+
 ## slope-profile
 slope-profile
 

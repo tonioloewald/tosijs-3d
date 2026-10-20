@@ -110,6 +110,29 @@ export function screenAnchorDragged(a: ScreenAnchor): boolean {
   return draggedAnchors.has(a)
 }
 
+/**
+ * How much of the world `c` shows at distance `d` in front of it, in metres,
+ * for a view `W` by `H` pixels. An orthographic camera shows the same at
+ * every distance (its ortho box; Babylon's default is a pixel a unit), so a
+ * panel placed for a perspective one would shrink to a stamp under it.
+ */
+export function viewSpanAt(
+  c: BABYLON.Camera,
+  d: number,
+  W: number,
+  H: number
+): { w: number; h: number } {
+  if (c.mode === BABYLON.Camera.ORTHOGRAPHIC_CAMERA)
+    return {
+      w: (c.orthoRight ?? W / 2) - (c.orthoLeft ?? -W / 2),
+      h: (c.orthoTop ?? H / 2) - (c.orthoBottom ?? -H / 2),
+    }
+  const t = 2 * d * Math.tan(c.fov / 2)
+  return c.fovMode === BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED
+    ? { w: t, h: (t * H) / W }
+    : { w: (t * W) / H, h: t }
+}
+
 /** Screen panels per drawing scene, bottom first (see "STACKED"). */
 const screenStacks = new WeakMap<BABYLON.Scene, Array<{ raise: () => void }>>()
 /** How much nearer each screen panel is than the one below, as a fraction. */
@@ -773,7 +796,7 @@ export function attachFramePanel(
     const fitKey = `${sx}|${sy}|${pushed}`
     if (focused && fitted != null && fitted.key === fitKey) {
       k = fitted.k
-    } else if (focused && c.mode === BABYLON.Camera.PERSPECTIVE_CAMERA) {
+    } else if (focused) {
       /*
       Room either side of its centre, less how far off-centre it sits, IN THE
       CAMERA'S VIEW. It used the panel's position in its frame, which is level
@@ -786,8 +809,10 @@ export function attachFramePanel(
         c.getViewMatrix()
       )
       const d = Math.max(0.01, p.z)
-      const halfTall = d * Math.tan(c.fov / 2) * 0.92
-      const halfWide = halfTall * scene.getEngine().getAspectRatio(c)
+      const eng = scene.getEngine()
+      const span = viewSpanAt(c, d, eng.getRenderWidth(), eng.getRenderHeight())
+      const halfTall = (span.h / 2) * 0.92
+      const halfWide = (span.w / 2) * 0.92
       const tall = 2 * Math.max(0.01, halfTall - Math.abs(p.y))
       const wide = 2 * Math.max(0.01, halfWide - Math.abs(p.x))
       const w = width * sx
@@ -847,8 +872,7 @@ export function attachFramePanel(
     const sa = spec.screenAnchor
     const c = (scene.activeCamera ?? cam) as BABYLON.Camera
     const canvas = scene.getEngine().getRenderingCanvas()
-    if (!sa || !c || !canvas || c.mode !== BABYLON.Camera.PERSPECTIVE_CAMERA)
-      return
+    if (!sa || !c || !canvas) return
     const W = canvas.clientWidth || scene.getEngine().getRenderWidth()
     const H = canvas.clientHeight || scene.getEngine().getRenderHeight()
     if (!W || !H) return
@@ -864,11 +888,9 @@ export function attachFramePanel(
     // Drawn in the same order: blended meshes sort by the distance to their
     // CENTRE, which an off-centre panel loses whatever its depth.
     shown.alphaIndex = rank
-    // Metres per pixel at that distance, by whichever axis the fov fixes.
-    const perPx =
-      c.fovMode === BABYLON.Camera.FOVMODE_HORIZONTAL_FIXED
-        ? (2 * d * Math.tan(c.fov / 2)) / W
-        : (2 * d * Math.tan(c.fov / 2)) / H
+    // Metres per pixel at that distance (the same at every distance, for an
+    // orthographic camera).
+    const perPx = viewSpanAt(c, d, W, H).h / H
     const vb = el?.viewBox.baseVal
     const sx = el && baseVb ? (vb!.width || baseVb.w) / baseVb.w : 1
     const sy = el && baseVb ? (vb!.height || baseVb.h) / baseVb.h : 1
