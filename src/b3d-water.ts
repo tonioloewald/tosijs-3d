@@ -89,6 +89,7 @@ document.body.append(
 
 import { plane as mediumPlane, type PlaneMedium } from './medium.js'
 import * as BABYLON from '@babylonjs/core'
+import { sendDebug } from './debug-sink.js'
 import { headsetDevice, resolveBudget } from './b3d-quality.js'
 import { waterNormalTexture } from './water-normal.js'
 import { WaterMaterial } from '@babylonjs/materials'
@@ -365,6 +366,41 @@ export class B3dWater extends AbstractMesh {
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
     super.sceneReady(owner, scene)
     const attrs = this as any
+    /*
+    WATER THAT FAILS SAYS SO (#3335: on a first visit the water was
+    sometimes missing until a reload, and nothing said why). A while after
+    the scene is up, a surface that is not in the scene or not ready to draw
+    posts what it found to the debug sink, so the next sighting is read rather
+    than guessed at.
+    */
+    if (this._readyCheck != null) clearTimeout(this._readyCheck)
+    this._readyCheck = setTimeout(() => {
+      this._readyCheck = null
+      const mesh = this.mesh
+      const mat = mesh?.material ?? null
+      const effect = mesh?.subMeshes?.[0]?.effect ?? null
+      const report = {
+        mesh: mesh != null,
+        disposed: mesh?.isDisposed() ?? null,
+        inScene: mesh != null && scene.meshes.includes(mesh),
+        enabled: mesh?.isEnabled() ?? null,
+        visible: mesh?.isVisible ?? null,
+        meshReady: mesh?.isReady(true) ?? null,
+        material: mat?.getClassName() ?? null,
+        materialReady:
+          mesh != null && mat != null ? mat.isReady(mesh as BABYLON.Mesh) : null,
+        compileError: effect?.getCompilationError?.() || null,
+      }
+      if (
+        !report.mesh ||
+        report.disposed ||
+        !report.inScene ||
+        !report.meshReady ||
+        report.materialReady === false ||
+        report.compileError
+      )
+        sendDebug('water-not-ready', report)
+    }, 8000)
 
     // `shore` asked for and not given must say so: the water is otherwise
     // simply plain, with no surf, no ice and nothing to explain it.
@@ -1115,6 +1151,8 @@ export class B3dWater extends AbstractMesh {
     return ceiling
   }
 
+  /** The check that reports a water still not ready a while after the scene is up. */
+  private _readyCheck: ReturnType<typeof setTimeout> | null = null
   private _refreshObserver: BABYLON.Observer<BABYLON.Scene> | null = null
 
   /*
@@ -1174,6 +1212,8 @@ export class B3dWater extends AbstractMesh {
   }
 
   sceneDispose(): void {
+    if (this._readyCheck != null) clearTimeout(this._readyCheck)
+    this._readyCheck = null
     if (this._refreshObserver != null)
       this.owner?.scene?.onBeforeRenderObservable.remove(this._refreshObserver)
     this._refreshObserver = null

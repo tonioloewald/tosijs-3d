@@ -10,6 +10,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **A water that is not ready says so** (#3335): eight seconds after its scene is up, a water surface that is missing, disposed, out of the scene, not ready to draw or failing to compile posts what it found to the debug sink (`water-not-ready`), so the next first-visit sighting of missing water can be read rather than guessed at.
 - **The rig tool casts shadows** (#3420): the standalone page declares a sun in its scene, as the playground does, and hands the character (and, in a face view, its seam twin) to the sun's shadow generator. `inspectStage({ light: false })` leaves out the stage's key light for a scene with a sun of its own; `seamOverlay` returns its twin as `mesh`. Hosted, the figure is in the host's lighting. What is still not understood: a shadow generator made after the scene is up, plain or cascaded, drew nothing in this scene.
 
 ## 0.10.19
