@@ -2305,7 +2305,9 @@ export function slider3d(config: {
     (scale === 'log' ? logFormat : (v: number) => v.toFixed(decimals))
   const onStop = (v: number) =>
     stops.find(
-      (s) => s.label && Math.abs(v - s.value) <= 1e-9 * Math.max(1, Math.abs(s.value))
+      (s) =>
+        s.label &&
+        Math.abs(v - s.value) <= 1e-9 * Math.max(1, Math.abs(s.value))
     )
   const format = (v: number) => {
     const s = onStop(v)
@@ -2412,7 +2414,9 @@ export function slider3d(config: {
     const caught = stops.find(
       (s) =>
         Math.abs(
-          trackX + valueToFraction(s.value, min, max, scale, zeroStop) * trackW - x
+          trackX +
+            valueToFraction(s.value, min, max, scale, zeroStop) * trackW -
+            x
         ) <= STOP_CATCH
     )
     const f = (x - trackX) / (trackW || 1)

@@ -68,5 +68,7 @@ test("a volcano's activity default is extinct, with no vent", () => {
   const s = landformSchemas.volcano() as any
   expect(s.properties.activity.default).toBe(0)
   expect(volcano(minimal(s) as any).vents ?? []).toEqual([])
-  expect(volcano({ ...(minimal(s) as any), activity: 0.5 }).vents).toHaveLength(1)
+  expect(volcano({ ...(minimal(s) as any), activity: 0.5 }).vents).toHaveLength(
+    1
+  )
 })
