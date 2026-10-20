@@ -87,6 +87,60 @@ tosi-b3d { width: 100%; height: 100%; }
 import * as BABYLON from '@babylonjs/core';
 import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils.js';
 import { headsetDevice, resolveBudget } from './b3d-quality.js';
+/*
+THE SHADOWS FOLLOW THE CAMERA, whatever order things happen in (#3420).
+
+Babylon's cascaded generator works out where its cascades split from the
+camera's near and far planes, and does it again only when one of its OWN
+settings changes. A camera change never tells it: switch cameras, enter a
+headset, or create the sun while the camera is unusual, and the splits are
+the old camera's for good. Its `shadowMaxZ` setter also ignores a value
+the camera of the moment does not admit. The rig tool hit both: a sun made
+while an orthographic face view held the near plane behind the camera
+(`inspectView` does, so zooming in cannot cut the model open) computed
+NaN splits from it, and the whole scene rendered black from then on, back in
+perspective too. A sun declared before the view was fine, which is what
+made it look like a race.
+
+So, just before the shadow map renders: if the camera, its near or far plane
+or its projection changed, split again and re-apply `shadowMaxZ`. And while
+the near plane is at or behind the camera, the splits are worked out from a
+small positive one (the cascades start just in front of the camera), and the
+camera's own is put back straight after.
+*/
+export function cascadesFollowCamera(gen, shadowMaxZ) {
+    const map = gen.getShadowMap();
+    if (map == null)
+        return;
+    const scene = map.getScene();
+    if (scene == null)
+        return;
+    let seen = '';
+    let lent = null;
+    // First, before the generator's own observer splits and builds matrices.
+    map.onBeforeBindObservable.add(() => {
+        const camera = scene.activeCamera;
+        if (camera == null)
+            return;
+        if (camera.minZ <= 0) {
+            lent = { camera, minZ: camera.minZ };
+            camera.minZ = Math.max(0.01, camera.maxZ * 1e-5);
+        }
+        const now = `${camera.uniqueId}|${camera.minZ}|${camera.maxZ}|${camera.mode}`;
+        if (now !== seen) {
+            seen = now;
+            gen.shadowMaxZ = shadowMaxZ();
+            gen.splitFrustum();
+        }
+    }, undefined, true);
+    // Last: the camera gets its own near plane back before anything draws.
+    map.onBeforeBindObservable.add(() => {
+        if (lent != null) {
+            lent.camera.minZ = lent.minZ;
+            lent = null;
+        }
+    });
+}
 export class B3dSun extends B3dChild {
     static preferredTagName = 'tosi-b3d-sun';
     static initAttributes = {
@@ -273,6 +327,7 @@ export class B3dSun extends B3dChild {
         resolveBudget(attrs.shadowTextureSize, 'shadowTextureSize', {
             xr: headsetDevice(),
         }), light);
+        cascadesFollowCamera(this.shadowGenerator, () => this.shadowMaxZ);
         this._callback = this.shadowCallback.bind(this);
         owner.addSceneListener(this._callback);
         // Apply shadow settings now. render() also calls this, but render() may

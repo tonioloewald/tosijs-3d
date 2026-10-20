@@ -315,7 +315,7 @@ import { faceViewer } from './dialog-placement.js';
 import { attachSceneLayer } from './panel-layer.js';
 import { angularHeight, bandOrbit, clampOrbit, orbitCentre, orbitFromAim, orbitPosition, } from './panel-orbit.js';
 import { svgIcons } from './svg-icons.js';
-import { systemBar, BAR_HEIGHT } from './system-bar.js';
+import { systemBar, BAR_HEIGHT, ATTENTION_FILL, } from './system-bar.js';
 import { CombatWorld } from './destroyable.js';
 import { b3dGamepad } from './glass-gamepad.js';
 import { XrGamepadSource } from './xr-gamepad.js';
@@ -794,6 +794,10 @@ export class B3d extends Component {
         ':host .lozenge-button[hidden]': {
             display: 'none',
         },
+        // A system panel asking to be looked at (`panel.attention()`), blinking.
+        ':host .lozenge-button[data-attention]': {
+            background: ATTENTION_FILL,
+        },
         // A hairline divider only between two VISIBLE buttons (so a lone button reads
         // as a clean single-icon pill).
         ':host .lozenge-button:not([hidden]) + .lozenge-button:not([hidden])': {
@@ -1006,6 +1010,30 @@ export class B3d extends Component {
     takeInputFocus() {
         B3d._active = this;
     }
+    /*
+    A TOUCH THAT ENDS OFF THE CANVAS GIVES ITS SLOT BACK.
+  
+    Babylon's canvas input keeps a slot per touch (`navigator.maxTouchPoints`,
+    else 2), and a touch pointer it sees MOVE without a press takes one
+    retroactively. If that pointer's release lands elsewhere (the glass pad
+    captures its own), the canvas never hears it, the slot is never freed, and
+    once they are all held Babylon ignores every new press ("Max number of
+    touches exceeded"): the system bar went dead after two pad drags in the
+    headset's flat browser, until a DOM click blurred the canvas (Tonio). So a
+    touch or pen released anywhere else is cancelled on the canvas too; one
+    Babylon is not tracking is ignored there.
+    */
+    _freeTouchSlot = (e) => {
+        if (e.pointerType === 'mouse')
+            return;
+        const canvas = this.engine?.getRenderingCanvas();
+        if (canvas == null || e.target === canvas)
+            return;
+        canvas.dispatchEvent(new PointerEvent('pointercancel', {
+            pointerId: e.pointerId,
+            pointerType: e.pointerType,
+        }));
+    };
     /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
      * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
     xrFrames = null;
@@ -1314,7 +1342,11 @@ export class B3d extends Component {
         const rows = this.pausePanel(this, () => this.resume()) ?? [
             label3d({ text: 'Paused', bold: true }),
             button3d({
-                label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
+                // Only where there is a headset to enter: the helper is built only
+                // when immersive-vr is supported (#3431, an iPhone said "in VR").
+                label: this.enterXrOnResume === 'on' && this.xrHelper != null
+                    ? 'Continue in VR'
+                    : 'Continue',
                 // The tap IS the user gesture that makes entering XR legal.
                 handleClick: () => this.resume(),
             }),
@@ -2096,13 +2128,13 @@ export class B3d extends Component {
             let b = this._systemButtonOf.get(svg);
             if (b == null) {
                 b = button({ type: 'button', title: spec.title || spec.icon || 'Panel' }, icons[spec.icon ?? '']?.() ?? svgIcons.square());
-                b.addEventListener('click', () => this._toggleSystemPanel(svg));
+                b.addEventListener('click', () => this._toggleSystemPanel(svg, true));
                 // Held on the system bar: back where it started, and open.
                 b.addEventListener('systemhold', () => {
                     this._systemSpots.delete(svg);
                     this._systemXrSpots.delete(svg);
                     this._closeSystemPanel(svg);
-                    this._openSystemPanel(svg);
+                    this._openSystemPanel(svg, true);
                 });
                 this._systemButtonOf.set(svg, b);
             }
@@ -2115,11 +2147,87 @@ export class B3d extends Component {
     _sysOpened = new WeakSet();
     /** The headset's settings panel closer, while a session has one. */
     _closeXrSettings = noop;
-    _toggleSystemPanel(el) {
+    _toggleSystemPanel(el, byUser = false) {
         if (this._sysPanels.has(el))
             this._closeSystemPanel(el);
         else
+            this._openSystemPanel(el, byUser);
+    }
+    /*
+    FROM CODE (#3436, Manta's objectives list): `panel.show()`, `hide()`,
+    `toggle()` and `attention()` on the `<tosi-b3d-panel>` come here. Before
+    the scene is up, `show()` is the `open` attribute (it opens at start).
+    */
+    /** Is this system panel open? (`panel.isOpen`) */
+    _systemPanelOpen(el) {
+        return this._sysPanels.has(el);
+    }
+    /** Open or close a system panel (`panel.show()` / `hide()`). */
+    _setSystemPanel(el, open) {
+        if (this.scene == null || !this._sysOpened.has(el)) {
+            // Not started yet: what it does at start.
+            ;
+            el.open = open;
+            if (this.scene == null)
+                return;
+            this._sysOpened.add(el);
+        }
+        if (open)
             this._openSystemPanel(el);
+        else
+            this._closeSystemPanel(el);
+    }
+    /**
+     * Blink a system panel's button on both bars, for `ms` (`panel.attention()`):
+     * something in it changed (an objective met) while it was closed.
+     */
+    _systemAttention(el, ms = 1600) {
+        const b = this._systemButtonOf.get(el);
+        if (b == null)
+            return;
+        const prev = this._attention.get(b);
+        if (prev != null)
+            clearInterval(prev);
+        const BLINK = 200;
+        let left = Math.max(1, Math.round(ms / BLINK));
+        b.setAttribute('data-attention', '');
+        const t = setInterval(() => {
+            if (--left <= 0) {
+                clearInterval(t);
+                this._attention.delete(b);
+                b.removeAttribute('data-attention');
+            }
+            else
+                b.toggleAttribute('data-attention');
+        }, BLINK);
+        this._attention.set(b, t);
+    }
+    _attention = new Map();
+    /*
+    EVERY OPEN AND CLOSE IS REPORTED (#3436): `paneltoggle` on the panel, and
+    `systempanels` on the scene with the whole picture, so the game decides
+    what it means (pause while one the person opened is up:
+    `detail.open.some((p) => p.byUser)`). A headset session starting or ending
+    closes and reopens the shared ones; that is reported once, when it is over.
+    */
+    _panelToggled(el, open, byUser = false) {
+        if (this._holdPanelEvents)
+            return;
+        if (el != null)
+            el.dispatchEvent(new CustomEvent('paneltoggle', { detail: { open, byUser } }));
+        this.dispatchEvent(new CustomEvent('systempanels', {
+            detail: {
+                panel: el,
+                shown: open,
+                byUser,
+                open: [...this._sysPanels].map(([panel, p]) => ({
+                    panel,
+                    byUser: p.byUser,
+                })),
+            },
+            bubbles: true,
+            composed: true,
+        }));
     }
     /**
      * New content on a system panel's element: if it is open, show the new
@@ -2172,7 +2280,12 @@ export class B3d extends Component {
         const dy = Number(p.content.getAttribute('y')) || 0;
         return p.panel.toClient(x + dx, y + dy);
     }
-    _openSystemPanel(key) {
+    /**
+     * `byUser`: opened by its button (the person asked to look at it), not by
+     * code. That decides whether the glass pad stands aside and whether
+     * `systempanels` counts it (#3436).
+     */
+    _openSystemPanel(key, byUser = false) {
         const scene = this.scene;
         if (scene == null)
             return;
@@ -2304,6 +2417,7 @@ export class B3d extends Component {
             frames,
             obs,
             exclusive,
+            byUser,
             swap: (next) => {
                 // The same open/close a reopen would send, around the swap.
                 const was = entry.content;
@@ -2330,6 +2444,7 @@ export class B3d extends Component {
         };
         this._sysPanels.set(key, entry);
         this._syncGamepadCover();
+        this._panelToggled(key, true, byUser);
     }
     /** Where each system panel was dragged to, flat. */
     _systemSpots = new WeakMap();
@@ -2359,11 +2474,18 @@ export class B3d extends Component {
     _carrySystemPanels(toXr) {
         const shared = [...this._sysPanels]
             .filter(([, p]) => !p.exclusive)
-            .map(([svg]) => svg);
+            .map(([svg, p]) => [svg, p.byUser]);
+        // Not a close and an open to the game: one change, once it is over.
+        this._holdPanelEvents = true;
         this._closeSystemPanels();
         const scene = this.scene;
+        const settle = () => {
+            this._holdPanelEvents = false;
+            this._syncGamepadCover();
+            this._panelToggled(null, false);
+        };
         if (scene == null || shared.length === 0)
-            return;
+            return settle();
         const obs = scene.onBeforeRenderObservable.add(() => {
             // Wait for the other side: the headset's frames, or the flat camera.
             const xr = this.xrActive && this.xrFrames != null;
@@ -2371,8 +2493,9 @@ export class B3d extends Component {
             if ((toXr ? !xr : !flat) || scene.activeCamera == null)
                 return;
             scene.onBeforeRenderObservable.remove(obs);
-            for (const svg of shared)
-                this._openSystemPanel(svg);
+            for (const [svg, byUser] of shared)
+                this._openSystemPanel(svg, byUser);
+            settle();
         });
     }
     _closeSystemPanel(key) {
@@ -2391,6 +2514,7 @@ export class B3d extends Component {
         // Last: the frame gives the content back once its plane is gone.
         p.off();
         this._syncGamepadCover();
+        this._panelToggled(key, false, p.byUser);
     }
     _sceneToolbarSpec() {
         const lozenge = this.parts.sceneToolbar;
@@ -3632,8 +3756,8 @@ export class B3d extends Component {
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
      * its contents in place. Unified on purpose — see `_panelWidgets`. */
     _repaintPanels() {
+        // Flat and XR both (refreshScenePanel covers the headset's too).
         this.refreshScenePanel();
-        this._refreshXrPanel();
         /*
         AND RECONCILE THE POPUPS, here rather than at the call sites.
     
@@ -4452,6 +4576,8 @@ export class B3d extends Component {
         this.addEventListener('panelcontent', this._swapSystemContent);
         this.addEventListener('panelanchor', this._reanchorSystemPanel);
         this.addEventListener('pointerdown', () => this.takeInputFocus());
+        window.addEventListener('pointerup', this._freeTouchSlot, true);
+        window.addEventListener('pointercancel', this._freeTouchSlot, true);
         /*
         NEVER TWO ENGINES ON ONE CANVAS.
     
@@ -6035,13 +6161,23 @@ export class B3d extends Component {
     presses where they overlap: a press on the settings panel under its bumper
     closed the panel. While the settings panel or a pause is up you are not
     playing, so it hides, and comes back after. (The DOM panel sat above it.)
+  
+    A SYSTEM PANEL ONLY IF THE PERSON OPENED IT (#3436). Opened with its button,
+    they are looking at it, not playing, so the pad gets out of the way. Opened
+    by code (an objectives list shown for a while, an app's pinned chrome) it is
+    up while they play, and on a phone hiding the pad took the controls away:
+    place one clear of the pad's clusters (its `screenAnchor`) instead. Tonio:
+    "if the user discloses a panel, the pad should get out of the way".
     */
     _syncGamepadCover() {
+        if (this._holdPanelEvents)
+            return;
         const covered = this._flatScenePanel != null ||
-            this._sysPanels.size > 0 ||
-            this._modals.size > 0;
+            this._modals.size > 0 ||
+            [...this._sysPanels.values()].some((p) => p.byUser);
         this._suppressGamepad('in-scene-ui', covered);
     }
+    _holdPanelEvents = false;
     _openFlatScenePanel() {
         const scene = this.scene;
         const cam = scene?.activeCamera;
@@ -6196,6 +6332,13 @@ export class B3d extends Component {
      * Call after async state the panel reflects has changed (e.g. a library loaded,
      * or XR availability / session state) so an already-open panel updates. */
     refreshScenePanel() {
+        /*
+        BOTH PRESENTATIONS. In a headset the settings panel is the XR one, and
+        this only rebuilt the flat panel, so a tool that refreshes after a change
+        (the rig tool's animate toggle following its view) drew the old state in
+        VR (Tonio: the toggle stayed on while the clip had stopped).
+        */
+        this._refreshXrPanel();
         if (!this._scenePanelOpen())
             return;
         this._whenReleased(this._livePanel(), () => {
@@ -6781,6 +6924,8 @@ export class B3d extends Component {
         this._disposeWidgets('xr');
         this._errorCaptureOff?.();
         this._errorCaptureOff = null;
+        window.removeEventListener('pointerup', this._freeTouchSlot, true);
+        window.removeEventListener('pointercancel', this._freeTouchSlot, true);
         this._pauseWatch?.();
         this._pauseWatch = null;
         if (B3d._active === this)

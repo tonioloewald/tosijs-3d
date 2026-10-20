@@ -225,7 +225,7 @@ The `<tosi-b3d-panel>` children are the set (none ship by default):
 | `title` | `''` | Placeholder card title (ignored if `url` set) |
 | `icon` | `''` | Puts it on the scene's system bar: its button's picture, an `svgIcons` name (e.g. `personStanding`, `book`, `map`); unknown draws a square. Its `title` is the button's tooltip and the panel's caption |
 | `exclusive` | `'on'` | On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other |
-| `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat) |
+| `open` | `false` | On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()` |
 | `chrome` | `''` | On the system bar: the panel opens with the settings panel's title bar (move, its title, ×; flat, a drag moves it and it reopens where you left it; holding its button on the bar puts it back). `'none'` for content with chrome of its own |
 | `url` | `''` | SVG URL (e.g. a reticle) |
 | `width` | `0.26` | Panel width (m); height follows aspect |
@@ -254,6 +254,43 @@ dropped yourself. The setter fires a bubbling `panelcontent` event.
 title bar, its spot is its `screenAnchor`, so setting a new one moves an open
 panel (a column re-stacked as a panel above it grows). Once dragged it stays
 where it was put, until its button is held on the bar.
+
+**A game can open, close and flag one.** `el.show()`, `el.hide()` and
+`el.toggle()` open and close a system panel as its button does, and
+`el.isOpen` says which it is. `el.attention()` blinks its button on the bar,
+flat and in a headset, for a moment (pass milliseconds for longer): an
+objective met while the list was closed. A `paneltoggle` event (`detail.open`)
+fires on the element whenever it opens or closes, by code or by a press, so a
+list can put itself away a while after it opened:
+
+```javascript
+let away
+objectives.addEventListener('paneltoggle', (e) => {
+  clearTimeout(away)
+  if (e.detail.open) away = setTimeout(() => objectives.hide(), 8000)
+})
+game.on('objective', () => objectives.attention())
+```
+
+**Who opened it matters.** A panel the person opens with its button is one
+they are looking at, so the glass gamepad gets out of the way. A panel opened
+by code (`show()`, `open`) is up while they play, so the pad stays: give one
+that stays open in play a `screenAnchor` clear of the pad's controls.
+
+Every open and close is reported, and the game decides what it means. The
+scene fires `systempanels` with `detail.panel` (the one that changed),
+`detail.shown`, `detail.byUser` (opened by its button) and `detail.open` (every
+open one, `{ panel, byUser }`); `paneltoggle` on the panel carries `open` and
+`byUser`. To pause while the person has one up:
+
+```javascript
+scene.addEventListener('systempanels', (e) => {
+  game.paused = e.detail.open.some((p) => p.byUser)
+})
+```
+
+A headset session starting or ending closes and reopens the shared panels;
+that is reported once, when it is over, with `detail.panel` null.
 
 **Clicking one from a test.** The content is drawn on a texture, so nothing in
 it has a box on the page. `el.contentToClient(x, y)` says where a point of the

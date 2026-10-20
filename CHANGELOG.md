@@ -6,7 +6,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## Unreleased
+## 0.11.0
 
 **0.11 in one paragraph.** Any character plays the Universal Animation
 Library: `retarget` reads which bone is which across UE, Mixamo, Kenney and
@@ -49,6 +49,8 @@ the release's Size line.
 - **A water that is not ready says so** (#3335): eight seconds after its scene is up, a water surface that is missing, disposed, out of the scene, not ready to draw or failing to compile posts what it found to the debug sink (`water-not-ready`), so the next first-visit sighting of missing water can be read rather than guessed at.
 - **A sun's shadows follow the camera, whatever order things happen in** (#3420, Tonio: "I'd really like shadows to just work"). Babylon's cascaded shadow generator works out its cascade splits from the camera's near and far planes once, and again only when its own settings change; a camera change never told it, and its `shadowMaxZ` setter ignores a value the camera of the moment does not admit. So a sun made while the camera was unusual kept that camera's splits for good: made during an orthographic face view (whose near plane sits behind the camera), the splits were NaN and the whole scene rendered black, in perspective too. Switching cameras or entering a headset left stale splits the same way. `<tosi-b3d-sun>` now checks, just before its shadow map renders, whether the camera, its near or far plane or its projection changed, and if so splits again and re-applies `shadowMaxZ`; a near plane at or behind the camera is never split from (a small positive one stands in, and the camera gets its own back before anything draws). `cascadesFollowCamera(generator, shadowMaxZ)` does the same for a generator of your own. Reproduced headless in a minimal scene (a late sun, a face view, back to perspective: black before, a shadow after); unit-tested against a stand-in generator.
 - **The rig tool casts shadows** (#3420): the standalone page declares a sun in its scene, as the playground does, and hands the character (and, in a face view, its seam twin) to the sun's shadow generator. `inspectStage({ light: false })` leaves out the stage's key light for a scene with a sun of its own; `seamOverlay` returns its twin as `mesh`. Hosted, the figure is in the host's lighting. The failures behind #3420 turned out to be the camera, not the order (see the entry above).
+
+Size: barrel (min, packages external) 1230.0 KB raw / 421.9 KB gz, +0.41% on 0.10.20 (system panels from code, attention, the per-change systempanels event, and the gate's fixes).
 
 ## 0.10.20
 

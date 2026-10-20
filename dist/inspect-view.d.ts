@@ -23,6 +23,7 @@ export declare function inspectView(camera: BABYLON.ArcRotateCamera, options?: I
  * `seamMaterial`, the mesh hidden meanwhile. `dispose()` shows it again.
  */
 export declare function seamOverlay(mesh: BABYLON.AbstractMesh, options?: SeamMaterialOptions): {
+    mesh: BABYLON.Mesh | null;
     dispose(): void;
 };
 export interface InspectStageOptions {
@@ -30,18 +31,19 @@ export interface InspectStageOptions {
     size?: number;
     /** The floor's colour (default a light neutral grey). */
     floor?: string;
+    /** `false`: no key light (the scene has a sun of its own). */
+    light?: boolean;
 }
 export interface InspectStage {
     ground: BABYLON.Mesh;
-    light: BABYLON.DirectionalLight;
+    light: BABYLON.DirectionalLight | null;
     dispose(): void;
 }
 /**
  * A neutral floor to look at a model on: light grey, ruled every metre and
- * faintly every quarter, with a key light from above and in front. Shadows
- * are not on yet: in the rig tool's scene every shadow generator tried (a
- * plain one, a cascaded one, the scene's own sun) drew no shadow or turned
- * the floor black, which is being looked into.
+ * faintly every quarter, with a key light from above and in front. The floor
+ * receives shadows: for them, give the scene a sun (`<tosi-b3d-sun>`) and
+ * pass `light: false` so there is one key light, not two.
  */
 export declare function inspectStage(scene: BABYLON.Scene, options?: InspectStageOptions): InspectStage;
 //# sourceMappingURL=inspect-view.d.ts.map

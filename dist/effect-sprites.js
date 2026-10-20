@@ -87,9 +87,12 @@ export function effectSprite(scene, kind) {
     if (tex != null)
         return tex;
     const dt = new BABYLON.DynamicTexture(`effect-sprite-${kind}`, { width: SIZE, height: SIZE }, scene, true);
+    // No 2D canvas (a headless test, a worker): an undrawn sprite, not a throw.
     const c = dt.getContext();
-    c.clearRect(0, 0, SIZE, SIZE);
-    DRAW[kind](c);
+    if (c != null) {
+        c.clearRect(0, 0, SIZE, SIZE);
+        DRAW[kind](c);
+    }
     dt.hasAlpha = true;
     dt.update(false);
     byKind.set(kind, dt);
@@ -124,7 +127,17 @@ export function effectTexture(scene, source) {
         dt.hasAlpha = true;
         const img = new Image();
         img.onload = () => {
+            /*
+            LOADED AFTER IT WENT: the scene's last effect can go (and its pictures
+            with it, releaseEffectSprites) before the image arrives. An editor that
+            rebuilds constantly does exactly that, and drawing on the disposed
+            texture threw (ensemble, on 0.10.19).
+            */
+            if (dt.getInternalTexture() == null)
+                return;
             const c = dt.getContext();
+            if (c == null)
+                return;
             c.clearRect(0, 0, size, size);
             c.drawImage(img, 0, 0, size, size);
             dt.update(false);

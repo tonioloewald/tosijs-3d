@@ -132,6 +132,8 @@ export declare class B3dWater extends AbstractMesh {
     /** Stop photographing the sky while there is no window to show it in. */
     private _pauseWindow;
     private _buildCeiling;
+    /** The check that reports a water still not ready a while after the scene is up. */
+    private _readyCheck;
     private _refreshObserver;
     private _wireCloudShadows;
     sceneDispose(): void;

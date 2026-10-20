@@ -240,6 +240,7 @@ import { bipedMapping } from './virtual-gamepad.js';
 import { layerOnUpperBody } from './animation-layers.js';
 import { predictPath } from './ballistics.js';
 import { XRInputProvider } from './xr-input-provider.js';
+import { forwardGait } from './gait.js';
 const DEG_TO_RAD = Math.PI / 180;
 function lerp(a, b, t) {
     return a + (b - a) * t;
@@ -2763,6 +2764,10 @@ export class B3dBiped extends B3dControllable {
             // or water — real collidable surfaces above it ground the biped via the probe.
             if (node.position.y < attrs.groundY)
                 node.position.y = attrs.groundY;
+            // Held only while the forward gait is what plays: a stop, a swim or a
+            // sidestep ends a sprint, so it is entered afresh at the higher line.
+            const wasSprinting = this._sprinting;
+            this._sprinting = false;
             if (this._swimming) {
                 // Moving = swim, holding station = tread water. Both are in the standard
                 // animation set (`swim`, `tread-water`), so this is wiring, not art.
@@ -2822,19 +2827,9 @@ export class B3dBiped extends B3dControllable {
                 does not flicker between the two (Tonio: use the real sprint as the
                 top speed).
                 */
-                const sprintAt = this._sprinting ? 0.7 : 0.8;
-                this._sprinting =
-                    sprintSpeed > sprintAt &&
-                        this.animationStates.some((st) => st.name === 'sprint');
-                if (this._sprinting) {
-                    this.setAnimationState('sprint', sprintSpeed);
-                }
-                else if (sprintSpeed > 0.25) {
-                    this.setAnimationState('run', sprintSpeed + 0.25);
-                }
-                else {
-                    this.setAnimationState('walk', speed + 0.25);
-                }
+                const gait = forwardGait(speed, sprintSpeed, wasSprinting, this.animationStates.some((st) => st.name === 'sprint'));
+                this._sprinting = gait.sprinting;
+                this.setAnimationState(gait.state, gait.scale);
             }
             else if (speed < -0.1) {
                 this.setAnimationState('walkBackwards', Math.abs(speed) + 0.25);

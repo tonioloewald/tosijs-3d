@@ -5,6 +5,11 @@ export declare const BAR_PAD: number;
 export declare const BAR_HEIGHT: number;
 /** How long a press is held before it is a `systemhold` instead of a click (ms). */
 export declare const HOLD_MS = 600;
+/**
+ * A button asking to be looked at: its `data-attention` attribute (the scene
+ * blinks it for `panel.attention()`), drawn in this fill on both bars.
+ */
+export declare const ATTENTION_FILL = "rgba(255,190,60,0.8)";
 export interface SystemBar {
     /** The toolbar's SVG, with `handlePointer` for a frame panel to route to. */
     svg: SVGSVGElement;

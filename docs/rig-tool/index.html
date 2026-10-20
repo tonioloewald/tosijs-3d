@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a8c653345b16" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
   <title>Rig tool — tosijs-3d</title>
   <meta name="description" content="Put a character on our animations, give it hair or a tail, and save the result. Pick one of the demo characters or load your own GLB." />
   <link rel="canonical" href="https://3d.tosijs.net/rig-tool/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=24af9f568f95" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="rig-tool.ts">
 <h1 id="rig-tool">Rig tool</h1>
 <p><strong>Put a character on our animations, give it hair or a tail, and save the
@@ -52,9 +52,11 @@ does nothing until a dot has been chosen, and only the first one counts, so
 orbiting on a phone cannot reassign a bone. Set <code>clicking sets</code> to the chain
 and that tap hangs the chosen spring chain there instead. A
 strand&#39;s path is a row of orange handles: drag them along the tail or the
-ponytail, <code>+ point</code> for another one beyond the tip. <code>view</code> snaps to front,
-side or top, which is how you line a point up with the flesh. Turn on
-<code>animate</code> (or pick a clip) to see it move.</p>
+ponytail, <code>+ point</code> for another one beyond the tip. <code>view</code> snaps to a
+face (front, back, left, right, top, bottom), which is how you line a point
+up with the flesh, and stands it still; <code>free</code> orbits and plays the clip.
+Turn on <code>animate</code> (or pick a clip) to see it move. In a headset you are the
+camera, so the view only switches between still and playing.</p>
 <p>The panel has four sections.</p>
 <ul>
 <li><strong>Model.</strong> A demo character, or <code>load model file…</code> for a GLB of your own
@@ -593,6 +595,6 @@ applies it without echoing a <code>change</code>.</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-vnyrdbsw.js"></script>
+  <script type="module" src="../hydrate-dgazh53y.js"></script>
 </body>
 </html>

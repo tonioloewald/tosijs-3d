@@ -32,10 +32,21 @@ function sceneEffects(scene) {
         players: new Set(),
         lights: [],
         voices: new Set(),
+        voiceRoom: Infinity,
+        voiceFloor: 0,
         effectLights: new Set(),
         observer: scene.onBeforeRenderObservable.add(() => tick(scene, fresh)),
+        onDispose: null,
     };
-    scene.onDisposeObservable.addOnce(() => perScene.delete(scene));
+    // A voice lives in the page's audio context, not the scene: a scene that
+    // goes away with voices playing would leave them looping (leaving the
+    // effect tool page did, Tonio in the headset).
+    fresh.onDispose = scene.onDisposeObservable.addOnce(() => {
+        for (const v of fresh.voices)
+            v.voice.stop();
+        fresh.voices.clear();
+        perScene.delete(scene);
+    });
     perScene.set(scene, fresh);
     return fresh;
 }
@@ -50,6 +61,7 @@ function releaseSceneEffects(scene) {
     if (s == null || s.players.size > 0)
         return;
     scene.onBeforeRenderObservable.remove(s.observer);
+    scene.onDisposeObservable.remove(s.onDispose);
     for (const l of s.lights)
         l.light.dispose();
     s.lights = [];
@@ -71,34 +83,37 @@ function tick(scene, s) {
     s.lights.length = 0;
     for (const p of s.players)
         p.step(dt, throttle, s);
-    // LIGHTS: effect lights against the scene's other lights, strength × locality.
-    const eye = cam?.globalPosition ?? BABYLON.Vector3.Zero();
-    const others = scene.lights.filter((l) => !s.effectLights.has(l) &&
-        l.isEnabled() &&
-        (l instanceof BABYLON.PointLight || l instanceof BABYLON.SpotLight));
-    const candidates = [
-        ...s.lights.map((l) => ({
-            intensity: l.want,
-            range: l.range,
-            distance: BABYLON.Vector3.Distance(eye, l.light.position),
-        })),
-        ...others.map((l) => ({
-            intensity: l.intensity,
-            range: l.range,
-            distance: BABYLON.Vector3.Distance(eye, l.getAbsolutePosition()),
-        })),
-    ];
-    const won = new Set(rankLights(candidates, budget.effectLights));
-    s.lights.forEach((l, i) => {
-        const target = won.has(i) ? 1 : 0;
-        // Fade, not pop: about a sixth of a second either way.
-        l.fade +=
-            Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6);
-        l.light._effectFade = l.fade;
-        l.light.intensity = l.want * l.fade;
-        l.light.range = l.range;
-        l.light.setEnabled(l.fade > 0.01 && l.want > 0);
-    });
+    // LIGHTS: effect lights against the scene's other lights (none, no work).
+    if (s.lights.length > 0) {
+        // Strength × locality.
+        const eye = cam?.globalPosition ?? BABYLON.Vector3.Zero();
+        const others = scene.lights.filter((l) => !s.effectLights.has(l) &&
+            l.isEnabled() &&
+            (l instanceof BABYLON.PointLight || l instanceof BABYLON.SpotLight));
+        const candidates = [
+            ...s.lights.map((l) => ({
+                intensity: l.want,
+                range: l.range,
+                distance: BABYLON.Vector3.Distance(eye, l.light.position),
+            })),
+            ...others.map((l) => ({
+                intensity: l.intensity,
+                range: l.range,
+                distance: BABYLON.Vector3.Distance(eye, l.getAbsolutePosition()),
+            })),
+        ];
+        const won = new Set(rankLights(candidates, budget.effectLights));
+        s.lights.forEach((l, i) => {
+            const target = won.has(i) ? 1 : 0;
+            // Fade, not pop: about a sixth of a second either way.
+            l.fade +=
+                Math.sign(target - l.fade) * Math.min(Math.abs(target - l.fade), dt * 6);
+            l.light._effectFade = l.fade;
+            l.light.intensity = l.want * l.fade;
+            l.light.range = l.range;
+            l.light.setEnabled(l.fade > 0.01 && l.want > 0);
+        });
+    }
     // VOICES: the quietest yields.
     if (s.voices.size > budget.effectVoices) {
         const quiet = [...s.voices].sort((a, b) => a.audible - b.audible);
@@ -107,6 +122,12 @@ function tick(scene, s) {
             s.voices.delete(v);
         }
     }
+    // What a voice that yielded must beat to come back (see `sound`).
+    s.voiceRoom = budget.effectVoices - s.voices.size;
+    s.voiceFloor =
+        s.voiceRoom > 0
+            ? 0
+            : Math.min(...[...s.voices].map((v) => v.audible), Infinity);
 }
 const color4 = (hex) => BABYLON.Color4.FromHexString(hex.length === 7 ? `${hex}ff` : hex);
 export class EffectPlayer {
@@ -483,7 +504,17 @@ export class EffectPlayer {
         const l = k === 1 ? l0 : { ...l0, refDistance: (l0.refDistance ?? 10) * k };
         let voice = null;
         let prevHeard = -Infinity;
+        /*
+        YIELDED, it stays quiet. A voice the pool evicted used to be started
+        again on the next frame, as loud as before and so evicted again: a new
+        WebAudio graph (and, for a `url` voice, a fetch) every frame for every
+        voice over budget. It comes back when the pool has room, or when it
+        would now clearly outrank the quietest voice playing; switching the
+        layer off and on starts it fresh.
+        */
+        let yielded = false;
         const stopVoice = () => {
+            yielded = false;
             if (voice != null) {
                 voice.voice.stop();
                 this.shared.voices.delete(voice);
@@ -506,9 +537,19 @@ export class EffectPlayer {
                     stopVoice();
                     return;
                 }
-                if (voice != null && !this.shared.voices.has(voice))
+                if (voice != null && !this.shared.voices.has(voice)) {
                     voice = null;
+                    yielded = true;
+                }
+                const ref = l.refDistance ?? 10;
+                const audible = gain * (dist <= ref ? 1 : ref / dist);
+                if (voice == null &&
+                    yielded &&
+                    this.shared.voiceRoom <= 0 &&
+                    audible <= this.shared.voiceFloor * 1.2)
+                    return;
                 if (voice == null) {
+                    yielded = false;
                     const v = startVoice(l.voice, {
                         refDistance: l.refDistance,
                         url: l.url,
@@ -520,8 +561,7 @@ export class EffectPlayer {
                 }
                 voice.voice.place(at);
                 voice.voice.set(gain, (l.pitch ?? 1) * (s.channel.pitch ?? 1), s.channel.cutoff ?? 1, distanceCutoff(dist));
-                const ref = l.refDistance ?? 10;
-                voice.audible = gain * (dist <= ref ? 1 : ref / dist);
+                voice.audible = audible;
             },
             halt: stopVoice,
             dispose: stopVoice,

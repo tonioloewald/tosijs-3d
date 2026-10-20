@@ -155,7 +155,11 @@ export function quadDiagonals(positions, indices, maxDeg = 30) {
         const v = indices[t * 3 + c];
         return [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
     };
-    const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const sub = (a, b) => [
+        a[0] - b[0],
+        a[1] - b[1],
+        a[2] - b[2],
+    ];
     const len2 = (a) => a[0] * a[0] + a[1] * a[1] + a[2] * a[2];
     const normal = (t) => {
         const a = P(t, 0);

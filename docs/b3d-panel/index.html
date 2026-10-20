@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a8c653345b16" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
   <title>b3d-panel — tosijs-3d</title>
   <meta name="description" content="A declarative spatial-UI panel you drop into the scene as a child of &lt;tosi-b3d&gt;, instead of hard-wiring panels in code." />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-panel/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=24af9f568f95" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="b3d-panel.ts">
 <h1 id="b3d-panel">b3d-panel</h1>
 <p>A declarative spatial-UI panel you drop into the scene as a child of <code>&lt;tosi-b3d&gt;</code>,
@@ -287,7 +287,7 @@ system panel (a button on the system bar, flat and in VR). Use for HUDs, wrist m
 <tr>
 <td><code>open</code></td>
 <td><code>false</code></td>
-<td>On the system bar: open when the scene starts (and again in a headset, if it was open flat)</td>
+<td>On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, <code>el.show()</code> / <code>el.hide()</code></td>
 </tr>
 <tr>
 <td><code>chrome</code></td>
@@ -355,6 +355,35 @@ dropped yourself. The setter fires a bubbling <code>panelcontent</code> event.</
 title bar, its spot is its <code>screenAnchor</code>, so setting a new one moves an open
 panel (a column re-stacked as a panel above it grows). Once dragged it stays
 where it was put, until its button is held on the bar.</p>
+<p><strong>A game can open, close and flag one.</strong> <code>el.show()</code>, <code>el.hide()</code> and
+<code>el.toggle()</code> open and close a system panel as its button does, and
+<code>el.isOpen</code> says which it is. <code>el.attention()</code> blinks its button on the bar,
+flat and in a headset, for a moment (pass milliseconds for longer): an
+objective met while the list was closed. A <code>paneltoggle</code> event (<code>detail.open</code>)
+fires on the element whenever it opens or closes, by code or by a press, so a
+list can put itself away a while after it opened:</p>
+<pre><code class="language-javascript" data-highlighted><span class="token keyword">let</span> away
+objectives<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'paneltoggle'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token parameter">e</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token function">clearTimeout</span><span class="token punctuation">(</span>away<span class="token punctuation">)</span>
+  <span class="token keyword">if</span> <span class="token punctuation">(</span>e<span class="token punctuation">.</span>detail<span class="token punctuation">.</span>open<span class="token punctuation">)</span> away <span class="token operator">=</span> <span class="token function">setTimeout</span><span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> objectives<span class="token punctuation">.</span><span class="token function">hide</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token number">8000</span><span class="token punctuation">)</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+game<span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'objective'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> objectives<span class="token punctuation">.</span><span class="token function">attention</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+</code></pre>
+<p><strong>Who opened it matters.</strong> A panel the person opens with its button is one
+they are looking at, so the glass gamepad gets out of the way. A panel opened
+by code (<code>show()</code>, <code>open</code>) is up while they play, so the pad stays: give one
+that stays open in play a <code>screenAnchor</code> clear of the pad&#39;s controls.</p>
+<p>Every open and close is reported, and the game decides what it means. The
+scene fires <code>systempanels</code> with <code>detail.panel</code> (the one that changed),
+<code>detail.shown</code>, <code>detail.byUser</code> (opened by its button) and <code>detail.open</code> (every
+open one, <code>{ panel, byUser }</code>); <code>paneltoggle</code> on the panel carries <code>open</code> and
+<code>byUser</code>. To pause while the person has one up:</p>
+<pre><code class="language-javascript" data-highlighted>scene<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'systempanels'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token parameter">e</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  game<span class="token punctuation">.</span>paused <span class="token operator">=</span> e<span class="token punctuation">.</span>detail<span class="token punctuation">.</span>open<span class="token punctuation">.</span><span class="token function">some</span><span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token parameter">p</span><span class="token punctuation">)</span> <span class="token operator">=></span> p<span class="token punctuation">.</span>byUser<span class="token punctuation">)</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre>
+<p>A headset session starting or ending closes and reopens the shared panels;
+that is reported once, when it is over, with <code>detail.panel</code> null.</p>
 <p><strong>Clicking one from a test.</strong> The content is drawn on a texture, so nothing in
 it has a box on the page. <code>el.contentToClient(x, y)</code> says where a point of the
 content (its viewBox units) is in client pixels, through the drawn plane, so a
@@ -828,6 +857,6 @@ the content&#39;s box. Both are null unless the panel is open and flat.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-vnyrdbsw.js"></script>
+  <script type="module" src="../hydrate-dgazh53y.js"></script>
 </body>
 </html>

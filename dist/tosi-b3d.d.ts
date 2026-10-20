@@ -282,6 +282,9 @@ export declare class B3d extends Component {
         ':host .lozenge-button[hidden]': {
             display: string;
         };
+        ':host .lozenge-button[data-attention]': {
+            background: string;
+        };
         ':host .lozenge-button:not([hidden]) + .lozenge-button:not([hidden])': {
             borderLeft: string;
         };
@@ -395,6 +398,7 @@ export declare class B3d extends Component {
     get hasInputFocus(): boolean;
     /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
     takeInputFocus(): void;
+    private _freeTouchSlot;
     /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
      * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
     xrFrames: XrFrames | null;
@@ -781,6 +785,17 @@ export declare class B3d extends Component {
     /** The headset's settings panel closer, while a session has one. */
     private _closeXrSettings;
     private _toggleSystemPanel;
+    /** Is this system panel open? (`panel.isOpen`) */
+    _systemPanelOpen(el: Element): boolean;
+    /** Open or close a system panel (`panel.show()` / `hide()`). */
+    _setSystemPanel(el: Element, open: boolean): void;
+    /**
+     * Blink a system panel's button on both bars, for `ms` (`panel.attention()`):
+     * something in it changed (an objective met) while it was closed.
+     */
+    _systemAttention(el: Element, ms?: number): void;
+    private _attention;
+    private _panelToggled;
     /**
      * New content on a system panel's element: if it is open, show the new
      * content in the same place, IN PLACE: under its title bar, or (with
@@ -803,6 +818,11 @@ export declare class B3d extends Component {
         x: number;
         y: number;
     } | null;
+    /**
+     * `byUser`: opened by its button (the person asked to look at it), not by
+     * code. That decides whether the glass pad stands aside and whether
+     * `systempanels` counts it (#3436).
+     */
     private _openSystemPanel;
     /** Where each system panel was dragged to, flat. */
     private _systemSpots;
@@ -1210,6 +1230,7 @@ export declare class B3d extends Component {
     private _scenePanelOpen;
     private _disposeFlatScenePanel;
     private _syncGamepadCover;
+    private _holdPanelEvents;
     private _openFlatScenePanel;
     /** The flat settings panel's popups go on their own surface in front of it. */
     private _attachFlatLayer;

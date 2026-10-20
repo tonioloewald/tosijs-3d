@@ -703,7 +703,7 @@ b3d-panel
   resolution  = 0  — Texture size in px (square); `0` = 384. Raise it for a menu with text
   layer  = 'world'  — `'ui'`: drawn over the whole world and pressed first, never hidden by a nearer wall (what was a page overlay); `'modal'`: over even the ui (pause, a dialog). `'world'`: in the scene like anything else. The same in a headset: the controller's ray picks modal, then ui, then the world
   exclusive  = 'on'  — On the system bar: one system panel is open at a time. `'off'` lets this one stay open beside the others and leaves them open when it opens (an app's main chrome: a tool palette, a properties panel). The settings panel and exclusive panels still close each other
-  open  = false  — On the system bar: open when the scene starts (and again in a headset, if it was open flat)
+  open  = false  — On the system bar: open when the scene starts (and again in a headset, if it was open flat). To open or close it later, `el.show()` / `el.hide()`
 
 ## b3d-particles — <tosi-b3d-particles>
 b3d-particles

@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="doc-system.css?v=a8c653345b16" data-tosi-doc-system />
+  <link rel="stylesheet" href="doc-system.css?v=060314d12b8f" data-tosi-doc-system />
   <title>tosijs-3d</title>
   <meta name="description" content="Tosijs-3d is a library for building 3D web apps — and standalone apps, if that is what you want. Under the hood it uses Babylon.js for rendering, glTF/GLB for…" />
   <link rel="canonical" href="https://3d.tosijs.net/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="docs.json?v=24af9f568f95" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="README.md">
 <h1 id="tosijs-3d">tosijs-3d</h1>
 <p><a href="https://github.com/tonioloewald/tosijs-3d/">github</a> | <a href="https://3d.tosijs.net">live demo</a> | <a href="https://www.npmjs.com/package/tosijs-3d">npm</a></p>
@@ -137,7 +137,22 @@ from seafloor to mountain, a floating origin so worlds can be large, and
 <a href="https://3d.tosijs.net/sdf-lattice/">carved landforms</a> — volcanoes with lava
 tubes bored through them, arches, caverns.</p>
 <p><strong>Biped control</strong> — a <a href="https://3d.tosijs.net/b3d-biped/">character controller</a>
-with an animation state machine and follow/XR cameras, from a GLB.</p>
+with an animation state machine and follow/XR cameras, from a GLB: walk, run
+and sprint, jump, swim, climb ledges.</p>
+<p><strong>Any character on one animation library</strong> — <a href="https://3d.tosijs.net/retarget/">retargeting</a>
+plays the Universal Animation Library&#39;s clips on a Mixamo, Kenney or
+Blender-named rig, A-pose or T-pose. A mesh with no skeleton at all is
+<a href="https://3d.tosijs.net/rig-build/">auto-rigged</a> from eight markers, fingers and
+tail found from its shape and bound by bone heat. Hair, tails and capes hang on
+<a href="https://3d.tosijs.net/spring-chain-babylon/">spring bones</a>. The
+<a href="https://3d.tosijs.net/rig-tool/">rig tool</a> does it in the browser and saves a
+recipe a game applies in one call, and an editor can mount it in its own scene.</p>
+<p><strong>Effects as data</strong> — an <a href="https://3d.tosijs.net/b3d-effect/">effect</a> is
+particles, light and sound as layers on one clock, with one <code>activity</code> dial (a
+volcano dormant, semi-active or erupting is one recipe). Presets for
+volcanoes, geysers, explosions, fireballs, splashes and sparks; sprites and
+sounds generated, no files. The <a href="https://3d.tosijs.net/effect-tool/">effect tool</a>
+edits them live.</p>
 <p><strong>Aircraft control</strong> — a <a href="https://3d.tosijs.net/b3d-aircraft/">forgiving flight model</a>
 that flies like a drone below transition speed and like a plane above it, with
 VTOL, bank-to-turn, a HUD and radar.</p>
@@ -643,6 +658,6 @@ bun <span class="token builtin class-name">test</span>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="hydrate-vnyrdbsw.js"></script>
+  <script type="module" src="hydrate-dgazh53y.js"></script>
 </body>
 </html>

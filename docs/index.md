@@ -129,7 +129,24 @@ from seafloor to mountain, a floating origin so worlds can be large, and
 tubes bored through them, arches, caverns.
 
 **Biped control** — a [character controller](https://3d.tosijs.net/b3d-biped/)
-with an animation state machine and follow/XR cameras, from a GLB.
+with an animation state machine and follow/XR cameras, from a GLB: walk, run
+and sprint, jump, swim, climb ledges.
+
+**Any character on one animation library** — [retargeting](https://3d.tosijs.net/retarget/)
+plays the Universal Animation Library's clips on a Mixamo, Kenney or
+Blender-named rig, A-pose or T-pose. A mesh with no skeleton at all is
+[auto-rigged](https://3d.tosijs.net/rig-build/) from eight markers, fingers and
+tail found from its shape and bound by bone heat. Hair, tails and capes hang on
+[spring bones](https://3d.tosijs.net/spring-chain-babylon/). The
+[rig tool](https://3d.tosijs.net/rig-tool/) does it in the browser and saves a
+recipe a game applies in one call, and an editor can mount it in its own scene.
+
+**Effects as data** — an [effect](https://3d.tosijs.net/b3d-effect/) is
+particles, light and sound as layers on one clock, with one `activity` dial (a
+volcano dormant, semi-active or erupting is one recipe). Presets for
+volcanoes, geysers, explosions, fireballs, splashes and sparks; sprites and
+sounds generated, no files. The [effect tool](https://3d.tosijs.net/effect-tool/)
+edits them live.
 
 **Aircraft control** — a [forgiving flight model](https://3d.tosijs.net/b3d-aircraft/)
 that flies like a drone below transition speed and like a plane above it, with

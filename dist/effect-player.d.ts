@@ -33,7 +33,12 @@ interface SceneEffects {
         voice: Voice;
         audible: number;
     }>;
+    /** Voices the pool can still take, and the quietest one in it when full. */
+    voiceRoom: number;
+    voiceFloor: number;
     observer: BABYLON.Observer<BABYLON.Scene>;
+    /** Forgets the pool when the scene goes (removed when the pool goes first). */
+    onDispose: BABYLON.Observer<BABYLON.Scene> | null;
     effectLights: Set<BABYLON.Light>;
 }
 export declare class EffectPlayer {

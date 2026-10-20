@@ -80,6 +80,19 @@ export declare class B3dPanel extends Component {
     get screenAnchor(): ScreenAnchor | null;
     set screenAnchor(next: ScreenAnchor | null);
     private _screenAnchor;
+    /** Is it open now (a system panel)? */
+    get isOpen(): boolean;
+    /** Open it (a system panel). Before the scene is up, it opens at start. */
+    show(): void;
+    /** Close it (a system panel). */
+    hide(): void;
+    /** Open it if closed, close it if open. */
+    toggle(): void;
+    /**
+     * Blink its button on the system bar, flat and in a headset, for `ms`
+     * (default 1600): something in it changed that is worth a look.
+     */
+    attention(ms?: number): void;
     /** The scene this panel is on, if it shows system panels. */
     private _host;
     /**

@@ -24,9 +24,11 @@ does nothing until a dot has been chosen, and only the first one counts, so
 orbiting on a phone cannot reassign a bone. Set `clicking sets` to the chain
 and that tap hangs the chosen spring chain there instead. A
 strand's path is a row of orange handles: drag them along the tail or the
-ponytail, `+ point` for another one beyond the tip. `view` snaps to front,
-side or top, which is how you line a point up with the flesh. Turn on
-`animate` (or pick a clip) to see it move.
+ponytail, `+ point` for another one beyond the tip. `view` snaps to a
+face (front, back, left, right, top, bottom), which is how you line a point
+up with the flesh, and stands it still; `free` orbits and plays the clip.
+Turn on `animate` (or pick a clip) to see it move. In a headset you are the
+camera, so the view only switches between still and playing.
 
 The panel has four sections.
 
@@ -110,6 +112,7 @@ tool.unmount() // everything it added goes; safe to call twice
 import * as BABYLON from '@babylonjs/core';
 import { b3d } from './tosi-b3d.js';
 import { b3dLight } from './b3d-light.js';
+import { b3dSun } from './b3d-shadows.js';
 import { assetUrl } from './asset-url.js';
 import { button3d, label3d, panel3d, row3d, select3d, slider3d, toggle3d, } from './widgets3d.js';
 import { vector3d } from './vector-field.js';
@@ -719,7 +722,9 @@ export function mountRigTool(owner, options = {}) {
         if (files)
             w.push(button3d({
                 label: 'save',
-                handleClick: () => download(`${ui.model.replace(/\.[^.]*$/, '').replace(/\W+/g, '-')}.rig.json`, JSON.stringify(recipe, null, 2)),
+                handleClick: () => download(`${ui.model
+                    .replace(/\.[^.]*$/, '')
+                    .replace(/\W+/g, '-')}.rig.json`, JSON.stringify(recipe, null, 2)),
             }), button3d({
                 label: 'load',
                 handleClick: () => void chooseFile('.json').then(async (f) => {
@@ -928,11 +933,11 @@ export function mountRigTool(owner, options = {}) {
     const ready = (async () => {
         const scene = owner.scene;
         /*
-        THE CAMERA. A host's (its author's view) is driven and, on unmount,
-        put back exactly as found: angles, distance, target, projection and
-        the limits the held views pin. Otherwise the tool brings its own and
-        hands the host's active camera back when it goes.
-        */
+            THE CAMERA. A host's (its author's view) is driven and, on unmount,
+            put back exactly as found: angles, distance, target, projection and
+            the limits the held views pin. Otherwise the tool brings its own and
+            hands the host's active camera back when it goes.
+            */
         let cam;
         if (options.camera != null) {
             cam = options.camera;
@@ -986,11 +991,11 @@ export function mountRigTool(owner, options = {}) {
             });
         }
         /*
-        THE BRDF LOOKUP. The first PBR material in a scene (the mannequin's)
-        makes a texture the scene keeps for every later one. Made by us and
-        needed by nothing once we go, it goes with us; a host's PBR material
-        keeps it.
-        */
+            THE BRDF LOOKUP. The first PBR material in a scene (the mannequin's)
+            makes a texture the scene keeps for every later one. Made by us and
+            needed by nothing once we go, it goes with us; a host's PBR material
+            keeps it.
+            */
         const brdfBefore = scene.environmentBRDFTexture;
         const releaseBrdf = () => {
             const t = scene.environmentBRDFTexture;
@@ -1006,7 +1011,8 @@ export function mountRigTool(owner, options = {}) {
         // lights it).
         let ualStand = null;
         if (options.stage !== false) {
-            const stage = inspectStage(scene);
+            // Standalone the scene has a sun (it casts the shadows): no key light.
+            const stage = inspectStage(scene, { light: hosted });
             cleanups.push(() => stage.dispose());
         }
         // The clips' source, beside the character when comparing.
@@ -1029,10 +1035,10 @@ export function mountRigTool(owner, options = {}) {
         ualRoot.parent = ualStand;
         ualStand.setEnabled(ui.compare);
         /*
-        A GHOST beside the character: there to compare, not to look at. The
-        glTF loader marks its materials opaque, which `visibility` alone
-        cannot override, so they are told to blend.
-        */
+            A GHOST beside the character: there to compare, not to look at. The
+            glTF loader marks its materials opaque, which `visibility` alone
+            cannot override, so they are told to blend.
+            */
         for (const m of ual.meshes)
             if (m.getTotalVertices() > 0)
                 m.visibility = 0.35;
@@ -1044,22 +1050,42 @@ export function mountRigTool(owner, options = {}) {
             .map((g) => g.name)
             .sort((a, b) => loop(a) - loop(b) || a.localeCompare(b));
         const stand = new BABYLON.TransformNode('rig-stand', scene);
+        /*
+    
+        SHADOWS from the scene's sun (the standalone page declares one, as the
+    
+        playground does; a generator made later drew nothing, #3420). A mesh is
+    
+        handed to its generator directly rather than registered, since a
+    
+        registration is never undone; Babylon takes a disposed mesh out of every
+    
+        shadow map itself.
+    
+        */
+        const castShadows = (mesh) => {
+            if (hosted)
+                return;
+            const sun = owner.querySelector?.('tosi-b3d-sun');
+            sun?.shadowGenerator?.addShadowCaster(mesh);
+            mesh.receiveShadows = true;
+        };
         cleanups.push(() => stand.dispose());
         let height = 1.8;
         const UAL_HEIGHT = 1.83;
         /*
-        HELD VIEWS (Tonio: snap to overhead, front and side; then: an
-        orthographic camera with fixed views while it stands still, since a
-        drag that orbits cannot also move a handle). `inspectView` holds the
-        camera to a face, orthographic, and the camera on the system bar
-        picks which; seams are drawn on the model while it does.
-        */
+            HELD VIEWS (Tonio: snap to overhead, front and side; then: an
+            orthographic camera with fixed views while it stands still, since a
+            drag that orbits cannot also move a handle). `inspectView` holds the
+            camera to a face, orthographic, and the camera on the system bar
+            picks which; seams are drawn on the model while it does.
+            */
         let restFace = 'front';
         /*
-        THE VIEW IS THE POSE (Tonio: "it animates in perspective view and not
-        in the orthographic views"): a face stands it at rest, perspective
-        plays the clip, and the animate toggle moves the view the other way.
-        */
+            THE VIEW IS THE POSE (Tonio: "it animates in perspective view and not
+            in the orthographic views"): a face stands it at rest, perspective
+            plays the clip, and the animate toggle moves the view the other way.
+            */
         const inspect = inspectView(cam, {
             handleChange: (f) => {
                 // Unmounting lets go of the view: nothing more to play.
@@ -1081,7 +1107,9 @@ export function mountRigTool(owner, options = {}) {
             },
         });
         cleanups.push(() => inspect.dispose());
-        const menu = viewMenu(inspect, owner, { always: true });
+        const menu = viewMenu(inspect, owner, {
+            always: true,
+        });
         cleanups.push(() => menu.dispose());
         let seamed = [];
         /** The model's polygons drawn over a flat fill, while a face is held. */
@@ -1099,11 +1127,11 @@ export function mountRigTool(owner, options = {}) {
             inspect.face = v;
         }
         /*
-        FRAMING: the mannequin is scaled to the character's height and stands
-        on its left (the screen's right), and the camera looks a little left
-        of them both so the panel does not cover them. The radius is the zoom
-        in a held view too (it sizes the orthographic box).
-        */
+            FRAMING: the mannequin is scaled to the character's height and stands
+            on its left (the screen's right), and the camera looks a little left
+            of them both so the panel does not cover them. The radius is the zoom
+            in a held view too (it sizes the orthographic box).
+            */
         const frame = () => {
             // Arms out at rest need more room than arms down.
             const gap = height * (ui.pose === 'rest' ? 1.1 : 0.6);
@@ -1215,12 +1243,12 @@ export function mountRigTool(owner, options = {}) {
             play();
         };
         /*
-        THE TARGETS, in the rest pose: a dot on each role's bone (drawn over
-        the body, so the hidden ones show), the chosen role's bigger and
-        yellow; a strand's path points as handles you drag (its links marked
-        along it when it is the chosen one); a bone chain's
-        first bone in blue. Nothing in the animated view.
-        */
+            THE TARGETS, in the rest pose: a dot on each role's bone (drawn over
+            the body, so the hidden ones show), the chosen role's bigger and
+            yellow; a strand's path points as handles you drag (its links marked
+            along it when it is the chosen one); a bone chain's
+            first bone in blue. Nothing in the animated view.
+            */
         scene.setRenderingAutoClearDepthStencil(1, true, true, false);
         cleanups.push(() => scene.setRenderingAutoClearDepthStencil(1, true, true, true));
         const dotMat = (name, hex) => {
@@ -1297,11 +1325,11 @@ export function mountRigTool(owner, options = {}) {
             });
         }
         /*
-        DRAGGING A STRAND'S END, on the canvas's own pointer events: Babylon's
-        PointerDragBehavior was ended mid-drag by its click detection (a
-        delayed pointer-up while the button was still down). The handle moves
-        on a plane facing the camera; let go and the strand is rebuilt there.
-        */
+            DRAGGING A STRAND'S END, on the canvas's own pointer events: Babylon's
+            PointerDragBehavior was ended mid-drag by its click detection (a
+            delayed pointer-up while the button was still down). The handle moves
+            on a plane facing the camera; let go and the strand is rebuilt there.
+            */
         const canvas = scene.getEngine().getRenderingCanvas();
         // CSS pixels from the canvas corner: what scene.pick and
         // createPickingRay take (they apply the hardware scaling).
@@ -1310,11 +1338,11 @@ export function mountRigTool(owner, options = {}) {
             return { x: e.clientX - r.left, y: e.clientY - r.top };
         };
         /*
-        After Babylon's own listener (this one is added later, and not in
-        the capture phase): a panel has claimed its presses by then, and
-        those are the panel's. Taking a handle stops the camera for the
-        drag, as Babylon's drag behaviour does.
-        */
+            After Babylon's own listener (this one is added later, and not in
+            the capture phase): a panel has claimed its presses by then, and
+            those are the panel's. Taking a handle stops the camera for the
+            drag, as Babylon's drag behaviour does.
+            */
         const onPointerDown = (e) => {
             if (ui.pose !== 'rest' || e.button !== 0 || applied == null)
                 return;
@@ -1397,8 +1425,7 @@ export function mountRigTool(owner, options = {}) {
                 for (const b of ends) {
                     const ab = b.subtract(a);
                     const t = ab.lengthSquared() > 1e-12
-                        ? Math.max(0, Math.min(1, BABYLON.Vector3.Dot(p.subtract(a), ab) /
-                            ab.lengthSquared()))
+                        ? Math.max(0, Math.min(1, BABYLON.Vector3.Dot(p.subtract(a), ab) / ab.lengthSquared()))
                         : 0;
                     const dist = BABYLON.Vector3.Distance(p, a.add(ab.scale(t)));
                     if (dist < bestD) {
@@ -1531,6 +1558,10 @@ export function mountRigTool(owner, options = {}) {
                     n.computeWorldMatrix?.(true);
                 const box = root.getHierarchyBoundingVectors(true, (n) => n.isEnabled() && n.skeleton != null);
                 height = Math.max(0.2, box.max.y - box.min.y);
+                // The scene's sun shadows it (standalone; a host's lighting is its own).
+                for (const mesh of root.getChildMeshes(false))
+                    if (mesh.getTotalVertices() > 0)
+                        castShadows(mesh);
                 frame();
                 rebuild(true);
                 inspect.face = ui.view;
@@ -1657,8 +1688,16 @@ export function rigTool(options = {}) {
             owner.refreshScenePanel?.();
         },
     }, 
-    // Fill: the stage's key light does the shaping.
-    b3dLight({ intensity: 0.55 }));
+    // Fill; the sun does the shaping and casts the shadows.
+    b3dLight({ intensity: 0.55 }), b3dSun({
+        x: -0.35,
+        y: -1,
+        z: -0.45,
+        intensity: 0.7,
+        shadowMaxZ: 20,
+        activeDistance: 20,
+        shadowDarkness: 0.35,
+    }));
     return el;
 }
 //# sourceMappingURL=rig-tool.js.map

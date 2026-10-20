@@ -23,8 +23,20 @@ export function effectAudio() {
             if (C == null)
                 return null;
             ctx = new C();
+            // A hidden tab draws no frames, so nothing would ever fade a voice
+            // out: it would hold its last sound for as long as the tab is away.
+            const doc = globalThis.document;
+            doc?.addEventListener('visibilitychange', () => {
+                if (ctx == null)
+                    return;
+                if (doc.hidden)
+                    void ctx.suspend();
+                else
+                    void ctx.resume();
+            });
         }
-        if (ctx.state === 'suspended')
+        const hidden = globalThis.document?.hidden === true;
+        if (ctx.state === 'suspended' && !hidden)
             void ctx.resume();
         return ctx.state === 'running' ? ctx : null;
     }

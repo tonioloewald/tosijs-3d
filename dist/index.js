@@ -57,7 +57,7 @@ export { B3dHud, b3dHud } from './b3d-hud.js';
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader.js';
 export { B3dLibrary, b3dLibrary } from './b3d-library.js';
-export { B3dSun, b3dSun } from './b3d-shadows.js';
+export { B3dSun, b3dSun, cascadesFollowCamera } from './b3d-shadows.js';
 export { B3dReflections, b3dReflections } from './b3d-reflections.js';
 export { B3dSkybox, b3dSkybox } from './b3d-skybox.js';
 export { B3dWater, b3dWater } from './b3d-water.js';
@@ -109,7 +109,7 @@ export { B3dGamepad, b3dGamepad, parseGamepadControls, } from './glass-gamepad.j
 export { XrGamepadSource } from './xr-gamepad.js';
 // XR reference frames & spatial UI
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
-export { attachFramePanel, panelLayerScene, pickPanelLayers, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
+export { attachFramePanel, panelLayerScene, pickPanelLayers, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, viewSpanAt, } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { barMenu, viewMenu, } from './bar-menu.js';
 export { B3dMoon, b3dMoon } from './b3d-moon.js';
@@ -448,7 +448,7 @@ export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64Of
 // The orbit camera's view controls: orbit, pan (shift-drag, trackpad, two fingers), zoom (#52).
 export { touchOrbit } from './touch-orbit.js';
 export { inspectView, inspectStage, seamOverlay, INSPECT_FACES, } from './inspect-view.js';
-export { seamMaterial, withBarycentrics, SeamPlugin, BARY_KIND, } from './seam-material.js';
+export { seamMaterial, withBarycentrics, quadDiagonals, SeamPlugin, BARY_KIND, } from './seam-material.js';
 export { twoFingerGesture, wheelClassifier, } from './touch-gesture.js';
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js';
 export { debugSink, sendDebug } from './debug-sink.js';
@@ -457,7 +457,7 @@ export { noiseVolume, sampleNoiseVolume } from './noise-volume.js';
 export { CLIMATE_CELLS, climateLattice, climateNoise, climateOctave, } from './climate-noise.js';
 export { humanoidRoles, retargeter, rotationBetween, ROLES, FINGERS, } from './retarget.js';
 export { readSkeleton, retargetClip, retargetClips, } from './retarget-babylon.js';
-export { RIG_RECIPE_VERSION, rigRecipeSchema, STRAND_DEFAULTS, strandDirection, validateRigRecipe, } from './rig-recipe.js';
+export { RIG_RECIPE_VERSION, rigRecipeSchema, STRAND_DEFAULTS, strandDirection, strandPoints, strandPath, setStrandPath, pathLength, validateRigRecipe, } from './rig-recipe.js';
 export { applyRigRecipe } from './rig-recipe-babylon.js';
 export { fitSkeleton, fittedRestBones, meshQuery, objTriangles, skinSegments, MARKER_NAMES, rigSilhouette, guessMarkers, } from './rig-fit.js';
 export { markerField3d, MARKER_LABELS } from './rig-markers.js';

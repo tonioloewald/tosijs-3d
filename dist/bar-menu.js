@@ -79,7 +79,14 @@ export function barMenu(config) {
                     ? 'rgba(74,158,255,0.55)'
                     : 'rgba(255,255,255,0)',
             }), ...(on
-                ? [iconGlyph('check', { color: '#e8eef8', size: 18, x: 14, y: y + 9 })]
+                ? [
+                    iconGlyph('check', {
+                        color: '#e8eef8',
+                        size: 18,
+                        x: 14,
+                        y: y + 9,
+                    }),
+                ]
                 : []), text({
                 x: 40,
                 y: y + ROW / 2 + 6,

@@ -50,6 +50,11 @@ const GAP = BAR_GAP;
 const PAD = BAR_PAD;
 /** How long a press is held before it is a `systemhold` instead of a click (ms). */
 export const HOLD_MS = 600;
+/**
+ * A button asking to be looked at: its `data-attention` attribute (the scene
+ * blinks it for `panel.attention()`), drawn in this fill on both bars.
+ */
+export const ATTENTION_FILL = 'rgba(255,190,60,0.8)';
 /** Mirror `buttons` as an SVG toolbar: what shows, what is enabled, and a press is their click. */
 export function systemBar(buttons) {
     const { svg, g, rect, title } = svgElements;
@@ -112,7 +117,11 @@ export function systemBar(buttons) {
                 width: SIZE,
                 height: SIZE,
                 rx: SIZE / 2,
-                fill: lit ? 'rgba(74,158,255,0.55)' : 'rgba(255,255,255,0.06)',
+                fill: b.hasAttribute('data-attention')
+                    ? ATTENTION_FILL
+                    : lit
+                        ? 'rgba(74,158,255,0.55)'
+                        : 'rgba(255,255,255,0.06)',
             }), ...(icon ? [icon] : [])));
         });
     };
@@ -176,6 +185,7 @@ export function systemBar(buttons) {
                 'style',
                 'class',
                 'part',
+                'data-attention',
             ],
             childList: true,
         });

@@ -18,8 +18,9 @@ Tap the scene once so the browser lets it make sound.
 
 - **Effect**: the preset, `play` (a one-shot plays again), `stop`, the
   `activity` dial (a volcano: dormant, semi-active, erupting), `mute`, and
-  `listen from`: how far away you are. Sound travels at 343 m/s, so at
-  300 m an explosion's boom comes almost a second after its flash. `time of
+  `listen from`: how far away you are (in a headset the effect moves away
+  from you instead). Sound travels at 343 m/s, so at 300 m an explosion's
+  boom comes almost a second after its flash. `time of
   day` shows the lights at night.
 - **Layers**: choose one and change it. Particles: how many, how long they
   live, how fast and big, gravity, wind, height, the first and last colour.

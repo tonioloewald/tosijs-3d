@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
+export declare function cascadesFollowCamera(gen: BABYLON.CascadedShadowGenerator, shadowMaxZ: () => number): void;
 export declare class B3dSun extends B3dChild {
     static preferredTagName: string;
     static initAttributes: {

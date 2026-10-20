@@ -14,7 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=a8c653345b16" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=060314d12b8f" data-tosi-doc-system />
   <title>Migration — tosijs-3d</title>
   <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
   <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
@@ -30,7 +30,7 @@
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
-  <tosi-doc-system docs="../docs.json?v=24af9f568f95" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
+  <tosi-doc-system docs="../docs.json?v=e9f6966606af" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;,&quot;bookVolumes&quot;:&quot;/epub-volumes.json&quot;,&quot;ebooks&quot;:[{&quot;title&quot;:&quot;tosijs-3d&quot;,&quot;url&quot;:&quot;/tosijs-3d.epub&quot;}]}">
   <article class="doc-content" data-doc="Migration.md">
 <h1 id="migration">Migration</h1>
 <!--{ "parent": "reference", "order": 10 }-->
@@ -40,6 +40,29 @@ else is additive. The full detail for each is in <a href="https://3d.tosijs.net/
 <p>This file ships <strong>inside the package</strong>, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.</p>
+<h2 id="010x--0110">0.10.x → 0.11.0</h2>
+<p>Nothing was removed, and the peer ranges are unchanged. 0.11 collects the
+0.10.x line&#39;s new features (retargeting, auto-rig, spring bones, effects, the
+rig and effect tools); see the CHANGELOG&#39;s 0.11.0 summary. A few behaviours
+changed that you may see without touching your code:</p>
+<ol>
+<li><strong>Retargeting no longer lines up the body&#39;s axis.</strong> The hips, spine, chest,
+neck and head now take the clip&#39;s turn as it is; only limbs are lined up
+with the source&#39;s rest pose. A character whose neck or torso leans at rest
+(a weasel&#39;s neck forward to its snout) keeps that lean in every clip
+instead of being pulled upright, which tipped its head back by about 14°.
+Nothing to do, unless you had corrected for the old tilt in your own code.</li>
+<li><strong>A biped sprints.</strong> Near full speed it plays the rig&#39;s <code>sprint</code> state
+(UAL&#39;s <code>Sprint_Loop</code>, already in <code>ualAnimationStates()</code>) instead of the
+jog sped up. A rig with no sprint clip jogs as before. To keep the jog,
+leave <code>sprint</code> out of your animation states.</li>
+<li><strong>Effects release their shared parts with the last player.</strong> The per-scene
+driver observer, pooled lights and sprite textures go when a scene&#39;s last
+<code>EffectPlayer</code> is disposed, and are made again by the next effect. Code that
+held on to a sprite texture from <code>effectSprite()</code> past that point holds a
+disposed texture.</li>
+<li><strong><code>InspectStage.light</code> can be null</strong> (new in 0.10.19): <code>inspectStage(scene, { light: false })</code> adds no key light, for a scene with a sun of its own.</li>
+</ol>
 <h2 id="090--0100">0.9.0 → 0.10.0</h2>
 <h3 id="1-the-deprecated-callback-names-are-gone-onx--handlex">1. The deprecated callback names are gone: <code>onX</code> → <code>handleX</code></h3>
 <p><strong>What changed.</strong> The <code>onX</code> callback options were deprecated in 0.8.0 and kept
@@ -978,6 +1001,6 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate-vnyrdbsw.js"></script>
+  <script type="module" src="../hydrate-dgazh53y.js"></script>
 </body>
 </html>

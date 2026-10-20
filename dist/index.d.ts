@@ -32,7 +32,7 @@ export type { HudController, HudControllerOptions, MeterName, TraceKind, HudTrac
 export { B3dHud, b3dHud } from './b3d-hud.js';
 export { B3dLoader, b3dLoader } from './b3d-loader.js';
 export { B3dLibrary, b3dLibrary } from './b3d-library.js';
-export { B3dSun, b3dSun } from './b3d-shadows.js';
+export { B3dSun, b3dSun, cascadesFollowCamera } from './b3d-shadows.js';
 export { B3dReflections, b3dReflections } from './b3d-reflections.js';
 export { B3dSkybox, b3dSkybox } from './b3d-skybox.js';
 export { B3dWater, b3dWater } from './b3d-water.js';
@@ -80,7 +80,7 @@ export { XrGamepadSource } from './xr-gamepad.js';
 export type { ClusterConfig, ClusterAnchor } from './glass-gamepad.js';
 export { XrFrames, EntityFrame, angleDelta, dampYaw, facingYaw, gazeReveal, } from './xr-frames.js';
 export type { FrameName, XrFramesOptions } from './xr-frames.js';
-export { attachFramePanel, panelLayerScene, pickPanelLayers, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, } from './frame-panel.js';
+export { attachFramePanel, panelLayerScene, pickPanelLayers, placeholderPanelSvg, opacityWeightedGlow, excludeFromGlow, viewSpanAt, } from './frame-panel.js';
 export type { FramePanelSpec, AnchorSpec, AnchorPreset, ScreenAnchor, ScreenLength, PanelLayer, } from './frame-panel.js';
 export { B3dPanel, b3dPanel } from './b3d-panel.js';
 export { barMenu, viewMenu, type BarMenu, type BarMenuConfig, type BarMenuOption, type ViewMenuOptions, } from './bar-menu.js';
@@ -392,7 +392,7 @@ export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64Of
 export type { EmbeddedFont } from './embed-font.js';
 export { touchOrbit } from './touch-orbit.js';
 export { inspectView, inspectStage, seamOverlay, INSPECT_FACES, type InspectFace, type InspectView, type InspectViewOptions, type InspectStage, type InspectStageOptions, } from './inspect-view.js';
-export { seamMaterial, withBarycentrics, SeamPlugin, BARY_KIND, type SeamMaterialOptions, } from './seam-material.js';
+export { seamMaterial, withBarycentrics, quadDiagonals, SeamPlugin, BARY_KIND, type SeamMaterialOptions, } from './seam-material.js';
 export { twoFingerGesture, wheelClassifier, type WheelKind, type WheelSample, type TwoFingerGesture, type TwoFingerStep, type TouchPoint, } from './touch-gesture.js';
 export { costSweep, formatSweep, formatRuns, recordRun } from './cost-sweep.js';
 export { debugSink, sendDebug } from './debug-sink.js';
@@ -404,7 +404,7 @@ export { humanoidRoles, retargeter, rotationBetween, ROLES, FINGERS, } from './r
 export type { Role, Side as RetargetSide, Limb, Finger, FingerJoint, NamedBone, RestBone, Skeleton as RetargetSkeleton, Retargeter, RetargetOptions, } from './retarget.js';
 export { readSkeleton, retargetClip, retargetClips, } from './retarget-babylon.js';
 export type { ReadSkeleton } from './retarget-babylon.js';
-export { RIG_RECIPE_VERSION, rigRecipeSchema, STRAND_DEFAULTS, strandDirection, validateRigRecipe, } from './rig-recipe.js';
+export { RIG_RECIPE_VERSION, rigRecipeSchema, STRAND_DEFAULTS, strandDirection, strandPoints, strandPath, setStrandPath, pathLength, validateRigRecipe, } from './rig-recipe.js';
 export type { RigRecipe, SpringRecipe, BoneSpringRecipe, StrandSpringRecipe, ColliderRecipe, SpringParamsRecipe, } from './rig-recipe.js';
 export { applyRigRecipe } from './rig-recipe-babylon.js';
 export type { AppliedRig, AppliedSpring } from './rig-recipe-babylon.js';

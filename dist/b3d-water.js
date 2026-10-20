@@ -88,6 +88,7 @@ document.body.append(
 /*{ "parent": "water", "order": 10 }*/
 import { plane as mediumPlane } from './medium.js';
 import * as BABYLON from '@babylonjs/core';
+import { sendDebug } from './debug-sink.js';
 import { headsetDevice, resolveBudget } from './b3d-quality.js';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
@@ -331,6 +332,49 @@ export class B3dWater extends AbstractMesh {
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
+        /*
+        WATER THAT FAILS SAYS SO (#3335: on a first visit the water was
+        sometimes missing until a reload, and nothing said why). A while after
+        the scene is up, a surface that is not in the scene or not ready to draw
+        posts what it found to the debug sink, so the next sighting is read rather
+        than guessed at.
+        */
+        if (this._readyCheck != null)
+            clearTimeout(this._readyCheck);
+        const firstFrame = scene.getEngine().frameId;
+        this._readyCheck = setTimeout(() => {
+            this._readyCheck = null;
+            // A hidden or throttled tab draws nothing, so nothing in it is ready:
+            // not a failure, and not worth a report.
+            if (typeof document !== 'undefined' &&
+                document.visibilityState !== 'visible')
+                return;
+            const mesh = this.mesh;
+            const mat = mesh?.material ?? null;
+            const effect = mesh?.subMeshes?.[0]?.effect ?? null;
+            const report = {
+                mesh: mesh != null,
+                disposed: mesh?.isDisposed() ?? null,
+                inScene: mesh != null && scene.meshes.includes(mesh),
+                enabled: mesh?.isEnabled() ?? null,
+                visible: mesh?.isVisible ?? null,
+                meshReady: mesh?.isReady(true) ?? null,
+                material: mat?.getClassName() ?? null,
+                materialReady: mesh != null && mat != null
+                    ? mat.isReady(mesh)
+                    : null,
+                compileError: effect?.getCompilationError?.() || null,
+                framesDrawn: scene.getEngine().frameId - firstFrame,
+                xr: owner.xrActive === true,
+            };
+            if (!report.mesh ||
+                report.disposed ||
+                !report.inScene ||
+                !report.meshReady ||
+                report.materialReady === false ||
+                report.compileError)
+                sendDebug('water-not-ready', report);
+        }, 8000);
         // `shore` asked for and not given must say so: the water is otherwise
         // simply plain, with no surf, no ice and nothing to explain it.
         // Patched for every water, not only a shore: the patch is also where the
@@ -1035,6 +1079,8 @@ export class B3dWater extends AbstractMesh {
         ceiling.material = mat;
         return ceiling;
     }
+    /** The check that reports a water still not ready a while after the scene is up. */
+    _readyCheck = null;
     _refreshObserver = null;
     /*
     CLOUD SHADOWS ON THE SURFACE. WaterMaterial builds its effect from a fixed
@@ -1086,6 +1132,9 @@ export class B3dWater extends AbstractMesh {
         });
     }
     sceneDispose() {
+        if (this._readyCheck != null)
+            clearTimeout(this._readyCheck);
+        this._readyCheck = null;
         if (this._refreshObserver != null)
             this.owner?.scene?.onBeforeRenderObservable.remove(this._refreshObserver);
         this._refreshObserver = null;
